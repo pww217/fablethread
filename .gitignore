@@ -1,0 +1,28 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+
+# Logs
+logs/
+logs/.gitkeep
+
+# Saves (player data)
+saves/
+saves/.gitkeep
+
+# Generated CSS
+ccya/static/app.css
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store

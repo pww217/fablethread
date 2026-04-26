@@ -1,0 +1,4 @@
+## Player Character
+**{{ state.pc.name or "Unnamed" }}** — {{ state.pc.concept or "No concept set." }}
+Stats: {% for k, v in (state.pc.stats or {}).items() %}{{ k }}={{ v }} {% endfor %}
+Conditions: {% if (state.pc.conditions or []) %}{{ state.pc.conditions | join(", ") }}{% else %}None.{% endif %}

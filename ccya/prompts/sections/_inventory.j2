@@ -1,0 +1,5 @@
+## Inventory
+{% if (state.inventory or []) %}{% for item in state.inventory %}
+- **{{ item.get("name", item.get("id", "?")) }}**: {{ item.get("notes", "") }}{% endfor %}
+{% else %}
+Nothing of note.{% endif %}

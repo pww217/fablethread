@@ -1,0 +1,69 @@
+<div class="space-y-3">
+    <!-- Meta -->
+    <div>
+        <h3 class="font-bold text-slate-300">Meta</h3>
+        <dl class="text-slate-400 mt-1 space-y-0.5">
+            <dt>Turn</dt><dd>{{ state.meta.turn or 0 }}</dd>
+            <dt>Model</dt><dd>{{ state.meta.model or '—' }}</dd>
+        </dl>
+    </div>
+
+    <!-- PC -->
+    <div>
+        <h3 class="font-bold text-slate-300">Player Character</h3>
+        <dl class="text-slate-400 mt-1 space-y-0.5">
+            <dt>Name</dt><dd>{{ state.pc.name or '—' }}</dd>
+            <dt>Concept</dt><dd>{{ state.pc.concept or '—' }}</dd>
+            <dt>Stats</dt><dd>{% for k, v in (state.pc.stats or {}).items() %}{{ k }}={{ v }} {% endfor %}</dd>
+            <dt>Conditions</dt><dd>{% if (state.pc.conditions or []) %}{{ state.pc.conditions | join(", ") }}{% else %}None{% endif %}</dd>
+        </dl>
+    </div>
+
+    <!-- Location -->
+    <div>
+        <h3 class="font-bold text-slate-300">Location</h3>
+        <dl class="text-slate-400 mt-1 space-y-0.5">
+            <dt>Name</dt><dd>{{ state.location.name or '—' }}</dd>
+            <dt>Description</dt><dd>{{ state.location.description or '—' }}</dd>
+        </dl>
+    </div>
+
+    <!-- Inventory -->
+    <div>
+        <h3 class="font-bold text-slate-300">Inventory</h3>
+        <ul class="text-slate-400 mt-1 space-y-0.5 list-disc list-inside">
+            {% for item in (state.inventory or []) %}
+            <li><strong>{{ item.get("name", item.get("id", "?")) }}</strong>{% if item.get("notes") %}: {{ item.notes }}{% endif %}</li>
+            {% endfor %}
+            {% if not (state.inventory or []) %}<li class="list-none text-slate-500 italic">Nothing</li>{% endif %}
+        </ul>
+    </div>
+
+    <!-- Quests -->
+    <div>
+        <h3 class="font-bold text-slate-300">Quests</h3>
+        <div class="text-slate-400 mt-1 space-y-1">
+            {% for quest in (state.quests or []) %}
+            <div class="border-l-2 border-slate-600 pl-2">
+                <div class="font-medium">{{ quest.get("title", quest.get("id", "?")) }} <span class="text-slate-500">[{{ quest.get("status", "?") }}]</span></div>
+                {% for obj in (quest.get("objectives") or []) %}
+                <div class="text-xs">  {% if obj.done %}[x]{% else %}[ ]{% endif %} {{ obj.description }}</div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+            {% if not (state.quests or []) %}<div class="text-slate-500 italic text-xs">No active quests</div>{% endif %}
+        </div>
+    </div>
+
+    <!-- Established Facts -->
+    {% if (state.scene.established_facts or []) %}
+    <div>
+        <h3 class="font-bold text-slate-300">Established Facts</h3>
+        <ul class="text-slate-400 mt-1 space-y-0.5 list-disc list-inside text-xs">
+            {% for fact in state.scene.established_facts %}
+            <li>{{ fact }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>

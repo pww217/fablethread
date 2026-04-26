@@ -1,0 +1,28 @@
+ollama:
+  host: http://localhost:11434
+  model: gemma4:26b
+  keep_alive: "60m"
+  num_ctx: 32768
+  request_timeout_s: 180
+  narrate_temperature: 0.8
+  extract_temperature: 0.0
+  max_extract_retries: 1
+
+game:
+  default_save: default
+  setting_pack: hard-scifi-demo
+  window_turns: 6
+  chronicle_prefix_budget_tokens: 1500
+  established_facts_max: 10
+  warmup_on_start: true
+
+server:
+  bind_host: 127.0.0.1
+  bind_port: 8765
+
+logging:
+  file: logs/llm-g.log
+  level: INFO
+
+debug:
+  panel: true

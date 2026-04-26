@@ -1,0 +1,16 @@
+<div class="text-xs font-mono space-y-1">
+    {% if errors and errors|length > 0 %}
+    {% for err in errors %}
+    <div class="text-red-400 flex items-start gap-1">
+        <span class="font-bold">[{{ err.trace_id or '?' }}]</span> {{ err.message }}
+        <button onclick="navigator.clipboard.writeText('{{ err.trace_id }}')"
+                class="ml-auto text-slate-500 hover:text-slate-300 text-xs"
+                title="Copy trace ID">
+            &#x2398;
+        </button>
+    </div>
+    {% endfor %}
+    {% else %}
+    <span class="text-slate-500 italic">No errors yet.</span>
+    {% endif %}
+</div>
