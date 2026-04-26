@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <title>ccya - Text Adventure</title>
+     <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+     <script src="https://unpkg.com/alpinejs@3.14.8" defer></script>
+     <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="bg-slate-900 text-slate-200 h-screen flex flex-col">
+     <!-- Header -->
+     <header class="bg-slate-800 border-b border-slate-700 px-4 py-2 flex items-center justify-between shrink-0">
+         <h1 class="text-lg font-bold tracking-wide">ccya</h1>
+         <div class="flex gap-3 text-sm items-center">
+             <span x-show="state?.meta?.turn > 0">Turn {{ state.meta.turn or 0 }}</span>
+             <button @click="startNewGame()"
+                     class="text-amber-400 hover:text-amber-300 underline"
+                     :disabled="starting">
+                 <span x-show="!starting">New Game</span>
+                 <span x-show="starting">Starting...</span>
+             </button>
+         </div>
+     </header>
+
+     <!-- Main layout -->
+     <div class="flex flex-1 overflow-hidden" x-data="game()">
+         <!-- Narrative panel (left, takes most space) -->
+         <div class="flex-1 flex flex-col overflow-hidden">
+             <div id="narrative-panel" class="flex-1 overflow-y-auto p-4 prose prose-invert prose-sm max-w-none">
+                 <template x-if="state?.meta?.turn === 0">
+                     <p class="text-slate-400 italic">No game loaded yet. Click <strong>New Game</strong> to begin.</p>
+                 </template>
+             </div>
+             <!-- Input bar -->
+             <div class="border-t border-slate-700 p-3 shrink-0">
+                 <form @submit.prevent="submitTurn()"
+                       x-show="state?.meta?.turn > 0"
+                       class="flex gap-2">
+                     <input type="text"
+                            name="input"
+                            id="player-input"
+                            x-model="input"
+                            placeholder="What do you do?"
+                            class="flex-1 bg-slate-800 border border-slate-600 rounded px-3 py-2 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-amber-500 disabled:opacity-50"
+                            :disabled="submitting">
+                     <button type="submit"
+                             class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded font-medium disabled:opacity-50"
+                             :disabled="submitting || !input.trim()">
+                         <span x-show="!submitting">Submit</span>
+                         <span x-show="submitting">Thinking...</span>
+                     </button>
+                 </form>
+             </div>
+         </div>
+
+         <!-- Right sidebar -->
+         <div class="w-80 border-l border-slate-700 flex flex-col overflow-hidden shrink-0">
+             <!-- State panel -->
+             <div id="state-panel" class="flex-1 overflow-y-auto p-3 text-sm">
+                 {% with state=state %}
+                 {% include "_state.html" %}
+                 {% endwith %}
+             </div>
+
+             <!-- Actions panel -->
+             <div id="actions-panel" class="border-t border-slate-700 max-h-40 overflow-y-auto p-3 text-sm">
+                 {% include "_actions.html" %}
+             </div>
+
+             <!-- Errors panel -->
+             <details id="errors-panel" class="border-t border-slate-700">
+                 <summary class="px-3 py-2 text-sm text-red-400 cursor-pointer hover:text-red-300">Errors</summary>
+                 <div id="errors-content" class="px-3 pb-3 text-xs font-mono">
+                    No errors yet.
+                 </div>
+             </details>
+
+              <!-- Debug panel -->
+              <details x-show="debug" class="border-t border-slate-700">
+                  <summary class="px-3 py-2 text-sm text-blue-400 cursor-pointer hover:text-blue-300">Debug</summary>
+                  <div id="debug-content" class="px-3 pb-3 text-xs font-mono text-slate-400">
+                      <div>Mock mode: <span id="debug-mock-mode">Loading...</span></div>
+                      <div>State turns: <span id="debug-turns">0</span></div>
+                      <div>Requests: <span id="debug-requests">0</span></div>
+                      <div class="mt-1 space-y-1" id="debug-requests-list"></div>
+                  </div>
+              </details>
+         </div>
+     </div>
+
+     <script>
+     function game() {
+         return {
+             input: '',
+             submitting: false,
+             starting: false,
+             debug: false,
+             mockMode: false,
+             requests: [],
+
+             async startNewGame() {
+                 this.starting = true;
+                 this.requests.push({ event: 'new_game_start', elapsed_ms: 0 });
+
+                 try {
+                     // Fetch the new game state
+                     const resp = await fetch('/new-game', { method: 'POST' });
+                     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+                     // Load state panel via HTMX
+                     htmx.ajax('GET', '/panels/state', { target: '#state-panel' });
+
+                     // Fetch opening scene
+                     const seedResp = await fetch('/opening');
+                     const opening = await seedResp.text();
+
+                     // Clear the "no game" message and show opening
+                     const narrativePanel = document.getElementById('narrative-panel');
+                     narrativePanel.innerHTML = `<div class="narrative-fragment mb-4 p-3 bg-slate-800/50 rounded prose prose-invert prose-sm">${opening.replace(/\n/g, '<br>')}</div>`;
+
+                     this.requests.push({ event: 'new_game_done', elapsed_ms: 100 });
+                     this.refreshDebug();
+                 } catch (e) {
+                     this.requests.push({ event: 'new_game_error', error: e.message, elapsed_ms: 0 });
+                     console.error('New game failed:', e);
+                 } finally {
+                     this.starting = false;
+                 }
+             },
+
+             submitTurn() {
+                 if (!this.input.trim() || this.submitting) return;
+                 this.submitting = true;
+                 const input = this.input;
+                 this.input = '';
+
+                 const narrativePanel = document.getElementById('narrative-panel');
+                 let narrativeDiv = narrativePanel.querySelector('.narrative-fragment');
+                 if (narrativeDiv) narrativeDiv.remove();
+
+                 const newDiv = document.createElement('div');
+                 newDiv.className = 'narrative-fragment mb-4 p-3 bg-slate-800/50 rounded';
+                 narrativePanel.appendChild(newDiv);
+
+                 const startTime = Date.now();
+                 this.requests.push({ event: 'turn_submit', input: input.substring(0, 60) });
+
+                 // Send input via POST
+                 fetch('/turn', {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                     body: new URLSearchParams({ input: input })
+                 }).then(async resp => {
+                     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                     const text = await resp.text();
+                     newDiv.innerHTML = `<div class="narrative-text">${text.replace(/\n/g, '<br>')}</div>`;
+                     this.requests.push({ event: 'turn_done', elapsed_ms: Date.now() - startTime });
+                     this.refreshDebug();
+
+                     // Refresh state panel
+                     htmx.ajax('GET', '/panels/state', { target: '#state-panel' });
+                 }).catch(e => {
+                     newDiv.innerHTML += `<div class="text-red-400 mt-2">Error: ${e.message}</div>`;
+                     this.requests.push({ event: 'turn_error', error: e.message, elapsed_ms: Date.now() - startTime });
+                     this.refreshDebug();
+                 }).finally(() => {
+                     this.submitting = false;
+                     narrativePanel.scrollTop = narrativePanel.scrollHeight;
+                 });
+             }
+         };
+     }
+     </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<div class="space-y-2">
+     <div>
+         <h3 class="font-bold text-slate-300">Debug</h3>
+         <div class="text-xs text-slate-400 mt-1 space-y-0.5">
+             <div>Mock mode: <span class="{% if mock_mode %}text-green-400{% else %}text-slate-500{% endif %}">{{ "ON" if mock_mode else "OFF" }}</span></div>
+             <div>State turns: <span class="text-slate-300">{{ state.meta.turn or 0 }}</span></div>
+             <div>Requests logged: <span class="text-slate-300">{{ requests|length }}</span></div>
+         </div>
+     </div>
+     {% if requests %}
+     <div>
+         <h3 class="font-bold text-slate-300">Recent Requests</h3>
+         <div class="text-xs font-mono text-slate-400 mt-1 space-y-1 max-h-32 overflow-y-auto">
+             {% for req in requests %}
+             <div class="border-l border-slate-600 pl-2 py-0.5">
+                 <div class="text-slate-500">{{ req.get("event", "?") }} | {{ req.get("elapsed_ms", 0)|round(0, "ceil")|int }}ms</div>
+                 {% if req.get("input") %}<div>Input: {{ req.input[:80] }}</div>{% endif %}
+                 {% if req.get("error") %}<div class="text-red-400">Error: {{ req.error }}</div>{% endif %}
+             </div>
+             {% endfor %}
+         </div>
+     </div>
+     {% endif %}
+ </div>
