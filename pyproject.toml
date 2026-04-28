@@ -21,6 +21,7 @@ ccya = "ccya.__main__:main"
 dev = [
     "ruff",
     "pytest",
+    "pytest-asyncio",
 ]
 
 [build-system]
@@ -29,6 +30,3 @@ build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-
-[tool.pytest-asyncio]
-mode = "auto"

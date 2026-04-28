@@ -1,4 +1,11 @@
-"""Thin async httpx client for Ollama /api.chat."""
+"""Thin async httpx client for Ollama /api/chat.
+
+Ollama API contract (confirmed against https://docs.ollama.com/api/chat):
+- keep_alive    -> top-level field
+- temperature   -> body["options"]["temperature"]
+- num_ctx       -> body["options"]["num_ctx"]
+- format        -> top-level field (for structured output)
+"""
 
 from __future__ import annotations
 
@@ -14,69 +21,67 @@ import httpx
 
 _MOCK_MODE = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
 
-# Canned responses for the demo pack.
-# narrate -> narrative text; extract -> structured JSON matching the extract schema.
 _MOCK_NARRATE = (
-     "You step forward into the low-grav berth. The air is thin, the lights flicker. "
-     "Your hand terminal buzzes again -- that encrypted pinger won't stop. "
-     "A hauler drifts past, its cargo bay open to the ring. "
-     "You need to find the signal source. The terminal buzzes insistently."
+    "You step forward into the low-grav berth. The air is thin, the lights flicker. "
+    "Your hand terminal buzzes again -- that encrypted pinger won't stop. "
+    "A hauler drifts past, its cargo bay open to the ring. "
+    "You need to find the signal source. The terminal buzzes insistently."
 )
 
 _MOCK_EXTRACT_NARRATE = {
-     "state_delta": {
-         "established_facts": ["You are at Docking Ring 7.", "Your hand terminal carries an encrypted pinger."],
-     },
-     "actions": [
-         "Open the encrypted pinger",
-         "Drift toward the cargo bay",
-         "Check the terminal for sender info",
-     ],
-     "scene_tags": ["exploration"],
+    "state_delta": {
+        "established_facts": ["You are at Docking Ring 7.", "Your hand terminal carries an encrypted pinger."],
+    },
+    "actions": [
+        "Open the encrypted pinger",
+        "Drift toward the cargo bay",
+        "Check the terminal for sender info",
+    ],
+    "scene_tags": ["exploration"],
     "usage": {"prompt_tokens": 0, "total_tokens": 0},
 }
 
 _MOCK_EXTRACT_EXAMINE = {
-     "state_delta": {
-         "established_facts": ["The pinger is from a shell company called 'Quiet Systems.'"],
-     },
-     "actions": [
-         "Trace the shell company",
-         "Contact the sender",
-         "Ignore the pinger",
-     ],
-     "scene_tags": ["dialogue"],
+    "state_delta": {
+        "established_facts": ["The pinger is from a shell company called 'Quiet Systems.'"],
+    },
+    "actions": [
+        "Trace the shell company",
+        "Contact the sender",
+        "Ignore the pinger",
+    ],
+    "scene_tags": ["dialogue"],
     "usage": {"prompt_tokens": 0, "total_tokens": 0},
 }
 
 _MOCK_EXTRACT_CARGO = {
-     "state_delta": {
-         "location_change": {
-             "id": "cargo-bay-7",
-             "name": "Cargo Bay 7",
-             "description": "Open cargo bay, crates stacked along the walls, smelling of lubricant.",
-         },
-         "established_facts": ["A hauler offers passage to the lower ring.", "There is a terminal in the cargo bay."],
-     },
-     "actions": [
-         "Accept the hauler's offer",
-         "Use the cargo bay terminal",
-         "Rest and observe",
-     ],
-     "scene_tags": ["travel"],
+    "state_delta": {
+        "location_change": {
+            "id": "cargo-bay-7",
+            "name": "Cargo Bay 7",
+            "description": "Open cargo bay, crates stacked along the walls, smelling of lubricant.",
+        },
+        "established_facts": ["A hauler offers passage to the lower ring.", "There is a terminal in the cargo bay."],
+    },
+    "actions": [
+        "Accept the hauler's offer",
+        "Use the cargo bay terminal",
+        "Rest and observe",
+    ],
+    "scene_tags": ["travel"],
     "usage": {"prompt_tokens": 0, "total_tokens": 0},
 }
 
 _MOCK_EXTRACT_DEFAULT = {
-     "state_delta": {
-         "established_facts": ["Something new happens in the ring."],
-     },
-     "actions": [
-         "Look around",
-         "Try something else",
-         "Check your state",
-     ],
-     "scene_tags": [],
+    "state_delta": {
+        "established_facts": ["Something new happens in the ring."],
+    },
+    "actions": [
+        "Look around",
+        "Try something else",
+        "Check your state",
+    ],
+    "scene_tags": [],
     "usage": {"prompt_tokens": 0, "total_tokens": 0},
 }
 
@@ -85,14 +90,14 @@ class _mock_stream:
     """Async iterator wrapper for canned mock narrative."""
 
     def __aiter__(self):
-        self._texts = [_MOCK_NARRATE]
+        self._texts = list(_MOCK_NARRATE.split(". "))
         self._idx = 0
         return self
 
     async def __anext__(self):
         if self._idx >= len(self._texts):
             raise StopAsyncIteration
-        val = self._texts[self._idx]
+        val = self._texts[self._idx] + (". " if self._idx < len(self._texts) - 1 else "")
         self._idx += 1
         return val
 
@@ -119,25 +124,23 @@ async def chat_stream(
     host: str,
     model: str,
     messages: list[dict[str, str]],
-     *,
+    *,
     temperature: float | None = None,
     keep_alive: str = "60m",
     num_ctx: int = 32768,
     timeout: float = 180.0,
 ) -> AsyncIterator[str]:
-    """Stream tokens from Ollama's /api.chat endpoint.
+    """Stream tokens from Ollama's /api/chat endpoint.
 
-     Returns an awaitable that yields an async iterator of tokens.
-     This design allows both real usage (async for over the result)
-     and mocking (async for over a coroutine that resolves to an iterator).
+    Yields one string per token chunk.
     """
     if _MOCK_MODE:
-        ms = _mock_stream()
-        async for chunk in ms:
+        async for chunk in _mock_stream():
             yield chunk
         return
 
-    body = _build_body(model, messages, temperature)
+    body = _build_body(model, messages, temperature=temperature, num_ctx=num_ctx,
+                       keep_alive=keep_alive, stream=True)
 
     async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
         async with client.stream("POST", f"{host}/api/chat", json=body) as resp:
@@ -150,58 +153,79 @@ async def chat_stream(
                 except json.JSONDecodeError:
                     continue
                 if data.get("done", False):
+                    msg = data.get("message", {})
+                    if isinstance(msg, dict) and msg.get("content"):
+                        yield msg["content"]
                     break
-                yield data.get("response", "")
+                msg = data.get("message", {})
+                if isinstance(msg, dict) and msg.get("content"):
+                    yield msg["content"]
 
 
 async def chat(
     host: str,
     model: str,
     messages: list[dict[str, str]],
-     *,
+    *,
     temperature: float | None = None,
     format: dict | None = None,
     keep_alive: str = "60m",
     num_ctx: int = 32768,
     timeout: float = 180.0,
 ) -> dict[str, Any]:
-    """Non-streaming call to Ollama /api.chat. Returns the full response."""
+    """Non-streaming call to Ollama /api/chat. Returns the full response dict."""
     if _MOCK_MODE:
         return _mock_extract_chat(messages)
 
-    body = _build_body(model, messages, temperature, format)
+    body = _build_body(model, messages, temperature=temperature, num_ctx=num_ctx,
+                       keep_alive=keep_alive, format=format, stream=False)
 
     async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
-        async with client.stream("POST", f"{host}/api/chat", json=body) as resp:
-            resp.raise_for_status()
-            chunks: list[str] = []
-            async for line in resp.aiter_lines():
-                if not line:
-                    continue
-                try:
-                    data = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if data.get("done", False):
-                    break
-                chunks.append(data.get("response", ""))
-            return {"response": "".join(chunks), "done": True, "usage": {"prompt_tokens": 0, "total_tokens": 0}}
+        resp = await client.post(f"{host}/api/chat", json=body)
+        resp.raise_for_status()
+        data = resp.json()
+        return {
+            "response": data.get("message", {}).get("content", ""),
+            "done": True,
+            "usage": {
+                "prompt_tokens": data.get("prompt_eval_count", 0),
+                "total_tokens": data.get("eval_count", 0),
+            },
+        }
 
 
 def _build_body(
     model: str,
     messages: list[dict[str, str]],
-    temperature: float | None,
+    *,
+    temperature: float | None = None,
+    num_ctx: int | None = None,
+    keep_alive: str | None = None,
     format: dict | None = None,
+    stream: bool | None = None,
 ) -> dict[str, Any]:
+    """Build the Ollama /api/chat request body.
+
+    Per the Ollama API spec:
+    - temperature and num_ctx belong inside body["options"]
+    - keep_alive is a top-level field
+    - format is top-level (for structured output)
+    """
     body: dict[str, Any] = {
-         "model": model,
-         "messages": messages,
-         "keep_alive": "60m",
-         "num_ctx": 32768,
-     }
+        "model": model,
+        "messages": messages,
+    }
+    options: dict[str, Any] = {}
     if temperature is not None:
-        body["temperature"] = temperature
+        options["temperature"] = temperature
+    if num_ctx is not None:
+        options["num_ctx"] = num_ctx
+    if options:
+        body["options"] = options
+    if keep_alive is not None:
+        body["keep_alive"] = keep_alive
     if format is not None:
         body["format"] = format
+    if stream is not None:
+        body["stream"] = stream
     return body

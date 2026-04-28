@@ -1,10 +1,11 @@
-"""FastAPI server with SSE turn endpoint and HTMX panels."""
+"""FastAPI server: SSE /turn (GET), HTMX panels, errors store."""
 
 from __future__ import annotations
 
 import json
 import os
 import time
+from collections import deque
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +13,7 @@ import yaml
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from jinja2 import FileSystemLoader, Environment
+from jinja2 import Environment, FileSystemLoader
 from sse_starlette.sse import EventSourceResponse
 
 from ccya.engine import EngineConfig, is_turn_in_progress, run_turn, warmup
@@ -31,6 +32,7 @@ engine_config = EngineConfig(
     model=config["ollama"]["model"],
     keep_alive=config["ollama"]["keep_alive"],
     num_ctx=config["ollama"]["num_ctx"],
+    extract_num_ctx=config["ollama"].get("extract_num_ctx", 4096),
     request_timeout_s=config["ollama"]["request_timeout_s"],
     narrate_temperature=config["ollama"]["narrate_temperature"],
     extract_temperature=config["ollama"]["extract_temperature"],
@@ -38,6 +40,9 @@ engine_config = EngineConfig(
     window_turns=config["game"]["window_turns"],
     chronicle_prefix_budget_tokens=config["game"]["chronicle_prefix_budget_tokens"],
     established_facts_max=config["game"]["established_facts_max"],
+    enforce_extract_schema=config["ollama"].get("enforce_extract_schema", True),
+    log_llm_io=config.get("logging", {}).get("log_llm_io", False),
+    log_llm_io_max_chars=config.get("logging", {}).get("log_llm_io_max_chars", 4000),
 )
 
 logger = setup_logging(config)
@@ -48,7 +53,10 @@ _jinja_env = Environment(
     autoescape=True,
 )
 
-# Track request timing for debug panel
+# In-process errors store — last 50 entries, survives turn boundaries.
+_ERRORS_LOG: deque[dict[str, Any]] = deque(maxlen=50)
+
+# Request timing for debug panel
 _REQUEST_LOG: list[dict[str, Any]] = []
 
 
@@ -57,7 +65,6 @@ def _render(template_name: str, context: dict) -> HTMLResponse:
     return HTMLResponse(template.render(**context))
 
 
-# Mount static files (vendored JS, compiled CSS)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 
@@ -65,12 +72,48 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _load_current_state() -> dict:
     return load_state(SAVE_DIR)
 
 
+def _load_recent_history(save_dir: Path, n: int = 8) -> list[dict]:
+    """Return the last n turn events from events.jsonl for page-reload continuity."""
+    path = save_dir / "events.jsonl"
+    if not path.exists():
+        return []
+    lines = path.read_text().strip().splitlines()
+    recent = lines[-n:] if len(lines) > n else lines
+    result = []
+    for line in recent:
+        try:
+            ev = json.loads(line)
+            result.append({
+                "turn": ev.get("turn", 0),
+                "input": ev.get("input", ""),
+                "narrative": ev.get("narrative", "").strip(),
+            })
+        except (json.JSONDecodeError, KeyError):
+            continue
+    return result
+
+
+def _load_last_actions(save_dir: Path) -> list[str]:
+    """Return the actions list from the most recent turn event."""
+    path = save_dir / "events.jsonl"
+    if not path.exists():
+        return []
+    lines = [ln for ln in path.read_text().strip().splitlines() if ln.strip()]
+    if not lines:
+        return []
+    try:
+        ev = json.loads(lines[-1])
+        return ev.get("actions") or []
+    except (json.JSONDecodeError, KeyError):
+        return []
+
+
 def _load_opening() -> str:
-    """Load the opening scene from the setting pack."""
     pack = config.get("game", {}).get("setting_pack", "hard-scifi-demo")
     path = BASE_DIR.parent / "packs" / pack / "opening_scene.md"
     if path.exists():
@@ -79,7 +122,6 @@ def _load_opening() -> str:
 
 
 def _add_timing(entry: dict, start: float) -> None:
-    """Add elapsed_ms to a timing entry."""
     entry["elapsed_ms"] = round((time.time() - start) * 1000, 1)
 
 
@@ -87,54 +129,90 @@ def _add_timing(entry: dict, start: float) -> None:
 # Routes
 # ---------------------------------------------------------------------------
 
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     state = _load_current_state()
-    return _render("index.html", {"state": state})
+    history = _load_recent_history(SAVE_DIR)
+    last_actions = _load_last_actions(SAVE_DIR) if history else []
+    mock_mode = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
+    # Show opening scene text server-side when there's no history yet (turn 0 or fresh game)
+    opening = _load_opening() if not history and state.get("location", {}).get("id") else ""
+    return _render("index.html", {
+        "state": state,
+        "history": history,
+        "last_actions": last_actions,
+        "opening": opening,
+        "errors": list(_ERRORS_LOG),
+        "mock_mode": mock_mode,
+        "requests": _REQUEST_LOG[-20:],
+        "enforce_extract_schema": engine_config.enforce_extract_schema,
+        "log_llm_io": engine_config.log_llm_io,
+        "log_file": config.get("logging", {}).get("file", "logs/llm-g.log"),
+    })
 
 
-@app.post("/turn")
-async def post_turn(request: Request):
-    """POST /turn {input: str} -> SSE stream of narrative tokens + final event."""
-    form = await request.form()
-    user_input = form.get("input", "").strip()
+@app.get("/turn")
+async def get_turn(input: str = ""):
+    """GET /turn?input=... -> SSE stream.
+
+    Uses GET so the browser's native EventSource API can connect without CORS
+    pre-flight or custom headers. Appropriate for a local-only single-player tool.
+
+    SSE event types:
+      narrative_token  data: {"chunk": "..."}
+      phase              data: {phase, expected_ms?, attempt?}
+      turn_complete    data: {turn, trace_id, narrative, actions, scene_tags,
+                              rejected, errors, state, metrics}
+      turn_error       data: {"error": "...", "trace_id": "..."}
+    """
+    user_input = input.strip()
     if not user_input:
-        return {"error": "Empty input"}
+        async def _empty():
+            yield {"event": "turn_error", "data": json.dumps({"error": "Empty input"})}
+        return EventSourceResponse(_empty())
 
     if is_turn_in_progress(str(SAVE_DIR)):
-        from fastapi import HTTPException
-        raise HTTPException(status_code=409, detail="Turn already in progress")
+        async def _busy():
+            yield {"event": "turn_error", "data": json.dumps({"error": "Turn already in progress"})}
+        return EventSourceResponse(_busy())
 
     start = time.time()
 
     async def event_stream():
         timing = {"event": "turn_start", "input": user_input[:100]}
-        _add_timing(timing, start)
         _REQUEST_LOG.append(timing)
-        yield {"event": "turn_start", "data": json.dumps(timing)}
 
         try:
-            result = await run_turn(
+            async for kind, payload in run_turn(
                 SAVE_DIR, user_input,
                 config=engine_config,
                 template_dir=str(PROMPTS_DIR),
-            )
-            _add_timing(timing, start)
-            yield {"event": "turn_complete", "data": json.dumps({
-                "turn": result.turn,
-                "trace_id": result.trace_id,
-                "narrative": result.narrative,
-                "actions": result.actions,
-                "scene_tags": result.scene_tags,
-                "rejected": result.rejected,
-                "errors": result.errors,
-                "state": _load_current_state(),
-                "metrics": result.metrics,
-            })}
+            ):
+                if kind == "token":
+                    yield {"event": "narrative_token", "data": json.dumps({"chunk": payload})}
+                elif kind == "phase":
+                    yield {"event": "phase", "data": json.dumps(payload)}
+                elif kind == "complete":
+                    result = payload
+                    # Persist errors so /panels/errors can render them
+                    for err in result.errors:
+                        _ERRORS_LOG.appendleft(err)
+                    _add_timing(timing, start)
+                    yield {"event": "turn_complete", "data": json.dumps({
+                        "turn": result.turn,
+                        "trace_id": result.trace_id,
+                        "narrative": result.narrative,
+                        "actions": result.actions,
+                        "scene_tags": result.scene_tags,
+                        "rejected": result.rejected,
+                        "errors": result.errors,
+                        "state": _load_current_state(),
+                        "metrics": result.metrics,
+                    })}
         except Exception as e:
             _add_timing(timing, start)
             logger.exception("Turn failed")
-            timing["error"] = str(e)
             yield {"event": "turn_error", "data": json.dumps({"error": str(e)})}
 
     return EventSourceResponse(event_stream())
@@ -147,6 +225,7 @@ async def new_game(request: Request):
     seed.setdefault("meta", {})
     seed["meta"]["model"] = config["ollama"]["model"]
     init_save_dir(SAVE_DIR, seed)
+    _ERRORS_LOG.clear()
     return _render("_state.html", {"state": load_state(SAVE_DIR)})
 
 
@@ -166,29 +245,39 @@ def panel_state(request: Request):
 
 @app.get("/panels/actions")
 def panel_actions(request: Request):
-    state = _load_current_state()
-    return _render("_actions.html", {"state": state})
+    return _render("_actions.html", {"state": _load_current_state()})
 
 
 @app.get("/panels/errors")
 def panel_errors(request: Request):
-    return _render("_errors.html", {"state": _load_current_state(), "errors": []})
+    return _render("_errors.html", {"errors": list(_ERRORS_LOG)})
+
+
+@app.post("/panels/errors/clear")
+def clear_errors():
+    _ERRORS_LOG.clear()
+    return _render("_errors.html", {"errors": []})
+
+
+def _debug_context() -> dict:
+    mock_mode = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
+    return {
+        "requests": _REQUEST_LOG[-20:],
+        "mock_mode": mock_mode,
+        "state": _load_current_state(),
+        "enforce_extract_schema": engine_config.enforce_extract_schema,
+        "log_llm_io": engine_config.log_llm_io,
+        "log_file": config.get("logging", {}).get("file", "logs/llm-g.log"),
+    }
 
 
 @app.get("/panels/debug")
 def panel_debug():
-    """Return debug info: request log and mock mode status."""
-    mock_mode = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
-    return _render("_debug.html", {
-        "requests": _REQUEST_LOG[-20:],
-        "mock_mode": mock_mode,
-        "state": _load_current_state(),
-    })
+    return _render("_debug.html", _debug_context())
 
 
 @app.get("/opening")
 def opening():
-    """Return the opening scene text for a new game."""
     return HTMLResponse(_load_opening())
 
 
@@ -198,12 +287,7 @@ def healthz():
     host = config["ollama"]["host"]
     mock_mode = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
     if mock_mode:
-        return {
-            "ollama": "mock",
-            "model": config["ollama"]["model"],
-            "available": True,
-            "mock": True,
-        }
+        return {"ollama": "mock", "model": config["ollama"]["model"], "available": True, "mock": True}
     try:
         with httpx.Client(timeout=5) as client:
             resp = client.get(f"{host}/api/tags")
@@ -220,6 +304,7 @@ def healthz():
 # Startup
 # ---------------------------------------------------------------------------
 
+
 @app.on_event("startup")
 async def startup_event():
     logger.info("ccya starting")
@@ -230,8 +315,9 @@ async def startup_event():
 
 
 # ---------------------------------------------------------------------------
-# CLI entry
+# CLI entry (used by uvicorn directly, not __main__)
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     import uvicorn

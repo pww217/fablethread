@@ -1,21 +1,4 @@
-{% if state.scene.tags %}
-<div class="mb-2">
-    <span class="text-xs font-bold text-slate-500 uppercase">Tags</span>
-    <div class="flex flex-wrap gap-1 mt-1">
-        {% for tag in state.scene.tags %}
-        <span class="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs">{{ tag }}</span>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
-{% if (state.scene.present_npcs or []) %}
-<div class="mb-2">
-    <span class="text-xs font-bold text-slate-500 uppercase">Present</span>
-    <ul class="text-slate-400 mt-1 space-y-0.5 list-disc list-inside text-xs">
-        {% for npc in state.scene.present_npcs %}
-        <li>{{ npc }}</li>
-        {% endfor %}
-    </ul>
-</div>
-{% endif %}
-<p class="text-slate-500 text-xs italic" x-show="!actions">Actions will appear here after each turn.</p>
+{# Actions panel — served by /panels/actions on HTMX refresh.
+   Live action pills are injected by JS from the turn_complete SSE payload.
+   This template is the initial / fallback empty state. #}
+<span class="empty-state">Actions appear after each turn.</span>

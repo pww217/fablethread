@@ -1,15 +1,30 @@
-"""Turn engine: two-call pipeline (narrate + extract) with reliability measures."""
+"""Turn engine: two-call pipeline (narrate + extract) with reliability measures.
+
+Turn counter source of truth: engine.py only.
+  - apply_delta in state.py does NOT increment meta.turn.
+  - The engine increments after both calls succeed and before writing events.
+
+Async generator protocol:
+  run_turn() yields:
+    ("token", str)         — one per narrative token, during call 1
+    ("phase", dict)         — progress phases (e.g. narrate_done, extract_start)
+    ("complete", TurnResult) — exactly once at the end
+  Callers should async-for over run_turn() to get streaming behavior.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, AsyncIterator
+
+_log = logging.getLogger("ccya.engine")
 
 from jinja2 import Environment, FileSystemLoader
 
@@ -19,16 +34,19 @@ from ccya.state import (
     append_chronicle,
     append_event,
     apply_delta,
+    load_chronicle_tail,
+    load_recent_events,
     load_state,
     save_state,
 )
 
 # ---------------------------------------------------------------------------
-# Per-save turn in-flight guard (async-safe via EventLock)
+# Per-save turn in-flight guard
 # ---------------------------------------------------------------------------
 
+
 class _EventLock:
-    """Per-key async lock dict for turn-in-flight guard."""
+    """Per-key async lock for turn-in-flight guard."""
 
     def __init__(self) -> None:
         self._locks: dict[str, asyncio.Lock] = {}
@@ -48,9 +66,13 @@ _inflight: _EventLock = _EventLock()
 
 
 def is_turn_in_progress(save_dir: str) -> bool:
-    """Check if a turn is currently running for the given save."""
     lock = _inflight._locks.get(save_dir)
     return lock is not None and lock.locked()
+
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -59,6 +81,7 @@ class EngineConfig:
     model: str = "gemma3:27b"
     keep_alive: str = "60m"
     num_ctx: int = 32768
+    extract_num_ctx: int = 4096
     request_timeout_s: int = 180
     narrate_temperature: float = 0.8
     extract_temperature: float = 0.0
@@ -66,6 +89,14 @@ class EngineConfig:
     window_turns: int = 6
     chronicle_prefix_budget_tokens: int = 1500
     established_facts_max: int = 10
+    enforce_extract_schema: bool = True
+    log_llm_io: bool = False
+    log_llm_io_max_chars: int = 4000
+
+
+# ---------------------------------------------------------------------------
+# Jinja helpers
+# ---------------------------------------------------------------------------
 
 
 def _build_jinja_env(template_dir: str) -> Environment:
@@ -76,94 +107,174 @@ def _build_jinja_env(template_dir: str) -> Environment:
     )
 
 
-def _narrate_system_prompt(env: Environment, state: dict, user_input: str) -> str:
-    t = env.get_template("narrate.j2")
-    return t.render(state=state, user_input=user_input)
+def _render(env: Environment, template_name: str, ctx: dict) -> str:
+    return env.get_template(template_name).render(**ctx)
 
 
-def _extract_system_prompt(env: Environment, narrative: str) -> str:
-    schema = ExtractResult.model_json_schema()
-    t = env.get_template("extract.j2")
-    return t.render(schema_json=json.dumps(schema, indent=2), narrative=narrative)
+# ---------------------------------------------------------------------------
+# Prompt builders
+# ---------------------------------------------------------------------------
+
+
+def _narrate_messages(
+    env: Environment,
+    state: dict,
+    user_input: str,
+    *,
+    chronicle_tail: str = "",
+    recent_turns: list[dict] = [],
+) -> list[dict[str, str]]:
+    """Build narrate message list: [system, user].
+
+    system = stable rules + world state (maximises KV-cache reuse across turns)
+    user   = raw player input (volatile — never in system)
+    """
+    ctx = {
+        "state": state,
+        "chronicle_tail": chronicle_tail,
+        "recent_turns": recent_turns,
+    }
+    system_text = _render(env, "narrate_system.j2", ctx)
+    user_text = _render(env, "narrate_user.j2", {"user_input": user_input})
+    return [
+        {"role": "system", "content": system_text},
+        {"role": "user", "content": user_text},
+    ]
+
+
+def _extract_messages(
+    env: Environment,
+    narrative: str,
+) -> list[dict[str, str]]:
+    """Build extract message list: [system, assistant, user].
+
+    system    = schema + extraction rules (stable)
+    assistant = the narrative just produced (model "owns" this output)
+    user      = explicit instruction to emit JSON now
+    """
+    schema_json = json.dumps(ExtractResult.model_json_schema(), indent=2)
+    system_text = _render(env, "extract_system.j2", {"schema_json": schema_json})
+    user_text = _render(env, "extract_user.j2", {})
+    return [
+        {"role": "system", "content": system_text},
+        {"role": "assistant", "content": narrative},
+        {"role": "user", "content": user_text},
+    ]
 
 
 # ---------------------------------------------------------------------------
 # JSON extraction helpers
 # ---------------------------------------------------------------------------
 
+
 def _strip_thinking(text: str) -> str:
-    """Remove <thinking>...</thinking> block, return rest."""
+    """Remove <thinking>...</thinking> block."""
     m = re.search(r"<thinking>\s*.*?\s*</thinking>", text, re.DOTALL)
     if m:
-        return (text[:m.start()] + text[m.end():]).strip()
+        return (text[: m.start()] + text[m.end() :]).strip()
     return text.strip()
 
 
 def _find_json(text: str) -> dict | None:
-    """Try to find and parse a JSON object in text. Unwraps ExtractResult if present."""
+    """Find and parse a JSON object from LLM output."""
     text = text.strip()
 
-    def _try_parse(t: str) -> dict | None:
+    def _try(t: str) -> dict | None:
         try:
             return json.loads(t)
         except (json.JSONDecodeError, ValueError):
             return None
 
-    # Direct parse
-    j = _try_parse(text)
+    j = _try(text)
     if j is not None:
-        return _maybe_unwrap(j)
+        return _unwrap(j)
 
-    # Fenced code block
     if "```" in text:
         for part in text.split("```"):
             p = part.strip()
             if p.lower().startswith("json"):
                 p = p[4:].strip()
-            result = _try_parse(p)
-            if result is not None:
-                return _maybe_unwrap(result)
+            r = _try(p)
+            if r is not None:
+                return _unwrap(r)
 
-    # Brace search
     b = text.find("{")
     if b >= 0:
-        r = text.rfind("}")
-        if r > b:
-            result = _try_parse(text[b:r + 1])
-            if result is not None:
-                return _maybe_unwrap(result)
+        r_idx = text.rfind("}")
+        if r_idx > b:
+            r = _try(text[b : r_idx + 1])
+            if r is not None:
+                return _unwrap(r)
     return None
 
 
-def _maybe_unwrap(j: dict) -> dict:
-    """If JSON is an ExtractResult, extract state_delta. Pass through StateDelta as-is."""
+def _unwrap(j: dict) -> dict:
+    """If JSON is a full ExtractResult envelope, return it as-is for Pydantic.
+    If it looks like a bare StateDelta, wrap it."""
     if "state_delta" in j and "actions" in j:
-        return j["state_delta"]
+        return j
     return j
 
 
-async def _collect_narrate(stream: Any) -> tuple[str, float, float]:
-    """Collect streaming tokens, return (text, first_token_ms, total_ms)."""
-    # Handle both real async generators (has __aiter__) and mocked async functions (coroutines)
-    if asyncio.iscoroutine(stream):
-        stream = await stream
-    chunks: list[str] = []
-    first_ms = 0.0
-    start = asyncio.get_event_loop().time()
-    try:
-        async for chunk in stream:
-            if not chunks:
-                first_ms = (asyncio.get_event_loop().time() - start) * 1000
-            chunks.append(chunk)
-    except Exception:
-        pass
-    elapsed = (asyncio.get_event_loop().time() - start) * 1000
-    return "".join(chunks), first_ms, elapsed
+def _truncate(s: str, n: int) -> str:
+    if not isinstance(s, str):
+        s = str(s)
+    if len(s) <= n:
+        return s
+    return s[:n] + f"…[truncated, {len(s) - n} more chars]"
+
+
+def _log_llm_io(
+    *,
+    trace_id: str,
+    phase: str,
+    messages: list[dict] | None = None,
+    response: str | None = None,
+    extra: dict | None = None,
+    max_chars: int = 4000,
+) -> None:
+    """Emit a single DEBUG record with prompt/response payloads."""
+    payload: dict[str, Any] = {"phase": phase, "trace_id": trace_id}
+    if messages is not None:
+        payload["messages"] = [
+            {"role": m.get("role"), "content": _truncate(m.get("content", ""), max_chars)}
+            for m in messages
+        ]
+    if response is not None:
+        payload["response"] = _truncate(response, max_chars)
+    if extra:
+        payload.update(extra)
+    _log.debug("llm_io %s", json.dumps(payload, default=str), extra={"trace_id": trace_id})
+
+
+def _avg_extract_ms(save_dir: Path, n: int = 5) -> int:
+    """Average extract duration from the last n events. Returns 0 if fewer than 2 samples."""
+    path = save_dir / "events.jsonl"
+    if not path.exists():
+        return 0
+    lines = [ln for ln in path.read_text().strip().splitlines() if ln.strip()]
+    if len(lines) < 2:
+        return 0
+    recent = lines[-n:]
+    times: list[float] = []
+    for line in recent:
+        try:
+            ev = json.loads(line)
+            ext = ev.get("extract") or {}
+            ms = ext.get("total_ms")
+            if ms is not None:
+                times.append(float(ms))
+        except (json.JSONDecodeError, TypeError, ValueError):
+            continue
+    if len(times) < 2:
+        return 0
+    return int(sum(times) / len(times))
 
 
 # ---------------------------------------------------------------------------
-# Public API
+# Public async-generator API
 # ---------------------------------------------------------------------------
+
 
 async def run_turn(
     save_dir: Path,
@@ -171,8 +282,12 @@ async def run_turn(
     config: EngineConfig | None = None,
     *,
     template_dir: str | None = None,
-) -> TurnResult:
-    """Execute one turn: narrate (stream) + extract (structured JSON)."""
+) -> AsyncIterator[tuple[str, Any]]:
+    """Execute one turn. Async generator yielding:
+        ("token", str)          — one per narrative chunk during call 1
+        ("phase", dict)         — UI progress (narrate_done, extract_start, etc.)
+        ("complete", TurnResult) — final result after call 2
+    """
     if config is None:
         config = EngineConfig()
 
@@ -183,73 +298,139 @@ async def run_turn(
     errors: list[dict] = []
     metrics: dict = {}
     state = load_state(save_dir)
-    narrative = ""
+    narrative_chunks: list[str] = []
     delta: StateDelta | None = None
     actions: list[str] = []
-    scene_tags: list[str] = []
     established_facts: list[str] = []
 
     try:
         await _inflight.acquire(str(save_dir))
 
-        # === Call 1: Narrate ===
-        narr_prompt = _narrate_system_prompt(env, state, user_input)
-        narr_stream = ollama_chat_stream(
-            config.ollama_host, config.model,
-            [{"role": "system", "content": narr_prompt}],
+        # --- Memory: load chronicle tail + recent turns ---
+        chronicle_tail = load_chronicle_tail(save_dir, config.chronicle_prefix_budget_tokens)
+        recent_turns = load_recent_events(save_dir, config.window_turns)
+
+        # === Call 1: Narrate (streaming) ===
+        narr_messages = _narrate_messages(
+            env, state, user_input,
+            chronicle_tail=chronicle_tail,
+            recent_turns=recent_turns,
+        )
+
+        first_ms = 0.0
+        t0 = asyncio.get_event_loop().time()
+        if config.log_llm_io:
+            _log_llm_io(
+                trace_id=trace_id, phase="narrate_request",
+                messages=narr_messages, max_chars=config.log_llm_io_max_chars,
+            )
+        async for chunk in ollama_chat_stream(
+            config.ollama_host, config.model, narr_messages,
             temperature=config.narrate_temperature,
             keep_alive=config.keep_alive,
             num_ctx=config.num_ctx,
             timeout=float(config.request_timeout_s),
-        )
-        narrative, first_ms, narr_ms = await _collect_narrate(narr_stream)
+        ):
+            if not narrative_chunks:
+                first_ms = (asyncio.get_event_loop().time() - t0) * 1000
+            narrative_chunks.append(chunk)
+            yield ("token", chunk)
 
+        narr_ms = (asyncio.get_event_loop().time() - t0) * 1000
+        narrative = "".join(narrative_chunks)
         narr_metrics = {"first_token_ms": round(first_ms, 1), "total_ms": round(narr_ms, 1)}
+        if config.log_llm_io:
+            _log_llm_io(
+                trace_id=trace_id, phase="narrate_response",
+                response=narrative, extra={"timing_ms": narr_metrics},
+                max_chars=config.log_llm_io_max_chars,
+            )
 
-        # === Call 2: Extract ===
-        ext_prompt = _extract_system_prompt(env, narrative)
-        ext_messages: list[dict] = [{"role": "system", "content": ext_prompt}]
+        yield ("phase", {"phase": "narrate_done"})
 
+        # === Call 2: Extract (structured JSON) ===
+        ext_messages = _extract_messages(env, narrative)
         t2 = asyncio.get_event_loop().time()
         retries = 0
-        parse_error: str = ""
+        parse_error = ""
+        ext_usage: dict[str, int] = {}
+        exp_ms = _avg_extract_ms(save_dir)
+        yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
+        ext_format = ExtractResult.model_json_schema() if config.enforce_extract_schema else None
 
         for attempt in range(1 + config.max_extract_retries):
+            if attempt > 0:
+                yield ("phase", {"phase": "extract_retry", "attempt": attempt + 1})
             try:
+                if config.log_llm_io:
+                    _log_llm_io(
+                        trace_id=trace_id, phase=f"extract_request_attempt_{attempt}",
+                        messages=ext_messages,
+                        extra={"format_enforced": bool(ext_format)},
+                        max_chars=config.log_llm_io_max_chars,
+                    )
                 result = await ollama_chat(
-                    config.ollama_host, config.model,
-                    ext_messages,
-                    stream=False,
-                    format=ExtractResult.model_json_schema(),
+                    config.ollama_host, config.model, ext_messages,
+                    format=ext_format,
                     temperature=config.extract_temperature,
                     keep_alive=config.keep_alive,
-                    num_ctx=config.num_ctx,
+                    num_ctx=config.extract_num_ctx,
                     timeout=float(config.request_timeout_s),
                 )
                 raw = result.get("response", "") if isinstance(result, dict) else ""
                 ext_usage = result.get("usage", {}) if isinstance(result, dict) else {}
+                if config.log_llm_io:
+                    _log_llm_io(
+                        trace_id=trace_id, phase=f"extract_response_attempt_{attempt}",
+                        response=raw, extra={"usage": ext_usage},
+                        max_chars=config.log_llm_io_max_chars,
+                    )
                 cleaned = _strip_thinking(raw)
                 j = _find_json(cleaned)
                 if j is not None:
-                    delta = StateDelta(**j)
+                    # Accept both full ExtractResult envelope and bare StateDelta
+                    if "state_delta" in j:
+                        er = ExtractResult(**j)
+                        delta = er.state_delta
+                        actions = er.actions
+                    else:
+                        delta = StateDelta(**j)
                     retries = attempt
                     break
                 raise ValueError("No JSON found in response")
             except Exception as exc:
                 parse_error = str(exc)
+                _log.warning(
+                    "extract parse failed (attempt %d/%d): %s",
+                    attempt + 1, 1 + config.max_extract_retries, parse_error,
+                    extra={"trace_id": trace_id},
+                )
                 if attempt < config.max_extract_retries:
                     fb = (
-                        f"Your previous output failed to parse: {parse_error[:200]}."
-                        f" Re-emit JSON matching the schema. No prose outside <thinking>."
+                        f"Your previous output failed to parse: {parse_error[:200]}. "
+                        "Re-emit JSON matching the schema. No prose outside <thinking>."
                     )
                     ext_messages.append({"role": "user", "content": fb})
                     retries = attempt + 1
                 else:
                     errors.append({"trace_id": trace_id, "message": parse_error})
 
+        yield ("phase", {"phase": "extract_done"})
+
         ext_ms = (asyncio.get_event_loop().time() - t2) * 1000
-        ext_metrics = {"retries": retries, "total_ms": round(ext_ms, 1), "tokens_in": ext_usage.get("prompt_tokens", 0), "tokens_out": ext_usage.get("total_tokens", 0)}
-        metrics = {"narrate": {**narr_metrics, "tokens_in": ext_metrics["tokens_in"], "tokens_out": ext_metrics["tokens_out"]}, "extract": ext_metrics}
+        ext_metrics = {
+            "retries": retries,
+            "total_ms": round(ext_ms, 1),
+            "tokens_in": ext_usage.get("prompt_tokens", 0),
+            "tokens_out": ext_usage.get("total_tokens", 0),
+        }
+        # narrate and extract metrics are independent — narrate token counts
+        # are not available from a streaming call so we omit them rather than
+        # copy extract counts into the wrong slot.
+        metrics = {
+            "narrate": narr_metrics,
+            "extract": ext_metrics,
+        }
 
         # === Validate & apply delta ===
         applied: dict = {}
@@ -258,18 +439,22 @@ async def run_turn(
         if delta is not None:
             rejected = _validate(state, delta)
             if rejected:
-                errors.append({"trace_id": trace_id, "message": f"Delta validation failed ({len(rejected)} rejection(s))."})
-                narrative += "\n\n*That action didn't resolve as expected.*"
+                errors.append({
+                    "trace_id": trace_id,
+                    "message": f"Delta validation failed ({len(rejected)} rejection(s)).",
+                })
+                narrative += f"\n\n*That action didn't resolve as expected. Trace `{trace_id}` — try rephrasing.*"
             else:
                 state = apply_delta(state, delta, established_facts_max=config.established_facts_max)
-                actions = getattr(delta, "actions", [])
-                scene_tags = getattr(delta, "scene_tags", [])
                 established_facts = list(getattr(delta, "established_facts", []))
                 applied = delta.model_dump(exclude_none=True)
 
-        # === Write: events.jsonl → atomic state.yaml → chronicle.md ===
+        # === Turn increment (single source of truth: here) ===
         state.setdefault("meta", {})["turn"] = state.get("meta", {}).get("turn", 0) + 1
 
+        yield ("phase", {"phase": "persist"})
+
+        # === Write: events.jsonl → atomic state.yaml → chronicle.md ===
         event = {
             "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "trace_id": trace_id,
@@ -279,16 +464,16 @@ async def run_turn(
             "applied": applied,
             "rejected": rejected,
             "actions": actions,
-            "scene_tags": scene_tags,
+            "scene_tags": list(getattr(delta, "scene_tags", [])),
             "established_facts": established_facts,
             "narrate": narr_metrics,
-            "extract": metrics["extract"],
+            "extract": ext_metrics,
         }
         append_event(save_dir, event)
         save_state(save_dir, state)
-        append_chronicle(save_dir, narrative.strip())
+        append_chronicle(save_dir, f"\n\n## Turn {state['meta']['turn']} — {user_input}\n\n{narrative.strip()}")
 
-        return TurnResult(
+        result_obj = TurnResult(
             turn=state["meta"]["turn"],
             trace_id=trace_id,
             narrative=narrative,
@@ -296,55 +481,68 @@ async def run_turn(
             applied=applied,
             rejected=rejected,
             actions=actions,
-            scene_tags=scene_tags,
+            scene_tags=list(getattr(delta, "scene_tags", [])),
             established_facts=established_facts,
             metrics=metrics,
             errors=errors,
         )
+        yield ("complete", result_obj)
 
     except Exception as exc:
         errors.append({"trace_id": trace_id, "message": str(exc)})
-        if not narrative:
-            narrative = f"*An error occurred. Trace `{trace_id}` — try rephrasing.*"
-        return TurnResult(
+        fallback = narrative_chunks and "".join(narrative_chunks) or ""
+        if not fallback:
+            fallback = f"*An error occurred. Trace `{trace_id}` — try rephrasing.*"
+        yield ("complete", TurnResult(
             turn=state.get("meta", {}).get("turn", 0),
             trace_id=trace_id,
-            narrative=narrative,
+            narrative=fallback,
             state_delta={},
             errors=errors,
             metrics=metrics,
-        )
+        ))
     finally:
         await _inflight.release(str(save_dir))
 
 
+# ---------------------------------------------------------------------------
+# Delta validator
+# ---------------------------------------------------------------------------
+
+
 def _validate(state: dict, delta: StateDelta) -> list[dict]:
-    """Strict delta validator. Returns list of rejection dicts."""
+    """Strict delta validator. Returns rejection dicts for illegal changes."""
     rejections: list[dict] = []
 
     existing_inv = {item.get("id") for item in state.get("inventory", [])}
     for rid in delta.inventory_remove:
         if rid not in existing_inv:
-            rejections.append({"field": "inventory_remove", "value": rid,
-                               "reason": f"Inventory item '{rid}' does not exist"})
+            rejections.append({
+                "field": "inventory_remove",
+                "value": rid,
+                "reason": f"Inventory item '{rid}' does not exist",
+            })
 
-    existing_quests = {q.get("id") for q in state.get("quests", [])}
-    for qu in delta.quest_updates:
-        if qu.id not in existing_quests:
-            rejections.append({"field": "quest_updates", "value": qu.id,
-                               "reason": f"Quest '{qu.id}' does not exist in state"})
+    # quest_updates is create-or-update: new quest IDs are allowed (apply_delta creates them).
+    # No quest ID validation here.
 
     return rejections
 
 
+# ---------------------------------------------------------------------------
+# Startup warmup
+# ---------------------------------------------------------------------------
+
+
 async def warmup(config: EngineConfig) -> None:
-    """Silent 1-token chat call to pre-load the model."""
+    """Silent 1-token chat call to pre-load the model into Ollama."""
     try:
         await ollama_chat(
             config.ollama_host, config.model,
             [{"role": "user", "content": "ok"}],
             temperature=0.0,
-            keep_alive=config.keep_alive, num_ctx=config.num_ctx,
+            keep_alive=config.keep_alive,
+            num_ctx=config.num_ctx,
             timeout=30.0,
         )
     except Exception:
