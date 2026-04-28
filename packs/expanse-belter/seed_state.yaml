@@ -1,0 +1,101 @@
+meta:
+  game_name: default
+  turn: 0
+  setting_pack: expanse-belter
+  model: ""
+
+pc:
+  name: Niko Sato
+  concept: |
+    Belter smuggler captain of the freighter Wretch. Pallas-born, 38, lean and tall
+    from a life in low gravity. Pragmatist. Speaks Belter creole when it suits.
+    Lights candles in front of no flag. Crew comes first.
+  stats:
+    body: 2
+    mind: 3
+    tech: 2
+    social: 3
+  conditions: []
+
+location:
+  id: ceres-lower-market
+  name: Ceres Station — Lower Levels Market
+  description: |
+    A spun cavern of corridors and concourses, one-third gravity, two-kilometer
+    arc of stalls and bays. Strung lights — half flickering. The air carries
+    fryer oil, ozone, recycled sweat, and stim-tea. Star Helix patrols loiter at
+    the far end of the concourse. Tavern doorways spill warm light. Job-board
+    terminals glow in shadowed alcoves. The Wretch sits in cradle 41-B, three
+    levels above through the freight lifts.
+
+inventory:
+  - id: hand-terminal
+    name: Hand terminal
+    notes: Cracked screen, scuffed back. Ship comms, banking, encrypted channels. Works.
+  - id: mag-boots
+    name: Mag boots
+    notes: Standard Belter station kit. Scuffed but solid.
+  - id: vac-jacket
+    name: Vac-rated jacket
+    notes: Thermal-lined, scuffed at the cuffs, patched at the right shoulder where someone shot you on Tycho.
+  - id: forged-papers
+    name: Forged Ceres shipping papers
+    notes: Decent quality. Will pass casual inspection. Will not survive a real audit.
+  - id: kowmang
+    name: Kowmang knife
+    notes: Short blade, plain handle. Legal in the Belt. Sharp enough.
+  - id: credit-chit
+    name: Credit chit
+    notes: 1,800 unaffiliated credits. Dock fees alone are 4,200.
+
+quests:
+  - id: dock-fees-or-bust
+    title: Dock Fees or Bust
+    status: active
+    objectives:
+      - description: Pay 4,200 credits in Ceres dock fees within 20 hours, or the Wretch gets seized.
+        done: false
+      - description: Find a paying job — cargo, courier work, smuggling — for the Wretch's next run.
+        done: false
+      - description: Avoid drawing attention from Star Helix Security.
+        done: false
+
+scene:
+  tags:
+    - arrival
+    - exposition
+    - market
+  present_npcs:
+    - id: ceresian-busker
+      name: Ceresian busker
+      notes: Plays a salvaged guitar near the lift bank. Knows everyone who passes through.
+    - id: opa-watchers
+      name: Two men with OPA tattoos
+      notes: Drinking at a tavern table. Watching you with deliberate disinterest.
+  established_facts:
+    # === Universe (Expanse canon) ===
+    - It is the year 2351 in the Expanse universe. Humanity has colonized Earth, Mars, and the Belt. The protomolecule and Eros are not yet known to the public.
+    - Earth is governed by the United Nations (UN). Mars is governed by the Martian Congressional Republic (MCRN). The Belt is loosely organized under the Outer Planets Alliance (OPA), which is fragmented into competing factions.
+    - Belter creole glossary — inyalowda=Inners (Earthers/Martians), beltalowda=us Belters, sa sa ke=you understand, oye=hey, kowmang=comrade or the short Belter knife, pelo=junker ship.
+    - Belters are tall and thin from low-gravity development. They consider station and ship life their natural home. Earth and Mars consider Belters second-class citizens.
+    - Water, air, and reaction mass are the three currencies that matter most in the Belt. Inner-system corporations tightly control all three.
+    - The Epstein Drive is the standard ship propulsion. Sustained burns at 0.3-1.0 g are common; brachistochrone trips between major bodies still take days to weeks.
+    - Standard space combat uses PDCs (point-defense cannons), railguns, and torpedoes. Standard EVA suits are vac-rated with mag boots.
+
+    # === Setting (where the player is) ===
+    - You are on Ceres Station, a hollowed-out asteroid spun for one-third gravity, home to roughly three million Belters. Ceres is technically administered for the UN by Star Helix Security; in practice the OPA runs the lower levels.
+    - You are specifically on the Lower Levels Market — a two-kilometer concourse of taverns, food stalls, fences, fixers, and job-boards. Star Helix tolerates small smuggling here; they crack down on weapons, narcotics, and political contraband.
+    - Your ship, the *Wretch*, is docked in cradle 41-B, three levels above the market via freight lifts.
+
+    # === Ship: The Wretch ===
+    - The *Wretch* is a forty-year-old Mowteng-class light freighter. Hull patched in three places. Port maneuvering thruster lags by ~200 ms. Water recycler is failing. Cargo capacity is modest (six standard crates).
+    - The *Wretch* is functional but only barely. Any major job requires repairs first. She cannot survive a real chase from a modern MCRN or UN ship.
+
+    # === Crew ===
+    - Davi Moreau-Ng — your pilot. Half-Earther, half-Martian, ex-MCRN deserter (two years out). Cynical, brilliant under burn, has classified MCRN patrol corridor maps. Currently asleep in the *Wretch's* galley.
+    - Sigge Petrescu — your first mate and enforcer. Pallas-born Belter, ex-bouncer, scarred jaw, soft-spoken, fiercely loyal. Currently watching the *Wretch's* cargo ramp, armed.
+
+    # === Immediate situation ===
+    - You owe 4,200 credits in Ceres dock fees. You have 1,800 credits. The harbormaster's clock reads ~20 hours. If you don't pay, the *Wretch* is seized and auctioned for parts.
+    - Your last run was a milk-run from Tycho Station to Ceres — six crates of black-market water filtration cores. It paid the bills, nothing more.
+    - Common cargo for ships like the Wretch includes water filtration cores, contraband nutrients, MCRN small arms, prohibited tech, OPA documents, and occasionally refugees.

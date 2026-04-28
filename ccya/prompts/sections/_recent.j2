@@ -1,5 +1,7 @@
-## Recent Events
-{% if state.scene.established_facts %}
-### Established Facts
-{% for fact in state.scene.established_facts %}
-- {{ fact }}{% endfor %}{% endif %}
+{% if recent_turns %}
+## Recent turns
+{% for t in recent_turns %}
+**Turn {{ t.turn }}** — {{ t.input }}
+{{ t.narrative[:300] }}{% if t.narrative|length > 300 %}…{% endif %}
+{% endfor %}
+{% endif %}

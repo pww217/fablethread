@@ -1,4 +1,4 @@
-.PHONY: install run dev fmt lint test css clean new-game
+.PHONY: install run dev fmt lint test css clean new-game vendor
 
 install:
 	uv sync
@@ -19,10 +19,15 @@ test:
 	uv run pytest -q
 
 css:
-	./scripts/tailwindcss -i ccya/static/app.src.css -o ccya/static/app.css --minify
+	npx --yes @tailwindcss/cli -i ccya/static/app.src.css -o ccya/static/app.css --minify
 
 new-game:
 	uv run python -m ccya --new-game
+
+vendor:
+	mkdir -p ccya/static/vendor
+	curl -sL "https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" -o ccya/static/vendor/htmx.min.js
+	curl -sL "https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js" -o ccya/static/vendor/alpine.min.js
 
 clean:
 	rm -rf .venv dist build *.egg-info __pycache__ .pytest_cache

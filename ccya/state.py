@@ -87,12 +87,12 @@ def load_recent_events(save_dir: Path, n: int) -> list[dict[str, Any]]:
 
 
 def init_save_dir(save_dir: Path, seed: dict[str, Any]) -> None:
-    """Initialize a save directory from seed state YAML."""
+    """Initialize (or reset) a save directory from seed state YAML."""
     save_dir.mkdir(parents=True, exist_ok=True)
     save_state(save_dir, seed)
-    # Create empty chronicle and events
-    (save_dir / "chronicle.md").touch()
-    (save_dir / "events.jsonl").touch()
+    # Truncate both files so a New Game starts with a clean log and chronicle
+    (save_dir / "chronicle.md").write_text("")
+    (save_dir / "events.jsonl").write_text("")
 
 
 def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_max: int = 10) -> dict[str, Any]:
@@ -111,13 +111,14 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
             if item.get("id") != rid
         ]
 
-    # Location
+    # Location — clear NPCs when moving to a new place
     if delta.location_change:
         state["location"] = {
             "id": delta.location_change.id,
             "name": delta.location_change.name,
             "description": delta.location_change.description,
         }
+        state.setdefault("scene", {})["present_npcs"] = []
 
     # Quests
     existing_quests = {q["id"]: q for q in state.get("quests", [])}
@@ -165,12 +166,18 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
     for fact in delta.established_facts:
         if not _fact_already_exists(fact, existing_facts):
             existing_facts.append(fact)
-    # Cap at established_facts_max
     state.setdefault("scene", {})["established_facts"] = existing_facts[-established_facts_max:]
 
-    # Meta
-    meta = state.setdefault("meta", {})
-    meta["turn"] = meta.get("turn", 0) + 1
+    # Scene tags — replace each turn if provided
+    if delta.scene_tags:
+        state["scene"]["tags"] = delta.scene_tags
+
+    # Present NPCs — replace if provided (merges with location-change clear above)
+    if delta.present_npcs:
+        state["scene"]["present_npcs"] = [
+            {"id": n.id, "name": n.name, "notes": n.notes}
+            for n in delta.present_npcs
+        ]
 
     return state
 

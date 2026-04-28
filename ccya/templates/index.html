@@ -1,176 +1,454 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-     <meta charset="UTF-8">
-     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <title>ccya - Text Adventure</title>
-     <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
-     <script src="https://unpkg.com/alpinejs@3.14.8" defer></script>
-     <link rel="stylesheet" href="/static/app.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Choose Your Own Adventure</title>
+    <script src="/static/vendor/htmx.min.js" defer></script>
+    <script src="/static/vendor/alpine.min.js" defer></script>
+    <link rel="stylesheet" href="/static/app.css">
 </head>
-<body class="bg-slate-900 text-slate-200 h-screen flex flex-col">
-     <!-- Header -->
-     <header class="bg-slate-800 border-b border-slate-700 px-4 py-2 flex items-center justify-between shrink-0">
-         <h1 class="text-lg font-bold tracking-wide">ccya</h1>
-         <div class="flex gap-3 text-sm items-center">
-             <span x-show="state?.meta?.turn > 0">Turn {{ state.meta.turn or 0 }}</span>
-             <button @click="startNewGame()"
-                     class="text-amber-400 hover:text-amber-300 underline"
-                     :disabled="starting">
-                 <span x-show="!starting">New Game</span>
-                 <span x-show="starting">Starting...</span>
-             </button>
-         </div>
-     </header>
+<body>
 
-     <!-- Main layout -->
-     <div class="flex flex-1 overflow-hidden" x-data="game()">
-         <!-- Narrative panel (left, takes most space) -->
-         <div class="flex-1 flex flex-col overflow-hidden">
-             <div id="narrative-panel" class="flex-1 overflow-y-auto p-4 prose prose-invert prose-sm max-w-none">
-                 <template x-if="state?.meta?.turn === 0">
-                     <p class="text-slate-400 italic">No game loaded yet. Click <strong>New Game</strong> to begin.</p>
-                 </template>
-             </div>
-             <!-- Input bar -->
-             <div class="border-t border-slate-700 p-3 shrink-0">
-                 <form @submit.prevent="submitTurn()"
-                       x-show="state?.meta?.turn > 0"
-                       class="flex gap-2">
-                     <input type="text"
-                            name="input"
-                            id="player-input"
-                            x-model="input"
-                            placeholder="What do you do?"
-                            class="flex-1 bg-slate-800 border border-slate-600 rounded px-3 py-2 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-amber-500 disabled:opacity-50"
-                            :disabled="submitting">
-                     <button type="submit"
-                             class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded font-medium disabled:opacity-50"
-                             :disabled="submitting || !input.trim()">
-                         <span x-show="!submitting">Submit</span>
-                         <span x-show="submitting">Thinking...</span>
-                     </button>
-                 </form>
-             </div>
-         </div>
+<div class="app-shell" x-data="game()">
 
-         <!-- Right sidebar -->
-         <div class="w-80 border-l border-slate-700 flex flex-col overflow-hidden shrink-0">
-             <!-- State panel -->
-             <div id="state-panel" class="flex-1 overflow-y-auto p-3 text-sm">
-                 {% with state=state %}
-                 {% include "_state.html" %}
-                 {% endwith %}
-             </div>
+    <!-- Header -->
+    <header class="header-bar">
+        <span class="header-logo">Choose Your Own Adventure</span>
+        <div class="header-meta">
+            <span id="mock-dot" class="mock-dot" title="Checking Ollama…"></span>
+            <span class="turn-counter" x-show="gameStarted" x-text="'Turn\u00a0' + turnNum"></span>
+            <button class="new-game-btn"
+                    @click="startNewGame()"
+                    :disabled="starting || submitting">
+                <span x-show="!starting">New Game</span>
+                <span x-show="starting">Starting…</span>
+            </button>
+        </div>
+    </header>
 
-             <!-- Actions panel -->
-             <div id="actions-panel" class="border-t border-slate-700 max-h-40 overflow-y-auto p-3 text-sm">
-                 {% include "_actions.html" %}
-             </div>
+    <!-- Body -->
+    <div class="app-body">
 
-             <!-- Errors panel -->
-             <details id="errors-panel" class="border-t border-slate-700">
-                 <summary class="px-3 py-2 text-sm text-red-400 cursor-pointer hover:text-red-300">Errors</summary>
-                 <div id="errors-content" class="px-3 pb-3 text-xs font-mono">
-                    No errors yet.
-                 </div>
-             </details>
+        <!-- Narrative column -->
+        <main class="narrative-column">
 
-              <!-- Debug panel -->
-              <details x-show="debug" class="border-t border-slate-700">
-                  <summary class="px-3 py-2 text-sm text-blue-400 cursor-pointer hover:text-blue-300">Debug</summary>
-                  <div id="debug-content" class="px-3 pb-3 text-xs font-mono text-slate-400">
-                      <div>Mock mode: <span id="debug-mock-mode">Loading...</span></div>
-                      <div>State turns: <span id="debug-turns">0</span></div>
-                      <div>Requests: <span id="debug-requests">0</span></div>
-                      <div class="mt-1 space-y-1" id="debug-requests-list"></div>
-                  </div>
-              </details>
-         </div>
-     </div>
+            <!-- Scrollable narrative area — seeded with server-rendered history on load -->
+            <div id="narrative-panel" class="narrative-panel">
 
-     <script>
-     function game() {
-         return {
-             input: '',
-             submitting: false,
-             starting: false,
-             debug: false,
-             mockMode: false,
-             requests: [],
+                {% if not history and not state.location.id %}
+                <p class="empty-state" id="empty-prompt" style="padding: 8px 0;">
+                    No game loaded yet. Click <strong style="color: var(--text-primary)">New Game</strong> to begin.
+                </p>
+                {% endif %}
 
-             async startNewGame() {
-                 this.starting = true;
-                 this.requests.push({ event: 'new_game_start', elapsed_ms: 0 });
+                {% if opening %}
+                <div class="narrative-block" id="opening-block">
+                    <div class="narrative-text" data-raw>{{ opening }}</div>
+                </div>
+                {% endif %}
 
-                 try {
-                     // Fetch the new game state
-                     const resp = await fetch('/new-game', { method: 'POST' });
-                     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                {% for ev in history %}
+                <div class="narrative-block">
+                    <p class="narrative-input-echo">&gt; {{ ev.input }}</p>
+                    <div class="narrative-text" data-raw>{{ ev.narrative }}</div>
+                </div>
+                {% endfor %}
 
-                     // Load state panel via HTMX
-                     htmx.ajax('GET', '/panels/state', { target: '#state-panel' });
+            </div>
 
-                     // Fetch opening scene
-                     const seedResp = await fetch('/opening');
-                     const opening = await seedResp.text();
+            <!-- Action pills — server-rendered on load, JS-updated on turn_complete -->
+            <div class="pills-row" id="actions-zone">
+                {% if last_actions %}
+                {% for action in last_actions %}
+                <button class="action-pill" onclick="window._gameInstance && window._gameInstance.fillAndSubmit(this.textContent)">{{ action }}</button>
+                {% endfor %}
+                {% elif history %}
+                <span class="empty-state">Continue your adventure above.</span>
+                {% else %}
+                <span class="empty-state">Suggested actions appear after each turn.</span>
+                {% endif %}
+            </div>
 
-                     // Clear the "no game" message and show opening
-                     const narrativePanel = document.getElementById('narrative-panel');
-                     narrativePanel.innerHTML = `<div class="narrative-fragment mb-4 p-3 bg-slate-800/50 rounded prose prose-invert prose-sm">${opening.replace(/\n/g, '<br>')}</div>`;
+            <!-- Input bar -->
+            <div class="input-bar">
+                <textarea id="player-input"
+                          class="game-input"
+                          x-model="input"
+                          placeholder="What do you do? (Enter to send, Shift+Enter for newline)"
+                          rows="3"
+                          :disabled="submitting || !gameStarted"
+                          @keydown.enter="onEnter($event)"></textarea>
+                <button class="send-btn"
+                        @click="submitTurn()"
+                        :disabled="submitting || !input.trim() || !gameStarted">
+                    <span x-show="!submitting">Send&nbsp;&rarr;</span>
+                    <i x-show="submitting" class="send-spinner"></i>
+                </button>
+            </div>
 
-                     this.requests.push({ event: 'new_game_done', elapsed_ms: 100 });
-                     this.refreshDebug();
-                 } catch (e) {
-                     this.requests.push({ event: 'new_game_error', error: e.message, elapsed_ms: 0 });
-                     console.error('New game failed:', e);
-                 } finally {
-                     this.starting = false;
-                 }
-             },
+        </main>
 
-             submitTurn() {
-                 if (!this.input.trim() || this.submitting) return;
-                 this.submitting = true;
-                 const input = this.input;
-                 this.input = '';
+        <!-- Right sidebar -->
+        <aside class="sidebar">
 
-                 const narrativePanel = document.getElementById('narrative-panel');
-                 let narrativeDiv = narrativePanel.querySelector('.narrative-fragment');
-                 if (narrativeDiv) narrativeDiv.remove();
+            <div id="state-panel">
+                {% with state=state %}
+                {% include "_state.html" %}
+                {% endwith %}
+            </div>
 
-                 const newDiv = document.createElement('div');
-                 newDiv.className = 'narrative-fragment mb-4 p-3 bg-slate-800/50 rounded';
-                 narrativePanel.appendChild(newDiv);
+            <details class="sidebar-card" id="card-errors" data-card="errors">
+                <summary>Errors</summary>
+                <div class="sidebar-card-body" id="errors-content">
+                    {% include "_errors.html" %}
+                </div>
+            </details>
 
-                 const startTime = Date.now();
-                 this.requests.push({ event: 'turn_submit', input: input.substring(0, 60) });
+            <details class="sidebar-card" id="card-debug" data-card="debug"
+                     hx-get="/panels/debug" hx-trigger="toggle from:closest details once" hx-target="#debug-content" hx-swap="innerHTML">
+                <summary>Debug</summary>
+                <div class="sidebar-card-body" id="debug-content">
+                    {% with requests=requests, mock_mode=mock_mode, state=state, enforce_extract_schema=enforce_extract_schema, log_llm_io=log_llm_io, log_file=log_file %}
+                    {% include "_debug.html" %}
+                    {% endwith %}
+                </div>
+            </details>
 
-                 // Send input via POST
-                 fetch('/turn', {
-                     method: 'POST',
-                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                     body: new URLSearchParams({ input: input })
-                 }).then(async resp => {
-                     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                     const text = await resp.text();
-                     newDiv.innerHTML = `<div class="narrative-text">${text.replace(/\n/g, '<br>')}</div>`;
-                     this.requests.push({ event: 'turn_done', elapsed_ms: Date.now() - startTime });
-                     this.refreshDebug();
+        </aside>
 
-                     // Refresh state panel
-                     htmx.ajax('GET', '/panels/state', { target: '#state-panel' });
-                 }).catch(e => {
-                     newDiv.innerHTML += `<div class="text-red-400 mt-2">Error: ${e.message}</div>`;
-                     this.requests.push({ event: 'turn_error', error: e.message, elapsed_ms: Date.now() - startTime });
-                     this.refreshDebug();
-                 }).finally(() => {
-                     this.submitting = false;
-                     narrativePanel.scrollTop = narrativePanel.scrollHeight;
-                 });
-             }
-         };
-     }
-     </script>
+    </div><!-- .app-body -->
+
+</div><!-- .app-shell -->
+
+<script>
+const CCYA_CARD_KEY = (name) => 'ccya_card_' + name;
+
+function _progressStripHTML() {
+    return '<span class="progress-spinner" aria-hidden="true"></span>'
+        + '<span class="progress-label">Composing narrative…</span>'
+        + '<span class="progress-metas">'
+        + '<span class="progress-eta"></span>'
+        + '<span class="progress-elapsed">0.0s</span>'
+        + '</span>';
+}
+
+function _setProgressFromPhase(strip, payload) {
+    const p = (payload && payload.phase) || '';
+    strip.setAttribute('data-phase', p);
+    const label = strip.querySelector('.progress-label');
+    const eta = strip.querySelector('.progress-eta');
+    if (p === 'narrate_done') {
+        label.textContent = 'Reviewing outcome…';
+        if (eta) eta.textContent = '';
+    } else if (p === 'extract_start') {
+        label.textContent = 'Processing outcome…';
+        if (eta && payload && payload.expected_ms > 0) {
+            eta.textContent = '~' + (payload.expected_ms / 1000).toFixed(0) + 's avg';
+        } else if (eta) { eta.textContent = ''; }
+    } else if (p === 'extract_retry') {
+        const n = (payload && payload.attempt) || '?';
+        label.textContent = 'Re-checking outcome (try ' + n + ')…';
+        if (eta) eta.textContent = '';
+    } else if (p === 'extract_done') {
+        label.textContent = 'Updating world…';
+        if (eta) eta.textContent = '';
+    } else if (p === 'persist') {
+        label.textContent = 'Saving…';
+        if (eta) eta.textContent = '';
+    }
+}
+
+function _clearProgressStrip(strip) {
+    if (strip) {
+        if (strip._tick) clearInterval(strip._tick);
+        strip._tick = null;
+        strip.remove();
+    }
+}
+
+function _bindProgressTimer(strip) {
+    const began = Date.now();
+    const elapsedEl = strip.querySelector('.progress-elapsed');
+    strip._tick = setInterval(() => {
+        if (!elapsedEl) return;
+        const s = (Date.now() - began) / 1000;
+        elapsedEl.textContent = (s < 10 ? s.toFixed(1) : s.toFixed(0)) + 's';
+    }, 250);
+}
+
+function applyCardOpenStateFromStorage() {
+    document.querySelectorAll('aside.sidebar details.sidebar-card[data-card]').forEach((d) => {
+        const v = localStorage.getItem(CCYA_CARD_KEY(d.dataset.card));
+        if (v === '1') d.setAttribute('open', '');
+        else if (v === '0') d.removeAttribute('open');
+    });
+}
+
+function game() {
+    return {
+        input: '',
+        submitting: false,
+        starting: false,
+        gameStarted: {{ 'true' if state.location.id else 'false' }},
+        turnNum: {{ state.meta.turn | default(0) }},
+
+        init() {
+            // Expose instance so server-rendered pill onclick can reach fillAndSubmit
+            window._gameInstance = this;
+        },
+
+        onEnter(event) {
+            if (!event.shiftKey) {
+                event.preventDefault();
+                this.submitTurn();
+            }
+        },
+
+        async startNewGame() {
+            if (this.turnNum > 0 && !confirm('Reset the current game? This cannot be undone.')) return;
+            this.starting = true;
+            try {
+                const resp = await fetch('/new-game', { method: 'POST' });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                // Reload the page — server will render the opening scene + fresh state
+                window.location.reload();
+            } catch (e) {
+                console.error('New game failed:', e);
+                document.getElementById('narrative-panel').insertAdjacentHTML('beforeend',
+                    `<p style="color: var(--accent-error); font-size: 13px; margin-top: 12px;">
+                        Failed to start new game: ${_escapeHtml(e.message)}
+                     </p>`);
+                this.starting = false;
+            }
+        },
+
+        submitTurn() {
+            if (!this.input.trim() || this.submitting || !this.gameStarted) return;
+            this.submitting = true;
+            const userInput = this.input.trim();
+            this.input = '';
+
+            // Disable pills during turn
+            document.querySelectorAll('.action-pill').forEach(p => p.disabled = true);
+
+            const np = document.getElementById('narrative-panel');
+
+            // Remove "no game" empty prompt if still visible
+            document.getElementById('empty-prompt')?.remove();
+
+            // Build narrative block — streaming cursor sits inside textDiv
+            const block   = document.createElement('div');
+            block.className = 'narrative-block';
+            const echo    = document.createElement('p');
+            echo.className = 'narrative-input-echo';
+            echo.textContent = '> ' + userInput;
+            const textDiv = document.createElement('div');
+            textDiv.className = 'narrative-text';
+            const cursor  = document.createElement('span');
+            cursor.className = 'streaming-cursor';
+            textDiv.appendChild(cursor);
+            const strip = document.createElement('div');
+            strip.className = 'progress-strip';
+            strip.setAttribute('data-phase', 'narrate');
+            strip.innerHTML = _progressStripHTML();
+            _bindProgressTimer(strip);
+            block.appendChild(echo);
+            block.appendChild(textDiv);
+            block.appendChild(strip);
+            np.appendChild(block);
+            np.scrollTop = np.scrollHeight;
+
+            const url = '/turn?input=' + encodeURIComponent(userInput);
+            const es  = new EventSource(url);
+
+            es.addEventListener('narrative_token', (e) => {
+                const data = JSON.parse(e.data);
+                // Insert raw text before the cursor
+                cursor.insertAdjacentText('beforebegin', data.chunk || '');
+                np.scrollTop = np.scrollHeight;
+            });
+
+            es.addEventListener('phase', (e) => {
+                const payload = JSON.parse(e.data);
+                if (payload && payload.phase === 'narrate_done' && cursor.parentNode) {
+                    cursor.remove();
+                }
+                _setProgressFromPhase(strip, payload);
+                np.scrollTop = np.scrollHeight;
+            });
+
+            es.addEventListener('turn_complete', (e) => {
+                es.close();
+                const result = JSON.parse(e.data);
+                this.turnNum  = result.turn || this.turnNum;
+                _clearProgressStrip(strip);
+
+                // Replace streamed plain text with formatted markdown
+                if (cursor.parentNode) cursor.remove();
+                textDiv.innerHTML = _renderMarkdown(result.narrative || '');
+
+                // Rejection notice (below the narrative text)
+                if (result.rejected && result.rejected.length > 0) {
+                    const note = document.createElement('div');
+                    note.className = 'rejection-note';
+                    note.textContent = `\u26a0 Some changes were rejected (trace\u00a0${result.trace_id})`;
+                    block.appendChild(note);
+                }
+
+                // Repopulate action pills
+                const zone = document.getElementById('actions-zone');
+                if (result.actions && result.actions.length > 0) {
+                    zone.innerHTML = '';
+                    result.actions.forEach(action => {
+                        const btn = document.createElement('button');
+                        btn.className = 'action-pill';
+                        btn.textContent = action;
+                        btn.addEventListener('click', () => this.fillAndSubmit(action));
+                        zone.appendChild(btn);
+                    });
+                } else {
+                    zone.innerHTML = '<span class="empty-state">No suggested actions.</span>';
+                }
+
+                htmx.ajax('GET', '/panels/state',  { target: '#state-panel' });
+                htmx.ajax('GET', '/panels/errors', { target: '#errors-content' });
+                np.scrollTop = np.scrollHeight;
+                this.submitting = false;
+                setTimeout(() => document.getElementById('player-input')?.focus(), 100);
+            });
+
+            es.addEventListener('turn_error', (e) => {
+                es.close();
+                _clearProgressStrip(strip);
+                if (cursor.parentNode) cursor.remove();
+                const data = JSON.parse(e.data);
+                textDiv.innerHTML =
+                    `<span style="color:var(--accent-error)">${_escapeHtml(data.error || 'Unknown error')}</span>`;
+                htmx.ajax('GET', '/panels/errors', { target: '#errors-content' });
+                document.querySelectorAll('.action-pill').forEach(p => p.disabled = false);
+                this.submitting = false;
+            });
+
+            es.onerror = () => {
+                es.close();
+                if (this.submitting) {
+                    _clearProgressStrip(strip);
+                    if (cursor.parentNode) cursor.remove();
+                    textDiv.insertAdjacentHTML('beforeend',
+                        '<span style="color:var(--accent-error)"> [connection\u00a0lost\u00a0\u2014 try again]</span>');
+                    document.querySelectorAll('.action-pill').forEach(p => p.disabled = false);
+                    this.submitting = false;
+                }
+            };
+        },
+
+        fillAndSubmit(text) {
+            if (this.submitting) return;
+            this.input = text;
+            this.submitTurn();
+        },
+    };
+}
+
+function _escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+// Markdown renderer: headers, lists, bold, italic, code, paragraphs
+function _renderMarkdown(text) {
+    if (!text) return '';
+    let s = _escapeHtml(text);
+    // Headers (must come before bold/italic to avoid clobbering #)
+    s = s.replace(/^# (.+)$/gm,  '<h2>$1</h2>');
+    s = s.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+    // Bold / italic / code
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\*(.+?)\*/g,     '<em>$1</em>');
+    s = s.replace(/`([^`]+)`/g,     '<code>$1</code>');
+    // Unordered lists (consecutive "- " lines become a single <ul>)
+    s = s.replace(/((?:^- .+$\n?)+)/gm, (match) => {
+        const items = match.trim().split('\n')
+            .map(l => '<li>' + l.replace(/^- /, '') + '</li>')
+            .join('');
+        return '<ul>' + items + '</ul>';
+    });
+    // Paragraphs — double newlines become paragraph breaks; single newlines become <br>
+    const parts = s.split(/\n\n+/);
+    return parts.map(p => {
+        p = p.trim();
+        if (!p) return '';
+        // Don't wrap block elements in <p>
+        if (/^<(h[23]|ul|ol|li)/.test(p)) return p;
+        return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
+    }).filter(Boolean).join('\n');
+}
+
+function _applyMarkdown(root) {
+    // Narrative blocks (full markdown, data-raw)
+    (root || document).querySelectorAll('.narrative-text[data-raw]').forEach(el => {
+        el.innerHTML = _renderMarkdown(el.textContent);
+        el.removeAttribute('data-raw');
+    });
+    // Sidebar elements (inline markdown only — bold/italic/code/em, no block headers)
+    (root || document).querySelectorAll('[data-md]').forEach(el => {
+        el.innerHTML = _renderMarkdown(el.textContent);
+        el.removeAttribute('data-md');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    _applyMarkdown();
+
+    // Collapsed/open state for sidebar <details> cards.
+    // `toggle` does NOT bubble — must use capture phase for delegation.
+    applyCardOpenStateFromStorage();
+    document.addEventListener('toggle', (e) => {
+        const t = e.target;
+        if (t.matches && t.matches('details.sidebar-card[data-card]')) {
+            localStorage.setItem(CCYA_CARD_KEY(t.dataset.card), t.open ? '1' : '0');
+        }
+    }, true);  // capture=true required: toggle doesn't bubble
+    document.body.addEventListener('htmx:afterSwap', (e) => {
+        if (e.target && e.target.id === 'state-panel') {
+            applyCardOpenStateFromStorage();
+            _applyMarkdown(e.target);
+        }
+    });
+
+    // Auto-scroll narrative to bottom (shows most recent history entry)
+    const np = document.getElementById('narrative-panel');
+    if (np) np.scrollTop = np.scrollHeight;
+
+    // Focus input if a game is already in progress
+    const inp = document.getElementById('player-input');
+    if (inp && !inp.disabled) inp.focus();
+
+    // Fetch Ollama status and update the header dot
+    fetch('/healthz').then(r => r.json()).then(data => {
+        const dot = document.getElementById('mock-dot');
+        if (!dot) return;
+        if (data.mock) {
+            dot.classList.add('mock');
+            dot.title = 'Mock mode (no Ollama)';
+        } else if (data.ollama === 'ok' && data.available) {
+            dot.classList.add('ready');
+            dot.title = data.model + ' — ready';
+        } else {
+            dot.classList.add('error');
+            dot.title = data.ollama === 'fail'
+                ? 'Ollama unreachable'
+                : 'Model ' + data.model + ' not loaded';
+        }
+    }).catch(() => {
+        const dot = document.getElementById('mock-dot');
+        if (dot) { dot.classList.add('error'); dot.title = 'Status unknown'; }
+    });
+});
+</script>
+
 </body>
 </html>

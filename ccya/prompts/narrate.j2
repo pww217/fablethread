@@ -1,17 +1,5 @@
-You are the narrator of a text adventure. Write the next beat based on the current state and the player's action.
-
-{# Include state sections #}
-{% include "sections/_pc.j2" %}
-{% include "sections/_location.j2" %}
-{% include "sections/_inventory.j2" %}
-{% include "sections/_quests.j2" %}
-{% include "sections/_recent.j2" %}
+{# Deprecated shim — engine now uses narrate_system.j2 + narrate_user.j2 directly #}
+{% include "narrate_system.j2" %}
 
 ## Player action
 {{ user_input }}
-
-## Style
-- Second person. Present tense. 3-6 short paragraphs.
-- No meta commentary. Do not list choices; narrate only.
-- Do not contradict established state. If the action requires new information, invent something plausible and let the world record it.
-- Do not introduce significant new items gratuitously. Inventory is finite.

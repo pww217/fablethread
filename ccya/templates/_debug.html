@@ -1,24 +1,45 @@
-<div class="space-y-2">
-     <div>
-         <h3 class="font-bold text-slate-300">Debug</h3>
-         <div class="text-xs text-slate-400 mt-1 space-y-0.5">
-             <div>Mock mode: <span class="{% if mock_mode %}text-green-400{% else %}text-slate-500{% endif %}">{{ "ON" if mock_mode else "OFF" }}</span></div>
-             <div>State turns: <span class="text-slate-300">{{ state.meta.turn or 0 }}</span></div>
-             <div>Requests logged: <span class="text-slate-300">{{ requests|length }}</span></div>
-         </div>
-     </div>
-     {% if requests %}
-     <div>
-         <h3 class="font-bold text-slate-300">Recent Requests</h3>
-         <div class="text-xs font-mono text-slate-400 mt-1 space-y-1 max-h-32 overflow-y-auto">
-             {% for req in requests %}
-             <div class="border-l border-slate-600 pl-2 py-0.5">
-                 <div class="text-slate-500">{{ req.get("event", "?") }} | {{ req.get("elapsed_ms", 0)|round(0, "ceil")|int }}ms</div>
-                 {% if req.get("input") %}<div>Input: {{ req.input[:80] }}</div>{% endif %}
-                 {% if req.get("error") %}<div class="text-red-400">Error: {{ req.error }}</div>{% endif %}
-             </div>
-             {% endfor %}
-         </div>
-     </div>
-     {% endif %}
- </div>
+{# Debug panel body — rendered into the Debug <details> in index.html.
+   No outer card chrome; this fragment goes inside .sidebar-card-body. #}
+<div class="stat-row">
+    <span class="stat-label">Mock mode</span>
+    <span class="stat-value" style="color: {% if mock_mode %}var(--accent){% else %}var(--text-muted){% endif %}">
+        {{ 'ON' if mock_mode else 'off' }}
+    </span>
+</div>
+<div class="stat-row">
+    <span class="stat-label">Turn</span>
+    <span class="stat-value">{{ state.meta.turn or 0 }}</span>
+</div>
+<div class="stat-row">
+    <span class="stat-label">Schema enforced</span>
+    <span class="stat-value">{{ 'yes' if enforce_extract_schema else 'no' }}</span>
+</div>
+<div class="stat-row">
+    <span class="stat-label">LLM IO logging</span>
+    <span class="stat-value">{{ 'yes' if log_llm_io else 'no' }}</span>
+</div>
+<div class="stat-row">
+    <span class="stat-label">Log file</span>
+    <span class="stat-value stat-concept">{{ log_file }}</span>
+</div>
+<div class="stat-row">
+    <span class="stat-label">Requests logged</span>
+    <span class="stat-value">{{ requests | length }}</span>
+</div>
+
+{% if requests %}
+<div class="debug-requests">
+    <div class="debug-section-header">Recent Requests</div>
+    {% for req in requests %}
+    <div class="debug-request-row">
+        <div class="debug-request-meta">{{ req.get("event", "?") }} — {{ req.get("elapsed_ms", 0) | round(0) | int }}ms</div>
+        {% if req.get("input") %}<div class="debug-request-input">{{ req.input[:120] }}</div>{% endif %}
+        {% if req.get("error") %}<div class="debug-request-error">{{ req.error }}</div>{% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="debug-hint">
+    <code>tail -f {{ log_file }}</code> to watch live LLM I/O.
+</div>

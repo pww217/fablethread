@@ -32,6 +32,12 @@ class QuestUpdate(BaseModel):
     objectives: list[QuestObjective] = Field(default_factory=list)
 
 
+class NpcRef(BaseModel):
+    id: str
+    name: str
+    notes: str = ""  # one-line description + attitude toward the player
+
+
 class StateDelta(BaseModel):
     inventory_add: list[InventoryItem] = Field(default_factory=list, max_length=6)
     inventory_remove: list[str] = Field(default_factory=list)
@@ -40,12 +46,13 @@ class StateDelta(BaseModel):
     pc_condition_add: list[str] = Field(default_factory=list)
     pc_condition_remove: list[str] = Field(default_factory=list)
     established_facts: list[str] = Field(default_factory=list)
+    scene_tags: list[str] = Field(default_factory=list)
+    present_npcs: list[NpcRef] = Field(default_factory=list)
 
 
 class ExtractResult(BaseModel):
     state_delta: StateDelta
-    actions: list[str] = Field(min_length=3, max_length=5)
-    scene_tags: list[str] = Field(default_factory=list)
+    actions: list[str] = Field(min_length=4, max_length=4)
 
 
 # --- TurnResult (returned from engine, not Pydantic) ---

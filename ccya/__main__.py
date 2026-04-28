@@ -1,7 +1,6 @@
 """CLI entry point for ccya."""
 
 import argparse
-import webbrowser
 
 import uvicorn
 
@@ -21,24 +20,19 @@ def main() -> None:
     if args.new_game:
         import yaml
         from ccya.state import init_save_dir
-        pack = config.get("game", {}).get("setting_pack", "hard-scifi-demo")
+        pack = config.get("game", {}).get("setting_pack", "expanse-belter")
         seed_path = f"packs/{pack}/seed_state.yaml"
         with open(seed_path) as f:
             seed = yaml.safe_load(f) or {}
         init_save_dir(SAVE_DIR, seed)
         print(f"New game started in {SAVE_DIR}")
 
-    # Start server and open browser
-    import threading
-    import time
+    url = f"http://{host}:{port}/"
+    print(f"\n╔══════════════════════════════════════╗")
+    print(f"║  ccya — Choose Your Own Adventure    ║")
+    print(f"║  {url:<36}║")
+    print(f"╚══════════════════════════════════════╝\n")
 
-    def open_browser() -> None:
-        time.sleep(1.5)
-        url = f"http://{host}:{port}/"
-        print(f"\nOpening {url} in browser...")
-        webbrowser.open(url)
-
-    threading.Thread(target=open_browser, daemon=True).start()
     uvicorn.run(app, host=host, port=port, reload=False)
 
 
