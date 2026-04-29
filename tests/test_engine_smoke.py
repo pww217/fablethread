@@ -17,14 +17,13 @@ from pathlib import Path
 import pytest
 
 from ccya.engine import EngineConfig, run_turn, _build_jinja_env, _narrate_messages, _extract_messages
-from ccya.models import QuestUpdate, StateDelta
+from ccya.models import InventoryItem, InventoryRemove, QuestObjective, QuestUpdate, StateDelta
 from ccya.ollama import _build_body
 from ccya.state import (
     apply_delta,
     load_state,
     load_chronicle_tail,
     save_state,
-    append_chronicle,
     append_event,
 )
 
@@ -218,16 +217,34 @@ class TestPromptComposition:
 
     def test_extract_has_system_assistant_user_roles(self):
         env = self._env()
-        msgs = _extract_messages(env, "The airlock opened.")
+        msgs = _extract_messages(env, "The airlock opened.", _make_state())
         roles = [m["role"] for m in msgs]
         assert roles == ["system", "assistant", "user"]
 
     def test_extract_assistant_message_is_narrative(self):
         env = self._env()
         narrative = "You step through the airlock. The corridor hums."
-        msgs = _extract_messages(env, narrative)
+        msgs = _extract_messages(env, narrative, _make_state())
         assistant_msg = next(m for m in msgs if m["role"] == "assistant")
         assert narrative in assistant_msg["content"]
+
+    def test_extract_user_message_includes_active_quests_and_inventory(self):
+        env = self._env()
+        state = _make_state()
+        msgs = _extract_messages(env, "Narrative text.", state)
+        user_msg = next(m for m in msgs if m["role"] == "user")
+        assert "quiet-signal" in user_msg["content"]
+        assert "hand-terminal" in user_msg["content"]
+
+    def test_extract_user_message_includes_established_facts(self):
+        env = self._env()
+        state = _make_state()
+        state["scene"]["established_facts"] = ["Alpha fact about the station.", "Beta fact about the crew."]
+        msgs = _extract_messages(env, "Narrative text.", state)
+        user_msg = next(m for m in msgs if m["role"] == "user")
+        assert "Established facts" in user_msg["content"]
+        assert "Alpha fact about the station." in user_msg["content"]
+        assert "Beta fact about the crew." in user_msg["content"]
 
     def test_chronicle_injected_when_present(self):
         env = self._env()
@@ -266,9 +283,11 @@ class TestHappyPath:
 
         narrative = "You step through the airlock. The corridor stretches ahead, dim and humming."
         extract = json.dumps({
-            "state_delta": {"established_facts": ["You found an airlock at Docking Ring 7."]},
+            "state_delta": {
+                "established_facts": ["You found an airlock at Docking Ring 7."],
+                "scene_tags": ["exploration"],
+            },
             "actions": ["Go left", "Go right", "Check your terminal", "Wait"],
-            "scene_tags": ["exploration"],
         })
 
         fake = _FakeOllama([narrative, extract])
@@ -288,9 +307,8 @@ class TestHappyPath:
         _write_state(SAVE_DIR, state)
 
         extract = json.dumps({
-            "state_delta": {},
+            "state_delta": {"scene_tags": ["exploration"]},
             "actions": ["Open door", "Take stairs", "Check map", "Go back"],
-            "scene_tags": ["exploration"],
         })
         fake = _FakeOllama(["narrative text", extract])
         with fake:
@@ -314,7 +332,6 @@ class TestStreamingEvents:
         extract = json.dumps({
             "state_delta": {},
             "actions": ["A", "B", "C", "D"],
-            "scene_tags": [],
         })
         fake = _FakeOllama(["hello world", extract])
         with fake:
@@ -330,7 +347,7 @@ class TestStreamingEvents:
         _write_state(SAVE_DIR, state)
 
         events = []
-        extract = json.dumps({"state_delta": {}, "actions": ["A", "B", "C", "D"], "scene_tags": []})
+        extract = json.dumps({"state_delta": {}, "actions": ["A", "B", "C", "D"]})
         fake = _FakeOllama(["the narrative", extract])
         with fake:
             async for kind, _ in run_turn(
@@ -358,7 +375,6 @@ class TestRejectedDelta:
         extract = json.dumps({
             "state_delta": {"inventory_remove": ["ghost-item-999"]},
             "actions": ["A", "B", "C", "D"],
-            "scene_tags": [],
         })
         fake = _FakeOllama([extract])
         with fake:
@@ -376,7 +392,6 @@ class TestRejectedDelta:
         extract = json.dumps({
             "state_delta": {"inventory_remove": ["ghost-item"]},
             "actions": ["A", "B", "C", "D"],
-            "scene_tags": [],
         })
         fake = _FakeOllama([extract])
         with fake:
@@ -392,7 +407,6 @@ class TestRejectedDelta:
         extract = json.dumps({
             "state_delta": {"quest_updates": [{"id": "new-quest", "title": "New Quest", "status": "active", "objectives": []}]},
             "actions": ["A", "B", "C", "D"],
-            "scene_tags": [],
         })
         fake = _FakeOllama([extract])
         with fake:
@@ -421,7 +435,6 @@ class TestSchemaFailureRetry:
         good_extract = json.dumps({
             "state_delta": {"pc_condition_add": ["curious"]},
             "actions": ["A", "B", "C", "D"],
-            "scene_tags": [],
         })
         chat_call_count = 0
 
@@ -463,7 +476,6 @@ class TestFactCanonization:
         extract = json.dumps({
             "state_delta": {"established_facts": ["The airlock hums with residual charge."]},
             "actions": ["A", "B", "C", "D"],
-            "scene_tags": [],
         })
         fake = _FakeOllama([extract])
         with fake:
@@ -503,7 +515,7 @@ class TestChroniclePrefixBudget:
             yield "narrative"
 
         async def fake_chat(*args, **kwargs):
-            return {"response": json.dumps({"state_delta": {}, "actions": ["A","B","C","D"], "scene_tags": []}), "done": True, "usage": {}}
+            return {"response": json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]}), "done": True, "usage": {}}
 
         import ccya.engine as eng
         _orig_stream, _orig_chat = eng.ollama_chat_stream, eng.ollama_chat
@@ -539,6 +551,48 @@ class TestStateApplyDelta:
         updated = apply_delta(state, delta)
         assert "hand-terminal" not in [item["id"] for item in updated["inventory"]]
 
+    def test_inventory_merges_by_id(self) -> None:
+        state = {
+            **_make_state(),
+            "inventory": [{"id": "credits", "name": "Credits", "amount": 100, "notes": "Cash."}],
+        }
+        delta = StateDelta(
+            inventory_add=[InventoryItem(id="credits", name="Credits", amount=50, notes="Cash.")],
+        )
+        updated = apply_delta(state, delta)
+        cred = next(i for i in updated["inventory"] if i["id"] == "credits")
+        assert cred["amount"] == 150
+
+    def test_inventory_remove_partial_amount(self) -> None:
+        state = {
+            **_make_state(),
+            "inventory": [{"id": "credits", "name": "Credits", "amount": 1800, "notes": ""}],
+        }
+        delta = StateDelta(inventory_remove=[InventoryRemove(id="credits", amount=500)])
+        updated = apply_delta(state, delta)
+        cred = next(i for i in updated["inventory"] if i["id"] == "credits")
+        assert cred["amount"] == 1300
+
+    def test_inventory_remove_full_stack_when_amount_exhausts(self) -> None:
+        state = {
+            **_make_state(),
+            "inventory": [{"id": "credits", "name": "Credits", "amount": 100, "notes": ""}],
+        }
+        delta = StateDelta(inventory_remove=[InventoryRemove(id="credits", amount=100)])
+        updated = apply_delta(state, delta)
+        assert "credits" not in [i["id"] for i in updated["inventory"]]
+
+    def test_credits_sort_to_top(self) -> None:
+        state = {
+            **_make_state(),
+            "inventory": [
+                {"id": "hand-terminal", "name": "Hand terminal", "amount": 1, "notes": ""},
+                {"id": "credits", "name": "Credits", "amount": 50, "notes": ""},
+            ],
+        }
+        updated = apply_delta(state, StateDelta())
+        assert updated["inventory"][0]["id"] == "credits"
+
     def test_location_change(self) -> None:
         state = _make_state()
         delta = StateDelta(location_change={"id": "concourse-b", "name": "Concourse B", "description": "Wide and bright."})
@@ -565,7 +619,7 @@ class TestTurnCounterSingleIncrement:
         state = _make_state(turn=0)
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"], "scene_tags": []})
+        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
         fake = _FakeOllama([extract])
         with fake:
             result = await _run(SAVE_DIR, "look", config=EngineConfig())
@@ -576,7 +630,7 @@ class TestTurnCounterSingleIncrement:
         state = _make_state(turn=0)
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"], "scene_tags": []})
+        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
         fake = _FakeOllama([extract, extract])
         with fake:
             r1 = await _run(SAVE_DIR, "first", config=EngineConfig())
@@ -600,7 +654,6 @@ class TestEventWrittenBeforeState:
         extract = json.dumps({
             "state_delta": {"established_facts": ["turn-1-fact"]},
             "actions": ["A","B","C","D"],
-            "scene_tags": [],
         })
         fake = _FakeOllama([extract])
         with fake:
@@ -629,7 +682,7 @@ class TestChronicleFormatted:
         _write_state(SAVE_DIR, state)
         (SAVE_DIR / "chronicle.md").touch()
 
-        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"], "scene_tags": []})
+        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
         fake = _FakeOllama(["the narrative text", extract])
         with fake:
             await _run(SAVE_DIR, "my action", config=EngineConfig())
@@ -650,7 +703,7 @@ class TestTurnResultTraceId:
     async def test_unique_trace_ids(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
-        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"], "scene_tags": []})
+        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
         fake = _FakeOllama([extract, extract])
         with fake:
             r1 = await _run(SAVE_DIR, "first", config=EngineConfig())
@@ -684,11 +737,106 @@ class TestEstablishedFactsEviction:
         state = _make_state()
         state["scene"]["established_facts"] = ["f1", "f2", "f3", "f4", "f5"]
         delta = StateDelta(established_facts=["f6", "f7", "f8", "f9", "f10", "f11"])
-        updated = apply_delta(state, delta)
+        updated = apply_delta(state, delta, established_facts_max=10)
         facts = updated["scene"]["established_facts"]
         assert len(facts) <= 10
         assert "f11" in facts
         assert "f1" not in facts
+
+
+class TestEstablishedFactsRemove:
+
+    def test_remove_strips_normalized_match(self) -> None:
+        state = _make_state()
+        state["scene"]["established_facts"] = ["  The Ship is damaged.  ", "Other fact."]
+        delta = StateDelta(established_facts_remove=["The Ship is damaged."])
+        updated = apply_delta(state, delta)
+        facts = updated["scene"]["established_facts"]
+        assert "Other fact." in facts
+        assert not any("damaged" in f for f in facts)
+
+    def test_remove_then_add_supersedes(self) -> None:
+        state = _make_state()
+        state["scene"]["established_facts"] = ["Hull cracked."]
+        delta = StateDelta(
+            established_facts_remove=["Hull cracked."],
+            established_facts=["Hull fully repaired at dock 9."],
+        )
+        updated = apply_delta(state, delta)
+        facts = updated["scene"]["established_facts"]
+        assert "Hull fully repaired at dock 9." in facts
+        assert "Hull cracked." not in facts
+
+
+class TestEstablishedFactsCap25:
+
+    def test_cap_at_25(self) -> None:
+        state = _make_state()
+        state["scene"]["established_facts"] = [f"f{i}" for i in range(24)]
+        delta = StateDelta(established_facts=["f24", "f25", "f26"])
+        updated = apply_delta(state, delta, established_facts_max=25)
+        facts = updated["scene"]["established_facts"]
+        assert len(facts) == 25
+        assert "f26" in facts
+        assert "f0" not in facts
+
+
+class TestQuestStatusSideEffects:
+
+    def test_completed_marks_all_objectives_done(self) -> None:
+        state = _make_state()
+        state["quests"][0]["objectives"] = [
+            {"description": "A", "done": False},
+            {"description": "B", "done": False, "failed": True},
+        ]
+        delta = StateDelta(
+            quest_updates=[QuestUpdate(id="quiet-signal", status="completed", objectives=[])],
+        )
+        updated = apply_delta(state, delta)
+        q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
+        assert q["status"] == "completed"
+        for o in q["objectives"]:
+            assert o["done"] is True
+            assert o.get("failed") is False
+
+    def test_failed_marks_open_objectives_failed(self) -> None:
+        state = _make_state()
+        state["quests"][0]["objectives"] = [
+            {"description": "A", "done": True},
+            {"description": "B", "done": False},
+        ]
+        delta = StateDelta(quest_updates=[QuestUpdate(id="quiet-signal", status="failed", objectives=[])])
+        updated = apply_delta(state, delta)
+        q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
+        assert q["status"] == "failed"
+        objs = {o["description"]: o for o in q["objectives"]}
+        assert objs["A"]["done"] is True
+        assert objs["B"].get("failed") is True
+
+    def test_abandoned_does_not_auto_fail_objectives(self) -> None:
+        state = _make_state()
+        state["quests"][0]["objectives"] = [{"description": "Find the payer", "done": False}]
+        delta = StateDelta(quest_updates=[QuestUpdate(id="quiet-signal", status="abandoned", objectives=[])])
+        updated = apply_delta(state, delta)
+        q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
+        assert q["status"] == "abandoned"
+        assert q["objectives"][0]["done"] is False
+        assert not q["objectives"][0].get("failed")
+
+    def test_objective_failed_merged_on_update(self) -> None:
+        state = _make_state()
+        delta = StateDelta(
+            quest_updates=[
+                QuestUpdate(
+                    id="quiet-signal",
+                    objectives=[QuestObjective(description="Find the payer", done=False, failed=True)],
+                ),
+            ],
+        )
+        updated = apply_delta(state, delta)
+        q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
+        assert q["status"] == "active"
+        assert q["objectives"][0].get("failed") is True
 
 
 class TestApplyDeltaEstablishedFactsMax:
@@ -714,7 +862,7 @@ class TestPerTurnMetrics:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"], "scene_tags": []})
+        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
         fake = _FakeOllama(["narrative", extract])
         with fake:
             result = await _run(SAVE_DIR, "test", config=EngineConfig())
@@ -731,7 +879,7 @@ class TestPerTurnMetrics:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"], "scene_tags": []})
+        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
         fake = _FakeOllama(["narrative", extract])
         with fake:
             result = await _run(SAVE_DIR, "test", config=EngineConfig())
@@ -755,7 +903,6 @@ class TestEstablishedFactsInEvent:
         extract = json.dumps({
             "state_delta": {"established_facts": ["This fact matters."]},
             "actions": ["A","B","C","D"],
-            "scene_tags": [],
         })
         fake = _FakeOllama([extract])
         with fake:
@@ -804,7 +951,7 @@ class TestRecentTurnsInjected:
             yield "narrative"
 
         async def fake_chat(*args, **kwargs):
-            return {"response": json.dumps({"state_delta": {}, "actions": ["A","B","C","D"], "scene_tags": []}), "done": True, "usage": {}}
+            return {"response": json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]}), "done": True, "usage": {}}
 
         import ccya.engine as eng
         _orig_stream, _orig_chat = eng.ollama_chat_stream, eng.ollama_chat

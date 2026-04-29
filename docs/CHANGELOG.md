@@ -8,6 +8,16 @@
 
 ---
 
+## Unreleased (2026-04-28)
+
+- **UI:** Three-column layout — left sidebar (Player, Scene, Location, Quests), narrative center, right sidebar (Established Facts, Inventory, Debug). Player concept block left-aligned (removed duplicate `.stat-concept` override). Inventory scroll cap 660px. Errors merged into Debug with recent-turn timing table from `events.jsonl`, `POST /panels/debug/clear-errors`, new HTMX targets `/panels/state-left` and `/panels/state-right`. Removed `_errors.html` and `/panels/errors` routes.
+- **Established facts:** Cap and UI aligned at 25; facts panel lists all facts (newest first) in a fixed-height scroll. `StateDelta.established_facts_remove` + `apply_delta` normalized removal before append. Extract user prompt lists current facts for copy-paste supersession; `extract_system.j2` documents removal + failed/abandoned quest rules and adds examples.
+- **Quests:** Active / Resolved tabs (persisted `ccya_quests_tab`); `QuestObjective.failed`; `status` may be `failed` (auto-fails unfinished objectives) or `completed` (all objectives done, clears failed). Abandoned does not auto-change objectives. Extract user prompt still includes active quests + inventory for id-matched updates; examples cover credits + `scene_tags`.
+- **Ollama:** `scripts/ollama-launch.sh`, `make ollama-launch` / `make ollama-env`, README Apple Silicon section. `/healthz` includes `ollama_version` from `/api/version`; header dot tooltip shows it.
+- **CLI:** Startup URL uses OSC 8 hyperlink when stdout is a TTY.
+- **Stackable inventory:** `InventoryItem.amount` (default 1), `InventoryRemove` with optional `amount` for partial spend; `inventory_remove` accepts legacy string ids via validator. `apply_delta` merges adds by id, subtracts partial stacks, removes at zero, sorts `id: credits` to the top. Narrate + sidebar show `×amount` when relevant; credits row highlighted in UI.
+- **Seed pack:** `expanse-belter` uses `id: credits`, `amount: 1800` instead of a separate credit-chit row.
+
 ## 1. What the local agent got right
 
 The structural alignment is impressive for a one-shot pass. Almost every named

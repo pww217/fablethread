@@ -1,1 +1,20 @@
+## Current state (reference — DO NOT duplicate existing entries)
+
+### Established facts
+{% if established_facts %}{% for f in established_facts %}
+- {{ f if f is string else f.values() | join(': ') }}
+{% endfor %}{% else %}None.{% endif %}
+
+### Active quests
+{% if active_quests %}{% for q in active_quests %}
+- id: `{{ q.id }}` | title: {{ q.title }}
+  objectives:
+{% for o in (q.objectives or []) %}  - [{{ "x" if o.done else " " }}] {{ o.description }}
+{% endfor %}
+{% endfor %}{% else %}None.{% endif %}
+
+### Inventory
+{% if inventory %}{% for it in inventory %}- id: `{{ it.id }}` | name: {{ it.name }} | amount: {{ it.amount or 1 }}
+{% endfor %}{% else %}Empty.{% endif %}
+
 Emit JSON now matching the schema for the narrative above.

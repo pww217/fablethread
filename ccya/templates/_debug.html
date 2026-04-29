@@ -1,45 +1,84 @@
-{# Debug panel body — rendered into the Debug <details> in index.html.
-   No outer card chrome; this fragment goes inside .sidebar-card-body. #}
+{# Debug panel — errors, recent turn timings, status. Rendered inside #debug-content. #}
+{% if errors and errors | length > 0 %}
+<div class="debug-errors-head">
+    <span class="debug-section-header" style="margin-bottom: 0;">Errors</span>
+    <button type="button" class="debug-clear-btn"
+            hx-post="/panels/debug/clear-errors"
+            hx-target="#debug-content"
+            hx-swap="innerHTML">
+        Clear
+    </button>
+</div>
+{% for err in errors %}
+<div class="error-item">
+    <span class="error-trace-id">[{{ err.trace_id or '?' }}]</span>
+    <span class="error-message">{{ err.message }}</span>
+    <button type="button" class="debug-copy-trace" title="Copy trace ID"
+            onclick="navigator.clipboard.writeText({{ err.trace_id | default('', true) | tojson }})">&#x2398;</button>
+</div>
+{% endfor %}
+{% else %}
+<div class="debug-section-header">Errors</div>
+<span class="empty-state">No errors.</span>
+{% endif %}
+
+{% if turns and turns | length > 0 %}
+<div class="debug-section-header" style="margin-top: 14px;">Recent turns</div>
+<div class="debug-turn-table-wrap">
+    <table class="debug-turn-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>trace</th>
+                <th>1st tok</th>
+                <th>narrate</th>
+                <th>extract</th>
+                <th>retry</th>
+                <th>tok in/out</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in turns %}
+            <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
+                <td>{{ t.turn }}</td>
+                <td title="{{ t.trace_id_full or t.trace_id }}">{{ t.trace_id }}</td>
+                <td>{{ t.first_s }}</td>
+                <td>{{ t.narrate_s }}</td>
+                <td>{{ t.extract_s }}</td>
+                <td>{{ t.retries }}</td>
+                <td>{{ t.tokens }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="debug-section-header" style="margin-top: 14px;">Status</div>
 <div class="stat-row">
-    <span class="stat-label">Mock mode</span>
-    <span class="stat-value" style="color: {% if mock_mode %}var(--accent){% else %}var(--text-muted){% endif %}">
-        {{ 'ON' if mock_mode else 'off' }}
-    </span>
+    <span class="stat-label">Model</span>
+    <span class="stat-value" title="{{ state.meta.model or '' }}">{{ state.meta.model or '—' }}</span>
 </div>
 <div class="stat-row">
-    <span class="stat-label">Turn</span>
-    <span class="stat-value">{{ state.meta.turn or 0 }}</span>
+    <span class="stat-label">num_ctx</span>
+    <span class="stat-value">{{ num_ctx }}</span>
+</div>
+<div class="stat-row">
+    <span class="stat-label">Mock</span>
+    <span class="stat-value" style="color: {% if mock_mode %}var(--accent){% else %}var(--text-muted){% endif %}">{{ 'ON' if mock_mode else 'off' }}</span>
 </div>
 <div class="stat-row">
     <span class="stat-label">Schema enforced</span>
     <span class="stat-value">{{ 'yes' if enforce_extract_schema else 'no' }}</span>
 </div>
 <div class="stat-row">
-    <span class="stat-label">LLM IO logging</span>
+    <span class="stat-label">LLM I/O log</span>
     <span class="stat-value">{{ 'yes' if log_llm_io else 'no' }}</span>
 </div>
 <div class="stat-row">
     <span class="stat-label">Log file</span>
-    <span class="stat-value stat-concept">{{ log_file }}</span>
+    <span class="stat-value" style="white-space: normal; text-align: right; word-break: break-all;">{{ log_file }}</span>
 </div>
-<div class="stat-row">
-    <span class="stat-label">Requests logged</span>
-    <span class="stat-value">{{ requests | length }}</span>
-</div>
-
-{% if requests %}
-<div class="debug-requests">
-    <div class="debug-section-header">Recent Requests</div>
-    {% for req in requests %}
-    <div class="debug-request-row">
-        <div class="debug-request-meta">{{ req.get("event", "?") }} — {{ req.get("elapsed_ms", 0) | round(0) | int }}ms</div>
-        {% if req.get("input") %}<div class="debug-request-input">{{ req.input[:120] }}</div>{% endif %}
-        {% if req.get("error") %}<div class="debug-request-error">{{ req.error }}</div>{% endif %}
-    </div>
-    {% endfor %}
-</div>
-{% endif %}
-
-<div class="debug-hint">
-    <code>tail -f {{ log_file }}</code> to watch live LLM I/O.
+<div class="debug-hint-inline">
+    Raw prompts/responses: <code>tail -f {{ log_file }}</code>
 </div>

@@ -27,8 +27,16 @@
         </div>
     </header>
 
-    <!-- Body -->
+    <!-- Body: left sidebar | narrative | right sidebar -->
     <div class="app-body">
+
+        <aside class="sidebar sidebar-left">
+            <div id="state-panel-left">
+                {% with state=state %}
+                {% include "_state_left.html" %}
+                {% endwith %}
+            </div>
+        </aside>
 
         <!-- Narrative column -->
         <main class="narrative-column">
@@ -91,30 +99,11 @@
 
         <!-- Right sidebar -->
         <aside class="sidebar">
-
-            <div id="state-panel">
+            <div id="state-panel-right">
                 {% with state=state %}
-                {% include "_state.html" %}
+                {% include "_state_right.html" %}
                 {% endwith %}
             </div>
-
-            <details class="sidebar-card" id="card-errors" data-card="errors">
-                <summary>Errors</summary>
-                <div class="sidebar-card-body" id="errors-content">
-                    {% include "_errors.html" %}
-                </div>
-            </details>
-
-            <details class="sidebar-card" id="card-debug" data-card="debug"
-                     hx-get="/panels/debug" hx-trigger="toggle from:closest details once" hx-target="#debug-content" hx-swap="innerHTML">
-                <summary>Debug</summary>
-                <div class="sidebar-card-body" id="debug-content">
-                    {% with requests=requests, mock_mode=mock_mode, state=state, enforce_extract_schema=enforce_extract_schema, log_llm_io=log_llm_io, log_file=log_file %}
-                    {% include "_debug.html" %}
-                    {% endwith %}
-                </div>
-            </details>
-
         </aside>
 
     </div><!-- .app-body -->
@@ -123,6 +112,7 @@
 
 <script>
 const CCYA_CARD_KEY = (name) => 'ccya_card_' + name;
+const CCYA_QUESTS_TAB = 'ccya_quests_tab';
 
 function _progressStripHTML() {
     return '<span class="progress-spinner" aria-hidden="true"></span>'
@@ -182,6 +172,18 @@ function applyCardOpenStateFromStorage() {
         const v = localStorage.getItem(CCYA_CARD_KEY(d.dataset.card));
         if (v === '1') d.setAttribute('open', '');
         else if (v === '0') d.removeAttribute('open');
+    });
+}
+
+function _applyQuestTabsFromStorage(root) {
+    const body = (root || document).querySelector('#quest-card-body');
+    if (!body) return;
+    const saved = localStorage.getItem(CCYA_QUESTS_TAB);
+    const tab = saved === 'resolved' ? 'resolved' : 'active';
+    body.dataset.tab = tab;
+    body.querySelectorAll('.quest-tab').forEach((btn) => {
+        const on = btn.dataset.questTab === tab;
+        btn.classList.toggle('active', on);
     });
 }
 
@@ -311,8 +313,8 @@ function game() {
                     zone.innerHTML = '<span class="empty-state">No suggested actions.</span>';
                 }
 
-                htmx.ajax('GET', '/panels/state',  { target: '#state-panel' });
-                htmx.ajax('GET', '/panels/errors', { target: '#errors-content' });
+                htmx.ajax('GET', '/panels/state-left',  { target: '#state-panel-left' });
+                htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
                 np.scrollTop = np.scrollHeight;
                 this.submitting = false;
                 setTimeout(() => document.getElementById('player-input')?.focus(), 100);
@@ -325,7 +327,8 @@ function game() {
                 const data = JSON.parse(e.data);
                 textDiv.innerHTML =
                     `<span style="color:var(--accent-error)">${_escapeHtml(data.error || 'Unknown error')}</span>`;
-                htmx.ajax('GET', '/panels/errors', { target: '#errors-content' });
+                htmx.ajax('GET', '/panels/state-left',  { target: '#state-panel-left' });
+                htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
                 document.querySelectorAll('.action-pill').forEach(p => p.disabled = false);
                 this.submitting = false;
             });
@@ -406,6 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Collapsed/open state for sidebar <details> cards.
     // `toggle` does NOT bubble — must use capture phase for delegation.
     applyCardOpenStateFromStorage();
+    _applyQuestTabsFromStorage();
     document.addEventListener('toggle', (e) => {
         const t = e.target;
         if (t.matches && t.matches('details.sidebar-card[data-card]')) {
@@ -413,10 +417,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, true);  // capture=true required: toggle doesn't bubble
     document.body.addEventListener('htmx:afterSwap', (e) => {
-        if (e.target && e.target.id === 'state-panel') {
+        const id = e.target && e.target.id;
+        if (id === 'state-panel-left' || id === 'state-panel-right') {
             applyCardOpenStateFromStorage();
+            _applyQuestTabsFromStorage(e.target);
             _applyMarkdown(e.target);
         }
+        if (id === 'debug-content') {
+            _applyMarkdown(e.target);
+        }
+    });
+
+    document.body.addEventListener('click', (e) => {
+        const btn = e.target.closest && e.target.closest('.quest-tab');
+        if (!btn || !btn.closest('#quest-card-body')) return;
+        const tab = btn.dataset.questTab;
+        if (tab !== 'active' && tab !== 'resolved') return;
+        const body = document.getElementById('quest-card-body');
+        if (!body) return;
+        body.dataset.tab = tab;
+        localStorage.setItem(CCYA_QUESTS_TAB, tab);
+        body.querySelectorAll('.quest-tab').forEach((b) => {
+            b.classList.toggle('active', b.dataset.questTab === tab);
+        });
     });
 
     // Auto-scroll narrative to bottom (shows most recent history entry)
@@ -431,17 +454,18 @@ document.addEventListener('DOMContentLoaded', () => {
     fetch('/healthz').then(r => r.json()).then(data => {
         const dot = document.getElementById('mock-dot');
         if (!dot) return;
+        const ver = data.ollama_version ? ` — Ollama ${data.ollama_version}` : '';
         if (data.mock) {
             dot.classList.add('mock');
             dot.title = 'Mock mode (no Ollama)';
         } else if (data.ollama === 'ok' && data.available) {
             dot.classList.add('ready');
-            dot.title = data.model + ' — ready';
+            dot.title = data.model + ' — ready' + ver;
         } else {
             dot.classList.add('error');
-            dot.title = data.ollama === 'fail'
+            dot.title = (data.ollama === 'fail'
                 ? 'Ollama unreachable'
-                : 'Model ' + data.model + ' not loaded';
+                : 'Model ' + data.model + ' not loaded') + ver;
         }
     }).catch(() => {
         const dot = document.getElementById('mock-dot');

@@ -25,6 +25,9 @@
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'SF Mono', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
   --sidebar-w: 320px;
+  /* Fixed-height scroll regions for sidebar cards (player / location / scene excluded) */
+  --sidebar-card-body-scroll-h: 308px; /* facts panel — ~40% taller than old 220px */
+  --sidebar-card-body-inventory-scroll-h: 660px; /* 1.5× prior 440px */
   --radius:    8px;
   --radius-sm: 5px;
 }
@@ -45,7 +48,7 @@ body {
 }
 
 /* =========================================================
-   APP SHELL — full-height two-column layout
+   APP SHELL — full-height three-column layout (left | narrative | right)
    ========================================================= */
 
 .app-shell {
@@ -352,6 +355,31 @@ body {
 .sidebar::-webkit-scrollbar-track { background: var(--bg-surface); }
 .sidebar::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 3px; }
 
+.sidebar-left {
+  border-left: none;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.sidebar-meta-footer {
+  padding: 6px 8px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px;
+  opacity: 0.85;
+  border-top: 1px solid var(--border-subtle);
+}
+.sidebar-meta-footer span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
 /* =========================================================
    SIDEBAR CARDS
    ========================================================= */
@@ -410,14 +438,37 @@ body {
   transform: translateY(-50%) rotate(90deg);
 }
 
-.facts-scroll {
-  max-height: 145px;
+.sidebar-card-body { padding: 10px 14px; }
+
+/* Scrollable card bodies — do not grow with content; player / location / scene stay natural height */
+.sidebar-card[data-card="inventory"] > .sidebar-card-body,
+.sidebar-card[data-card="quests"] > .sidebar-card-body,
+.sidebar-card[data-card="facts"] > .sidebar-card-body,
+.sidebar-card[data-card="debug"] > .sidebar-card-body {
+  max-height: var(--sidebar-card-body-scroll-h);
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: var(--border-subtle) var(--bg-surface);
 }
 
-.sidebar-card-body { padding: 10px 14px; }
+.sidebar-card[data-card="inventory"] > .sidebar-card-body {
+  max-height: var(--sidebar-card-body-inventory-scroll-h);
+}
+
+.sidebar-card[data-card="inventory"] > .sidebar-card-body::-webkit-scrollbar,
+.sidebar-card[data-card="quests"] > .sidebar-card-body::-webkit-scrollbar,
+.sidebar-card[data-card="facts"] > .sidebar-card-body::-webkit-scrollbar,
+.sidebar-card[data-card="debug"] > .sidebar-card-body::-webkit-scrollbar {
+  width: 5px;
+}
+.sidebar-card[data-card="inventory"] > .sidebar-card-body::-webkit-scrollbar-thumb,
+.sidebar-card[data-card="quests"] > .sidebar-card-body::-webkit-scrollbar-thumb,
+.sidebar-card[data-card="facts"] > .sidebar-card-body::-webkit-scrollbar-thumb,
+.sidebar-card[data-card="debug"] > .sidebar-card-body::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 3px;
+}
 
 /* Key/value stat rows */
 .stat-row {
@@ -431,17 +482,18 @@ body {
 .stat-row:last-child { border-bottom: none; }
 .stat-label { color: var(--text-muted); font-size: 12px; flex-shrink: 0; margin-right: 8px; }
 
-/* Full-width row for long text fields like concept */
+/* Concept block — prose only, no label, full card width, left-aligned */
 .stat-concept {
-  padding: 5px 0;
+  padding: 6px 0;
   border-bottom: 1px solid var(--border-subtle);
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
-  line-height: 1.4;
+  line-height: 1.55;
 }
-.stat-concept .stat-label {
+.stat-concept span[data-md] {
   display: block;
-  margin-bottom: 2px;
+  text-align: left;
+  word-break: break-word;
 }
 
 .stat-value {
@@ -534,13 +586,24 @@ body {
    ========================================================= */
 
 .inventory-item {
-  padding: 5px 0;
+  padding: 3px 0;
   border-bottom: 1px solid var(--border-subtle);
-  font-size: 13px;
+  font-size: 11px;
 }
 .inventory-item:last-child    { border-bottom: none; }
 .inventory-item-name          { color: var(--text-primary); }
-.inventory-item-notes         { color: var(--text-muted); font-size: 12px; }
+.inventory-item-notes         { color: var(--text-muted); font-size: 10px; }
+
+.inventory-item-credits .inventory-item-name {
+  color: var(--accent);
+  font-weight: 600;
+}
+.inventory-item-amount {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 600;
+}
 
 /* =========================================================
    SIDEBAR — QUESTS
@@ -582,8 +645,86 @@ body {
   font-family: var(--font-mono);
 }
 .objective.done        { text-decoration: line-through; opacity: 0.6; }
+.objective.failed      { color: var(--accent-error); opacity: 0.95; }
 .objective-check       { flex-shrink: 0; }
-.objective-check.done  { color: var(--accent); }
+.objective-check.done  { color: var(--accent-success); }
+.objective-check.failed { color: var(--accent-error); }
+
+.quest-item-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quest-card-body[data-tab="active"] .quest-list-resolved { display: none; }
+.quest-card-body[data-tab="resolved"] .quest-list-active { display: none; }
+
+.quest-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.quest-tab {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 120ms, color 120ms, background 120ms;
+}
+
+.quest-tab:hover {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.quest-tab.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.quest-tab-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.quest-list-panel {
+  min-height: 2rem;
+}
+
+.quest-title.completed { color: var(--accent-success); }
+.quest-title.failed { color: var(--accent-error); }
+.quest-title.abandoned { color: var(--text-muted); }
+
+.quest-status-badge.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.quest-status-badge.completed {
+  border-color: var(--accent-success);
+  color: var(--accent-success);
+}
+
+.quest-status-badge.failed {
+  border-color: var(--accent-error);
+  color: var(--accent-error);
+}
+
+.quest-status-badge.abandoned {
+  border-color: var(--border-strong);
+  color: var(--text-muted);
+}
 
 /* =========================================================
    SIDEBAR — FACTS
@@ -597,27 +738,6 @@ body {
   line-height: 1.5;
 }
 .fact-item:last-child { border-bottom: none; }
-
-/* =========================================================
-   SIDEBAR — FACTS
-   ========================================================= */
-
-.facts-scroll {
-  max-height: calc(7 * 42px);    /* show up to ~7 fact rows before scrolling */
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-subtle) var(--bg-surface);
-  padding-right: 2px;
-}
-
-.fact-older-hint {
-  font-size: 11px;
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-  margin-top: 6px;
-  padding-top: 4px;
-  border-top: 1px dashed var(--border-subtle);
-}
 
 /* =========================================================
    SIDEBAR — ERRORS
@@ -639,10 +759,12 @@ body {
    SIDEBAR — DEBUG
    ========================================================= */
 
-.debug-requests {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-subtle);
+.debug-errors-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .debug-section-header {
@@ -654,40 +776,77 @@ body {
   margin-bottom: 6px;
 }
 
-.debug-request-row {
-  border-left: 2px solid var(--border-subtle);
-  padding: 4px 0 4px 8px;
-  margin-bottom: 6px;
+.debug-clear-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
   font-size: 11px;
-  font-family: var(--font-mono);
+  cursor: pointer;
+  padding: 2px 0;
+  font-family: var(--font-sans);
+}
+.debug-clear-btn:hover { color: var(--text-secondary); }
+
+.debug-copy-trace {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.debug-copy-trace:hover { color: var(--text-secondary); }
+
+.debug-turn-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 4px;
 }
 
-.debug-request-meta  { color: var(--text-muted); }
-.debug-request-input { color: var(--text-secondary); word-break: break-word; }
-.debug-request-error { color: var(--accent-error); word-break: break-word; }
+.debug-turn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+.debug-turn-table th,
+.debug-turn-table td {
+  padding: 3px 4px;
+  text-align: right;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.debug-turn-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.debug-turn-table th:first-child,
+.debug-turn-table td:first-child {
+  text-align: left;
+}
+.debug-turn-table tbody tr:hover {
+  background: var(--bg-elevated);
+}
+.debug-turn-row-warn td {
+  color: var(--accent-error);
+}
 
-.debug-hint {
-  margin-top: 10px;
-  padding: 8px;
+.debug-hint-inline {
+  margin-top: 8px;
+  padding: 6px 8px;
   background: var(--bg-base);
   border: 1px dashed var(--border-subtle);
   border-radius: var(--radius-sm);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
+  line-height: 1.45;
 }
-.debug-hint code {
+.debug-hint-inline code {
   font-family: var(--font-mono);
   color: var(--accent);
-}
-
-/* Concept/stat values that need to wrap rather than truncate. */
-.stat-concept {
-  white-space: normal;
-  text-align: right;
-  max-width: 220px;
-  word-break: break-word;
-  overflow: visible;
-  text-overflow: clip;
+  font-size: 10px;
 }
 
 /* =========================================================
@@ -710,11 +869,17 @@ body {
   }
   .narrative-panel { padding: 20px 22px; }
   .pills-row, .input-bar { padding-left: 22px; padding-right: 22px; }
-  .sidebar {
+  .sidebar-left {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+    max-height: 40vh;
+  }
+  .sidebar:not(.sidebar-left) {
     width: 100%;
     border-left: none;
     border-top: 1px solid var(--border-subtle);
-    max-height: 45vh;
+    max-height: 40vh;
   }
   .turn-counter { display: none; }
   .header-logo { font-size: 13px; max-width: 55vw; }

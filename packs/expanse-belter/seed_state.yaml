@@ -29,6 +29,10 @@ location:
     levels above through the freight lifts.
 
 inventory:
+  - id: credits
+    name: Credits
+    amount: 1800
+    notes: Pocket money. Universal currency on Ceres and most stations. Dock fees alone are 4,200.
   - id: hand-terminal
     name: Hand terminal
     notes: Cracked screen, scuffed back. Ship comms, banking, encrypted channels. Works.
@@ -44,9 +48,6 @@ inventory:
   - id: kowmang
     name: Kowmang knife
     notes: Short blade, plain handle. Legal in the Belt. Sharp enough.
-  - id: credit-chit
-    name: Credit chit
-    notes: 1,800 unaffiliated credits. Dock fees alone are 4,200.
 
 quests:
   - id: dock-fees-or-bust

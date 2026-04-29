@@ -101,15 +101,47 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
 
     state = copy.deepcopy(state)
 
-    # Inventory
-    for item in delta.inventory_add:
-        state["inventory"].append(_item_to_dict(item))
+    # Inventory — merge by id on add; partial or full remove; pin credits to top
+    inv: list[dict[str, Any]] = copy.deepcopy(state.get("inventory", []))
+    for it in inv:
+        if it.get("amount") is None or int(it.get("amount", 0) or 0) < 1:
+            it["amount"] = 1
 
-    for rid in delta.inventory_remove:
-        state["inventory"] = [
-            item for item in state["inventory"]
-            if item.get("id") != rid
-        ]
+    def _by_id() -> dict[str, dict[str, Any]]:
+        return {i["id"]: i for i in inv}
+
+    by_id = _by_id()
+
+    for item in delta.inventory_add:
+        d = _item_to_dict(item)
+        amt = max(1, int(d.get("amount") or 1))
+        if item.id in by_id:
+            ex = by_id[item.id]
+            ex["amount"] = int(ex.get("amount", 1)) + amt
+            if d.get("notes"):
+                ex["notes"] = d["notes"]
+        else:
+            d["amount"] = amt
+            inv.append(d)
+            by_id = _by_id()
+
+    for rem in delta.inventory_remove:
+        if rem.id not in by_id:
+            continue
+        ex = by_id[rem.id]
+        if rem.amount is None:
+            inv = [x for x in inv if x.get("id") != rem.id]
+        else:
+            cur = int(ex.get("amount", 1))
+            new_amt = max(0, cur - int(rem.amount))
+            if new_amt <= 0:
+                inv = [x for x in inv if x.get("id") != rem.id]
+            else:
+                ex["amount"] = new_amt
+        by_id = _by_id()
+
+    inv.sort(key=lambda x: 0 if x.get("id") == "credits" else 1)
+    state["inventory"] = inv
 
     # Location — clear NPCs when moving to a new place
     if delta.location_change:
@@ -120,8 +152,20 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
         }
         state.setdefault("scene", {})["present_npcs"] = []
 
-    # Quests
-    existing_quests = {q["id"]: q for q in state.get("quests", [])}
+    # Quests — upsert + objective merge + status side-effects (completed / failed)
+    existing_quests: dict[str, dict[str, Any]] = {q["id"]: q for q in state.get("quests", [])}
+
+    def _apply_quest_status_side_effects(q: dict[str, Any]) -> None:
+        st = q.get("status") or "active"
+        if st == "completed":
+            for o in q.get("objectives", []):
+                o["done"] = True
+                o["failed"] = False
+        elif st == "failed":
+            for o in q.get("objectives", []):
+                if not o.get("done"):
+                    o["failed"] = True
+
     for qu in delta.quest_updates:
         if qu.id in existing_quests:
             q = existing_quests[qu.id]
@@ -131,26 +175,33 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
                 q["status"] = qu.status
             if qu.objectives:
                 for obj in qu.objectives:
-                    if obj.description in [o.get("description", "") for o in q.get("objectives", [])]:
-                        # Update existing objective
-                        for o in q["objectives"]:
-                            if o.get("description") == obj.description:
-                                o["done"] = obj.done
-                    else:
+                    matched = False
+                    for o in q.get("objectives", []):
+                        if o.get("description") == obj.description:
+                            o["done"] = obj.done
+                            o["failed"] = bool(obj.failed)
+                            matched = True
+                            break
+                    if not matched:
                         q.setdefault("objectives", []).append({
                             "description": obj.description,
                             "done": obj.done,
+                            "failed": bool(obj.failed),
                         })
+            _apply_quest_status_side_effects(q)
         else:
-            state.setdefault("quests", []).append({
+            new_q: dict[str, Any] = {
                 "id": qu.id,
                 "title": qu.title,
-                "status": qu.status,
+                "status": qu.status or "active",
                 "objectives": [
-                    {"description": o.description, "done": o.done}
+                    {"description": o.description, "done": o.done, "failed": bool(o.failed)}
                     for o in qu.objectives
                 ],
-            })
+            }
+            state.setdefault("quests", []).append(new_q)
+            existing_quests[qu.id] = new_q
+            _apply_quest_status_side_effects(new_q)
 
     # PC conditions
     state.setdefault("pc", {}).setdefault("conditions", [])
@@ -161,8 +212,10 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
         c for c in state["pc"]["conditions"] if c not in delta.pc_condition_remove
     ]
 
-    # Established facts
-    existing_facts = state.get("scene", {}).get("established_facts", [])
+    # Established facts — removals (normalized match) then additions
+    existing_facts: list[str] = list(state.get("scene", {}).get("established_facts", []))
+    remove_keys = {_normalize_fact(s) for s in delta.established_facts_remove}
+    existing_facts = [f for f in existing_facts if _normalize_fact(f) not in remove_keys]
     for fact in delta.established_facts:
         if not _fact_already_exists(fact, existing_facts):
             existing_facts.append(fact)
@@ -182,16 +235,32 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
     return state
 
 
-def _item_to_dict(item: Any) -> dict[str, str]:
+def _item_to_dict(item: Any) -> dict[str, Any]:
     if isinstance(item, dict):
-        return item
-    return {"id": item.id, "name": item.name, "notes": item.notes}
+        out = dict(item)
+        if out.get("amount") is None or int(out.get("amount", 0) or 0) < 1:
+            out["amount"] = 1
+        return out
+    amt = getattr(item, "amount", 1)
+    return {
+        "id": item.id,
+        "name": item.name,
+        "notes": item.notes,
+        "amount": max(1, int(amt or 1)),
+    }
+
+
+def _normalize_fact(text: Any) -> str:
+    """Normalize a fact string for dedup / removal matching."""
+    if not isinstance(text, str):
+        text = str(text)
+    return " ".join(text.lower().split())
 
 
 def _fact_already_exists(fact: str, existing: list[str]) -> bool:
     """Check if fact already exists (normalized exact match)."""
-    normalized = " ".join(fact.lower().split())
+    nk = _normalize_fact(fact)
     for ef in existing:
-        if normalized == " ".join(ef.lower().split()):
+        if nk == _normalize_fact(ef):
             return True
     return False

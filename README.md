@@ -20,7 +20,47 @@ A choose-your-own-adventure game backed by a local Ollama model.
 make run
 ```
 
-The server starts at `http://127.0.0.1:8765`.
+The server starts at `http://127.0.0.1:8765` (terminal may show a clickable OSC 8 link when using `python -m ccya`).
+
+### Recommended Ollama setup (Apple Silicon)
+
+These variables apply to the **Ollama server process** (`ollama serve` or Ollama.app). Set them before starting Ollama; changing them from the ccya Python process has no effect on an already-running server.
+
+| Variable | Suggested | Purpose |
+|----------|-----------|---------|
+| `OLLAMA_FLASH_ATTENTION` | `1` | Lower KV memory for long contexts; enables KV cache quantization. |
+| `OLLAMA_KV_CACHE_TYPE` | `q8_0` | Smaller KV cache (needs flash attention). |
+| `OLLAMA_NUM_PARALLEL` | `1` | One in-flight request — best for large models + long context. |
+| `OLLAMA_MAX_LOADED_MODELS` | `1` | Avoid loading multiple huge models on unified memory. |
+| `OLLAMA_KEEP_ALIVE` | `10m` | How long to keep a model loaded when idle (ccya also sends `keep_alive` per request). |
+| `OLLAMA_MLX` | `1` | Prefer MLX backend on Apple Silicon when the build supports it. |
+
+**CLI (terminal):** from this directory,
+
+```bash
+make ollama-launch    # runs scripts/ollama-launch.sh → ollama serve
+```
+
+**Print suggested exports / launchctl lines:**
+
+```bash
+make ollama-env
+```
+
+**GUI (Ollama.app):** macOS does not inherit your shell `export`. Use `launchctl setenv` once, then quit and reopen Ollama.app:
+
+```bash
+launchctl setenv OLLAMA_FLASH_ATTENTION 1
+launchctl setenv OLLAMA_KV_CACHE_TYPE q8_0
+launchctl setenv OLLAMA_NUM_PARALLEL 1
+launchctl setenv OLLAMA_MAX_LOADED_MODELS 1
+launchctl setenv OLLAMA_KEEP_ALIVE 10m
+launchctl setenv OLLAMA_MLX 1
+```
+
+`OLLAMA_GPU_OVERHEAD` and `OLLAMA_NUM_GPU=999` are not recommended on macOS unified memory (little benefit).
+
+Uncomment `OLLAMA_DEBUG=1` in `scripts/ollama-launch.sh` if you need offload / memory diagnostics in server logs.
 
 ## Mock Mode
 
@@ -63,8 +103,9 @@ curl -X POST http://127.0.0.1:8765/turn -d "input=I look around"
 
 # Panels (HTMX partial renders)
 curl http://127.0.0.1:8765/panels/state
+curl http://127.0.0.1:8765/panels/state-left
+curl http://127.0.0.1:8765/panels/state-right
 curl http://127.0.0.1:8765/panels/actions
-curl http://127.0.0.1:8765/panels/errors
 curl http://127.0.0.1:8765/panels/debug
 ```
 
@@ -80,6 +121,8 @@ curl http://127.0.0.1:8765/panels/debug
 | `make lint` | Run ruff checks |
 | `make fmt` | Format code |
 | `make css` | Rebuild Tailwind CSS |
+| `make ollama-launch` | Start `ollama serve` with recommended Apple Silicon env |
+| `make ollama-env` | Print suggested `export` / `launchctl setenv` lines |
 | `make clean` | Remove build artifacts |
 
 ## File layout
@@ -98,6 +141,7 @@ ccya/                  # Python package
   static/              # CSS + JS
 saves/default/         # Game save (state.yaml, events.jsonl, chronicle.md)
 packs/hard-scifi-demo/ # Starter content (seed + opening scene)
+scripts/               # ollama-launch.sh helper
 logs/                  # JSONL turn logs
 tests/                 # Smoke tests
 ```
@@ -114,12 +158,12 @@ Edit `config.yaml` to change the model, port, or other settings. Key sections:
 ## Debugging
 
 - Tail the JSONL log: `tail -f logs/llm-g.log | jq .`
-- Each turn has a `trace_id` surfaced in the errors panel (click to copy)
+- Each turn has a `trace_id` surfaced in the Debug panel (click to copy)
 - State is hand-editable YAML in `saves/default/state.yaml`
 - Full turn history: `saves/default/events.jsonl`
 - Narrative chronicle: `saves/default/chronicle.md`
 - Debug panel at `http://127.0.0.1:8765/` shows request timing and mock mode status
-- Panels at `/panels/state`, `/panels/actions`, `/panels/errors`, `/panels/debug`
+- Panels at `/panels/state`, `/panels/state-left`, `/panels/state-right`, `/panels/actions`, `/panels/debug` (errors are shown inside Debug)
 
 ## How it works
 

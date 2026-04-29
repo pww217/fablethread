@@ -1,0 +1,47 @@
+{# Right sidebar: Facts, Inventory, Debug (errors + metrics), meta footer #}
+{% set _facts = state.scene.established_facts or [] %}
+
+<details class="sidebar-card" id="card-inventory" data-card="inventory" open>
+    <summary>Inventory</summary>
+    <div class="sidebar-card-body">
+        {% if state.inventory %}
+        {% for item in state.inventory %}
+        {% set amt = item.get("amount") or 1 %}
+        <div class="inventory-item{% if item.get('id') == 'credits' %} inventory-item-credits{% endif %}">
+            <span class="inventory-item-name">{{ item.get("name", item.get("id", "?")) }}{% if amt > 1 or item.get("id") == "credits" %} <span class="inventory-item-amount">×{{ amt }}</span>{% endif %}</span>
+            {% if item.get("notes") %}
+            <div class="inventory-item-notes" data-md>{{ item.notes }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <span class="empty-state">Nothing of note.</span>
+        {% endif %}
+    </div>
+</details>
+
+<details class="sidebar-card" id="card-facts" data-card="facts" open>
+    <summary>Established Facts <span class="card-count" title="Total facts (capped at 25)">{{ _facts|length }}</span></summary>
+    <div class="sidebar-card-body">
+        {% if _facts %}
+        {% for fact in _facts | reverse %}
+        <div class="fact-item" data-md>{{ fact if fact is string else fact.values() | join(': ') }}</div>
+        {% endfor %}
+        {% else %}
+        <span class="empty-state">No established facts yet.</span>
+        {% endif %}
+    </div>
+</details>
+
+<details class="sidebar-card" id="card-debug" data-card="debug"
+         hx-get="/panels/debug" hx-trigger="toggle from:closest details once" hx-target="#debug-content" hx-swap="innerHTML">
+    <summary>Debug</summary>
+    <div class="sidebar-card-body" id="debug-content">
+        {% include "_debug.html" %}
+    </div>
+</details>
+
+<div class="sidebar-meta-footer">
+    <span>turn {{ state.meta.turn or 0 }}</span>
+    <span title="{{ state.meta.model or '' }}">{{ state.meta.model or '—' }}</span>
+</div>

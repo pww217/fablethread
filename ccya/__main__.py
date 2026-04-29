@@ -1,10 +1,19 @@
 """CLI entry point for ccya."""
 
 import argparse
+import sys
 
 import uvicorn
 
 from ccya.server import app, config, SAVE_DIR
+
+
+def _hyperlink(url: str, label: str | None = None) -> str:
+    """OSC 8 hyperlink for supported terminals; plain URL when not a TTY."""
+    label = label or url
+    if not sys.stdout.isatty():
+        return url
+    return f"\x1b]8;;{url}\x1b\\{label}\x1b]8;;\x1b\\"
 
 
 def main() -> None:
@@ -28,10 +37,9 @@ def main() -> None:
         print(f"New game started in {SAVE_DIR}")
 
     url = f"http://{host}:{port}/"
-    print(f"\n╔══════════════════════════════════════╗")
-    print(f"║  ccya — Choose Your Own Adventure    ║")
-    print(f"║  {url:<36}║")
-    print(f"╚══════════════════════════════════════╝\n")
+    link = _hyperlink(url)
+    print("\n  ccya — Choose Your Own Adventure")
+    print(f"  {link}\n")
 
     uvicorn.run(app, host=host, port=port, reload=False)
 

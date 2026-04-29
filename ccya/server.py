@@ -125,6 +125,59 @@ def _add_timing(entry: dict, start: float) -> None:
     entry["elapsed_ms"] = round((time.time() - start) * 1000, 1)
 
 
+def _fmt_ms_seconds(ms: Any) -> str:
+    if ms is None:
+        return "—"
+    try:
+        return f"{float(ms) / 1000.0:.1f}s"
+    except (TypeError, ValueError):
+        return "—"
+
+
+def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
+    """Last n turns from events.jsonl, newest first, for the Debug panel."""
+    path = save_dir / "events.jsonl"
+    if not path.exists():
+        return []
+    raw = path.read_text().strip()
+    if not raw:
+        return []
+    lines = [ln for ln in raw.splitlines() if ln.strip()]
+    if not lines:
+        return []
+    chunk = lines[-n:]
+    rows: list[dict[str, Any]] = []
+    for line in chunk:
+        try:
+            ev = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        narr = ev.get("narrate") or {}
+        ext = ev.get("extract") or {}
+        rej = ev.get("rejected") or []
+        tid = str(ev.get("trace_id") or "")
+        tin, tout = ext.get("tokens_in"), ext.get("tokens_out")
+        if tin is not None and tout is not None:
+            tok = f"{tin}/{tout}"
+        elif tin is not None:
+            tok = str(tin)
+        else:
+            tok = "—"
+        rows.append({
+            "turn": ev.get("turn", 0),
+            "trace_id": tid[:8] if len(tid) >= 8 else tid,
+            "trace_id_full": tid,
+            "first_s": _fmt_ms_seconds(narr.get("first_token_ms")),
+            "narrate_s": _fmt_ms_seconds(narr.get("total_ms")),
+            "extract_s": _fmt_ms_seconds(ext.get("total_ms")),
+            "retries": int(ext.get("retries", 0) or 0),
+            "tokens": tok,
+            "has_rejections": bool(rej),
+        })
+    rows.reverse()
+    return rows
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -132,24 +185,17 @@ def _add_timing(entry: dict, start: float) -> None:
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    state = _load_current_state()
     history = _load_recent_history(SAVE_DIR)
     last_actions = _load_last_actions(SAVE_DIR) if history else []
-    mock_mode = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
+    state = _load_current_state()
     # Show opening scene text server-side when there's no history yet (turn 0 or fresh game)
     opening = _load_opening() if not history and state.get("location", {}).get("id") else ""
-    return _render("index.html", {
-        "state": state,
-        "history": history,
-        "last_actions": last_actions,
-        "opening": opening,
-        "errors": list(_ERRORS_LOG),
-        "mock_mode": mock_mode,
-        "requests": _REQUEST_LOG[-20:],
-        "enforce_extract_schema": engine_config.enforce_extract_schema,
-        "log_llm_io": engine_config.log_llm_io,
-        "log_file": config.get("logging", {}).get("file", "logs/llm-g.log"),
-    })
+    ctx = _debug_context()
+    ctx["state"] = state
+    ctx["history"] = history
+    ctx["last_actions"] = last_actions
+    ctx["opening"] = opening
+    return _render("index.html", ctx)
 
 
 @app.get("/turn")
@@ -195,7 +241,6 @@ async def get_turn(input: str = ""):
                     yield {"event": "phase", "data": json.dumps(payload)}
                 elif kind == "complete":
                     result = payload
-                    # Persist errors so /panels/errors can render them
                     for err in result.errors:
                         _ERRORS_LOG.appendleft(err)
                     _add_timing(timing, start)
@@ -226,7 +271,7 @@ async def new_game(request: Request):
     seed["meta"]["model"] = config["ollama"]["model"]
     init_save_dir(SAVE_DIR, seed)
     _ERRORS_LOG.clear()
-    return _render("_state.html", {"state": load_state(SAVE_DIR)})
+    return _render("_state.html", _debug_context())
 
 
 def _load_seed() -> dict:
@@ -240,7 +285,18 @@ def _load_seed() -> dict:
 
 @app.get("/panels/state")
 def panel_state(request: Request):
-    return _render("_state.html", {"state": _load_current_state()})
+    """Legacy combined fragment (left + right)."""
+    return _render("_state.html", _debug_context())
+
+
+@app.get("/panels/state-left")
+def panel_state_left(request: Request):
+    return _render("_state_left.html", {"state": _load_current_state()})
+
+
+@app.get("/panels/state-right")
+def panel_state_right(request: Request):
+    return _render("_state_right.html", _debug_context())
 
 
 @app.get("/panels/actions")
@@ -248,27 +304,24 @@ def panel_actions(request: Request):
     return _render("_actions.html", {"state": _load_current_state()})
 
 
-@app.get("/panels/errors")
-def panel_errors(request: Request):
-    return _render("_errors.html", {"errors": list(_ERRORS_LOG)})
-
-
-@app.post("/panels/errors/clear")
-def clear_errors():
-    _ERRORS_LOG.clear()
-    return _render("_errors.html", {"errors": []})
-
-
 def _debug_context() -> dict:
     mock_mode = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
     return {
-        "requests": _REQUEST_LOG[-20:],
+        "errors": list(_ERRORS_LOG),
+        "turns": _recent_turn_metrics(SAVE_DIR, 10),
         "mock_mode": mock_mode,
         "state": _load_current_state(),
         "enforce_extract_schema": engine_config.enforce_extract_schema,
         "log_llm_io": engine_config.log_llm_io,
         "log_file": config.get("logging", {}).get("file", "logs/llm-g.log"),
+        "num_ctx": config["ollama"].get("num_ctx", ""),
     }
+
+
+@app.post("/panels/debug/clear-errors")
+def debug_clear_errors():
+    _ERRORS_LOG.clear()
+    return _render("_debug.html", _debug_context())
 
 
 @app.get("/panels/debug")
@@ -284,20 +337,46 @@ def opening():
 @app.get("/healthz")
 def healthz():
     import httpx
-    host = config["ollama"]["host"]
+
+    host = str(config["ollama"]["host"]).rstrip("/")
     mock_mode = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
     if mock_mode:
-        return {"ollama": "mock", "model": config["ollama"]["model"], "available": True, "mock": True}
+        return {
+            "ollama": "mock",
+            "model": config["ollama"]["model"],
+            "available": True,
+            "mock": True,
+            "ollama_version": "",
+        }
+    ollama_version = ""
     try:
         with httpx.Client(timeout=5) as client:
+            try:
+                vr = client.get(f"{host}/api/version")
+                if vr.status_code == 200:
+                    body = vr.json()
+                    if isinstance(body, dict) and body.get("version"):
+                        ollama_version = str(body["version"])
+            except Exception:
+                pass
             resp = client.get(f"{host}/api/tags")
             resp.raise_for_status()
             tags = resp.json()
             models = [m["name"] for m in tags.get("models", [])]
             model = config["ollama"]["model"]
-            return {"ollama": "ok", "model": model, "available": model in models}
+            return {
+                "ollama": "ok",
+                "model": model,
+                "available": model in models,
+                "ollama_version": ollama_version,
+            }
     except Exception:
-        return {"ollama": "fail", "model": config["ollama"]["model"], "available": False}
+        return {
+            "ollama": "fail",
+            "model": config["ollama"]["model"],
+            "available": False,
+            "ollama_version": ollama_version,
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -307,11 +386,16 @@ def healthz():
 
 @app.on_event("startup")
 async def startup_event():
+    import asyncio
+
     logger.info("ccya starting")
     if config.get("game", {}).get("warmup_on_start", True):
-        logger.info("Warming up Ollama model...")
-        await warmup(engine_config)
-        logger.info("Model warmup complete")
+        async def _warmup_bg() -> None:
+            logger.info("Warming up Ollama model (background)…")
+            await warmup(engine_config)
+            logger.info("Model warmup complete")
+
+        asyncio.create_task(_warmup_bg())
 
 
 # ---------------------------------------------------------------------------
