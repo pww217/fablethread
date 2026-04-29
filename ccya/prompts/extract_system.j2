@@ -9,24 +9,36 @@ You are the state extractor. Given the narrative that just occurred, emit the st
 - `state_delta.scene_tags`: 1-3 lowercase tags describing the scene type (e.g. "dialogue", "combat", "exploration", "market", "travel"). Always provide.
 - `state_delta.present_npcs`: List of named characters/entities physically present in the scene after this turn. Each has `id` (slug), `name`, and `notes` (one sentence: what they are + current attitude toward the player). Replace the full list each turn — omit anyone who has left, add anyone who arrived. If no one is present, emit an empty list.
 - `state_delta.location_change`: Only include if the player physically moved to a new location.
-- `state_delta.established_facts`: Only new, durable world facts learned this turn. Do not repeat facts already established.
-- `state_delta.quest_updates`: **Check every active quest after each turn.** For each quest:
-  - If the narrative completed an objective, include it with `done: true`.
+- `state_delta.established_facts`: Only new, durable world facts learned this turn. Do not repeat facts already listed under **Established facts** in the user message.
+- `state_delta.established_facts_remove`: If a listed fact was contradicted, fulfilled, or superseded this turn, copy its **exact** text here (from the user message list only — never invent a string). Pair with a replacement in `established_facts` when the truth changed (e.g. repairs, NPC moved, status flipped).
+- `state_delta.quest_updates`: **Match by `id` against the Active quests list in the user message.** Update existing quests; never invent a new `id` for a quest that already exists under a different name. Do not create a quest for casual exposition or ambient dialogue — only when the player has clearly accepted a new commitment or task. For each quest you touch:
+  - If the narrative completed an objective, include that objective with `done: true` (exact `description` string match to the list shown).
   - If all objectives are now done, or the narrative clearly resolved the quest, set `status: "completed"`.
-  - If the player abandoned or failed a quest, set `status: "abandoned"`.
-  - If a new quest was introduced in the narrative, add it with `status: "active"` and initial objectives.
-  - Do not include a quest in `quest_updates` if nothing changed for it.
+  - Use `status: "failed"` when the win condition is impossible (deadline missed with no extension, key NPC killed, ship destroyed, target gone). The engine will mark unfinished objectives as failed.
+  - Use `status: "abandoned"` when the player walks away without failing conditions (gave up voluntarily). Do not auto-fail objectives for abandoned quests.
+  - Mark a **single** objective as failed without failing the whole quest by including that objective with `failed: true` and matching `description`.
+  - If a genuinely new quest was accepted, add it with a new unique `id`, `status: "active"`, and initial objectives.
+  - Do not include a quest in `quest_updates` if nothing substantial changed.
+- `state_delta.inventory_add`: Items with the same `id` merge by `amount` in state. For universal currency, always use `id: "credits"` and set `amount` to the number gained (not the new total).
+- `state_delta.inventory_remove`: Use objects `{"id": "...", "amount": N}` to spend or lose N from a stack (e.g. paying credits). Omit `amount` or set `amount` null to remove the entire stack. For strings-only legacy form `["id"]` is also accepted as full removal.
 
 ## Guided thinking
 Inside <thinking>...</thinking>, write only what actually changed this turn as short bullets.
-Consider: items gained or lost, location change, quest progress (check each active quest explicitly), PC conditions, newly established facts, who is now present in the scene.
+Consider: items gained or lost, location change, quest progress (check each active quest explicitly against the user message list), PC conditions, newly established facts, who is now present in the scene.
 If nothing changed, write "no material changes".
 Then emit JSON. Nothing outside <thinking> except the JSON object.
 
-## Example
+## Example (quest progress + credits spend + NPC)
 <thinking>
-- Mira handed back the hand-terminal.
-- New NPC present: Mira — fence, cautious but willing to deal.
-- Scene: back-corridor dialogue.
+- Paid dock fees in full at the kiosk.
+- First quest objective done; harbormaster satisfied.
+- Spent 4200 credits from stack.
 </thinking>
-{"state_delta": {"scene_tags": ["dialogue"], "present_npcs": [{"id": "mira", "name": "Mira", "notes": "Fence and information broker. Cautious, watching exits, currently willing to deal."}], "established_facts": ["Mira agreed to examine the ident hash privately."]}, "actions": ["Ask Mira what she wants in return", "Hand over the ident chip", "Ask about the OPA watchers", "Walk away"]}
+{"state_delta": {"scene_tags": ["dialogue", "negotiation"], "present_npcs": [{"id": "harbormaster", "name": "Harbormaster Vey", "notes": "Bored bureaucrat. Satisfied now that the fees are paid."}], "inventory_remove": [{"id": "credits", "amount": 4200}], "quest_updates": [{"id": "dock-fees-or-bust", "objectives": [{"description": "Pay 4,200 credits in Ceres dock fees within 20 hours, or the Wretch gets seized.", "done": true}]}], "established_facts": ["Dock fees for cradle 41-B are paid through the next 30 days."]}, "actions": ["Head back to the Wretch", "Hit the job-board terminals", "Get a drink at the tavern", "Find Sigge at the cargo ramp"]}
+
+## Example (supersede a fact + quest failed)
+<thinking>
+- Old fact about hull damage is wrong after repairs.
+- Smuggling window closed; quest cannot be completed.
+</thinking>
+{"state_delta": {"scene_tags": ["maintenance", "despair"], "present_npcs": [], "established_facts_remove": ["The Wretch's hull has unrepaired micrometeorite breaches."], "established_facts": ["The Wretch's hull is fully patched and pressure-tight."], "quest_updates": [{"id": "quiet-run", "status": "failed", "objectives": [{"description": "Deliver the package before the MCRN patrol window closes.", "done": false, "failed": true}]}]}, "actions": ["Find new work on the board", "Talk to the fixer", "Leave the station", "Check ship systems"]}

@@ -1,5 +1,5 @@
 ## Inventory
 {% if (state.inventory or []) %}{% for item in state.inventory %}
-- **{{ item.get("name", item.get("id", "?")) }}**: {{ item.get("notes", "") }}{% endfor %}
+- **{{ item.get("name", item.get("id", "?")) }}**{% set amt = item.get("amount") or 1 %}{% if amt > 1 or item.get("id") == "credits" %} ×{{ amt }}{% endif %}: {{ item.get("notes", "") }}{% endfor %}
 {% else %}
 Nothing of note.{% endif %}

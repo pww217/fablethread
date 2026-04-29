@@ -145,16 +145,27 @@ def _narrate_messages(
 def _extract_messages(
     env: Environment,
     narrative: str,
+    state: dict[str, Any],
 ) -> list[dict[str, str]]:
     """Build extract message list: [system, assistant, user].
 
     system    = schema + extraction rules (stable)
     assistant = the narrative just produced (model "owns" this output)
-    user      = explicit instruction to emit JSON now
+    user      = current quests/inventory reference + emit JSON instruction
     """
     schema_json = json.dumps(ExtractResult.model_json_schema(), indent=2)
     system_text = _render(env, "extract_system.j2", {"schema_json": schema_json})
-    user_text = _render(env, "extract_user.j2", {})
+    active_quests = [q for q in state.get("quests", []) if q.get("status") == "active"]
+    established_facts = list(state.get("scene", {}).get("established_facts") or [])
+    user_text = _render(
+        env,
+        "extract_user.j2",
+        {
+            "active_quests": active_quests,
+            "inventory": state.get("inventory", []),
+            "established_facts": established_facts,
+        },
+    )
     return [
         {"role": "system", "content": system_text},
         {"role": "assistant", "content": narrative},
@@ -349,7 +360,7 @@ async def run_turn(
         yield ("phase", {"phase": "narrate_done"})
 
         # === Call 2: Extract (structured JSON) ===
-        ext_messages = _extract_messages(env, narrative)
+        ext_messages = _extract_messages(env, narrative, state)
         t2 = asyncio.get_event_loop().time()
         retries = 0
         parse_error = ""
@@ -515,12 +526,12 @@ def _validate(state: dict, delta: StateDelta) -> list[dict]:
     rejections: list[dict] = []
 
     existing_inv = {item.get("id") for item in state.get("inventory", [])}
-    for rid in delta.inventory_remove:
-        if rid not in existing_inv:
+    for rem in delta.inventory_remove:
+        if rem.id not in existing_inv:
             rejections.append({
                 "field": "inventory_remove",
-                "value": rid,
-                "reason": f"Inventory item '{rid}' does not exist",
+                "value": rem.id,
+                "reason": f"Inventory item '{rem.id}' does not exist",
             })
 
     # quest_updates is create-or-update: new quest IDs are allowed (apply_delta creates them).

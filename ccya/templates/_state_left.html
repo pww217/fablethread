@@ -1,0 +1,133 @@
+{# Left sidebar: Player, Scene, Location, Quests #}
+<details class="sidebar-card" id="card-player" data-card="player" open>
+    <summary>Player</summary>
+    <div class="sidebar-card-body">
+        <div class="stat-row">
+            <span class="stat-label">Name</span>
+            <span class="stat-value" title="{{ state.pc.name or '' }}">{{ state.pc.name or '—' }}</span>
+        </div>
+        {% if state.pc.concept %}
+        <div class="stat-concept">
+            <span data-md>{{ state.pc.concept }}</span>
+        </div>
+        {% endif %}
+        {% for k, v in (state.pc.stats or {}).items() %}
+        <div class="stat-row">
+            <span class="stat-label">{{ k | capitalize }}</span>
+            <span class="stat-value">{{ v }}</span>
+        </div>
+        {% endfor %}
+        {% if state.pc.conditions %}
+        <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;">
+            {% for cond in state.pc.conditions %}
+            <span class="condition-pill">{{ cond }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</details>
+
+{% if (state.scene.tags or []) or (state.scene.present_npcs or []) %}
+<details class="sidebar-card" id="card-scene" data-card="scene">
+    <summary>Scene <span class="card-count">{{ (state.scene.present_npcs or []) | length }}</span></summary>
+    <div class="sidebar-card-body">
+        {% if state.scene.tags %}
+        <div class="scene-tags-row">
+            {% for tag in state.scene.tags %}
+            <span class="scene-pill">{{ tag }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if state.scene.present_npcs %}
+        <div class="npc-list">
+            {% for npc in state.scene.present_npcs %}
+            {% set npc_name = npc.get('name', npc.get('id', npc)) if npc is mapping else npc %}
+            {% set npc_notes = npc.get('notes', '') if npc is mapping else '' %}
+            <div class="npc-item">
+                <span class="npc-name">{{ npc_name }}</span>
+                {% if npc_notes %}<span class="npc-notes" data-md>{{ npc_notes }}</span>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</details>
+{% endif %}
+
+<details class="sidebar-card" id="card-location" data-card="location" open>
+    <summary>Location</summary>
+    <div class="sidebar-card-body">
+        <div style="color: var(--text-primary); font-size: 13px; font-weight: 500; margin-bottom: 6px;">
+            {{ state.location.name or '—' }}
+        </div>
+        {% if state.location.description %}
+        <p class="card-desc" style="margin: 0; font-size: 12px;" data-md>{{ state.location.description }}</p>
+        {% endif %}
+    </div>
+</details>
+
+{% set _quests_all = state.quests or [] %}
+{% set _quests_active = _quests_all | selectattr('status', 'equalto', 'active') | list %}
+{% set _quests_resolved = _quests_all | rejectattr('status', 'equalto', 'active') | list %}
+<details class="sidebar-card" id="card-quests" data-card="quests" open>
+    <summary>Quests</summary>
+    <div class="sidebar-card-body quest-card-body" id="quest-card-body" data-tab="active">
+        {% if _quests_all %}
+        <div class="quest-tabs" role="tablist">
+            <button type="button" class="quest-tab active" data-quest-tab="active" role="tab">
+                Active <span class="quest-tab-count">{{ _quests_active | length }}</span>
+            </button>
+            <button type="button" class="quest-tab" data-quest-tab="resolved" role="tab">
+                Resolved <span class="quest-tab-count">{{ _quests_resolved | length }}</span>
+            </button>
+        </div>
+        <div class="quest-list-active quest-list-panel">
+            {% if _quests_active %}
+            {% for quest in _quests_active %}
+            <div class="quest-item">
+                <div class="quest-item-header">
+                    <span class="quest-title active">{{ quest.get("title", quest.get("id", "?")) }}</span>
+                    <span class="quest-status-badge active">{{ quest.get("status", "active") }}</span>
+                </div>
+                {% for obj in (quest.get("objectives") or []) %}
+                <div class="objective{% if obj.get('done') %} done{% elif obj.get('failed') %} failed{% endif %}">
+                    <span class="objective-check{% if obj.get('done') %} done{% elif obj.get('failed') %} failed{% endif %}">
+                        {% if obj.get('done') %}&#x2611;{% elif obj.get('failed') %}&#x2718;{% else %}&#x2610;{% endif %}
+                    </span>
+                    <span data-md>{{ obj.description }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+            {% else %}
+            <span class="empty-state">No active quests.</span>
+            {% endif %}
+        </div>
+        <div class="quest-list-resolved quest-list-panel">
+            {% if _quests_resolved %}
+            {% for quest in _quests_resolved %}
+            {% set st = quest.get('status', '') %}
+            <div class="quest-item">
+                <div class="quest-item-header">
+                    <span class="quest-title {{ st }}">{{ quest.get("title", quest.get("id", "?")) }}</span>
+                    <span class="quest-status-badge {{ st }}">{{ st }}</span>
+                </div>
+                {% for obj in (quest.get("objectives") or []) %}
+                <div class="objective{% if obj.get('done') %} done{% elif obj.get('failed') %} failed{% endif %}">
+                    <span class="objective-check{% if obj.get('done') %} done{% elif obj.get('failed') %} failed{% endif %}">
+                        {% if obj.get('done') %}&#x2611;{% elif obj.get('failed') %}&#x2718;{% else %}&#x2610;{% endif %}
+                    </span>
+                    <span data-md>{{ obj.description }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+            {% else %}
+            <span class="empty-state">No resolved quests yet.</span>
+            {% endif %}
+        </div>
+        {% else %}
+        <span class="empty-state">No quests yet.</span>
+        {% endif %}
+    </div>
+</details>
