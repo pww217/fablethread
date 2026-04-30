@@ -1,0 +1,39 @@
+examples:
+  - title: "Detective — evidence change and quest progression"
+    thinking: |
+      - Evidence photo acquired showing union insignia on crates.
+      - Warehouse inquiry objective completed.
+      - Rain-slicked streets; the photo smells of chemical developer.
+    json: |-
+      {"state_delta": {"inventory_add": [{"id": "evidence-photo", "name": "Warehouse photograph", "notes": "Shows union insignia on the crates.", "amount": 1}], "quest_updates": [{"id": "warehouse-inquiry", "objectives": [{"index": 1, "done": true}]}], "established_facts_add": ["The warehouse fire was arson; fire marshal found accelerant patterns.", "Union Local 42 has been using the waterfront warehouses for storage since March."]}, "actions": ["Return to the warehouse for more clues", "Visit the fire marshal's office", "Confront Union Local 42 about their waterfront presence", "Develop the photograph at the lab"]}
+
+  - title: "Cop — jurisdictional conflict and NPC introduction"
+    thinking: |
+      - No inventory or quest changes.
+      - Detective Murphy warns about cross-jurisdiction risk.
+      - Witness is fleeing on the 6:15 train.
+    json: |-
+      {"state_delta": {"established_facts_add": ["Detective cross-jurisdiction without backing from PD — risky move.", "The witness who saw the shooting is scheduled to leave town on the 6:15 train."], "present_npcs": [{"id": "det-murphy", "name": "Detective Murphy", "title": "City Police", "notes": "Wants the player to drop the case; says it's beyond their jurisdiction.", "bio": "Street cop with twenty years on the force; doesn't trust outsiders."}]}, "actions": ["Chase the witness to the train station", "Press Det. Murphy for names and contacts", "Investigate the shooting scene yourself", "File a formal cross-jurisdiction request"]}
+
+  - title: "Reporter — document acquisition and inventory shift"
+    thinking: |
+      - Mooney's ledger pages acquired (3 pages, torn).
+      - New facts about payroll disbursements and Alderman Price.
+      - The ledger smells of ink and cheap paper.
+    json: |-
+      {"state_delta": {"inventory_add": [{"id": "ledger-pages", "name": "Mooney's ledger pages", "notes": "Three pages from a ledger. Shows payments to city aldermen.", "amount": 1}], "established_facts_add": ["The Mooney's ledger covers January through June — payroll and disbursements.", "Alderman Price's district includes the warehouse corridor where the fire started."]}, "actions": ["Cross-reference the ledger with union payments", "Track down Mooney's bookkeeper", "Confront Alderman Price about the payments", "Take the pages to the district attorney"]}
+
+  - title: "Court — time pressure and quest failure"
+    thinking: |
+      - Witness protection quest failed — couldn't keep them safe.
+      - Court session adjourned; the witness is gone.
+      - The hotel room is empty; the witness slipped out.
+    json: |-
+      {"state_delta": {"quest_updates": [{"id": "protect-witness", "status": "failed", "objectives": [{"index": 1, "done": true}]}], "established_facts_add": ["The witness escaped from the hotel before dawn; someone helped them."]}, "actions": ["Search the hotel room for clues", "Question the desk clerk about the escape", "Track the witness's last known route", "Report the failure to the district attorney"]}
+
+  - title: "Minimal — dialogue only, no state change"
+    thinking: |
+      - Pure dialogue; no state changes this turn.
+      - Joey behind the bar wipes down the counter.
+    json: |-
+      {"state_delta": {"scene_tags": ["dialogue"], "scene_tagline": "Whiskey and shadows", "location_description": "The bar is half-empty; a jazz trio plays in the corner.", "present_npcs": [{"id": "joey-bartender", "name": "Joey", "title": "Bartender", "notes": "Wary of the player; keeps a close eye on the back door."}]}, "actions": ["Order a whiskey and play it cool", "Ask Joey who else has been here tonight", "Push for information about the shooting", "Leave the bar and hit the streets"]}

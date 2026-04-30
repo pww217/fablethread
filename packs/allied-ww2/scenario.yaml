@@ -1,0 +1,69 @@
+constraints:
+   # required-presence
+  min_named_npcs: 2
+  min_objectives_per_quest: 2
+  starting_quest_count: 1
+   # ranges
+  inventory_size_range: [4, 8]
+  pc_stat_range: [1, 4]
+  pc_stat_total_range: [8, 12]
+  prose_word_range: [200, 450]
+   # composition
+  required_inventory_kinds: [weapon, tool]
+  npc_distinct_first_letters: true
+   # creativity guards
+  forbid_cliches:
+     - "last soldier standing"
+     - "the war ends after this mission"
+     - "super weapon"
+     - "you're the only one who can"
+     - "the enemy is monstrous / inhuman"
+     - "you've seen too much"
+     - "the war made you this way"
+     - "you're just a soldier / sailor / airman — follow orders"
+  forbid_player_dependents: true
+  forbid_legendary_items: true
+
+inspiration:
+  pc: |
+    The PC is a rank-and-file Allied service member — not an officer giving orders,
+    not a special operative with a dossier. They are a rifleman, a radioman, a
+    mechanic, a medic, a driver, a clerk. Their rank is real. Their training is
+    real. Their fear is normal, not dramatic. What shaped them is pre-war: a
+    farming town, a Detroit assembly line, a Liverpool dock, a Saskatchewan grain
+    field, a Wellington pub. Give them a skill that matters in this moment and a
+    liability that matters in the next.
+
+  opening_situation: |
+    Drop the player into a moment that is already in motion — not a briefing room,
+    not a parade-ground assembly. The situation should feel like a Tuesday in a war
+    that has been going on for years. What the player walks into should involve
+    logistics or communication or a decision that nobody prepared them for. The
+    stakes are real but not cinematic: a convoy that needs to move, a message that
+    needs to get through, a position that needs holding until reinforcements arrive,
+    a supply dump that needs securing. The most interesting moments are the ones
+    where the war is happening around the player, not because they ordered it.
+
+  npcs: |
+    Each NPC is a real person in the Allied structure — or a civilian whose
+    interests intersect with it. They have a rank, a specialty, a reason for being
+    where they are. They are not allies because they are good people; they are
+    allies because the war made them so. At least one NPC should have an interest
+    that conflicts with the player's — not as a traitor, but as someone with
+    different orders, different information, or different priorities.
+
+  inventory: |
+    Items reflect what a service member actually carried or had access to. Standard
+    issue weapons, personal modifications, captured items (if appropriate to theater),
+    letters and photos, ration cards, field manuals, medical supplies. Show the
+    gap between what the supply catalogue promised and what the player actually has.
+    Include one thing that was important to someone else before it became a tool.
+
+  quests: |
+    The starting quest should be something that requires action within a specific
+    timeframe and has real consequences for failing. It should involve movement or
+    communication or a decision — not a set piece. The objectives should reveal
+    something about the war's machinery: the logistics, the communication gaps, the
+    human cost of orders. Avoid "destroy the X" framing. Instead: "get the message
+    through," "secure the route," "find the supplies," "keep the position until
+    relief arrives."

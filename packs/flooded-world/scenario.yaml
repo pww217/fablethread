@@ -1,0 +1,75 @@
+constraints:
+  # required-presence
+  min_named_npcs: 2
+  min_objectives_per_quest: 2
+  starting_quest_count: 1
+  # ranges
+  inventory_size_range: [3, 6]
+  pc_stat_range: [1, 4]
+  pc_stat_total_range: [8, 11]
+  prose_word_range: [200, 450]
+  # composition
+  required_inventory_kinds: [weapon, tool]
+  npc_distinct_first_letters: true
+  # creativity guards
+  forbid_cliches:
+    - "survivor hiding in a bunker with no idea what happened"
+    - "the last person on Earth"
+    - "a child who is the key to saving everyone"
+    - "the flood was caused by a corporation and they know it"
+    - "a vaccine that cures everything"
+    - "the protagonist is immune to the flood"
+    - "the underwater city holds the secret to reversing the flood"
+  forbid_player_dependents: true
+  forbid_legendary_items: true
+
+inspiration:
+  pc: |
+    The PC is a specific person shaped by the drowned world. They could be a diver who
+    descends into the flooded zones for salvage, a barge captain who runs the river
+    routes between highland communities, a terraced farmer on the Edge who navigates
+    between flood and raid risk, a scout who maps the changing water levels, a trader
+    who connects the Highland Councils through the ridge trails, a fisher who knows the
+    currents and the storm patterns. What shaped them is the water: the elevation that
+    determined where they live, the flood that shaped their community, the isolation
+    that made self-reliance necessary. Avoid the lone survivor; the drowned world is
+    held together by communities who depend on each other. Give them a specific role,
+    a specific tie to a community, and something they are responsible for.
+
+  opening_situation: |
+    Drop the player into a moment that the drowned world has created — something that
+    requires a decision in a place where the water is always present. The situation
+    should feel like inheriting a responsibility: a barge that needs to reach a
+    highland community before the food runs out, a dive into a flooded building that
+    the divers say is too risky, a trail between Edge settlements that raiders have
+    blocked, a storm forecast that changes everything. The opening should feel grounded
+    in the spatial reality: a highland terrace, a barge deck, a flooded lobby, an Edge
+    hill, a ridge trail. Something that requires a choice right now.
+
+  npcs: |
+    Each NPC is a person with a stake in the drowned world's survival, a specific
+    relationship to the player, and something they are not saying. At least one should
+    have interests that conflict with the player's — not as a villain, but as someone
+    whose community depends on different choices. The barge captain speaks with the
+    practical wisdom of someone who has navigated worse currents. The diver speaks with
+    the quiet confidence of someone who has descended into the dark and come back. The
+    council liaison speaks with the weight of responsibility. Everyone has a community
+    behind them; everyone is calculating what they can afford.
+
+  inventory: |
+    Items reflect the PC's role in the drowned world. A diver carries wetsuit parts,
+    a cutting torch, sonar gear, and a compressed-air tank. A barge captain carries
+    navigation tools, a sail, and a supply of dried fish. A farmer carries terrace tools,
+    seed stock, and a water filter. Show what the character uses daily — the specific
+    tools, the specific numbers. Every item should say something about who this person is
+    and what they have survived.
+
+  quests: |
+    The starting quest should have stakes that are local and material — something that
+    affects a community, a river route, a dive site, a trail. The objectives should
+    force the player into the drowned world's reality: a barge run through flooded
+    zones, a salvage dive into a skyscraper, a trail negotiation with a rival
+    community, a storm evacuation. There should be at least one objective that creates
+    tension with another NPC or faction. The quest should feel like it has a cost —
+    in time, in risk, in trust, in what the player is willing to do for the community
+    they are part of.

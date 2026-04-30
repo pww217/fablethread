@@ -1,0 +1,27 @@
+examples:
+  - title: "Ammo spent + quest objective done + Union officer + field hospital"
+    thinking: |
+      - Fired 2 rounds from rifled musket during the skirmish; ammo decremented.
+      - First objective of the supply-run quest completed by index.
+      - Lieutenant Hayes now trusts the player with the regiment's logistics.
+      - Field hospital has been established; wounded are being triaged.
+    json: |-
+      {"state_delta": {"scene_tags": ["skirmish", "logistics"], "scene_tagline": "Ammunition spent — the supply train arrives", "location_description": "The field hospital is a converted barn. Straw-strewn floor, blood on the walls, the smell of carbolic alcohol and morphine. A supply wagon rattles into the yard.", "present_npcs": [{"id": "lieutenant-hayes", "name": "Lieutenant Thomas Hayes", "title": "Union 24th Volunteer Infantry", "notes": "Relieved the supply train made it through. He's assigning the player to the quartermaster detail.", "bio": "West Point graduate, Massachusetts-born. Believes in the cause but has lost three friends in six weeks. Pragmatic about logistics."}], "inventory_remove": [{"id": "musket-rounds", "amount": 2}], "quest_updates": [{"id": "secure-the-supply-train", "objectives": [{"index": 1, "done": true}]}]}, "actions": ["Report to the quartermaster", "Visit the field hospital", "Ask Hayes about the next move", "Scout the ridge for Confederate movement"]}
+
+  - title: "NPC death + inventory swap + quest creation + border state tension"
+    thinking: |
+      - Elder Jenkins did not survive the night; removed from present NPCs.
+      - Traded a silver pocket watch for a Confederate pass at the black market.
+      - New quest: deliver the message to the Union provost marshal.
+      - The border county is turning dangerous; both sides are watching.
+    json: |-
+      {"state_delta": {"scene_tags": ["tension", "underground"], "scene_tagline": "Jenkins is gone — the pass and the message", "location_description": "The Jenkins farm is quiet. Dawn light through the barn windows. The Confederate pass feels heavy in the pocket.", "present_npcs": [{"id": "martha-jenkins", "name": "Martha Jenkins", "title": "Border county farmer", "notes": "Grieving but resolute. She knows where the Confederate patrol routes run.", "bio": "Her husband died at Bull Run. She harbors Union stragglers and contraband refugees. The county is divided — her own son fights for the CSA."}, {"id": "provost-coleman", "name": "Provost Marshal Coleman", "title": "Union military police", "notes": "Armed and impatient. He has a mission for the player and a suspicion about Martha.", "bio": "Military police officer responsible for rear-area security. He knows about the black-market passes and the refugee movement."}], "inventory_remove": [{"id": "silver-pocket-watch", "amount": 1}], "inventory_add": [{"id": "csa-pass", "name": "Confederate pass", "notes": "Signed by a CSA captain; allows passage through patrol lines. Forged or genuine — hard to tell.", "amount": 1}], "compendium_npc_remove": ["elder-jenkins"], "quest_updates": [{"id": "deliver-to-provost", "title": "Deliver the message to Provost Marshal Coleman", "status": "active", "objectives": [{"description": "Deliver the intelligence about Confederate patrol movements to Provost Marshal Coleman at the forward command post.", "done": false}, {"description": "Ensure the contraband refugees reach the Union lines without being intercepted by the CSA patrol.", "done": false}]}]}, "actions": ["Talk to Martha about the refugee route", "Take the message to Coleman", "Inspect the Confederate pass", "Find the blacksmith for horse repair"]}
+
+  - title: "Condition add + medical supplies + field hospital + quest failed"
+    thinking: |
+      - Caught dysentery from contaminated water; added fever condition.
+      - Spent quinine and morphine on a wounded soldier; medical inventory depleted.
+      - The regimental advance failed — objective failed.
+      - The field hospital is overwhelmed; the player's condition matters now.
+    json: |-
+      {"state_delta": {"scene_tags": ["medical", "loss"], "scene_tagline": "Fever takes the player — the advance fails", "location_description": "The field hospital tent is packed with wounded. The smell of carbolic and blood is overwhelming. A surgeon looks up from his table.", "present_npcs": [{"id": "surgeon-ellis", "name": "Dr. Samuel Ellis", "title": "Union regimental surgeon", "notes": "Exhausted and pragmatic. He needs the player on their feet or out of the way.", "bio": "Pennsylvania-born surgeon with thirty years of practice. Has amputated more limbs than he can count. Believes in the Union but is running out of supplies."}], "pc_condition_add": ["dysentery — fever and weakness, needs rest and clean water within 48 hours"], "inventory_remove": [{"id": "quinine", "amount": 2}, {"id": "morphine-syringe", "amount": 1}], "quest_updates": [{"id": "hold-the-line-at-manassas", "status": "failed"}], "established_facts_add": ["The 24th Volunteer's advance at Manassas was repelled. The regiment holds the tree line but has lost half its effective strength."]}, "actions": ["Take the quinine and rest", "Ask Dr. Ellis about the regiment's position", "Try to rejoin the line despite the fever", "Send a messenger to the quartermaster"]}

@@ -1,0 +1,12 @@
+id: space-western
+name: "The Rim — Fringe Systems"
+description: "Space western on the frontier of a broken solar system. Every run is different."
+genre: space western
+tone_tags: [frontier, gritty, scrap-tech, political]
+version: 1
+mode: dynamic
+files:
+  world: world.md
+  scenario: scenario.yaml
+  style: style.md
+  extract_examples: extract_examples.yaml

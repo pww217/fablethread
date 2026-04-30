@@ -1,0 +1,12 @@
+id: cyberpunk-2077-bladerunner
+name: "Neo-Synth — 2087"
+description: "Neon-soaked megalopolis run by megacorporations. Every run is different."
+genre: cyberpunk
+tone_tags: [noir, gritty, high-tech-low-life, corporate]
+version: 1
+mode: dynamic
+files:
+  world: world.md
+  scenario: scenario.yaml
+  style: style.md
+  extract_examples: extract_examples.yaml

@@ -1,35 +1,36 @@
 constraints:
-  # required-presence
+   # required-presence
   min_named_npcs: 2
   min_objectives_per_quest: 2
   starting_quest_count: 1
-  # ranges
+   # ranges
   inventory_size_range: [5, 9]
   pc_stat_range: [1, 4]
   pc_stat_total_range: [8, 12]
   prose_word_range: [200, 450]
-  # composition
+   # composition
   required_inventory_kinds: [weapon, tool]
   npc_distinct_first_letters: true
-  # creativity guards
+   # creativity guards
   forbid_cliches:
-    - "chosen one"
-    - "secret heir to a faction"
-    - "mysterious past with no details"
-    - "last honest smuggler"
-    - "ex-military with a troubled past as the sole trait"
-    - "chronic illness or disability as a defining character trait"
+     - "chosen one"
+     - "secret heir to a faction"
+     - "mysterious past with no details"
+     - "last honest operator"
+     - "ex-military with a troubled past as the sole trait"
+     - "chronic illness or disability as a defining character trait"
+     - "the ship is the only thing they have left"
   forbid_player_dependents: true
   forbid_legendary_items: true
 
 inspiration:
   pc: |
-    The PC is a specific person — Belt-born or Belt-adopted — scraping out an
-    independent living in freight, smuggling, salvage, or courier work. They have
-    a ship (barely), a debt (always), and a reason to keep moving that goes beyond
-    simple survival. Their pre-collapse profession, who they owe favors to, and
-    what they are willing to do for money define them more than any single trait.
-    Avoid ex-military loner archetypes. Most working Belters are pragmatists shaped
+    The PC is a specific person — Earth-born, Mars-born, Belt-born, or Luna-born —
+    operating on the margins of the Sol system. They could be a freight operator, a
+    courier, a technician, a medic, a security contractor, a dock worker, a
+    scavenger, a refugee. Their pre-collision profession, who they owe favors to,
+    and what they are willing to do for money define them more than any single trait.
+    Avoid ex-military loner archetypes. Most working operators are pragmatists shaped
     by economics, not trauma. Give them a concrete skill, a concrete liability
     (financial, relational, or mechanical), and one thing they are not willing to do.
 
@@ -37,26 +38,27 @@ inspiration:
     Drop the player into a moment where a decision is already pressing. The most
     interesting Expanse situations arise from the collision of financial pressure,
     political exposure, and limited options — not action set pieces. The opening
-    should feel like a Tuesday in the Belt: unglamorous, specific, and already
+    should feel like a Tuesday in the system: unglamorous, specific, and already
     complicated. What does the player walk into that requires a choice right now?
     Avoid the obvious: don't open in a firefight, don't open with a mysterious
     stranger offering a job. Open somewhere real — a docking bay, a bar, a kiosk
-    queue, a ship corridor — with a problem that already has a clock on it.
+    queue, a ship corridor, a cargo bay, a maintenance deck — with a problem that
+    already has a clock on it.
 
   npcs: |
     Each NPC is a person with a job, a faction affiliation (or deliberate lack of
     one), and something they want from this interaction that is not exactly what
     they say they want. At least one NPC should have interests that partially
     conflict with the player's — not as a villain, but as someone with their own
-    math. Belter NPCs speak with creole when relaxed or emotional. Inner-system
+    math. Belters speak with creole when relaxed or emotional. Inner-system
     NPCs (Earthers, Martians) have their own tells — condescension, efficiency,
     or discomfort in low-g.
 
   inventory: |
-    Items reflect the economics of independent Belt freight. The PC owns things
-    that were useful enough to keep, cheap enough to afford, and specific enough
-    to say something about who they are. Include standard Belter kit (mag boots,
-    vac-rated layer, hand terminal) plus items that reflect the PC's specific
+    Items reflect the economics of independent system-wide operations. The PC owns
+    things that were useful enough to keep, cheap enough to afford, and specific
+    enough to say something about who they are. Include standard work gear (mag
+    boots, vac-rated layer, hand terminal) plus items that reflect the PC's specific
     situation and line of work. Avoid generic loadouts. Show scarcity through
     specific numbers — not "enough ammo" but a count. Include the ship's status
     as an implied constraint, not as inventory.
@@ -66,6 +68,6 @@ inspiration:
     that requires action measured in hours, not heroism. The objectives should
     reveal something about the political or social landscape the player is operating
     in, not just point to a destination. The quest should have at least one
-    objective that creates tension with another NPC or faction. Smuggling, debt,
-    salvage, and courier work are all appropriate hooks — make the specific job
-    unusual or complicated enough to be interesting, not just "deliver the box."
+    objective that creates tension with another NPC or faction. Freight, courier
+    work, salvage, and smuggling are all appropriate hooks — make the specific job
+    unusual or complicated enough to be interesting, not just "deliver the package."

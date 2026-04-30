@@ -1,0 +1,75 @@
+constraints:
+   # required-presence
+  min_named_npcs: 2
+  min_objectives_per_quest: 2
+  starting_quest_count: 1
+   # ranges
+  inventory_size_range: [4, 8]
+  pc_stat_range: [1, 4]
+  pc_stat_total_range: [8, 12]
+  prose_word_range: [200, 450]
+   # composition
+  required_inventory_kinds: [weapon, tool]
+  npc_distinct_first_letters: true
+   # creativity guards
+  forbid_cliches:
+     - "the dame was trouble"
+     - "the case was a setup from the start"
+     - "the city was a beast"
+     - "he had a dark past"
+     - "the bottle was his only friend"
+     - "she smelled like gin and trouble"
+     - "the office was on the third floor of a building that used to be something"
+     - "the money was the least of it"
+     - "the real killer was dead / missing / already in jail"
+     - "the answer was the person standing right in front of him"
+     - "a woman who played both sides"
+     - "the corrupt politician was behind everything"
+  forbid_player_dependents: true
+  forbid_legendary_items: true
+
+inspiration:
+  pc: |
+    The PC is a detective or investigator — but not a hardened veteran with twenty
+    years on the job. They are someone who learned the work through doing: a cop who
+    got pushed onto the investigative desk, a former reporter who started their own
+    agency, a union investigator who knows the streets, a federal agent who doesn't
+    fit the bureau. Give them a specific skill (reading documents, reading rooms,
+    reading people) and a specific liability (a reputation, a debt, a relationship
+    that complicates things). They are not cynical by nature; they became that way
+    by necessity.
+
+  opening_situation: |
+    Drop the player into a situation that is already unfolding — not a client walking
+    into an office, not a body in an alley. The situation should involve a piece of
+    the city's machinery: a court proceeding, a union meeting, a police evidence room,
+    a newspaper editorial deadline, a harbor inspection, a city council session. The
+    player should walk into something that requires understanding the system, not just
+    pushing a gun. The most interesting situations involve paperwork, jurisdiction,
+    or a piece of information that matters to someone who doesn't know it yet.
+
+  npcs: |
+    Each NPC is a person embedded in the city's infrastructure: a cop who knows the
+    evidence room, a reporter who knows the dock foreman, a union rep who knows the
+    mayor's chief of staff, a judge who knows the DA's weakness, a bartender who
+    knows who meets whom and when. They have a role in the system and a reason for
+    being outside it in this moment. At least one NPC should have an interest that
+    conflicts with the player's — not as a villain, but as someone with different
+    information, different jurisdiction, or different priorities.
+
+  inventory: |
+    Items reflect what an investigator in the 1930s actually carried or had access to:
+    a service weapon (or a concealed piece), a notebook, a flashlight, a lockpick set,
+    a badge (real or fake), a camera, a revolver with limited ammunition, a .38
+    snub-nose, a .45 government issue. Include one thing that was important to someone
+    else — a letter, a photograph, a document. Show the gap between what the job
+    requires and what the player actually has.
+
+  quests: |
+    The starting quest should involve a piece of information that matters — not a
+    "smoking gun" but a detail that changes how someone sees the situation. It
+    should require action within a specific timeframe: a court date, a publication
+    deadline, a witness who might leave town, evidence that might be destroyed. The
+    objectives should reveal something about the city's machinery: a jurisdictional
+    conflict, a paper trail, a conversation that should not have happened, a witness
+    who saw something that changes the frame.
