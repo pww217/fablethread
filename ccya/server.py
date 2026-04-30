@@ -19,7 +19,7 @@ from sse_starlette.sse import EventSourceResponse
 from ccya.engine import EngineConfig, is_turn_in_progress, run_turn, warmup
 from ccya.logging_setup import setup_logging
 from ccya.models import load_config as _load_config
-from ccya.state import init_save_dir, load_state
+from ccya.state import init_save_dir, load_recent_chronicle_turns, load_state
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -78,24 +78,12 @@ def _load_current_state() -> dict:
 
 
 def _load_recent_history(save_dir: Path, n: int = 8) -> list[dict]:
-    """Return the last n turn events from events.jsonl for page-reload continuity."""
-    path = save_dir / "events.jsonl"
-    if not path.exists():
-        return []
-    lines = path.read_text().strip().splitlines()
-    recent = lines[-n:] if len(lines) > n else lines
-    result = []
-    for line in recent:
-        try:
-            ev = json.loads(line)
-            result.append({
-                "turn": ev.get("turn", 0),
-                "input": ev.get("input", ""),
-                "narrative": ev.get("narrative", "").strip(),
-            })
-        except (json.JSONDecodeError, KeyError):
-            continue
-    return result
+    """Return the last n turns from chronicle.md for page-reload continuity (full narrative)."""
+    turns = load_recent_chronicle_turns(save_dir, n)
+    return [
+        {"turn": t["turn"], "input": t["input"], "narrative": t["narrative"]}
+        for t in turns
+    ]
 
 
 def _load_last_actions(save_dir: Path) -> list[str]:

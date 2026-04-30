@@ -42,9 +42,10 @@
         <div class="npc-list">
             {% for npc in state.scene.present_npcs %}
             {% set npc_name = npc.get('name', npc.get('id', npc)) if npc is mapping else npc %}
+            {% set npc_title = npc.get('title', '') if npc is mapping else '' %}
             {% set npc_notes = npc.get('notes', '') if npc is mapping else '' %}
             <div class="npc-item">
-                <span class="npc-name">{{ npc_name }}</span>
+                <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
                 {% if npc_notes %}<span class="npc-notes" data-md>{{ npc_notes }}</span>{% endif %}
             </div>
             {% endfor %}

@@ -1,19 +1,35 @@
-## Current state (reference — DO NOT duplicate existing entries)
+## Current state (reference — emit deltas; consolidate before adding duplicates)
 
-### Established facts
+### Player
+- Name: {{ pc.get('name', '') or 'Unnamed' }} | Concept: {{ pc.get('concept', '') or '—' }}
+- Conditions (emit **pc_condition_add** / **pc_condition_remove**):
+{% if pc.get('conditions') %}{% for c in pc.conditions %}
+  - {{ c }}
+{% endfor %}{% else %}  - none{% endif %}
+
+### Location
+- id: `{{ location.get('id', '') }}` | name: {{ location.get('name', '') or '—' }}
+- Description (current): {{ location.get('description', '') or '—' }}
+
+### Present NPCs (emit **present_npcs** to replace the whole list each turn; always include ≥1 entry — use ambient background if no named NPCs)
+{% if present_npcs %}{% for n in present_npcs %}
+- id: `{{ n.id if n is mapping else n }}` | name: {{ n.name if n is mapping else n }} | title: {{ n.get('title', '') if n is mapping else '' }} | notes: {{ n.get('notes', '') if n is mapping else '' }}
+{% endfor %}{% else %}None listed.{% endif %}
+
+### Established facts (copy exact strings from this list into **established_facts_remove** / **established_facts_update.old** when superseding)
 {% if established_facts %}{% for f in established_facts %}
 - {{ f if f is string else f.values() | join(': ') }}
 {% endfor %}{% else %}None.{% endif %}
 
-### Active quests
+### Active quests (update by quest **id**; objectives by **1-based index** from the numbered list)
 {% if active_quests %}{% for q in active_quests %}
 - id: `{{ q.id }}` | title: {{ q.title }}
   objectives:
-{% for o in (q.objectives or []) %}  - [{{ "x" if o.done else " " }}] {{ o.description }}
+{% for o in (q.objectives or []) %}    {{ loop.index }}. [{% if o.done %}x{% elif o.failed %}f{% else %} {% endif %}] {{ o.description }}
 {% endfor %}
 {% endfor %}{% else %}None.{% endif %}
 
-### Inventory
+### Inventory (deltas only — **inventory_add** / **inventory_remove**; reuse existing ids when possible)
 {% if inventory %}{% for it in inventory %}- id: `{{ it.id }}` | name: {{ it.name }} | amount: {{ it.amount or 1 }}
 {% endfor %}{% else %}Empty.{% endif %}
 

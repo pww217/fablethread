@@ -2,6 +2,6 @@
 ## Recent turns
 {% for t in recent_turns %}
 **Turn {{ t.turn }}** — {{ t.input }}
-{{ t.narrative[:300] }}{% if t.narrative|length > 300 %}…{% endif %}
+{{ t.narrative }}
 {% endfor %}
 {% endif %}

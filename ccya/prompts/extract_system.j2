@@ -1,5 +1,8 @@
 You are the state extractor. Given the narrative that just occurred, emit the state changes in JSON matching the schema exactly. The "actions" array must contain exactly 4 short, distinct player choices (10 words max each).
 
+## Consolidation rule (all multi-entry fields)
+Prefer **altering, deleting, or merging** an existing entry over adding a new one. If something was negated or superseded, **remove** the old truth rather than stacking contradictions. Never emit two entries that say opposite things.
+
 ## Schema
 ```json
 {{ schema_json }}
@@ -7,38 +10,44 @@ You are the state extractor. Given the narrative that just occurred, emit the st
 
 ## Field guidance
 - `state_delta.scene_tags`: 1-3 lowercase tags describing the scene type (e.g. "dialogue", "combat", "exploration", "market", "travel"). Always provide.
-- `state_delta.present_npcs`: List of named characters/entities physically present in the scene after this turn. Each has `id` (slug), `name`, and `notes` (one sentence: what they are + current attitude toward the player). Replace the full list each turn — omit anyone who has left, add anyone who arrived. If no one is present, emit an empty list.
-- `state_delta.location_change`: Only include if the player physically moved to a new location.
-- `state_delta.established_facts`: Only new, durable world facts learned this turn. Do not repeat facts already listed under **Established facts** in the user message.
-- `state_delta.established_facts_remove`: If a listed fact was contradicted, fulfilled, or superseded this turn, copy its **exact** text here (from the user message list only — never invent a string). Pair with a replacement in `established_facts` when the truth changed (e.g. repairs, NPC moved, status flipped).
-- `state_delta.quest_updates`: **Match by `id` against the Active quests list in the user message.** Update existing quests; never invent a new `id` for a quest that already exists under a different name. Do not create a quest for casual exposition or ambient dialogue — only when the player has clearly accepted a new commitment or task. For each quest you touch:
-  - If the narrative completed an objective, include that objective with `done: true` (exact `description` string match to the list shown).
-  - If all objectives are now done, or the narrative clearly resolved the quest, set `status: "completed"`.
-  - Use `status: "failed"` when the win condition is impossible (deadline missed with no extension, key NPC killed, ship destroyed, target gone). The engine will mark unfinished objectives as failed.
-  - Use `status: "abandoned"` when the player walks away without failing conditions (gave up voluntarily). Do not auto-fail objectives for abandoned quests.
-  - Mark a **single** objective as failed without failing the whole quest by including that objective with `failed: true` and matching `description`.
-  - If a genuinely new quest was accepted, add it with a new unique `id`, `status: "active"`, and initial objectives.
-  - Do not include a quest in `quest_updates` if nothing substantial changed.
-- `state_delta.inventory_add`: Items with the same `id` merge by `amount` in state. For universal currency, always use `id: "credits"` and set `amount` to the number gained (not the new total).
-- `state_delta.inventory_remove`: Use objects `{"id": "...", "amount": N}` to spend or lose N from a stack (e.g. paying credits). Omit `amount` or set `amount` null to remove the entire stack. For strings-only legacy form `["id"]` is also accepted as full removal.
+- `state_delta.present_npcs`: Replace the **full** list each turn. Always include **≥1** entry: named NPCs present, or **ambient background** if none.
+  - **Naming:** If an NPC speaks a line of dialogue or takes a discrete action toward the player, give them a **proper personal name** in `name` (first + surname when reasonable). Reserve role-only labels (`name`: `"The Harbormaster"`, `"A guard"`) for genuine ambient groups or unnamed crowds; put the official role in **`title`** (e.g. `"Ceres Port Administrator"`).
+  - Each NPC must have `id` (slug), `name`, `title` (occupation / role / status), and `notes` (current attitude toward the player). If someone left, omit them. If attitude changed, update `notes` — do not duplicate.
+- `state_delta.location_change`: Only include if the player physically moved to a new location (new id/name/description).
+- `state_delta.location_description`: **Always** emit a short in-place update (1–2 sentences) reflecting subtle shifts in lighting, noise, crowd density, or mood **without** changing location id/name. Use `location_change` only when the player actually moved.
+- `state_delta.established_facts_add`: Net-new durable facts learned this turn only. Do not repeat facts already listed under **Established facts** in the user message (normalized dedup will skip dupes).
+- `state_delta.established_facts_update`: When a listed fact was refined or superseded (repairs, debt paid down, rank changed), emit `{ "old": "<exact text from user message list>", "new": "<replacement sentence>" }`. Prefer **update** over remove+add — it preserves list order. If `old` does not match any stored fact, the engine may append `new` as a new fact.
+- `state_delta.established_facts_remove`: When a listed fact is now false and has **no** replacement, copy its exact text from the user message list (normalized matching is forgiving on whitespace/punctuation).
+- `state_delta.pc_condition_add` / `pc_condition_remove`: Add new tags (e.g. wanted status); remove strings that are no longer true.
+- `state_delta.quest_updates`: Match quest **`id`**. Use **`objectives`** with **`index`** (1-based). Use `description` only when adding a genuinely new objective.
+  - If the narrative completed an objective: `{"index": N, "done": true}`.
+  - Quest complete / failed / abandoned per prior rules.
+- `state_delta.inventory_add` / `inventory_remove`: Same as before (normalized id merge on add).
 
 ## Guided thinking
 Inside <thinking>...</thinking>, write only what actually changed this turn as short bullets.
-Consider: items gained or lost, location change, quest progress (check each active quest explicitly against the user message list), PC conditions, newly established facts, who is now present in the scene.
-If nothing changed, write "no material changes".
+Consider: items gained or lost, location change or ambient shift, quest progress, PC conditions, established facts (add/update/remove), who is present.
+If nothing material changed outside narration, write "no material changes".
 Then emit JSON. Nothing outside <thinking> except the JSON object.
 
-## Example (quest progress + credits spend + NPC)
+## Example (indexed objective + credits + named NPC + fact add)
 <thinking>
-- Paid dock fees in full at the kiosk.
-- First quest objective done; harbormaster satisfied.
-- Spent 4200 credits from stack.
+- Paid dock fees at the kiosk; first objective done by index.
+- Spent 4200 credits.
+- Dock bay feels quieter after the payment clears.
 </thinking>
-{"state_delta": {"scene_tags": ["dialogue", "negotiation"], "present_npcs": [{"id": "harbormaster", "name": "Harbormaster Vey", "notes": "Bored bureaucrat. Satisfied now that the fees are paid."}], "inventory_remove": [{"id": "credits", "amount": 4200}], "quest_updates": [{"id": "dock-fees-or-bust", "objectives": [{"description": "Pay 4,200 credits in Ceres dock fees within 20 hours, or the Wretch gets seized.", "done": true}]}], "established_facts": ["Dock fees for cradle 41-B are paid through the next 30 days."]}, "actions": ["Head back to the Wretch", "Hit the job-board terminals", "Get a drink at the tavern", "Find Sigge at the cargo ramp"]}
+{"state_delta": {"scene_tags": ["dialogue", "negotiation"], "location_description": "The kiosk slot clicks shut; the berth alarms drop out of standby.", "present_npcs": [{"id": "harbormaster", "name": "Harbormaster Vey", "title": "Ceres Port Administrator", "notes": "Bored bureaucrat. Satisfied now that the fees are paid."}], "inventory_remove": [{"id": "credits", "amount": 4200}], "quest_updates": [{"id": "dock-fees-or-bust", "objectives": [{"index": 1, "done": true}]}], "established_facts_add": ["Dock fees for cradle 41-B are paid through the next 30 days."]}, "actions": ["Head back to the Wretch", "Hit the job-board terminals", "Get a drink at the tavern", "Find Sigge at the cargo ramp"]}
 
-## Example (supersede a fact + quest failed)
+## Example (fact update + quest failed + ambient NPC)
 <thinking>
-- Old fact about hull damage is wrong after repairs.
-- Smuggling window closed; quest cannot be completed.
+- Hull repair fact superseded via update (old → new).
+- Patrol window closed; quest failed.
+- Corridor still busy — dock workers as background.
 </thinking>
-{"state_delta": {"scene_tags": ["maintenance", "despair"], "present_npcs": [], "established_facts_remove": ["The Wretch's hull has unrepaired micrometeorite breaches."], "established_facts": ["The Wretch's hull is fully patched and pressure-tight."], "quest_updates": [{"id": "quiet-run", "status": "failed", "objectives": [{"description": "Deliver the package before the MCRN patrol window closes.", "done": false, "failed": true}]}]}, "actions": ["Find new work on the board", "Talk to the fixer", "Leave the station", "Check ship systems"]}
+{"state_delta": {"scene_tags": ["maintenance", "despair"], "location_description": "Welding sparks stutter along the gantry; the air tastes of ozone and cheap coffee.", "present_npcs": [{"id": "dock-workers", "name": "Dock crew", "title": "Station maintenance workers", "notes": "Background crews hauling cable; they avoid eye contact."}], "established_facts_update": [{"old": "The Wretch's hull has unrepaired micrometeorite breaches.", "new": "The Wretch's hull is fully patched and pressure-tight."}], "quest_updates": [{"id": "quiet-run", "status": "failed", "objectives": [{"index": 1, "failed": true}]}]}, "actions": ["Find new work on the board", "Talk to the fixer", "Leave the station", "Check ship systems"]}
+
+## Example (pure dialogue — no fact deltas)
+<thinking>
+- Pure dialogue; no durable fact or condition changes.
+</thinking>
+{"state_delta": {"scene_tags": ["dialogue"], "location_description": "The booth speakers hiss with half-tuned traffic control chatter.", "present_npcs": [{"id": "bartender", "name": "Rohan Vasquez", "title": "Bar operator, Lower Levels Market", "notes": "Wiped-down counters; watching your crew warily."}]}, "actions": ["Press for rumors", "Buy a round", "Leave quietly", "Scan the room"]}

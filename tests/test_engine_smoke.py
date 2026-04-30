@@ -17,14 +17,14 @@ from pathlib import Path
 import pytest
 
 from ccya.engine import EngineConfig, run_turn, _build_jinja_env, _narrate_messages, _extract_messages
-from ccya.models import InventoryItem, InventoryRemove, QuestObjective, QuestUpdate, StateDelta
+from ccya.models import FactUpdate, InventoryItem, InventoryRemove, QuestObjectiveUpdate, QuestUpdate, StateDelta
 from ccya.ollama import _build_body
 from ccya.state import (
     apply_delta,
-    load_state,
     load_chronicle_tail,
+    load_recent_chronicle_turns,
+    load_state,
     save_state,
-    append_event,
 )
 
 SAVE_DIR = Path(tempfile.mkdtemp())
@@ -231,10 +231,16 @@ class TestPromptComposition:
     def test_extract_user_message_includes_active_quests_and_inventory(self):
         env = self._env()
         state = _make_state()
+        state["scene"]["present_npcs"] = [{"id": "npc-a", "name": "A", "notes": "Test."}]
         msgs = _extract_messages(env, "Narrative text.", state)
         user_msg = next(m for m in msgs if m["role"] == "user")
         assert "quiet-signal" in user_msg["content"]
         assert "hand-terminal" in user_msg["content"]
+        assert "Player" in user_msg["content"]
+        assert "Docking Ring 7" in user_msg["content"]
+        assert "Present NPCs" in user_msg["content"]
+        assert "npc-a" in user_msg["content"]
+        assert "1." in user_msg["content"]  # numbered objectives
 
     def test_extract_user_message_includes_established_facts(self):
         env = self._env()
@@ -284,7 +290,7 @@ class TestHappyPath:
         narrative = "You step through the airlock. The corridor stretches ahead, dim and humming."
         extract = json.dumps({
             "state_delta": {
-                "established_facts": ["You found an airlock at Docking Ring 7."],
+                "established_facts_add": ["You found an airlock at Docking Ring 7."],
                 "scene_tags": ["exploration"],
             },
             "actions": ["Go left", "Go right", "Check your terminal", "Wait"],
@@ -474,7 +480,7 @@ class TestFactCanonization:
         _write_state(SAVE_DIR, state)
 
         extract = json.dumps({
-            "state_delta": {"established_facts": ["The airlock hums with residual charge."]},
+            "state_delta": {"established_facts_add": ["The airlock hums with residual charge."]},
             "actions": ["A", "B", "C", "D"],
         })
         fake = _FakeOllama([extract])
@@ -599,6 +605,26 @@ class TestStateApplyDelta:
         updated = apply_delta(state, delta)
         assert updated["location"]["id"] == "concourse-b"
 
+    def test_location_description_in_place(self) -> None:
+        state = _make_state()
+        delta = StateDelta(location_description="The berth lights flicker.")
+        updated = apply_delta(state, delta)
+        assert updated["location"]["description"] == "The berth lights flicker."
+        assert updated["location"]["id"] == "docking-ring-7"
+
+    def test_inventory_id_normalization_merges_stack(self) -> None:
+        state = _make_state()
+        delta = StateDelta(
+            inventory_add=[
+                InventoryItem(id="water-filter", name="Filter", amount=1),
+                InventoryItem(id="Water_Filter", name="Filter", amount=1),
+            ],
+        )
+        updated = apply_delta(state, delta)
+        assert len(updated["inventory"]) == 3  # hand-terminal, vac-jacket, merged water stack
+        wf = next(i for i in updated["inventory"] if "water" in i["id"].lower() or "filter" in i["id"].lower())
+        assert wf["amount"] == 2
+
     def test_turn_counter_not_incremented_in_apply_delta(self) -> None:
         """apply_delta must NOT change meta.turn — that is the engine's job."""
         state = _make_state(turn=5)
@@ -652,7 +678,7 @@ class TestEventWrittenBeforeState:
         _write_state(SAVE_DIR, state)
 
         extract = json.dumps({
-            "state_delta": {"established_facts": ["turn-1-fact"]},
+            "state_delta": {"established_facts_add": ["turn-1-fact"]},
             "actions": ["A","B","C","D"],
         })
         fake = _FakeOllama([extract])
@@ -694,6 +720,40 @@ class TestChronicleFormatted:
 
 
 # ---------------------------------------------------------------------------
+# TestChronicleTurnParser
+# ---------------------------------------------------------------------------
+
+
+class TestChronicleTurnParser:
+
+    def test_parses_turn_blocks(self) -> None:
+        _write_state(SAVE_DIR, _make_state())
+        (SAVE_DIR / "chronicle.md").write_text(
+            "\n\n## Turn 1 — look\n\nFirst narrative.\n\n## Turn 2 — go north\n\nSecond narrative longer.\n",
+        )
+        turns = load_recent_chronicle_turns(SAVE_DIR, 6)
+        assert len(turns) == 2
+        assert turns[0]["turn"] == 1
+        assert turns[0]["input"] == "look"
+        assert "First narrative" in turns[0]["narrative"]
+        assert turns[1]["turn"] == 2
+        assert "Second narrative" in turns[1]["narrative"]
+
+    def test_empty_chronicle(self) -> None:
+        _write_state(SAVE_DIR, _make_state())
+        (SAVE_DIR / "chronicle.md").write_text("")
+        assert load_recent_chronicle_turns(SAVE_DIR, 6) == []
+
+    def test_tolerates_extra_blank_lines(self) -> None:
+        _write_state(SAVE_DIR, _make_state())
+        (SAVE_DIR / "chronicle.md").write_text("\n\n\n## Turn 3 — act\n\n\nBody.\n\n")
+        turns = load_recent_chronicle_turns(SAVE_DIR, 6)
+        assert len(turns) == 1
+        assert turns[0]["input"] == "act"
+        assert turns[0]["narrative"].strip() == "Body."
+
+
+# ---------------------------------------------------------------------------
 # TestTurnResultTraceId
 # ---------------------------------------------------------------------------
 
@@ -718,35 +778,35 @@ class TestTurnResultTraceId:
 # ---------------------------------------------------------------------------
 
 
-class TestFactDeduplication:
+class TestFactsDelta:
 
-    def test_dedup(self) -> None:
+    def test_add_only(self) -> None:
         state = _make_state()
         state["scene"]["established_facts"] = ["fact one", "fact two"]
-        delta = StateDelta(established_facts=["fact one", "fact three"])
+        delta = StateDelta(established_facts_add=["fact three"])
         updated = apply_delta(state, delta)
         facts = updated["scene"]["established_facts"]
-        assert facts.count("fact one") == 1
-        assert "fact three" in facts
-        assert "fact two" in facts
+        assert facts == ["fact one", "fact two", "fact three"]
 
-
-class TestEstablishedFactsEviction:
-
-    def test_eviction(self) -> None:
+    def test_empty_delta_noop(self) -> None:
         state = _make_state()
-        state["scene"]["established_facts"] = ["f1", "f2", "f3", "f4", "f5"]
-        delta = StateDelta(established_facts=["f6", "f7", "f8", "f9", "f10", "f11"])
-        updated = apply_delta(state, delta, established_facts_max=10)
+        state["scene"]["established_facts"] = ["keep me"]
+        delta = StateDelta()
+        updated = apply_delta(state, delta)
+        assert updated["scene"]["established_facts"] == ["keep me"]
+
+    def test_update_preserves_position(self) -> None:
+        state = _make_state()
+        state["scene"]["established_facts"] = ["alpha", "beta", "gamma"]
+        delta = StateDelta(
+            established_facts_update=[FactUpdate(old="beta", new="beta revised")],
+        )
+        updated = apply_delta(state, delta)
         facts = updated["scene"]["established_facts"]
-        assert len(facts) <= 10
-        assert "f11" in facts
-        assert "f1" not in facts
+        assert facts[1] == "beta revised"
+        assert facts[0] == "alpha"
 
-
-class TestEstablishedFactsRemove:
-
-    def test_remove_strips_normalized_match(self) -> None:
+    def test_remove_normalized_match(self) -> None:
         state = _make_state()
         state["scene"]["established_facts"] = ["  The Ship is damaged.  ", "Other fact."]
         delta = StateDelta(established_facts_remove=["The Ship is damaged."])
@@ -755,17 +815,40 @@ class TestEstablishedFactsRemove:
         assert "Other fact." in facts
         assert not any("damaged" in f for f in facts)
 
-    def test_remove_then_add_supersedes(self) -> None:
+    def test_update_fallback_appends_when_old_missing(self) -> None:
         state = _make_state()
-        state["scene"]["established_facts"] = ["Hull cracked."]
+        state["scene"]["established_facts"] = ["only"]
         delta = StateDelta(
-            established_facts_remove=["Hull cracked."],
-            established_facts=["Hull fully repaired at dock 9."],
+            established_facts_update=[FactUpdate(old="no such fact", new="appended instead")],
         )
         updated = apply_delta(state, delta)
         facts = updated["scene"]["established_facts"]
-        assert "Hull fully repaired at dock 9." in facts
-        assert "Hull cracked." not in facts
+        assert facts == ["only", "appended instead"]
+
+
+class TestEstablishedFactsEviction:
+
+    def test_eviction(self) -> None:
+        state = _make_state()
+        state["scene"]["established_facts"] = ["f1", "f2", "f3", "f4", "f5"]
+        delta = StateDelta(established_facts_add=["f6", "f7", "f8", "f9", "f10", "f11"])
+        updated = apply_delta(state, delta, established_facts_max=10)
+        facts = updated["scene"]["established_facts"]
+        assert len(facts) <= 10
+        assert "f11" in facts
+        assert "f1" not in facts
+
+
+class TestPcConditionsDelta:
+
+    def test_add_and_remove(self) -> None:
+        state = _make_state()
+        delta = StateDelta(pc_condition_add=["wanted", "injured"])
+        updated = apply_delta(state, delta)
+        assert updated["pc"]["conditions"] == ["wanted", "injured"]
+        delta2 = StateDelta(pc_condition_remove=["wanted"])
+        updated2 = apply_delta(updated, delta2)
+        assert updated2["pc"]["conditions"] == ["injured"]
 
 
 class TestEstablishedFactsCap25:
@@ -773,7 +856,7 @@ class TestEstablishedFactsCap25:
     def test_cap_at_25(self) -> None:
         state = _make_state()
         state["scene"]["established_facts"] = [f"f{i}" for i in range(24)]
-        delta = StateDelta(established_facts=["f24", "f25", "f26"])
+        delta = StateDelta(established_facts_add=["f24", "f25", "f26"])
         updated = apply_delta(state, delta, established_facts_max=25)
         facts = updated["scene"]["established_facts"]
         assert len(facts) == 25
@@ -829,7 +912,7 @@ class TestQuestStatusSideEffects:
             quest_updates=[
                 QuestUpdate(
                     id="quiet-signal",
-                    objectives=[QuestObjective(description="Find the payer", done=False, failed=True)],
+                    objectives=[QuestObjectiveUpdate(index=1, failed=True)],
                 ),
             ],
         )
@@ -838,17 +921,40 @@ class TestQuestStatusSideEffects:
         assert q["status"] == "active"
         assert q["objectives"][0].get("failed") is True
 
+    def test_objective_by_index_marks_done(self) -> None:
+        state = _make_state()
+        delta = StateDelta(
+            quest_updates=[QuestUpdate(id="quiet-signal", objectives=[QuestObjectiveUpdate(index=1, done=True)])],
+        )
+        updated = apply_delta(state, delta)
+        q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
+        assert q["objectives"][0]["done"] is True
+
+    def test_objective_index_out_of_range_falls_back_to_description(self) -> None:
+        state = _make_state()
+        delta = StateDelta(
+            quest_updates=[
+                QuestUpdate(
+                    id="quiet-signal",
+                    objectives=[QuestObjectiveUpdate(index=99, description="Find the payer", done=True)],
+                ),
+            ],
+        )
+        updated = apply_delta(state, delta)
+        q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
+        assert q["objectives"][0]["done"] is True
+
 
 class TestApplyDeltaEstablishedFactsMax:
 
     def test_custom_max_wired(self) -> None:
         state = _make_state()
         state["scene"]["established_facts"] = ["f1"]
-        delta = StateDelta(established_facts=["f2", "f3", "f4"])
+        delta = StateDelta(established_facts_add=["f2", "f3", "f4"])
         updated = apply_delta(state, delta, established_facts_max=2)
         facts = updated["scene"]["established_facts"]
         assert len(facts) <= 2
-        assert "f4" in facts
+        assert facts == ["f3", "f4"]
 
 
 # ---------------------------------------------------------------------------
@@ -896,12 +1002,12 @@ class TestPerTurnMetrics:
 
 class TestEstablishedFactsInEvent:
 
-    async def test_event_has_established_facts(self) -> None:
+    async def test_event_has_facts_add_in_applied_no_narrative_key(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
         extract = json.dumps({
-            "state_delta": {"established_facts": ["This fact matters."]},
+            "state_delta": {"established_facts_add": ["This fact matters."]},
             "actions": ["A","B","C","D"],
         })
         fake = _FakeOllama([extract])
@@ -910,7 +1016,9 @@ class TestEstablishedFactsInEvent:
 
         events = (SAVE_DIR / "events.jsonl").read_text().strip().split("\n")
         event = json.loads(events[-1])
-        assert "This fact matters." in event.get("established_facts", [])
+        applied_add = event.get("applied", {}).get("established_facts_add", [])
+        assert "This fact matters." in applied_add
+        assert "narrative" not in event
 
 
 # ---------------------------------------------------------------------------
@@ -925,21 +1033,10 @@ class TestRecentTurnsInjected:
         state = _make_state(turn=0)
         _write_state(SAVE_DIR, state)
         (SAVE_DIR / "events.jsonl").touch()
-        (SAVE_DIR / "chronicle.md").touch()
-
-        # Write a prior event manually
-        append_event(SAVE_DIR, {
-            "ts": "2026-01-01T00:00:00Z",
-            "trace_id": "aabbccdd",
-            "turn": 0,
-            "input": "I examine the signal",
-            "narrative": "The signal pulses orange.",
-            "applied": {},
-            "rejected": [],
-            "actions": [],
-            "scene_tags": [],
-            "established_facts": [],
-        })
+        # Prior narrative lives in chronicle.md (canonical); engine reads via load_recent_chronicle_turns
+        (SAVE_DIR / "chronicle.md").write_text(
+            "\n\n## Turn 1 — I examine the signal\n\nThe signal pulses orange.\n",
+        )
 
         captured_system = []
 
