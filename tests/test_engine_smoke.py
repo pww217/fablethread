@@ -16,8 +16,18 @@ from pathlib import Path
 
 import pytest
 
-from ccya.engine import EngineConfig, run_turn, _build_jinja_env, _narrate_messages, _extract_messages
-from ccya.models import FactUpdate, InventoryItem, InventoryRemove, QuestObjectiveUpdate, QuestUpdate, StateDelta
+from ccya.engine import EngineConfig, run_turn, _build_jinja_env, _narrate_messages, _extract_messages, _strip_thinking
+from ccya.models import (
+    CompendiumNpcUpdate,
+    FactUpdate,
+    InventoryItem,
+    InventoryRemove,
+    InventoryUpdate,
+    NpcRef,
+    QuestObjectiveUpdate,
+    QuestUpdate,
+    StateDelta,
+)
 from ccya.ollama import _build_body
 from ccya.state import (
     apply_delta,
@@ -36,15 +46,28 @@ def _write_state(path: Path, data: dict) -> None:
 
 def _make_state(turn: int = 0) -> dict:
     return {
-        "meta": {"game_name": "test", "turn": turn, "setting_pack": "expanse-belter", "model": "gemma3:27b"},
-        "pc": {"name": "Vex", "concept": "salvage pilot", "stats": {"body": 2, "mind": 3, "tech": 3, "social": 1}, "conditions": []},
+        "meta": {
+            "game_name": "test",
+            "turn": turn,
+            "setting_pack": "expanse-belter",
+            "model": "gemma3:27b",
+            "compendium_touch_order": [],
+        },
+        "pc": {
+            "name": "Vex",
+            "tagline": "salvage pilot",
+            "bio": "",
+            "stats": {"body": 2, "mind": 3, "tech": 3, "social": 1},
+            "conditions": [],
+        },
         "location": {"id": "docking-ring-7", "name": "Docking Ring 7", "description": "Low-grav berth."},
         "inventory": [
             {"id": "hand-terminal", "name": "Hand terminal", "notes": "Cracked screen."},
             {"id": "vac-jacket", "name": "Vac jacket", "notes": "Thermal-lined."},
         ],
         "quests": [{"id": "quiet-signal", "title": "The Quiet Signal", "status": "active", "objectives": [{"description": "Find the payer", "done": False}]}],
-        "scene": {"tags": [], "present_npcs": [], "established_facts": []},
+        "scene": {"tags": [], "present_npcs": [], "established_facts": [], "tagline": ""},
+        "compendium": {"npcs": {}},
     }
 
 
@@ -251,6 +274,33 @@ class TestPromptComposition:
         assert "Established facts" in user_msg["content"]
         assert "Alpha fact about the station." in user_msg["content"]
         assert "Beta fact about the crew." in user_msg["content"]
+
+    def test_extract_system_omits_verbatim_pydantic_schema_dump(self):
+        env = self._env()
+        msgs = _extract_messages(env, "N.", _make_state())
+        system_msg = next(m for m in msgs if m["role"] == "system")["content"]
+        assert '"$defs"' not in system_msg
+        assert "## Output schema" in system_msg
+
+    def test_extract_thinking_toggle(self):
+        env = self._env()
+        off = _extract_messages(env, "N.", _make_state(), enable_extract_thinking=False)
+        on = _extract_messages(env, "N.", _make_state(), enable_extract_thinking=True)
+        assert "Emit **only** a single JSON object" in next(m for m in off if m["role"] == "system")["content"]
+        assert "## Guided thinking" in next(m for m in on if m["role"] == "system")["content"]
+
+    def test_narrate_thinking_toggle(self):
+        env = self._env()
+        off = _narrate_messages(env, _make_state(), "look", enable_narrate_thinking=False)
+        on = _narrate_messages(env, _make_state(), "look", enable_narrate_thinking=True)
+        sys_off = next(m for m in off if m["role"] == "system")["content"]
+        sys_on = next(m for m in on if m["role"] == "system")["content"]
+        assert "Do **not** output a `<thinking>` block" in sys_off
+        assert "## Planning (before prose)" in sys_on
+
+    def test_strip_thinking_removes_narrative_planning_block(self):
+        raw = "<thinking>\n- bullet\n</thinking>\n\nYou step through."
+        assert _strip_thinking(raw).strip() == "You step through."
 
     def test_chronicle_injected_when_present(self):
         env = self._env()
@@ -955,6 +1005,103 @@ class TestApplyDeltaEstablishedFactsMax:
         facts = updated["scene"]["established_facts"]
         assert len(facts) <= 2
         assert facts == ["f3", "f4"]
+
+
+class TestInventoryCompendiumTagline:
+    def test_inventory_update_changes_notes(self) -> None:
+        state = _make_state()
+        delta = StateDelta(inventory_update=[InventoryUpdate(id="vac-jacket", notes="Patched.")])
+        out = apply_delta(state, delta)
+        item = next(x for x in out["inventory"] if x["id"] == "vac-jacket")
+        assert item["notes"] == "Patched."
+
+    def test_inventory_update_unknown_id_skipped(self) -> None:
+        state = _make_state()
+        before = len(state["inventory"])
+        delta = StateDelta(inventory_update=[InventoryUpdate(id="nope-item", notes="x")])
+        out = apply_delta(state, delta)
+        assert len(out["inventory"]) == before
+
+    def test_npc_bio_mirrored_to_compendium(self) -> None:
+        state = _make_state()
+        delta = StateDelta(
+            present_npcs=[
+                NpcRef(id="fixer", name="Anna", title="Fence", notes="Watching.", bio="Owes you from Tycho."),
+            ],
+        )
+        out = apply_delta(state, delta)
+        assert out["compendium"]["npcs"]["fixer"]["bio"] == "Owes you from Tycho."
+
+    def test_npc_bio_preserved_when_bio_empty_in_delta(self) -> None:
+        state = _make_state()
+        state["compendium"]["npcs"]["fixer"] = {"name": "Anna", "title": "Fence", "bio": "Old bio."}
+        delta = StateDelta(
+            present_npcs=[
+                NpcRef(id="fixer", name="Anna", title="Fence", notes="New mood.", bio=""),
+            ],
+        )
+        out = apply_delta(state, delta)
+        assert out["compendium"]["npcs"]["fixer"]["bio"] == "Old bio."
+
+    def test_present_npcs_id_and_notes_only_hydrates_from_compendium(self) -> None:
+        state = _make_state()
+        state["compendium"]["npcs"]["fixer"] = {"name": "Anna", "title": "Fence", "bio": "Stored dossier."}
+        delta = StateDelta(present_npcs=[NpcRef(id="fixer", notes="Suspicious tonight.")])
+        out = apply_delta(state, delta)
+        npc = out["scene"]["present_npcs"][0]
+        assert npc["id"] == "fixer"
+        assert npc["name"] == "Anna"
+        assert npc["title"] == "Fence"
+        assert npc["bio"] == "Stored dossier."
+        assert npc["notes"] == "Suspicious tonight."
+
+    def test_compendium_npc_update_absent_npc(self) -> None:
+        state = _make_state()
+        delta = StateDelta(
+            compendium_npc_update=[CompendiumNpcUpdate(id="missing-wife", bio="Seen on Ganymede.")],
+        )
+        out = apply_delta(state, delta)
+        assert out["compendium"]["npcs"]["missing_wife"]["bio"] == "Seen on Ganymede."
+
+    def test_scene_tagline_set(self) -> None:
+        state = _make_state()
+        delta = StateDelta(scene_tagline="Fees due at dawn")
+        out = apply_delta(state, delta)
+        assert out["scene"]["tagline"] == "Fees due at dawn"
+
+    def test_load_state_migrates_concept_to_tagline(self, tmp_path: Path) -> None:
+        from ccya.state import load_state as ls_load
+        from ccya.state import save_state as ls_save
+
+        raw = {
+            "meta": {"turn": 0, "game_name": "t", "setting_pack": "", "model": ""},
+            "pc": {"name": "A", "concept": "old pitch", "stats": {}, "conditions": []},
+            "location": {"id": "", "name": "", "description": ""},
+            "inventory": [],
+            "quests": [],
+            "scene": {"tags": [], "present_npcs": [], "established_facts": []},
+        }
+        ls_save(tmp_path, raw)
+        st = ls_load(tmp_path)
+        assert st["pc"]["tagline"] == "old pitch"
+        assert "concept" not in st["pc"]
+
+    async def test_turn_result_includes_diff_lines(self) -> None:
+        state = _make_state()
+        _write_state(SAVE_DIR, state)
+        extract = json.dumps({
+            "state_delta": {
+                "scene_tags": ["test"],
+                "scene_tagline": "Dock tension rises",
+                "established_facts_add": ["A fact."],
+            },
+            "actions": ["a", "b", "c", "d"],
+        })
+        fake = _FakeOllama(["short narrative.", extract])
+        with fake:
+            result = await _run(SAVE_DIR, "look", config=EngineConfig())
+        assert result.diff
+        assert any("A fact" in line for line in result.diff)
 
 
 # ---------------------------------------------------------------------------

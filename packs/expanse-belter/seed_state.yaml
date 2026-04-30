@@ -6,10 +6,11 @@ meta:
 
 pc:
   name: Niko Sato
-  concept: |
-    Belter smuggler captain of the freighter Wretch. Pallas-born, 38, lean and tall
-    from a life in low gravity. Pragmatist. Speaks Belter creole when it suits.
-    Lights candles in front of no flag. Crew comes first.
+  tagline: Belter smuggler captain — freighter *Wretch*.
+  bio: |
+    Pallas-born, 38, lean and tall from a life in low gravity. Pragmatist.
+    Speaks Belter creole when it suits. Lights candles in front of no flag.
+    Crew comes first.
   stats:
     body: 2
     mind: 3
@@ -62,6 +63,7 @@ quests:
         done: false
 
 scene:
+  tagline: ""
   tags:
     - arrival
     - exposition
@@ -69,10 +71,14 @@ scene:
   present_npcs:
     - id: ceresian-busker
       name: Ceresian busker
+      title: ""
       notes: Plays a salvaged guitar near the lift bank. Knows everyone who passes through.
+      bio: Local fixture — survives on tips and gossip; harmless unless you're sloppy around Star Helix.
     - id: opa-watchers
       name: Two men with OPA tattoos
+      title: ""
       notes: Drinking at a tavern table. Watching you with deliberate disinterest.
+      bio: Low-level OPA muscle taking shade orders from someone upstairs — observing newcomers by habit.
   established_facts:
     # === Universe (Expanse canon) ===
     - It is the year 2351 in the Expanse universe. Humanity has colonized Earth, Mars, and the Belt. The protomolecule and Eros are not yet known to the public.
@@ -100,3 +106,6 @@ scene:
     - You owe 4,200 credits in Ceres dock fees. You have 1,800 credits. The harbormaster's clock reads ~20 hours. If you don't pay, the *Wretch* is seized and auctioned for parts.
     - Your last run was a milk-run from Tycho Station to Ceres — six crates of black-market water filtration cores. It paid the bills, nothing more.
     - Common cargo for ships like the Wretch includes water filtration cores, contraband nutrients, MCRN small arms, prohibited tech, OPA documents, and occasionally refugees.
+
+compendium:
+  npcs: {}

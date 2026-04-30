@@ -20,6 +20,14 @@ class InventoryRemove(BaseModel):
     amount: int | None = None  # None = remove entire stack; int = subtract from stack
 
 
+class InventoryUpdate(BaseModel):
+    """Patch name/notes on an existing stack without changing amount."""
+
+    id: str
+    name: str | None = None
+    notes: str | None = None
+
+
 class LocationRef(BaseModel):
     id: str
     name: str
@@ -53,9 +61,19 @@ class QuestUpdate(BaseModel):
 
 class NpcRef(BaseModel):
     id: str
-    name: str
-    title: str = ""  # occupation, role, or status (e.g. "Port Administrator", "OPA Fixer")
+    name: str | None = None  # omit when known from compendium; engine hydrates
+    title: str | None = None
     notes: str = ""  # current attitude or situation toward the player
+    bio: str | None = None  # durable identity; omit when unchanged — engine hydrates
+
+
+class CompendiumNpcUpdate(BaseModel):
+    """Update compendium entry for an NPC who may not be present this turn."""
+
+    id: str
+    name: str | None = None
+    title: str | None = None
+    bio: str | None = None
 
 
 class FactUpdate(BaseModel):
@@ -68,6 +86,7 @@ class FactUpdate(BaseModel):
 class StateDelta(BaseModel):
     inventory_add: list[InventoryItem] = Field(default_factory=list, max_length=6)
     inventory_remove: list[InventoryRemove] = Field(default_factory=list)
+    inventory_update: list[InventoryUpdate] = Field(default_factory=list, max_length=6)
 
     @field_validator("inventory_remove", mode="before")
     @classmethod
@@ -91,7 +110,9 @@ class StateDelta(BaseModel):
     established_facts_update: list[FactUpdate] = Field(default_factory=list)
     established_facts_remove: list[str] = Field(default_factory=list)
     scene_tags: list[str] = Field(default_factory=list)
+    scene_tagline: str | None = None  # 3–6 words for UI header; persisted to state.scene.tagline
     present_npcs: list[NpcRef] = Field(default_factory=list)
+    compendium_npc_update: list[CompendiumNpcUpdate] = Field(default_factory=list, max_length=12)
 
 
 class ExtractResult(BaseModel):
@@ -113,6 +134,7 @@ class TurnResult:
     actions: list[str] = field(default_factory=list)
     scene_tags: list[str] = field(default_factory=list)
     established_facts: list[str] = field(default_factory=list)
+    diff: list[str] = field(default_factory=list)  # short human-readable delta lines for UI toast
     metrics: dict = field(default_factory=dict)
     errors: list[dict] = field(default_factory=list)
 

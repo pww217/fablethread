@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Choose Your Own Adventure</title>
+    <title>{% if state.scene.tagline %}{{ state.scene.tagline }}{% elif state.location.id %}{{ state.pc.name }} @ {{ state.location.name }}{% else %}Choose Your Own Adventure{% endif %}</title>
     <script src="/static/vendor/htmx.min.js" defer></script>
     <script src="/static/vendor/alpine.min.js" defer></script>
+    <script src="/static/vendor/marked.min.js"></script>
     <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
@@ -14,7 +15,7 @@
 
     <!-- Header -->
     <header class="header-bar">
-        <span class="header-logo">Choose Your Own Adventure</span>
+        <span class="header-logo" id="header-logo">{{ state.scene.tagline or ((state.pc.name + ' @ ' + state.location.name) if state.location.id else '') or 'Choose Your Own Adventure' }}</span>
         <div class="header-meta">
             <span id="mock-dot" class="mock-dot" title="Checking Ollama…"></span>
             <span class="turn-counter" x-show="gameStarted" x-text="'Turn\u00a0' + turnNum"></span>
@@ -113,6 +114,94 @@
 <script>
 const CCYA_CARD_KEY = (name) => 'ccya_card_' + name;
 const CCYA_QUESTS_TAB = 'ccya_quests_tab';
+const CCYA_QUEST_OBJ_KEY = (qid) => 'ccya_quest_obj_' + qid;
+
+function _configureMarked() {
+    if (typeof marked === 'undefined' || !marked.use) return;
+    marked.use({ gfm: true, breaks: false });
+}
+
+function _headerTaglineFromState(st) {
+    if (!st || typeof st !== 'object') return 'Choose Your Own Adventure';
+    const scene = st.scene || {};
+    const tag = (scene.tagline && String(scene.tagline).trim()) || '';
+    if (tag) return tag;
+    const pc = st.pc || {};
+    const loc = st.location || {};
+    if (loc.id && (pc.name || loc.name)) {
+        return (pc.name || 'Player') + ' @ ' + (loc.name || loc.id);
+    }
+    return 'Choose Your Own Adventure';
+}
+
+function _showDiffToast(lines) {
+    if (!lines || !lines.length) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'diff-toast';
+    wrap.setAttribute('role', 'status');
+    wrap.setAttribute('aria-live', 'polite');
+
+    const inner = document.createElement('div');
+    inner.className = 'diff-toast-content';
+    lines.forEach((ln) => {
+        const s = document.createElement('div');
+        s.className = 'diff-line';
+        if (/^[+✓]/.test(ln)) s.classList.add('diff-added');
+        else if (/^[-✗]/.test(ln)) s.classList.add('diff-removed');
+        else if (/^[~⊘!→]/.test(ln)) s.classList.add('diff-changed');
+        // prefix symbol + markdown-rendered rest
+        const match = ln.match(/^([+\-~⊘!→✓✗]\s*)/);
+        if (match) {
+            const sym = document.createElement('span');
+            sym.className = 'diff-symbol';
+            sym.textContent = match[1];
+            const txt = document.createElement('span');
+            txt.innerHTML = _renderMarkdownInline(ln.slice(match[1].length));
+            s.appendChild(sym);
+            s.appendChild(txt);
+        } else {
+            s.innerHTML = _renderMarkdownInline(ln);
+        }
+        inner.appendChild(s);
+    });
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'diff-toast-dismiss';
+    btn.setAttribute('aria-label', 'Dismiss change summary');
+    btn.textContent = '\u00d7';
+
+    let fadeTimer;
+    let removeTimer;
+    function onEsc(e) {
+        if (e.key === 'Escape') dismiss();
+    }
+    const dismiss = () => {
+        document.removeEventListener('keydown', onEsc);
+        clearTimeout(fadeTimer);
+        clearTimeout(removeTimer);
+        wrap.classList.add('diff-toast-out');
+        removeTimer = setTimeout(() => { wrap.remove(); }, 500);
+    };
+
+    btn.addEventListener('click', () => dismiss());
+    document.addEventListener('keydown', onEsc);
+
+    wrap.appendChild(inner);
+    wrap.appendChild(btn);
+
+    const zone = document.getElementById('actions-zone');
+    if (!zone || !zone.parentNode) return;
+    zone.parentNode.insertBefore(wrap, zone);
+    fadeTimer = setTimeout(() => {
+        document.removeEventListener('keydown', onEsc);
+        wrap.classList.add('diff-toast-out');
+    }, 10000);
+    removeTimer = setTimeout(() => {
+        document.removeEventListener('keydown', onEsc);
+        wrap.remove();
+    }, 10500);
+}
 
 function _progressStripHTML() {
     return '<span class="progress-spinner" aria-hidden="true"></span>'
@@ -128,11 +217,18 @@ function _setProgressFromPhase(strip, payload) {
     strip.setAttribute('data-phase', p);
     const label = strip.querySelector('.progress-label');
     const eta = strip.querySelector('.progress-eta');
-    if (p === 'narrate_done') {
+    if (p === 'narrate_start') {
+        label.textContent = 'Composing narrative…';
+        strip._phaseStart = Date.now();
+        if (eta && payload && payload.expected_ms > 0) {
+            eta.textContent = '~' + (payload.expected_ms / 1000).toFixed(0) + 's avg';
+        } else if (eta) { eta.textContent = ''; }
+    } else if (p === 'narrate_done') {
         label.textContent = 'Reviewing outcome…';
         if (eta) eta.textContent = '';
     } else if (p === 'extract_start') {
         label.textContent = 'Processing outcome…';
+        strip._phaseStart = Date.now();
         if (eta && payload && payload.expected_ms > 0) {
             eta.textContent = '~' + (payload.expected_ms / 1000).toFixed(0) + 's avg';
         } else if (eta) { eta.textContent = ''; }
@@ -158,11 +254,11 @@ function _clearProgressStrip(strip) {
 }
 
 function _bindProgressTimer(strip) {
-    const began = Date.now();
+    strip._phaseStart = Date.now();
     const elapsedEl = strip.querySelector('.progress-elapsed');
     strip._tick = setInterval(() => {
         if (!elapsedEl) return;
-        const s = (Date.now() - began) / 1000;
+        const s = (Date.now() - strip._phaseStart) / 1000;
         elapsedEl.textContent = (s < 10 ? s.toFixed(1) : s.toFixed(0)) + 's';
     }, 250);
 }
@@ -172,6 +268,16 @@ function applyCardOpenStateFromStorage() {
         const v = localStorage.getItem(CCYA_CARD_KEY(d.dataset.card));
         if (v === '1') d.setAttribute('open', '');
         else if (v === '0') d.removeAttribute('open');
+    });
+}
+
+function applyQuestObjectiveOpenFromStorage(root) {
+    (root || document).querySelectorAll('details.quest-objectives[data-quest-id]').forEach((d) => {
+        const qid = d.dataset.questId;
+        if (!qid) return;
+        const v = localStorage.getItem(CCYA_QUEST_OBJ_KEY(qid));
+        if (v === '0') d.removeAttribute('open');
+        else if (v === '1') d.setAttribute('open', '');
     });
 }
 
@@ -246,7 +352,7 @@ function game() {
             echo.className = 'narrative-input-echo';
             echo.textContent = '> ' + userInput;
             const textDiv = document.createElement('div');
-            textDiv.className = 'narrative-text';
+            textDiv.className = 'narrative-text streaming';
             const cursor  = document.createElement('span');
             cursor.className = 'streaming-cursor';
             textDiv.appendChild(cursor);
@@ -259,25 +365,25 @@ function game() {
             block.appendChild(textDiv);
             block.appendChild(strip);
             np.appendChild(block);
-            np.scrollTop = np.scrollHeight;
 
             const url = '/turn?input=' + encodeURIComponent(userInput);
             const es  = new EventSource(url);
 
             es.addEventListener('narrative_token', (e) => {
                 const data = JSON.parse(e.data);
-                // Insert raw text before the cursor
+                // Insert raw text before the cursor (no autoscroll during stream)
                 cursor.insertAdjacentText('beforebegin', data.chunk || '');
-                np.scrollTop = np.scrollHeight;
             });
 
             es.addEventListener('phase', (e) => {
                 const payload = JSON.parse(e.data);
                 if (payload && payload.phase === 'narrate_done' && cursor.parentNode) {
                     cursor.remove();
+                    const raw = textDiv.textContent;
+                    textDiv.classList.remove('streaming');
+                    textDiv.innerHTML = _renderMarkdown(raw);
                 }
                 _setProgressFromPhase(strip, payload);
-                np.scrollTop = np.scrollHeight;
             });
 
             es.addEventListener('turn_complete', (e) => {
@@ -286,8 +392,15 @@ function game() {
                 this.turnNum  = result.turn || this.turnNum;
                 _clearProgressStrip(strip);
 
+                const tagline = result.state ? _headerTaglineFromState(result.state) : null;
+                const hl = document.getElementById('header-logo');
+                if (hl && tagline) hl.innerHTML = _renderMarkdownInline(tagline);
+                if (tagline) document.title = tagline.replace(/\*\*?([^*]+)\*\*?/g, '$1').trim();
+                if (result.diff && result.diff.length) _showDiffToast(result.diff);
+
                 // Replace streamed plain text with formatted markdown
                 if (cursor.parentNode) cursor.remove();
+                textDiv.classList.remove('streaming');
                 textDiv.innerHTML = _renderMarkdown(result.narrative || '');
 
                 // Rejection notice (below the narrative text)
@@ -315,7 +428,6 @@ function game() {
 
                 htmx.ajax('GET', '/panels/state-left',  { target: '#state-panel-left' });
                 htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
-                np.scrollTop = np.scrollHeight;
                 this.submitting = false;
                 setTimeout(() => document.getElementById('player-input')?.focus(), 100);
             });
@@ -361,59 +473,159 @@ function _escapeHtml(str) {
         .replace(/>/g, '&gt;');
 }
 
-// Markdown renderer: headers, lists, bold, italic, code, paragraphs
 function _renderMarkdown(text) {
     if (!text) return '';
+    if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
+        return marked.parse(String(text));
+    }
     let s = _escapeHtml(text);
-    // Headers (must come before bold/italic to avoid clobbering #)
     s = s.replace(/^# (.+)$/gm,  '<h2>$1</h2>');
     s = s.replace(/^## (.+)$/gm, '<h3>$1</h3>');
-    // Bold / italic / code
     s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     s = s.replace(/\*(.+?)\*/g,     '<em>$1</em>');
     s = s.replace(/`([^`]+)`/g,     '<code>$1</code>');
-    // Unordered lists (consecutive "- " lines become a single <ul>)
     s = s.replace(/((?:^- .+$\n?)+)/gm, (match) => {
         const items = match.trim().split('\n')
             .map(l => '<li>' + l.replace(/^- /, '') + '</li>')
             .join('');
         return '<ul>' + items + '</ul>';
     });
-    // Paragraphs — double newlines become paragraph breaks; single newlines become <br>
     const parts = s.split(/\n\n+/);
     return parts.map(p => {
         p = p.trim();
         if (!p) return '';
-        // Don't wrap block elements in <p>
         if (/^<(h[23]|ul|ol|li)/.test(p)) return p;
         return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
     }).filter(Boolean).join('\n');
 }
 
+function _renderMarkdownInline(text) {
+    if (!text) return '';
+    if (typeof marked !== 'undefined' && typeof marked.parseInline === 'function') {
+        return marked.parseInline(String(text));
+    }
+    return _renderMarkdown(text);
+}
+
 function _applyMarkdown(root) {
-    // Narrative blocks (full markdown, data-raw)
+    _configureMarked();
     (root || document).querySelectorAll('.narrative-text[data-raw]').forEach(el => {
         el.innerHTML = _renderMarkdown(el.textContent);
         el.removeAttribute('data-raw');
     });
-    // Sidebar elements (inline markdown only — bold/italic/code/em, no block headers)
     (root || document).querySelectorAll('[data-md]').forEach(el => {
-        el.innerHTML = _renderMarkdown(el.textContent);
+        el.innerHTML = _renderMarkdownInline(el.textContent);
         el.removeAttribute('data-md');
     });
 }
 
+// ---------------------------------------------------------------------------
+// Tooltip portal — escapes overflow:hidden/auto containers
+// ---------------------------------------------------------------------------
+(function () {
+    const MARGIN = 8;
+    let _anchor = null;
+    let _hideTimer = null;
+    const portal = () => document.getElementById('tooltip-portal');
+    const tip = () => { const p = portal(); return p ? p.querySelector('.tooltip-body') : null; };
+
+    function _position(rect) {
+        const t = tip();
+        if (!t) return;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const tw = t.offsetWidth || 280;
+        const th = t.offsetHeight || 100;
+
+        let top = rect.bottom + MARGIN;
+        let left = rect.left;
+
+        // Flip above if below the viewport
+        if (top + th > vh - MARGIN) top = rect.top - th - MARGIN;
+        // Clamp horizontal
+        if (left + tw > vw - MARGIN) left = vw - tw - MARGIN;
+        if (left < MARGIN) left = MARGIN;
+
+        t.style.top  = top  + 'px';
+        t.style.left = left + 'px';
+    }
+
+    function _show(anchor) {
+        const src = anchor.querySelector(':scope > .tooltip-body');
+        if (!src) return;
+        const t = tip();
+        if (!t) return;
+        clearTimeout(_hideTimer);
+        _anchor = anchor;
+
+        // Clone content; run markdown on data-md elements
+        t.innerHTML = src.innerHTML;
+        _configureMarked();
+        t.querySelectorAll('[data-md]').forEach(el => {
+            el.innerHTML = _renderMarkdownInline(el.textContent);
+            el.removeAttribute('data-md');
+        });
+
+        _position(anchor.getBoundingClientRect());
+        t.classList.add('tt-visible');
+    }
+
+    function _hide() {
+        _hideTimer = setTimeout(() => {
+            const t = tip();
+            if (t) { t.classList.remove('tt-visible'); t.innerHTML = ''; }
+            _anchor = null;
+        }, 80);
+    }
+
+    document.addEventListener('mouseover', (e) => {
+        const anchor = e.target.closest && e.target.closest('.has-tooltip');
+        if (!anchor || anchor === _anchor) return;
+        _show(anchor);
+    });
+    document.addEventListener('mouseout', (e) => {
+        const anchor = e.target.closest && e.target.closest('.has-tooltip');
+        if (!anchor) return;
+        const related = e.relatedTarget;
+        // Don't hide if moving within same anchor
+        if (related && anchor.contains(related)) return;
+        _hide();
+    });
+    // Keep tooltip open while hovering the portal itself
+    document.addEventListener('mouseover', (e) => {
+        if (e.target.closest && e.target.closest('#tooltip-portal')) clearTimeout(_hideTimer);
+    });
+    document.addEventListener('mouseout', (e) => {
+        if (e.target.closest && e.target.closest('#tooltip-portal')) {
+            const related = e.relatedTarget;
+            if (!related || !related.closest('#tooltip-portal')) _hide();
+        }
+    });
+    // Reposition on scroll / resize
+    window.addEventListener('scroll', () => {
+        if (_anchor) _position(_anchor.getBoundingClientRect());
+    }, { passive: true, capture: true });
+    window.addEventListener('resize', () => {
+        if (_anchor) _position(_anchor.getBoundingClientRect());
+    });
+})();
+
 document.addEventListener('DOMContentLoaded', () => {
+    _configureMarked();
     _applyMarkdown();
 
     // Collapsed/open state for sidebar <details> cards.
     // `toggle` does NOT bubble — must use capture phase for delegation.
     applyCardOpenStateFromStorage();
     _applyQuestTabsFromStorage();
+    applyQuestObjectiveOpenFromStorage();
     document.addEventListener('toggle', (e) => {
         const t = e.target;
         if (t.matches && t.matches('details.sidebar-card[data-card]')) {
             localStorage.setItem(CCYA_CARD_KEY(t.dataset.card), t.open ? '1' : '0');
+        }
+        if (t.matches && t.matches('details.quest-objectives[data-quest-id]')) {
+            localStorage.setItem(CCYA_QUEST_OBJ_KEY(t.dataset.questId), t.open ? '1' : '0');
         }
     }, true);  // capture=true required: toggle doesn't bubble
     document.body.addEventListener('htmx:afterSwap', (e) => {
@@ -421,6 +633,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (id === 'state-panel-left' || id === 'state-panel-right') {
             applyCardOpenStateFromStorage();
             _applyQuestTabsFromStorage(e.target);
+            applyQuestObjectiveOpenFromStorage(e.target);
             _applyMarkdown(e.target);
         }
         if (id === 'debug-content') {
@@ -473,6 +686,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
+
+<div id="tooltip-portal"><div class="tooltip-body"></div></div>
 
 </body>
 </html>

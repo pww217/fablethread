@@ -19,7 +19,41 @@ def load_state(save_dir: Path) -> dict[str, Any]:
     if not path.exists():
         return _default_state()
     with open(path) as f:
-        return yaml.safe_load(f) or _default_state()
+        raw = yaml.safe_load(f) or _default_state()
+    _migrate_state(raw)
+    return raw
+
+
+def _migrate_state(state: dict[str, Any]) -> None:
+    """One-time field renames and defaults for older saves."""
+    pc = state.setdefault("pc", {})
+    if pc.get("concept") and not pc.get("tagline"):
+        pc["tagline"] = (pc.get("concept") or "").strip()
+    if "concept" in pc:
+        del pc["concept"]
+    if "tagline" not in pc:
+        pc["tagline"] = ""
+    if "bio" not in pc:
+        pc["bio"] = ""
+    state.setdefault("scene", {})
+    if "tagline" not in state["scene"]:
+        state["scene"]["tagline"] = ""
+    comp = state.setdefault("compendium", {}).setdefault("npcs", {})
+    state.setdefault("meta", {}).setdefault("compendium_touch_order", [])
+    # Seed compendium from present_npcs when empty (first load of older saves / fresh seed)
+    if not comp:
+        for npc in state.get("scene", {}).get("present_npcs") or []:
+            if not isinstance(npc, dict):
+                continue
+            nid = normalize_inventory_id(str(npc.get("id", "")))
+            if not nid or nid == "_":
+                continue
+            comp[nid] = {
+                "name": npc.get("name", ""),
+                "title": npc.get("title", ""),
+                "bio": npc.get("bio", ""),
+            }
+            touch_compendium_order(state, nid)
 
 
 def save_state(save_dir: Path, state: dict[str, Any]) -> None:
@@ -39,13 +73,24 @@ def _default_state() -> dict[str, Any]:
             "turn": 0,
             "setting_pack": "",
             "model": "",
+            "compendium_touch_order": [],
         },
-        "pc": {"name": "", "concept": "", "stats": {}, "conditions": []},
+        "pc": {"name": "", "tagline": "", "bio": "", "stats": {}, "conditions": []},
         "location": {"id": "", "name": "", "description": ""},
         "inventory": [],
         "quests": [],
-        "scene": {"tags": [], "present_npcs": [], "established_facts": []},
+        "scene": {"tags": [], "present_npcs": [], "established_facts": [], "tagline": ""},
+        "compendium": {"npcs": {}},
     }
+
+
+def touch_compendium_order(state: dict[str, Any], npc_id: str) -> None:
+    """Move npc_id to end of LRU touch list (most recent)."""
+    nid = normalize_inventory_id(npc_id)
+    order: list[str] = state.setdefault("meta", {}).setdefault("compendium_touch_order", [])
+    if nid in order:
+        order.remove(nid)
+    order.append(nid)
 
 
 def append_event(save_dir: Path, event: dict[str, Any]) -> None:
@@ -191,6 +236,16 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
                 ex["amount"] = new_amt
         by_id = _by_id()
 
+    for u in delta.inventory_update:
+        canonical = resolve_inventory_canonical_id(inv, u.id)
+        if not canonical:
+            continue
+        ex = by_id[canonical]
+        if u.name is not None:
+            ex["name"] = u.name
+        if u.notes is not None:
+            ex["notes"] = u.notes
+
     inv.sort(key=lambda x: 0 if x.get("id") == "credits" else 1)
     state["inventory"] = inv
 
@@ -315,12 +370,67 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
     if delta.scene_tags:
         state["scene"]["tags"] = delta.scene_tags
 
-    # Present NPCs — replace when non-empty (avoid wiping on [])
+    if delta.scene_tagline is not None:
+        state.setdefault("scene", {})["tagline"] = delta.scene_tagline
+
+    # Present NPCs — replace when non-empty (avoid wiping on []);
+    # hydrate name/title/bio from compendium when delta omits them (token-saving path).
     if delta.present_npcs:
-        state["scene"]["present_npcs"] = [
-            {"id": n.id, "name": n.name, "title": n.title, "notes": n.notes}
-            for n in delta.present_npcs
-        ]
+        comp = state.setdefault("compendium", {}).setdefault("npcs", {})
+
+        def _hydrate_npc_text(delta_val: str | None, stored: Any) -> str:
+            st = str(stored).strip() if stored is not None else ""
+            if delta_val is None:
+                return st
+            dv = str(delta_val).strip()
+            if not dv:
+                return st
+            return dv
+
+        rows: list[dict[str, Any]] = []
+        for n in delta.present_npcs:
+            nid = normalize_inventory_id(n.id)
+            ce_raw = comp.get(nid)
+            ce = ce_raw if isinstance(ce_raw, dict) else {}
+            name = _hydrate_npc_text(n.name, ce.get("name"))
+            title = _hydrate_npc_text(n.title, ce.get("title"))
+            bio = _hydrate_npc_text(n.bio, ce.get("bio"))
+            notes = n.notes or ""
+            row = {
+                "id": n.id,
+                "name": name,
+                "title": title,
+                "notes": notes,
+                "bio": bio,
+            }
+            rows.append(row)
+            entry = comp.setdefault(nid, {})
+            if n.name is not None and str(n.name).strip():
+                entry["name"] = str(n.name).strip()
+            elif "name" not in entry:
+                entry["name"] = row["name"]
+            if n.title is not None and str(n.title).strip():
+                entry["title"] = str(n.title).strip()
+            elif "title" not in entry:
+                entry["title"] = row["title"]
+            if n.bio:
+                entry["bio"] = n.bio
+            elif "bio" not in entry:
+                entry["bio"] = row["bio"]
+            touch_compendium_order(state, nid)
+        state.setdefault("scene", {})["present_npcs"] = rows
+
+    for u in delta.compendium_npc_update:
+        nid = normalize_inventory_id(u.id)
+        comp = state.setdefault("compendium", {}).setdefault("npcs", {})
+        entry = comp.setdefault(nid, {})
+        if u.name is not None:
+            entry["name"] = u.name
+        if u.title is not None:
+            entry["title"] = u.title
+        if u.bio is not None:
+            entry["bio"] = u.bio
+        touch_compendium_order(state, nid)
 
     return state
 

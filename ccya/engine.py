@@ -91,6 +91,8 @@ class EngineConfig:
     chronicle_prefix_budget_tokens: int = 1500
     established_facts_max: int = 10
     enforce_extract_schema: bool = True
+    enable_extract_thinking: bool = False
+    enable_narrate_thinking: bool = False
     log_llm_io: bool = False
     log_llm_io_max_chars: int = 4000
 
@@ -124,6 +126,7 @@ def _narrate_messages(
     *,
     chronicle_tail: str = "",
     recent_turns: list[dict] = [],
+    enable_narrate_thinking: bool = False,
 ) -> list[dict[str, str]]:
     """Build narrate message list: [system, user].
 
@@ -134,6 +137,7 @@ def _narrate_messages(
         "state": state,
         "chronicle_tail": chronicle_tail,
         "recent_turns": recent_turns,
+        "enable_narrate_thinking": enable_narrate_thinking,
     }
     system_text = _render(env, "narrate_system.j2", ctx)
     user_text = _render(env, "narrate_user.j2", {"user_input": user_input})
@@ -143,10 +147,103 @@ def _narrate_messages(
     ]
 
 
+def _known_characters_for_extract(state: dict[str, Any]) -> list[dict[str, Any]]:
+    """Up to 10 compendium NPC rows for extract_user (reuse ids; bio preview truncated)."""
+    comp = (state.get("compendium") or {}).get("npcs") or {}
+    order = list((state.get("meta") or {}).get("compendium_touch_order") or [])
+    seen: set[str] = set()
+    out_ids: list[str] = []
+    for nid in reversed(order):
+        if nid in comp and nid not in seen:
+            out_ids.append(nid)
+            seen.add(nid)
+            if len(out_ids) >= 10:
+                break
+    for k in sorted(comp.keys()):
+        if k not in seen and len(out_ids) < 10:
+            out_ids.append(k)
+            seen.add(k)
+    rows: list[dict[str, Any]] = []
+    for nid in out_ids:
+        e = comp.get(nid) or {}
+        bio = (e.get("bio") or "").strip()
+        if len(bio) > 120:
+            bio = bio[:117].rstrip() + "..."
+        rows.append(
+            {
+                "id": nid,
+                "name": e.get("name") or "",
+                "title": e.get("title") or "",
+                "bio_preview": bio,
+            },
+        )
+    return rows
+
+
+def _summarize_applied(applied: dict[str, Any]) -> list[str]:
+    """Short lines for UI diff toast (cap length)."""
+    lines: list[str] = []
+    if not applied:
+        return lines
+    # scene_tagline is shown in the header, no need to repeat in diff toast
+    for it in applied.get("inventory_add") or []:
+        if isinstance(it, dict):
+            nm = it.get("name") or it.get("id") or "?"
+            amt = int(it.get("amount") or 1)
+            lines.append(f"+ {nm} ×{amt}")
+    for it in applied.get("inventory_remove") or []:
+        if isinstance(it, dict):
+            rid = it.get("id", "?")
+            amt = it.get("amount")
+            if amt is not None:
+                lines.append(f"- {rid} (−{amt})")
+            else:
+                lines.append(f"- {rid} (removed)")
+    for it in applied.get("inventory_update") or []:
+        if isinstance(it, dict) and it.get("id"):
+            lines.append(f"~ {it['id']} updated")
+    for f in applied.get("established_facts_add") or []:
+        if isinstance(f, str):
+            short = f[:56] + ("…" if len(f) > 56 else "")
+            lines.append(f"+ {short}")
+    for f in applied.get("established_facts_remove") or []:
+        if isinstance(f, str):
+            short = f[:40] + ("…" if len(f) > 40 else "")
+            lines.append(f"- {short}")
+    for _upd in applied.get("established_facts_update") or []:
+        lines.append("~ Fact revised")
+    for c in applied.get("pc_condition_add") or []:
+        lines.append(f"+ {c}")
+    for c in applied.get("pc_condition_remove") or []:
+        lines.append(f"- {c}")
+    for qu in applied.get("quest_updates") or []:
+        if not isinstance(qu, dict):
+            continue
+        qid = qu.get("id", "?")
+        if qu.get("status"):
+            lines.append(f"! Quest {qid}: {qu['status']}")
+        for o in qu.get("objectives") or []:
+            if not isinstance(o, dict):
+                continue
+            if o.get("done"):
+                lines.append(f"✓ {qid} obj {o.get('index', '?')}")
+            if o.get("failed"):
+                lines.append(f"✗ {qid} obj {o.get('index', '?')}")
+    for u in applied.get("compendium_npc_update") or []:
+        if isinstance(u, dict) and u.get("id"):
+            lines.append(f"~ Dossier: {u['id']}")
+    loc = applied.get("location_change")
+    if isinstance(loc, dict) and (loc.get("name") or loc.get("id")):
+        lines.append(f"→ {loc.get('name') or loc.get('id')}")
+    return lines[:18]
+
+
 def _extract_messages(
     env: Environment,
     narrative: str,
     state: dict[str, Any],
+    *,
+    enable_extract_thinking: bool = False,
 ) -> list[dict[str, str]]:
     """Build extract message list: [system, assistant, user].
 
@@ -154,8 +251,11 @@ def _extract_messages(
     assistant = the narrative just produced (model "owns" this output)
     user      = canonical state snapshot + emit JSON instruction
     """
-    schema_json = json.dumps(ExtractResult.model_json_schema(), indent=2)
-    system_text = _render(env, "extract_system.j2", {"schema_json": schema_json})
+    system_text = _render(
+        env,
+        "extract_system.j2",
+        {"enable_thinking": enable_extract_thinking},
+    )
     active_quests = [q for q in state.get("quests", []) if q.get("status") == "active"]
     established_facts = list(state.get("scene", {}).get("established_facts") or [])
     pc = state.get("pc") or {}
@@ -171,6 +271,7 @@ def _extract_messages(
             "active_quests": active_quests,
             "inventory": state.get("inventory", []),
             "established_facts": established_facts,
+            "known_characters": _known_characters_for_extract(state),
         },
     )
     return [
@@ -265,6 +366,30 @@ def _log_llm_io(
     _log.debug("llm_io %s", json.dumps(payload, default=str), extra={"trace_id": trace_id})
 
 
+def _avg_narrate_ms(save_dir: Path, n: int = 5) -> int:
+    """Average narrate duration from the last n events. Returns 0 if fewer than 2 samples."""
+    path = save_dir / "events.jsonl"
+    if not path.exists():
+        return 0
+    lines = [ln for ln in path.read_text().strip().splitlines() if ln.strip()]
+    if len(lines) < 2:
+        return 0
+    recent = lines[-n:]
+    times: list[float] = []
+    for line in recent:
+        try:
+            ev = json.loads(line)
+            narr = ev.get("narrate") or {}
+            ms = narr.get("total_ms")
+            if ms is not None:
+                times.append(float(ms))
+        except (json.JSONDecodeError, TypeError, ValueError):
+            continue
+    if len(times) < 2:
+        return 0
+    return int(sum(times) / len(times))
+
+
 def _avg_extract_ms(save_dir: Path, n: int = 5) -> int:
     """Average extract duration from the last n events. Returns 0 if fewer than 2 samples."""
     path = save_dir / "events.jsonl"
@@ -329,10 +454,14 @@ async def run_turn(
         recent_turns = load_recent_chronicle_turns(save_dir, config.window_turns)
 
         # === Call 1: Narrate (streaming) ===
+        exp_narrate_ms = _avg_narrate_ms(save_dir)
+        yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
+
         narr_messages = _narrate_messages(
             env, state, user_input,
             chronicle_tail=chronicle_tail,
             recent_turns=recent_turns,
+            enable_narrate_thinking=config.enable_narrate_thinking,
         )
 
         first_ms = 0.0
@@ -355,7 +484,7 @@ async def run_turn(
             yield ("token", chunk)
 
         narr_ms = (asyncio.get_event_loop().time() - t0) * 1000
-        narrative = "".join(narrative_chunks)
+        narrative = _strip_thinking("".join(narrative_chunks))
         narr_metrics = {"first_token_ms": round(first_ms, 1), "total_ms": round(narr_ms, 1)}
         if config.log_llm_io:
             _log_llm_io(
@@ -367,7 +496,12 @@ async def run_turn(
         yield ("phase", {"phase": "narrate_done"})
 
         # === Call 2: Extract (structured JSON) ===
-        ext_messages = _extract_messages(env, narrative, state)
+        ext_messages = _extract_messages(
+            env,
+            narrative,
+            state,
+            enable_extract_thinking=config.enable_extract_thinking,
+        )
         t2 = asyncio.get_event_loop().time()
         retries = 0
         parse_error = ""
@@ -467,6 +601,8 @@ async def run_turn(
                 established_facts = list(delta.established_facts_add)
                 applied = delta.model_dump(exclude_none=True)
 
+        diff_lines = _summarize_applied(applied)
+
         # === Turn increment (single source of truth: here) ===
         state.setdefault("meta", {})["turn"] = state.get("meta", {}).get("turn", 0) + 1
 
@@ -500,6 +636,7 @@ async def run_turn(
             actions=actions,
             scene_tags=list(getattr(delta, "scene_tags", [])),
             established_facts=established_facts,
+            diff=diff_lines,
             metrics=metrics,
             errors=errors,
         )
@@ -517,6 +654,7 @@ async def run_turn(
             state_delta={},
             errors=errors,
             metrics=metrics,
+            diff=[],
         ))
     finally:
         await _inflight.release(str(save_dir))

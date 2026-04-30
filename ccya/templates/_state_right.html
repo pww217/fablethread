@@ -7,10 +7,11 @@
         {% if state.inventory %}
         {% for item in state.inventory %}
         {% set amt = item.get("amount") or 1 %}
-        <div class="inventory-item{% if item.get('id') == 'credits' %} inventory-item-credits{% endif %}">
+        {% set notes = item.get("notes") or "" %}
+        <div class="inventory-item{% if item.get('id') == 'credits' %} inventory-item-credits{% endif %}{% if notes %} has-tooltip has-tooltip-right{% endif %}">
             <span class="inventory-item-name">{{ item.get("name", item.get("id", "?")) }}{% if amt > 1 or item.get("id") == "credits" %} <span class="inventory-item-amount">×{{ amt }}</span>{% endif %}</span>
-            {% if item.get("notes") %}
-            <div class="inventory-item-notes" data-md>{{ item.notes }}</div>
+            {% if notes %}
+            <div class="tooltip-body" data-md>{{ notes }}</div>
             {% endif %}
         </div>
         {% endfor %}

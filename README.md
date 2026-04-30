@@ -150,7 +150,7 @@ tests/                 # Smoke tests
 
 Edit `config.yaml` to change the model, port, or other settings. Key sections:
 
-- `ollama` — host, model name, temperatures, context window
+- `ollama` — host, model name, temperatures, context window; **`enforce_extract_schema`** toggles Ollama JSON grammar (slower); **`enable_extract_thinking`** enables a `<thinking>` block before extract JSON (extra tokens/latency; default off); **`enable_narrate_thinking`** enables an optional `<thinking>` block before narrative prose (stripped before chronicle and extract; default off)
 - `game` — save slot, setting pack, turn window size
 - `server` — bind address and port
 - `debug` — toggle debug panel
@@ -170,7 +170,7 @@ Edit `config.yaml` to change the model, port, or other settings. Key sections:
 Each turn fires two Ollama calls:
 
 1. **Narrate** — streams narrative text (SSE, temperature 0.8)
-2. **Extract** — parses the narrative into structured state changes (temperature 0.0, schema-constrained)
+2. **Extract** — parses the narrative into structured state changes (temperature 0.0); optional grammar constraint via **`enforce_extract_schema`**
 
 The extracted delta is validated against current state (e.g. impossible inventory removals) before applying.
 
@@ -178,6 +178,10 @@ The extracted delta is validated against current state (e.g. impossible inventor
 
 **Facts & PC conditions (deltas)** — The extract prompt lists current established facts and conditions. The model emits **`established_facts_add`**, **`established_facts_update`** (`old` → `new`, keeps list order), **`established_facts_remove`**, and **`pc_condition_add`** / **`pc_condition_remove`** — not full-list replacement. **`location_description`** nudges the current place each turn without changing `location_change`.
 
-**Inventory** uses transactional add/remove deltas; ids are **normalized** on apply so `water-filter` and `Water_Filter` stack together.
+**Inventory** uses transactional add/remove deltas plus **`inventory_update`** to change **name** or **notes** without re-adding the stack; ids are **normalized** on apply so `water-filter` and `Water_Filter` stack together.
+
+**Chrome** — The header shows a short **scene tagline** from extract (**`scene_tagline`**) when set; otherwise **`PC @ location`**. Sidebars use **hover tooltips** for long text (player bio, NPC bio/notes, inventory notes). The **Compendium** lists durable NPC dossiers (`compendium.npcs`). Each turn’s **`turn_complete`** payload may include a **`diff`** array for a transient “what changed” toast above the action pills.
+
+**Markdown** — Narrative and sidebar snippets are rendered with **marked** (GitHub-flavored); the narrator/extractor are instructed to use light markup (e.g. `*ship names*`).
 
 Typical extract latency stays similar to before. Historical rows in `events.jsonl` keep whatever JSON shape they were written with; only new applies use the updated schema.
