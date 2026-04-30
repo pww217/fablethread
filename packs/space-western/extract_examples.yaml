@@ -1,0 +1,26 @@
+examples:
+  - title: "Fuel expenditure + station council quest + habitat ring description"
+    thinking: |
+      - Spent 200 liters of reaction mass on the jump to Argyre Planum.
+      - First objective of the council run completed by index.
+      - The militia commander now trusts the pilot with the patrol route.
+      - The habitat ring is pressurized and spinning; hydroponics are active.
+    json: |-
+      {"state_delta": {"scene_tags": ["negotiation", "habitat"], "scene_tagline": "Fuel spent — the Argyre ring holds pressure", "location_description": "The habitat ring spins with spin gravity. Hydroponic bays line the inner curve; the viewports show Jupiter filling half the sky. A militia frigate is docked at the outer ring.", "present_npcs": [{"id": "commander-voss", "name": "Commander Lira Voss", "title": "Rim Alliance militia — Argyre Station", "notes": "Satisfied the pilot made the fuel run. She's assigning them to the outer patrol corridor.", "bio": "Former freight security contractor who joined the militia. Knows the jump corridors better than anyone. Pragmatic about the corps' reach."}], "inventory_remove": [{"id": "reaction-mass", "amount": 200}], "quest_updates": [{"id": "deliver-the-reactor-parts", "objectives": [{"index": 1, "done": true}]}]}, "actions": ["Take the outer patrol route", "Visit the hydroponic bays", "Talk to the station mechanic", "Dock at the frigate's mess"]}
+
+  - title: "Ship damage + salvage quest + competing claims + NPC death"
+    thinking: |
+      - Hull breach during the salvage operation; ship integrity down.
+      - The salvage diver didn't make it out of the flooded section.
+      - Competing claim on the derelict: the Drifters want it too.
+      - New quest: secure the salvage rights before the corps hauler arrives.
+    json: |-
+      {"state_delta": {"scene_tags": ["salvage", "tension"], "scene_tagline": "Hull breach — the diver is lost", "location_description": "The derelict hab-module is venting slowly. Flooded corridors on the lower decks. The salvage rig is attached but the hull groans under the strain.", "present_npcs": [{"id": "scavenger-reed", "name": "Scavenger Maeve Reed", "title": "Independent salvage diver", "notes": "Standing at the airlock; calculating whether the module is worth the risk.", "bio": "Former Argo-class crew member who stayed behind when the ship went dark. Knows the interior layout. Has a competing claim on the same module."}], "inventory_remove": [{"id": "hull-sealant", "amount": 1}], "compendium_npc_remove": ["diver-ellis"], "quest_updates": [{"id": "secure-the-salvage-rights", "title": "Secure the salvage rights", "status": "active", "objectives": [{"description": "Claim the derelict module before the Protogen hauler arrives — they have registration papers but the Drifters are already on site.", "done": false}, {"description": "Patch the hull breach enough to bring the salvage rig inside without depressurization.", "done": false}]}]}, "actions": ["Negotiate with Scavenger Reed on the claim", "Board the module before the corps hauler arrives", "Patch the hull and secure the rig", "Signal the Drifters about the corp presence"]}
+
+  - title: "Minimal dialogue + inventory update + condition + militia patrol"
+    thinking: |
+      - Pure dialogue with the station councilor; no state changes this turn.
+      - Took a dose of rejection suppressants for the arm augmentation.
+      - The militia patrol route is set; the next turn will involve the jump.
+    json: |-
+      {"state_delta": {"scene_tags": ["dialogue", "council"], "scene_tagline": "Council decision pending", "location_description": "The council chamber is a converted habitat module. Pressurized, warm, smelling of recycled air and synthetic coffee. A star-map covers the central table.", "present_npcs": [{"id": "councilor-ross", "name": "Councilor Anika Ross", "title": "Argye Station council — trade liaison", "notes": "Listening carefully. She has a proposal but wants to know if the pilot can be trusted first.", "bio": "Elected representative for the outer Belt stations. Negotiates trade agreements and militia coordination. She has been a councilor for three cycles and knows every faction's bottom line."}], "inventory_remove": [{"id": "rejection-suppressants", "amount": 1}], "inventory_update": [{"id": "patrol-coordinates", "notes": "Handwritten jump coordinates for the outer patrol corridor — marked contested near the Jovian shadow."}]}, "actions": ["Ask Councilor Ross about the proposal", "Check the patrol coordinates against the star-map", "Visit the mess and hear the rumors", "Prep the ship for the outer jump"]}

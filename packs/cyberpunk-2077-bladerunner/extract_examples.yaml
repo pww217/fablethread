@@ -1,0 +1,26 @@
+examples:
+  - title: "Credits spent + weapon ammo + quest objective done + NPC with bio"
+    thinking: |
+      - Paid 800 credits to data-church fixer for the breach package.
+      - Fired 3 rounds from smart-pistol; ammo stack decremented.
+      - First objective of the data-drop quest completed by index.
+      - The fixer's attitude shifted — she trusts the drop now.
+    json: |
+      {"state_delta": {"scene_tags": ["data", "tension"], "scene_tagline": "Package delivered — the data-church opens", "location_description": "The data-church is a converted server farm; the hum of cooling fans fills the flooded corridor. Neon bleeds through broken glass.", "present_npcs": [{"id": "vox-steele", "name": "Vox Steele", "title": "Data-church broker", "notes": "Impressed by the clean drop. She's routing your name through three proxies.", "bio": "Former NBN-Kiwi analyst who defected after discovering a black-data program. Now sells what she stole."}], "inventory_remove": [{"id": "credits", "amount": 800}, {"id": "smart-pistol-rounds", "amount": 3}], "quest_updates": [{"id": "drop-the-package", "objectives": [{"index": 1, "done": true}]}]}, "actions": ["Ask Vox about the dead source", "Check the counter-ICE residue", "Head to the afterlife club", "Scan the corridor for tails"]}
+
+  - title: "Cyberware damage + condition add + NPC death + quest failed"
+    thinking: |
+      - ICE countermeasure triggered; neural boost overloaded — damage to self.
+      - Added neural-feedback condition; player needs a street doc.
+      - Kael didn't survive the breach; removed from present NPCs.
+      - Quest failed — the data was corrupted in the spike.
+    json: |
+      {"state_delta": {"scene_tags": ["combat", "data-spike"], "scene_tagline": "Neural spike — Kael is gone", "location_description": "The server rack is smoking. Floodwater laps at the base of the racks. Somewhere above, security drones are routing.", "present_npcs": [{"id": "street-ghost", "name": "Street Ghost", "title": "Maelstromer fixer", "notes": "Watching from the doorway; calculating whether you're still useful.", "bio": "Sells black-market chrome and body disposal. Has a standing offer for netrunners who survive the deep dive."}], "pc_condition_add": ["neural feedback — optic nerve damage, needs street doc within 24 hours"], "inventory_remove": [{"id": "counter-ice-chip", "amount": 1}], "compendium_npc_remove": ["kael-voss"], "quest_updates": [{"id": "breach-the-black-data", "status": "failed"}], "established_facts_add": ["Kael Voss is dead — caught in an ICE countermeasure during the breach. His deck is fried."]}, "actions": ["Check Kael's body for anything useful", "Find Street Ghost's clinic", "Run emergency counter-ICE on the deck", "Abort and fall back to the safehouse"]}
+
+  - title: "Inventory swap + quest creation + corp contact"
+    thinking: |
+      - Traded a biocell for a Kiroshi optic-scraper at the black market.
+      - New quest: deliver the datachip to the resistance node.
+      - A Militech-NOV liaison wants to speak; she has an offer.
+    json: |
+      {"state_delta": {"scene_tags": ["negotiation", "black-market"], "scene_tagline": "Optic in hand — corp liaison waiting", "location_description": "The black market is a flooded warehouse beneath the Mid-Ring. Damp LED strips flicker over crates of unregistered tech.", "present_npcs": [{"id": "ripper-sue", "name": "Ripper Sue", "title": "Unlicensed street doc", "notes": "Wiping chrome in a basin of antiseptic; doesn't look up."}, {"id": "liaison-cross", "name": "Lieutenant Cross", "title": "Militech-NOV security liaison", "notes": "Standing in the warehouse entrance; waiting. She has the posture of someone who expects to be obeyed.", "bio": "Corporate security liaison; recruits street assets for high-risk ops. She knows your name and what you're carrying."}], "inventory_remove": [{"id": "biocell-pack", "amount": 1}], "inventory_add": [{"id": "kiroshi-scraper", "name": "Kiroshi optic-scraper", "notes": "Black-market optic diagnostic tool; works on any Kiroshi product.", "amount": 1}], "quest_updates": [{"id": "deliver-to-resistance-node", "title": "Drop at the resistance node", "status": "active", "objectives": [{"description": "Deliver the encrypted datachip to the Sector 7G resistance node.", "done": false}, {"description": "Verify the datachip is readable before handing it over — someone is watching the drop.", "done": false}]}]}, "actions": ["Talk to Lieutenant Cross", "Test the optic-scraper", "Head to the resistance node", "Disappear into the flooded corridors"]}

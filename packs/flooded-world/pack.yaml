@@ -1,0 +1,12 @@
+id: flooded-world
+name: "The Drowned Earth"
+description: "Post-flood survival on a world two hundred feet under. Every run is different."
+genre: post-apocalyptic
+tone_tags: [grim, survival, spatial, political]
+version: 1
+mode: dynamic
+files:
+  world: world.md
+  scenario: scenario.yaml
+  style: style.md
+  extract_examples: extract_examples.yaml

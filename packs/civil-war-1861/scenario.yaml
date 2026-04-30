@@ -1,0 +1,70 @@
+constraints:
+   # required-presence
+  min_named_npcs: 2
+  min_objectives_per_quest: 2
+  starting_quest_count: 1
+   # ranges
+  inventory_size_range: [3, 6]
+  pc_stat_range: [1, 4]
+  pc_stat_total_range: [8, 11]
+  prose_word_range: [200, 450]
+   # composition
+  required_inventory_kinds: [weapon, tool]
+  npc_distinct_first_letters: true
+   # creativity guards
+  forbid_cliches:
+     - "deserted soldier trying to go home"
+     - "civilian caught in the crossfire with no side"
+     - "spy for neither side who knows too much"
+     - "the battle that changes everything"
+     - "enslaved person with a secret route to freedom"
+     - "nurse who has seen too much war"
+     - "the last surviving member of a regiment"
+  forbid_player_dependents: true
+  forbid_legendary_items: true
+
+inspiration:
+  pc: |
+    The PC is a specific person in a specific place during the opening months of the war.
+    They could be a Union volunteer who enlisted for pay and pride, a Confederate farmer
+    whose land sits between two advancing armies, a border-state resident choosing sides
+    under duress, a medic attached to a regiment that doesn't exist on paper yet, a
+    railroad worker who controls movement, a telegraph operator who reads both sides'
+    messages, a contraband laborer navigating three competing authorities. What shaped
+    them is the local reality — the county they're from, the family they're tied to, the
+    obligation they can't escape. Avoid the heroic archetype; give them a specific role,
+    a specific fear, and something they need that the war won't provide.
+
+  opening_situation: |
+    Drop the player into a moment that the war has created — something local, something
+    that requires a choice with real consequence. The situation should feel like inheriting
+    a responsibility, not a quest. What needs doing? Who is counting on the player? The
+    opening should feel grounded in a specific place with specific people — not the war
+    in general, but the war in *this* town, *this* county, *this* stretch of riverbank.
+    The player walks into something that needs a decision now.
+
+  npcs: |
+    Each NPC is a person with a stake in the war, a specific relationship to the player,
+    and a reason for what they want. At least one should have interests that conflict
+    with the player's — not as a villain, but as someone whose duty or survival depends
+    on different choices. The Union officer speaks with precision and impatience. The
+    Confederate militia leader speaks with local authority and suspicion. The civilian
+    speaks with the urgency of someone who will still be here after the armies move on.
+    Everyone has a side; everyone is calculating.
+
+  inventory: |
+    Items reflect the PC's role and side. A Union soldier carries a rifled musket,
+    ammunition, a haversack with hardtack and salt pork. A civilian carries whatever
+    they could hide or carry. A medic carries quinine, morphine, bandages, and a
+    conscience. Show what the character uses daily — the specific tools, the specific
+    numbers. Avoid generic Civil War loadouts; every item should say something about
+    who this person is and what they've done so far.
+
+  quests: |
+    The starting quest should have stakes that are local and material — something that
+    affects a specific town, a specific family, a specific supply line. The objectives
+    should force the player into contact with the war's machinery — a rail junction, a
+    river crossing, a telegraph office, a field hospital, a militia muster. There should
+    be at least one objective that creates tension with another NPC or faction. The quest
+    should feel like it has a cost — in loyalty, in safety, in what the player is willing
+    to do to the people they know.

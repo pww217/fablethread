@@ -1,0 +1,12 @@
+id: civil-war-1861
+name: "The Divided States — 1861"
+description: "America fractures. Every run is different."
+genre: historical
+tone_tags: [grim, grounded, moral, historical]
+version: 1
+mode: dynamic
+files:
+  world: world.md
+  scenario: scenario.yaml
+  style: style.md
+  extract_examples: extract_examples.yaml

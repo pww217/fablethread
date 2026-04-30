@@ -262,11 +262,12 @@ def test_parse_world_facts_empty():
 
 
 @pytest.mark.skipif(not PACKS_DIR.is_dir(), reason="packs/ directory not found")
-def test_load_expanse_belter_valid():
-    pack = load_pack("expanse-belter", PACKS_DIR)
-    assert pack.manifest.mode == "static"
-    assert pack.seed is not None
-    assert pack.seed.pc.name == "Niko Sato"
+def test_load_expanse_valid():
+    pack = load_pack("expanse", PACKS_DIR)
+    assert pack.manifest.mode == "dynamic"
+    assert pack.world_text != ""
+    assert pack.scenario is not None
+    assert pack.scenario.constraints.min_named_npcs == 2
     assert len(pack.extract_examples) == 5
     assert pack.style_text != ""
 
@@ -285,7 +286,7 @@ def test_load_zombie_survival_valid():
 def test_list_real_packs():
     manifests = list_packs(PACKS_DIR)
     ids = [m.id for m in manifests]
-    assert "expanse-belter" in ids
+    assert "expanse" in ids
     assert "zombie-survival" in ids
 
 

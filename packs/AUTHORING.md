@@ -204,10 +204,12 @@ examples:
     thinking: |
       - Bullet: what changed this turn (only rendered when enable_extract_thinking=true)
     json: |
-      {"state_delta": {...}, "actions": [...]}
+      {"state_delta": {...}, "actions": ["String choice 1", "String choice 2", ...]}
 ```
 
 Each `json` value must be valid JSON. The `thinking` block is optional. The template renders it only when `enable_extract_thinking: true` in `config.yaml`.
+
+**Critical: `actions` must be an array of plain strings** (e.g. `"Head back to the ship"`). Do NOT use objects like `{"type": "move", "target": "..."}` — the `ExtractResult` Pydantic schema validates `actions` as `list[str]` and will reject dicts, causing validation failures that break the turn flow.
 
 Aim for 3–5 examples covering:
 1. Core resource expenditure for your world (ammo, credits, food)

@@ -1,0 +1,12 @@
+id: noir-1930s
+name: "Noir — 1930s"
+description: "Detective in a Depression-era city. Every case is different."
+genre: noir
+tone_tags: [noir, urban, procedural, moral-ambiguity]
+version: 1
+mode: dynamic
+files:
+  world: world.md
+  scenario: scenario.yaml
+  style: style.md
+  extract_examples: extract_examples.yaml
