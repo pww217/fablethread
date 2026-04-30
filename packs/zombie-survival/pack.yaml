@@ -1,0 +1,12 @@
+id: zombie-survival
+name: "Outbreak: Day Unknown"
+description: "Survivor in a world six months into the H7N9-X collapse. Every run is different."
+genre: post-apocalyptic
+tone_tags: [horror, survival, scarcity, grounded]
+version: 1
+mode: dynamic
+files:
+  world: world.md
+  scenario: scenario.yaml
+  style: style.md
+  extract_examples: extract_examples.yaml

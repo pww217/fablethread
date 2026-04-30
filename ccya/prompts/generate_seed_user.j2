@@ -1,0 +1,43 @@
+## World Bible (non-negotiable canon)
+{{ world_text }}
+
+{% if style_text %}
+## Tone and style
+{{ style_text }}
+{% endif %}
+
+{% if scenario and scenario.inspiration %}
+{% set ins = scenario.inspiration %}
+## Creative direction (guidance only — do not borrow phrasing; do not pick the obvious answer)
+{% if ins.pc %}
+### PC
+{{ ins.pc }}
+{% endif %}
+{% if ins.opening_situation %}
+### Opening situation
+{{ ins.opening_situation }}
+{% endif %}
+{% if ins.npcs %}
+### NPCs
+{{ ins.npcs }}
+{% endif %}
+{% if ins.inventory %}
+### Inventory
+{{ ins.inventory }}
+{% endif %}
+{% if ins.quests %}
+### Quest
+{{ ins.quests }}
+{% endif %}
+{% endif %}
+
+{% if overrides %}
+## Player preferences (soft — honor when compatible with world canon)
+{% if overrides.pc_hints %}PC: {{ overrides.pc_hints }}{% endif %}
+{% if overrides.npc_hints %}NPCs: {{ overrides.npc_hints }}{% endif %}
+{% if overrides.location_hints %}Location: {{ overrides.location_hints }}{% endif %}
+{% if overrides.quest_hints %}Quest: {{ overrides.quest_hints }}{% endif %}
+{% if overrides.free_form %}Other: {{ overrides.free_form }}{% endif %}
+{% endif %}
+
+Emit the SeedEnvelope JSON now. No prose outside the JSON object.

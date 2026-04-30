@@ -1,0 +1,61 @@
+constraints:
+  # required-presence
+  min_named_npcs: 2
+  min_objectives_per_quest: 2
+  starting_quest_count: 1
+  # ranges
+  inventory_size_range: [4, 8]
+  pc_stat_range: [1, 4]
+  pc_stat_total_range: [8, 12]
+  prose_word_range: [200, 450]
+  # composition
+  required_inventory_kinds: [weapon, consumable]
+  npc_distinct_first_letters: true
+  # creativity guards
+  forbid_cliches:
+    - "chosen one"
+    - "amnesia"
+    - "last hope for humanity"
+    - "immune to infection"
+    - "chronic illness or disability as a defining character trait"
+    - "mysterious past illness"
+  forbid_player_dependents: true
+  forbid_legendary_items: true
+
+inspiration:
+  pc: |
+    The PC is a specific individual shaped by what the world has demanded of them
+    over six months. Their pre-outbreak profession, physical condition, and the
+    losses they have already absorbed are the raw material of who they are now.
+    Avoid warrior archetypes — most survivors were ordinary people who adapted.
+    Give them a concrete skill, a concrete liability, and a reason to still be moving.
+    Do NOT give the PC a chronic illness, pain condition, or disability unless it
+    arises organically from a specific backstory event — never as a shorthand for
+    depth or vulnerability. Most people are just tired, not sick.
+
+  opening_situation: |
+    Drop the player into a moment with immediate weight — something that requires
+    a decision or response. Avoid passive description. The situation should feel
+    earned by the world's logic, not constructed for drama. What the player walks
+    into should be strange enough to be specific but believable within these six
+    months. Do not pick the obvious scenario.
+
+  npcs: |
+    Each NPC is a person with a past, a skill set, and a specific relationship to
+    the player's current situation. They have reasons for what they want, reasons
+    for what they're concealing, and limits on how far they'll go. At least one
+    should have an interest that runs counter to the player's immediate goals —
+    not as a villain, but as a person with their own needs.
+
+  inventory: |
+    Items reflect six months of scavenging and hard choices. What the character
+    kept says something about them. Show scarcity through specific quantities —
+    not "plenty of ammo" but a number. Include both functional and emotionally
+    weighted items where they fit. Avoid generic post-apocalypse loadouts.
+
+  quests: |
+    The starting quest should have stakes that are personal and material —
+    something that requires action within a specific timeframe or situation.
+    The objectives should reveal something about the world and the NPCs,
+    not just point toward a destination. Cost and tradeoff should be visible
+    in the framing.

@@ -33,13 +33,6 @@
 <details class="sidebar-card" id="card-scene" data-card="scene">
     <summary>Scene <span class="card-count">{{ (state.scene.present_npcs or []) | length }}</span></summary>
     <div class="sidebar-card-body">
-        {% if state.scene.tags %}
-        <div class="scene-tags-row">
-            {% for tag in state.scene.tags %}
-            <span class="scene-pill">{{ tag }}</span>
-            {% endfor %}
-        </div>
-        {% endif %}
         {% if state.scene.present_npcs %}
         <div class="npc-list">
             {% for npc in state.scene.present_npcs %}
@@ -47,12 +40,14 @@
             {% set npc_title = npc.get('title', '') if npc is mapping else '' %}
             {% set npc_notes = npc.get('notes', '') if npc is mapping else '' %}
             {% set npc_bio = npc.get('bio', '') if npc is mapping else '' %}
-            <div class="npc-item{% if npc_notes or npc_bio %} has-tooltip{% endif %}">
+            <div class="npc-item{% if npc_bio %} has-tooltip{% endif %}">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
-                {% if npc_notes or npc_bio %}
+                {% if npc_notes %}
+                <div class="npc-notes-inline">{{ npc_notes }}</div>
+                {% endif %}
+                {% if npc_bio %}
                 <div class="tooltip-body">
-                    {% if npc_bio %}<div class="npc-bio" data-md>{{ npc_bio }}</div>{% endif %}
-                    {% if npc_notes %}<div class="npc-notes-line" data-md>{{ npc_notes }}</div>{% endif %}
+                    <div class="npc-bio" data-md>{{ npc_bio }}</div>
                 </div>
                 {% endif %}
             </div>

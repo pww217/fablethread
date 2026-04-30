@@ -101,6 +101,10 @@ class _FakeOllama:
         async def _fake_stream(*args, **kwargs):
             """Async generator replacing ollama_chat_stream."""
             _self.call_log.append({"kind": "stream", "args": args, "kwargs": kwargs})
+            ss = kwargs.get("stream_stats")
+            if ss is not None:
+                ss["prompt_eval_count"] = 42
+                ss["eval_count"] = 24
             yield _self.narrative
 
         async def _fake_chat(*args, **kwargs):
@@ -1127,8 +1131,8 @@ class TestPerTurnMetrics:
         assert "tokens_in" in result.metrics["extract"]
         assert "tokens_out" in result.metrics["extract"]
 
-    async def test_narrate_metrics_do_not_have_token_counts(self) -> None:
-        """Narrate metrics must NOT carry extract token counts (was a copy-paste bug)."""
+    async def test_narrate_metrics_token_counts_not_extract_copy(self) -> None:
+        """Narrate token counts come from streaming stats, not extract usage."""
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
@@ -1137,9 +1141,12 @@ class TestPerTurnMetrics:
         with fake:
             result = await _run(SAVE_DIR, "test", config=EngineConfig())
 
-        # narrate metrics should only have timing keys
-        narrate_keys = set(result.metrics["narrate"].keys())
-        assert narrate_keys == {"first_token_ms", "total_ms"}
+        narr = result.metrics["narrate"]
+        ext = result.metrics["extract"]
+        assert narr.get("tokens_in") == 42
+        assert narr.get("tokens_out") == 24
+        assert ext.get("tokens_in") == 100
+        assert ext.get("tokens_out") == 200
 
 
 # ---------------------------------------------------------------------------
@@ -1209,3 +1216,90 @@ class TestRecentTurnsInjected:
 
         combined = " ".join(captured_system)
         assert "I examine the signal" in combined or "The signal pulses orange" in combined
+
+
+# ---------------------------------------------------------------------------
+# TestPackKwargs — pack_style and pack_examples wired through run_turn
+# ---------------------------------------------------------------------------
+
+
+class TestPackKwargs:
+    """pack_style appears in narrate system; pack_examples appear in extract system."""
+
+    async def test_pack_style_in_narrate_system(self) -> None:
+        state = _make_state()
+        _write_state(SAVE_DIR, state)
+
+        captured_narrate_system = []
+        extract = json.dumps({"state_delta": {}, "actions": ["A", "B", "C", "D"]})
+
+        async def _fake_stream(*args, **kwargs):
+            msgs = args[2] if len(args) > 2 else kwargs.get("messages", [])
+            for m in msgs:
+                if m.get("role") == "system":
+                    captured_narrate_system.append(m["content"])
+            yield "narrative"
+
+        async def _fake_chat(*args, **kwargs):
+            return {"response": extract, "done": True, "usage": {}}
+
+        import ccya.engine as eng
+        _orig_stream, _orig_chat = eng.ollama_chat_stream, eng.ollama_chat
+        try:
+            eng.ollama_chat_stream = _fake_stream
+            eng.ollama_chat = _fake_chat
+            async for _ in run_turn(
+                SAVE_DIR, "look",
+                config=EngineConfig(),
+                template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts"),
+                pack_style="UNIQUE_STYLE_MARKER_7483",
+            ):
+                pass
+        finally:
+            eng.ollama_chat_stream = _orig_stream
+            eng.ollama_chat = _orig_chat
+
+        assert any("UNIQUE_STYLE_MARKER_7483" in s for s in captured_narrate_system)
+
+    async def test_pack_examples_in_extract_system(self) -> None:
+        from ccya.pack import ExtractExample
+
+        state = _make_state()
+        _write_state(SAVE_DIR, state)
+
+        example_json = json.dumps({"state_delta": {}, "actions": ["A", "B", "C", "D"]})
+        examples = [ExtractExample(
+            title="Pack example marker UNIQUE_9928",
+            thinking="- test",
+            **{"json": example_json},
+        )]
+
+        captured_extract_system = []
+
+        async def _fake_stream(*args, **kwargs):
+            yield "narrative"
+
+        async def _fake_chat(*args, **kwargs):
+            msgs = args[2] if len(args) > 2 else kwargs.get("messages", [])
+            for m in msgs:
+                if m.get("role") == "system":
+                    captured_extract_system.append(m["content"])
+            return {"response": example_json, "done": True, "usage": {}}
+
+        import ccya.engine as eng
+        _orig_stream, _orig_chat = eng.ollama_chat_stream, eng.ollama_chat
+        try:
+            eng.ollama_chat_stream = _fake_stream
+            eng.ollama_chat = _fake_chat
+            async for _ in run_turn(
+                SAVE_DIR, "look",
+                config=EngineConfig(),
+                template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts"),
+                pack_examples=examples,
+            ):
+                pass
+        finally:
+            eng.ollama_chat_stream = _orig_stream
+            eng.ollama_chat = _orig_chat
+
+        assert any("Pack example marker UNIQUE_9928" in s for s in captured_extract_system)

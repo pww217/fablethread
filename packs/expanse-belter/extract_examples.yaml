@@ -1,0 +1,36 @@
+examples:
+  - title: "Indexed objective + credits + named NPC + bio + scene_tagline"
+    thinking: |
+      - Paid dock fees at the kiosk; first objective done by index.
+      - Spent 4200 credits.
+      - Dock bay feels quieter after the payment clears.
+    json: |
+      {"state_delta": {"scene_tags": ["dialogue", "negotiation"], "scene_tagline": "Berth paid — alarms stand down", "location_description": "The kiosk slot clicks shut; the berth alarms drop out of standby.", "present_npcs": [{"id": "harbormaster", "name": "Harbormaster Vey", "title": "Ceres Port Administrator", "notes": "Satisfied now that the fees are paid.", "bio": "Career dock administrator; hates paperwork but loves procedural leverage over captains who cut corners."}], "inventory_remove": [{"id": "credits", "amount": 4200}], "quest_updates": [{"id": "dock-fees-or-bust", "objectives": [{"index": 1, "done": true}]}], "established_facts_add": ["Dock fees for cradle 41-B are paid through the next 30 days."]}, "actions": ["Head back to the Wretch", "Hit the job-board terminals", "Get a drink at the tavern", "Find Sigge at the cargo ramp"]}
+
+  - title: "Fact update + inventory_update + compendium_npc_update + quest failed"
+    thinking: |
+      - Hull repair fact superseded via update (old → new).
+      - Mag boots repaired — update item notes.
+      - Learned wife may be on Ganymede — absent NPC dossier.
+      - Patrol window closed; quest failed.
+    json: |
+      {"state_delta": {"scene_tags": ["maintenance", "despair"], "scene_tagline": "Hull tight — window closed", "location_description": "Welding sparks stutter along the gantry; the air tastes of ozone and cheap coffee.", "present_npcs": [{"id": "dock-workers", "name": "Dock crew", "title": "Station maintenance workers", "notes": "Background crews hauling cable; they avoid eye contact.", "bio": "Collective of gig contractors — no stake in your drama unless you block the corridor."}], "established_facts_update": [{"old": "The Wretch's hull has unrepaired micrometeorite breaches.", "new": "The Wretch's hull is fully patched and pressure-tight."}], "inventory_update": [{"id": "mag-boots", "notes": "Repaired at Volkov's; mag plates re-poled."}], "compendium_npc_update": [{"id": "yuki-sato", "bio": "Last credible sighting: Ganymede rail yards — may be avoiding your calls."}], "quest_updates": [{"id": "quiet-run", "status": "failed", "objectives": [{"index": 1, "failed": true}]}]}, "actions": ["Find new work on the board", "Talk to the fixer", "Leave the station", "Check ship systems"]}
+
+  - title: "Pure dialogue — minimal deltas"
+    thinking: |
+      - Pure dialogue; no durable fact or condition changes.
+    json: |
+      {"state_delta": {"scene_tags": ["dialogue"], "scene_tagline": "Lower market noise", "location_description": "The booth speakers hiss with half-tuned traffic control chatter.", "present_npcs": [{"id": "bartender", "name": "Rohan Vasquez", "title": "Bar operator, Lower Levels Market", "notes": "Wiped-down counters; watching your crew warily.", "bio": "Runs a cash-only bar; owes favors to OPA street captains but stays neutral on the floor."}]}, "actions": ["Press for rumors", "Buy a round", "Leave quietly", "Scan the room"]}
+
+  - title: "New quest — objectives use description, not index"
+    thinking: |
+      - Accepted salvage contract; new quest id with two fresh objectives (no index yet).
+    json: |
+      {"state_delta": {"scene_tags": ["negotiation", "exploration"], "scene_tagline": "Signed — blind tow to the drift", "location_description": "The fixer's terminal flickers with dense salvage regs and waiver clauses.", "present_npcs": [{"id": "sigge-reyes", "notes": "Smirks as you thumb-print the bond."}], "quest_updates": [{"id": "blind-tow-run", "title": "Blind tow — outer belt wreck", "status": "active", "objectives": [{"description": "Secure tow cable to derelict hull without triggering proximity alarms.", "done": false}, {"description": "Bring payload inside Ceres customs fence without scan flags.", "done": false}]}]}, "actions": ["Prep EVA and cable kit", "Renegotiate the split", "Walk away from the bond", "Ask who owned the wreck"]}
+
+  - title: "Inventory swap + objective by index on existing quest"
+    thinking: |
+      - Traded stim-pack for encrypted beacon at dock booth.
+      - First objective of existing courier quest marked done by index 1.
+    json: |
+      {"state_delta": {"scene_tags": ["trade", "intrigue"], "scene_tagline": "Beacon in hand — runners watching", "location_description": "Freight drones whine overhead; a customs sniff-bot pauses two bays down.", "present_npcs": [{"id": "booth-clerk", "notes": "Slides the beacon across scratched plexi like it's contraband candy."}], "inventory_remove": [{"id": "stim-pack"}], "inventory_add": [{"id": "encrypted-beacon", "name": "Encrypted beacon", "notes": "OPA dead-drop carrier frequency; single-use.", "amount": 1}], "quest_updates": [{"id": "courier-handoff", "objectives": [{"index": 1, "done": true}]}]}, "actions": ["Dead-drop the beacon uptown", "Decrypt locally", "Sell it to the highest bidder", "Lose the tail first"]}

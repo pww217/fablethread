@@ -1,0 +1,19 @@
+{# Pack picker cards — rendered inside #pack-picker-body #}
+{% for p in packs %}
+<button type="button"
+        class="pack-card{% if p.id == active_pack_id %} pack-card--active{% endif %}"
+        data-pack-id="{{ p.id }}">
+    <div class="pack-card-header">
+        <span class="pack-card-name">{{ p.name }}</span>
+        <span class="pack-card-mode pack-card-mode--{{ p.mode }}">{{ p.mode }}</span>
+    </div>
+    <p class="pack-card-desc">{{ p.description }}</p>
+    <div class="pack-card-tags">
+        {% for tag in (p.tone_tags or []) %}
+        <span class="pack-card-tag">{{ tag }}</span>
+        {% endfor %}
+    </div>
+</button>
+{% else %}
+<p class="empty-state">No packs found.</p>
+{% endfor %}

@@ -135,6 +135,7 @@ class TurnResult:
     scene_tags: list[str] = field(default_factory=list)
     established_facts: list[str] = field(default_factory=list)
     diff: list[str] = field(default_factory=list)  # short human-readable delta lines for UI toast
+    changes: dict[str, Any] = field(default_factory=dict)  # structured pre/post diff for modal + log
     metrics: dict = field(default_factory=dict)
     errors: list[dict] = field(default_factory=list)
 

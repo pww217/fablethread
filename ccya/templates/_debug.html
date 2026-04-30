@@ -1,39 +1,14 @@
-{# Debug panel — errors, recent turn timings, status. Rendered inside #debug-content. #}
-{% if errors and errors | length > 0 %}
-<div class="debug-errors-head">
-    <span class="debug-section-header" style="margin-bottom: 0;">Errors</span>
-    <button type="button" class="debug-clear-btn"
-            hx-post="/panels/debug/clear-errors"
-            hx-target="#debug-content"
-            hx-swap="innerHTML">
-        Clear
-    </button>
-</div>
-{% for err in errors %}
-<div class="error-item">
-    <span class="error-trace-id">[{{ err.trace_id or '?' }}]</span>
-    <span class="error-message">{{ err.message }}</span>
-    <button type="button" class="debug-copy-trace" title="Copy trace ID"
-            onclick="navigator.clipboard.writeText({{ err.trace_id | default('', true) | tojson }})">&#x2398;</button>
-</div>
-{% endfor %}
-{% else %}
-<div class="debug-section-header">Errors</div>
-<span class="empty-state">No errors.</span>
-{% endif %}
+{# Debug panel — recent turn timings, status, errors. Rendered inside #debug-content. #}
 
 {% if turns and turns | length > 0 %}
-<div class="debug-section-header" style="margin-top: 14px;">Recent turns</div>
+<div class="debug-section-header">Recent turns</div>
 <div class="debug-turn-table-wrap">
     <table class="debug-turn-table">
         <thead>
             <tr>
                 <th>#</th>
-                <th>trace</th>
-                <th>1st tok</th>
                 <th>narrate</th>
                 <th>extract</th>
-                <th>retry</th>
                 <th>tok in/out</th>
             </tr>
         </thead>
@@ -41,12 +16,9 @@
             {% for t in turns %}
             <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
                 <td>{{ t.turn }}</td>
-                <td title="{{ t.trace_id_full or t.trace_id }}">{{ t.trace_id }}</td>
-                <td>{{ t.first_s }}</td>
                 <td>{{ t.narrate_s }}</td>
                 <td>{{ t.extract_s }}</td>
-                <td>{{ t.retries }}</td>
-                <td>{{ t.tokens }}</td>
+                <td class="debug-tokens-cell">{{ t.tokens }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -71,14 +43,20 @@
     <span class="stat-label">Schema enforced</span>
     <span class="stat-value">{{ 'yes' if enforce_extract_schema else 'no' }}</span>
 </div>
-<div class="stat-row">
-    <span class="stat-label">LLM I/O log</span>
-    <span class="stat-value">{{ 'yes' if log_llm_io else 'no' }}</span>
+
+{% if errors and errors | length > 0 %}
+<div class="debug-errors-head" style="margin-top: 14px;">
+    <span class="debug-section-header" style="margin-bottom: 0;">Errors</span>
+    <button type="button" class="debug-clear-btn"
+            hx-post="/panels/debug/clear-errors"
+            hx-target="#debug-content"
+            hx-swap="innerHTML">
+        Clear
+    </button>
 </div>
-<div class="stat-row">
-    <span class="stat-label">Log file</span>
-    <span class="stat-value" style="white-space: normal; text-align: right; word-break: break-all;">{{ log_file }}</span>
+{% for err in errors %}
+<div class="error-item">
+    <span class="error-message">{{ err.message }}</span>
 </div>
-<div class="debug-hint-inline">
-    Raw prompts/responses: <code>tail -f {{ log_file }}</code>
-</div>
+{% endfor %}
+{% endif %}

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, MutableMapping
 
 import httpx
 
@@ -141,14 +141,20 @@ async def chat_stream(
     keep_alive: str = "60m",
     num_ctx: int = 32768,
     timeout: float = 180.0,
+    stream_stats: MutableMapping[str, Any] | None = None,
 ) -> AsyncIterator[str]:
     """Stream tokens from Ollama's /api/chat endpoint.
 
     Yields one string per token chunk.
+    If ``stream_stats`` is a mutable dict, it is filled on the final ``done`` chunk
+    with ``prompt_eval_count`` and ``eval_count`` (Ollama field names).
     """
     if _MOCK_MODE:
         async for chunk in _mock_stream():
             yield chunk
+        if stream_stats is not None:
+            stream_stats["prompt_eval_count"] = 0
+            stream_stats["eval_count"] = 0
         return
 
     body = _build_body(
@@ -166,6 +172,9 @@ async def chat_stream(
                     data = json.loads(line)
                 except json.JSONDecodeError:
                     continue
+                if stream_stats is not None and data.get("done"):
+                    stream_stats["prompt_eval_count"] = int(data.get("prompt_eval_count") or 0)
+                    stream_stats["eval_count"] = int(data.get("eval_count") or 0)
                 if data.get("done", False):
                     msg = data.get("message", {})
                     if isinstance(msg, dict) and msg.get("content"):
