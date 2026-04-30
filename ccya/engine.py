@@ -15,6 +15,7 @@ Async generator protocol:
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 import re
@@ -24,9 +25,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncIterator
 
+import httpx
 from jinja2 import Environment, FileSystemLoader
 
 from ccya.models import ExtractResult, StateDelta, TurnResult
+from ccya.pack import ExtractExample, Pack, PlayerOverrides, SeedEnvelope, parse_world_facts
 from ccya.ollama import chat as ollama_chat, chat_stream as ollama_chat_stream
 from ccya.state import (
     append_chronicle,
@@ -35,7 +38,7 @@ from ccya.state import (
     load_chronicle_tail,
     load_recent_chronicle_turns,
     load_state,
-    resolve_inventory_canonical_id,
+    resolve_inventory_remove_target,
     save_state,
 )
 
@@ -93,6 +96,12 @@ class EngineConfig:
     enforce_extract_schema: bool = True
     enable_extract_thinking: bool = False
     enable_narrate_thinking: bool = False
+    # generate_seed settings (used by POST /new-game on dynamic packs)
+    generate_seed_temperature: float = 0.9
+    generate_seed_max_retries: int = 1
+    # When True, send format=SeedEnvelope JSON schema to Ollama (strict but many builds 500 on large schemas).
+    # When False, omit format and rely on prompt + Pydantic validation + retries (recommended default).
+    enforce_seed_schema: bool = False
     log_llm_io: bool = False
     log_llm_io_max_chars: int = 4000
 
@@ -127,6 +136,7 @@ def _narrate_messages(
     chronicle_tail: str = "",
     recent_turns: list[dict] = [],
     enable_narrate_thinking: bool = False,
+    pack_style: str = "",
 ) -> list[dict[str, str]]:
     """Build narrate message list: [system, user].
 
@@ -138,6 +148,7 @@ def _narrate_messages(
         "chronicle_tail": chronicle_tail,
         "recent_turns": recent_turns,
         "enable_narrate_thinking": enable_narrate_thinking,
+        "pack_style": pack_style,
     }
     system_text = _render(env, "narrate_system.j2", ctx)
     user_text = _render(env, "narrate_user.j2", {"user_input": user_input})
@@ -238,12 +249,280 @@ def _summarize_applied(applied: dict[str, Any]) -> list[str]:
     return lines[:18]
 
 
+def _title_case_id(item_id: str) -> str:
+    s = str(item_id or "").replace("_", " ").strip()
+    return s.title() if s else "?"
+
+
+def _norm_fact(s: Any) -> str:
+    return " ".join(str(s or "").lower().split())
+
+
+def _fact_in_list(needle: str, haystack: list[Any]) -> bool:
+    hn = _norm_fact(needle)
+    for h in haystack:
+        if _norm_fact(h) == hn:
+            return True
+    return False
+
+
+def _inv_amount_map(st: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    m: dict[str, dict[str, Any]] = {}
+    for it in st.get("inventory") or []:
+        if not isinstance(it, dict):
+            continue
+        iid = str(it.get("id") or "")
+        if not iid:
+            continue
+        m[iid] = {
+            "name": str(it.get("name") or "").strip(),
+            "amount": max(1, int(it.get("amount") or 1)),
+        }
+    return m
+
+
+def _quests_by_id(st: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for q in st.get("quests") or []:
+        if isinstance(q, dict) and q.get("id"):
+            out[str(q["id"])] = q
+    return out
+
+
+def summarize_changes(
+    pre: dict[str, Any],
+    post: dict[str, Any],
+    _applied: dict[str, Any],
+    rejected: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Diff pre vs post state into four UI categories (inventory, player, facts, quests)."""
+    inventory: list[dict[str, Any]] = []
+    player: list[dict[str, Any]] = []
+    facts: list[dict[str, Any]] = []
+    quests: list[dict[str, Any]] = []
+
+    for r in rejected or []:
+        if r.get("field") == "inventory_remove":
+            rid = str(r.get("value") or "")
+            inventory.append({
+                "kind": "failed_remove",
+                "id": rid,
+                "name": _title_case_id(rid) if rid else "?",
+                "reason": str(r.get("reason") or ""),
+            })
+
+    pre_m = _inv_amount_map(pre)
+    post_m = _inv_amount_map(post)
+    for iid in sorted(set(pre_m) | set(post_m), key=lambda x: (0 if x == "credits" else 1, x)):
+        a, b = pre_m.get(iid), post_m.get(iid)
+        label_a = (a or {}).get("name") or _title_case_id(iid)
+        label_b = (b or {}).get("name") or _title_case_id(iid)
+        if a and not b:
+            inventory.append({"kind": "removed", "id": iid, "name": label_a})
+            continue
+        if b and not a:
+            inventory.append({"kind": "added", "id": iid, "name": label_b, "amount": int(b["amount"])})
+            continue
+        if a and b:
+            amt_a, amt_b = int(a["amount"]), int(b["amount"])
+            if label_a != label_b:
+                inventory.append({
+                    "kind": "renamed",
+                    "id": iid,
+                    "from_name": label_a,
+                    "to_name": label_b,
+                })
+            if amt_b > amt_a:
+                inventory.append({
+                    "kind": "increased",
+                    "id": iid,
+                    "name": label_b,
+                    "from": amt_a,
+                    "to": amt_b,
+                })
+            elif amt_b < amt_a:
+                inventory.append({
+                    "kind": "decreased",
+                    "id": iid,
+                    "name": label_b,
+                    "from": amt_a,
+                    "to": amt_b,
+                })
+
+    pre_pc = pre.get("pc") or {}
+    post_pc = post.get("pc") or {}
+    pre_conds = list(pre_pc.get("conditions") or [])
+    post_conds = list(post_pc.get("conditions") or [])
+    for c in post_conds:
+        if c not in pre_conds:
+            player.append({"kind": "condition_added", "value": str(c)})
+    for c in pre_conds:
+        if c not in post_conds:
+            player.append({"kind": "condition_removed", "value": str(c)})
+
+    pl = pre.get("location") or {}
+    pr = post.get("location") or {}
+    if (pl.get("id") or "") != (pr.get("id") or "") or (pl.get("name") or "") != (pr.get("name") or ""):
+        player.append({
+            "kind": "location_changed",
+            "from": str(pl.get("name") or pl.get("id") or "—"),
+            "to": str(pr.get("name") or pr.get("id") or "—"),
+        })
+
+    pre_stats = pre_pc.get("stats") or {}
+    post_stats = post_pc.get("stats") or {}
+    if isinstance(pre_stats, dict) and isinstance(post_stats, dict):
+        for k in sorted(set(pre_stats) | set(post_stats)):
+            if pre_stats.get(k) != post_stats.get(k):
+                player.append({
+                    "kind": "stat_changed",
+                    "stat": str(k),
+                    "from": pre_stats.get(k),
+                    "to": post_stats.get(k),
+                })
+
+    pre_facts = list((pre.get("scene") or {}).get("established_facts") or [])
+    post_facts = list((post.get("scene") or {}).get("established_facts") or [])
+    for pf in post_facts:
+        if not _fact_in_list(str(pf), pre_facts):
+            facts.append({"kind": "added", "value": str(pf)})
+    for pf in pre_facts:
+        if not _fact_in_list(str(pf), post_facts):
+            facts.append({"kind": "removed", "value": str(pf)})
+
+    pre_q = _quests_by_id(pre)
+    post_q = _quests_by_id(post)
+    for qid, pq in post_q.items():
+        title = str(pq.get("title") or pq.get("id") or qid)
+        prq = pre_q.get(qid)
+        if prq is None:
+            quests.append({"kind": "created", "id": qid, "title": title})
+            continue
+        st_pre, st_post = str(prq.get("status") or "active"), str(pq.get("status") or "active")
+        if st_pre != st_post:
+            quests.append({
+                "kind": "status_changed",
+                "id": qid,
+                "title": title,
+                "from": st_pre,
+                "to": st_post,
+            })
+        po: list[Any] = list(prq.get("objectives") or [])
+        qo: list[Any] = list(pq.get("objectives") or [])
+        for i in range(max(len(po), len(qo))):
+            if i >= len(qo):
+                break
+            qod = qo[i] if isinstance(qo[i], dict) else {}
+            if i >= len(po):
+                desc = str(qod.get("description") or "").strip()
+                if desc:
+                    quests.append({
+                        "kind": "objective_added",
+                        "id": qid,
+                        "title": title,
+                        "objective": desc,
+                    })
+                continue
+            pod = po[i] if isinstance(po[i], dict) else {}
+            if not bool(pod.get("done")) and bool(qod.get("done")):
+                quests.append({
+                    "kind": "objective_done",
+                    "id": qid,
+                    "title": title,
+                    "objective": str(qod.get("description") or "").strip(),
+                })
+            if not bool(pod.get("failed")) and bool(qod.get("failed")):
+                quests.append({
+                    "kind": "objective_failed",
+                    "id": qid,
+                    "title": title,
+                    "objective": str(qod.get("description") or "").strip(),
+                })
+
+    return {"inventory": inventory, "player": player, "facts": facts, "quests": quests}
+
+
+def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
+    """Turn a ``changes`` dict into compact display lines (emoji + text)."""
+    if not isinstance(ch, dict):
+        return []
+    lines: list[str] = []
+    for row in ch.get("inventory") or []:
+        if not isinstance(row, dict):
+            continue
+        k = row.get("kind")
+        nm = str(row.get("name") or row.get("id") or "?")
+        if k == "added":
+            lines.append(f"🎒 + {nm} ×{int(row.get('amount') or 1)}")
+        elif k == "removed":
+            lines.append(f"🎒 − {nm}")
+        elif k == "increased":
+            fa, fb = int(row.get("from") or 0), int(row.get("to") or 0)
+            lines.append(f"🎒 + {nm} ×{fb - fa}   ({fa} → {fb})")
+        elif k == "decreased":
+            fa, fb = int(row.get("from") or 0), int(row.get("to") or 0)
+            lines.append(f"🎒 − {nm} ×{fa - fb}   ({fa} → {fb})")
+        elif k == "renamed":
+            lines.append(f"🎒 ~ {row.get('from_name')} → {row.get('to_name')}")
+        elif k == "failed_remove":
+            reason = str(row.get("reason") or "").strip()
+            lines.append(f"🎒 ⚠ could not remove “{nm}”" + (f" ({reason})" if reason else ""))
+    for row in ch.get("player") or []:
+        if not isinstance(row, dict):
+            continue
+        k = row.get("kind")
+        if k == "condition_added":
+            lines.append(f"🩺 + {row.get('value')}")
+        elif k == "condition_removed":
+            lines.append(f"🩺 − {row.get('value')}")
+        elif k == "location_changed":
+            lines.append(f"🩺 → {row.get('to')}")
+        elif k == "stat_changed":
+            lines.append(f"🩺 {row.get('stat')}: {row.get('from')} → {row.get('to')}")
+    for row in ch.get("facts") or []:
+        if not isinstance(row, dict):
+            continue
+        k = row.get("kind")
+        v = str(row.get("value") or "")
+        short = v if len(v) <= 120 else v[:117].rstrip() + "…"
+        if k == "added":
+            lines.append(f"📜 + {short}")
+        elif k == "removed":
+            lines.append(f"📜 − {short}")
+        elif k == "updated":
+            old = str(row.get("old") or "")
+            new = str(row.get("new") or "")
+            o = old if len(old) <= 56 else old[:53].rstrip() + "…"
+            n = new if len(new) <= 56 else new[:53].rstrip() + "…"
+            lines.append(f"📜 ↻ {o} → {n}")
+    for row in ch.get("quests") or []:
+        if not isinstance(row, dict):
+            continue
+        k = row.get("kind")
+        title = str(row.get("title") or row.get("id") or "?")
+        if k == "created":
+            lines.append(f"🗺️ + “{title}”")
+        elif k == "status_changed":
+            lines.append(f"🗺️ ! “{title}” → {row.get('to')}")
+        elif k == "objective_done":
+            od = str(row.get("objective") or "").strip()
+            lines.append(f"🗺️ ✓ “{title}” — {od}" if od else f"🗺️ ✓ “{title}”")
+        elif k == "objective_failed":
+            od = str(row.get("objective") or "").strip()
+            lines.append(f"🗺️ ✗ “{title}” — {od}" if od else f"🗺️ ✗ “{title}”")
+        elif k == "objective_added":
+            od = str(row.get("objective") or "").strip()
+            lines.append(f"🗺️ + obj “{title}”: {od}" if od else f"🗺️ + obj “{title}”")
+    return lines
+
+
 def _extract_messages(
     env: Environment,
     narrative: str,
     state: dict[str, Any],
     *,
     enable_extract_thinking: bool = False,
+    pack_examples: list[ExtractExample] | None = None,
 ) -> list[dict[str, str]]:
     """Build extract message list: [system, assistant, user].
 
@@ -254,7 +533,10 @@ def _extract_messages(
     system_text = _render(
         env,
         "extract_system.j2",
-        {"enable_thinking": enable_extract_thinking},
+        {
+            "enable_thinking": enable_extract_thinking,
+            "pack_examples": pack_examples or [],
+        },
     )
     active_quests = [q for q in state.get("quests", []) if q.get("status") == "active"]
     established_facts = list(state.get("scene", {}).get("established_facts") or [])
@@ -425,6 +707,8 @@ async def run_turn(
     config: EngineConfig | None = None,
     *,
     template_dir: str | None = None,
+    pack_style: str = "",
+    pack_examples: list[ExtractExample] | None = None,
 ) -> AsyncIterator[tuple[str, Any]]:
     """Execute one turn. Async generator yielding:
         ("token", str)          — one per narrative chunk during call 1
@@ -462,10 +746,12 @@ async def run_turn(
             chronicle_tail=chronicle_tail,
             recent_turns=recent_turns,
             enable_narrate_thinking=config.enable_narrate_thinking,
+            pack_style=pack_style,
         )
 
         first_ms = 0.0
         t0 = asyncio.get_event_loop().time()
+        narr_stream_stats: dict[str, Any] = {}
         if config.log_llm_io:
             _log_llm_io(
                 trace_id=trace_id, phase="narrate_request",
@@ -477,6 +763,7 @@ async def run_turn(
             keep_alive=config.keep_alive,
             num_ctx=config.num_ctx,
             timeout=float(config.request_timeout_s),
+            stream_stats=narr_stream_stats,
         ):
             if not narrative_chunks:
                 first_ms = (asyncio.get_event_loop().time() - t0) * 1000
@@ -485,7 +772,12 @@ async def run_turn(
 
         narr_ms = (asyncio.get_event_loop().time() - t0) * 1000
         narrative = _strip_thinking("".join(narrative_chunks))
-        narr_metrics = {"first_token_ms": round(first_ms, 1), "total_ms": round(narr_ms, 1)}
+        narr_metrics = {
+            "first_token_ms": round(first_ms, 1),
+            "total_ms": round(narr_ms, 1),
+            "tokens_in": int(narr_stream_stats.get("prompt_eval_count", 0)),
+            "tokens_out": int(narr_stream_stats.get("eval_count", 0)),
+        }
         if config.log_llm_io:
             _log_llm_io(
                 trace_id=trace_id, phase="narrate_response",
@@ -501,6 +793,7 @@ async def run_turn(
             narrative,
             state,
             enable_extract_thinking=config.enable_extract_thinking,
+            pack_examples=pack_examples,
         )
         t2 = asyncio.get_event_loop().time()
         retries = 0
@@ -576,15 +869,13 @@ async def run_turn(
             "tokens_in": ext_usage.get("prompt_tokens", 0),
             "tokens_out": ext_usage.get("total_tokens", 0),
         }
-        # narrate and extract metrics are independent — narrate token counts
-        # are not available from a streaming call so we omit them rather than
-        # copy extract counts into the wrong slot.
         metrics = {
             "narrate": narr_metrics,
             "extract": ext_metrics,
         }
 
         # === Validate & apply delta ===
+        state_pre_apply = copy.deepcopy(state)
         applied: dict = {}
         rejected: list[dict] = []
 
@@ -602,6 +893,7 @@ async def run_turn(
                 applied = delta.model_dump(exclude_none=True)
 
         diff_lines = _summarize_applied(applied)
+        changes = summarize_changes(state_pre_apply, state, applied, rejected)
 
         # === Turn increment (single source of truth: here) ===
         state.setdefault("meta", {})["turn"] = state.get("meta", {}).get("turn", 0) + 1
@@ -621,6 +913,7 @@ async def run_turn(
             "scene_tags": list(getattr(delta, "scene_tags", [])),
             "narrate": narr_metrics,
             "extract": ext_metrics,
+            "changes": changes,
         }
         append_event(save_dir, event)
         save_state(save_dir, state)
@@ -637,6 +930,7 @@ async def run_turn(
             scene_tags=list(getattr(delta, "scene_tags", [])),
             established_facts=established_facts,
             diff=diff_lines,
+            changes=changes,
             metrics=metrics,
             errors=errors,
         )
@@ -655,6 +949,7 @@ async def run_turn(
             errors=errors,
             metrics=metrics,
             diff=[],
+            changes={},
         ))
     finally:
         await _inflight.release(str(save_dir))
@@ -671,7 +966,7 @@ def _validate(state: dict, delta: StateDelta) -> list[dict]:
 
     inv_list: list[dict] = state.get("inventory", [])
     for rem in delta.inventory_remove:
-        if resolve_inventory_canonical_id(inv_list, rem.id) is None:
+        if resolve_inventory_remove_target(inv_list, rem.id) is None:
             rejections.append({
                 "field": "inventory_remove",
                 "value": rem.id,
@@ -682,6 +977,200 @@ def _validate(state: dict, delta: StateDelta) -> list[dict]:
     # No quest ID validation here.
 
     return rejections
+
+
+# ---------------------------------------------------------------------------
+# generate_seed — New Game for dynamic packs
+# ---------------------------------------------------------------------------
+
+
+def _build_generate_seed_messages(
+    env: Environment,
+    pack: Pack,
+    overrides: PlayerOverrides | None = None,
+) -> list[dict[str, str]]:
+    """Build the [system, user] messages for generate_seed."""
+    from ccya.models import ExtractResult  # noqa: F401 — schema_json import path
+    schema_json = SeedEnvelope.model_json_schema()
+    ctx = {
+        "schema_json": json.dumps(schema_json, indent=2),
+        "world_text": pack.world_text,
+        "style_text": pack.style_text,
+        "scenario": pack.scenario,
+        "overrides": overrides if (overrides and not overrides.is_empty()) else None,
+    }
+    system_text = _render(env, "generate_seed_system.j2", ctx)
+    user_text = _render(env, "generate_seed_user.j2", ctx)
+    return [
+        {"role": "system", "content": system_text},
+        {"role": "user", "content": user_text},
+    ]
+
+
+def _soft_validate_seed(
+    envelope: SeedEnvelope,
+    pack: Pack,
+) -> list[str]:
+    """Post-Pydantic soft checks that emit warnings but don't fail generation.
+    Returns a list of warning strings (empty = all good)."""
+    warnings: list[str] = []
+    c = pack.scenario.constraints if pack.scenario else None
+    if not c:
+        return warnings
+
+    npcs = envelope.seed_state.scene.present_npcs
+    named = [n for n in npcs if n.name]
+    if len(named) < c.min_named_npcs:
+        warnings.append(f"Only {len(named)} named NPCs (min {c.min_named_npcs})")
+
+    words = len(envelope.opening_narrative.split())
+    lo, hi = c.prose_word_range
+    if not (lo <= words <= hi):
+        warnings.append(f"Opening narrative {words} words (expected {lo}-{hi})")
+
+    if c.npc_distinct_first_letters:
+        first_letters = [n.name[0].upper() for n in named if n.name]
+        if len(first_letters) != len(set(first_letters)):
+            warnings.append("NPC names share first letters (npc_distinct_first_letters)")
+
+    text_lower = envelope.opening_narrative.lower()
+    for cliche in c.forbid_cliches:
+        if cliche.lower() in text_lower:
+            warnings.append(f"Opening narrative contains forbidden cliché: '{cliche}'")
+
+    if c.forbid_player_dependents:
+        dependent_words = {"wife", "husband", "spouse", "child", "kids", "son", "daughter"}
+        npc_notes = " ".join(
+            (n.notes or "") + " " + (n.bio or "")
+            for n in npcs
+        ).lower()
+        found = dependent_words & set(npc_notes.split())
+        if found:
+            warnings.append(f"NPC text may contain player-dependent relationship: {found}")
+
+    return warnings
+
+
+async def generate_seed(
+    pack: Pack,
+    config: EngineConfig,
+    *,
+    overrides: PlayerOverrides | None = None,
+    seed: int | None = None,
+    template_dir: str | None = None,
+) -> SeedEnvelope:
+    """Generate a fresh SeedEnvelope for a dynamic pack.
+
+    Optionally sends format=SeedEnvelope JSON schema when config.enforce_seed_schema is True.
+    If Ollama returns 5xx with structured format (common with large schemas), retries once
+    without format= and still validates with Pydantic.
+
+    Retries up to config.generate_seed_max_retries on parse/validation failure.
+    Uses config.generate_seed_temperature (default 0.9) for creative variance.
+    """
+    if pack.manifest.mode != "dynamic":
+        raise ValueError(f"generate_seed() requires a dynamic pack, got mode={pack.manifest.mode!r}")
+
+    template_dir = template_dir or str(Path(__file__).parent / "prompts")
+    env = _build_jinja_env(template_dir)
+    trace_id = uuid.uuid4().hex[:8]
+
+    messages = _build_generate_seed_messages(env, pack, overrides)
+    schema = SeedEnvelope.model_json_schema()
+    fmt: dict | None = schema if config.enforce_seed_schema else None
+    world_facts = parse_world_facts(pack.world_text)
+
+    async def _seed_chat(format_arg: dict | None) -> dict[str, Any]:
+        return await ollama_chat(
+            config.ollama_host, config.model, messages,
+            format=format_arg,
+            temperature=config.generate_seed_temperature,
+            keep_alive=config.keep_alive,
+            num_ctx=config.num_ctx,
+            timeout=float(config.request_timeout_s),
+        )
+
+    for attempt in range(1 + config.generate_seed_max_retries):
+        if config.log_llm_io:
+            _log_llm_io(
+                trace_id=trace_id, phase=f"generate_seed_request_attempt_{attempt}",
+                messages=messages, max_chars=config.log_llm_io_max_chars,
+            )
+        try:
+            result = await _seed_chat(fmt)
+        except httpx.HTTPStatusError as exc:
+            err_body = ""
+            try:
+                err_body = (exc.response.text or "")[:800]
+            except Exception:
+                pass
+            if fmt is not None and exc.response.status_code >= 500:
+                _log.warning(
+                    "generate_seed: Ollama rejected SeedEnvelope JSON schema (%s). Retrying without format=. Body: %s",
+                    exc.response.status_code,
+                    err_body or "(empty)",
+                    extra={"trace_id": trace_id},
+                )
+                result = await _seed_chat(None)
+            else:
+                _log.error(
+                    "generate_seed: Ollama HTTP %s. Body: %s",
+                    exc.response.status_code,
+                    err_body or "(empty)",
+                    extra={"trace_id": trace_id},
+                )
+                raise
+        raw = result.get("response", "") if isinstance(result, dict) else ""
+        if config.log_llm_io:
+            _log_llm_io(
+                trace_id=trace_id, phase=f"generate_seed_response_attempt_{attempt}",
+                response=raw, max_chars=config.log_llm_io_max_chars,
+            )
+
+        cleaned = _strip_thinking(raw)
+        j = _find_json(cleaned)
+        if j is None:
+            parse_error = "No JSON found in generate_seed response"
+            _log.warning("generate_seed failed (attempt %d): %s", attempt + 1, parse_error,
+                         extra={"trace_id": trace_id})
+            if attempt < config.generate_seed_max_retries:
+                fb = f"Your output failed to parse: {parse_error}. Re-emit a valid SeedEnvelope JSON only."
+                messages.append({"role": "user", "content": fb})
+            continue
+
+        try:
+            # Unwrap if nested under "seed_state" key (expected); also accept bare SeedState
+            if "seed_state" not in j and "pc" in j:
+                j = {"seed_state": j, "opening_narrative": j.pop("opening_narrative", ".")}
+            envelope = SeedEnvelope(**j)
+        except Exception as exc:
+            parse_error = str(exc)
+            _log.warning("generate_seed validation failed (attempt %d): %s", attempt + 1, parse_error,
+                         extra={"trace_id": trace_id})
+            if attempt < config.generate_seed_max_retries:
+                fb = (f"SeedEnvelope validation failed: {parse_error[:300]}. "
+                      "Re-emit corrected JSON matching the schema.")
+                messages.append({"role": "user", "content": fb})
+            continue
+
+        # Inject world facts (non-negotiable canon) at the top of established_facts
+        if world_facts:
+            existing = list(envelope.seed_state.scene.established_facts)
+            merged = world_facts + [f for f in existing if f not in world_facts]
+            envelope.seed_state.scene.established_facts = merged
+
+        # Always start with empty compendium and touch order
+        envelope.seed_state.compendium.npcs = {}
+        if "compendium_touch_order" in envelope.seed_state.meta:
+            del envelope.seed_state.meta["compendium_touch_order"]
+
+        soft_warnings = _soft_validate_seed(envelope, pack)
+        for w in soft_warnings:
+            _log.warning("generate_seed soft-check: %s", w, extra={"trace_id": trace_id})
+
+        return envelope
+
+    raise RuntimeError(f"generate_seed failed after {1 + config.generate_seed_max_retries} attempts — trace {trace_id}")
 
 
 # ---------------------------------------------------------------------------

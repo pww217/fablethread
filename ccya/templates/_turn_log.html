@@ -1,0 +1,13 @@
+{# Fragment: scrollable turn log (newest first). Each entry has turn + lines (plain text). #}
+{% if entries %}
+{% for e in entries %}
+<div class="turn-log-block">
+    <div class="turn-log-turn">Turn {{ e.turn }}</div>
+    {% for ln in e.lines %}
+    <div class="turn-log-line">{{ ln }}</div>
+    {% endfor %}
+</div>
+{% endfor %}
+{% else %}
+<div class="turn-log-empty">No turn summaries yet.</div>
+{% endif %}

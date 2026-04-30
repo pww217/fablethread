@@ -1,6 +1,6 @@
 # ccya
 
-A choose-your-own-adventure game backed by a local Ollama model.
+A choose-your-own-adventure game backed by a local Ollama model. Each run generates a fresh scenario from a **world pack** — the LLM seeds the character, location, NPCs, quest, and opening narrative from a world bible + scenario constraints.
 
 ## Setup
 
@@ -125,25 +125,49 @@ curl http://127.0.0.1:8765/panels/debug
 | `make ollama-env` | Print suggested `export` / `launchctl setenv` lines |
 | `make clean` | Remove build artifacts |
 
+## Packs
+
+Packs live in `packs/<id>/` and declare their mode in `pack.yaml`.
+
+| Mode | How it works | Files required |
+|------|-------------|----------------|
+| `dynamic` | LLM generates a fresh seed (character, location, NPCs, quest, opening) on every New Game | `pack.yaml`, `world.md`, `scenario.yaml`, `style.md`, `extract_examples.yaml` |
+| `static` | Hand-authored seed loaded directly | `pack.yaml`, `seed_state.yaml`, `opening_scene.md` (optional `style.md`, `extract_examples.yaml`) |
+
+**Included packs:**
+
+| Pack | Mode | Description |
+|------|------|-------------|
+| `zombie-survival` | dynamic | Six months into the H7N9-X collapse. Every run is a different survivor, location, and opening crisis. |
+| `expanse-belter` | dynamic | Hard sci-fi Belt freight operator in 2351. Fresh ship, fresh debt, fresh complication each run. |
+
+To switch packs, click **New Game** and select from the picker, or set `game.setting_pack` in `config.yaml`.
+
+See `packs/AUTHORING.md` for the full pack spec.
+
 ## File layout
 
 ```
-config.yaml            # Server, Ollama, and game config
-ccya/                  # Python package
-  engine.py            # Turn pipeline (narrate + extract)
-  ollama.py            # Thin async Ollama client
-  state.py             # YAML + JSONL state I/O
-  server.py            # FastAPI routes + SSE
-  models.py            # Pydantic models + config loader
-  logging_setup.py     # JSONL logging
-  prompts/             # Jinja prompt templates
-  templates/           # HTMX/Alpine HTML templates
-  static/              # CSS + JS
-saves/default/         # Game save (state.yaml, events.jsonl, chronicle.md)
-packs/hard-scifi-demo/ # Starter content (seed + opening scene)
-scripts/               # ollama-launch.sh helper
-logs/                  # JSONL turn logs
-tests/                 # Smoke tests
+config.yaml              # Server, Ollama, and game config
+ccya/                    # Python package
+  engine.py              # Turn pipeline (narrate + extract + generate_seed)
+  pack.py                # Pack loader, manifest schema, list_packs()
+  ollama.py              # Thin async Ollama client
+  state.py               # YAML + JSONL state I/O
+  server.py              # FastAPI routes + SSE
+  models.py              # Pydantic models + config loader
+  logging_setup.py       # JSONL logging
+  prompts/               # Jinja prompt templates (narrate, extract, generate_seed)
+  templates/             # HTMX/Alpine HTML templates
+  static/                # CSS + vendored JS (htmx, alpine, marked)
+saves/default/           # Game save (state.yaml, events.jsonl, chronicle.md)
+packs/                   # World packs
+  zombie-survival/       # Dynamic — H7N9-X outbreak
+  expanse-belter/        # Dynamic — Belt freight / smuggling
+  AUTHORING.md           # Pack authoring spec
+scripts/                 # ollama-launch.sh helper
+logs/                    # JSONL turn logs
+tests/                   # Smoke tests
 ```
 
 ## Config
@@ -167,21 +191,42 @@ Edit `config.yaml` to change the model, port, or other settings. Key sections:
 
 ## How it works
 
+### New game flow (dynamic packs)
+
+When you click **New Game** and select a pack, the server calls `generate_seed()` — a single LLM call that produces a `SeedEnvelope` containing the full initial state (character, location, NPCs, inventory, quest, established facts) plus an opening narrative. The world bible (`world.md`) and scenario constraints (`scenario.yaml`) shape what the model generates; `style.md` and `extract_examples.yaml` carry over into the regular turn pipeline.
+
+### Turn flow
+
 Each turn fires two Ollama calls:
 
-1. **Narrate** — streams narrative text (SSE, temperature 0.8)
-2. **Extract** — parses the narrative into structured state changes (temperature 0.0); optional grammar constraint via **`enforce_extract_schema`**
+1. **Narrate** — streams narrative text token-by-token via SSE (temperature 0.8). Chronicle tail + recent turns injected as context.
+2. **Extract** — parses the narrative into a structured `StateDelta` (temperature 0.0). Optional JSON grammar via `enforce_extract_schema`.
 
-The extracted delta is validated against current state (e.g. impossible inventory removals) before applying.
+The extracted delta is validated against current state (e.g. impossible inventory removals) before applying. Rejected removes surface in the turn summary modal.
 
-**Narrative storage** — Full turn-by-turn prose lives in **`chronicle.md`** only. The narrator’s “recent turns” context and browser reload history read from there (full text per turn). **`events.jsonl`** is a **state-change / timing log** — new rows do **not** duplicate narrative text.
+### Storage
 
-**Facts & PC conditions (deltas)** — The extract prompt lists current established facts and conditions. The model emits **`established_facts_add`**, **`established_facts_update`** (`old` → `new`, keeps list order), **`established_facts_remove`**, and **`pc_condition_add`** / **`pc_condition_remove`** — not full-list replacement. **`location_description`** nudges the current place each turn without changing `location_change`.
+- **`chronicle.md`** — full turn-by-turn prose. Narrator context and browser reload history read from here.
+- **`events.jsonl`** — state-change + timing log per turn (narrate/extract ms + tokens in/out, `changes` diff, no raw narrative).
+- **`state.yaml`** — current world state (hand-editable between turns).
 
-**Inventory** uses transactional add/remove deltas plus **`inventory_update`** to change **name** or **notes** without re-adding the stack; ids are **normalized** on apply so `water-filter` and `Water_Filter` stack together.
+### State model
 
-**Chrome** — The header shows a short **scene tagline** from extract (**`scene_tagline`**) when set; otherwise **`PC @ location`**. Sidebars use **hover tooltips** for long text (player bio, NPC bio/notes, inventory notes). The **Compendium** lists durable NPC dossiers (`compendium.npcs`). Each turn’s **`turn_complete`** payload may include a **`diff`** array for a transient “what changed” toast above the action pills.
+- **Facts (deltas):** `established_facts_add` / `established_facts_update` (`old`→`new`, position-preserving) / `established_facts_remove`. Not full-list replacement.
+- **PC conditions:** `pc_condition_add` / `pc_condition_remove`.
+- **Inventory:** normalized-id merge on add; partial-stack subtract on remove; `inventory_update` for name/notes changes without re-adding.
+- **NPCs:** `present_npcs` replaces the full list each turn. Returning NPCs can emit `{id, notes}` only — the engine hydrates name/title/bio from the compendium.
+- **Location:** `location_description` nudges description in place; `location_change` moves to a new id/name.
 
-**Markdown** — Narrative and sidebar snippets are rendered with **marked** (GitHub-flavored); the narrator/extractor are instructed to use light markup (e.g. `*ship names*`).
+### UI
 
-Typical extract latency stays similar to before. Historical rows in `events.jsonl` keep whatever JSON shape they were written with; only new applies use the updated schema.
+- **Header:** scene tagline (or `PC @ location`) on the left; **📖 Chronicle** pill (turn log) centered; status/controls on the right.
+- **Chronicle overlay:** opens over the narrative column showing per-turn change summaries; closes without affecting the narrative panel layout.
+- **Turn summary modal:** appears after each turn with emoji-categorized changes (inventory / player / facts / quests). Dismiss via Enter, Escape, or click.
+- **Send → Stop:** while inference runs, the Send button turns red with a spinner; clicking cancels the SSE and restores the previous input and action pills.
+- **Action pills:** clicking a choice inserts it into the input with a trailing space (no auto-submit).
+- **Debug panel:** recent turn timing (narrate/extract seconds + token in/out), status (model, context window, mock/schema flags), errors.
+
+**Markdown** — Narrative and sidebar snippets rendered with **marked** (GitHub-flavored); narrator/extractor instructed to use light markup.
+
+Historical rows in `events.jsonl` keep whatever JSON shape they were written with; only new rows use the updated schema.

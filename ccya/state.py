@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from pathlib import Path
@@ -11,6 +12,8 @@ from typing import Any
 import yaml
 
 from ccya.models import StateDelta
+
+_log = logging.getLogger("ccya.state")
 
 
 def load_state(save_dir: Path) -> dict[str, Any]:
@@ -187,6 +190,19 @@ def resolve_inventory_canonical_id(inventory: list[dict[str, Any]], raw_id: str)
     return None
 
 
+def resolve_inventory_remove_target(inventory: list[dict[str, Any]], raw_id: str) -> str | None:
+    """Resolve id or normalized item name to stored inventory id for remove operations."""
+    c = resolve_inventory_canonical_id(inventory, raw_id)
+    if c:
+        return c
+    want = normalize_inventory_id(raw_id)
+    for it in inventory:
+        nm = it.get("name")
+        if isinstance(nm, str) and normalize_inventory_id(nm) == want:
+            return str(it["id"])
+    return None
+
+
 def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_max: int = 10) -> dict[str, Any]:
     """Apply a validated StateDelta to the state dict. Returns the updated state."""
     import copy
@@ -221,19 +237,29 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
             by_id = _by_id()
 
     for rem in delta.inventory_remove:
-        canonical = resolve_inventory_canonical_id(inv, rem.id)
+        canonical = resolve_inventory_remove_target(inv, rem.id)
         if not canonical:
             continue
         ex = by_id[canonical]
         if rem.amount is None:
             inv = [x for x in inv if x.get("id") != canonical]
         else:
-            cur = int(ex.get("amount", 1))
-            new_amt = max(0, cur - int(rem.amount))
-            if new_amt <= 0:
+            amt_raw = int(rem.amount)
+            if amt_raw <= 0:
+                # amount: 0 or negative — treat as full stack remove (LLM mistake)
+                _log.warning(
+                    "inventory_remove amount=%r coerced to full remove for %s",
+                    rem.amount,
+                    canonical,
+                )
                 inv = [x for x in inv if x.get("id") != canonical]
             else:
-                ex["amount"] = new_amt
+                cur = int(ex.get("amount", 1))
+                new_amt = max(0, cur - amt_raw)
+                if new_amt <= 0:
+                    inv = [x for x in inv if x.get("id") != canonical]
+                else:
+                    ex["amount"] = new_amt
         by_id = _by_id()
 
     for u in delta.inventory_update:

@@ -1,0 +1,12 @@
+id: expanse-belter
+name: "The Expanse — Belter Smuggler"
+description: "Hard sci-fi Belt freight operator scraping by in 2351. Every run is different."
+genre: sci-fi
+tone_tags: [gritty, political, scarcity, hard-scifi]
+version: 2
+mode: dynamic
+files:
+  world: world.md
+  scenario: scenario.yaml
+  style: style.md
+  extract_examples: extract_examples.yaml

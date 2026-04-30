@@ -7,7 +7,7 @@
     <script src="/static/vendor/htmx.min.js" defer></script>
     <script src="/static/vendor/alpine.min.js" defer></script>
     <script src="/static/vendor/marked.min.js"></script>
-    <link rel="stylesheet" href="/static/app.css">
+    <link rel="stylesheet" href="/static/app.css?v={{ css_v|default(0) }}">
 </head>
 <body>
 
@@ -16,15 +16,31 @@
     <!-- Header -->
     <header class="header-bar">
         <span class="header-logo" id="header-logo">{{ state.scene.tagline or ((state.pc.name + ' @ ' + state.location.name) if state.location.id else '') or 'Choose Your Own Adventure' }}</span>
+        <button type="button" class="turn-log-toggle" id="turn-log-toggle" title="Turn history" aria-expanded="false">
+            <span class="turn-log-toggle-label">📖 Chronicle</span>
+        </button>
         <div class="header-meta">
             <span id="mock-dot" class="mock-dot" title="Checking Ollama…"></span>
             <span class="turn-counter" x-show="gameStarted" x-text="'Turn\u00a0' + turnNum"></span>
             <button class="new-game-btn"
-                    @click="startNewGame()"
+                    @click="openPackPicker()"
                     :disabled="starting || submitting">
                 <span x-show="!starting">New Game</span>
                 <span x-show="starting">Starting…</span>
             </button>
+            {% if pack_mode == "dynamic" %}
+            <button class="new-game-btn reroll-btn"
+                    id="reroll-btn"
+                    hx-post="/new-game/reroll"
+                    hx-target="#opening-block .narrative-text"
+                    hx-swap="innerHTML"
+                    hx-indicator="#reroll-btn"
+                    :disabled="starting || submitting"
+                    title="Generate a different opening without changing the pack"
+                    style="display: none;">
+                Roll Again
+            </button>
+            {% endif %}
         </div>
     </header>
 
@@ -39,8 +55,26 @@
             </div>
         </aside>
 
-        <!-- Narrative column -->
+        <!-- Narrative column (position:relative so turn-log overlay can anchor here) -->
         <main class="narrative-column">
+
+            <!-- Turn log overlay — covers narrative column when open; display:none when closed -->
+            <div id="turn-log-shell" class="turn-log-shell" hidden>
+                <div class="turn-log-backdrop" id="turn-log-backdrop" aria-hidden="true"></div>
+                <div class="turn-log-panel" role="dialog" aria-labelledby="turn-log-title">
+                    <div class="turn-log-head">
+                        <span class="turn-log-title-group">
+                            <span class="turn-log-title-icon" aria-hidden="true">⌖</span>
+                            <span id="turn-log-title">Chronicle</span>
+                        </span>
+                        <div class="turn-log-head-actions">
+                            <button type="button" class="turn-log-refresh" id="turn-log-refresh" title="Reload from disk">↻</button>
+                            <button type="button" class="turn-log-close" id="turn-log-close" aria-label="Close">×</button>
+                        </div>
+                    </div>
+                    <div id="turn-log-body" class="turn-log-body"></div>
+                </div>
+            </div>
 
             <!-- Scrollable narrative area — seeded with server-rendered history on load -->
             <div id="narrative-panel" class="narrative-panel">
@@ -56,6 +90,13 @@
                     <div class="narrative-text" data-raw>{{ opening }}</div>
                 </div>
                 {% endif %}
+                {# Player overrides textarea — wired for future use, hidden for now
+                <div id="overrides-zone" style="display:none;">
+                    <textarea id="player-overrides-input"
+                        placeholder="Optional: describe what kind of character, NPCs, or situation you want…"
+                        rows="3" style="width:100%;"></textarea>
+                </div>
+                #}
 
                 {% for ev in history %}
                 <div class="narrative-block">
@@ -70,7 +111,7 @@
             <div class="pills-row" id="actions-zone">
                 {% if last_actions %}
                 {% for action in last_actions %}
-                <button class="action-pill" onclick="window._gameInstance && window._gameInstance.fillAndSubmit(this.textContent)">{{ action }}</button>
+                <button class="action-pill" onclick="window._gameInstance && window._gameInstance.fillFromChoice(this.textContent)">{{ action }}</button>
                 {% endfor %}
                 {% elif history %}
                 <span class="empty-state">Continue your adventure above.</span>
@@ -89,10 +130,12 @@
                           :disabled="submitting || !gameStarted"
                           @keydown.enter="onEnter($event)"></textarea>
                 <button class="send-btn"
-                        @click="submitTurn()"
-                        :disabled="submitting || !input.trim() || !gameStarted">
+                        :class="{ 'send-btn--stop': submitting }"
+                        :title="submitting ? 'Click to stop' : 'Send turn'"
+                        @click="submitting ? stopTurn() : submitTurn()"
+                        :disabled="!submitting && (!input.trim() || !gameStarted)">
                     <span x-show="!submitting">Send&nbsp;&rarr;</span>
-                    <i x-show="submitting" class="send-spinner"></i>
+                    <i x-show="submitting" class="send-spinner send-spinner--stop"></i>
                 </button>
             </div>
 
@@ -134,73 +177,132 @@ function _headerTaglineFromState(st) {
     return 'Choose Your Own Adventure';
 }
 
-function _showDiffToast(lines) {
-    if (!lines || !lines.length) return;
-    const wrap = document.createElement('div');
-    wrap.className = 'diff-toast';
-    wrap.setAttribute('role', 'status');
-    wrap.setAttribute('aria-live', 'polite');
+function _groupChangeLinesForModal(lines) {
+    const inv = [], pl = [], fa = [], qu = [];
+    (lines || []).forEach((ln) => {
+        const s = String(ln);
+        if (s.startsWith('🎒')) inv.push(s);
+        else if (s.startsWith('🩺')) pl.push(s);
+        else if (s.startsWith('📜')) fa.push(s);
+        else if (s.startsWith('🗺️')) qu.push(s);
+        else inv.push(s);
+    });
+    return { inv, pl, fa, qu };
+}
 
-    const inner = document.createElement('div');
-    inner.className = 'diff-toast-content';
-    lines.forEach((ln) => {
-        const s = document.createElement('div');
-        s.className = 'diff-line';
-        if (/^[+✓]/.test(ln)) s.classList.add('diff-added');
-        else if (/^[-✗]/.test(ln)) s.classList.add('diff-removed');
-        else if (/^[~⊘!→]/.test(ln)) s.classList.add('diff-changed');
-        // prefix symbol + markdown-rendered rest
-        const match = ln.match(/^([+\-~⊘!→✓✗]\s*)/);
-        if (match) {
-            const sym = document.createElement('span');
-            sym.className = 'diff-symbol';
-            sym.textContent = match[1];
-            const txt = document.createElement('span');
-            txt.innerHTML = _renderMarkdownInline(ln.slice(match[1].length));
-            s.appendChild(sym);
-            s.appendChild(txt);
-        } else {
-            s.innerHTML = _renderMarkdownInline(ln);
-        }
-        inner.appendChild(s);
+function _showTurnSummary(changeLines) {
+    if (!changeLines || !changeLines.length) return;
+    const g = _groupChangeLinesForModal(changeLines);
+    const backdrop = document.createElement('div');
+    backdrop.className = 'turn-summary-backdrop';
+    const dlg = document.createElement('div');
+    dlg.className = 'turn-summary-modal';
+    dlg.setAttribute('role', 'dialog');
+    dlg.setAttribute('aria-modal', 'true');
+    dlg.setAttribute('aria-labelledby', 'ts-modal-title');
+
+    const title = document.createElement('div');
+    title.className = 'turn-summary-title';
+    title.id = 'ts-modal-title';
+    title.textContent = 'What changed';
+    dlg.appendChild(title);
+
+    const sections = [
+        ['ts-inv', '🎒 Inventory', g.inv],
+        ['ts-pl', '🩺 Player', g.pl],
+        ['ts-fa', '📜 Facts', g.fa],
+        ['ts-qu', '🗺️ Quests', g.qu],
+    ];
+    sections.forEach(([cls, head, rows]) => {
+        if (!rows.length) return;
+        const sec = document.createElement('section');
+        sec.className = 'ts-section ' + cls;
+        const h = document.createElement('h3');
+        h.className = 'ts-section-head';
+        h.textContent = head;
+        sec.appendChild(h);
+        rows.forEach((ln) => {
+            const line = document.createElement('div');
+            line.className = 'ts-line';
+            line.textContent = ln;
+            sec.appendChild(line);
+        });
+        dlg.appendChild(sec);
     });
 
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'diff-toast-dismiss';
-    btn.setAttribute('aria-label', 'Dismiss change summary');
-    btn.textContent = '\u00d7';
+    const foot = document.createElement('div');
+    foot.className = 'turn-summary-foot';
+    const hint = document.createElement('span');
+    hint.className = 'turn-summary-hint';
+    hint.textContent = 'Press Enter or Esc to dismiss';
+    const dismissBtn = document.createElement('button');
+    dismissBtn.type = 'button';
+    dismissBtn.className = 'turn-summary-dismiss';
+    dismissBtn.textContent = 'Dismiss';
+    foot.appendChild(hint);
+    foot.appendChild(dismissBtn);
+    dlg.appendChild(foot);
 
-    let fadeTimer;
-    let removeTimer;
-    function onEsc(e) {
-        if (e.key === 'Escape') dismiss();
+    function onKey(e) {
+        if (e.key === 'Escape' || e.key === 'Enter') {
+            e.preventDefault();
+            dismiss();
+        }
     }
     const dismiss = () => {
-        document.removeEventListener('keydown', onEsc);
-        clearTimeout(fadeTimer);
-        clearTimeout(removeTimer);
-        wrap.classList.add('diff-toast-out');
-        removeTimer = setTimeout(() => { wrap.remove(); }, 500);
+        document.removeEventListener('keydown', onKey, true);
+        backdrop.remove();
+        dlg.remove();
     };
+    dismissBtn.addEventListener('click', dismiss);
+    backdrop.addEventListener('click', dismiss);
+    document.addEventListener('keydown', onKey, true);
 
-    btn.addEventListener('click', () => dismiss());
-    document.addEventListener('keydown', onEsc);
+    document.body.appendChild(backdrop);
+    document.body.appendChild(dlg);
+}
 
-    wrap.appendChild(inner);
-    wrap.appendChild(btn);
+function _prependTurnLogTurn(turn, changeLines) {
+    const body = document.getElementById('turn-log-body');
+    if (!body || !changeLines || !changeLines.length) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'turn-log-block turn-log-block--fresh';
+    const head = document.createElement('div');
+    head.className = 'turn-log-turn';
+    head.textContent = 'Turn ' + turn;
+    wrap.appendChild(head);
+    changeLines.forEach((ln) => {
+        const row = document.createElement('div');
+        row.className = 'turn-log-line';
+        row.textContent = ln;
+        wrap.appendChild(row);
+    });
+    body.insertBefore(wrap, body.firstChild);
+}
 
-    const zone = document.getElementById('actions-zone');
-    if (!zone || !zone.parentNode) return;
-    zone.parentNode.insertBefore(wrap, zone);
-    fadeTimer = setTimeout(() => {
-        document.removeEventListener('keydown', onEsc);
-        wrap.classList.add('diff-toast-out');
-    }, 10000);
-    removeTimer = setTimeout(() => {
-        document.removeEventListener('keydown', onEsc);
-        wrap.remove();
-    }, 10500);
+function _formatMetricsRow(metrics) {
+    if (!metrics || typeof metrics !== 'object') return '';
+    const n = metrics.narrate || {};
+    const x = metrics.extract || {};
+    const ns = (n.total_ms != null) ? (Number(n.total_ms) / 1000).toFixed(1) + 's' : '—';
+    const xs = (x.total_ms != null) ? (Number(x.total_ms) / 1000).toFixed(1) + 's' : '—';
+    return 'narrate ' + ns + '   ·   extract ' + xs;
+}
+
+function _narrativePanelEl() {
+    return document.getElementById('narrative-panel');
+}
+
+function _scrollNarrativeToBottom(np) {
+    const el = np || _narrativePanelEl();
+    if (el) el.scrollTop = el.scrollHeight;
+}
+
+function _narrativeNearBottom(np, thresholdPx) {
+    const el = np || _narrativePanelEl();
+    if (!el) return true;
+    const th = thresholdPx == null ? 80 : thresholdPx;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < th;
 }
 
 function _progressStripHTML() {
@@ -302,8 +404,9 @@ function game() {
         turnNum: {{ state.meta.turn | default(0) }},
 
         init() {
-            // Expose instance so server-rendered pill onclick can reach fillAndSubmit
             window._gameInstance = this;
+            this.initReroll();
+            _bindTooltips(document);
         },
 
         onEnter(event) {
@@ -313,13 +416,52 @@ function game() {
             }
         },
 
-        async startNewGame() {
+        openPackPicker() {
+            const backdrop = document.getElementById('pack-picker-backdrop');
+            const modal = document.getElementById('pack-picker-modal');
+            const body = document.getElementById('pack-picker-body');
+            backdrop.style.display = 'block';
+            modal.style.display = 'flex';
+            body.innerHTML = '<p class="empty-state">Loading…</p>';
+
+            const self = this;
+            const close = () => {
+                backdrop.style.display = 'none';
+                modal.style.display = 'none';
+                document.removeEventListener('keydown', onKey);
+            };
+
+            fetch('/panels/pack-picker')
+                .then(r => r.text())
+                .then(html => {
+                    body.innerHTML = html;
+                    body.addEventListener('click', function onCardClick(e) {
+                        const card = e.target.closest('[data-pack-id]');
+                        if (!card) return;
+                        body.removeEventListener('click', onCardClick);
+                        close();
+                        self.startNewGame(card.dataset.packId);
+                    });
+                })
+                .catch(() => { body.innerHTML = '<p class="empty-state">Failed to load packs.</p>'; });
+
+            document.getElementById('pack-picker-close').onclick = close;
+            backdrop.onclick = close;
+
+            const onKey = (e) => { if (e.key === 'Escape') close(); };
+            document.addEventListener('keydown', onKey);
+            window._closePackPicker = close;
+        },
+
+        async startNewGame(packId) {
+            window._closePackPicker && window._closePackPicker();
             if (this.turnNum > 0 && !confirm('Reset the current game? This cannot be undone.')) return;
             this.starting = true;
             try {
-                const resp = await fetch('/new-game', { method: 'POST' });
+                const body = new FormData();
+                if (packId) body.append('pack_id', packId);
+                const resp = await fetch('/new-game', { method: 'POST', body });
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                // Reload the page — server will render the opening scene + fresh state
                 window.location.reload();
             } catch (e) {
                 console.error('New game failed:', e);
@@ -331,29 +473,45 @@ function game() {
             }
         },
 
+        // Show reroll button after page loads with an opening (dynamic pack only)
+        initReroll() {
+            const btn = document.getElementById('reroll-btn');
+            const openingBlock = document.getElementById('opening-block');
+            if (btn && openingBlock && this.turnNum === 0) {
+                btn.style.display = '';
+                // Hide reroll once the player takes their first turn
+                const obs = new MutationObserver(() => {
+                    if (this.turnNum > 0) { btn.style.display = 'none'; obs.disconnect(); }
+                });
+                obs.observe(document.getElementById('narrative-panel'), { childList: true, subtree: false });
+            }
+        },
+
         submitTurn() {
             if (!this.input.trim() || this.submitting || !this.gameStarted) return;
+            const np = _narrativePanelEl();
+            const prevInput = this.input;
+            const prevActions = [];
+            document.querySelectorAll('#actions-zone .action-pill').forEach((b) => {
+                prevActions.push(b.textContent);
+            });
+
             this.submitting = true;
             const userInput = this.input.trim();
             this.input = '';
 
-            // Disable pills during turn
-            document.querySelectorAll('.action-pill').forEach(p => p.disabled = true);
+            document.querySelectorAll('.action-pill').forEach((p) => { p.disabled = true; });
 
-            const np = document.getElementById('narrative-panel');
-
-            // Remove "no game" empty prompt if still visible
             document.getElementById('empty-prompt')?.remove();
 
-            // Build narrative block — streaming cursor sits inside textDiv
-            const block   = document.createElement('div');
+            const block = document.createElement('div');
             block.className = 'narrative-block';
-            const echo    = document.createElement('p');
+            const echo = document.createElement('p');
             echo.className = 'narrative-input-echo';
             echo.textContent = '> ' + userInput;
             const textDiv = document.createElement('div');
             textDiv.className = 'narrative-text streaming';
-            const cursor  = document.createElement('span');
+            const cursor = document.createElement('span');
             cursor.className = 'streaming-cursor';
             textDiv.appendChild(cursor);
             const strip = document.createElement('div');
@@ -365,14 +523,50 @@ function game() {
             block.appendChild(textDiv);
             block.appendChild(strip);
             np.appendChild(block);
+            _scrollNarrativeToBottom(np);
+
+            const self = this;
+            this._turnEs = null;
+            this._turnCancel = function () {
+                const t = self._turnEs;
+                if (t) {
+                    try { t.close(); } catch (err) { /* ignore */ }
+                }
+                self._turnEs = null;
+                self._turnCancel = null;
+                _clearProgressStrip(strip);
+                if (cursor.parentNode) cursor.remove();
+                if (textDiv) {
+                    textDiv.classList.remove('streaming');
+                    textDiv.innerHTML = '';
+                }
+                if (block.parentNode) block.remove();
+                self.input = prevInput;
+                const zone = document.getElementById('actions-zone');
+                if (zone && prevActions.length) {
+                    zone.innerHTML = '';
+                    prevActions.forEach((action) => {
+                        const btn = document.createElement('button');
+                        btn.className = 'action-pill';
+                        btn.textContent = action;
+                        btn.addEventListener('click', () => self.fillFromChoice(action));
+                        zone.appendChild(btn);
+                    });
+                } else if (zone) {
+                    zone.innerHTML = '<span class="empty-state">Suggested actions appear after each turn.</span>';
+                }
+                self.submitting = false;
+                document.getElementById('player-input')?.focus();
+            };
 
             const url = '/turn?input=' + encodeURIComponent(userInput);
-            const es  = new EventSource(url);
+            const es = new EventSource(url);
+            this._turnEs = es;
 
             es.addEventListener('narrative_token', (e) => {
                 const data = JSON.parse(e.data);
-                // Insert raw text before the cursor (no autoscroll during stream)
                 cursor.insertAdjacentText('beforebegin', data.chunk || '');
+                if (_narrativeNearBottom(np)) _scrollNarrativeToBottom(np);
             });
 
             es.addEventListener('phase', (e) => {
@@ -388,22 +582,26 @@ function game() {
 
             es.addEventListener('turn_complete', (e) => {
                 es.close();
+                self._turnEs = null;
+                self._turnCancel = null;
                 const result = JSON.parse(e.data);
-                this.turnNum  = result.turn || this.turnNum;
+                this.turnNum = result.turn || this.turnNum;
                 _clearProgressStrip(strip);
 
                 const tagline = result.state ? _headerTaglineFromState(result.state) : null;
                 const hl = document.getElementById('header-logo');
                 if (hl && tagline) hl.innerHTML = _renderMarkdownInline(tagline);
                 if (tagline) document.title = tagline.replace(/\*\*?([^*]+)\*\*?/g, '$1').trim();
-                if (result.diff && result.diff.length) _showDiffToast(result.diff);
 
-                // Replace streamed plain text with formatted markdown
                 if (cursor.parentNode) cursor.remove();
                 textDiv.classList.remove('streaming');
                 textDiv.innerHTML = _renderMarkdown(result.narrative || '');
 
-                // Rejection notice (below the narrative text)
+                const met = document.createElement('div');
+                met.className = 'turn-metrics';
+                met.textContent = _formatMetricsRow(result.metrics);
+                textDiv.after(met);
+
                 if (result.rejected && result.rejected.length > 0) {
                     const note = document.createElement('div');
                     note.className = 'rejection-note';
@@ -411,57 +609,70 @@ function game() {
                     block.appendChild(note);
                 }
 
-                // Repopulate action pills
+                _showTurnSummary(result.change_lines || []);
+
                 const zone = document.getElementById('actions-zone');
                 if (result.actions && result.actions.length > 0) {
                     zone.innerHTML = '';
-                    result.actions.forEach(action => {
+                    result.actions.forEach((action) => {
                         const btn = document.createElement('button');
                         btn.className = 'action-pill';
                         btn.textContent = action;
-                        btn.addEventListener('click', () => this.fillAndSubmit(action));
+                        btn.addEventListener('click', () => this.fillFromChoice(action));
                         zone.appendChild(btn);
                     });
                 } else {
                     zone.innerHTML = '<span class="empty-state">No suggested actions.</span>';
                 }
 
-                htmx.ajax('GET', '/panels/state-left',  { target: '#state-panel-left' });
+                _prependTurnLogTurn(result.turn, result.change_lines || []);
+
+                htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
                 htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
                 this.submitting = false;
                 setTimeout(() => document.getElementById('player-input')?.focus(), 100);
+                _bindTooltips(document);
             });
 
             es.addEventListener('turn_error', (e) => {
                 es.close();
+                self._turnEs = null;
+                self._turnCancel = null;
                 _clearProgressStrip(strip);
                 if (cursor.parentNode) cursor.remove();
                 const data = JSON.parse(e.data);
                 textDiv.innerHTML =
                     `<span style="color:var(--accent-error)">${_escapeHtml(data.error || 'Unknown error')}</span>`;
-                htmx.ajax('GET', '/panels/state-left',  { target: '#state-panel-left' });
+                htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
                 htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
-                document.querySelectorAll('.action-pill').forEach(p => p.disabled = false);
+                document.querySelectorAll('.action-pill').forEach((p) => { p.disabled = false; });
                 this.submitting = false;
             });
 
             es.onerror = () => {
                 es.close();
+                self._turnEs = null;
+                self._turnCancel = null;
                 if (this.submitting) {
                     _clearProgressStrip(strip);
                     if (cursor.parentNode) cursor.remove();
                     textDiv.insertAdjacentHTML('beforeend',
                         '<span style="color:var(--accent-error)"> [connection\u00a0lost\u00a0\u2014 try again]</span>');
-                    document.querySelectorAll('.action-pill').forEach(p => p.disabled = false);
+                    document.querySelectorAll('.action-pill').forEach((p) => { p.disabled = false; });
                     this.submitting = false;
                 }
             };
         },
 
-        fillAndSubmit(text) {
+        stopTurn() {
+            if (!this.submitting || typeof this._turnCancel !== 'function') return;
+            this._turnCancel();
+        },
+
+        fillFromChoice(text) {
             if (this.submitting) return;
-            this.input = text;
-            this.submitTurn();
+            this.input = (text || '') + ' ';
+            document.getElementById('player-input')?.focus();
         },
     };
 }
@@ -520,99 +731,115 @@ function _applyMarkdown(root) {
 }
 
 // ---------------------------------------------------------------------------
-// Tooltip portal — escapes overflow:hidden/auto containers
+// Tooltip portal — per-anchor mouseenter/mouseleave (no hover bridge)
 // ---------------------------------------------------------------------------
-(function () {
-    const MARGIN = 8;
-    let _anchor = null;
-    let _hideTimer = null;
-    const portal = () => document.getElementById('tooltip-portal');
-    const tip = () => { const p = portal(); return p ? p.querySelector('.tooltip-body') : null; };
+const TT_MARGIN = 8;
+let _ttAnchor = null;
 
-    function _position(rect) {
-        const t = tip();
-        if (!t) return;
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        const tw = t.offsetWidth || 280;
-        const th = t.offsetHeight || 100;
+function _ttTip() {
+    const p = document.getElementById('tooltip-portal');
+    return p ? p.querySelector('.tooltip-body') : null;
+}
 
-        let top = rect.bottom + MARGIN;
-        let left = rect.left;
+function _ttPosition(rect) {
+    const t = _ttTip();
+    if (!t) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const tw = t.offsetWidth || 280;
+    const th = t.offsetHeight || 100;
+    let top = rect.bottom + TT_MARGIN;
+    let left = rect.left;
+    if (top + th > vh - TT_MARGIN) top = rect.top - th - TT_MARGIN;
+    if (left + tw > vw - TT_MARGIN) left = vw - tw - TT_MARGIN;
+    if (left < TT_MARGIN) left = TT_MARGIN;
+    t.style.top = top + 'px';
+    t.style.left = left + 'px';
+}
 
-        // Flip above if below the viewport
-        if (top + th > vh - MARGIN) top = rect.top - th - MARGIN;
-        // Clamp horizontal
-        if (left + tw > vw - MARGIN) left = vw - tw - MARGIN;
-        if (left < MARGIN) left = MARGIN;
+function _tooltipShow(anchor) {
+    const src = anchor.querySelector(':scope > .tooltip-body');
+    if (!src) return;
+    const t = _ttTip();
+    if (!t) return;
+    _ttAnchor = anchor;
+    t.innerHTML = src.innerHTML;
+    _configureMarked();
+    t.querySelectorAll('[data-md]').forEach((el) => {
+        el.innerHTML = _renderMarkdownInline(el.textContent);
+        el.removeAttribute('data-md');
+    });
+    _ttPosition(anchor.getBoundingClientRect());
+    t.classList.add('tt-visible');
+}
 
-        t.style.top  = top  + 'px';
-        t.style.left = left + 'px';
-    }
+function _tooltipHide() {
+    const t = _ttTip();
+    if (t) { t.classList.remove('tt-visible'); t.innerHTML = ''; }
+    _ttAnchor = null;
+}
 
-    function _show(anchor) {
-        const src = anchor.querySelector(':scope > .tooltip-body');
-        if (!src) return;
-        const t = tip();
-        if (!t) return;
-        clearTimeout(_hideTimer);
-        _anchor = anchor;
-
-        // Clone content; run markdown on data-md elements
-        t.innerHTML = src.innerHTML;
-        _configureMarked();
-        t.querySelectorAll('[data-md]').forEach(el => {
-            el.innerHTML = _renderMarkdownInline(el.textContent);
-            el.removeAttribute('data-md');
+function _bindTooltips(root) {
+    (root || document).querySelectorAll('.has-tooltip').forEach((anchor) => {
+        if (anchor.dataset.ttBound) return;
+        anchor.dataset.ttBound = '1';
+        anchor.addEventListener('mouseenter', () => { _tooltipShow(anchor); });
+        anchor.addEventListener('mouseleave', (e) => {
+            const rel = e.relatedTarget;
+            if (rel && anchor.contains(rel)) return;
+            _tooltipHide();
         });
+    });
+}
 
-        _position(anchor.getBoundingClientRect());
-        t.classList.add('tt-visible');
+window.addEventListener('scroll', () => {
+    if (_ttAnchor) _ttPosition(_ttAnchor.getBoundingClientRect());
+}, { passive: true, capture: true });
+window.addEventListener('resize', () => {
+    if (_ttAnchor) _ttPosition(_ttAnchor.getBoundingClientRect());
+});
+
+function initTurnLogUi() {
+    const toggle = document.getElementById('turn-log-toggle');
+    const shell = document.getElementById('turn-log-shell');
+    const closeBtn = document.getElementById('turn-log-close');
+    const backdrop = document.getElementById('turn-log-backdrop');
+    const refreshBtn = document.getElementById('turn-log-refresh');
+    if (!toggle || !shell) return;
+    let loaded = false;
+    function openShell() {
+        shell.hidden = false;
+        toggle.setAttribute('aria-expanded', 'true');
+        if (!loaded && typeof htmx !== 'undefined') {
+            loaded = true;
+            htmx.ajax('GET', '/panels/turn-log?limit=50', { target: '#turn-log-body', swap: 'innerHTML' });
+        }
     }
-
-    function _hide() {
-        _hideTimer = setTimeout(() => {
-            const t = tip();
-            if (t) { t.classList.remove('tt-visible'); t.innerHTML = ''; }
-            _anchor = null;
-        }, 80);
+    function closeShell() {
+        shell.hidden = true;
+        toggle.setAttribute('aria-expanded', 'false');
     }
-
-    document.addEventListener('mouseover', (e) => {
-        const anchor = e.target.closest && e.target.closest('.has-tooltip');
-        if (!anchor || anchor === _anchor) return;
-        _show(anchor);
+    toggle.addEventListener('click', () => {
+        if (shell.hidden) openShell(); else closeShell();
     });
-    document.addEventListener('mouseout', (e) => {
-        const anchor = e.target.closest && e.target.closest('.has-tooltip');
-        if (!anchor) return;
-        const related = e.relatedTarget;
-        // Don't hide if moving within same anchor
-        if (related && anchor.contains(related)) return;
-        _hide();
-    });
-    // Keep tooltip open while hovering the portal itself
-    document.addEventListener('mouseover', (e) => {
-        if (e.target.closest && e.target.closest('#tooltip-portal')) clearTimeout(_hideTimer);
-    });
-    document.addEventListener('mouseout', (e) => {
-        if (e.target.closest && e.target.closest('#tooltip-portal')) {
-            const related = e.relatedTarget;
-            if (!related || !related.closest('#tooltip-portal')) _hide();
+    closeBtn?.addEventListener('click', (ev) => { ev.stopPropagation(); closeShell(); });
+    backdrop?.addEventListener('click', closeShell);
+    refreshBtn?.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (typeof htmx !== 'undefined') {
+            htmx.ajax('GET', '/panels/turn-log?limit=50', { target: '#turn-log-body', swap: 'innerHTML' });
         }
     });
-    // Reposition on scroll / resize
-    window.addEventListener('scroll', () => {
-        if (_anchor) _position(_anchor.getBoundingClientRect());
-    }, { passive: true, capture: true });
-    window.addEventListener('resize', () => {
-        if (_anchor) _position(_anchor.getBoundingClientRect());
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !shell.hidden) closeShell();
     });
-})();
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     _configureMarked();
     _applyMarkdown();
+    _bindTooltips(document);
+    initTurnLogUi();
 
     // Collapsed/open state for sidebar <details> cards.
     // `toggle` does NOT bubble — must use capture phase for delegation.
@@ -635,6 +862,7 @@ document.addEventListener('DOMContentLoaded', () => {
             _applyQuestTabsFromStorage(e.target);
             applyQuestObjectiveOpenFromStorage(e.target);
             _applyMarkdown(e.target);
+            _bindTooltips(e.target);
         }
         if (id === 'debug-content') {
             _applyMarkdown(e.target);
@@ -688,6 +916,18 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <div id="tooltip-portal"><div class="tooltip-body"></div></div>
+
+<!-- Pack picker modal -->
+<div id="pack-picker-backdrop" class="pack-picker-backdrop" style="display:none"></div>
+<div id="pack-picker-modal" class="pack-picker-modal" role="dialog" aria-modal="true" aria-labelledby="pack-picker-title" style="display:none">
+    <div class="pack-picker-head">
+        <span id="pack-picker-title" class="pack-picker-title">Choose a World</span>
+        <button type="button" class="pack-picker-close" id="pack-picker-close" aria-label="Close">×</button>
+    </div>
+    <div id="pack-picker-body" class="pack-picker-body">
+        <p class="empty-state">Loading packs…</p>
+    </div>
+</div>
 
 </body>
 </html>

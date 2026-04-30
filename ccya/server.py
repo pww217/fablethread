@@ -9,21 +9,22 @@ from collections import deque
 from pathlib import Path
 from typing import Any
 
-import yaml
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader
 from sse_starlette.sse import EventSourceResponse
 
-from ccya.engine import EngineConfig, is_turn_in_progress, run_turn, warmup
+from ccya.engine import EngineConfig, format_change_lines, generate_seed, is_turn_in_progress, run_turn, warmup
 from ccya.logging_setup import setup_logging
 from ccya.models import load_config as _load_config
+from ccya.pack import Pack, load_pack, list_packs
 from ccya.state import init_save_dir, load_recent_chronicle_turns, load_state
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 PROMPTS_DIR = BASE_DIR / "prompts"
+PACKS_DIR = BASE_DIR.parent / "packs"
 SAVE_DIR = Path("saves") / "default"
 
 config: dict[str, Any] = _load_config(BASE_DIR.parent / "config.yaml")
@@ -43,11 +44,29 @@ engine_config = EngineConfig(
     enforce_extract_schema=config["ollama"].get("enforce_extract_schema", True),
     enable_extract_thinking=config["ollama"].get("enable_extract_thinking", False),
     enable_narrate_thinking=config["ollama"].get("enable_narrate_thinking", False),
+    generate_seed_temperature=config["ollama"].get("generate_seed_temperature", 0.9),
+    generate_seed_max_retries=config["ollama"].get("generate_seed_max_retries", 1),
+    enforce_seed_schema=config["ollama"].get("enforce_seed_schema", False),
     log_llm_io=config.get("logging", {}).get("log_llm_io", False),
     log_llm_io_max_chars=config.get("logging", {}).get("log_llm_io_max_chars", 4000),
 )
 
 logger = setup_logging(config)
+
+# ---------------------------------------------------------------------------
+# Pack loading — active pack is mutable (changed via New Game picker)
+# ---------------------------------------------------------------------------
+
+_pack_id: str = config.get("game", {}).get("setting_pack", "expanse-belter")
+try:
+    _active_pack: Pack = load_pack(_pack_id, PACKS_DIR)
+    logger.info("Loaded pack: %s (mode=%s)", _pack_id, _active_pack.manifest.mode)
+except Exception as exc:
+    logger.error("Failed to load pack %r: %s", _pack_id, exc)
+    raise
+
+# Cache for the opening text of dynamic packs (written on New Game / re-roll, read on GET /)
+_dynamic_opening: str = ""
 
 app = FastAPI(title="ccya")
 _jinja_env = Environment(
@@ -103,12 +122,12 @@ def _load_last_actions(save_dir: Path) -> list[str]:
         return []
 
 
-def _load_opening() -> str:
-    pack = config.get("game", {}).get("setting_pack", "hard-scifi-demo")
-    path = BASE_DIR.parent / "packs" / pack / "opening_scene.md"
-    if path.exists():
-        return path.read_text()
-    return ""
+def _get_opening() -> str:
+    """Return opening prose: dynamic packs use the cached LLM-generated text; static use pack file."""
+    global _dynamic_opening
+    if _active_pack.manifest.mode == "dynamic":
+        return _dynamic_opening
+    return _active_pack.opening_text
 
 
 def _add_timing(entry: dict, start: float) -> None:
@@ -146,13 +165,14 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
         ext = ev.get("extract") or {}
         rej = ev.get("rejected") or []
         tid = str(ev.get("trace_id") or "")
+        n_in, n_out = narr.get("tokens_in"), narr.get("tokens_out")
         tin, tout = ext.get("tokens_in"), ext.get("tokens_out")
+        parts: list[str] = []
+        if n_in is not None and n_out is not None:
+            parts.append(f"N{n_in}/{n_out}")
         if tin is not None and tout is not None:
-            tok = f"{tin}/{tout}"
-        elif tin is not None:
-            tok = str(tin)
-        else:
-            tok = "—"
+            parts.append(f"E{tin}/{tout}")
+        tok = "\n".join(parts) if parts else "—"
         rows.append({
             "turn": ev.get("turn", 0),
             "trace_id": tid[:8] if len(tid) >= 8 else tid,
@@ -168,6 +188,35 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
     return rows
 
 
+def _turn_log_entries(save_dir: Path, limit: int = 50) -> list[dict[str, Any]]:
+    """Build rows for _turn_log.html from events.jsonl (newest first)."""
+    path = save_dir / "events.jsonl"
+    if not path.exists():
+        return []
+    raw = path.read_text().strip()
+    if not raw:
+        return []
+    lines = [ln for ln in raw.splitlines() if ln.strip()]
+    if not lines:
+        return []
+    tail = lines[-limit:]
+    entries: list[dict[str, Any]] = []
+    for line in reversed(tail):
+        try:
+            ev = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        ch = ev.get("changes")
+        if isinstance(ch, dict):
+            disp = format_change_lines(ch)
+        else:
+            disp = ["(no structured summary — older save)"]
+        if not disp:
+            disp = ["(no changes this turn)"]
+        entries.append({"turn": int(ev.get("turn") or 0), "lines": disp})
+    return entries
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -178,13 +227,16 @@ async def index(request: Request):
     history = _load_recent_history(SAVE_DIR)
     last_actions = _load_last_actions(SAVE_DIR) if history else []
     state = _load_current_state()
-    # Show opening scene text server-side when there's no history yet (turn 0 or fresh game)
-    opening = _load_opening() if not history and state.get("location", {}).get("id") else ""
+    opening = _get_opening() if not history and state.get("location", {}).get("id") else ""
     ctx = _debug_context()
     ctx["state"] = state
     ctx["history"] = history
     ctx["last_actions"] = last_actions
     ctx["opening"] = opening
+    ctx["pack_mode"] = _active_pack.manifest.mode
+    ctx["pack_name"] = _active_pack.manifest.name
+    css_path = BASE_DIR / "static" / "app.css"
+    ctx["css_v"] = int(css_path.stat().st_mtime) if css_path.exists() else 0
     return _render("index.html", ctx)
 
 
@@ -192,12 +244,9 @@ async def index(request: Request):
 async def get_turn(input: str = ""):
     """GET /turn?input=... -> SSE stream.
 
-    Uses GET so the browser's native EventSource API can connect without CORS
-    pre-flight or custom headers. Appropriate for a local-only single-player tool.
-
     SSE event types:
       narrative_token  data: {"chunk": "..."}
-      phase              data: {phase, expected_ms?, attempt?}
+      phase            data: {phase, expected_ms?, attempt?}
       turn_complete    data: {turn, trace_id, narrative, actions, scene_tags,
                               rejected, errors, diff, state, metrics}
       turn_error       data: {"error": "...", "trace_id": "..."}
@@ -218,12 +267,13 @@ async def get_turn(input: str = ""):
     async def event_stream():
         timing = {"event": "turn_start", "input": user_input[:100]}
         _REQUEST_LOG.append(timing)
-
         try:
             async for kind, payload in run_turn(
                 SAVE_DIR, user_input,
                 config=engine_config,
                 template_dir=str(PROMPTS_DIR),
+                pack_style=_active_pack.style_text,
+                pack_examples=_active_pack.extract_examples,
             ):
                 if kind == "token":
                     yield {"event": "narrative_token", "data": json.dumps({"chunk": payload})}
@@ -234,6 +284,7 @@ async def get_turn(input: str = ""):
                     for err in result.errors:
                         _ERRORS_LOG.appendleft(err)
                     _add_timing(timing, start)
+                    ch = result.changes if isinstance(result.changes, dict) else {}
                     yield {"event": "turn_complete", "data": json.dumps({
                         "turn": result.turn,
                         "trace_id": result.trace_id,
@@ -243,6 +294,8 @@ async def get_turn(input: str = ""):
                         "rejected": result.rejected,
                         "errors": result.errors,
                         "diff": result.diff,
+                        "changes": ch,
+                        "change_lines": format_change_lines(ch),
                         "state": _load_current_state(),
                         "metrics": result.metrics,
                     })}
@@ -256,22 +309,73 @@ async def get_turn(input: str = ""):
 
 @app.post("/new-game")
 async def new_game(request: Request):
-    """Reset save from starter pack seed state."""
-    seed = _load_seed()
-    seed.setdefault("meta", {})
-    seed["meta"]["model"] = config["ollama"]["model"]
-    init_save_dir(SAVE_DIR, seed)
+    """Reset save: static packs load seed directly; dynamic packs call generate_seed.
+    Accepts optional form field `pack_id` to switch the active pack."""
+    global _dynamic_opening, _active_pack, _pack_id
     _ERRORS_LOG.clear()
-    return _render("_state.html", _debug_context())
+
+    form = await request.form()
+    requested_pack = str(form.get("pack_id", "")).strip()
+    if requested_pack and requested_pack != _pack_id:
+        try:
+            _active_pack = load_pack(requested_pack, PACKS_DIR)
+            _pack_id = requested_pack
+            logger.info("Switched pack to %s (mode=%s)", _pack_id, _active_pack.manifest.mode)
+        except Exception as exc:
+            logger.error("Failed to switch pack %r: %s", requested_pack, exc)
+            _ERRORS_LOG.appendleft({"message": f"Unknown pack: {requested_pack}"})
+
+    if _active_pack.manifest.mode == "static":
+        seed = _active_pack.seed.model_dump()
+        seed.setdefault("meta", {})["model"] = config["ollama"]["model"]
+        init_save_dir(SAVE_DIR, seed)
+        _dynamic_opening = ""
+    else:
+        # dynamic: LLM-generated seed
+        try:
+            envelope = await generate_seed(
+                _active_pack,
+                engine_config,
+                template_dir=str(PROMPTS_DIR),
+            )
+            seed = envelope.seed_state.model_dump()
+            seed.setdefault("meta", {})["model"] = config["ollama"]["model"]
+            seed["meta"]["setting_pack"] = _pack_id
+            init_save_dir(SAVE_DIR, seed)
+            _dynamic_opening = envelope.opening_narrative
+        except Exception as exc:
+            logger.exception("generate_seed failed")
+            _ERRORS_LOG.appendleft({"message": f"New game generation failed: {exc}"})
+
+    ctx = _debug_context()
+    ctx["pack_mode"] = _active_pack.manifest.mode
+    return _render("_state.html", ctx)
 
 
-def _load_seed() -> dict:
-    pack = config.get("game", {}).get("setting_pack", "hard-scifi-demo")
-    seed_path = BASE_DIR.parent / "packs" / pack / "seed_state.yaml"
-    if seed_path.exists():
-        with open(seed_path) as f:
-            return yaml.safe_load(f) or {}
-    return {}
+@app.post("/new-game/reroll")
+async def new_game_reroll(request: Request):
+    """Re-roll the seed for a dynamic pack (before turn 1) without changing pack mode."""
+    global _dynamic_opening
+    if _active_pack.manifest.mode != "dynamic":
+        return HTMLResponse("<p>Re-roll only available for dynamic packs.</p>", status_code=400)
+
+    try:
+        envelope = await generate_seed(
+            _active_pack,
+            engine_config,
+            template_dir=str(PROMPTS_DIR),
+        )
+        seed = envelope.seed_state.model_dump()
+        seed.setdefault("meta", {})["model"] = config["ollama"]["model"]
+        seed["meta"]["setting_pack"] = _pack_id
+        init_save_dir(SAVE_DIR, seed)
+        _dynamic_opening = envelope.opening_narrative
+    except Exception as exc:
+        logger.exception("generate_seed reroll failed")
+        _ERRORS_LOG.appendleft({"message": f"Re-roll failed: {exc}"})
+        return HTMLResponse(f"<p class='text-red-400'>Re-roll failed: {exc}</p>")
+
+    return HTMLResponse(_dynamic_opening)
 
 
 @app.get("/panels/state")
@@ -320,9 +424,23 @@ def panel_debug():
     return _render("_debug.html", _debug_context())
 
 
+@app.get("/panels/pack-picker", response_class=HTMLResponse)
+def panel_pack_picker():
+    """Return HTML fragment: pack picker cards for the New Game modal."""
+    packs = list_packs(PACKS_DIR)
+    return _render("_pack_picker.html", {"packs": packs, "active_pack_id": _pack_id})
+
+
+@app.get("/panels/turn-log", response_class=HTMLResponse)
+def panel_turn_log(limit: int = 50):
+    """HTMX fragment: human-readable turn summaries from events.jsonl."""
+    lim = max(1, min(limit, 200))
+    return _render("_turn_log.html", {"entries": _turn_log_entries(SAVE_DIR, lim)})
+
+
 @app.get("/opening")
 def opening():
-    return HTMLResponse(_load_opening())
+    return HTMLResponse(_get_opening())
 
 
 @app.get("/healthz")
@@ -379,13 +497,12 @@ def healthz():
 async def startup_event():
     import asyncio
 
-    logger.info("ccya starting")
+    logger.info("ccya starting — pack: %s (mode=%s)", _pack_id, _active_pack.manifest.mode)
     if config.get("game", {}).get("warmup_on_start", True):
         async def _warmup_bg() -> None:
             logger.info("Warming up Ollama model (background)…")
             await warmup(engine_config)
             logger.info("Model warmup complete")
-
         asyncio.create_task(_warmup_bg())
 
 

@@ -1,0 +1,24 @@
+examples:
+  - title: "Ammo expenditure + infected cleared + location mood shift"
+    thinking: |
+      - Fired twice; subtract 2 rounds from 9mm-rounds stack.
+      - Infected in the hallway eliminated — scene cleared.
+      - Location description shifts; noise now a new risk factor.
+    json: |
+      {"state_delta": {"scene_tags": ["combat", "tension"], "scene_tagline": "Hallway clear — but they heard", "location_description": "Two shells on the concrete floor, brass catching the flashlight beam. The hallway reeks of copper and rot. Somewhere outside, glass breaks.", "present_npcs": [{"id": "deacon-walsh", "notes": "Pressed against the wall, breathing hard; grateful but scared by the noise."}], "inventory_remove": [{"id": "9mm-rounds", "amount": 2}], "established_facts_add": ["The gunshots in the east wing will attract infected within the next few minutes."]}, "actions": ["Move deeper into the building now", "Barricade the stairwell door", "Check on Deacon Walsh", "Listen at the exterior window"]}
+
+  - title: "Infection condition added + NPC death + quest objective failed"
+    thinking: |
+      - Bitten during the struggle — add pc_condition_add.
+      - Marcus did not survive; remove from present NPCs; quest objective failed.
+      - New established fact: Marcus is gone.
+    json: |
+      {"state_delta": {"scene_tags": ["combat", "loss"], "scene_tagline": "Marcus is gone — and the scratch", "location_description": "The loading dock floor is dark and wet. One bay door is still banging in the wind.", "present_npcs": [{"id": "ambient-silence", "name": "Empty dock", "title": "No one left", "notes": "The space feels larger without him."}], "pc_condition_add": ["bitten — left forearm, through jacket sleeve"], "quest_updates": [{"id": "reach-the-relay-tower", "objectives": [{"index": 2, "failed": true}]}], "established_facts_add": ["Marcus Teller did not make it out of the loading dock. His insulin supply is lost with him."], "established_facts_remove": ["Marcus Teller is traveling with you; he is diabetic and needs insulin within 48 hours."]}, "actions": ["Check the bite under the light", "Collect what Marcus was carrying", "Keep moving — don't stop", "Find somewhere defensible to think"]}
+
+  - title: "Trade + trust shift + new quest accepted"
+    thinking: |
+      - Gave bandages in exchange for fuel (inventory swap).
+      - Trust with Yara's group has improved — update NPC notes.
+      - New quest: find antibiotics for their wounded member.
+    json: |
+      {"state_delta": {"scene_tags": ["negotiation", "alliance"], "scene_tagline": "A deal — and what it cost", "location_description": "The camp fire has been banked low. Someone is playing a harmonica three tents over, badly.", "present_npcs": [{"id": "yara-osei", "notes": "She took the bandages without comment but held eye contact. That's something."}, {"id": "camp-ambient", "name": "Yara's group", "title": "Survivors — Ashford Camp", "notes": "Watching from a cautious distance; not hostile."}], "inventory_remove": [{"id": "bandages", "amount": 2}], "inventory_add": [{"id": "fuel-can", "name": "Fuel canister", "notes": "Two liters of gasoline — enough for maybe thirty miles.", "amount": 1}], "quest_updates": [{"id": "find-antibiotics-for-tobin", "title": "Medicine for Tobin", "status": "active", "objectives": [{"description": "Find amoxicillin or equivalent broad-spectrum antibiotic.", "done": false}, {"description": "Return to Ashford Camp before Tobin's wound turns septic — estimated 72 hours.", "done": false}]}]}, "actions": ["Ask Yara what she knows about the pharmacy to the north", "Sleep here tonight", "Leave before dawn", "Ask about the harmonica player"]}

@@ -1,24 +1,26 @@
 ollama:
   host: http://localhost:11434
   model: gemma4:26b-mxfp8
-  keep_alive: "5m"
-  num_ctx: 32768          # shared by both narrate and extract — must match to avoid model reload
-  extract_num_ctx: 32768  # keep equal to num_ctx; different values force a full Ollama runner restart
+  keep_alive: "10m"
+  num_ctx: 8192          # shared by both narrate and extract — must match to avoid model reload
+  extract_num_ctx: 8192  # keep equal to num_ctx; different values force a full Ollama runner restart
   request_timeout_s: 180
-  narrate_temperature: 0.8
-  extract_temperature: 0.0
+  narrate_temperature: 0.9
+  extract_temperature: 0.4
   max_extract_retries: 1
   enforce_extract_schema: false  # true = use Ollama format= grammar (slow, safe);
                                  # false = freeform output, parse with our regex (fast)
-  enable_extract_thinking: false  # true = <thinking> block before JSON (extra output tokens / latency)
+  # generate_seed (dynamic packs): large JSON schemas often make Ollama return 500 — leave false and rely on Pydantic.
+  enforce_seed_schema: false
+  enable_extract_thinking: false   # true = <thinking> block before JSON (extra output tokens / latency)
   enable_narrate_thinking: false  # true = optional <thinking> before prose (stripped from chronicle/extract)
 
 game:
   default_save: default
-  setting_pack: expanse-belter
-  window_turns: 6
+  setting_pack: zombie-survival
+  window_turns: 4 # Down from 6 to save on tokens.
   chronicle_prefix_budget_tokens: 1500
-  established_facts_max: 25    # rolling window; seed lore is baked in as initial state
+  established_facts_max: 30    # rolling window; seed lore is baked in as initial state
   warmup_on_start: true
 
 server:
@@ -27,8 +29,8 @@ server:
 
 logging:
   file: logs/llm-g.log
-  level: DEBUG            # DEBUG required for log_llm_io payloads to be emitted
-  log_llm_io: true        # log full prompts + raw responses to logs/llm-g.log
+  level: INFO            # DEBUG required for log_llm_io payloads to be emitted
+  log_llm_io: false        # log full prompts + raw responses to logs/llm-g.log
   log_llm_io_max_chars: 4000   # truncate per field to keep log readable
 
 debug:
