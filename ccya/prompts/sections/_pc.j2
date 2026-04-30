@@ -1,4 +1,7 @@
 ## Player Character
-**{{ state.pc.name or "Unnamed" }}** — {{ state.pc.concept or "No concept set." }}
+**{{ state.pc.name or "Unnamed" }}** — {{ state.pc.tagline or state.pc.concept or "No tagline set." }}
+{% if state.pc.bio %}
+**Bio:** {{ state.pc.bio }}
+{% endif %}
 Stats: {% for k, v in (state.pc.stats or {}).items() %}{{ k }}={{ v }} {% endfor %}
 Conditions: {% if (state.pc.conditions or []) %}{{ state.pc.conditions | join(", ") }}{% else %}None.{% endif %}

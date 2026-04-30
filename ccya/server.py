@@ -41,6 +41,8 @@ engine_config = EngineConfig(
     chronicle_prefix_budget_tokens=config["game"]["chronicle_prefix_budget_tokens"],
     established_facts_max=config["game"]["established_facts_max"],
     enforce_extract_schema=config["ollama"].get("enforce_extract_schema", True),
+    enable_extract_thinking=config["ollama"].get("enable_extract_thinking", False),
+    enable_narrate_thinking=config["ollama"].get("enable_narrate_thinking", False),
     log_llm_io=config.get("logging", {}).get("log_llm_io", False),
     log_llm_io_max_chars=config.get("logging", {}).get("log_llm_io_max_chars", 4000),
 )
@@ -197,7 +199,7 @@ async def get_turn(input: str = ""):
       narrative_token  data: {"chunk": "..."}
       phase              data: {phase, expected_ms?, attempt?}
       turn_complete    data: {turn, trace_id, narrative, actions, scene_tags,
-                              rejected, errors, state, metrics}
+                              rejected, errors, diff, state, metrics}
       turn_error       data: {"error": "...", "trace_id": "..."}
     """
     user_input = input.strip()
@@ -240,6 +242,7 @@ async def get_turn(input: str = ""):
                         "scene_tags": result.scene_tags,
                         "rejected": result.rejected,
                         "errors": result.errors,
+                        "diff": result.diff,
                         "state": _load_current_state(),
                         "metrics": result.metrics,
                     })}

@@ -10,6 +10,8 @@ ollama:
   max_extract_retries: 1
   enforce_extract_schema: false  # true = use Ollama format= grammar (slow, safe);
                                  # false = freeform output, parse with our regex (fast)
+  enable_extract_thinking: false  # true = <thinking> block before JSON (extra output tokens / latency)
+  enable_narrate_thinking: false  # true = optional <thinking> before prose (stripped from chronicle/extract)
 
 game:
   default_save: default
