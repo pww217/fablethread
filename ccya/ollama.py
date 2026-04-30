@@ -30,28 +30,31 @@ _MOCK_NARRATE = (
 
 _MOCK_EXTRACT_NARRATE = {
     "state_delta": {
-        "established_facts": ["You are at Docking Ring 7.", "Your hand terminal carries an encrypted pinger."],
+        "established_facts_add": [
+            "You are at Docking Ring 7.",
+            "Your hand terminal carries an encrypted pinger.",
+        ],
+        "scene_tags": ["exploration"],
     },
     "actions": [
         "Open the encrypted pinger",
         "Drift toward the cargo bay",
         "Check the terminal for sender info",
+        "Scan the berth for threats",
     ],
-    "scene_tags": ["exploration"],
-    "usage": {"prompt_tokens": 0, "total_tokens": 0},
 }
 
 _MOCK_EXTRACT_EXAMINE = {
     "state_delta": {
-        "established_facts": ["The pinger is from a shell company called 'Quiet Systems.'"],
+        "established_facts_add": ["The pinger is from a shell company called 'Quiet Systems.'"],
+        "scene_tags": ["dialogue"],
     },
     "actions": [
         "Trace the shell company",
         "Contact the sender",
         "Ignore the pinger",
+        "Step back from the terminal",
     ],
-    "scene_tags": ["dialogue"],
-    "usage": {"prompt_tokens": 0, "total_tokens": 0},
 }
 
 _MOCK_EXTRACT_CARGO = {
@@ -61,28 +64,31 @@ _MOCK_EXTRACT_CARGO = {
             "name": "Cargo Bay 7",
             "description": "Open cargo bay, crates stacked along the walls, smelling of lubricant.",
         },
-        "established_facts": ["A hauler offers passage to the lower ring.", "There is a terminal in the cargo bay."],
+        "established_facts_add": [
+            "A hauler offers passage to the lower ring.",
+            "There is a terminal in the cargo bay.",
+        ],
+        "scene_tags": ["travel"],
     },
     "actions": [
         "Accept the hauler's offer",
         "Use the cargo bay terminal",
         "Rest and observe",
+        "Decline and leave",
     ],
-    "scene_tags": ["travel"],
-    "usage": {"prompt_tokens": 0, "total_tokens": 0},
 }
 
 _MOCK_EXTRACT_DEFAULT = {
     "state_delta": {
-        "established_facts": ["Something new happens in the ring."],
+        "established_facts_add": ["Something new happens in the ring."],
+        "scene_tags": ["exploration"],
     },
     "actions": [
         "Look around",
         "Try something else",
         "Check your state",
+        "Wait and listen",
     ],
-    "scene_tags": [],
-    "usage": {"prompt_tokens": 0, "total_tokens": 0},
 }
 
 
@@ -103,16 +109,22 @@ class _mock_stream:
 
 
 def _mock_extract_chat(messages: list[dict[str, str]]) -> dict[str, Any]:
-    """Return canned extract JSON based on message content."""
+    """Return canned extract JSON (same shape as Ollama /api/chat) based on message content."""
     narrative = ""
     for msg in messages:
         narrative += msg.get("content", "")
 
     if "examine" in narrative.lower() or "terminal" in narrative.lower() or "pinger" in narrative.lower():
-        return _MOCK_EXTRACT_EXAMINE
-    if "cargo" in narrative.lower() or "bay" in narrative.lower() or "haul" in narrative.lower():
-        return _MOCK_EXTRACT_CARGO
-    return _MOCK_EXTRACT_NARRATE
+        body = _MOCK_EXTRACT_EXAMINE
+    elif "cargo" in narrative.lower() or "bay" in narrative.lower() or "haul" in narrative.lower():
+        body = _MOCK_EXTRACT_CARGO
+    else:
+        body = _MOCK_EXTRACT_NARRATE
+    return {
+        "response": json.dumps(body),
+        "done": True,
+        "usage": {"prompt_tokens": 0, "total_tokens": 0},
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -139,8 +151,10 @@ async def chat_stream(
             yield chunk
         return
 
-    body = _build_body(model, messages, temperature=temperature, num_ctx=num_ctx,
-                       keep_alive=keep_alive, stream=True)
+    body = _build_body(
+        model, messages, temperature=temperature, num_ctx=num_ctx,
+        keep_alive=keep_alive, stream=True,
+    )
 
     async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
         async with client.stream("POST", f"{host}/api/chat", json=body) as resp:
@@ -177,8 +191,10 @@ async def chat(
     if _MOCK_MODE:
         return _mock_extract_chat(messages)
 
-    body = _build_body(model, messages, temperature=temperature, num_ctx=num_ctx,
-                       keep_alive=keep_alive, format=format, stream=False)
+    body = _build_body(
+        model, messages, temperature=temperature, num_ctx=num_ctx,
+        keep_alive=keep_alive, format=format, stream=False,
+    )
 
     async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
         resp = await client.post(f"{host}/api/chat", json=body)

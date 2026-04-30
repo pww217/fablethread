@@ -24,8 +24,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncIterator
 
-_log = logging.getLogger("ccya.engine")
-
 from jinja2 import Environment, FileSystemLoader
 
 from ccya.models import ExtractResult, StateDelta, TurnResult
@@ -35,10 +33,13 @@ from ccya.state import (
     append_event,
     apply_delta,
     load_chronicle_tail,
-    load_recent_events,
+    load_recent_chronicle_turns,
     load_state,
+    resolve_inventory_canonical_id,
     save_state,
 )
+
+_log = logging.getLogger("ccya.engine")
 
 # ---------------------------------------------------------------------------
 # Per-save turn in-flight guard
@@ -151,16 +152,22 @@ def _extract_messages(
 
     system    = schema + extraction rules (stable)
     assistant = the narrative just produced (model "owns" this output)
-    user      = current quests/inventory reference + emit JSON instruction
+    user      = canonical state snapshot + emit JSON instruction
     """
     schema_json = json.dumps(ExtractResult.model_json_schema(), indent=2)
     system_text = _render(env, "extract_system.j2", {"schema_json": schema_json})
     active_quests = [q for q in state.get("quests", []) if q.get("status") == "active"]
     established_facts = list(state.get("scene", {}).get("established_facts") or [])
+    pc = state.get("pc") or {}
+    location = state.get("location") or {}
+    present_npcs = list(state.get("scene", {}).get("present_npcs") or [])
     user_text = _render(
         env,
         "extract_user.j2",
         {
+            "pc": pc,
+            "location": location,
+            "present_npcs": present_npcs,
             "active_quests": active_quests,
             "inventory": state.get("inventory", []),
             "established_facts": established_facts,
@@ -319,7 +326,7 @@ async def run_turn(
 
         # --- Memory: load chronicle tail + recent turns ---
         chronicle_tail = load_chronicle_tail(save_dir, config.chronicle_prefix_budget_tokens)
-        recent_turns = load_recent_events(save_dir, config.window_turns)
+        recent_turns = load_recent_chronicle_turns(save_dir, config.window_turns)
 
         # === Call 1: Narrate (streaming) ===
         narr_messages = _narrate_messages(
@@ -457,7 +464,7 @@ async def run_turn(
                 narrative += f"\n\n*That action didn't resolve as expected. Trace `{trace_id}` — try rephrasing.*"
             else:
                 state = apply_delta(state, delta, established_facts_max=config.established_facts_max)
-                established_facts = list(getattr(delta, "established_facts", []))
+                established_facts = list(delta.established_facts_add)
                 applied = delta.model_dump(exclude_none=True)
 
         # === Turn increment (single source of truth: here) ===
@@ -466,17 +473,16 @@ async def run_turn(
         yield ("phase", {"phase": "persist"})
 
         # === Write: events.jsonl → atomic state.yaml → chronicle.md ===
+        # Narrative is canonical in chronicle.md only (see load_recent_chronicle_turns).
         event = {
             "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "trace_id": trace_id,
             "turn": state["meta"]["turn"],
             "input": user_input,
-            "narrative": narrative,
             "applied": applied,
             "rejected": rejected,
             "actions": actions,
             "scene_tags": list(getattr(delta, "scene_tags", [])),
-            "established_facts": established_facts,
             "narrate": narr_metrics,
             "extract": ext_metrics,
         }
@@ -525,9 +531,9 @@ def _validate(state: dict, delta: StateDelta) -> list[dict]:
     """Strict delta validator. Returns rejection dicts for illegal changes."""
     rejections: list[dict] = []
 
-    existing_inv = {item.get("id") for item in state.get("inventory", [])}
+    inv_list: list[dict] = state.get("inventory", [])
     for rem in delta.inventory_remove:
-        if rem.id not in existing_inv:
+        if resolve_inventory_canonical_id(inv_list, rem.id) is None:
             rejections.append({
                 "field": "inventory_remove",
                 "value": rem.id,

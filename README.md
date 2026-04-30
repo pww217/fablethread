@@ -172,4 +172,12 @@ Each turn fires two Ollama calls:
 1. **Narrate** — streams narrative text (SSE, temperature 0.8)
 2. **Extract** — parses the narrative into structured state changes (temperature 0.0, schema-constrained)
 
-The extracted delta is validated against current state (reject illegal moves) before applying. Established facts from the narrative are fed back into the next turn's prompt for consistency.
+The extracted delta is validated against current state (e.g. impossible inventory removals) before applying.
+
+**Narrative storage** — Full turn-by-turn prose lives in **`chronicle.md`** only. The narrator’s “recent turns” context and browser reload history read from there (full text per turn). **`events.jsonl`** is a **state-change / timing log** — new rows do **not** duplicate narrative text.
+
+**Facts & PC conditions (deltas)** — The extract prompt lists current established facts and conditions. The model emits **`established_facts_add`**, **`established_facts_update`** (`old` → `new`, keeps list order), **`established_facts_remove`**, and **`pc_condition_add`** / **`pc_condition_remove`** — not full-list replacement. **`location_description`** nudges the current place each turn without changing `location_change`.
+
+**Inventory** uses transactional add/remove deltas; ids are **normalized** on apply so `water-filter` and `Water_Filter` stack together.
+
+Typical extract latency stays similar to before. Historical rows in `events.jsonl` keep whatever JSON shape they were written with; only new applies use the updated schema.
