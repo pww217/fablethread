@@ -61,6 +61,7 @@ except Exception as exc:
 
 # Cache for the opening text of dynamic packs (written on New Game / re-roll, read on GET /)
 _dynamic_opening: str = ""
+_dynamic_opening_actions: list[str] = []
 
 app = FastAPI(title="ccya")
 _jinja_env = Environment(
@@ -119,6 +120,13 @@ def _get_opening() -> str:
     if _active_pack.manifest.mode == "dynamic":
         return _dynamic_opening
     return _active_pack.opening_text
+
+
+def _get_opening_actions() -> list[str]:
+    """Return opening actions: dynamic packs use the cached list; static use pack file."""
+    if _active_pack.manifest.mode == "dynamic":
+        return _dynamic_opening_actions
+    return _active_pack.opening_actions
 
 
 def _fmt_ms_seconds(ms: Any) -> str:
@@ -215,11 +223,13 @@ async def index(request: Request):
     last_actions = _load_last_actions(SAVE_DIR) if history else []
     state = _load_current_state()
     opening = _get_opening() if not history and state.get("location", {}).get("id") else ""
+    opening_actions = _get_opening_actions() if not history and opening else []
     ctx = _debug_context()
     ctx["state"] = state
     ctx["history"] = history
     ctx["last_actions"] = last_actions
     ctx["opening"] = opening
+    ctx["opening_actions"] = opening_actions
     ctx["pack_mode"] = _active_pack.manifest.mode
     ctx["pack_name"] = _active_pack.manifest.name
     css_path = BASE_DIR / "static" / "app.css"
@@ -292,7 +302,7 @@ async def get_turn(input: str = ""):
 async def new_game(request: Request):
     """Reset save: static packs load seed directly; dynamic packs call generate_seed.
     Accepts optional form field `pack_id` to switch the active pack."""
-    global _dynamic_opening, _active_pack, _pack_id
+    global _dynamic_opening, _dynamic_opening_actions, _active_pack, _pack_id
     _ERRORS_LOG.clear()
 
     form = await request.form()
@@ -311,6 +321,7 @@ async def new_game(request: Request):
         seed.setdefault("meta", {})["model"] = config["llm"]["model"]
         init_save_dir(SAVE_DIR, seed)
         _dynamic_opening = ""
+        _dynamic_opening_actions = []
     else:
         # dynamic: LLM-generated seed
         try:
@@ -324,6 +335,7 @@ async def new_game(request: Request):
             seed["meta"]["setting_pack"] = _pack_id
             init_save_dir(SAVE_DIR, seed)
             _dynamic_opening = envelope.opening_narrative
+            _dynamic_opening_actions = envelope.actions
         except Exception as exc:
             logger.exception("generate_seed failed")
             _ERRORS_LOG.appendleft({"message": f"New game generation failed: {exc}"})
@@ -336,7 +348,7 @@ async def new_game(request: Request):
 @app.post("/new-game/reroll")
 async def new_game_reroll(request: Request):
     """Re-roll the seed for a dynamic pack (before turn 1) without changing pack mode."""
-    global _dynamic_opening
+    global _dynamic_opening, _dynamic_opening_actions
     if _active_pack.manifest.mode != "dynamic":
         return HTMLResponse("<p>Re-roll only available for dynamic packs.</p>", status_code=400)
 
@@ -351,12 +363,20 @@ async def new_game_reroll(request: Request):
         seed["meta"]["setting_pack"] = _pack_id
         init_save_dir(SAVE_DIR, seed)
         _dynamic_opening = envelope.opening_narrative
+        _dynamic_opening_actions = envelope.actions
     except Exception as exc:
         logger.exception("generate_seed reroll failed")
         _ERRORS_LOG.appendleft({"message": f"Re-roll failed: {exc}"})
         return HTMLResponse(f"<p class='text-red-400'>Re-roll failed: {exc}</p>")
 
-    return HTMLResponse(_dynamic_opening)
+    actions_html = "".join(
+        f'<button class="action-pill" onclick="window._gameInstance && window._gameInstance.fillFromChoice(this.textContent)">{a}</button>'
+        for a in _dynamic_opening_actions
+    )
+    return HTMLResponse(
+        f'<div id="actions-zone" hx-swap-oob="outerHTML:true">{actions_html}</div>'
+        + _dynamic_opening
+    )
 
 
 @app.get("/panels/state")

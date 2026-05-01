@@ -62,3 +62,4 @@ You are a scenario generator for a text adventure game. Emit a SeedEnvelope JSON
   - No duplication — each fact must add something the others don't
   - Every fact must be something a person living here right now would consider important
 - `opening_narrative`: second person, present tense — drops the player into the moment described in seed_state; it is what they see on the screen before their first action
+- `actions`: Exactly 4 short, distinct player choices (7–10 words each). These are the suggested actions shown to the player right at game start. They must be valid, meaningful things the player could do given the opening situation — not generic placeholders. Each should lead in a different direction.
