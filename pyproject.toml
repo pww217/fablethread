@@ -1,7 +1,7 @@
 [project]
 name = "ccya"
 version = "0.1.0"
-description = "A choose-your-own-adventure game backed by a local Ollama model."
+description = "A choose-your-own-adventure game backed by a local LLM (mlx-lm)."
 requires-python = ">=3.11"
 dependencies = [
     "fastapi",
@@ -11,7 +11,8 @@ dependencies = [
     "httpx",
     "pydantic",
     "sse-starlette",
-"python-multipart",
+    "python-multipart",
+    "openai",
 ]
 
 [project.scripts]

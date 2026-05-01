@@ -15,7 +15,7 @@ ccya is a local-LLM-backed choose-your-own-adventure game. Every player turn run
 | `models.py` | all Pydantic models, `TurnResult` dataclass, `load_config()` | business logic |
 | `server.py` | FastAPI routes, SSE streaming, `EngineConfig` wiring, active pack management | game logic |
 | `pack.py` | `Pack`, `PackManifest`, `SeedEnvelope`, `load_pack()`, `list_packs()`, `parse_world_facts()` | state mutation |
-| `ollama.py` | `chat()`, `chat_stream()` | prompt construction |
+| `llm_client.py` | `chat()`, `chat_stream()` (OpenAI-compatible, talks to `mlx_lm.server` at `http://127.0.0.1:8080/v1`), thinking helpers, token-budget trim | prompt construction |
 
 If you find logic in the wrong layer, move it rather than pile on.
 
@@ -70,7 +70,7 @@ Vendored JS (`ccya/static/vendor/`) IS committed and tracked.
 | `make install` | Install deps with `uv sync` |
 | `make run` | Start server (no reload, uses `__main__.py`) |
 | `make dev` | Start with auto-reload (`uvicorn --reload`) |
-| `make test` | Run smoke tests (offline, mocks Ollama) |
+| `make test` | Run smoke tests (offline, mocks the LLM client) |
 | `make lint` | Run ruff checks |
 | `make fmt` | Format code with ruff |
 | `make css` | Rebuild Tailwind CSS |
@@ -82,7 +82,7 @@ Use `make dev` for active development. `make run` is for production-like starts.
 
 ## Adding a new config flag
 
-1. Add to `config.yaml` under the right section (`ollama`, `game`, `server`, or `logging`).
+1. Add to `config.yaml` under the right section (`llm`, `game`, `server`, or `logging`).
 2. Add to `EngineConfig` dataclass in `engine.py` with a sensible default.
 3. Wire it in `server.py` where `EngineConfig` is instantiated (line ~31). Use `.get()` with a fallback for optional keys.
 4. Use it where needed; pass it explicitly — no global reads in engine/state.
@@ -105,7 +105,7 @@ Note: `EngineConfig` dataclass defaults differ from `config.yaml` values — con
 ## Testing
 
 - Tests live in `tests/` at repo root. Run with `make test` (uses `uv run pytest -q`).
-- Tests mock Ollama calls — do not call real Ollama in tests.
+- Tests mock the LLM client (`ccya.engine.llm_chat` / `ccya.engine.llm_chat_stream`) — do not call a real model server in tests.
 - When adding a new `EngineConfig` field or `StateDelta` sub-type, add a smoke test that: (a) verifies the toggle round-trips correctly, and (b) confirms the prompt template renders the expected content.
 - State mutation tests should exercise `apply_delta` directly (not through the full turn pipeline) for speed and isolation.
 

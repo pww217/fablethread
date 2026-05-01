@@ -73,21 +73,9 @@ Top-level keys: **`state_delta`** (object), **`actions`** (length 4).
 ## Markdown (sidebar-bound fields only)
 Use light GitHub-flavored markdown in **`bio`**, **`notes`**, **`location_description`**, fact strings, objective descriptions, and **`scene_tagline`** where emphasis helps: `*italic*` for ship names and proper nouns, `**bold**` for danger. Do **not** use markdown headings (`#`) or bullet lists inside those strings — the UI is narrow.
 
-{% if enable_thinking %}
-## Guided thinking
-Inside <thinking>...</thinking>, write only what actually changed this turn as short bullets (max 6).
-Consider: items gained or lost, location change or ambient shift, quest progress, PC conditions, established facts (add/update/remove), who is present, compendium dossiers, scene tagline.
-If nothing material changed outside narration, write "no material changes".
-Then emit JSON. Nothing outside <thinking> except the JSON object.
-{% else %}
-Emit **only** a single JSON object matching the schema above — **no** prose, **no** `<thinking>` block, **no** markdown fences.
-{% endif %}
+Emit **only** a single JSON object matching the schema above — **no** prose, **no** markdown fences.
 
 {% for ex in pack_examples %}
 ## Example ({{ ex.title }})
-{% if enable_thinking and ex.thinking %}
-<thinking>
-{{ ex.thinking }}</thinking>
-{% endif %}
 {{ ex.json_text }}
 {% endfor %}
