@@ -1,12 +1,15 @@
-.PHONY: install run dev fmt lint test css clean new-game vendor
+.PHONY: install run dev fmt lint test css clean new-game vendor mlx-serve
 
 install:
 	uv sync
 
-run:
+mlx-serve:
+	@bash scripts/mlx-serve.sh
+
+run: mlx-serve
 	uv run ccya
 
-dev:
+dev: mlx-serve
 	uv run uvicorn ccya.server:app --reload --host 127.0.0.1 --port 8765
 
 fmt:
