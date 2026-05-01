@@ -304,11 +304,12 @@ function _scrollNarrativeToBottom(np) {
 
 // Gradual auto-scroll: scrolls the narrative panel at a fixed reading pace
 // (~200 px/s) while tokens stream in, independent of the token rate.
-const _GRADUAL_SCROLL_SPEED = 25; // px per second
+const _GRADUAL_SCROLL_SPEED = 1250; // px per second
 let _gradualScrollId = null;
 let _gradualScrollLastTime = null;
 let _gradualScrollPaused = false;
 
+// This is all sorts of broken in terms of the wording but it "works" well enough, needs fixing.
 function _startGradualScroll(np) {
     if (_gradualScrollId !== null) return;
     const el = np || _narrativePanelEl();
@@ -326,7 +327,7 @@ function _startGradualScroll(np) {
             _gradualScrollId = requestAnimationFrame(tick);
             return;
         }
-        const delta = (now - _gradualScrollLastTime) / 1000;
+        const delta = (now - _gradualScrollLastTime) / 1750;
         _gradualScrollLastTime = now;
         const el2 = _narrativePanelEl();
         if (!el2) {
