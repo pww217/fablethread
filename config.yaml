@@ -8,21 +8,6 @@ llm:
   enable_extract_thinking: false   # true = append /think to extract prompt (Qwen3 only); strips <think> tags
   enable_narrate_thinking: false   # true = append /think to narrate prompt (Qwen3 only); strips <think> tags
 
-# mlx_lm.server settings — host/port/model are derived from llm.* above.
-# Run `make mlx-serve` to start/check the server; `make run` calls it automatically.
-mlx:
-  env: /Users/pwilson/mlx-env   # virtualenv where mlx_lm is installed (mlxenv alias)
-  max_tokens: 32768              # --max-tokens: per-request generation cap
-  prompt_cache_size: 4           # --prompt-cache-size: distinct KV caches to hold in RAM
-  prompt_cache_bytes: 21474836480  # --prompt-cache-bytes: total KV cache budget (20 GiB)
-  log_level: DEBUG               # --log-level: DEBUG for full prompt/response traces
-  # Tokenizer kwargs forwarded to apply_chat_template (model-agnostic).
-  # `enable_thinking: false` is the model-neutral kill switch — Qwen3 honors it,
-  # tokenizers without the kwarg silently ignore it. The per-call llm.enable_*_thinking
-  # flags above act as opt-in overrides (inject /think in the user message).
-  # Set to "" to disable the flag entirely.
-  chat_template_args: '{"enable_thinking": false}'
-
 game:
   default_save: default
   setting_pack: zombie-survival

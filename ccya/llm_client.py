@@ -208,18 +208,20 @@ async def chat_stream(
         messages=messages,
         temperature=temperature,
         stream=True,
+        stream_options={"include_usage": True},
         timeout=timeout,
     )
 
     async for chunk in stream:
+        # Final usage-summary chunk: choices is empty, usage is populated.
+        if not chunk.choices:
+            if stream_stats is not None and chunk.usage is not None:
+                stream_stats["prompt_eval_count"] = chunk.usage.prompt_tokens or 0
+                stream_stats["eval_count"] = chunk.usage.completion_tokens or 0
+            continue
         content = chunk.choices[0].delta.content
         if content is not None:
             yield content
-
-    # After stream exhaustion, usage is available on the stream object
-    if stream_stats is not None and stream.usage is not None:
-        stream_stats["prompt_eval_count"] = stream.usage.prompt_tokens or 0
-        stream_stats["eval_count"] = stream.usage.completion_tokens or 0
 
 
 # ---------------------------------------------------------------------------
