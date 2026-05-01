@@ -230,6 +230,7 @@ async def index(request: Request):
     ctx["last_actions"] = last_actions
     ctx["opening"] = opening
     ctx["opening_actions"] = opening_actions
+    ctx["has_narrative"] = bool(opening or history)
     ctx["pack_mode"] = _active_pack.manifest.mode
     ctx["pack_name"] = _active_pack.manifest.name
     css_path = BASE_DIR / "static" / "app.css"
