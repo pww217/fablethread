@@ -18,19 +18,17 @@ import asyncio
 import copy
 import json
 import logging
-import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncIterator
 
-import httpx
 from jinja2 import Environment, FileSystemLoader
 
 from ccya.models import ExtractResult, StateDelta, TurnResult
 from ccya.pack import ExtractExample, Pack, PlayerOverrides, SeedEnvelope, parse_world_facts
-from ccya.ollama import chat as ollama_chat, chat_stream as ollama_chat_stream
+from ccya.llm_client import apply_thinking, chat as llm_chat, chat_stream as llm_chat_stream, strip_thinking, trim_messages
 from ccya.state import (
     append_chronicle,
     append_event,
@@ -81,27 +79,24 @@ def is_turn_in_progress(save_dir: str) -> bool:
 
 @dataclass
 class EngineConfig:
-    ollama_host: str = "http://localhost:11434"
-    model: str = "gemma3:27b"
-    keep_alive: str = "60m"
-    num_ctx: int = 32768
-    extract_num_ctx: int = 4096
+    host: str = "http://localhost:8080/v1"
+    model: str = "mlx-community/Qwen3.6-27B-4bit"
+    # Local prompt-token budget for trim_messages (NOT sent to the LLM API —
+    # mlx_lm.server has no equivalent of Ollama's num_ctx knob; this just
+    # caps how much we pack into a single request).
+    prompt_token_budget: int = 8192
     request_timeout_s: int = 180
-    narrate_temperature: float = 0.8
-    extract_temperature: float = 0.0
+    narrate_temperature: float = 0.9
+    extract_temperature: float = 0.4
     max_extract_retries: int = 1
     window_turns: int = 6
     chronicle_prefix_budget_tokens: int = 1500
-    established_facts_max: int = 10
-    enforce_extract_schema: bool = True
+    established_facts_max: int = 30
     enable_extract_thinking: bool = False
     enable_narrate_thinking: bool = False
     # generate_seed settings (used by POST /new-game on dynamic packs)
     generate_seed_temperature: float = 0.9
     generate_seed_max_retries: int = 1
-    # When True, send format=SeedEnvelope JSON schema to Ollama (strict but many builds 500 on large schemas).
-    # When False, omit format and rely on prompt + Pydantic validation + retries (recommended default).
-    enforce_seed_schema: bool = False
     log_llm_io: bool = False
     log_llm_io_max_chars: int = 4000
 
@@ -147,15 +142,17 @@ def _narrate_messages(
         "state": state,
         "chronicle_tail": chronicle_tail,
         "recent_turns": recent_turns,
-        "enable_narrate_thinking": enable_narrate_thinking,
         "pack_style": pack_style,
     }
     system_text = _render(env, "narrate_system.j2", ctx)
     user_text = _render(env, "narrate_user.j2", {"user_input": user_input})
-    return [
+    msgs = [
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
     ]
+    if enable_narrate_thinking:
+        msgs = apply_thinking(msgs, True)
+    return msgs
 
 
 def _known_characters_for_extract(state: dict[str, Any]) -> list[dict[str, Any]]:
@@ -534,7 +531,6 @@ def _extract_messages(
         env,
         "extract_system.j2",
         {
-            "enable_thinking": enable_extract_thinking,
             "pack_examples": pack_examples or [],
         },
     )
@@ -556,24 +552,19 @@ def _extract_messages(
             "known_characters": _known_characters_for_extract(state),
         },
     )
-    return [
+    msgs = [
         {"role": "system", "content": system_text},
         {"role": "assistant", "content": narrative},
         {"role": "user", "content": user_text},
     ]
+    if enable_extract_thinking:
+        msgs = apply_thinking(msgs, True)
+    return msgs
 
 
 # ---------------------------------------------------------------------------
 # JSON extraction helpers
 # ---------------------------------------------------------------------------
-
-
-def _strip_thinking(text: str) -> str:
-    """Remove <thinking>...</thinking> block."""
-    m = re.search(r"<thinking>\s*.*?\s*</thinking>", text, re.DOTALL)
-    if m:
-        return (text[: m.start()] + text[m.end() :]).strip()
-    return text.strip()
 
 
 def _find_json(text: str) -> dict | None:
@@ -588,7 +579,7 @@ def _find_json(text: str) -> dict | None:
 
     j = _try(text)
     if j is not None:
-        return _unwrap(j)
+        return j
 
     if "```" in text:
         for part in text.split("```"):
@@ -597,7 +588,7 @@ def _find_json(text: str) -> dict | None:
                 p = p[4:].strip()
             r = _try(p)
             if r is not None:
-                return _unwrap(r)
+                return r
 
     b = text.find("{")
     if b >= 0:
@@ -605,16 +596,8 @@ def _find_json(text: str) -> dict | None:
         if r_idx > b:
             r = _try(text[b : r_idx + 1])
             if r is not None:
-                return _unwrap(r)
+                return r
     return None
-
-
-def _unwrap(j: dict) -> dict:
-    """If JSON is a full ExtractResult envelope, return it as-is for Pydantic.
-    If it looks like a bare StateDelta, wrap it."""
-    if "state_delta" in j and "actions" in j:
-        return j
-    return j
 
 
 def _truncate(s: str, n: int) -> str:
@@ -748,6 +731,7 @@ async def run_turn(
             enable_narrate_thinking=config.enable_narrate_thinking,
             pack_style=pack_style,
         )
+        narr_messages = trim_messages(narr_messages, config.prompt_token_budget)
 
         first_ms = 0.0
         t0 = asyncio.get_event_loop().time()
@@ -757,11 +741,9 @@ async def run_turn(
                 trace_id=trace_id, phase="narrate_request",
                 messages=narr_messages, max_chars=config.log_llm_io_max_chars,
             )
-        async for chunk in ollama_chat_stream(
-            config.ollama_host, config.model, narr_messages,
+        async for chunk in llm_chat_stream(
+            config.host, config.model, narr_messages,
             temperature=config.narrate_temperature,
-            keep_alive=config.keep_alive,
-            num_ctx=config.num_ctx,
             timeout=float(config.request_timeout_s),
             stream_stats=narr_stream_stats,
         ):
@@ -771,7 +753,7 @@ async def run_turn(
             yield ("token", chunk)
 
         narr_ms = (asyncio.get_event_loop().time() - t0) * 1000
-        narrative = _strip_thinking("".join(narrative_chunks))
+        narrative = strip_thinking("".join(narrative_chunks))
         narr_metrics = {
             "first_token_ms": round(first_ms, 1),
             "total_ms": round(narr_ms, 1),
@@ -795,13 +777,13 @@ async def run_turn(
             enable_extract_thinking=config.enable_extract_thinking,
             pack_examples=pack_examples,
         )
+        ext_messages = trim_messages(ext_messages, config.prompt_token_budget)
         t2 = asyncio.get_event_loop().time()
         retries = 0
         parse_error = ""
         ext_usage: dict[str, int] = {}
         exp_ms = _avg_extract_ms(save_dir)
         yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
-        ext_format = ExtractResult.model_json_schema() if config.enforce_extract_schema else None
 
         for attempt in range(1 + config.max_extract_retries):
             if attempt > 0:
@@ -811,15 +793,11 @@ async def run_turn(
                     _log_llm_io(
                         trace_id=trace_id, phase=f"extract_request_attempt_{attempt}",
                         messages=ext_messages,
-                        extra={"format_enforced": bool(ext_format)},
                         max_chars=config.log_llm_io_max_chars,
                     )
-                result = await ollama_chat(
-                    config.ollama_host, config.model, ext_messages,
-                    format=ext_format,
+                result = await llm_chat(
+                    config.host, config.model, ext_messages,
                     temperature=config.extract_temperature,
-                    keep_alive=config.keep_alive,
-                    num_ctx=config.extract_num_ctx,
                     timeout=float(config.request_timeout_s),
                 )
                 raw = result.get("response", "") if isinstance(result, dict) else ""
@@ -830,7 +808,7 @@ async def run_turn(
                         response=raw, extra={"usage": ext_usage},
                         max_chars=config.log_llm_io_max_chars,
                     )
-                cleaned = _strip_thinking(raw)
+                cleaned = strip_thinking(raw)
                 j = _find_json(cleaned)
                 if j is not None:
                     # Accept both full ExtractResult envelope and bare StateDelta
@@ -1061,10 +1039,6 @@ async def generate_seed(
 ) -> SeedEnvelope:
     """Generate a fresh SeedEnvelope for a dynamic pack.
 
-    Optionally sends format=SeedEnvelope JSON schema when config.enforce_seed_schema is True.
-    If Ollama returns 5xx with structured format (common with large schemas), retries once
-    without format= and still validates with Pydantic.
-
     Retries up to config.generate_seed_max_retries on parse/validation failure.
     Uses config.generate_seed_temperature (default 0.9) for creative variance.
     """
@@ -1076,19 +1050,8 @@ async def generate_seed(
     trace_id = uuid.uuid4().hex[:8]
 
     messages = _build_generate_seed_messages(env, pack, overrides)
-    schema = SeedEnvelope.model_json_schema()
-    fmt: dict | None = schema if config.enforce_seed_schema else None
+    messages = trim_messages(messages, config.prompt_token_budget)
     world_facts = parse_world_facts(pack.world_text)
-
-    async def _seed_chat(format_arg: dict | None) -> dict[str, Any]:
-        return await ollama_chat(
-            config.ollama_host, config.model, messages,
-            format=format_arg,
-            temperature=config.generate_seed_temperature,
-            keep_alive=config.keep_alive,
-            num_ctx=config.num_ctx,
-            timeout=float(config.request_timeout_s),
-        )
 
     for attempt in range(1 + config.generate_seed_max_retries):
         if config.log_llm_io:
@@ -1097,29 +1060,18 @@ async def generate_seed(
                 messages=messages, max_chars=config.log_llm_io_max_chars,
             )
         try:
-            result = await _seed_chat(fmt)
-        except httpx.HTTPStatusError as exc:
-            err_body = ""
-            try:
-                err_body = (exc.response.text or "")[:800]
-            except Exception:
-                pass
-            if fmt is not None and exc.response.status_code >= 500:
-                _log.warning(
-                    "generate_seed: Ollama rejected SeedEnvelope JSON schema (%s). Retrying without format=. Body: %s",
-                    exc.response.status_code,
-                    err_body or "(empty)",
-                    extra={"trace_id": trace_id},
-                )
-                result = await _seed_chat(None)
-            else:
-                _log.error(
-                    "generate_seed: Ollama HTTP %s. Body: %s",
-                    exc.response.status_code,
-                    err_body or "(empty)",
-                    extra={"trace_id": trace_id},
-                )
-                raise
+            result = await llm_chat(
+                config.host, config.model, messages,
+                temperature=config.generate_seed_temperature,
+                timeout=float(config.request_timeout_s),
+            )
+        except Exception as exc:
+            _log.error(
+                "generate_seed: LLM error: %s",
+                exc,
+                extra={"trace_id": trace_id},
+            )
+            raise
         raw = result.get("response", "") if isinstance(result, dict) else ""
         if config.log_llm_io:
             _log_llm_io(
@@ -1127,7 +1079,7 @@ async def generate_seed(
                 response=raw, max_chars=config.log_llm_io_max_chars,
             )
 
-        cleaned = _strip_thinking(raw)
+        cleaned = strip_thinking(raw)
         j = _find_json(cleaned)
         if j is None:
             parse_error = "No JSON found in generate_seed response"
@@ -1179,14 +1131,12 @@ async def generate_seed(
 
 
 async def warmup(config: EngineConfig) -> None:
-    """Silent 1-token chat call to pre-load the model into Ollama."""
+    """Silent chat call to pre-load the model."""
     try:
-        await ollama_chat(
-            config.ollama_host, config.model,
+        await llm_chat(
+            config.host, config.model,
             [{"role": "user", "content": "ok"}],
             temperature=0.0,
-            keep_alive=config.keep_alive,
-            num_ctx=config.num_ctx,
             timeout=30.0,
         )
     except Exception:

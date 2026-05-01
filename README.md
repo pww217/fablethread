@@ -1,18 +1,28 @@
 # ccya
 
-A choose-your-own-adventure game backed by a local Ollama model. Each run generates a fresh scenario from a **world pack** — the LLM seeds the character, location, NPCs, quest, and opening narrative from a world bible + scenario constraints.
+A choose-your-own-adventure game backed by a local **mlx-lm** model served over an OpenAI-compatible API. Each run generates a fresh scenario from a **world pack** — the LLM seeds the character, location, NPCs, quest, and opening narrative from a world bible + scenario constraints.
 
 ## Setup
 
-1. **Install Ollama** — https://ollama.ai
-2. **Pull a model** (e.g. gemma4:26b):
+1. **Install mlx-lm** (Apple Silicon required):
     ```bash
-    ollama pull gemma4:26b
+    pip install --user mlx-lm
+    # or via uv:
+    uv tool install mlx-lm
     ```
-3. **Install dependencies**:
+2. **Start the server** in another terminal — pick any model, the default config expects `mlx-community/Qwen3.6-27B-4bit`:
+    ```bash
+    mlx_lm.server \
+        --model mlx-community/Qwen3.6-27B-4bit \
+        --host 127.0.0.1 --port 8080
+    ```
+    The model loads once and stays resident; ccya talks to `http://127.0.0.1:8080/v1` (OpenAI shape).
+3. **Install ccya dependencies**:
     ```bash
     make install
     ```
+
+To pick a different model, edit `llm.model` in `config.yaml` and pass the matching `--model` flag to `mlx_lm.server`.
 
 ## Run
 
@@ -22,49 +32,9 @@ make run
 
 The server starts at `http://127.0.0.1:8765` (terminal may show a clickable OSC 8 link when using `python -m ccya`).
 
-### Recommended Ollama setup (Apple Silicon)
-
-These variables apply to the **Ollama server process** (`ollama serve` or Ollama.app). Set them before starting Ollama; changing them from the ccya Python process has no effect on an already-running server.
-
-| Variable | Suggested | Purpose |
-|----------|-----------|---------|
-| `OLLAMA_FLASH_ATTENTION` | `1` | Lower KV memory for long contexts; enables KV cache quantization. |
-| `OLLAMA_KV_CACHE_TYPE` | `q8_0` | Smaller KV cache (needs flash attention). |
-| `OLLAMA_NUM_PARALLEL` | `1` | One in-flight request — best for large models + long context. |
-| `OLLAMA_MAX_LOADED_MODELS` | `1` | Avoid loading multiple huge models on unified memory. |
-| `OLLAMA_KEEP_ALIVE` | `10m` | How long to keep a model loaded when idle (ccya also sends `keep_alive` per request). |
-| `OLLAMA_MLX` | `1` | Prefer MLX backend on Apple Silicon when the build supports it. |
-
-**CLI (terminal):** from this directory,
-
-```bash
-make ollama-launch    # runs scripts/ollama-launch.sh → ollama serve
-```
-
-**Print suggested exports / launchctl lines:**
-
-```bash
-make ollama-env
-```
-
-**GUI (Ollama.app):** macOS does not inherit your shell `export`. Use `launchctl setenv` once, then quit and reopen Ollama.app:
-
-```bash
-launchctl setenv OLLAMA_FLASH_ATTENTION 1
-launchctl setenv OLLAMA_KV_CACHE_TYPE q8_0
-launchctl setenv OLLAMA_NUM_PARALLEL 1
-launchctl setenv OLLAMA_MAX_LOADED_MODELS 1
-launchctl setenv OLLAMA_KEEP_ALIVE 10m
-launchctl setenv OLLAMA_MLX 1
-```
-
-`OLLAMA_GPU_OVERHEAD` and `OLLAMA_NUM_GPU=999` are not recommended on macOS unified memory (little benefit).
-
-Uncomment `OLLAMA_DEBUG=1` in `scripts/ollama-launch.sh` if you need offload / memory diagnostics in server logs.
-
 ## Mock Mode
 
-Run without Ollama by setting `MOCK_MODE=true`:
+Run without a model server by setting `MOCK_MODE=true`:
 
 ```bash
 export MOCK_MODE=true
@@ -80,7 +50,7 @@ Confirm mock mode with: `curl http://127.0.0.1:8765/healthz` — look for `"mock
 
 ## Testing
 
-Smoke tests run entirely offline (no Ollama needed):
+Smoke tests run entirely offline (no model server needed):
 
 ```bash
 make test
@@ -89,7 +59,7 @@ make test
 Test endpoints via curl:
 
 ```bash
-# Health check (mock or real)
+# Health check (mock or real). Hits mlx_lm.server's /v1/models under the hood.
 curl http://127.0.0.1:8765/healthz
 
 # New game (resets state from seed)
@@ -121,8 +91,6 @@ curl http://127.0.0.1:8765/panels/debug
 | `make lint` | Run ruff checks |
 | `make fmt` | Format code |
 | `make css` | Rebuild Tailwind CSS |
-| `make ollama-launch` | Start `ollama serve` with recommended Apple Silicon env |
-| `make ollama-env` | Print suggested `export` / `launchctl setenv` lines |
 | `make clean` | Remove build artifacts |
 
 ## Packs
@@ -134,13 +102,6 @@ Packs live in `packs/<id>/` and declare their mode in `pack.yaml`.
 | `dynamic` | LLM generates a fresh seed (character, location, NPCs, quest, opening) on every New Game | `pack.yaml`, `world.md`, `scenario.yaml`, `style.md`, `extract_examples.yaml` |
 | `static` | Hand-authored seed loaded directly | `pack.yaml`, `seed_state.yaml`, `opening_scene.md` (optional `style.md`, `extract_examples.yaml`) |
 
-**Included packs:**
-
-| Pack | Mode | Description |
-|------|------|-------------|
-| `zombie-survival` | dynamic | Six months into the H7N9-X collapse. Every run is a different survivor, location, and opening crisis. |
-| `expanse-belter` | dynamic | Hard sci-fi Belt freight operator in 2351. Fresh ship, fresh debt, fresh complication each run. |
-
 To switch packs, click **New Game** and select from the picker, or set `game.setting_pack` in `config.yaml`.
 
 See `packs/AUTHORING.md` for the full pack spec.
@@ -148,11 +109,11 @@ See `packs/AUTHORING.md` for the full pack spec.
 ## File layout
 
 ```
-config.yaml              # Server, Ollama, and game config
+config.yaml              # Server, LLM, and game config
 ccya/                    # Python package
   engine.py              # Turn pipeline (narrate + extract + generate_seed)
   pack.py                # Pack loader, manifest schema, list_packs()
-  ollama.py              # Thin async Ollama client
+  llm_client.py          # Thin async OpenAI-compatible client (mlx_lm.server)
   state.py               # YAML + JSONL state I/O
   server.py              # FastAPI routes + SSE
   models.py              # Pydantic models + config loader
@@ -162,10 +123,6 @@ ccya/                    # Python package
   static/                # CSS + vendored JS (htmx, alpine, marked)
 saves/default/           # Game save (state.yaml, events.jsonl, chronicle.md)
 packs/                   # World packs
-  zombie-survival/       # Dynamic — H7N9-X outbreak
-  expanse-belter/        # Dynamic — Belt freight / smuggling
-  AUTHORING.md           # Pack authoring spec
-scripts/                 # ollama-launch.sh helper
 logs/                    # JSONL turn logs
 tests/                   # Smoke tests
 ```
@@ -174,10 +131,14 @@ tests/                   # Smoke tests
 
 Edit `config.yaml` to change the model, port, or other settings. Key sections:
 
-- `ollama` — host, model name, temperatures, context window; **`enforce_extract_schema`** toggles Ollama JSON grammar (slower); **`enable_extract_thinking`** enables a `<thinking>` block before extract JSON (extra tokens/latency; default off); **`enable_narrate_thinking`** enables an optional `<thinking>` block before narrative prose (stripped before chronicle and extract; default off)
+- `llm` — `host` (e.g. `http://127.0.0.1:8080/v1`), `model`, request timeout, narrate/extract temperatures, retry budget, optional `enable_extract_thinking` / `enable_narrate_thinking` toggles for the Qwen3.x `/think` `/no_think` soft switches
 - `game` — save slot, setting pack, turn window size
 - `server` — bind address and port
 - `debug` — toggle debug panel
+
+**Notes on the Ollama → mlx-lm migration:**
+- The config block was renamed from `ollama:` → `llm:`.
+- `keep_alive`, `num_ctx`, and any `enforce_extract_schema`/grammar flags are gone — `mlx_lm.server` keeps the model resident on its own and does not expose JSON-grammar enforcement. The extract pipeline relies on prompt discipline + a single retry instead.
 
 ## Debugging
 
@@ -197,10 +158,10 @@ When you click **New Game** and select a pack, the server calls `generate_seed()
 
 ### Turn flow
 
-Each turn fires two Ollama calls:
+Each turn fires two LLM calls (OpenAI `/v1/chat/completions`):
 
-1. **Narrate** — streams narrative text token-by-token via SSE (temperature 0.8). Chronicle tail + recent turns injected as context.
-2. **Extract** — parses the narrative into a structured `StateDelta` (temperature 0.0). Optional JSON grammar via `enforce_extract_schema`.
+1. **Narrate** — streams narrative text token-by-token via SSE. Chronicle tail + recent turns injected as context.
+2. **Extract** — parses the narrative into a structured `StateDelta`. JSON validity is enforced through prompting + a single retry on parse failure.
 
 The extracted delta is validated against current state (e.g. impossible inventory removals) before applying. Rejected removes surface in the turn summary modal.
 
@@ -225,7 +186,7 @@ The extracted delta is validated against current state (e.g. impossible inventor
 - **Turn summary modal:** appears after each turn with emoji-categorized changes (inventory / player / facts / quests). Dismiss via Enter, Escape, or click.
 - **Send → Stop:** while inference runs, the Send button turns red with a spinner; clicking cancels the SSE and restores the previous input and action pills.
 - **Action pills:** clicking a choice inserts it into the input with a trailing space (no auto-submit).
-- **Debug panel:** recent turn timing (narrate/extract seconds + token in/out), status (model, context window, mock/schema flags), errors.
+- **Debug panel:** recent turn timing (narrate/extract seconds + token in/out), status (model, mock mode), errors.
 
 **Markdown** — Narrative and sidebar snippets rendered with **marked** (GitHub-flavored); narrator/extractor instructed to use light markup.
 

@@ -27,9 +27,3 @@ You are the narrator of a text adventure. Write the next beat based on the curre
 ## Genre tone
 {{ pack_style }}
 {% endif %}
-{% if enable_narrate_thinking %}
-## Planning (before prose)
-Inside `<thinking>...</thinking>`, write short bullets for continuity or beats (max 6), **then** write the narrative paragraphs **below** the closing tag. Nothing after `</thinking>` except the story the player reads.
-{% else %}
-Do **not** output a `<thinking>` block or any hidden planning tags — write **only** the narrative paragraphs (what the player reads).
-{% endif %}

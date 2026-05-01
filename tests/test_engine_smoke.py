@@ -1,9 +1,11 @@
-"""Smoke tests for ccya engine — no real Ollama needed.
+"""Smoke tests for ccya engine — no real LLM needed.
 
 Notable design decisions captured here:
 - Turn counter increments in engine.py ONLY (not in apply_delta).
 - run_turn() is an async generator: yields ("token", str)* then ("complete", TurnResult).
-- Ollama body must have temperature/num_ctx under options{}, keep_alive top-level.
+- LLM client is OpenAI-compatible (mlx_lm.server). Tests mock at the
+  ccya.engine.llm_chat / ccya.engine.llm_chat_stream level — both return the
+  ccya-internal shape {"response": str, "usage": {...}}.
 - Narrate call uses [system, user] message roles.
 - Extract call uses [system, assistant, user] message roles.
 - Chronicle tail and recent turns are injected into the narrate system prompt.
@@ -16,7 +18,8 @@ from pathlib import Path
 
 import pytest
 
-from ccya.engine import EngineConfig, run_turn, _build_jinja_env, _narrate_messages, _extract_messages, _strip_thinking
+from ccya.engine import EngineConfig, run_turn, _build_jinja_env, _narrate_messages, _extract_messages
+from ccya.llm_client import strip_thinking
 from ccya.models import (
     CompendiumNpcUpdate,
     FactUpdate,
@@ -28,7 +31,6 @@ from ccya.models import (
     QuestUpdate,
     StateDelta,
 )
-from ccya.ollama import _build_body
 from ccya.state import (
     apply_delta,
     load_chronicle_tail,
@@ -50,7 +52,7 @@ def _make_state(turn: int = 0) -> dict:
             "game_name": "test",
             "turn": turn,
             "setting_pack": "expanse-belter",
-            "model": "gemma3:27b",
+            "model": "mlx-community/Qwen3.6-27B-4bit",
             "compendium_touch_order": [],
         },
         "pc": {
@@ -72,34 +74,32 @@ def _make_state(turn: int = 0) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Fake Ollama helpers
+# Fake LLM helpers — mock ccya.engine.llm_chat / ccya.engine.llm_chat_stream
 # ---------------------------------------------------------------------------
 
 
-class _FakeOllama:
-    """Context manager that replaces engine's ollama functions.
+class _FakeLLM:
+    """Context manager that replaces engine's llm_chat / llm_chat_stream.
 
-    ollama_chat_stream is an async generator in the real code, so fake_stream
+    llm_chat_stream is an async generator in the real code, so fake_stream
     must also be an async generator (uses `yield`).
-    ollama_chat is a regular async function, so fake_chat uses `return`.
+    llm_chat is a regular async function, so fake_chat uses `return`.
 
     Captures all calls so tests can assert on message shapes.
     text_responses[0] = narrative text (yielded by stream)
     text_responses[1:] = extract responses (returned by chat)
     """
 
-    def __init__(self, text_responses: list[str], should_fail: bool = False):
+    def __init__(self, text_responses: list[str]):
         self.call_log: list[dict] = []
         self.narrative = text_responses[0] if text_responses else ""
         self.text_responses = text_responses
-        self.should_fail = should_fail
         self._orig_stream = None
         self._orig_chat = None
-        # We need a reference to self inside the closures
         _self = self
 
         async def _fake_stream(*args, **kwargs):
-            """Async generator replacing ollama_chat_stream."""
+            """Async generator replacing llm_chat_stream."""
             _self.call_log.append({"kind": "stream", "args": args, "kwargs": kwargs})
             ss = kwargs.get("stream_stats")
             if ss is not None:
@@ -108,11 +108,8 @@ class _FakeOllama:
             yield _self.narrative
 
         async def _fake_chat(*args, **kwargs):
-            """Regular async function replacing ollama_chat."""
+            """Regular async function replacing llm_chat."""
             _self.call_log.append({"kind": "chat", "args": args, "kwargs": kwargs})
-            extract_call_num = sum(1 for c in _self.call_log if c["kind"] == "chat")
-            if _self.should_fail and extract_call_num == 1:
-                return {"response": "this is not valid json at all {{{{", "done": True, "usage": {}}
             result_text = _self.text_responses[-1] if len(_self.text_responses) > 1 else _self.narrative
             return {"response": result_text, "done": True, "usage": {"prompt_tokens": 100, "total_tokens": 200}}
 
@@ -120,15 +117,15 @@ class _FakeOllama:
         self._fake_chat = _fake_chat
 
     def __enter__(self):
-        self._orig_stream = ccya.engine.ollama_chat_stream
-        self._orig_chat = ccya.engine.ollama_chat
-        ccya.engine.ollama_chat_stream = self._fake_stream
-        ccya.engine.ollama_chat = self._fake_chat
+        self._orig_stream = ccya.engine.llm_chat_stream
+        self._orig_chat = ccya.engine.llm_chat
+        ccya.engine.llm_chat_stream = self._fake_stream
+        ccya.engine.llm_chat = self._fake_chat
         return self
 
     def __exit__(self, *exc_info):
-        ccya.engine.ollama_chat_stream = self._orig_stream
-        ccya.engine.ollama_chat = self._orig_chat
+        ccya.engine.llm_chat_stream = self._orig_stream
+        ccya.engine.llm_chat = self._orig_chat
 
     def stream_calls(self) -> list[dict]:
         return [c for c in self.call_log if c["kind"] == "stream"]
@@ -174,40 +171,6 @@ def _reset_save_dir():
     yield
     for f in SAVE_DIR.iterdir():
         f.unlink()
-
-
-# ---------------------------------------------------------------------------
-# TestOllamaBodyShape — Critical fix #5, #6
-# ---------------------------------------------------------------------------
-
-
-class TestOllamaBodyShape:
-    """_build_body must place temperature/num_ctx under options{}, keep_alive top-level."""
-
-    def test_options_wraps_temperature_and_num_ctx(self):
-        body = _build_body("m", [], temperature=0.8, num_ctx=4096, keep_alive="30m")
-        assert "options" in body
-        assert body["options"]["temperature"] == 0.8
-        assert body["options"]["num_ctx"] == 4096
-
-    def test_keep_alive_is_top_level(self):
-        body = _build_body("m", [], temperature=0.5, num_ctx=1024, keep_alive="60m")
-        assert body["keep_alive"] == "60m"
-        assert "keep_alive" not in body.get("options", {})
-
-    def test_temperature_not_at_top_level(self):
-        body = _build_body("m", [], temperature=0.8, num_ctx=1024)
-        assert "temperature" not in body
-
-    def test_no_options_if_no_sampling_params(self):
-        body = _build_body("m", [])
-        assert "options" not in body
-
-    def test_format_is_top_level(self):
-        schema = {"type": "object"}
-        body = _build_body("m", [], format=schema)
-        assert body["format"] == schema
-        assert "format" not in body.get("options", {})
 
 
 # ---------------------------------------------------------------------------
@@ -287,24 +250,29 @@ class TestPromptComposition:
         assert "## Output schema" in system_msg
 
     def test_extract_thinking_toggle(self):
+        """Thinking toggle is now a Qwen3 soft-switch: `/think` appended to the last user message when on."""
         env = self._env()
         off = _extract_messages(env, "N.", _make_state(), enable_extract_thinking=False)
         on = _extract_messages(env, "N.", _make_state(), enable_extract_thinking=True)
-        assert "Emit **only** a single JSON object" in next(m for m in off if m["role"] == "system")["content"]
-        assert "## Guided thinking" in next(m for m in on if m["role"] == "system")["content"]
+        last_off = off[-1]["content"]
+        last_on = on[-1]["content"]
+        assert not last_off.endswith("/think")
+        assert last_on.endswith("/think")
 
     def test_narrate_thinking_toggle(self):
+        """Thinking toggle is now a Qwen3 soft-switch: `/think` appended to the last user message when on."""
         env = self._env()
         off = _narrate_messages(env, _make_state(), "look", enable_narrate_thinking=False)
         on = _narrate_messages(env, _make_state(), "look", enable_narrate_thinking=True)
-        sys_off = next(m for m in off if m["role"] == "system")["content"]
-        sys_on = next(m for m in on if m["role"] == "system")["content"]
-        assert "Do **not** output a `<thinking>` block" in sys_off
-        assert "## Planning (before prose)" in sys_on
+        last_off = off[-1]["content"]
+        last_on = on[-1]["content"]
+        assert not last_off.endswith("/think")
+        assert last_on.endswith("/think")
 
-    def test_strip_thinking_removes_narrative_planning_block(self):
-        raw = "<thinking>\n- bullet\n</thinking>\n\nYou step through."
-        assert _strip_thinking(raw).strip() == "You step through."
+    def test_strip_thinking_removes_thinking_block(self):
+        """`<think>...</think>` blocks (Qwen3-style) are stripped from response text."""
+        raw = "<think>\n- bullet\n</think>\n\nYou step through."
+        assert strip_thinking(raw).strip() == "You step through."
 
     def test_chronicle_injected_when_present(self):
         env = self._env()
@@ -350,7 +318,7 @@ class TestHappyPath:
             "actions": ["Go left", "Go right", "Check your terminal", "Wait"],
         })
 
-        fake = _FakeOllama([narrative, extract])
+        fake = _FakeLLM([narrative, extract])
         with fake:
             result = await _run(SAVE_DIR, "I step through the airlock.", config=EngineConfig())
 
@@ -370,7 +338,7 @@ class TestHappyPath:
             "state_delta": {"scene_tags": ["exploration"]},
             "actions": ["Open door", "Take stairs", "Check map", "Go back"],
         })
-        fake = _FakeOllama(["narrative text", extract])
+        fake = _FakeLLM(["narrative text", extract])
         with fake:
             result = await _run(SAVE_DIR, "look", config=EngineConfig())
 
@@ -393,7 +361,7 @@ class TestStreamingEvents:
             "state_delta": {},
             "actions": ["A", "B", "C", "D"],
         })
-        fake = _FakeOllama(["hello world", extract])
+        fake = _FakeLLM(["hello world", extract])
         with fake:
             tokens, result = await _run_with_tokens(SAVE_DIR, "look", config=EngineConfig())
 
@@ -408,7 +376,7 @@ class TestStreamingEvents:
 
         events = []
         extract = json.dumps({"state_delta": {}, "actions": ["A", "B", "C", "D"]})
-        fake = _FakeOllama(["the narrative", extract])
+        fake = _FakeLLM(["the narrative", extract])
         with fake:
             async for kind, _ in run_turn(
                 SAVE_DIR, "look", config=EngineConfig(),
@@ -436,7 +404,7 @@ class TestRejectedDelta:
             "state_delta": {"inventory_remove": ["ghost-item-999"]},
             "actions": ["A", "B", "C", "D"],
         })
-        fake = _FakeOllama([extract])
+        fake = _FakeLLM([extract])
         with fake:
             result = await _run(SAVE_DIR, "I grab the ghost item.", config=EngineConfig())
 
@@ -453,7 +421,7 @@ class TestRejectedDelta:
             "state_delta": {"inventory_remove": ["ghost-item"]},
             "actions": ["A", "B", "C", "D"],
         })
-        fake = _FakeOllama([extract])
+        fake = _FakeLLM([extract])
         with fake:
             result = await _run(SAVE_DIR, "grab ghost", config=EngineConfig())
 
@@ -468,7 +436,7 @@ class TestRejectedDelta:
             "state_delta": {"quest_updates": [{"id": "new-quest", "title": "New Quest", "status": "active", "objectives": []}]},
             "actions": ["A", "B", "C", "D"],
         })
-        fake = _FakeOllama([extract])
+        fake = _FakeLLM([extract])
         with fake:
             result = await _run(SAVE_DIR, "Start a new quest.", config=EngineConfig())
 
@@ -508,15 +476,15 @@ class TestSchemaFailureRetry:
                 return {"response": "bad json {{{", "done": True, "usage": {}}
             return {"response": good_extract, "done": True, "usage": {"prompt_tokens": 10, "total_tokens": 20}}
 
-        _orig_stream = ccya.engine.ollama_chat_stream
-        _orig_chat = ccya.engine.ollama_chat
+        _orig_stream = ccya.engine.llm_chat_stream
+        _orig_chat = ccya.engine.llm_chat
         try:
-            ccya.engine.ollama_chat_stream = fake_stream
-            ccya.engine.ollama_chat = fake_chat
+            ccya.engine.llm_chat_stream = fake_stream
+            ccya.engine.llm_chat = fake_chat
             result = await _run(SAVE_DIR, "examine", config=EngineConfig(max_extract_retries=1))
         finally:
-            ccya.engine.ollama_chat_stream = _orig_stream
-            ccya.engine.ollama_chat = _orig_chat
+            ccya.engine.llm_chat_stream = _orig_stream
+            ccya.engine.llm_chat = _orig_chat
 
         assert "curious" in result.applied.get("pc_condition_add", []) or "curious" in str(result.applied)
         assert result.metrics["extract"]["retries"] == 1
@@ -537,7 +505,7 @@ class TestFactCanonization:
             "state_delta": {"established_facts_add": ["The airlock hums with residual charge."]},
             "actions": ["A", "B", "C", "D"],
         })
-        fake = _FakeOllama([extract])
+        fake = _FakeLLM([extract])
         with fake:
             await _run(SAVE_DIR, "Touch the airlock.", config=EngineConfig())
 
@@ -578,14 +546,14 @@ class TestChroniclePrefixBudget:
             return {"response": json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]}), "done": True, "usage": {}}
 
         import ccya.engine as eng
-        _orig_stream, _orig_chat = eng.ollama_chat_stream, eng.ollama_chat
+        _orig_stream, _orig_chat = eng.llm_chat_stream, eng.llm_chat
         try:
-            eng.ollama_chat_stream = fake_stream
-            eng.ollama_chat = fake_chat
+            eng.llm_chat_stream = fake_stream
+            eng.llm_chat = fake_chat
             await _run(SAVE_DIR, "look", config=EngineConfig(chronicle_prefix_budget_tokens=1500))
         finally:
-            eng.ollama_chat_stream = _orig_stream
-            eng.ollama_chat = _orig_chat
+            eng.llm_chat_stream = _orig_stream
+            eng.llm_chat = _orig_chat
 
         system_texts = " ".join(m.get("content", "") for m in captured_messages if m.get("role") == "system")
         assert "MARKER_TEXT_FOR_ASSERTION" in system_texts
@@ -700,7 +668,7 @@ class TestTurnCounterSingleIncrement:
         _write_state(SAVE_DIR, state)
 
         extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
-        fake = _FakeOllama([extract])
+        fake = _FakeLLM([extract])
         with fake:
             result = await _run(SAVE_DIR, "look", config=EngineConfig())
 
@@ -711,7 +679,7 @@ class TestTurnCounterSingleIncrement:
         _write_state(SAVE_DIR, state)
 
         extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
-        fake = _FakeOllama([extract, extract])
+        fake = _FakeLLM([extract, extract])
         with fake:
             r1 = await _run(SAVE_DIR, "first", config=EngineConfig())
             r2 = await _run(SAVE_DIR, "second", config=EngineConfig())
@@ -735,7 +703,7 @@ class TestEventWrittenBeforeState:
             "state_delta": {"established_facts_add": ["turn-1-fact"]},
             "actions": ["A","B","C","D"],
         })
-        fake = _FakeOllama([extract])
+        fake = _FakeLLM([extract])
         with fake:
             await _run(SAVE_DIR, "test", config=EngineConfig())
 
@@ -763,7 +731,7 @@ class TestChronicleFormatted:
         (SAVE_DIR / "chronicle.md").touch()
 
         extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
-        fake = _FakeOllama(["the narrative text", extract])
+        fake = _FakeLLM(["the narrative text", extract])
         with fake:
             await _run(SAVE_DIR, "my action", config=EngineConfig())
 
@@ -818,7 +786,7 @@ class TestTurnResultTraceId:
         state = _make_state()
         _write_state(SAVE_DIR, state)
         extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
-        fake = _FakeOllama([extract, extract])
+        fake = _FakeLLM([extract, extract])
         with fake:
             r1 = await _run(SAVE_DIR, "first", config=EngineConfig())
             r2 = await _run(SAVE_DIR, "second", config=EngineConfig())
@@ -1101,7 +1069,7 @@ class TestInventoryCompendiumTagline:
             },
             "actions": ["a", "b", "c", "d"],
         })
-        fake = _FakeOllama(["short narrative.", extract])
+        fake = _FakeLLM(["short narrative.", extract])
         with fake:
             result = await _run(SAVE_DIR, "look", config=EngineConfig())
         assert result.diff
@@ -1120,7 +1088,7 @@ class TestPerTurnMetrics:
         _write_state(SAVE_DIR, state)
 
         extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
-        fake = _FakeOllama(["narrative", extract])
+        fake = _FakeLLM(["narrative", extract])
         with fake:
             result = await _run(SAVE_DIR, "test", config=EngineConfig())
 
@@ -1137,7 +1105,7 @@ class TestPerTurnMetrics:
         _write_state(SAVE_DIR, state)
 
         extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
-        fake = _FakeOllama(["narrative", extract])
+        fake = _FakeLLM(["narrative", extract])
         with fake:
             result = await _run(SAVE_DIR, "test", config=EngineConfig())
 
@@ -1164,7 +1132,7 @@ class TestEstablishedFactsInEvent:
             "state_delta": {"established_facts_add": ["This fact matters."]},
             "actions": ["A","B","C","D"],
         })
-        fake = _FakeOllama([extract])
+        fake = _FakeLLM([extract])
         with fake:
             await _run(SAVE_DIR, "test", config=EngineConfig())
 
@@ -1205,14 +1173,14 @@ class TestRecentTurnsInjected:
             return {"response": json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]}), "done": True, "usage": {}}
 
         import ccya.engine as eng
-        _orig_stream, _orig_chat = eng.ollama_chat_stream, eng.ollama_chat
+        _orig_stream, _orig_chat = eng.llm_chat_stream, eng.llm_chat
         try:
-            eng.ollama_chat_stream = fake_stream
-            eng.ollama_chat = fake_chat
+            eng.llm_chat_stream = fake_stream
+            eng.llm_chat = fake_chat
             await _run(SAVE_DIR, "go north", config=EngineConfig(window_turns=6))
         finally:
-            eng.ollama_chat_stream = _orig_stream
-            eng.ollama_chat = _orig_chat
+            eng.llm_chat_stream = _orig_stream
+            eng.llm_chat = _orig_chat
 
         combined = " ".join(captured_system)
         assert "I examine the signal" in combined or "The signal pulses orange" in combined
@@ -1244,10 +1212,10 @@ class TestPackKwargs:
             return {"response": extract, "done": True, "usage": {}}
 
         import ccya.engine as eng
-        _orig_stream, _orig_chat = eng.ollama_chat_stream, eng.ollama_chat
+        _orig_stream, _orig_chat = eng.llm_chat_stream, eng.llm_chat
         try:
-            eng.ollama_chat_stream = _fake_stream
-            eng.ollama_chat = _fake_chat
+            eng.llm_chat_stream = _fake_stream
+            eng.llm_chat = _fake_chat
             async for _ in run_turn(
                 SAVE_DIR, "look",
                 config=EngineConfig(),
@@ -1256,8 +1224,8 @@ class TestPackKwargs:
             ):
                 pass
         finally:
-            eng.ollama_chat_stream = _orig_stream
-            eng.ollama_chat = _orig_chat
+            eng.llm_chat_stream = _orig_stream
+            eng.llm_chat = _orig_chat
 
         assert any("UNIQUE_STYLE_MARKER_7483" in s for s in captured_narrate_system)
 
@@ -1287,10 +1255,10 @@ class TestPackKwargs:
             return {"response": example_json, "done": True, "usage": {}}
 
         import ccya.engine as eng
-        _orig_stream, _orig_chat = eng.ollama_chat_stream, eng.ollama_chat
+        _orig_stream, _orig_chat = eng.llm_chat_stream, eng.llm_chat
         try:
-            eng.ollama_chat_stream = _fake_stream
-            eng.ollama_chat = _fake_chat
+            eng.llm_chat_stream = _fake_stream
+            eng.llm_chat = _fake_chat
             async for _ in run_turn(
                 SAVE_DIR, "look",
                 config=EngineConfig(),
@@ -1299,7 +1267,7 @@ class TestPackKwargs:
             ):
                 pass
         finally:
-            eng.ollama_chat_stream = _orig_stream
-            eng.ollama_chat = _orig_chat
+            eng.llm_chat_stream = _orig_stream
+            eng.llm_chat = _orig_chat
 
         assert any("Pack example marker UNIQUE_9928" in s for s in captured_extract_system)

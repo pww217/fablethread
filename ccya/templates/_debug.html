@@ -32,16 +32,8 @@
     <span class="stat-value" title="{{ state.meta.model or '' }}">{{ state.meta.model or '—' }}</span>
 </div>
 <div class="stat-row">
-    <span class="stat-label">num_ctx</span>
-    <span class="stat-value">{{ num_ctx }}</span>
-</div>
-<div class="stat-row">
     <span class="stat-label">Mock</span>
     <span class="stat-value" style="color: {% if mock_mode %}var(--accent){% else %}var(--text-muted){% endif %}">{{ 'ON' if mock_mode else 'off' }}</span>
-</div>
-<div class="stat-row">
-    <span class="stat-label">Schema enforced</span>
-    <span class="stat-value">{{ 'yes' if enforce_extract_schema else 'no' }}</span>
 </div>
 
 {% if errors and errors | length > 0 %}

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import time
 from collections import deque
 from pathlib import Path
 from typing import Any
@@ -29,24 +28,19 @@ SAVE_DIR = Path("saves") / "default"
 
 config: dict[str, Any] = _load_config(BASE_DIR.parent / "config.yaml")
 engine_config = EngineConfig(
-    ollama_host=config["ollama"]["host"],
-    model=config["ollama"]["model"],
-    keep_alive=config["ollama"]["keep_alive"],
-    num_ctx=config["ollama"]["num_ctx"],
-    extract_num_ctx=config["ollama"].get("extract_num_ctx", 4096),
-    request_timeout_s=config["ollama"]["request_timeout_s"],
-    narrate_temperature=config["ollama"]["narrate_temperature"],
-    extract_temperature=config["ollama"]["extract_temperature"],
-    max_extract_retries=config["ollama"]["max_extract_retries"],
+    host=config["llm"]["host"],
+    model=config["llm"]["model"],
+    request_timeout_s=config["llm"]["request_timeout_s"],
+    narrate_temperature=config["llm"]["narrate_temperature"],
+    extract_temperature=config["llm"]["extract_temperature"],
+    max_extract_retries=config["llm"]["max_extract_retries"],
     window_turns=config["game"]["window_turns"],
     chronicle_prefix_budget_tokens=config["game"]["chronicle_prefix_budget_tokens"],
     established_facts_max=config["game"]["established_facts_max"],
-    enforce_extract_schema=config["ollama"].get("enforce_extract_schema", True),
-    enable_extract_thinking=config["ollama"].get("enable_extract_thinking", False),
-    enable_narrate_thinking=config["ollama"].get("enable_narrate_thinking", False),
-    generate_seed_temperature=config["ollama"].get("generate_seed_temperature", 0.9),
-    generate_seed_max_retries=config["ollama"].get("generate_seed_max_retries", 1),
-    enforce_seed_schema=config["ollama"].get("enforce_seed_schema", False),
+    enable_extract_thinking=config["llm"].get("enable_extract_thinking", False),
+    enable_narrate_thinking=config["llm"].get("enable_narrate_thinking", False),
+    generate_seed_temperature=config["llm"].get("generate_seed_temperature", 0.9),
+    generate_seed_max_retries=config["llm"].get("generate_seed_max_retries", 1),
     log_llm_io=config.get("logging", {}).get("log_llm_io", False),
     log_llm_io_max_chars=config.get("logging", {}).get("log_llm_io_max_chars", 4000),
 )
@@ -76,9 +70,6 @@ _jinja_env = Environment(
 
 # In-process errors store — last 50 entries, survives turn boundaries.
 _ERRORS_LOG: deque[dict[str, Any]] = deque(maxlen=50)
-
-# Request timing for debug panel
-_REQUEST_LOG: list[dict[str, Any]] = []
 
 
 def _render(template_name: str, context: dict) -> HTMLResponse:
@@ -128,10 +119,6 @@ def _get_opening() -> str:
     if _active_pack.manifest.mode == "dynamic":
         return _dynamic_opening
     return _active_pack.opening_text
-
-
-def _add_timing(entry: dict, start: float) -> None:
-    entry["elapsed_ms"] = round((time.time() - start) * 1000, 1)
 
 
 def _fmt_ms_seconds(ms: Any) -> str:
@@ -262,11 +249,7 @@ async def get_turn(input: str = ""):
             yield {"event": "turn_error", "data": json.dumps({"error": "Turn already in progress"})}
         return EventSourceResponse(_busy())
 
-    start = time.time()
-
     async def event_stream():
-        timing = {"event": "turn_start", "input": user_input[:100]}
-        _REQUEST_LOG.append(timing)
         try:
             async for kind, payload in run_turn(
                 SAVE_DIR, user_input,
@@ -283,7 +266,6 @@ async def get_turn(input: str = ""):
                     result = payload
                     for err in result.errors:
                         _ERRORS_LOG.appendleft(err)
-                    _add_timing(timing, start)
                     ch = result.changes if isinstance(result.changes, dict) else {}
                     yield {"event": "turn_complete", "data": json.dumps({
                         "turn": result.turn,
@@ -300,7 +282,6 @@ async def get_turn(input: str = ""):
                         "metrics": result.metrics,
                     })}
         except Exception as e:
-            _add_timing(timing, start)
             logger.exception("Turn failed")
             yield {"event": "turn_error", "data": json.dumps({"error": str(e)})}
 
@@ -327,7 +308,7 @@ async def new_game(request: Request):
 
     if _active_pack.manifest.mode == "static":
         seed = _active_pack.seed.model_dump()
-        seed.setdefault("meta", {})["model"] = config["ollama"]["model"]
+        seed.setdefault("meta", {})["model"] = config["llm"]["model"]
         init_save_dir(SAVE_DIR, seed)
         _dynamic_opening = ""
     else:
@@ -339,7 +320,7 @@ async def new_game(request: Request):
                 template_dir=str(PROMPTS_DIR),
             )
             seed = envelope.seed_state.model_dump()
-            seed.setdefault("meta", {})["model"] = config["ollama"]["model"]
+            seed.setdefault("meta", {})["model"] = config["llm"]["model"]
             seed["meta"]["setting_pack"] = _pack_id
             init_save_dir(SAVE_DIR, seed)
             _dynamic_opening = envelope.opening_narrative
@@ -366,7 +347,7 @@ async def new_game_reroll(request: Request):
             template_dir=str(PROMPTS_DIR),
         )
         seed = envelope.seed_state.model_dump()
-        seed.setdefault("meta", {})["model"] = config["ollama"]["model"]
+        seed.setdefault("meta", {})["model"] = config["llm"]["model"]
         seed["meta"]["setting_pack"] = _pack_id
         init_save_dir(SAVE_DIR, seed)
         _dynamic_opening = envelope.opening_narrative
@@ -406,10 +387,8 @@ def _debug_context() -> dict:
         "turns": _recent_turn_metrics(SAVE_DIR, 10),
         "mock_mode": mock_mode,
         "state": _load_current_state(),
-        "enforce_extract_schema": engine_config.enforce_extract_schema,
         "log_llm_io": engine_config.log_llm_io,
         "log_file": config.get("logging", {}).get("file", "logs/llm-g.log"),
-        "num_ctx": config["ollama"].get("num_ctx", ""),
     }
 
 
@@ -447,44 +426,36 @@ def opening():
 def healthz():
     import httpx
 
-    host = str(config["ollama"]["host"]).rstrip("/")
+    host = str(config["llm"]["host"]).rstrip("/")
     mock_mode = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
     if mock_mode:
         return {
-            "ollama": "mock",
-            "model": config["ollama"]["model"],
+            "llm": "mock",
+            "model": config["llm"]["model"],
             "available": True,
             "mock": True,
-            "ollama_version": "",
+            "llm_version": "",
         }
-    ollama_version = ""
+    llm_version = ""
     try:
         with httpx.Client(timeout=5) as client:
-            try:
-                vr = client.get(f"{host}/api/version")
-                if vr.status_code == 200:
-                    body = vr.json()
-                    if isinstance(body, dict) and body.get("version"):
-                        ollama_version = str(body["version"])
-            except Exception:
-                pass
-            resp = client.get(f"{host}/api/tags")
+            resp = client.get(f"{host}/models")
             resp.raise_for_status()
-            tags = resp.json()
-            models = [m["name"] for m in tags.get("models", [])]
-            model = config["ollama"]["model"]
+            body = resp.json()
+            models = [m["id"] for m in body.get("data", [])]
+            model = config["llm"]["model"]
             return {
-                "ollama": "ok",
+                "llm": "ok",
                 "model": model,
                 "available": model in models,
-                "ollama_version": ollama_version,
+                "llm_version": llm_version,
             }
     except Exception:
         return {
-            "ollama": "fail",
-            "model": config["ollama"]["model"],
+            "llm": "fail",
+            "model": config["llm"]["model"],
             "available": False,
-            "ollama_version": ollama_version,
+            "llm_version": llm_version,
         }
 
 
@@ -500,7 +471,7 @@ async def startup_event():
     logger.info("ccya starting — pack: %s (mode=%s)", _pack_id, _active_pack.manifest.mode)
     if config.get("game", {}).get("warmup_on_start", True):
         async def _warmup_bg() -> None:
-            logger.info("Warming up Ollama model (background)…")
+            logger.info("Warming up LLM model (background)…")
             await warmup(engine_config)
             logger.info("Model warmup complete")
         asyncio.create_task(_warmup_bg())
