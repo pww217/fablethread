@@ -109,3 +109,9 @@ scene:
 
 compendium:
   npcs: {}
+
+actions:
+  - Find a quick paying job on the market job boards before time runs out
+  - Talk to the OPA watchers to learn who is watching you and why
+  - Go up to the Wretch and check on your crew and ship status
+  - Try to bluff your way into a dock fee extension with Star Helix
