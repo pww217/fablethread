@@ -302,6 +302,62 @@ function _scrollNarrativeToBottom(np) {
     if (el) el.scrollTop = el.scrollHeight;
 }
 
+// Gradual auto-scroll: scrolls the narrative panel at a fixed reading pace
+// (~200 px/s) while tokens stream in, independent of the token rate.
+const _GRADUAL_SCROLL_SPEED = 25; // px per second
+let _gradualScrollId = null;
+let _gradualScrollLastTime = null;
+let _gradualScrollPaused = false;
+
+function _startGradualScroll(np) {
+    if (_gradualScrollId !== null) return;
+    const el = np || _narrativePanelEl();
+    if (!el) return;
+    _gradualScrollPaused = false;
+    _gradualScrollLastTime = null;
+    function tick(now) {
+        if (_gradualScrollId === null) return;
+        if (_gradualScrollPaused) {
+            _gradualScrollId = requestAnimationFrame(tick);
+            return;
+        }
+        if (_gradualScrollLastTime === null) {
+            _gradualScrollLastTime = now;
+            _gradualScrollId = requestAnimationFrame(tick);
+            return;
+        }
+        const delta = (now - _gradualScrollLastTime) / 1000;
+        _gradualScrollLastTime = now;
+        const el2 = _narrativePanelEl();
+        if (!el2) {
+            _stopGradualScroll();
+            return;
+        }
+        const targetScroll = el2.scrollHeight - el2.clientHeight;
+        if (el2.scrollTop >= targetScroll - 2) {
+            _stopGradualScroll();
+            return;
+        }
+        el2.scrollTop += _GRADUAL_SCROLL_SPEED * delta;
+        if (el2.scrollTop >= targetScroll - 2) {
+            el2.scrollTop = targetScroll;
+            _stopGradualScroll();
+            return;
+        }
+        _gradualScrollId = requestAnimationFrame(tick);
+    }
+    _gradualScrollId = requestAnimationFrame(tick);
+}
+
+function _stopGradualScroll() {
+    if (_gradualScrollId !== null) {
+        cancelAnimationFrame(_gradualScrollId);
+        _gradualScrollId = null;
+        _gradualScrollLastTime = null;
+        _gradualScrollPaused = false;
+    }
+}
+
 function _narrativeNearBottom(np, thresholdPx) {
     const el = np || _narrativePanelEl();
     if (!el) return true;
@@ -406,11 +462,15 @@ function game() {
         starting: false,
         gameStarted: {{ 'true' if state.location.id else 'false' }},
         turnNum: {{ state.meta.turn | default(0) }},
+        hasNarrative: {{ 'true' if has_narrative else 'false' }},
 
         init() {
             window._gameInstance = this;
             this.initReroll();
             _bindTooltips(document);
+            if (!this.hasNarrative) {
+                this.$nextTick(() => this.openPackPicker());
+            }
         },
 
         onEnter(event) {
@@ -570,7 +630,7 @@ function game() {
             es.addEventListener('narrative_token', (e) => {
                 const data = JSON.parse(e.data);
                 cursor.insertAdjacentText('beforebegin', data.chunk || '');
-                if (_narrativeNearBottom(np)) _scrollNarrativeToBottom(np);
+                if (_narrativeNearBottom(np)) _startGradualScroll(np);
             });
 
             es.addEventListener('phase', (e) => {
@@ -600,6 +660,7 @@ function game() {
                 if (cursor.parentNode) cursor.remove();
                 textDiv.classList.remove('streaming');
                 textDiv.innerHTML = _renderMarkdown(result.narrative || '');
+                _stopGradualScroll();
 
                 const met = document.createElement('div');
                 met.className = 'turn-metrics';
@@ -658,8 +719,9 @@ function game() {
                 self._turnEs = null;
                 self._turnCancel = null;
                 if (this.submitting) {
-                    _clearProgressStrip(strip);
-                    if (cursor.parentNode) cursor.remove();
+                _clearProgressStrip(strip);
+                _stopGradualScroll();
+                if (cursor.parentNode) cursor.remove();
                     textDiv.insertAdjacentHTML('beforeend',
                         '<span style="color:var(--accent-error)"> [connection\u00a0lost\u00a0\u2014 try again]</span>');
                     document.querySelectorAll('.action-pill').forEach((p) => { p.disabled = false; });
@@ -799,6 +861,19 @@ function _bindTooltips(root) {
 window.addEventListener('scroll', () => {
     if (_ttAnchor) _ttPosition(_ttAnchor.getBoundingClientRect());
 }, { passive: true, capture: true });
+
+const _npEl = document.getElementById('narrative-panel');
+if (_npEl) {
+    _npEl.addEventListener('scroll', () => {
+        if (!_gradualScrollId) return;
+        const nearBottom = _narrativeNearBottom(_npEl, 40);
+        if (nearBottom) {
+            _gradualScrollPaused = false;
+        } else {
+            _gradualScrollPaused = true;
+        }
+    }, { passive: true });
+}
 window.addEventListener('resize', () => {
     if (_ttAnchor) _ttPosition(_ttAnchor.getBoundingClientRect());
 });
