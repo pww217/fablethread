@@ -113,6 +113,10 @@
                 {% for action in last_actions %}
                 <button class="action-pill" onclick="window._gameInstance && window._gameInstance.fillFromChoice(this.textContent)">{{ action }}</button>
                 {% endfor %}
+                {% elif opening_actions %}
+                {% for action in opening_actions %}
+                <button class="action-pill" onclick="window._gameInstance && window._gameInstance.fillFromChoice(this.textContent)">{{ action }}</button>
+                {% endfor %}
                 {% elif history %}
                 <span class="empty-state">Continue your adventure above.</span>
                 {% else %}

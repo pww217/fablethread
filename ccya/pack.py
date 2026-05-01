@@ -107,6 +107,7 @@ class SeedEnvelope(BaseModel):
 
     seed_state: SeedState
     opening_narrative: str = Field(min_length=50)
+    actions: list[str] = Field(min_length=4, max_length=4)
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +232,7 @@ class Pack(BaseModel):
     # static-mode fields
     seed: SeedState | None = None
     opening_text: str = ""
+    opening_actions: list[str] = Field(default_factory=list)
     # dynamic-mode fields
     world_text: str = ""
     scenario: ScenarioBrief | None = None
@@ -287,11 +289,13 @@ def load_pack(pack_id: str, packs_dir: Path) -> Pack:
     files = manifest.files
     seed: SeedState | None = None
     opening_text = ""
+    opening_actions: list[str] = []
     world_text = ""
     scenario: ScenarioBrief | None = None
 
     if manifest.mode == "static":
         seed_data = _read_yaml(files.seed or "seed_state.yaml")
+        opening_actions = seed_data.pop("opening_actions", [])
         if seed_data:
             seed = SeedState(**seed_data)
         opening_text = _read(files.opening or "opening_scene.md")
@@ -314,6 +318,7 @@ def load_pack(pack_id: str, packs_dir: Path) -> Pack:
         extract_examples=extract_examples,
         seed=seed,
         opening_text=opening_text,
+        opening_actions=opening_actions,
         world_text=world_text,
         scenario=scenario,
     )
