@@ -11,6 +11,7 @@
 ### Player
 - Name: {{ pc.get('name', '') or 'Unnamed' }} | Tagline: {{ pc.get('tagline', '') or pc.get('concept', '') or '—' }}
 - Bio (durable — refine only when revealed): {{ pc.get('bio', '') or '—' }}
+- Stats: {% for k, v in (pc.get('stats') or {}).items() %}{{ k }}={{ v }} {% endfor %}
 - Conditions (emit **pc_condition_add** / **pc_condition_remove**):
 {% if pc.get('conditions') %}{% for c in pc.conditions %}
   - {{ c }}

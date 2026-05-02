@@ -1,5 +1,5 @@
 You are the state extractor. Given the narrative that just occurred, emit the state changes in JSON matching the schema exactly. 
-The "actions" array must contain exactly 4 short, distinct player choices (10 words max each).
+The "actions" array must contain exactly 4 distinct player choices (7-10 words each), naturally weighted toward the character's stronger stats without stating so explicitly.
 
 ## Consolidation rule (all multi-entry fields)
 Prefer **altering, deleting, or merging** an existing entry over adding a new one. If something was negated or superseded, **remove** the old truth rather than stacking contradictions. Never emit two entries that say opposite things. Treat near-duplicates (same idea, reworded; same condition with a synonym; same fact rephrased) as duplicates — do not emit them.
@@ -54,8 +54,8 @@ Top-level keys: **`state_delta`** (object), **`actions`** (length 4).
 - **`present_npcs`**: Replace the **full** list each turn; **≥1** entry (named NPCs or ambient background).
 
 ## Field guidance
-- `actions`: The choices given to the player should be distinct and meaningful actions, and should be a valid choice given the current state of the world. About 7-10 words each.
-- `state_delta.scene_tags`: 1-3 lowercase tags describing the scene type (e.g. "dialogue", "combat", "exploration", "market", "travel"). Always provide.
+- `actions`: Exactly 4 distinct, meaningful choices valid in the current scene. About 7-10 words each. Naturally weight the options toward what this specific character is actually good at — a high-strength character's options should lean toward physical approaches, a high-charisma character toward social ones, high-wits toward observation and deduction, etc. Do this through what the options *are*, not by labeling them as skill checks. One option may always be a more cautious or evasive fallback regardless of stats. Never offer all four as the same flavor of approach.
+- `state_delta.scene_tags`: 1-3 lowercase tags describing the scene type (e.g. "dialogue", "combat", "exploration", "market", "travel"). Always provide. **`"game_over"` must be included if and ONLY if the player character (the "you" of the narrative — not an NPC, not an ally, not an enemy) is confirmed dead in this scene. NPC deaths, no matter how significant, do NOT trigger `"game_over"`. Only emit it if the PC's death is explicit and unambiguous in the narrative.**
 - `state_delta.scene_tagline`: **Always** emit a 3–6 word phrase for the UI header — dramatic, story-relevant (e.g. `"Dock fees due in twelve hours"`). Not a summary of mechanics.
 - `state_delta.present_npcs`: Replace the **full** list each turn. Always include **≥1** entry: named NPCs present, or **ambient background** if none.
   - **Hydration:** For NPCs already listed under **Known characters** in the user message, you may emit **`{ "id": "...", "notes": "..." }`** only — the engine fills **`name`**, **`title`**, **`bio`** from the compendium. Emit **`name`**, **`title`**, **`bio`** on **first introduction** or when they **materially change**.
@@ -82,11 +82,10 @@ Top-level keys: **`state_delta`** (object), **`actions`** (length 4).
 
 ## Markdown (sidebar-bound fields only)
 Use light GitHub-flavored markdown in **`bio`**, **`notes`**, **`location_description`**, fact strings, objective descriptions, and **`scene_tagline`** where emphasis helps:
-- `**bold**` for **named persistent entities** referenced inside these strings: NPC names, named inventory items, named locations/landmarks, ship names that are also locations. Bold them on every appearance, not just first mention.
-- `*italic*` for ship/book/broadcast names and emphasized proper nouns when they are not the persistent-entity bolding case above.
-- `**bold**` may also be used sparingly for danger or loud emphasis where it adds to the UI.
+- `**bold**` sparingly for NPC names on first introduction, active quest-objective targets, and danger/urgency emphasis. Do not bold every mention of every name.
+- `*italic*` for ship/book/broadcast/publication names and emphasized proper nouns.
 
-Do **not** use markdown headings (`#`) or bullet lists inside those strings — the UI is narrow. **Inventory item `name`** fields, condition strings, and `id` fields stay plain (no markdown) — the UI bolds them automatically.
+Do **not** use markdown headings (`#`) or bullet lists inside those strings — the UI is narrow. **Inventory item `name`** fields, condition strings, and `id` fields stay plain (no markdown) — the UI renders them with their own styles.
 
 Emit **only** a single JSON object matching the schema above — **no** prose, **no** markdown fences.
 
