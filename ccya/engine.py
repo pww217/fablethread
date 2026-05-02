@@ -204,8 +204,11 @@ def build_state_slice(state: dict[str, Any], active_domains: list[str]) -> dict[
     """Build a sliced state dict for the extractor based on active domains.
 
     Only includes state sections relevant to the active domains, reducing
-    input tokens and attention load on the extractor.
+    input tokens and attention load on the extractor. Sections not in active
+    domains are marked with __HIDDEN__ so the template renders "(hidden)"
+    instead of "Empty" — the extractor must not assume the data is gone.
     """
+    _HIDDEN = "__HIDDEN__"
     pc = state.get("pc") or {}
     location = state.get("location") or {}
     scene = state.get("scene") or {}
@@ -227,22 +230,22 @@ def build_state_slice(state: dict[str, Any], active_domains: list[str]) -> dict[
     if "inventory" in active_domains:
         slice["inventory"] = state.get("inventory", [])
     else:
-        slice["inventory"] = []
+        slice["inventory"] = _HIDDEN
 
     if "quest_updates" in active_domains:
         slice["active_quests"] = [q for q in state.get("quests", []) if q.get("status") == "active"]
     else:
-        slice["active_quests"] = []
+        slice["active_quests"] = _HIDDEN
 
     if "established_facts" in active_domains:
         slice["established_facts"] = list(scene.get("established_facts") or [])
     else:
-        slice["established_facts"] = []
+        slice["established_facts"] = _HIDDEN
 
     if "pc_condition" in active_domains:
         slice["conditions"] = list(pc.get("conditions") or [])
     else:
-        slice["conditions"] = []
+        slice["conditions"] = _HIDDEN
 
     return slice
 
