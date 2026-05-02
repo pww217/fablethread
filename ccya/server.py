@@ -97,7 +97,7 @@ def _validate_stats(stats: dict) -> bool:
     if not all(isinstance(v, int) and 1 <= v <= 4 for v in stats.values()):
         return False
     total = sum(stats.values())
-    return 12 <= total <= 18
+    return 12 <= total <= 16
 
 
 def _load_current_state() -> dict:

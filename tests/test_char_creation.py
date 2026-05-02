@@ -55,8 +55,9 @@ class TestValidateStats:
     def test_valid_high_total(self):
         assert self._import()(VALID_STATS_HIGH) is True
 
-    def test_valid_total_18(self):
-        stats = {"strength": 4, "dexterity": 4, "wits": 4, "lore": 2, "charisma": 2, "resolve": 2}
+    def test_valid_total_16(self):
+        stats = {"strength": 4, "dexterity": 3, "wits": 3, "lore": 2, "charisma": 2, "resolve": 2}
+        # total = 16 — at max
         assert self._import()(stats) is True
 
     def test_invalid_total_below_12(self):
@@ -64,12 +65,9 @@ class TestValidateStats:
         # total = 6 < 12
         assert self._import()(stats) is False
 
-    def test_invalid_total_above_18(self):
-        stats = {
-            "strength": 4, "dexterity": 4, "wits": 4,
-            "lore": 4, "charisma": 4, "resolve": 3,
-        }
-        # total = 23 > 18
+    def test_invalid_total_above_16(self):
+        stats = {"strength": 4, "dexterity": 4, "wits": 3, "lore": 2, "charisma": 2, "resolve": 2}
+        # total = 17 > 16
         assert self._import()(stats) is False
 
     def test_invalid_stat_zero(self):

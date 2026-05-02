@@ -478,7 +478,6 @@ function _applyQuestTabsFromStorage(root) {
 function charCreation() {
     return {
         pc_name: '',
-        pc_tagline: '',
         pc_hints: '',
         npc_hints: '',
         quest_hints: '',
@@ -498,14 +497,13 @@ function charCreation() {
         },
 
         get isValid() {
-            return this.pc_name.trim().length > 0
-                && this.total >= 12 && this.total <= 18
+            return this.total >= 12 && this.total <= 16
                 && this.stats.every(s => s.value >= 1 && s.value <= 4);
         },
 
         increment(statKey) {
             const stat = this.stats.find(s => s.key === statKey);
-            if (stat && stat.value < 4 && this.total < 18) {
+            if (stat && stat.value < 4 && this.total < 16) {
                 stat.value++;
             }
         },
@@ -598,15 +596,15 @@ function game() {
                         const card = e.target.closest('[data-pack-id]');
                         if (!card) return;
                         body.removeEventListener('click', onCardClick);
-                        close();
-                        // If character creation is disabled, go straight to new game
+                        // If character creation is disabled, close modal and go straight to new game
                         if (!self.characterCreationEnabled) {
+                            close();
                             self.startNewGame(card.dataset.packId);
                             return;
                         }
                         // Capture selected pack ID for the character creation form
                         self._selectedPackId = card.dataset.packId;
-                        // Advance to character creation step
+                        // Advance to character creation step — keep modal open
                         self._modalStep = 'character';
                         document.getElementById('pack-picker-title').textContent = 'Create Your Character';
                         body.innerHTML = '<p class="empty-state">Loading character creation…</p>';
@@ -614,12 +612,14 @@ function game() {
                             .then(r => r.text())
                             .then(charHtml => {
                                 body.innerHTML = charHtml;
+                                // Initialize Alpine.js on the injected subtree
+                                if (window.Alpine) Alpine.initTree(body);
                                 // Wire the confirm button to submit new game
                                 const confirmBtn = body.querySelector('.char-creation-btn--confirm');
                                 if (confirmBtn) {
                                     confirmBtn.addEventListener('click', function onConfirm(e) {
+                                        if (confirmBtn.disabled) return;
                                         e.preventDefault();
-                                        body.removeEventListener('click', onConfirm);
                                         close();
                                         self.startNewGameWithCharCreation();
                                     });
@@ -632,6 +632,7 @@ function game() {
                                         self._modalStep = 'pack';
                                         document.getElementById('pack-picker-title').textContent = 'Choose a World';
                                         body.innerHTML = html;
+                                        if (window.Alpine) Alpine.initTree(body);
                                         body.addEventListener('click', onCardClick);
                                     });
                                 }
@@ -695,7 +696,6 @@ function game() {
                 // Read from the form fields in the modal body
                 const bodyEl = document.getElementById('pack-picker-body');
                 const nameInput = bodyEl?.querySelector('#cc-name');
-                const taglineInput = bodyEl?.querySelector('#cc-tagline');
                 const pcHintsInput = bodyEl?.querySelector('#cc-pc-hints');
                 const npcHintsInput = bodyEl?.querySelector('#cc-npc-hints');
                 const questHintsInput = bodyEl?.querySelector('#cc-quest-hints');
@@ -703,7 +703,6 @@ function game() {
                 const statsInput = bodyEl?.querySelector('input[name="pc_stats"]');
 
                 if (nameInput?.value) body.append('pc_name', nameInput.value.trim());
-                if (taglineInput?.value) body.append('pc_tagline', taglineInput.value.trim());
                 if (pcHintsInput?.value) body.append('pc_hints', pcHintsInput.value.trim());
                 if (npcHintsInput?.value) body.append('npc_hints', npcHintsInput.value.trim());
                 if (questHintsInput?.value) body.append('quest_hints', questHintsInput.value.trim());
