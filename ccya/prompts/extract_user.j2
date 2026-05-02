@@ -25,7 +25,8 @@ Ambiguities to resolve: {{ scope.ambiguities | join("; ") }}
 - Bio (durable — refine only when revealed): {{ pc.get('bio', '') or '—' }}
 - Stats: {% for k, v in (pc.get('stats') or {}).items() %}{{ k }}={{ v }} {% endfor %}
 - Conditions (emit **pc_condition_add** / **pc_condition_remove**):
-{% if conditions %}{% for c in conditions %}
+{% if conditions == "__HIDDEN__" %}  — (hidden — not in active scope; do not assume conditions are gone)
+{% elif conditions %}{% for c in conditions %}
   - {{ c }}
 {% endfor %}{% else %}  - none{% endif %}
 
@@ -44,12 +45,14 @@ Ambiguities to resolve: {{ scope.ambiguities | join("; ") }}
 {% endfor %}{% else %}None listed.{% endif %}
 
 ### Established facts (copy exact strings from this list into **established_facts_remove** / **established_facts_update.old** when superseding)
-{% if established_facts %}{% for f in established_facts %}
+{% if established_facts == "__HIDDEN__" %}— (hidden — not in active scope; do not assume facts are gone)
+{% elif established_facts %}{% for f in established_facts %}
 - {{ f if f is string else f.values() | join(': ') }}
 {% endfor %}{% else %}None.{% endif %}
 
 ### Active quests (update by quest **id**; objectives by **1-based index** from the numbered list)
-{% if active_quests %}{% for q in active_quests %}
+{% if active_quests == "__HIDDEN__" %}— (hidden — not in active scope; do not assume quests are gone)
+{% elif active_quests %}{% for q in active_quests %}
 - id: `{{ q.id }}` | title: {{ q.title }}
   objectives:
 {% for o in (q.objectives or []) %}    {{ loop.index }}. [{% if o.done %}x{% elif o.failed %}f{% else %} {% endif %}] {{ o.description }}
@@ -57,7 +60,8 @@ Ambiguities to resolve: {{ scope.ambiguities | join("; ") }}
 {% endfor %}{% else %}None.{% endif %}
 
 ### Inventory (deltas — **inventory_add** / **inventory_remove** / **inventory_update**; reuse existing ids when possible)
-{% if inventory %}{% for it in inventory %}- id: `{{ it.id }}` | name: {{ it.name }} | amount: {{ it.amount or 1 }}
+{% if inventory == "__HIDDEN__" %}— (hidden — not in active scope; do not assume inventory is empty)
+{% elif inventory %}{% for it in inventory %}- id: `{{ it.id }}` | name: {{ it.name }} | amount: {{ it.amount or 1 }}
 {% endfor %}{% else %}Empty.{% endif %}
 
 ## CURRENT TURN NARRATION (what just happened this turn — extract state changes from this)

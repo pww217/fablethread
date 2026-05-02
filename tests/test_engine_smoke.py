@@ -340,16 +340,17 @@ class TestPromptComposition:
         assert "Previous turn — failed actions" not in system_text
 
     def test_state_slice_skips_inactive_domains(self):
-        """Skip domains result in empty data in extract user message."""
+        """Skip domains result in hidden markers in extract user message."""
         from ccya.models import Scope
         env = self._env()
         state = _make_state()
         scope = Scope(active_domains=["scene", "present_npcs"], skip_domains=["inventory", "quest_updates", "established_facts", "pc_condition"])
         msgs = _extract_messages(env, "N.", state, intent=IntentEnvelope(scope=scope))
         user_msg = next(m for m in msgs if m["role"] == "user")
-        assert "Empty." in user_msg["content"]  # inventory section
-        assert "None." in user_msg["content"]  # quests section
-        assert "None." in user_msg["content"]  # facts section
+        assert "hidden — not in active scope" in user_msg["content"]
+        assert "do not assume inventory is empty" in user_msg["content"]
+        assert "do not assume quests are gone" in user_msg["content"]
+        assert "do not assume facts are gone" in user_msg["content"]
 
     def test_state_slice_always_includes_known_characters(self):
         """Known characters (compendium) always included regardless of scope."""

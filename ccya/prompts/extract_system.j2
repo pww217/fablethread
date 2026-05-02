@@ -64,6 +64,7 @@ Full output shape:
 - For domains listed in **Skip domains**: emit null / empty / omit entirely. Do NOT reason about skip domains even if narratively adjacent.
 - Use **Preconditions assumed** to validate downstream effects. If a precondition was not met, emit `failed` with a description of what failed and why.
 - Use **Ambiguities** to resolve references before emitting IDs.
+- Sections marked "(hidden — not in active scope)" in the user message are **sliced out for token efficiency**. The data still exists in game state. Do NOT assume inventory is empty, quests are gone, facts are cleared, or conditions are resolved — they are simply not relevant this turn.
 
 ## Field guidance
 - `_reasoning`: After emitting state_delta, write 2-4 sentences cross-checking your extraction: confirm quest objectives match what the narrative resolved, verify no established_facts_add entries duplicate the existing fact list, and flag any precondition that was assumed but may not have been met. This field is stripped by the engine before state is applied — use it freely.
