@@ -50,4 +50,8 @@
 {% if inventory %}{% for it in inventory %}- id: `{{ it.id }}` | name: {{ it.name }} | amount: {{ it.amount or 1 }}
 {% endfor %}{% else %}Empty.{% endif %}
 
+## CURRENT TURN NARRATION (what just happened this turn — extract state changes from this)
+{{ narrative }}
+## END CURRENT TURN NARRATION
+
 Emit JSON now matching the schema for the narrative above.

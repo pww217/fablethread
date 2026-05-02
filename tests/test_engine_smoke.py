@@ -221,18 +221,18 @@ class TestPromptComposition:
         system_msg = next(m for m in msgs if m["role"] == "system")
         assert "SECRET_PROBE" not in system_msg["content"]
 
-    def test_extract_has_system_assistant_user_roles(self):
+    def test_extract_has_system_user_roles(self):
         env = self._env()
         msgs = _extract_messages(env, "The airlock opened.", _make_state())
         roles = [m["role"] for m in msgs]
-        assert roles == ["system", "assistant", "user"]
+        assert roles == ["system", "user"]
 
-    def test_extract_assistant_message_is_narrative(self):
+    def test_extract_user_message_contains_narrative(self):
         env = self._env()
         narrative = "You step through the airlock. The corridor hums."
         msgs = _extract_messages(env, narrative, _make_state())
-        assistant_msg = next(m for m in msgs if m["role"] == "assistant")
-        assert narrative in assistant_msg["content"]
+        user_msg = next(m for m in msgs if m["role"] == "user")
+        assert narrative in user_msg["content"]
 
     def test_extract_user_message_includes_active_quests_and_inventory(self):
         env = self._env()

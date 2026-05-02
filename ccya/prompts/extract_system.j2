@@ -46,6 +46,8 @@ state_delta fields (only include what changed; omit keys that are empty):
     "bio": "str?"
   }],
   "compendium_npc_update": [{"id": "str", "name": "str?", "title": "str?", "bio": "str?"}]
+},
+"actions": ["str", "str", "str", "str"]
 }
 ```
 
@@ -54,7 +56,6 @@ state_delta fields (only include what changed; omit keys that are empty):
 - `present_npcs`: Replace the full list each turn; ≥1 entry (named NPCs or ambient background).
 
 ## Field guidance
-- `actions`: Exactly 4 distinct, meaningful choices valid in the current scene. About 7-10 words each. Naturally weight the options toward what this specific character is actually good at — a high-strength character's options should lean toward physical approaches, a high-charisma character toward social ones, high-wits toward observation and deduction, etc. Do this through what the options *are*, not by labeling them as skill checks. One option may always be a more cautious or evasive fallback regardless of stats. Never offer all four as the same flavor of approach.
 - `state_delta.scene_tags`: 1-3 lowercase tags describing the scene type (e.g. "dialogue", "combat", "exploration", "market", "travel"). Always provide. `"game_over"` must be included if and ONLY if the player character (the "you" of the narrative — not an NPC, not an ally, not an enemy) is confirmed dead in this scene. NPC deaths, no matter how significant, do NOT trigger `"game_over"`. Only emit it if the PC's death is explicit and unambiguous in the narrative.
 - `state_delta.scene_tagline`: Always emit a 3–6 word phrase for the UI header — dramatic, story-relevant (e.g. `"Dock fees due in twelve hours"`). Not a summary of mechanics.
 - `state_delta.present_npcs`: Replace the full list each turn. Always include ≥1 entry: named NPCs present, or ambient background if none.
@@ -79,6 +80,7 @@ state_delta fields (only include what changed; omit keys that are empty):
 - `state_delta.inventory_add` / `inventory_remove` / `inventory_update`: Same normalized id merge on add. Use `inventory_update` when an item's name or notes materially change (repaired gear, renamed kit) without a full remove/re-add. Prefer `inventory_update` over stacking contradictory notes via `inventory_add`.
   - Hard cap: at most 2 `inventory_add` entries per turn (see Hard caps above). Pick the most narrative-critical pickups; mention the rest in prose only.
   - Weapons require ammo. Whenever you add a ranged or projectile weapon (firearm, bow, crossbow, dart gun, energy weapon with charges, etc.), you must also account for its ammunition in inventory: either (a) add a separate ammo stack as a second `inventory_add` (e.g. `{ "id": "9mm-rounds", "name": "9mm rounds", "amount": 12 }`), or (b) if the player already has compatible ammo, update that existing stack's `amount` via `inventory_update`. The ammo item's `amount` is the single source of truth — do not put loaded counts or ammo quantities in the weapon's `notes`; weapon notes are for describing the weapon itself (condition, modifications, origin). Never leave a ranged weapon without a corresponding ammo item. Melee weapons and thrown one-shots are exempt. The 2-item cap still applies — if a weapon + its ammo would exceed the cap, drop a less important pickup to make room for the ammo.
+- `actions`: Exactly 4 distinct, meaningful choices valid in the current scene. About 7-10 words each. Naturally weight the options toward what this specific character is actually good at — a high-strength character's options should lean toward physical approaches, a high-charisma character toward social ones, high-wits toward observation and deduction, etc. Do this through what the options *are*, not by labeling them as skill checks. One option may always be a more cautious or evasive fallback regardless of stats. Never offer all four as the same flavor of approach.
 
 ## Markdown (sidebar-bound fields only)
 Use light GitHub-flavored markdown in `bio`, `notes`, `location_description`, fact strings, objective descriptions, and `scene_tagline` where emphasis helps:

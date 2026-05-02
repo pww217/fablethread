@@ -529,11 +529,10 @@ def _extract_messages(
     rules_outcome: "RulesOutcome | None" = None,
     intent: "IntentEnvelope | None" = None,
 ) -> list[dict[str, str]]:
-    """Build extract message list: [system, assistant, user].
+    """Build extract message list: [system, user].
 
     system    = schema + extraction rules (stable)
-    assistant = the narrative just produced (model "owns" this output)
-    user      = canonical state snapshot + emit JSON instruction
+    user      = narrative + canonical state snapshot + emit JSON instruction
     """
     system_text = _render(
         env,
@@ -551,6 +550,7 @@ def _extract_messages(
         env,
         "extract_user.j2",
         {
+            "narrative": narrative,
             "pc": pc,
             "location": location,
             "present_npcs": present_npcs,
@@ -564,7 +564,6 @@ def _extract_messages(
     )
     msgs = [
         {"role": "system", "content": system_text},
-        {"role": "assistant", "content": narrative},
         {"role": "user", "content": user_text},
     ]
     if enable_extract_thinking:
