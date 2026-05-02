@@ -344,6 +344,12 @@ async def new_game(request: Request):
     quest_hints = str(form.get("quest_hints", "")).strip()
     free_form = str(form.get("free_form", "")).strip()
 
+    npc_count_raw = str(form.get("npc_count", "")).strip()
+    try:
+        npc_count = max(0, int(npc_count_raw)) if npc_count_raw else 0
+    except ValueError:
+        npc_count = 0
+
     # Build PlayerOverrides from form fields
     from ccya.pack import PlayerOverrides
     overrides = PlayerOverrides(
@@ -352,6 +358,7 @@ async def new_game(request: Request):
         location_hints=location_hints,
         quest_hints=quest_hints,
         free_form=free_form,
+        npc_count=npc_count,
     )
 
     # Add hard overrides as pc_hints for dynamic packs

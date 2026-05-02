@@ -162,11 +162,13 @@ class PlayerOverrides(BaseModel):
     location_hints: str = ""
     quest_hints: str = ""
     free_form: str = ""
+    npc_count: int = 0  # 0 = use pack default (scenario.constraints.min_named_npcs)
 
     def is_empty(self) -> bool:
         return not any([
             self.pc_hints, self.npc_hints,
             self.location_hints, self.quest_hints, self.free_form,
+            self.npc_count,
         ])
 
 

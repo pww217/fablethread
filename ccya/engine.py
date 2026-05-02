@@ -1251,6 +1251,7 @@ def _build_generate_seed_messages(
         "style_text": pack.style_text,
         "scenario": pack.scenario,
         "overrides": overrides if (overrides and not overrides.is_empty()) else None,
+        "npc_count_override": overrides.npc_count if (overrides and overrides.npc_count > 0) else 0,
     }
     system_text = _render(env, "generate_seed_system.j2", ctx)
     user_text = _render(env, "generate_seed_user.j2", ctx)
@@ -1263,6 +1264,7 @@ def _build_generate_seed_messages(
 def _soft_validate_seed(
     envelope: SeedEnvelope,
     pack: Pack,
+    overrides: PlayerOverrides | None = None,
 ) -> list[str]:
     """Post-Pydantic soft checks that emit warnings but don't fail generation.
     Returns a list of warning strings (empty = all good)."""
@@ -1273,8 +1275,9 @@ def _soft_validate_seed(
 
     npcs = envelope.seed_state.scene.present_npcs
     named = [n for n in npcs if n.name]
-    if len(named) < c.min_named_npcs:
-        warnings.append(f"Only {len(named)} named NPCs (min {c.min_named_npcs})")
+    min_npcs = (overrides.npc_count if (overrides and overrides.npc_count > 0) else None) or c.min_named_npcs
+    if len(named) < min_npcs:
+        warnings.append(f"Only {len(named)} named NPCs (min {min_npcs})")
 
     words = len(envelope.opening_narrative.split())
     lo, hi = c.prose_word_range
@@ -1398,7 +1401,7 @@ async def generate_seed(
         if "compendium_touch_order" in envelope.seed_state.meta:
             del envelope.seed_state.meta["compendium_touch_order"]
 
-        soft_warnings = _soft_validate_seed(envelope, pack)
+        soft_warnings = _soft_validate_seed(envelope, pack, overrides)
         for w in soft_warnings:
             _log.warning("generate_seed soft-check: %s", w, extra={"trace_id": trace_id})
 

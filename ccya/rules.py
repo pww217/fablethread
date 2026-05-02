@@ -47,7 +47,7 @@ GM_MOVES: dict[str, list[str]] = {
         "You are put in a difficult spot with few good options.",
     ],
     "mixed": [
-        "You succeed, but at a real cost — time, a resource, attention, or a new debt.",
+        "You succeed, but at a minor cost — time, a resource, attention, or a new debt.",
         "Partial success: you get part of what you wanted.",
         "You succeed, but the situation immediately becomes more complicated.",
     ],
@@ -106,7 +106,7 @@ def build_directive(band: str, intent_verb: str, skill: str) -> str:
     if band == "fail":
         return f"The {verb} fails. {base}"
     if band == "mixed":
-        return f"The {verb} partially works but at a cost. {base}"
+        return f"The {verb} partially works but at a minor setback or cost. {base}"
     if band == "success":
         return f"The {verb} succeeds cleanly. {base}"
     if band == "crit_success":

@@ -14,7 +14,7 @@ You are a scenario generator for a text adventure game. Emit a SeedEnvelope JSON
 ## Hard constraints (validated after you emit)
 {% if scenario and scenario.constraints %}
 {% set c = scenario.constraints %}
-- present_npcs in scene: at least {{ c.min_named_npcs }} entries with a proper personal name (first + surname where natural) — names must fit the setting's cultural mix, not default Anglo-fantasy surnames
+- present_npcs in scene: at least {{ npc_count_override if npc_count_override > 0 else c.min_named_npcs }} entries with a proper personal name (first + surname where natural) — names must fit the setting's cultural mix, not default Anglo-fantasy surnames
 - quests: exactly {{ c.starting_quest_count }} quest(s), each with at least {{ c.min_objectives_per_quest }} objectives
 - inventory: {{ c.inventory_size_range[0] }}–{{ c.inventory_size_range[1] }} items
 - pc.stats values: {{ c.pc_stat_range[0] }}–{{ c.pc_stat_range[1] }}; stat total: {{ c.pc_stat_total_range[0] }}–{{ c.pc_stat_total_range[1] }}
