@@ -29,6 +29,7 @@ from jinja2 import Environment, FileSystemLoader
 from ccya.models import ExtractResult, IntentEnvelope, RulesCheck, RulesOutcome, StateDelta, TurnResult
 import ccya.rules as rules_engine
 from ccya.pack import ExtractExample, Pack, PlayerOverrides, SeedEnvelope, parse_world_facts
+from ccya.names import generate_name_pool, generate_npc_names
 from ccya.llm_client import apply_thinking, chat as llm_chat, chat_stream as llm_chat_stream, strip_thinking, trim_messages
 from ccya.state import (
     append_chronicle,
@@ -137,6 +138,7 @@ def _narrate_messages(
     enable_narrate_thinking: bool = False,
     pack_style: str = "",
     rules_outcome: "RulesOutcome | None" = None,
+    npc_name_pool: list[str] = [],
 ) -> list[dict[str, str]]:
     """Build narrate message list: [system, user].
 
@@ -149,6 +151,7 @@ def _narrate_messages(
         "recent_turns": recent_turns,
         "pack_style": pack_style,
         "rules_outcome": rules_outcome,
+        "npc_name_pool": npc_name_pool,
     }
     system_text = _render(env, "narrate_system.j2", ctx)
     user_text = _render(env, "narrate_user.j2", {"user_input": user_input})
@@ -879,6 +882,7 @@ async def run_turn(
     template_dir: str | None = None,
     pack_style: str = "",
     pack_examples: list[ExtractExample] | None = None,
+    pack_name_locales: list[dict] = [],
 ) -> AsyncIterator[tuple[str, Any]]:
     """Execute one turn. Async generator yielding:
         ("token", str)          — one per narrative chunk during call 1
@@ -965,6 +969,15 @@ async def run_turn(
         exp_narrate_ms = _avg_narrate_ms(save_dir)
         yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
 
+        # Rolling NPC name pool for mid-game cultural anchoring
+        _npc_name_pool: list[str] = []
+        if pack_name_locales:
+            _npc_name_pool = generate_npc_names(
+                pack_name_locales,
+                count=6,
+                seed=state.get("meta", {}).get("turn", 0),
+            )
+
         narr_messages = _narrate_messages(
             env, state, user_input,
             chronicle_tail=chronicle_tail,
@@ -972,6 +985,7 @@ async def run_turn(
             enable_narrate_thinking=config.enable_narrate_thinking,
             pack_style=pack_style,
             rules_outcome=outcome,
+            npc_name_pool=_npc_name_pool,
         )
         narr_messages = trim_messages(narr_messages, config.prompt_token_budget)
         if config.log_prompts:
@@ -1245,6 +1259,7 @@ def _build_generate_seed_messages(
     """Build the [system, user] messages for generate_seed."""
     from ccya.models import ExtractResult  # noqa: F401 — schema_json import path
     schema_json = SeedEnvelope.model_json_schema()
+    name_pool = generate_name_pool(pack.manifest.name_locales)
     ctx = {
         "schema_json": json.dumps(schema_json, indent=2),
         "world_text": pack.world_text,
@@ -1252,6 +1267,7 @@ def _build_generate_seed_messages(
         "scenario": pack.scenario,
         "overrides": overrides if (overrides and not overrides.is_empty()) else None,
         "npc_count_override": overrides.npc_count if (overrides and overrides.npc_count > 0) else 0,
+        "name_pool": name_pool,
     }
     system_text = _render(env, "generate_seed_system.j2", ctx)
     user_text = _render(env, "generate_seed_user.j2", ctx)

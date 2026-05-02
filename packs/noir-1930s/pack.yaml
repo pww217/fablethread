@@ -14,3 +14,12 @@ files:
   scenario: scenario.yaml
   style: style.md
   extract_examples: extract_examples.yaml
+name_locales:
+  - locale: en_US
+    weight: 0.75
+  - locale: it_IT
+    weight: 0.12
+  - locale: de_DE
+    weight: 0.08
+  - locale: es_ES
+    weight: 0.05

@@ -40,4 +40,15 @@
 {% if overrides.free_form %}Other: {{ overrides.free_form }}{% endif %}
 {% endif %}
 
+{% if name_pool %}
+## Name pool (non-binding suggestions)
+These names were sampled from the cultural locales appropriate to this setting,
+weighted to reflect the genre's demographic reality. Use them, adapt them, or
+ignore them — they are a starting point, not a constraint.
+
+**PC candidates:** {{ name_pool.pc | join(", ") }}
+**NPC candidates:** {{ name_pool.npc | join(", ") }}
+**Place name inspiration:** {{ name_pool.location | join(", ") }}
+{% endif %}
+
 Emit the SeedEnvelope JSON now. No prose outside the JSON object.

@@ -104,11 +104,37 @@ def _load_current_state() -> dict:
     return load_state(SAVE_DIR)
 
 
+def _load_rules_map(save_dir: Path) -> dict[int, dict]:
+    """Build a turn→rules map from events.jsonl."""
+    path = save_dir / "events.jsonl"
+    if not path.exists():
+        return {}
+    raw = path.read_text().strip()
+    if not raw:
+        return {}
+    rules_map: dict[int, dict] = {}
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            ev = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        turn = int(ev.get("turn") or 0)
+        rules = ev.get("rules")
+        if rules and isinstance(rules, dict):
+            rules_map[turn] = rules
+    return rules_map
+
+
 def _load_recent_history(save_dir: Path, n: int = 8) -> list[dict]:
     """Return the last n turns from chronicle.md for page-reload continuity (full narrative)."""
     turns = load_recent_chronicle_turns(save_dir, n)
+    rules_map = _load_rules_map(save_dir)
     return [
-        {"turn": t["turn"], "input": t["input"], "narrative": t["narrative"]}
+        {"turn": t["turn"], "input": t["input"], "narrative": t["narrative"],
+         "rules": rules_map.get(t["turn"])}
         for t in turns
     ]
 
@@ -222,7 +248,8 @@ def _turn_log_entries(save_dir: Path, limit: int = 50) -> list[dict[str, Any]]:
             disp = ["(no structured summary — older save)"]
         if not disp:
             disp = ["(no changes this turn)"]
-        entries.append({"turn": int(ev.get("turn") or 0), "lines": disp})
+        rules = ev.get("rules")
+        entries.append({"turn": int(ev.get("turn") or 0), "lines": disp, "rules": rules if isinstance(rules, dict) else None})
     return entries
 
 
@@ -283,6 +310,7 @@ async def get_turn(input: str = ""):
                 template_dir=str(PROMPTS_DIR),
                 pack_style=_active_pack.style_text,
                 pack_examples=_active_pack.extract_examples,
+                pack_name_locales=_active_pack.manifest.name_locales,
             ):
                 if kind == "token":
                     yield {"event": "narrative_token", "data": json.dumps({"chunk": payload})}

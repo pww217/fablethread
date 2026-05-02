@@ -10,7 +10,7 @@ run: llama-swap
 	uv run ccya
 
 dev: llama-swap
-	uv run uvicorn ccya.server:app --reload --host 127.0.0.1 --port 8765
+	.venv/bin/python -m uvicorn ccya.server:app --reload --host 0.0.0.0 --port 8765
 
 fmt:
 	uv run ruff format .

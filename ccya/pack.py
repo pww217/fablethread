@@ -225,6 +225,10 @@ class PackManifest(BaseModel):
     # tension-loaded — every fact should shape what the player can do.
     # Recommended exactly 3; hard cap 5.
     baseline_facts: list[str] = Field(default_factory=list, max_length=5)
+    # Weighted locale list for Faker-backed name generation. Each entry is
+    # {"locale": "en_US", "weight": 0.75}. Weights are normalised at call time.
+    # Empty list → falls back to en_US at weight 1.0.
+    name_locales: list[dict[str, Any]] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
