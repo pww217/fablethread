@@ -19,6 +19,7 @@ game:
   chronicle_prefix_budget_tokens: 1500
   established_facts_max: 30    # rolling window; seed lore is baked in as initial state
   warmup_on_start: true
+  character_creation_enabled: true
 
 server:
   bind_host: 127.0.0.1

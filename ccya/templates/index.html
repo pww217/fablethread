@@ -475,6 +475,79 @@ function _applyQuestTabsFromStorage(root) {
     });
 }
 
+function charCreation() {
+    return {
+        pc_name: '',
+        pc_tagline: '',
+        pc_hints: '',
+        npc_hints: '',
+        quest_hints: '',
+        free_form: '',
+        selectedPackId: '',
+        stats: [
+            { key: 'strength', label: 'Strength', description: 'Force, melee combat, and soak against physical trauma.', value: 2 },
+            { key: 'dexterity', label: 'Dexterity', description: 'Reflexes, ranged attacks, and avoiding danger.', value: 2 },
+            { key: 'wits', label: 'Wits', description: 'Awareness, perception, and quick thinking under pressure.', value: 2 },
+            { key: 'lore', label: 'Lore', description: 'Knowledge, investigation, and recalling information.', value: 2 },
+            { key: 'charisma', label: 'Charisma', description: 'Persuasion, leadership, and reading people.', value: 2 },
+            { key: 'resolve', label: 'Resolve', description: 'Mental fortitude, resisting fear, and pushing through pain.', value: 2 },
+        ],
+
+        get total() {
+            return this.stats.reduce((sum, s) => sum + s.value, 0);
+        },
+
+        get isValid() {
+            return this.pc_name.trim().length > 0
+                && this.total >= 12 && this.total <= 18
+                && this.stats.every(s => s.value >= 1 && s.value <= 4);
+        },
+
+        increment(statKey) {
+            const stat = this.stats.find(s => s.key === statKey);
+            if (stat && stat.value < 4 && this.total < 18) {
+                stat.value++;
+            }
+        },
+
+        decrement(statKey) {
+            const stat = this.stats.find(s => s.key === statKey);
+            if (stat && stat.value > 1) {
+                stat.value--;
+            }
+        },
+
+        applyPreset(name) {
+            const presets = {
+                brawler: { strength: 4, dexterity: 2, wits: 2, lore: 1, charisma: 1, resolve: 2 },
+                smooth_talker: { strength: 1, dexterity: 2, wits: 2, lore: 2, charisma: 4, resolve: 1 },
+                balanced: { strength: 2, dexterity: 2, wits: 2, lore: 2, charisma: 2, resolve: 2 },
+            };
+            const p = presets[name];
+            if (p) {
+                for (const s of this.stats) {
+                    if (p[s.key] !== undefined) s.value = p[s.key];
+                }
+            }
+        },
+
+        serializedStats() {
+            const obj = {};
+            for (const s of this.stats) {
+                obj[s.key] = s.value;
+            }
+            return JSON.stringify(obj);
+        },
+
+        init() {
+            const packInput = document.querySelector('input[name="pack_id"]');
+            if (packInput) {
+                this.selectedPackId = packInput.value || '';
+            }
+        },
+    };
+}
+
 function game() {
     return {
         input: '',
@@ -483,6 +556,7 @@ function game() {
         gameStarted: {{ 'true' if state.location.id else 'false' }},
         turnNum: {{ state.meta.turn | default(0) }},
         hasNarrative: {{ 'true' if has_narrative else 'false' }},
+        characterCreationEnabled: {{ 'true' if character_creation_enabled else 'false' }},
 
         init() {
             window._gameInstance = this;
@@ -506,7 +580,8 @@ function game() {
             const body = document.getElementById('pack-picker-body');
             backdrop.style.display = 'block';
             modal.style.display = 'flex';
-            body.innerHTML = '<p class="empty-state">Loading…</p>';
+            body.innerHTML = '<p class="empty-state">Loading packs…</p>';
+            this._modalStep = 'pack';
 
             const self = this;
             const close = () => {
@@ -524,7 +599,44 @@ function game() {
                         if (!card) return;
                         body.removeEventListener('click', onCardClick);
                         close();
-                        self.startNewGame(card.dataset.packId);
+                        // If character creation is disabled, go straight to new game
+                        if (!self.characterCreationEnabled) {
+                            self.startNewGame(card.dataset.packId);
+                            return;
+                        }
+                        // Capture selected pack ID for the character creation form
+                        self._selectedPackId = card.dataset.packId;
+                        // Advance to character creation step
+                        self._modalStep = 'character';
+                        document.getElementById('pack-picker-title').textContent = 'Create Your Character';
+                        body.innerHTML = '<p class="empty-state">Loading character creation…</p>';
+                        fetch('/panels/char-creation')
+                            .then(r => r.text())
+                            .then(charHtml => {
+                                body.innerHTML = charHtml;
+                                // Wire the confirm button to submit new game
+                                const confirmBtn = body.querySelector('.char-creation-btn--confirm');
+                                if (confirmBtn) {
+                                    confirmBtn.addEventListener('click', function onConfirm(e) {
+                                        e.preventDefault();
+                                        body.removeEventListener('click', onConfirm);
+                                        close();
+                                        self.startNewGameWithCharCreation();
+                                    });
+                                }
+                                // Wire back button
+                                const backBtn = body.querySelector('.char-creation-btn--back');
+                                if (backBtn) {
+                                    backBtn.addEventListener('click', function onBack(e) {
+                                        e.preventDefault();
+                                        self._modalStep = 'pack';
+                                        document.getElementById('pack-picker-title').textContent = 'Choose a World';
+                                        body.innerHTML = html;
+                                        body.addEventListener('click', onCardClick);
+                                    });
+                                }
+                            })
+                            .catch(() => { body.innerHTML = '<p class="empty-state">Failed to load character creation.</p>'; });
                     });
                 })
                 .catch(() => { body.innerHTML = '<p class="empty-state">Failed to load packs.</p>'; });
@@ -537,6 +649,20 @@ function game() {
             window._closePackPicker = close;
         },
 
+        get _selectedPackId() {
+            return this.__selectedPackId || '';
+        },
+        set _selectedPackId(v) {
+            this.__selectedPackId = v;
+        },
+
+        get _modalStep() {
+            return this.__modalStep || 'pack';
+        },
+        set _modalStep(v) {
+            this.__modalStep = v;
+        },
+
         async startNewGame(packId, { force = false } = {}) {
             window._closePackPicker && window._closePackPicker();
             const shouldForce = force || !!this._forceNewGame;
@@ -546,6 +672,44 @@ function game() {
             try {
                 const body = new FormData();
                 if (packId) body.append('pack_id', packId);
+                const resp = await fetch('/new-game', { method: 'POST', body });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                window.location.reload();
+            } catch (e) {
+                console.error('New game failed:', e);
+                document.getElementById('narrative-panel').insertAdjacentHTML('beforeend',
+                    `<p style="color: var(--accent-error); font-size: 13px; margin-top: 12px;">
+                        Failed to start new game: ${_escapeHtml(e.message)}
+                     </p>`);
+                this.starting = false;
+            }
+        },
+
+        async startNewGameWithCharCreation() {
+            this.starting = true;
+            try {
+                // Collect character creation form data
+                const body = new FormData();
+                body.append('pack_id', this._selectedPackId || '');
+
+                // Read from the form fields in the modal body
+                const bodyEl = document.getElementById('pack-picker-body');
+                const nameInput = bodyEl?.querySelector('#cc-name');
+                const taglineInput = bodyEl?.querySelector('#cc-tagline');
+                const pcHintsInput = bodyEl?.querySelector('#cc-pc-hints');
+                const npcHintsInput = bodyEl?.querySelector('#cc-npc-hints');
+                const questHintsInput = bodyEl?.querySelector('#cc-quest-hints');
+                const freeFormInput = bodyEl?.querySelector('#cc-free-form');
+                const statsInput = bodyEl?.querySelector('input[name="pc_stats"]');
+
+                if (nameInput?.value) body.append('pc_name', nameInput.value.trim());
+                if (taglineInput?.value) body.append('pc_tagline', taglineInput.value.trim());
+                if (pcHintsInput?.value) body.append('pc_hints', pcHintsInput.value.trim());
+                if (npcHintsInput?.value) body.append('npc_hints', npcHintsInput.value.trim());
+                if (questHintsInput?.value) body.append('quest_hints', questHintsInput.value.trim());
+                if (freeFormInput?.value) body.append('free_form', freeFormInput.value.trim());
+                if (statsInput?.value) body.append('pc_stats', statsInput.value);
+
                 const resp = await fetch('/new-game', { method: 'POST', body });
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 window.location.reload();

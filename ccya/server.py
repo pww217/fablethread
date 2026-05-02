@@ -88,6 +88,17 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 # ---------------------------------------------------------------------------
 
 
+def _validate_stats(stats: dict) -> bool:
+    """Return True if *stats* is a valid six-stat allocation (1–4 each, total 12–18)."""
+    SKILLS = {"strength", "dexterity", "wits", "lore", "charisma", "resolve"}
+    if set(stats.keys()) != SKILLS:
+        return False
+    if not all(isinstance(v, int) and 1 <= v <= 4 for v in stats.values()):
+        return False
+    total = sum(stats.values())
+    return 12 <= total <= 18
+
+
 def _load_current_state() -> dict:
     return load_state(SAVE_DIR)
 
@@ -235,6 +246,7 @@ async def index(request: Request):
     ctx["has_narrative"] = bool(opening or history)
     ctx["pack_mode"] = _active_pack.manifest.mode
     ctx["pack_name"] = _active_pack.manifest.name
+    ctx["character_creation_enabled"] = config.get("game", {}).get("character_creation_enabled", True)
     css_path = BASE_DIR / "static" / "app.css"
     ctx["css_v"] = int(css_path.stat().st_mtime) if css_path.exists() else 0
     return _render("index.html", ctx)
@@ -321,8 +333,53 @@ async def new_game(request: Request):
             logger.error("Failed to switch pack %r: %s", requested_pack, exc)
             _ERRORS_LOG.appendleft({"message": f"Unknown pack: {requested_pack}"})
 
+    # Character creation form fields
+    pc_name = str(form.get("pc_name", "")).strip()
+    pc_tagline = str(form.get("pc_tagline", "")).strip()
+    pc_stats_raw = str(form.get("pc_stats", "")).strip()
+    pc_hints = str(form.get("pc_hints", "")).strip()
+    npc_hints = str(form.get("npc_hints", "")).strip()
+    location_hints = str(form.get("location_hints", "")).strip()
+    quest_hints = str(form.get("quest_hints", "")).strip()
+    free_form = str(form.get("free_form", "")).strip()
+
+    # Build PlayerOverrides from form fields
+    from ccya.pack import PlayerOverrides
+    overrides = PlayerOverrides(
+        pc_hints=pc_hints,
+        npc_hints=npc_hints,
+        location_hints=location_hints,
+        quest_hints=quest_hints,
+        free_form=free_form,
+    )
+
+    # Add hard overrides as pc_hints for dynamic packs
+    if (pc_name or pc_tagline or pc_stats_raw) and overrides:
+        hint_parts = []
+        if pc_name:
+            hint_parts.append(f"Name the PC '{pc_name}'.")
+        if pc_tagline:
+            hint_parts.append(f"Tagline: '{pc_tagline}'.")
+        if pc_stats_raw:
+            hint_parts.append(f"Use these exact stats: {pc_stats_raw}.")
+        if hint_parts:
+            overrides = overrides.model_copy(
+                update={"pc_hints": " ".join(hint_parts) + " " + overrides.pc_hints}
+            )
+
     if _active_pack.manifest.mode == "static":
         seed = _active_pack.seed.model_dump()
+        if pc_name:
+            seed["pc"]["name"] = pc_name
+        if pc_tagline:
+            seed["pc"]["tagline"] = pc_tagline
+        if pc_stats_raw:
+            try:
+                stats = json.loads(pc_stats_raw)
+                if _validate_stats(stats):
+                    seed["pc"]["stats"] = stats
+            except (json.JSONDecodeError, TypeError):
+                pass  # invalid JSON — leave seed stats unchanged
         seed.setdefault("meta", {})["model"] = config["llm"]["model"]
         init_save_dir(SAVE_DIR, seed)
         _dynamic_opening = ""
@@ -334,6 +391,7 @@ async def new_game(request: Request):
                 _active_pack,
                 engine_config,
                 template_dir=str(PROMPTS_DIR),
+                overrides=overrides if not overrides.is_empty() else None,
             )
             seed = envelope.seed_state.model_dump()
             seed.setdefault("meta", {})["model"] = config["llm"]["model"]
@@ -433,6 +491,12 @@ def panel_pack_picker():
     """Return HTML fragment: pack picker cards for the New Game modal."""
     packs = list_packs(PACKS_DIR)
     return _render("_pack_picker.html", {"packs": packs, "active_pack_id": _pack_id})
+
+
+@app.get("/panels/char-creation", response_class=HTMLResponse)
+def panel_char_creation():
+    """Return HTML fragment: character creation form for the New Game modal."""
+    return _render("_char_creation.html", {})
 
 
 @app.get("/panels/turn-log", response_class=HTMLResponse)
