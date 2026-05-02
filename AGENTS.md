@@ -2,7 +2,56 @@
 
 ## Architecture in one paragraph
 
-ccya is a local-LLM-backed choose-your-own-adventure game. Every player turn runs a two-call async pipeline in `engine.py`: **narrate** (streaming tokens → `chronicle.md`) then **extract** (structured JSON → `state.yaml` + `events.jsonl`). Dynamic packs also have a **generate_seed** call on New Game. The FastAPI server in `server.py` owns HTTP and SSE; `state.py` owns all file I/O and `apply_delta`; `models.py` owns Pydantic schemas; `pack.py` owns world-pack loading. The frontend is a single `index.html` using Alpine.js + HTMX + marked.js with no build step.
+ccya is a local-LLM-backed choose-your-own-adventure game. Every player turn runs a **three-call async pipeline** in `engine.py`:
+
+1. **Rules / intent** (Call 0, `llm_chat`, fast non-streaming) — classifies what the player is attempting and whether a dice roll is needed. Returns `IntentEnvelope`.
+2. **Narrate** (Call 1, streaming tokens → `chronicle.md`) — writes the scene. If a roll occurred, the `RulesOutcome` is injected as a BINDING block the narrator must not contradict.
+3. **Extract** (Call 2, `llm_chat`, JSON → `state.yaml` + `events.jsonl`) — pulls structured state changes from the narrative. Receives a rules-outcome hint block to improve accuracy on fail/mixed/success.
+
+Dynamic packs also have a **generate_seed** call on New Game. The FastAPI server in `server.py` owns HTTP and SSE; `state.py` owns all file I/O and `apply_delta`; `models.py` owns Pydantic schemas; `pack.py` owns world-pack loading; `rules.py` owns the pure-Python dice resolver. The frontend is a single `index.html` using Alpine.js + HTMX + marked.js with no build step.
+
+---
+
+## Six-stat canon
+
+All PCs use exactly these six stats (keys in `pc.stats`). Values range 1–4, sum 12–18.
+
+| Stat | Covers |
+|------|--------|
+| `strength` | Physical force, melee, soak, endurance under load |
+| `dexterity` | Agility, stealth, ranged attacks, fine motor, dodge |
+| `wits` | Quick thinking, perception, deduction, hacking under pressure |
+| `lore` | Recalled knowledge, history, languages, protocols, identification |
+| `charisma` | Persuade, deceive, charm, negotiate, intimidate by presence |
+| `resolve` | Willpower, courage, resist fear / torture / coercion |
+
+Old 4-stat saves (`body/mind/tech/social`) are migrated automatically by `_migrate_state` in `state.py`.
+
+## When checks fire (rules engine)
+
+Call 0 sets `check.required=true` ONLY when ALL THREE hold:
+- **(a)** Player initiates an action with clear intent (including persuasion / deception / intimidation directed at a resistant character).
+- **(b)** Failure has a real, meaningful consequence.
+- **(c)** Outcome is genuinely uncertain.
+
+Default is NO check. Observation, free movement, casual conversation, and passing time never trigger a roll.
+
+## PbtA 5-band outcome table
+
+| Raw sum | Band | Meaning |
+|---------|------|---------|
+| 2 (snake eyes) | `crit_fail` | Catastrophic failure regardless of modifiers |
+| ≤ 6 | `fail` | Failure with complication |
+| 7–9 | `mixed` | Partial success at a cost |
+| 10–11 | `success` | Clean success |
+| 12 (boxcars) | `crit_success` | Outstanding success regardless of modifiers |
+
+Final total = raw_2d6 + (stat_value − 2) + difficulty_mod + condition_mod.
+
+## Narrator binding vs extractor hint
+
+- **Narrator**: The `rules_outcome` block is **binding**. The narrator MUST write the outcome it specifies — no inverting, softening, or contradicting.
+- **Extractor**: The `rules_outcome` block is a **hint**. It guides which state changes to apply (e.g., do not mark quests done on `fail`, may add conditions on `crit_fail`).
 
 ---
 

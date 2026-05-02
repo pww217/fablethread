@@ -12,10 +12,12 @@ pc:
     Speaks Belter creole when it suits. Lights candles in front of no flag.
     Crew comes first.
   stats:
-    body: 2
-    mind: 3
-    tech: 2
-    social: 3
+    strength: 2
+    dexterity: 2
+    wits: 3
+    lore: 2
+    charisma: 3
+    resolve: 2
   conditions: []
 
 location:

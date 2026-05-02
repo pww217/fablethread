@@ -31,6 +31,15 @@ from ccya.models import (
     QuestUpdate,
     StateDelta,
 )
+
+# Rules Call 0 returns this when no check is required (default for most tests).
+_RULES_NO_ROLL = json.dumps({
+    "intent": "player action",
+    "intent_verb": "act",
+    "target": "",
+    "stakes": "",
+    "check": {"required": False},
+})
 from ccya.state import (
     apply_delta,
     load_chronicle_tail,
@@ -59,7 +68,7 @@ def _make_state(turn: int = 0) -> dict:
             "name": "Vex",
             "tagline": "salvage pilot",
             "bio": "",
-            "stats": {"body": 2, "mind": 3, "tech": 3, "social": 1},
+            "stats": {"strength": 2, "dexterity": 2, "wits": 3, "lore": 2, "charisma": 2, "resolve": 2},
             "conditions": [],
         },
         "location": {"id": "docking-ring-7", "name": "Docking Ring 7", "description": "Low-grav berth."},
@@ -108,8 +117,15 @@ class _FakeLLM:
             yield _self.narrative
 
         async def _fake_chat(*args, **kwargs):
-            """Regular async function replacing llm_chat."""
+            """Regular async function replacing llm_chat.
+
+            Call ordering: 1st = rules (returns no-roll JSON), 2nd+ = extract.
+            """
             _self.call_log.append({"kind": "chat", "args": args, "kwargs": kwargs})
+            chat_calls = [c for c in _self.call_log if c["kind"] == "chat"]
+            if len(chat_calls) == 1:
+                # First chat call is always the rules Call 0 — return no-roll intent.
+                return {"response": _RULES_NO_ROLL, "done": True, "usage": {"prompt_tokens": 30, "total_tokens": 40}}
             result_text = _self.text_responses[-1] if len(_self.text_responses) > 1 else _self.narrative
             return {"response": result_text, "done": True, "usage": {"prompt_tokens": 100, "total_tokens": 200}}
 
@@ -473,8 +489,12 @@ class TestSchemaFailureRetry:
             nonlocal chat_call_count
             chat_call_count += 1
             if chat_call_count == 1:
+                # Call 0 = rules intent — return no-roll.
+                return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
+            if chat_call_count == 2:
+                # First extract attempt — return bad JSON.
                 return {"response": "bad json {{{", "done": True, "usage": {}}
-            return {"response": good_extract, "done": True, "usage": {"prompt_tokens": 10, "total_tokens": 20}}
+            return {"response": good_extract, "done": True, "usage": {"prompt_tokens": 10, "total_tokens": 200}}
 
         _orig_stream = ccya.engine.llm_chat_stream
         _orig_chat = ccya.engine.llm_chat
@@ -542,7 +562,13 @@ class TestChroniclePrefixBudget:
             captured_messages.extend(msgs)
             yield "narrative"
 
+        _chat_calls_chron = 0
+
         async def fake_chat(*args, **kwargs):
+            nonlocal _chat_calls_chron
+            _chat_calls_chron += 1
+            if _chat_calls_chron == 1:
+                return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
             return {"response": json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]}), "done": True, "usage": {}}
 
         import ccya.engine as eng
@@ -872,6 +898,27 @@ class TestPcConditionsDelta:
         updated2 = apply_delta(updated, delta2)
         assert updated2["pc"]["conditions"] == ["injured"]
 
+    def test_normalized_dedup_skips_variants(self) -> None:
+        """Same condition with different case / whitespace / markdown is rejected on add."""
+        state = _make_state()
+        state["pc"]["conditions"] = ["bruised ribs"]
+        delta = StateDelta(pc_condition_add=["Bruised Ribs", "*bruised ribs*", "bruised  ribs"])
+        updated = apply_delta(state, delta)
+        assert updated["pc"]["conditions"] == ["bruised ribs"]
+
+    def test_cap_at_5_evicts_oldest(self) -> None:
+        """When more than 5 conditions accumulate, oldest is dropped FIFO."""
+        state = _make_state()
+        state["pc"]["conditions"] = ["c1", "c2", "c3", "c4", "c5"]
+        delta = StateDelta(pc_condition_add=["c6", "c7"])
+        updated = apply_delta(state, delta)
+        conds = updated["pc"]["conditions"]
+        assert len(conds) == 5
+        assert "c7" in conds
+        assert "c6" in conds
+        assert "c1" not in conds
+        assert "c2" not in conds
+
 
 class TestEstablishedFactsCap25:
 
@@ -1041,6 +1088,32 @@ class TestInventoryCompendiumTagline:
         out = apply_delta(state, delta)
         assert out["scene"]["tagline"] == "Fees due at dawn"
 
+    def test_load_state_migrates_old_stats(self, tmp_path: Path) -> None:
+        """Old 4-stat schema (body/mind/tech/social) must be migrated to the 6-stat canonical set."""
+        from ccya.state import load_state as ls_load
+        from ccya.state import save_state as ls_save
+
+        raw = {
+            "meta": {"turn": 0, "game_name": "t", "setting_pack": "", "model": "", "compendium_touch_order": []},
+            "pc": {"name": "A", "tagline": "", "stats": {"body": 2, "mind": 3, "tech": 2, "social": 3}, "conditions": []},
+            "location": {"id": "", "name": "", "description": ""},
+            "inventory": [],
+            "quests": [],
+            "scene": {"tags": [], "present_npcs": [], "established_facts": [], "tagline": ""},
+            "compendium": {"npcs": {}},
+        }
+        ls_save(tmp_path, raw)
+        st = ls_load(tmp_path)
+        stats = st["pc"]["stats"]
+        assert "body" not in stats
+        assert "mind" not in stats
+        assert stats.get("strength") == 2
+        assert stats.get("wits") == 3
+        assert stats.get("lore") == 2
+        assert stats.get("charisma") == 3
+        assert "dexterity" in stats
+        assert "resolve" in stats
+
     def test_load_state_migrates_concept_to_tagline(self, tmp_path: Path) -> None:
         from ccya.state import load_state as ls_load
         from ccya.state import save_state as ls_save
@@ -1169,7 +1242,13 @@ class TestRecentTurnsInjected:
                     captured_system.append(m["content"])
             yield "narrative"
 
+        _chat_calls_recent = 0
+
         async def fake_chat(*args, **kwargs):
+            nonlocal _chat_calls_recent
+            _chat_calls_recent += 1
+            if _chat_calls_recent == 1:
+                return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
             return {"response": json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]}), "done": True, "usage": {}}
 
         import ccya.engine as eng
@@ -1208,7 +1287,13 @@ class TestPackKwargs:
                     captured_narrate_system.append(m["content"])
             yield "narrative"
 
+        _narrate_chat_calls = 0
+
         async def _fake_chat(*args, **kwargs):
+            nonlocal _narrate_chat_calls
+            _narrate_chat_calls += 1
+            if _narrate_chat_calls == 1:
+                return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
             return {"response": extract, "done": True, "usage": {}}
 
         import ccya.engine as eng
@@ -1247,7 +1332,13 @@ class TestPackKwargs:
         async def _fake_stream(*args, **kwargs):
             yield "narrative"
 
+        _extract_chat_calls = 0
+
         async def _fake_chat(*args, **kwargs):
+            nonlocal _extract_chat_calls
+            _extract_chat_calls += 1
+            if _extract_chat_calls == 1:
+                return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
             msgs = args[2] if len(args) > 2 else kwargs.get("messages", [])
             for m in msgs:
                 if m.get("role") == "system":

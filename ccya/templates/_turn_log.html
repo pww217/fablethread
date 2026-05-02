@@ -1,10 +1,11 @@
-{# Fragment: scrollable turn log (newest first). Each entry has turn + lines (plain text). #}
+{# Fragment: scrollable turn log (newest first). Each entry has turn + lines.
+   Lines may carry light markdown (e.g. *italic* names, **bold** danger) — rendered inline by _applyMarkdown via data-md. #}
 {% if entries %}
 {% for e in entries %}
 <div class="turn-log-block">
     <div class="turn-log-turn">Turn {{ e.turn }}</div>
     {% for ln in e.lines %}
-    <div class="turn-log-line">{{ ln }}</div>
+    <div class="turn-log-line" data-md>{{ ln }}</div>
     {% endfor %}
 </div>
 {% endfor %}

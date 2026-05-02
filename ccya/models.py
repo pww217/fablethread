@@ -3,9 +3,49 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
+
+# ---------------------------------------------------------------------------
+# Rules engine types
+# ---------------------------------------------------------------------------
+
+SkillName = Literal["strength", "dexterity", "wits", "lore", "charisma", "resolve"]
+Difficulty = Literal["trivial", "easy", "normal", "hard", "extreme"]
+Band = Literal["crit_fail", "fail", "mixed", "success", "crit_success"]
+
+
+class RulesCheck(BaseModel):
+    required: bool = False
+    skill: SkillName | None = None
+    difficulty: Difficulty = "normal"
+    tags: list[str] = Field(default_factory=list, max_length=4)
+
+
+class IntentEnvelope(BaseModel):
+    intent: str = Field(default="", max_length=200)
+    intent_verb: str = Field(default="act", max_length=24)
+    target: str = ""
+    stakes: str = ""
+    check: RulesCheck = Field(default_factory=RulesCheck)
+
+
+class RulesOutcome(BaseModel):
+    rolled: bool = False
+    skill: str = ""
+    stat_value: int = 0
+    difficulty: str = "normal"
+    stat_mod: int = 0
+    diff_mod: int = 0
+    cond_mod: int = 0
+    dice: list[int] = Field(default_factory=list)
+    raw_total: int = 0
+    final_total: int = 0
+    band: Band = "success"
+    directive: str = ""
+    intent_verb: str = ""
+    intent: str = ""
 
 
 class InventoryItem(BaseModel):
@@ -138,6 +178,7 @@ class TurnResult:
     changes: dict[str, Any] = field(default_factory=dict)  # structured pre/post diff for modal + log
     metrics: dict = field(default_factory=dict)
     errors: list[dict] = field(default_factory=list)
+    rules: dict = field(default_factory=dict)  # serialized RulesOutcome + intent for logging/UI
 
 
 # --- Config ---

@@ -3,8 +3,12 @@ name: "The Expanse — Sol System"
 description: "Hard sci-fi across the Sol system. Earth, Mars, Belt, Jupiter — every run is different."
 genre: sci-fi
 tone_tags: [gritty, political, scarcity, hard-scifi]
-version: 3
+version: 4
 mode: dynamic
+baseline_facts:
+  - "Earth's UN and Mars' MCRN both depend on Belt water and helium-3; **Anderson Dawes' Doctrine** — withholding shipments to whichever side leans hardest on Belters — is the OPA's real leverage, and both navies pretend the OPA cannot actually coordinate it (it can, when it has to)."
+  - "**Protogen** holds civilian and military contracts that overlap in ways neither government can untangle; their corporate security forces outnumber the MCRN's deployable marines on any given week and answer to a board, not a treaty — Geneva-equivalent rules of engagement do not bind them."
+  - "Belters are tall, thin, and bone-fragile from low-g childhoods; an Inner can break a Belter's wrist in a fistfight, but a Belter in a vac-suit on a station's outer hull is at home in a way no Earther will ever be — and Belter creole (*Lang Belta*) is structured so an Earther has to ask before they realize they're being insulted."
 files:
   world: world.md
   scenario: scenario.yaml

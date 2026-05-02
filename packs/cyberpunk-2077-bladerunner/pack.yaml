@@ -3,8 +3,12 @@ name: "Neo-Synth — 2087"
 description: "Neon-soaked megalopolis run by megacorporations. Every run is different."
 genre: cyberpunk
 tone_tags: [noir, gritty, high-tech-low-life, corporate]
-version: 1
+version: 2
 mode: dynamic
+baseline_facts:
+  - "Cybernetic implants degrade unless serviced quarterly at corp-licensed clinics; the going rate for a black-market neural firmware patch is **8,000 nuyen** per visit, an unpatched implant fails inside a year, and 'cyberpsychosis' from rejected hardware is the #2 killer in the Sprawl after exposure."
+  - "The **Arasaka–Müller / Militech-NOV** cold war is fought through plausible-deniability proxies — gang fronts, mercenary contractors, 'street violence' that is actually corporate doctrine; Neo-Synth PD knows exactly what it's looking at and looks the other way as long as collateral stays in the Undercity."
+  - "The replicant question (synthetic humans indistinguishable from baseline) is officially settled — they are property — but the 2086 ***Tyrell-Voss*** ruling gave units with more than 60 months of unbroken memory continuity a narrow path to personhood, and bounty hunters are quietly losing cases."
 files:
   world: world.md
   scenario: scenario.yaml

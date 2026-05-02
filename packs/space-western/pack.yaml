@@ -1,10 +1,14 @@
 id: space-western
-name: "The Rim — Fringe Systems"
-description: "Space western on the frontier of a broken solar system. Every run is different."
+name: "The Outer Rim — After Unification"
+description: "A central empire holds the inner worlds. The Rim is dust, debt, and old loyalties — twelve years after the Browncoats lost the war."
 genre: space western
-tone_tags: [frontier, gritty, scrap-tech, political]
-version: 1
+tone_tags: [frontier, gritty, scrap-tech, rebellion]
+version: 2
 mode: dynamic
+baseline_facts:
+  - "The Coalition (formal name: the Coalition of Inner Worlds, called 'the Alliance' on the Rim) won the Unification War twelve years ago at the Battle of **Saint-Albans**; the surrender was negotiated, not absolute, and Browncoat veterans are scattered across the outer worlds — some farming, some running cargo, some still waiting on an order that will never come."
+  - "Pulse-fold drives that bridge interstellar distances need rare-earth catalysts refined only on three Coalition-held inner worlds; every Rim ship runs on forged fuel certificates, recycled cores, or a backroom deal with a quartermaster, and a clean cert is worth more than the ship it flies in."
+  - "Tech across the Rim is mismatched by a century or more — a colony might have plasma rifles in the sheriff's office and oxen pulling the plough, neural-link surgeons next door to a midwife with a kettle; what you have depends entirely on what the last drop ship offloaded before the Coalition rerouted its lanes."
 files:
   world: world.md
   scenario: scenario.yaml

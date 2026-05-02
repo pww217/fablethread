@@ -8,6 +8,10 @@ llm:
   enable_extract_thinking: false   # true = append /think to extract prompt (Qwen3 only); strips <think> tags
   enable_narrate_thinking: false   # true = append /think to narrate prompt (Qwen3 only); strips <think> tags
 
+rules:
+  temperature: 0.2
+  max_retries: 1
+
 game:
   default_save: default
   setting_pack: zombie-survival
