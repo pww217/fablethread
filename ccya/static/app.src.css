@@ -1452,6 +1452,22 @@ body {
 .roll-band--success     { background: rgba( 74,222,128,0.16); color: #4ade80; }
 .roll-band--crit_success{ background: rgba( 74,222,128,0.28); color: #86efac; }
 
+/* Center roll badges inside turn-log-block */
+.turn-log-block .roll-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px auto 8px;
+}
+
+/* Center roll badges inside narrative blocks (page-reload history) */
+.narrative-block .roll-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 6px auto 12px;
+}
+
 /* =========================================================
    RESPONSIVE — narrow: sidebar stacks below narrative
    ========================================================= */

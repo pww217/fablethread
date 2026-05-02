@@ -13,6 +13,7 @@ dependencies = [
     "sse-starlette",
     "python-multipart",
     "openai",
+    "faker",
 ]
 
 [project.scripts]

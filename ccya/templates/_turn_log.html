@@ -4,6 +4,32 @@
 {% for e in entries %}
 <div class="turn-log-block">
     <div class="turn-log-turn">Turn {{ e.turn }}</div>
+    {% if e.rules and e.rules.rolled %}
+    {% set r = e.rules %}
+    {% set d1 = (r.dice | default([]))[0] or 0 %}
+    {% set d2 = (r.dice | default([]))[1] or 0 %}
+    {% set raw_sum = d1 + d2 %}
+    <div class="roll-badge roll-badge--{{ r.band }}" data-roll-badge>
+        <div class="roll-header">🎲 <strong>{{ (r.skill | default('') | upper) }}</strong> &nbsp;·&nbsp; {{ r.difficulty | default('') | lower }}</div>
+        <div class="roll-math">
+            [{{ d1 }}] + [{{ d2 }}] = {{ raw_sum }}
+            {% if r.stat_mod %}· {{ ('+' if r.stat_mod > 0 else '') }}{{ r.stat_mod }}&thinsp;{{ r.skill | default('stat') }}{% endif %}
+            {% if r.diff_mod %}· {{ ('+' if r.diff_mod > 0 else '') }}{{ r.diff_mod }}&thinsp;{{ r.difficulty | default('diff') }}{% endif %}
+            {% if r.cond_mod %}· {{ ('+' if r.cond_mod > 0 else '') }}{{ r.cond_mod }}&thinsp;cond{% endif %}
+            ·= <strong>{{ r.final_total }}</strong>
+        </div>
+        {% set BAND_LABELS = {
+            'crit_fail': 'CRITICAL FAIL',
+            'fail': 'FAIL',
+            'setback': 'SETBACK',
+            'mixed': 'MIXED',
+            'boon': 'BOON',
+            'success': 'SUCCESS',
+            'crit_success': 'CRITICAL SUCCESS'
+        } %}
+        <div class="roll-result roll-band--{{ r.band }}">{{ BAND_LABELS.get(r.band, (r.band | default('') | upper).replace('_', ' ')) }}</div>
+    </div>
+    {% endif %}
     {% for ln in e.lines %}
     <div class="turn-log-line" data-md>{{ ln }}</div>
     {% endfor %}
