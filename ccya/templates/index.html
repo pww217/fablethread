@@ -181,7 +181,7 @@ function _headerTaglineFromState(st) {
     return 'Choose Your Own Adventure';
 }
 
-function _groupChangeLinesForModal(lines) {
+function _groupChangeLines(lines) {
     const inv = [], pl = [], loc = [], fa = [], qu = [];
     (lines || []).forEach((ln) => {
         const s = String(ln);
@@ -195,82 +195,30 @@ function _groupChangeLinesForModal(lines) {
     return { inv, pl, loc, fa, qu };
 }
 
-function _showTurnSummary(changeLines, rules) {
-    if (!changeLines || !changeLines.length) return;
-    const g = _groupChangeLinesForModal(changeLines);
-    const backdrop = document.createElement('div');
-    backdrop.className = 'turn-summary-backdrop';
-    const dlg = document.createElement('div');
-    dlg.className = 'turn-summary-modal';
-    dlg.setAttribute('role', 'dialog');
-    dlg.setAttribute('aria-modal', 'true');
-    dlg.setAttribute('aria-labelledby', 'ts-modal-title');
-
-    const title = document.createElement('div');
-    title.className = 'turn-summary-title';
-    title.id = 'ts-modal-title';
-    title.textContent = 'What changed';
-    dlg.appendChild(title);
-
-    if (rules && rules.rolled) {
-        const badge = _buildRollBadge(rules);
-        if (badge) { badge.style.marginBottom = '8px'; dlg.appendChild(badge); }
-    }
-
+function _buildTurnChanges(changeLines) {
+    if (!changeLines || !changeLines.length) return null;
+    const g = _groupChangeLines(changeLines);
     const sections = [
-        ['ts-inv', '🎒 Inventory', g.inv],
-        ['ts-pl', '🩺 Player', g.pl],
-        ['ts-loc', '📍 Location', g.loc],
-        ['ts-fa', '📜 Facts', g.fa],
-        ['ts-qu', '🗺️ Quests', g.qu],
+        ['tc-inv', g.inv],
+        ['tc-pl',  g.pl],
+        ['tc-loc', g.loc],
+        ['tc-fa',  g.fa],
+        ['tc-qu',  g.qu],
     ];
-    sections.forEach(([cls, head, rows]) => {
-        if (!rows.length) return;
-        const sec = document.createElement('section');
-        sec.className = 'ts-section ' + cls;
-        const h = document.createElement('h3');
-        h.className = 'ts-section-head';
-        h.textContent = head;
-        sec.appendChild(h);
+    const hasAny = sections.some(([, rows]) => rows.length > 0);
+    if (!hasAny) return null;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'turn-changes';
+    sections.forEach(([cls, rows]) => {
         rows.forEach((ln) => {
             const line = document.createElement('div');
-            line.className = 'ts-line';
+            line.className = 'turn-changes-line ' + cls;
             line.textContent = ln;
-            sec.appendChild(line);
+            wrap.appendChild(line);
         });
-        dlg.appendChild(sec);
     });
-
-    const foot = document.createElement('div');
-    foot.className = 'turn-summary-foot';
-    const hint = document.createElement('span');
-    hint.className = 'turn-summary-hint';
-    hint.textContent = 'Press Enter or Esc to dismiss';
-    const dismissBtn = document.createElement('button');
-    dismissBtn.type = 'button';
-    dismissBtn.className = 'turn-summary-dismiss';
-    dismissBtn.textContent = 'Dismiss';
-    foot.appendChild(hint);
-    foot.appendChild(dismissBtn);
-    dlg.appendChild(foot);
-
-    function onKey(e) {
-        if (e.key === 'Escape' || e.key === 'Enter') {
-            e.preventDefault();
-            dismiss();
-        }
-    }
-    const dismiss = () => {
-        document.removeEventListener('keydown', onKey, true);
-        backdrop.remove();
-        dlg.remove();
-    };
-    dismissBtn.addEventListener('click', dismiss);
-    backdrop.addEventListener('click', dismiss);
-    document.addEventListener('keydown', onKey, true);
-
-    document.body.appendChild(backdrop);
-    document.body.appendChild(dlg);
+    return wrap;
 }
 
 function _prependTurnLogTurn(turn, changeLines, rules) {
@@ -589,9 +537,11 @@ function game() {
             window._closePackPicker = close;
         },
 
-        async startNewGame(packId) {
+        async startNewGame(packId, { force = false } = {}) {
             window._closePackPicker && window._closePackPicker();
-            if (this.turnNum > 0 && !confirm('Reset the current game? This cannot be undone.')) return;
+            const shouldForce = force || !!this._forceNewGame;
+            this._forceNewGame = false;
+            if (!shouldForce && this.turnNum > 0 && !confirm('Reset the current game? This cannot be undone.')) return;
             this.starting = true;
             try {
                 const body = new FormData();
@@ -756,11 +706,14 @@ function game() {
                 met.textContent = _formatMetricsRow(result.metrics);
                 textDiv.after(met);
 
-                // Roll badge — inserted after narrative so player reads the story first.
+                // Roll badge then inline change summary — both after narrative text.
+                let lastInserted = met;
                 if (result.rules && result.rules.rolled) {
                     const rollBadge = _buildRollBadge(result.rules);
-                    if (rollBadge) met.after(rollBadge);
+                    if (rollBadge) { lastInserted.after(rollBadge); lastInserted = rollBadge; }
                 }
+                const changes = _buildTurnChanges(result.change_lines || []);
+                if (changes) { lastInserted.after(changes); lastInserted = changes; }
 
                 if (result.rejected && result.rejected.length > 0) {
                     const note = document.createElement('div');
@@ -768,8 +721,6 @@ function game() {
                     note.textContent = `\u26a0 Some changes were rejected (trace\u00a0${result.trace_id})`;
                     block.appendChild(note);
                 }
-
-                _showTurnSummary(result.change_lines || [], result.rules);
 
                 const zone = document.getElementById('actions-zone');
                 if (result.actions && result.actions.length > 0) {
@@ -790,7 +741,12 @@ function game() {
                 htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
                 htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
                 this.submitting = false;
-                setTimeout(() => document.getElementById('player-input')?.focus(), 100);
+
+                if (result.game_over) {
+                    _showGameOver(this);
+                } else {
+                    setTimeout(() => document.getElementById('player-input')?.focus(), 100);
+                }
                 _bindTooltips(document);
             });
 
@@ -973,6 +929,37 @@ window.addEventListener('resize', () => {
     if (_ttAnchor) _ttPosition(_ttAnchor.getBoundingClientRect());
 });
 
+function _showGameOver(gameInstance) {
+    const goBackdrop = document.getElementById('game-over-backdrop');
+    const modal = document.getElementById('game-over-modal');
+    const sub = document.getElementById('game-over-sub');
+    const btn = document.getElementById('game-over-new-game');
+    if (!goBackdrop || !modal) return;
+
+    document.getElementById('player-input').disabled = true;
+    document.querySelectorAll('.action-pill').forEach(p => { p.disabled = true; });
+    document.querySelectorAll('.send-btn').forEach(b => { b.disabled = true; });
+
+    goBackdrop.hidden = false;
+    modal.hidden = false;
+
+    const tagline = document.getElementById('header-logo')?.textContent?.trim();
+    sub.textContent = tagline ? `"${tagline.replace(/[*_`]/g, '')}"` : '';
+
+    const dismiss = () => {
+        goBackdrop.hidden = true;
+        modal.hidden = true;
+    };
+
+    btn.onclick = () => {
+        dismiss();
+        gameInstance._forceNewGame = true;
+        gameInstance.openPackPicker();
+    };
+
+    goBackdrop.onclick = dismiss;
+}
+
 function initTurnLogUi() {
     const toggle = document.getElementById('turn-log-toggle');
     const shell = document.getElementById('turn-log-shell');
@@ -1104,6 +1091,15 @@ document.addEventListener('DOMContentLoaded', () => {
     <div id="pack-picker-body" class="pack-picker-body">
         <p class="empty-state">Loading packs…</p>
     </div>
+</div>
+
+<!-- Game over modal -->
+<div id="game-over-backdrop" class="game-over-backdrop" hidden></div>
+<div id="game-over-modal" class="game-over-modal" role="alertdialog" aria-modal="true" aria-labelledby="game-over-title" hidden>
+    <div class="game-over-skull">☠</div>
+    <h2 id="game-over-title" class="game-over-title">You died.</h2>
+    <p class="game-over-sub" id="game-over-sub"></p>
+    <button type="button" class="game-over-btn" id="game-over-new-game">New Game</button>
 </div>
 
 </body>

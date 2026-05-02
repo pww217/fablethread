@@ -286,6 +286,7 @@ async def get_turn(input: str = ""):
                         "narrative": result.narrative,
                         "actions": result.actions,
                         "scene_tags": result.scene_tags,
+                        "game_over": "game_over" in (result.scene_tags or []),
                         "rejected": result.rejected,
                         "errors": result.errors,
                         "diff": result.diff,

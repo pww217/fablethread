@@ -5,8 +5,8 @@ llm:
   narrate_temperature: 0.9
   extract_temperature: 0.4
   max_extract_retries: 1
-  enable_extract_thinking: false   # true = append /think to extract prompt (Qwen3 only); strips <think> tags
-  enable_narrate_thinking: false   # true = append /think to narrate prompt (Qwen3 only); strips <think> tags
+  enable_extract_thinking: false
+  enable_narrate_thinking: false
 
 rules:
   temperature: 0.2
@@ -15,7 +15,7 @@ rules:
 game:
   default_save: default
   setting_pack: zombie-survival
-  window_turns: 4 # Down from 6 to save on tokens.
+  window_turns: 6
   chronicle_prefix_budget_tokens: 1500
   established_facts_max: 30    # rolling window; seed lore is baked in as initial state
   warmup_on_start: true

@@ -745,88 +745,26 @@ body {
   text-align: center;
 }
 
-/* Centered turn summary modal */
-.turn-summary-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 9500;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
-}
-.turn-summary-modal {
-  position: fixed;
-  z-index: 9600;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: min(640px, 92vw);
-  max-height: min(78vh, 560px);
-  overflow-y: auto;
-  padding: 18px 20px 16px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
-}
-.turn-summary-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 12px;
-}
-.ts-section {
-  margin-bottom: 14px;
-}
-.ts-section-head {
-  margin: 0 0 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-.ts-section.ts-inv .ts-section-head { color: #fbbf24; }
-.ts-section.ts-pl  .ts-section-head { color: #4ade80; }
-.ts-section.ts-loc .ts-section-head { color: #fb923c; }
-.ts-section.ts-fa  .ts-section-head { color: #60a5fa; }
-.ts-section.ts-qu  .ts-section-head { color: #c084fc; }
-.ts-line {
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--text-secondary);
-  padding: 2px 0;
-  padding-left: 4px;
-  border-left: 2px solid var(--border-subtle);
-  margin-bottom: 4px;
-}
-.turn-summary-foot {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-subtle);
+/* Inline turn change list — appears in narrative block after roll badge */
+.turn-changes {
+  margin: 6px 0 2px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 7px;
+  gap: 2px;
 }
-.turn-summary-hint {
-  font-size: 10px;
+.turn-changes-line {
+  font-size: 11px;
+  line-height: 1.4;
   color: var(--text-muted);
-  font-style: italic;
-  text-align: center;
-  opacity: 0.7;
+  font-family: var(--font-mono);
+  padding: 1px 0 1px 6px;
+  border-left: 2px solid var(--border-subtle);
 }
-.turn-summary-dismiss {
-  padding: 8px 18px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 600;
-  cursor: pointer;
-  font-size: 13px;
-}
-.turn-summary-dismiss:hover {
-  background: var(--accent);
-  color: #0f0f12;
-}
+.turn-changes-line.tc-inv { border-color: #fbbf24; color: #fbbf24cc; }
+.turn-changes-line.tc-pl  { border-color: #4ade80; color: #4ade80cc; }
+.turn-changes-line.tc-loc { border-color: #fb923c; color: #fb923ccc; }
+.turn-changes-line.tc-fa  { border-color: #60a5fa; color: #60a5facc; }
+.turn-changes-line.tc-qu  { border-color: #c084fc; color: #c084fccc; }
 
 .turn-metrics {
   margin: 8px 0 4px;
@@ -1537,3 +1475,78 @@ body {
   .turn-counter { display: none; }
   .header-logo { font-size: 13px; max-width: 55vw; }
 }
+
+/* =========================================================
+   GAME OVER MODAL
+   ========================================================= */
+
+.game-over-backdrop[hidden],
+.game-over-modal[hidden] { display: none !important; }
+.game-over-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9600;
+  background: rgba(4, 4, 8, 0.82);
+  backdrop-filter: blur(4px);
+}
+.game-over-modal {
+  position: fixed;
+  z-index: 9700;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(400px, 90vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-top: 2px solid var(--accent-error);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.75);
+  padding: 36px 32px 32px;
+  text-align: center;
+}
+.game-over-skull {
+  font-size: 48px;
+  line-height: 1;
+  user-select: none;
+  animation: go-pulse 2.6s ease-in-out infinite;
+}
+@keyframes go-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+.game-over-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent-error);
+  margin: 0;
+  text-transform: uppercase;
+}
+.game-over-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin: 0;
+  max-width: 300px;
+  line-height: 1.5;
+}
+.game-over-btn {
+  margin-top: 8px;
+  padding: 10px 28px;
+  background: var(--accent);
+  color: #0f0f12;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 150ms, transform 100ms;
+}
+.game-over-btn:hover  { background: var(--accent-hover); }
+.game-over-btn:active { transform: scale(0.97); }
