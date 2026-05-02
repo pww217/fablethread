@@ -1,5 +1,7 @@
 # AGENTS.md — ccya coding guidance
 
+PRIMARY DIRECTIVE: Use the minimum tokens needed. Think briefly, answer concisely, and omit anything not required to complete the task. Stay focused purely on the task you were given.
+
 ## Architecture in one paragraph
 
 ccya is a local-LLM-backed choose-your-own-adventure game. Every player turn runs a **three-call async pipeline** in `engine.py`:
@@ -9,51 +11,6 @@ ccya is a local-LLM-backed choose-your-own-adventure game. Every player turn run
 3. **Extract** (Call 2, `llm_chat`, JSON → `state.yaml` + `events.jsonl`) — pulls structured state changes from the narrative. Receives a rules-outcome hint block to improve accuracy on fail/mixed/success.
 
 Dynamic packs also have a **generate_seed** call on New Game. The FastAPI server in `server.py` owns HTTP and SSE; `state.py` owns all file I/O and `apply_delta`; `models.py` owns Pydantic schemas; `pack.py` owns world-pack loading; `rules.py` owns the pure-Python dice resolver. The frontend is a single `index.html` using Alpine.js + HTMX + marked.js with no build step.
-
----
-
-## Six-stat canon
-
-All PCs use exactly these six stats (keys in `pc.stats`). Values range 1–4, sum 12–18.
-
-| Stat | Covers |
-|------|--------|
-| `strength` | Physical force, melee, soak, endurance under load |
-| `dexterity` | Agility, stealth, ranged attacks, fine motor, dodge |
-| `wits` | Quick thinking, perception, deduction, hacking under pressure |
-| `lore` | Recalled knowledge, history, languages, protocols, identification |
-| `charisma` | Persuade, deceive, charm, negotiate, intimidate by presence |
-| `resolve` | Willpower, courage, resist fear / torture / coercion |
-
-Old 4-stat saves (`body/mind/tech/social`) are migrated automatically by `_migrate_state` in `state.py`.
-
-## When checks fire (rules engine)
-
-Call 0 sets `check.required=true` ONLY when ALL THREE hold:
-- **(a)** Player initiates an action with clear intent (including persuasion / deception / intimidation directed at a resistant character).
-- **(b)** Failure has a real, meaningful consequence.
-- **(c)** Outcome is genuinely uncertain.
-
-Default is NO check. Observation, free movement, casual conversation, and passing time never trigger a roll.
-
-## PbtA 5-band outcome table
-
-| Raw sum | Band | Meaning |
-|---------|------|---------|
-| 2 (snake eyes) | `crit_fail` | Catastrophic failure regardless of modifiers |
-| ≤ 6 | `fail` | Failure with complication |
-| 7–9 | `mixed` | Partial success at a cost |
-| 10–11 | `success` | Clean success |
-| 12 (boxcars) | `crit_success` | Outstanding success regardless of modifiers |
-
-Final total = raw_2d6 + (stat_value − 2) + difficulty_mod + condition_mod.
-
-## Narrator binding vs extractor hint
-
-- **Narrator**: The `rules_outcome` block is **binding**. The narrator MUST write the outcome it specifies — no inverting, softening, or contradicting.
-- **Extractor**: The `rules_outcome` block is a **hint**. It guides which state changes to apply (e.g., do not mark quests done on `fail`, may add conditions on `crit_fail`).
-
----
 
 ## Module responsibilities — don't cross them
 
@@ -67,27 +24,6 @@ Final total = raw_2d6 + (stat_value − 2) + difficulty_mod + condition_mod.
 | `llm_client.py` | `chat()`, `chat_stream()` (OpenAI-compatible, talks to `mlx_lm.server` at `http://127.0.0.1:8080/v1`), thinking helpers, token-budget trim | prompt construction |
 
 If you find logic in the wrong layer, move it rather than pile on.
-
----
-
-## State mutation rules
-
-- **All state changes go through `apply_delta`** in `state.py`. Never mutate `state.yaml` fields directly anywhere else.
-- `apply_delta` receives a `StateDelta` and returns `(applied, rejected)`. Rejected deltas are logged and surfaced in `TurnResult.rejected` — never silently dropped.
-- `StateDelta` uses add/update/remove sub-lists (e.g., `inventory_add`, `inventory_update`, `inventory_remove`). When adding a new state field, follow this pattern. Do not use "overwrite the whole list" semantics.
-- **Turn counter increments only in `engine.py`**, after both LLM calls succeed and before `append_event`. Never in `apply_delta` or `server.py`.
-- `chronicle.md` is the sole narrative history source of truth. `events.jsonl` stores structured deltas only — no narrative prose in event records.
-- State migrations belong in `_migrate_state` in `state.py`. Any field rename or schema change needs a migration entry so old saves don't break.
-
----
-
-## Prompt templates
-
-- Prompts live in `ccya/prompts/`. Shared context sections are partials in `prompts/sections/` (prefixed `_`).
-- Three prompt pairs: `narrate_system.j2` + `narrate_user.j2` (call 1), `extract_system.j2` + `extract_user.j2` (call 2), `generate_seed_system.j2` + `generate_seed_user.j2` (dynamic pack seed). Each has a `*.j2` wrapper that includes both.
-- `extract_system.j2` uses a **hand-written pseudo-JSON schema**, not a Pydantic JSON schema dump. Keep it that way — the schema dump doubles token cost for no benefit.
-- Conditional blocks (e.g., `{% if enable_thinking %}`) must stay in sync with `EngineConfig` fields and `config.yaml`. When adding a new toggle, add it to all three places.
-- Keep examples in `extract_system.j2` and pack `extract_examples.yaml` scenario-specific and non-redundant. Aim for 4–5 examples covering the most common failure modes (quests, inventory). Generic or overlapping examples waste tokens.
 
 ---
 
@@ -126,28 +62,6 @@ Vendored JS (`ccya/static/vendor/`) IS committed and tracked.
 | `make new-game` | Reset save from seed pack |
 
 Use `make dev` for active development. `make run` is for production-like starts.
-
----
-
-## Adding a new config flag
-
-1. Add to `config.yaml` under the right section (`llm`, `game`, `server`, or `logging`).
-2. Add to `EngineConfig` dataclass in `engine.py` with a sensible default.
-3. Wire it in `server.py` where `EngineConfig` is instantiated (line ~31). Use `.get()` with a fallback for optional keys.
-4. Use it where needed; pass it explicitly — no global reads in engine/state.
-5. If it affects prompts, add the conditional to relevant `.j2` templates.
-
-Note: `EngineConfig` dataclass defaults differ from `config.yaml` values — config always overrides. Don't rely on dataclass defaults in production.
-
----
-
-## Pack system
-
-- Packs live in `packs/<id>/` at repo root. The schema-of-record is in `pack.py` (`PackManifest`, `SeedState`, etc.).
-- `dynamic` packs use `world.md` + `scenario.yaml` and LLM-generate the seed each New Game. `static` packs use hand-authored `seed_state.yaml` + `opening_scene.md`.
-- `parse_world_facts()` is the canonical parser for `world.md`. Don't duplicate that logic elsewhere.
-- `extract_examples.yaml` in a pack overrides the engine-level examples. Pack authors supply world-flavored examples; the engine appends them. Do not mix world-flavored examples into the engine-level defaults.
-- Active pack is mutable — changed via the New Game picker in the UI. `server.py` tracks `_active_pack` and `_pack_id`.
 
 ---
 
