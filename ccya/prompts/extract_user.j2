@@ -25,7 +25,7 @@ Ambiguities to resolve: {{ scope.ambiguities | join("; ") }}
 - Bio (durable — refine only when revealed): {{ pc.get('bio', '') or '—' }}
 - Stats: {% for k, v in (pc.get('stats') or {}).items() %}{{ k }}={{ v }} {% endfor %}
 - Conditions (emit **pc_condition_add** / **pc_condition_remove**):
-{% if pc.get('conditions') %}{% for c in pc.conditions %}
+{% if conditions %}{% for c in conditions %}
   - {{ c }}
 {% endfor %}{% else %}  - none{% endif %}
 
