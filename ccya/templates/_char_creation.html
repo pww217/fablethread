@@ -1,0 +1,126 @@
+{# Character creation step — rendered inside #pack-picker-body #}
+<div x-data="charCreation()" x-init="init()">
+
+    <form id="char-creation-form" style="display:none;">
+        <input type="hidden" name="pc_stats" x-bind:value="serializedStats()">
+        <input type="hidden" name="pack_id" x-bind:value="selectedPackId">
+    </form>
+
+    <!-- PC Name -->
+    <div class="char-creation-field">
+        <label class="char-creation-label" for="cc-name">Name</label>
+        <input type="text" id="cc-name" class="char-creation-input"
+               x-model="pc_name" placeholder="Enter your character's name…"
+               required autofocus>
+    </div>
+
+    <!-- Tagline -->
+    <div class="char-creation-field">
+        <label class="char-creation-label" for="cc-tagline">Tagline</label>
+        <input type="text" id="cc-tagline" class="char-creation-input"
+               x-model="pc_tagline" placeholder="Role + defining trait (e.g. 'scarred medic')">
+    </div>
+
+    <!-- Stats -->
+    <div class="char-creation-section">
+        <div class="char-creation-section-header">
+            <span class="char-creation-section-title">Stats</span>
+            <span class="point-budget" x-text="'Total: ' + total + ' / 18 (min 12)'"></span>
+        </div>
+
+        <!-- Presets -->
+        <div class="char-creation-presets">
+            <button type="button" class="char-creation-preset-btn"
+                    @click="applyPreset('brawler')">Brawler</button>
+            <button type="button" class="char-creation-preset-btn"
+                    @click="applyPreset('smooth_talker')">Smooth Talker</button>
+            <button type="button" class="char-creation-preset-btn"
+                    @click="applyPreset('balanced')">Balanced</button>
+        </div>
+
+        <!-- Point budget bar -->
+        <div class="point-budget-bar">
+            <progress class="point-budget-progress"
+                      x-bind:max="18"
+                      x-bind:value="total"
+                      x-bind:class="{
+                          'point-budget-progress--low': total < 12,
+                          'point-budget-progress--ok': total >= 12 && total <= 18,
+                          'point-budget-progress--high': total > 18
+                      }"></progress>
+        </div>
+
+        <!-- Stat rows -->
+        <template x-for="stat in stats" :key="stat.key">
+            <div class="stat-row">
+                <div class="stat-row-name has-tooltip" x-text="stat.label">
+                    <div class="tooltip-body" style="display:none;">
+                        <span data-md x-text="stat.description"></span>
+                    </div>
+                </div>
+                <div class="stat-row-controls">
+                    <button type="button" class="stat-btn stat-btn--minus"
+                            x-bind:disabled="stat.value <= 1"
+                            @click="decrement(stat.key)">−</button>
+                    <div class="stat-pips">
+                        <template x-for="pip in 4" :key="pip">
+                            <span class="stat-pip"
+                                  x-bind:class="pip <= stat.value ? 'stat-pip-filled' : 'stat-pip-empty'"></span>
+                        </template>
+                    </div>
+                    <button type="button" class="stat-btn stat-btn--plus"
+                            x-bind:disabled="stat.value >= 4 || total >= 18"
+                            @click="increment(stat.key)">+</button>
+                </div>
+                <span class="stat-row-value" x-text="stat.value"></span>
+            </div>
+        </template>
+    </div>
+
+    <!-- Hints -->
+    <div class="char-creation-section">
+        <div class="char-creation-section-header">
+            <span class="char-creation-section-title">Hints <span class="char-creation-hint-label">(optional)</span></span>
+        </div>
+
+        <div class="char-creation-field">
+            <label class="char-creation-label" for="cc-pc-hints">PC</label>
+            <textarea id="cc-pc-hints" class="char-creation-textarea"
+                      x-model="pc_hints" rows="2"
+                      placeholder="e.g. A cynical ex-corporate who trusts no one"></textarea>
+        </div>
+
+        <div class="char-creation-field">
+            <label class="char-creation-label" for="cc-npc-hints">NPCs</label>
+            <textarea id="cc-npc-hints" class="char-creation-textarea"
+                      x-model="npc_hints" rows="2"
+                      placeholder="e.g. A loyal mechanic, a suspicious local authority"></textarea>
+        </div>
+
+        <div class="char-creation-field">
+            <label class="char-creation-label" for="cc-quest-hints">Quest</label>
+            <textarea id="cc-quest-hints" class="char-creation-textarea"
+                      x-model="quest_hints" rows="2"
+                      placeholder="e.g. A rescue mission gone wrong"></textarea>
+        </div>
+
+        <div class="char-creation-field">
+            <label class="char-creation-label" for="cc-free-form">Other</label>
+            <textarea id="cc-free-form" class="char-creation-textarea"
+                      x-model="free_form" rows="2"
+                      placeholder="Anything else you want to influence the game"></textarea>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="char-creation-nav">
+        <button type="button" class="char-creation-btn char-creation-btn--back"
+                @click="$dispatch('char-creation-back')">Back</button>
+        <button type="button" class="char-creation-btn char-creation-btn--confirm"
+                x-bind:disabled="!isValid"
+                :class="{ 'char-creation-btn--disabled': !isValid }">
+            Confirm &amp; Start
+        </button>
+    </div>
+
+</div>

@@ -6,7 +6,6 @@ import pytest
 
 from ccya.rules import (
     DIFFICULTY_MOD,
-    GM_MOVES,
     VALID_SKILLS,
     build_directive,
     compute_band,
