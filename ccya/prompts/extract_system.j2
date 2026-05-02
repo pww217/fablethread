@@ -86,7 +86,7 @@ state_delta fields (only include what changed; omit keys that are empty):
   - Conditions are short tags (1–4 words), lower-case, no markdown. Do not put spatial detail or full sentences here.
 - `state_delta.quest_updates`: Match quest `id`. Use `objectives` with `index` (1-based) for existing objectives. Use `description` only when adding a new objective row.
   - If the narrative completed an objective: `{"index": N, "done": true}`.
-  - Quest complete / failed / abandoned per prior rules.
+  - Quest complete / failed / abandoned per prior rules. The engine auto-completes a quest when all its objectives are `done`, so you do NOT need to emit `status: "completed"` for that case — just mark the objectives done. You still need to emit `status: "failed"` or `status: "abandoned"` when the narrative calls for it.
   - When there are no current quests, lower the bar for what can be a quest. Any journey the player is taking that may present challenges or obstacles can be a quest.
 - `state_delta.inventory_add` / `inventory_remove` / `inventory_update`: Same normalized id merge on add. Use `inventory_update` when an item's name or notes materially change (repaired gear, renamed kit) without a full remove/re-add. Prefer `inventory_update` over stacking contradictory notes via `inventory_add`.
   - Hard cap: at most 2 `inventory_add` entries per turn (see Hard caps above). Pick the most narrative-critical pickups; mention the rest in prose only.
