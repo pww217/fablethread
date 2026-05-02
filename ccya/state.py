@@ -324,6 +324,15 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
                 if not o.get("done"):
                     o["failed"] = True
 
+    def _auto_complete_quest(q: dict[str, Any]) -> None:
+        """Auto-complete an active quest when all its objectives are done."""
+        if q.get("status") != "active":
+            return
+        objs = q.get("objectives", [])
+        if objs and all(o.get("done") for o in objs):
+            q["status"] = "completed"
+            _apply_quest_status_side_effects(q)
+
     def _normalize_obj_desc(text: Any) -> str:
         if not isinstance(text, str):
             text = str(text or "")
@@ -387,6 +396,10 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
             state.setdefault("quests", []).append(new_q)
             existing_quests[qu.id] = new_q
             _apply_quest_status_side_effects(new_q)
+
+    # Auto-complete active quests whose objectives are all done
+    for q in existing_quests.values():
+        _auto_complete_quest(q)
 
     # PC conditions — add then remove, with normalized dedup and FIFO cap
     state.setdefault("pc", {}).setdefault("conditions", [])
