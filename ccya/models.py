@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field, field_validator
 
 SkillName = Literal["strength", "dexterity", "wits", "lore", "charisma", "resolve"]
 Difficulty = Literal["trivial", "easy", "normal", "hard", "extreme"]
-Band = Literal["crit_fail", "fail", "mixed", "success", "crit_success"]
+Band = Literal["crit_fail", "fail", "setback", "mixed", "boon", "success", "crit_success"]
 
 
 class RulesCheck(BaseModel):

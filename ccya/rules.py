@@ -5,10 +5,12 @@ Dice system: 2d6 + stat_mod + difficulty_mod + condition_mod.
   diff_mod   = DIFFICULTY_MOD[difficulty]
   cond_mod   = sum of CONDITION_MODS[condition][skill] for active conditions
 
-PbtA 5-band resolution:
+PbtA 7-band resolution:
   raw_sum 2  → crit_fail    (always, ignores modifiers)
   ≤ 6        → fail
-  7–9        → mixed
+  7          → setback      (minor setback or complication)
+  8          → mixed        (mostly neutral, slight complication)
+  9          → boon         (minor advantage, no full success)
   10–11      → success
   raw_sum 12 → crit_success (always, ignores modifiers)
 """
@@ -46,10 +48,20 @@ GM_MOVES: dict[str, list[str]] = {
         "A complication arises and something gets measurably worse.",
         "You are put in a difficult spot with few good options.",
     ],
+    "setback": [
+        "You are set back — a resource is spent, time is lost, or a new problem appears.",
+        "The situation worsens slightly; you are worse off than before you acted.",
+        "A complication interrupts your plan and pushes you back.",
+    ],
     "mixed": [
-        "You succeed, but at a minor cost — time, a resource, attention, or a new debt.",
-        "Partial success: you get part of what you wanted.",
-        "You succeed, but the situation immediately becomes more complicated.",
+        "Mostly neutral, but a small complication lingers — a minor cost or inconvenience.",
+        "The outcome is even, with a slight edge toward complication.",
+        "Nothing major changes, but a minor annoyance arises.",
+    ],
+    "boon": [
+        "You gain a small advantage — a useful detail, a moment of respite, or a minor resource.",
+        "A minor boon: something works in your favour, though not enough to count as success.",
+        "A small benefit accrues, but the main goal remains unfulfilled.",
     ],
     "success": [
         "Clean success — you do what you intended.",
@@ -80,8 +92,12 @@ def compute_band(final_total: int, dice: tuple[int, int]) -> str:
         return "crit_success"
     if final_total <= 6:
         return "fail"
-    if final_total <= 9:
+    if final_total == 7:
+        return "setback"
+    if final_total == 8:
         return "mixed"
+    if final_total == 9:
+        return "boon"
     if final_total <= 11:
         return "success"
     return "crit_success"
@@ -105,8 +121,12 @@ def build_directive(band: str, intent_verb: str, skill: str) -> str:
         return f"The {verb} fails catastrophically. {base}"
     if band == "fail":
         return f"The {verb} fails. {base}"
+    if band == "setback":
+        return f"The {verb} results in a minor setback. {base}"
     if band == "mixed":
-        return f"The {verb} partially works but at a minor setback or cost. {base}"
+        return f"The {verb} is mostly neutral with a slight complication. {base}"
+    if band == "boon":
+        return f"The {verb} grants a minor advantage. {base}"
     if band == "success":
         return f"The {verb} succeeds cleanly. {base}"
     if band == "crit_success":

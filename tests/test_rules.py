@@ -57,11 +57,14 @@ class TestComputeBand:
     def test_final_le_6_below_is_fail(self):
         assert compute_band(4, (2, 2)) == "fail"
 
-    def test_final_7_is_mixed(self):
-        assert compute_band(7, (3, 4)) == "mixed"
+    def test_final_7_is_setback(self):
+        assert compute_band(7, (3, 4)) == "setback"
 
-    def test_final_9_is_mixed(self):
-        assert compute_band(9, (4, 5)) == "mixed"
+    def test_final_8_is_mixed(self):
+        assert compute_band(8, (4, 4)) == "mixed"
+
+    def test_final_9_is_boon(self):
+        assert compute_band(9, (4, 5)) == "boon"
 
     def test_final_10_is_success(self):
         assert compute_band(10, (5, 5)) == "success"
@@ -146,7 +149,7 @@ class TestBuildDirective:
         assert isinstance(d, str) and len(d) > 0
 
     def test_all_bands_covered(self):
-        for band in ["crit_fail", "fail", "mixed", "success", "crit_success"]:
+        for band in ["crit_fail", "fail", "setback", "mixed", "boon", "success", "crit_success"]:
             d = build_directive(band, "hack", "wits")
             assert isinstance(d, str) and len(d) > 5
 
@@ -255,4 +258,4 @@ class TestResolveCheck:
         rng = random.Random(999)
         for skill in VALID_SKILLS:
             out = resolve_check(skill=skill, difficulty="normal", pc_stats=self._STATS, pc_conditions=[], rng=rng)
-            assert out.band in {"crit_fail", "fail", "mixed", "success", "crit_success"}
+            assert out.band in {"crit_fail", "fail", "setback", "mixed", "boon", "success", "crit_success"}
