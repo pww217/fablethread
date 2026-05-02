@@ -92,3 +92,55 @@
 ### Tooling
 
 - [ ] **QA / diagnostics** — tooling for measuring and surfacing latency and narrative quality metrics.
+
+---
+
+## LLM Pipeline Accuracy
+
+Full plans: [plans/llm-pipeline-accuracy.md](./plans/llm-pipeline-accuracy.md) · Checklist: [plans/llm-pipeline-todos.md](./plans/llm-pipeline-todos.md)
+
+### A — Context Block Labeling
+*Templates only. Zero latency. Fixes stale-fact extraction and narration continuity.*
+
+- [ ] Add `PRIOR HISTORY` label wrapper to `_chronicle.j2`
+- [ ] Add `RECENT TURNS` label wrapper to `_recent.j2`
+- [ ] Add `CURRENT TURN NARRATION` label in `extract_user.j2` around narration input
+
+### B — Reasoning Field in Extractor
+*Schema + 2-line Python strip. ~30–60 extra output tokens. Fixes quest/inventory misclassification.*
+
+- [ ] Add `_reasoning` as first key in `extract_system.j2` schema with field guidance
+- [ ] Add `_failed` as second key (populated by Plan C)
+- [ ] Verify `actions` is last key in schema definition order
+- [ ] Strip `_reasoning` and `_failed` in Python engine before applying delta
+
+### C — Scope Boundaries via Rules Call
+*Extends existing rules call output. Fixes spurious cross-domain extraction and silent precondition failures.*
+
+- [ ] Add `scope` object to `rules_system.j2` output schema
+- [ ] Add domain-mapping guidance to `rules_system.j2`
+- [ ] Inject scope block at top of `extract_user.j2` from `rules_outcome.scope`
+- [ ] Add SKIP DOMAINS enforcement instruction to `extract_system.j2`
+- [ ] Log `_failed` in engine; optionally pass to next narration as `last_turn_failed`
+
+### D — Active-Domain State Slicing
+*Python engine only. Depends on C. Reduces extractor input tokens on simple turns.*
+
+- [ ] Build `build_state_slice()` helper in Python engine
+- [ ] Pass sliced state into `extract_user.j2` instead of full state
+- [ ] Keep full state in `narrate_system.j2`
+
+### E — `actions` Generation Placement
+*Verify key order first (free). Move to narrate call only if extraction errors persist.*
+
+- [ ] Confirm `actions` is last in `extract_system.j2` schema key order
+- [ ] Evaluate after B — move `actions` to narrate call if needed
+
+### F — Compaction Redesign
+*New prompt files + Python logic. Fixes fixed-cadence trigger.*
+
+- [ ] Replace fixed turn-count trigger with token-threshold check
+- [ ] Create `compact_system.j2` (preserve/discard rules + output schema)
+- [ ] Create `compact_user.j2` (inventory + established_facts + recent turns input)
+- [ ] Update engine: archive to chronicle, clear recent_turns, merge new_facts
+- [ ] Ensure `_chronicle.j2` renders chronicle entries with `PRIOR HISTORY` label (Plan A)
