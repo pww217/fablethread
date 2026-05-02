@@ -26,9 +26,11 @@ from ccya.models import (
     InventoryItem,
     InventoryRemove,
     InventoryUpdate,
+    IntentEnvelope,
     NpcRef,
     QuestObjectiveUpdate,
     QuestUpdate,
+    Scope,
     StateDelta,
 )
 
@@ -39,6 +41,7 @@ _RULES_NO_ROLL = json.dumps({
     "target": "",
     "stakes": "",
     "check": {"required": False},
+    "scope": {"active_domains": ["scene", "present_npcs"], "skip_domains": [], "implicit_preconditions": [], "ambiguities": []},
 })
 from ccya.state import (
     apply_delta,
@@ -274,6 +277,41 @@ class TestPromptComposition:
         last_on = on[-1]["content"]
         assert not last_off.endswith("/think")
         assert last_on.endswith("/think")
+
+    def test_extract_scope_in_user_message(self):
+        """Scope from intent is injected into extract user message."""
+        from ccya.models import Scope
+        env = self._env()
+        state = _make_state()
+        scope = Scope(active_domains=["scene", "inventory"], skip_domains=["quest_updates", "location_change"])
+        msgs = _extract_messages(env, "N.", state, intent=IntentEnvelope(scope=scope))
+        user_msg = next(m for m in msgs if m["role"] == "user")
+        assert "Active domains: scene, inventory" in user_msg["content"]
+        assert "Skip domains: quest_updates, location_change" in user_msg["content"]
+
+    def test_extract_scope_preconditions_in_user_message(self):
+        """Scope preconditions and ambiguities appear in user message."""
+        from ccya.models import Scope
+        env = self._env()
+        state = _make_state()
+        scope = Scope(
+            active_domains=["scene"],
+            skip_domains=["inventory"],
+            implicit_preconditions=["guard must be unconscious"],
+            ambiguities=["'the chest' — which chest?"],
+        )
+        msgs = _extract_messages(env, "N.", state, intent=IntentEnvelope(scope=scope))
+        user_msg = next(m for m in msgs if m["role"] == "user")
+        assert "Preconditions assumed: guard must be unconscious" in user_msg["content"]
+        assert "Ambiguities to resolve: 'the chest' — which chest?" in user_msg["content"]
+
+    def test_extract_scope_defaults_when_no_intent(self):
+        """When intent is None, scope defaults to empty (no skip_domains)."""
+        env = self._env()
+        msgs = _extract_messages(env, "N.", _make_state(), intent=None)
+        user_msg = next(m for m in msgs if m["role"] == "user")
+        assert "Active domains: " in user_msg["content"]
+        assert "Skip domains: " in user_msg["content"]
 
     def test_narrate_thinking_toggle(self):
         """Thinking toggle is now a Qwen3 soft-switch: `/think` appended to the last user message when on."""
