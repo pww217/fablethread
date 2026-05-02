@@ -4,6 +4,7 @@
     <form id="char-creation-form" style="display:none;">
         <input type="hidden" name="pc_stats" x-bind:value="serializedStats()">
         <input type="hidden" name="pack_id" x-bind:value="selectedPackId">
+        <input type="hidden" name="npc_count" x-bind:value="npc_count">
     </form>
 
     <!-- PC Name -->
@@ -83,7 +84,18 @@
         </div>
 
         <div class="char-creation-field">
-            <label class="char-creation-label" for="cc-npc-hints">NPCs</label>
+            <div class="char-creation-label-row">
+                <label class="char-creation-label" for="cc-npc-hints">NPCs</label>
+                <div class="npc-count-ctrl">
+                    <button type="button" class="stat-btn stat-btn--minus"
+                            x-bind:disabled="npc_count <= 1"
+                            @click="npc_count--">−</button>
+                    <span class="npc-count-val" x-text="npc_count"></span>
+                    <button type="button" class="stat-btn stat-btn--plus"
+                            x-bind:disabled="npc_count >= 6"
+                            @click="npc_count++">+</button>
+                </div>
+            </div>
             <textarea id="cc-npc-hints" class="char-creation-textarea"
                       x-model="npc_hints" rows="2"
                       placeholder="e.g. A loyal mechanic, a suspicious local authority"></textarea>

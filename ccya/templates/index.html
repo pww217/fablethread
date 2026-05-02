@@ -262,73 +262,55 @@ function _narrativePanelEl() {
     return document.getElementById('narrative-panel');
 }
 
-function _scrollNarrativeToBottom(np) {
-    const el = np || _narrativePanelEl();
-    if (el) el.scrollTop = el.scrollHeight;
+/** Scroll #narrative-panel so anchorEl sits ~upper-quarter (readable medium-page position). */
+function _scrollNarrativeToReadingAnchor(container, anchorEl, ratio) {
+    if (!container || !anchorEl) return;
+    const r = ratio == null ? 0.25 : ratio;
+    const cRect = container.getBoundingClientRect();
+    const eRect = anchorEl.getBoundingClientRect();
+    const desiredTop = cRect.top + r * cRect.height;
+    const delta = eRect.top - desiredTop;
+    if (Math.abs(delta) < 6) return;
+    container.scrollTop += delta;
 }
 
-// Gradual auto-scroll: scrolls the narrative panel at a fixed reading pace
-// (~200 px/s) while tokens stream in, independent of the token rate.
-const _GRADUAL_SCROLL_SPEED = 1250; // px per second
-let _gradualScrollId = null;
-let _gradualScrollLastTime = null;
-let _gradualScrollPaused = false;
+// Stream-follow scroll: keeps the bottom of the streaming textDiv visible as
+// tokens arrive, advancing the view only as far as needed. Pauses automatically
+// if the user scrolls up. Stops cleanly without snapping to absolute bottom.
+let _streamFollowRafId = null;
 
-// This is all sorts of broken in terms of the wording but it "works" well enough, needs fixing.
-function _startGradualScroll(np) {
-    if (_gradualScrollId !== null) return;
-    const el = np || _narrativePanelEl();
-    if (!el) return;
-    _gradualScrollPaused = false;
-    _gradualScrollLastTime = null;
-    function tick(now) {
-        if (_gradualScrollId === null) return;
-        if (_gradualScrollPaused) {
-            _gradualScrollId = requestAnimationFrame(tick);
-            return;
+function _startStreamFollow(np, textDiv) {
+    if (_streamFollowRafId !== null) return;
+    let lastScrollTop = np ? np.scrollTop : 0;
+    let userScrolledUp = false;
+    const BOTTOM_MARGIN = 80;
+    const MAX_STEP = 28;
+
+    function tick() {
+        if (_streamFollowRafId === null) return;
+        const el = _narrativePanelEl();
+        if (!el || !textDiv.isConnected) { _stopStreamFollow(); return; }
+        if (el.scrollTop < lastScrollTop - 5) userScrolledUp = true;
+        if (!userScrolledUp) {
+            const npRect = el.getBoundingClientRect();
+            const tdRect = textDiv.getBoundingClientRect();
+            const targetBottom = npRect.bottom - BOTTOM_MARGIN;
+            if (tdRect.bottom > targetBottom) {
+                el.scrollTop += Math.min(tdRect.bottom - targetBottom, MAX_STEP);
+            }
         }
-        if (_gradualScrollLastTime === null) {
-            _gradualScrollLastTime = now;
-            _gradualScrollId = requestAnimationFrame(tick);
-            return;
-        }
-        const delta = (now - _gradualScrollLastTime) / 1750;
-        _gradualScrollLastTime = now;
-        const el2 = _narrativePanelEl();
-        if (!el2) {
-            _stopGradualScroll();
-            return;
-        }
-        const targetScroll = el2.scrollHeight - el2.clientHeight;
-        if (el2.scrollTop >= targetScroll - 2) {
-            _stopGradualScroll();
-            return;
-        }
-        el2.scrollTop += _GRADUAL_SCROLL_SPEED * delta;
-        if (el2.scrollTop >= targetScroll - 2) {
-            el2.scrollTop = targetScroll;
-            _stopGradualScroll();
-            return;
-        }
-        _gradualScrollId = requestAnimationFrame(tick);
+        lastScrollTop = el.scrollTop;
+        _streamFollowRafId = requestAnimationFrame(tick);
     }
-    _gradualScrollId = requestAnimationFrame(tick);
+
+    _streamFollowRafId = requestAnimationFrame(tick);
 }
 
-function _stopGradualScroll() {
-    if (_gradualScrollId !== null) {
-        cancelAnimationFrame(_gradualScrollId);
-        _gradualScrollId = null;
-        _gradualScrollLastTime = null;
-        _gradualScrollPaused = false;
+function _stopStreamFollow() {
+    if (_streamFollowRafId !== null) {
+        cancelAnimationFrame(_streamFollowRafId);
+        _streamFollowRafId = null;
     }
-}
-
-function _narrativeNearBottom(np, thresholdPx) {
-    const el = np || _narrativePanelEl();
-    if (!el) return true;
-    const th = thresholdPx == null ? 80 : thresholdPx;
-    return el.scrollHeight - el.scrollTop - el.clientHeight < th;
 }
 
 function _progressStripHTML() {
@@ -482,6 +464,7 @@ function charCreation() {
         npc_hints: '',
         quest_hints: '',
         free_form: '',
+        npc_count: 2,
         selectedPackId: '',
         stats: [
             { key: 'strength', label: 'Strength', description: 'Force, melee combat, and soak against physical trauma.', value: 2 },
@@ -704,7 +687,9 @@ function game() {
 
                 if (nameInput?.value) body.append('pc_name', nameInput.value.trim());
                 if (pcHintsInput?.value) body.append('pc_hints', pcHintsInput.value.trim());
+                const npcCountInput = bodyEl?.querySelector('input[name="npc_count"]');
                 if (npcHintsInput?.value) body.append('npc_hints', npcHintsInput.value.trim());
+                if (npcCountInput?.value) body.append('npc_count', npcCountInput.value);
                 if (questHintsInput?.value) body.append('quest_hints', questHintsInput.value.trim());
                 if (freeFormInput?.value) body.append('free_form', freeFormInput.value.trim());
                 if (statsInput?.value) body.append('pc_stats', statsInput.value);
@@ -774,7 +759,6 @@ function game() {
             block.appendChild(textDiv);
             block.appendChild(strip);
             np.appendChild(block);
-            _scrollNarrativeToBottom(np);
 
             const self = this;
             this._turnEs = null;
@@ -817,11 +801,19 @@ function game() {
             // Streaming markdown: keep raw buffer, re-render via marked at most ~5×/s.
             let streamBuf = '';
             let streamRafPending = false;
+            let didScrollToNarrationStart = false;
             const _renderStreaming = () => {
                 streamRafPending = false;
                 _configureMarked();
                 const html = _renderMarkdown(streamBuf);
                 textDiv.innerHTML = html + '<span class="streaming-cursor"></span>';
+                if (!didScrollToNarrationStart && streamBuf.length > 0) {
+                    didScrollToNarrationStart = true;
+                    requestAnimationFrame(() => {
+                        _scrollNarrativeToReadingAnchor(np, textDiv);
+                        _startStreamFollow(np, textDiv);
+                    });
+                }
             };
             const _scheduleStreamRender = () => {
                 if (streamRafPending) return;
@@ -833,12 +825,12 @@ function game() {
                 const data = JSON.parse(e.data);
                 streamBuf += (data.chunk || '');
                 _scheduleStreamRender();
-                if (_narrativeNearBottom(np)) _startGradualScroll(np);
             });
 
             es.addEventListener('phase', (e) => {
                 const payload = JSON.parse(e.data);
                 if (payload && payload.phase === 'narrate_done') {
+                    _stopStreamFollow();
                     streamRafPending = false;
                     textDiv.classList.remove('streaming');
                     textDiv.innerHTML = _renderMarkdown(streamBuf);
@@ -862,7 +854,7 @@ function game() {
                 if (cursor.parentNode) cursor.remove();
                 textDiv.classList.remove('streaming');
                 textDiv.innerHTML = _renderMarkdown(result.narrative || '');
-                _stopGradualScroll();
+                _stopStreamFollow();
 
                 const met = document.createElement('div');
                 met.className = 'turn-metrics';
@@ -934,7 +926,7 @@ function game() {
                 self._turnCancel = null;
                 if (this.submitting) {
                 _clearProgressStrip(strip);
-                _stopGradualScroll();
+                _stopStreamFollow();
                 if (cursor.parentNode) cursor.remove();
                     textDiv.insertAdjacentHTML('beforeend',
                         '<span style="color:var(--accent-error)"> [connection\u00a0lost\u00a0\u2014 try again]</span>');
@@ -1076,18 +1068,7 @@ window.addEventListener('scroll', () => {
     if (_ttAnchor) _ttPosition(_ttAnchor.getBoundingClientRect());
 }, { passive: true, capture: true });
 
-const _npEl = document.getElementById('narrative-panel');
-if (_npEl) {
-    _npEl.addEventListener('scroll', () => {
-        if (!_gradualScrollId) return;
-        const nearBottom = _narrativeNearBottom(_npEl, 40);
-        if (nearBottom) {
-            _gradualScrollPaused = false;
-        } else {
-            _gradualScrollPaused = true;
-        }
-    }, { passive: true });
-}
+
 window.addEventListener('resize', () => {
     if (_ttAnchor) _ttPosition(_ttAnchor.getBoundingClientRect());
 });

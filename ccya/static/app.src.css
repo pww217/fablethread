@@ -1783,6 +1783,32 @@ body {
 }
 
 
+.char-creation-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.char-creation-label-row .char-creation-label {
+    margin-bottom: 0;
+}
+
+.npc-count-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.npc-count-val {
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+    min-width: 16px;
+    text-align: center;
+}
+
 .char-creation-nav {
     display: flex;
     justify-content: space-between;
