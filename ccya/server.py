@@ -43,6 +43,7 @@ engine_config = EngineConfig(
     generate_seed_max_retries=config["llm"].get("generate_seed_max_retries", 1),
     log_llm_io=config.get("logging", {}).get("log_llm_io", False),
     log_llm_io_max_chars=config.get("logging", {}).get("log_llm_io_max_chars", 4000),
+    log_prompts=config.get("logging", {}).get("log_prompts", False),
     rules_temperature=config.get("rules", {}).get("temperature", 0.2),
     max_rules_retries=config.get("rules", {}).get("max_retries", 1),
 )
@@ -413,6 +414,7 @@ def _debug_context() -> dict:
         "mock_mode": mock_mode,
         "state": _load_current_state(),
         "log_llm_io": engine_config.log_llm_io,
+        "log_prompts": engine_config.log_prompts,
         "log_file": config.get("logging", {}).get("file", "logs/llm-g.log"),
     }
 
