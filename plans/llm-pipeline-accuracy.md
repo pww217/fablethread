@@ -13,7 +13,7 @@ player input → rules (intent + skill check) [ENHANCED: +scope boundaries]
                     ↓ intent envelope (with scope)
              → narrate [with labeled context blocks]
                     ↓ narration
-             → extract [scope-constrained, reasoning-first schema]
+             → extract [scope-constrained, schema with reasoning checkpoint]
                     ↓ state delta
              → game state update [_failed handling, token-threshold compaction]
 ```
@@ -63,31 +63,39 @@ The rules call already parses intent (`intent`, `intent_verb`, `target`, `stakes
 ## Plan B: Reasoning Field in Extractor Schema
 
 ### Problem
-`extract_system.j2` emits enumerated deltas directly. The model commits to `quest_updates` and `inventory_add/remove` values before it has reasoned about what actually changed. LLMs generate left-to-right — whatever comes first in the output shapes what follows. Putting judgment-heavy enumerated fields first causes premature commitment errors on quests and inventory specifically.
+`extract_system.j2` emits `state_delta` and `actions` as the two top-level keys. `actions` is a generative task (invent 4 choices) sitting alongside an analytical task (classify state changes). The model generates left-to-right — whatever comes first shapes what follows. Putting `actions` as a peer of `state_delta` without a checkpoint between them means the model can drift into creative mode mid-extraction.
+
+The fix is to add a `_reasoning` checkpoint **between** `state_delta` and `actions`. The model must complete all analytical extraction first, then sanity-check its work, then generate choices.
 
 ### Implementation
 
-Add `_reasoning` as the **first key** in the output schema in `extract_system.j2`, before `state_delta`:
+The correct schema key order in `extract_system.j2` is:
 
 ```json
 {
-  "_reasoning": "string — free-form analysis before emitting any delta",
-  "_failed": ["optional — precondition failures (see Plan C)"],
   "state_delta": { ... },
+  "_reasoning": "string — sanity-check after extraction, before generating actions",
+  "_failed": ["optional — precondition failures (see Plan C)"],
   "actions": [ ... ]
 }
 ```
 
+**Why this order:**
+- `state_delta` first — forces analytical commitment before anything else
+- `_reasoning` after `state_delta` — scratchpad to cross-check the extraction just completed (did I miss a quest completion? did I double-add a fact?)
+- `_failed` alongside `_reasoning` — surfaces precondition failures identified during cross-check
+- `actions` last — purely generative; runs after all analytical work is done
+
 Add to the schema field guidance section:
 ```
-- `_reasoning`: Before emitting any delta, write 2-4 sentences analyzing: what the
-  player did, what the narrative resolved, which domains changed and why, and whether
-  any quest objectives were completed or failed. Cross-check against the Established
-  facts and quest lists already provided — do not add facts that are already listed.
-  This field is stripped by the engine before state is applied — use it freely.
+- `_reasoning`: After emitting state_delta, write 2-4 sentences cross-checking your
+  extraction: confirm quest objectives match what the narrative resolved, verify no
+  established_facts_add entries duplicate the existing fact list, and flag any
+  precondition that was assumed but may not have been met. This field is stripped by
+  the engine before state is applied — use it freely.
 ```
 
-Verify `actions` is the **last** key in the schema definition (after all `state_delta` fields). Actions is a generative task; it should come after all analytical extraction.
+Verify `actions` is the **last** key in the schema definition. It should already be — check the current file to confirm.
 
 **In Python engine** — strip before applying:
 ```python
@@ -99,7 +107,7 @@ delta = response.get("state_delta", {})
 
 ### Notes
 - Adds ~30–60 output tokens per turn (small latency cost)
-- The existing `Consolidation rule` in `extract_system.j2` becomes more effective once the model has a scratch space to apply it before committing
+- The existing `Consolidation rule` in `extract_system.j2` becomes more effective once the model has a scratchpad to apply it after committing to `state_delta`
 - The `_failed` field defined here is populated by scope logic in Plan C
 
 ---
@@ -418,7 +426,7 @@ def run_compaction(game_state):
 | `ccya/prompts/sections/_chronicle.j2` | Add `PRIOR HISTORY` label wrapper | A |
 | `ccya/prompts/sections/_recent.j2` | Add `RECENT TURNS` label wrapper | A |
 | `ccya/prompts/extract_user.j2` | Add `CURRENT TURN NARRATION` label; inject scope block at top | A, C |
-| `ccya/prompts/extract_system.j2` | Add `_reasoning` first in schema; add `_failed`; add SKIP DOMAINS instruction; verify `actions` is last | B, C, E |
+| `ccya/prompts/extract_system.j2` | Add `_reasoning` and `_failed` after `state_delta`, before `actions`; add SKIP DOMAINS instruction | B, C |
 | `ccya/prompts/rules_system.j2` | Add `scope` object to output schema + domain-mapping guidance | C |
 | `ccya/prompts/narrate_system.j2` | Add `last_turn_failed` block (optional); add `actions` output if Option 1 chosen | C, E |
 | Python engine | Strip `_reasoning`/`_failed`; `build_state_slice()`; token-threshold compaction trigger; `_failed` logging | B, C, D, F |
