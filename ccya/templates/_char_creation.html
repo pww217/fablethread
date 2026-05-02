@@ -8,24 +8,17 @@
 
     <!-- PC Name -->
     <div class="char-creation-field">
-        <label class="char-creation-label" for="cc-name">Name</label>
+        <label class="char-creation-label" for="cc-name">Name <span class="char-creation-hint-label">(optional)</span></label>
         <input type="text" id="cc-name" class="char-creation-input"
                x-model="pc_name" placeholder="Enter your character's name…"
-               required autofocus>
-    </div>
-
-    <!-- Tagline -->
-    <div class="char-creation-field">
-        <label class="char-creation-label" for="cc-tagline">Tagline</label>
-        <input type="text" id="cc-tagline" class="char-creation-input"
-               x-model="pc_tagline" placeholder="Role + defining trait (e.g. 'scarred medic')">
+               autofocus>
     </div>
 
     <!-- Stats -->
     <div class="char-creation-section">
         <div class="char-creation-section-header">
             <span class="char-creation-section-title">Stats</span>
-            <span class="point-budget" x-text="'Total: ' + total + ' / 18 (min 12)'"></span>
+            <span class="point-budget" x-text="'Total: ' + total + ' / 16 (min 12)'"></span>
         </div>
 
         <!-- Presets -->
@@ -41,12 +34,12 @@
         <!-- Point budget bar -->
         <div class="point-budget-bar">
             <progress class="point-budget-progress"
-                      x-bind:max="18"
+                      x-bind:max="16"
                       x-bind:value="total"
                       x-bind:class="{
                           'point-budget-progress--low': total < 12,
-                          'point-budget-progress--ok': total >= 12 && total <= 18,
-                          'point-budget-progress--high': total > 18
+                          'point-budget-progress--ok': total >= 12 && total <= 16,
+                          'point-budget-progress--high': total > 16
                       }"></progress>
         </div>
 
@@ -69,10 +62,9 @@
                         </template>
                     </div>
                     <button type="button" class="stat-btn stat-btn--plus"
-                            x-bind:disabled="stat.value >= 4 || total >= 18"
+                            x-bind:disabled="stat.value >= 4 || total >= 16"
                             @click="increment(stat.key)">+</button>
                 </div>
-                <span class="stat-row-value" x-text="stat.value"></span>
             </div>
         </template>
     </div>
@@ -84,10 +76,10 @@
         </div>
 
         <div class="char-creation-field">
-            <label class="char-creation-label" for="cc-pc-hints">PC</label>
+            <label class="char-creation-label" for="cc-pc-hints">Character Concept</label>
             <textarea id="cc-pc-hints" class="char-creation-textarea"
                       x-model="pc_hints" rows="2"
-                      placeholder="e.g. A cynical ex-corporate who trusts no one"></textarea>
+                      placeholder="Role, defining trait, and backstory — e.g. A cynical ex-corporate medic who trusts no one"></textarea>
         </div>
 
         <div class="char-creation-field">
