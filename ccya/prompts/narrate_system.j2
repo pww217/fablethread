@@ -40,6 +40,14 @@ Write the outcome exactly as stated. Do NOT invert success/failure.
 
 {% endif %}
 
+{% if last_turn_failed %}
+## Previous turn — failed actions
+The following player actions did not succeed due to unmet conditions:
+{% for f in last_turn_failed %}— {{ f }}
+{% endfor %}The narrator already resolved these in prose. Do not retry them.
+
+{% endif %}
+
 {% if pack_style %}
 ## Genre tone
 {{ pack_style }}

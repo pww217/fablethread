@@ -313,6 +313,56 @@ class TestPromptComposition:
         assert "Active domains: " in user_msg["content"]
         assert "Skip domains: " in user_msg["content"]
 
+    def test_extract_reasoning_in_system_prompt(self):
+        """_reasoning field guidance appears in extract system prompt."""
+        env = self._env()
+        msgs = _extract_messages(env, "N.", _make_state())
+        system_text = next(m for m in msgs if m["role"] == "system")["content"]
+        assert "_reasoning" in system_text
+        assert "cross-checking your extraction" in system_text
+
+    def test_narrate_last_turn_failed(self):
+        """last_turn_failed appears in narrate system message when populated."""
+        env = self._env()
+        state = _make_state()
+        failed = ["tried to pick up keys but guard is still conscious"]
+        msgs = _narrate_messages(env, state, "look", last_turn_failed=failed)
+        system_text = next(m for m in msgs if m["role"] == "system")["content"]
+        assert "Previous turn — failed actions" in system_text
+        assert "tried to pick up keys but guard is still conscious" in system_text
+
+    def test_narrate_no_last_turn_failed_when_empty(self):
+        """last_turn_failed block is absent when list is empty."""
+        env = self._env()
+        state = _make_state()
+        msgs = _narrate_messages(env, state, "look", last_turn_failed=[])
+        system_text = next(m for m in msgs if m["role"] == "system")["content"]
+        assert "Previous turn — failed actions" not in system_text
+
+    def test_state_slice_skips_inactive_domains(self):
+        """Skip domains result in empty data in extract user message."""
+        from ccya.models import Scope
+        env = self._env()
+        state = _make_state()
+        scope = Scope(active_domains=["scene", "present_npcs"], skip_domains=["inventory", "quest_updates", "established_facts", "pc_condition"])
+        msgs = _extract_messages(env, "N.", state, intent=IntentEnvelope(scope=scope))
+        user_msg = next(m for m in msgs if m["role"] == "user")
+        assert "Empty." in user_msg["content"]  # inventory section
+        assert "None." in user_msg["content"]  # quests section
+        assert "None." in user_msg["content"]  # facts section
+
+    def test_state_slice_always_includes_known_characters(self):
+        """Known characters (compendium) always included regardless of scope."""
+        from ccya.models import Scope
+        env = self._env()
+        state = _make_state()
+        state["compendium"] = {"npcs": {"test-npc": {"name": "Test NPC", "bio": "A test character."}}}
+        scope = Scope(active_domains=["scene"], skip_domains=["present_npcs"])
+        msgs = _extract_messages(env, "N.", state, intent=IntentEnvelope(scope=scope))
+        user_msg = next(m for m in msgs if m["role"] == "user")
+        assert "test-npc" in user_msg["content"]
+        assert "Test NPC" in user_msg["content"]
+
     def test_narrate_thinking_toggle(self):
         """Thinking toggle is now a Qwen3 soft-switch: `/think` appended to the last user message when on."""
         env = self._env()

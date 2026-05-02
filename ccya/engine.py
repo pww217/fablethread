@@ -37,6 +37,7 @@ from ccya.state import (
     apply_delta,
     load_chronicle_tail,
     load_recent_chronicle_turns,
+    load_recent_events,
     load_state,
     resolve_inventory_remove_target,
     save_state,
@@ -139,6 +140,7 @@ def _narrate_messages(
     pack_style: str = "",
     rules_outcome: "RulesOutcome | None" = None,
     npc_name_pool: list[str] = [],
+    last_turn_failed: list[str] = [],
 ) -> list[dict[str, str]]:
     """Build narrate message list: [system, user].
 
@@ -152,6 +154,7 @@ def _narrate_messages(
         "pack_style": pack_style,
         "rules_outcome": rules_outcome,
         "npc_name_pool": npc_name_pool,
+        "last_turn_failed": last_turn_failed,
     }
     system_text = _render(env, "narrate_system.j2", ctx)
     user_text = _render(env, "narrate_user.j2", {"user_input": user_input})
@@ -195,6 +198,53 @@ def _known_characters_for_extract(state: dict[str, Any]) -> list[dict[str, Any]]
             },
         )
     return rows
+
+
+def build_state_slice(state: dict[str, Any], active_domains: list[str]) -> dict[str, Any]:
+    """Build a sliced state dict for the extractor based on active domains.
+
+    Only includes state sections relevant to the active domains, reducing
+    input tokens and attention load on the extractor.
+    """
+    pc = state.get("pc") or {}
+    location = state.get("location") or {}
+    scene = state.get("scene") or {}
+
+    slice: dict[str, Any] = {
+        # Always include these
+        "pc_core": {
+            "name": pc.get("name", ""),
+            "tagline": pc.get("tagline", "") or pc.get("concept", ""),
+            "bio": pc.get("bio", ""),
+            "stats": pc.get("stats", {}),
+        },
+        "location": location,
+        "present_npcs": list(scene.get("present_npcs") or []),
+        "known_characters": _known_characters_for_extract(state),
+    }
+
+    # Conditionally include based on active domains
+    if "inventory" in active_domains:
+        slice["inventory"] = state.get("inventory", [])
+    else:
+        slice["inventory"] = []
+
+    if "quest_updates" in active_domains:
+        slice["active_quests"] = [q for q in state.get("quests", []) if q.get("status") == "active"]
+    else:
+        slice["active_quests"] = []
+
+    if "established_facts" in active_domains:
+        slice["established_facts"] = list(scene.get("established_facts") or [])
+    else:
+        slice["established_facts"] = []
+
+    if "pc_condition" in active_domains:
+        slice["conditions"] = list(pc.get("conditions") or [])
+    else:
+        slice["conditions"] = []
+
+    return slice
 
 
 def _summarize_applied(applied: dict[str, Any]) -> list[str]:
@@ -541,26 +591,31 @@ def _extract_messages(
             "pack_examples": pack_examples or [],
         },
     )
-    active_quests = [q for q in state.get("quests", []) if q.get("status") == "active"]
-    established_facts = list(state.get("scene", {}).get("established_facts") or [])
-    pc = state.get("pc") or {}
-    location = state.get("location") or {}
-    present_npcs = list(state.get("scene", {}).get("present_npcs") or [])
+
+    # Build state slice based on scope active_domains
+    scope = intent.scope if intent else Scope()
+    active_domains = scope.active_domains if scope.active_domains else [
+        "scene", "present_npcs", "inventory", "quest_updates",
+        "location_change", "established_facts", "pc_condition",
+    ]
+    slice = build_state_slice(state, active_domains)
+
     user_text = _render(
         env,
         "extract_user.j2",
         {
             "narrative": narrative,
-            "pc": pc,
-            "location": location,
-            "present_npcs": present_npcs,
-            "active_quests": active_quests,
-            "inventory": state.get("inventory", []),
-            "established_facts": established_facts,
-            "known_characters": _known_characters_for_extract(state),
+            "pc": slice["pc_core"],
+            "location": slice["location"],
+            "present_npcs": slice["present_npcs"],
+            "active_quests": slice["active_quests"],
+            "inventory": slice["inventory"],
+            "established_facts": slice["established_facts"],
+            "known_characters": slice["known_characters"],
             "rules_outcome": rules_outcome,
             "intent_target": intent.target if intent else "",
-            "scope": intent.scope if intent else Scope(),
+            "scope": scope,
+            "conditions": slice["conditions"],
         },
     )
     msgs = [
@@ -920,6 +975,12 @@ async def run_turn(
         chronicle_tail = load_chronicle_tail(save_dir, config.chronicle_prefix_budget_tokens)
         recent_turns = load_recent_chronicle_turns(save_dir, config.window_turns)
 
+        # Load failed preconditions from the most recent event (for narrate feedback)
+        last_events = load_recent_events(save_dir, 1)
+        last_turn_failed: list[str] = []
+        if last_events:
+            last_turn_failed = last_events[0].get("failed", [])
+
         # === Call 0: Rules / intent classification ===
         exp_rules_ms = _avg_rules_ms(save_dir)
         yield ("phase", {"phase": "rules_start", "expected_ms": exp_rules_ms})
@@ -992,6 +1053,7 @@ async def run_turn(
             pack_style=pack_style,
             rules_outcome=outcome,
             npc_name_pool=_npc_name_pool,
+            last_turn_failed=last_turn_failed,
         )
         narr_messages = trim_messages(narr_messages, config.prompt_token_budget)
         if config.log_prompts:
@@ -1080,6 +1142,8 @@ async def run_turn(
                 j = _find_json(cleaned)
                 if j is not None:
                     # Accept both full ExtractResult envelope and bare StateDelta
+                    # Pop _reasoning before Pydantic validation (leading underscore not allowed)
+                    j.pop("_reasoning", None)
                     if "state_delta" in j:
                         er = ExtractResult(**j)
                         delta = er.state_delta
@@ -1195,6 +1259,7 @@ async def run_turn(
             "narrate": narr_metrics,
             "extract": ext_metrics,
             "changes": changes,
+            "failed": failed if failed else [],
         }
         append_event(save_dir, event)
         save_state(save_dir, state)
