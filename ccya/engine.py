@@ -26,7 +26,7 @@ from typing import Any, AsyncIterator
 
 from jinja2 import Environment, FileSystemLoader
 
-from ccya.models import ExtractResult, IntentEnvelope, RulesCheck, RulesOutcome, StateDelta, TurnResult
+from ccya.models import ExtractResult, IntentEnvelope, RulesCheck, RulesOutcome, Scope, StateDelta, TurnResult
 import ccya.rules as rules_engine
 from ccya.pack import ExtractExample, Pack, PlayerOverrides, SeedEnvelope, parse_world_facts
 from ccya.names import generate_name_pool, generate_npc_names
@@ -560,6 +560,7 @@ def _extract_messages(
             "known_characters": _known_characters_for_extract(state),
             "rules_outcome": rules_outcome,
             "intent_target": intent.target if intent else "",
+            "scope": intent.scope if intent else Scope(),
         },
     )
     msgs = [
@@ -615,7 +616,13 @@ async def _call_rules(
     Degrades gracefully: on any failure returns a no-check envelope so the
     narrate + extract pipeline proceeds normally without a roll.
     """
-    _no_intent = IntentEnvelope(intent="", intent_verb="act", check=RulesCheck(required=False))
+    _no_intent = IntentEnvelope(
+        intent="", intent_verb="act", check=RulesCheck(required=False),
+        scope=Scope(
+            active_domains=["scene", "present_npcs", "inventory", "quest_updates", "location_change", "established_facts", "pc_condition"],
+            skip_domains=[],
+        ),
+    )
     parse_error = ""
     for attempt in range(1 + config.max_rules_retries):
         try:
@@ -1077,8 +1084,17 @@ async def run_turn(
                         er = ExtractResult(**j)
                         delta = er.state_delta
                         actions = er.actions
+                        failed = er.failed
                     else:
                         delta = StateDelta(**j)
+                        failed = j.pop("failed", [])
+                    if failed:
+                        _log.info(
+                            "Turn %d: failed preconditions: %s",
+                            state.get("meta", {}).get("turn", 0) + 1,
+                            failed,
+                            extra={"trace_id": trace_id},
+                        )
                     retries = attempt
                     break
                 raise ValueError("No JSON found in response")

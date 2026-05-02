@@ -48,8 +48,19 @@ state_delta fields (only include what changed; omit keys that are empty):
   "compendium_npc_update": [{"id": "str", "name": "str?", "title": "str?", "bio": "str?"}]
 },
 "actions": ["str", "str", "str", "str"]
+```json
+{
+  "state_delta": { ... },
+  "failed": ["precondition failure description"],
+  "actions": ["str", "str", "str", "str"]
 }
 ```
+
+## Domain scope (provided each turn in user message)
+- For domains listed in **Active domains**: extract changes normally.
+- For domains listed in **Skip domains**: emit null / empty / omit entirely. Do NOT reason about skip domains even if narratively adjacent.
+- Use **Preconditions assumed** to validate downstream effects. If a precondition was not met, emit `failed` with a description of what failed and why.
+- Use **Ambiguities** to resolve references before emitting IDs.
 
 - `inventory_remove`: omit `amount` or use `null` to remove the entire stack; integer subtracts from stack. For a stack of exactly 1, omit `amount` or use `null` (never `amount: 0`). Never emit `inventory_add` and `inventory_remove` for the same `id` in one turn (they cancel and confuse state).
 - `quest_updates.objectives`: For existing objectives, prefer `index` (1-based, matches numbered list in user message). Use `description` only when adding a new objective line to that quest (then `index` is optional).

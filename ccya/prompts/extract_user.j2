@@ -8,6 +8,16 @@
 - **success / crit_success** → the action succeeded; apply the relevant state changes freely
 {% endif %}
 
+## THIS TURN SCOPE
+Active domains: {{ scope.active_domains | join(", ") }}
+Skip domains: {{ scope.skip_domains | join(", ") }}
+{% if scope.implicit_preconditions %}
+Preconditions assumed: {{ scope.implicit_preconditions | join("; ") }}
+{% endif %}
+{% if scope.ambiguities %}
+Ambiguities to resolve: {{ scope.ambiguities | join("; ") }}
+{% endif %}
+
 ## Current state (reference — emit deltas; consolidate before adding duplicates)
 
 ### Player
