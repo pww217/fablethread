@@ -30,6 +30,7 @@ logging:
   level: INFO            # DEBUG required for log_llm_io payloads to be emitted
   log_llm_io: false        # log full prompts + raw responses to logs/llm-g.log
   log_llm_io_max_chars: 4000   # truncate per field to keep log readable
+  log_prompts: true       # log fully formatted prompts to logs/prompts.log
 
 debug:
   panel: true

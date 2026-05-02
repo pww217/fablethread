@@ -102,6 +102,7 @@ class EngineConfig:
     log_llm_io_max_chars: int = 4000
     rules_temperature: float = 0.2
     max_rules_retries: int = 1
+    log_prompts: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -747,6 +748,76 @@ def _log_llm_io(
     _log.debug("llm_io %s", json.dumps(payload, default=str), extra={"trace_id": trace_id})
 
 
+_PROMPTS_LOG_PATH = Path("logs/prompts.log")
+
+
+def _log_prompts(turn: int, call: str, messages: list[dict[str, str]]) -> None:
+    """Write a fully formatted prompt block to logs/prompts.log.
+
+    Each call (rules / narrate / extract) gets its own section within the
+    turn block.  The file is appended to; a separator line demarcates turns.
+    """
+    lines: list[str] = []
+    lines.append(f"## Turn {turn} — {call}")
+    lines.append("")
+    for msg in messages:
+        role = msg.get("role", "unknown").upper()
+        content = msg.get("content", "")
+        lines.append(f"--- [{role}] ---")
+        lines.append(content)
+        lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    try:
+        _PROMPTS_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(_PROMPTS_LOG_PATH, "a") as f:
+            f.write("\n".join(lines))
+    except OSError:
+        _log.warning("failed to write prompts.log", exc_info=True)
+
+
+def _log_rules_outcome(turn: int, intent: "IntentEnvelope", outcome: "RulesOutcome") -> None:
+    """Append the rules engine output (intent + dice roll) to prompts.log for the given turn."""
+    lines: list[str] = []
+    lines.append(f"## Turn {turn} — rules engine output")
+    lines.append("")
+    lines.append("--- [Intent] ---")
+    lines.append(f"intent:        {intent.intent}")
+    lines.append(f"intent_verb:   {intent.intent_verb}")
+    lines.append(f"target:        {intent.target}")
+    lines.append(f"stakes:        {intent.stakes}")
+    lines.append(f"check.required: {intent.check.required}")
+    lines.append(f"check.skill:    {intent.check.skill}")
+    lines.append(f"check.difficulty: {intent.check.difficulty}")
+    lines.append("")
+    lines.append("--- [Dice Roll] ---")
+    if outcome.rolled:
+        lines.append("rolled:       True")
+        lines.append(f"skill:        {outcome.skill}")
+        lines.append(f"stat_value:   {outcome.stat_value}")
+        lines.append(f"stat_mod:     {outcome.stat_mod}")
+        lines.append(f"difficulty:   {outcome.difficulty}")
+        lines.append(f"diff_mod:     {outcome.diff_mod}")
+        lines.append(f"cond_mod:     {outcome.cond_mod}")
+        lines.append(f"dice:         {outcome.dice}")
+        lines.append(f"raw_total:    {outcome.raw_total}")
+        lines.append(f"final_total:  {outcome.final_total}")
+        lines.append(f"band:         {outcome.band}")
+        lines.append(f"directive:    {outcome.directive}")
+    else:
+        lines.append("rolled:       False (no dice check required)")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    try:
+        with open(_PROMPTS_LOG_PATH, "a") as f:
+            f.write("\n".join(lines))
+    except OSError:
+        _log.warning("failed to write prompts.log (rules outcome)", exc_info=True)
+
+
 def _avg_narrate_ms(save_dir: Path, n: int = 5) -> int:
     """Average narrate duration from the last n events. Returns 0 if fewer than 2 samples."""
     path = save_dir / "events.jsonl"
@@ -846,6 +917,8 @@ async def run_turn(
 
         rules_messages = _rules_messages(env, state, user_input, recent_turns=recent_turns[-2:])
         rules_messages = trim_messages(rules_messages, config.prompt_token_budget)
+        if config.log_prompts:
+            _log_prompts(state.get("meta", {}).get("turn", 0) + 1, "rules", rules_messages)
         intent = await _call_rules(rules_messages, config, trace_id)
 
         # Resolve dice in Python (deterministic) — _call_rules degrades intent, we do outcome here
@@ -865,6 +938,9 @@ async def run_turn(
                 outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
         else:
             outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+
+        if config.log_prompts:
+            _log_rules_outcome(state.get("meta", {}).get("turn", 0) + 1, intent, outcome)
 
         rules_ms = (asyncio.get_event_loop().time() - t_rules) * 1000
         rules_metrics: dict[str, Any] = {"total_ms": round(rules_ms, 1), "rolled": outcome.rolled}
@@ -898,6 +974,8 @@ async def run_turn(
             rules_outcome=outcome,
         )
         narr_messages = trim_messages(narr_messages, config.prompt_token_budget)
+        if config.log_prompts:
+            _log_prompts(state.get("meta", {}).get("turn", 0) + 1, "narrate", narr_messages)
 
         first_ms = 0.0
         t0 = asyncio.get_event_loop().time()
@@ -946,6 +1024,8 @@ async def run_turn(
             intent=intent,
         )
         ext_messages = trim_messages(ext_messages, config.prompt_token_budget)
+        if config.log_prompts:
+            _log_prompts(state.get("meta", {}).get("turn", 0) + 1, "extract", ext_messages)
         t2 = asyncio.get_event_loop().time()
         retries = 0
         parse_error = ""
@@ -1246,6 +1326,8 @@ async def generate_seed(
 
     messages = _build_generate_seed_messages(env, pack, overrides)
     messages = trim_messages(messages, config.prompt_token_budget)
+    if config.log_prompts:
+        _log_prompts(0, "generate_seed", messages)
     # Prefer hand-curated baseline_facts on the manifest; fall back to parsing
     # world.md prose (legacy behavior) for packs that haven't been migrated.
     world_facts: list[str] = (
