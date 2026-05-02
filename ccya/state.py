@@ -27,6 +27,18 @@ def load_state(save_dir: Path) -> dict[str, Any]:
     return raw
 
 
+_STAT_RENAME: dict[str, str] = {
+    "body": "strength",
+    "mind": "wits",
+    "tech": "lore",
+    "social": "charisma",
+}
+_STAT_DEFAULTS: dict[str, int] = {
+    "strength": 2, "dexterity": 2, "wits": 2,
+    "lore": 2, "charisma": 2, "resolve": 2,
+}
+
+
 def _migrate_state(state: dict[str, Any]) -> None:
     """One-time field renames and defaults for older saves."""
     pc = state.setdefault("pc", {})
@@ -38,6 +50,18 @@ def _migrate_state(state: dict[str, Any]) -> None:
         pc["tagline"] = ""
     if "bio" not in pc:
         pc["bio"] = ""
+
+    # Migrate old 4-stat names to the unified 6-stat set.
+    stats = pc.setdefault("stats", {})
+    for old, new in _STAT_RENAME.items():
+        if old in stats and new not in stats:
+            stats[new] = stats.pop(old)
+        elif old in stats:
+            del stats[old]
+    for stat, default in _STAT_DEFAULTS.items():
+        if stat not in stats:
+            stats[stat] = default
+
     state.setdefault("scene", {})
     if "tagline" not in state["scene"]:
         state["scene"]["tagline"] = ""
@@ -78,7 +102,7 @@ def _default_state() -> dict[str, Any]:
             "model": "",
             "compendium_touch_order": [],
         },
-        "pc": {"name": "", "tagline": "", "bio": "", "stats": {}, "conditions": []},
+        "pc": {"name": "", "tagline": "", "bio": "", "stats": {"strength": 2, "dexterity": 2, "wits": 2, "lore": 2, "charisma": 2, "resolve": 2}, "conditions": []},
         "location": {"id": "", "name": "", "description": ""},
         "inventory": [],
         "quests": [],
@@ -364,14 +388,19 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
             existing_quests[qu.id] = new_q
             _apply_quest_status_side_effects(new_q)
 
-    # PC conditions — add then remove (strings)
+    # PC conditions — add then remove, with normalized dedup and FIFO cap
     state.setdefault("pc", {}).setdefault("conditions", [])
+    existing_conds: list[str] = list(state["pc"]["conditions"])
+    remove_keys = {_normalize_condition(s) for s in delta.pc_condition_remove}
+    existing_conds = [c for c in existing_conds if _normalize_condition(c) not in remove_keys]
+    existing_norms = {_normalize_condition(c) for c in existing_conds}
     for c in delta.pc_condition_add:
-        if c not in state["pc"]["conditions"]:
-            state["pc"]["conditions"].append(c)
-    state["pc"]["conditions"] = [
-        c for c in state["pc"]["conditions"] if c not in delta.pc_condition_remove
-    ]
+        nk = _normalize_condition(c)
+        if not nk or nk in existing_norms:
+            continue
+        existing_conds.append(c)
+        existing_norms.add(nk)
+    state["pc"]["conditions"] = existing_conds[-PC_CONDITIONS_MAX:]
 
     # Established facts — remove → update → add (preserves position on update)
     existing_facts: list[str] = list(state.get("scene", {}).get("established_facts") or [])
@@ -476,11 +505,29 @@ def _item_to_dict(item: Any) -> dict[str, Any]:
     }
 
 
+PC_CONDITIONS_MAX: int = 5
+"""Hard cap on simultaneous pc.conditions; oldest is evicted FIFO when exceeded."""
+
+
 def _normalize_fact(text: Any) -> str:
     """Normalize a fact string for dedup / removal matching."""
     if not isinstance(text, str):
         text = str(text)
     return " ".join(text.lower().split())
+
+
+def _normalize_condition(text: Any) -> str:
+    """Normalize a condition tag for dedup / removal matching.
+
+    Strips markdown emphasis and punctuation so 'Bruised Ribs', '*bruised ribs*',
+    and 'bruised  ribs' all collapse to the same key.
+    """
+    if not isinstance(text, str):
+        text = str(text)
+    s = text.lower()
+    for ch in ("*", "_", "`", ".", ",", ";", ":", "!", "?", "(", ")", "[", "]", '"', "'"):
+        s = s.replace(ch, " ")
+    return " ".join(s.split())
 
 
 def _fact_already_exists(fact: str, existing: list[str]) -> bool:

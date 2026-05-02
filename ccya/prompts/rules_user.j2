@@ -1,0 +1,19 @@
+## Player character
+Name: {{ pc.name or "Unnamed" }} | {{ pc.tagline or pc.concept or "" }}
+Stats: {% for k, v in (pc.stats or {}).items() %}{{ k }}={{ v }} {% endfor %}
+
+Conditions: {% if pc.conditions %}{{ pc.conditions | join(", ") }}{% else %}none{% endif %}
+
+## Current scene
+Location: {{ location.name or location.id or "Unknown" }}
+{% if present_npcs %}Present: {% for npc in present_npcs %}{{ npc.name if npc is mapping else npc }}{% if not loop.last %}, {% endif %}{% endfor %}
+{% endif %}
+{% if recent_turns %}## Recent turns (most recent last)
+{% for t in recent_turns %}Turn {{ t.turn }}: {{ t.input }}
+{{ t.narrative[:350] }}{% if t.narrative | length > 350 %}…{% endif %}
+
+{% endfor %}{% endif %}
+## Player's current input
+{{ user_input }}
+
+Emit the IntentEnvelope JSON only. No other text.

@@ -257,6 +257,66 @@ def test_parse_world_facts_empty():
 
 
 # ---------------------------------------------------------------------------
+# baseline_facts
+# ---------------------------------------------------------------------------
+
+
+def test_baseline_facts_default_empty():
+    """Manifests without baseline_facts default to []."""
+    files = _minimal_static_pack_files()
+    pack_dir = _write_pack(Path("/tmp/_test_bf_default"), "test-bf-default", files) if False else None
+    # Use tmp_path-style: write into a fresh tmp dir
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        _write_pack(td_path, "test-bf", files)
+        from ccya.pack import load_pack as _load_pack
+        pack = _load_pack("test-bf", td_path)
+        assert pack.manifest.baseline_facts == []
+
+
+def test_baseline_facts_loaded_from_manifest(tmp_path):
+    """baseline_facts in pack.yaml are loaded onto PackManifest."""
+    files = _minimal_static_pack_files()
+    files["pack.yaml"] = yaml.dump({
+        "id": "test-bf-set",
+        "name": "Test BF Set",
+        "mode": "static",
+        "baseline_facts": ["Fact A.", "Fact B.", "Fact C."],
+    })
+    _write_pack(tmp_path, "test-bf-set", files)
+    pack = load_pack("test-bf-set", tmp_path)
+    assert pack.manifest.baseline_facts == ["Fact A.", "Fact B.", "Fact C."]
+
+
+def test_baseline_facts_max_length_enforced(tmp_path):
+    """baseline_facts cap at 5 — more raises validation error."""
+    from pydantic import ValidationError
+
+    files = _minimal_static_pack_files()
+    files["pack.yaml"] = yaml.dump({
+        "id": "test-bf-overflow",
+        "name": "Test BF Overflow",
+        "mode": "static",
+        "baseline_facts": ["a", "b", "c", "d", "e", "f"],
+    })
+    _write_pack(tmp_path, "test-bf-overflow", files)
+    with pytest.raises(ValidationError):
+        load_pack("test-bf-overflow", tmp_path)
+
+
+def test_all_shipped_packs_have_baseline_facts():
+    """Every shipped pack has exactly 3 hand-curated baseline_facts."""
+    for manifest in list_packs(PACKS_DIR):
+        pack = load_pack(manifest.id, PACKS_DIR)
+        assert len(pack.manifest.baseline_facts) == 3, (
+            f"Pack {manifest.id!r} has {len(pack.manifest.baseline_facts)} baseline_facts; expected 3"
+        )
+        for f in pack.manifest.baseline_facts:
+            assert isinstance(f, str) and f.strip(), f"Pack {manifest.id!r} has empty/blank baseline_fact"
+
+
+# ---------------------------------------------------------------------------
 # Real packs load and validate
 # ---------------------------------------------------------------------------
 

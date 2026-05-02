@@ -13,12 +13,14 @@
         {% if pc_tag %}
         <div class="stat-tagline"><span data-md>{{ pc_tag }}</span></div>
         {% endif %}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;margin-top:4px;">
         {% for k, v in (state.pc.stats or {}).items() %}
-        <div class="stat-row">
+        <div class="stat-row" style="margin:0;">
             <span class="stat-label">{{ k | capitalize }}</span>
             <span class="stat-value">{{ v }}</span>
         </div>
         {% endfor %}
+        </div>
         {% if state.pc.conditions %}
         <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;">
             {% for cond in state.pc.conditions %}

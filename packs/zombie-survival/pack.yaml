@@ -1,10 +1,14 @@
 id: zombie-survival
-name: "Outbreak: Day Unknown"
-description: "Survivor in a world six months into the H7N9-X collapse. Every run is different."
+name: "Cordyceps: Year Twenty"
+description: "Fungal infection. Nature reclaiming. Scattered, brutal humanity. Every run is different."
 genre: post-apocalyptic
-tone_tags: [horror, survival, scarcity, grounded]
-version: 1
+tone_tags: [horror, survival, human, fungal, nature-reclaimed]
+version: 3
 mode: dynamic
+baseline_facts:
+  - "**Ophiocordyceps novum** spreads through airborne spores in enclosed or still-air environments; outdoors, risk is wind-dependent; indoors without ventilation, a sealed mask is the difference between a rough twenty minutes and full host-conversion in two hours — and masks are harder to find than bullets."
+  - "The infected are not mindless: **Clickers** (late-stage, echolocating, skull-bloomed) have no vision but track sound with surgical precision; **Stalkers** (mid-stage) hide, watch, and wait; **Runners** (early-stage, still partly aware) sometimes hesitate — and that hesitation is the worst thing about them; all stages are connected by a slow, underground mycelial network that takes hours to signal but can make a dormant nest active when another is disturbed kilometers away."
+  - "Twenty years in, cities are forests: root systems have cracked the foundations, vines have collapsed the upper floors, rivers have re-routed through subway tunnels — the infrastructure survivors built their routines around is now a living, hostile landscape that changes season by season."
 files:
   world: world.md
   scenario: scenario.yaml

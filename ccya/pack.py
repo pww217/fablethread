@@ -123,7 +123,7 @@ class Constraints(BaseModel):
     # ranges
     inventory_size_range: tuple[int, int] = (4, 8)
     pc_stat_range: tuple[int, int] = (1, 4)
-    pc_stat_total_range: tuple[int, int] = (8, 12)
+    pc_stat_total_range: tuple[int, int] = (12, 18)
     prose_word_range: tuple[int, int] = (200, 500)
     # composition
     required_inventory_kinds: list[str] = Field(default_factory=list)
@@ -218,6 +218,11 @@ class PackManifest(BaseModel):
     version: int = 1
     mode: Literal["static", "dynamic"]
     files: PackFiles = Field(default_factory=PackFiles)
+    # Hand-curated genre-defining facts that get prepended to the seed's
+    # established_facts on New Game. Keep these specific, interesting, and
+    # tension-loaded — every fact should shape what the player can do.
+    # Recommended exactly 3; hard cap 5.
+    baseline_facts: list[str] = Field(default_factory=list, max_length=5)
 
 
 # ---------------------------------------------------------------------------

@@ -26,7 +26,8 @@ from typing import Any, AsyncIterator
 
 from jinja2 import Environment, FileSystemLoader
 
-from ccya.models import ExtractResult, StateDelta, TurnResult
+from ccya.models import ExtractResult, IntentEnvelope, RulesCheck, RulesOutcome, StateDelta, TurnResult
+import ccya.rules as rules_engine
 from ccya.pack import ExtractExample, Pack, PlayerOverrides, SeedEnvelope, parse_world_facts
 from ccya.llm_client import apply_thinking, chat as llm_chat, chat_stream as llm_chat_stream, strip_thinking, trim_messages
 from ccya.state import (
@@ -99,6 +100,8 @@ class EngineConfig:
     generate_seed_max_retries: int = 1
     log_llm_io: bool = False
     log_llm_io_max_chars: int = 4000
+    rules_temperature: float = 0.2
+    max_rules_retries: int = 1
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +135,7 @@ def _narrate_messages(
     recent_turns: list[dict] = [],
     enable_narrate_thinking: bool = False,
     pack_style: str = "",
+    rules_outcome: "RulesOutcome | None" = None,
 ) -> list[dict[str, str]]:
     """Build narrate message list: [system, user].
 
@@ -143,6 +147,7 @@ def _narrate_messages(
         "chronicle_tail": chronicle_tail,
         "recent_turns": recent_turns,
         "pack_style": pack_style,
+        "rules_outcome": rules_outcome,
     }
     system_text = _render(env, "narrate_system.j2", ctx)
     user_text = _render(env, "narrate_user.j2", {"user_input": user_input})
@@ -473,7 +478,7 @@ def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
         elif k == "condition_removed":
             lines.append(f"🩺 − {row.get('value')}")
         elif k == "location_changed":
-            lines.append(f"🩺 → {row.get('to')}")
+            lines.append(f"📍 → {row.get('to')}")
         elif k == "stat_changed":
             lines.append(f"🩺 {row.get('stat')}: {row.get('from')} → {row.get('to')}")
     for row in ch.get("facts") or []:
@@ -481,17 +486,14 @@ def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
             continue
         k = row.get("kind")
         v = str(row.get("value") or "")
-        short = v if len(v) <= 120 else v[:117].rstrip() + "…"
         if k == "added":
-            lines.append(f"📜 + {short}")
+            lines.append(f"📜 + {v}")
         elif k == "removed":
-            lines.append(f"📜 − {short}")
+            lines.append(f"📜 − {v}")
         elif k == "updated":
             old = str(row.get("old") or "")
             new = str(row.get("new") or "")
-            o = old if len(old) <= 56 else old[:53].rstrip() + "…"
-            n = new if len(new) <= 56 else new[:53].rstrip() + "…"
-            lines.append(f"📜 ↻ {o} → {n}")
+            lines.append(f"📜 ↻ {old} → {new}")
     for row in ch.get("quests") or []:
         if not isinstance(row, dict):
             continue
@@ -520,6 +522,8 @@ def _extract_messages(
     *,
     enable_extract_thinking: bool = False,
     pack_examples: list[ExtractExample] | None = None,
+    rules_outcome: "RulesOutcome | None" = None,
+    intent: "IntentEnvelope | None" = None,
 ) -> list[dict[str, str]]:
     """Build extract message list: [system, assistant, user].
 
@@ -550,6 +554,8 @@ def _extract_messages(
             "inventory": state.get("inventory", []),
             "established_facts": established_facts,
             "known_characters": _known_characters_for_extract(state),
+            "rules_outcome": rules_outcome,
+            "intent_target": intent.target if intent else "",
         },
     )
     msgs = [
@@ -560,6 +566,116 @@ def _extract_messages(
     if enable_extract_thinking:
         msgs = apply_thinking(msgs, True)
     return msgs
+
+
+# ---------------------------------------------------------------------------
+# Rules / intent prompt builder + caller
+# ---------------------------------------------------------------------------
+
+
+def _rules_messages(
+    env: Environment,
+    state: dict,
+    user_input: str,
+    *,
+    recent_turns: list[dict] | None = None,
+) -> list[dict[str, str]]:
+    """Build [system, user] messages for Call 0 (rules / intent classification)."""
+    pc = state.get("pc") or {}
+    location = state.get("location") or {}
+    present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
+    system_text = _render(env, "rules_system.j2", {})
+    user_text = _render(
+        env,
+        "rules_user.j2",
+        {
+            "pc": pc,
+            "location": location,
+            "present_npcs": present_npcs,
+            "recent_turns": recent_turns or [],
+            "user_input": user_input,
+        },
+    )
+    return [
+        {"role": "system", "content": system_text},
+        {"role": "user", "content": user_text},
+    ]
+
+
+async def _call_rules(
+    messages: list[dict],
+    config: EngineConfig,
+    trace_id: str,
+) -> IntentEnvelope:
+    """Execute Call 0 (rules intent classification). Returns IntentEnvelope.
+
+    Degrades gracefully: on any failure returns a no-check envelope so the
+    narrate + extract pipeline proceeds normally without a roll.
+    """
+    _no_intent = IntentEnvelope(intent="", intent_verb="act", check=RulesCheck(required=False))
+    parse_error = ""
+    for attempt in range(1 + config.max_rules_retries):
+        try:
+            if config.log_llm_io:
+                _log_llm_io(
+                    trace_id=trace_id, phase=f"rules_request_attempt_{attempt}",
+                    messages=messages, max_chars=config.log_llm_io_max_chars,
+                )
+            result = await llm_chat(
+                config.host, config.model, messages,
+                temperature=config.rules_temperature,
+                timeout=float(config.request_timeout_s),
+            )
+            raw = result.get("response", "") if isinstance(result, dict) else ""
+            if config.log_llm_io:
+                _log_llm_io(
+                    trace_id=trace_id, phase=f"rules_response_attempt_{attempt}",
+                    response=raw, max_chars=config.log_llm_io_max_chars,
+                )
+            cleaned = strip_thinking(raw)
+            j = _find_json(cleaned)
+            if j is None:
+                raise ValueError("No JSON found in rules response")
+            return IntentEnvelope(**j)
+        except Exception as exc:
+            parse_error = str(exc)
+            _log.warning(
+                "rules parse failed (attempt %d/%d): %s",
+                attempt + 1, 1 + config.max_rules_retries, parse_error,
+                extra={"trace_id": trace_id},
+            )
+            if attempt < config.max_rules_retries:
+                fb = (
+                    f"Your previous output failed to parse: {parse_error[:200]}. "
+                    "Re-emit the IntentEnvelope JSON only. No prose."
+                )
+                messages.append({"role": "user", "content": fb})
+
+    _log.warning("rules call failed after all attempts — defaulting to no-roll", extra={"trace_id": trace_id})
+    return _no_intent
+
+
+def _avg_rules_ms(save_dir: Path, n: int = 5) -> int:
+    """Average rules duration from the last n events. Returns 0 if fewer than 2 samples."""
+    path = save_dir / "events.jsonl"
+    if not path.exists():
+        return 0
+    lines = [ln for ln in path.read_text().strip().splitlines() if ln.strip()]
+    if len(lines) < 2:
+        return 0
+    recent = lines[-n:]
+    times: list[float] = []
+    for line in recent:
+        try:
+            ev = json.loads(line)
+            r = (ev.get("rules") or {}).get("total_ms")
+            if r is not None:
+                times.append(float(r))
+        except (json.JSONDecodeError, TypeError, ValueError):
+            continue
+    if len(times) < 2:
+        return 0
+    return int(sum(times) / len(times))
 
 
 # ---------------------------------------------------------------------------
@@ -712,6 +828,9 @@ async def run_turn(
     delta: StateDelta | None = None
     actions: list[str] = []
     established_facts: list[str] = []
+    intent = IntentEnvelope(intent="", intent_verb="act", check=RulesCheck(required=False))
+    outcome = RulesOutcome(rolled=False)
+    rules_metrics: dict[str, Any] = {"total_ms": 0, "rolled": False}
 
     try:
         await _inflight.acquire(str(save_dir))
@@ -719,6 +838,52 @@ async def run_turn(
         # --- Memory: load chronicle tail + recent turns ---
         chronicle_tail = load_chronicle_tail(save_dir, config.chronicle_prefix_budget_tokens)
         recent_turns = load_recent_chronicle_turns(save_dir, config.window_turns)
+
+        # === Call 0: Rules / intent classification ===
+        exp_rules_ms = _avg_rules_ms(save_dir)
+        yield ("phase", {"phase": "rules_start", "expected_ms": exp_rules_ms})
+        t_rules = asyncio.get_event_loop().time()
+
+        rules_messages = _rules_messages(env, state, user_input, recent_turns=recent_turns[-2:])
+        rules_messages = trim_messages(rules_messages, config.prompt_token_budget)
+        intent = await _call_rules(rules_messages, config, trace_id)
+
+        # Resolve dice in Python (deterministic) — _call_rules degrades intent, we do outcome here
+        outcome: RulesOutcome
+        if intent.check.required and intent.check.skill:
+            try:
+                outcome = rules_engine.resolve_check(
+                    skill=intent.check.skill,
+                    difficulty=intent.check.difficulty,
+                    pc_stats=(state.get("pc") or {}).get("stats") or {},
+                    pc_conditions=list((state.get("pc") or {}).get("conditions") or []),
+                    intent_verb=intent.intent_verb,
+                    intent=intent.intent,
+                )
+            except Exception as exc:
+                _log.warning("rules.resolve_check failed: %s", exc, extra={"trace_id": trace_id})
+                outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+        else:
+            outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+
+        rules_ms = (asyncio.get_event_loop().time() - t_rules) * 1000
+        rules_metrics: dict[str, Any] = {"total_ms": round(rules_ms, 1), "rolled": outcome.rolled}
+
+        yield ("phase", {
+            "phase": "rules_done",
+            "rolled": outcome.rolled,
+            "band": outcome.band if outcome.rolled else None,
+            "skill": outcome.skill if outcome.rolled else None,
+            "dice": outcome.dice if outcome.rolled else [],
+            "final_total": outcome.final_total if outcome.rolled else 0,
+            "difficulty": outcome.difficulty if outcome.rolled else None,
+            "stat_value": outcome.stat_value if outcome.rolled else 0,
+            "stat_mod": outcome.stat_mod if outcome.rolled else 0,
+            "diff_mod": outcome.diff_mod if outcome.rolled else 0,
+            "cond_mod": outcome.cond_mod if outcome.rolled else 0,
+            "directive": outcome.directive if outcome.rolled else "",
+            "intent_verb": intent.intent_verb,
+        })
 
         # === Call 1: Narrate (streaming) ===
         exp_narrate_ms = _avg_narrate_ms(save_dir)
@@ -730,6 +895,7 @@ async def run_turn(
             recent_turns=recent_turns,
             enable_narrate_thinking=config.enable_narrate_thinking,
             pack_style=pack_style,
+            rules_outcome=outcome,
         )
         narr_messages = trim_messages(narr_messages, config.prompt_token_budget)
 
@@ -776,6 +942,8 @@ async def run_turn(
             state,
             enable_extract_thinking=config.enable_extract_thinking,
             pack_examples=pack_examples,
+            rules_outcome=outcome,
+            intent=intent,
         )
         ext_messages = trim_messages(ext_messages, config.prompt_token_budget)
         t2 = asyncio.get_event_loop().time()
@@ -848,6 +1016,7 @@ async def run_turn(
             "tokens_out": ext_usage.get("total_tokens", 0),
         }
         metrics = {
+            "rules": rules_metrics,
             "narrate": narr_metrics,
             "extract": ext_metrics,
         }
@@ -880,6 +1049,30 @@ async def run_turn(
 
         # === Write: events.jsonl → atomic state.yaml → chronicle.md ===
         # Narrative is canonical in chronicle.md only (see load_recent_chronicle_turns).
+        rules_event: dict[str, Any] | None = None
+        if outcome.rolled:
+            rules_event = {
+                "intent_verb": outcome.intent_verb,
+                "intent": outcome.intent,
+                "rolled": True,
+                "skill": outcome.skill,
+                "difficulty": outcome.difficulty,
+                "dice": outcome.dice,
+                "stat_mod": outcome.stat_mod,
+                "diff_mod": outcome.diff_mod,
+                "cond_mod": outcome.cond_mod,
+                "final_total": outcome.final_total,
+                "band": outcome.band,
+                "total_ms": rules_metrics.get("total_ms"),
+            }
+        elif intent.intent_verb and intent.intent_verb != "act":
+            rules_event = {
+                "intent_verb": intent.intent_verb,
+                "intent": intent.intent,
+                "rolled": False,
+                "total_ms": rules_metrics.get("total_ms"),
+            }
+
         event = {
             "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "trace_id": trace_id,
@@ -889,6 +1082,7 @@ async def run_turn(
             "rejected": rejected,
             "actions": actions,
             "scene_tags": list(getattr(delta, "scene_tags", [])),
+            "rules": rules_event,
             "narrate": narr_metrics,
             "extract": ext_metrics,
             "changes": changes,
@@ -911,6 +1105,7 @@ async def run_turn(
             changes=changes,
             metrics=metrics,
             errors=errors,
+            rules=rules_event or {},
         )
         yield ("complete", result_obj)
 
@@ -1051,7 +1246,12 @@ async def generate_seed(
 
     messages = _build_generate_seed_messages(env, pack, overrides)
     messages = trim_messages(messages, config.prompt_token_budget)
-    world_facts = parse_world_facts(pack.world_text)
+    # Prefer hand-curated baseline_facts on the manifest; fall back to parsing
+    # world.md prose (legacy behavior) for packs that haven't been migrated.
+    world_facts: list[str] = (
+        list(pack.manifest.baseline_facts) if pack.manifest.baseline_facts
+        else parse_world_facts(pack.world_text)
+    )
 
     for attempt in range(1 + config.generate_seed_max_retries):
         if config.log_llm_io:

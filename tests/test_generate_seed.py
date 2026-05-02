@@ -97,6 +97,12 @@ def _valid_envelope_json(
             "compendium": {"npcs": {}},
         },
         "opening_narrative": opening,
+        "actions": [
+            "Search the building.",
+            "Call out for survivors.",
+            "Hide and wait.",
+            "Move toward the shelter.",
+        ],
     }
     return json.dumps(envelope)
 
@@ -154,6 +160,34 @@ async def test_generate_seed_injects_world_facts():
     scenario_idx = facts.index("Tester arrived this morning.")
     assert world_idx < scenario_idx
 
+
+
+async def test_generate_seed_baseline_facts_override_world_md():
+    """When pack.manifest.baseline_facts is set, those take precedence over parse_world_facts(world.md)."""
+    pack = _minimal_dynamic_pack()
+    pack.manifest.baseline_facts = [
+        "Curated fact one.",
+        "Curated fact two.",
+        "Curated fact three.",
+    ]
+    envelope_raw = json.loads(_valid_envelope_json())
+    envelope_raw["seed_state"]["scene"]["established_facts"] = ["A scenario-specific fact."]
+
+    with patch.object(ccya.engine, "llm_chat", new=AsyncMock(
+        return_value={"response": json.dumps(envelope_raw), "done": True}
+    )):
+        envelope = await generate_seed(pack, _config(), template_dir=str(PROMPTS_DIR))
+
+    facts = envelope.seed_state.scene.established_facts
+    # Curated baseline_facts must be at the top, in order
+    assert facts[0] == "Curated fact one."
+    assert facts[1] == "Curated fact two."
+    assert facts[2] == "Curated fact three."
+    # parse_world_facts() output (e.g. "The world is dangerous.") must NOT be present
+    assert "The world is dangerous." not in facts
+    assert "There is no power grid." not in facts
+    # Scenario-specific fact still preserved after the baseline
+    assert "A scenario-specific fact." in facts
 
 
 async def test_generate_seed_clears_compendium():

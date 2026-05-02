@@ -784,9 +784,10 @@ body {
   color: var(--text-primary);
 }
 .ts-section.ts-inv .ts-section-head { color: #fbbf24; }
-.ts-section.ts-pl .ts-section-head { color: #4ade80; }
-.ts-section.ts-fa .ts-section-head { color: #60a5fa; }
-.ts-section.ts-qu .ts-section-head { color: #c084fc; }
+.ts-section.ts-pl  .ts-section-head { color: #4ade80; }
+.ts-section.ts-loc .ts-section-head { color: #fb923c; }
+.ts-section.ts-fa  .ts-section-head { color: #60a5fa; }
+.ts-section.ts-qu  .ts-section-head { color: #c084fc; }
 .ts-line {
   font-size: 12px;
   line-height: 1.45;
@@ -1458,6 +1459,58 @@ body {
   font-size: 12px;
   font-style: italic;
 }
+
+/* =========================================================
+   ROLL BADGE — shown between rules_done and narrative
+   ========================================================= */
+
+.roll-badge {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  user-select: none;
+}
+
+/* Line 1: skill · difficulty */
+.roll-header {
+  font-size: 10px;
+  font-family: var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+.roll-header strong { color: var(--text-secondary); }
+
+/* Line 2: dice math with labeled modifiers */
+.roll-math {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.roll-math strong { color: var(--text-primary); }
+
+/* Line 3: band result pill */
+.roll-result {
+  display: inline-block;
+  margin-top: 1px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-family: var(--font-sans);
+}
+
+.roll-band--crit_fail   { background: rgba(248,113,113,0.18); color: #f87171; }
+.roll-band--fail        { background: rgba(248,113,113,0.10); color: #fca5a5; }
+.roll-band--mixed       { background: rgba(250,204, 21,0.12); color: #fde047; }
+.roll-band--success     { background: rgba( 74,222,128,0.12); color: #4ade80; }
+.roll-band--crit_success{ background: rgba( 74,222,128,0.22); color: #86efac; }
 
 /* =========================================================
    RESPONSIVE — narrow: sidebar stacks below narrative

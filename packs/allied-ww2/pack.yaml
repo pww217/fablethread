@@ -3,8 +3,12 @@ name: "Allied — 1940–1945"
 description: "Allied service member across any theater. Every rotation is different."
 genre: ww2
 tone_tags: [gritty, logistics, moral-weight, grounded]
-version: 1
+version: 2
 mode: dynamic
+baseline_facts:
+  - "The Allies operate under a unified Combined Chiefs of Staff in **Washington**, but national chains of command and personal rivalries (Eisenhower vs. Montgomery, Bradley vs. Patton, de Gaulle vs. nearly everyone) shape every operation in the field — political weight is fought over as hard as terrain."
+  - "Penicillin and sulfa drugs reach forward aid stations only by 1944; until then, infection kills more wounded than the wounds themselves, and a battlefield medic's real arsenal is morphine syrettes, sulfa powder, tourniquets, and the speed at which they can get a man to a clearing station."
+  - "The **Ultra** intelligence — the Allied break of German Enigma signals — is the war's most closely guarded secret; only a handful of officers per command know German messages are being read, and operations are deliberately compromised, even at the cost of lives, to protect the source."
 files:
   world: world.md
   scenario: scenario.yaml

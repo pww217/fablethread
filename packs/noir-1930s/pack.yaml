@@ -3,8 +3,12 @@ name: "Noir — 1930s"
 description: "Detective in a Depression-era city. Every case is different."
 genre: noir
 tone_tags: [noir, urban, procedural, moral-ambiguity]
-version: 1
+version: 2
 mode: dynamic
+baseline_facts:
+  - "**J. Edgar Hoover's** Bureau of Investigation became the FBI in 1935 with new federal jurisdiction over bank robbery, kidnapping, and interstate flight; the Bureau still has no authority over local rackets, and most cities are policed by a force that reports to the mayor's political machine, not the federal government."
+  - "The **Volstead Act** ended in 1933, but the rackets that grew under Prohibition — Lansky's gambling syndicate, the Five Families' truce of 1931, the **Outfit** in Chicago — are intact and have moved into labor unions, garment districts, the docks, and the construction trades; the names on the front pages have not changed."
+  - "A working private detective makes **$25 a week** salary plus expenses; a single phone call to the right precinct desk costs $5, a friendly homicide cop costs $50, and the going rate for a name out of the morgue is a bottle of decent rye — every case ledger is half receipts, half graft."
 files:
   world: world.md
   scenario: scenario.yaml

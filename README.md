@@ -119,14 +119,15 @@ See `packs/AUTHORING.md` for the full pack spec.
 ```
 config.yaml              # Server, LLM, and game config
 ccya/                    # Python package
-  engine.py              # Turn pipeline (narrate + extract + generate_seed)
+  engine.py              # Turn pipeline (rules + narrate + extract + generate_seed)
+  rules.py               # Pure-Python dice resolver (2d6 PbtA, no LLM)
   pack.py                # Pack loader, manifest schema, list_packs()
   llm_client.py          # Thin async OpenAI-compatible client (mlx_lm.server)
   state.py               # YAML + JSONL state I/O
   server.py              # FastAPI routes + SSE
   models.py              # Pydantic models + config loader
   logging_setup.py       # JSONL logging
-  prompts/               # Jinja prompt templates (narrate, extract, generate_seed)
+  prompts/               # Jinja prompt templates (rules, narrate, extract, generate_seed)
   templates/             # HTMX/Alpine HTML templates
   static/                # CSS + vendored JS (htmx, alpine, marked)
 saves/default/           # Game save (state.yaml, events.jsonl, chronicle.md)
@@ -140,6 +141,7 @@ tests/                   # Smoke tests
 Edit `config.yaml` to change the model, port, or other settings. Key sections:
 
 - `llm` — `host` (e.g. `http://127.0.0.1:8080/v1`), `model`, request timeout, narrate/extract temperatures, retry budget, optional `enable_extract_thinking` / `enable_narrate_thinking` toggles for the Qwen3.x `/think` `/no_think` soft switches
+- `rules` — `temperature` (default 0.2) and `max_retries` (default 1) for the rules/intent Call 0
 - `game` — save slot, setting pack, turn window size
 - `server` — bind address and port
 - `debug` — toggle debug panel
@@ -164,12 +166,27 @@ Edit `config.yaml` to change the model, port, or other settings. Key sections:
 
 When you click **New Game** and select a pack, the server calls `generate_seed()` — a single LLM call that produces a `SeedEnvelope` containing the full initial state (character, location, NPCs, inventory, quest, established facts) plus an opening narrative. The world bible (`world.md`) and scenario constraints (`scenario.yaml`) shape what the model generates; `style.md` and `extract_examples.yaml` carry over into the regular turn pipeline.
 
+### Rules engine
+
+Every turn runs a **2d6 + modifier PbtA dice system** before narration.
+
+| Raw dice | Band | Result |
+|----------|------|--------|
+| 2 (snake eyes) | **CRITICAL FAIL** | Catastrophic regardless of modifiers |
+| ≤ 6 | **FAIL** | Attempt fails; complication arises |
+| 7–9 | **MIXED** | Partial success at a real cost |
+| 10–11 | **SUCCESS** | Clean success |
+| 12 (boxcars) | **CRITICAL SUCCESS** | Outstanding regardless of modifiers |
+
+Final roll = 2d6 + (stat − 2) + difficulty_mod + condition_mod. The outcome is displayed in the UI as a roll badge and is passed to the narrator as a **binding constraint**. Checks only fire when the action is active, has real consequences, and is genuinely uncertain.
+
 ### Turn flow
 
-Each turn fires two LLM calls (OpenAI `/v1/chat/completions`):
+Each turn fires three LLM calls (OpenAI `/v1/chat/completions`):
 
-1. **Narrate** — streams narrative text token-by-token via SSE. Chronicle tail + recent turns injected as context.
-2. **Extract** — parses the narrative into a structured `StateDelta`. JSON validity is enforced through prompting + a single retry on parse failure.
+1. **Rules / intent** (fast, non-streaming) — classifies what the player is attempting and whether a dice roll is required. Returns an `IntentEnvelope`; the Python engine resolves the dice deterministically. Displays as **"Determining Outcome"** in the UI.
+2. **Narrate** — streams narrative text token-by-token via SSE. Chronicle tail + recent turns injected as context. If a roll occurred, a BINDING outcome block constrains the narrator. Displays the roll badge between rules and narrative text.
+3. **Extract** — parses the narrative into a structured `StateDelta`. Rules-outcome hint prepended for accuracy on fail/mixed/success. Displays as **"Updating Game State"** in the UI.
 
 The extracted delta is validated against current state (e.g. impossible inventory removals) before applying. Rejected removes surface in the turn summary modal.
 

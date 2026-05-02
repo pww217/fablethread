@@ -43,6 +43,8 @@ engine_config = EngineConfig(
     generate_seed_max_retries=config["llm"].get("generate_seed_max_retries", 1),
     log_llm_io=config.get("logging", {}).get("log_llm_io", False),
     log_llm_io_max_chars=config.get("logging", {}).get("log_llm_io_max_chars", 4000),
+    rules_temperature=config.get("rules", {}).get("temperature", 0.2),
+    max_rules_retries=config.get("rules", {}).get("max_retries", 1),
 )
 
 logger = setup_logging(config)
@@ -291,6 +293,7 @@ async def get_turn(input: str = ""):
                         "change_lines": format_change_lines(ch),
                         "state": _load_current_state(),
                         "metrics": result.metrics,
+                        "rules": result.rules,
                     })}
         except Exception as e:
             logger.exception("Turn failed")

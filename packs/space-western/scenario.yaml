@@ -7,7 +7,7 @@ constraints:
   inventory_size_range: [4, 7]
   pc_stat_range: [1, 4]
   pc_stat_total_range: [9, 12]
-  prose_word_range: [200, 450]
+  prose_word_range: [275, 550]
   # composition
   required_inventory_kinds: [weapon, tool]
   npc_distinct_first_letters: true
@@ -16,60 +16,69 @@ constraints:
     - "pirate captain with a bounty on their head"
     - "smuggler carrying contraband they don't know about"
     - "the ship is the only thing they have left"
-    - "ex-corporate pilot who went rogue"
-    - "the last surviving crew of a destroyed ship"
-    - "a mysterious stranger offering a job"
+    - "ex-Coalition pilot who went rogue"
+    - "the last Browncoat holding a candle for the cause"
+    - "a mysterious stranger offering a job in a saloon"
     - "the only pilot who can make the run"
+    - "former Companion turned vigilante"
+    - "secret Browncoat war hero in hiding"
   forbid_player_dependents: true
   forbid_legendary_items: true
 
 inspiration:
   pc: |
-    The PC is a specific person living in the Rim's frontier systems. They could be a
-    freight pilot who knows every jump corridor between the outer moons, a station
-    mechanic who keeps three habitat rings pressurized, a militia scout who patrols the
-    drift lanes, a data-broker running information between the generation ships, a
-    salvage diver pulling usable parts from derelict hulls, a council liaison negotiating
-    tolls and trade agreements. What shaped them is the Rim's pressure: isolation,
-    scarcity, the constant negotiation between survival and community. Avoid the lone
-    wolf; the Rim is held together by people who need each other. Give them a specific
-    role, a specific tie to a community, and something they're responsible for.
+    The PC is a specific person living and working on the Rim. They could be a frontier
+    deputy in a one-horse mining town, a freight pilot running mail and grain between
+    moons, a herd-doctor who treats both cattle and people, a junker dismantling
+    crashed Coalition hardware for parts, a saloon owner who hears every rumor that
+    crosses the dust line, a terraforming engineer keeping a stalled atmosphere
+    project alive, a Companion-guild registrant who has chosen this circuit, a
+    Browncoat veteran who put down the rifle and picked up a plough. What shaped
+    them is what shaped the Rim — the war, the stalled terraforming, the long supply
+    lanes, the Coalition presence that comes and goes. Avoid the iconic captain-with-
+    a-ship trope unless the inspiration explicitly asks for it; the Rim is bigger
+    than its smugglers.
 
   opening_situation: |
-    Drop the player into a moment that the Rim's reality has created — something that
-    requires a decision in a place where there is no outside help. The situation should
-    feel like inheriting a problem that only they can solve: a freighter that needs a
-    decision before the air runs out, a station council that needs an answer by the next
-    cycle, a patrol route that reveals something that changes the local balance. The
-    opening should feel grounded in the spatial reality: a corridor, a dock bay, a
-    hydroponic bay, a spin-gravity observation deck, a flooded section of a generation
-    ship. Something that requires a choice right now.
+    Drop the player into a moment grounded in the Rim's reality — a town meeting
+    where a company sheriff has just claimed jurisdiction, a freighter dock where
+    the pulse-fold catalysts have gone missing, a homestead where a Coalition tax
+    assessor has finally arrived three years late, a saloon where a wanted Browncoat
+    has just walked in, a herd-doctor's cabin where someone has been brought in with
+    a wound that is going to attract attention. The opening should feel like a small
+    specific place — wood porches, dust on boots, a steam kettle next to a
+    holographic ledger — where a single decision will set off consequences that
+    cannot be taken back.
 
   npcs: |
-    Each NPC is a person with a stake in the Rim's survival, a specific relationship to
-    the player, and something they're not saying. At least one should have interests
-    that conflict with the player's — not as a villain, but as someone whose community
-    depends on different choices. The station councilor speaks with the weight of
-    responsibility. The pilot speaks with the casual competence of someone who has
-    survived bad jumps. The mechanic speaks with the practical wisdom of someone who
-    has kept things running through impossible cycles. Everyone has a community behind
-    them; everyone is calculating what they can afford.
+    Each NPC is a person carrying their own version of the Rim's tensions. The town
+    sheriff knows which of their deputies still wears a brown coat under the uniform.
+    The freight pilot owes money to a Coalition customs officer they cheated. The
+    rancher remembers which neighbours informed during the war. The Companion-guild
+    registrant has a client list that includes both sides. At least one NPC should
+    have interests that conflict with the player's — a Coalition loyalist among
+    independents, a company foreman among free settlers, a sibling who took the
+    other side. Names should feel period-real and culturally varied (Hannah Bowen,
+    Cyrus Quill, Mei-Ling Park, Esteban Vega, Anders Holm, Yuki Walsh) — never
+    space-opera stylized.
 
   inventory: |
-    Items reflect the PC's role in the Rim's economy. A pilot carries navigation tools,
-    emergency supplies, and something from a ship that doesn't exist anymore. A mechanic
-    carries tools, replacement parts, and a reference manual that nobody else understands.
-    A scout carries weapons, comms gear, and a map that is more accurate than any
-    corporate record. Show what the character uses daily — the specific tools, the
-    specific numbers. Every item should say something about who this person is and what
-    they've survived.
+    Items reflect both the frontier and the war that just ended. A deputy carries a
+    plasma sidearm with a hand-cranked recharger and a paper warrant book. A pilot
+    carries fuel certificates (forged or real), a wrench worn smooth, and a battered
+    nav-slate with hand-annotated jump corridors. A rancher carries a lever-action
+    rifle, a set of medical clamps, and a Coalition-issued identity card they refuse
+    to use. A junker carries a plasma cutter, a pry-bar, and a salvaged data chip
+    they haven't read yet. Show the mismatch: high tech beside hand tools, plasma
+    beside black-powder, neural-link patches beside paper ledgers.
 
   quests: |
-    The starting quest should have stakes that are local and material — something that
-    affects a station, a habitat ring, a freight corridor, a generation ship. The
-    objectives should force the player into the Rim's political reality: negotiations
-    with the council, a run through contested space, a salvage operation with competing
-    claims, a militia patrol that uncovers something unexpected. There should be at
-    least one objective that creates tension with another NPC or faction. The quest
-    should feel like it has a cost — in fuel, in time, in trust, in what the player
-    is willing to do for the community they're part of.
+    The starting quest should be local and material — something that affects this
+    town, this freight route, this homestead, this herd. The objectives should force
+    the player into the Rim's politics: a Coalition warrant being served on a
+    neighbour, a debt owed to a company sheriff, a buried weapons cache from the
+    war that someone has just found, a shipment of medicine that won't pass customs,
+    a stalled terraforming relay that the inner worlds want shut down. There should
+    be at least one objective that creates tension with another NPC or faction. The
+    quest should cost something — fuel, trust, a friendship that survived the war
+    until now, a name that will end up on a list.

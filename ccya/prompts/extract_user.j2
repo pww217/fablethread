@@ -1,3 +1,11 @@
+{% if rules_outcome and rules_outcome.rolled %}
+### Rules outcome (use to guide state changes)
+- Attempted: **{{ rules_outcome.intent_verb }}**{% if intent_target %} on {{ intent_target }}{% endif %} | Roll: {{ rules_outcome.band | upper | replace('_', ' ') }} on {{ rules_outcome.skill }}
+- **crit_fail / fail** → the action did NOT succeed; do NOT mark quest objectives done for this action; MAY add pc_condition_add (e.g. wounded, shaken) if the narrative applied harm
+- **mixed** → partial success with a cost; apply partial state changes; a debt or complication was introduced
+- **success / crit_success** → the action succeeded; apply the relevant state changes freely
+{% endif %}
+
 ## Current state (reference — emit deltas; consolidate before adding duplicates)
 
 ### Player

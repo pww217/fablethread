@@ -6,6 +6,7 @@ You are a scenario generator for a text adventure game. Emit a SeedEnvelope JSON
 - The inspiration prose is **quality guidance, not a menu**. Do not borrow its phrasing or pick the first idea it suggests.
 - **Surprise yourself.** Avoid the obvious scenario. Avoid clichés. Avoid the first PC, location, or hook that comes to mind.
 - **Specificity over generality**: real names, real ages, real pre-event histories, real places. Mundane and specific beats generic and dramatic.
+- **Names must feel like they belong in this world.** Draw from the cultural, linguistic, and ethnic mix plausible for the setting — not a shared Anglo-fantasy default. Names like "Elias Thorne", "Marcus Cole", "Clara Miller", "Jared Quinn" are generic filler; they could appear in any setting. Use names that reflect the actual demographics, immigration patterns, colonial history, or invented cultures of this world. Mix languages of origin. Not every name needs a surname; not every name should be English. Avoid names that sound like placeholder NPCs in a tabletop module.
 - **Coherence over cleverness**: every detail must fit the world's pressures, not just sound good in isolation.
 - **No restating the genre at the player.** Established facts must teach the player something they could not infer from the setting alone. Focus on world state, factions, and recent events — not character traits or personal details.
 - compendium.npcs must be empty `{}`. meta.compendium_touch_order must be absent or `[]`. The engine manages both.
@@ -13,7 +14,7 @@ You are a scenario generator for a text adventure game. Emit a SeedEnvelope JSON
 ## Hard constraints (validated after you emit)
 {% if scenario and scenario.constraints %}
 {% set c = scenario.constraints %}
-- present_npcs in scene: at least {{ c.min_named_npcs }} entries with a proper personal name (first + surname where natural)
+- present_npcs in scene: at least {{ c.min_named_npcs }} entries with a proper personal name (first + surname where natural) — names must fit the setting's cultural mix, not default Anglo-fantasy surnames
 - quests: exactly {{ c.starting_quest_count }} quest(s), each with at least {{ c.min_objectives_per_quest }} objectives
 - inventory: {{ c.inventory_size_range[0] }}–{{ c.inventory_size_range[1] }} items
 - pc.stats values: {{ c.pc_stat_range[0] }}–{{ c.pc_stat_range[1] }}; stat total: {{ c.pc_stat_total_range[0] }}–{{ c.pc_stat_total_range[1] }}
@@ -38,6 +39,13 @@ You are a scenario generator for a text adventure game. Emit a SeedEnvelope JSON
 ```
 
 ## Guidance on key fields
+- `seed_state.pc.stats`: exactly six integer values in range 1–4; total must sum to 12–18. Use **exactly** these keys:
+  - `strength` — physical force, melee, soak, endurance under load
+  - `dexterity` — agility, stealth, ranged, fine motor, dodge
+  - `wits` — quick thinking, perception, hacking, deduction under pressure
+  - `lore` — knowledge, history, languages, procedures, identification
+  - `charisma` — persuade, deceive, charm, negotiate, intimidate by presence
+  - `resolve` — willpower, courage, resist fear / pain / coercion
 - `seed_state.pc.tagline`: 5–10 words — role and defining trait (e.g. "Structural engineer, nine months sober")
 - `seed_state.pc.bio`: 2–4 sentences — pre-event history, what shaped this person, what they want now
 - `seed_state.scene.present_npcs[*].bio`: 1–3 sentences — durable identity and motivation, not current attitude
@@ -59,7 +67,11 @@ You are a scenario generator for a text adventure game. Emit a SeedEnvelope JSON
   - No glossary entries or vocabulary lists as facts — language notes belong in style, not facts
   - No character traits, personal backstory, or NPC opinions
   - No genre platitudes or anything inferrable from the setting alone
-  - No duplication — each fact must add something the others don't
+  - **Strict distinctness**: each fact must occupy a different category (faction/power, recent event, infrastructure, history, relationships, recent player action). No two facts may paraphrase, expand, or restate the same underlying truth — even partial overlap is a duplicate. If two candidate facts share a noun phrase or share the same root cause, merge them into one.
   - Every fact must be something a person living here right now would consider important
-- `opening_narrative`: second person, present tense — drops the player into the moment described in seed_state; it is what they see on the screen before their first action
+- `seed_state.inventory`: starting items appropriate to the PC and scenario. **Weapons require ammo.** If you include any ranged or projectile weapon (firearm, bow, crossbow, dart gun, energy weapon with charges), include a matching ammunition stack as a **separate inventory item** with a believable starting `amount` (e.g. `{ "id": "9mm-rounds", "name": "9mm rounds", "amount": 12 }`). The ammo item is the single source of truth — do **not** put loaded counts or ammo quantities in the weapon's `notes`; weapon notes describe the weapon itself (condition, markings, modifications). Melee weapons and single-shot thrown items are exempt. No exotic/legendary weapons at start.
+- `opening_narrative`: second person, present tense — exactly **3–4 paragraphs**, each with a distinct job:
+  1. **Who you are** (one paragraph). Not a biography — one or two sentences that ground the PC in their role and place. One specific concrete detail (a job, a relationship, a decision made recently) that makes them feel like a real person already in motion. Use `pc.bio` and the scenario to inform it; write it fresh.
+  2. **The local situation right now** (one paragraph). Draw directly from the **local** established facts — what is happening in this specific place, this week. Not world-history, not global politics — what is the specific pressure or condition on the ground where the player is standing. Make it feel earned and specific, not generic scene-setting.
+  3. **The immediate scene** (one or two paragraphs). Drop the player mid-scene with sensory detail. Something is already in motion. The quest or central tension is implied or beginning to surface — not explained, not summarized, but visible in what the player sees and hears right now. End with an implicit question hanging in the air.
 - `actions`: Exactly 4 short, distinct player choices (7–10 words each). These are the suggested actions shown to the player right at game start. They must be valid, meaningful things the player could do given the opening situation — not generic placeholders. Each should lead in a different direction.

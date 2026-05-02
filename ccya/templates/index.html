@@ -182,19 +182,20 @@ function _headerTaglineFromState(st) {
 }
 
 function _groupChangeLinesForModal(lines) {
-    const inv = [], pl = [], fa = [], qu = [];
+    const inv = [], pl = [], loc = [], fa = [], qu = [];
     (lines || []).forEach((ln) => {
         const s = String(ln);
         if (s.startsWith('🎒')) inv.push(s);
         else if (s.startsWith('🩺')) pl.push(s);
+        else if (s.startsWith('📍')) loc.push(s);
         else if (s.startsWith('📜')) fa.push(s);
         else if (s.startsWith('🗺️')) qu.push(s);
         else inv.push(s);
     });
-    return { inv, pl, fa, qu };
+    return { inv, pl, loc, fa, qu };
 }
 
-function _showTurnSummary(changeLines) {
+function _showTurnSummary(changeLines, rules) {
     if (!changeLines || !changeLines.length) return;
     const g = _groupChangeLinesForModal(changeLines);
     const backdrop = document.createElement('div');
@@ -211,9 +212,15 @@ function _showTurnSummary(changeLines) {
     title.textContent = 'What changed';
     dlg.appendChild(title);
 
+    if (rules && rules.rolled) {
+        const badge = _buildRollBadge(rules);
+        if (badge) { badge.style.marginBottom = '8px'; dlg.appendChild(badge); }
+    }
+
     const sections = [
         ['ts-inv', '🎒 Inventory', g.inv],
         ['ts-pl', '🩺 Player', g.pl],
+        ['ts-loc', '📍 Location', g.loc],
         ['ts-fa', '📜 Facts', g.fa],
         ['ts-qu', '🗺️ Quests', g.qu],
     ];
@@ -266,7 +273,7 @@ function _showTurnSummary(changeLines) {
     document.body.appendChild(dlg);
 }
 
-function _prependTurnLogTurn(turn, changeLines) {
+function _prependTurnLogTurn(turn, changeLines, rules) {
     const body = document.getElementById('turn-log-body');
     if (!body || !changeLines || !changeLines.length) return;
     const wrap = document.createElement('div');
@@ -275,6 +282,10 @@ function _prependTurnLogTurn(turn, changeLines) {
     head.className = 'turn-log-turn';
     head.textContent = 'Turn ' + turn;
     wrap.appendChild(head);
+    if (rules && rules.rolled) {
+        const badge = _buildRollBadge(rules);
+        if (badge) { badge.style.margin = '4px 0 6px'; wrap.appendChild(badge); }
+    }
     changeLines.forEach((ln) => {
         const row = document.createElement('div');
         row.className = 'turn-log-line';
@@ -286,11 +297,17 @@ function _prependTurnLogTurn(turn, changeLines) {
 
 function _formatMetricsRow(metrics) {
     if (!metrics || typeof metrics !== 'object') return '';
+    const r = metrics.rules || {};
     const n = metrics.narrate || {};
     const x = metrics.extract || {};
+    const rs = (r.total_ms != null) ? (Number(r.total_ms) / 1000).toFixed(1) + 's' : null;
     const ns = (n.total_ms != null) ? (Number(n.total_ms) / 1000).toFixed(1) + 's' : '—';
     const xs = (x.total_ms != null) ? (Number(x.total_ms) / 1000).toFixed(1) + 's' : '—';
-    return 'narrate ' + ns + '   ·   extract ' + xs;
+    const parts = [];
+    if (rs) parts.push('rules ' + rs);
+    parts.push('narrate ' + ns);
+    parts.push('extract ' + xs);
+    return parts.join('   ·   ');
 }
 
 function _narrativePanelEl() {
@@ -375,12 +392,66 @@ function _progressStripHTML() {
         + '</span>';
 }
 
+const BAND_LABELS = {
+    crit_fail: 'CRITICAL FAIL',
+    fail: 'FAIL',
+    mixed: 'MIXED',
+    success: 'SUCCESS',
+    crit_success: 'CRITICAL SUCCESS',
+};
+
+function _buildRollBadge(payload) {
+    if (!payload || !payload.rolled || !payload.band) return null;
+    const badge = document.createElement('div');
+    badge.className = 'roll-badge roll-badge--' + payload.band;
+
+    // Line 1: skill · difficulty
+    const skillLabel = (payload.skill || '').toUpperCase();
+    const diffLabel = (payload.difficulty || '').toLowerCase();
+    const hdr = document.createElement('div');
+    hdr.className = 'roll-header';
+    hdr.innerHTML = '🎲 <strong>' + skillLabel + '</strong> &nbsp;·&nbsp; ' + diffLabel;
+    badge.appendChild(hdr);
+
+    // Line 2: dice + labeled modifiers + total
+    const d1 = (payload.dice || [])[0] || 0;
+    const d2 = (payload.dice || [])[1] || 0;
+    const rawSum = d1 + d2;
+    const parts = ['[' + d1 + '] + [' + d2 + '] = ' + rawSum];
+    if (payload.stat_mod) parts.push((payload.stat_mod > 0 ? '+' : '') + payload.stat_mod + '\u202f' + (payload.skill || 'stat'));
+    if (payload.diff_mod) parts.push((payload.diff_mod > 0 ? '+' : '') + payload.diff_mod + '\u202f' + (payload.difficulty || 'diff'));
+    if (payload.cond_mod) parts.push((payload.cond_mod > 0 ? '+' : '') + payload.cond_mod + '\u202fcond');
+    parts.push('= <strong>' + payload.final_total + '</strong>');
+    const math = document.createElement('div');
+    math.className = 'roll-math';
+    math.innerHTML = parts.join(' &thinsp;·&thinsp; ');
+    badge.appendChild(math);
+
+    // Line 3: band result
+    const bandLabel = BAND_LABELS[payload.band] || (payload.band || '').toUpperCase().replace(/_/g, ' ');
+    const res = document.createElement('div');
+    res.className = 'roll-result roll-band--' + payload.band;
+    res.textContent = bandLabel;
+    badge.appendChild(res);
+
+    return badge;
+}
+
 function _setProgressFromPhase(strip, payload) {
     const p = (payload && payload.phase) || '';
     strip.setAttribute('data-phase', p);
     const label = strip.querySelector('.progress-label');
     const eta = strip.querySelector('.progress-eta');
-    if (p === 'narrate_start') {
+    if (p === 'rules_start') {
+        label.textContent = 'Determining outcome…';
+        strip._phaseStart = Date.now();
+        if (eta && payload && payload.expected_ms > 0) {
+            eta.textContent = '~' + (payload.expected_ms / 1000).toFixed(0) + 's avg';
+        } else if (eta) { eta.textContent = ''; }
+    } else if (p === 'rules_done') {
+        label.textContent = 'Composing narrative…';
+        if (eta) eta.textContent = '';
+    } else if (p === 'narrate_start') {
         label.textContent = 'Composing narrative…';
         strip._phaseStart = Date.now();
         if (eta && payload && payload.expected_ms > 0) {
@@ -390,17 +461,17 @@ function _setProgressFromPhase(strip, payload) {
         label.textContent = 'Reviewing outcome…';
         if (eta) eta.textContent = '';
     } else if (p === 'extract_start') {
-        label.textContent = 'Processing outcome…';
+        label.textContent = 'Updating game state…';
         strip._phaseStart = Date.now();
         if (eta && payload && payload.expected_ms > 0) {
             eta.textContent = '~' + (payload.expected_ms / 1000).toFixed(0) + 's avg';
         } else if (eta) { eta.textContent = ''; }
     } else if (p === 'extract_retry') {
         const n = (payload && payload.attempt) || '?';
-        label.textContent = 'Re-checking outcome (try ' + n + ')…';
+        label.textContent = 'Re-checking state (try ' + n + ')…';
         if (eta) eta.textContent = '';
     } else if (p === 'extract_done') {
-        label.textContent = 'Updating world…';
+        label.textContent = 'Saving…';
         if (eta) eta.textContent = '';
     } else if (p === 'persist') {
         label.textContent = 'Saving…';
@@ -575,10 +646,12 @@ function game() {
             echo.className = 'narrative-input-echo';
             echo.textContent = '> ' + userInput;
             const textDiv = document.createElement('div');
-            textDiv.className = 'narrative-text streaming';
+            textDiv.className = 'narrative-text';
+            textDiv.innerHTML = '<span class="streaming-cursor"></span>';
+            // Detached element — kept for compatibility with existing cleanup paths
+            // that call `cursor.remove()`. The live cursor span lives inside textDiv
+            // and is replaced each render in `_renderStreaming`.
             const cursor = document.createElement('span');
-            cursor.className = 'streaming-cursor';
-            textDiv.appendChild(cursor);
             const strip = document.createElement('div');
             strip.className = 'progress-strip';
             strip.setAttribute('data-phase', 'narrate');
@@ -628,19 +701,34 @@ function game() {
             const es = new EventSource(url);
             this._turnEs = es;
 
+            // Streaming markdown: keep raw buffer, re-render via marked at most ~5×/s.
+            let streamBuf = '';
+            let streamRafPending = false;
+            const _renderStreaming = () => {
+                streamRafPending = false;
+                _configureMarked();
+                const html = _renderMarkdown(streamBuf);
+                textDiv.innerHTML = html + '<span class="streaming-cursor"></span>';
+            };
+            const _scheduleStreamRender = () => {
+                if (streamRafPending) return;
+                streamRafPending = true;
+                setTimeout(_renderStreaming, 120);
+            };
+
             es.addEventListener('narrative_token', (e) => {
                 const data = JSON.parse(e.data);
-                cursor.insertAdjacentText('beforebegin', data.chunk || '');
+                streamBuf += (data.chunk || '');
+                _scheduleStreamRender();
                 if (_narrativeNearBottom(np)) _startGradualScroll(np);
             });
 
             es.addEventListener('phase', (e) => {
                 const payload = JSON.parse(e.data);
-                if (payload && payload.phase === 'narrate_done' && cursor.parentNode) {
-                    cursor.remove();
-                    const raw = textDiv.textContent;
+                if (payload && payload.phase === 'narrate_done') {
+                    streamRafPending = false;
                     textDiv.classList.remove('streaming');
-                    textDiv.innerHTML = _renderMarkdown(raw);
+                    textDiv.innerHTML = _renderMarkdown(streamBuf);
                 }
                 _setProgressFromPhase(strip, payload);
             });
@@ -668,6 +756,12 @@ function game() {
                 met.textContent = _formatMetricsRow(result.metrics);
                 textDiv.after(met);
 
+                // Roll badge — inserted after narrative so player reads the story first.
+                if (result.rules && result.rules.rolled) {
+                    const rollBadge = _buildRollBadge(result.rules);
+                    if (rollBadge) met.after(rollBadge);
+                }
+
                 if (result.rejected && result.rejected.length > 0) {
                     const note = document.createElement('div');
                     note.className = 'rejection-note';
@@ -675,7 +769,7 @@ function game() {
                     block.appendChild(note);
                 }
 
-                _showTurnSummary(result.change_lines || []);
+                _showTurnSummary(result.change_lines || [], result.rules);
 
                 const zone = document.getElementById('actions-zone');
                 if (result.actions && result.actions.length > 0) {
@@ -691,7 +785,7 @@ function game() {
                     zone.innerHTML = '<span class="empty-state">No suggested actions.</span>';
                 }
 
-                _prependTurnLogTurn(result.turn, result.change_lines || []);
+                _prependTurnLogTurn(result.turn, result.change_lines || [], result.rules);
 
                 htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
                 htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
@@ -945,6 +1039,9 @@ document.addEventListener('DOMContentLoaded', () => {
             _bindTooltips(e.target);
         }
         if (id === 'debug-content') {
+            _applyMarkdown(e.target);
+        }
+        if (id === 'turn-log-body') {
             _applyMarkdown(e.target);
         }
     });
