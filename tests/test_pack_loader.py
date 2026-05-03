@@ -37,44 +37,97 @@ def _minimal_static_pack_files(
     include_style: bool = False,
     include_examples: bool = False,
 ) -> dict[str, str]:
-    manifest = yaml.dump({
-        "id": "test-static",
-        "name": "Test Static Pack",
-        "mode": mode,
-    })
-    seed = yaml.dump({
-        "meta": {"game_name": "default", "turn": 0, "setting_pack": "test-static", "model": ""},
-        "pc": {"name": "Tester", "tagline": "a test character", "bio": "", "stats": {"body": 2, "mind": 2, "tech": 2, "social": 2}, "conditions": []},
-        "location": {"id": "test-loc", "name": "Test Location", "description": "A room."},
-        "inventory": [{"id": "item-a", "name": "Item A", "notes": "", "amount": 1}],
-        "quests": [{"id": "q1", "title": "Test Quest", "status": "active", "objectives": [{"description": "Do a thing", "done": False}]}],
-        "scene": {"tagline": "", "tags": [], "present_npcs": [], "established_facts": []},
-        "compendium": {"npcs": {}},
-    })
+    manifest = yaml.dump(
+        {
+            "id": "test-static",
+            "name": "Test Static Pack",
+            "mode": mode,
+        }
+    )
+    seed = yaml.dump(
+        {
+            "meta": {
+                "game_name": "default",
+                "turn": 0,
+                "setting_pack": "test-static",
+                "model": "",
+            },
+            "pc": {
+                "name": "Tester",
+                "tagline": "a test character",
+                "bio": "",
+                "stats": {"body": 2, "mind": 2, "tech": 2, "social": 2},
+                "conditions": [],
+            },
+            "location": {
+                "id": "test-loc",
+                "name": "Test Location",
+                "description": "A room.",
+            },
+            "inventory": [{"id": "item-a", "name": "Item A", "notes": "", "amount": 1}],
+            "quests": [
+                {
+                    "id": "q1",
+                    "title": "Test Quest",
+                    "status": "active",
+                    "objectives": [{"description": "Do a thing", "done": False}],
+                }
+            ],
+            "scene": {
+                "tagline": "",
+                "tags": [],
+                "present_npcs": [],
+                "recent_events": [],
+            },
+            "compendium": {"npcs": {}},
+        }
+    )
     opening = "You stand in the test room. What do you do?"
-    files = {"pack.yaml": manifest, "seed_state.yaml": seed, "opening_scene.md": opening}
+    files = {
+        "pack.yaml": manifest,
+        "seed_state.yaml": seed,
+        "opening_scene.md": opening,
+    }
     if include_style:
         files["style.md"] = "Stay calm. Test things methodically."
     if include_examples:
-        files["extract_examples.yaml"] = yaml.dump({
-            "examples": [{"title": "Test example", "thinking": "- nothing", "json": json.dumps({
-                "state_delta": {"scene_tags": ["test"]}
-            })}]
-        })
+        files["extract_examples.yaml"] = yaml.dump(
+            {
+                "examples": [
+                    {
+                        "title": "Test example",
+                        "thinking": "- nothing",
+                        "json": json.dumps({"state_delta": {"scene_tags": ["test"]}}),
+                    }
+                ]
+            }
+        )
     return files
 
 
 def _minimal_dynamic_pack_files(include_style: bool = True) -> dict[str, str]:
-    manifest = yaml.dump({
-        "id": "test-dynamic",
-        "name": "Test Dynamic Pack",
-        "mode": "dynamic",
-    })
-    world = "# World\nThis world has rules.\n- Rule one is important.\n- Rule two follows."
-    scenario = yaml.dump({
-        "constraints": {"min_named_npcs": 2, "starting_quest_count": 1},
-        "inspiration": {"pc": "A person.", "opening_situation": "A moment.", "npcs": "Some people.", "inventory": "Some things.", "quests": "A task."},
-    })
+    manifest = yaml.dump(
+        {
+            "id": "test-dynamic",
+            "name": "Test Dynamic Pack",
+            "mode": "dynamic",
+        }
+    )
+    world = (
+        "# World\nThis world has rules.\n- Rule one is important.\n- Rule two follows."
+    )
+    scenario = yaml.dump(
+        {
+            "constraints": {"min_named_npcs": 2, "starting_quest_count": 1},
+            "inspiration": {
+                "pc": "A person.",
+                "opening_situation": "A moment.",
+                "npcs": "Some people.",
+                "inventory": "Some things.",
+                "quests": "A task.",
+            },
+        }
+    )
     files = {"pack.yaml": manifest, "world.md": world, "scenario.yaml": scenario}
     if include_style:
         files["style.md"] = "Be terse. Be specific."
@@ -183,6 +236,7 @@ def test_missing_manifest_raises(tmp_path):
 def test_invalid_manifest_pydantic_error(tmp_path):
     """Missing required 'mode' field should raise Pydantic ValidationError."""
     from pydantic import ValidationError
+
     pack_dir = tmp_path / "bad-pack"
     pack_dir.mkdir()
     (pack_dir / "pack.yaml").write_text(yaml.dump({"id": "bad-pack", "name": "Bad"}))
@@ -192,9 +246,9 @@ def test_invalid_manifest_pydantic_error(tmp_path):
 
 def test_extract_example_invalid_json_raises(tmp_path):
     files = _minimal_static_pack_files(include_examples=False)
-    files["extract_examples.yaml"] = yaml.dump({
-        "examples": [{"title": "Bad example", "json": "not valid json {{"}]
-    })
+    files["extract_examples.yaml"] = yaml.dump(
+        {"examples": [{"title": "Bad example", "json": "not valid json {{"}]}
+    )
     packs_dir = _write_pack(tmp_path, "test-static", files)
     with pytest.raises(Exception, match="[Jj][Ss][Oo][Nn]"):
         load_pack("test-static", packs_dir)
@@ -264,13 +318,19 @@ def test_parse_world_facts_empty():
 def test_baseline_facts_default_empty():
     """Manifests without baseline_facts default to []."""
     files = _minimal_static_pack_files()
-    pack_dir = _write_pack(Path("/tmp/_test_bf_default"), "test-bf-default", files) if False else None
+    pack_dir = (
+        _write_pack(Path("/tmp/_test_bf_default"), "test-bf-default", files)
+        if False
+        else None
+    )
     # Use tmp_path-style: write into a fresh tmp dir
     import tempfile
+
     with tempfile.TemporaryDirectory() as td:
         td_path = Path(td)
         _write_pack(td_path, "test-bf", files)
         from ccya.pack import load_pack as _load_pack
+
         pack = _load_pack("test-bf", td_path)
         assert pack.manifest.baseline_facts == []
 
@@ -278,12 +338,14 @@ def test_baseline_facts_default_empty():
 def test_baseline_facts_loaded_from_manifest(tmp_path):
     """baseline_facts in pack.yaml are loaded onto PackManifest."""
     files = _minimal_static_pack_files()
-    files["pack.yaml"] = yaml.dump({
-        "id": "test-bf-set",
-        "name": "Test BF Set",
-        "mode": "static",
-        "baseline_facts": ["Fact A.", "Fact B.", "Fact C."],
-    })
+    files["pack.yaml"] = yaml.dump(
+        {
+            "id": "test-bf-set",
+            "name": "Test BF Set",
+            "mode": "static",
+            "baseline_facts": ["Fact A.", "Fact B.", "Fact C."],
+        }
+    )
     _write_pack(tmp_path, "test-bf-set", files)
     pack = load_pack("test-bf-set", tmp_path)
     assert pack.manifest.baseline_facts == ["Fact A.", "Fact B.", "Fact C."]
@@ -294,12 +356,14 @@ def test_baseline_facts_max_length_enforced(tmp_path):
     from pydantic import ValidationError
 
     files = _minimal_static_pack_files()
-    files["pack.yaml"] = yaml.dump({
-        "id": "test-bf-overflow",
-        "name": "Test BF Overflow",
-        "mode": "static",
-        "baseline_facts": ["a", "b", "c", "d", "e", "f"],
-    })
+    files["pack.yaml"] = yaml.dump(
+        {
+            "id": "test-bf-overflow",
+            "name": "Test BF Overflow",
+            "mode": "static",
+            "baseline_facts": ["a", "b", "c", "d", "e", "f"],
+        }
+    )
     _write_pack(tmp_path, "test-bf-overflow", files)
     with pytest.raises(ValidationError):
         load_pack("test-bf-overflow", tmp_path)
@@ -313,7 +377,9 @@ def test_all_shipped_packs_have_baseline_facts():
             f"Pack {manifest.id!r} has {len(pack.manifest.baseline_facts)} baseline_facts; expected 3"
         )
         for f in pack.manifest.baseline_facts:
-            assert isinstance(f, str) and f.strip(), f"Pack {manifest.id!r} has empty/blank baseline_fact"
+            assert isinstance(f, str) and f.strip(), (
+                f"Pack {manifest.id!r} has empty/blank baseline_fact"
+            )
 
 
 # ---------------------------------------------------------------------------

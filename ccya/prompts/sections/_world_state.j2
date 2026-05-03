@@ -1,0 +1,5 @@
+{% if state.scene.world_state %}
+## World State (immutable)
+{% for fact in state.scene.world_state %}
+- {{ fact }}{% endfor %}
+{% endif %}

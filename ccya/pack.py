@@ -78,7 +78,8 @@ class SeedScene(BaseModel):
     tagline: str = ""
     tags: list[str] = Field(default_factory=list)
     present_npcs: list[NpcRef] = Field(default_factory=list)
-    established_facts: list[str] = Field(default_factory=list)
+    world_state: list[str] = Field(default_factory=list)
+    recent_events: list[str] = Field(default_factory=list)
 
 
 class SeedState(BaseModel):
@@ -165,11 +166,16 @@ class PlayerOverrides(BaseModel):
     npc_count: int = 0  # 0 = use pack default (scenario.constraints.min_named_npcs)
 
     def is_empty(self) -> bool:
-        return not any([
-            self.pc_hints, self.npc_hints,
-            self.location_hints, self.quest_hints, self.free_form,
-            self.npc_count,
-        ])
+        return not any(
+            [
+                self.pc_hints,
+                self.npc_hints,
+                self.location_hints,
+                self.quest_hints,
+                self.free_form,
+                self.npc_count,
+            ]
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -190,7 +196,9 @@ class ExtractExample(BaseModel):
         try:
             json.loads(v)
         except json.JSONDecodeError as exc:
-            raise ValueError(f"extract example 'json' is not valid JSON: {exc}") from exc
+            raise ValueError(
+                f"extract example 'json' is not valid JSON: {exc}"
+            ) from exc
         return v
 
 
@@ -221,10 +229,10 @@ class PackManifest(BaseModel):
     mode: Literal["static", "dynamic"]
     files: PackFiles = Field(default_factory=PackFiles)
     # Hand-curated genre-defining facts that get prepended to the seed's
-    # established_facts on New Game. Keep these specific, interesting, and
+    # world_state on New Game. Keep these specific, interesting, and
     # tension-loaded — every fact should shape what the player can do.
-    # Recommended exactly 3; hard cap 5.
-    baseline_facts: list[str] = Field(default_factory=list, max_length=5)
+    # Recommended exactly 2; hard cap 3.
+    baseline_facts: list[str] = Field(default_factory=list, max_length=3)
     # Weighted locale list for Faker-backed name generation. Each entry is
     # {"locale": "en_US", "weight": 0.75}. Weights are normalised at call time.
     # Empty list → falls back to en_US at weight 1.0.

@@ -44,9 +44,14 @@ Ambiguities to resolve: {{ scope.ambiguities | join("; ") }}
 - id: `{{ n.id if n is mapping else n }}` | name: {{ n.name if n is mapping else n }} | title: {{ n.get('title', '') if n is mapping else '' }} | notes: {{ n.get('notes', '') if n is mapping else '' }}
 {% endfor %}{% else %}None listed.{% endif %}
 
-### Established facts (copy exact strings from this list into **established_facts_remove** / **established_facts_update.old** when superseding)
-{% if established_facts == "__HIDDEN__" %}— (hidden — not in active scope; do not assume facts are gone)
-{% elif established_facts %}{% for f in established_facts %}
+### World State (immutable — read-only, do NOT modify)
+{% if world_state %}{% for f in world_state %}
+- {{ f if f is string else f.values() | join(': ') }}
+{% endfor %}{% else %}None.{% endif %}
+
+### Recent Events (emit **recent_events_add** / **recent_events_update.old** / **recent_events_remove** for changes)
+{% if recent_events == "__HIDDEN__" %}— (hidden — not in active scope; do not assume events are gone)
+{% elif recent_events %}{% for f in recent_events %}
 - {{ f if f is string else f.values() | join(': ') }}
 {% endfor %}{% else %}None.{% endif %}
 

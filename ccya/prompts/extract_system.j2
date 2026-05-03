@@ -32,9 +32,9 @@ state_delta fields (only include what changed; omit keys that are empty):
   }],
   "pc_condition_add": ["str"],
   "pc_condition_remove": ["str"],
-  "established_facts_add": ["str"],
-  "established_facts_update": [{"old": "str", "new": "str"}],
-  "established_facts_remove": ["str"],
+  "recent_events_add": ["str"],
+  "recent_events_update": [{"old": "str", "new": "str"}],
+  "recent_events_remove": ["str"],
   "scene_tags": ["str"],
   "scene_tagline": "str | null",
   "present_npcs": [{
@@ -65,7 +65,7 @@ Full output shape:
 - Sections marked "(hidden — not in active scope)" in the user message are **sliced out for token efficiency**. The data still exists in game state. Do NOT assume inventory is empty, quests are gone, facts are cleared, or conditions are resolved — they are simply not relevant this turn.
 
 ## Field guidance
-- `_reasoning`: After emitting state_delta, write 2-4 sentences cross-checking your extraction: confirm quest objectives match what the narrative resolved, verify no established_facts_add entries duplicate the existing fact list, and flag any precondition that was assumed but may not have been met. This field is stripped by the engine before state is applied — use it freely.
+- `_reasoning`: After emitting state_delta, write 2-4 sentences cross-checking your extraction: confirm quest objectives match what the narrative resolved, verify no recent_events_add entries duplicate the existing recent events list, and flag any precondition that was assumed but may not have been met. This field is stripped by the engine before state is applied — use it freely.
 - `failed`: List of precondition failures identified during cross-check. Each entry describes what failed and why (e.g. "tried to pick up keys but guard is still conscious").
 - `inventory_remove`: omit `amount` or use `null` to remove the entire stack; integer subtracts from stack. For a stack of exactly 1, omit `amount` or use `null` (never `amount: 0`). Never emit `inventory_add` and `inventory_remove` for the same `id` in one turn (they cancel and confuse state).
 - `quest_updates.objectives`: For existing objectives, prefer `index` (1-based, matches numbered list in user message). Use `description` only when adding a new objective line to that quest (then `index` is optional).
@@ -81,9 +81,11 @@ Full output shape:
 - `state_delta.compendium_npc_update`: When the player learns about someone not in Present NPCs (letter, dossier, rumor), upsert their dossier by `id` from the Known characters list in the user message. Use `{ "id": "...", "bio": "..." }` (optional `name`, `title`).
 - `state_delta.location_change`: Only include if the player physically moved to a new location (new id/name/description).
 - `state_delta.location_description`: Always emit a short in-place update (1-2 sentences) reflecting subtle shifts in lighting, noise, weather, time of day, crowd density, or mood without changing location id/name. Use `location_change` only when the player actually moved.
-- `state_delta.established_facts_add`: Net-new durable facts learned this turn only. Do not repeat facts already listed under Established facts in the user message — and do not emit a fact that paraphrases, restates, or partially overlaps with an existing one. If a new detail belongs to an existing fact, use `established_facts_update` to refine that fact instead of adding a sibling. Known facts should be long-term or permanent. Temporary conditions from recent narration should be left out. Each turn, aim for 0–2 net-new facts; emitting more usually means you are adding paraphrases.
-- `state_delta.established_facts_update`: Important: Each turn, consider established_facts that are no longer relevant and remove them juciously. If the fact it simply outdated, update it without hestitation. When a listed fact was refined or superseded (repairs, debt paid down, rank changed), emit `{ "old": "<exact text from user message list>", "new": "<replacement sentence>" }`. Prefer update over remove+add — it preserves list order. If `old` does not match any stored fact, the engine may append `new` as a new fact.
-- `state_delta.established_facts_remove`: When a listed fact is now false and has no replacement, copy its exact text from the user message list (normalized matching is forgiving on whitespace/punctuation).
+- `state_delta.recent_events_add`: Net-new facts learned this turn only. Do not repeat facts already listed under Recent Events in the user message — and do not emit a fact that paraphrases, restates, or partially overlaps with an existing one. If a new detail belongs to an existing fact, use `recent_events_update` to refine that fact instead of adding a sibling. World State facts are immutable and must NOT be emitted here. Temporary conditions from recent narration should be left out. Each turn, aim for 0–2 net-new facts; emitting more usually means you are adding paraphrases.
+
+- `state_delta.recent_events_update`: Important: Each turn, consider recent_events that are no longer relevant and remove them judiciously. If a fact is simply outdated, update it without hesitation. When a listed fact was refined or superseded (repairs, debt paid down, rank changed), emit `{ "old": "<exact text from user message list>", "new": "<replacement sentence>" }`. Prefer update over remove+add — it preserves list order. If `old` does not match any stored fact, the engine may append `new` as a new fact. World State facts are immutable and must NOT be updated here.
+
+- `state_delta.recent_events_remove`: When a listed fact is now false and has no replacement, copy its exact text from the user message list (normalized matching is forgiving on whitespace/punctuation). World State facts are immutable and must NOT be removed here.
 - `state_delta.pc_condition_add` / `pc_condition_remove`: Add new tags (e.g. wanted, bleeding, exhausted, drunk, wanted-by-Star-Helix); remove strings that are no longer true.
   - No duplicates or near-duplicates. Never emit a condition that already appears in the Conditions list under Player above, even reworded (`"bruised ribs"` and `"ribs bruised"` and `"sore ribs"` are the same condition). If an existing condition has worsened, remove the old wording and add the new severity in the same turn (e.g. remove `"bruised ribs"`, add `"cracked ribs"`) — do not stack them.
   - Cap: 5 active conditions total. If adding would push the list over 5, you must also `pc_condition_remove` the least narratively relevant existing condition this same turn. Prefer to drop: stale temporary conditions (minor scrapes, old fear/shaken from many turns ago, transient buffs/debuffs that haven't been referenced recently), then mild conditions, then conditions superseded by a new one.

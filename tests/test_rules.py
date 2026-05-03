@@ -149,7 +149,15 @@ class TestBuildDirective:
         assert isinstance(d, str) and len(d) > 0
 
     def test_all_bands_covered(self):
-        for band in ["crit_fail", "fail", "setback", "mixed", "boon", "success", "crit_success"]:
+        for band in [
+            "crit_fail",
+            "fail",
+            "setback",
+            "mixed",
+            "boon",
+            "success",
+            "crit_success",
+        ]:
             d = build_directive(band, "hack", "wits")
             assert isinstance(d, str) and len(d) > 5
 
@@ -160,58 +168,108 @@ class TestBuildDirective:
 
 
 class TestResolveCheck:
-    _STATS = {"strength": 2, "dexterity": 2, "wits": 3, "lore": 2, "charisma": 3, "resolve": 2}
+    _STATS = {
+        "strength": 2,
+        "dexterity": 2,
+        "wits": 3,
+        "lore": 2,
+        "charisma": 3,
+        "resolve": 2,
+    }
 
     def test_returns_rolled_true(self):
         rng = random.Random(1)
         out = resolve_check(
-            skill="wits", difficulty="normal",
-            pc_stats=self._STATS, pc_conditions=[],
+            skill="wits",
+            difficulty="normal",
+            pc_stats=self._STATS,
+            pc_conditions=[],
             rng=rng,
         )
         assert out.rolled is True
 
     def test_seeded_deterministic(self):
-        o1 = resolve_check(skill="strength", difficulty="normal", pc_stats=self._STATS, pc_conditions=[], rng=random.Random(7))
-        o2 = resolve_check(skill="strength", difficulty="normal", pc_stats=self._STATS, pc_conditions=[], rng=random.Random(7))
+        o1 = resolve_check(
+            skill="strength",
+            difficulty="normal",
+            pc_stats=self._STATS,
+            pc_conditions=[],
+            rng=random.Random(7),
+        )
+        o2 = resolve_check(
+            skill="strength",
+            difficulty="normal",
+            pc_stats=self._STATS,
+            pc_conditions=[],
+            rng=random.Random(7),
+        )
         assert o1.dice == o2.dice
         assert o1.band == o2.band
 
     def test_stat_mod_applied(self):
         # wits=3 → stat_mod=+1
         rng = random.Random(42)
-        out = resolve_check(skill="wits", difficulty="normal", pc_stats=self._STATS, pc_conditions=[], rng=rng)
+        out = resolve_check(
+            skill="wits",
+            difficulty="normal",
+            pc_stats=self._STATS,
+            pc_conditions=[],
+            rng=rng,
+        )
         assert out.stat_mod == 1
         assert out.final_total == out.raw_total + 1
 
     def test_difficulty_mod_applied(self):
         rng = random.Random(42)
-        out = resolve_check(skill="wits", difficulty="hard", pc_stats=self._STATS, pc_conditions=[], rng=rng)
+        out = resolve_check(
+            skill="wits",
+            difficulty="hard",
+            pc_stats=self._STATS,
+            pc_conditions=[],
+            rng=rng,
+        )
         assert out.diff_mod == -1
 
     def test_condition_mod_applied(self):
         rng = random.Random(42)
         out = resolve_check(
-            skill="strength", difficulty="normal",
-            pc_stats=self._STATS, pc_conditions=["wounded"],
+            skill="strength",
+            difficulty="normal",
+            pc_stats=self._STATS,
+            pc_conditions=["wounded"],
             rng=rng,
         )
         assert out.cond_mod == -1
-        assert out.final_total == out.raw_total + out.stat_mod + out.diff_mod + out.cond_mod
+        assert (
+            out.final_total
+            == out.raw_total + out.stat_mod + out.diff_mod + out.cond_mod
+        )
 
     def test_stat_default_2_when_missing(self):
         rng = random.Random(1)
-        out = resolve_check(skill="lore", difficulty="normal", pc_stats={}, pc_conditions=[], rng=rng)
+        out = resolve_check(
+            skill="lore", difficulty="normal", pc_stats={}, pc_conditions=[], rng=rng
+        )
         assert out.stat_value == 2
         assert out.stat_mod == 0
 
     def test_invalid_skill_raises(self):
         with pytest.raises(ValueError, match="Unknown skill"):
-            resolve_check(skill="magic", difficulty="normal", pc_stats=self._STATS, pc_conditions=[])
+            resolve_check(
+                skill="magic",
+                difficulty="normal",
+                pc_stats=self._STATS,
+                pc_conditions=[],
+            )
 
     def test_invalid_difficulty_raises(self):
         with pytest.raises(ValueError, match="Unknown difficulty"):
-            resolve_check(skill="wits", difficulty="legendary", pc_stats=self._STATS, pc_conditions=[])
+            resolve_check(
+                skill="wits",
+                difficulty="legendary",
+                pc_stats=self._STATS,
+                pc_conditions=[],
+            )
 
     def test_crit_fail_on_snake_eyes(self):
         """Raw (1,1) → crit_fail regardless of modifiers."""
@@ -222,8 +280,10 @@ class TestResolveCheck:
         try:
             r.roll_2d6 = lambda rng=None: (1, 1)
             out = resolve_check(
-                skill="charisma", difficulty="trivial",
-                pc_stats={"charisma": 4}, pc_conditions=[],
+                skill="charisma",
+                difficulty="trivial",
+                pc_stats={"charisma": 4},
+                pc_conditions=[],
             )
             assert out.band == "crit_fail"
         finally:
@@ -236,8 +296,10 @@ class TestResolveCheck:
         try:
             r.roll_2d6 = lambda rng=None: (6, 6)
             out = resolve_check(
-                skill="strength", difficulty="extreme",
-                pc_stats={"strength": 1}, pc_conditions=["exhausted"],
+                skill="strength",
+                difficulty="extreme",
+                pc_stats={"strength": 1},
+                pc_conditions=["exhausted"],
             )
             assert out.band == "crit_success"
         finally:
@@ -246,9 +308,12 @@ class TestResolveCheck:
     def test_intent_verb_stored(self):
         rng = random.Random(3)
         out = resolve_check(
-            skill="dexterity", difficulty="normal",
-            pc_stats=self._STATS, pc_conditions=[],
-            intent_verb="sneak", intent="Slip past the guard",
+            skill="dexterity",
+            difficulty="normal",
+            pc_stats=self._STATS,
+            pc_conditions=[],
+            intent_verb="sneak",
+            intent="Slip past the guard",
             rng=rng,
         )
         assert out.intent_verb == "sneak"
@@ -257,5 +322,19 @@ class TestResolveCheck:
     def test_band_in_valid_set(self):
         rng = random.Random(999)
         for skill in VALID_SKILLS:
-            out = resolve_check(skill=skill, difficulty="normal", pc_stats=self._STATS, pc_conditions=[], rng=rng)
-            assert out.band in {"crit_fail", "fail", "setback", "mixed", "boon", "success", "crit_success"}
+            out = resolve_check(
+                skill=skill,
+                difficulty="normal",
+                pc_stats=self._STATS,
+                pc_conditions=[],
+                rng=rng,
+            )
+            assert out.band in {
+                "crit_fail",
+                "fail",
+                "setback",
+                "mixed",
+                "boon",
+                "success",
+                "crit_success",
+            }

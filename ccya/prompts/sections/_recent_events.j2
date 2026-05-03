@@ -1,0 +1,5 @@
+{% if state.scene.recent_events %}
+## Recent Events
+{% for fact in state.scene.recent_events %}
+- {{ fact }}{% endfor %}
+{% endif %}

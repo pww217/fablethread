@@ -28,12 +28,12 @@ DIFFICULTY_MOD: dict[str, int] = {
 }
 
 CONDITION_MODS: dict[str, dict[str, int]] = {
-    "wounded":    {"strength": -1, "dexterity": -1},
-    "exhausted":  {"strength": -1, "dexterity": -1, "resolve": -1},
-    "drugged":    {"wits": -1, "resolve": -1},
+    "wounded": {"strength": -1, "dexterity": -1},
+    "exhausted": {"strength": -1, "dexterity": -1, "resolve": -1},
+    "drugged": {"wits": -1, "resolve": -1},
     "frightened": {"resolve": -1, "charisma": -1},
-    "shaken":     {"resolve": -1},
-    "bleeding":   {"strength": -1},
+    "shaken": {"resolve": -1},
+    "bleeding": {"strength": -1},
 }
 
 # GM move suggestions per band — first entry is the binding directive.
@@ -152,9 +152,13 @@ def resolve_check(
     from ccya.models import RulesOutcome
 
     if skill not in VALID_SKILLS:
-        raise ValueError(f"Unknown skill: {skill!r}. Must be one of {sorted(VALID_SKILLS)}")
+        raise ValueError(
+            f"Unknown skill: {skill!r}. Must be one of {sorted(VALID_SKILLS)}"
+        )
     if difficulty not in DIFFICULTY_MOD:
-        raise ValueError(f"Unknown difficulty: {difficulty!r}. Must be one of {sorted(DIFFICULTY_MOD)}")
+        raise ValueError(
+            f"Unknown difficulty: {difficulty!r}. Must be one of {sorted(DIFFICULTY_MOD)}"
+        )
 
     stat_value = int(pc_stats.get(skill, 2))
     stat_mod = stat_value - 2

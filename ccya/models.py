@@ -13,7 +13,9 @@ from pydantic import BaseModel, Field, field_validator
 
 SkillName = Literal["strength", "dexterity", "wits", "lore", "charisma", "resolve"]
 Difficulty = Literal["trivial", "easy", "normal", "hard", "extreme"]
-Band = Literal["crit_fail", "fail", "setback", "mixed", "boon", "success", "crit_success"]
+Band = Literal[
+    "crit_fail", "fail", "setback", "mixed", "boon", "success", "crit_success"
+]
 
 
 class RulesCheck(BaseModel):
@@ -94,7 +96,9 @@ class QuestObjectiveUpdate(BaseModel):
     """Objective patch in quest_updates: prefer 1-based index over description."""
 
     index: int | None = None  # 1-based into existing objectives list
-    description: str | None = None  # fallback match; required when adding a new objective
+    description: str | None = (
+        None  # fallback match; required when adding a new objective
+    )
     done: bool | None = None
     failed: bool | None = None
 
@@ -124,8 +128,8 @@ class CompendiumNpcUpdate(BaseModel):
     bio: str | None = None
 
 
-class FactUpdate(BaseModel):
-    """Replace one established fact by normalized match on `old`; write `new`."""
+class RecentEventUpdate(BaseModel):
+    """Replace one recent event by normalized match on `old`; write `new`."""
 
     old: str
     new: str
@@ -154,13 +158,17 @@ class StateDelta(BaseModel):
     quest_updates: list[QuestUpdate] = Field(default_factory=list)
     pc_condition_add: list[str] = Field(default_factory=list)
     pc_condition_remove: list[str] = Field(default_factory=list)
-    established_facts_add: list[str] = Field(default_factory=list)
-    established_facts_update: list[FactUpdate] = Field(default_factory=list)
-    established_facts_remove: list[str] = Field(default_factory=list)
+    recent_events_add: list[str] = Field(default_factory=list)
+    recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
+    recent_events_remove: list[str] = Field(default_factory=list)
     scene_tags: list[str] = Field(default_factory=list)
-    scene_tagline: str | None = None  # 3–6 words for UI header; persisted to state.scene.tagline
+    scene_tagline: str | None = (
+        None  # 3–6 words for UI header; persisted to state.scene.tagline
+    )
     present_npcs: list[NpcRef] = Field(default_factory=list)
-    compendium_npc_update: list[CompendiumNpcUpdate] = Field(default_factory=list, max_length=12)
+    compendium_npc_update: list[CompendiumNpcUpdate] = Field(
+        default_factory=list, max_length=12
+    )
 
 
 class ExtractResult(BaseModel):
@@ -181,12 +189,18 @@ class TurnResult:
     rejected: list[dict] = field(default_factory=list)
     actions: list[str] = field(default_factory=list)
     scene_tags: list[str] = field(default_factory=list)
-    established_facts: list[str] = field(default_factory=list)
-    diff: list[str] = field(default_factory=list)  # short human-readable delta lines for UI toast
-    changes: dict[str, Any] = field(default_factory=dict)  # structured pre/post diff for modal + log
+    recent_events: list[str] = field(default_factory=list)
+    diff: list[str] = field(
+        default_factory=list
+    )  # short human-readable delta lines for UI toast
+    changes: dict[str, Any] = field(
+        default_factory=dict
+    )  # structured pre/post diff for modal + log
     metrics: dict = field(default_factory=dict)
     errors: list[dict] = field(default_factory=list)
-    rules: dict = field(default_factory=dict)  # serialized RulesOutcome + intent for logging/UI
+    rules: dict = field(
+        default_factory=dict
+    )  # serialized RulesOutcome + intent for logging/UI
 
 
 # --- Config ---

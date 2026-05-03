@@ -18,9 +18,13 @@ def _hyperlink(url: str, label: str | None = None) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="ccya — LLM text adventure")
-    parser.add_argument("--new-game", action="store_true", help="Start a new game from seed")
+    parser.add_argument(
+        "--new-game", action="store_true", help="Start a new game from seed"
+    )
     parser.add_argument("--host", default=None, help="Bind host (overrides config)")
-    parser.add_argument("--port", type=int, default=None, help="Bind port (overrides config)")
+    parser.add_argument(
+        "--port", type=int, default=None, help="Bind port (overrides config)"
+    )
     args = parser.parse_args()
 
     host = args.host or config["server"]["bind_host"]
@@ -29,6 +33,7 @@ def main() -> None:
     if args.new_game:
         import yaml
         from ccya.state import init_save_dir
+
         pack = config.get("game", {}).get("setting_pack", "expanse-belter")
         seed_path = f"packs/{pack}/seed_state.yaml"
         with open(seed_path) as f:

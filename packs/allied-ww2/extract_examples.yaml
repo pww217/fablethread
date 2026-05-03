@@ -13,7 +13,7 @@ examples:
       - New intel: Panzer unit spotted, enemy buildup near Ardennes.
       - Radio shack hums with intercepted transmissions.
     json: |-
-      {"state_delta": {"established_facts_add": ["German Panzer unit spotted moving toward River Crossings overnight.", "Allied radio intercept suggests enemy buildup near the Ardennes corridor."]}, "actions": ["Relay coordinates to artillery command", "Push the message past standing orders", "Send a runner to HQ with the intercept", "Monitor enemy frequencies for more signals"]}
+      {"state_delta": {"recent_events_add": ["German Panzer unit spotted moving toward River Crossings overnight.", "Allied radio intercept suggests enemy buildup near the Ardennes corridor."]}, "actions": ["Relay coordinates to artillery command", "Push the message past standing orders", "Send a runner to HQ with the intercept", "Monitor enemy frequencies for more signals"]}
 
   - title: "Medic — condition change and NPC interaction"
     thinking: |
@@ -21,7 +21,7 @@ examples:
       - Hospital at capacity; triage decisions needed.
       - Field tent smells of antiseptic and sweat.
     json: |-
-      {"state_delta": {"inventory_remove": [{"id": "morphine", "amount": 1}], "established_facts_add": ["Sgt. O'Brien took a shrapnel wound to the leg during the outpost sweep.", "Field hospital is at maximum capacity; triage decisions are being made."], "present_npcs": [{"id": "sgt-obrien", "name": "Sgt. O'Brien", "title": "Infantryman", "notes": "Grimacing through the morphine; asking for a field surgeon.", "bio": "Veteran of the North African campaign; leg wound from shrapnel during recent patrol."}]}, "actions": ["Treat O'Brien before the shrapnel spreads", "Triage the next wounded soldier", "Search for more morphine in the supply tent", "Send a runner for the field surgeon"]}
+      {"state_delta": {"inventory_remove": [{"id": "morphine", "amount": 1}], "recent_events_add": ["Sgt. O'Brien took a shrapnel wound to the leg during the outpost sweep.", "Field hospital is at maximum capacity; triage decisions are being made."], "present_npcs": [{"id": "sgt-obrien", "name": "Sgt. O'Brien", "title": "Infantryman", "notes": "Grimacing through the morphine; asking for a field surgeon.", "bio": "Veteran of the North African campaign; leg wound from shrapnel during recent patrol."}]}, "actions": ["Treat O'Brien before the shrapnel spreads", "Triage the next wounded soldier", "Search for more morphine in the supply tent", "Send a runner for the field surgeon"]}
 
   - title: "Driver — inventory shift and quest failure"
     thinking: |

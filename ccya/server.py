@@ -14,7 +14,14 @@ from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader
 from sse_starlette.sse import EventSourceResponse
 
-from ccya.engine import EngineConfig, format_change_lines, generate_seed, is_turn_in_progress, run_turn, warmup
+from ccya.engine import (
+    EngineConfig,
+    format_change_lines,
+    generate_seed,
+    is_turn_in_progress,
+    run_turn,
+    warmup,
+)
 from ccya.logging_setup import setup_logging
 from ccya.models import load_config as _load_config
 from ccya.pack import Pack, load_pack, list_packs
@@ -36,7 +43,7 @@ engine_config = EngineConfig(
     max_extract_retries=config["llm"]["max_extract_retries"],
     window_turns=config["game"]["window_turns"],
     chronicle_prefix_budget_tokens=config["game"]["chronicle_prefix_budget_tokens"],
-    established_facts_max=config["game"]["established_facts_max"],
+    recent_events_max=config["game"]["recent_events_max"],
     enable_extract_thinking=config["llm"].get("enable_extract_thinking", False),
     enable_narrate_thinking=config["llm"].get("enable_narrate_thinking", False),
     generate_seed_temperature=config["llm"].get("generate_seed_temperature", 0.9),
@@ -133,8 +140,12 @@ def _load_recent_history(save_dir: Path, n: int = 8) -> list[dict]:
     turns = load_recent_chronicle_turns(save_dir, n)
     rules_map = _load_rules_map(save_dir)
     return [
-        {"turn": t["turn"], "input": t["input"], "narrative": t["narrative"],
-         "rules": rules_map.get(t["turn"])}
+        {
+            "turn": t["turn"],
+            "input": t["input"],
+            "narrative": t["narrative"],
+            "rules": rules_map.get(t["turn"]),
+        }
         for t in turns
     ]
 
@@ -208,17 +219,19 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
         if tin is not None and tout is not None:
             parts.append(f"E{tin}/{tout}")
         tok = "\n".join(parts) if parts else "—"
-        rows.append({
-            "turn": ev.get("turn", 0),
-            "trace_id": tid[:8] if len(tid) >= 8 else tid,
-            "trace_id_full": tid,
-            "first_s": _fmt_ms_seconds(narr.get("first_token_ms")),
-            "narrate_s": _fmt_ms_seconds(narr.get("total_ms")),
-            "extract_s": _fmt_ms_seconds(ext.get("total_ms")),
-            "retries": int(ext.get("retries", 0) or 0),
-            "tokens": tok,
-            "has_rejections": bool(rej),
-        })
+        rows.append(
+            {
+                "turn": ev.get("turn", 0),
+                "trace_id": tid[:8] if len(tid) >= 8 else tid,
+                "trace_id_full": tid,
+                "first_s": _fmt_ms_seconds(narr.get("first_token_ms")),
+                "narrate_s": _fmt_ms_seconds(narr.get("total_ms")),
+                "extract_s": _fmt_ms_seconds(ext.get("total_ms")),
+                "retries": int(ext.get("retries", 0) or 0),
+                "tokens": tok,
+                "has_rejections": bool(rej),
+            }
+        )
     rows.reverse()
     return rows
 
@@ -249,7 +262,13 @@ def _turn_log_entries(save_dir: Path, limit: int = 50) -> list[dict[str, Any]]:
         if not disp:
             disp = ["(no changes this turn)"]
         rules = ev.get("rules")
-        entries.append({"turn": int(ev.get("turn") or 0), "lines": disp, "rules": rules if isinstance(rules, dict) else None})
+        entries.append(
+            {
+                "turn": int(ev.get("turn") or 0),
+                "lines": disp,
+                "rules": rules if isinstance(rules, dict) else None,
+            }
+        )
     return entries
 
 
@@ -263,7 +282,9 @@ async def index(request: Request):
     history = _load_recent_history(SAVE_DIR)
     last_actions = _load_last_actions(SAVE_DIR) if history else []
     state = _load_current_state()
-    opening = _get_opening() if not history and state.get("location", {}).get("id") else ""
+    opening = (
+        _get_opening() if not history and state.get("location", {}).get("id") else ""
+    )
     opening_actions = _get_opening_actions() if not history and opening else []
     ctx = _debug_context()
     ctx["state"] = state
@@ -274,7 +295,9 @@ async def index(request: Request):
     ctx["has_narrative"] = bool(opening or history)
     ctx["pack_mode"] = _active_pack.manifest.mode
     ctx["pack_name"] = _active_pack.manifest.name
-    ctx["character_creation_enabled"] = config.get("game", {}).get("character_creation_enabled", True)
+    ctx["character_creation_enabled"] = config.get("game", {}).get(
+        "character_creation_enabled", True
+    )
     css_path = BASE_DIR / "static" / "app.css"
     ctx["css_v"] = int(css_path.stat().st_mtime) if css_path.exists() else 0
     return _render("index.html", ctx)
@@ -293,19 +316,27 @@ async def get_turn(input: str = ""):
     """
     user_input = input.strip()
     if not user_input:
+
         async def _empty():
             yield {"event": "turn_error", "data": json.dumps({"error": "Empty input"})}
+
         return EventSourceResponse(_empty())
 
     if is_turn_in_progress(str(SAVE_DIR)):
+
         async def _busy():
-            yield {"event": "turn_error", "data": json.dumps({"error": "Turn already in progress"})}
+            yield {
+                "event": "turn_error",
+                "data": json.dumps({"error": "Turn already in progress"}),
+            }
+
         return EventSourceResponse(_busy())
 
     async def event_stream():
         try:
             async for kind, payload in run_turn(
-                SAVE_DIR, user_input,
+                SAVE_DIR,
+                user_input,
                 config=engine_config,
                 template_dir=str(PROMPTS_DIR),
                 pack_style=_active_pack.style_text,
@@ -313,7 +344,10 @@ async def get_turn(input: str = ""):
                 pack_name_locales=_active_pack.manifest.name_locales,
             ):
                 if kind == "token":
-                    yield {"event": "narrative_token", "data": json.dumps({"chunk": payload})}
+                    yield {
+                        "event": "narrative_token",
+                        "data": json.dumps({"chunk": payload}),
+                    }
                 elif kind == "phase":
                     yield {"event": "phase", "data": json.dumps(payload)}
                 elif kind == "complete":
@@ -321,22 +355,27 @@ async def get_turn(input: str = ""):
                     for err in result.errors:
                         _ERRORS_LOG.appendleft(err)
                     ch = result.changes if isinstance(result.changes, dict) else {}
-                    yield {"event": "turn_complete", "data": json.dumps({
-                        "turn": result.turn,
-                        "trace_id": result.trace_id,
-                        "narrative": result.narrative,
-                        "actions": result.actions,
-                        "scene_tags": result.scene_tags,
-                        "game_over": "game_over" in (result.scene_tags or []),
-                        "rejected": result.rejected,
-                        "errors": result.errors,
-                        "diff": result.diff,
-                        "changes": ch,
-                        "change_lines": format_change_lines(ch),
-                        "state": _load_current_state(),
-                        "metrics": result.metrics,
-                        "rules": result.rules,
-                    })}
+                    yield {
+                        "event": "turn_complete",
+                        "data": json.dumps(
+                            {
+                                "turn": result.turn,
+                                "trace_id": result.trace_id,
+                                "narrative": result.narrative,
+                                "actions": result.actions,
+                                "scene_tags": result.scene_tags,
+                                "game_over": "game_over" in (result.scene_tags or []),
+                                "rejected": result.rejected,
+                                "errors": result.errors,
+                                "diff": result.diff,
+                                "changes": ch,
+                                "change_lines": format_change_lines(ch),
+                                "state": _load_current_state(),
+                                "metrics": result.metrics,
+                                "rules": result.rules,
+                            }
+                        ),
+                    }
         except Exception as e:
             logger.exception("Turn failed")
             yield {"event": "turn_error", "data": json.dumps({"error": str(e)})}
@@ -357,7 +396,9 @@ async def new_game(request: Request):
         try:
             _active_pack = load_pack(requested_pack, PACKS_DIR)
             _pack_id = requested_pack
-            logger.info("Switched pack to %s (mode=%s)", _pack_id, _active_pack.manifest.mode)
+            logger.info(
+                "Switched pack to %s (mode=%s)", _pack_id, _active_pack.manifest.mode
+            )
         except Exception as exc:
             logger.error("Failed to switch pack %r: %s", requested_pack, exc)
             _ERRORS_LOG.appendleft({"message": f"Unknown pack: {requested_pack}"})
@@ -380,6 +421,7 @@ async def new_game(request: Request):
 
     # Build PlayerOverrides from form fields
     from ccya.pack import PlayerOverrides
+
     overrides = PlayerOverrides(
         pc_hints=pc_hints,
         npc_hints=npc_hints,
@@ -449,7 +491,9 @@ async def new_game_reroll(request: Request):
     """Re-roll the seed for a dynamic pack (before turn 1) without changing pack mode."""
     global _dynamic_opening, _dynamic_opening_actions
     if _active_pack.manifest.mode != "dynamic":
-        return HTMLResponse("<p>Re-roll only available for dynamic packs.</p>", status_code=400)
+        return HTMLResponse(
+            "<p>Re-roll only available for dynamic packs.</p>", status_code=400
+        )
 
     try:
         envelope = await generate_seed(
@@ -594,12 +638,16 @@ def healthz():
 async def startup_event():
     import asyncio
 
-    logger.info("ccya starting — pack: %s (mode=%s)", _pack_id, _active_pack.manifest.mode)
+    logger.info(
+        "ccya starting — pack: %s (mode=%s)", _pack_id, _active_pack.manifest.mode
+    )
     if config.get("game", {}).get("warmup_on_start", True):
+
         async def _warmup_bg() -> None:
             logger.info("Warming up LLM model (background)…")
             await warmup(engine_config)
             logger.info("Model warmup complete")
+
         asyncio.create_task(_warmup_bg())
 
 
@@ -610,6 +658,7 @@ async def startup_event():
 
 def main() -> None:
     import uvicorn
+
     host = config["server"]["bind_host"]
     port = config["server"]["bind_port"]
     uvicorn.run("ccya.server:app", host=host, port=port, reload=False)

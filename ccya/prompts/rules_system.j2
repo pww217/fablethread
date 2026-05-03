@@ -60,9 +60,9 @@ Emit `scope.active_domains` listing only the state domains that COULD change bas
 Domain mappings:
 - Movement            → location_change, scene, present_npcs
 - Combat / violence   → inventory (ammo), pc_condition, present_npcs, quest_updates (if objective)
-- Dialogue / social   → established_facts (if info revealed), quest_updates (if info revealed), present_npcs, scene
-- Item interaction    → inventory, established_facts, scene
-- Observation / idle  → scene, established_facts only
+- Dialogue / social   → recent_events (if info revealed), quest_updates (if info revealed), present_npcs, scene
+- Item interaction    → inventory, recent_events, scene
+- Observation / idle  → scene, recent_events only
 - Rest / recovery     → pc_condition, scene
 
 Emit `scope.skip_domains` for domains that definitely cannot change this turn.

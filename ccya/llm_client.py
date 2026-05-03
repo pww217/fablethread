@@ -29,7 +29,7 @@ _MOCK_NARRATE = (
 
 _MOCK_EXTRACT_NARRATE = {
     "state_delta": {
-        "established_facts_add": [
+        "recent_events_add": [
             "You are at Docking Ring 7.",
             "Your hand terminal carries an encrypted pinger.",
         ],
@@ -45,7 +45,9 @@ _MOCK_EXTRACT_NARRATE = {
 
 _MOCK_EXTRACT_EXAMINE = {
     "state_delta": {
-        "established_facts_add": ["The pinger is from a shell company called 'Quiet Systems.'"],
+        "recent_events_add": [
+            "The pinger is from a shell company called 'Quiet Systems.'"
+        ],
         "scene_tags": ["dialogue"],
     },
     "actions": [
@@ -63,7 +65,7 @@ _MOCK_EXTRACT_CARGO = {
             "name": "Cargo Bay 7",
             "description": "Open cargo bay, crates stacked along the walls, smelling of lubricant.",
         },
-        "established_facts_add": [
+        "recent_events_add": [
             "A hauler offers passage to the lower ring.",
             "There is a terminal in the cargo bay.",
         ],
@@ -77,6 +79,7 @@ _MOCK_EXTRACT_CARGO = {
     ],
 }
 
+
 class _mock_stream:
     """Async iterator wrapper for canned mock narrative."""
 
@@ -88,7 +91,9 @@ class _mock_stream:
     async def __anext__(self):
         if self._idx >= len(self._texts):
             raise StopAsyncIteration
-        val = self._texts[self._idx] + (". " if self._idx < len(self._texts) - 1 else "")
+        val = self._texts[self._idx] + (
+            ". " if self._idx < len(self._texts) - 1 else ""
+        )
         self._idx += 1
         return val
 
@@ -99,9 +104,17 @@ def _mock_extract_chat(messages: list[dict[str, str]]) -> dict[str, Any]:
     for msg in messages:
         narrative += msg.get("content", "")
 
-    if "examine" in narrative.lower() or "terminal" in narrative.lower() or "pinger" in narrative.lower():
+    if (
+        "examine" in narrative.lower()
+        or "terminal" in narrative.lower()
+        or "pinger" in narrative.lower()
+    ):
         body = _MOCK_EXTRACT_EXAMINE
-    elif "cargo" in narrative.lower() or "bay" in narrative.lower() or "haul" in narrative.lower():
+    elif (
+        "cargo" in narrative.lower()
+        or "bay" in narrative.lower()
+        or "haul" in narrative.lower()
+    ):
         body = _MOCK_EXTRACT_CARGO
     else:
         body = _MOCK_EXTRACT_NARRATE
@@ -139,7 +152,9 @@ def _get_client(base_url: str) -> AsyncOpenAI:
 _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 
-def apply_thinking(messages: list[dict[str, str]], enable: bool) -> list[dict[str, str]]:
+def apply_thinking(
+    messages: list[dict[str, str]], enable: bool
+) -> list[dict[str, str]]:
     """Append /think or /no_think to the last user message content."""
     tag = "/think" if enable else "/no_think"
     msgs = [dict(m) for m in messages]
@@ -157,11 +172,14 @@ def strip_thinking(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def trim_messages(messages: list[dict[str, str]], max_tokens: int) -> list[dict[str, str]]:
+def trim_messages(
+    messages: list[dict[str, str]], max_tokens: int
+) -> list[dict[str, str]]:
     """Truncate messages list so estimated token count <= max_tokens.
 
     Uses rough chars-per-token estimate (~3.5). Preserves system message at index 0.
     """
+
     def estimate(s: str) -> int:
         return int(len(s) / 3.5)
 

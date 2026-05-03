@@ -26,11 +26,31 @@ from typing import Any, AsyncIterator
 
 from jinja2 import Environment, FileSystemLoader
 
-from ccya.models import ExtractResult, IntentEnvelope, RulesCheck, RulesOutcome, Scope, StateDelta, TurnResult
+from ccya.models import (
+    ExtractResult,
+    IntentEnvelope,
+    RulesCheck,
+    RulesOutcome,
+    Scope,
+    StateDelta,
+    TurnResult,
+)
 import ccya.rules as rules_engine
-from ccya.pack import ExtractExample, Pack, PlayerOverrides, SeedEnvelope, parse_world_facts
+from ccya.pack import (
+    ExtractExample,
+    Pack,
+    PlayerOverrides,
+    SeedEnvelope,
+    parse_world_facts,
+)
 from ccya.names import generate_name_pool, generate_npc_names
-from ccya.llm_client import apply_thinking, chat as llm_chat, chat_stream as llm_chat_stream, strip_thinking, trim_messages
+from ccya.llm_client import (
+    apply_thinking,
+    chat as llm_chat,
+    chat_stream as llm_chat_stream,
+    strip_thinking,
+    trim_messages,
+)
 from ccya.state import (
     append_chronicle,
     append_event,
@@ -94,7 +114,7 @@ class EngineConfig:
     max_extract_retries: int = 1
     window_turns: int = 6
     chronicle_prefix_budget_tokens: int = 1500
-    established_facts_max: int = 30
+    recent_events_max: int = 15
     enable_extract_thinking: bool = False
     enable_narrate_thinking: bool = False
     # generate_seed settings (used by POST /new-game on dynamic packs)
@@ -200,7 +220,9 @@ def _known_characters_for_extract(state: dict[str, Any]) -> list[dict[str, Any]]
     return rows
 
 
-def build_state_slice(state: dict[str, Any], active_domains: list[str]) -> dict[str, Any]:
+def build_state_slice(
+    state: dict[str, Any], active_domains: list[str]
+) -> dict[str, Any]:
     """Build a sliced state dict for the extractor based on active domains.
 
     Only includes state sections relevant to the active domains, reducing
@@ -233,14 +255,18 @@ def build_state_slice(state: dict[str, Any], active_domains: list[str]) -> dict[
         slice["inventory"] = _HIDDEN
 
     if "quest_updates" in active_domains:
-        slice["active_quests"] = [q for q in state.get("quests", []) if q.get("status") == "active"]
+        slice["active_quests"] = [
+            q for q in state.get("quests", []) if q.get("status") == "active"
+        ]
     else:
         slice["active_quests"] = _HIDDEN
 
-    if "established_facts" in active_domains:
-        slice["established_facts"] = list(scene.get("established_facts") or [])
+    if "recent_events" in active_domains:
+        slice["recent_events"] = list(scene.get("recent_events") or [])
     else:
-        slice["established_facts"] = _HIDDEN
+        slice["recent_events"] = _HIDDEN
+
+    slice["world_state"] = list(scene.get("world_state") or [])
 
     if "pc_condition" in active_domains:
         slice["conditions"] = list(pc.get("conditions") or [])
@@ -272,16 +298,16 @@ def _summarize_applied(applied: dict[str, Any]) -> list[str]:
     for it in applied.get("inventory_update") or []:
         if isinstance(it, dict) and it.get("id"):
             lines.append(f"~ {it['id']} updated")
-    for f in applied.get("established_facts_add") or []:
+    for f in applied.get("recent_events_add") or []:
         if isinstance(f, str):
             short = f[:56] + ("…" if len(f) > 56 else "")
             lines.append(f"+ {short}")
-    for f in applied.get("established_facts_remove") or []:
+    for f in applied.get("recent_events_remove") or []:
         if isinstance(f, str):
             short = f[:40] + ("…" if len(f) > 40 else "")
             lines.append(f"- {short}")
-    for _upd in applied.get("established_facts_update") or []:
-        lines.append("~ Fact revised")
+    for _upd in applied.get("recent_events_update") or []:
+        lines.append("~ Event revised")
     for c in applied.get("pc_condition_add") or []:
         lines.append(f"+ {c}")
     for c in applied.get("pc_condition_remove") or []:
@@ -363,16 +389,20 @@ def summarize_changes(
     for r in rejected or []:
         if r.get("field") == "inventory_remove":
             rid = str(r.get("value") or "")
-            inventory.append({
-                "kind": "failed_remove",
-                "id": rid,
-                "name": _title_case_id(rid) if rid else "?",
-                "reason": str(r.get("reason") or ""),
-            })
+            inventory.append(
+                {
+                    "kind": "failed_remove",
+                    "id": rid,
+                    "name": _title_case_id(rid) if rid else "?",
+                    "reason": str(r.get("reason") or ""),
+                }
+            )
 
     pre_m = _inv_amount_map(pre)
     post_m = _inv_amount_map(post)
-    for iid in sorted(set(pre_m) | set(post_m), key=lambda x: (0 if x == "credits" else 1, x)):
+    for iid in sorted(
+        set(pre_m) | set(post_m), key=lambda x: (0 if x == "credits" else 1, x)
+    ):
         a, b = pre_m.get(iid), post_m.get(iid)
         label_a = (a or {}).get("name") or _title_case_id(iid)
         label_b = (b or {}).get("name") or _title_case_id(iid)
@@ -380,33 +410,46 @@ def summarize_changes(
             inventory.append({"kind": "removed", "id": iid, "name": label_a})
             continue
         if b and not a:
-            inventory.append({"kind": "added", "id": iid, "name": label_b, "amount": int(b["amount"])})
+            inventory.append(
+                {
+                    "kind": "added",
+                    "id": iid,
+                    "name": label_b,
+                    "amount": int(b["amount"]),
+                }
+            )
             continue
         if a and b:
             amt_a, amt_b = int(a["amount"]), int(b["amount"])
             if label_a != label_b:
-                inventory.append({
-                    "kind": "renamed",
-                    "id": iid,
-                    "from_name": label_a,
-                    "to_name": label_b,
-                })
+                inventory.append(
+                    {
+                        "kind": "renamed",
+                        "id": iid,
+                        "from_name": label_a,
+                        "to_name": label_b,
+                    }
+                )
             if amt_b > amt_a:
-                inventory.append({
-                    "kind": "increased",
-                    "id": iid,
-                    "name": label_b,
-                    "from": amt_a,
-                    "to": amt_b,
-                })
+                inventory.append(
+                    {
+                        "kind": "increased",
+                        "id": iid,
+                        "name": label_b,
+                        "from": amt_a,
+                        "to": amt_b,
+                    }
+                )
             elif amt_b < amt_a:
-                inventory.append({
-                    "kind": "decreased",
-                    "id": iid,
-                    "name": label_b,
-                    "from": amt_a,
-                    "to": amt_b,
-                })
+                inventory.append(
+                    {
+                        "kind": "decreased",
+                        "id": iid,
+                        "name": label_b,
+                        "from": amt_a,
+                        "to": amt_b,
+                    }
+                )
 
     pre_pc = pre.get("pc") or {}
     post_pc = post.get("pc") or {}
@@ -421,32 +464,38 @@ def summarize_changes(
 
     pl = pre.get("location") or {}
     pr = post.get("location") or {}
-    if (pl.get("id") or "") != (pr.get("id") or "") or (pl.get("name") or "") != (pr.get("name") or ""):
-        player.append({
-            "kind": "location_changed",
-            "from": str(pl.get("name") or pl.get("id") or "—"),
-            "to": str(pr.get("name") or pr.get("id") or "—"),
-        })
+    if (pl.get("id") or "") != (pr.get("id") or "") or (pl.get("name") or "") != (
+        pr.get("name") or ""
+    ):
+        player.append(
+            {
+                "kind": "location_changed",
+                "from": str(pl.get("name") or pl.get("id") or "—"),
+                "to": str(pr.get("name") or pr.get("id") or "—"),
+            }
+        )
 
     pre_stats = pre_pc.get("stats") or {}
     post_stats = post_pc.get("stats") or {}
     if isinstance(pre_stats, dict) and isinstance(post_stats, dict):
         for k in sorted(set(pre_stats) | set(post_stats)):
             if pre_stats.get(k) != post_stats.get(k):
-                player.append({
-                    "kind": "stat_changed",
-                    "stat": str(k),
-                    "from": pre_stats.get(k),
-                    "to": post_stats.get(k),
-                })
+                player.append(
+                    {
+                        "kind": "stat_changed",
+                        "stat": str(k),
+                        "from": pre_stats.get(k),
+                        "to": post_stats.get(k),
+                    }
+                )
 
-    pre_facts = list((pre.get("scene") or {}).get("established_facts") or [])
-    post_facts = list((post.get("scene") or {}).get("established_facts") or [])
-    for pf in post_facts:
-        if not _fact_in_list(str(pf), pre_facts):
+    pre_events = list((pre.get("scene") or {}).get("recent_events") or [])
+    post_events = list((post.get("scene") or {}).get("recent_events") or [])
+    for pf in post_events:
+        if not _fact_in_list(str(pf), pre_events):
             facts.append({"kind": "added", "value": str(pf)})
-    for pf in pre_facts:
-        if not _fact_in_list(str(pf), post_facts):
+    for pf in pre_events:
+        if not _fact_in_list(str(pf), post_events):
             facts.append({"kind": "removed", "value": str(pf)})
 
     pre_q = _quests_by_id(pre)
@@ -457,15 +506,20 @@ def summarize_changes(
         if prq is None:
             quests.append({"kind": "created", "id": qid, "title": title})
             continue
-        st_pre, st_post = str(prq.get("status") or "active"), str(pq.get("status") or "active")
+        st_pre, st_post = (
+            str(prq.get("status") or "active"),
+            str(pq.get("status") or "active"),
+        )
         if st_pre != st_post:
-            quests.append({
-                "kind": "status_changed",
-                "id": qid,
-                "title": title,
-                "from": st_pre,
-                "to": st_post,
-            })
+            quests.append(
+                {
+                    "kind": "status_changed",
+                    "id": qid,
+                    "title": title,
+                    "from": st_pre,
+                    "to": st_post,
+                }
+            )
         po: list[Any] = list(prq.get("objectives") or [])
         qo: list[Any] = list(pq.get("objectives") or [])
         for i in range(max(len(po), len(qo))):
@@ -475,28 +529,34 @@ def summarize_changes(
             if i >= len(po):
                 desc = str(qod.get("description") or "").strip()
                 if desc:
-                    quests.append({
-                        "kind": "objective_added",
-                        "id": qid,
-                        "title": title,
-                        "objective": desc,
-                    })
+                    quests.append(
+                        {
+                            "kind": "objective_added",
+                            "id": qid,
+                            "title": title,
+                            "objective": desc,
+                        }
+                    )
                 continue
             pod = po[i] if isinstance(po[i], dict) else {}
             if not bool(pod.get("done")) and bool(qod.get("done")):
-                quests.append({
-                    "kind": "objective_done",
-                    "id": qid,
-                    "title": title,
-                    "objective": str(qod.get("description") or "").strip(),
-                })
+                quests.append(
+                    {
+                        "kind": "objective_done",
+                        "id": qid,
+                        "title": title,
+                        "objective": str(qod.get("description") or "").strip(),
+                    }
+                )
             if not bool(pod.get("failed")) and bool(qod.get("failed")):
-                quests.append({
-                    "kind": "objective_failed",
-                    "id": qid,
-                    "title": title,
-                    "objective": str(qod.get("description") or "").strip(),
-                })
+                quests.append(
+                    {
+                        "kind": "objective_failed",
+                        "id": qid,
+                        "title": title,
+                        "objective": str(qod.get("description") or "").strip(),
+                    }
+                )
 
     return {"inventory": inventory, "player": player, "facts": facts, "quests": quests}
 
@@ -525,7 +585,9 @@ def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
             lines.append(f"🎒 ~ {row.get('from_name')} → {row.get('to_name')}")
         elif k == "failed_remove":
             reason = str(row.get("reason") or "").strip()
-            lines.append(f"🎒 ⚠ could not remove “{nm}”" + (f" ({reason})" if reason else ""))
+            lines.append(
+                f"🎒 ⚠ could not remove “{nm}”" + (f" ({reason})" if reason else "")
+            )
     for row in ch.get("player") or []:
         if not isinstance(row, dict):
             continue
@@ -597,10 +659,19 @@ def _extract_messages(
 
     # Build state slice based on scope active_domains
     scope = intent.scope if intent else Scope()
-    active_domains = scope.active_domains if scope.active_domains else [
-        "scene", "present_npcs", "inventory", "quest_updates",
-        "location_change", "established_facts", "pc_condition",
-    ]
+    active_domains = (
+        scope.active_domains
+        if scope.active_domains
+        else [
+            "scene",
+            "present_npcs",
+            "inventory",
+            "quest_updates",
+            "location_change",
+            "recent_events",
+            "pc_condition",
+        ]
+    )
     slice = build_state_slice(state, active_domains)
 
     user_text = _render(
@@ -613,7 +684,8 @@ def _extract_messages(
             "present_npcs": slice["present_npcs"],
             "active_quests": slice["active_quests"],
             "inventory": slice["inventory"],
-            "established_facts": slice["established_facts"],
+            "recent_events": slice["recent_events"],
+            "world_state": slice["world_state"],
             "known_characters": slice["known_characters"],
             "rules_outcome": rules_outcome,
             "intent_target": intent.target if intent else "",
@@ -675,9 +747,19 @@ async def _call_rules(
     narrate + extract pipeline proceeds normally without a roll.
     """
     _no_intent = IntentEnvelope(
-        intent="", intent_verb="act", check=RulesCheck(required=False),
+        intent="",
+        intent_verb="act",
+        check=RulesCheck(required=False),
         scope=Scope(
-            active_domains=["scene", "present_npcs", "inventory", "quest_updates", "location_change", "established_facts", "pc_condition"],
+            active_domains=[
+                "scene",
+                "present_npcs",
+                "inventory",
+                "quest_updates",
+                "location_change",
+                "recent_events",
+                "pc_condition",
+            ],
             skip_domains=[],
         ),
     )
@@ -686,19 +768,25 @@ async def _call_rules(
         try:
             if config.log_llm_io:
                 _log_llm_io(
-                    trace_id=trace_id, phase=f"rules_request_attempt_{attempt}",
-                    messages=messages, max_chars=config.log_llm_io_max_chars,
+                    trace_id=trace_id,
+                    phase=f"rules_request_attempt_{attempt}",
+                    messages=messages,
+                    max_chars=config.log_llm_io_max_chars,
                 )
             result = await llm_chat(
-                config.host, config.model, messages,
+                config.host,
+                config.model,
+                messages,
                 temperature=config.rules_temperature,
                 timeout=float(config.request_timeout_s),
             )
             raw = result.get("response", "") if isinstance(result, dict) else ""
             if config.log_llm_io:
                 _log_llm_io(
-                    trace_id=trace_id, phase=f"rules_response_attempt_{attempt}",
-                    response=raw, max_chars=config.log_llm_io_max_chars,
+                    trace_id=trace_id,
+                    phase=f"rules_response_attempt_{attempt}",
+                    response=raw,
+                    max_chars=config.log_llm_io_max_chars,
                 )
             cleaned = strip_thinking(raw)
             j = _find_json(cleaned)
@@ -709,7 +797,9 @@ async def _call_rules(
             parse_error = str(exc)
             _log.warning(
                 "rules parse failed (attempt %d/%d): %s",
-                attempt + 1, 1 + config.max_rules_retries, parse_error,
+                attempt + 1,
+                1 + config.max_rules_retries,
+                parse_error,
                 extra={"trace_id": trace_id},
             )
             if attempt < config.max_rules_retries:
@@ -719,7 +809,10 @@ async def _call_rules(
                 )
                 messages.append({"role": "user", "content": fb})
 
-    _log.warning("rules call failed after all attempts — defaulting to no-roll", extra={"trace_id": trace_id})
+    _log.warning(
+        "rules call failed after all attempts — defaulting to no-roll",
+        extra={"trace_id": trace_id},
+    )
     return _no_intent
 
 
@@ -794,7 +887,7 @@ def _parse_actions_from_narrate(narrative: str) -> tuple[list[str], str]:
     idx = narrative.find(marker)
     if idx < 0:
         return [], narrative
-    actions_raw = narrative[idx + len(marker):].strip()
+    actions_raw = narrative[idx + len(marker) :].strip()
     clean_narrative = narrative[:idx].rstrip()
     try:
         data = json.loads(actions_raw)
@@ -827,14 +920,19 @@ def _log_llm_io(
     payload: dict[str, Any] = {"phase": phase, "trace_id": trace_id}
     if messages is not None:
         payload["messages"] = [
-            {"role": m.get("role"), "content": _truncate(m.get("content", ""), max_chars)}
+            {
+                "role": m.get("role"),
+                "content": _truncate(m.get("content", ""), max_chars),
+            }
             for m in messages
         ]
     if response is not None:
         payload["response"] = _truncate(response, max_chars)
     if extra:
         payload.update(extra)
-    _log.debug("llm_io %s", json.dumps(payload, default=str), extra={"trace_id": trace_id})
+    _log.debug(
+        "llm_io %s", json.dumps(payload, default=str), extra={"trace_id": trace_id}
+    )
 
 
 _PROMPTS_LOG_PATH = Path("logs/prompts.log")
@@ -866,7 +964,9 @@ def _log_prompts(turn: int, call: str, messages: list[dict[str, str]]) -> None:
         _log.warning("failed to write prompts.log", exc_info=True)
 
 
-def _log_rules_outcome(turn: int, intent: "IntentEnvelope", outcome: "RulesOutcome") -> None:
+def _log_rules_outcome(
+    turn: int, intent: "IntentEnvelope", outcome: "RulesOutcome"
+) -> None:
     """Append the rules engine output (intent + dice roll) to prompts.log for the given turn."""
     lines: list[str] = []
     lines.append(f"## Turn {turn} — rules engine output")
@@ -971,9 +1071,9 @@ async def run_turn(
     pack_name_locales: list[dict] = [],
 ) -> AsyncIterator[tuple[str, Any]]:
     """Execute one turn. Async generator yielding:
-        ("token", str)          — one per narrative chunk during call 1
-        ("phase", dict)         — UI progress (narrate_done, extract_start, etc.)
-        ("complete", TurnResult) — final result after call 2
+    ("token", str)          — one per narrative chunk during call 1
+    ("phase", dict)         — UI progress (narrate_done, extract_start, etc.)
+    ("complete", TurnResult) — final result after call 2
     """
     if config is None:
         config = EngineConfig()
@@ -988,8 +1088,10 @@ async def run_turn(
     narrative_chunks: list[str] = []
     delta: StateDelta | None = None
     actions: list[str] = []
-    established_facts: list[str] = []
-    intent = IntentEnvelope(intent="", intent_verb="act", check=RulesCheck(required=False))
+    recent_events: list[str] = []
+    intent = IntentEnvelope(
+        intent="", intent_verb="act", check=RulesCheck(required=False)
+    )
     outcome = RulesOutcome(rolled=False)
     rules_metrics: dict[str, Any] = {"total_ms": 0, "rolled": False}
 
@@ -997,7 +1099,9 @@ async def run_turn(
         await _inflight.acquire(str(save_dir))
 
         # --- Memory: load chronicle tail + recent turns ---
-        chronicle_tail = load_chronicle_tail(save_dir, config.chronicle_prefix_budget_tokens)
+        chronicle_tail = load_chronicle_tail(
+            save_dir, config.chronicle_prefix_budget_tokens
+        )
         recent_turns = load_recent_chronicle_turns(save_dir, config.window_turns)
 
         # Load failed preconditions from the most recent event (for narrate feedback)
@@ -1011,10 +1115,14 @@ async def run_turn(
         yield ("phase", {"phase": "rules_start", "expected_ms": exp_rules_ms})
         t_rules = asyncio.get_event_loop().time()
 
-        rules_messages = _rules_messages(env, state, user_input, recent_turns=recent_turns[-2:])
+        rules_messages = _rules_messages(
+            env, state, user_input, recent_turns=recent_turns[-2:]
+        )
         rules_messages = trim_messages(rules_messages, config.prompt_token_budget)
         if config.log_prompts:
-            _log_prompts(state.get("meta", {}).get("turn", 0) + 1, "rules", rules_messages)
+            _log_prompts(
+                state.get("meta", {}).get("turn", 0) + 1, "rules", rules_messages
+            )
         intent = await _call_rules(rules_messages, config, trace_id)
 
         # Resolve dice in Python (deterministic) — _call_rules degrades intent, we do outcome here
@@ -1030,32 +1138,46 @@ async def run_turn(
                     intent=intent.intent,
                 )
             except Exception as exc:
-                _log.warning("rules.resolve_check failed: %s", exc, extra={"trace_id": trace_id})
-                outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+                _log.warning(
+                    "rules.resolve_check failed: %s", exc, extra={"trace_id": trace_id}
+                )
+                outcome = RulesOutcome(
+                    rolled=False, intent_verb=intent.intent_verb, intent=intent.intent
+                )
         else:
-            outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+            outcome = RulesOutcome(
+                rolled=False, intent_verb=intent.intent_verb, intent=intent.intent
+            )
 
         if config.log_prompts:
-            _log_rules_outcome(state.get("meta", {}).get("turn", 0) + 1, intent, outcome)
+            _log_rules_outcome(
+                state.get("meta", {}).get("turn", 0) + 1, intent, outcome
+            )
 
         rules_ms = (asyncio.get_event_loop().time() - t_rules) * 1000
-        rules_metrics: dict[str, Any] = {"total_ms": round(rules_ms, 1), "rolled": outcome.rolled}
-
-        yield ("phase", {
-            "phase": "rules_done",
+        rules_metrics: dict[str, Any] = {
+            "total_ms": round(rules_ms, 1),
             "rolled": outcome.rolled,
-            "band": outcome.band if outcome.rolled else None,
-            "skill": outcome.skill if outcome.rolled else None,
-            "dice": outcome.dice if outcome.rolled else [],
-            "final_total": outcome.final_total if outcome.rolled else 0,
-            "difficulty": outcome.difficulty if outcome.rolled else None,
-            "stat_value": outcome.stat_value if outcome.rolled else 0,
-            "stat_mod": outcome.stat_mod if outcome.rolled else 0,
-            "diff_mod": outcome.diff_mod if outcome.rolled else 0,
-            "cond_mod": outcome.cond_mod if outcome.rolled else 0,
-            "directive": outcome.directive if outcome.rolled else "",
-            "intent_verb": intent.intent_verb,
-        })
+        }
+
+        yield (
+            "phase",
+            {
+                "phase": "rules_done",
+                "rolled": outcome.rolled,
+                "band": outcome.band if outcome.rolled else None,
+                "skill": outcome.skill if outcome.rolled else None,
+                "dice": outcome.dice if outcome.rolled else [],
+                "final_total": outcome.final_total if outcome.rolled else 0,
+                "difficulty": outcome.difficulty if outcome.rolled else None,
+                "stat_value": outcome.stat_value if outcome.rolled else 0,
+                "stat_mod": outcome.stat_mod if outcome.rolled else 0,
+                "diff_mod": outcome.diff_mod if outcome.rolled else 0,
+                "cond_mod": outcome.cond_mod if outcome.rolled else 0,
+                "directive": outcome.directive if outcome.rolled else "",
+                "intent_verb": intent.intent_verb,
+            },
+        )
 
         # === Call 1: Narrate (streaming) ===
         exp_narrate_ms = _avg_narrate_ms(save_dir)
@@ -1071,7 +1193,9 @@ async def run_turn(
             )
 
         narr_messages = _narrate_messages(
-            env, state, user_input,
+            env,
+            state,
+            user_input,
             chronicle_tail=chronicle_tail,
             recent_turns=recent_turns,
             enable_narrate_thinking=config.enable_narrate_thinking,
@@ -1082,18 +1206,24 @@ async def run_turn(
         )
         narr_messages = trim_messages(narr_messages, config.prompt_token_budget)
         if config.log_prompts:
-            _log_prompts(state.get("meta", {}).get("turn", 0) + 1, "narrate", narr_messages)
+            _log_prompts(
+                state.get("meta", {}).get("turn", 0) + 1, "narrate", narr_messages
+            )
 
         first_ms = 0.0
         t0 = asyncio.get_event_loop().time()
         narr_stream_stats: dict[str, Any] = {}
         if config.log_llm_io:
             _log_llm_io(
-                trace_id=trace_id, phase="narrate_request",
-                messages=narr_messages, max_chars=config.log_llm_io_max_chars,
+                trace_id=trace_id,
+                phase="narrate_request",
+                messages=narr_messages,
+                max_chars=config.log_llm_io_max_chars,
             )
         async for chunk in llm_chat_stream(
-            config.host, config.model, narr_messages,
+            config.host,
+            config.model,
+            narr_messages,
             temperature=config.narrate_temperature,
             timeout=float(config.request_timeout_s),
             stream_stats=narr_stream_stats,
@@ -1114,8 +1244,10 @@ async def run_turn(
         }
         if config.log_llm_io:
             _log_llm_io(
-                trace_id=trace_id, phase="narrate_response",
-                response=narrative, extra={"timing_ms": narr_metrics},
+                trace_id=trace_id,
+                phase="narrate_response",
+                response=narrative,
+                extra={"timing_ms": narr_metrics},
                 max_chars=config.log_llm_io_max_chars,
             )
 
@@ -1133,7 +1265,9 @@ async def run_turn(
         )
         ext_messages = trim_messages(ext_messages, config.prompt_token_budget)
         if config.log_prompts:
-            _log_prompts(state.get("meta", {}).get("turn", 0) + 1, "extract", ext_messages)
+            _log_prompts(
+                state.get("meta", {}).get("turn", 0) + 1, "extract", ext_messages
+            )
         t2 = asyncio.get_event_loop().time()
         retries = 0
         parse_error = ""
@@ -1147,12 +1281,15 @@ async def run_turn(
             try:
                 if config.log_llm_io:
                     _log_llm_io(
-                        trace_id=trace_id, phase=f"extract_request_attempt_{attempt}",
+                        trace_id=trace_id,
+                        phase=f"extract_request_attempt_{attempt}",
                         messages=ext_messages,
                         max_chars=config.log_llm_io_max_chars,
                     )
                 result = await llm_chat(
-                    config.host, config.model, ext_messages,
+                    config.host,
+                    config.model,
+                    ext_messages,
                     temperature=config.extract_temperature,
                     timeout=float(config.request_timeout_s),
                 )
@@ -1160,8 +1297,10 @@ async def run_turn(
                 ext_usage = result.get("usage", {}) if isinstance(result, dict) else {}
                 if config.log_llm_io:
                     _log_llm_io(
-                        trace_id=trace_id, phase=f"extract_response_attempt_{attempt}",
-                        response=raw, extra={"usage": ext_usage},
+                        trace_id=trace_id,
+                        phase=f"extract_response_attempt_{attempt}",
+                        response=raw,
+                        extra={"usage": ext_usage},
                         max_chars=config.log_llm_io_max_chars,
                     )
                 cleaned = strip_thinking(raw)
@@ -1191,7 +1330,9 @@ async def run_turn(
                 parse_error = str(exc)
                 _log.warning(
                     "extract parse failed (attempt %d/%d): %s",
-                    attempt + 1, 1 + config.max_extract_retries, parse_error,
+                    attempt + 1,
+                    1 + config.max_extract_retries,
+                    parse_error,
                     extra={"trace_id": trace_id},
                 )
                 if attempt < config.max_extract_retries:
@@ -1227,14 +1368,18 @@ async def run_turn(
         if delta is not None:
             rejected = _validate(state, delta)
             if rejected:
-                errors.append({
-                    "trace_id": trace_id,
-                    "message": f"Delta validation failed ({len(rejected)} rejection(s)).",
-                })
+                errors.append(
+                    {
+                        "trace_id": trace_id,
+                        "message": f"Delta validation failed ({len(rejected)} rejection(s)).",
+                    }
+                )
                 narrative += f"\n\n*That action didn't resolve as expected. Trace `{trace_id}` — try rephrasing.*"
             else:
-                state = apply_delta(state, delta, established_facts_max=config.established_facts_max)
-                established_facts = list(delta.established_facts_add)
+                state = apply_delta(
+                    state, delta, recent_events_max=config.recent_events_max
+                )
+                recent_events = list(delta.recent_events_add)
                 applied = delta.model_dump(exclude_none=True)
 
         diff_lines = _summarize_applied(applied)
@@ -1288,7 +1433,10 @@ async def run_turn(
         }
         append_event(save_dir, event)
         save_state(save_dir, state)
-        append_chronicle(save_dir, f"\n\n## Turn {state['meta']['turn']} — {user_input}\n\n{narrative.strip()}")
+        append_chronicle(
+            save_dir,
+            f"\n\n## Turn {state['meta']['turn']} — {user_input}\n\n{narrative.strip()}",
+        )
 
         result_obj = TurnResult(
             turn=state["meta"]["turn"],
@@ -1299,7 +1447,7 @@ async def run_turn(
             rejected=rejected,
             actions=actions,
             scene_tags=list(getattr(delta, "scene_tags", [])),
-            established_facts=established_facts,
+            recent_events=recent_events,
             diff=diff_lines,
             changes=changes,
             metrics=metrics,
@@ -1313,16 +1461,19 @@ async def run_turn(
         fallback = narrative_chunks and "".join(narrative_chunks) or ""
         if not fallback:
             fallback = f"*An error occurred. Trace `{trace_id}` — try rephrasing.*"
-        yield ("complete", TurnResult(
-            turn=state.get("meta", {}).get("turn", 0),
-            trace_id=trace_id,
-            narrative=fallback,
-            state_delta={},
-            errors=errors,
-            metrics=metrics,
-            diff=[],
-            changes={},
-        ))
+        yield (
+            "complete",
+            TurnResult(
+                turn=state.get("meta", {}).get("turn", 0),
+                trace_id=trace_id,
+                narrative=fallback,
+                state_delta={},
+                errors=errors,
+                metrics=metrics,
+                diff=[],
+                changes={},
+            ),
+        )
     finally:
         await _inflight.release(str(save_dir))
 
@@ -1339,11 +1490,13 @@ def _validate(state: dict, delta: StateDelta) -> list[dict]:
     inv_list: list[dict] = state.get("inventory", [])
     for rem in delta.inventory_remove:
         if resolve_inventory_remove_target(inv_list, rem.id) is None:
-            rejections.append({
-                "field": "inventory_remove",
-                "value": rem.id,
-                "reason": f"Inventory item '{rem.id}' does not exist",
-            })
+            rejections.append(
+                {
+                    "field": "inventory_remove",
+                    "value": rem.id,
+                    "reason": f"Inventory item '{rem.id}' does not exist",
+                }
+            )
 
     # quest_updates is create-or-update: new quest IDs are allowed (apply_delta creates them).
     # No quest ID validation here.
@@ -1363,6 +1516,7 @@ def _build_generate_seed_messages(
 ) -> list[dict[str, str]]:
     """Build the [system, user] messages for generate_seed."""
     from ccya.models import ExtractResult  # noqa: F401 — schema_json import path
+
     schema_json = SeedEnvelope.model_json_schema()
     name_pool = generate_name_pool(pack.manifest.name_locales)
     ctx = {
@@ -1371,7 +1525,9 @@ def _build_generate_seed_messages(
         "style_text": pack.style_text,
         "scenario": pack.scenario,
         "overrides": overrides if (overrides and not overrides.is_empty()) else None,
-        "npc_count_override": overrides.npc_count if (overrides and overrides.npc_count > 0) else 0,
+        "npc_count_override": overrides.npc_count
+        if (overrides and overrides.npc_count > 0)
+        else 0,
         "name_pool": name_pool,
     }
     system_text = _render(env, "generate_seed_system.j2", ctx)
@@ -1396,7 +1552,9 @@ def _soft_validate_seed(
 
     npcs = envelope.seed_state.scene.present_npcs
     named = [n for n in npcs if n.name]
-    min_npcs = (overrides.npc_count if (overrides and overrides.npc_count > 0) else None) or c.min_named_npcs
+    min_npcs = (
+        overrides.npc_count if (overrides and overrides.npc_count > 0) else None
+    ) or c.min_named_npcs
     if len(named) < min_npcs:
         warnings.append(f"Only {len(named)} named NPCs (min {min_npcs})")
 
@@ -1408,7 +1566,9 @@ def _soft_validate_seed(
     if c.npc_distinct_first_letters:
         first_letters = [n.name[0].upper() for n in named if n.name]
         if len(first_letters) != len(set(first_letters)):
-            warnings.append("NPC names share first letters (npc_distinct_first_letters)")
+            warnings.append(
+                "NPC names share first letters (npc_distinct_first_letters)"
+            )
 
     text_lower = envelope.opening_narrative.lower()
     for cliche in c.forbid_cliches:
@@ -1416,14 +1576,23 @@ def _soft_validate_seed(
             warnings.append(f"Opening narrative contains forbidden cliché: '{cliche}'")
 
     if c.forbid_player_dependents:
-        dependent_words = {"wife", "husband", "spouse", "child", "kids", "son", "daughter"}
+        dependent_words = {
+            "wife",
+            "husband",
+            "spouse",
+            "child",
+            "kids",
+            "son",
+            "daughter",
+        }
         npc_notes = " ".join(
-            (n.notes or "") + " " + (n.bio or "")
-            for n in npcs
+            (n.notes or "") + " " + (n.bio or "") for n in npcs
         ).lower()
         found = dependent_words & set(npc_notes.split())
         if found:
-            warnings.append(f"NPC text may contain player-dependent relationship: {found}")
+            warnings.append(
+                f"NPC text may contain player-dependent relationship: {found}"
+            )
 
     return warnings
 
@@ -1442,7 +1611,9 @@ async def generate_seed(
     Uses config.generate_seed_temperature (default 0.9) for creative variance.
     """
     if pack.manifest.mode != "dynamic":
-        raise ValueError(f"generate_seed() requires a dynamic pack, got mode={pack.manifest.mode!r}")
+        raise ValueError(
+            f"generate_seed() requires a dynamic pack, got mode={pack.manifest.mode!r}"
+        )
 
     template_dir = template_dir or str(Path(__file__).parent / "prompts")
     env = _build_jinja_env(template_dir)
@@ -1455,19 +1626,24 @@ async def generate_seed(
     # Prefer hand-curated baseline_facts on the manifest; fall back to parsing
     # world.md prose (legacy behavior) for packs that haven't been migrated.
     world_facts: list[str] = (
-        list(pack.manifest.baseline_facts) if pack.manifest.baseline_facts
+        list(pack.manifest.baseline_facts)
+        if pack.manifest.baseline_facts
         else parse_world_facts(pack.world_text)
     )
 
     for attempt in range(1 + config.generate_seed_max_retries):
         if config.log_llm_io:
             _log_llm_io(
-                trace_id=trace_id, phase=f"generate_seed_request_attempt_{attempt}",
-                messages=messages, max_chars=config.log_llm_io_max_chars,
+                trace_id=trace_id,
+                phase=f"generate_seed_request_attempt_{attempt}",
+                messages=messages,
+                max_chars=config.log_llm_io_max_chars,
             )
         try:
             result = await llm_chat(
-                config.host, config.model, messages,
+                config.host,
+                config.model,
+                messages,
                 temperature=config.generate_seed_temperature,
                 timeout=float(config.request_timeout_s),
             )
@@ -1481,16 +1657,22 @@ async def generate_seed(
         raw = result.get("response", "") if isinstance(result, dict) else ""
         if config.log_llm_io:
             _log_llm_io(
-                trace_id=trace_id, phase=f"generate_seed_response_attempt_{attempt}",
-                response=raw, max_chars=config.log_llm_io_max_chars,
+                trace_id=trace_id,
+                phase=f"generate_seed_response_attempt_{attempt}",
+                response=raw,
+                max_chars=config.log_llm_io_max_chars,
             )
 
         cleaned = strip_thinking(raw)
         j = _find_json(cleaned)
         if j is None:
             parse_error = "No JSON found in generate_seed response"
-            _log.warning("generate_seed failed (attempt %d): %s", attempt + 1, parse_error,
-                         extra={"trace_id": trace_id})
+            _log.warning(
+                "generate_seed failed (attempt %d): %s",
+                attempt + 1,
+                parse_error,
+                extra={"trace_id": trace_id},
+            )
             if attempt < config.generate_seed_max_retries:
                 fb = f"Your output failed to parse: {parse_error}. Re-emit a valid SeedEnvelope JSON only."
                 messages.append({"role": "user", "content": fb})
@@ -1499,23 +1681,33 @@ async def generate_seed(
         try:
             # Unwrap if nested under "seed_state" key (expected); also accept bare SeedState
             if "seed_state" not in j and "pc" in j:
-                j = {"seed_state": j, "opening_narrative": j.pop("opening_narrative", ".")}
+                j = {
+                    "seed_state": j,
+                    "opening_narrative": j.pop("opening_narrative", "."),
+                }
             envelope = SeedEnvelope(**j)
         except Exception as exc:
             parse_error = str(exc)
-            _log.warning("generate_seed validation failed (attempt %d): %s", attempt + 1, parse_error,
-                         extra={"trace_id": trace_id})
+            _log.warning(
+                "generate_seed validation failed (attempt %d): %s",
+                attempt + 1,
+                parse_error,
+                extra={"trace_id": trace_id},
+            )
             if attempt < config.generate_seed_max_retries:
-                fb = (f"SeedEnvelope validation failed: {parse_error[:300]}. "
-                      "Re-emit corrected JSON matching the schema.")
+                fb = (
+                    f"SeedEnvelope validation failed: {parse_error[:300]}. "
+                    "Re-emit corrected JSON matching the schema."
+                )
                 messages.append({"role": "user", "content": fb})
             continue
 
-        # Inject world facts (non-negotiable canon) at the top of established_facts
+        # Inject baseline_facts (hardcoded genre canon) into world_state
+        # LLM generates 3 global facts into world_state; prepend baseline_facts
         if world_facts:
-            existing = list(envelope.seed_state.scene.established_facts)
-            merged = world_facts + [f for f in existing if f not in world_facts]
-            envelope.seed_state.scene.established_facts = merged
+            existing_ws = list(envelope.seed_state.scene.world_state)
+            merged_ws = world_facts + [f for f in existing_ws if f not in world_facts]
+            envelope.seed_state.scene.world_state = merged_ws
 
         # Always start with empty compendium and touch order
         envelope.seed_state.compendium.npcs = {}
@@ -1524,11 +1716,15 @@ async def generate_seed(
 
         soft_warnings = _soft_validate_seed(envelope, pack, overrides)
         for w in soft_warnings:
-            _log.warning("generate_seed soft-check: %s", w, extra={"trace_id": trace_id})
+            _log.warning(
+                "generate_seed soft-check: %s", w, extra={"trace_id": trace_id}
+            )
 
         return envelope
 
-    raise RuntimeError(f"generate_seed failed after {1 + config.generate_seed_max_retries} attempts — trace {trace_id}")
+    raise RuntimeError(
+        f"generate_seed failed after {1 + config.generate_seed_max_retries} attempts — trace {trace_id}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1540,7 +1736,8 @@ async def warmup(config: EngineConfig) -> None:
     """Silent chat call to pre-load the model."""
     try:
         await llm_chat(
-            config.host, config.model,
+            config.host,
+            config.model,
             [{"role": "user", "content": "ok"}],
             temperature=0.0,
             timeout=30.0,

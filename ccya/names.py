@@ -3,6 +3,7 @@ names.py — generate culturally-appropriate name pools for prompt injection.
 
 Owned entirely by this module. Do not import faker elsewhere.
 """
+
 from __future__ import annotations
 
 import random
