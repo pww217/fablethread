@@ -59,7 +59,37 @@ Fields owned:
 - `established_facts_remove`
 - `compendium_npc_update`
 
+**Why compendium_npc_update belongs here, not in state:** Compendium updates are about durable knowledge — the player learned an NPC's true allegiance, an NPC died, a relationship changed. That is the same category of information as established_facts. It is not a mechanical delta. The compendium is most useful as read-only input to the narrator (so it knows "Gareth is hostile, alive"), not as a frequently-mutated state object. Keeping it in progress means it is only updated when something genuinely long-horizon happened.
+
 This stream runs last because it benefits from knowing the scene result (stream 1) and any mechanical outcomes (stream 2) before reasoning about long-term consequences.
+
+---
+
+## Cross-Stream Dependencies
+
+This is the most important section for understanding why the streams run in order and what each one receives.
+
+| Stream | What it receives from prior streams | Why |
+|--------|-------------------------------------|-----|
+| Scene (1) | Nothing — no prior streams | Runs first; purely observational |
+| State (2) | `scene_result.present_npcs`, `scene_result.location_change` | Needs to know who is present before reasoning about condition/inventory effects (e.g. "the guard disarmed me" requires knowing the guard is present) |
+| Progress (3) | `scene_result.present_npcs`, `state_result.inventory_add` item names, `state_result.inventory_remove` item names | Needs NPC presence for compendium updates; needs item names gained/lost to connect them to quest completions |
+
+### The inventory question — two different things
+
+The progress stream receives **two separate things** related to inventory, and they serve different purposes:
+
+1. **The full inventory list** (from game state, injected via the user message template) — this is the *before* picture. It tells the progress stream what the player already had. This is used to avoid starting a quest for something the player already owns, and to reason about whether a fact like "player has the iron key" is still true.
+
+2. **Item names gained/lost this turn** (from `state_result`, passed as cross-stream context) — this is the *delta*. It tells the progress stream what changed this turn. This is what allows the progress stream to connect "iron key gained" → resolve "find the key" quest objective. Without this, the progress stream would have to re-derive the delta from the narration, which is less reliable.
+
+These are not redundant. The game state slice gives the before-picture; the state stream result gives the delta. Both are needed.
+
+### What streams do NOT need from each other
+
+- Progress does **not** need the full state stream output — just item names gained/lost
+- State does **not** need quest info from progress — mechanical deltas don't depend on quest state
+- Scene does **not** need anything from other streams
 
 ---
 
@@ -273,6 +303,11 @@ Preconditions assumed: {{ rules_outcome.scope.implicit_preconditions | join("; "
 None.
 {% endif %}
 
+{% if engine_expired_conditions %}
+## Auto-expired conditions (engine removed — do NOT re-add)
+{% for c in engine_expired_conditions %}— {{ c.id }}: {{ c.label }}{% endfor %}
+{% endif %}
+
 ## Current inventory
 {% if inventory %}
 {% for item in inventory %}— {{ item.id }}: {{ item.name }} x{{ item.amount }}{% endfor %}
@@ -341,13 +376,15 @@ Each entry: {"old": "exact existing fact string", "new": "replacement string"}.
 `established_facts_remove`: Facts that are now false or superseded.
 Each entry is the exact existing fact string to remove.
 
-`compendium_npc_update`: NPC records to create or update.
+`compendium_npc_update`: NPC records to create or update based on durable new information revealed this turn.
 Each entry: {"id": "npc_id", "name": "Name", "bio": "one sentence", "disposition": "friendly|neutral|hostile|unknown", "status": "alive|dead|fled|unknown"}.
-Only emit if the narration revealed new information about an NPC. Do not re-emit unchanged NPCs.
+Only emit if the narration revealed genuinely new information about an NPC (allegiance changed, died, new name learned, etc.).
+Do not re-emit NPCs whose information did not change this turn.
 
 `_reasoning`: After filling all fields above, write 2-3 sentences checking your work.
 Ask yourself: Is this new quest actually distinct from an existing one? Did I add a fact that's already in the list
-with different wording? Did I miss a quest completion that the narration implied?
+with different wording? Did I miss a quest completion that the narration implied? Did an item gained this turn
+resolve an existing quest objective?
 This field is stripped by the engine before state is applied — write freely.
 
 ## Rules
@@ -393,7 +430,19 @@ None recorded yet.
 Present NPCs this turn: {{ scene_result.present_npcs | join(", ") if scene_result.present_npcs else "none" }}
 
 ## State result (from state stream)
-Inventory changes this turn: {{ state_result.inventory_add | length }} added, {{ state_result.inventory_remove | length }} removed
+{# Item names are passed here — not just counts — so the progress stream can connect
+   specific items to quest completions. Example: "iron key gained" → resolve "find the key" objective.
+   The full inventory list above is the before-picture (what the player had).
+   The items below are the delta (what changed this turn). Both are needed. #}
+{% if state_result.inventory_add %}
+Items gained this turn: {{ state_result.inventory_add | map(attribute='name') | join(', ') }}
+{% endif %}
+{% if state_result.inventory_remove %}
+Items lost this turn: {{ state_result.inventory_remove | map(attribute='name') | join(', ') }}
+{% endif %}
+{% if not state_result.inventory_add and not state_result.inventory_remove %}
+No inventory changes this turn.
+{% endif %}
 
 ## CURRENT TURN NARRATION
 {{ narration }}
@@ -425,7 +474,7 @@ async def run_extraction(game_state: dict, narration: str, rules_outcome: dict) 
     # Stream 1 — scene (always runs)
     scene_ctx = build_scene_context(game_state, narration, rules_outcome)
     scene_raw = await llm_call("extract_scene", scene_ctx)
-    scene_result = parse_and_strip(scene_raw)  # strips _reasoning if present
+    scene_result = parse_and_strip(scene_raw)
 
     # Stream 2 — state (skip if all state domains are skipped)
     state_domains = ["inventory", "pc_condition"]
@@ -522,14 +571,7 @@ for c in expired:
     logger.debug(f"Auto-expired condition: {c['id']} (age {age} turns)")
 ```
 
-If any conditions were auto-expired, inject a block into `extract_state_user.j2` so the state stream doesn't re-add them:
-
-```jinja
-{% if engine_expired_conditions %}
-## Auto-expired conditions (engine removed — do NOT re-add)
-{% for c in engine_expired_conditions %}— {{ c.id }}: {{ c.label }}{% endfor %}
-{% endif %}
-```
+Pass expired conditions into the state stream user message via `engine_expired_conditions` — the template block is already included in `extract_state_user.j2` above (Step 4).
 
 ---
 
