@@ -126,6 +126,9 @@
                             'crit_success': 'CRITICAL SUCCESS'
                         } %}
                         <div class="roll-result roll-band--{{ r.band }}">{{ BAND_LABELS.get(r.band, (r.band | default('') | upper).replace('_', ' ')) }}</div>
+                        {% if r.get('outcome_summary') %}
+                        <div class="roll-outcome">{{ r.outcome_summary }}</div>
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
@@ -137,11 +140,11 @@
             <div class="pills-row" id="actions-zone">
                 {% if last_actions %}
                 {% for action in last_actions %}
-                <button class="action-pill" onclick="window._gameInstance && window._gameInstance.fillFromChoice(this.textContent)">{{ action }}</button>
+                <button class="action-pill" data-md onclick="window._gameInstance && window._gameInstance.fillFromChoice(this.textContent)">{{ action }}</button>
                 {% endfor %}
                 {% elif opening_actions %}
                 {% for action in opening_actions %}
-                <button class="action-pill" onclick="window._gameInstance && window._gameInstance.fillFromChoice(this.textContent)">{{ action }}</button>
+                <button class="action-pill" data-md onclick="window._gameInstance && window._gameInstance.fillFromChoice(this.textContent)">{{ action }}</button>
                 {% endfor %}
                 {% elif history %}
                 <span class="empty-state">Continue your adventure above.</span>
@@ -208,28 +211,34 @@ function _headerTaglineFromState(st) {
 }
 
 function _groupChangeLines(lines) {
-    const inv = [], pl = [], loc = [], fa = [], qu = [];
+    const invGain = [], invLoss = [], pl = [], loc = [], fa = [], qu = [];
     (lines || []).forEach((ln) => {
         const s = String(ln);
-        if (s.startsWith('🎒')) inv.push(s);
+        if (s.startsWith('🎒')) {
+            const isGain = s.includes(' + ') || s.includes('×') && !s.includes(' − ');
+            const isLoss = s.startsWith('🎒 −') || s.includes(' − ');
+            if (isLoss) invLoss.push(s);
+            else invGain.push(s);
+        }
         else if (s.startsWith('🩺')) pl.push(s);
         else if (s.startsWith('📍')) loc.push(s);
         else if (s.startsWith('📜')) fa.push(s);
         else if (s.startsWith('🗺️')) qu.push(s);
-        else inv.push(s);
+        else invGain.push(s);
     });
-    return { inv, pl, loc, fa, qu };
+    return { invGain, invLoss, pl, loc, fa, qu };
 }
 
 function _buildTurnChanges(changeLines) {
     if (!changeLines || !changeLines.length) return null;
     const g = _groupChangeLines(changeLines);
     const sections = [
-        ['tc-inv', g.inv],
-        ['tc-pl',  g.pl],
-        ['tc-loc', g.loc],
-        ['tc-fa',  g.fa],
-        ['tc-qu',  g.qu],
+        ['tc-inv-gain', g.invGain],
+        ['tc-inv-loss', g.invLoss],
+        ['tc-pl',       g.pl],
+        ['tc-loc',      g.loc],
+        ['tc-fa',       g.fa],
+        ['tc-qu',       g.qu],
     ];
     const hasAny = sections.some(([, rows]) => rows.length > 0);
     if (!hasAny) return null;
@@ -240,6 +249,7 @@ function _buildTurnChanges(changeLines) {
         rows.forEach((ln) => {
             const line = document.createElement('div');
             line.className = 'turn-changes-line ' + cls;
+            line.setAttribute('data-md', '');
             line.textContent = ln;
             wrap.appendChild(line);
         });
@@ -262,11 +272,21 @@ function _prependTurnLogTurn(turn, changeLines, rules) {
     }
     changeLines.forEach((ln) => {
         const row = document.createElement('div');
-        row.className = 'turn-log-line';
+        const s = String(ln);
+        let cls = 'turn-log-line';
+        if (s.startsWith('🎒 −')) cls += ' tl-inv-loss';
+        else if (s.startsWith('🎒 +') || s.startsWith('🎒 ~') || s.startsWith('🎒 ⚠')) cls += ' tl-inv-gain';
+        else if (s.startsWith('🩺')) cls += ' tl-pl';
+        else if (s.startsWith('📍')) cls += ' tl-loc';
+        else if (s.startsWith('📜')) cls += ' tl-fa';
+        else if (s.startsWith('🗺️')) cls += ' tl-qu';
+        row.className = cls;
+        row.setAttribute('data-md', '');
         row.textContent = ln;
         wrap.appendChild(row);
     });
     body.insertBefore(wrap, body.firstChild);
+    _applyMarkdown(wrap);
 }
 
 function _formatMetricsRow(metrics) {
@@ -391,6 +411,12 @@ function _buildRollBadge(payload) {
     res.className = 'roll-result roll-band--' + payload.band;
     res.textContent = bandLabel;
     badge.appendChild(res);
+    if (payload.outcome_summary) {
+        const outcomeText = document.createElement('div');
+        outcomeText.className = 'roll-outcome';
+        outcomeText.textContent = payload.outcome_summary;
+        badge.appendChild(outcomeText);
+    }
 
     return badge;
 }
@@ -897,6 +923,7 @@ function game() {
                 }
                 const changes = _buildTurnChanges(result.change_lines || []);
                 if (changes) { lastInserted.after(changes); lastInserted = changes; }
+                _applyMarkdown(block);
 
                 if (result.rejected && result.rejected.length > 0) {
                     const note = document.createElement('div');
@@ -911,10 +938,12 @@ function game() {
                     result.actions.forEach((action) => {
                         const btn = document.createElement('button');
                         btn.className = 'action-pill';
+                        btn.setAttribute('data-md', '');
                         btn.textContent = action;
                         btn.addEventListener('click', () => this.fillFromChoice(action));
                         zone.appendChild(btn);
                     });
+                    _applyMarkdown(zone);
                 } else {
                     zone.innerHTML = '<span class="empty-state">No suggested actions.</span>';
                 }

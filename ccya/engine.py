@@ -1293,9 +1293,11 @@ async def run_turn(
                         delta = er.state_delta
                         failed = er.failed
                         actions = er.actions
+                        outcome_summary = er.outcome_summary
                     else:
                         delta = StateDelta(**j)
                         failed = j.pop("failed", [])
+                        outcome_summary = j.pop("outcome_summary", "")
                     if failed:
                         _log.info(
                             "Turn %d: failed preconditions: %s",
@@ -1386,6 +1388,7 @@ async def run_turn(
                 "cond_mod": outcome.cond_mod,
                 "final_total": outcome.final_total,
                 "band": outcome.band,
+                "outcome_summary": outcome_summary,
                 "total_ms": rules_metrics.get("total_ms"),
             }
         elif intent.intent_verb and intent.intent_verb != "act":
@@ -1433,6 +1436,7 @@ async def run_turn(
             metrics=metrics,
             errors=errors,
             rules=rules_event or {},
+            outcome_summary=outcome_summary,
         )
         yield ("complete", result_obj)
 

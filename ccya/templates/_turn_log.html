@@ -31,7 +31,21 @@
     </div>
     {% endif %}
     {% for ln in e.lines %}
-    <div class="turn-log-line" data-md>{{ ln }}</div>
+    {% set cls = 'turn-log-line' %}
+    {% if ln.startswith('🎒 −') %}
+        {% set cls = cls ~ ' tl-inv-loss' %}
+    {% elif ln.startswith('🎒 +') or ln.startswith('🎒 ~') or ln.startswith('🎒 ⚠') %}
+        {% set cls = cls ~ ' tl-inv-gain' %}
+    {% elif ln.startswith('🩺') %}
+        {% set cls = cls ~ ' tl-pl' %}
+    {% elif ln.startswith('📍') %}
+        {% set cls = cls ~ ' tl-loc' %}
+    {% elif ln.startswith('📜') %}
+        {% set cls = cls ~ ' tl-fa' %}
+    {% elif ln.startswith('🗺️') %}
+        {% set cls = cls ~ ' tl-qu' %}
+    {% endif %}
+    <div class="{{ cls }}" data-md>{{ ln }}</div>
     {% endfor %}
 </div>
 {% endfor %}
