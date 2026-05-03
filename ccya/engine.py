@@ -1134,8 +1134,8 @@ async def _call_rules(
     messages: list[dict],
     config: EngineConfig,
     trace_id: str,
-) -> tuple[IntentEnvelope, dict[str, int]]:
-    """Execute Call 0 (rules intent classification). Returns (IntentEnvelope, usage).
+) -> tuple[IntentEnvelope, dict[str, int], str]:
+    """Execute Call 0 (rules intent classification). Returns (IntentEnvelope, usage, raw_response).
 
     Degrades gracefully: on any failure returns a no-check envelope so the
     narrate + extract pipeline proceeds normally without a roll.
@@ -1191,7 +1191,7 @@ async def _call_rules(
             return IntentEnvelope(**j), {
                 "prompt_tokens": usage.get("prompt_tokens", 0),
                 "total_tokens": usage.get("total_tokens", 0),
-            }
+            }, raw
         except Exception as exc:
             parse_error = str(exc)
             _log.warning(
@@ -1212,7 +1212,7 @@ async def _call_rules(
         "rules call failed after all attempts — defaulting to no-roll",
         extra={"trace_id": trace_id},
     )
-    return _no_intent, _no_usage
+    return _no_intent, _no_usage, ""
 
 
 def _avg_rules_ms(save_dir: Path, n: int = 5) -> int:
@@ -1475,6 +1475,14 @@ async def run_turn(
     try:
         await _inflight.acquire(str(save_dir))
 
+        # Prompt capture variables (initialized early for exception safety)
+        rendered_rules_system = ""
+        rendered_rules_user = ""
+        rendered_narr_system = ""
+        rendered_narr_user = ""
+        rules_raw_response = ""
+        narrative = ""
+
         # --- Memory: load chronicle tail + recent turns ---
         chronicle_tail = load_chronicle_tail(
             save_dir, config.chronicle_prefix_budget_tokens
@@ -1500,7 +1508,9 @@ async def run_turn(
             _log_prompts(
                 state.get("meta", {}).get("turn", 0) + 1, "rules", rules_messages
             )
-        intent, rules_usage = await _call_rules(rules_messages, config, trace_id)
+        rendered_rules_system = rules_messages[0]["content"] if rules_messages else ""
+        rendered_rules_user = rules_messages[-1]["content"] if rules_messages else ""
+        intent, rules_usage, rules_raw_response = await _call_rules(rules_messages, config, trace_id)
 
         # Resolve dice in Python (deterministic) — _call_rules degrades intent, we do outcome here
         outcome: RulesOutcome
@@ -1595,6 +1605,8 @@ async def run_turn(
             _log_prompts(
                 state.get("meta", {}).get("turn", 0) + 1, "narrate", narr_messages
             )
+        rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
+        rendered_narr_user = narr_messages[-1]["content"] if narr_messages else ""
 
         first_ms = 0.0
         t0 = asyncio.get_event_loop().time()
@@ -1816,6 +1828,17 @@ async def run_turn(
             "extraction": extraction_event,
             "changes": changes,
             "failed": failed if failed else [],
+            # Prompt logging (for turn viewer)
+            "rules_prompt": {
+                "rendered_system": rendered_rules_system,
+                "rendered_user": rendered_rules_user,
+                "output": rules_raw_response,
+            },
+            "narrate_prompt": {
+                "rendered_system": rendered_narr_system,
+                "rendered_user": rendered_narr_user,
+                "output": narrative,
+            },
         }
         append_event(save_dir, event)
         save_state(save_dir, state)

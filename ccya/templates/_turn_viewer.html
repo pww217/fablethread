@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turn Viewer — ccya</title>
+    <link rel="stylesheet" href="/static/app.css?v={{ css_v }}">
+    <script defer src="/static/vendor/alpine.min.js" crossorigin></script>
+</head>
+<body>
+<div class="turn-viewer-page">
+    <div class="turn-viewer-header">
+        <span class="turn-viewer-title">Turn Viewer</span>
+        <span class="turn-viewer-meta">{{ turn_count }} turns loaded</span>
+        <div class="turn-viewer-actions">
+            <button class="turn-viewer-refresh-btn" id="tv-refresh" title="Reload from events.jsonl">↻</button>
+            <a href="/" class="turn-viewer-back-btn">← Game</a>
+        </div>
+    </div>
+    <div class="turn-viewer-body" id="tv-body">
+        {% if turns and turns | length > 0 %}
+        <div x-data="{
+            turns: {{ turns | tojson }},
+            expandedTurns: {},
+            stageTabs: {},
+            toggleTurn(key) { this.expandedTurns[key] = !this.expandedTurns[key]; },
+            toggleTab(turn, stage) {
+                const k = turn + '-' + stage;
+                this.stageTabs[k] = this.stageTabs[k] === 'prompt' ? 'output' : 'prompt';
+            }
+        }">
+            <template x-for="(t, idx) in turns" :key="idx">
+                <div class="tv-turn-card">
+                    <!-- Turn Header -->
+                    <div class="tv-turn-header">
+                        <div class="tv-turn-number">Turn <span x-text="t.turn"></span></div>
+                        <div class="tv-turn-input" x-text="t.user_input"></div>
+                        <div class="tv-turn-meta">
+                            <span x-text="t.trace_id"></span>
+                            <span x-text="t.total_tokens_in_display + ' in'"></span>
+                            <span x-text="t.total_tokens_out_display + ' out'"></span>
+                            <span x-show="t.has_rejections" style="color:var(--accent-error)">rejections</span>
+                        </div>
+                    </div>
+
+                    <!-- Expand All -->
+                    <div class="tv-turn-expand-row">
+                        <button class="tv-expand-all-btn" @click="toggleTurn('turn-' + t.turn)">
+                            <span x-text="expandedTurns['turn-' + t.turn] ? 'Collapse All' : 'Expand All'"></span>
+                        </button>
+                    </div>
+
+                    <!-- Pipeline Stages -->
+                    <div class="tv-pipeline">
+                        <template x-for="stage in ['rules', 'narrate', 'scene', 'state', 'progress']" :key="stage">
+                            <div class="tv-pipeline-stage">
+                                <div class="tv-stage-header" @click="toggleTurn('turn-' + t.turn)">
+                                    <span x-text="stage"></span>
+                                    <span class="tv-stage-badge">
+                                        <span x-text="t.streams[stage].tt"></span>
+                                        <span x-text="t.streams[stage].tokens_in_display + ' / ' + t.streams[stage].tokens_out_display"></span>
+                                    </span>
+                                    <span class="tv-stage-chevron" :class="{ 'open': expandedTurns['turn-' + t.turn] }">▶</span>
+                                </div>
+                                <div class="tv-stage-body" x-show="expandedTurns['turn-' + t.turn]">
+                                    <div x-show="t.streams[stage].skipped" class="tv-skipped">Skipped</div>
+                                    <div x-show="!t.streams[stage].skipped">
+                                        <div x-show="t[stage + '_prompt'] && (t[stage + '_prompt'].system || t[stage + '_prompt'].user || t[stage + '_prompt'].output)">
+                                            <div class="tv-prompt-output-tabs">
+                                                <button class="tv-tab-btn" :class="{ 'active': stageTabs[t.turn + '-' + stage] !== 'output' }" @click="toggleTab(t.turn, stage)">Prompt</button>
+                                                <button class="tv-tab-btn" :class="{ 'active': stageTabs[t.turn + '-' + stage] === 'output' }" @click="toggleTab(t.turn, stage)">Output</button>
+                                            </div>
+
+                                            <!-- Prompt Tab -->
+                                            <div class="tv-content-panel" x-show="stageTabs[t.turn + '-' + stage] !== 'output'">
+                                                <div class="tv-prompt-block" x-show="t[stage + '_prompt'].system">
+                                                    <div class="tv-prompt-label">System</div>
+                                                    <div class="tv-prompt-text" x-text="t[stage + '_prompt'].system"></div>
+                                                </div>
+                                                <div class="tv-prompt-block" x-show="t[stage + '_prompt'].user">
+                                                    <div class="tv-prompt-label">User</div>
+                                                    <div class="tv-prompt-text" x-text="t[stage + '_prompt'].user"></div>
+                                                </div>
+                                                <div class="tv-no-prompt" x-show="!t[stage + '_prompt'].system && !t[stage + '_prompt'].user">No prompt data available</div>
+                                            </div>
+
+                                            <!-- Output Tab -->
+                                            <div class="tv-content-panel" x-show="stageTabs[t.turn + '-' + stage] === 'output'">
+                                                <div class="tv-output-text markdown" x-html="t[stage + '_prompt'].output || ''"></div>
+                                                <div class="tv-no-prompt" x-show="!t[stage + '_prompt'].output">No output data available</div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Fallback if no prompt data -->
+                                        <div class="tv-no-prompt" x-show="!t[stage + '_prompt'] || (!t[stage + '_prompt'].system && !t[stage + '_prompt'].user && !t[stage + '_prompt'].output)">
+                                            No data for this stage
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+        {% elif no_events %}
+        <div class="turn-viewer-no-events">No events found. Start a game to generate turn data.</div>
+        {% else %}
+        <div class="turn-viewer-empty">No turns recorded yet.</div>
+        {% endif %}
+    </div>
+</div>
+<script>
+document.getElementById('tv-refresh').addEventListener('click', function() {
+    location.reload();
+});
+</script>
+</body>
+</html>

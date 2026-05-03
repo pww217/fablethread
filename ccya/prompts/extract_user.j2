@@ -1,0 +1,76 @@
+{% if rules_outcome and rules_outcome.rolled %}
+### Rules outcome (use to guide state changes)
+- Attempted: **{{ rules_outcome.intent_verb }}**{% if intent_target %} on {{ intent_target }}{% endif %} | Roll: {{ rules_outcome.band | upper | replace('_', ' ') }} on {{ rules_outcome.skill }}
+- **crit_fail / fail** → the action did NOT succeed; do NOT mark quest objectives done for this action; MAY add pc_condition_add (e.g. wounded, shaken) if the narrative applied harm
+- **setback** → partial: the action did NOT succeed; do NOT mark quest objectives done; a minor complication or resource loss occurred
+- **mixed** → partial: mostly neutral with a slight complication; do NOT mark quest objectives done; a minor inconvenience arose
+- **boon** → partial: a small advantage was gained but the action did NOT succeed; do NOT mark quest objectives done; a minor benefit is available
+- **success / crit_success** → the action succeeded; apply the relevant state changes freely
+{% endif %}
+
+## THIS TURN SCOPE
+Active domains: {{ scope.active_domains | join(", ") }}
+Skip domains: {{ scope.skip_domains | join(", ") }}
+{% if scope.implicit_preconditions %}
+Preconditions assumed: {{ scope.implicit_preconditions | join("; ") }}
+{% endif %}
+{% if scope.ambiguities %}
+Ambiguities to resolve: {{ scope.ambiguities | join("; ") }}
+{% endif %}
+
+## Current state (reference — emit deltas; consolidate before adding duplicates)
+
+### Player
+- Name: {{ pc.get('name', '') or 'Unnamed' }} | Tagline: {{ pc.get('tagline', '') or pc.get('concept', '') or '—' }}
+- Bio (durable — refine only when revealed): {{ pc.get('bio', '') or '—' }}
+- Stats: {% for k, v in (pc.get('stats') or {}).items() %}{{ k }}={{ v }} {% endfor %}
+- Conditions (emit **pc_condition_add** / **pc_condition_remove**):
+{% if conditions == "__HIDDEN__" %}  — (hidden — not in active scope; do not assume conditions are gone)
+{% elif conditions %}{% for c in conditions %}
+  - {{ c }}
+{% endfor %}{% else %}  - none{% endif %}
+
+### Location
+- id: `{{ location.get('id', '') }}` | name: {{ location.get('name', '') or '—' }}
+- Description (current): {{ location.get('description', '') or '—' }}
+
+### Known characters (compendium — reuse **`id`** for **compendium_npc_update**; do not invent new ids for the same person)
+{% if known_characters %}{% for row in known_characters %}
+- id: `{{ row.id }}` | {{ row.name or '—' }} — {{ row.title or '' }} | bio: {{ row.bio_preview or '—' }}
+{% endfor %}{% else %}None yet.{% endif %}
+
+### Previous turn NPCs (emit **present_npcs** to replace the whole list each turn; always include ≥1 entry — use ambient background if no named NPCs; bio lives under **Known characters** — emit **id** + **notes** only when unchanged)
+{% if present_npcs %}{% for n in present_npcs %}
+- id: `{{ n.id if n is mapping else n }}` | name: {{ n.name if n is mapping else n }} | title: {{ n.get('title', '') if n is mapping else '' }} | notes: {{ n.get('notes', '') if n is mapping else '' }}
+{% endfor %}{% else %}None listed.{% endif %}
+
+### World State (immutable — read-only, do NOT modify)
+{% if world_state %}{% for f in world_state %}
+- {{ f if f is string else f.values() | join(': ') }}
+{% endfor %}{% else %}None.{% endif %}
+
+### Recent Events (emit **recent_events_add** / **recent_events_update.old** / **recent_events_remove** for changes)
+{% if recent_events == "__HIDDEN__" %}— (hidden — not in active scope; do not assume events are gone)
+{% elif recent_events %}{% for f in recent_events %}
+- {{ f if f is string else f.values() | join(': ') }}
+{% endfor %}{% else %}None.{% endif %}
+
+### Active quests (update by quest **id**; objectives by **1-based index** from the numbered list)
+{% if active_quests == "__HIDDEN__" %}— (hidden — not in active scope; do not assume quests are gone)
+{% elif active_quests %}{% for q in active_quests %}
+- id: `{{ q.id }}` | title: {{ q.title }}
+  objectives:
+{% for o in (q.objectives or []) %}    {{ loop.index }}. [{% if o.done %}x{% elif o.failed %}f{% else %} {% endif %}] {{ o.description }}
+{% endfor %}
+{% endfor %}{% else %}None.{% endif %}
+
+### Inventory (deltas — **inventory_add** / **inventory_remove** / **inventory_update**; reuse existing ids when possible)
+{% if inventory == "__HIDDEN__" %}— (hidden — not in active scope; do not assume inventory is empty)
+{% elif inventory %}{% for it in inventory %}- id: `{{ it.id }}` | name: {{ it.name }} | amount: {{ it.amount or 1 }}
+{% endfor %}{% else %}Empty.{% endif %}
+
+## CURRENT TURN NARRATION (what just happened this turn — extract state changes from this)
+{{ narrative }}
+## END CURRENT TURN NARRATION
+
+Emit JSON now matching the schema for the narrative above.

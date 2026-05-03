@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, pass_context
 from sse_starlette.sse import EventSourceResponse
 
 from ccya.engine import (
@@ -78,6 +78,7 @@ _jinja_env = Environment(
     loader=FileSystemLoader(str(TEMPLATES_DIR)),
     autoescape=True,
 )
+_jinja_env.filters["tojson"] = pass_context(lambda ctx, obj: __import__("json").dumps(obj))
 
 # In-process errors store — last 50 entries, survives turn boundaries.
 _ERRORS_LOG: deque[dict[str, Any]] = deque(maxlen=50)
@@ -358,6 +359,162 @@ def _turn_log_entries(save_dir: Path, limit: int = 50) -> list[dict[str, Any]]:
             }
         )
     return entries
+
+
+def _fmt_tokens_exact(n: Any) -> str:
+    """Format token count as exact integer string."""
+    if n is None:
+        return "—"
+    try:
+        return f"{int(n):,}"
+    except (TypeError, ValueError):
+        return "—"
+
+
+def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
+    """Build full turn viewer data from events.jsonl (all turns, newest first).
+
+    Returns (rows, no_events) where no_events is True when the file exists
+    but is empty.
+    """
+    path = save_dir / "events.jsonl"
+    if not path.exists():
+        return [], True
+    raw = path.read_text().strip()
+    if not raw:
+        return [], True
+    lines = [ln for ln in raw.splitlines() if ln.strip()]
+    if not lines:
+        return [], True
+    rows: list[dict[str, Any]] = []
+    for line in lines:
+        try:
+            ev = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        narr = ev.get("narrate") or {}
+        ext = ev.get("extract") or {}
+        extraction = ev.get("extraction") or {}
+        rej = ev.get("rejected") or []
+        tid = str(ev.get("trace_id") or "")
+        rules_ev = ev.get("rules") or {}
+
+        # Prompt data (new fields, may be absent in old events)
+        rules_prompt = ev.get("rules_prompt") or {}
+        narr_prompt = ev.get("narrate_prompt") or {}
+
+        def _fmt_ms(ms):
+            if ms is None:
+                return "—"
+            try:
+                return f"{float(ms) / 1000.0:.1f}s"
+            except (TypeError, ValueError):
+                return "—"
+
+        # Per-stream data
+        raw_streams = {}
+        for s in ("scene", "state", "progress"):
+            sev = extraction.get(s) or {}
+            raw_streams[s] = {
+                "ms": sev.get("ms"),
+                "tokens_in": sev.get("tokens_in"),
+                "tokens_out": sev.get("tokens_out"),
+                "skipped": sev.get("skipped", False),
+            }
+
+        # Build streams dict for template
+        streams = {}
+
+        # Rules (non-streaming: TTFT = TT)
+        r_in = rules_ev.get("tokens_in")
+        r_out = rules_ev.get("tokens_out")
+        r_ms = rules_ev.get("total_ms")
+        streams["rules"] = {
+            "tt": _fmt_ms(r_ms),
+            "tokens_in": r_in,
+            "tokens_out": r_out,
+            "tokens_in_display": _fmt_tokens_exact(r_in),
+            "tokens_out_display": _fmt_tokens_exact(r_out),
+            "skipped": False,
+        }
+
+        # Narrate (streaming: TTFT = first_token_ms)
+        n_in = narr.get("tokens_in")
+        n_out = narr.get("tokens_out")
+        n_ms = narr.get("total_ms")
+        n_first = narr.get("first_token_ms")
+        streams["narrate"] = {
+            "tt": _fmt_ms(n_ms),
+            "tokens_in": n_in,
+            "tokens_out": n_out,
+            "tokens_in_display": _fmt_tokens_exact(n_in),
+            "tokens_out_display": _fmt_tokens_exact(n_out),
+            "skipped": False,
+        }
+
+        # Scene / State / Progress extracts
+        for key in ("scene", "state", "progress"):
+            s = raw_streams[key]
+            s_in = s["tokens_in"]
+            s_out = s["tokens_out"]
+            s_ms = s["ms"]
+            s_skip = s["skipped"]
+            streams[key] = {
+                "tt": "—" if s_skip else _fmt_ms(s_ms),
+                "tokens_in": s_in,
+                "tokens_out": s_out,
+                "tokens_in_display": "—" if s_skip else _fmt_tokens_exact(s_in),
+                "tokens_out_display": "—" if s_skip else _fmt_tokens_exact(s_out),
+                "skipped": s_skip,
+            }
+
+        # Totals
+        total_in = (r_in or 0) + (n_in or 0) + (raw_streams["scene"]["tokens_in"] or 0) + (raw_streams["state"]["tokens_in"] or 0) + (raw_streams["progress"]["tokens_in"] or 0)
+        total_out = (r_out or 0) + (n_out or 0) + (raw_streams["scene"]["tokens_out"] or 0) + (raw_streams["state"]["tokens_out"] or 0) + (raw_streams["progress"]["tokens_out"] or 0)
+        total_tt_ms = (r_ms or 0) + (n_ms or 0) + (ext.get("total_ms") or 0)
+
+        rows.append(
+            {
+                "turn": ev.get("turn", 0),
+                "trace_id": tid[:8] if len(tid) >= 8 else tid,
+                "has_rejections": bool(rej),
+                "streams": streams,
+                "total_tt": _fmt_ms(total_tt_ms),
+                "total_tokens_in": total_in,
+                "total_tokens_out": total_out,
+                "total_tokens_in_display": _fmt_tokens_exact(total_in),
+                "total_tokens_out_display": _fmt_tokens_exact(total_out),
+                # Prompt data for viewer
+                "user_input": ev.get("input", ""),
+                "rules_prompt": {
+                    "system": rules_prompt.get("rendered_system", ""),
+                    "user": rules_prompt.get("rendered_user", ""),
+                    "output": rules_prompt.get("output", ""),
+                },
+                "narrate_prompt": {
+                    "system": narr_prompt.get("rendered_system", ""),
+                    "user": narr_prompt.get("rendered_user", ""),
+                    "output": narr_prompt.get("output", ""),
+                },
+                "scene_prompt": {
+                    "system": extraction.get("scene", {}).get("rendered_system", ""),
+                    "user": extraction.get("scene", {}).get("rendered_user", ""),
+                    "output": json.dumps(extraction.get("scene", {}).get("output", {}), indent=2) if extraction.get("scene") and not extraction.get("scene", {}).get("skipped", False) else "",
+                },
+                "state_prompt": {
+                    "system": extraction.get("state", {}).get("rendered_system", ""),
+                    "user": extraction.get("state", {}).get("rendered_user", ""),
+                    "output": json.dumps(extraction.get("state", {}).get("output", {}), indent=2) if extraction.get("state") and not extraction.get("state", {}).get("skipped", False) else "",
+                },
+                "progress_prompt": {
+                    "system": extraction.get("progress", {}).get("rendered_system", ""),
+                    "user": extraction.get("progress", {}).get("rendered_user", ""),
+                    "output": json.dumps(extraction.get("progress", {}).get("output", {}), indent=2) if extraction.get("progress") and not extraction.get("progress", {}).get("skipped", False) else "",
+                },
+            }
+        )
+    rows.reverse()
+    return rows, False
 
 
 # ---------------------------------------------------------------------------
@@ -673,6 +830,23 @@ def panel_turn_log(limit: int = 50):
     """HTMX fragment: human-readable turn summaries from events.jsonl."""
     lim = max(1, min(limit, 200))
     return _render("_turn_log.html", {"entries": _turn_log_entries(SAVE_DIR, lim)})
+
+
+@app.get("/turn_viewer", response_class=HTMLResponse)
+def turn_viewer():
+    """Standalone full-page turn viewer: all turns from events.jsonl."""
+    css_path = BASE_DIR / "static" / "app.css"
+    css_v = int(css_path.stat().st_mtime) if css_path.exists() else 0
+    turns, no_events = _turn_viewer_data(SAVE_DIR)
+    return _render(
+        "_turn_viewer.html",
+        {
+            "turns": turns,
+            "turn_count": len(turns),
+            "no_events": no_events,
+            "css_v": css_v,
+        },
+    )
 
 
 @app.get("/opening")
