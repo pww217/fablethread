@@ -1,7 +1,9 @@
-## Quests
-{% if (state.quests or []) %}{% for quest in state.quests %}
+{% if state.quests -%}
+{% for quest in state.quests -%}
 - **{{ quest.get("title", quest.get("id", "?")) }}** [{{ quest.get("status", "active") }}]
-  {% for obj in (quest.get("objectives") or []) %}  - [{{ "x" if obj.get("done") else " " }}] {{ obj.get("description", "?") }}{% if not loop.last %}
-{% endif %}{% endfor %}{% endfor %}
-{% else %}
-No active quests.{% endif %}
+{% for obj in (quest.get("objectives") or []) %}  - [{{ "x" if obj.get("done") else " " }}] {{ obj.get("description", "?") }}
+{% endfor -%}
+{% endfor -%}
+{%- else -%}
+No active quests.
+{% endif -%}

@@ -166,7 +166,6 @@ class TestJinjaRender:
             "user_input": "look",
             "last_turn_failed": [],
             "recently_left": [],
-            "recent_narrative_tail": "",
         }
         text = env.get_template("narrate_user.j2").render(**ctx)
         assert "Yuki Tanaka" in text

@@ -1,32 +1,56 @@
+## Player Character
 {% include "sections/_pc.j2" %}
+## Location
 {% include "sections/_location.j2" %}
-## present_npcs
-{% if state.scene.present_npcs %}{% for n in state.scene.present_npcs %}- {{ n.name or n }}{% if n is mapping and n.get('title') %} ({{ n.title }}){% endif %}{% if n is mapping and n.get('notes') %} — {{ n.notes }}{% endif %}
-{% endfor %}{% else %}- (none named — ambient only)
+## Present NPCs
+{% if state.scene.present_npcs -%}
+{% for n in state.scene.present_npcs %}- {{ n.name or n }}{% if n is mapping and n.get('title') %} ({{ n.title }}){% endif %}{% if n is mapping and n.get('notes') %} — {{ n.notes }}{% endif %}
+{% endfor -%}
+{%- else -%}
+- (none named — ambient only)
 {% endif %}
-{% if recently_left %}## recently_left (do NOT write dialogue or action for these — may briefly acknowledge their departure)
+{% if recently_left -%}
+## Recently Left (do NOT write dialogue or action for these — may briefly acknowledge their departure)
 {% for n in recently_left %}- {{ n.name or n }}{% if n is mapping and n.get('title') %} ({{ n.title }}){% endif %}
-{% endfor %}{% endif %}
+{% endfor -%}
+{% endif -%}
+## Inventory
 {% include "sections/_inventory.j2" %}
+## Quests
 {% include "sections/_quests.j2" %}
+{% if state.scene.world_state -%}
+## World State (immutable)
 {% include "sections/_world_state.j2" %}
+{% endif -%}
+{% if state.scene.recent_events -%}
+## Recent Events
 {% include "sections/_recent_events.j2" %}
+{% endif -%}
+{% if chronicle_tail and chronicle_tail.strip() -%}
+## Prior History (summarized — treat as background, not current scene)
 {% include "sections/_chronicle.j2" %}
+{% endif -%}
+{% if recent_turns -%}
+## Recent Turns (most recent last — these are done, not current)
 {% include "sections/_recent.j2" %}
-{% if rules_outcome and rules_outcome.rolled %}
+{% endif -%}
+{% if rules_outcome and rules_outcome.rolled -%}
 ## rules_outcome (BINDING — narrate this result; do NOT invert)
 {{ rules_outcome.skill | capitalize }} ({{ rules_outcome.stat_value }}) | Difficulty: {{ rules_outcome.difficulty }}
 Roll: {{ rules_outcome.dice | join(' + ') }}{% if rules_outcome.stat_mod != 0 %} {% if rules_outcome.stat_mod > 0 %}+{% endif %}{{ rules_outcome.stat_mod }} (stat){% endif %}{% if rules_outcome.diff_mod != 0 %} {% if rules_outcome.diff_mod > 0 %}+{% endif %}{{ rules_outcome.diff_mod }} (diff){% endif %}{% if rules_outcome.cond_mod != 0 %} {% if rules_outcome.cond_mod > 0 %}+{% endif %}{{ rules_outcome.cond_mod }} (cond){% endif %} = {{ rules_outcome.final_total }} → {{ rules_outcome.band | upper | replace('_', ' ') }}
 Directive: {{ rules_outcome.directive }}
-{% endif %}
-{% if last_turn_failed %}
+
+{% endif -%}
+{% if last_turn_failed -%}
 ## last_turn_failed (already resolved by prior narrator; do NOT retry)
 {% for f in last_turn_failed %}- {{ f }}
-{% endfor %}{% endif %}
-{% if npc_name_pool %}
+{% endfor %}
+{% endif -%}
+{% if npc_name_pool -%}
 ## name_pool (use one of these when introducing a new named NPC)
 {{ npc_name_pool | join(' · ') }}
-{% endif %}
+
+{% endif -%}
 === PLAYER INPUT ===
 {{ user_input }}
 === END PLAYER INPUT ===

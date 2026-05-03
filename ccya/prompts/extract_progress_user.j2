@@ -1,40 +1,59 @@
 ## active_domains
 {{ active_domains | join(", ") }}
-{% if rules_outcome and rules_outcome.scope and rules_outcome.scope.ambiguities %}## ambiguities_to_resolve
+
+{% if rules_outcome and rules_outcome.scope and rules_outcome.scope.ambiguities -%}
+## ambiguities_to_resolve
 {{ rules_outcome.scope.ambiguities | join("; ") }}
-{% endif %}
-{% if rules_outcome and rules_outcome.rolled %}## rules_outcome
+
+{% endif -%}
+{% if rules_outcome and rules_outcome.rolled -%}
+## rules_outcome
 {{ rules_outcome.band | upper }} on {{ rules_outcome.skill }}.
-{% endif %}
+
+{% endif -%}
 ## quest_threshold
 {{ quest_threshold_directive }}
 
 ## pc
 {{ pc.name }} — {{ pc.tagline }}
-{% if active_quests %}## active_quests
+
+{% if active_quests -%}
+## active_quests
 {% for q in active_quests %}- `{{ q.id }}` | {{ q.title }}
   objectives:
 {% for o in (q.objectives or []) %}    {{ loop.index }}. [{% if o.done %}x{% elif o.failed %}f{% else %} {% endif %}] {{ o.description }}
-{% endfor %}
-{% endfor %}{% endif %}
-{% if "recent_events" in active_domains and recent_events %}## recent_events (don't duplicate; emit recent_events_add/update/remove for changes)
+{% endfor %}{% endfor %}
+{% endif -%}
+{% if "recent_events" in active_domains and recent_events -%}
+## recent_events (don't duplicate; emit recent_events_add/update/remove for changes)
 {% for f in recent_events %}- {{ f }}
-{% endfor %}{% endif %}
-{% if not active_quests and world_state %}## world_state (read-only — use to reason about new quests only)
+{% endfor %}
+{% endif -%}
+{% if not active_quests and world_state -%}
+## world_state (read-only — use to reason about new quests only)
 {% for f in world_state %}- {{ f if f is string else f.values() | join(': ') }}
-{% endfor %}{% endif %}
-{% if known_characters %}## known_characters (compendium — reuse id for compendium_npc_update)
+{% endfor %}
+{% endif -%}
+{% if known_characters -%}
+## known_characters (compendium — reuse id for compendium_npc_update)
 {% for row in known_characters %}- `{{ row.id }}` | {{ row.name }}{% if row.title %} — {{ row.title }}{% endif %}{% if row.bio_preview %} | {{ row.bio_preview }}{% endif %}
-{% endfor %}{% endif %}
-{% if scene_result.present_npcs %}## present_npcs (this turn)
+{% endfor %}
+{% endif -%}
+{% if scene_result.present_npcs -%}
+## present_npcs (this turn)
 {% for n in scene_result.present_npcs %}- {{ n.name or n.id }}
-{% endfor %}{% endif %}
-{% if state_result.items_gained %}## items_gained
+{% endfor %}
+{% endif -%}
+{% if state_result.items_gained -%}
+## items_gained
 {{ state_result.items_gained | join(', ') }}
-{% endif %}
-{% if state_result.items_lost %}## items_lost
+
+{% endif -%}
+{% if state_result.items_lost -%}
+## items_lost
 {{ state_result.items_lost | join(', ') }}
-{% endif %}
+
+{% endif -%}
 === NARRATION ===
 {{ narration }}
 === END NARRATION ===

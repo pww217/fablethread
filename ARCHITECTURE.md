@@ -89,7 +89,7 @@ flowchart LR
         I1["state.pc<br>(name, stats, conditions)"]
         I2["state.location"]
         I3["state.scene.present_npcs"]
-        I4["recent_turns[-2:]<br>(from chronicle)"]
+        I4["recent_turns[-1:]<br>(from chronicle;<br>user prompt: narrative tail)"]
         I5["user_input"]
     end
 
@@ -136,8 +136,7 @@ flowchart LR
         N6["npc_name_pool (cultural name list)"]
         N7["last_turn_failed<br>(precondition failures from prev turn)"]
         N8["recently_left NPCs"]
-        N9["recent_narrative_tail<br>(last turn's narrative for continuity)"]
-        N10["user_input"]
+        N9["user_input"]
     end
 
     subgraph LLM1["LLM — narrate_system.j2 + narrate_user.j2"]

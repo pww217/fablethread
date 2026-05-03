@@ -1,8 +1,6 @@
-{% if recent_turns %}
-## RECENT TURNS (most recent last — these are done, not current)
-{% for t in recent_turns %}
+{% for t in recent_turns -%}
 **Turn {{ t.turn }}** — {{ t.input }}
 {{ t.narrative }}
-{% endfor %}
-## END RECENT TURNS
-{% endif %}
+{% if not loop.last %}
+{% endif -%}
+{% endfor -%}
