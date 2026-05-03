@@ -1250,6 +1250,20 @@ body {
 .debug-turn-row-warn td {
   color: var(--accent-error);
 }
+.debug-turn-sep td {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 6px;
+  margin-top: 4px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.debug-turn-total td {
+  border-top: 2px solid var(--border-subtle);
+  padding-top: 6px;
+  margin-top: 4px;
+  font-weight: 700;
+  color: var(--text);
+}
 .debug-tokens-cell {
   white-space: pre-line;
   line-height: 1.35;

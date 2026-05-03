@@ -289,18 +289,35 @@ function _prependTurnLogTurn(turn, changeLines, rules) {
     _applyMarkdown(wrap);
 }
 
+function _fmtTokens(n) {
+    if (n == null) return '—';
+    n = Number(n);
+    if (n < 1000) return n.toString();
+    return (n / 1000).toFixed(2).replace(/\.?0+$/, '') + 'k';
+}
+
 function _formatMetricsRow(metrics) {
     if (!metrics || typeof metrics !== 'object') return '';
     const r = metrics.rules || {};
     const n = metrics.narrate || {};
     const x = metrics.extract || {};
-    const rs = (r.total_ms != null) ? (Number(r.total_ms) / 1000).toFixed(1) + 's' : null;
-    const ns = (n.total_ms != null) ? (Number(n.total_ms) / 1000).toFixed(1) + 's' : '—';
-    const xs = (x.total_ms != null) ? (Number(x.total_ms) / 1000).toFixed(1) + 's' : '—';
+    const streams = x.streams || {};
+
+    function fmtStep(ms, ti, to) {
+        const t = (ms != null) ? (Number(ms) / 1000).toFixed(1) + 's' : '—';
+        if (ti != null && to != null) return t + ' (' + _fmtTokens(ti) + '/' + _fmtTokens(to) + ')';
+        return t;
+    }
+
     const parts = [];
-    if (rs) parts.push('rules ' + rs);
-    parts.push('narrate ' + ns);
-    parts.push('extract ' + xs);
+    parts.push('R ' + fmtStep(r.total_ms, r.tokens_in, r.tokens_out));
+    parts.push('N ' + fmtStep(n.total_ms, n.tokens_in, n.tokens_out));
+    const sc = streams.scene;
+    if (sc && !sc.skipped) parts.push('Sc ' + fmtStep(sc.ms, sc.tokens_in, sc.tokens_out));
+    const st = streams.state;
+    if (st && !st.skipped) parts.push('St ' + fmtStep(st.ms, st.tokens_in, st.tokens_out));
+    const pg = streams.progress;
+    if (pg && !pg.skipped) parts.push('P ' + fmtStep(pg.ms, pg.tokens_in, pg.tokens_out));
     return parts.join('   ·   ');
 }
 
