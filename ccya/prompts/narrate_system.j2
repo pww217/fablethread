@@ -61,3 +61,13 @@ ignore it — but do not default to generic Anglo names if the setting calls
 for something else.
 {{ npc_name_pool | join(" · ") }}
 {% endif %}
+
+## Actions
+After the narration prose, emit exactly one line:
+ACTIONS_JSON: {"actions": ["choice 1", "choice 2", "choice 3", "choice 4"]}
+
+Actions rules:
+- Exactly 4 distinct, meaningful choices valid in the current scene, 7-10 words each
+- Naturally weight the options toward what this specific character is actually good at — a high-strength character's options should lean toward physical approaches, a high-charisma character toward social ones, high-wits toward observation and deduction, etc. Do this through what the options *are*, not by labeling them as skill checks.
+- One option may always be a more cautious or evasive fallback regardless of stats.
+- Never offer all four as the same flavor of approach.
