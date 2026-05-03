@@ -1,30 +1,41 @@
 ## active_domains
 {{ active_domains | join(", ") }}
-{% if rules_outcome and rules_outcome.scope and rules_outcome.scope.implicit_preconditions %}## preconditions_assumed
+
+{% if rules_outcome and rules_outcome.scope and rules_outcome.scope.implicit_preconditions -%}
+## preconditions_assumed
 {{ rules_outcome.scope.implicit_preconditions | join("; ") }}
-{% endif %}
-{% if rules_outcome and rules_outcome.rolled %}## rules_outcome
+
+{% endif -%}
+{% if rules_outcome and rules_outcome.rolled -%}
+## rules_outcome
 {{ rules_outcome.band | upper }} on {{ rules_outcome.skill }}. {{ rules_outcome.directive }}
 - crit_fail / fail / setback: action did NOT succeed. Don't add items from a failed grab/purchase. MAY add a condition if harm occurred.
 - mixed / boon: partial. Minor complication or resource loss.
 - success / crit_success: apply changes freely.
-{% endif %}
 
+{% endif -%}
 ## pc
 {{ pc.name }} — {{ pc.tagline }}
-{% if "pc_condition" in active_domains and conditions %}## active_conditions
-{% for c in conditions %}- `{{ c.id if c is mapping else c }}` | {{ c.label if c is mapping else c }}{% if c is mapping and c.get('description') %} — {{ c.description }}{% endif %}
-{% endfor %}{% endif %}
-{% if engine_expired_conditions %}## engine_expired_conditions (already removed by engine — do NOT re-add)
-{% for c in engine_expired_conditions %}- `{{ c.id if c is mapping else c }}`: {{ c.label if c is mapping else c }}
-{% endfor %}{% endif %}
-{% if "inventory" in active_domains and inventory %}## inventory (current stacks — read amount before emitting `inventory_remove`)
-{% for item in inventory %}- `{{ item.id }}` | {{ item.name }} ×{{ item.amount or 1 }}{% if item.notes %} — {{ item.notes }}{% endif %}
-{% endfor %}{% endif %}
 
+{% if "pc_condition" in active_domains and conditions -%}
+## active_conditions
+{% for c in conditions %}- `{{ c.id if c is mapping else c }}` | {{ c.label if c is mapping else c }}{% if c is mapping and c.get('description') %} — {{ c.description }}{% endif %}
+{% endfor %}
+{% endif -%}
+{% if engine_expired_conditions -%}
+## engine_expired_conditions (already removed by engine — do NOT re-add)
+{% for c in engine_expired_conditions %}- `{{ c.id if c is mapping else c }}`: {{ c.label if c is mapping else c }}
+{% endfor %}
+{% endif -%}
+{% if "inventory" in active_domains and inventory -%}
+## inventory (current stacks — read amount before emitting `inventory_remove`)
+{% for item in inventory %}- `{{ item.id }}` | {{ item.name }} ×{{ item.amount or 1 }}{% if item.notes %} — {{ item.notes }}{% endif %}
+{% endfor %}
+{% endif -%}
 ## scene_result
 location: `{{ scene_result.location_id }}`
-{% if scene_result.present_npcs %}present_npcs: {% for n in scene_result.present_npcs %}{{ n.name or n.id }}{% if not loop.last %}, {% endif %}{% endfor %}
+{% if scene_result.present_npcs -%}
+present_npcs: {% for n in scene_result.present_npcs %}{{ n.name or n.id }}{% if not loop.last %}, {% endif %}{% endfor %}
 {% endif %}
 === NARRATION ===
 {{ narration }}

@@ -1,15 +1,19 @@
 ## pc
 {{ pc.name or "Unnamed" }} | {{ pc.tagline or pc.concept or "" }}
-Stats: {% for k, v in (pc.stats or {}).items() %}{{ k }}={{ v }} {% endfor %}
+Stats: {% for k, v in (pc.stats or {}).items() %}{{ k }}={{ v }}{% if not loop.last %} {% endif %}{% endfor %}
 Conditions: {% if pc.conditions %}{% for c in pc.conditions %}{{ c.label if c is mapping else c }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}none{% endif %}
 
 ## scene
 Location: {{ location.name or location.id or "Unknown" }}
-{% if present_npcs %}Present: {% for npc in present_npcs %}{{ npc.name if npc is mapping else npc }}{% if not loop.last %}, {% endif %}{% endfor %}
+{% if present_npcs -%}
+Present: {% for npc in present_npcs %}{{ npc.name if npc is mapping else npc }}{% if not loop.last %}, {% endif %}{% endfor %}
 {% endif %}
-{% if recent_turns %}## recent_turns
-{% for t in recent_turns %}T{{ t.turn }}: {{ t.input }} — {{ t.narrative[:120] }}{% if t.narrative | length > 120 %}…{% endif %}
-{% endfor %}{% endif %}
+{%- if recent_turns %}
+## last_turn (tail of the most recent narrative — what the player just lived through)
+{%- set t = recent_turns[-1] %}
+T{{ t.turn }}: {{ t.input }} — {% if t.narrative | length > 120 %}… {% endif %}{{ t.narrative[-120:] }}
+
+{% endif -%}
 === PLAYER INPUT ===
 {{ user_input }}
 === END PLAYER INPUT ===

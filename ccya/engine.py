@@ -140,10 +140,16 @@ class EngineConfig:
 
 
 def _build_jinja_env(template_dir: str) -> Environment:
+    # Defaults (trim_blocks=False, lstrip_blocks=False) are intentional: with them
+    # enabled, the newline after every block tag (including inline `{% endif %}`
+    # at end-of-body lines) gets eaten, which collapses bullet lists and glues
+    # section headers to previous content. Templates use explicit `{%- -%}`
+    # whitespace control instead. keep_trailing_newline=True so every section
+    # partial reliably ends with `\n`, and parent templates can rely on a single
+    # trailing newline per `{% include %}` for consistent blank-line spacing.
     return Environment(
         loader=FileSystemLoader(template_dir),
-        trim_blocks=True,
-        lstrip_blocks=True,
+        keep_trailing_newline=True,
     )
 
 
@@ -169,7 +175,6 @@ def _narrate_messages(
     npc_name_pool: list[str] = [],
     last_turn_failed: list[str] = [],
     recently_left: list[dict] = [],
-    recent_narrative_tail: str = "",
 ) -> list[dict[str, str]]:
     """Build narrate message list: [system, user].
 
@@ -186,7 +191,6 @@ def _narrate_messages(
         "npc_name_pool": npc_name_pool,
         "last_turn_failed": last_turn_failed,
         "recently_left": recently_left,
-        "recent_narrative_tail": recent_narrative_tail,
         "user_input": user_input,
     }
     system_text = _render(env, "narrate_system.j2", {"pack_style": pack_style})
@@ -1551,7 +1555,7 @@ async def run_turn(
         t_rules = asyncio.get_event_loop().time()
 
         rules_messages = _rules_messages(
-            env, state, user_input, recent_turns=recent_turns[-2:]
+            env, state, user_input, recent_turns=recent_turns[-1:]
         )
         rules_messages = trim_messages(rules_messages, config.prompt_token_budget)
         if config.log_prompts:
@@ -1637,11 +1641,6 @@ async def run_turn(
                 seed=state.get("meta", {}).get("turn", 0),
             )
 
-        # Last turn's narrative for location context (physical/mood carryover)
-        _recent_narrative_tail = ""
-        if recent_turns:
-            _recent_narrative_tail = recent_turns[-1].get("narrative", "")
-
         narr_messages = _narrate_messages(
             env,
             state,
@@ -1654,7 +1653,6 @@ async def run_turn(
             npc_name_pool=_npc_name_pool,
             last_turn_failed=last_turn_failed,
             recently_left=(state.get("scene") or {}).get("recently_left", []),
-            recent_narrative_tail=_recent_narrative_tail,
         )
         narr_messages = trim_messages(narr_messages, config.prompt_token_budget)
         if config.log_prompts:

@@ -1,7 +1,6 @@
-## Player Character
 **{{ state.pc.name or "Unnamed" }}** — {{ state.pc.tagline or state.pc.concept or "No tagline set." }}
-{% if state.pc.bio %}
+{% if state.pc.bio -%}
 **Bio:** {{ state.pc.bio }}
-{% endif %}
-Stats: {% for k, v in (state.pc.stats or {}).items() %}{{ k }}={{ v }} {% endfor %}
-Conditions: {% if (state.pc.conditions or []) %}{% for c in state.pc.conditions %}{{ c.label if c is mapping else c }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}None.{% endif %}
+{% endif -%}
+Stats: {% for k, v in (state.pc.stats or {}).items() %}{{ k }}={{ v }}{% if not loop.last %} {% endif %}{% endfor %}
+Conditions: {% if state.pc.conditions %}{% for c in state.pc.conditions %}{{ c.label if c is mapping else c }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}None.{% endif %}

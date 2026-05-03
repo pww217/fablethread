@@ -1,21 +1,23 @@
-{% if rules_outcome and rules_outcome.rolled %}## rules_outcome
+{% if rules_outcome and rules_outcome.rolled -%}
+## rules_outcome
 {{ rules_outcome.band | upper }} on {{ rules_outcome.skill }} — {{ rules_outcome.directive }}
-{% endif %}
 
+{% endif -%}
 ## pc
 {{ pc.name }} — {{ pc.tagline }}
-Stats: {% for k, v in (pc.stats or {}).items() %}{{ k }}={{ v }} {% endfor %}
-{% if conditions %}Conditions: {% for c in conditions %}{{ c.label if c is mapping else c }}{% if not loop.last %}, {% endif %}{% endfor %}
+Stats: {% for k, v in (pc.stats or {}).items() %}{{ k }}={{ v }}{% if not loop.last %} {% endif %}{% endfor %}
+{% if conditions -%}
+Conditions: {% for c in conditions %}{{ c.label if c is mapping else c }}{% if not loop.last %}, {% endif %}{% endfor %}
 {% endif %}
-
 ## location
 `{{ location.id }}` | {{ location.name }}
 {{ location.description }}
 
-{% if npc_roster %}## npc_roster (reuse `id` for present_npcs; tags show why each is listed)
+{% if npc_roster -%}
+## npc_roster (reuse `id` for present_npcs; tags show why each is listed)
 {% for n in npc_roster %}- `{{ n.id }}` | {{ n.name }} [{{ n.tags | join(",") }}]{% if n.notes %} — {{ n.notes }}{% endif %}
-{% endfor %}{% endif %}
-
+{% endfor %}
+{% endif -%}
 === NARRATION ===
 {{ narration }}
 === END NARRATION ===
