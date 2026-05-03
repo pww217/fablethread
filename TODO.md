@@ -79,7 +79,6 @@
 - [x] **Conditions cap** — max 5 active conditions; no duplicates; least relevant dropped when full.
 
 ### Prompt Engineering
-
 - [x] **Bolding rules** — bold only on first introduction of NPCs, inventory items, quest targets; not every mention.
 - [x] **Highlights scoped** — bolding limited to inventory, NPCs, and quest objects only.
 - [x] **Spatial position in NPC notes** — positional prefix in notes when spatial arrangement matters.
@@ -87,6 +86,7 @@
 - [x] **Real places from lore** — use real locations from the setting's lore or real world.
 - [x] **More recent narrations** — window_turns increased to 6 for richer context.
 - [x] **First narration bolding** — bolding rules apply from the first scene onward.
+- [x] **Actions in narrate call** — move actions generation from extractor to narrator (Plan E).
 - [ ] **World gen no streaming** — disable streaming for world generation calls (generate_seed) since it's a single JSON output.
 
 ### Tooling
@@ -109,32 +109,32 @@ Full plans: [plans/llm-pipeline-accuracy.md](./plans/llm-pipeline-accuracy.md) �
 ### B — Reasoning Field in Extractor
 *Schema + 2-line Python strip. ~30–60 extra output tokens. Fixes quest/inventory misclassification.*
 
-- [ ] Add `_reasoning` as first key in `extract_system.j2` schema with field guidance
-- [ ] Add `_failed` as second key (populated by Plan C)
-- [ ] Verify `actions` is last key in schema definition order
-- [ ] Strip `_reasoning` and `_failed` in Python engine before applying delta
+- [x] Add `_reasoning` as first key in `extract_system.j2` schema with field guidance
+- [x] Add `failed` as second key (populated by Plan C)
+- [x] Verify `actions` is last key in schema definition order (removed — moved to narrate)
+- [x] Strip `_reasoning` in Python engine before applying delta
 
 ### C — Scope Boundaries via Rules Call
 *Extends existing rules call output. Fixes spurious cross-domain extraction and silent precondition failures.*
 
-- [ ] Add `scope` object to `rules_system.j2` output schema
-- [ ] Add domain-mapping guidance to `rules_system.j2`
-- [ ] Inject scope block at top of `extract_user.j2` from `rules_outcome.scope`
-- [ ] Add SKIP DOMAINS enforcement instruction to `extract_system.j2`
-- [ ] Log `_failed` in engine; optionally pass to next narration as `last_turn_failed`
+- [x] Add `scope` object to `rules_system.j2` output schema
+- [x] Add domain-mapping guidance to `rules_system.j2`
+- [x] Inject scope block at top of `extract_user.j2` from `rules_outcome.scope`
+- [x] Add SKIP DOMAINS enforcement instruction to `extract_system.j2`
+- [x] Log `failed` in engine; pass to next narration as `last_turn_failed`
 
 ### D — Active-Domain State Slicing
 *Python engine only. Depends on C. Reduces extractor input tokens on simple turns.*
 
-- [ ] Build `build_state_slice()` helper in Python engine
-- [ ] Pass sliced state into `extract_user.j2` instead of full state
-- [ ] Keep full state in `narrate_system.j2`
+- [x] Build `build_state_slice()` helper in Python engine
+- [x] Pass sliced state into `extract_user.j2` instead of full state
+- [x] Keep full state in `narrate_system.j2`
 
 ### E — `actions` Generation Placement
-*Verify key order first (free). Move to narrate call only if extraction errors persist.*
+*Move to narrate call — DONE.*
 
-- [ ] Confirm `actions` is last in `extract_system.j2` schema key order
-- [ ] Evaluate after B — move `actions` to narrate call if needed
+- [x] Confirm `actions` is last in `extract_system.j2` schema key order
+- [x] Move `actions` to narrate call (ACTIONS_JSON marker)
 
 ### F — Compaction Redesign
 *New prompt files + Python logic. Fixes fixed-cadence trigger.*

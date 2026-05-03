@@ -62,6 +62,8 @@ The rules call already parses intent (`intent`, `intent_verb`, `target`, `stakes
 
 ## Plan B: Reasoning Field in Extractor Schema
 
+### Status: **COMPLETE** (commit cc28a81)
+
 ### Problem
 `extract_system.j2` emits `state_delta` and `actions` as the two top-level keys. `actions` is a generative task (invent 4 choices) sitting alongside an analytical task (classify state changes). The model generates left-to-right — whatever comes first shapes what follows. Putting `actions` as a peer of `state_delta` without a checkpoint between them means the model can drift into creative mode mid-extraction.
 
@@ -113,6 +115,8 @@ delta = response.get("state_delta", {})
 ---
 
 ## Plan C: Scope Boundaries via Rules Call Enhancement
+
+### Status: **COMPLETE** (commit cc28a81)
 
 ### Problem
 The extractor evaluates all domains every turn regardless of what the player did. A pure dialogue turn still triggers full quest/inventory/location reasoning. This causes:
@@ -223,6 +227,8 @@ The following player actions did not succeed due to unmet conditions:
 
 ## Plan D: Active-Domain State Slicing (Extractor Only)
 
+### Status: **COMPLETE** (commit cc28a81)
+
 ### Problem
 `extract_user.j2` injects full game state every turn — full inventory, all quests, all established facts, all NPCs — even on turns where only 1-2 domains are active. This adds input tokens and model attention load for state the extractor doesn't need.
 
@@ -260,6 +266,8 @@ Pass `state_slice` into the extractor template instead of full game state.
 ---
 
 ## Plan E: `actions` Generation Placement
+
+### Status: **COMPLETE** (commit cc28a81)
 
 ### Problem
 `actions` (4 player choices) is generated in the same extractor call as state delta. These are fundamentally different tasks — state extraction is analytical (parse + classify), action generation is creative (invent + weight by stats). The creative task can cause the model to drift into generative mode mid-extraction.
@@ -421,23 +429,23 @@ def run_compaction(game_state):
 
 ## Summary: Changes by File
 
-| File | Change | Plan |
-|------|--------|------|
-| `ccya/prompts/sections/_chronicle.j2` | Add `PRIOR HISTORY` label wrapper | A |
-| `ccya/prompts/sections/_recent.j2` | Add `RECENT TURNS` label wrapper | A |
-| `ccya/prompts/extract_user.j2` | Add `CURRENT TURN NARRATION` label; inject scope block at top | A, C |
-| `ccya/prompts/extract_system.j2` | Add `_reasoning` and `_failed` after `state_delta`, before `actions`; add SKIP DOMAINS instruction | B, C |
-| `ccya/prompts/rules_system.j2` | Add `scope` object to output schema + domain-mapping guidance | C |
-| `ccya/prompts/narrate_system.j2` | Add `last_turn_failed` block (optional); add `actions` output if Option 1 chosen | C, E |
-| Python engine | Strip `_reasoning`/`_failed`; `build_state_slice()`; token-threshold compaction trigger; `_failed` logging | B, C, D, F |
-| `ccya/prompts/compact_system.j2` | New file | F |
-| `ccya/prompts/compact_user.j2` | New file | F |
+| File | Change | Plan | Status |
+|------|--------|------|--------|
+| `ccya/prompts/sections/_chronicle.j2` | Add `PRIOR HISTORY` label wrapper | A | Pending |
+| `ccya/prompts/sections/_recent.j2` | Add `RECENT TURNS` label wrapper | A | Pending |
+| `ccya/prompts/extract_user.j2` | Add `CURRENT TURN NARRATION` label; inject scope block at top | A, C | C done |
+| `ccya/prompts/extract_system.j2` | Add `_reasoning` after `state_delta`; add SKIP DOMAINS instruction; remove `actions` | B, C | B, C done |
+| `ccya/prompts/rules_system.j2` | Add `scope` object to output schema + domain-mapping guidance | C | Done |
+| `ccya/prompts/narrate_system.j2` | Add `last_turn_failed` block; add `actions` output (ACTIONS_JSON) | C, E | C, E done |
+| Python engine | Strip `_reasoning`; `build_state_slice()`; `_failed` logging; `_parse_actions_from_narrate()` | B, C, D, E | B, C, D, E done |
+| `ccya/prompts/compact_system.j2` | New file | F | Pending |
+| `ccya/prompts/compact_user.j2` | New file | F | Pending |
 
 ## Recommended Implementation Order
 
 1. **A** — labels (template only, zero risk, immediate signal)
-2. **B** — reasoning field (schema change + 2-line Python strip)
-3. **C** — scope boundaries (extends rules call + extractor)
-4. **D** — state slicing (depends on C being stable)
-5. **E** — actions placement (evaluate after B; implement if needed)
+2. **B** — reasoning field (schema change + 2-line Python strip) ✅
+3. **C** — scope boundaries (extends rules call + extractor) ✅
+4. **D** — state slicing (depends on C being stable) ✅
+5. **E** — actions placement (move to narrate call) ✅
 6. **F** — compaction redesign (current cadence is functional; do last)
