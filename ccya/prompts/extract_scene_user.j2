@@ -1,42 +1,21 @@
-## THIS TURN SCOPE
-Active domains: {{ rules_outcome.scope.active_domains | join(", ") if rules_outcome and rules_outcome.scope else "scene, present_npcs" }}
-{% if rules_outcome and rules_outcome.rolled %}
-Rules outcome: {{ rules_outcome.band | upper }} on {{ rules_outcome.skill }} — {{ rules_outcome.directive }}
+{% if rules_outcome and rules_outcome.rolled %}## rules_outcome
+{{ rules_outcome.band | upper }} on {{ rules_outcome.skill }} — {{ rules_outcome.directive }}
 {% endif %}
 
-## Player
+## pc
 {{ pc.name }} — {{ pc.tagline }}
 Stats: {% for k, v in (pc.stats or {}).items() %}{{ k }}={{ v }} {% endfor %}
-{% if conditions %}
-Conditions: {% for c in conditions %}{{ c.label if c is mapping else c }}{% if not loop.last %}, {% endif %}{% endfor %}
+{% if conditions %}Conditions: {% for c in conditions %}{{ c.label if c is mapping else c }}{% if not loop.last %}, {% endif %}{% endfor %}
 {% endif %}
 
-## Current location
-ID: `{{ location.id }}` | {{ location.name }}
+## location
+`{{ location.id }}` | {{ location.name }}
 {{ location.description }}
 
-{% if known_locations %}
-## Known locations
-{% for loc in known_locations %}— `{{ loc.id }}`: {{ loc.name }}
-{% endfor %}
-{% endif %}
+{% if npc_roster %}## npc_roster (reuse `id` for present_npcs; tags show why each is listed)
+{% for n in npc_roster %}- `{{ n.id }}` | {{ n.name }} [{{ n.tags | join(",") }}]{% if n.notes %} — {{ n.notes }}{% endif %}
+{% endfor %}{% endif %}
 
-## Known characters (reuse id for present_npcs; engine fills name/bio/title)
-{% if known_characters %}
-{% for row in known_characters %}— `{{ row.id }}`: {{ row.name }}
-{% endfor %}
-{% else %}
-None yet.
-{% endif %}
-
-## Previous turn NPCs (emit present_npcs to replace this list)
-{% if present_npcs %}
-{% for n in present_npcs %}— `{{ n.id if n is mapping else n }}` {{ n.name if n is mapping else n }}{% if n is mapping and n.get('notes') %} — {{ n.notes }}{% endif %}
-{% endfor %}
-{% else %}
-None listed.
-{% endif %}
-
-## CURRENT TURN NARRATION
+=== NARRATION ===
 {{ narration }}
-## END CURRENT TURN NARRATION
+=== END NARRATION ===

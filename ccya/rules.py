@@ -103,11 +103,22 @@ def compute_band(final_total: int, dice: tuple[int, int]) -> str:
     return "crit_success"
 
 
-def conditions_modifier(skill: str, conditions: list[str]) -> int:
-    """Sum all condition penalties that apply to the given skill."""
+def conditions_modifier(skill: str, conditions: list) -> int:
+    """Sum all condition penalties that apply to the given skill.
+
+    Accepts either plain strings (legacy) or structured Condition dicts
+    ({"id": ..., "label": ..., ...}). The id (or string) is matched against
+    CONDITION_MODS case-insensitively.
+    """
     total = 0
     for cond in conditions:
-        mods = CONDITION_MODS.get(cond.lower(), {})
+        if isinstance(cond, dict):
+            key = str(cond.get("id") or cond.get("label") or "").lower()
+        else:
+            key = str(cond or "").lower()
+        if not key:
+            continue
+        mods = CONDITION_MODS.get(key, {})
         total += mods.get(skill, 0)
     return total
 

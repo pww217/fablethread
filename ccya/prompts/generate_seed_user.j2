@@ -1,56 +1,36 @@
-## World Bible (non-negotiable canon)
+## world_bible (non-negotiable canon)
 {{ world_text }}
-
 {% if style_text %}
-## Tone and style
+## tone_and_style
 {{ style_text }}
 {% endif %}
-
 {% if scenario and scenario.inspiration %}
 {% set ins = scenario.inspiration %}
-## Creative direction (guidance only — do not borrow phrasing; do not pick the obvious answer)
-{% if ins.pc %}
-### PC
+## creative_direction (guidance only — do not borrow phrasing or pick the obvious answer)
+{% if ins.pc %}### pc
 {{ ins.pc }}
-{% endif %}
-{% if ins.opening_situation %}
-### Opening situation
+{% endif %}{% if ins.opening_situation %}### opening_situation
 {{ ins.opening_situation }}
-{% endif %}
-{% if ins.npcs %}
-### NPCs
+{% endif %}{% if ins.npcs %}### npcs
 {{ ins.npcs }}
-{% endif %}
-{% if ins.inventory %}
-### Inventory
+{% endif %}{% if ins.inventory %}### inventory
 {{ ins.inventory }}
-{% endif %}
-{% if ins.quests %}
-### Quest
+{% endif %}{% if ins.quests %}### quest
 {{ ins.quests }}
-{% endif %}
-{% endif %}
-
+{% endif %}{% endif %}
 {% if overrides %}
-## Player preferences (soft — honor when compatible with world canon)
-{% if overrides.pc_hints %}PC: {{ overrides.pc_hints }}{% endif %}
-{% if overrides.npc_hints %}NPCs: {{ overrides.npc_hints }}{% endif %}
-{% if overrides.location_hints %}Location: {{ overrides.location_hints }}{% endif %}
-{% if overrides.quest_hints %}Quest: {{ overrides.quest_hints }}{% endif %}
-{% if overrides.free_form %}Other: {{ overrides.free_form }}{% endif %}
-{% endif %}
-
+## player_overrides (soft — honor when compatible with canon)
+{% if overrides.pc_hints %}- pc: {{ overrides.pc_hints }}
+{% endif %}{% if overrides.npc_hints %}- npcs: {{ overrides.npc_hints }}
+{% endif %}{% if overrides.location_hints %}- location: {{ overrides.location_hints }}
+{% endif %}{% if overrides.quest_hints %}- quest: {{ overrides.quest_hints }}
+{% endif %}{% if overrides.free_form %}- other: {{ overrides.free_form }}
+{% endif %}{% endif %}
 {% if name_pool %}
-## Name pool (use these — do NOT invent generic Anglo names)
-These names were sampled from the cultural locales appropriate to this setting.
-**Use at least one of these for your PC or named NPCs.** Do NOT generate
-generic placeholder names like "John Smith", "Elias Thorne", "Marcus Cole",
-"Clara Miller", "Jared Quinn" — names that could appear in any setting.
-Draw from the cultural, linguistic, and ethnic mix plausible for this world.
-
-**PC candidates:** {{ name_pool.pc | join(", ") }}
-**NPC candidates:** {{ name_pool.npc | join(", ") }}
-**Place name inspiration:** {{ name_pool.location | join(", ") }}
+## name_pool (sampled from this setting's locales — use at least one)
+- pc candidates: {{ name_pool.pc | join(", ") }}
+- npc candidates: {{ name_pool.npc | join(", ") }}
+- place name inspiration: {{ name_pool.location | join(", ") }}
 {% endif %}
 
-Emit the SeedEnvelope JSON now. No prose outside the JSON object.
+Emit the SeedEnvelope JSON now.

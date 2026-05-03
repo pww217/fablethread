@@ -173,22 +173,24 @@ def _narrate_messages(
 ) -> list[dict[str, str]]:
     """Build narrate message list: [system, user].
 
-    system = stable rules + world state (maximises KV-cache reuse across turns)
-    user   = raw player input (volatile — never in system)
+    System carries the static narrative-style rules + the pack-stable genre tone
+    (byte-stable across turns within a save). The user prompt carries every
+    per-turn slice: state, chronicle, recent turns, rules outcome, NPC pool,
+    last-turn-failed, recently-left, and the player input itself.
     """
-    ctx = {
+    user_ctx = {
         "state": state,
         "chronicle_tail": chronicle_tail,
         "recent_turns": recent_turns,
-        "pack_style": pack_style,
         "rules_outcome": rules_outcome,
         "npc_name_pool": npc_name_pool,
         "last_turn_failed": last_turn_failed,
         "recently_left": recently_left,
         "recent_narrative_tail": recent_narrative_tail,
+        "user_input": user_input,
     }
-    system_text = _render(env, "narrate_system.j2", ctx)
-    user_text = _render(env, "narrate_user.j2", {"user_input": user_input})
+    system_text = _render(env, "narrate_system.j2", {"pack_style": pack_style})
+    user_text = _render(env, "narrate_user.j2", user_ctx)
     msgs = [
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
@@ -678,6 +680,39 @@ def _active_domains(intent: "IntentEnvelope | None") -> list[str]:
     ]
 
 
+def _scene_npc_roster(
+    present_npcs: list[Any], known_characters: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Build a deduped scene-NPC roster for the scene extractor user prompt.
+
+    Each row is ``{id, name, notes, tags}`` where tags ⊆ {"present", "compendium"}.
+    NPCs that appear in both lists merge into a single row with both tags.
+    """
+    by_id: dict[str, dict[str, Any]] = {}
+
+    def _put(nid: str, name: str, notes: str, tag: str) -> None:
+        if not nid:
+            return
+        row = by_id.setdefault(nid, {"id": nid, "name": "", "notes": "", "tags": []})
+        if name and not row["name"]:
+            row["name"] = name
+        if notes and not row["notes"]:
+            row["notes"] = notes
+        if tag not in row["tags"]:
+            row["tags"].append(tag)
+
+    for n in present_npcs or []:
+        if isinstance(n, dict):
+            _put(str(n.get("id") or ""), str(n.get("name") or ""), str(n.get("notes") or ""), "present")
+        elif isinstance(n, str):
+            _put(n, n, "", "present")
+
+    for row in known_characters or []:
+        _put(str(row.get("id") or ""), str(row.get("name") or ""), "", "compendium")
+
+    return list(by_id.values())
+
+
 def _extract_scene_messages(
     env: Environment,
     narration: str,
@@ -694,16 +729,8 @@ def _extract_scene_messages(
     present_npcs = list(scene.get("present_npcs") or [])
     conditions = list(pc.get("conditions") or [])
     known_characters = _known_characters_for_extract(state, compact=True)
-    scope = intent.scope if intent else Scope()
     active = _active_domains(intent)
-
-    # Known locations only when location change is plausible
-    known_locations: list[dict[str, Any]] = []
-    if "location_change" in active:
-        known_locations = list((state.get("scene") or {}).get("world_state") or [])
-        # Pull named location entries from quests context if available — not critical
-        # Use compendium location-type entries if any exist
-        known_locations = []  # simplified: location ids come from narration context
+    npc_roster = _scene_npc_roster(present_npcs, known_characters)
 
     system_text = _render(env, "extract_scene_system.j2", {})
     user_text = _render(
@@ -713,10 +740,8 @@ def _extract_scene_messages(
             "narration": narration,
             "pc": pc,
             "location": location,
-            "present_npcs": present_npcs,
             "conditions": conditions,
-            "known_characters": known_characters,
-            "known_locations": known_locations,
+            "npc_roster": npc_roster,
             "rules_outcome": rules_outcome,
             "active_domains": active,
         },
@@ -761,11 +786,7 @@ def _extract_state_messages(
         ],
     }
 
-    system_text = _render(
-        env,
-        "extract_state_system.j2",
-        {"rules_outcome": rules_outcome},
-    )
+    system_text = _render(env, "extract_state_system.j2", {})
     user_text = _render(
         env,
         "extract_state_user.j2",
@@ -787,6 +808,30 @@ def _extract_state_messages(
     if enable_thinking:
         msgs = apply_thinking(msgs, True)
     return msgs
+
+
+def _quest_threshold_directive(active_quests: list[dict[str, Any]]) -> str:
+    """One-line guidance for the progress extractor on whether to start a new quest.
+
+    Computed in Python to keep the system prompt byte-stable; the resulting
+    sentence is injected into the user prompt only.
+    """
+    n = len(active_quests)
+    if n == 0:
+        return (
+            "No active quests. Bar for starting a new quest is LOW — any goal that takes "
+            "more than one turn (a journey, errand, finding someone, resolving a conflict, "
+            "delivering something) qualifies."
+        )
+    if n >= 3:
+        return (
+            f"{n} active quests already. Bar is HIGH — only start a new quest for a major "
+            "new obligation clearly distinct from all existing quests."
+        )
+    return (
+        "Start a new quest only if the narration introduces a clear multi-turn goal "
+        "distinct from existing quests."
+    )
 
 
 def _extract_progress_messages(
@@ -824,16 +869,7 @@ def _extract_progress_messages(
         "items_lost": [it.id for it in state_result.inventory_remove],
     }
 
-    system_text = _render(
-        env,
-        "extract_progress_system.j2",
-        {
-            "active_quests": active_quests,
-            "rules_outcome": rules_outcome,
-            "state_result_items_gained": state_ctx["items_gained"],
-            "state_result_items_lost": state_ctx["items_lost"],
-        },
-    )
+    system_text = _render(env, "extract_progress_system.j2", {})
     user_text = _render(
         env,
         "extract_progress_user.j2",
@@ -848,6 +884,7 @@ def _extract_progress_messages(
             "state_result": state_ctx,
             "rules_outcome": rules_outcome,
             "active_domains": active,
+            "quest_threshold_directive": _quest_threshold_directive(active_quests),
         },
     )
     msgs = [
@@ -877,8 +914,8 @@ async def _call_stream(
     phase: str,
     model_cls: type,
     strip_keys: tuple[str, ...] = ("_reasoning",),
-) -> tuple[Any, dict[str, Any]]:
-    """Call llm_chat with retry. Returns (parsed_result, usage_dict)."""
+) -> tuple[Any, dict[str, Any], int]:
+    """Call llm_chat with retry. Returns (parsed_result, usage_dict, attempts_used)."""
     parse_error = ""
     usage: dict[str, Any] = {}
     for attempt in range(1 + config.max_extract_retries):
@@ -906,7 +943,7 @@ async def _call_stream(
                 max_chars=config.log_llm_io_max_chars,
             )
         try:
-            return _parse_stream_result(raw, model_cls, strip_keys), usage
+            return _parse_stream_result(raw, model_cls, strip_keys), usage, attempt + 1
         except Exception as exc:
             parse_error = str(exc)
             _log.warning(
@@ -949,7 +986,13 @@ async def _run_extraction_pipeline(
     skip = set(scope.skip_domains or [])
     active = _active_domains(intent)
 
-    _SKIPPED: dict[str, Any] = {"skipped": True, "tokens_in": 0, "tokens_out": 0, "ms": 0}
+    _SKIPPED: dict[str, Any] = {
+        "skipped": True,
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "ms": 0,
+        "attempts": 0,
+    }
 
     # Defaults if a stream is skipped
     scene_result = SceneExtractResult()
@@ -972,7 +1015,7 @@ async def _run_extraction_pipeline(
     rendered_scene_user = scene_msgs[-1]["content"]
 
     try:
-        scene_result, scene_usage = await _call_stream(
+        scene_result, scene_usage, scene_attempts = await _call_stream(
             scene_msgs, config, trace_id, "extract_scene", SceneExtractResult
         )
         extraction_event["scene"] = {
@@ -980,6 +1023,7 @@ async def _run_extraction_pipeline(
             "rendered_user": rendered_scene_user,
             "output": scene_result.model_dump(),
             "skipped": False,
+            "attempts": scene_attempts,
             "tokens_in": scene_usage.get("prompt_tokens", 0),
             "tokens_out": scene_usage.get("total_tokens", 0),
             "ms": round((asyncio.get_event_loop().time() - t_scene) * 1000, 1),
@@ -1008,7 +1052,7 @@ async def _run_extraction_pipeline(
         rendered_state_user = state_msgs[-1]["content"]
 
         try:
-            state_result, state_usage = await _call_stream(
+            state_result, state_usage, state_attempts = await _call_stream(
                 state_msgs, config, trace_id, "extract_state",
                 StateExtractResult, strip_keys=("_reasoning",),
             )
@@ -1017,6 +1061,7 @@ async def _run_extraction_pipeline(
                 "rendered_user": rendered_state_user,
                 "output": state_result.model_dump(),
                 "skipped": False,
+                "attempts": state_attempts,
                 "tokens_in": state_usage.get("prompt_tokens", 0),
                 "tokens_out": state_usage.get("total_tokens", 0),
                 "ms": round((asyncio.get_event_loop().time() - t_state) * 1000, 1),
@@ -1048,7 +1093,7 @@ async def _run_extraction_pipeline(
         rendered_prog_user = progress_msgs[-1]["content"]
 
         try:
-            progress_result, prog_usage = await _call_stream(
+            progress_result, prog_usage, progress_attempts = await _call_stream(
                 progress_msgs, config, trace_id, "extract_progress",
                 ProgressExtractResult, strip_keys=("_reasoning",),
             )
@@ -1057,6 +1102,7 @@ async def _run_extraction_pipeline(
                 "rendered_user": rendered_prog_user,
                 "output": progress_result.model_dump(),
                 "skipped": False,
+                "attempts": progress_attempts,
                 "tokens_in": prog_usage.get("prompt_tokens", 0),
                 "tokens_out": prog_usage.get("total_tokens", 0),
                 "ms": round((asyncio.get_event_loop().time() - t_progress) * 1000, 1),
@@ -1484,10 +1530,14 @@ async def run_turn(
         narrative = ""
 
         # --- Memory: load chronicle tail + recent turns ---
-        chronicle_tail = load_chronicle_tail(
-            save_dir, config.chronicle_prefix_budget_tokens
-        )
+        # chronicle_tail is older history (compressed); recent_turns is the rolling
+        # window. Slice the last window_turns from the tail to avoid overlap.
         recent_turns = load_recent_chronicle_turns(save_dir, config.window_turns)
+        chronicle_tail = load_chronicle_tail(
+            save_dir,
+            config.chronicle_prefix_budget_tokens,
+            skip_last_n_turns=config.window_turns,
+        )
 
         # Load failed preconditions from the most recent event (for narrate feedback)
         last_events = load_recent_events(save_dir, 1)
@@ -1516,11 +1566,17 @@ async def run_turn(
         outcome: RulesOutcome
         if intent.check.required and intent.check.skill:
             try:
+                # Normalize structured Condition dicts to ids for the rules engine.
+                _pc_conds_struct = list((state.get("pc") or {}).get("conditions") or [])
+                _pc_cond_ids = [
+                    c.get("id", "") if isinstance(c, dict) else str(c)
+                    for c in _pc_conds_struct
+                ]
                 outcome = rules_engine.resolve_check(
                     skill=intent.check.skill,
                     difficulty=intent.check.difficulty,
                     pc_stats=(state.get("pc") or {}).get("stats") or {},
-                    pc_conditions=list((state.get("pc") or {}).get("conditions") or []),
+                    pc_conditions=[cid for cid in _pc_cond_ids if cid],
                     intent_verb=intent.intent_verb,
                     intent=intent.intent,
                 )
@@ -1749,11 +1805,12 @@ async def run_turn(
 
         if delta is not None:
             rejected = _validate(state, delta)
-            if rejected:
+            blocking = [r for r in rejected if r.get("kind") != "warn_overdraw"]
+            if blocking:
                 errors.append(
                     {
                         "trace_id": trace_id,
-                        "message": f"Delta validation failed ({len(rejected)} rejection(s)).",
+                        "message": f"Delta validation failed ({len(blocking)} rejection(s)).",
                     }
                 )
                 narrative += f"\n\n*That action didn't resolve as expected. Trace `{trace_id}` — try rephrasing.*"
@@ -1763,6 +1820,13 @@ async def run_turn(
                 )
                 recent_events = list(delta.recent_events_add)
                 applied = delta.model_dump(exclude_none=True)
+                for r in rejected:
+                    if r.get("kind") == "warn_overdraw":
+                        _log.warning(
+                            "inventory over-draw clamped: %s",
+                            r.get("reason"),
+                            extra={"trace_id": trace_id},
+                        )
 
         # Decay recently_left counter (engine-side, not in state.py).
         scene = state.get("scene", {})
@@ -1818,6 +1882,7 @@ async def run_turn(
             "trace_id": trace_id,
             "turn": state["meta"]["turn"],
             "input": user_input,
+            "engine_expired_conditions": list(engine_expired_conditions),
             "applied": applied,
             "rejected": rejected,
             "actions": actions,
@@ -1894,17 +1959,52 @@ async def run_turn(
 
 
 def _validate(state: dict, delta: StateDelta) -> list[dict]:
-    """Strict delta validator. Returns rejection dicts for illegal changes."""
+    """Strict delta validator. Returns rejection dicts for illegal changes.
+
+    Note: an over-draw on ``inventory_remove.amount`` (asking to remove more than
+    is in stock) is recorded as a non-blocking ``warn_overdraw`` rejection — the
+    delta still applies (``apply_delta`` clamps to a full-stack remove), but the
+    discrepancy is surfaced in the event log so we can tell when the model
+    miscounted ammunition / consumables.
+    """
     rejections: list[dict] = []
 
     inv_list: list[dict] = state.get("inventory", [])
+    inv_by_id: dict[str, dict] = {
+        str(it.get("id", "")): it for it in inv_list if isinstance(it, dict)
+    }
     for rem in delta.inventory_remove:
-        if resolve_inventory_remove_target(inv_list, rem.id) is None:
+        canonical = resolve_inventory_remove_target(inv_list, rem.id)
+        if canonical is None:
             rejections.append(
                 {
                     "field": "inventory_remove",
                     "value": rem.id,
                     "reason": f"Inventory item '{rem.id}' does not exist",
+                }
+            )
+            continue
+        if rem.amount is None:
+            continue
+        try:
+            requested = int(rem.amount)
+        except (TypeError, ValueError):
+            continue
+        if requested <= 0:
+            continue
+        current = int(inv_by_id.get(canonical, {}).get("amount") or 1)
+        if requested > current:
+            rejections.append(
+                {
+                    "field": "inventory_remove",
+                    "kind": "warn_overdraw",
+                    "value": canonical,
+                    "requested": requested,
+                    "current": current,
+                    "reason": (
+                        f"Over-draw on '{canonical}': requested {requested} but stack is {current}. "
+                        "apply_delta will clamp to a full-stack remove."
+                    ),
                 }
             )
 
@@ -1924,11 +2024,14 @@ def _build_generate_seed_messages(
     pack: Pack,
     overrides: PlayerOverrides | None = None,
 ) -> list[dict[str, str]]:
-    """Build the [system, user] messages for generate_seed."""
-    schema_json = SeedEnvelope.model_json_schema()
+    """Build the [system, user] messages for generate_seed.
+
+    The system prompt carries hand-written TS-style schema + canon rules and is
+    pack-stable. The user prompt carries the world bible, scenario inspiration,
+    player overrides, and name pool — all per-new-game.
+    """
     name_pool = generate_name_pool(pack.manifest.name_locales)
     ctx = {
-        "schema_json": json.dumps(schema_json, indent=2),
         "world_text": pack.world_text,
         "style_text": pack.style_text,
         "scenario": pack.scenario,

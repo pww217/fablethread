@@ -139,15 +139,16 @@ class TestJinjaRender:
         text = env.get_template("generate_seed_user.j2").render(**ctx)
         assert "Alice" in text
         assert "Springfield" in text
-        assert "do NOT invent generic Anglo names" in text
+        assert "name_pool" in text
 
     def test_generate_seed_user_without_name_pool(self):
         env = self._env()
         ctx = {"name_pool": None}
         text = env.get_template("generate_seed_user.j2").render(**ctx)
-        assert "non-binding suggestions" not in text
+        assert "name_pool" not in text
 
-    def test_narrate_system_with_npc_name_pool(self):
+    def test_narrate_user_with_npc_name_pool(self):
+        """Per-turn NPC name pool now lives in the user prompt (cache stability)."""
         env = self._env()
         ctx = {
             "npc_name_pool": ["Yuki Tanaka", "Carlos Mendez", "Fatima Al-Rashid"],
@@ -156,34 +157,26 @@ class TestJinjaRender:
                 "location": {},
                 "inventory": [],
                 "quests": [],
-                "scene": {},
+                "scene": {"present_npcs": []},
                 "meta": {},
             },
             "chronicle_tail": "",
             "recent_turns": [],
-            "pack_style": "",
             "rules_outcome": None,
+            "user_input": "look",
+            "last_turn_failed": [],
+            "recently_left": [],
+            "recent_narrative_tail": "",
         }
-        text = env.get_template("narrate_system.j2").render(**ctx)
+        text = env.get_template("narrate_user.j2").render(**ctx)
         assert "Yuki Tanaka" in text
-        assert "do NOT reuse names from previous turns" in text
+        assert "name_pool" in text
 
-    def test_narrate_system_without_npc_name_pool(self):
+    def test_narrate_system_byte_stable_without_per_turn_data(self):
+        """Narrate system prompt must not contain per-turn NPC names or pools."""
         env = self._env()
-        ctx = {
-            "npc_name_pool": [],
-            "state": {
-                "pc": {"name": "Test", "tagline": "tester", "concept": ""},
-                "location": {},
-                "inventory": [],
-                "quests": [],
-                "scene": {},
-                "meta": {},
-            },
-            "chronicle_tail": "",
-            "recent_turns": [],
-            "pack_style": "",
-            "rules_outcome": None,
-        }
-        text = env.get_template("narrate_system.j2").render(**ctx)
-        assert "culturally appropriate" not in text
+        text = env.get_template("narrate_system.j2").render(pack_style="")
+        # No per-turn dynamic content should leak into system
+        assert "Yuki Tanaka" not in text
+        assert "## name_pool" not in text
+        assert "rules_outcome" not in text

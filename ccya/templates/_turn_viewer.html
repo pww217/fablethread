@@ -5,112 +5,344 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Turn Viewer — ccya</title>
     <link rel="stylesheet" href="/static/app.css?v={{ css_v }}">
+    <link rel="stylesheet" href="/static/vendor/highlight-atom-one-dark.min.css?v={{ css_v }}">
+    <script defer src="/static/vendor/marked.min.js" crossorigin></script>
+    <script defer src="/static/vendor/highlight.min.js" crossorigin></script>
     <script defer src="/static/vendor/alpine.min.js" crossorigin></script>
 </head>
 <body>
-<div class="turn-viewer-page">
+{% if turns and turns | length > 0 %}
+<div
+    class="turn-viewer-page"
+    id="tv-root"
+    x-data="tvRoot({{ turns | tojson }})"
+    x-init="init()"
+    @keydown.escape.window="filterText = ''"
+>
     <div class="turn-viewer-header">
         <span class="turn-viewer-title">Turn Viewer</span>
-        <span class="turn-viewer-meta">{{ turn_count }} turns loaded</span>
+        <span class="turn-viewer-meta"><span x-text="turns.length"></span> turns loaded</span>
         <div class="turn-viewer-actions">
-            <button class="turn-viewer-refresh-btn" id="tv-refresh" title="Reload from events.jsonl">↻</button>
+            <span class="turn-viewer-live" x-show="liveConnected" title="Live updates">● live</span>
+            <button type="button" class="turn-viewer-refresh-btn" id="tv-refresh" title="Reload from events.jsonl">↻</button>
             <a href="/" class="turn-viewer-back-btn">← Game</a>
         </div>
     </div>
+    <div class="turn-viewer-filter-bar" x-show="turns.length">
+        <input type="search" class="tv-filter-input" placeholder="Filter by input…" x-model="filterText">
+        <label class="tv-filter-toggle"><input type="checkbox" x-model="onlyRejected"> rejections only</label>
+    </div>
     <div class="turn-viewer-body" id="tv-body">
-        {% if turns and turns | length > 0 %}
-        <div x-data="{
-            turns: {{ turns | tojson }},
-            expandedTurns: {},
-            stageTabs: {},
-            toggleTurn(key) { this.expandedTurns[key] = !this.expandedTurns[key]; },
-            toggleTab(turn, stage) {
-                const k = turn + '-' + stage;
-                this.stageTabs[k] = this.stageTabs[k] === 'prompt' ? 'output' : 'prompt';
-            }
-        }">
-            <template x-for="(t, idx) in turns" :key="idx">
-                <div class="tv-turn-card">
-                    <!-- Turn Header -->
-                    <div class="tv-turn-header">
-                        <div class="tv-turn-number">Turn <span x-text="t.turn"></span></div>
-                        <div class="tv-turn-input" x-text="t.user_input"></div>
-                        <div class="tv-turn-meta">
-                            <span x-text="t.trace_id"></span>
-                            <span x-text="t.total_tokens_in_display + ' in'"></span>
-                            <span x-text="t.total_tokens_out_display + ' out'"></span>
-                            <span x-show="t.has_rejections" style="color:var(--accent-error)">rejections</span>
-                        </div>
+        <template x-if="visibleTurns().length === 0">
+            <div class="turn-viewer-empty">No turns match filter.</div>
+        </template>
+        <template x-for="(t, idx) in visibleTurns()" :key="t.trace_id_full || (String(t.turn) + '-' + idx)">
+            <div class="tv-turn-card">
+                <div class="tv-turn-header">
+                    <div class="tv-turn-number">Turn <span x-text="t.turn"></span></div>
+                    <div class="tv-turn-input" x-text="t.user_input"></div>
+                    <div class="tv-turn-meta">
+                        <span x-text="t.trace_id"></span>
+                        <span x-text="t.total_tokens_in_display + ' in'"></span>
+                        <span x-text="t.total_tokens_out_display + ' out'"></span>
+                        <span x-show="t.has_rejections" class="tv-meta-rejected">rejected</span>
+                        <span x-show="t.has_retries" class="tv-meta-retried">retries</span>
                     </div>
+                </div>
 
-                    <!-- Expand All -->
-                    <div class="tv-turn-expand-row">
-                        <button class="tv-expand-all-btn" @click="toggleTurn('turn-' + t.turn)">
-                            <span x-text="expandedTurns['turn-' + t.turn] ? 'Collapse All' : 'Expand All'"></span>
-                        </button>
-                    </div>
+                <div class="tv-turn-expand-row">
+                    <button type="button" class="tv-expand-all-btn" @click="toggleExpandAllForTurn(t.turn)">
+                        <span x-text="allExpandedForTurn(t.turn) ? 'Collapse all stages' : 'Expand all stages'"></span>
+                    </button>
+                </div>
 
-                    <!-- Pipeline Stages -->
-                    <div class="tv-pipeline">
-                        <template x-for="stage in ['rules', 'narrate', 'scene', 'state', 'progress']" :key="stage">
-                            <div class="tv-pipeline-stage">
-                                <div class="tv-stage-header" @click="toggleTurn('turn-' + t.turn)">
-                                    <span x-text="stage"></span>
+                <div class="tv-pipeline">
+                    <template x-for="stage in stages" :key="t.turn + '-' + stage">
+                        <div class="tv-stage-wrap">
+                            <template x-for="c in connectorsBefore(t, stage)" :key="c.before_stage + '-' + (c.segments[0] ? c.segments[0].label : '')">
+                                <div class="tv-flow-block">
+                                    <template x-for="seg in c.segments" :key="seg.label + '-' + seg.from">
+                                        <div class="tv-flow-segment" :class="seg.upstream_status_class">
+                                            <div class="tv-flow-line" :class="'tv-flow-line--' + (seg.upstream_status || 'ok')"></div>
+                                            <div class="tv-flow-pill" @click.prevent="flashStage(t.turn, seg.anchor)">
+                                                <div class="tv-flow-pill-label" x-text="seg.label"></div>
+                                                <template x-for="ln in seg.lines" :key="ln.k + '-' + String(ln.v).slice(0,48)">
+                                                    <div class="tv-flow-line-kv" :class="{ 'dim': ln.dim }">
+                                                        <span class="k" x-text="ln.k"></span>
+                                                        <span class="v" x-text="ln.v"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <div
+                                class="tv-pipeline-stage"
+                                :id="'tv-s-' + t.turn + '-' + stage"
+                                :class="stageClasses(t, stage)"
+                            >
+                                <div class="tv-stage-accent"></div>
+                                <div class="tv-stage-header" @click="toggleStage(t.turn, stage)">
+                                    <span class="tv-stage-name" x-text="stage"></span>
+                                    <span class="tv-stage-status" x-text="t.streams[stage].status"></span>
                                     <span class="tv-stage-badge">
+                                        <span class="tv-token-bar-wrap" :title="'tokens ' + (t.streams[stage].token_sum || 0)">
+                                            <span class="tv-token-bar" :style="'width:' + (t.streams[stage].token_bar_pct || 0) + '%'"></span>
+                                        </span>
                                         <span x-text="t.streams[stage].tt"></span>
                                         <span x-text="t.streams[stage].tokens_in_display + ' / ' + t.streams[stage].tokens_out_display"></span>
                                     </span>
-                                    <span class="tv-stage-chevron" :class="{ 'open': expandedTurns['turn-' + t.turn] }">▶</span>
+                                    <span class="tv-stage-chevron" :class="{ 'open': expandedKey(t.turn, stage) }">▶</span>
                                 </div>
-                                <div class="tv-stage-body" x-show="expandedTurns['turn-' + t.turn]">
+
+                                <div class="tv-stage-body" x-show="expandedKey(t.turn, stage)">
+                                    <template x-if="stage === 'state' && t.engine_expired_conditions && t.engine_expired_conditions.length">
+                                        <div class="tv-ttl-chip">
+                                            TTL removed:
+                                            <template x-for="ex in t.engine_expired_conditions" :key="(ex.id || ex.label || '?') + '-' + $index">
+                                                <span class="tv-chip" x-text="ex.id || ex.label || '?'"></span>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template x-if="stage === 'state' && t.state_rejections && t.state_rejections.length">
+                                        <div class="tv-rejection-banner">
+                                            <template x-for="r in t.state_rejections" :key="(r.value || '') + '-' + (r.reason || '') + '-' + $index">
+                                                <div x-text="(r.field || '') + ': ' + (r.reason || '')"></div>
+                                            </template>
+                                        </div>
+                                    </template>
+
                                     <div x-show="t.streams[stage].skipped" class="tv-skipped">Skipped</div>
                                     <div x-show="!t.streams[stage].skipped">
+                                        <template x-if="stage === 'rules' && t.rules_intent">
+                                            <dl class="tv-rules-dl">
+                                                <template x-if="t.rules_intent.intent"><dt>intent</dt><dd x-text="t.rules_intent.intent"></dd></template>
+                                                <template x-if="t.rules_intent.intent_verb"><dt>intent_verb</dt><dd x-text="t.rules_intent.intent_verb"></dd></template>
+                                                <template x-if="t.rules_intent.target"><dt>target</dt><dd x-text="t.rules_intent.target"></dd></template>
+                                                <template x-if="t.rules_intent.stakes"><dt>stakes</dt><dd x-text="t.rules_intent.stakes"></dd></template>
+                                                <template x-if="t.rules_intent.check">
+                                                    <dt>check</dt>
+                                                    <dd><pre class="tv-inline-json" x-text="JSON.stringify(t.rules_intent.check, null, 2)"></pre></dd>
+                                                </template>
+                                                <template x-if="t.rules_intent.scope">
+                                                    <dt>scope</dt>
+                                                    <dd><pre class="tv-inline-json" x-text="JSON.stringify(t.rules_intent.scope, null, 2)"></pre></dd>
+                                                </template>
+                                            </dl>
+                                        </template>
+
                                         <div x-show="t[stage + '_prompt'] && (t[stage + '_prompt'].system || t[stage + '_prompt'].user || t[stage + '_prompt'].output)">
                                             <div class="tv-prompt-output-tabs">
-                                                <button class="tv-tab-btn" :class="{ 'active': stageTabs[t.turn + '-' + stage] !== 'output' }" @click="toggleTab(t.turn, stage)">Prompt</button>
-                                                <button class="tv-tab-btn" :class="{ 'active': stageTabs[t.turn + '-' + stage] === 'output' }" @click="toggleTab(t.turn, stage)">Output</button>
+                                                <button type="button" class="tv-tab-btn" :class="{ 'active': tabKey(t.turn, stage) !== 'output' }" @click="setTab(t.turn, stage, 'prompt')">Prompt</button>
+                                                <button type="button" class="tv-tab-btn" :class="{ 'active': tabKey(t.turn, stage) === 'output' }" @click="setTab(t.turn, stage, 'output')">Output</button>
                                             </div>
 
-                                            <!-- Prompt Tab -->
-                                            <div class="tv-content-panel" x-show="stageTabs[t.turn + '-' + stage] !== 'output'">
+                                            <div class="tv-content-panel" x-show="tabKey(t.turn, stage) !== 'output'">
                                                 <div class="tv-prompt-block" x-show="t[stage + '_prompt'].system">
-                                                    <div class="tv-prompt-label">System</div>
-                                                    <div class="tv-prompt-text" x-text="t[stage + '_prompt'].system"></div>
+                                                    <div class="tv-prompt-label-row">
+                                                        <span class="tv-prompt-label">System</span>
+                                                        <button type="button" class="tv-sys-toggle" @click.stop="toggleSystem(t.turn, stage)" x-text="systemOpen(t.turn, stage) ? 'Collapse' : ('Expand (~' + approxTokens(t[stage + '_prompt'].system) + ' tok)')"></button>
+                                                    </div>
+                                                    <div class="tv-prompt-text markdown" x-show="systemOpen(t.turn, stage)" x-html="mdText(t[stage + '_prompt'].system)"></div>
                                                 </div>
                                                 <div class="tv-prompt-block" x-show="t[stage + '_prompt'].user">
                                                     <div class="tv-prompt-label">User</div>
-                                                    <div class="tv-prompt-text" x-text="t[stage + '_prompt'].user"></div>
+                                                    <div class="tv-prompt-text markdown" x-html="mdText(t[stage + '_prompt'].user)"></div>
                                                 </div>
                                                 <div class="tv-no-prompt" x-show="!t[stage + '_prompt'].system && !t[stage + '_prompt'].user">No prompt data available</div>
                                             </div>
 
-                                            <!-- Output Tab -->
-                                            <div class="tv-content-panel" x-show="stageTabs[t.turn + '-' + stage] === 'output'">
-                                                <div class="tv-output-text markdown" x-html="t[stage + '_prompt'].output || ''"></div>
+                                            <div class="tv-content-panel" x-show="tabKey(t.turn, stage) === 'output'">
+                                                <template x-if="stage === 'narrate'">
+                                                    <div class="tv-output-text markdown" x-html="mdNarrative(t)"></div>
+                                                </template>
+                                                <template x-if="stage !== 'narrate'">
+                                                    <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t[stage + '_prompt'] ? (t[stage + '_prompt'].output || '') : '')"></code></pre>
+                                                </template>
                                                 <div class="tv-no-prompt" x-show="!t[stage + '_prompt'].output">No output data available</div>
                                             </div>
                                         </div>
 
-                                        <!-- Fallback if no prompt data -->
                                         <div class="tv-no-prompt" x-show="!t[stage + '_prompt'] || (!t[stage + '_prompt'].system && !t[stage + '_prompt'].user && !t[stage + '_prompt'].output)">
                                             No data for this stage
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </template>
-                    </div>
+                        </div>
+                    </template>
                 </div>
-            </template>
+            </div>
+        </template>
+    </div>
+</div>
+{% else %}
+<div class="turn-viewer-page">
+    <div class="turn-viewer-header">
+        <span class="turn-viewer-title">Turn Viewer</span>
+        <span class="turn-viewer-meta">{{ turn_count }} turns loaded</span>
+        <div class="turn-viewer-actions">
+            <button type="button" class="turn-viewer-refresh-btn" id="tv-refresh" title="Reload from events.jsonl">↻</button>
+            <a href="/" class="turn-viewer-back-btn">← Game</a>
         </div>
-        {% elif no_events %}
+    </div>
+    <div class="turn-viewer-body" id="tv-body">
+        {% if no_events %}
         <div class="turn-viewer-no-events">No events found. Start a game to generate turn data.</div>
         {% else %}
         <div class="turn-viewer-empty">No turns recorded yet.</div>
         {% endif %}
     </div>
 </div>
+{% endif %}
+
 <script>
+function tvHighlightCode(el) {
+    if (!el || typeof hljs === 'undefined') return;
+    if (el.dataset.highlighted === 'yes') return;
+    try { hljs.highlightElement(el); } catch (e) {}
+}
+
+function tvInitJsonBlock(el, raw) {
+    if (el.getAttribute('data-raw') === raw && el.dataset.highlighted === 'yes') return;
+    el.setAttribute('data-raw', raw);
+    delete el.dataset.highlighted;
+    el.textContent = raw;
+    tvHighlightCode(el);
+}
+
+function tvRoot(initialTurns) {
+    return {
+        turns: Array.isArray(initialTurns) ? initialTurns : [],
+        filterText: '',
+        onlyRejected: false,
+        expanded: {},
+        stageTabs: {},
+        systemOpenMap: {},
+        liveConnected: false,
+        _es: null,
+        stages: ['rules', 'narrate', 'scene', 'state', 'progress'],
+        init() {
+            var self = this;
+            if (typeof marked !== 'undefined' && marked.use) {
+                marked.use({ gfm: true, breaks: false });
+            }
+            this.$nextTick(function() { self.hlAllVisibleJson(); });
+            this.startLive();
+        },
+        stageClasses(t, stage) {
+            var a = (t.streams[stage] && t.streams[stage].status_class) || '';
+            var b = (t.streams[stage] && t.streams[stage].stage_class) || '';
+            return (a + ' ' + b).trim();
+        },
+        approxTokens(s) {
+            if (!s) return 0;
+            return Math.max(1, Math.round(String(s).length / 4));
+        },
+        expandedKey(turn, stage) {
+            return !!this.expanded['t' + turn + '-' + stage];
+        },
+        toggleStage(turn, stage) {
+            var k = 't' + turn + '-' + stage;
+            this.expanded[k] = !this.expanded[k];
+        },
+        toggleExpandAllForTurn(turn) {
+            var on = !this.allExpandedForTurn(turn);
+            var self = this;
+            this.stages.forEach(function(st) {
+                self.expanded['t' + turn + '-' + st] = on;
+            });
+            this.$nextTick(function() { self.hlAllVisibleJson(); });
+        },
+        allExpandedForTurn(turn) {
+            var self = this;
+            return this.stages.every(function(st) { return self.expanded['t' + turn + '-' + st]; });
+        },
+        tabKey(turn, stage) {
+            var k = turn + '-' + stage;
+            return this.stageTabs[k] === 'output' ? 'output' : 'prompt';
+        },
+        setTab(turn, stage, which) {
+            this.stageTabs[turn + '-' + stage] = which === 'output' ? 'output' : 'prompt';
+        },
+        systemOpen(turn, stage) {
+            return !!this.systemOpenMap[turn + '-' + stage];
+        },
+        toggleSystem(turn, stage) {
+            var k = turn + '-' + stage;
+            this.systemOpenMap[k] = !this.systemOpenMap[k];
+        },
+        connectorsBefore(t, stage) {
+            return (t.connectors || []).filter(function(c) { return c.before_stage === stage; });
+        },
+        flashStage(turn, anchor) {
+            var el = document.getElementById('tv-s-' + turn + '-' + anchor);
+            if (!el) return;
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            el.classList.add('tv-flash');
+            setTimeout(function() { el.classList.remove('tv-flash'); }, 900);
+        },
+        mdNarrative(t) {
+            var raw = (t.narrate_prompt && t.narrate_prompt.output) ? String(t.narrate_prompt.output) : '';
+            return this.mdText(raw);
+        },
+        mdText(s) {
+            if (!s) return '';
+            if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
+                try { return marked.parse(String(s)); } catch (e) {}
+            }
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+        },
+        visibleTurns() {
+            var ft = (this.filterText || '').toLowerCase();
+            var onlyR = this.onlyRejected;
+            return this.turns.filter(function(t) {
+                if (onlyR && !t.has_rejections) return false;
+                if (!ft) return true;
+                return String(t.user_input || '').toLowerCase().indexOf(ft) !== -1;
+            });
+        },
+        hlAllVisibleJson() {
+            document.querySelectorAll('.tv-pipeline-stage code.language-json').forEach(function(el) {
+                var raw = el.getAttribute('data-raw') || el.textContent || '';
+                tvInitJsonBlock(el, raw);
+            });
+        },
+        mergeTurnsFromServer(newTurns) {
+            if (!Array.isArray(newTurns) || !newTurns.length) return;
+            var seen = {};
+            this.turns.forEach(function(t) { if (t.trace_id_full) seen[t.trace_id_full] = true; });
+            var prepend = [];
+            for (var i = 0; i < newTurns.length; i++) {
+                if (newTurns[i].trace_id_full && !seen[newTurns[i].trace_id_full]) prepend.push(newTurns[i]);
+            }
+            if (!prepend.length) return;
+            this.turns = prepend.concat(this.turns);
+        },
+        startLive() {
+            var self = this;
+            if (!window.EventSource) return;
+            try {
+                this._es = new EventSource('/turn_viewer/stream');
+                this.liveConnected = true;
+                this._es.addEventListener('updated', function() {
+                    fetch('/turn_viewer/data')
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (data && data.turns) self.mergeTurnsFromServer(data.turns);
+                        })
+                        .catch(function() {});
+                });
+                this._es.onerror = function() { self.liveConnected = false; };
+            } catch (e) {
+                this.liveConnected = false;
+            }
+        }
+    };
+}
+
 document.getElementById('tv-refresh').addEventListener('click', function() {
     location.reload();
 });
