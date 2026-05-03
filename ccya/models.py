@@ -165,7 +165,6 @@ class StateDelta(BaseModel):
 
 class ExtractResult(BaseModel):
     state_delta: StateDelta
-    actions: list[str] = Field(min_length=4, max_length=4)
     failed: list[str] = Field(default_factory=list)
 
 

@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from ccya.engine import EngineConfig, run_turn, _build_jinja_env, _narrate_messages, _extract_messages
+from ccya.engine import EngineConfig, run_turn, _build_jinja_env, _narrate_messages, _extract_messages, _parse_actions_from_narrate
 from ccya.llm_client import strip_thinking
 from ccya.models import (
     CompendiumNpcUpdate,
@@ -174,6 +174,35 @@ async def _run_with_tokens(save_dir, user_input, config=None):
         elif kind == "complete":
             result = payload
     return tokens, result
+
+
+# ---------------------------------------------------------------------------
+# TestParseActionsFromNarrate
+# ---------------------------------------------------------------------------
+
+
+class TestParseActionsFromNarrate:
+    """Unit tests for _parse_actions_from_narrate helper."""
+
+    def test_parses_valid_actions(self):
+        narrative = "Some prose.\n\nACTIONS_JSON: {\"actions\": [\"Go left\", \"Go right\", \"Wait\", \"Look\"]}"
+        result = _parse_actions_from_narrate(narrative)
+        assert result == ["Go left", "Go right", "Wait", "Look"]
+
+    def test_returns_empty_when_no_marker(self):
+        assert _parse_actions_from_narrate("Just some prose.") == []
+
+    def test_returns_empty_on_invalid_json(self):
+        narrative = "ACTIONS_JSON: {invalid json}"
+        assert _parse_actions_from_narrate(narrative) == []
+
+    def test_returns_empty_on_wrong_count(self):
+        narrative = 'ACTIONS_JSON: {"actions": ["A", "B"]}'
+        assert _parse_actions_from_narrate(narrative) == []
+
+    def test_returns_empty_on_missing_actions_key(self):
+        narrative = 'ACTIONS_JSON: {"choices": ["A", "B", "C", "D"]}'
+        assert _parse_actions_from_narrate(narrative) == []
 
 
 # ---------------------------------------------------------------------------
@@ -420,7 +449,7 @@ class TestHappyPath:
                 "established_facts_add": ["You found an airlock at Docking Ring 7."],
                 "scene_tags": ["exploration"],
             },
-            "actions": ["Go left", "Go right", "Check your terminal", "Wait"],
+            
         })
 
         fake = _FakeLLM([narrative, extract])
@@ -435,19 +464,32 @@ class TestHappyPath:
         # Single increment: turn starts at 0, engine increments to 1
         assert result.turn == 1
 
-    async def test_actions_captured(self) -> None:
+    async def test_actions_captured_from_narrate(self) -> None:
+        state = _make_state()
+        _write_state(SAVE_DIR, state)
+
+        narrative = 'narrative text\n\nACTIONS_JSON: {"actions": ["Open door", "Take stairs", "Check map", "Go back"]}'
+        extract = json.dumps({
+            "state_delta": {"scene_tags": ["exploration"]},
+        })
+        fake = _FakeLLM([narrative, extract])
+        with fake:
+            result = await _run(SAVE_DIR, "look", config=EngineConfig())
+
+        assert result.actions == ["Open door", "Take stairs", "Check map", "Go back"]
+
+    async def test_actions_empty_when_no_marker(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
         extract = json.dumps({
             "state_delta": {"scene_tags": ["exploration"]},
-            "actions": ["Open door", "Take stairs", "Check map", "Go back"],
         })
-        fake = _FakeLLM(["narrative text", extract])
+        fake = _FakeLLM(["narrative text without actions", extract])
         with fake:
             result = await _run(SAVE_DIR, "look", config=EngineConfig())
 
-        assert result.actions == ["Open door", "Take stairs", "Check map", "Go back"]
+        assert result.actions == []
 
 
 # ---------------------------------------------------------------------------
@@ -464,7 +506,7 @@ class TestStreamingEvents:
 
         extract = json.dumps({
             "state_delta": {},
-            "actions": ["A", "B", "C", "D"],
+            
         })
         fake = _FakeLLM(["hello world", extract])
         with fake:
@@ -480,7 +522,7 @@ class TestStreamingEvents:
         _write_state(SAVE_DIR, state)
 
         events = []
-        extract = json.dumps({"state_delta": {}, "actions": ["A", "B", "C", "D"]})
+        extract = json.dumps({"state_delta": {}})
         fake = _FakeLLM(["the narrative", extract])
         with fake:
             async for kind, _ in run_turn(
@@ -507,7 +549,7 @@ class TestRejectedDelta:
 
         extract = json.dumps({
             "state_delta": {"inventory_remove": ["ghost-item-999"]},
-            "actions": ["A", "B", "C", "D"],
+            
         })
         fake = _FakeLLM([extract])
         with fake:
@@ -524,7 +566,7 @@ class TestRejectedDelta:
 
         extract = json.dumps({
             "state_delta": {"inventory_remove": ["ghost-item"]},
-            "actions": ["A", "B", "C", "D"],
+            
         })
         fake = _FakeLLM([extract])
         with fake:
@@ -539,7 +581,7 @@ class TestRejectedDelta:
 
         extract = json.dumps({
             "state_delta": {"quest_updates": [{"id": "new-quest", "title": "New Quest", "status": "active", "objectives": []}]},
-            "actions": ["A", "B", "C", "D"],
+            
         })
         fake = _FakeLLM([extract])
         with fake:
@@ -567,7 +609,7 @@ class TestSchemaFailureRetry:
         narrative = "You examine the hand terminal closely."
         good_extract = json.dumps({
             "state_delta": {"pc_condition_add": ["curious"]},
-            "actions": ["A", "B", "C", "D"],
+            
         })
         chat_call_count = 0
 
@@ -612,7 +654,7 @@ class TestFactCanonization:
 
         extract = json.dumps({
             "state_delta": {"established_facts_add": ["The airlock hums with residual charge."]},
-            "actions": ["A", "B", "C", "D"],
+            
         })
         fake = _FakeLLM([extract])
         with fake:
@@ -658,7 +700,7 @@ class TestChroniclePrefixBudget:
             _chat_calls_chron += 1
             if _chat_calls_chron == 1:
                 return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
-            return {"response": json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]}), "done": True, "usage": {}}
+            return {"response": json.dumps({"state_delta": {}}), "done": True, "usage": {}}
 
         import ccya.engine as eng
         _orig_stream, _orig_chat = eng.llm_chat_stream, eng.llm_chat
@@ -782,7 +824,7 @@ class TestTurnCounterSingleIncrement:
         state = _make_state(turn=0)
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
+        extract = json.dumps({"state_delta": {}})
         fake = _FakeLLM([extract])
         with fake:
             result = await _run(SAVE_DIR, "look", config=EngineConfig())
@@ -793,7 +835,7 @@ class TestTurnCounterSingleIncrement:
         state = _make_state(turn=0)
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
+        extract = json.dumps({"state_delta": {}})
         fake = _FakeLLM([extract, extract])
         with fake:
             r1 = await _run(SAVE_DIR, "first", config=EngineConfig())
@@ -816,7 +858,7 @@ class TestEventWrittenBeforeState:
 
         extract = json.dumps({
             "state_delta": {"established_facts_add": ["turn-1-fact"]},
-            "actions": ["A","B","C","D"],
+            
         })
         fake = _FakeLLM([extract])
         with fake:
@@ -845,7 +887,7 @@ class TestChronicleFormatted:
         _write_state(SAVE_DIR, state)
         (SAVE_DIR / "chronicle.md").touch()
 
-        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
+        extract = json.dumps({"state_delta": {}})
         fake = _FakeLLM(["the narrative text", extract])
         with fake:
             await _run(SAVE_DIR, "my action", config=EngineConfig())
@@ -900,7 +942,7 @@ class TestTurnResultTraceId:
     async def test_unique_trace_ids(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
-        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
+        extract = json.dumps({"state_delta": {}})
         fake = _FakeLLM([extract, extract])
         with fake:
             r1 = await _run(SAVE_DIR, "first", config=EngineConfig())
@@ -1229,7 +1271,7 @@ class TestInventoryCompendiumTagline:
                 "scene_tagline": "Dock tension rises",
                 "established_facts_add": ["A fact."],
             },
-            "actions": ["a", "b", "c", "d"],
+            
         })
         fake = _FakeLLM(["short narrative.", extract])
         with fake:
@@ -1249,7 +1291,7 @@ class TestPerTurnMetrics:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
+        extract = json.dumps({"state_delta": {}})
         fake = _FakeLLM(["narrative", extract])
         with fake:
             result = await _run(SAVE_DIR, "test", config=EngineConfig())
@@ -1266,7 +1308,7 @@ class TestPerTurnMetrics:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]})
+        extract = json.dumps({"state_delta": {}})
         fake = _FakeLLM(["narrative", extract])
         with fake:
             result = await _run(SAVE_DIR, "test", config=EngineConfig())
@@ -1292,7 +1334,7 @@ class TestEstablishedFactsInEvent:
 
         extract = json.dumps({
             "state_delta": {"established_facts_add": ["This fact matters."]},
-            "actions": ["A","B","C","D"],
+            
         })
         fake = _FakeLLM([extract])
         with fake:
@@ -1338,7 +1380,7 @@ class TestRecentTurnsInjected:
             _chat_calls_recent += 1
             if _chat_calls_recent == 1:
                 return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
-            return {"response": json.dumps({"state_delta": {}, "actions": ["A","B","C","D"]}), "done": True, "usage": {}}
+            return {"response": json.dumps({"state_delta": {}}), "done": True, "usage": {}}
 
         import ccya.engine as eng
         _orig_stream, _orig_chat = eng.llm_chat_stream, eng.llm_chat
@@ -1367,7 +1409,7 @@ class TestPackKwargs:
         _write_state(SAVE_DIR, state)
 
         captured_narrate_system = []
-        extract = json.dumps({"state_delta": {}, "actions": ["A", "B", "C", "D"]})
+        extract = json.dumps({"state_delta": {}})
 
         async def _fake_stream(*args, **kwargs):
             msgs = args[2] if len(args) > 2 else kwargs.get("messages", [])
@@ -1409,7 +1451,7 @@ class TestPackKwargs:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        example_json = json.dumps({"state_delta": {}, "actions": ["A", "B", "C", "D"]})
+        example_json = json.dumps({"state_delta": {}})
         examples = [ExtractExample(
             title="Pack example marker UNIQUE_9928",
             thinking="- test",

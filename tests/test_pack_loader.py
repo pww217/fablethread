@@ -58,7 +58,7 @@ def _minimal_static_pack_files(
     if include_examples:
         files["extract_examples.yaml"] = yaml.dump({
             "examples": [{"title": "Test example", "thinking": "- nothing", "json": json.dumps({
-                "state_delta": {"scene_tags": ["test"]}, "actions": ["a", "b", "c", "d"]
+                "state_delta": {"scene_tags": ["test"]}
             })}]
         })
     return files

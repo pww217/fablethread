@@ -784,6 +784,26 @@ def _find_json(text: str) -> dict | None:
     return None
 
 
+def _parse_actions_from_narrate(narrative: str) -> list[str]:
+    """Extract actions from the ACTIONS_JSON: marker in narrate output.
+
+    Returns an empty list if no marker is found or parsing fails.
+    """
+    marker = "ACTIONS_JSON:"
+    idx = narrative.find(marker)
+    if idx < 0:
+        return []
+    json_str = narrative[idx + len(marker):].strip()
+    try:
+        data = json.loads(json_str)
+        actions = data.get("actions", [])
+        if isinstance(actions, list) and len(actions) == 4:
+            return [str(a) for a in actions]
+    except (json.JSONDecodeError, ValueError, TypeError):
+        pass
+    return []
+
+
 def _truncate(s: str, n: int) -> str:
     if not isinstance(s, str):
         s = str(s)
@@ -1083,6 +1103,7 @@ async def run_turn(
 
         narr_ms = (asyncio.get_event_loop().time() - t0) * 1000
         narrative = strip_thinking("".join(narrative_chunks))
+        actions = _parse_actions_from_narrate(narrative)
         narr_metrics = {
             "first_token_ms": round(first_ms, 1),
             "total_ms": round(narr_ms, 1),
@@ -1150,7 +1171,6 @@ async def run_turn(
                     if "state_delta" in j:
                         er = ExtractResult(**j)
                         delta = er.state_delta
-                        actions = er.actions
                         failed = er.failed
                     else:
                         delta = StateDelta(**j)
