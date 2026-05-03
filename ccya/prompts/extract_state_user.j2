@@ -1,0 +1,46 @@
+## THIS TURN SCOPE
+Active domains: {{ rules_outcome.scope.active_domains | join(", ") if rules_outcome and rules_outcome.scope else "inventory, pc_condition" }}
+{% if rules_outcome and rules_outcome.scope and rules_outcome.scope.implicit_preconditions %}
+Preconditions assumed: {{ rules_outcome.scope.implicit_preconditions | join("; ") }}
+{% endif %}
+
+## Player
+{{ pc.name }} — {{ pc.tagline }}
+
+{% if "pc_condition" in active_domains %}
+## Active conditions
+{% if conditions %}
+{% for c in conditions %}— id: `{{ c.id if c is mapping else c }}` | {{ c.label if c is mapping else c }}{% if c is mapping and c.get('description') %} — {{ c.description }}{% endif %}
+{% endfor %}
+{% else %}
+None.
+{% endif %}
+{% endif %}
+
+{% if engine_expired_conditions %}
+## Auto-expired conditions (engine removed before this turn — do NOT re-add)
+{% for c in engine_expired_conditions %}— `{{ c.id if c is mapping else c }}`: {{ c.label if c is mapping else c }}
+{% endfor %}
+{% endif %}
+
+{% if "inventory" in active_domains %}
+## Current inventory
+{% if inventory %}
+{% for item in inventory %}— id: `{{ item.id }}` | {{ item.name }} ×{{ item.amount or 1 }}{% if item.notes %} — {{ item.notes }}{% endif %}
+{% endfor %}
+{% else %}
+Empty.
+{% endif %}
+{% endif %}
+
+## Scene result (from scene stream)
+Location: `{{ scene_result.location_id }}`
+{% if scene_result.present_npcs %}
+Present NPCs: {% for n in scene_result.present_npcs %}{{ n.name or n.id }}{% if not loop.last %}, {% endif %}{% endfor %}
+{% else %}
+Present NPCs: none
+{% endif %}
+
+## CURRENT TURN NARRATION
+{{ narration }}
+## END CURRENT TURN NARRATION

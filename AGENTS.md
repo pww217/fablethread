@@ -4,11 +4,15 @@ PRIMARY DIRECTIVE: Use the minimum tokens needed. Think briefly, answer concisel
 
 ## Architecture in one paragraph
 
-ccya is a local-LLM-backed choose-your-own-adventure game. Every player turn runs a **three-call async pipeline** in `engine.py`:
+ccya is a local-LLM-backed choose-your-own-adventure game. Every player turn runs a **five-call async pipeline** in `engine.py`:
 
-1. **Rules / intent** (Call 0, `llm_chat`, fast non-streaming) — classifies what the player is attempting and whether a dice roll is needed. Returns `IntentEnvelope`.
+1. **Rules / intent** (Call 0, `llm_chat`, fast non-streaming) — classifies what the player is attempting and whether a dice roll is needed. Returns `IntentEnvelope` with a `Scope` that controls which extraction streams run.
 2. **Narrate** (Call 1, streaming tokens → `chronicle.md`) — writes the scene. If a roll occurred, the `RulesOutcome` is injected as a BINDING block the narrator must not contradict.
-3. **Extract** (Call 2, `llm_chat`, JSON → `state.yaml` + `events.jsonl`) — pulls structured state changes from the narrative. Receives a rules-outcome hint block to improve accuracy on fail/mixed/success.
+3. **Extract — Scene** (Call 2, `llm_chat`, JSON → `SceneExtractResult`) — scene tags, location change, present NPCs, suggested player actions, outcome summary. Receives only scene-relevant state (compact compendium, current location, previous NPCs).
+4. **Extract — State** (Call 3, `llm_chat`, JSON → `StateExtractResult`) — inventory and condition deltas. Receives inventory, active conditions, and minimal cross-stream context from the scene result. Skipped when scope excludes both `inventory` and `pc_condition`.
+5. **Extract — Progress** (Call 4, `llm_chat`, JSON → `ProgressExtractResult`) — quests, recent events, NPC compendium updates. Receives quest list, recent events, and cross-stream context from scene+state. Skipped when scope excludes all progress domains.
+
+The three extract results are merged into a single `StateDelta` and applied by `apply_delta`. Dynamic packs also have a **generate_seed** call on New Game. The FastAPI server in `server.py` owns HTTP and SSE; `state.py` owns all file I/O and `apply_delta`; `models.py` owns Pydantic schemas; `pack.py` owns world-pack loading; `rules.py` owns the pure-Python dice resolver. The frontend is a single `index.html` using Alpine.js + HTMX + marked.js with no build step.
 
 Dynamic packs also have a **generate_seed** call on New Game. The FastAPI server in `server.py` owns HTTP and SSE; `state.py` owns all file I/O and `apply_delta`; `models.py` owns Pydantic schemas; `pack.py` owns world-pack loading; `rules.py` owns the pure-Python dice resolver. The frontend is a single `index.html` using Alpine.js + HTMX + marked.js with no build step.
 
@@ -69,8 +73,21 @@ Use `make dev` for active development. `make run` is for production-like starts.
 
 - Tests live in `tests/` at repo root. Run with `make test` (uses `uv run pytest -q`).
 - Tests mock the LLM client (`ccya.engine.llm_chat` / `ccya.engine.llm_chat_stream`) — do not call a real model server in tests.
+- `_FakeLLM` in `test_engine_smoke.py` handles the 5-call turn structure: rules (chat 1), narrate (stream), scene extract (chat 2), state extract (chat 3), progress extract (chat 4). Construct with keyword args `narrative=`, `scene_response=`, `state_response=`, `progress_response=` or pass a legacy positional list.
 - When adding a new `EngineConfig` field or `StateDelta` sub-type, add a smoke test that: (a) verifies the toggle round-trips correctly, and (b) confirms the prompt template renders the expected content.
+- Per-stream prompt tests call `_extract_scene_messages`, `_extract_state_messages`, `_extract_progress_messages` directly — import from `ccya.engine`.
 - State mutation tests should exercise `apply_delta` directly (not through the full turn pipeline) for speed and isolation.
+
+---
+
+## Extraction pipeline conventions
+
+- **Three prompt pairs** live in `ccya/prompts/`: `extract_scene_{system,user}.j2`, `extract_state_{system,user}.j2`, `extract_progress_{system,user}.j2`. Each pair has a narrow job — do not add cross-domain fields.
+- **Cross-stream dependencies are minimal by design.** Scene → State passes only `location_id` + present NPC `{id, name}`. Scene+State → Progress passes present NPC names + items gained/lost. No full state re-sends.
+- **Conditions are structured.** `pc.conditions` is `list[Condition]` (`id`, `label`, `description`, `added_turn`). `apply_delta` stamps `added_turn` and uses `id`-based dedup — no text normalization. String coercion exists for test convenience only; LLM output must use the full object.
+- **Condition TTL** is controlled by `EngineConfig.condition_ttl_turns` (default `CONDITION_TTL_TURNS = 4`). The engine ticks and removes expired conditions *before* running the extraction pipeline and tells the state stream which IDs it already removed.
+- **`events.jsonl`** gains an `extraction` key with per-stream `{rendered_system, rendered_user, output, tokens_in, tokens_out, ms, skipped}` for debugging.
+- **Stream skipping**: if a scope's `skip_domains` covers all domains owned by a stream, that stream's LLM call is elided entirely. Check `extraction_event["state"]["skipped"]` in events.
 
 ---
 

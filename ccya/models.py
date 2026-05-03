@@ -18,6 +18,56 @@ Band = Literal[
 ]
 
 
+# ---------------------------------------------------------------------------
+# Condition types (structured — replaces plain strings)
+# ---------------------------------------------------------------------------
+
+
+class Condition(BaseModel):
+    """Stored condition in pc.conditions."""
+
+    id: str
+    label: str
+    description: str = ""
+    added_turn: int = 0
+
+
+def _coerce_condition_str(v: Any) -> Any:
+    """Coerce a plain string condition to a dict with id/label."""
+    if isinstance(v, str):
+        cid = v.lower().strip().replace(" ", "_")
+        # strip markdown punctuation from id
+        for ch in ("*", "_", "`", ".", ",", ";", ":", "!", "?"):
+            cid = cid.replace(ch, "")
+        cid = "_".join(cid.split()) or "condition"
+        return {"id": cid, "label": v.strip()}
+    return v
+
+
+class ConditionAdd(BaseModel):
+    """LLM-emitted condition to add this turn."""
+
+    id: str
+    label: str
+    description: str = ""
+
+    @field_validator("id", "label", mode="before")
+    @classmethod
+    def _strip(cls, v: Any) -> Any:
+        return str(v).strip() if v is not None else v
+
+
+class ConditionRemove(BaseModel):
+    """LLM-emitted condition to remove this turn (id-only)."""
+
+    id: str
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _strip(cls, v: Any) -> Any:
+        return str(v).strip() if v is not None else v
+
+
 class RulesCheck(BaseModel):
     required: bool = False
     skill: SkillName | None = None
@@ -156,8 +206,8 @@ class StateDelta(BaseModel):
     location_change: LocationRef | None = None
     location_description: str | None = None
     quest_updates: list[QuestUpdate] = Field(default_factory=list)
-    pc_condition_add: list[str] = Field(default_factory=list)
-    pc_condition_remove: list[str] = Field(default_factory=list)
+    pc_condition_add: list[ConditionAdd] = Field(default_factory=list, max_length=6)
+    pc_condition_remove: list[ConditionRemove] = Field(default_factory=list)
     recent_events_add: list[str] = Field(default_factory=list)
     recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
     recent_events_remove: list[str] = Field(default_factory=list)
@@ -166,6 +216,105 @@ class StateDelta(BaseModel):
         None  # 3–6 words for UI header; persisted to state.scene.tagline
     )
     present_npcs: list[NpcRef] = Field(default_factory=list)
+    compendium_npc_update: list[CompendiumNpcUpdate] = Field(
+        default_factory=list, max_length=12
+    )
+
+    @field_validator("pc_condition_add", mode="before")
+    @classmethod
+    def _coerce_condition_add(cls, v: Any) -> Any:
+        if not v:
+            return v
+        return [_coerce_condition_str(x) for x in v]
+
+    @field_validator("pc_condition_remove", mode="before")
+    @classmethod
+    def _coerce_condition_remove(cls, v: Any) -> Any:
+        if not v:
+            return v
+        out: list[Any] = []
+        for x in v:
+            if isinstance(x, str):
+                cid = x.lower().strip().replace(" ", "_")
+                for ch in ("*", "_", "`", ".", ",", ";", ":", "!", "?"):
+                    cid = cid.replace(ch, "")
+                out.append({"id": "_".join(cid.split()) or "condition"})
+            else:
+                out.append(x)
+        return out
+
+
+# ---------------------------------------------------------------------------
+# Per-stream extraction result models
+# ---------------------------------------------------------------------------
+
+
+class SceneExtractResult(BaseModel):
+    """Output of stream 1 (scene + UI hints)."""
+
+    scene_tags: list[str] = Field(default_factory=list)
+    scene_tagline: str | None = None
+    location_change: LocationRef | None = None
+    location_description: str | None = None
+    present_npcs: list[NpcRef] = Field(default_factory=list)
+    actions: list[str] = Field(default_factory=list)
+    outcome_summary: str = ""
+
+
+class StateExtractResult(BaseModel):
+    """Output of stream 2 (mechanical state deltas)."""
+
+    inventory_add: list[InventoryItem] = Field(default_factory=list, max_length=6)
+    inventory_remove: list[InventoryRemove] = Field(default_factory=list)
+    inventory_update: list[InventoryUpdate] = Field(default_factory=list, max_length=6)
+    pc_condition_add: list[ConditionAdd] = Field(default_factory=list, max_length=2)
+    pc_condition_remove: list[ConditionRemove] = Field(default_factory=list)
+    failed: list[str] = Field(default_factory=list)
+
+    @field_validator("inventory_remove", mode="before")
+    @classmethod
+    def _coerce_inventory_remove(cls, v: Any) -> Any:
+        if not v:
+            return v
+        out: list[Any] = []
+        for x in v:
+            if isinstance(x, str):
+                out.append({"id": x, "amount": None})
+            else:
+                out.append(x)
+        return out
+
+    @field_validator("pc_condition_add", mode="before")
+    @classmethod
+    def _coerce_condition_add(cls, v: Any) -> Any:
+        if not v:
+            return v
+        return [_coerce_condition_str(x) for x in v]
+
+    @field_validator("pc_condition_remove", mode="before")
+    @classmethod
+    def _coerce_condition_remove(cls, v: Any) -> Any:
+        if not v:
+            return v
+        out: list[Any] = []
+        for x in v:
+            if isinstance(x, str):
+                cid = x.lower().strip().replace(" ", "_")
+                for ch in ("*", "_", "`", ".", ","):
+                    cid = cid.replace(ch, "")
+                out.append({"id": "_".join(cid.split()) or "condition"})
+            else:
+                out.append(x)
+        return out
+
+
+class ProgressExtractResult(BaseModel):
+    """Output of stream 3 (quests, facts, compendium)."""
+
+    quest_updates: list[QuestUpdate] = Field(default_factory=list)
+    recent_events_add: list[str] = Field(default_factory=list)
+    recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
+    recent_events_remove: list[str] = Field(default_factory=list)
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
