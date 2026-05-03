@@ -92,6 +92,12 @@
 
 - [ ] **QA / diagnostics** — tooling for measuring and surfacing latency and narrative quality metrics.
 
+### Inference Infrastructure
+
+- [ ] **Model-agnostic thinking infra** — `apply_thinking` / `strip_thinking` in `llm_client.py` are Qwen3-flavored (`/think` soft-switch + `<think>...</think>` regex). They're harmless while disabled but ineffective on Gemma 4. Detect dialect from `config.model` or a new `engine_config.thinking_dialect` field; support Gemma 4 chat-template tags, Qwen3 soft-switches, and a generic prompt-prefix fallback. Re-enable for `extract_state` and `extract_progress` only after measuring quality + latency on a fixture set.
+- [ ] **Per-stream KV-cache pinning (mlx_lm)** — once system prompts are byte-stable across turns, use `mlx_lm.cache_prompt` to pre-compute one persistent KV cache file per stream system prompt (rules / narrate / scene / state / progress), pass via `--prompt-cache-file`. Estimated 50-80% prefill latency reduction on extract calls. Needs a small `llm_client.py` change to pass cache-file paths through the API and a build step to refresh caches when system prompts change.
+- [ ] **Multi-slot prefix caching / vLLM future** — stock `mlx_lm.server` is single-slot, so the 5-call-per-turn rotation overwrites the cache between same-type calls and cross-turn cache reuse is near zero today. Two future paths: (a) track upstream mlx-lm work on automatic prefix caching and adopt when stable; (b) evaluate alternative runtimes — vLLM with `--enable-prefix-caching` is the gold standard but lacks Apple Silicon support, SGLang has Mac support landing. Either would automatically realize the byte-stable system prompt wins (free latency drop on every call after the first turn) without re-auditing prompts.
+
 ---
 
 ## LLM Pipeline Accuracy

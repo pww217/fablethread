@@ -159,12 +159,30 @@ def append_chronicle(save_dir: Path, text: str) -> None:
         f.write("\n" + text)
 
 
-def load_chronicle_tail(save_dir: Path, max_tokens: int) -> str:
-    """Load the tail of chronicle.md, clipped to max_tokens words."""
+_TURN_HEADER = re.compile(r"^## Turn (\d+) — (.+)$", re.MULTILINE)
+
+
+def load_chronicle_tail(
+    save_dir: Path, max_tokens: int, skip_last_n_turns: int = 0
+) -> str:
+    """Load the tail of chronicle.md, clipped to max_tokens words.
+
+    When ``skip_last_n_turns`` > 0, drops the trailing N turn-blocks so callers
+    can pair this with ``load_recent_chronicle_turns(n)`` without overlap.
+    """
     path = save_dir / "chronicle.md"
     if not path.exists():
         return ""
     text = path.read_text()
+    if skip_last_n_turns > 0:
+        matches = list(_TURN_HEADER.finditer(text))
+        if matches:
+            cut_at = (
+                matches[-skip_last_n_turns].start()
+                if skip_last_n_turns <= len(matches)
+                else 0
+            )
+            text = text[:cut_at]
     words = text.split()
     if len(words) <= max_tokens:
         return text
@@ -182,9 +200,6 @@ def load_recent_events(save_dir: Path, n: int) -> list[dict[str, Any]]:
         if line.strip():
             events.append(json.loads(line))
     return events[-n:] if n > 0 else []
-
-
-_TURN_HEADER = re.compile(r"^## Turn (\d+) — (.+)$", re.MULTILINE)
 
 
 def load_recent_chronicle_turns(save_dir: Path, n: int) -> list[dict[str, Any]]:

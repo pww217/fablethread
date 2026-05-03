@@ -108,6 +108,29 @@ class TestConditionsModifier:
     def test_case_insensitive(self):
         assert conditions_modifier("strength", ["Wounded"]) == -1
 
+    def test_accepts_structured_condition_dicts(self):
+        """Engine stores conditions as dicts; conditions_modifier must extract id."""
+        conds = [
+            {"id": "wounded", "label": "wounded", "description": "hit", "added_turn": 0},
+            {"id": "exhausted", "label": "exhausted", "description": "tired", "added_turn": 0},
+        ]
+        assert conditions_modifier("strength", conds) == -2
+
+    def test_mixed_dicts_and_strings(self):
+        """Defense in depth: legacy string conditions still work alongside dicts."""
+        conds = [
+            {"id": "wounded", "label": "wounded"},
+            "exhausted",
+        ]
+        assert conditions_modifier("strength", conds) == -2
+
+    def test_dict_without_id_falls_back_to_label(self):
+        conds = [{"label": "wounded", "description": "hit"}]
+        assert conditions_modifier("strength", conds) == -1
+
+    def test_empty_dict_ignored(self):
+        assert conditions_modifier("strength", [{}]) == 0
+
 
 # ---------------------------------------------------------------------------
 # difficulty mod map

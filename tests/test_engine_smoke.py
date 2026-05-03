@@ -393,12 +393,29 @@ class TestPromptComposition:
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "injured" in user
 
-    def test_extract_state_system_has_reasoning_field(self):
+    def test_extract_state_system_byte_stable_across_turns(self):
+        """System prompt for extract_state must not vary turn-to-turn (cache stability)."""
+        env = self._env()
+        scene = SceneExtractResult()
+        # Two states with different scene/inventory/conditions/rules outcome
+        s1 = _make_state(turn=0)
+        s2 = _make_state(turn=5)
+        s2["pc"]["conditions"] = [{"id": "wounded", "label": "wounded", "description": "hit", "added_turn": 4}]
+        from ccya.models import RulesOutcome
+        roll = RulesOutcome(rolled=True, skill="strength", difficulty="hard", final_total=8, band="mixed", directive="The strike succeeds with cost.")
+        m1 = _extract_state_messages(env, "N1", s1, scene_result=scene)
+        m2 = _extract_state_messages(env, "N2", s2, scene_result=scene, rules_outcome=roll)
+        sys1 = next(m for m in m1 if m["role"] == "system")["content"]
+        sys2 = next(m for m in m2 if m["role"] == "system")["content"]
+        assert sys1 == sys2
+
+    def test_extract_state_user_has_quantity_discipline(self):
         env = self._env()
         scene = SceneExtractResult()
         msgs = _extract_state_messages(env, "N.", _make_state(), scene_result=scene)
         system = next(m for m in msgs if m["role"] == "system")["content"]
-        assert "_reasoning" in system
+        # Quantity exactness lives in the system prompt as a static rule.
+        assert "Quantities are exact" in system
 
     def test_extract_state_expired_conditions_shown(self):
         env = self._env()
@@ -408,7 +425,7 @@ class TestPromptComposition:
             env, "N.", _make_state(), scene_result=scene, engine_expired_conditions=expired
         )
         user = next(m for m in msgs if m["role"] == "user")["content"]
-        assert "Auto-expired" in user
+        assert "engine_expired_conditions" in user
         assert "bruised ribs" in user
 
     # --- extract_progress ---
@@ -459,24 +476,39 @@ class TestPromptComposition:
         user_no_quest = next(m for m in msgs_no_quest if m["role"] == "user")["content"]
         assert "WORLD_FACT_MARKER" in user_no_quest
 
-    def test_extract_progress_system_has_quest_threshold_ladder(self):
+    def test_extract_progress_user_has_quest_threshold_directive(self):
+        """quest_threshold_directive is computed in engine and lives in user prompt."""
         env = self._env()
         scene = SceneExtractResult()
         state_res = StateExtractResult()
 
-        # No quests: low bar message
         state_no_q = {**_make_state(), "quests": []}
         msgs = _extract_progress_messages(env, "N.", state_no_q, scene_result=scene, state_result=state_res)
-        system = next(m for m in msgs if m["role"] == "system")["content"]
-        assert "LOW" in system
+        user = next(m for m in msgs if m["role"] == "user")["content"]
+        assert "quest_threshold" in user
+        assert "LOW" in user
 
-        # Many quests: high bar message
         state_many_q = {**_make_state(), "quests": [
             {"id": f"q{i}", "title": f"Q{i}", "status": "active", "objectives": []} for i in range(3)
         ]}
         msgs2 = _extract_progress_messages(env, "N.", state_many_q, scene_result=scene, state_result=state_res)
-        system2 = next(m for m in msgs2 if m["role"] == "system")["content"]
-        assert "HIGH" in system2
+        user2 = next(m for m in msgs2 if m["role"] == "user")["content"]
+        assert "HIGH" in user2
+
+    def test_extract_progress_system_byte_stable_across_quest_count(self):
+        """The progress system prompt must not vary with active_quests count."""
+        env = self._env()
+        scene = SceneExtractResult()
+        state_res = StateExtractResult()
+        s_no = {**_make_state(), "quests": []}
+        s_many = {**_make_state(), "quests": [
+            {"id": f"q{i}", "title": f"Q{i}", "status": "active", "objectives": []} for i in range(3)
+        ]}
+        m_no = _extract_progress_messages(env, "N.", s_no, scene_result=scene, state_result=state_res)
+        m_many = _extract_progress_messages(env, "N.", s_many, scene_result=scene, state_result=state_res)
+        sys_no = next(m for m in m_no if m["role"] == "system")["content"]
+        sys_many = next(m for m in m_many if m["role"] == "system")["content"]
+        assert sys_no == sys_many
 
     # --- Narrate-specific ---
 
@@ -485,16 +517,18 @@ class TestPromptComposition:
         state = _make_state()
         failed = ["tried to pick up keys but guard is still conscious"]
         msgs = _narrate_messages(env, state, "look", last_turn_failed=failed)
+        user_text = next(m for m in msgs if m["role"] == "user")["content"]
         system_text = next(m for m in msgs if m["role"] == "system")["content"]
-        assert "Previous turn — failed actions" in system_text
-        assert "tried to pick up keys but guard is still conscious" in system_text
+        assert "last_turn_failed" in user_text
+        assert "tried to pick up keys but guard is still conscious" in user_text
+        assert "tried to pick up keys" not in system_text
 
     def test_narrate_no_last_turn_failed_when_empty(self):
         env = self._env()
         state = _make_state()
         msgs = _narrate_messages(env, state, "look", last_turn_failed=[])
-        system_text = next(m for m in msgs if m["role"] == "system")["content"]
-        assert "Previous turn — failed actions" not in system_text
+        user_text = next(m for m in msgs if m["role"] == "user")["content"]
+        assert "last_turn_failed" not in user_text
 
     def test_narrate_thinking_toggle(self):
         env = self._env()
@@ -512,23 +546,43 @@ class TestPromptComposition:
         state = _make_state()
         chronicle_tail = "Earlier, Vex found a dead comms relay."
         msgs = _narrate_messages(env, state, "look", chronicle_tail=chronicle_tail)
+        user_text = next(m for m in msgs if m["role"] == "user")["content"]
         system_text = next(m for m in msgs if m["role"] == "system")["content"]
-        assert "Earlier, Vex found a dead comms relay." in system_text
+        assert "Earlier, Vex found a dead comms relay." in user_text
+        assert "Earlier, Vex found a dead comms relay." not in system_text
 
     def test_recent_turns_injected_when_present(self):
         env = self._env()
         state = _make_state()
         recent = [{"turn": 1, "input": "look around", "narrative": "You see a docking bay."}]
         msgs = _narrate_messages(env, state, "go forward", recent_turns=recent)
-        system_text = next(m for m in msgs if m["role"] == "system")["content"]
-        assert "look around" in system_text
+        user_text = next(m for m in msgs if m["role"] == "user")["content"]
+        assert "look around" in user_text
 
     def test_chronicle_absent_when_empty(self):
         env = self._env()
         state = _make_state()
         msgs = _narrate_messages(env, state, "look", chronicle_tail="")
-        system_text = next(m for m in msgs if m["role"] == "system")["content"]
-        assert "Earlier" not in system_text
+        user_text = next(m for m in msgs if m["role"] == "user")["content"]
+        assert "Earlier" not in user_text
+
+    def test_narrate_system_byte_stable_across_turns(self):
+        """The narrate system prompt must not vary turn-to-turn within the same pack."""
+        env = self._env()
+        state1 = _make_state(turn=0)
+        state2 = _make_state(turn=5)
+        state2["scene"]["recent_events"] = ["some new fact"]
+        from ccya.models import RulesOutcome
+        roll = RulesOutcome(rolled=True, skill="strength", difficulty="hard", final_total=8, band="mixed", directive="The strike succeeds with cost.")
+        m1 = _narrate_messages(env, state1, "look", pack_style="dark sci-fi")
+        m2 = _narrate_messages(
+            env, state2, "examine", pack_style="dark sci-fi",
+            chronicle_tail="prior arc", rules_outcome=roll,
+            last_turn_failed=["did not succeed"], npc_name_pool=["Anna", "Bo"],
+        )
+        sys1 = next(m for m in m1 if m["role"] == "system")["content"]
+        sys2 = next(m for m in m2 if m["role"] == "system")["content"]
+        assert sys1 == sys2
 
 
 # ---------------------------------------------------------------------------
@@ -845,10 +899,8 @@ class TestChroniclePrefixBudget:
             eng.llm_chat_stream = _orig_stream
             eng.llm_chat = _orig_chat
 
-        system_texts = " ".join(
-            m.get("content", "") for m in captured_messages if m.get("role") == "system"
-        )
-        assert "MARKER_TEXT_FOR_ASSERTION" in system_texts
+        all_texts = " ".join(m.get("content", "") for m in captured_messages)
+        assert "MARKER_TEXT_FOR_ASSERTION" in all_texts
 
 
 # ---------------------------------------------------------------------------
@@ -1774,13 +1826,12 @@ class TestRecentTurnsInjected:
             "\n\n## Turn 1 — I examine the signal\n\nThe signal pulses orange.\n",
         )
 
-        captured_system = []
+        captured_messages: list[str] = []
 
         async def fake_stream(*args, **kwargs):
             msgs = args[2] if len(args) > 2 else kwargs.get("messages", [])
             for m in msgs:
-                if m.get("role") == "system":
-                    captured_system.append(m["content"])
+                captured_messages.append(m.get("content", ""))
             yield "narrative"
 
         _chat_calls_recent = 0
@@ -1807,7 +1858,7 @@ class TestRecentTurnsInjected:
             eng.llm_chat_stream = _orig_stream
             eng.llm_chat = _orig_chat
 
-        combined = " ".join(captured_system)
+        combined = " ".join(captured_messages)
         assert (
             "I examine the signal" in combined or "The signal pulses orange" in combined
         )

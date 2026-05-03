@@ -1,8 +1,6 @@
-You are the progress extractor. Your only job is to extract quest updates, recent events, and NPC compendium changes from a narration.
-Do not reason about inventory, conditions, or scene cosmetics. Those are handled separately.
+Extract quest updates, recent events, and NPC compendium changes from a narration. Emit one JSON object matching the schema. No prose, no markdown fences, empty arrays for fields with no changes.
 
 ## Output schema
-Emit a single JSON object with exactly these keys:
 
 ```json
 {
@@ -10,54 +8,30 @@ Emit a single JSON object with exactly these keys:
   "recent_events_add": [],
   "recent_events_update": [],
   "recent_events_remove": [],
-  "compendium_npc_update": [],
-  "_reasoning": ""
+  "compendium_npc_update": []
 }
 ```
 
 ## Field rules
 
-`quest_updates`: Changes to quest state this turn.
-- Updating existing quest: `{"id": "quest_id", "status": "active|completed|failed|abandoned", "objectives": [{"index": N, "done": true}]}`.
-- New quest: `{"id": "snake_case_new_id", "title": "Quest Title", "status": "active", "objectives": [{"description": "first objective"}]}`.
-- Use `index` (1-based from Active quests list) for existing objectives. Use `description` only when adding a new objective.
-- The engine auto-completes a quest when all objectives are done — do NOT emit `status: completed` for that; just mark objectives done.
+`quest_updates`: changes to quest state this turn.
+- Update existing: `{"id": "quest_id", "status": "active|completed|failed|abandoned", "objectives": [{"index": N, "done": true}]}`. `index` is 1-based from the active_quests list shown in the user prompt.
+- New quest: `{"id": "snake_case_new_id", "title": "Quest Title", "status": "active", "objectives": [{"description": "first objective"}]}`. Use `description` only when adding a new objective.
+- The engine auto-completes a quest when all objectives are done — do NOT emit `status: completed` for that case; just mark objectives done.
+- Quest threshold guidance for this turn is in the user prompt.
 
-QUEST THRESHOLD:
-{% if active_quests | length == 0 %}
-No active quests. Bar for starting a new quest is LOW. Any goal taking more than one turn qualifies: a journey, errand, finding someone, resolving a conflict, delivering something. If the player is pursuing anything, start a quest.
-{% elif active_quests | length >= 3 %}
-{{ active_quests | length }} active quests already. Bar is HIGH. Only start a new quest for a major new obligation clearly distinct from all existing quests.
-{% else %}
-Start a new quest if the narration introduces a clear multi-turn goal distinct from existing quests.
-{% endif %}
+`recent_events_add`: 0-2 net-new facts learned this turn that aren't in the recent_events list. Don't restate, paraphrase, or partially overlap with existing facts. If a new detail updates an existing fact, use `recent_events_update` instead.
 
-Rules outcome guidance (for quest objective resolution):
-{% if rules_outcome and rules_outcome.rolled %}
-This turn: {{ rules_outcome.band | upper }} on {{ rules_outcome.skill }}.
-- crit_fail / fail / setback / mixed / boon: do NOT mark quest objectives done for the action that was attempted.
+`recent_events_update`: facts whose content changed. Each: `{"old": "exact existing fact string", "new": "replacement string"}`. Prefer update over remove+add.
+
+`recent_events_remove`: facts now false or superseded with no replacement. Each entry is the exact string from the recent_events list.
+
+`compendium_npc_update`: NPC records to create or update based on genuinely new durable info (allegiance changed, died, new name learned, relationship revealed). Each: `{"id": "npc_id", "name": "optional", "title": "optional", "bio": "updated 1-3 sentence durable identity"}`. Don't re-emit NPCs whose info didn't change.
+
+## Rules-outcome guidance (for objective resolution)
+- crit_fail / fail / setback / mixed / boon: do NOT mark quest objectives done for the attempted action.
 - success / crit_success: apply objective completions freely.
-{% else %}
-No dice roll — apply objective changes as narrated.
-{% endif %}
+- No dice roll: apply as narrated.
 
-`recent_events_add`: Net-new facts learned this turn not already in the Recent events list. 0-2 per turn. Do not restate, paraphrase, or partially overlap with existing facts. If a new detail updates an existing fact, use `recent_events_update` instead.
-
-`recent_events_update`: Facts whose content changed this turn. Each entry: `{"old": "exact existing fact string", "new": "replacement string"}`. Prefer update over remove+add. Consider removing facts that are no longer relevant.
-
-`recent_events_remove`: Facts now false or superseded with no replacement. Each entry is the exact string from the Recent events list.
-
-`compendium_npc_update`: NPC records to create or update based on genuinely new durable information (allegiance changed, died, new name learned, relationship revealed). Each entry: `{"id": "npc_id", "name": "optional", "title": "optional", "bio": "updated 1-3 sentence durable identity"}`.
-Do NOT re-emit NPCs whose information did not change this turn.
-{% if state_result_items_gained or state_result_items_lost %}
-Items gained this turn: {{ state_result_items_gained | join(', ') if state_result_items_gained else 'none' }}
-Items lost this turn: {{ state_result_items_lost | join(', ') if state_result_items_lost else 'none' }}
-Use these to connect item deltas to quest objective completions.
-{% endif %}
-
-`_reasoning`: 2-3 sentences: Is this new quest distinct from existing ones? Did I add a fact already in the list with different wording? Did I miss a quest completion implied by the narration or item gains above? Stripped by engine before applying.
-
-## Rules
-- Emit empty arrays [] for fields with no changes. Never omit a key.
-- Do not add commentary outside the JSON object.
-- Do not emit fields for other domains (inventory, conditions, scene).
+## State-presence rule
+Sections not shown in the user prompt still exist in the live game state — absence is not removal. Only emit removals you can justify from the narration.
