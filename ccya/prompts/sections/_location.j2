@@ -1,3 +1,6 @@
 ## Location
 {{ state.location.name or "Unknown" }} ({{ state.location.id or "no-id" }})
 {{ state.location.description or "No description." }}
+{% if recent_narrative_tail %}
+**Last turn's effect:** {{ recent_narrative_tail | truncate(300, True, '') }}
+{% endif %}

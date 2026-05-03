@@ -161,6 +161,8 @@ def _narrate_messages(
     rules_outcome: "RulesOutcome | None" = None,
     npc_name_pool: list[str] = [],
     last_turn_failed: list[str] = [],
+    recently_left: list[dict] = [],
+    recent_narrative_tail: str = "",
 ) -> list[dict[str, str]]:
     """Build narrate message list: [system, user].
 
@@ -175,6 +177,8 @@ def _narrate_messages(
         "rules_outcome": rules_outcome,
         "npc_name_pool": npc_name_pool,
         "last_turn_failed": last_turn_failed,
+        "recently_left": recently_left,
+        "recent_narrative_tail": recent_narrative_tail,
     }
     system_text = _render(env, "narrate_system.j2", ctx)
     user_text = _render(env, "narrate_user.j2", {"user_input": user_input})
@@ -1166,9 +1170,14 @@ async def run_turn(
         if pack_name_locales:
             _npc_name_pool = generate_npc_names(
                 pack_name_locales,
-                count=6,
+                count=10,
                 seed=state.get("meta", {}).get("turn", 0),
             )
+
+        # Last turn's narrative for location context (physical/mood carryover)
+        _recent_narrative_tail = ""
+        if recent_turns:
+            _recent_narrative_tail = recent_turns[-1].get("narrative", "")
 
         narr_messages = _narrate_messages(
             env,
@@ -1181,6 +1190,8 @@ async def run_turn(
             rules_outcome=outcome,
             npc_name_pool=_npc_name_pool,
             last_turn_failed=last_turn_failed,
+            recently_left=(state.get("scene") or {}).get("recently_left", []),
+            recent_narrative_tail=_recent_narrative_tail,
         )
         narr_messages = trim_messages(narr_messages, config.prompt_token_budget)
         if config.log_prompts:
@@ -1363,6 +1374,16 @@ async def run_turn(
                 )
                 recent_events = list(delta.recent_events_add)
                 applied = delta.model_dump(exclude_none=True)
+
+        # Decay recently_left counter (engine-side, not in state.py).
+        scene = state.get("scene", {})
+        turns = scene.get("recently_left_turns", 0)
+        if turns > 0:
+            turns -= 1
+            if turns == 0:
+                scene["recently_left"] = []
+            else:
+                scene["recently_left_turns"] = turns
 
         diff_lines = _summarize_applied(applied)
         changes = summarize_changes(state_pre_apply, state, applied, rejected)

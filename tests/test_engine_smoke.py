@@ -28,6 +28,7 @@ from ccya.engine import (
 from ccya.llm_client import strip_thinking
 from ccya.models import (
     CompendiumNpcUpdate,
+    LocationRef,
     RecentEventUpdate,
     InventoryItem,
     InventoryRemove,
@@ -309,7 +310,7 @@ class TestPromptComposition:
         assert "hand-terminal" in user_msg["content"]
         assert "Player" in user_msg["content"]
         assert "Docking Ring 7" in user_msg["content"]
-        assert "Present NPCs" in user_msg["content"]
+        assert "Previous turn NPCs" in user_msg["content"]
         assert "npc-a" in user_msg["content"]
         assert "1." in user_msg["content"]  # numbered objectives
 
@@ -1384,6 +1385,93 @@ class TestInventoryCompendiumTagline:
         )
         out = apply_delta(state, delta)
         assert out["compendium"]["npcs"]["missing_wife"]["bio"] == "Seen on Ganymede."
+
+    def test_recently_left_computed_when_npcs_leave(self) -> None:
+        """NPCs removed from present_npcs should appear in recently_left."""
+        state = _make_state()
+        state["compendium"]["npcs"]["fixer"] = {
+            "name": "Anna",
+            "title": "Fence",
+            "bio": "Owes you.",
+        }
+        state["compendium"]["npcs"]["bouncer"] = {
+            "name": "Kweku",
+            "title": "Doorman",
+        }
+        state["scene"]["present_npcs"] = [
+            {"id": "fixer", "name": "Anna", "title": "Fence", "notes": "Watching."},
+            {"id": "bouncer", "name": "Kweku", "title": "Doorman", "notes": "Arms crossed."},
+        ]
+        delta = StateDelta(
+            present_npcs=[
+                NpcRef(id="fixer", notes="Nodding at you."),
+            ],
+        )
+        out = apply_delta(state, delta)
+        recently_left = out["scene"]["recently_left"]
+        assert len(recently_left) == 1
+        assert recently_left[0]["id"] == "bouncer"
+        assert recently_left[0]["name"] == "Kweku"
+        assert recently_left[0]["title"] == "Doorman"
+        assert out["scene"]["recently_left_turns"] == 2
+
+    def test_recently_left_excludes_returnees(self) -> None:
+        """NPCs that left and came back should NOT appear in recently_left."""
+        state = _make_state()
+        state["compendium"]["npcs"]["fixer"] = {
+            "name": "Anna",
+            "title": "Fence",
+        }
+        state["scene"]["present_npcs"] = [
+            {"id": "fixer", "name": "Anna", "title": "Fence", "notes": "Watching."},
+            {"id": "bouncer", "name": "Kweku", "title": "Doorman", "notes": "Arms crossed."},
+        ]
+        delta = StateDelta(
+            present_npcs=[
+                NpcRef(id="fixer", notes="Nodding."),
+                NpcRef(id="bouncer", notes="Stepping aside."),
+            ],
+        )
+        out = apply_delta(state, delta)
+        assert out["scene"].get("recently_left") in ([], None)
+
+    def test_recently_left_cleared_on_location_change(self) -> None:
+        """Moving to a new location should clear recently_left."""
+        state = _make_state()
+        state["scene"]["present_npcs"] = [
+            {"id": "fixer", "name": "Anna", "title": "Fence", "notes": "Watching."},
+        ]
+        state["scene"]["recently_left"] = [
+            {"id": "bouncer", "name": "Kweku", "title": "Doorman"},
+        ]
+        state["scene"]["recently_left_turns"] = 1
+        delta = StateDelta(
+            present_npcs=[NpcRef(id="fixer", notes="At the new place.")],
+            location_change=LocationRef(id="new-station", name="New Station", description="Bright lights."),
+        )
+        out = apply_delta(state, delta)
+        assert out["scene"]["recently_left"] == []
+        assert out["scene"]["recently_left_turns"] == 0
+
+    def test_recently_left_uses_compendium_for_npc_info(self) -> None:
+        """recently_left entries should pull name/title from compendium."""
+        state = _make_state()
+        state["compendium"]["npcs"]["fixer"] = {
+            "name": "Anna",
+            "title": "Fence",
+        }
+        state["scene"]["present_npcs"] = [
+            {"id": "fixer", "name": "Anna", "title": "Fence", "notes": "Watching."},
+        ]
+        delta = StateDelta(
+            present_npcs=[],
+        )
+        out = apply_delta(state, delta)
+        recently_left = out["scene"]["recently_left"]
+        assert len(recently_left) == 1
+        assert recently_left[0]["id"] == "fixer"
+        assert recently_left[0]["name"] == "Anna"
+        assert recently_left[0]["title"] == "Fence"
 
     def test_scene_tagline_set(self) -> None:
         state = _make_state()

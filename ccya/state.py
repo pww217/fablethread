@@ -338,6 +338,8 @@ def apply_delta(
             "description": delta.location_change.description,
         }
         state.setdefault("scene", {})["present_npcs"] = []
+        state.setdefault("scene", {})["recently_left"] = []
+        state.setdefault("scene", {})["recently_left_turns"] = 0
     elif delta.location_description:
         state.setdefault("location", {})["description"] = delta.location_description
 
@@ -495,6 +497,10 @@ def apply_delta(
 
     # Present NPCs — replace when non-empty (avoid wiping on []);
     # hydrate name/title/bio from compendium when delta omits them (token-saving path).
+    # Capture old ids before applying so we can compute recently_left.
+    old_present_ids: set[str] = {
+        n.get("id") for n in state.get("scene", {}).get("present_npcs", [])
+    }
     if delta.present_npcs:
         comp = state.setdefault("compendium", {}).setdefault("npcs", {})
 
@@ -539,6 +545,27 @@ def apply_delta(
                 entry["bio"] = row["bio"]
             touch_compendium_order(state, nid)
         state.setdefault("scene", {})["present_npcs"] = rows
+
+    # Compute recently_left: NPCs in old present_npcs but not in new.
+    # Returnees (in both old and new) are excluded automatically.
+    # Use delta.present_npcs for new ids (not state, which may not have been updated).
+    new_present_ids: set[str] = {
+        n.id for n in (delta.present_npcs or [])
+    }
+    left_ids = old_present_ids - new_present_ids
+    scene = state.setdefault("scene", {})
+    if left_ids:
+        comp = state.get("compendium", {}).get("npcs", {})
+        recently_left: list[dict[str, str]] = []
+        for nid in sorted(left_ids):
+            ce = comp.get(nid, {})
+            recently_left.append({
+                "id": nid,
+                "name": ce.get("name", nid),
+                "title": ce.get("title", ""),
+            })
+        scene["recently_left"] = recently_left
+        scene.setdefault("recently_left_turns", 2)
 
     for u in delta.compendium_npc_update:
         nid = normalize_inventory_id(u.id)

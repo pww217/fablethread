@@ -39,7 +39,7 @@ Ambiguities to resolve: {{ scope.ambiguities | join("; ") }}
 - id: `{{ row.id }}` | {{ row.name or '—' }} — {{ row.title or '' }} | bio: {{ row.bio_preview or '—' }}
 {% endfor %}{% else %}None yet.{% endif %}
 
-### Present NPCs (emit **present_npcs** to replace the whole list each turn; always include ≥1 entry — use ambient background if no named NPCs; bio lives under **Known characters** — emit **id** + **notes** only when unchanged)
+### Previous turn NPCs (emit **present_npcs** to replace the whole list each turn; always include ≥1 entry — use ambient background if no named NPCs; bio lives under **Known characters** — emit **id** + **notes** only when unchanged)
 {% if present_npcs %}{% for n in present_npcs %}
 - id: `{{ n.id if n is mapping else n }}` | name: {{ n.name if n is mapping else n }} | title: {{ n.get('title', '') if n is mapping else '' }} | notes: {{ n.get('notes', '') if n is mapping else '' }}
 {% endfor %}{% else %}None listed.{% endif %}

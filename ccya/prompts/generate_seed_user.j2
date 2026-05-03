@@ -41,10 +41,12 @@
 {% endif %}
 
 {% if name_pool %}
-## Name pool (non-binding suggestions)
-These names were sampled from the cultural locales appropriate to this setting,
-weighted to reflect the genre's demographic reality. Use them, adapt them, or
-ignore them — they are a starting point, not a constraint.
+## Name pool (use these — do NOT invent generic Anglo names)
+These names were sampled from the cultural locales appropriate to this setting.
+**Use at least one of these for your PC or named NPCs.** Do NOT generate
+generic placeholder names like "John Smith", "Elias Thorne", "Marcus Cole",
+"Clara Miller", "Jared Quinn" — names that could appear in any setting.
+Draw from the cultural, linguistic, and ethnic mix plausible for this world.
 
 **PC candidates:** {{ name_pool.pc | join(", ") }}
 **NPC candidates:** {{ name_pool.npc | join(", ") }}

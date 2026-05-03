@@ -58,13 +58,13 @@ def generate_name_pool(
 def generate_npc_names(
     locales: list[dict],
     *,
-    count: int = 6,
+    count: int = 10,
     seed: int | None = None,
 ) -> list[str]:
-    """Return a small flat list of NPC name candidates for mid-game injection.
+    """Return a flat list of NPC name candidates for mid-game injection.
 
-    Smaller than the seed-time pool; just enough to anchor the narrator for
-    one or two new characters without bloating the prompt.
+    Enough names to anchor the narrator for one or two new characters without
+    bloating the prompt. More names = less chance the LLM rejects all options.
     """
     rng = random.Random(seed)
     fakers, weights = _build_weighted_fakers(locales, rng, seed)
