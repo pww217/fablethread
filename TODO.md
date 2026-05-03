@@ -86,7 +86,6 @@
 - [x] **Real places from lore** — use real locations from the setting's lore or real world.
 - [x] **More recent narrations** — window_turns increased to 6 for richer context.
 - [x] **First narration bolding** — bolding rules apply from the first scene onward.
-- [x] **Actions in narrate call** — move actions generation from extractor to narrator (Plan E).
 - [ ] **World gen no streaming** — disable streaming for world generation calls (generate_seed) since it's a single JSON output.
 
 ### Tooling
@@ -131,10 +130,11 @@ Full plans: [plans/llm-pipeline-accuracy.md](./plans/llm-pipeline-accuracy.md) �
 - [x] Keep full state in `narrate_system.j2`
 
 ### E — `actions` Generation Placement
-*Move to narrate call — DONE.*
+*Abandoned — actions stay in extractor. Narrator outputs prose only; extractor outputs structured data (state_delta + actions).*
 
-- [x] Confirm `actions` is last in `extract_system.j2` schema key order
-- [x] Move `actions` to narrate call (ACTIONS_JSON marker)
+- [x] Remove ACTIONS_JSON marker from narrate call
+- [x] Restore actions to extract_system.j2 schema with guidance to draw from current narration only
+- [x] Add actions field to ExtractResult model
 
 ### F — Compaction Redesign
 *New prompt files + Python logic. Fixes fixed-cadence trigger.*

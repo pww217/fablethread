@@ -877,28 +877,6 @@ def _find_json(text: str) -> dict | None:
     return None
 
 
-def _parse_actions_from_narrate(narrative: str) -> tuple[list[str], str]:
-    """Extract actions from the ACTIONS_JSON: marker in narrate output.
-
-    Returns (actions, clean_narrative) where clean_narrative has the
-    ACTIONS_JSON block stripped. Returns ([], narrative) if no marker found.
-    """
-    marker = "ACTIONS_JSON:"
-    idx = narrative.find(marker)
-    if idx < 0:
-        return [], narrative
-    actions_raw = narrative[idx + len(marker) :].strip()
-    clean_narrative = narrative[:idx].rstrip()
-    try:
-        data = json.loads(actions_raw)
-        actions = data.get("actions", [])
-        if isinstance(actions, list) and len(actions) == 4:
-            return [str(a) for a in actions], clean_narrative
-    except (json.JSONDecodeError, ValueError, TypeError):
-        pass
-    return [], clean_narrative
-
-
 def _truncate(s: str, n: int) -> str:
     if not isinstance(s, str):
         s = str(s)
@@ -1235,7 +1213,6 @@ async def run_turn(
 
         narr_ms = (asyncio.get_event_loop().time() - t0) * 1000
         narrative = strip_thinking("".join(narrative_chunks))
-        actions, narrative = _parse_actions_from_narrate(narrative)
         narr_metrics = {
             "first_token_ms": round(first_ms, 1),
             "total_ms": round(narr_ms, 1),
@@ -1273,6 +1250,8 @@ async def run_turn(
         parse_error = ""
         ext_usage: dict[str, int] = {}
         exp_ms = _avg_extract_ms(save_dir)
+        actions: list[str] = []
+        er: ExtractResult | None = None
         yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
 
         for attempt in range(1 + config.max_extract_retries):
@@ -1313,6 +1292,7 @@ async def run_turn(
                         er = ExtractResult(**j)
                         delta = er.state_delta
                         failed = er.failed
+                        actions = er.actions
                     else:
                         delta = StateDelta(**j)
                         failed = j.pop("failed", [])

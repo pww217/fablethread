@@ -8,7 +8,7 @@ Prefer altering, deleting, or merging an existing entry over adding a new one. I
 - `pc_condition_add`: at most 2 new conditions per turn. The total number of active conditions is capped at 5 — see the condition rules below.
 
 ## Output schema (JSON shape — empty arrays/objects may be omitted)
-Top-level keys: `state_delta` (object), `_reasoning` (string), `failed` (array).
+Top-level keys: `state_delta` (object), `_reasoning` (string), `failed` (array), `actions` (array).
 
 state_delta fields (only include what changed; omit keys that are empty):
 
@@ -53,7 +53,8 @@ Full output shape:
 {
   "state_delta": { ... },
   "_reasoning": "2-4 sentence cross-check of the extraction just completed",
-  "failed": ["precondition failure description"]
+  "failed": ["precondition failure description"],
+  "actions": ["4 distinct, substantial player choices (7-10 words each)"]
 }
 ```
 
@@ -67,6 +68,9 @@ Full output shape:
 ## Field guidance
 - `_reasoning`: After emitting state_delta, write 2-4 sentences cross-checking your extraction: confirm quest objectives match what the narrative resolved, verify no recent_events_add entries duplicate the existing recent events list, and flag any precondition that was assumed but may not have been met. This field is stripped by the engine before state is applied — use it freely.
 - `failed`: List of precondition failures identified during cross-check. Each entry describes what failed and why (e.g. "tried to pick up keys but guard is still conscious").
+- `actions`: Exactly 4 distinct, meaningful choices the player could take next. Each should be 7-10 words. Weight options toward what this character is actually good at through what the options *are* (not labels): a high-strength character gets physical approaches, high-charisma gets social ones, high-wits gets observation/deduction. Include one cautious/evasive fallback option. Never offer all four as the same flavor.
+
+**Crucial: actions must be drawn from the CURRENT TURN NARRATION only** — the most recent narrative beat in the user message. Do NOT invent actions based on older history, chronicle entries, or established facts. The older narrations are labeled as past context; they are done. Generate actions that follow naturally from what just happened in this turn.
 - `inventory_remove`: omit `amount` or use `null` to remove the entire stack; integer subtracts from stack. For a stack of exactly 1, omit `amount` or use `null` (never `amount: 0`). Never emit `inventory_add` and `inventory_remove` for the same `id` in one turn (they cancel and confuse state).
 - `quest_updates.objectives`: For existing objectives, prefer `index` (1-based, matches numbered list in user message). Use `description` only when adding a new objective line to that quest (then `index` is optional).
 - `present_npcs`: Replace the full list each turn; ≥1 entry (named NPCs or ambient background).
