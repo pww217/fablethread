@@ -4,4 +4,4 @@
 **Bio:** {{ state.pc.bio }}
 {% endif %}
 Stats: {% for k, v in (state.pc.stats or {}).items() %}{{ k }}={{ v }} {% endfor %}
-Conditions: {% if (state.pc.conditions or []) %}{{ state.pc.conditions | join(", ") }}{% else %}None.{% endif %}
+Conditions: {% if (state.pc.conditions or []) %}{% for c in state.pc.conditions %}{{ c.label if c is mapping else c }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}None.{% endif %}

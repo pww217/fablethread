@@ -445,20 +445,31 @@ def apply_delta(
     for q in existing_quests.values():
         _auto_complete_quest(q)
 
-    # PC conditions — add then remove, with normalized dedup and FIFO cap
+    # PC conditions — structured (id-based dedup), add then remove, FIFO cap
     state.setdefault("pc", {}).setdefault("conditions", [])
-    existing_conds: list[str] = list(state["pc"]["conditions"])
-    remove_keys = {_normalize_condition(s) for s in delta.pc_condition_remove}
-    existing_conds = [
-        c for c in existing_conds if _normalize_condition(c) not in remove_keys
-    ]
-    existing_norms = {_normalize_condition(c) for c in existing_conds}
-    for c in delta.pc_condition_add:
-        nk = _normalize_condition(c)
-        if not nk or nk in existing_norms:
+    existing_conds: list[dict] = []
+    for c in state["pc"]["conditions"]:
+        if isinstance(c, dict):
+            existing_conds.append(c)
+        elif isinstance(c, str):
+            # Migrate legacy string conditions on first touch
+            cid = c.lower().strip().replace(" ", "_")
+            existing_conds.append({"id": cid, "label": c, "description": "", "added_turn": 0})
+    remove_ids = {r.id for r in delta.pc_condition_remove}
+    existing_conds = [c for c in existing_conds if c.get("id") not in remove_ids]
+    existing_ids = {c.get("id") for c in existing_conds}
+    current_turn = (state.get("meta") or {}).get("turn", 0)
+    for ca in delta.pc_condition_add:
+        cid = ca.id
+        if not cid or cid in existing_ids:
             continue
-        existing_conds.append(c)
-        existing_norms.add(nk)
+        existing_conds.append({
+            "id": cid,
+            "label": ca.label,
+            "description": ca.description,
+            "added_turn": current_turn,
+        })
+        existing_ids.add(cid)
     state["pc"]["conditions"] = existing_conds[-PC_CONDITIONS_MAX:]
 
     # Recent events — remove → update → add (preserves position on update; FIFO cap)
@@ -606,36 +617,6 @@ def _normalize_fact(text: Any) -> str:
     if not isinstance(text, str):
         text = str(text)
     return " ".join(text.lower().split())
-
-
-def _normalize_condition(text: Any) -> str:
-    """Normalize a condition tag for dedup / removal matching.
-
-    Strips markdown emphasis and punctuation so 'Bruised Ribs', '*bruised ribs*',
-    and 'bruised  ribs' all collapse to the same key.
-    """
-    if not isinstance(text, str):
-        text = str(text)
-    s = text.lower()
-    for ch in (
-        "*",
-        "_",
-        "`",
-        ".",
-        ",",
-        ";",
-        ":",
-        "!",
-        "?",
-        "(",
-        ")",
-        "[",
-        "]",
-        '"',
-        "'",
-    ):
-        s = s.replace(ch, " ")
-    return " ".join(s.split())
 
 
 def _fact_already_exists(fact: str, existing: list[str]) -> bool:

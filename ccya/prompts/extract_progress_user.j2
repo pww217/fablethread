@@ -1,0 +1,63 @@
+## THIS TURN SCOPE
+Active domains: {{ rules_outcome.scope.active_domains | join(", ") if rules_outcome and rules_outcome.scope else "quest_updates, recent_events, compendium_npc" }}
+{% if rules_outcome and rules_outcome.scope and rules_outcome.scope.ambiguities %}
+Ambiguities to resolve: {{ rules_outcome.scope.ambiguities | join("; ") }}
+{% endif %}
+
+## Player
+{{ pc.name }} — {{ pc.tagline }}
+
+## Active quests
+{% if active_quests %}
+{% for q in active_quests %}— id: `{{ q.id }}` | {{ q.title }}
+  objectives:
+{% for o in (q.objectives or []) %}    {{ loop.index }}. [{% if o.done %}x{% elif o.failed %}f{% else %} {% endif %}] {{ o.description }}
+{% endfor %}
+{% endfor %}
+{% else %}
+None.
+{% endif %}
+
+## Recent events (emit recent_events_add/update/remove for changes; do NOT duplicate existing entries)
+{% if recent_events %}
+{% for f in recent_events %}— {{ f }}
+{% endfor %}
+{% else %}
+None recorded yet.
+{% endif %}
+
+{% if active_quests | length == 0 %}
+## World state (read-only — use to reason about new quests only)
+{% if world_state %}
+{% for f in world_state %}— {{ f if f is string else f.values() | join(': ') }}
+{% endfor %}
+{% else %}
+None.
+{% endif %}
+{% endif %}
+
+## Known characters (compendium — reuse id for compendium_npc_update)
+{% if known_characters %}
+{% for row in known_characters %}— id: `{{ row.id }}` | {{ row.name }}{% if row.title %} — {{ row.title }}{% endif %}{% if row.bio_preview %} | {{ row.bio_preview }}{% endif %}
+{% endfor %}
+{% else %}
+None yet.
+{% endif %}
+
+## Scene result (from scene stream)
+Present NPCs this turn: {% if scene_result.present_npcs %}{% for n in scene_result.present_npcs %}{{ n.name or n.id }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}none{% endif %}
+
+## State result (from state stream)
+{% if state_result.items_gained %}
+Items gained this turn: {{ state_result.items_gained | join(', ') }}
+{% endif %}
+{% if state_result.items_lost %}
+Items lost this turn: {{ state_result.items_lost | join(', ') }}
+{% endif %}
+{% if not state_result.items_gained and not state_result.items_lost %}
+No inventory changes this turn.
+{% endif %}
+
+## CURRENT TURN NARRATION
+{{ narration }}
+## END CURRENT TURN NARRATION

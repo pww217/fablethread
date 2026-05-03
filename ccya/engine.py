@@ -27,11 +27,13 @@ from typing import Any, AsyncIterator
 from jinja2 import Environment, FileSystemLoader
 
 from ccya.models import (
-    ExtractResult,
     IntentEnvelope,
+    ProgressExtractResult,
     RulesCheck,
     RulesOutcome,
     Scope,
+    SceneExtractResult,
+    StateExtractResult,
     StateDelta,
     TurnResult,
 )
@@ -100,6 +102,10 @@ def is_turn_in_progress(save_dir: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
+CONDITION_TTL_TURNS: int = 4
+"""Default number of turns before a condition auto-expires."""
+
+
 @dataclass
 class EngineConfig:
     host: str = "http://localhost:8080/v1"
@@ -125,6 +131,7 @@ class EngineConfig:
     rules_temperature: float = 0.2
     max_rules_retries: int = 1
     log_prompts: bool = False
+    condition_ttl_turns: int = CONDITION_TTL_TURNS
 
 
 # ---------------------------------------------------------------------------
@@ -191,8 +198,14 @@ def _narrate_messages(
     return msgs
 
 
-def _known_characters_for_extract(state: dict[str, Any]) -> list[dict[str, Any]]:
-    """Up to 10 compendium NPC rows for extract_user (reuse ids; bio preview truncated)."""
+def _known_characters_for_extract(
+    state: dict[str, Any], *, compact: bool = False
+) -> list[dict[str, Any]]:
+    """Up to 10 compendium NPC rows for extract prompts (LRU order).
+
+    compact=True: id+name only (for stream 1 where we need minimal tokens).
+    compact=False: id+name+title+bio_preview (for stream 3 compendium reasoning).
+    """
     comp = (state.get("compendium") or {}).get("npcs") or {}
     order = list((state.get("meta") or {}).get("compendium_touch_order") or [])
     seen: set[str] = set()
@@ -210,17 +223,20 @@ def _known_characters_for_extract(state: dict[str, Any]) -> list[dict[str, Any]]
     rows: list[dict[str, Any]] = []
     for nid in out_ids:
         e = comp.get(nid) or {}
-        bio = (e.get("bio") or "").strip()
-        if len(bio) > 120:
-            bio = bio[:117].rstrip() + "..."
-        rows.append(
-            {
-                "id": nid,
-                "name": e.get("name") or "",
-                "title": e.get("title") or "",
-                "bio_preview": bio,
-            },
-        )
+        if compact:
+            rows.append({"id": nid, "name": e.get("name") or ""})
+        else:
+            bio = (e.get("bio") or "").strip()
+            if len(bio) > 120:
+                bio = bio[:117].rstrip() + "..."
+            rows.append(
+                {
+                    "id": nid,
+                    "name": e.get("name") or "",
+                    "title": e.get("title") or "",
+                    "bio_preview": bio,
+                },
+            )
     return rows
 
 
@@ -313,9 +329,11 @@ def _summarize_applied(applied: dict[str, Any]) -> list[str]:
     for _upd in applied.get("recent_events_update") or []:
         lines.append("~ Event revised")
     for c in applied.get("pc_condition_add") or []:
-        lines.append(f"+ {c}")
+        label = c.get("label") or c.get("id") or str(c) if isinstance(c, dict) else str(c)
+        lines.append(f"+ {label}")
     for c in applied.get("pc_condition_remove") or []:
-        lines.append(f"- {c}")
+        cid = c.get("id") or str(c) if isinstance(c, dict) else str(c)
+        lines.append(f"- {cid}")
     for qu in applied.get("quest_updates") or []:
         if not isinstance(qu, dict):
             continue
@@ -459,12 +477,21 @@ def summarize_changes(
     post_pc = post.get("pc") or {}
     pre_conds = list(pre_pc.get("conditions") or [])
     post_conds = list(post_pc.get("conditions") or [])
+
+    def _cond_id(c: Any) -> str:
+        return c.get("id", "") if isinstance(c, dict) else str(c)
+
+    def _cond_label(c: Any) -> str:
+        return (c.get("label") or c.get("id") or "") if isinstance(c, dict) else str(c)
+
+    pre_cond_ids = {_cond_id(c) for c in pre_conds}
+    post_cond_ids = {_cond_id(c) for c in post_conds}
     for c in post_conds:
-        if c not in pre_conds:
-            player.append({"kind": "condition_added", "value": str(c)})
+        if _cond_id(c) not in pre_cond_ids:
+            player.append({"kind": "condition_added", "value": _cond_label(c)})
     for c in pre_conds:
-        if c not in post_conds:
-            player.append({"kind": "condition_removed", "value": str(c)})
+        if _cond_id(c) not in post_cond_ids:
+            player.append({"kind": "condition_removed", "value": _cond_label(c)})
 
     pl = pre.get("location") or {}
     pr = post.get("location") or {}
@@ -638,72 +665,435 @@ def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
     return lines
 
 
-def _extract_messages(
+def _active_domains(intent: "IntentEnvelope | None") -> list[str]:
+    scope = intent.scope if intent else Scope()
+    return scope.active_domains or [
+        "scene",
+        "present_npcs",
+        "inventory",
+        "quest_updates",
+        "location_change",
+        "recent_events",
+        "pc_condition",
+    ]
+
+
+def _extract_scene_messages(
     env: Environment,
-    narrative: str,
+    narration: str,
     state: dict[str, Any],
     *,
-    enable_extract_thinking: bool = False,
-    pack_examples: list[ExtractExample] | None = None,
     rules_outcome: "RulesOutcome | None" = None,
     intent: "IntentEnvelope | None" = None,
+    enable_thinking: bool = False,
 ) -> list[dict[str, str]]:
-    """Build extract message list: [system, user].
-
-    system    = schema + extraction rules (stable)
-    user      = narrative + canonical state snapshot + emit JSON instruction
-    """
-    system_text = _render(
-        env,
-        "extract_system.j2",
-        {
-            "pack_examples": pack_examples or [],
-        },
-    )
-
-    # Build state slice based on scope active_domains
+    """Build [system, user] messages for stream 1 (scene + UI hints)."""
+    pc = state.get("pc") or {}
+    location = state.get("location") or {}
+    scene = state.get("scene") or {}
+    present_npcs = list(scene.get("present_npcs") or [])
+    conditions = list(pc.get("conditions") or [])
+    known_characters = _known_characters_for_extract(state, compact=True)
     scope = intent.scope if intent else Scope()
-    active_domains = (
-        scope.active_domains
-        if scope.active_domains
-        else [
-            "scene",
-            "present_npcs",
-            "inventory",
-            "quest_updates",
-            "location_change",
-            "recent_events",
-            "pc_condition",
-        ]
-    )
-    slice = build_state_slice(state, active_domains)
+    active = _active_domains(intent)
 
+    # Known locations only when location change is plausible
+    known_locations: list[dict[str, Any]] = []
+    if "location_change" in active:
+        known_locations = list((state.get("scene") or {}).get("world_state") or [])
+        # Pull named location entries from quests context if available — not critical
+        # Use compendium location-type entries if any exist
+        known_locations = []  # simplified: location ids come from narration context
+
+    system_text = _render(env, "extract_scene_system.j2", {})
     user_text = _render(
         env,
-        "extract_user.j2",
+        "extract_scene_user.j2",
         {
-            "narrative": narrative,
-            "pc": slice["pc_core"],
-            "location": slice["location"],
-            "present_npcs": slice["present_npcs"],
-            "active_quests": slice["active_quests"],
-            "inventory": slice["inventory"],
-            "recent_events": slice["recent_events"],
-            "world_state": slice["world_state"],
-            "known_characters": slice["known_characters"],
+            "narration": narration,
+            "pc": pc,
+            "location": location,
+            "present_npcs": present_npcs,
+            "conditions": conditions,
+            "known_characters": known_characters,
+            "known_locations": known_locations,
             "rules_outcome": rules_outcome,
-            "intent_target": intent.target if intent else "",
-            "scope": scope,
-            "conditions": slice["conditions"],
+            "active_domains": active,
         },
     )
     msgs = [
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
     ]
-    if enable_extract_thinking:
+    if enable_thinking:
         msgs = apply_thinking(msgs, True)
     return msgs
+
+
+def _extract_state_messages(
+    env: Environment,
+    narration: str,
+    state: dict[str, Any],
+    *,
+    scene_result: "SceneExtractResult",
+    rules_outcome: "RulesOutcome | None" = None,
+    intent: "IntentEnvelope | None" = None,
+    engine_expired_conditions: list[dict[str, Any]] | None = None,
+    enable_thinking: bool = False,
+) -> list[dict[str, str]]:
+    """Build [system, user] messages for stream 2 (inventory + conditions)."""
+    pc = state.get("pc") or {}
+    location = state.get("location") or {}
+    active = _active_domains(intent)
+
+    # Cross-stream scene context (minimal surface)
+    loc_id = (
+        scene_result.location_change.id
+        if scene_result.location_change
+        else location.get("id", "")
+    )
+    scene_ctx = {
+        "location_id": loc_id,
+        "location_changed": bool(scene_result.location_change),
+        "present_npcs": [
+            {"id": n.id, "name": n.name or n.id}
+            for n in scene_result.present_npcs
+        ],
+    }
+
+    system_text = _render(
+        env,
+        "extract_state_system.j2",
+        {"rules_outcome": rules_outcome},
+    )
+    user_text = _render(
+        env,
+        "extract_state_user.j2",
+        {
+            "narration": narration,
+            "pc": pc,
+            "conditions": list(pc.get("conditions") or []),
+            "inventory": state.get("inventory") or [],
+            "scene_result": scene_ctx,
+            "rules_outcome": rules_outcome,
+            "active_domains": active,
+            "engine_expired_conditions": engine_expired_conditions or [],
+        },
+    )
+    msgs = [
+        {"role": "system", "content": system_text},
+        {"role": "user", "content": user_text},
+    ]
+    if enable_thinking:
+        msgs = apply_thinking(msgs, True)
+    return msgs
+
+
+def _extract_progress_messages(
+    env: Environment,
+    narration: str,
+    state: dict[str, Any],
+    *,
+    scene_result: "SceneExtractResult",
+    state_result: "StateExtractResult",
+    rules_outcome: "RulesOutcome | None" = None,
+    intent: "IntentEnvelope | None" = None,
+    enable_thinking: bool = False,
+) -> list[dict[str, str]]:
+    """Build [system, user] messages for stream 3 (quests + facts + compendium)."""
+    pc = state.get("pc") or {}
+    scene = state.get("scene") or {}
+    active = _active_domains(intent)
+
+    active_quests = [
+        q for q in (state.get("quests") or []) if q.get("status") == "active"
+    ]
+    recent_events = list(scene.get("recent_events") or [])
+    world_state = list(scene.get("world_state") or [])
+    known_characters = _known_characters_for_extract(state, compact=False)
+
+    # Cross-stream: minimal surfaces
+    scene_ctx = {
+        "present_npcs": [
+            {"id": n.id, "name": n.name or n.id}
+            for n in scene_result.present_npcs
+        ],
+    }
+    state_ctx = {
+        "items_gained": [it.name for it in state_result.inventory_add],
+        "items_lost": [it.id for it in state_result.inventory_remove],
+    }
+
+    system_text = _render(
+        env,
+        "extract_progress_system.j2",
+        {
+            "active_quests": active_quests,
+            "rules_outcome": rules_outcome,
+            "state_result_items_gained": state_ctx["items_gained"],
+            "state_result_items_lost": state_ctx["items_lost"],
+        },
+    )
+    user_text = _render(
+        env,
+        "extract_progress_user.j2",
+        {
+            "narration": narration,
+            "pc": pc,
+            "active_quests": active_quests,
+            "recent_events": recent_events,
+            "world_state": world_state,
+            "known_characters": known_characters,
+            "scene_result": scene_ctx,
+            "state_result": state_ctx,
+            "rules_outcome": rules_outcome,
+            "active_domains": active,
+        },
+    )
+    msgs = [
+        {"role": "system", "content": system_text},
+        {"role": "user", "content": user_text},
+    ]
+    if enable_thinking:
+        msgs = apply_thinking(msgs, True)
+    return msgs
+
+
+def _parse_stream_result(raw: str, model_cls: type, strip_keys: tuple[str, ...] = ("_reasoning",)) -> Any:
+    """Parse JSON from LLM output, strip internal keys, validate with model_cls."""
+    cleaned = strip_thinking(raw)
+    j = _find_json(cleaned)
+    if j is None:
+        raise ValueError("No JSON found in response")
+    for k in strip_keys:
+        j.pop(k, None)
+    return model_cls(**j)
+
+
+async def _call_stream(
+    messages: list[dict],
+    config: "EngineConfig",
+    trace_id: str,
+    phase: str,
+    model_cls: type,
+    strip_keys: tuple[str, ...] = ("_reasoning",),
+) -> tuple[Any, dict[str, Any]]:
+    """Call llm_chat with retry. Returns (parsed_result, usage_dict)."""
+    parse_error = ""
+    usage: dict[str, Any] = {}
+    for attempt in range(1 + config.max_extract_retries):
+        if config.log_llm_io:
+            _log_llm_io(
+                trace_id=trace_id,
+                phase=f"{phase}_request_attempt_{attempt}",
+                messages=messages,
+                max_chars=config.log_llm_io_max_chars,
+            )
+        result = await llm_chat(
+            config.host,
+            config.model,
+            messages,
+            temperature=config.extract_temperature,
+            timeout=float(config.request_timeout_s),
+        )
+        raw = result.get("response", "") if isinstance(result, dict) else ""
+        usage = result.get("usage", {}) if isinstance(result, dict) else {}
+        if config.log_llm_io:
+            _log_llm_io(
+                trace_id=trace_id,
+                phase=f"{phase}_response_attempt_{attempt}",
+                response=raw,
+                max_chars=config.log_llm_io_max_chars,
+            )
+        try:
+            return _parse_stream_result(raw, model_cls, strip_keys), usage
+        except Exception as exc:
+            parse_error = str(exc)
+            _log.warning(
+                "%s parse failed (attempt %d/%d): %s",
+                phase,
+                attempt + 1,
+                1 + config.max_extract_retries,
+                parse_error,
+                extra={"trace_id": trace_id},
+            )
+            if attempt < config.max_extract_retries:
+                messages.append({
+                    "role": "user",
+                    "content": (
+                        f"Your previous output failed to parse: {parse_error[:200]}. "
+                        "Re-emit JSON matching the schema. No prose outside <thinking>."
+                    ),
+                })
+    raise ValueError(f"{phase} failed after all attempts: {parse_error}")
+
+
+async def _run_extraction_pipeline(
+    env: "Environment",
+    state: dict[str, Any],
+    narration: str,
+    *,
+    rules_outcome: "RulesOutcome | None" = None,
+    intent: "IntentEnvelope | None" = None,
+    config: "EngineConfig",
+    trace_id: str,
+    turn_no: int,
+    engine_expired_conditions: list[dict[str, Any]],
+    pack_examples: list["ExtractExample"] | None = None,
+) -> tuple["StateDelta", list[str], str, list[str], dict[str, Any]]:
+    """Run the three extraction streams in sequence.
+
+    Returns: (merged_delta, actions, outcome_summary, failed, per_stream_event_data)
+    """
+    scope = intent.scope if intent else Scope()
+    skip = set(scope.skip_domains or [])
+    active = _active_domains(intent)
+
+    _SKIPPED: dict[str, Any] = {"skipped": True, "tokens_in": 0, "tokens_out": 0, "ms": 0}
+
+    # Defaults if a stream is skipped
+    scene_result = SceneExtractResult()
+    state_result = StateExtractResult()
+    progress_result = ProgressExtractResult()
+    extraction_event: dict[str, Any] = {}
+
+    # --- Stream 1: Scene (always runs) ---
+    t_scene = asyncio.get_event_loop().time()
+    scene_msgs = _extract_scene_messages(
+        env, narration, state,
+        rules_outcome=rules_outcome, intent=intent,
+        enable_thinking=config.enable_extract_thinking,
+    )
+    scene_msgs = trim_messages(scene_msgs, config.prompt_token_budget)
+    if config.log_prompts:
+        _log_prompts(turn_no, "extract_scene", scene_msgs)
+
+    rendered_scene_system = scene_msgs[0]["content"]
+    rendered_scene_user = scene_msgs[-1]["content"]
+
+    try:
+        scene_result, scene_usage = await _call_stream(
+            scene_msgs, config, trace_id, "extract_scene", SceneExtractResult
+        )
+        extraction_event["scene"] = {
+            "rendered_system": rendered_scene_system,
+            "rendered_user": rendered_scene_user,
+            "output": scene_result.model_dump(),
+            "skipped": False,
+            "tokens_in": scene_usage.get("prompt_tokens", 0),
+            "tokens_out": scene_usage.get("total_tokens", 0),
+            "ms": round((asyncio.get_event_loop().time() - t_scene) * 1000, 1),
+        }
+    except Exception as exc:
+        _log.warning("extract_scene failed: %s", exc, extra={"trace_id": trace_id})
+        extraction_event["scene"] = {**_SKIPPED, "error": str(exc)}
+
+    # --- Stream 2: State ---
+    state_domains = {"inventory", "pc_condition"}
+    run_state = not state_domains.issubset(skip)
+    if run_state:
+        t_state = asyncio.get_event_loop().time()
+        state_msgs = _extract_state_messages(
+            env, narration, state,
+            scene_result=scene_result,
+            rules_outcome=rules_outcome, intent=intent,
+            engine_expired_conditions=engine_expired_conditions,
+            enable_thinking=config.enable_extract_thinking,
+        )
+        state_msgs = trim_messages(state_msgs, config.prompt_token_budget)
+        if config.log_prompts:
+            _log_prompts(turn_no, "extract_state", state_msgs)
+
+        rendered_state_system = state_msgs[0]["content"]
+        rendered_state_user = state_msgs[-1]["content"]
+
+        try:
+            state_result, state_usage = await _call_stream(
+                state_msgs, config, trace_id, "extract_state",
+                StateExtractResult, strip_keys=("_reasoning",),
+            )
+            extraction_event["state"] = {
+                "rendered_system": rendered_state_system,
+                "rendered_user": rendered_state_user,
+                "output": state_result.model_dump(),
+                "skipped": False,
+                "tokens_in": state_usage.get("prompt_tokens", 0),
+                "tokens_out": state_usage.get("total_tokens", 0),
+                "ms": round((asyncio.get_event_loop().time() - t_state) * 1000, 1),
+            }
+        except Exception as exc:
+            _log.warning("extract_state failed: %s", exc, extra={"trace_id": trace_id})
+            extraction_event["state"] = {**_SKIPPED, "error": str(exc)}
+    else:
+        _log.debug("Skipping state stream — all state domains in skip_domains")
+        extraction_event["state"] = _SKIPPED
+
+    # --- Stream 3: Progress ---
+    progress_domains = {"quest_updates", "recent_events", "compendium_npc"}
+    run_progress = not progress_domains.issubset(skip)
+    if run_progress:
+        t_progress = asyncio.get_event_loop().time()
+        progress_msgs = _extract_progress_messages(
+            env, narration, state,
+            scene_result=scene_result,
+            state_result=state_result,
+            rules_outcome=rules_outcome, intent=intent,
+            enable_thinking=config.enable_extract_thinking,
+        )
+        progress_msgs = trim_messages(progress_msgs, config.prompt_token_budget)
+        if config.log_prompts:
+            _log_prompts(turn_no, "extract_progress", progress_msgs)
+
+        rendered_prog_system = progress_msgs[0]["content"]
+        rendered_prog_user = progress_msgs[-1]["content"]
+
+        try:
+            progress_result, prog_usage = await _call_stream(
+                progress_msgs, config, trace_id, "extract_progress",
+                ProgressExtractResult, strip_keys=("_reasoning",),
+            )
+            extraction_event["progress"] = {
+                "rendered_system": rendered_prog_system,
+                "rendered_user": rendered_prog_user,
+                "output": progress_result.model_dump(),
+                "skipped": False,
+                "tokens_in": prog_usage.get("prompt_tokens", 0),
+                "tokens_out": prog_usage.get("total_tokens", 0),
+                "ms": round((asyncio.get_event_loop().time() - t_progress) * 1000, 1),
+            }
+        except Exception as exc:
+            _log.warning("extract_progress failed: %s", exc, extra={"trace_id": trace_id})
+            extraction_event["progress"] = {**_SKIPPED, "error": str(exc)}
+    else:
+        _log.debug("Skipping progress stream — all progress domains in skip_domains")
+        extraction_event["progress"] = _SKIPPED
+
+    # --- Merge into single StateDelta ---
+    merged = StateDelta(
+        scene_tags=scene_result.scene_tags,
+        scene_tagline=scene_result.scene_tagline,
+        location_change=scene_result.location_change,
+        location_description=scene_result.location_description,
+        present_npcs=scene_result.present_npcs,
+        inventory_add=state_result.inventory_add,
+        inventory_remove=state_result.inventory_remove,
+        inventory_update=state_result.inventory_update,
+        pc_condition_add=state_result.pc_condition_add,
+        pc_condition_remove=state_result.pc_condition_remove,
+        quest_updates=progress_result.quest_updates,
+        recent_events_add=progress_result.recent_events_add,
+        recent_events_update=progress_result.recent_events_update,
+        recent_events_remove=progress_result.recent_events_remove,
+        compendium_npc_update=progress_result.compendium_npc_update,
+    )
+
+    return (
+        merged,
+        scene_result.actions,
+        scene_result.outcome_summary,
+        state_result.failed,
+        extraction_event,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1241,111 +1631,79 @@ async def run_turn(
 
         yield ("phase", {"phase": "narrate_done"})
 
-        # === Call 2: Extract (structured JSON) ===
-        ext_messages = _extract_messages(
-            env,
-            narrative,
-            state,
-            enable_extract_thinking=config.enable_extract_thinking,
-            pack_examples=pack_examples,
-            rules_outcome=outcome,
-            intent=intent,
-        )
-        ext_messages = trim_messages(ext_messages, config.prompt_token_budget)
-        if config.log_prompts:
-            _log_prompts(
-                state.get("meta", {}).get("turn", 0) + 1, "extract", ext_messages
-            )
-        t2 = asyncio.get_event_loop().time()
-        retries = 0
-        parse_error = ""
-        ext_usage: dict[str, int] = {}
-        exp_ms = _avg_extract_ms(save_dir)
-        actions: list[str] = []
-        er: ExtractResult | None = None
-        yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
-
-        for attempt in range(1 + config.max_extract_retries):
-            if attempt > 0:
-                yield ("phase", {"phase": "extract_retry", "attempt": attempt + 1})
-            try:
-                if config.log_llm_io:
-                    _log_llm_io(
-                        trace_id=trace_id,
-                        phase=f"extract_request_attempt_{attempt}",
-                        messages=ext_messages,
-                        max_chars=config.log_llm_io_max_chars,
-                    )
-                result = await llm_chat(
-                    config.host,
-                    config.model,
-                    ext_messages,
-                    temperature=config.extract_temperature,
-                    timeout=float(config.request_timeout_s),
-                )
-                raw = result.get("response", "") if isinstance(result, dict) else ""
-                ext_usage = result.get("usage", {}) if isinstance(result, dict) else {}
-                if config.log_llm_io:
-                    _log_llm_io(
-                        trace_id=trace_id,
-                        phase=f"extract_response_attempt_{attempt}",
-                        response=raw,
-                        extra={"usage": ext_usage},
-                        max_chars=config.log_llm_io_max_chars,
-                    )
-                cleaned = strip_thinking(raw)
-                j = _find_json(cleaned)
-                if j is not None:
-                    # Accept both full ExtractResult envelope and bare StateDelta
-                    # Pop _reasoning before Pydantic validation (leading underscore not allowed)
-                    j.pop("_reasoning", None)
-                    if "state_delta" in j:
-                        er = ExtractResult(**j)
-                        delta = er.state_delta
-                        failed = er.failed
-                        actions = er.actions
-                        outcome_summary = er.outcome_summary
-                    else:
-                        delta = StateDelta(**j)
-                        failed = j.pop("failed", [])
-                        outcome_summary = j.pop("outcome_summary", "")
-                    if failed:
-                        _log.info(
-                            "Turn %d: failed preconditions: %s",
-                            state.get("meta", {}).get("turn", 0) + 1,
-                            failed,
-                            extra={"trace_id": trace_id},
-                        )
-                    retries = attempt
-                    break
-                raise ValueError("No JSON found in response")
-            except Exception as exc:
-                parse_error = str(exc)
-                _log.warning(
-                    "extract parse failed (attempt %d/%d): %s",
-                    attempt + 1,
-                    1 + config.max_extract_retries,
-                    parse_error,
+        # === Pre-extraction: condition TTL tick ===
+        turn_no = state.get("meta", {}).get("turn", 0) + 1
+        engine_expired_conditions: list[dict[str, Any]] = []
+        pc_conds = list((state.get("pc") or {}).get("conditions") or [])
+        surviving: list[dict] = []
+        for c in pc_conds:
+            if not isinstance(c, dict):
+                surviving.append(c)
+                continue
+            age = (state.get("meta", {}).get("turn", 0)) - c.get("added_turn", 0)
+            if age >= config.condition_ttl_turns:
+                engine_expired_conditions.append(c)
+                _log.debug(
+                    "Auto-expired condition %s (age %d turns)",
+                    c.get("id"), age,
                     extra={"trace_id": trace_id},
                 )
-                if attempt < config.max_extract_retries:
-                    fb = (
-                        f"Your previous output failed to parse: {parse_error[:200]}. "
-                        "Re-emit JSON matching the schema. No prose outside <thinking>."
-                    )
-                    ext_messages.append({"role": "user", "content": fb})
-                    retries = attempt + 1
-                else:
-                    errors.append({"trace_id": trace_id, "message": parse_error})
+            else:
+                surviving.append(c)
+        if engine_expired_conditions:
+            state.setdefault("pc", {})["conditions"] = surviving
+
+        # === Extraction pipeline (3 streams) ===
+        exp_ms = _avg_extract_ms(save_dir)
+        yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
+        t2 = asyncio.get_event_loop().time()
+
+        delta: StateDelta | None = None
+        actions: list[str] = []
+        outcome_summary: str = ""
+        failed: list[str] = []
+        extraction_event: dict[str, Any] = {}
+
+        try:
+            delta, actions, outcome_summary, failed, extraction_event = (
+                await _run_extraction_pipeline(
+                    env, state, narrative,
+                    rules_outcome=outcome,
+                    intent=intent,
+                    config=config,
+                    trace_id=trace_id,
+                    turn_no=turn_no,
+                    engine_expired_conditions=engine_expired_conditions,
+                    pack_examples=pack_examples,
+                )
+            )
+            if failed:
+                _log.info(
+                    "Turn %d: failed preconditions: %s",
+                    turn_no,
+                    failed,
+                    extra={"trace_id": trace_id},
+                )
+        except Exception as exc:
+            errors.append({"trace_id": trace_id, "message": str(exc)})
 
         yield ("phase", {"phase": "extract_done"})
 
         ext_ms = (asyncio.get_event_loop().time() - t2) * 1000
+        # Roll up per-stream token counts for the metrics dict
+        _tokens_in = sum(
+            (extraction_event.get(s) or {}).get("tokens_in", 0)
+            for s in ("scene", "state", "progress")
+        )
+        _tokens_out = sum(
+            (extraction_event.get(s) or {}).get("tokens_out", 0)
+            for s in ("scene", "state", "progress")
+        )
         ext_metrics = {
-            "retries": retries,
             "total_ms": round(ext_ms, 1),
-            "tokens_in": ext_usage.get("prompt_tokens", 0),
-            "tokens_out": ext_usage.get("total_tokens", 0),
+            "tokens_in": _tokens_in,
+            "tokens_out": _tokens_out,
+            "retries": 0,
         }
         metrics = {
             "rules": rules_metrics,
@@ -1432,6 +1790,7 @@ async def run_turn(
             "rules": rules_event,
             "narrate": narr_metrics,
             "extract": ext_metrics,
+            "extraction": extraction_event,
             "changes": changes,
             "failed": failed if failed else [],
         }
@@ -1520,8 +1879,6 @@ def _build_generate_seed_messages(
     overrides: PlayerOverrides | None = None,
 ) -> list[dict[str, str]]:
     """Build the [system, user] messages for generate_seed."""
-    from ccya.models import ExtractResult  # noqa: F401 — schema_json import path
-
     schema_json = SeedEnvelope.model_json_schema()
     name_pool = generate_name_pool(pack.manifest.name_locales)
     ctx = {

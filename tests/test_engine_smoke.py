@@ -23,20 +23,25 @@ from ccya.engine import (
     run_turn,
     _build_jinja_env,
     _narrate_messages,
-    _extract_messages,
+    _extract_scene_messages,
+    _extract_state_messages,
+    _extract_progress_messages,
 )
 from ccya.llm_client import strip_thinking
 from ccya.models import (
     CompendiumNpcUpdate,
+    ConditionAdd,
+    ConditionRemove,
     LocationRef,
     RecentEventUpdate,
     InventoryItem,
     InventoryRemove,
     InventoryUpdate,
-    IntentEnvelope,
     NpcRef,
     QuestObjectiveUpdate,
     QuestUpdate,
+    SceneExtractResult,
+    StateExtractResult,
     StateDelta,
 )
 
@@ -125,28 +130,79 @@ def _make_state(turn: int = 0) -> dict:
 # ---------------------------------------------------------------------------
 
 
+_SCENE_RESPONSE = json.dumps({
+    "scene_tags": ["exploration"],
+    "scene_tagline": "Quiet corridor stretches ahead",
+    "location_change": None,
+    "location_description": None,
+    "present_npcs": [],
+    "actions": ["Look around carefully", "Check the panels", "Listen at the door", "Go back"],
+    "outcome_summary": "You step through the airlock into silence.",
+})
+
+_STATE_RESPONSE = json.dumps({
+    "inventory_add": [],
+    "inventory_remove": [],
+    "inventory_update": [],
+    "pc_condition_add": [],
+    "pc_condition_remove": [],
+    "failed": [],
+})
+
+_PROGRESS_RESPONSE = json.dumps({
+    "quest_updates": [],
+    "recent_events_add": [],
+    "recent_events_update": [],
+    "recent_events_remove": [],
+    "compendium_npc_update": [],
+})
+
+
 class _FakeLLM:
     """Context manager that replaces engine's llm_chat / llm_chat_stream.
 
-    llm_chat_stream is an async generator in the real code, so fake_stream
-    must also be an async generator (uses `yield`).
-    llm_chat is a regular async function, so fake_chat uses `return`.
+    Call ordering per turn:
+      chat 1  = rules (always returns _RULES_NO_ROLL)
+      stream  = narrate (yields narrative text)
+      chat 2  = extract_scene
+      chat 3  = extract_state
+      chat 4  = extract_progress
 
-    Captures all calls so tests can assert on message shapes.
-    text_responses[0] = narrative text (yielded by stream)
-    text_responses[1:] = extract responses (returned by chat)
+    Constructor args:
+      narrative       = text streamed for narration (default "narrative text")
+      scene_response  = JSON for extract_scene (default _SCENE_RESPONSE)
+      state_response  = JSON for extract_state (default _STATE_RESPONSE)
+      progress_response = JSON for extract_progress (default _PROGRESS_RESPONSE)
+
+    Legacy: if a single text_responses list is passed, text_responses[0]=narrative,
+    text_responses[1]=scene, text_responses[2]=state, text_responses[3]=progress.
     """
 
-    def __init__(self, text_responses: list[str]):
+    def __init__(
+        self,
+        text_responses: list[str] | None = None,
+        *,
+        narrative: str = "narrative text",
+        scene_response: str = _SCENE_RESPONSE,
+        state_response: str = _STATE_RESPONSE,
+        progress_response: str = _PROGRESS_RESPONSE,
+    ):
+        if text_responses is not None:
+            narrative = text_responses[0] if len(text_responses) > 0 else narrative
+            scene_response = text_responses[1] if len(text_responses) > 1 else scene_response
+            state_response = text_responses[2] if len(text_responses) > 2 else state_response
+            progress_response = text_responses[3] if len(text_responses) > 3 else progress_response
+
         self.call_log: list[dict] = []
-        self.narrative = text_responses[0] if text_responses else ""
-        self.text_responses = text_responses
+        self.narrative = narrative
+        self._scene_response = scene_response
+        self._state_response = state_response
+        self._progress_response = progress_response
         self._orig_stream = None
         self._orig_chat = None
         _self = self
 
         async def _fake_stream(*args, **kwargs):
-            """Async generator replacing llm_chat_stream."""
             _self.call_log.append({"kind": "stream", "args": args, "kwargs": kwargs})
             ss = kwargs.get("stream_stats")
             if ss is not None:
@@ -155,29 +211,17 @@ class _FakeLLM:
             yield _self.narrative
 
         async def _fake_chat(*args, **kwargs):
-            """Regular async function replacing llm_chat.
-
-            Call ordering: 1st = rules (returns no-roll JSON), 2nd+ = extract.
-            """
             _self.call_log.append({"kind": "chat", "args": args, "kwargs": kwargs})
             chat_calls = [c for c in _self.call_log if c["kind"] == "chat"]
-            if len(chat_calls) == 1:
-                # First chat call is always the rules Call 0 — return no-roll intent.
-                return {
-                    "response": _RULES_NO_ROLL,
-                    "done": True,
-                    "usage": {"prompt_tokens": 30, "total_tokens": 40},
-                }
-            result_text = (
-                _self.text_responses[-1]
-                if len(_self.text_responses) > 1
-                else _self.narrative
-            )
-            return {
-                "response": result_text,
-                "done": True,
-                "usage": {"prompt_tokens": 100, "total_tokens": 200},
-            }
+            n = len(chat_calls)
+            if n == 1:
+                return {"response": _RULES_NO_ROLL, "done": True, "usage": {"prompt_tokens": 30, "total_tokens": 40}}
+            if n == 2:
+                return {"response": _self._scene_response, "done": True, "usage": {"prompt_tokens": 100, "total_tokens": 200}}
+            if n == 3:
+                return {"response": _self._state_response, "done": True, "usage": {"prompt_tokens": 80, "total_tokens": 160}}
+            # n == 4+: progress (and any retries)
+            return {"response": _self._progress_response, "done": True, "usage": {"prompt_tokens": 90, "total_tokens": 180}}
 
         self._fake_stream = _fake_stream
         self._fake_chat = _fake_chat
@@ -259,7 +303,7 @@ def _reset_save_dir():
 
 
 class TestPromptComposition:
-    """Narrate uses [system, user]; extract uses [system, assistant, user]."""
+    """Prompt message shape tests for narrate and per-stream extract builders."""
 
     def _env(self):
         return _build_jinja_env(str(Path(__file__).parent.parent / "ccya" / "prompts"))
@@ -285,117 +329,158 @@ class TestPromptComposition:
         system_msg = next(m for m in msgs if m["role"] == "system")
         assert "SECRET_PROBE" not in system_msg["content"]
 
-    def test_extract_has_system_user_roles(self):
-        env = self._env()
-        msgs = _extract_messages(env, "The airlock opened.", _make_state())
-        roles = [m["role"] for m in msgs]
-        assert roles == ["system", "user"]
+    # --- extract_scene ---
 
-    def test_extract_user_message_contains_narrative(self):
+    def test_extract_scene_has_system_user_roles(self):
+        env = self._env()
+        msgs = _extract_scene_messages(env, "The airlock opened.", _make_state())
+        assert [m["role"] for m in msgs] == ["system", "user"]
+
+    def test_extract_scene_user_contains_narration(self):
         env = self._env()
         narrative = "You step through the airlock. The corridor hums."
-        msgs = _extract_messages(env, narrative, _make_state())
-        user_msg = next(m for m in msgs if m["role"] == "user")
-        assert narrative in user_msg["content"]
+        msgs = _extract_scene_messages(env, narrative, _make_state())
+        user = next(m for m in msgs if m["role"] == "user")
+        assert narrative in user["content"]
 
-    def test_extract_user_message_includes_active_quests_and_inventory(self):
+    def test_extract_scene_system_has_output_schema(self):
+        env = self._env()
+        msgs = _extract_scene_messages(env, "N.", _make_state())
+        system = next(m for m in msgs if m["role"] == "system")["content"]
+        assert "## Output schema" in system
+        assert "scene_tags" in system
+        assert "present_npcs" in system
+        assert "actions" in system
+        assert "outcome_summary" in system
+
+    def test_extract_scene_no_inventory_or_quests(self):
+        """Scene stream must not include inventory or quest sections."""
+        env = self._env()
+        msgs = _extract_scene_messages(env, "N.", _make_state())
+        user = next(m for m in msgs if m["role"] == "user")["content"]
+        assert "inventory" not in user.lower()
+        assert "quest" not in user.lower()
+
+    def test_extract_scene_thinking_toggle(self):
+        env = self._env()
+        off = _extract_scene_messages(env, "N.", _make_state(), enable_thinking=False)
+        on = _extract_scene_messages(env, "N.", _make_state(), enable_thinking=True)
+        assert not off[-1]["content"].endswith("/think")
+        assert on[-1]["content"].endswith("/think")
+
+    # --- extract_state ---
+
+    def test_extract_state_has_system_user_roles(self):
+        env = self._env()
+        scene = SceneExtractResult()
+        msgs = _extract_state_messages(env, "N.", _make_state(), scene_result=scene)
+        assert [m["role"] for m in msgs] == ["system", "user"]
+
+    def test_extract_state_user_contains_inventory(self):
         env = self._env()
         state = _make_state()
-        state["scene"]["present_npcs"] = [
-            {"id": "npc-a", "name": "A", "notes": "Test."}
-        ]
-        msgs = _extract_messages(env, "Narrative text.", state)
-        user_msg = next(m for m in msgs if m["role"] == "user")
-        assert "quiet-signal" in user_msg["content"]
-        assert "hand-terminal" in user_msg["content"]
-        assert "Player" in user_msg["content"]
-        assert "Docking Ring 7" in user_msg["content"]
-        assert "Previous turn NPCs" in user_msg["content"]
-        assert "npc-a" in user_msg["content"]
-        assert "1." in user_msg["content"]  # numbered objectives
+        scene = SceneExtractResult()
+        msgs = _extract_state_messages(env, "N.", state, scene_result=scene)
+        user = next(m for m in msgs if m["role"] == "user")["content"]
+        assert "hand-terminal" in user
 
-    def test_extract_user_message_includes_recent_events(self):
+    def test_extract_state_user_contains_conditions(self):
         env = self._env()
         state = _make_state()
-        state["scene"]["recent_events"] = [
-            "Alpha fact about the station.",
-            "Beta fact about the crew.",
-        ]
-        msgs = _extract_messages(env, "Narrative text.", state)
-        user_msg = next(m for m in msgs if m["role"] == "user")
-        assert "Recent Events" in user_msg["content"]
-        assert "Alpha fact about the station." in user_msg["content"]
-        assert "Beta fact about the crew." in user_msg["content"]
+        state["pc"]["conditions"] = [{"id": "injured", "label": "injured", "description": "", "added_turn": 0}]
+        scene = SceneExtractResult()
+        msgs = _extract_state_messages(env, "N.", state, scene_result=scene)
+        user = next(m for m in msgs if m["role"] == "user")["content"]
+        assert "injured" in user
 
-    def test_extract_system_omits_verbatim_pydantic_schema_dump(self):
+    def test_extract_state_system_has_reasoning_field(self):
         env = self._env()
-        msgs = _extract_messages(env, "N.", _make_state())
-        system_msg = next(m for m in msgs if m["role"] == "system")["content"]
-        assert '"$defs"' not in system_msg
-        assert "## Output schema" in system_msg
+        scene = SceneExtractResult()
+        msgs = _extract_state_messages(env, "N.", _make_state(), scene_result=scene)
+        system = next(m for m in msgs if m["role"] == "system")["content"]
+        assert "_reasoning" in system
 
-    def test_extract_thinking_toggle(self):
-        """Thinking toggle is now a Qwen3 soft-switch: `/think` appended to the last user message when on."""
+    def test_extract_state_expired_conditions_shown(self):
         env = self._env()
-        off = _extract_messages(env, "N.", _make_state(), enable_extract_thinking=False)
-        on = _extract_messages(env, "N.", _make_state(), enable_extract_thinking=True)
-        last_off = off[-1]["content"]
-        last_on = on[-1]["content"]
-        assert not last_off.endswith("/think")
-        assert last_on.endswith("/think")
-
-    def test_extract_scope_in_user_message(self):
-        """Scope from intent is injected into extract user message."""
-        from ccya.models import Scope
-
-        env = self._env()
-        state = _make_state()
-        scope = Scope(
-            active_domains=["scene", "inventory"],
-            skip_domains=["quest_updates", "location_change"],
+        scene = SceneExtractResult()
+        expired = [{"id": "bruised_ribs", "label": "bruised ribs"}]
+        msgs = _extract_state_messages(
+            env, "N.", _make_state(), scene_result=scene, engine_expired_conditions=expired
         )
-        msgs = _extract_messages(env, "N.", state, intent=IntentEnvelope(scope=scope))
-        user_msg = next(m for m in msgs if m["role"] == "user")
-        assert "Active domains: scene, inventory" in user_msg["content"]
-        assert "Skip domains: quest_updates, location_change" in user_msg["content"]
+        user = next(m for m in msgs if m["role"] == "user")["content"]
+        assert "Auto-expired" in user
+        assert "bruised ribs" in user
 
-    def test_extract_scope_preconditions_in_user_message(self):
-        """Scope preconditions and ambiguities appear in user message."""
-        from ccya.models import Scope
+    # --- extract_progress ---
 
+    def test_extract_progress_has_system_user_roles(self):
+        env = self._env()
+        scene = SceneExtractResult()
+        state_res = StateExtractResult()
+        msgs = _extract_progress_messages(env, "N.", _make_state(), scene_result=scene, state_result=state_res)
+        assert [m["role"] for m in msgs] == ["system", "user"]
+
+    def test_extract_progress_user_contains_quests(self):
+        env = self._env()
+        scene = SceneExtractResult()
+        state_res = StateExtractResult()
+        msgs = _extract_progress_messages(env, "N.", _make_state(), scene_result=scene, state_result=state_res)
+        user = next(m for m in msgs if m["role"] == "user")["content"]
+        assert "quiet-signal" in user
+        assert "The Quiet Signal" in user
+
+    def test_extract_progress_user_contains_recent_events(self):
         env = self._env()
         state = _make_state()
-        scope = Scope(
-            active_domains=["scene"],
-            skip_domains=["inventory"],
-            implicit_preconditions=["guard must be unconscious"],
-            ambiguities=["'the chest' — which chest?"],
-        )
-        msgs = _extract_messages(env, "N.", state, intent=IntentEnvelope(scope=scope))
-        user_msg = next(m for m in msgs if m["role"] == "user")
-        assert "Preconditions assumed: guard must be unconscious" in user_msg["content"]
-        assert (
-            "Ambiguities to resolve: 'the chest' — which chest?" in user_msg["content"]
-        )
+        state["scene"]["recent_events"] = ["Alpha fact.", "Beta fact."]
+        scene = SceneExtractResult()
+        state_res = StateExtractResult()
+        msgs = _extract_progress_messages(env, "N.", state, scene_result=scene, state_result=state_res)
+        user = next(m for m in msgs if m["role"] == "user")["content"]
+        assert "Alpha fact." in user
+        assert "Beta fact." in user
 
-    def test_extract_scope_defaults_when_no_intent(self):
-        """When intent is None, scope defaults to empty (no skip_domains)."""
+    def test_extract_progress_world_state_only_when_no_quests(self):
+        """World state block appears in progress user only when there are no active quests."""
         env = self._env()
-        msgs = _extract_messages(env, "N.", _make_state(), intent=None)
-        user_msg = next(m for m in msgs if m["role"] == "user")
-        assert "Active domains: " in user_msg["content"]
-        assert "Skip domains: " in user_msg["content"]
+        state = _make_state()
+        state["scene"]["world_state"] = ["WORLD_FACT_MARKER"]
+        scene = SceneExtractResult()
+        state_res = StateExtractResult()
 
-    def test_extract_reasoning_in_system_prompt(self):
-        """_reasoning field guidance appears in extract system prompt."""
+        # With active quest: world state should NOT appear
+        msgs_with_quest = _extract_progress_messages(env, "N.", state, scene_result=scene, state_result=state_res)
+        user_with_quest = next(m for m in msgs_with_quest if m["role"] == "user")["content"]
+        assert "WORLD_FACT_MARKER" not in user_with_quest
+
+        # Without quests: world state SHOULD appear
+        state_no_quests = {**state, "quests": []}
+        msgs_no_quest = _extract_progress_messages(env, "N.", state_no_quests, scene_result=scene, state_result=state_res)
+        user_no_quest = next(m for m in msgs_no_quest if m["role"] == "user")["content"]
+        assert "WORLD_FACT_MARKER" in user_no_quest
+
+    def test_extract_progress_system_has_quest_threshold_ladder(self):
         env = self._env()
-        msgs = _extract_messages(env, "N.", _make_state())
-        system_text = next(m for m in msgs if m["role"] == "system")["content"]
-        assert "_reasoning" in system_text
-        assert "cross-checking your extraction" in system_text
+        scene = SceneExtractResult()
+        state_res = StateExtractResult()
+
+        # No quests: low bar message
+        state_no_q = {**_make_state(), "quests": []}
+        msgs = _extract_progress_messages(env, "N.", state_no_q, scene_result=scene, state_result=state_res)
+        system = next(m for m in msgs if m["role"] == "system")["content"]
+        assert "LOW" in system
+
+        # Many quests: high bar message
+        state_many_q = {**_make_state(), "quests": [
+            {"id": f"q{i}", "title": f"Q{i}", "status": "active", "objectives": []} for i in range(3)
+        ]}
+        msgs2 = _extract_progress_messages(env, "N.", state_many_q, scene_result=scene, state_result=state_res)
+        system2 = next(m for m in msgs2 if m["role"] == "system")["content"]
+        assert "HIGH" in system2
+
+    # --- Narrate-specific ---
 
     def test_narrate_last_turn_failed(self):
-        """last_turn_failed appears in narrate system message when populated."""
         env = self._env()
         state = _make_state()
         failed = ["tried to pick up keys but guard is still conscious"]
@@ -405,64 +490,20 @@ class TestPromptComposition:
         assert "tried to pick up keys but guard is still conscious" in system_text
 
     def test_narrate_no_last_turn_failed_when_empty(self):
-        """last_turn_failed block is absent when list is empty."""
         env = self._env()
         state = _make_state()
         msgs = _narrate_messages(env, state, "look", last_turn_failed=[])
         system_text = next(m for m in msgs if m["role"] == "system")["content"]
         assert "Previous turn — failed actions" not in system_text
 
-    def test_state_slice_skips_inactive_domains(self):
-        """Skip domains result in hidden markers in extract user message."""
-        from ccya.models import Scope
-
-        env = self._env()
-        state = _make_state()
-        scope = Scope(
-            active_domains=["scene", "present_npcs"],
-            skip_domains=[
-                "inventory",
-                "quest_updates",
-                "recent_events",
-                "pc_condition",
-            ],
-        )
-        msgs = _extract_messages(env, "N.", state, intent=IntentEnvelope(scope=scope))
-        user_msg = next(m for m in msgs if m["role"] == "user")
-        assert "hidden — not in active scope" in user_msg["content"]
-        assert "do not assume inventory is empty" in user_msg["content"]
-        assert "do not assume quests are gone" in user_msg["content"]
-        assert "do not assume events are gone" in user_msg["content"]
-
-    def test_state_slice_always_includes_known_characters(self):
-        """Known characters (compendium) always included regardless of scope."""
-        from ccya.models import Scope
-
-        env = self._env()
-        state = _make_state()
-        state["compendium"] = {
-            "npcs": {"test-npc": {"name": "Test NPC", "bio": "A test character."}}
-        }
-        scope = Scope(active_domains=["scene"], skip_domains=["present_npcs"])
-        msgs = _extract_messages(env, "N.", state, intent=IntentEnvelope(scope=scope))
-        user_msg = next(m for m in msgs if m["role"] == "user")
-        assert "test-npc" in user_msg["content"]
-        assert "Test NPC" in user_msg["content"]
-
     def test_narrate_thinking_toggle(self):
-        """Thinking toggle is now a Qwen3 soft-switch: `/think` appended to the last user message when on."""
         env = self._env()
-        off = _narrate_messages(
-            env, _make_state(), "look", enable_narrate_thinking=False
-        )
+        off = _narrate_messages(env, _make_state(), "look", enable_narrate_thinking=False)
         on = _narrate_messages(env, _make_state(), "look", enable_narrate_thinking=True)
-        last_off = off[-1]["content"]
-        last_on = on[-1]["content"]
-        assert not last_off.endswith("/think")
-        assert last_on.endswith("/think")
+        assert not off[-1]["content"].endswith("/think")
+        assert on[-1]["content"].endswith("/think")
 
     def test_strip_thinking_removes_thinking_block(self):
-        """`<think>...</think>` blocks (Qwen3-style) are stripped from response text."""
         raw = "<think>\n- bullet\n</think>\n\nYou step through."
         assert strip_thinking(raw).strip() == "You step through."
 
@@ -477,9 +518,7 @@ class TestPromptComposition:
     def test_recent_turns_injected_when_present(self):
         env = self._env()
         state = _make_state()
-        recent = [
-            {"turn": 1, "input": "look around", "narrative": "You see a docking bay."}
-        ]
+        recent = [{"turn": 1, "input": "look around", "narrative": "You see a docking bay."}]
         msgs = _narrate_messages(env, state, "go forward", recent_turns=recent)
         system_text = next(m for m in msgs if m["role"] == "system")["content"]
         assert "look around" in system_text
@@ -503,16 +542,15 @@ class TestHappyPath:
         _write_state(SAVE_DIR, state)
 
         narrative = "You step through the airlock. The corridor stretches ahead, dim and humming."
-        extract = json.dumps(
-            {
-                "state_delta": {
-                    "recent_events_add": ["You found an airlock at Docking Ring 7."],
-                    "scene_tags": ["exploration"],
-                },
-            }
-        )
+        progress_response = json.dumps({
+            "quest_updates": [],
+            "recent_events_add": ["You found an airlock at Docking Ring 7."],
+            "recent_events_update": [],
+            "recent_events_remove": [],
+            "compendium_npc_update": [],
+        })
 
-        fake = _FakeLLM([narrative, extract])
+        fake = _FakeLLM(narrative=narrative, progress_response=progress_response)
         with fake:
             result = await _run(
                 SAVE_DIR, "I step through the airlock.", config=EngineConfig()
@@ -521,37 +559,43 @@ class TestHappyPath:
         assert result.narrative == narrative
         assert result.recent_events == ["You found an airlock at Docking Ring 7."]
         assert result.metrics["narrate"]["total_ms"] >= 0
-        assert result.metrics["extract"]["retries"] == 0
+        assert result.metrics["extract"]["total_ms"] >= 0
         assert len(result.errors) == 0
-        # Single increment: turn starts at 0, engine increments to 1
         assert result.turn == 1
 
-    async def test_actions_captured_from_extract(self) -> None:
+    async def test_actions_captured_from_scene_stream(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps(
-            {
-                "state_delta": {"scene_tags": ["exploration"]},
-                "actions": ["Open door", "Take stairs", "Check map", "Go back"],
-            }
-        )
-        fake = _FakeLLM(["narrative text", extract])
+        scene_response = json.dumps({
+            "scene_tags": ["exploration"],
+            "scene_tagline": "Dim corridors ahead",
+            "location_change": None,
+            "location_description": None,
+            "present_npcs": [],
+            "actions": ["Open door", "Take stairs", "Check map", "Go back"],
+            "outcome_summary": "You looked around carefully.",
+        })
+        fake = _FakeLLM(scene_response=scene_response)
         with fake:
             result = await _run(SAVE_DIR, "look", config=EngineConfig())
 
         assert result.actions == ["Open door", "Take stairs", "Check map", "Go back"]
 
-    async def test_actions_empty_when_not_in_extract(self) -> None:
+    async def test_actions_empty_when_not_in_scene_response(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps(
-            {
-                "state_delta": {"scene_tags": ["exploration"]},
-            }
-        )
-        fake = _FakeLLM(["narrative text without actions", extract])
+        scene_response = json.dumps({
+            "scene_tags": ["exploration"],
+            "scene_tagline": "Quiet",
+            "location_change": None,
+            "location_description": None,
+            "present_npcs": [],
+            "actions": [],
+            "outcome_summary": "",
+        })
+        fake = _FakeLLM(narrative="narrative text without actions", scene_response=scene_response)
         with fake:
             result = await _run(SAVE_DIR, "look", config=EngineConfig())
 
@@ -570,12 +614,7 @@ class TestStreamingEvents:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps(
-            {
-                "state_delta": {},
-            }
-        )
-        fake = _FakeLLM(["hello world", extract])
+        fake = _FakeLLM(narrative="hello world")
         with fake:
             tokens, result = await _run_with_tokens(
                 SAVE_DIR, "look", config=EngineConfig()
@@ -591,8 +630,7 @@ class TestStreamingEvents:
         _write_state(SAVE_DIR, state)
 
         events = []
-        extract = json.dumps({"state_delta": {}})
-        fake = _FakeLLM(["the narrative", extract])
+        fake = _FakeLLM(narrative="the narrative")
         with fake:
             async for kind, _ in run_turn(
                 SAVE_DIR,
@@ -617,12 +655,15 @@ class TestRejectedDelta:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps(
-            {
-                "state_delta": {"inventory_remove": ["ghost-item-999"]},
-            }
-        )
-        fake = _FakeLLM([extract])
+        state_response = json.dumps({
+            "inventory_add": [],
+            "inventory_remove": [{"id": "ghost-item-999"}],
+            "inventory_update": [],
+            "pc_condition_add": [],
+            "pc_condition_remove": [],
+            "failed": [],
+        })
+        fake = _FakeLLM(state_response=state_response)
         with fake:
             result = await _run(
                 SAVE_DIR, "I grab the ghost item.", config=EngineConfig()
@@ -637,12 +678,15 @@ class TestRejectedDelta:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps(
-            {
-                "state_delta": {"inventory_remove": ["ghost-item"]},
-            }
-        )
-        fake = _FakeLLM([extract])
+        state_response = json.dumps({
+            "inventory_add": [],
+            "inventory_remove": [{"id": "ghost-item"}],
+            "inventory_update": [],
+            "pc_condition_add": [],
+            "pc_condition_remove": [],
+            "failed": [],
+        })
+        fake = _FakeLLM(state_response=state_response)
         with fake:
             result = await _run(SAVE_DIR, "grab ghost", config=EngineConfig())
 
@@ -653,27 +697,18 @@ class TestRejectedDelta:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps(
-            {
-                "state_delta": {
-                    "quest_updates": [
-                        {
-                            "id": "new-quest",
-                            "title": "New Quest",
-                            "status": "active",
-                            "objectives": [],
-                        }
-                    ]
-                },
-            }
-        )
-        fake = _FakeLLM([extract])
+        progress_response = json.dumps({
+            "quest_updates": [{"id": "new-quest", "title": "New Quest", "status": "active", "objectives": []}],
+            "recent_events_add": [],
+            "recent_events_update": [],
+            "recent_events_remove": [],
+            "compendium_npc_update": [],
+        })
+        fake = _FakeLLM(progress_response=progress_response)
         with fake:
             result = await _run(SAVE_DIR, "Start a new quest.", config=EngineConfig())
 
-        # Should not be rejected — quest_updates creates new quests
         assert not any(r.get("field") == "quest_updates" for r in result.rejected)
-        # Quest should now exist in saved state
         saved = load_state(SAVE_DIR)
         quest_ids = {q.get("id") for q in saved.get("quests", [])}
         assert "new-quest" in quest_ids
@@ -685,16 +720,13 @@ class TestRejectedDelta:
 
 
 class TestSchemaFailureRetry:
-    async def test_single_retry(self) -> None:
+    async def test_scene_stream_retry(self) -> None:
+        """Scene stream retries on bad JSON; second attempt succeeds."""
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
         narrative = "You examine the hand terminal closely."
-        good_extract = json.dumps(
-            {
-                "state_delta": {"pc_condition_add": ["curious"]},
-            }
-        )
+        good_scene = _SCENE_RESPONSE
         chat_call_count = 0
 
         async def fake_stream(*args, **kwargs):
@@ -704,16 +736,17 @@ class TestSchemaFailureRetry:
             nonlocal chat_call_count
             chat_call_count += 1
             if chat_call_count == 1:
-                # Call 0 = rules intent — return no-roll.
                 return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
             if chat_call_count == 2:
-                # First extract attempt — return bad JSON.
+                # First scene attempt — bad JSON
                 return {"response": "bad json {{{", "done": True, "usage": {}}
-            return {
-                "response": good_extract,
-                "done": True,
-                "usage": {"prompt_tokens": 10, "total_tokens": 200},
-            }
+            if chat_call_count == 3:
+                # Retry: good scene
+                return {"response": good_scene, "done": True, "usage": {"prompt_tokens": 10, "total_tokens": 200}}
+            # state + progress — return defaults
+            if chat_call_count == 4:
+                return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
+            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
 
         _orig_stream = ccya.engine.llm_chat_stream
         _orig_chat = ccya.engine.llm_chat
@@ -727,10 +760,8 @@ class TestSchemaFailureRetry:
             ccya.engine.llm_chat_stream = _orig_stream
             ccya.engine.llm_chat = _orig_chat
 
-        assert "curious" in result.applied.get(
-            "pc_condition_add", []
-        ) or "curious" in str(result.applied)
-        assert result.metrics["extract"]["retries"] == 1
+        assert len(result.errors) == 0
+        assert result.scene_tags == ["exploration"]
 
 
 # ---------------------------------------------------------------------------
@@ -743,14 +774,14 @@ class TestFactCanonization:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps(
-            {
-                "state_delta": {
-                    "recent_events_add": ["The airlock hums with residual charge."]
-                },
-            }
-        )
-        fake = _FakeLLM([extract])
+        progress_response = json.dumps({
+            "quest_updates": [],
+            "recent_events_add": ["The airlock hums with residual charge."],
+            "recent_events_update": [],
+            "recent_events_remove": [],
+            "compendium_npc_update": [],
+        })
+        fake = _FakeLLM(progress_response=progress_response)
         with fake:
             await _run(SAVE_DIR, "Touch the airlock.", config=EngineConfig())
 
@@ -793,11 +824,11 @@ class TestChroniclePrefixBudget:
             _chat_calls_chron += 1
             if _chat_calls_chron == 1:
                 return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
-            return {
-                "response": json.dumps({"state_delta": {}}),
-                "done": True,
-                "usage": {},
-            }
+            if _chat_calls_chron == 2:
+                return {"response": _SCENE_RESPONSE, "done": True, "usage": {}}
+            if _chat_calls_chron == 3:
+                return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
+            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
 
         import ccya.engine as eng
 
@@ -956,8 +987,7 @@ class TestTurnCounterSingleIncrement:
         state = _make_state(turn=0)
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({"state_delta": {}})
-        fake = _FakeLLM([extract])
+        fake = _FakeLLM()
         with fake:
             result = await _run(SAVE_DIR, "look", config=EngineConfig())
 
@@ -967,8 +997,7 @@ class TestTurnCounterSingleIncrement:
         state = _make_state(turn=0)
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({"state_delta": {}})
-        fake = _FakeLLM([extract, extract])
+        fake = _FakeLLM()
         with fake:
             r1 = await _run(SAVE_DIR, "first", config=EngineConfig())
             r2 = await _run(SAVE_DIR, "second", config=EngineConfig())
@@ -987,12 +1016,7 @@ class TestEventWrittenBeforeState:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps(
-            {
-                "state_delta": {"recent_events_add": ["turn-1-fact"]},
-            }
-        )
-        fake = _FakeLLM([extract])
+        fake = _FakeLLM()
         with fake:
             await _run(SAVE_DIR, "test", config=EngineConfig())
 
@@ -1019,8 +1043,7 @@ class TestChronicleFormatted:
         _write_state(SAVE_DIR, state)
         (SAVE_DIR / "chronicle.md").touch()
 
-        extract = json.dumps({"state_delta": {}})
-        fake = _FakeLLM(["the narrative text", extract])
+        fake = _FakeLLM(narrative="the narrative text")
         with fake:
             await _run(SAVE_DIR, "my action", config=EngineConfig())
 
@@ -1072,8 +1095,7 @@ class TestTurnResultTraceId:
     async def test_unique_trace_ids(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
-        extract = json.dumps({"state_delta": {}})
-        fake = _FakeLLM([extract, extract])
+        fake = _FakeLLM()
         with fake:
             r1 = await _run(SAVE_DIR, "first", config=EngineConfig())
             r2 = await _run(SAVE_DIR, "second", config=EngineConfig())
@@ -1149,37 +1171,154 @@ class TestEstablishedFactsEviction:
 
 
 class TestPcConditionsDelta:
-    def test_add_and_remove(self) -> None:
+    def test_add_and_remove_structured(self) -> None:
+        state = _make_state()
+        delta = StateDelta(pc_condition_add=[
+            ConditionAdd(id="wanted", label="wanted"),
+            ConditionAdd(id="injured", label="injured", description="Hit by debris."),
+        ])
+        updated = apply_delta(state, delta)
+        cond_ids = [c["id"] for c in updated["pc"]["conditions"]]
+        assert "wanted" in cond_ids and "injured" in cond_ids
+
+        delta2 = StateDelta(pc_condition_remove=[ConditionRemove(id="wanted")])
+        updated2 = apply_delta(updated, delta2)
+        cond_ids2 = [c["id"] for c in updated2["pc"]["conditions"]]
+        assert "wanted" not in cond_ids2
+        assert "injured" in cond_ids2
+
+    def test_string_coercion_to_structured(self) -> None:
+        """Plain strings in pc_condition_add are coerced to ConditionAdd dicts."""
         state = _make_state()
         delta = StateDelta(pc_condition_add=["wanted", "injured"])
         updated = apply_delta(state, delta)
-        assert updated["pc"]["conditions"] == ["wanted", "injured"]
-        delta2 = StateDelta(pc_condition_remove=["wanted"])
-        updated2 = apply_delta(updated, delta2)
-        assert updated2["pc"]["conditions"] == ["injured"]
+        conds = updated["pc"]["conditions"]
+        assert all(isinstance(c, dict) for c in conds)
+        ids = [c["id"] for c in conds]
+        assert "wanted" in ids and "injured" in ids
 
-    def test_normalized_dedup_skips_variants(self) -> None:
-        """Same condition with different case / whitespace / markdown is rejected on add."""
+    def test_id_dedup(self) -> None:
+        """Duplicate id is rejected on add regardless of label wording."""
         state = _make_state()
-        state["pc"]["conditions"] = ["bruised ribs"]
-        delta = StateDelta(
-            pc_condition_add=["Bruised Ribs", "*bruised ribs*", "bruised  ribs"]
-        )
+        state["pc"]["conditions"] = [{"id": "bruised_ribs", "label": "bruised ribs", "description": "", "added_turn": 0}]
+        delta = StateDelta(pc_condition_add=[ConditionAdd(id="bruised_ribs", label="Bruised Ribs")])
         updated = apply_delta(state, delta)
-        assert updated["pc"]["conditions"] == ["bruised ribs"]
+        assert len(updated["pc"]["conditions"]) == 1
 
     def test_cap_at_5_evicts_oldest(self) -> None:
         """When more than 5 conditions accumulate, oldest is dropped FIFO."""
         state = _make_state()
-        state["pc"]["conditions"] = ["c1", "c2", "c3", "c4", "c5"]
-        delta = StateDelta(pc_condition_add=["c6", "c7"])
+        state["pc"]["conditions"] = [
+            {"id": f"c{i}", "label": f"c{i}", "description": "", "added_turn": i}
+            for i in range(1, 6)
+        ]
+        delta = StateDelta(pc_condition_add=[
+            ConditionAdd(id="c6", label="c6"),
+            ConditionAdd(id="c7", label="c7"),
+        ])
         updated = apply_delta(state, delta)
         conds = updated["pc"]["conditions"]
         assert len(conds) == 5
-        assert "c7" in conds
-        assert "c6" in conds
-        assert "c1" not in conds
-        assert "c2" not in conds
+        ids = [c["id"] for c in conds]
+        assert "c7" in ids and "c6" in ids
+        assert "c1" not in ids and "c2" not in ids
+
+    def test_added_turn_stamped_by_apply_delta(self) -> None:
+        """apply_delta stamps added_turn = state.meta.turn on each new condition."""
+        state = _make_state(turn=5)
+        delta = StateDelta(pc_condition_add=[ConditionAdd(id="shaken", label="shaken")])
+        updated = apply_delta(state, delta)
+        cond = next(c for c in updated["pc"]["conditions"] if c["id"] == "shaken")
+        assert cond["added_turn"] == 5
+
+
+class TestConditionTTL:
+    async def test_ttl_expires_old_condition(self) -> None:
+        """Conditions older than condition_ttl_turns are removed before extraction."""
+        state = _make_state(turn=4)
+        state["pc"]["conditions"] = [
+            {"id": "old_wound", "label": "old wound", "description": "", "added_turn": 0}
+        ]
+        _write_state(SAVE_DIR, state)
+
+        fake = _FakeLLM()
+        with fake:
+            result = await _run(SAVE_DIR, "look", config=EngineConfig(condition_ttl_turns=4))
+
+        saved = load_state(SAVE_DIR)
+        cond_ids = [c["id"] if isinstance(c, dict) else c for c in saved["pc"]["conditions"]]
+        assert "old_wound" not in cond_ids
+
+    async def test_recent_condition_survives_ttl(self) -> None:
+        """A condition added last turn (age 1) should not expire with TTL=4."""
+        state = _make_state(turn=2)
+        state["pc"]["conditions"] = [
+            {"id": "bruised", "label": "bruised", "description": "", "added_turn": 1}
+        ]
+        _write_state(SAVE_DIR, state)
+
+        fake = _FakeLLM()
+        with fake:
+            await _run(SAVE_DIR, "look", config=EngineConfig(condition_ttl_turns=4))
+
+        saved = load_state(SAVE_DIR)
+        cond_ids = [c["id"] if isinstance(c, dict) else c for c in saved["pc"]["conditions"]]
+        assert "bruised" in cond_ids
+
+
+class TestExtractionStreamSkip:
+    async def test_state_stream_skipped_when_all_state_domains_skipped(self) -> None:
+        """When inventory and pc_condition are both in skip_domains, only 3 chat calls occur
+        (rules + scene + progress — state is omitted)."""
+        state = _make_state()
+        _write_state(SAVE_DIR, state)
+
+        rules_with_skip = json.dumps({
+            "intent": "observe",
+            "intent_verb": "act",
+            "target": "",
+            "stakes": "",
+            "check": {"required": False},
+            "scope": {
+                "active_domains": ["scene", "quest_updates", "recent_events"],
+                "skip_domains": ["inventory", "pc_condition"],
+                "implicit_preconditions": [],
+                "ambiguities": [],
+            },
+        })
+
+        chat_call_count = 0
+        chat_responses: list[str] = []
+
+        async def fake_stream(*args, **kwargs):
+            ss = kwargs.get("stream_stats")
+            if ss is not None:
+                ss["prompt_eval_count"] = 42
+                ss["eval_count"] = 24
+            yield "narrative"
+
+        async def fake_chat(*args, **kwargs):
+            nonlocal chat_call_count
+            chat_call_count += 1
+            if chat_call_count == 1:
+                return {"response": rules_with_skip, "done": True, "usage": {}}
+            if chat_call_count == 2:
+                return {"response": _SCENE_RESPONSE, "done": True, "usage": {}}
+            # 3rd call should be progress (state is skipped)
+            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
+
+        _orig_stream, _orig_chat = ccya.engine.llm_chat_stream, ccya.engine.llm_chat
+        try:
+            ccya.engine.llm_chat_stream = fake_stream
+            ccya.engine.llm_chat = fake_chat
+            result = await _run(SAVE_DIR, "look", config=EngineConfig())
+        finally:
+            ccya.engine.llm_chat_stream = _orig_stream
+            ccya.engine.llm_chat = _orig_chat
+
+        # rules(1) + scene(2) + progress(3) — no state call
+        assert chat_call_count == 3
+        assert len(result.errors) == 0
 
 
 class TestEstablishedFactsCap25:
@@ -1541,16 +1680,14 @@ class TestInventoryCompendiumTagline:
     async def test_turn_result_includes_diff_lines(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
-        extract = json.dumps(
-            {
-                "state_delta": {
-                    "scene_tags": ["test"],
-                    "scene_tagline": "Dock tension rises",
-                    "recent_events_add": ["A fact."],
-                },
-            }
-        )
-        fake = _FakeLLM(["short narrative.", extract])
+        progress_response = json.dumps({
+            "quest_updates": [],
+            "recent_events_add": ["A fact."],
+            "recent_events_update": [],
+            "recent_events_remove": [],
+            "compendium_npc_update": [],
+        })
+        fake = _FakeLLM(narrative="short narrative.", progress_response=progress_response)
         with fake:
             result = await _run(SAVE_DIR, "look", config=EngineConfig())
         assert result.diff
@@ -1567,8 +1704,7 @@ class TestPerTurnMetrics:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({"state_delta": {}})
-        fake = _FakeLLM(["narrative", extract])
+        fake = _FakeLLM()
         with fake:
             result = await _run(SAVE_DIR, "test", config=EngineConfig())
 
@@ -1579,22 +1715,18 @@ class TestPerTurnMetrics:
         assert "tokens_in" in result.metrics["extract"]
         assert "tokens_out" in result.metrics["extract"]
 
-    async def test_narrate_metrics_token_counts_not_extract_copy(self) -> None:
-        """Narrate token counts come from streaming stats, not extract usage."""
+    async def test_narrate_token_counts_from_streaming_stats(self) -> None:
+        """Narrate token counts come from streaming stats (42/24 from fake)."""
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({"state_delta": {}})
-        fake = _FakeLLM(["narrative", extract])
+        fake = _FakeLLM()
         with fake:
             result = await _run(SAVE_DIR, "test", config=EngineConfig())
 
         narr = result.metrics["narrate"]
-        ext = result.metrics["extract"]
         assert narr.get("tokens_in") == 42
         assert narr.get("tokens_out") == 24
-        assert ext.get("tokens_in") == 100
-        assert ext.get("tokens_out") == 200
 
 
 # ---------------------------------------------------------------------------
@@ -1607,12 +1739,14 @@ class TestEstablishedFactsInEvent:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps(
-            {
-                "state_delta": {"recent_events_add": ["This fact matters."]},
-            }
-        )
-        fake = _FakeLLM([extract])
+        progress_response = json.dumps({
+            "quest_updates": [],
+            "recent_events_add": ["This fact matters."],
+            "recent_events_update": [],
+            "recent_events_remove": [],
+            "compendium_npc_update": [],
+        })
+        fake = _FakeLLM(progress_response=progress_response)
         with fake:
             await _run(SAVE_DIR, "test", config=EngineConfig())
 
@@ -1656,11 +1790,11 @@ class TestRecentTurnsInjected:
             _chat_calls_recent += 1
             if _chat_calls_recent == 1:
                 return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
-            return {
-                "response": json.dumps({"state_delta": {}}),
-                "done": True,
-                "usage": {},
-            }
+            if _chat_calls_recent == 2:
+                return {"response": _SCENE_RESPONSE, "done": True, "usage": {}}
+            if _chat_calls_recent == 3:
+                return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
+            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
 
         import ccya.engine as eng
 
@@ -1692,13 +1826,16 @@ class TestPackKwargs:
         _write_state(SAVE_DIR, state)
 
         captured_narrate_system = []
-        extract = json.dumps({"state_delta": {}})
 
         async def _fake_stream(*args, **kwargs):
             msgs = args[2] if len(args) > 2 else kwargs.get("messages", [])
             for m in msgs:
                 if m.get("role") == "system":
                     captured_narrate_system.append(m["content"])
+            ss = kwargs.get("stream_stats")
+            if ss is not None:
+                ss["prompt_eval_count"] = 42
+                ss["eval_count"] = 24
             yield "narrative"
 
         _narrate_chat_calls = 0
@@ -1708,7 +1845,11 @@ class TestPackKwargs:
             _narrate_chat_calls += 1
             if _narrate_chat_calls == 1:
                 return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
-            return {"response": extract, "done": True, "usage": {}}
+            if _narrate_chat_calls == 2:
+                return {"response": _SCENE_RESPONSE, "done": True, "usage": {}}
+            if _narrate_chat_calls == 3:
+                return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
+            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
 
         import ccya.engine as eng
 
@@ -1729,58 +1870,3 @@ class TestPackKwargs:
             eng.llm_chat = _orig_chat
 
         assert any("UNIQUE_STYLE_MARKER_7483" in s for s in captured_narrate_system)
-
-    async def test_pack_examples_in_extract_system(self) -> None:
-        from ccya.pack import ExtractExample
-
-        state = _make_state()
-        _write_state(SAVE_DIR, state)
-
-        example_json = json.dumps({"state_delta": {}})
-        examples = [
-            ExtractExample(
-                title="Pack example marker UNIQUE_9928",
-                thinking="- test",
-                **{"json": example_json},
-            )
-        ]
-
-        captured_extract_system = []
-
-        async def _fake_stream(*args, **kwargs):
-            yield "narrative"
-
-        _extract_chat_calls = 0
-
-        async def _fake_chat(*args, **kwargs):
-            nonlocal _extract_chat_calls
-            _extract_chat_calls += 1
-            if _extract_chat_calls == 1:
-                return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
-            msgs = args[2] if len(args) > 2 else kwargs.get("messages", [])
-            for m in msgs:
-                if m.get("role") == "system":
-                    captured_extract_system.append(m["content"])
-            return {"response": example_json, "done": True, "usage": {}}
-
-        import ccya.engine as eng
-
-        _orig_stream, _orig_chat = eng.llm_chat_stream, eng.llm_chat
-        try:
-            eng.llm_chat_stream = _fake_stream
-            eng.llm_chat = _fake_chat
-            async for _ in run_turn(
-                SAVE_DIR,
-                "look",
-                config=EngineConfig(),
-                template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts"),
-                pack_examples=examples,
-            ):
-                pass
-        finally:
-            eng.llm_chat_stream = _orig_stream
-            eng.llm_chat = _orig_chat
-
-        assert any(
-            "Pack example marker UNIQUE_9928" in s for s in captured_extract_system
-        )
