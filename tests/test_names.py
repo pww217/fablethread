@@ -139,7 +139,7 @@ class TestJinjaRender:
         text = env.get_template("generate_seed_user.j2").render(**ctx)
         assert "Alice" in text
         assert "Springfield" in text
-        assert "non-binding suggestions" in text
+        assert "do NOT invent generic Anglo names" in text
 
     def test_generate_seed_user_without_name_pool(self):
         env = self._env()
@@ -166,7 +166,7 @@ class TestJinjaRender:
         }
         text = env.get_template("narrate_system.j2").render(**ctx)
         assert "Yuki Tanaka" in text
-        assert "culturally appropriate" in text
+        assert "do NOT reuse names from previous turns" in text
 
     def test_narrate_system_without_npc_name_pool(self):
         env = self._env()
