@@ -175,6 +175,7 @@ class ExtractResult(BaseModel):
     state_delta: StateDelta
     failed: list[str] = Field(default_factory=list)
     actions: list[str] = Field(default_factory=list)
+    outcome_summary: str = Field(default="", description="One-sentence flavor summary of what just happened in this turn")
 
 
 # --- TurnResult (returned from engine, not Pydantic) ---
@@ -202,6 +203,7 @@ class TurnResult:
     rules: dict = field(
         default_factory=dict
     )  # serialized RulesOutcome + intent for logging/UI
+    outcome_summary: str = field(default="")
 
 
 # --- Config ---
