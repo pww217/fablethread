@@ -34,8 +34,12 @@ _STAT_RENAME: dict[str, str] = {
     "social": "charisma",
 }
 _STAT_DEFAULTS: dict[str, int] = {
-    "strength": 2, "dexterity": 2, "wits": 2,
-    "lore": 2, "charisma": 2, "resolve": 2,
+    "strength": 2,
+    "dexterity": 2,
+    "wits": 2,
+    "lore": 2,
+    "charisma": 2,
+    "resolve": 2,
 }
 
 
@@ -102,11 +106,30 @@ def _default_state() -> dict[str, Any]:
             "model": "",
             "compendium_touch_order": [],
         },
-        "pc": {"name": "", "tagline": "", "bio": "", "stats": {"strength": 2, "dexterity": 2, "wits": 2, "lore": 2, "charisma": 2, "resolve": 2}, "conditions": []},
+        "pc": {
+            "name": "",
+            "tagline": "",
+            "bio": "",
+            "stats": {
+                "strength": 2,
+                "dexterity": 2,
+                "wits": 2,
+                "lore": 2,
+                "charisma": 2,
+                "resolve": 2,
+            },
+            "conditions": [],
+        },
         "location": {"id": "", "name": "", "description": ""},
         "inventory": [],
         "quests": [],
-        "scene": {"tags": [], "present_npcs": [], "established_facts": [], "tagline": ""},
+        "scene": {
+            "tags": [],
+            "present_npcs": [],
+            "world_state": [],
+            "recent_events": [],
+            "tagline": "",
+        },
         "compendium": {"npcs": {}},
     }
 
@@ -114,7 +137,9 @@ def _default_state() -> dict[str, Any]:
 def touch_compendium_order(state: dict[str, Any], npc_id: str) -> None:
     """Move npc_id to end of LRU touch list (most recent)."""
     nid = normalize_inventory_id(npc_id)
-    order: list[str] = state.setdefault("meta", {}).setdefault("compendium_touch_order", [])
+    order: list[str] = state.setdefault("meta", {}).setdefault(
+        "compendium_touch_order", []
+    )
     if nid in order:
         order.remove(nid)
     order.append(nid)
@@ -205,7 +230,9 @@ def normalize_inventory_id(raw: str) -> str:
     return s or "_"
 
 
-def resolve_inventory_canonical_id(inventory: list[dict[str, Any]], raw_id: str) -> str | None:
+def resolve_inventory_canonical_id(
+    inventory: list[dict[str, Any]], raw_id: str
+) -> str | None:
     """Return the stored id for an item whose normalized id matches raw_id."""
     want = normalize_inventory_id(raw_id)
     for it in inventory:
@@ -214,7 +241,9 @@ def resolve_inventory_canonical_id(inventory: list[dict[str, Any]], raw_id: str)
     return None
 
 
-def resolve_inventory_remove_target(inventory: list[dict[str, Any]], raw_id: str) -> str | None:
+def resolve_inventory_remove_target(
+    inventory: list[dict[str, Any]], raw_id: str
+) -> str | None:
     """Resolve id or normalized item name to stored inventory id for remove operations."""
     c = resolve_inventory_canonical_id(inventory, raw_id)
     if c:
@@ -227,7 +256,9 @@ def resolve_inventory_remove_target(inventory: list[dict[str, Any]], raw_id: str
     return None
 
 
-def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_max: int = 10) -> dict[str, Any]:
+def apply_delta(
+    state: dict[str, Any], delta: StateDelta, *, recent_events_max: int = 15
+) -> dict[str, Any]:
     """Apply a validated StateDelta to the state dict. Returns the updated state."""
     import copy
 
@@ -311,7 +342,9 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
         state.setdefault("location", {})["description"] = delta.location_description
 
     # Quests — upsert + objective merge + status side-effects (completed / failed)
-    existing_quests: dict[str, dict[str, Any]] = {q["id"]: q for q in state.get("quests", [])}
+    existing_quests: dict[str, dict[str, Any]] = {
+        q["id"]: q for q in state.get("quests", [])
+    }
 
     def _apply_quest_status_side_effects(q: dict[str, Any]) -> None:
         st = q.get("status") or "active"
@@ -360,9 +393,16 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
                                 o["failed"] = bool(obj.failed)
                             matched = True
                     if not matched:
-                        want = _normalize_obj_desc(obj.description) if obj.description is not None else ""
+                        want = (
+                            _normalize_obj_desc(obj.description)
+                            if obj.description is not None
+                            else ""
+                        )
                         for o in objs:
-                            if want and _normalize_obj_desc(o.get("description")) == want:
+                            if (
+                                want
+                                and _normalize_obj_desc(o.get("description")) == want
+                            ):
                                 if obj.done is not None:
                                     o["done"] = obj.done
                                 if obj.failed is not None:
@@ -374,7 +414,9 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
                             {
                                 "description": obj.description,
                                 "done": obj.done if obj.done is not None else False,
-                                "failed": bool(obj.failed) if obj.failed is not None else False,
+                                "failed": bool(obj.failed)
+                                if obj.failed is not None
+                                else False,
                             },
                         )
             _apply_quest_status_side_effects(q)
@@ -405,7 +447,9 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
     state.setdefault("pc", {}).setdefault("conditions", [])
     existing_conds: list[str] = list(state["pc"]["conditions"])
     remove_keys = {_normalize_condition(s) for s in delta.pc_condition_remove}
-    existing_conds = [c for c in existing_conds if _normalize_condition(c) not in remove_keys]
+    existing_conds = [
+        c for c in existing_conds if _normalize_condition(c) not in remove_keys
+    ]
     existing_norms = {_normalize_condition(c) for c in existing_conds}
     for c in delta.pc_condition_add:
         nk = _normalize_condition(c)
@@ -415,24 +459,32 @@ def apply_delta(state: dict[str, Any], delta: StateDelta, *, established_facts_m
         existing_norms.add(nk)
     state["pc"]["conditions"] = existing_conds[-PC_CONDITIONS_MAX:]
 
-    # Established facts — remove → update → add (preserves position on update)
-    existing_facts: list[str] = list(state.get("scene", {}).get("established_facts") or [])
-    remove_keys = {_normalize_fact(s) for s in delta.established_facts_remove}
-    existing_facts = [f for f in existing_facts if _normalize_fact(f) not in remove_keys]
-    for upd in delta.established_facts_update:
+    # Recent events — remove → update → add (preserves position on update; FIFO cap)
+    existing_events: list[str] = list(state.get("scene", {}).get("recent_events") or [])
+    remove_keys = {_normalize_fact(s) for s in delta.recent_events_remove}
+    existing_events = [
+        f for f in existing_events if _normalize_fact(f) not in remove_keys
+    ]
+    for upd in delta.recent_events_update:
         nk = _normalize_fact(upd.old)
         matched = False
-        for i, f in enumerate(existing_facts):
+        for i, f in enumerate(existing_events):
             if _normalize_fact(f) == nk:
-                existing_facts[i] = upd.new
+                existing_events[i] = upd.new
                 matched = True
                 break
-        if not matched and upd.new and not _fact_already_exists(upd.new, existing_facts):
-            existing_facts.append(upd.new)
-    for fact in delta.established_facts_add:
-        if not _fact_already_exists(fact, existing_facts):
-            existing_facts.append(fact)
-    state.setdefault("scene", {})["established_facts"] = existing_facts[-established_facts_max:]
+        if (
+            not matched
+            and upd.new
+            and not _fact_already_exists(upd.new, existing_events)
+        ):
+            existing_events.append(upd.new)
+    for fact in delta.recent_events_add:
+        if not _fact_already_exists(fact, existing_events):
+            existing_events.append(fact)
+    state.setdefault("scene", {})["recent_events"] = existing_events[
+        -recent_events_max:
+    ]
 
     # Scene tags — replace each turn if provided
     if delta.scene_tags:
@@ -538,7 +590,23 @@ def _normalize_condition(text: Any) -> str:
     if not isinstance(text, str):
         text = str(text)
     s = text.lower()
-    for ch in ("*", "_", "`", ".", ",", ";", ":", "!", "?", "(", ")", "[", "]", '"', "'"):
+    for ch in (
+        "*",
+        "_",
+        "`",
+        ".",
+        ",",
+        ";",
+        ":",
+        "!",
+        "?",
+        "(",
+        ")",
+        "[",
+        "]",
+        '"',
+        "'",
+    ):
         s = s.replace(ch, " ")
     return " ".join(s.split())
 

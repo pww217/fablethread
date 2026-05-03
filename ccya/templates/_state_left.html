@@ -42,7 +42,7 @@
 </details>
 
 {% if (state.scene.tags or []) or (state.scene.present_npcs or []) %}
-<details class="sidebar-card" id="card-scene" data-card="scene">
+<details class="sidebar-card" id="card-scene" data-card="scene" open>
     <summary>Scene <span class="card-count">{{ (state.scene.present_npcs or []) | length }}</span></summary>
     <div class="sidebar-card-body">
         {% if state.scene.present_npcs %}

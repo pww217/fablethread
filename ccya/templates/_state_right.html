@@ -1,5 +1,6 @@
 {# Right sidebar: Facts, Inventory, Debug (errors + metrics), meta footer #}
-{% set _facts = state.scene.established_facts or [] %}
+{% set _recent = state.scene.recent_events or [] %}
+{% set _world = state.scene.world_state or [] %}
 
 <details class="sidebar-card" id="card-inventory" data-card="inventory" open>
     <summary>Inventory</summary>
@@ -21,15 +22,28 @@
     </div>
 </details>
 
-<details class="sidebar-card" id="card-facts" data-card="facts" open>
-    <summary>Established Facts <span class="card-count" title="Total facts (capped at 25)">{{ _facts|length }}</span></summary>
+<details class="sidebar-card" id="card-recent-events" data-card="recent-events" open>
+    <summary>Recent Events <span class="card-count" title="Recent events (capped at 15)">{{ _recent|length }}</span></summary>
     <div class="sidebar-card-body">
-        {% if _facts %}
-        {% for fact in _facts | reverse %}
+        {% if _recent %}
+        {% for event in _recent | reverse %}
+        <div class="fact-item" data-md>{{ event if event is string else event.values() | join(': ') }}</div>
+        {% endfor %}
+        {% else %}
+        <span class="empty-state">No recent events yet.</span>
+        {% endif %}
+    </div>
+</details>
+
+<details class="sidebar-card" id="card-world-state" data-card="world-state">
+    <summary>World State <span class="card-count" title="World state (immutable)">{{ _world|length }}</span></summary>
+    <div class="sidebar-card-body">
+        {% if _world %}
+        {% for fact in _world | reverse %}
         <div class="fact-item" data-md>{{ fact if fact is string else fact.values() | join(': ') }}</div>
         {% endfor %}
         {% else %}
-        <span class="empty-state">No established facts yet.</span>
+        <span class="empty-state">No world state yet.</span>
         {% endif %}
     </div>
 </details>

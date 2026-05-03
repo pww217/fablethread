@@ -17,7 +17,7 @@ game:
   setting_pack: zombie-survival
   window_turns: 6
   chronicle_prefix_budget_tokens: 1500
-  established_facts_max: 30    # rolling window; seed lore is baked in as initial state
+  recent_events_max: 15    # rolling window; world_state is immutable after seed
   warmup_on_start: true
   character_creation_enabled: true
 

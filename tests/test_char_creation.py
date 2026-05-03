@@ -42,11 +42,13 @@ VALID_STATS_HIGH = {
 # _validate_stats — pure Python
 # ---------------------------------------------------------------------------
 
+
 class TestValidateStats:
     """Pure-Python validation of stat dicts."""
 
     def _import(self):
         from ccya.server import _validate_stats
+
         return _validate_stats
 
     def test_valid_minimal(self):
@@ -56,7 +58,14 @@ class TestValidateStats:
         assert self._import()(VALID_STATS_HIGH) is True
 
     def test_valid_total_16(self):
-        stats = {"strength": 4, "dexterity": 3, "wits": 3, "lore": 2, "charisma": 2, "resolve": 2}
+        stats = {
+            "strength": 4,
+            "dexterity": 3,
+            "wits": 3,
+            "lore": 2,
+            "charisma": 2,
+            "resolve": 2,
+        }
         # total = 16 — at max
         assert self._import()(stats) is True
 
@@ -66,7 +75,14 @@ class TestValidateStats:
         assert self._import()(stats) is False
 
     def test_invalid_total_above_16(self):
-        stats = {"strength": 4, "dexterity": 4, "wits": 3, "lore": 2, "charisma": 2, "resolve": 2}
+        stats = {
+            "strength": 4,
+            "dexterity": 4,
+            "wits": 3,
+            "lore": 2,
+            "charisma": 2,
+            "resolve": 2,
+        }
         # total = 17 > 16
         assert self._import()(stats) is False
 
@@ -99,17 +115,21 @@ class TestValidateStats:
 # POST /new-game — static pack with PC overrides
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def client():
     """Import server module under MOCK_MODE so /healthz doesn't call Ollama."""
     import os
+
     old = os.environ.get("MOCK_MODE")
     os.environ["MOCK_MODE"] = "1"
     # Force reimport so config loads fresh
     import importlib
     import ccya.server
+
     importlib.reload(ccya.server)
     from ccya.server import app
+
     yield TestClient(app)
     if old is None:
         os.environ.pop("MOCK_MODE", None)
@@ -129,32 +149,63 @@ class TestNewGameStaticOverrides:
                 "name": "DefaultPC",
                 "tagline": "default role",
                 "bio": "",
-                "stats": {"strength": 2, "dexterity": 2, "wits": 2, "lore": 2, "charisma": 2, "resolve": 2},
+                "stats": {
+                    "strength": 2,
+                    "dexterity": 2,
+                    "wits": 2,
+                    "lore": 2,
+                    "charisma": 2,
+                    "resolve": 2,
+                },
                 "conditions": [],
             },
-            "location": {"id": "test-loc", "name": "Test Location", "description": "A test place."},
+            "location": {
+                "id": "test-loc",
+                "name": "Test Location",
+                "description": "A test place.",
+            },
             "inventory": [{"id": "item1", "name": "Item One", "notes": ""}],
-            "quests": [{"id": "q1", "title": "Quest One", "status": "active", "objectives": [{"description": "Do it", "done": False}]}],
-            "scene": {"tags": [], "present_npcs": [], "established_facts": [], "tagline": ""},
+            "quests": [
+                {
+                    "id": "q1",
+                    "title": "Quest One",
+                    "status": "active",
+                    "objectives": [{"description": "Do it", "done": False}],
+                }
+            ],
+            "scene": {
+                "tags": [],
+                "present_npcs": [],
+                "recent_events": [],
+                "tagline": "",
+            },
             "compendium": {"npcs": {}},
         }
 
     def _mock_static_pack(self, seed_state):
         """Build a mock Pack with mode='static' and a SeedState."""
         from ccya.pack import Pack, PackManifest, SeedState
+
         manifest = PackManifest(
-            id="test-static", name="Test Static", mode="static",
-            description="A test static pack", tone_tags=[],
-            baseline_facts=[], constraints=None,
+            id="test-static",
+            name="Test Static",
+            mode="static",
+            description="A test static pack",
+            tone_tags=[],
+            baseline_facts=[],
+            constraints=None,
         )
         seed = SeedState.model_validate(seed_state)
-        pack = Pack.model_construct(manifest=manifest, seed=seed, opening_text="You start here.")
+        pack = Pack.model_construct(
+            manifest=manifest, seed=seed, opening_text="You start here."
+        )
         return pack
 
     @pytest.mark.parametrize("mock_mode", ["static", "dynamic"])
     def test_validate_stats_helper_exists(self, mock_mode):
         """_validate_stats is importable and callable."""
         from ccya.server import _validate_stats
+
         assert callable(_validate_stats)
         assert _validate_stats(VALID_STATS) is True
         assert _validate_stats({"a": 1}) is False
@@ -166,16 +217,24 @@ class TestNewGameStaticOverrides:
 
         save_dir = Path(tempfile.mkdtemp())
 
-        with patch.object(__import__("ccya.server", fromlist=["_active_pack"]), "_active_pack", mock_pack), \
-             patch("ccya.server.SAVE_DIR", save_dir), \
-             patch("ccya.server.init_save_dir") as mock_init:
-
-            resp = client.post("/new-game", data={
-                "pack_id": "test-static",
-                "pc_name": "Wraith",
-                "pc_tagline": "shadow runner",
-                "pc_stats": json.dumps(VALID_STATS_HIGH),
-            })
+        with (
+            patch.object(
+                __import__("ccya.server", fromlist=["_active_pack"]),
+                "_active_pack",
+                mock_pack,
+            ),
+            patch("ccya.server.SAVE_DIR", save_dir),
+            patch("ccya.server.init_save_dir") as mock_init,
+        ):
+            resp = client.post(
+                "/new-game",
+                data={
+                    "pack_id": "test-static",
+                    "pc_name": "Wraith",
+                    "pc_tagline": "shadow runner",
+                    "pc_stats": json.dumps(VALID_STATS_HIGH),
+                },
+            )
 
             assert resp.status_code == 200
             mock_init.assert_called_once()
@@ -190,15 +249,23 @@ class TestNewGameStaticOverrides:
         mock_pack = self._mock_static_pack(seed_state)
         save_dir = Path(tempfile.mkdtemp())
 
-        with patch.object(__import__("ccya.server", fromlist=["_active_pack"]), "_active_pack", mock_pack), \
-             patch("ccya.server.SAVE_DIR", save_dir), \
-             patch("ccya.server.init_save_dir") as mock_init:
-
-            resp = client.post("/new-game", data={
-                "pack_id": "test-static",
-                "pc_name": "Wraith",
-                "pc_stats": "NOT VALID JSON",
-            })
+        with (
+            patch.object(
+                __import__("ccya.server", fromlist=["_active_pack"]),
+                "_active_pack",
+                mock_pack,
+            ),
+            patch("ccya.server.SAVE_DIR", save_dir),
+            patch("ccya.server.init_save_dir") as mock_init,
+        ):
+            resp = client.post(
+                "/new-game",
+                data={
+                    "pack_id": "test-static",
+                    "pc_name": "Wraith",
+                    "pc_stats": "NOT VALID JSON",
+                },
+            )
 
             assert resp.status_code == 200
             mock_init.assert_called_once()
@@ -214,10 +281,15 @@ class TestNewGameStaticOverrides:
         mock_pack = self._mock_static_pack(seed_state)
         save_dir = Path(tempfile.mkdtemp())
 
-        with patch.object(__import__("ccya.server", fromlist=["_active_pack"]), "_active_pack", mock_pack), \
-             patch("ccya.server.SAVE_DIR", save_dir), \
-             patch("ccya.server.init_save_dir") as mock_init:
-
+        with (
+            patch.object(
+                __import__("ccya.server", fromlist=["_active_pack"]),
+                "_active_pack",
+                mock_pack,
+            ),
+            patch("ccya.server.SAVE_DIR", save_dir),
+            patch("ccya.server.init_save_dir") as mock_init,
+        ):
             resp = client.post("/new-game", data={"pack_id": "test-static"})
 
             assert resp.status_code == 200
@@ -231,15 +303,21 @@ class TestNewGameStaticOverrides:
 # POST /new-game — dynamic pack with PlayerOverrides
 # ---------------------------------------------------------------------------
 
+
 class TestNewGameDynamicOverrides:
     """Dynamic pack: PlayerOverrides injected into generate_seed()."""
 
     def _mock_dynamic_pack(self):
         from ccya.pack import Pack, PackManifest
+
         manifest = PackManifest(
-            id="test-dynamic", name="Test Dynamic", mode="dynamic",
-            description="A test dynamic pack", tone_tags=[],
-            baseline_facts=[], constraints=None,
+            id="test-dynamic",
+            name="Test Dynamic",
+            mode="dynamic",
+            description="A test dynamic pack",
+            tone_tags=[],
+            baseline_facts=[],
+            constraints=None,
         )
         return Pack.model_construct(manifest=manifest, world_text="A test world.")
 
@@ -251,11 +329,40 @@ class TestNewGameDynamicOverrides:
         mock_envelope = MagicMock()
         mock_envelope.seed_state.model_dump.return_value = {
             "meta": {"game_name": "test"},
-            "pc": {"name": "LLMPC", "tagline": "", "bio": "", "stats": {"strength": 2, "dexterity": 2, "wits": 2, "lore": 2, "charisma": 2, "resolve": 2}, "conditions": []},
-            "location": {"id": "llm-loc", "name": "LLM Location", "description": "Generated."},
+            "pc": {
+                "name": "LLMPC",
+                "tagline": "",
+                "bio": "",
+                "stats": {
+                    "strength": 2,
+                    "dexterity": 2,
+                    "wits": 2,
+                    "lore": 2,
+                    "charisma": 2,
+                    "resolve": 2,
+                },
+                "conditions": [],
+            },
+            "location": {
+                "id": "llm-loc",
+                "name": "LLM Location",
+                "description": "Generated.",
+            },
             "inventory": [{"id": "sword", "name": "Sword", "notes": ""}],
-            "quests": [{"id": "q1", "title": "Quest", "status": "active", "objectives": [{"description": "Do it", "done": False}]}],
-            "scene": {"tags": [], "present_npcs": [], "established_facts": [], "tagline": ""},
+            "quests": [
+                {
+                    "id": "q1",
+                    "title": "Quest",
+                    "status": "active",
+                    "objectives": [{"description": "Do it", "done": False}],
+                }
+            ],
+            "scene": {
+                "tags": [],
+                "present_npcs": [],
+                "recent_events": [],
+                "tagline": "",
+            },
             "compendium": {"npcs": {}},
         }
         mock_envelope.opening_narrative = "You awaken in a dark room."
@@ -267,17 +374,25 @@ class TestNewGameDynamicOverrides:
             captured_overrides.append(kwargs.get("overrides"))
             return mock_envelope
 
-        with patch.object(__import__("ccya.server", fromlist=["_active_pack"]), "_active_pack", mock_pack), \
-             patch("ccya.server.SAVE_DIR", save_dir), \
-             patch("ccya.server.generate_seed", mock_generate_seed):
-
-            resp = client.post("/new-game", data={
-                "pack_id": "test-dynamic",
-                "pc_name": "Wraith",
-                "pc_tagline": "shadow runner",
-                "pc_hints": "stealthy character",
-                "free_form": "no dragons",
-            })
+        with (
+            patch.object(
+                __import__("ccya.server", fromlist=["_active_pack"]),
+                "_active_pack",
+                mock_pack,
+            ),
+            patch("ccya.server.SAVE_DIR", save_dir),
+            patch("ccya.server.generate_seed", mock_generate_seed),
+        ):
+            resp = client.post(
+                "/new-game",
+                data={
+                    "pack_id": "test-dynamic",
+                    "pc_name": "Wraith",
+                    "pc_tagline": "shadow runner",
+                    "pc_hints": "stealthy character",
+                    "free_form": "no dragons",
+                },
+            )
 
             assert resp.status_code == 200
             assert len(captured_overrides) == 1
@@ -296,11 +411,40 @@ class TestNewGameDynamicOverrides:
         mock_envelope = MagicMock()
         mock_envelope.seed_state.model_dump.return_value = {
             "meta": {"game_name": "test"},
-            "pc": {"name": "LLMPC", "tagline": "", "bio": "", "stats": {"strength": 2, "dexterity": 2, "wits": 2, "lore": 2, "charisma": 2, "resolve": 2}, "conditions": []},
-            "location": {"id": "llm-loc", "name": "LLM Location", "description": "Generated."},
+            "pc": {
+                "name": "LLMPC",
+                "tagline": "",
+                "bio": "",
+                "stats": {
+                    "strength": 2,
+                    "dexterity": 2,
+                    "wits": 2,
+                    "lore": 2,
+                    "charisma": 2,
+                    "resolve": 2,
+                },
+                "conditions": [],
+            },
+            "location": {
+                "id": "llm-loc",
+                "name": "LLM Location",
+                "description": "Generated.",
+            },
             "inventory": [{"id": "sword", "name": "Sword", "notes": ""}],
-            "quests": [{"id": "q1", "title": "Quest", "status": "active", "objectives": [{"description": "Do it", "done": False}]}],
-            "scene": {"tags": [], "present_npcs": [], "established_facts": [], "tagline": ""},
+            "quests": [
+                {
+                    "id": "q1",
+                    "title": "Quest",
+                    "status": "active",
+                    "objectives": [{"description": "Do it", "done": False}],
+                }
+            ],
+            "scene": {
+                "tags": [],
+                "present_npcs": [],
+                "recent_events": [],
+                "tagline": "",
+            },
             "compendium": {"npcs": {}},
         }
         mock_envelope.opening_narrative = "You awaken in a dark room."
@@ -312,10 +456,15 @@ class TestNewGameDynamicOverrides:
             captured_overrides.append(kwargs.get("overrides"))
             return mock_envelope
 
-        with patch.object(__import__("ccya.server", fromlist=["_active_pack"]), "_active_pack", mock_pack), \
-             patch("ccya.server.SAVE_DIR", save_dir), \
-             patch("ccya.server.generate_seed", mock_generate_seed):
-
+        with (
+            patch.object(
+                __import__("ccya.server", fromlist=["_active_pack"]),
+                "_active_pack",
+                mock_pack,
+            ),
+            patch("ccya.server.SAVE_DIR", save_dir),
+            patch("ccya.server.generate_seed", mock_generate_seed),
+        ):
             resp = client.post("/new-game", data={"pack_id": "test-dynamic"})
 
             assert resp.status_code == 200

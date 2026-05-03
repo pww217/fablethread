@@ -50,11 +50,9 @@ You are a scenario generator for a text adventure game. Emit a SeedEnvelope JSON
 - `seed_state.pc.bio`: 2–4 sentences — pre-event history, what shaped this person, what they want now
 - `seed_state.scene.present_npcs[*].bio`: 1–3 sentences — durable identity and motivation
 - `seed_state.scene.present_npcs[*].notes`: current attitude in this opening scene
-- `seed_state.scene.established_facts`: Exactly 12 facts. 5 global, 7 local. The engine prepends generic world/genre lore; do not repeat it.
+- `seed_state.scene.world_state`: Exactly 3 global facts — wider world/regional context the player would know from living in this setting. These are immutable for the entire game. Each must be a single consolidated statement covering meaningful political, economic, or infrastructural reality. Do NOT make a separate fact for each vocabulary word, faction name, or technology — consolidate related items into one fact. Example: "The OPA on Ceres is split between Anderson Dawes' political wing (Lower Levels) and Frederico Kuria's enforcement faction (docks); they cooperate on anti-Inner interests and compete on everything else."
 
-  5 global facts — wider world/regional context the player would know from living in this setting. Each must be a single consolidated statement covering meaningful political, economic, or infrastructural reality. Do NOT make a separate fact for each vocabulary word, faction name, or technology — consolidate related items into one fact. Example: "The OPA on Ceres is split between Anderson Dawes' political wing (Lower Levels) and Frederico Kuria's enforcement faction (docks); they cooperate on anti-Inner interests and compete on everything else."
-
-  7 local facts — specific to this session: this location, these NPCs, this week. Each must be substantial and consequential — something that shapes what the player can do or what they're walking into. Categories:
+- `seed_state.scene.recent_events`: Exactly 5 local facts — specific to this session: this location, these NPCs, this week. These are mutable during gameplay. Each must be substantial and consequential — something that shapes what the player can do or what they're walking into. Categories:
   - Faction/power: who controls what locally, recent shifts, conflicts between specific groups
   - Recent event: something that happened in the last days or weeks that everyone is still reacting to
   - Infrastructure/resource: what is broken, scarce, unavailable, or contested right now

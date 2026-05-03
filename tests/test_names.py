@@ -13,7 +13,6 @@ from ccya.names import generate_name_pool, generate_npc_names
 
 
 class TestStructure:
-
     def test_name_pool_structure(self):
         pool = generate_name_pool([{"locale": "en_US", "weight": 1.0}], seed=42)
         assert set(pool.keys()) == {"pc", "npc", "location"}
@@ -28,21 +27,28 @@ class TestStructure:
     def test_name_pool_custom_counts(self):
         pool = generate_name_pool(
             [{"locale": "en_US", "weight": 1.0}],
-            pc_count=2, npc_count=4, location_count=3, seed=42,
+            pc_count=2,
+            npc_count=4,
+            location_count=3,
+            seed=42,
         )
         assert len(pool["pc"]) == 2
         assert len(pool["npc"]) == 4
         assert len(pool["location"]) == 3
 
     def test_npc_names_structure(self):
-        names = generate_npc_names([{"locale": "en_US", "weight": 1.0}], count=6, seed=42)
+        names = generate_npc_names(
+            [{"locale": "en_US", "weight": 1.0}], count=6, seed=42
+        )
         assert len(names) == 6
         for name in names:
             assert isinstance(name, str)
             assert len(name) > 0
 
     def test_npc_names_custom_count(self):
-        names = generate_npc_names([{"locale": "en_US", "weight": 1.0}], count=10, seed=42)
+        names = generate_npc_names(
+            [{"locale": "en_US", "weight": 1.0}], count=10, seed=42
+        )
         assert len(names) == 10
 
 
@@ -52,7 +58,6 @@ class TestStructure:
 
 
 class TestFallback:
-
     def test_empty_locales_falls_back(self):
         pool = generate_name_pool([], seed=42)
         assert len(pool["pc"]) == 3
@@ -70,7 +75,6 @@ class TestFallback:
 
 
 class TestWeightedDistribution:
-
     def test_weighted_selection(self):
         """With a fixed seed, verify that high-weight locale dominates."""
         locales = [
@@ -116,7 +120,6 @@ class TestWeightedDistribution:
 
 
 class TestJinjaRender:
-
     def _env(self):
         prompts_dir = str(Path(__file__).parent.parent / "ccya" / "prompts")
         return Environment(
@@ -127,7 +130,11 @@ class TestJinjaRender:
 
     def test_generate_seed_user_with_name_pool(self):
         env = self._env()
-        name_pool = {"pc": ["Alice", "Bob", "Charlie"], "npc": ["Dave", "Eve"], "location": ["Springfield"]}
+        name_pool = {
+            "pc": ["Alice", "Bob", "Charlie"],
+            "npc": ["Dave", "Eve"],
+            "location": ["Springfield"],
+        }
         ctx = {"name_pool": name_pool}
         text = env.get_template("generate_seed_user.j2").render(**ctx)
         assert "Alice" in text
@@ -144,7 +151,14 @@ class TestJinjaRender:
         env = self._env()
         ctx = {
             "npc_name_pool": ["Yuki Tanaka", "Carlos Mendez", "Fatima Al-Rashid"],
-            "state": {"pc": {"name": "Test", "tagline": "tester", "concept": ""}, "location": {}, "inventory": [], "quests": [], "scene": {}, "meta": {}},
+            "state": {
+                "pc": {"name": "Test", "tagline": "tester", "concept": ""},
+                "location": {},
+                "inventory": [],
+                "quests": [],
+                "scene": {},
+                "meta": {},
+            },
             "chronicle_tail": "",
             "recent_turns": [],
             "pack_style": "",
@@ -158,7 +172,14 @@ class TestJinjaRender:
         env = self._env()
         ctx = {
             "npc_name_pool": [],
-            "state": {"pc": {"name": "Test", "tagline": "tester", "concept": ""}, "location": {}, "inventory": [], "quests": [], "scene": {}, "meta": {}},
+            "state": {
+                "pc": {"name": "Test", "tagline": "tester", "concept": ""},
+                "location": {},
+                "inventory": [],
+                "quests": [],
+                "scene": {},
+                "meta": {},
+            },
             "chronicle_tail": "",
             "recent_turns": [],
             "pack_style": "",

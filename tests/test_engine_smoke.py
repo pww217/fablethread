@@ -18,11 +18,18 @@ from pathlib import Path
 
 import pytest
 
-from ccya.engine import EngineConfig, run_turn, _build_jinja_env, _narrate_messages, _extract_messages, _parse_actions_from_narrate
+from ccya.engine import (
+    EngineConfig,
+    run_turn,
+    _build_jinja_env,
+    _narrate_messages,
+    _extract_messages,
+    _parse_actions_from_narrate,
+)
 from ccya.llm_client import strip_thinking
 from ccya.models import (
     CompendiumNpcUpdate,
-    FactUpdate,
+    RecentEventUpdate,
     InventoryItem,
     InventoryRemove,
     InventoryUpdate,
@@ -30,19 +37,25 @@ from ccya.models import (
     NpcRef,
     QuestObjectiveUpdate,
     QuestUpdate,
-    Scope,
     StateDelta,
 )
 
 # Rules Call 0 returns this when no check is required (default for most tests).
-_RULES_NO_ROLL = json.dumps({
-    "intent": "player action",
-    "intent_verb": "act",
-    "target": "",
-    "stakes": "",
-    "check": {"required": False},
-    "scope": {"active_domains": ["scene", "present_npcs"], "skip_domains": [], "implicit_preconditions": [], "ambiguities": []},
-})
+_RULES_NO_ROLL = json.dumps(
+    {
+        "intent": "player action",
+        "intent_verb": "act",
+        "target": "",
+        "stakes": "",
+        "check": {"required": False},
+        "scope": {
+            "active_domains": ["scene", "present_npcs"],
+            "skip_domains": [],
+            "implicit_preconditions": [],
+            "ambiguities": [],
+        },
+    }
+)
 from ccya.state import (
     apply_delta,
     load_chronicle_tail,
@@ -71,16 +84,38 @@ def _make_state(turn: int = 0) -> dict:
             "name": "Vex",
             "tagline": "salvage pilot",
             "bio": "",
-            "stats": {"strength": 2, "dexterity": 2, "wits": 3, "lore": 2, "charisma": 2, "resolve": 2},
+            "stats": {
+                "strength": 2,
+                "dexterity": 2,
+                "wits": 3,
+                "lore": 2,
+                "charisma": 2,
+                "resolve": 2,
+            },
             "conditions": [],
         },
-        "location": {"id": "docking-ring-7", "name": "Docking Ring 7", "description": "Low-grav berth."},
+        "location": {
+            "id": "docking-ring-7",
+            "name": "Docking Ring 7",
+            "description": "Low-grav berth.",
+        },
         "inventory": [
-            {"id": "hand-terminal", "name": "Hand terminal", "notes": "Cracked screen."},
+            {
+                "id": "hand-terminal",
+                "name": "Hand terminal",
+                "notes": "Cracked screen.",
+            },
             {"id": "vac-jacket", "name": "Vac jacket", "notes": "Thermal-lined."},
         ],
-        "quests": [{"id": "quiet-signal", "title": "The Quiet Signal", "status": "active", "objectives": [{"description": "Find the payer", "done": False}]}],
-        "scene": {"tags": [], "present_npcs": [], "established_facts": [], "tagline": ""},
+        "quests": [
+            {
+                "id": "quiet-signal",
+                "title": "The Quiet Signal",
+                "status": "active",
+                "objectives": [{"description": "Find the payer", "done": False}],
+            }
+        ],
+        "scene": {"tags": [], "present_npcs": [], "recent_events": [], "tagline": ""},
         "compendium": {"npcs": {}},
     }
 
@@ -128,9 +163,21 @@ class _FakeLLM:
             chat_calls = [c for c in _self.call_log if c["kind"] == "chat"]
             if len(chat_calls) == 1:
                 # First chat call is always the rules Call 0 — return no-roll intent.
-                return {"response": _RULES_NO_ROLL, "done": True, "usage": {"prompt_tokens": 30, "total_tokens": 40}}
-            result_text = _self.text_responses[-1] if len(_self.text_responses) > 1 else _self.narrative
-            return {"response": result_text, "done": True, "usage": {"prompt_tokens": 100, "total_tokens": 200}}
+                return {
+                    "response": _RULES_NO_ROLL,
+                    "done": True,
+                    "usage": {"prompt_tokens": 30, "total_tokens": 40},
+                }
+            result_text = (
+                _self.text_responses[-1]
+                if len(_self.text_responses) > 1
+                else _self.narrative
+            )
+            return {
+                "response": result_text,
+                "done": True,
+                "usage": {"prompt_tokens": 100, "total_tokens": 200},
+            }
 
         self._fake_stream = _fake_stream
         self._fake_chat = _fake_chat
@@ -156,8 +203,12 @@ class _FakeLLM:
 async def _run(save_dir, user_input, config=None, fake=None):
     """Drive run_turn() async generator to completion, return TurnResult."""
     result = None
-    async for kind, payload in run_turn(save_dir, user_input, config=config,
-                                         template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts")):
+    async for kind, payload in run_turn(
+        save_dir,
+        user_input,
+        config=config,
+        template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts"),
+    ):
         if kind == "complete":
             result = payload
     return result
@@ -167,8 +218,12 @@ async def _run_with_tokens(save_dir, user_input, config=None):
     """Collect all token events and the final TurnResult."""
     tokens = []
     result = None
-    async for kind, payload in run_turn(save_dir, user_input, config=config,
-                                         template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts")):
+    async for kind, payload in run_turn(
+        save_dir,
+        user_input,
+        config=config,
+        template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts"),
+    ):
         if kind == "token":
             tokens.append(payload)
         elif kind == "complete":
@@ -185,7 +240,7 @@ class TestParseActionsFromNarrate:
     """Unit tests for _parse_actions_from_narrate helper."""
 
     def test_parses_valid_actions(self):
-        narrative = "Some prose.\n\nACTIONS_JSON: {\"actions\": [\"Go left\", \"Go right\", \"Wait\", \"Look\"]}"
+        narrative = 'Some prose.\n\nACTIONS_JSON: {"actions": ["Go left", "Go right", "Wait", "Look"]}'
         actions, clean = _parse_actions_from_narrate(narrative)
         assert actions == ["Go left", "Go right", "Wait", "Look"]
         assert "ACTIONS_JSON" not in clean
@@ -278,7 +333,9 @@ class TestPromptComposition:
     def test_extract_user_message_includes_active_quests_and_inventory(self):
         env = self._env()
         state = _make_state()
-        state["scene"]["present_npcs"] = [{"id": "npc-a", "name": "A", "notes": "Test."}]
+        state["scene"]["present_npcs"] = [
+            {"id": "npc-a", "name": "A", "notes": "Test."}
+        ]
         msgs = _extract_messages(env, "Narrative text.", state)
         user_msg = next(m for m in msgs if m["role"] == "user")
         assert "quiet-signal" in user_msg["content"]
@@ -289,13 +346,16 @@ class TestPromptComposition:
         assert "npc-a" in user_msg["content"]
         assert "1." in user_msg["content"]  # numbered objectives
 
-    def test_extract_user_message_includes_established_facts(self):
+    def test_extract_user_message_includes_recent_events(self):
         env = self._env()
         state = _make_state()
-        state["scene"]["established_facts"] = ["Alpha fact about the station.", "Beta fact about the crew."]
+        state["scene"]["recent_events"] = [
+            "Alpha fact about the station.",
+            "Beta fact about the crew.",
+        ]
         msgs = _extract_messages(env, "Narrative text.", state)
         user_msg = next(m for m in msgs if m["role"] == "user")
-        assert "Established facts" in user_msg["content"]
+        assert "Recent Events" in user_msg["content"]
         assert "Alpha fact about the station." in user_msg["content"]
         assert "Beta fact about the crew." in user_msg["content"]
 
@@ -319,9 +379,13 @@ class TestPromptComposition:
     def test_extract_scope_in_user_message(self):
         """Scope from intent is injected into extract user message."""
         from ccya.models import Scope
+
         env = self._env()
         state = _make_state()
-        scope = Scope(active_domains=["scene", "inventory"], skip_domains=["quest_updates", "location_change"])
+        scope = Scope(
+            active_domains=["scene", "inventory"],
+            skip_domains=["quest_updates", "location_change"],
+        )
         msgs = _extract_messages(env, "N.", state, intent=IntentEnvelope(scope=scope))
         user_msg = next(m for m in msgs if m["role"] == "user")
         assert "Active domains: scene, inventory" in user_msg["content"]
@@ -330,6 +394,7 @@ class TestPromptComposition:
     def test_extract_scope_preconditions_in_user_message(self):
         """Scope preconditions and ambiguities appear in user message."""
         from ccya.models import Scope
+
         env = self._env()
         state = _make_state()
         scope = Scope(
@@ -341,7 +406,9 @@ class TestPromptComposition:
         msgs = _extract_messages(env, "N.", state, intent=IntentEnvelope(scope=scope))
         user_msg = next(m for m in msgs if m["role"] == "user")
         assert "Preconditions assumed: guard must be unconscious" in user_msg["content"]
-        assert "Ambiguities to resolve: 'the chest' — which chest?" in user_msg["content"]
+        assert (
+            "Ambiguities to resolve: 'the chest' — which chest?" in user_msg["content"]
+        )
 
     def test_extract_scope_defaults_when_no_intent(self):
         """When intent is None, scope defaults to empty (no skip_domains)."""
@@ -380,22 +447,34 @@ class TestPromptComposition:
     def test_state_slice_skips_inactive_domains(self):
         """Skip domains result in hidden markers in extract user message."""
         from ccya.models import Scope
+
         env = self._env()
         state = _make_state()
-        scope = Scope(active_domains=["scene", "present_npcs"], skip_domains=["inventory", "quest_updates", "established_facts", "pc_condition"])
+        scope = Scope(
+            active_domains=["scene", "present_npcs"],
+            skip_domains=[
+                "inventory",
+                "quest_updates",
+                "recent_events",
+                "pc_condition",
+            ],
+        )
         msgs = _extract_messages(env, "N.", state, intent=IntentEnvelope(scope=scope))
         user_msg = next(m for m in msgs if m["role"] == "user")
         assert "hidden — not in active scope" in user_msg["content"]
         assert "do not assume inventory is empty" in user_msg["content"]
         assert "do not assume quests are gone" in user_msg["content"]
-        assert "do not assume facts are gone" in user_msg["content"]
+        assert "do not assume events are gone" in user_msg["content"]
 
     def test_state_slice_always_includes_known_characters(self):
         """Known characters (compendium) always included regardless of scope."""
         from ccya.models import Scope
+
         env = self._env()
         state = _make_state()
-        state["compendium"] = {"npcs": {"test-npc": {"name": "Test NPC", "bio": "A test character."}}}
+        state["compendium"] = {
+            "npcs": {"test-npc": {"name": "Test NPC", "bio": "A test character."}}
+        }
         scope = Scope(active_domains=["scene"], skip_domains=["present_npcs"])
         msgs = _extract_messages(env, "N.", state, intent=IntentEnvelope(scope=scope))
         user_msg = next(m for m in msgs if m["role"] == "user")
@@ -405,7 +484,9 @@ class TestPromptComposition:
     def test_narrate_thinking_toggle(self):
         """Thinking toggle is now a Qwen3 soft-switch: `/think` appended to the last user message when on."""
         env = self._env()
-        off = _narrate_messages(env, _make_state(), "look", enable_narrate_thinking=False)
+        off = _narrate_messages(
+            env, _make_state(), "look", enable_narrate_thinking=False
+        )
         on = _narrate_messages(env, _make_state(), "look", enable_narrate_thinking=True)
         last_off = off[-1]["content"]
         last_on = on[-1]["content"]
@@ -428,7 +509,9 @@ class TestPromptComposition:
     def test_recent_turns_injected_when_present(self):
         env = self._env()
         state = _make_state()
-        recent = [{"turn": 1, "input": "look around", "narrative": "You see a docking bay."}]
+        recent = [
+            {"turn": 1, "input": "look around", "narrative": "You see a docking bay."}
+        ]
         msgs = _narrate_messages(env, state, "go forward", recent_turns=recent)
         system_text = next(m for m in msgs if m["role"] == "system")["content"]
         assert "look around" in system_text
@@ -447,26 +530,28 @@ class TestPromptComposition:
 
 
 class TestHappyPath:
-
     async def test_narrate_and_extract(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
         narrative = "You step through the airlock. The corridor stretches ahead, dim and humming."
-        extract = json.dumps({
-            "state_delta": {
-                "established_facts_add": ["You found an airlock at Docking Ring 7."],
-                "scene_tags": ["exploration"],
-            },
-            
-        })
+        extract = json.dumps(
+            {
+                "state_delta": {
+                    "recent_events_add": ["You found an airlock at Docking Ring 7."],
+                    "scene_tags": ["exploration"],
+                },
+            }
+        )
 
         fake = _FakeLLM([narrative, extract])
         with fake:
-            result = await _run(SAVE_DIR, "I step through the airlock.", config=EngineConfig())
+            result = await _run(
+                SAVE_DIR, "I step through the airlock.", config=EngineConfig()
+            )
 
         assert result.narrative == narrative
-        assert result.established_facts == ["You found an airlock at Docking Ring 7."]
+        assert result.recent_events == ["You found an airlock at Docking Ring 7."]
         assert result.metrics["narrate"]["total_ms"] >= 0
         assert result.metrics["extract"]["retries"] == 0
         assert len(result.errors) == 0
@@ -478,9 +563,11 @@ class TestHappyPath:
         _write_state(SAVE_DIR, state)
 
         narrative = 'narrative text\n\nACTIONS_JSON: {"actions": ["Open door", "Take stairs", "Check map", "Go back"]}'
-        extract = json.dumps({
-            "state_delta": {"scene_tags": ["exploration"]},
-        })
+        extract = json.dumps(
+            {
+                "state_delta": {"scene_tags": ["exploration"]},
+            }
+        )
         fake = _FakeLLM([narrative, extract])
         with fake:
             result = await _run(SAVE_DIR, "look", config=EngineConfig())
@@ -491,9 +578,11 @@ class TestHappyPath:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({
-            "state_delta": {"scene_tags": ["exploration"]},
-        })
+        extract = json.dumps(
+            {
+                "state_delta": {"scene_tags": ["exploration"]},
+            }
+        )
         fake = _FakeLLM(["narrative text without actions", extract])
         with fake:
             result = await _run(SAVE_DIR, "look", config=EngineConfig())
@@ -513,13 +602,16 @@ class TestStreamingEvents:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({
-            "state_delta": {},
-            
-        })
+        extract = json.dumps(
+            {
+                "state_delta": {},
+            }
+        )
         fake = _FakeLLM(["hello world", extract])
         with fake:
-            tokens, result = await _run_with_tokens(SAVE_DIR, "look", config=EngineConfig())
+            tokens, result = await _run_with_tokens(
+                SAVE_DIR, "look", config=EngineConfig()
+            )
 
         assert len(tokens) >= 1
         assert "".join(tokens) == "hello world"
@@ -535,7 +627,9 @@ class TestStreamingEvents:
         fake = _FakeLLM(["the narrative", extract])
         with fake:
             async for kind, _ in run_turn(
-                SAVE_DIR, "look", config=EngineConfig(),
+                SAVE_DIR,
+                "look",
+                config=EngineConfig(),
                 template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts"),
             ):
                 events.append(kind)
@@ -551,18 +645,20 @@ class TestStreamingEvents:
 
 
 class TestRejectedDelta:
-
     async def test_remove_nonexistent_item(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({
-            "state_delta": {"inventory_remove": ["ghost-item-999"]},
-            
-        })
+        extract = json.dumps(
+            {
+                "state_delta": {"inventory_remove": ["ghost-item-999"]},
+            }
+        )
         fake = _FakeLLM([extract])
         with fake:
-            result = await _run(SAVE_DIR, "I grab the ghost item.", config=EngineConfig())
+            result = await _run(
+                SAVE_DIR, "I grab the ghost item.", config=EngineConfig()
+            )
 
         assert len(result.rejected) == 1
         assert result.rejected[0]["value"] == "ghost-item-999"
@@ -573,10 +669,11 @@ class TestRejectedDelta:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({
-            "state_delta": {"inventory_remove": ["ghost-item"]},
-            
-        })
+        extract = json.dumps(
+            {
+                "state_delta": {"inventory_remove": ["ghost-item"]},
+            }
+        )
         fake = _FakeLLM([extract])
         with fake:
             result = await _run(SAVE_DIR, "grab ghost", config=EngineConfig())
@@ -588,10 +685,20 @@ class TestRejectedDelta:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({
-            "state_delta": {"quest_updates": [{"id": "new-quest", "title": "New Quest", "status": "active", "objectives": []}]},
-            
-        })
+        extract = json.dumps(
+            {
+                "state_delta": {
+                    "quest_updates": [
+                        {
+                            "id": "new-quest",
+                            "title": "New Quest",
+                            "status": "active",
+                            "objectives": [],
+                        }
+                    ]
+                },
+            }
+        )
         fake = _FakeLLM([extract])
         with fake:
             result = await _run(SAVE_DIR, "Start a new quest.", config=EngineConfig())
@@ -610,16 +717,16 @@ class TestRejectedDelta:
 
 
 class TestSchemaFailureRetry:
-
     async def test_single_retry(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
         narrative = "You examine the hand terminal closely."
-        good_extract = json.dumps({
-            "state_delta": {"pc_condition_add": ["curious"]},
-            
-        })
+        good_extract = json.dumps(
+            {
+                "state_delta": {"pc_condition_add": ["curious"]},
+            }
+        )
         chat_call_count = 0
 
         async def fake_stream(*args, **kwargs):
@@ -634,19 +741,27 @@ class TestSchemaFailureRetry:
             if chat_call_count == 2:
                 # First extract attempt — return bad JSON.
                 return {"response": "bad json {{{", "done": True, "usage": {}}
-            return {"response": good_extract, "done": True, "usage": {"prompt_tokens": 10, "total_tokens": 200}}
+            return {
+                "response": good_extract,
+                "done": True,
+                "usage": {"prompt_tokens": 10, "total_tokens": 200},
+            }
 
         _orig_stream = ccya.engine.llm_chat_stream
         _orig_chat = ccya.engine.llm_chat
         try:
             ccya.engine.llm_chat_stream = fake_stream
             ccya.engine.llm_chat = fake_chat
-            result = await _run(SAVE_DIR, "examine", config=EngineConfig(max_extract_retries=1))
+            result = await _run(
+                SAVE_DIR, "examine", config=EngineConfig(max_extract_retries=1)
+            )
         finally:
             ccya.engine.llm_chat_stream = _orig_stream
             ccya.engine.llm_chat = _orig_chat
 
-        assert "curious" in result.applied.get("pc_condition_add", []) or "curious" in str(result.applied)
+        assert "curious" in result.applied.get(
+            "pc_condition_add", []
+        ) or "curious" in str(result.applied)
         assert result.metrics["extract"]["retries"] == 1
 
 
@@ -656,21 +771,23 @@ class TestSchemaFailureRetry:
 
 
 class TestFactCanonization:
-
     async def test_facts_in_state(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({
-            "state_delta": {"established_facts_add": ["The airlock hums with residual charge."]},
-            
-        })
+        extract = json.dumps(
+            {
+                "state_delta": {
+                    "recent_events_add": ["The airlock hums with residual charge."]
+                },
+            }
+        )
         fake = _FakeLLM([extract])
         with fake:
             await _run(SAVE_DIR, "Touch the airlock.", config=EngineConfig())
 
         loaded = load_state(SAVE_DIR)
-        facts = loaded.get("scene", {}).get("established_facts", [])
+        facts = loaded.get("scene", {}).get("recent_events", [])
         assert "The airlock hums with residual charge." in facts
 
 
@@ -680,7 +797,6 @@ class TestFactCanonization:
 
 
 class TestChroniclePrefixBudget:
-
     def test_chronicle_tail(self) -> None:
         large_text = "This is a sentence. " * 2000
         chronicle = SAVE_DIR / "chronicle.md"
@@ -709,19 +825,30 @@ class TestChroniclePrefixBudget:
             _chat_calls_chron += 1
             if _chat_calls_chron == 1:
                 return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
-            return {"response": json.dumps({"state_delta": {}}), "done": True, "usage": {}}
+            return {
+                "response": json.dumps({"state_delta": {}}),
+                "done": True,
+                "usage": {},
+            }
 
         import ccya.engine as eng
+
         _orig_stream, _orig_chat = eng.llm_chat_stream, eng.llm_chat
         try:
             eng.llm_chat_stream = fake_stream
             eng.llm_chat = fake_chat
-            await _run(SAVE_DIR, "look", config=EngineConfig(chronicle_prefix_budget_tokens=1500))
+            await _run(
+                SAVE_DIR,
+                "look",
+                config=EngineConfig(chronicle_prefix_budget_tokens=1500),
+            )
         finally:
             eng.llm_chat_stream = _orig_stream
             eng.llm_chat = _orig_chat
 
-        system_texts = " ".join(m.get("content", "") for m in captured_messages if m.get("role") == "system")
+        system_texts = " ".join(
+            m.get("content", "") for m in captured_messages if m.get("role") == "system"
+        )
         assert "MARKER_TEXT_FOR_ASSERTION" in system_texts
 
 
@@ -731,10 +858,13 @@ class TestChroniclePrefixBudget:
 
 
 class TestStateApplyDelta:
-
     def test_inventory_add(self) -> None:
         state = _make_state()
-        delta = StateDelta(inventory_add=[{"id": "plasma-cutter", "name": "Plasma cutter", "notes": "Hot."}])
+        delta = StateDelta(
+            inventory_add=[
+                {"id": "plasma-cutter", "name": "Plasma cutter", "notes": "Hot."}
+            ]
+        )
         updated = apply_delta(state, delta)
         assert "plasma-cutter" in [item["id"] for item in updated["inventory"]]
         assert len(updated["inventory"]) == 3
@@ -748,10 +878,14 @@ class TestStateApplyDelta:
     def test_inventory_merges_by_id(self) -> None:
         state = {
             **_make_state(),
-            "inventory": [{"id": "credits", "name": "Credits", "amount": 100, "notes": "Cash."}],
+            "inventory": [
+                {"id": "credits", "name": "Credits", "amount": 100, "notes": "Cash."}
+            ],
         }
         delta = StateDelta(
-            inventory_add=[InventoryItem(id="credits", name="Credits", amount=50, notes="Cash.")],
+            inventory_add=[
+                InventoryItem(id="credits", name="Credits", amount=50, notes="Cash.")
+            ],
         )
         updated = apply_delta(state, delta)
         cred = next(i for i in updated["inventory"] if i["id"] == "credits")
@@ -760,7 +894,9 @@ class TestStateApplyDelta:
     def test_inventory_remove_partial_amount(self) -> None:
         state = {
             **_make_state(),
-            "inventory": [{"id": "credits", "name": "Credits", "amount": 1800, "notes": ""}],
+            "inventory": [
+                {"id": "credits", "name": "Credits", "amount": 1800, "notes": ""}
+            ],
         }
         delta = StateDelta(inventory_remove=[InventoryRemove(id="credits", amount=500)])
         updated = apply_delta(state, delta)
@@ -770,7 +906,9 @@ class TestStateApplyDelta:
     def test_inventory_remove_full_stack_when_amount_exhausts(self) -> None:
         state = {
             **_make_state(),
-            "inventory": [{"id": "credits", "name": "Credits", "amount": 100, "notes": ""}],
+            "inventory": [
+                {"id": "credits", "name": "Credits", "amount": 100, "notes": ""}
+            ],
         }
         delta = StateDelta(inventory_remove=[InventoryRemove(id="credits", amount=100)])
         updated = apply_delta(state, delta)
@@ -780,7 +918,12 @@ class TestStateApplyDelta:
         state = {
             **_make_state(),
             "inventory": [
-                {"id": "hand-terminal", "name": "Hand terminal", "amount": 1, "notes": ""},
+                {
+                    "id": "hand-terminal",
+                    "name": "Hand terminal",
+                    "amount": 1,
+                    "notes": "",
+                },
                 {"id": "credits", "name": "Credits", "amount": 50, "notes": ""},
             ],
         }
@@ -789,7 +932,13 @@ class TestStateApplyDelta:
 
     def test_location_change(self) -> None:
         state = _make_state()
-        delta = StateDelta(location_change={"id": "concourse-b", "name": "Concourse B", "description": "Wide and bright."})
+        delta = StateDelta(
+            location_change={
+                "id": "concourse-b",
+                "name": "Concourse B",
+                "description": "Wide and bright.",
+            }
+        )
         updated = apply_delta(state, delta)
         assert updated["location"]["id"] == "concourse-b"
 
@@ -809,8 +958,14 @@ class TestStateApplyDelta:
             ],
         )
         updated = apply_delta(state, delta)
-        assert len(updated["inventory"]) == 3  # hand-terminal, vac-jacket, merged water stack
-        wf = next(i for i in updated["inventory"] if "water" in i["id"].lower() or "filter" in i["id"].lower())
+        assert (
+            len(updated["inventory"]) == 3
+        )  # hand-terminal, vac-jacket, merged water stack
+        wf = next(
+            i
+            for i in updated["inventory"]
+            if "water" in i["id"].lower() or "filter" in i["id"].lower()
+        )
         assert wf["amount"] == 2
 
     def test_turn_counter_not_incremented_in_apply_delta(self) -> None:
@@ -860,15 +1015,15 @@ class TestTurnCounterSingleIncrement:
 
 
 class TestEventWrittenBeforeState:
-
     async def test_write_order(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({
-            "state_delta": {"established_facts_add": ["turn-1-fact"]},
-            
-        })
+        extract = json.dumps(
+            {
+                "state_delta": {"recent_events_add": ["turn-1-fact"]},
+            }
+        )
         fake = _FakeLLM([extract])
         with fake:
             await _run(SAVE_DIR, "test", config=EngineConfig())
@@ -913,7 +1068,6 @@ class TestChronicleFormatted:
 
 
 class TestChronicleTurnParser:
-
     def test_parses_turn_blocks(self) -> None:
         _write_state(SAVE_DIR, _make_state())
         (SAVE_DIR / "chronicle.md").write_text(
@@ -947,7 +1101,6 @@ class TestChronicleTurnParser:
 
 
 class TestTurnResultTraceId:
-
     async def test_unique_trace_ids(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
@@ -967,68 +1120,67 @@ class TestTurnResultTraceId:
 
 
 class TestFactsDelta:
-
     def test_add_only(self) -> None:
         state = _make_state()
-        state["scene"]["established_facts"] = ["fact one", "fact two"]
-        delta = StateDelta(established_facts_add=["fact three"])
+        state["scene"]["recent_events"] = ["fact one", "fact two"]
+        delta = StateDelta(recent_events_add=["fact three"])
         updated = apply_delta(state, delta)
-        facts = updated["scene"]["established_facts"]
+        facts = updated["scene"]["recent_events"]
         assert facts == ["fact one", "fact two", "fact three"]
 
     def test_empty_delta_noop(self) -> None:
         state = _make_state()
-        state["scene"]["established_facts"] = ["keep me"]
+        state["scene"]["recent_events"] = ["keep me"]
         delta = StateDelta()
         updated = apply_delta(state, delta)
-        assert updated["scene"]["established_facts"] == ["keep me"]
+        assert updated["scene"]["recent_events"] == ["keep me"]
 
     def test_update_preserves_position(self) -> None:
         state = _make_state()
-        state["scene"]["established_facts"] = ["alpha", "beta", "gamma"]
+        state["scene"]["recent_events"] = ["alpha", "beta", "gamma"]
         delta = StateDelta(
-            established_facts_update=[FactUpdate(old="beta", new="beta revised")],
+            recent_events_update=[RecentEventUpdate(old="beta", new="beta revised")],
         )
         updated = apply_delta(state, delta)
-        facts = updated["scene"]["established_facts"]
+        facts = updated["scene"]["recent_events"]
         assert facts[1] == "beta revised"
         assert facts[0] == "alpha"
 
     def test_remove_normalized_match(self) -> None:
         state = _make_state()
-        state["scene"]["established_facts"] = ["  The Ship is damaged.  ", "Other fact."]
-        delta = StateDelta(established_facts_remove=["The Ship is damaged."])
+        state["scene"]["recent_events"] = ["  The Ship is damaged.  ", "Other fact."]
+        delta = StateDelta(recent_events_remove=["The Ship is damaged."])
         updated = apply_delta(state, delta)
-        facts = updated["scene"]["established_facts"]
+        facts = updated["scene"]["recent_events"]
         assert "Other fact." in facts
         assert not any("damaged" in f for f in facts)
 
     def test_update_fallback_appends_when_old_missing(self) -> None:
         state = _make_state()
-        state["scene"]["established_facts"] = ["only"]
+        state["scene"]["recent_events"] = ["only"]
         delta = StateDelta(
-            established_facts_update=[FactUpdate(old="no such fact", new="appended instead")],
+            recent_events_update=[
+                RecentEventUpdate(old="no such fact", new="appended instead")
+            ],
         )
         updated = apply_delta(state, delta)
-        facts = updated["scene"]["established_facts"]
+        facts = updated["scene"]["recent_events"]
         assert facts == ["only", "appended instead"]
 
 
 class TestEstablishedFactsEviction:
-
     def test_eviction(self) -> None:
         state = _make_state()
-        state["scene"]["established_facts"] = ["f1", "f2", "f3", "f4", "f5"]
-        delta = StateDelta(established_facts_add=["f6", "f7", "f8", "f9", "f10", "f11"])
-        updated = apply_delta(state, delta, established_facts_max=10)
-        facts = updated["scene"]["established_facts"]
+        state["scene"]["recent_events"] = ["f1", "f2", "f3", "f4", "f5"]
+        delta = StateDelta(recent_events_add=["f6", "f7", "f8", "f9", "f10", "f11"])
+        updated = apply_delta(state, delta, recent_events_max=10)
+        facts = updated["scene"]["recent_events"]
         assert len(facts) <= 10
         assert "f11" in facts
         assert "f1" not in facts
 
 
 class TestPcConditionsDelta:
-
     def test_add_and_remove(self) -> None:
         state = _make_state()
         delta = StateDelta(pc_condition_add=["wanted", "injured"])
@@ -1042,7 +1194,9 @@ class TestPcConditionsDelta:
         """Same condition with different case / whitespace / markdown is rejected on add."""
         state = _make_state()
         state["pc"]["conditions"] = ["bruised ribs"]
-        delta = StateDelta(pc_condition_add=["Bruised Ribs", "*bruised ribs*", "bruised  ribs"])
+        delta = StateDelta(
+            pc_condition_add=["Bruised Ribs", "*bruised ribs*", "bruised  ribs"]
+        )
         updated = apply_delta(state, delta)
         assert updated["pc"]["conditions"] == ["bruised ribs"]
 
@@ -1061,20 +1215,18 @@ class TestPcConditionsDelta:
 
 
 class TestEstablishedFactsCap25:
-
     def test_cap_at_25(self) -> None:
         state = _make_state()
-        state["scene"]["established_facts"] = [f"f{i}" for i in range(24)]
-        delta = StateDelta(established_facts_add=["f24", "f25", "f26"])
-        updated = apply_delta(state, delta, established_facts_max=25)
-        facts = updated["scene"]["established_facts"]
+        state["scene"]["recent_events"] = [f"f{i}" for i in range(24)]
+        delta = StateDelta(recent_events_add=["f24", "f25", "f26"])
+        updated = apply_delta(state, delta, recent_events_max=25)
+        facts = updated["scene"]["recent_events"]
         assert len(facts) == 25
         assert "f26" in facts
         assert "f0" not in facts
 
 
 class TestQuestStatusSideEffects:
-
     def test_completed_marks_all_objectives_done(self) -> None:
         state = _make_state()
         state["quests"][0]["objectives"] = [
@@ -1082,7 +1234,9 @@ class TestQuestStatusSideEffects:
             {"description": "B", "done": False, "failed": True},
         ]
         delta = StateDelta(
-            quest_updates=[QuestUpdate(id="quiet-signal", status="completed", objectives=[])],
+            quest_updates=[
+                QuestUpdate(id="quiet-signal", status="completed", objectives=[])
+            ],
         )
         updated = apply_delta(state, delta)
         q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
@@ -1097,7 +1251,11 @@ class TestQuestStatusSideEffects:
             {"description": "A", "done": True},
             {"description": "B", "done": False},
         ]
-        delta = StateDelta(quest_updates=[QuestUpdate(id="quiet-signal", status="failed", objectives=[])])
+        delta = StateDelta(
+            quest_updates=[
+                QuestUpdate(id="quiet-signal", status="failed", objectives=[])
+            ]
+        )
         updated = apply_delta(state, delta)
         q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
         assert q["status"] == "failed"
@@ -1107,8 +1265,14 @@ class TestQuestStatusSideEffects:
 
     def test_abandoned_does_not_auto_fail_objectives(self) -> None:
         state = _make_state()
-        state["quests"][0]["objectives"] = [{"description": "Find the payer", "done": False}]
-        delta = StateDelta(quest_updates=[QuestUpdate(id="quiet-signal", status="abandoned", objectives=[])])
+        state["quests"][0]["objectives"] = [
+            {"description": "Find the payer", "done": False}
+        ]
+        delta = StateDelta(
+            quest_updates=[
+                QuestUpdate(id="quiet-signal", status="abandoned", objectives=[])
+            ]
+        )
         updated = apply_delta(state, delta)
         q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
         assert q["status"] == "abandoned"
@@ -1133,7 +1297,12 @@ class TestQuestStatusSideEffects:
     def test_objective_by_index_marks_done(self) -> None:
         state = _make_state()
         delta = StateDelta(
-            quest_updates=[QuestUpdate(id="quiet-signal", objectives=[QuestObjectiveUpdate(index=1, done=True)])],
+            quest_updates=[
+                QuestUpdate(
+                    id="quiet-signal",
+                    objectives=[QuestObjectiveUpdate(index=1, done=True)],
+                )
+            ],
         )
         updated = apply_delta(state, delta)
         q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
@@ -1145,7 +1314,11 @@ class TestQuestStatusSideEffects:
             quest_updates=[
                 QuestUpdate(
                     id="quiet-signal",
-                    objectives=[QuestObjectiveUpdate(index=99, description="Find the payer", done=True)],
+                    objectives=[
+                        QuestObjectiveUpdate(
+                            index=99, description="Find the payer", done=True
+                        )
+                    ],
                 ),
             ],
         )
@@ -1155,13 +1328,12 @@ class TestQuestStatusSideEffects:
 
 
 class TestApplyDeltaEstablishedFactsMax:
-
     def test_custom_max_wired(self) -> None:
         state = _make_state()
-        state["scene"]["established_facts"] = ["f1"]
-        delta = StateDelta(established_facts_add=["f2", "f3", "f4"])
-        updated = apply_delta(state, delta, established_facts_max=2)
-        facts = updated["scene"]["established_facts"]
+        state["scene"]["recent_events"] = ["f1"]
+        delta = StateDelta(recent_events_add=["f2", "f3", "f4"])
+        updated = apply_delta(state, delta, recent_events_max=2)
+        facts = updated["scene"]["recent_events"]
         assert len(facts) <= 2
         assert facts == ["f3", "f4"]
 
@@ -1169,7 +1341,9 @@ class TestApplyDeltaEstablishedFactsMax:
 class TestInventoryCompendiumTagline:
     def test_inventory_update_changes_notes(self) -> None:
         state = _make_state()
-        delta = StateDelta(inventory_update=[InventoryUpdate(id="vac-jacket", notes="Patched.")])
+        delta = StateDelta(
+            inventory_update=[InventoryUpdate(id="vac-jacket", notes="Patched.")]
+        )
         out = apply_delta(state, delta)
         item = next(x for x in out["inventory"] if x["id"] == "vac-jacket")
         assert item["notes"] == "Patched."
@@ -1177,7 +1351,9 @@ class TestInventoryCompendiumTagline:
     def test_inventory_update_unknown_id_skipped(self) -> None:
         state = _make_state()
         before = len(state["inventory"])
-        delta = StateDelta(inventory_update=[InventoryUpdate(id="nope-item", notes="x")])
+        delta = StateDelta(
+            inventory_update=[InventoryUpdate(id="nope-item", notes="x")]
+        )
         out = apply_delta(state, delta)
         assert len(out["inventory"]) == before
 
@@ -1185,7 +1361,13 @@ class TestInventoryCompendiumTagline:
         state = _make_state()
         delta = StateDelta(
             present_npcs=[
-                NpcRef(id="fixer", name="Anna", title="Fence", notes="Watching.", bio="Owes you from Tycho."),
+                NpcRef(
+                    id="fixer",
+                    name="Anna",
+                    title="Fence",
+                    notes="Watching.",
+                    bio="Owes you from Tycho.",
+                ),
             ],
         )
         out = apply_delta(state, delta)
@@ -1193,10 +1375,16 @@ class TestInventoryCompendiumTagline:
 
     def test_npc_bio_preserved_when_bio_empty_in_delta(self) -> None:
         state = _make_state()
-        state["compendium"]["npcs"]["fixer"] = {"name": "Anna", "title": "Fence", "bio": "Old bio."}
+        state["compendium"]["npcs"]["fixer"] = {
+            "name": "Anna",
+            "title": "Fence",
+            "bio": "Old bio.",
+        }
         delta = StateDelta(
             present_npcs=[
-                NpcRef(id="fixer", name="Anna", title="Fence", notes="New mood.", bio=""),
+                NpcRef(
+                    id="fixer", name="Anna", title="Fence", notes="New mood.", bio=""
+                ),
             ],
         )
         out = apply_delta(state, delta)
@@ -1204,8 +1392,14 @@ class TestInventoryCompendiumTagline:
 
     def test_present_npcs_id_and_notes_only_hydrates_from_compendium(self) -> None:
         state = _make_state()
-        state["compendium"]["npcs"]["fixer"] = {"name": "Anna", "title": "Fence", "bio": "Stored dossier."}
-        delta = StateDelta(present_npcs=[NpcRef(id="fixer", notes="Suspicious tonight.")])
+        state["compendium"]["npcs"]["fixer"] = {
+            "name": "Anna",
+            "title": "Fence",
+            "bio": "Stored dossier.",
+        }
+        delta = StateDelta(
+            present_npcs=[NpcRef(id="fixer", notes="Suspicious tonight.")]
+        )
         out = apply_delta(state, delta)
         npc = out["scene"]["present_npcs"][0]
         assert npc["id"] == "fixer"
@@ -1217,7 +1411,9 @@ class TestInventoryCompendiumTagline:
     def test_compendium_npc_update_absent_npc(self) -> None:
         state = _make_state()
         delta = StateDelta(
-            compendium_npc_update=[CompendiumNpcUpdate(id="missing-wife", bio="Seen on Ganymede.")],
+            compendium_npc_update=[
+                CompendiumNpcUpdate(id="missing-wife", bio="Seen on Ganymede.")
+            ],
         )
         out = apply_delta(state, delta)
         assert out["compendium"]["npcs"]["missing_wife"]["bio"] == "Seen on Ganymede."
@@ -1234,12 +1430,28 @@ class TestInventoryCompendiumTagline:
         from ccya.state import save_state as ls_save
 
         raw = {
-            "meta": {"turn": 0, "game_name": "t", "setting_pack": "", "model": "", "compendium_touch_order": []},
-            "pc": {"name": "A", "tagline": "", "stats": {"body": 2, "mind": 3, "tech": 2, "social": 3}, "conditions": []},
+            "meta": {
+                "turn": 0,
+                "game_name": "t",
+                "setting_pack": "",
+                "model": "",
+                "compendium_touch_order": [],
+            },
+            "pc": {
+                "name": "A",
+                "tagline": "",
+                "stats": {"body": 2, "mind": 3, "tech": 2, "social": 3},
+                "conditions": [],
+            },
             "location": {"id": "", "name": "", "description": ""},
             "inventory": [],
             "quests": [],
-            "scene": {"tags": [], "present_npcs": [], "established_facts": [], "tagline": ""},
+            "scene": {
+                "tags": [],
+                "present_npcs": [],
+                "recent_events": [],
+                "tagline": "",
+            },
             "compendium": {"npcs": {}},
         }
         ls_save(tmp_path, raw)
@@ -1264,7 +1476,7 @@ class TestInventoryCompendiumTagline:
             "location": {"id": "", "name": "", "description": ""},
             "inventory": [],
             "quests": [],
-            "scene": {"tags": [], "present_npcs": [], "established_facts": []},
+            "scene": {"tags": [], "present_npcs": [], "recent_events": []},
         }
         ls_save(tmp_path, raw)
         st = ls_load(tmp_path)
@@ -1274,14 +1486,15 @@ class TestInventoryCompendiumTagline:
     async def test_turn_result_includes_diff_lines(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
-        extract = json.dumps({
-            "state_delta": {
-                "scene_tags": ["test"],
-                "scene_tagline": "Dock tension rises",
-                "established_facts_add": ["A fact."],
-            },
-            
-        })
+        extract = json.dumps(
+            {
+                "state_delta": {
+                    "scene_tags": ["test"],
+                    "scene_tagline": "Dock tension rises",
+                    "recent_events_add": ["A fact."],
+                },
+            }
+        )
         fake = _FakeLLM(["short narrative.", extract])
         with fake:
             result = await _run(SAVE_DIR, "look", config=EngineConfig())
@@ -1295,7 +1508,6 @@ class TestInventoryCompendiumTagline:
 
 
 class TestPerTurnMetrics:
-
     async def test_metrics_keys_present(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
@@ -1336,22 +1548,22 @@ class TestPerTurnMetrics:
 
 
 class TestEstablishedFactsInEvent:
-
     async def test_event_has_facts_add_in_applied_no_narrative_key(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        extract = json.dumps({
-            "state_delta": {"established_facts_add": ["This fact matters."]},
-            
-        })
+        extract = json.dumps(
+            {
+                "state_delta": {"recent_events_add": ["This fact matters."]},
+            }
+        )
         fake = _FakeLLM([extract])
         with fake:
             await _run(SAVE_DIR, "test", config=EngineConfig())
 
         events = (SAVE_DIR / "events.jsonl").read_text().strip().split("\n")
         event = json.loads(events[-1])
-        applied_add = event.get("applied", {}).get("established_facts_add", [])
+        applied_add = event.get("applied", {}).get("recent_events_add", [])
         assert "This fact matters." in applied_add
         assert "narrative" not in event
 
@@ -1389,9 +1601,14 @@ class TestRecentTurnsInjected:
             _chat_calls_recent += 1
             if _chat_calls_recent == 1:
                 return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
-            return {"response": json.dumps({"state_delta": {}}), "done": True, "usage": {}}
+            return {
+                "response": json.dumps({"state_delta": {}}),
+                "done": True,
+                "usage": {},
+            }
 
         import ccya.engine as eng
+
         _orig_stream, _orig_chat = eng.llm_chat_stream, eng.llm_chat
         try:
             eng.llm_chat_stream = fake_stream
@@ -1402,7 +1619,9 @@ class TestRecentTurnsInjected:
             eng.llm_chat = _orig_chat
 
         combined = " ".join(captured_system)
-        assert "I examine the signal" in combined or "The signal pulses orange" in combined
+        assert (
+            "I examine the signal" in combined or "The signal pulses orange" in combined
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -1437,12 +1656,14 @@ class TestPackKwargs:
             return {"response": extract, "done": True, "usage": {}}
 
         import ccya.engine as eng
+
         _orig_stream, _orig_chat = eng.llm_chat_stream, eng.llm_chat
         try:
             eng.llm_chat_stream = _fake_stream
             eng.llm_chat = _fake_chat
             async for _ in run_turn(
-                SAVE_DIR, "look",
+                SAVE_DIR,
+                "look",
                 config=EngineConfig(),
                 template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts"),
                 pack_style="UNIQUE_STYLE_MARKER_7483",
@@ -1461,11 +1682,13 @@ class TestPackKwargs:
         _write_state(SAVE_DIR, state)
 
         example_json = json.dumps({"state_delta": {}})
-        examples = [ExtractExample(
-            title="Pack example marker UNIQUE_9928",
-            thinking="- test",
-            **{"json": example_json},
-        )]
+        examples = [
+            ExtractExample(
+                title="Pack example marker UNIQUE_9928",
+                thinking="- test",
+                **{"json": example_json},
+            )
+        ]
 
         captured_extract_system = []
 
@@ -1486,12 +1709,14 @@ class TestPackKwargs:
             return {"response": example_json, "done": True, "usage": {}}
 
         import ccya.engine as eng
+
         _orig_stream, _orig_chat = eng.llm_chat_stream, eng.llm_chat
         try:
             eng.llm_chat_stream = _fake_stream
             eng.llm_chat = _fake_chat
             async for _ in run_turn(
-                SAVE_DIR, "look",
+                SAVE_DIR,
+                "look",
                 config=EngineConfig(),
                 template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts"),
                 pack_examples=examples,
@@ -1501,4 +1726,6 @@ class TestPackKwargs:
             eng.llm_chat_stream = _orig_stream
             eng.llm_chat = _orig_chat
 
-        assert any("Pack example marker UNIQUE_9928" in s for s in captured_extract_system)
+        assert any(
+            "Pack example marker UNIQUE_9928" in s for s in captured_extract_system
+        )
