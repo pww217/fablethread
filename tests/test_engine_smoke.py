@@ -24,7 +24,6 @@ from ccya.engine import (
     _build_jinja_env,
     _narrate_messages,
     _extract_messages,
-    _parse_actions_from_narrate,
 )
 from ccya.llm_client import strip_thinking
 from ccya.models import (
@@ -235,38 +234,6 @@ async def _run_with_tokens(save_dir, user_input, config=None):
 # TestParseActionsFromNarrate
 # ---------------------------------------------------------------------------
 
-
-class TestParseActionsFromNarrate:
-    """Unit tests for _parse_actions_from_narrate helper."""
-
-    def test_parses_valid_actions(self):
-        narrative = 'Some prose.\n\nACTIONS_JSON: {"actions": ["Go left", "Go right", "Wait", "Look"]}'
-        actions, clean = _parse_actions_from_narrate(narrative)
-        assert actions == ["Go left", "Go right", "Wait", "Look"]
-        assert "ACTIONS_JSON" not in clean
-
-    def test_returns_empty_when_no_marker(self):
-        actions, clean = _parse_actions_from_narrate("Just some prose.")
-        assert actions == []
-        assert clean == "Just some prose."
-
-    def test_returns_empty_on_invalid_json(self):
-        narrative = "ACTIONS_JSON: {invalid json}"
-        actions, clean = _parse_actions_from_narrate(narrative)
-        assert actions == []
-        assert "ACTIONS_JSON" not in clean
-
-    def test_returns_empty_on_wrong_count(self):
-        narrative = 'ACTIONS_JSON: {"actions": ["A", "B"]}'
-        actions, clean = _parse_actions_from_narrate(narrative)
-        assert actions == []
-        assert "ACTIONS_JSON" not in clean
-
-    def test_returns_empty_on_missing_actions_key(self):
-        narrative = 'ACTIONS_JSON: {"choices": ["A", "B", "C", "D"]}'
-        actions, clean = _parse_actions_from_narrate(narrative)
-        assert actions == []
-        assert "ACTIONS_JSON" not in clean
 
 
 # ---------------------------------------------------------------------------
@@ -558,23 +525,23 @@ class TestHappyPath:
         # Single increment: turn starts at 0, engine increments to 1
         assert result.turn == 1
 
-    async def test_actions_captured_from_narrate(self) -> None:
+    async def test_actions_captured_from_extract(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 
-        narrative = 'narrative text\n\nACTIONS_JSON: {"actions": ["Open door", "Take stairs", "Check map", "Go back"]}'
         extract = json.dumps(
             {
                 "state_delta": {"scene_tags": ["exploration"]},
+                "actions": ["Open door", "Take stairs", "Check map", "Go back"],
             }
         )
-        fake = _FakeLLM([narrative, extract])
+        fake = _FakeLLM(["narrative text", extract])
         with fake:
             result = await _run(SAVE_DIR, "look", config=EngineConfig())
 
         assert result.actions == ["Open door", "Take stairs", "Check map", "Go back"]
 
-    async def test_actions_empty_when_no_marker(self) -> None:
+    async def test_actions_empty_when_not_in_extract(self) -> None:
         state = _make_state()
         _write_state(SAVE_DIR, state)
 

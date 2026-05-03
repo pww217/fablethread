@@ -267,9 +267,25 @@ Pass `state_slice` into the extractor template instead of full game state.
 
 ## Plan E: `actions` Generation Placement
 
-### Status: **COMPLETE** (commit cc28a81)
+### Status: **ABANDONED** — actions stay in extractor
 
-### Problem
+### Rationale for reverting
+
+Moving `actions` to the narrate call introduced a streaming problem: the ACTIONS_JSON marker is part of the LLM's output stream, so it reaches the client before we've received the full response to strip it. Client-side stripping would be fragile (parsing partial JSON mid-stream).
+
+The original rationale — "the narrator is already in generative mode, so action generation won't cause analytical drift" — is weak. The narrator *should* be in generative mode, and the drift problem was about the *extractor* going creative mid-analysis. Moving it to the narrator just swaps one problem for another.
+
+Actions belong in the extractor: they're structured data, not prose. The narrator should output pure narrative. The extractor already receives the full narration, so it has all the context needed to generate good actions.
+
+### What was done instead
+
+- Removed ACTIONS_JSON marker from `narrate_system.j2`
+- Restored `actions` to `extract_system.j2` schema with field guidance
+- Added `actions` field to `ExtractResult` model
+- Added explicit instruction: actions must be drawn from **CURRENT TURN NARRATION only**, not older history
+- Added instruction: actions should be substantial/active (not passive like "I straighten my shirt")
+
+### Original problem (kept for reference)
 `actions` (4 player choices) is generated in the same extractor call as state delta. These are fundamentally different tasks — state extraction is analytical (parse + classify), action generation is creative (invent + weight by stats). The creative task can cause the model to drift into generative mode mid-extraction.
 
 ### Options
@@ -436,8 +452,8 @@ def run_compaction(game_state):
 | `ccya/prompts/extract_user.j2` | Add `CURRENT TURN NARRATION` label; inject scope block at top | A, C | C done |
 | `ccya/prompts/extract_system.j2` | Add `_reasoning` after `state_delta`; add SKIP DOMAINS instruction; remove `actions` | B, C | B, C done |
 | `ccya/prompts/rules_system.j2` | Add `scope` object to output schema + domain-mapping guidance | C | Done |
-| `ccya/prompts/narrate_system.j2` | Add `last_turn_failed` block; add `actions` output (ACTIONS_JSON) | C, E | C, E done |
-| Python engine | Strip `_reasoning`; `build_state_slice()`; `_failed` logging; `_parse_actions_from_narrate()` | B, C, D, E | B, C, D, E done |
+| `ccya/prompts/narrate_system.j2` | Add `last_turn_failed` block | C | Done |
+| Python engine | Strip `_reasoning`; `build_state_slice()`; `_failed` logging | B, C, D | B, C, D done |
 | `ccya/prompts/compact_system.j2` | New file | F | Pending |
 | `ccya/prompts/compact_user.j2` | New file | F | Pending |
 
@@ -447,5 +463,5 @@ def run_compaction(game_state):
 2. **B** — reasoning field (schema change + 2-line Python strip) ✅
 3. **C** — scope boundaries (extends rules call + extractor) ✅
 4. **D** — state slicing (depends on C being stable) ✅
-5. **E** — actions placement (move to narrate call) ✅
+5. **E** — actions placement: ABANDONED (actions stay in extractor)
 6. **F** — compaction redesign (current cadence is functional; do last)

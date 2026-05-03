@@ -48,11 +48,12 @@ Full implementation details: [llm-pipeline-accuracy.md](./llm-pipeline-accuracy.
 ---
 
 ## E — `actions` Generation Placement
-*Move to narrate call — DONE.*
+*Abandoned — actions stay in extractor. Narrator outputs prose only; extractor outputs structured data.*
 [→ Plan E](./llm-pipeline-accuracy.md#plan-e-actions-generation-placement)
 
-- [x] Confirm `actions` is last in `extract_system.j2` schema key order
-- [x] Move `actions` to narrate call (ACTIONS_JSON marker)
+- [x] Remove ACTIONS_JSON marker from narrate call
+- [x] Restore actions to extract_system.j2 schema with guidance to draw from current narration only
+- [x] Add actions field to ExtractResult model
 
 ---
 

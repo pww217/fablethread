@@ -174,6 +174,7 @@ class StateDelta(BaseModel):
 class ExtractResult(BaseModel):
     state_delta: StateDelta
     failed: list[str] = Field(default_factory=list)
+    actions: list[str] = Field(default_factory=list)
 
 
 # --- TurnResult (returned from engine, not Pydantic) ---
