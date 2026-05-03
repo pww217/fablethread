@@ -6,19 +6,52 @@
     <table class="debug-turn-table">
         <thead>
             <tr>
-                <th>#</th>
-                <th>narrate</th>
-                <th>extract</th>
-                <th>tok in/out</th>
+                <th style="text-align:left">pipe</th>
+                <th>ttft</th>
+                <th>tt</th>
+                <th>tok</th>
             </tr>
         </thead>
         <tbody>
             {% for t in turns %}
+            <tr class="debug-turn-sep" colspan="4">
+                <td style="text-align:left" colspan="4">Turn {{ t.turn }}</td>
+            </tr>
             <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
-                <td>{{ t.turn }}</td>
-                <td>{{ t.narrate_s }}</td>
-                <td>{{ t.extract_s }}</td>
-                <td class="debug-tokens-cell">{{ t.tokens }}</td>
+                <td style="text-align:left">R</td>
+                <td>{{ t.streams.R_ttft }}</td>
+                <td>{{ t.streams.R_tt }}</td>
+                <td>{{ t.streams.R_tok }}</td>
+            </tr>
+            <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
+                <td style="text-align:left">N</td>
+                <td>{{ t.streams.N_ttft }}</td>
+                <td>{{ t.streams.N_tt }}</td>
+                <td>{{ t.streams.N_tok }}</td>
+            </tr>
+            <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
+                <td style="text-align:left">Sc</td>
+                <td>{{ t.streams.Sc_ttft }}</td>
+                <td>{{ t.streams.Sc_tt }}</td>
+                <td>{{ t.streams.Sc_tok }}</td>
+            </tr>
+            <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
+                <td style="text-align:left">St</td>
+                <td>{{ t.streams.St_ttft }}</td>
+                <td>{{ t.streams.St_tt }}</td>
+                <td>{{ t.streams.St_tok }}</td>
+            </tr>
+            <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
+                <td style="text-align:left">P</td>
+                <td>{{ t.streams.P_ttft }}</td>
+                <td>{{ t.streams.P_tt }}</td>
+                <td>{{ t.streams.P_tok }}</td>
+            </tr>
+            <tr class="debug-turn-total">
+                <td style="text-align:left;font-weight:600">Total</td>
+                <td>{{ t.total_ttft }}</td>
+                <td>{{ t.total_tt }}</td>
+                <td>{{ t.total_tok }}</td>
             </tr>
             {% endfor %}
         </tbody>

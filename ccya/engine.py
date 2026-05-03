@@ -1134,8 +1134,8 @@ async def _call_rules(
     messages: list[dict],
     config: EngineConfig,
     trace_id: str,
-) -> IntentEnvelope:
-    """Execute Call 0 (rules intent classification). Returns IntentEnvelope.
+) -> tuple[IntentEnvelope, dict[str, int]]:
+    """Execute Call 0 (rules intent classification). Returns (IntentEnvelope, usage).
 
     Degrades gracefully: on any failure returns a no-check envelope so the
     narrate + extract pipeline proceeds normally without a roll.
@@ -1157,6 +1157,7 @@ async def _call_rules(
             skip_domains=[],
         ),
     )
+    _no_usage: dict[str, int] = {"prompt_tokens": 0, "total_tokens": 0}
     parse_error = ""
     for attempt in range(1 + config.max_rules_retries):
         try:
@@ -1175,6 +1176,7 @@ async def _call_rules(
                 timeout=float(config.request_timeout_s),
             )
             raw = result.get("response", "") if isinstance(result, dict) else ""
+            usage = result.get("usage", {}) if isinstance(result, dict) else _no_usage
             if config.log_llm_io:
                 _log_llm_io(
                     trace_id=trace_id,
@@ -1186,7 +1188,10 @@ async def _call_rules(
             j = _find_json(cleaned)
             if j is None:
                 raise ValueError("No JSON found in rules response")
-            return IntentEnvelope(**j)
+            return IntentEnvelope(**j), {
+                "prompt_tokens": usage.get("prompt_tokens", 0),
+                "total_tokens": usage.get("total_tokens", 0),
+            }
         except Exception as exc:
             parse_error = str(exc)
             _log.warning(
@@ -1207,7 +1212,7 @@ async def _call_rules(
         "rules call failed after all attempts — defaulting to no-roll",
         extra={"trace_id": trace_id},
     )
-    return _no_intent
+    return _no_intent, _no_usage
 
 
 def _avg_rules_ms(save_dir: Path, n: int = 5) -> int:
@@ -1495,7 +1500,7 @@ async def run_turn(
             _log_prompts(
                 state.get("meta", {}).get("turn", 0) + 1, "rules", rules_messages
             )
-        intent = await _call_rules(rules_messages, config, trace_id)
+        intent, rules_usage = await _call_rules(rules_messages, config, trace_id)
 
         # Resolve dice in Python (deterministic) — _call_rules degrades intent, we do outcome here
         outcome: RulesOutcome
@@ -1530,6 +1535,8 @@ async def run_turn(
         rules_metrics: dict[str, Any] = {
             "total_ms": round(rules_ms, 1),
             "rolled": outcome.rolled,
+            "tokens_in": rules_usage.get("prompt_tokens", 0),
+            "tokens_out": rules_usage.get("total_tokens", 0),
         }
 
         yield (
@@ -1699,11 +1706,23 @@ async def run_turn(
             (extraction_event.get(s) or {}).get("tokens_out", 0)
             for s in ("scene", "state", "progress")
         )
+        # Build per-stream breakdown for UI display
+        _streams = {}
+        for s in ("scene", "state", "progress"):
+            ev = extraction_event.get(s)
+            if ev:
+                _streams[s] = {
+                    "ms": ev.get("ms", 0),
+                    "tokens_in": ev.get("tokens_in", 0),
+                    "tokens_out": ev.get("tokens_out", 0),
+                    "skipped": ev.get("skipped", False),
+                }
         ext_metrics = {
             "total_ms": round(ext_ms, 1),
             "tokens_in": _tokens_in,
             "tokens_out": _tokens_out,
             "retries": 0,
+            "streams": _streams,
         }
         metrics = {
             "rules": rules_metrics,
@@ -1769,6 +1788,8 @@ async def run_turn(
                 "band": outcome.band,
                 "outcome_summary": outcome_summary,
                 "total_ms": rules_metrics.get("total_ms"),
+                "tokens_in": rules_metrics.get("tokens_in", 0),
+                "tokens_out": rules_metrics.get("tokens_out", 0),
             }
         elif intent.intent_verb and intent.intent_verb != "act":
             rules_event = {
@@ -1776,6 +1797,8 @@ async def run_turn(
                 "intent": intent.intent,
                 "rolled": False,
                 "total_ms": rules_metrics.get("total_ms"),
+                "tokens_in": rules_metrics.get("tokens_in", 0),
+                "tokens_out": rules_metrics.get("tokens_out", 0),
             }
 
         event = {
