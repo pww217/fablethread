@@ -186,23 +186,32 @@ class TestParseActionsFromNarrate:
 
     def test_parses_valid_actions(self):
         narrative = "Some prose.\n\nACTIONS_JSON: {\"actions\": [\"Go left\", \"Go right\", \"Wait\", \"Look\"]}"
-        result = _parse_actions_from_narrate(narrative)
-        assert result == ["Go left", "Go right", "Wait", "Look"]
+        actions, clean = _parse_actions_from_narrate(narrative)
+        assert actions == ["Go left", "Go right", "Wait", "Look"]
+        assert "ACTIONS_JSON" not in clean
 
     def test_returns_empty_when_no_marker(self):
-        assert _parse_actions_from_narrate("Just some prose.") == []
+        actions, clean = _parse_actions_from_narrate("Just some prose.")
+        assert actions == []
+        assert clean == "Just some prose."
 
     def test_returns_empty_on_invalid_json(self):
         narrative = "ACTIONS_JSON: {invalid json}"
-        assert _parse_actions_from_narrate(narrative) == []
+        actions, clean = _parse_actions_from_narrate(narrative)
+        assert actions == []
+        assert "ACTIONS_JSON" not in clean
 
     def test_returns_empty_on_wrong_count(self):
         narrative = 'ACTIONS_JSON: {"actions": ["A", "B"]}'
-        assert _parse_actions_from_narrate(narrative) == []
+        actions, clean = _parse_actions_from_narrate(narrative)
+        assert actions == []
+        assert "ACTIONS_JSON" not in clean
 
     def test_returns_empty_on_missing_actions_key(self):
         narrative = 'ACTIONS_JSON: {"choices": ["A", "B", "C", "D"]}'
-        assert _parse_actions_from_narrate(narrative) == []
+        actions, clean = _parse_actions_from_narrate(narrative)
+        assert actions == []
+        assert "ACTIONS_JSON" not in clean
 
 
 # ---------------------------------------------------------------------------
