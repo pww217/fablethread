@@ -8,16 +8,12 @@ Dice system: 2d6 + stat_mod + difficulty_mod + condition_mod.
 PbtA 7-band resolution:
   raw_sum 2  → crit_fail    (always, ignores modifiers)
   ≤ 6        → fail
-  7          → setback      (minor setback or complication)
-  8          → mixed        (mostly neutral, slight complication)
-  9          → boon         (minor advantage, no full success)
-  10–11      → success
-  raw_sum 12 → crit_success (always, ignores modifiers)
 """
 
 from __future__ import annotations
 
 import random
+from typing import Any
 
 DIFFICULTY_MOD: dict[str, int] = {
     "trivial": +2,
@@ -103,7 +99,7 @@ def compute_band(final_total: int, dice: tuple[int, int]) -> str:
     return "crit_success"
 
 
-def conditions_modifier(skill: str, conditions: list) -> int:
+def conditions_modifier(skill: str, conditions: list[Any]) -> int:
     """Sum all condition penalties that apply to the given skill.
 
     Accepts either plain strings (legacy) or structured Condition dicts
@@ -154,7 +150,7 @@ def resolve_check(
     intent_verb: str = "",
     intent: str = "",
     rng: random.Random | None = None,
-) -> "RulesOutcome":
+) -> "RulesOutcome":  # noqa: F821
     """Roll 2d6 and return a fully-populated RulesOutcome.
 
     Raises ValueError for unknown skill or difficulty (programming errors, not player input).

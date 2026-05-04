@@ -318,11 +318,6 @@ def test_parse_world_facts_empty():
 def test_baseline_facts_default_empty():
     """Manifests without baseline_facts default to []."""
     files = _minimal_static_pack_files()
-    pack_dir = (
-        _write_pack(Path("/tmp/_test_bf_default"), "test-bf-default", files)
-        if False
-        else None
-    )
     # Use tmp_path-style: write into a fresh tmp dir
     import tempfile
 

@@ -86,7 +86,7 @@ _jinja_env.filters["tojson"] = pass_context(lambda ctx, obj: __import__("json").
 _ERRORS_LOG: deque[dict[str, Any]] = deque(maxlen=50)
 
 
-def _render(template_name: str, context: dict) -> HTMLResponse:
+def _render(template_name: str, context: dict[str, Any]) -> HTMLResponse:
     template = _jinja_env.get_template(template_name)
     return HTMLResponse(template.render(**context))
 
@@ -99,7 +99,7 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 # ---------------------------------------------------------------------------
 
 
-def _validate_stats(stats: dict) -> bool:
+def _validate_stats(stats: dict[str, int]) -> bool:
     """Return True if *stats* is a valid six-stat allocation (1–4 each, total 12–18)."""
     SKILLS = {"strength", "dexterity", "wits", "lore", "charisma", "resolve"}
     if set(stats.keys()) != SKILLS:
@@ -110,11 +110,11 @@ def _validate_stats(stats: dict) -> bool:
     return 12 <= total <= 16
 
 
-def _load_current_state() -> dict:
+def _load_current_state() -> dict[str, Any]:
     return load_state(SAVE_DIR)
 
 
-def _load_rules_map(save_dir: Path) -> dict[int, dict]:
+def _load_rules_map(save_dir: Path) -> dict[int, dict[str, Any]]:
     """Build a turn→rules map from events.jsonl."""
     path = save_dir / "events.jsonl"
     if not path.exists():
@@ -122,7 +122,7 @@ def _load_rules_map(save_dir: Path) -> dict[int, dict]:
     raw = path.read_text().strip()
     if not raw:
         return {}
-    rules_map: dict[int, dict] = {}
+    rules_map: dict[int, dict[str, Any]] = {}
     for line in raw.splitlines():
         line = line.strip()
         if not line:
@@ -138,7 +138,7 @@ def _load_rules_map(save_dir: Path) -> dict[int, dict]:
     return rules_map
 
 
-def _load_recent_history(save_dir: Path, n: int = 8) -> list[dict]:
+def _load_recent_history(save_dir: Path, n: int = 8) -> list[dict[str, Any]]:
     """Return the last n turns from chronicle.md for page-reload continuity (full narrative)."""
     turns = load_recent_chronicle_turns(save_dir, n)
     rules_map = _load_rules_map(save_dir)
@@ -249,11 +249,11 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
         tok = "\n".join(tok_parts) if tok_parts else "—"
         # Per-pipeline fields for debug table (Pipe, TTFT, TT, TOK)
         rules_ev = ev.get("rules") or {}
-        def _tok(ti=None, to=None):
+        def _tok(ti: Any = None, to: Any = None) -> str:
             if ti is None or to is None:
                 return "—"
             return f"{_fmt_tokens(ti)}/{_fmt_tokens(to)}"
-        def _ttft(ms, first_token_ms=None):
+        def _ttft(ms: Any, first_token_ms: Any = None) -> str:
             """For non-streaming calls TTFT=TT; for streaming use first_token_ms."""
             if first_token_ms is not None and first_token_ms > 0:
                 return _fmt_ms_seconds(first_token_ms)
@@ -461,7 +461,7 @@ def _tv_scene_to_state_lines(scene_out: dict[str, Any]) -> list[dict[str, Any]]:
     lines: list[dict[str, Any]] = []
     lc = scene_out.get("location_change")
     changed = bool(isinstance(lc, dict) and lc.get("id"))
-    loc_id = str(lc.get("id")) if changed else ""
+    loc_id = str(lc["id"]) if changed and isinstance(lc, dict) else ""
     if changed:
         lines.append({"k": "location_id", "v": loc_id, "dim": False})
     else:
@@ -545,7 +545,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         rules_prompt = ev.get("rules_prompt") or {}
         narr_prompt = ev.get("narrate_prompt") or {}
 
-        def _fmt_ms(ms):
+        def _fmt_ms(ms: Any) -> str:
             if ms is None:
                 return "—"
             try:
@@ -558,15 +558,9 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         state_blk = extraction.get("state") or {}
         prog_blk = extraction.get("progress") or {}
 
-        scene_out: dict[str, Any] = (
-            scene_blk.get("output") if isinstance(scene_blk.get("output"), dict) else {}
-        )
-        state_out: dict[str, Any] = (
-            state_blk.get("output") if isinstance(state_blk.get("output"), dict) else {}
-        )
-        prog_out: dict[str, Any] = (
-            prog_blk.get("output") if isinstance(prog_blk.get("output"), dict) else {}
-        )
+        scene_out: dict[str, Any] = scene_blk.get("output") or {}
+        state_out: dict[str, Any] = state_blk.get("output") or {}
+        prog_out: dict[str, Any] = prog_blk.get("output") or {}
 
         raw_streams: dict[str, dict[str, Any]] = {}
         for s in ("scene", "state", "progress"):
@@ -618,14 +612,14 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         }
 
         for key in ("scene", "state", "progress"):
-            s = raw_streams[key]
-            s_in = s["tokens_in"]
-            s_out = s["tokens_out"]
-            s_ms = s["ms"]
-            s_skip = s["skipped"]
-            err = s.get("error")
+            s_data = raw_streams[key]
+            s_in = s_data["tokens_in"]
+            s_out = s_data["tokens_out"]
+            s_ms = s_data["ms"]
+            s_skip = s_data["skipped"]
+            err = s_data.get("error")
             err_s = str(err) if err else None
-            attempts = int(s.get("attempts") or 1)
+            attempts = int(s_data.get("attempts") or 1)
             st = _tv_extract_stream_status(
                 key,
                 skipped=s_skip,
@@ -1032,6 +1026,7 @@ async def new_game(request: Request):
             )
 
     if _active_pack.manifest.mode == "static":
+        assert _active_pack.seed is not None
         seed = _active_pack.seed.model_dump()
         if pc_name:
             seed["pc"]["name"] = pc_name
@@ -1129,7 +1124,7 @@ def panel_actions(request: Request):
     return _render("_actions.html", {"state": _load_current_state()})
 
 
-def _debug_context() -> dict:
+def _debug_context() -> dict[str, Any]:
     mock_mode = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
     return {
         "errors": list(_ERRORS_LOG),

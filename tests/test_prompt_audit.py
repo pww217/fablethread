@@ -10,13 +10,9 @@ Covers the four guarantees the audit promised:
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
-import pytest
-
 from ccya.engine import (
-    EngineConfig,
     _build_jinja_env,
     _extract_progress_messages,
     _extract_scene_messages,
@@ -27,7 +23,6 @@ from ccya.engine import (
     _validate,
 )
 from ccya.models import (
-    InventoryItem,
     InventoryRemove,
     RulesOutcome,
     SceneExtractResult,

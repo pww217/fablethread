@@ -67,6 +67,12 @@ If you find logic in the wrong layer, move it rather than pile on.
 - Fail fast — validate inputs at module boundaries, not deep in logic.
 - No `# noqa` / `# type: ignore` unless absolutely unavoidable (document why).
 
+## Known tooling notes
+
+- `pyproject.toml` has `follow_imports = "skip"` in mypy config — prevents pydantic plugin from resolving `BaseModel`. Workaround: `disallow_subclassing_any = false` + per-module `disable_error_code` overrides for `ccya.models`, `ccya.pack`, `ccya.server`.
+- Server.py route handlers use untyped FastAPI decorators (`@app.get`, `@app.post`). Mypy overrides disable `no-untyped-def`, `no-untyped-call`, `untyped-decorator` for `ccya.server`.
+- FastAPI `on_event` is deprecated (see `server.py:1273`). Migrate to lifespan event handlers when convenient — not blocking.
+
 ## Repo map
 
 Detailed file/function/directory info lives in `REPOMAP/`. Read the relevant files using your Read tool when the task requires it:

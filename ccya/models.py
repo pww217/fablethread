@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -335,9 +336,9 @@ class TurnResult:
     turn: int
     trace_id: str
     narrative: str
-    state_delta: dict
-    applied: dict = field(default_factory=dict)
-    rejected: list[dict] = field(default_factory=list)
+    state_delta: dict[str, Any]
+    applied: dict[str, Any] = field(default_factory=dict)
+    rejected: list[dict[str, Any]] = field(default_factory=list)
     actions: list[str] = field(default_factory=list)
     scene_tags: list[str] = field(default_factory=list)
     recent_events: list[str] = field(default_factory=list)
@@ -347,9 +348,9 @@ class TurnResult:
     changes: dict[str, Any] = field(
         default_factory=dict
     )  # structured pre/post diff for modal + log
-    metrics: dict = field(default_factory=dict)
-    errors: list[dict] = field(default_factory=list)
-    rules: dict = field(
+    metrics: dict[str, Any] = field(default_factory=dict)
+    errors: list[dict[str, Any]] = field(default_factory=list)
+    rules: dict[str, Any] = field(
         default_factory=dict
     )  # serialized RulesOutcome + intent for logging/UI
     outcome_summary: str = field(default="")
@@ -358,8 +359,11 @@ class TurnResult:
 # --- Config ---
 
 
-def load_config(path: str = "config.yaml") -> dict[str, Any]:
+def load_config(path: str | os.PathLike[str] = "config.yaml") -> dict[str, Any]:
     import yaml
 
     with open(path) as f:
-        return yaml.safe_load(f)
+        result = yaml.safe_load(f)
+        if isinstance(result, dict):
+            return result
+        raise ValueError("config.yaml must contain a mapping at top level")

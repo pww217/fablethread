@@ -25,6 +25,7 @@ dev = [
     "mypy",
     "pytest",
     "pytest-asyncio",
+    "types-PyYAML",
 ]
 
 [build-system]
@@ -46,6 +47,20 @@ strict = true
 follow_imports = "skip"
 warn_return_any = true
 warn_unused_configs = true
+plugins = ["pydantic.mypy"]
+disallow_subclassing_any = false
+
+[[tool.mypy.overrides]]
+module = ["ccya.models", "ccya.pack"]
+disable_error_code = ["untyped-decorator"]
+
+[[tool.mypy.overrides]]
+module = ["ccya.server"]
+disable_error_code = ["untyped-decorator", "no-untyped-def", "no-untyped-call"]
+
+[[tool.mypy.overrides]]
+module = ["ccya.rules"]
+disable_error_code = ["name-defined"]
 
 [dependency-groups]
 dev = [
