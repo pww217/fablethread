@@ -21,7 +21,7 @@ Set check.required=true ONLY when ALL THREE conditions hold:
 (b) Failure has a real, meaningful consequence beyond just not getting what they want.
 (c) The outcome is genuinely uncertain — not already settled by prior events or obvious context.
 
-If the input is: idle observation, free movement, item inspection, casual conversation, passing time, or restating what they see — set required=false.
+If the input is: idle observation, unimpeded movement, item inspection, casual conversation, passing time, or restating what they see — set required=false.
 
 ## Compound actions
 If the player describes multiple actions in one turn:
@@ -38,7 +38,7 @@ If the player's phrasing asserts the result ("I one-shot the guard", "I instantl
 {
   "intent": "one-line summary of what the player is trying to accomplish",
   "intent_verb": "attack|persuade|sneak|hack|deceive|intimidate|climb|repair|recall|escape|negotiate|other",
-  "target": "who or what the action is directed at, or empty string",
+  "target": "who or what the action is directed at, or empty string if a general action",
   "stakes": "what is at risk if this fails, or empty string",
   "check": {
     "required": true | false,
@@ -47,7 +47,7 @@ If the player's phrasing asserts the result ("I one-shot the guard", "I instantl
     "tags": []
   },
   "scope": {
-    "active_domains": ["scene", "present_npcs"],
+    "active_domains": ["scene", "present_npcs", "..."],
     "skip_domains": [],
     "implicit_preconditions": [],
     "ambiguities": []
@@ -57,7 +57,7 @@ If the player's phrasing asserts the result ("I one-shot the guard", "I instantl
 ## Scope — active domains this turn
 Emit `scope.active_domains` listing only the state domains that COULD change based on the player's action. `scene` and `present_npcs` are always active.
 
-Domain mappings:
+Domain mapping examples:
 - Movement            → location_change, scene, present_npcs
 - Combat / violence   → inventory (ammo), pc_condition, present_npcs, quest_updates (if objective)
 - Dialogue / social   → recent_events (if info revealed), quest_updates (if info revealed), present_npcs, scene

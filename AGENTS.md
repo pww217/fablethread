@@ -2,30 +2,38 @@
 
 PRIMARY DIRECTIVE: Use the minimum tokens needed. Think briefly, answer concisely, and omit anything not required to complete the task. Stay focused purely on the task you were given.
 
+- Do not alter prompts unless explicitly asked to - defer to user's existing prompts.
+
 ## Architecture in one paragraph
 
-ccya is a local-LLM-backed choose-your-own-adventure game. Every player turn runs a **five-call async pipeline** in `engine.py`:
+ccya is a local-LLM-backed text RPG engine with three pipelines:
 
-1. **Rules / intent** (Call 0, `llm_chat`, fast non-streaming) — classifies what the player is attempting and whether a dice roll is needed. Returns `IntentEnvelope` with a `Scope` that controls which extraction streams run.
-2. **Narrate** (Call 1, streaming tokens → `chronicle.md`) — writes the scene. If a roll occurred, the `RulesOutcome` is injected as a BINDING block the narrator must not contradict.
-3. **Extract — Scene** (Call 2, `llm_chat`, JSON → `SceneExtractResult`) — scene tags, location change, present NPCs, suggested player actions, outcome summary. Receives only scene-relevant state (compact compendium, current location, previous NPCs).
-4. **Extract — State** (Call 3, `llm_chat`, JSON → `StateExtractResult`) — inventory and condition deltas. Receives inventory, active conditions, and minimal cross-stream context from the scene result. Skipped when scope excludes both `inventory` and `pc_condition`.
-5. **Extract — Progress** (Call 4, `llm_chat`, JSON → `ProgressExtractResult`) — quests, recent events, NPC compendium updates. Receives quest list, recent events, and cross-stream context from scene+state. Skipped when scope excludes all progress domains.
+**Turn pipeline** (every player turn, `engine.py` — `run_turn()`):
+1. **Rules / Intent** (Call 0, `llm_chat`, non-streaming) — classifies intent, resolves dice via `rules.resolve_check()`, returns `IntentEnvelope` (scope controls which extractors run) + `RulesOutcome` (band, directive, dice).
+2. **Narrate** (Call 1, streaming → SSE → `chronicle.md`) — prose narrative. `RulesOutcome` injected as BINDING block the narrator must not contradict.
+3. **Scene Extract** (Call 2a, `llm_chat`, JSON → `SceneExtractResult`) — scene tags, location change, present NPCs, actions, outcome summary.
+4. **State Extract** (Call 2b, `llm_chat`, JSON → `StateExtractResult`) — inventory deltas, condition add/remove, failed preconditions.
+5. **Progress Extract** (Call 2c, `llm_chat`, JSON → `ProgressExtractResult`) — quest updates, recent events, compendium NPC updates.
 
-The three extract results are merged into a single `StateDelta` and applied by `apply_delta`. Dynamic packs also have a **generate_seed** call on New Game. The FastAPI server in `server.py` owns HTTP and SSE; `state.py` owns all file I/O and `apply_delta`; `models.py` owns Pydantic schemas; `pack.py` owns world-pack loading; `rules.py` owns the pure-Python dice resolver. The frontend is a single `index.html` using Alpine.js + HTMX + marked.js with no build step.
+Steps 2a–2c merge into `StateDelta` → `_validate()` → `apply_delta()` → `summarize_changes()` → persist (atomic writes: `events.jsonl`, `state.yaml`, `chronicle.md`).
 
-Dynamic packs also have a **generate_seed** call on New Game. The FastAPI server in `server.py` owns HTTP and SSE; `state.py` owns all file I/O and `apply_delta`; `models.py` owns Pydantic schemas; `pack.py` owns world-pack loading; `rules.py` owns the pure-Python dice resolver. The frontend is a single `index.html` using Alpine.js + HTMX + marked.js with no build step.
+**Character Creation** (`POST /new-game`): static packs load `pack.seed` with hard overrides; dynamic packs call `generate_seed()`.
+
+**Generate Seed** (dynamic packs only, `engine.py` — `generate_seed()`): LLM generates `SeedEnvelope` (full `GameState` + opening narrative + actions) from pack manifest + optional `PlayerOverrides`.
+
+The FastAPI server in `server.py` owns HTTP and SSE; `state.py` owns all file I/O and `apply_delta`; `models.py` owns Pydantic schemas; `pack.py` owns world-pack loading; `rules.py` owns the pure-Python dice resolver. The frontend is a single `index.html` using Alpine.js + HTMX + marked.js with no build step.
 
 ## Module responsibilities — don't cross them
 
 | Module | Owns | Does NOT own |
 |---|---|---|
-| `engine.py` | turn orchestration, retry logic, metrics, `run_turn()` generator, `generate_seed()` | state file I/O, HTTP |
-| `state.py` | `load_state`, `save_state`, `apply_delta`, `append_event`, `append_chronicle`, `_migrate_state` | LLM calls, HTTP |
+| `engine.py` | `run_turn()` generator, `generate_seed()`, retry logic, metrics, cross-stream message building | state file I/O, HTTP |
+| `state.py` | `load_state`, `save_state`, `apply_delta`, `append_event`, `append_chronicle`, `_migrate_state`, `summarize_changes` | LLM calls, HTTP |
 | `models.py` | all Pydantic models, `TurnResult` dataclass, `load_config()` | business logic |
-| `server.py` | FastAPI routes, SSE streaming, `EngineConfig` wiring, active pack management | game logic |
+| `server.py` | FastAPI routes, SSE streaming, `EngineConfig` wiring, active pack management, `/new-game` | game logic |
 | `pack.py` | `Pack`, `PackManifest`, `SeedEnvelope`, `load_pack()`, `list_packs()`, `parse_world_facts()` | state mutation |
-| `llm_client.py` | `chat()`, `chat_stream()` (OpenAI-compatible, talks to `mlx_lm.server` at `http://127.0.0.1:8080/v1`), thinking helpers, token-budget trim | prompt construction |
+| `rules.py` | `resolve_check()` (2d6 + stat + cond − diff → Band), `SkillName`, `Difficulty`, `Band` | LLM calls, state |
+| `llm_client.py` | `chat()`, `chat_stream()` (OpenAI-compatible → `mlx_lm.server`), thinking helpers, token-budget trim | prompt construction |
 
 If you find logic in the wrong layer, move it rather than pile on.
 
@@ -80,14 +88,52 @@ Use `make dev` for active development. `make run` is for production-like starts.
 
 ---
 
+## Prompt files
+
+All prompts live in `ccya/prompts/`:
+
+| Pipeline stage | System prompt | User prompt |
+|---|---|---|
+| Rules / Intent | `rules_system.j2` | `rules_user.j2` |
+| Narrate | `narrate_system.j2` | `narrate_user.j2` |
+| Scene Extract | `extract_scene_system.j2` | `extract_scene_user.j2` |
+| State Extract | `extract_state_system.j2` | `extract_state_user.j2` |
+| Progress Extract | `extract_progress_system.j2` | `extract_progress_user.j2` |
+| Generate Seed | `seed_system.j2` | `seed_user.j2` |
+
+Each pair has a narrow job — do not add cross-domain fields.
+
+---
+
 ## Extraction pipeline conventions
 
-- **Three prompt pairs** live in `ccya/prompts/`: `extract_scene_{system,user}.j2`, `extract_state_{system,user}.j2`, `extract_progress_{system,user}.j2`. Each pair has a narrow job — do not add cross-domain fields.
-- **Cross-stream dependencies are minimal by design.** Scene → State passes only `location_id` + present NPC `{id, name}`. Scene+State → Progress passes present NPC names + items gained/lost. No full state re-sends.
+- **Cross-stream dependencies are minimal by design.**
+  - Scene → State passes `location_change` (id, name, description) + `present_npcs` (id, name, title, notes, bio).
+  - Scene → Progress passes `present_npcs` (from scene result).
+  - State → Progress passes minimal surface: `items_gained` (item **names** from `inventory_add`) + `items_lost` (item **ids** from `inventory_remove`).
+  - No full state re-sends between extractors.
 - **Conditions are structured.** `pc.conditions` is `list[Condition]` (`id`, `label`, `description`, `added_turn`). `apply_delta` stamps `added_turn` and uses `id`-based dedup — no text normalization. String coercion exists for test convenience only; LLM output must use the full object.
-- **Condition TTL** is controlled by `EngineConfig.condition_ttl_turns` (default `CONDITION_TTL_TURNS = 4`). The engine ticks and removes expired conditions *before* running the extraction pipeline and tells the state stream which IDs it already removed.
+- **Condition TTL** is controlled by `EngineConfig.condition_ttl_turns` (default `CONDITION_TTL_TURNS = 4`). The engine ticks and removes expired conditions *before* running the extraction pipeline and tells the state stream which IDs it already removed (`engine_expired_conditions`).
 - **`events.jsonl`** gains an `extraction` key with per-stream `{rendered_system, rendered_user, output, tokens_in, tokens_out, ms, skipped}` for debugging.
 - **Stream skipping**: if a scope's `skip_domains` covers all domains owned by a stream, that stream's LLM call is elided entirely. Check `extraction_event["state"]["skipped"]` in events.
+- **Delta flow**: three extract results → `StateDelta` → `_validate()` (checks e.g. `inventory_remove` IDs exist, returns `rejections`) → `apply_delta()` (mutates state in-place) → `summarize_changes()` (diffs pre vs post → `changes{inventory, player, facts, quests}`).
+
+---
+
+## Turn Viewer status colors
+
+The standalone turn viewer (`/turn_viewer`) uses semantic status colors from CSS custom properties in `static/app.src.css` (`--status-*`). Stage accent stripes use `--stage-rules`, `--stage-narrate`, `--stage-scene`, `--stage-state`, `--stage-progress`.
+
+| Token | Meaning |
+|-------|---------|
+| `--status-ok` | Stage ran and completed (no extraction error). |
+| `--status-skipped` | Stream elided by scope (`skip_domains` covered all domains). |
+| `--status-retried` | LLM output required a parse retry (`attempts` > 1 in event). |
+| `--status-rejected` | Post-extract validation rejected part of the delta (e.g. bad `inventory_remove`). |
+| `--status-error` | LLM call or parse ultimately failed for that stream. |
+| `--status-neutral` | Non-fatal / informational (e.g. rules path with no dice roll). |
+
+Status always wins for the prominent left border over stage accent stripes.
 
 ---
 
