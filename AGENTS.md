@@ -26,6 +26,47 @@ If you find logic in the wrong layer, move it rather than pile on.
 - **One source of truth per concept.** `meta.turn` is the turn counter. `chronicle.md` is narrative history. `compendium.npcs` is durable NPC identity. Don't replicate these elsewhere.
 - **Minimize LLM input tokens.** Every extra token is latency. Audit prompts for: redundant schema duplication, stale context sections, examples that overlap, large narrative echoes.
 
+## Logging
+
+- Use `logging.getLogger(__name__)` — never global loggers.
+- Structured logging for new features: turn pipeline phases, state mutations, LLM calls, config changes.
+- Include context keys: `turn`, `trace_id`, `pack`, `kind`.
+- Log warnings/errors to SSE errors panel via `_SseErrorHandler`.
+- Existing infra: `logging_setup.py` (JSONL file handler + console handler).
+
+## Dead code & backwards compatibility
+
+- Remove dead code immediately — no `# legacy` comments, no deferred cleanup.
+- No backwards compatibility required. If a field, route, config key, or model is unused: delete it.
+- Same PR that removes a feature removes: config key + EngineConfig field + server wiring + tests + docs.
+- If migrating state: write a `_migrate_state()` in `state.py`, run it once, then delete the migrator.
+
+## Test & lint workflow
+
+- Write/update tests as you build features. Change tests when changing behavior.
+- Run `make check && make test` only as a final step when ALL work is complete.
+- Do not waste tokens on incremental check runs during implementation.
+- `make test` — quiet mode (dots + summary). Default for development.
+- `make test-v` — verbose output (full tracebacks, test names). For debugging.
+- `make test-x` — stop on first failure, verbose. CI-style run.
+- `make check` — runs `make lint` (ruff) + `make typecheck` (mypy).
+- `make typecheck` — runs mypy on `ccya/`.
+- Tests mock the LLM client — never call a real model server.
+
+## Plan & TODO lifecycle
+
+- Move completed plans to `plans/completed/`.
+- Update `TODO.md` when starting work: mark items `[x]` or note status.
+- Abandoned items get struck through or moved to a `## Abandoned` section with one-line reason.
+- Fix merge conflict markers in `TODO.md` immediately — never leave them.
+
+## Code quality rules
+
+- Docstrings and comments only when the function is unintuitive, very complex, or otherwise unreadable.
+- Type hints are fine — rely on the type checker, not comments, to explain types.
+- Fail fast — validate inputs at module boundaries, not deep in logic.
+- No `# noqa` / `# type: ignore` unless absolutely unavoidable (document why).
+
 ## Repo map
 
 Detailed file/function/directory info lives in `REPOMAP/`. Read the relevant files using your Read tool when the task requires it:
