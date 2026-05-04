@@ -67,11 +67,8 @@
 ### Prompt Engineering
 
 - [ ] **Intent expansion** — extend the rules/intent call (Call 0) to output domain scope boundaries (`active_domains` / `skip_domains`) and ambiguity flags; wire into extractor and narrator. Improves extraction accuracy by making player intent machine-readable for scoping. See `plans/intent-expansion.md`.
-<<<<<<< HEAD
 - [ ] **Prompt trimming through pipeline** - State and other pipelines receive a lot of information they really don't need. If it can't be templated, cut it with Python directly to improve accuracy and input tokens. We already do domains but often too many end up going.
-=======
 - [ ] **Band-scoped extract examples** — pack `ExtractExample` entries should be tagged by outcome band; surface only examples matching the current roll band to the extractor. Improves extraction accuracy for failure/partial states.
->>>>>>> d378ad4e32b005d4e7badf8b9a586fc269228b14
 
 ### Inference Infrastructure
 

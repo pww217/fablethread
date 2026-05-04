@@ -1,4 +1,4 @@
-.PHONY: install run dev fmt lint test css clean new-game vendor llama-swap
+.PHONY: install run dev fmt lint test test-v test-x typecheck check css clean new-game vendor llama-swap
 
 install:
 	uv sync
@@ -20,6 +20,17 @@ lint:
 
 test:
 	uv run pytest -q
+
+test-v:
+	uv run pytest
+
+test-x:
+	uv run pytest -x -v
+
+typecheck:
+	uv run mypy ccya
+
+check: lint typecheck
 
 css:
 	npx --yes @tailwindcss/cli -i ccya/static/app.src.css -o ccya/static/app.css --minify

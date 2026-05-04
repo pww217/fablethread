@@ -22,6 +22,7 @@ ccya = "ccya.__main__:main"
 [project.optional-dependencies]
 dev = [
     "ruff",
+    "mypy",
     "pytest",
     "pytest-asyncio",
 ]
@@ -34,9 +35,19 @@ build-backend = "hatchling.build"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
+addopts = "-q"
 
-[tool.ruff.lint]
-# F821: undefined-name (false positive for string forward refs like "RulesOutcome")
-# E402: module-level-import-not-at-top-of-file (pre-existing in test_engine_smoke.py)
-# F841: local-variable-assigned-but-never-used (pre-existing dead code in test_pack_loader.py)
-ignore = ["F821", "E402", "F841"]
+[tool.ruff.lint.isort]
+known-first-party = ["ccya"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+follow_imports = "skip"
+warn_return_any = true
+warn_unused_configs = true
+
+[dependency-groups]
+dev = [
+    "mypy>=1.20.2",
+]
