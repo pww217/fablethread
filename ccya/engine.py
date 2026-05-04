@@ -153,8 +153,8 @@ def _build_jinja_env(template_dir: str) -> Environment:
     )
 
 
-def _render(env: Environment, template_name: str, ctx: dict) -> str:
-    return env.get_template(template_name).render(**ctx)
+def _render(env: Environment, template_name: str, ctx: dict[str, Any]) -> str:
+    return str(env.get_template(template_name).render(**ctx))
 
 
 # ---------------------------------------------------------------------------
@@ -164,17 +164,17 @@ def _render(env: Environment, template_name: str, ctx: dict) -> str:
 
 def _narrate_messages(
     env: Environment,
-    state: dict,
+    state: dict[str, Any],
     user_input: str,
     *,
     chronicle_tail: str = "",
-    recent_turns: list[dict] = [],
+    recent_turns: list[dict[str, Any]] = [],
     enable_narrate_thinking: bool = False,
     pack_style: str = "",
     rules_outcome: "RulesOutcome | None" = None,
     npc_name_pool: list[str] = [],
     last_turn_failed: list[str] = [],
-    recently_left: list[dict] = [],
+    recently_left: list[dict[str, Any]] = [],
 ) -> list[dict[str, str]]:
     """Build narrate message list: [system, user].
 
@@ -316,9 +316,9 @@ def _summarize_applied(applied: dict[str, Any]) -> list[str]:
     for it in applied.get("inventory_remove") or []:
         if isinstance(it, dict):
             rid = it.get("id", "?")
-            amt = it.get("amount")
-            if amt is not None:
-                lines.append(f"- {rid} (−{amt})")
+            amt_raw = it.get("amount")
+            if amt_raw is not None:
+                lines.append(f"- {rid} (−{amt_raw})")
             else:
                 lines.append(f"- {rid} (removed)")
     for it in applied.get("inventory_update") or []:
@@ -912,11 +912,11 @@ def _parse_stream_result(raw: str, model_cls: type, strip_keys: tuple[str, ...] 
 
 
 async def _call_stream(
-    messages: list[dict],
+    messages: list[dict[str, Any]],
     config: "EngineConfig",
     trace_id: str,
     phase: str,
-    model_cls: type,
+    model_cls: type[Any],
     strip_keys: tuple[str, ...] = ("_reasoning",),
 ) -> tuple[Any, dict[str, Any], int]:
     """Call llm_chat with retry. Returns (parsed_result, usage_dict, attempts_used)."""
@@ -988,7 +988,6 @@ async def _run_extraction_pipeline(
     """
     scope = intent.scope if intent else Scope()
     skip = set(scope.skip_domains or [])
-    active = _active_domains(intent)
 
     _SKIPPED: dict[str, Any] = {
         "skipped": True,
@@ -1153,10 +1152,10 @@ async def _run_extraction_pipeline(
 
 def _rules_messages(
     env: Environment,
-    state: dict,
+    state: dict[str, Any],
     user_input: str,
     *,
-    recent_turns: list[dict] | None = None,
+    recent_turns: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for Call 0 (rules / intent classification)."""
     pc = state.get("pc") or {}
@@ -1181,7 +1180,7 @@ def _rules_messages(
 
 
 async def _call_rules(
-    messages: list[dict],
+    messages: list[dict[str, Any]],
     config: EngineConfig,
     trace_id: str,
 ) -> tuple[IntentEnvelope, dict[str, int], str]:
@@ -1293,13 +1292,16 @@ def _avg_rules_ms(save_dir: Path, n: int = 5) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _find_json(text: str) -> dict | None:
+def _find_json(text: str) -> dict[str, Any] | None:
     """Find and parse a JSON object from LLM output."""
     text = text.strip()
 
-    def _try(t: str) -> dict | None:
+    def _try(t: str) -> dict[str, Any] | None:
         try:
-            return json.loads(t)
+            result = json.loads(t)
+            if isinstance(result, dict):
+                return result
+            return None
         except (json.JSONDecodeError, ValueError):
             return None
 
@@ -1338,9 +1340,9 @@ def _log_llm_io(
     *,
     trace_id: str,
     phase: str,
-    messages: list[dict] | None = None,
+    messages: list[dict[str, Any]] | None = None,
     response: str | None = None,
-    extra: dict | None = None,
+    extra: dict[str, Any] | None = None,
     max_chars: int = 4000,
 ) -> None:
     """Emit a single DEBUG record with prompt/response payloads."""
@@ -1495,7 +1497,7 @@ async def run_turn(
     template_dir: str | None = None,
     pack_style: str = "",
     pack_examples: list[ExtractExample] | None = None,
-    pack_name_locales: list[dict] = [],
+    pack_name_locales: list[dict[str, Any]] = [],
 ) -> AsyncIterator[tuple[str, Any]]:
     """Execute one turn. Async generator yielding:
     ("token", str)          — one per narrative chunk during call 1
@@ -1509,8 +1511,8 @@ async def run_turn(
     env = _build_jinja_env(template_dir)
 
     trace_id = uuid.uuid4().hex[:8]
-    errors: list[dict] = []
-    metrics: dict = {}
+    errors: list[dict[str, Any]] = []
+    metrics: dict[str, Any] = {}
     state = load_state(save_dir)
     narrative_chunks: list[str] = []
     delta: StateDelta | None = None
@@ -1567,7 +1569,6 @@ async def run_turn(
         intent, rules_usage, rules_raw_response = await _call_rules(rules_messages, config, trace_id)
 
         # Resolve dice in Python (deterministic) — _call_rules degrades intent, we do outcome here
-        outcome: RulesOutcome
         if intent.check.required and intent.check.skill:
             try:
                 # Normalize structured Condition dicts to ids for the rules engine.
@@ -1602,7 +1603,7 @@ async def run_turn(
             )
 
         rules_ms = (asyncio.get_event_loop().time() - t_rules) * 1000
-        rules_metrics: dict[str, Any] = {
+        rules_metrics = {
             "total_ms": round(rules_ms, 1),
             "rolled": outcome.rolled,
             "tokens_in": rules_usage.get("prompt_tokens", 0),
@@ -1708,7 +1709,7 @@ async def run_turn(
         turn_no = state.get("meta", {}).get("turn", 0) + 1
         engine_expired_conditions: list[dict[str, Any]] = []
         pc_conds = list((state.get("pc") or {}).get("conditions") or [])
-        surviving: list[dict] = []
+        surviving: list[dict[str, Any]] = []
         for c in pc_conds:
             if not isinstance(c, dict):
                 surviving.append(c)
@@ -1731,8 +1732,8 @@ async def run_turn(
         yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
         t2 = asyncio.get_event_loop().time()
 
-        delta: StateDelta | None = None
-        actions: list[str] = []
+        delta = None
+        actions = []
         outcome_summary: str = ""
         failed: list[str] = []
         extraction_event: dict[str, Any] = {}
@@ -1798,8 +1799,8 @@ async def run_turn(
 
         # === Validate & apply delta ===
         state_pre_apply = copy.deepcopy(state)
-        applied: dict = {}
-        rejected: list[dict] = []
+        applied: dict[str, Any] = {}
+        rejected: list[dict[str, Any]] = []
 
         if delta is not None:
             rejected = _validate(state, delta)
@@ -1956,7 +1957,7 @@ async def run_turn(
 # ---------------------------------------------------------------------------
 
 
-def _validate(state: dict, delta: StateDelta) -> list[dict]:
+def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
     """Strict delta validator. Returns rejection dicts for illegal changes.
 
     Note: an over-draw on ``inventory_remove.amount`` (asking to remove more than
@@ -1965,10 +1966,10 @@ def _validate(state: dict, delta: StateDelta) -> list[dict]:
     discrepancy is surfaced in the event log so we can tell when the model
     miscounted ammunition / consumables.
     """
-    rejections: list[dict] = []
+    rejections: list[dict[str, Any]] = []
 
-    inv_list: list[dict] = state.get("inventory", [])
-    inv_by_id: dict[str, dict] = {
+    inv_list: list[dict[str, Any]] = state.get("inventory", [])
+    inv_by_id: dict[str, dict[str, Any]] = {
         str(it.get("id", "")): it for it in inv_list if isinstance(it, dict)
     }
     for rem in delta.inventory_remove:

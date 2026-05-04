@@ -7,13 +7,15 @@ Owned entirely by this module. Do not import faker elsewhere.
 from __future__ import annotations
 
 import random
+from typing import Any
+
 from faker import Faker
 
 _FALLBACK = [{"locale": "en_US", "weight": 1.0}]
 
 
 def _build_weighted_fakers(
-    locales: list[dict],
+    locales: list[dict[str, Any]],
     rng: random.Random,
     seed: int | None,
 ) -> tuple[list[Faker], list[float]]:
@@ -22,7 +24,7 @@ def _build_weighted_fakers(
         locales = _FALLBACK
     Faker.seed(seed or rng.randint(0, 2**31))
     fakers = [Faker(entry["locale"]) for entry in locales]
-    raw_weights = [float(entry.get("weight", 1.0)) for entry in locales]
+    raw_weights = [float(entry.get("weight", 1.0) or 1.0) for entry in locales]  # type: ignore[arg-type]
     total = sum(raw_weights) or 1.0
     weights = [w / total for w in raw_weights]
     return fakers, weights
@@ -33,7 +35,7 @@ def _pick(fakers: list[Faker], weights: list[float], rng: random.Random) -> Fake
 
 
 def generate_name_pool(
-    locales: list[dict],
+    locales: list[dict[str, Any]],
     *,
     pc_count: int = 3,
     npc_count: int = 8,
@@ -56,7 +58,7 @@ def generate_name_pool(
 
 
 def generate_npc_names(
-    locales: list[dict],
+    locales: list[dict[str, Any]],
     *,
     count: int = 10,
     seed: int | None = None,

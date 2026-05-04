@@ -462,7 +462,7 @@ def apply_delta(
 
     # PC conditions — structured (id-based dedup), add then remove, FIFO cap
     state.setdefault("pc", {}).setdefault("conditions", [])
-    existing_conds: list[dict] = []
+    existing_conds: list[dict[str, Any]] = []
     for c in state["pc"]["conditions"]:
         if isinstance(c, dict):
             existing_conds.append(c)

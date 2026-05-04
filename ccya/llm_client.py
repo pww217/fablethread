@@ -83,12 +83,12 @@ _MOCK_EXTRACT_CARGO = {
 class _mock_stream:
     """Async iterator wrapper for canned mock narrative."""
 
-    def __aiter__(self):
+    def __aiter__(self) -> "_mock_stream":
         self._texts = list(_MOCK_NARRATE.split(". "))
         self._idx = 0
         return self
 
-    async def __anext__(self):
+    async def __anext__(self) -> str:
         if self._idx >= len(self._texts):
             raise StopAsyncIteration
         val = self._texts[self._idx] + (

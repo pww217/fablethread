@@ -69,13 +69,13 @@ class _SseErrorHandler:
     """Pushes error messages to the SSE errors panel during a turn."""
 
     def __init__(self) -> None:
-        self._events: list[dict] = []
-        self._callbacks: list[Callable[[dict], None]] = []
+        self._events: list[dict[str, Any]] = []
+        self._callbacks: list[Callable[[dict[str, Any]], None]] = []
 
-    def register(self, callback: Callable[[dict], None]) -> None:
+    def register(self, callback: Callable[[dict[str, Any]], None]) -> None:
         self._callbacks.append(callback)
 
-    def push(self, error: dict) -> None:
+    def push(self, error: dict[str, Any]) -> None:
         self._events.append(error)
         for cb in self._callbacks:
             try:
@@ -83,7 +83,7 @@ class _SseErrorHandler:
             except Exception:
                 pass
 
-    def get_events(self) -> list[dict]:
+    def get_events(self) -> list[dict[str, Any]]:
         return self._events
 
     def clear(self) -> None:

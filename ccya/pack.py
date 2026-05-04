@@ -296,7 +296,7 @@ def load_pack(pack_id: str, packs_dir: Path) -> Pack:
         p = pack_dir / filename
         return p.read_text() if p.exists() else default
 
-    def _read_yaml(filename: str | None) -> dict:
+    def _read_yaml(filename: str | None) -> dict[str, Any]:
         if not filename:
             return {}
         p = pack_dir / filename

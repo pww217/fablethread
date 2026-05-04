@@ -44,6 +44,17 @@ from ccya.models import (
     StateExtractResult,
     StateDelta,
 )
+from ccya.state import (
+    apply_delta,
+    load_chronicle_tail,
+    load_recent_chronicle_turns,
+    load_state,
+    save_state,
+)
+
+# ---------------------------------------------------------------------------
+# Test fixtures / constants
+# ---------------------------------------------------------------------------
 
 # Rules Call 0 returns this when no check is required (default for most tests).
 _RULES_NO_ROLL = json.dumps(
@@ -61,15 +72,8 @@ _RULES_NO_ROLL = json.dumps(
         },
     }
 )
-from ccya.state import (
-    apply_delta,
-    load_chronicle_tail,
-    load_recent_chronicle_turns,
-    load_state,
-    save_state,
-)
 
-SAVE_DIR = Path(tempfile.mkdtemp())
+_SAVE_DIR = Path(tempfile.mkdtemp())
 
 
 def _write_state(path: Path, data: dict) -> None:
@@ -288,12 +292,12 @@ async def _run_with_tokens(save_dir, user_input, config=None):
 
 @pytest.fixture(autouse=True)
 def _reset_save_dir():
-    if SAVE_DIR.exists():
-        for f in SAVE_DIR.iterdir():
+    if _SAVE_DIR.exists():
+        for f in _SAVE_DIR.iterdir():
             f.unlink()
-    SAVE_DIR.mkdir(parents=True, exist_ok=True)
+    _SAVE_DIR.mkdir(parents=True, exist_ok=True)
     yield
-    for f in SAVE_DIR.iterdir():
+    for f in _SAVE_DIR.iterdir():
         f.unlink()
 
 
@@ -593,7 +597,7 @@ class TestPromptComposition:
 class TestHappyPath:
     async def test_narrate_and_extract(self) -> None:
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         narrative = "You step through the airlock. The corridor stretches ahead, dim and humming."
         progress_response = json.dumps({
@@ -607,7 +611,7 @@ class TestHappyPath:
         fake = _FakeLLM(narrative=narrative, progress_response=progress_response)
         with fake:
             result = await _run(
-                SAVE_DIR, "I step through the airlock.", config=EngineConfig()
+                _SAVE_DIR, "I step through the airlock.", config=EngineConfig()
             )
 
         assert result.narrative == narrative
@@ -619,7 +623,7 @@ class TestHappyPath:
 
     async def test_actions_captured_from_scene_stream(self) -> None:
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         scene_response = json.dumps({
             "scene_tags": ["exploration"],
@@ -632,13 +636,13 @@ class TestHappyPath:
         })
         fake = _FakeLLM(scene_response=scene_response)
         with fake:
-            result = await _run(SAVE_DIR, "look", config=EngineConfig())
+            result = await _run(_SAVE_DIR, "look", config=EngineConfig())
 
         assert result.actions == ["Open door", "Take stairs", "Check map", "Go back"]
 
     async def test_actions_empty_when_not_in_scene_response(self) -> None:
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         scene_response = json.dumps({
             "scene_tags": ["exploration"],
@@ -651,7 +655,7 @@ class TestHappyPath:
         })
         fake = _FakeLLM(narrative="narrative text without actions", scene_response=scene_response)
         with fake:
-            result = await _run(SAVE_DIR, "look", config=EngineConfig())
+            result = await _run(_SAVE_DIR, "look", config=EngineConfig())
 
         assert result.actions == []
 
@@ -666,12 +670,12 @@ class TestStreamingEvents:
 
     async def test_yields_token_events(self) -> None:
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         fake = _FakeLLM(narrative="hello world")
         with fake:
             tokens, result = await _run_with_tokens(
-                SAVE_DIR, "look", config=EngineConfig()
+                _SAVE_DIR, "look", config=EngineConfig()
             )
 
         assert len(tokens) >= 1
@@ -681,13 +685,13 @@ class TestStreamingEvents:
 
     async def test_complete_comes_after_tokens(self) -> None:
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         events = []
         fake = _FakeLLM(narrative="the narrative")
         with fake:
             async for kind, _ in run_turn(
-                SAVE_DIR,
+                _SAVE_DIR,
                 "look",
                 config=EngineConfig(),
                 template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts"),
@@ -707,7 +711,7 @@ class TestStreamingEvents:
 class TestRejectedDelta:
     async def test_remove_nonexistent_item(self) -> None:
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         state_response = json.dumps({
             "inventory_add": [],
@@ -720,7 +724,7 @@ class TestRejectedDelta:
         fake = _FakeLLM(state_response=state_response)
         with fake:
             result = await _run(
-                SAVE_DIR, "I grab the ghost item.", config=EngineConfig()
+                _SAVE_DIR, "I grab the ghost item.", config=EngineConfig()
             )
 
         assert len(result.rejected) == 1
@@ -730,7 +734,7 @@ class TestRejectedDelta:
 
     async def test_trace_id_in_narrative_on_rejection(self) -> None:
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         state_response = json.dumps({
             "inventory_add": [],
@@ -742,14 +746,14 @@ class TestRejectedDelta:
         })
         fake = _FakeLLM(state_response=state_response)
         with fake:
-            result = await _run(SAVE_DIR, "grab ghost", config=EngineConfig())
+            result = await _run(_SAVE_DIR, "grab ghost", config=EngineConfig())
 
         assert result.trace_id in result.narrative
 
     async def test_update_nonexistent_quest_creates_it(self) -> None:
         """quest_updates is create-or-update: unknown quest IDs should be created, not rejected."""
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         progress_response = json.dumps({
             "quest_updates": [{"id": "new-quest", "title": "New Quest", "status": "active", "objectives": []}],
@@ -760,10 +764,10 @@ class TestRejectedDelta:
         })
         fake = _FakeLLM(progress_response=progress_response)
         with fake:
-            result = await _run(SAVE_DIR, "Start a new quest.", config=EngineConfig())
+            result = await _run(_SAVE_DIR, "Start a new quest.", config=EngineConfig())
 
         assert not any(r.get("field") == "quest_updates" for r in result.rejected)
-        saved = load_state(SAVE_DIR)
+        saved = load_state(_SAVE_DIR)
         quest_ids = {q.get("id") for q in saved.get("quests", [])}
         assert "new-quest" in quest_ids
 
@@ -777,7 +781,7 @@ class TestSchemaFailureRetry:
     async def test_scene_stream_retry(self) -> None:
         """Scene stream retries on bad JSON; second attempt succeeds."""
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         narrative = "You examine the hand terminal closely."
         good_scene = _SCENE_RESPONSE
@@ -808,7 +812,7 @@ class TestSchemaFailureRetry:
             ccya.engine.llm_chat_stream = fake_stream
             ccya.engine.llm_chat = fake_chat
             result = await _run(
-                SAVE_DIR, "examine", config=EngineConfig(max_extract_retries=1)
+                _SAVE_DIR, "examine", config=EngineConfig(max_extract_retries=1)
             )
         finally:
             ccya.engine.llm_chat_stream = _orig_stream
@@ -826,7 +830,7 @@ class TestSchemaFailureRetry:
 class TestFactCanonization:
     async def test_facts_in_state(self) -> None:
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         progress_response = json.dumps({
             "quest_updates": [],
@@ -837,9 +841,9 @@ class TestFactCanonization:
         })
         fake = _FakeLLM(progress_response=progress_response)
         with fake:
-            await _run(SAVE_DIR, "Touch the airlock.", config=EngineConfig())
+            await _run(_SAVE_DIR, "Touch the airlock.", config=EngineConfig())
 
-        loaded = load_state(SAVE_DIR)
+        loaded = load_state(_SAVE_DIR)
         facts = loaded.get("scene", {}).get("recent_events", [])
         assert "The airlock hums with residual charge." in facts
 
@@ -852,16 +856,16 @@ class TestFactCanonization:
 class TestChroniclePrefixBudget:
     def test_chronicle_tail(self) -> None:
         large_text = "This is a sentence. " * 2000
-        chronicle = SAVE_DIR / "chronicle.md"
+        chronicle = _SAVE_DIR / "chronicle.md"
         chronicle.write_text(large_text)
-        tail = load_chronicle_tail(SAVE_DIR, max_tokens=100)
+        tail = load_chronicle_tail(_SAVE_DIR, max_tokens=100)
         words = tail.split()
         assert len(words) <= 100
 
     async def test_chronicle_injected_in_engine_run(self) -> None:
         state = _make_state()
-        _write_state(SAVE_DIR, state)
-        chronicle = SAVE_DIR / "chronicle.md"
+        _write_state(_SAVE_DIR, state)
+        chronicle = _SAVE_DIR / "chronicle.md"
         chronicle.write_text("MARKER_TEXT_FOR_ASSERTION")
 
         captured_messages = []
@@ -891,7 +895,7 @@ class TestChroniclePrefixBudget:
             eng.llm_chat_stream = fake_stream
             eng.llm_chat = fake_chat
             await _run(
-                SAVE_DIR,
+                _SAVE_DIR,
                 "look",
                 config=EngineConfig(chronicle_prefix_budget_tokens=1500),
             )
@@ -1037,22 +1041,22 @@ class TestTurnCounterSingleIncrement:
 
     async def test_single_increment(self) -> None:
         state = _make_state(turn=0)
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         fake = _FakeLLM()
         with fake:
-            result = await _run(SAVE_DIR, "look", config=EngineConfig())
+            result = await _run(_SAVE_DIR, "look", config=EngineConfig())
 
         assert result.turn == 1
 
     async def test_sequential_turns_increment_cleanly(self) -> None:
         state = _make_state(turn=0)
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         fake = _FakeLLM()
         with fake:
-            r1 = await _run(SAVE_DIR, "first", config=EngineConfig())
-            r2 = await _run(SAVE_DIR, "second", config=EngineConfig())
+            r1 = await _run(_SAVE_DIR, "first", config=EngineConfig())
+            r2 = await _run(_SAVE_DIR, "second", config=EngineConfig())
 
         assert r1.turn == 1
         assert r2.turn == 2
@@ -1066,19 +1070,19 @@ class TestTurnCounterSingleIncrement:
 class TestEventWrittenBeforeState:
     async def test_write_order(self) -> None:
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         fake = _FakeLLM()
         with fake:
-            await _run(SAVE_DIR, "test", config=EngineConfig())
+            await _run(_SAVE_DIR, "test", config=EngineConfig())
 
-        events = (SAVE_DIR / "events.jsonl").read_text().strip().split("\n")
+        events = (_SAVE_DIR / "events.jsonl").read_text().strip().split("\n")
         assert len(events) == 1
         event = json.loads(events[0])
         assert event["turn"] == 1
         assert event["input"] == "test"
 
-        loaded = load_state(SAVE_DIR)
+        loaded = load_state(_SAVE_DIR)
         assert loaded["meta"]["turn"] == 1
 
 
@@ -1092,14 +1096,14 @@ class TestChronicleFormatted:
 
     async def test_chronicle_has_turn_header(self) -> None:
         state = _make_state(turn=0)
-        _write_state(SAVE_DIR, state)
-        (SAVE_DIR / "chronicle.md").touch()
+        _write_state(_SAVE_DIR, state)
+        (_SAVE_DIR / "chronicle.md").touch()
 
         fake = _FakeLLM(narrative="the narrative text")
         with fake:
-            await _run(SAVE_DIR, "my action", config=EngineConfig())
+            await _run(_SAVE_DIR, "my action", config=EngineConfig())
 
-        chronicle = (SAVE_DIR / "chronicle.md").read_text()
+        chronicle = (_SAVE_DIR / "chronicle.md").read_text()
         assert "## Turn 1" in chronicle
         assert "my action" in chronicle
         assert "the narrative text" in chronicle
@@ -1112,11 +1116,11 @@ class TestChronicleFormatted:
 
 class TestChronicleTurnParser:
     def test_parses_turn_blocks(self) -> None:
-        _write_state(SAVE_DIR, _make_state())
-        (SAVE_DIR / "chronicle.md").write_text(
+        _write_state(_SAVE_DIR, _make_state())
+        (_SAVE_DIR / "chronicle.md").write_text(
             "\n\n## Turn 1 — look\n\nFirst narrative.\n\n## Turn 2 — go north\n\nSecond narrative longer.\n",
         )
-        turns = load_recent_chronicle_turns(SAVE_DIR, 6)
+        turns = load_recent_chronicle_turns(_SAVE_DIR, 6)
         assert len(turns) == 2
         assert turns[0]["turn"] == 1
         assert turns[0]["input"] == "look"
@@ -1125,14 +1129,14 @@ class TestChronicleTurnParser:
         assert "Second narrative" in turns[1]["narrative"]
 
     def test_empty_chronicle(self) -> None:
-        _write_state(SAVE_DIR, _make_state())
-        (SAVE_DIR / "chronicle.md").write_text("")
-        assert load_recent_chronicle_turns(SAVE_DIR, 6) == []
+        _write_state(_SAVE_DIR, _make_state())
+        (_SAVE_DIR / "chronicle.md").write_text("")
+        assert load_recent_chronicle_turns(_SAVE_DIR, 6) == []
 
     def test_tolerates_extra_blank_lines(self) -> None:
-        _write_state(SAVE_DIR, _make_state())
-        (SAVE_DIR / "chronicle.md").write_text("\n\n\n## Turn 3 — act\n\n\nBody.\n\n")
-        turns = load_recent_chronicle_turns(SAVE_DIR, 6)
+        _write_state(_SAVE_DIR, _make_state())
+        (_SAVE_DIR / "chronicle.md").write_text("\n\n\n## Turn 3 — act\n\n\nBody.\n\n")
+        turns = load_recent_chronicle_turns(_SAVE_DIR, 6)
         assert len(turns) == 1
         assert turns[0]["input"] == "act"
         assert turns[0]["narrative"].strip() == "Body."
@@ -1146,11 +1150,11 @@ class TestChronicleTurnParser:
 class TestTurnResultTraceId:
     async def test_unique_trace_ids(self) -> None:
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
         fake = _FakeLLM()
         with fake:
-            r1 = await _run(SAVE_DIR, "first", config=EngineConfig())
-            r2 = await _run(SAVE_DIR, "second", config=EngineConfig())
+            r1 = await _run(_SAVE_DIR, "first", config=EngineConfig())
+            r2 = await _run(_SAVE_DIR, "second", config=EngineConfig())
 
         assert r1.trace_id != r2.trace_id
         assert len(r1.trace_id) > 0
@@ -1291,13 +1295,13 @@ class TestConditionTTL:
         state["pc"]["conditions"] = [
             {"id": "old_wound", "label": "old wound", "description": "", "added_turn": 0}
         ]
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         fake = _FakeLLM()
         with fake:
-            result = await _run(SAVE_DIR, "look", config=EngineConfig(condition_ttl_turns=4))
+            await _run(_SAVE_DIR, "look", config=EngineConfig(condition_ttl_turns=4))
 
-        saved = load_state(SAVE_DIR)
+        saved = load_state(_SAVE_DIR)
         cond_ids = [c["id"] if isinstance(c, dict) else c for c in saved["pc"]["conditions"]]
         assert "old_wound" not in cond_ids
 
@@ -1307,13 +1311,13 @@ class TestConditionTTL:
         state["pc"]["conditions"] = [
             {"id": "bruised", "label": "bruised", "description": "", "added_turn": 1}
         ]
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         fake = _FakeLLM()
         with fake:
-            await _run(SAVE_DIR, "look", config=EngineConfig(condition_ttl_turns=4))
+            await _run(_SAVE_DIR, "look", config=EngineConfig(condition_ttl_turns=4))
 
-        saved = load_state(SAVE_DIR)
+        saved = load_state(_SAVE_DIR)
         cond_ids = [c["id"] if isinstance(c, dict) else c for c in saved["pc"]["conditions"]]
         assert "bruised" in cond_ids
 
@@ -1323,7 +1327,7 @@ class TestExtractionStreamSkip:
         """When inventory and pc_condition are both in skip_domains, only 3 chat calls occur
         (rules + scene + progress — state is omitted)."""
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         rules_with_skip = json.dumps({
             "intent": "observe",
@@ -1340,7 +1344,6 @@ class TestExtractionStreamSkip:
         })
 
         chat_call_count = 0
-        chat_responses: list[str] = []
 
         async def fake_stream(*args, **kwargs):
             ss = kwargs.get("stream_stats")
@@ -1363,7 +1366,7 @@ class TestExtractionStreamSkip:
         try:
             ccya.engine.llm_chat_stream = fake_stream
             ccya.engine.llm_chat = fake_chat
-            result = await _run(SAVE_DIR, "look", config=EngineConfig())
+            result = await _run(_SAVE_DIR, "look", config=EngineConfig())
         finally:
             ccya.engine.llm_chat_stream = _orig_stream
             ccya.engine.llm_chat = _orig_chat
@@ -1731,7 +1734,7 @@ class TestInventoryCompendiumTagline:
 
     async def test_turn_result_includes_diff_lines(self) -> None:
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
         progress_response = json.dumps({
             "quest_updates": [],
             "recent_events_add": ["A fact."],
@@ -1741,7 +1744,7 @@ class TestInventoryCompendiumTagline:
         })
         fake = _FakeLLM(narrative="short narrative.", progress_response=progress_response)
         with fake:
-            result = await _run(SAVE_DIR, "look", config=EngineConfig())
+            result = await _run(_SAVE_DIR, "look", config=EngineConfig())
         assert result.diff
         assert any("A fact" in line for line in result.diff)
 
@@ -1754,11 +1757,11 @@ class TestInventoryCompendiumTagline:
 class TestPerTurnMetrics:
     async def test_metrics_keys_present(self) -> None:
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         fake = _FakeLLM()
         with fake:
-            result = await _run(SAVE_DIR, "test", config=EngineConfig())
+            result = await _run(_SAVE_DIR, "test", config=EngineConfig())
 
         assert "narrate" in result.metrics
         assert "extract" in result.metrics
@@ -1770,11 +1773,11 @@ class TestPerTurnMetrics:
     async def test_narrate_token_counts_from_streaming_stats(self) -> None:
         """Narrate token counts come from streaming stats (42/24 from fake)."""
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         fake = _FakeLLM()
         with fake:
-            result = await _run(SAVE_DIR, "test", config=EngineConfig())
+            result = await _run(_SAVE_DIR, "test", config=EngineConfig())
 
         narr = result.metrics["narrate"]
         assert narr.get("tokens_in") == 42
@@ -1789,7 +1792,7 @@ class TestPerTurnMetrics:
 class TestEstablishedFactsInEvent:
     async def test_event_has_facts_add_in_applied_no_narrative_key(self) -> None:
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         progress_response = json.dumps({
             "quest_updates": [],
@@ -1800,9 +1803,9 @@ class TestEstablishedFactsInEvent:
         })
         fake = _FakeLLM(progress_response=progress_response)
         with fake:
-            await _run(SAVE_DIR, "test", config=EngineConfig())
+            await _run(_SAVE_DIR, "test", config=EngineConfig())
 
-        events = (SAVE_DIR / "events.jsonl").read_text().strip().split("\n")
+        events = (_SAVE_DIR / "events.jsonl").read_text().strip().split("\n")
         event = json.loads(events[-1])
         applied_add = event.get("applied", {}).get("recent_events_add", [])
         assert "This fact matters." in applied_add
@@ -1819,10 +1822,10 @@ class TestRecentTurnsInjected:
 
     async def test_recent_turn_in_next_narrate_system(self) -> None:
         state = _make_state(turn=0)
-        _write_state(SAVE_DIR, state)
-        (SAVE_DIR / "events.jsonl").touch()
+        _write_state(_SAVE_DIR, state)
+        (_SAVE_DIR / "events.jsonl").touch()
         # Prior narrative lives in chronicle.md (canonical); engine reads via load_recent_chronicle_turns
-        (SAVE_DIR / "chronicle.md").write_text(
+        (_SAVE_DIR / "chronicle.md").write_text(
             "\n\n## Turn 1 — I examine the signal\n\nThe signal pulses orange.\n",
         )
 
@@ -1853,7 +1856,7 @@ class TestRecentTurnsInjected:
         try:
             eng.llm_chat_stream = fake_stream
             eng.llm_chat = fake_chat
-            await _run(SAVE_DIR, "go north", config=EngineConfig(window_turns=6))
+            await _run(_SAVE_DIR, "go north", config=EngineConfig(window_turns=6))
         finally:
             eng.llm_chat_stream = _orig_stream
             eng.llm_chat = _orig_chat
@@ -1874,7 +1877,7 @@ class TestPackKwargs:
 
     async def test_pack_style_in_narrate_system(self) -> None:
         state = _make_state()
-        _write_state(SAVE_DIR, state)
+        _write_state(_SAVE_DIR, state)
 
         captured_narrate_system = []
 
@@ -1909,7 +1912,7 @@ class TestPackKwargs:
             eng.llm_chat_stream = _fake_stream
             eng.llm_chat = _fake_chat
             async for _ in run_turn(
-                SAVE_DIR,
+                _SAVE_DIR,
                 "look",
                 config=EngineConfig(),
                 template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts"),
