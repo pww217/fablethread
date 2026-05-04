@@ -2185,6 +2185,13 @@ body {
   padding: 14px 18px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-elevated);
+  cursor: pointer;
+  user-select: none;
+  transition: background 100ms;
+}
+
+.tv-turn-header:hover {
+  background: var(--bg-surface);
 }
 
 .tv-turn-number {
@@ -2215,8 +2222,28 @@ body {
   font-family: var(--font-mono);
 }
 
+.tv-turn-chevron {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform 150ms;
+  margin-left: 8px;
+}
+
+.tv-turn-chevron.open {
+  transform: rotate(90deg);
+}
+
 .tv-pipeline {
   padding: 0;
+}
+
+.tv-turn-actions {
+  display: flex;
+  justify-content: flex-start;
+  padding: 6px 18px 0;
+  gap: 8px;
+  align-items: center;
 }
 
 .tv-stage-header {
@@ -2470,12 +2497,6 @@ body {
   color: var(--accent);
 }
 
-.tv-turn-expand-row {
-  display: flex;
-  justify-content: flex-end;
-  padding: 6px 18px 0;
-}
-
 .turn-viewer-filter-bar {
   display: flex;
   align-items: center;
@@ -2601,8 +2622,12 @@ body {
   border-radius: 2px;
 }
 
-/* Data-flow connectors */
+/* Data-flow connectors — horizontal pills */
 .tv-flow-block {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  flex-wrap: wrap;
   padding: 4px 18px 0 28px;
 }
 
@@ -2610,49 +2635,54 @@ body {
   display: flex;
   gap: 10px;
   align-items: stretch;
-  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.tv-flow-segment--narrate {
+  opacity: 0.6;
 }
 
 .tv-flow-line {
-  width: 3px;
+  width: 32px;
+  height: 4px;
   border-radius: 2px;
   background: var(--status-ok);
   flex-shrink: 0;
-  min-height: 32px;
   position: relative;
+  align-self: center;
 }
 
 .tv-flow-line::after {
   content: '';
   position: absolute;
-  left: -3px;
-  bottom: -2px;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 7px solid var(--status-ok);
+  right: -6px;
+  top: -5px;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 8px solid var(--status-ok);
 }
 
 .tv-flow-line--ok { background: var(--status-ok); }
-.tv-flow-line--ok::after { border-top-color: var(--status-ok); }
+.tv-flow-line--ok::after { border-left-color: var(--status-ok); }
 
 .tv-flow-line--skipped { background: var(--status-skipped); }
-.tv-flow-line--skipped::after { border-top-color: var(--status-skipped); }
+.tv-flow-line--skipped::after { border-left-color: var(--status-skipped); }
 
 .tv-flow-line--retried { background: var(--status-retried); }
-.tv-flow-line--retried::after { border-top-color: var(--status-retried); }
+.tv-flow-line--retried::after { border-left-color: var(--status-retried); }
 
 .tv-flow-line--rejected { background: var(--status-rejected); }
-.tv-flow-line--rejected::after { border-top-color: var(--status-rejected); }
+.tv-flow-line--rejected::after { border-left-color: var(--status-rejected); }
 
 .tv-flow-line--error { background: var(--status-error); }
-.tv-flow-line--error::after { border-top-color: var(--status-error); }
+.tv-flow-line--error::after { border-left-color: var(--status-error); }
 
 .tv-flow-line--neutral { background: var(--status-neutral); }
-.tv-flow-line--neutral::after { border-top-color: var(--status-neutral); }
+.tv-flow-line--neutral::after { border-left-color: var(--status-neutral); }
 
 .tv-flow-pill {
-  flex: 1;
-  padding: 8px 10px;
+  flex: none;
+  padding: 16px 20px;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(148, 163, 184, 0.24);
   background: rgba(63, 184, 175, 0.06);
@@ -2662,6 +2692,41 @@ body {
 
 .tv-flow-pill:hover {
   border-color: var(--accent);
+}
+
+.tv-flow-pill--compact {
+  cursor: default;
+  background: transparent;
+  border-color: transparent;
+  padding: 4px 0;
+}
+
+.tv-flow-pill--compact .tv-flow-pill-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 0;
+}
+
+.tv-flow-pill.expanded {
+  flex: 1 1 100%;
+  padding: 10px 12px;
+}
+
+.tv-flow-expand-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.5;
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tv-flow-expanded {
+  width: 100%;
+  margin-top: 4px;
 }
 
 .tv-flow-pill-label {
@@ -2674,18 +2739,19 @@ body {
 }
 
 .tv-flow-line-kv {
-  font-size: 11px;
+  font-size: 13px;
   font-family: var(--font-mono);
   color: var(--text-secondary);
   display: flex;
-  gap: 8px;
-  margin-top: 2px;
+  gap: 10px;
+  margin-top: 3px;
 }
 
 .tv-flow-line-kv .k {
   color: var(--text-muted);
-  min-width: 110px;
+  min-width: 130px;
   flex-shrink: 0;
+  font-weight: 600;
 }
 
 .tv-flow-line-kv .v {
