@@ -35,6 +35,14 @@
 - [ ] Rework rules too. Inputs aren't terribly useful or too truncated. Hard to get intention. Irrelevant things, too.
 - [ ] Things that are always emitted like the scene and recent_facts domains by rule engine can be omitted from prompt.
 - [ ] Nearby locations - list 2-3 locations nearby the player can go to next. Perhaps tie NPCs to locations if it's helpful.
+- [ ] **Collapse `mixed`/`boon` bands** — merge the two middle bands into a single `partial` band ("success at a cost") to sharpen narrative outcomes. See `plans/band-collapse.md`.
+- [ ] **Momentum track** — add a `momentum` integer (-3..+3) to PC state; increments on success/crit, decrements on fail/setback; exposed to narrator as a pacing signal. See `plans/momentum-track.md`.
+- [ ] **Band-differentiated directives by intent_verb** — `build_directive()` should branch on `intent_verb` so a `setback` on `fight` produces a different directive than a `setback` on `persuade`. See `plans/band-collapse.md`.
+- [ ] **Remove condition TTL** — delete `CONDITION_TTL_TURNS` engine-side auto-expiry; conditions should only be removed when the extractor sees narrative justification (rest, treatment, resolution). See `plans/condition-overhaul.md`.
+- [ ] **Condition→skill feedback loop** — pass the resolved `skill` and `band` from the current `RulesOutcome` into the state extraction prompt so the extractor knows *which skill just failed* when deciding whether to add a condition. See `plans/condition-overhaul.md`.
+- [ ] **`recent_events` ID-keyed deduplication** — replace `_fact_in_list` string normalization with stable ID-keyed events; prevents false merges and enables reliable edits. See `plans/recent-events-overhaul.md`.
+- [ ] **`scene_pressure` split from `world_state`** — add a `scene_pressure` list to scene state for active threats/timers, separate from permanent `world_state` lore. See `plans/scene-pressure.md`.
+- [ ] **New-NPC compendium guarantee** — NPCs in the current `present_npcs` list always get full compendium rows surfaced to the extractor (even if empty), so newly-introduced characters aren't invisible to extraction.
 
 ### Quest System
 
@@ -59,7 +67,11 @@
 ### Prompt Engineering
 
 - [ ] **Intent expansion** — extend the rules/intent call (Call 0) to output domain scope boundaries (`active_domains` / `skip_domains`) and ambiguity flags; wire into extractor and narrator. Improves extraction accuracy by making player intent machine-readable for scoping. See `plans/intent-expansion.md`.
+<<<<<<< HEAD
 - [ ] **Prompt trimming through pipeline** - State and other pipelines receive a lot of information they really don't need. If it can't be templated, cut it with Python directly to improve accuracy and input tokens. We already do domains but often too many end up going.
+=======
+- [ ] **Band-scoped extract examples** — pack `ExtractExample` entries should be tagged by outcome band; surface only examples matching the current roll band to the extractor. Improves extraction accuracy for failure/partial states.
+>>>>>>> d378ad4e32b005d4e7badf8b9a586fc269228b14
 
 ### Inference Infrastructure
 
