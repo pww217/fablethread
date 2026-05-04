@@ -9,7 +9,7 @@ Location: {{ location.name or location.id or "Unknown" }}
 Present: {% for npc in present_npcs %}{{ npc.name if npc is mapping else npc }}{% if not loop.last %}, {% endif %}{% endfor %}
 {% endif %}
 {%- if recent_turns %}
-## last_turn (tail of the most recent narrative — what the player just lived through)
+## last_turn (tail of the most recent narrative)
 {%- set t = recent_turns[-1] %}
 T{{ t.turn }}: {{ t.input }} — {% if t.narrative | length > 120 %}… {% endif %}{{ t.narrative[-120:] }}
 

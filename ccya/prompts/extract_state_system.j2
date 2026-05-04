@@ -1,6 +1,7 @@
 Extract inventory and condition deltas from a narration. Emit one JSON object matching the schema. 
 No prose, no markdown fences, empty arrays for fields with no changes.
 Always check against existing inventory before adding or removing an item. Duplication forbidden.
+Only items that are explicitly received by the player character are to be extracted, not every item mentioned, observed, or items belonging to NPCS or the world.
 
 Item descriptions should be relevant to story, player, and setting.
 
@@ -22,13 +23,13 @@ If an amount is not specified in narration, infer the amount: "used some bandage
 }
 ```
 
-## Hard caps
-- `inventory_add`: ≤2 items per turn — pick the 2 most narratively significant. Stack increases via re-adding the same `id` are NOT capped.
+## Hard cap
+- `inventory_add`: Items explicitly received in narration are not capped.  Stack increases via re-adding the same `id` are NOT capped. Other items implicitly found (ie; "I searched the nearby crates") are limited to <=2 per turn.
 - `pc_condition_add`: ≤2 per turn. Total active conditions must not exceed 5.
 
 ## Field rules
 
-`inventory_add`: items explicitly received in narration. Each: `{"id": "snake_case", "name": "Display Name", "notes": "optional", "amount": 1}`. Infer from narration only. Ranged weapons require a separate ammo stack (`{"id": "9mm_rounds", "name": "9mm rounds", "amount": 12}`); if compatible ammo already in inventory, use `inventory_update` instead.
+`inventory_add`: items explicitly received in narration by the player character ONLY. NPC posessions do not count. Each: `{"id": "snake_case", "name": "Display Name", "notes": "optional", "amount": 1}`. Infer from narration only. Ranged weapons require a separate ammo stack (`{"id": "9mm_rounds", "name": "9mm rounds", "amount": 12}`); if compatible ammo already in inventory, use `inventory_update` instead.
 
 `inventory_remove`: items lost, used, destroyed, or spent. Each: `{"id": "exact_existing_id", "amount": N}` or omit `amount` to remove the entire stack. Use the exact id from the inventory list shown in the user prompt. Never emit add and remove for the same id in one turn.
 
@@ -42,3 +43,7 @@ If an amount is not specified in narration, infer the amount: "used some bandage
 
 ## State-presence rule
 **Sections not shown in the user prompt still exist in the live game state — absence is not removal.** Only emit removals you can justify from the narration.
+
+## Deduplication rule
+
+Before you submit your output, ensure once more than you have no similar or matching items or item IDs.
