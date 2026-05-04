@@ -1017,7 +1017,12 @@ function game() {
 
         fillFromChoice(text) {
             if (this.submitting) return;
-            this.input = (text || '') + ' ';
+            const pill = event?.target?.closest('.action-pill');
+            if (pill) pill.classList.toggle('selected');
+            const trimmed = (text || '').trim();
+            if (!trimmed) return;
+            const existing = this.input.trimEnd();
+            this.input = existing + (existing ? ', ' : '') + trimmed + ' ';
             document.getElementById('player-input')?.focus();
         },
     };
