@@ -1,8 +1,6 @@
 # AGENTS.md — ccya coding guidance
 
-PRIMARY DIRECTIVE: Use the minimum tokens needed. Think briefly, answer concisely, and omit anything not required to complete the task. Stay focused purely on the task you were given.
-
-- Do not alter prompts unless explicitly asked to - defer to user's existing prompts.
+- Do not alter prompts unless explicitly asked to - if you must, preserve the spirit of the existing wording and intent.
 
 ## Architecture in one paragraph
 
