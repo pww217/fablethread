@@ -305,6 +305,12 @@ body {
   color: var(--accent);
   background: var(--accent-soft);
 }
+.action-pill.selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
 .action-pill:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* =========================================================

@@ -113,12 +113,12 @@ class EngineConfig:
     # Local prompt-token budget for trim_messages (NOT sent to the LLM API —
     # mlx_lm.server has no equivalent of Ollama's num_ctx knob; this just
     # caps how much we pack into a single request).
-    prompt_token_budget: int = 8192
+    prompt_token_budget: int = 28672
     request_timeout_s: int = 180
     narrate_temperature: float = 0.9
     extract_temperature: float = 0.4
     max_extract_retries: int = 1
-    window_turns: int = 6
+    window_turns: int = 3
     chronicle_prefix_budget_tokens: int = 1500
     recent_events_max: int = 15
     enable_extract_thinking: bool = False

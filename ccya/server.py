@@ -38,6 +38,7 @@ config: dict[str, Any] = _load_config(BASE_DIR.parent / "config.yaml")
 engine_config = EngineConfig(
     host=config["llm"]["host"],
     model=config["llm"]["model"],
+    prompt_token_budget=config["llm"].get("prompt_token_budget", 28672),
     request_timeout_s=config["llm"]["request_timeout_s"],
     narrate_temperature=config["llm"]["narrate_temperature"],
     extract_temperature=config["llm"]["extract_temperature"],

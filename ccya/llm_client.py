@@ -177,7 +177,10 @@ def trim_messages(
 ) -> list[dict[str, str]]:
     """Truncate messages list so estimated token count <= max_tokens.
 
-    Uses rough chars-per-token estimate (~3.5). Preserves system message at index 0.
+    Uses rough chars-per-token estimate (~3.5). Preserves system message at
+    index 0.  When the budget is exceeded, truncates the last user message
+    content from the **tail** (oldest context) so the LLM always receives at
+    least the system prompt and a user message with the head intact.
     """
 
     def estimate(s: str) -> int:
@@ -187,8 +190,32 @@ def trim_messages(
     while total > max_tokens and len(messages) > 1:
         # Skip system message at index 0 if present
         idx = 1 if messages[0].get("role") == "system" else 0
-        messages.pop(idx)
-        total = sum(estimate(m.get("content", "")) for m in messages)
+        msg = messages[idx]
+        content = msg.get("content", "")
+        est = estimate(content)
+        # How many chars can we keep?
+        budget = max_tokens - (total - est)
+        if budget <= 0:
+            # Even keeping one char exceeds budget — drop the message
+            messages.pop(idx)
+            total = sum(estimate(m.get("content", "")) for m in messages)
+        else:
+            # Truncate from the TAIL to preserve head (PC, location, state)
+            # and the last section (player input).  Keep the first ~2000 chars
+            # of state and the last ~500 chars of player input, cutting the
+            # middle (chronicle tail, recent turns).
+            head_keep = min(2000, int(budget * 3.5))
+            tail_keep = min(500, max(0, int(budget * 3.5) - head_keep))
+            if head_keep + tail_keep >= len(content):
+                # Budget is large enough — no truncation needed
+                pass
+            else:
+                msg["content"] = (
+                    content[:head_keep]
+                    + "\n\n[... truncated — older context removed ...]\n\n"
+                    + content[-tail_keep:]
+                )
+            total = max_tokens + 1  # exit loop
     return messages
 
 

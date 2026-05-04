@@ -7,6 +7,7 @@ llm:
   max_extract_retries: 1
   enable_extract_thinking: false
   enable_narrate_thinking: false
+  prompt_token_budget: 28672
 
 rules:
   temperature: 0.2
@@ -15,7 +16,7 @@ rules:
 game:
   default_save: default
   setting_pack: zombie-survival
-  window_turns: 6
+  window_turns: 3
   chronicle_prefix_budget_tokens: 1500
   recent_events_max: 15    # rolling window; world_state is immutable after seed
   warmup_on_start: true
