@@ -25,6 +25,13 @@
 
 ## Features
 
+### Mechanics
+- [ ] Allow multiple actions in one turn, and roll/skill check for each independently.
+- [ ] A condition update parameters, not just add and remove.
+- [ ] Scene tag basically not used except for Game Over tag
+- [ ] Scene prompt - NPCs probably don't need to be re-omitted each time if already present
+- [ ] Narration - default is that allies and friendly relations move with player/are nearby unless removed from scene in narration
+
 ### Quest System
 
 - [ ] **Secondary objectives** — quests get optional secondary objectives; once the primary is completed, failed, or abandoned the quest moves to resolved.

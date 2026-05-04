@@ -1,4 +1,13 @@
-Extract inventory and condition deltas from a narration. Emit one JSON object matching the schema. No prose, no markdown fences, empty arrays for fields with no changes.
+Extract inventory and condition deltas from a narration. Emit one JSON object matching the schema. 
+No prose, no markdown fences, empty arrays for fields with no changes.
+Always check against existing inventory before adding or removing an item. Duplication forbidden.
+
+Item descriptions should be relevant to story, player, and setting.
+
+**Quantities are exact.** If narration says "used two morphine syrettes", emit `{"id": "<item_id>", "amount": 2}`. 
+Read the current stack from the user prompt before emitting `amount`. 
+Never emit `amount` greater than the current stack — if the player used the entire stack, omit `amount` (treated as full remove).
+If an amount is not specified in narration, infer the amount: "used some bandages" ⇒ 2-3, "fired multiple rounds" ⇒ 3-6, "spent all your money" ⇒ full stack.
 
 ## Output schema
 
@@ -19,19 +28,17 @@ Extract inventory and condition deltas from a narration. Emit one JSON object ma
 
 ## Field rules
 
-`inventory_add`: items explicitly received in narration. Each: `{"id": "snake_case", "name": "Display Name", "notes": "optional", "amount": 1}`. Don't infer items from scene description. Ranged weapons require a separate ammo stack (`{"id": "9mm_rounds", "name": "9mm rounds", "amount": 12}`); if compatible ammo already in inventory, use `inventory_update` instead.
+`inventory_add`: items explicitly received in narration. Each: `{"id": "snake_case", "name": "Display Name", "notes": "optional", "amount": 1}`. Infer from narration only. Ranged weapons require a separate ammo stack (`{"id": "9mm_rounds", "name": "9mm rounds", "amount": 12}`); if compatible ammo already in inventory, use `inventory_update` instead.
 
-`inventory_remove`: items lost, used, or spent. Each: `{"id": "exact_existing_id", "amount": N}` or omit `amount` to remove the entire stack. Use the exact id from the inventory list shown in the user prompt. Never emit add and remove for the same id in one turn.
+`inventory_remove`: items lost, used, destroyed, or spent. Each: `{"id": "exact_existing_id", "amount": N}` or omit `amount` to remove the entire stack. Use the exact id from the inventory list shown in the user prompt. Never emit add and remove for the same id in one turn.
 
-**Quantities are exact.** If narration says "fired three rounds", emit `{"id": "<ammo_id>", "amount": 3}`. Read the current stack from the user prompt before emitting `amount`. Never emit `amount` greater than the current stack — if the player used the entire stack, omit `amount` (treated as full remove).
+`inventory_update`: amount/notes patches to existing items, or items are upgraded, changed, damaged, or otherwise modified. Each: `{"id": "exact_existing_id", "name": "optional", "notes": "optional"}`. Example (player upgrades their weapon): `{"id": "laser_rifle", "name": "laser rifle with scope", "notes": "just upgraded, 5x magnification"}`. Item name and description should reflect recent events, if applicable.
 
-`inventory_update`: amount/notes patches to existing items. Each: `{"id": "exact_existing_id", "name": "optional", "notes": "optional"}`.
+`pc_condition_add`: new conditions with a clear, substantial cause in narration. Default to not adding for minor effects. Each: `{"id": "snake_case", "label": "1-4 word lowercase tag", "description": "one-sentence cause and effect of condition"}`. Don't duplicate by id. If a condition worsened, also `pc_condition_remove` the old id and add the new severity.
 
-`pc_condition_add`: new conditions with a clear cause in narration. Each: `{"id": "snake_case", "label": "1-4 word lowercase tag", "description": "one-sentence cause"}`. Don't duplicate by id. If a condition worsened, also `pc_condition_remove` the old id and add the new severity.
-
-`pc_condition_remove`: conditions that resolved this turn. Each: `{"id": "existing_condition_id"}`. Prefer removal over accumulation — if narration implies resolution, remove even when not stated explicitly.
+`pc_condition_remove`: conditions that resolved this turn. Each: `{"id": "existing_condition_id"}`. Prefer removal over accumulation — if narration implies resolution or enough time has passed, remove even when not stated explicitly.
 
 `failed`: precondition failures this turn (e.g. `"tried to pick up keys but guard is still conscious"`). Use the rules outcome (band) shown in the user prompt — crit_fail / fail / setback ⇒ action did not succeed.
 
 ## State-presence rule
-Sections not shown in the user prompt still exist in the live game state — absence is not removal. Only emit removals you can justify from the narration.
+**Sections not shown in the user prompt still exist in the live game state — absence is not removal.** Only emit removals you can justify from the narration.
