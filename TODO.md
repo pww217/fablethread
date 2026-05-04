@@ -31,6 +31,10 @@
 - [ ] Scene tag basically not used except for Game Over tag
 - [ ] Scene prompt - NPCs probably don't need to be re-omitted each time if already present
 - [ ] Narration - default is that allies and friendly relations move with player/are nearby unless removed from scene in narration
+- [ ] More pre-made character creation options that add up to ceiling. Maybe generate from a top-level prompts, allow player to change.
+- [ ] Rework rules too. Inputs aren't terribly useful or too truncated. Hard to get intention. Irrelevant things, too.
+- [ ] Things that are always emitted like the scene and recent_facts domains by rule engine can be omitted from prompt.
+- [ ] Nearby locations - list 2-3 locations nearby the player can go to next. Perhaps tie NPCs to locations if it's helpful.
 
 ### Quest System
 
@@ -55,6 +59,7 @@
 ### Prompt Engineering
 
 - [ ] **Intent expansion** — extend the rules/intent call (Call 0) to output domain scope boundaries (`active_domains` / `skip_domains`) and ambiguity flags; wire into extractor and narrator. Improves extraction accuracy by making player intent machine-readable for scoping. See `plans/intent-expansion.md`.
+- [ ] **Prompt trimming through pipeline** - State and other pipelines receive a lot of information they really don't need. If it can't be templated, cut it with Python directly to improve accuracy and input tokens. We already do domains but often too many end up going.
 
 ### Inference Infrastructure
 

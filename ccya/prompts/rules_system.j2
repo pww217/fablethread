@@ -36,14 +36,14 @@ If the player's phrasing asserts the result ("I one-shot the guard", "I instantl
 
 ## Output schema (emit this JSON object only)
 {
-  "intent": "one-line summary of what the player is trying to accomplish",
-  "intent_verb": "attack|persuade|sneak|hack|deceive|intimidate|climb|repair|recall|escape|negotiate|other",
-  "target": "who or what the action is directed at, or empty string if a general action",
-  "stakes": "what is at risk if this fails, or empty string",
+  "intent": "", 
+  "intent_verb": "",
+  "target": "",
+  "stakes": "",
   "check": {
     "required": true | false,
-    "skill": "strength|dexterity|wits|lore|charisma|resolve" or null if required=false,
-    "difficulty": "trivial|easy|normal|hard|extreme",
+    "skill": "",
+    "difficulty": "",
     "tags": []
   },
   "scope": {
@@ -54,8 +54,17 @@ If the player's phrasing asserts the result ("I one-shot the guard", "I instantl
   }
 }
 
-## Scope — active domains this turn
-Emit `scope.active_domains` listing only the state domains that COULD change based on the player's action. `scene` and `present_npcs` are always active.
+## Field rules
+
+- `intent`: 1 sentence declaring player intent as related to the story, quests, world, or npcs. Never substitute, dismiss as impractical or extreme, or embellish. Only soften it in line with the anti-declare-outcome rule.
+- `intent_verb`: attack|persuade|sneak|hack|deceive|intimidate|climb|repair|recall|escape|negotiate. If it fits none of these, you must choose an appropriate word not listed.
+- `target`: who or what the action is directed at, or empty string if a general action.
+- `stakes`: what is at risk if this fails, or empty string.
+- `check`: an object with the following fields:
+  - `required`: true or false.
+  - `skill`: strength|dexterity|wits|lore|charisma|resolve.
+  - `difficulty`: trivial|easy|normal|hard|extreme.
+- `scope.active_domains`: listing only the state domains that COULD change based on the player's action this turn only. `scene` and `present_npcs` are always active.
 
 Domain mapping examples:
 - Movement            → location_change, scene, present_npcs
@@ -64,6 +73,8 @@ Domain mapping examples:
 - Item interaction    → inventory, recent_events, scene
 - Observation / idle  → scene, recent_events only
 - Rest / recovery     → pc_condition, scene
+
+If multiple domains are applicable, scopes are additive. 
 
 Emit `scope.skip_domains` for domains that definitely cannot change this turn.
 Emit `scope.implicit_preconditions` for things the player assumes are true that may not be (e.g. "the guard is still unconscious").
