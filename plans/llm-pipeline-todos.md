@@ -2,7 +2,8 @@
 
 Full implementation details: [llm-pipeline-accuracy.md](./llm-pipeline-accuracy.md)
 
-> Plans B / C / D / E are complete and archived in `plans/completed/`. Plans A and F remain.
+> Plans B / C / D / E are complete and archived in `plans/completed/`.
+> Plans A and F remain open. All work is now tracked in [docs/TODO.md](../docs/TODO.md).
 
 ---
 
