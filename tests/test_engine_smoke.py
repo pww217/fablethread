@@ -421,17 +421,6 @@ class TestPromptComposition:
         # Quantity exactness lives in the system prompt as a static rule.
         assert "Quantities are exact" in system
 
-    def test_extract_state_expired_conditions_shown(self):
-        env = self._env()
-        scene = SceneExtractResult()
-        expired = [{"id": "bruised_ribs", "label": "bruised ribs"}]
-        msgs = _extract_state_messages(
-            env, "N.", _make_state(), scene_result=scene, engine_expired_conditions=expired
-        )
-        user = next(m for m in msgs if m["role"] == "user")["content"]
-        assert "engine_expired_conditions" in user
-        assert "bruised ribs" in user
-
     # --- extract_progress ---
 
     def test_extract_progress_has_system_user_roles(self):
@@ -1286,40 +1275,6 @@ class TestPcConditionsDelta:
         updated = apply_delta(state, delta)
         cond = next(c for c in updated["pc"]["conditions"] if c["id"] == "shaken")
         assert cond["added_turn"] == 5
-
-
-class TestConditionTTL:
-    async def test_ttl_expires_old_condition(self) -> None:
-        """Conditions older than condition_ttl_turns are removed before extraction."""
-        state = _make_state(turn=4)
-        state["pc"]["conditions"] = [
-            {"id": "old_wound", "label": "old wound", "description": "", "added_turn": 0}
-        ]
-        _write_state(_SAVE_DIR, state)
-
-        fake = _FakeLLM()
-        with fake:
-            await _run(_SAVE_DIR, "look", config=EngineConfig(condition_ttl_turns=4))
-
-        saved = load_state(_SAVE_DIR)
-        cond_ids = [c["id"] if isinstance(c, dict) else c for c in saved["pc"]["conditions"]]
-        assert "old_wound" not in cond_ids
-
-    async def test_recent_condition_survives_ttl(self) -> None:
-        """A condition added last turn (age 1) should not expire with TTL=4."""
-        state = _make_state(turn=2)
-        state["pc"]["conditions"] = [
-            {"id": "bruised", "label": "bruised", "description": "", "added_turn": 1}
-        ]
-        _write_state(_SAVE_DIR, state)
-
-        fake = _FakeLLM()
-        with fake:
-            await _run(_SAVE_DIR, "look", config=EngineConfig(condition_ttl_turns=4))
-
-        saved = load_state(_SAVE_DIR)
-        cond_ids = [c["id"] if isinstance(c, dict) else c for c in saved["pc"]["conditions"]]
-        assert "bruised" in cond_ids
 
 
 class TestExtractionStreamSkip:

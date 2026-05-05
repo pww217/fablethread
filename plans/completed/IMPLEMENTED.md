@@ -89,6 +89,25 @@ Completed work extracted from TODO. Moved here to keep TODO focused on what's le
 
 ---
 
+## P1 — Story Logical Consistency
+
+### Condition System Overhaul
+- Deleted `CONDITION_TTL_TURNS` constant, `condition_ttl_turns` from `EngineConfig`, and the pre-extraction TTL loop from `engine.py`.
+- Removed `engine_expired_conditions` parameter from `_extract_state_messages()`, `_run_extraction_pipeline()`, and the event dict.
+- Removed TTL display chip from `_turn_viewer.html` and `engine_expired_conditions` from server.py turn viewer data.
+- Removed `TestConditionTTL` test class and `test_extract_state_expired_conditions_shown` test.
+- Added `roll_context` section to `extract_state_user.j2` surfacing `skill`, `band`, `directive`.
+- Added skill→condition guidance to `extract_state_system.j2` mapping failed checks to condition types.
+
+### Reconciliation System
+- Added `reconcile_delta()` in `state.py` — validates delta against state, drops inventory add+remove conflicts, skips duplicate condition adds (excluding same-delta removals).
+- Wired into `run_turn()` in `engine.py` before `apply_delta()`, logs warnings.
+
+### Active-Quest-Only Filter
+- `_quests.j2` now filters to `status == "active"` quests via Jinja `selectattr`.
+
+---
+
 ## Features (Completed)
 
 - **Character creation** — character creation screen on top of world/genre selection.

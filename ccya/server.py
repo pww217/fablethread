@@ -756,9 +756,6 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
             }
         )
 
-        expired = ev.get("engine_expired_conditions")
-        if not isinstance(expired, list):
-            expired = []
         state_rej = [
             r
             for r in (rej if isinstance(rej, list) else [])
@@ -782,7 +779,6 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "connectors": connectors,
                 "rules_event": rules_ev_d,
                 "rules_intent": rules_intent,
-                "engine_expired_conditions": expired,
                 "state_rejections": state_rej,
                 "total_tt": _fmt_ms(total_tt_ms),
                 "total_tokens_in": total_in,

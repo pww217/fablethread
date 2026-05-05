@@ -52,6 +52,7 @@ from ccya.state import (
     load_recent_chronicle_turns,
     load_recent_events,
     load_state,
+    reconcile_delta,
     resolve_inventory_remove_target,
     save_state,
 )
@@ -86,9 +87,6 @@ def is_turn_in_progress(save_dir: str) -> bool:
     return lock is not None and lock.locked()
 
 
-CONDITION_TTL_TURNS: int = 4
-
-
 @dataclass
 class EngineConfig:
     host: str = "http://localhost:8080/v1"
@@ -114,7 +112,6 @@ class EngineConfig:
     rules_temperature: float = 0.2
     max_rules_retries: int = 1
     log_prompts: bool = False
-    condition_ttl_turns: int = CONDITION_TTL_TURNS
 
 
 def _build_jinja_env(template_dir: str) -> Environment:
@@ -706,14 +703,13 @@ def _extract_scene_messages(
 
 
 def _extract_state_messages(
-    env: Environment,
+    env: "Environment",
     narration: str,
     state: dict[str, Any],
     *,
     scene_result: "SceneExtractResult",
     rules_outcome: "RulesOutcome | None" = None,
     intent: "IntentEnvelope | None" = None,
-    engine_expired_conditions: list[dict[str, Any]] | None = None,
     enable_thinking: bool = False,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 2 (inventory + conditions)."""
@@ -748,7 +744,6 @@ def _extract_state_messages(
             "scene_result": scene_ctx,
             "rules_outcome": rules_outcome,
             "active_domains": active,
-            "engine_expired_conditions": engine_expired_conditions or [],
         },
     )
     msgs = [
@@ -925,7 +920,6 @@ async def _run_extraction_pipeline(
     config: "EngineConfig",
     trace_id: str,
     turn_no: int,
-    engine_expired_conditions: list[dict[str, Any]],
     pack_examples: list["ExtractExample"] | None = None,
 ) -> tuple["StateDelta", list[str], str, list[str], dict[str, Any]]:
     """Run the three extraction streams in sequence.
@@ -990,7 +984,6 @@ async def _run_extraction_pipeline(
             env, narration, state,
             scene_result=scene_result,
             rules_outcome=rules_outcome, intent=intent,
-            engine_expired_conditions=engine_expired_conditions,
             enable_thinking=config.enable_extract_thinking,
         )
         state_msgs = trim_messages(state_msgs, config.prompt_token_budget)
@@ -1614,27 +1607,7 @@ async def run_turn(
 
         yield ("phase", {"phase": "narrate_done"})
 
-        # === Pre-extraction: condition TTL tick ===
         turn_no = state.get("meta", {}).get("turn", 0) + 1
-        engine_expired_conditions: list[dict[str, Any]] = []
-        pc_conds = list((state.get("pc") or {}).get("conditions") or [])
-        surviving: list[dict[str, Any]] = []
-        for c in pc_conds:
-            if not isinstance(c, dict):
-                surviving.append(c)
-                continue
-            age = (state.get("meta", {}).get("turn", 0)) - c.get("added_turn", 0)
-            if age >= config.condition_ttl_turns:
-                engine_expired_conditions.append(c)
-                _log.debug(
-                    "Auto-expired condition %s (age %d turns)",
-                    c.get("id"), age,
-                    extra={"trace_id": trace_id},
-                )
-            else:
-                surviving.append(c)
-        if engine_expired_conditions:
-            state.setdefault("pc", {})["conditions"] = surviving
 
         # === Extraction pipeline (3 streams) ===
         exp_ms = _avg_extract_ms(save_dir)
@@ -1656,7 +1629,6 @@ async def run_turn(
                     config=config,
                     trace_id=trace_id,
                     turn_no=turn_no,
-                    engine_expired_conditions=engine_expired_conditions,
                     pack_examples=pack_examples,
                 )
             )
@@ -1723,6 +1695,9 @@ async def run_turn(
                 )
                 narrative += f"\n\n*That action didn't resolve as expected. Trace `{trace_id}` — try rephrasing.*"
             else:
+                reconcile_warnings = reconcile_delta(state, delta)
+                for w in reconcile_warnings:
+                    _log.warning("[reconcile] turn %s: %s", state.get("meta", {}).get("turn", "?"), w, extra={"trace_id": trace_id})
                 state = apply_delta(
                     state, delta, recent_events_max=config.recent_events_max
                 )
@@ -1790,7 +1765,6 @@ async def run_turn(
             "trace_id": trace_id,
             "turn": state["meta"]["turn"],
             "input": user_input,
-            "engine_expired_conditions": list(engine_expired_conditions),
             "applied": applied,
             "rejected": rejected,
             "actions": actions,
