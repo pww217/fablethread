@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, field_validator
 SkillName = Literal["strength", "dexterity", "wits", "lore", "charisma", "resolve"]
 Difficulty = Literal["trivial", "easy", "normal", "hard", "extreme"]
 Band = Literal[
-    "crit_fail", "fail", "setback", "mixed", "boon", "success", "crit_success"
+    "crit_fail", "fail", "setback", "partial", "success", "crit_success"
 ]
 
 
