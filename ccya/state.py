@@ -17,7 +17,6 @@ _log = logging.getLogger("ccya.state")
 
 
 def load_state(save_dir: Path) -> dict[str, Any]:
-    """Load the current game state from YAML."""
     path = save_dir / "state.yaml"
     if not path.exists():
         return _default_state()
@@ -44,7 +43,6 @@ _STAT_DEFAULTS: dict[str, int] = {
 
 
 def _migrate_state(state: dict[str, Any]) -> None:
-    """One-time field renames and defaults for older saves."""
     pc = state.setdefault("pc", {})
     if pc.get("concept") and not pc.get("tagline"):
         pc["tagline"] = (pc.get("concept") or "").strip()
@@ -55,7 +53,6 @@ def _migrate_state(state: dict[str, Any]) -> None:
     if "bio" not in pc:
         pc["bio"] = ""
 
-    # Migrate old 4-stat names to the unified 6-stat set.
     stats = pc.setdefault("stats", {})
     for old, new in _STAT_RENAME.items():
         if old in stats and new not in stats:
@@ -71,7 +68,6 @@ def _migrate_state(state: dict[str, Any]) -> None:
         state["scene"]["tagline"] = ""
     comp = state.setdefault("compendium", {}).setdefault("npcs", {})
     state.setdefault("meta", {}).setdefault("compendium_touch_order", [])
-    # Seed compendium from present_npcs when empty (first load of older saves / fresh seed)
     if not comp:
         for npc in state.get("scene", {}).get("present_npcs") or []:
             if not isinstance(npc, dict):
@@ -88,7 +84,6 @@ def _migrate_state(state: dict[str, Any]) -> None:
 
 
 def save_state(save_dir: Path, state: dict[str, Any]) -> None:
-    """Atomically save game state to YAML (write tmp then rename)."""
     tmp_path = save_dir / "state.yaml.tmp"
     real_path = save_dir / "state.yaml"
     with open(tmp_path, "w") as f:
@@ -97,7 +92,6 @@ def save_state(save_dir: Path, state: dict[str, Any]) -> None:
 
 
 def _default_state() -> dict[str, Any]:
-    """Return a minimal default state structure."""
     return {
         "meta": {
             "game_name": "default",
@@ -135,7 +129,6 @@ def _default_state() -> dict[str, Any]:
 
 
 def touch_compendium_order(state: dict[str, Any], npc_id: str) -> None:
-    """Move npc_id to end of LRU touch list (most recent)."""
     nid = normalize_inventory_id(npc_id)
     order: list[str] = state.setdefault("meta", {}).setdefault(
         "compendium_touch_order", []
@@ -146,14 +139,12 @@ def touch_compendium_order(state: dict[str, Any], npc_id: str) -> None:
 
 
 def append_event(save_dir: Path, event: dict[str, Any]) -> None:
-    """Append a turn event to events.jsonl (source of truth)."""
     path = save_dir / "events.jsonl"
     with open(path, "a") as f:
         f.write(json.dumps(event, default=str) + "\n")
 
 
 def append_chronicle(save_dir: Path, text: str) -> None:
-    """Append text to the chronicle file."""
     path = save_dir / "chronicle.md"
     with open(path, "a") as f:
         f.write("\n" + text)
@@ -165,11 +156,6 @@ _TURN_HEADER = re.compile(r"^## Turn (\d+) — (.+)$", re.MULTILINE)
 def load_chronicle_tail(
     save_dir: Path, max_tokens: int, skip_last_n_turns: int = 0
 ) -> str:
-    """Load the tail of chronicle.md, clipped to max_tokens words.
-
-    When ``skip_last_n_turns`` > 0, drops the trailing N turn-blocks so callers
-    can pair this with ``load_recent_chronicle_turns(n)`` without overlap.
-    """
     path = save_dir / "chronicle.md"
     if not path.exists():
         return ""
@@ -190,7 +176,6 @@ def load_chronicle_tail(
 
 
 def load_recent_events(save_dir: Path, n: int) -> list[dict[str, Any]]:
-    """Load the last N events from events.jsonl."""
     path = save_dir / "events.jsonl"
     if not path.exists():
         return []
@@ -203,11 +188,6 @@ def load_recent_events(save_dir: Path, n: int) -> list[dict[str, Any]]:
 
 
 def load_recent_chronicle_turns(save_dir: Path, n: int) -> list[dict[str, Any]]:
-    """Parse chronicle.md into the last n turn blocks for narrate recent-turns context.
-
-    Each block is shaped like append_chronicle: ``## Turn N — input`` then blank line then narrative.
-    Full narrative text is included (not truncated).
-    """
     path = save_dir / "chronicle.md"
     if not path.exists():
         return []
@@ -227,16 +207,13 @@ def load_recent_chronicle_turns(save_dir: Path, n: int) -> list[dict[str, Any]]:
 
 
 def init_save_dir(save_dir: Path, seed: dict[str, Any]) -> None:
-    """Initialize (or reset) a save directory from seed state YAML."""
     save_dir.mkdir(parents=True, exist_ok=True)
     save_state(save_dir, seed)
-    # Truncate both files so a New Game starts with a clean log and chronicle
     (save_dir / "chronicle.md").write_text("")
     (save_dir / "events.jsonl").write_text("")
 
 
 def normalize_inventory_id(raw: str) -> str:
-    """Normalize inventory item ids for merge/remove lookup."""
     if not isinstance(raw, str):
         raw = str(raw)
     s = raw.lower().strip()
@@ -248,7 +225,6 @@ def normalize_inventory_id(raw: str) -> str:
 def resolve_inventory_canonical_id(
     inventory: list[dict[str, Any]], raw_id: str
 ) -> str | None:
-    """Return the stored id for an item whose normalized id matches raw_id."""
     want = normalize_inventory_id(raw_id)
     for it in inventory:
         if normalize_inventory_id(it.get("id", "")) == want:
@@ -259,7 +235,6 @@ def resolve_inventory_canonical_id(
 def resolve_inventory_remove_target(
     inventory: list[dict[str, Any]], raw_id: str
 ) -> str | None:
-    """Resolve id or normalized item name to stored inventory id for remove operations."""
     c = resolve_inventory_canonical_id(inventory, raw_id)
     if c:
         return c
@@ -274,12 +249,10 @@ def resolve_inventory_remove_target(
 def apply_delta(
     state: dict[str, Any], delta: StateDelta, *, recent_events_max: int = 15
 ) -> dict[str, Any]:
-    """Apply a validated StateDelta to the state dict. Returns the updated state."""
     import copy
 
     state = copy.deepcopy(state)
 
-    # Inventory — merge by normalized id on add; partial or full remove; pin credits to top
     inv: list[dict[str, Any]] = copy.deepcopy(state.get("inventory", []))
     for it in inv:
         if it.get("amount") is None or int(it.get("amount", 0) or 0) < 1:
@@ -316,7 +289,6 @@ def apply_delta(
         else:
             amt_raw = int(rem.amount)
             if amt_raw <= 0:
-                # amount: 0 or negative — treat as full stack remove (LLM mistake)
                 _log.warning(
                     "inventory_remove amount=%r coerced to full remove for %s",
                     rem.amount,
@@ -345,7 +317,6 @@ def apply_delta(
     inv.sort(key=lambda x: 0 if x.get("id") == "credits" else 1)
     state["inventory"] = inv
 
-    # Location — clear NPCs when moving to a new place
     if delta.location_change:
         state["location"] = {
             "id": delta.location_change.id,
@@ -358,7 +329,6 @@ def apply_delta(
     elif delta.location_description:
         state.setdefault("location", {})["description"] = delta.location_description
 
-    # Quests — upsert + objective merge + status side-effects (completed / failed)
     existing_quests: dict[str, dict[str, Any]] = {
         q["id"]: q for q in state.get("quests", [])
     }
@@ -375,7 +345,6 @@ def apply_delta(
                     o["failed"] = True
 
     def _auto_complete_quest(q: dict[str, Any]) -> None:
-        """Auto-complete an active quest when all its objectives are done."""
         if q.get("status") != "active":
             return
         objs = q.get("objectives", [])
@@ -456,18 +425,15 @@ def apply_delta(
             existing_quests[qu.id] = new_q
             _apply_quest_status_side_effects(new_q)
 
-    # Auto-complete active quests whose objectives are all done
     for q in existing_quests.values():
         _auto_complete_quest(q)
 
-    # PC conditions — structured (id-based dedup), add then remove, FIFO cap
     state.setdefault("pc", {}).setdefault("conditions", [])
     existing_conds: list[dict[str, Any]] = []
     for c in state["pc"]["conditions"]:
         if isinstance(c, dict):
             existing_conds.append(c)
         elif isinstance(c, str):
-            # Migrate legacy string conditions on first touch
             cid = c.lower().strip().replace(" ", "_")
             existing_conds.append({"id": cid, "label": c, "description": "", "added_turn": 0})
     remove_ids = {r.id for r in delta.pc_condition_remove}
@@ -487,7 +453,6 @@ def apply_delta(
         existing_ids.add(cid)
     state["pc"]["conditions"] = existing_conds[-PC_CONDITIONS_MAX:]
 
-    # Recent events — remove → update → add (preserves position on update; FIFO cap)
     existing_events: list[str] = list(state.get("scene", {}).get("recent_events") or [])
     remove_keys = {_normalize_fact(s) for s in delta.recent_events_remove}
     existing_events = [
@@ -514,7 +479,6 @@ def apply_delta(
         -recent_events_max:
     ]
 
-    # Scene tags — replace each turn if provided
     if delta.scene_tags:
         state["scene"]["tags"] = delta.scene_tags
 
@@ -628,14 +592,12 @@ PC_CONDITIONS_MAX: int = 5
 
 
 def _normalize_fact(text: Any) -> str:
-    """Normalize a fact string for dedup / removal matching."""
     if not isinstance(text, str):
         text = str(text)
     return " ".join(text.lower().split())
 
 
 def _fact_already_exists(fact: str, existing: list[str]) -> bool:
-    """Check if fact already exists (normalized exact match)."""
     nk = _normalize_fact(fact)
     for ef in existing:
         if nk == _normalize_fact(ef):

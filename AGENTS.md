@@ -62,10 +62,20 @@ If you find logic in the wrong layer, move it rather than pile on.
 
 ## Code quality rules
 
-- Docstrings and comments only when the function is unintuitive, very complex, or otherwise unreadable.
+- **No redundant docstrings or comments.** Remove anything that says what's obvious from the code. Keep only docstrings that explain non-obvious behavior: design decisions, tradeoffs, edge cases, why something is done a certain way, or parameters not obvious from type hints.
+- **No section headers (`# --- ... ---`).** Use blank lines and clear function naming instead.
+- **No dead config keys.** If you remove a feature, remove its `config.yaml` key, `EngineConfig` field, and wiring in `server.py` in the same PR.
+- **No commented-out code.** If something is deferred, track it in `TODO.md` or the plan file; delete it from source.
+- **No silent fallbacks that hide bugs.** Prefer an explicit `if key not in state: raise` or a visible warning over silently inventing a default mid-turn.
+- **One source of truth per concept.** `meta.turn` is the turn counter. `chronicle.md` is narrative history. `compendium.npcs` is durable NPC identity. Don't replicate these elsewhere.
+- **Minimize LLM input tokens.** Every extra token is latency. Audit prompts for: redundant schema duplication, stale context sections, examples that overlap, large narrative echoes.
 - Type hints are fine — rely on the type checker, not comments, to explain types.
 - Fail fast — validate inputs at module boundaries, not deep in logic.
 - No `# noqa` / `# type: ignore` unless absolutely unavoidable (document why).
+
+## Planning
+
+When planning or gathering information to execute a task, split large jobs into segments to preserve your context window. Aim to take in at most 3500 lines of code at time, execute as much as you can, then pause and ask user for input or compaction before the next execution.
 
 ## Known tooling notes
 

@@ -1,15 +1,6 @@
 """Turn engine: two-call pipeline (narrate + extract) with reliability measures.
 
 Turn counter source of truth: engine.py only.
-  - apply_delta in state.py does NOT increment meta.turn.
-  - The engine increments after both calls succeed and before writing events.
-
-Async generator protocol:
-  run_turn() yields:
-    ("token", str)         — one per narrative token, during call 1
-    ("phase", dict)         — progress phases (e.g. narrate_done, extract_start)
-    ("complete", TurnResult) — exactly once at the end
-  Callers should async-for over run_turn() to get streaming behavior.
 """
 
 from __future__ import annotations
@@ -73,8 +64,6 @@ _log = logging.getLogger("ccya.engine")
 
 
 class _EventLock:
-    """Per-key async lock for turn-in-flight guard."""
-
     def __init__(self) -> None:
         self._locks: dict[str, asyncio.Lock] = {}
 
@@ -97,13 +86,7 @@ def is_turn_in_progress(save_dir: str) -> bool:
     return lock is not None and lock.locked()
 
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
-
-
 CONDITION_TTL_TURNS: int = 4
-"""Default number of turns before a condition auto-expires."""
 
 
 @dataclass
@@ -134,19 +117,7 @@ class EngineConfig:
     condition_ttl_turns: int = CONDITION_TTL_TURNS
 
 
-# ---------------------------------------------------------------------------
-# Jinja helpers
-# ---------------------------------------------------------------------------
-
-
 def _build_jinja_env(template_dir: str) -> Environment:
-    # Defaults (trim_blocks=False, lstrip_blocks=False) are intentional: with them
-    # enabled, the newline after every block tag (including inline `{% endif %}`
-    # at end-of-body lines) gets eaten, which collapses bullet lists and glues
-    # section headers to previous content. Templates use explicit `{%- -%}`
-    # whitespace control instead. keep_trailing_newline=True so every section
-    # partial reliably ends with `\n`, and parent templates can rely on a single
-    # trailing newline per `{% include %}` for consistent blank-line spacing.
     return Environment(
         loader=FileSystemLoader(template_dir),
         keep_trailing_newline=True,
@@ -155,11 +126,6 @@ def _build_jinja_env(template_dir: str) -> Environment:
 
 def _render(env: Environment, template_name: str, ctx: dict[str, Any]) -> str:
     return str(env.get_template(template_name).render(**ctx))
-
-
-# ---------------------------------------------------------------------------
-# Prompt builders
-# ---------------------------------------------------------------------------
 
 
 def _narrate_messages(
@@ -176,13 +142,6 @@ def _narrate_messages(
     last_turn_failed: list[str] = [],
     recently_left: list[dict[str, Any]] = [],
 ) -> list[dict[str, str]]:
-    """Build narrate message list: [system, user].
-
-    System carries the static narrative-style rules + the pack-stable genre tone
-    (byte-stable across turns within a save). The user prompt carries every
-    per-turn slice: state, chronicle, recent turns, rules outcome, NPC pool,
-    last-turn-failed, recently-left, and the player input itself.
-    """
     user_ctx = {
         "state": state,
         "chronicle_tail": chronicle_tail,
@@ -207,11 +166,6 @@ def _narrate_messages(
 def _known_characters_for_extract(
     state: dict[str, Any], *, compact: bool = False
 ) -> list[dict[str, Any]]:
-    """Up to 10 compendium NPC rows for extract prompts (LRU order).
-
-    compact=True: id+name only (for stream 1 where we need minimal tokens).
-    compact=False: id+name+title+bio_preview (for stream 3 compendium reasoning).
-    """
     comp = (state.get("compendium") or {}).get("npcs") or {}
     order = list((state.get("meta") or {}).get("compendium_touch_order") or [])
     seen: set[str] = set()
@@ -249,13 +203,6 @@ def _known_characters_for_extract(
 def build_state_slice(
     state: dict[str, Any], active_domains: list[str]
 ) -> dict[str, Any]:
-    """Build a sliced state dict for the extractor based on active domains.
-
-    Only includes state sections relevant to the active domains, reducing
-    input tokens and attention load on the extractor. Sections not in active
-    domains are marked with __HIDDEN__ so the template renders "(hidden)"
-    instead of "Empty" — the extractor must not assume the data is gone.
-    """
     _HIDDEN = "__HIDDEN__"
     pc = state.get("pc") or {}
     location = state.get("location") or {}
@@ -303,7 +250,6 @@ def build_state_slice(
 
 
 def _summarize_applied(applied: dict[str, Any]) -> list[str]:
-    """Short lines for UI diff toast (cap length)."""
     lines: list[str] = []
     if not applied:
         return lines
@@ -1145,11 +1091,6 @@ async def _run_extraction_pipeline(
     )
 
 
-# ---------------------------------------------------------------------------
-# Rules / intent prompt builder + caller
-# ---------------------------------------------------------------------------
-
-
 def _rules_messages(
     env: Environment,
     state: dict[str, Any],
@@ -1157,7 +1098,6 @@ def _rules_messages(
     *,
     recent_turns: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
-    """Build [system, user] messages for Call 0 (rules / intent classification)."""
     pc = state.get("pc") or {}
     location = state.get("location") or {}
     present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
@@ -1184,11 +1124,6 @@ async def _call_rules(
     config: EngineConfig,
     trace_id: str,
 ) -> tuple[IntentEnvelope, dict[str, int], str]:
-    """Execute Call 0 (rules intent classification). Returns (IntentEnvelope, usage, raw_response).
-
-    Degrades gracefully: on any failure returns a no-check envelope so the
-    narrate + extract pipeline proceeds normally without a roll.
-    """
     _no_intent = IntentEnvelope(
         intent="",
         intent_verb="act",
@@ -1265,7 +1200,6 @@ async def _call_rules(
 
 
 def _avg_rules_ms(save_dir: Path, n: int = 5) -> int:
-    """Average rules duration from the last n events. Returns 0 if fewer than 2 samples."""
     path = save_dir / "events.jsonl"
     if not path.exists():
         return 0
@@ -1287,13 +1221,7 @@ def _avg_rules_ms(save_dir: Path, n: int = 5) -> int:
     return int(sum(times) / len(times))
 
 
-# ---------------------------------------------------------------------------
-# JSON extraction helpers
-# ---------------------------------------------------------------------------
-
-
 def _find_json(text: str) -> dict[str, Any] | None:
-    """Find and parse a JSON object from LLM output."""
     text = text.strip()
 
     def _try(t: str) -> dict[str, Any] | None:
@@ -1345,7 +1273,6 @@ def _log_llm_io(
     extra: dict[str, Any] | None = None,
     max_chars: int = 4000,
 ) -> None:
-    """Emit a single DEBUG record with prompt/response payloads."""
     payload: dict[str, Any] = {"phase": phase, "trace_id": trace_id}
     if messages is not None:
         payload["messages"] = [
@@ -1368,11 +1295,6 @@ _PROMPTS_LOG_PATH = Path("logs/prompts.log")
 
 
 def _log_prompts(turn: int, call: str, messages: list[dict[str, str]]) -> None:
-    """Write a fully formatted prompt block to logs/prompts.log.
-
-    Each call (rules / narrate / extract) gets its own section within the
-    turn block.  The file is appended to; a separator line demarcates turns.
-    """
     lines: list[str] = []
     lines.append(f"## Turn {turn} — {call}")
     lines.append("")
@@ -1396,7 +1318,6 @@ def _log_prompts(turn: int, call: str, messages: list[dict[str, str]]) -> None:
 def _log_rules_outcome(
     turn: int, intent: "IntentEnvelope", outcome: "RulesOutcome"
 ) -> None:
-    """Append the rules engine output (intent + dice roll) to prompts.log for the given turn."""
     lines: list[str] = []
     lines.append(f"## Turn {turn} — rules engine output")
     lines.append("")
@@ -1437,7 +1358,6 @@ def _log_rules_outcome(
 
 
 def _avg_narrate_ms(save_dir: Path, n: int = 5) -> int:
-    """Average narrate duration from the last n events. Returns 0 if fewer than 2 samples."""
     path = save_dir / "events.jsonl"
     if not path.exists():
         return 0
@@ -1461,7 +1381,6 @@ def _avg_narrate_ms(save_dir: Path, n: int = 5) -> int:
 
 
 def _avg_extract_ms(save_dir: Path, n: int = 5) -> int:
-    """Average extract duration from the last n events. Returns 0 if fewer than 2 samples."""
     path = save_dir / "events.jsonl"
     if not path.exists():
         return 0
@@ -1484,11 +1403,6 @@ def _avg_extract_ms(save_dir: Path, n: int = 5) -> int:
     return int(sum(times) / len(times))
 
 
-# ---------------------------------------------------------------------------
-# Public async-generator API
-# ---------------------------------------------------------------------------
-
-
 async def run_turn(
     save_dir: Path,
     user_input: str,
@@ -1499,11 +1413,6 @@ async def run_turn(
     pack_examples: list[ExtractExample] | None = None,
     pack_name_locales: list[dict[str, Any]] = [],
 ) -> AsyncIterator[tuple[str, Any]]:
-    """Execute one turn. Async generator yielding:
-    ("token", str)          — one per narrative chunk during call 1
-    ("phase", dict)         — UI progress (narrate_done, extract_start, etc.)
-    ("complete", TurnResult) — final result after call 2
-    """
     if config is None:
         config = EngineConfig()
 
@@ -1952,20 +1861,7 @@ async def run_turn(
         await _inflight.release(str(save_dir))
 
 
-# ---------------------------------------------------------------------------
-# Delta validator
-# ---------------------------------------------------------------------------
-
-
 def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
-    """Strict delta validator. Returns rejection dicts for illegal changes.
-
-    Note: an over-draw on ``inventory_remove.amount`` (asking to remove more than
-    is in stock) is recorded as a non-blocking ``warn_overdraw`` rejection — the
-    delta still applies (``apply_delta`` clamps to a full-stack remove), but the
-    discrepancy is surfaced in the event log so we can tell when the model
-    miscounted ammunition / consumables.
-    """
     rejections: list[dict[str, Any]] = []
 
     inv_list: list[dict[str, Any]] = state.get("inventory", [])
@@ -2013,22 +1909,11 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
     return rejections
 
 
-# ---------------------------------------------------------------------------
-# generate_seed — New Game for dynamic packs
-# ---------------------------------------------------------------------------
-
-
 def _build_generate_seed_messages(
     env: Environment,
     pack: Pack,
     overrides: PlayerOverrides | None = None,
 ) -> list[dict[str, str]]:
-    """Build the [system, user] messages for generate_seed.
-
-    The system prompt carries hand-written TS-style schema + canon rules and is
-    pack-stable. The user prompt carries the world bible, scenario inspiration,
-    player overrides, and name pool — all per-new-game.
-    """
     name_pool = generate_name_pool(pack.manifest.name_locales)
     ctx = {
         "world_text": pack.world_text,
@@ -2053,8 +1938,6 @@ def _soft_validate_seed(
     pack: Pack,
     overrides: PlayerOverrides | None = None,
 ) -> list[str]:
-    """Post-Pydantic soft checks that emit warnings but don't fail generation.
-    Returns a list of warning strings (empty = all good)."""
     warnings: list[str] = []
     c = pack.scenario.constraints if pack.scenario else None
     if not c:
@@ -2115,11 +1998,6 @@ async def generate_seed(
     seed: int | None = None,
     template_dir: str | None = None,
 ) -> SeedEnvelope:
-    """Generate a fresh SeedEnvelope for a dynamic pack.
-
-    Retries up to config.generate_seed_max_retries on parse/validation failure.
-    Uses config.generate_seed_temperature (default 0.9) for creative variance.
-    """
     if pack.manifest.mode != "dynamic":
         raise ValueError(
             f"generate_seed() requires a dynamic pack, got mode={pack.manifest.mode!r}"
@@ -2237,13 +2115,7 @@ async def generate_seed(
     )
 
 
-# ---------------------------------------------------------------------------
-# Startup warmup
-# ---------------------------------------------------------------------------
-
-
 async def warmup(config: EngineConfig) -> None:
-    """Silent chat call to pre-load the model."""
     try:
         await llm_chat(
             config.host,
