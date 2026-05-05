@@ -60,11 +60,11 @@ class TestComputeBand:
     def test_final_7_is_setback(self):
         assert compute_band(7, (3, 4)) == "setback"
 
-    def test_final_8_is_mixed(self):
-        assert compute_band(8, (4, 4)) == "mixed"
+    def test_final_8_is_partial(self):
+        assert compute_band(8, (4, 4)) == "partial"
 
-    def test_final_9_is_boon(self):
-        assert compute_band(9, (4, 5)) == "boon"
+    def test_final_9_is_partial(self):
+        assert compute_band(9, (4, 5)) == "partial"
 
     def test_final_10_is_success(self):
         assert compute_band(10, (5, 5)) == "success"
@@ -176,13 +176,66 @@ class TestBuildDirective:
             "crit_fail",
             "fail",
             "setback",
-            "mixed",
-            "boon",
+            "partial",
             "success",
             "crit_success",
         ]:
             d = build_directive(band, "hack", "wits")
             assert isinstance(d, str) and len(d) > 5
+
+
+class TestVerbCategory:
+    def test_combat_verbs(self):
+        from ccya.rules import _VERB_CATEGORY
+        for v in ("fight", "attack", "defend"):
+            assert _VERB_CATEGORY[v] == "combat"
+
+    def test_social_verbs(self):
+        from ccya.rules import _VERB_CATEGORY
+        for v in ("persuade", "deceive", "intimidate", "negotiate"):
+            assert _VERB_CATEGORY[v] == "social"
+
+    def test_exploration_verbs(self):
+        from ccya.rules import _VERB_CATEGORY
+        for v in ("search", "investigate", "sneak"):
+            assert _VERB_CATEGORY[v] == "exploration"
+
+    def test_movement_verbs(self):
+        from ccya.rules import _VERB_CATEGORY
+        for v in ("flee", "chase"):
+            assert _VERB_CATEGORY[v] == "movement"
+
+    def test_unknown_verb_defaults(self):
+        from ccya.rules import _VERB_CATEGORY
+        assert _VERB_CATEGORY.get("jump") is None
+
+    def test_setback_verb_differentiated(self):
+        d = build_directive("setback", "fight", "strength")
+        assert "wound" in d.lower() or "ground" in d.lower()
+
+    def test_partial_verb_differentiated(self):
+        d = build_directive("partial", "persuade", "charisma")
+        assert "leverage" in d.lower()
+
+    def test_partial_exploration(self):
+        d = build_directive("partial", "sneak", "dexterity")
+        assert "trap" in d.lower() or "witness" in d.lower() or "timer" in d.lower()
+
+    def test_setback_default_fallback(self):
+        d = build_directive("setback", "jump", "dexterity")
+        assert "resource" in d.lower() or "time" in d.lower()
+
+    def test_partial_default_fallback(self):
+        d = build_directive("partial", "jump", "dexterity")
+        assert "wanted" in d.lower() or "wrong" in d.lower()
+
+    def test_non_setback_partial_unchanged(self):
+        d = build_directive("success", "fight", "strength")
+        assert "succeeds cleanly" in d
+
+    def test_crit_fail_unchanged(self):
+        d = build_directive("crit_fail", "fight", "strength")
+        assert "catastrophically" in d
 
 
 # ---------------------------------------------------------------------------
@@ -356,8 +409,7 @@ class TestResolveCheck:
                 "crit_fail",
                 "fail",
                 "setback",
-                "mixed",
-                "boon",
+                "partial",
                 "success",
                 "crit_success",
             }

@@ -38,8 +38,8 @@ flowchart TD
     end
 
     subgraph P2["P2 — Interesting Storytelling"]
-        P2A[Band collapse to partial]:::p2
-        P2B[Verb-differentiated directives]:::p2
+    P2A[Band collapse to partial ~~done~~]:::p2
+    P2B[Verb-differentiated directives ~~done~~]:::p2
         P2C[Momentum track]:::p2
         P2D[Scene pressure]:::p2
         P2E[Active DM / GM beat]:::p2
@@ -97,8 +97,8 @@ flowchart TD
 
 ## P2 Exit Criteria
 
-- 5-band resolution system (`crit_fail`, `fail`, `setback`, `partial`, `success`, `crit_success`); `mixed`/`boon` removed
-- `build_directive()` produces verb-category-differentiated instructions for `setback` and `partial`
+- ~~5-band resolution system (`crit_fail`, `fail`, `setback`, `partial`, `success`, `crit_success`); `mixed`/`boon` removed~~
+- ~~`build_directive()` produces verb-category-differentiated instructions for `setback` and `partial`~~
 - Momentum track persists on PC; narrator receives directive at |momentum| >= 2
 - Scene pressure list drives `ACTIVE THREATS` block in narrator; at least one pack using it
 - GM beat emitted by progress extractor and consumed by narrator on following turn

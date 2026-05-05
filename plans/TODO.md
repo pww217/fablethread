@@ -36,8 +36,8 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 
 ## P2 — Interesting Storytelling
 
-- **Band collapse to `partial`** — remove `mixed` + `boon` from `GM_MOVES` and `compute_band()`; add `partial` (finals 8–9). See `plans/band-collapse.md`
-- **Verb-differentiated directives** — `build_directive()` branches on `_verb_category(intent_verb)` with per-`(band, category)` directive table. See `plans/band-collapse.md`
+- ~~**Band collapse to `partial`** — remove `mixed` + `boon` from `GM_MOVES` and `compute_band()`; add `partial` (finals 8–9). See `plans/band-collapse.md`~~
+- ~~**Verb-differentiated directives** — `build_directive()` branches on `_verb_category(intent_verb)` with per-`(band, category)` directive table. See `plans/band-collapse.md`~~
 - **Momentum track** — add `momentum: int` to PC state; `apply_momentum()` in `engine.py` after rules resolves; inject directive into `narrate_user.j2` at |momentum| >= 2. Depends on band collapse. See `plans/momentum-track.md`
 - **Scene pressure** — `scene.scene_pressure` list separate from `world_state`; extractor adds/removes pressure entries; narrator gets `ACTIVE THREATS` block. See `plans/scene-pressure.md`
 - **Active DM / GM beat** — progress extractor emits `gm_beat`; engine stores as `pending_gm_beat` in meta; narrator consumes on next turn. See `plans/progress-dm-storytelling.md`

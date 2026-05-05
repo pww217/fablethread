@@ -79,7 +79,7 @@ class TestSystemPromptByteStability:
     def _roll(self) -> RulesOutcome:
         return RulesOutcome(
             rolled=True, skill="strength", difficulty="hard",
-            final_total=8, band="mixed",
+            final_total=8, band="partial",
             directive="The strike succeeds with cost.",
         )
 

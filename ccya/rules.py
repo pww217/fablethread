@@ -48,15 +48,10 @@ GM_MOVES: dict[str, list[str]] = {
         "The situation worsens slightly; you are worse off than before you acted.",
         "A complication interrupts your plan and pushes you back.",
     ],
-    "mixed": [
-        "Mostly neutral, but a small complication lingers — a minor cost or inconvenience.",
-        "The outcome is even, with a slight edge toward complication.",
-        "Nothing major changes, but a minor annoyance arises.",
-    ],
-    "boon": [
-        "You gain a small advantage — a useful detail, a moment of respite, or a minor resource.",
-        "A minor boon: something works in your favour, though not enough to count as success.",
-        "A small benefit accrues, but the main goal remains unfulfilled.",
+    "partial": [
+        "You get what you wanted, but something is taken from you or goes wrong in the process.",
+        "You succeed but at a cost — a resource spent, a wound taken, or a complication started.",
+        "The outcome is positive but carries a real price.",
     ],
     "success": [
         "Clean success — you do what you intended.",
@@ -67,6 +62,35 @@ GM_MOVES: dict[str, list[str]] = {
         "You succeed outstandingly; gain a small additional benefit.",
     ],
 }
+
+_VERB_CATEGORY: dict[str, str] = {
+    "fight": "combat", "attack": "combat", "defend": "combat",
+    "flee": "movement", "chase": "movement",
+    "persuade": "social", "deceive": "social",
+    "intimidate": "social", "negotiate": "social",
+    "search": "exploration", "investigate": "exploration", "sneak": "exploration",
+}
+
+_DIRECTIVE_TABLE: dict[str, dict[str, str]] = {
+    "setback": {
+        "combat":      "You land the blow but take a wound or lose ground.",
+        "social":      "They're listening, but now they want something in return.",
+        "exploration": "You find a lead, but you've made noise — someone knows you're looking.",
+        "movement":    "You move, but something is left behind or someone follows.",
+        "default":     "You are set back — a resource is spent, time is lost, or a new problem appears.",
+    },
+    "partial": {
+        "combat":      "You succeed but at a cost — a resource spent, a wound taken, or a complication started.",
+        "social":      "You get what you asked for, but they now hold leverage over you.",
+        "exploration": "You find it, but you've triggered something: a trap, a witness, a timer.",
+        "movement":    "You reach your destination, but something went wrong on the way.",
+        "default":     "You get what you wanted, but something is taken from you or goes wrong in the process.",
+    },
+}
+
+
+def _verb_category(intent_verb: str | None) -> str:
+    return _VERB_CATEGORY.get(intent_verb.lower() if intent_verb else "", "default")
 
 VALID_SKILLS: frozenset[str] = frozenset(
     ["strength", "dexterity", "wits", "lore", "charisma", "resolve"]
@@ -88,10 +112,8 @@ def compute_band(final_total: int, dice: tuple[int, int]) -> str:
         return "fail"
     if final_total == 7:
         return "setback"
-    if final_total == 8:
-        return "mixed"
-    if final_total == 9:
-        return "boon"
+    if final_total <= 9:
+        return "partial"
     if final_total <= 11:
         return "success"
     return "crit_success"
@@ -112,6 +134,13 @@ def conditions_modifier(skill: str, conditions: list[Any]) -> int:
 
 
 def build_directive(band: str, intent_verb: str, skill: str) -> str:
+    if band in ("setback", "partial"):
+        cat = _verb_category(intent_verb)
+        table = _DIRECTIVE_TABLE.get(band, {})
+        verb = intent_verb or "action"
+        directive = table.get(cat) or table.get("default")
+        if directive:
+            return f"The {verb} results in a {band}. {directive}"
     moves = GM_MOVES.get(band, GM_MOVES["success"])
     base = moves[0]
     verb = intent_verb or "action"
@@ -119,12 +148,6 @@ def build_directive(band: str, intent_verb: str, skill: str) -> str:
         return f"The {verb} fails catastrophically. {base}"
     if band == "fail":
         return f"The {verb} fails. {base}"
-    if band == "setback":
-        return f"The {verb} results in a minor setback. {base}"
-    if band == "mixed":
-        return f"The {verb} is mostly neutral with a slight complication. {base}"
-    if band == "boon":
-        return f"The {verb} grants a minor advantage. {base}"
     if band == "success":
         return f"The {verb} succeeds cleanly. {base}"
     if band == "crit_success":

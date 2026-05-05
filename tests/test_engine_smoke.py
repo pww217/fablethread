@@ -417,7 +417,7 @@ class TestPromptComposition:
         s2 = _make_state(turn=5)
         s2["pc"]["conditions"] = [{"id": "wounded", "label": "wounded", "description": "hit", "added_turn": 4}]
         from ccya.models import RulesOutcome
-        roll = RulesOutcome(rolled=True, skill="strength", difficulty="hard", final_total=8, band="mixed", directive="The strike succeeds with cost.")
+        roll = RulesOutcome(rolled=True, skill="strength", difficulty="hard", final_total=8, band="partial", directive="The strike succeeds with cost.")
         m1 = _extract_state_messages(env, "N1", s1, scene_result=scene)
         m2 = _extract_state_messages(env, "N2", s2, scene_result=scene, rules_outcome=roll)
         sys1 = next(m for m in m1 if m["role"] == "system")["content"]
@@ -580,7 +580,7 @@ class TestPromptComposition:
         state2 = _make_state(turn=5)
         state2["scene"]["recent_events"] = [_make_recent_event("some_fact", "some new fact")]
         from ccya.models import RulesOutcome
-        roll = RulesOutcome(rolled=True, skill="strength", difficulty="hard", final_total=8, band="mixed", directive="The strike succeeds with cost.")
+        roll = RulesOutcome(rolled=True, skill="strength", difficulty="hard", final_total=8, band="partial", directive="The strike succeeds with cost.")
         m1 = _narrate_messages(env, state1, "look", pack_style="dark sci-fi")
         m2 = _narrate_messages(
             env, state2, "examine", pack_style="dark sci-fi",
