@@ -26,6 +26,7 @@ from ccya.engine import (
     _extract_scene_messages,
     _extract_state_messages,
     _extract_progress_messages,
+    _expire_scene_pressures,
 )
 from ccya.llm_client import strip_thinking
 from ccya.models import (
@@ -2072,3 +2073,141 @@ class TestEntityDedup:
         npcs = updated["compendium"]["npcs"]
         assert "scarred soldier" in npcs["kael_marsh"]["aliases"]
         assert "the soldier" in npcs["kael_marsh"]["aliases"]
+
+
+# ---------------------------------------------------------------------------
+# _expire_scene_pressures
+# ---------------------------------------------------------------------------
+
+
+class TestExpireScenePressures:
+    def _make_state_with_pressures(self, turn: int, pressures: list[dict]) -> dict:
+        state = _make_state(turn=turn)
+        state["scene"]["scene_pressure"] = pressures
+        return state
+
+    def test_no_pressures_noop(self) -> None:
+        state = _make_state()
+        state["scene"]["scene_pressure"] = []
+        delta = StateDelta()
+        _expire_scene_pressures(state, delta)
+        assert delta.scene_pressure_remove == []
+        assert state["scene"]["scene_pressure"] == []
+
+    def test_remove_expired_by_max_turns(self) -> None:
+        state = self._make_state_with_pressures(
+            turn=10,
+            pressures=[
+                {"id": "fire", "text": "Building is on fire", "urgency": "immediate", "turn_added": 7, "max_turns": 3},
+                {"id": "guards", "text": "Guards approaching", "urgency": "building", "turn_added": 8, "max_turns": 5},
+            ],
+        )
+        delta = StateDelta()
+        _expire_scene_pressures(state, delta)
+        assert "fire" in delta.scene_pressure_remove
+        assert "guards" not in delta.scene_pressure_remove
+        # State list is unchanged — apply_delta handles the actual removal.
+        assert len(state["scene"]["scene_pressure"]) == 2
+
+    def test_escalate_background_to_building(self) -> None:
+        state = self._make_state_with_pressures(
+            turn=8,
+            pressures=[
+                {"id": "whispers", "text": "Strange whispers", "urgency": "background", "turn_added": 1},
+            ],
+        )
+        delta = StateDelta()
+        _expire_scene_pressures(state, delta)
+        assert state["scene"]["scene_pressure"][0]["urgency"] == "building"
+
+    def test_escalate_building_to_immediate(self) -> None:
+        state = self._make_state_with_pressures(
+            turn=16,
+            pressures=[
+                {"id": "guards", "text": "Guards approaching", "urgency": "building", "turn_added": 5},
+            ],
+        )
+        delta = StateDelta()
+        _expire_scene_pressures(state, delta)
+        assert state["scene"]["scene_pressure"][0]["urgency"] == "immediate"
+
+    def test_stepwise_escalation_not_jumping(self) -> None:
+        """Background at turn 11 should escalate to building first, not skip to immediate."""
+        state = self._make_state_with_pressures(
+            turn=11,
+            pressures=[
+                {"id": "whispers", "text": "Strange whispers", "urgency": "background", "turn_added": 1},
+            ],
+        )
+        delta = StateDelta()
+        _expire_scene_pressures(state, delta)
+        # At turn 11, age=10 >= building_at(6), so background→building
+        # But age=10 >= immediate_at(10) too — stepwise means building first
+        assert state["scene"]["scene_pressure"][0]["urgency"] == "building"
+
+    def test_skip_pressures_without_turn_added(self) -> None:
+        """Pressures without turn_added (predate tracking) should not be expired or escalated."""
+        state = self._make_state_with_pressures(
+            turn=100,
+            pressures=[
+                {"id": "old_threat", "text": "Ancient danger", "urgency": "background"},
+            ],
+        )
+        delta = StateDelta()
+        _expire_scene_pressures(state, delta)
+        assert delta.scene_pressure_remove == []
+        assert state["scene"]["scene_pressure"][0]["urgency"] == "background"
+
+    def test_skip_pressures_with_turn_added_zero(self) -> None:
+        """Pressures with turn_added=0 should not be expired or escalated."""
+        state = self._make_state_with_pressures(
+            turn=100,
+            pressures=[
+                {"id": "zero_turn", "text": "Zero turn", "urgency": "background", "turn_added": 0},
+            ],
+        )
+        delta = StateDelta()
+        _expire_scene_pressures(state, delta)
+        assert delta.scene_pressure_remove == []
+        assert state["scene"]["scene_pressure"][0]["urgency"] == "background"
+
+    def test_custom_thresholds_from_config(self) -> None:
+        config = EngineConfig(scene_pressure_building_at=3, scene_pressure_immediate_at=5)
+        state = self._make_state_with_pressures(
+            turn=4,
+            pressures=[
+                {"id": "pressure", "text": "Test", "urgency": "background", "turn_added": 1},
+            ],
+        )
+        delta = StateDelta()
+        _expire_scene_pressures(state, delta, config)
+        assert state["scene"]["scene_pressure"][0]["urgency"] == "building"
+
+    def test_no_change_no_state_write(self) -> None:
+        """If nothing changes, state should not be rewritten."""
+        state = self._make_state_with_pressures(
+            turn=3,
+            pressures=[
+                {"id": "pressure", "text": "Test", "urgency": "background", "turn_added": 1},
+            ],
+        )
+        original_list = state["scene"]["scene_pressure"]
+        delta = StateDelta()
+        _expire_scene_pressures(state, delta)
+        assert state["scene"]["scene_pressure"] is original_list
+
+    def test_mixed_expired_and_alive(self) -> None:
+        state = self._make_state_with_pressures(
+            turn=10,
+            pressures=[
+                {"id": "a", "text": "Expired", "urgency": "background", "turn_added": 5, "max_turns": 3},
+                {"id": "b", "text": "Alive", "urgency": "building", "turn_added": 8},
+                {"id": "c", "text": "Also expired", "urgency": "background", "turn_added": 1, "max_turns": 5},
+            ],
+        )
+        delta = StateDelta()
+        _expire_scene_pressures(state, delta)
+        assert "a" in delta.scene_pressure_remove
+        assert "c" in delta.scene_pressure_remove
+        # State list is unchanged — apply_delta handles the actual removal.
+        assert len(state["scene"]["scene_pressure"]) == 3

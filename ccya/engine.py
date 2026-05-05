@@ -113,6 +113,9 @@ class EngineConfig:
     rules_temperature: float = 0.2
     max_rules_retries: int = 1
     log_prompts: bool = False
+    # Scene pressure urgency escalation thresholds (turns)
+    scene_pressure_building_at: int = 6
+    scene_pressure_immediate_at: int = 10
 
 
 def _build_jinja_env(template_dir: str) -> Environment:
@@ -306,6 +309,15 @@ def _summarize_applied(applied: dict[str, Any]) -> list[str]:
     for u in applied.get("compendium_npc_update") or []:
         if isinstance(u, dict) and u.get("id"):
             lines.append(f"~ Dossier: {u['id']}")
+    for p in applied.get("scene_pressure_add") or []:
+        if isinstance(p, dict):
+            lines.append(f"+ [{p.get('urgency', '?')}] {p.get('text', '?')}")
+    for p in applied.get("scene_pressure_update") or []:
+        if isinstance(p, dict) and p.get("id"):
+            lines.append(f"~ Pressure: {p['id']} updated")
+    for rid in applied.get("scene_pressure_remove") or []:
+        if isinstance(rid, str):
+            lines.append(f"- Pressure: {rid}")
     loc = applied.get("location_change")
     if isinstance(loc, dict) and (loc.get("name") or loc.get("id")):
         lines.append(f"→ {loc.get('name') or loc.get('id')}")
@@ -817,6 +829,7 @@ def _extract_progress_messages(
     }
 
     system_text = _render(env, "extract_progress_system.j2", {})
+    scene_pressure = list((state.get("scene") or {}).get("scene_pressure") or [])
     user_text = _render(
         env,
         "extract_progress_user.j2",
@@ -826,6 +839,7 @@ def _extract_progress_messages(
             "active_quests": active_quests,
             "recent_events": recent_events,
             "world_state": world_state,
+            "scene_pressure": scene_pressure,
             "known_characters": known_characters,
             "scene_result": scene_ctx,
             "state_result": state_ctx,
@@ -1075,6 +1089,9 @@ async def _run_extraction_pipeline(
         recent_events_update=progress_result.recent_events_update,
         recent_events_remove=progress_result.recent_events_remove,
         compendium_npc_update=progress_result.compendium_npc_update,
+        scene_pressure_add=progress_result.scene_pressure_add,
+        scene_pressure_remove=progress_result.scene_pressure_remove,
+        scene_pressure_update=progress_result.scene_pressure_update,
     )
 
     return (
@@ -1398,6 +1415,50 @@ def _avg_extract_ms(save_dir: Path, n: int = 5) -> int:
     return int(sum(times) / len(times))
 
 
+def _expire_scene_pressures(
+    state: dict[str, Any], delta: StateDelta, config: EngineConfig | None = None
+) -> None:
+    """Remove expired pressures and escalate urgency based on age.
+
+    Expired = current_turn - turn_added >= max_turns (if set).
+    Escalation: background → building at config threshold, building → immediate at config threshold.
+    Pressures without a valid turn_added (0 or missing) are skipped — they predate
+    this tracking and should not be auto-expired.
+    """
+    pressures = list((state.get("scene") or {}).get("scene_pressure") or [])
+    current_turn = (state.get("meta") or {}).get("turn", 0)
+    removed_ids: set[str] = set()
+    building_at = 6
+    immediate_at = 10
+    if config:
+        building_at = config.scene_pressure_building_at
+        immediate_at = config.scene_pressure_immediate_at
+
+    alive: list[dict[str, Any]] = []
+    for p in pressures:
+        if not isinstance(p, dict):
+            continue
+        turn_added = p.get("turn_added")
+        # Skip pressures without turn_added — they predate this tracking.
+        if turn_added is None or turn_added == 0:
+            alive.append(p)
+            continue
+        max_turns = p.get("max_turns")
+        if max_turns is not None and (current_turn - turn_added) >= max_turns:
+            removed_ids.add(p.get("id", ""))
+            continue
+        age = current_turn - turn_added
+        urgency = p.get("urgency", "background")
+        if age >= immediate_at and urgency == "building":
+            p["urgency"] = "immediate"
+        elif age >= building_at and urgency == "background":
+            p["urgency"] = "building"
+        alive.append(p)
+
+    if removed_ids:
+        delta.scene_pressure_remove.extend(sorted(removed_ids))
+
+
 async def run_turn(
     save_dir: Path,
     user_input: str,
@@ -1650,6 +1711,10 @@ async def run_turn(
             errors.append({"trace_id": trace_id, "message": str(exc)})
 
         yield ("phase", {"phase": "extract_done"})
+
+        # --- Scene pressure: expiry + urgency escalation ---
+        if delta is not None:
+            _expire_scene_pressures(state, delta, config)
 
         ext_ms = (asyncio.get_event_loop().time() - t2) * 1000
         # Roll up per-stream token counts for the metrics dict

@@ -167,6 +167,7 @@ def _default_state() -> dict[str, Any]:
             "world_state": [],
             "recent_events": [],
             "tagline": "",
+            "scene_pressure": [],
         },
         "compendium": {"npcs": {}},
     }
@@ -584,6 +585,39 @@ def apply_delta(
     # Evict oldest by turn (sort ascending, drop oldest)
     existing_events.sort(key=lambda e: e.get("turn", 0))
     scene["recent_events"] = existing_events[-recent_events_max:]
+
+    # --- scene_pressure ---
+    pressures = list(scene.setdefault("scene_pressure", []))
+    pressure_ids = {p.get("id") for p in pressures if isinstance(p, dict)}
+
+    # Remove by ID
+    for rid in delta.scene_pressure_remove:
+        pressures = [p for p in pressures if p.get("id") != rid]
+        pressure_ids.discard(rid)
+
+    # Update by ID
+    for upd in delta.scene_pressure_update:
+        for i, p in enumerate(pressures):
+            if isinstance(p, dict) and p.get("id") == upd.id:
+                if upd.text:
+                    pressures[i]["text"] = upd.text
+                if upd.urgency:
+                    pressures[i]["urgency"] = upd.urgency
+                break
+
+    # Add — reject if ID already exists
+    for press in delta.scene_pressure_add:
+        if press.id not in pressure_ids:
+            pressures.append({
+                "id": press.id,
+                "text": press.text,
+                "urgency": press.urgency or "background",
+                "turn_added": press.turn_added or current_turn,
+                "max_turns": press.max_turns,
+            })
+            pressure_ids.add(press.id)
+
+    scene["scene_pressure"] = pressures
 
     if delta.scene_tags:
         state["scene"]["tags"] = delta.scene_tags

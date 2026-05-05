@@ -22,6 +22,11 @@
 ## World State (immutable)
 {% include "sections/_world_state.j2" %}
 {% endif -%}
+{% if state.scene.scene_pressure -%}
+## ACTIVE THREATS (must be reflected in narration)
+{% for p in state.scene.scene_pressure %}- [{{ p.urgency | upper }}] {{ p.text }}
+{% endfor -%}
+{% endif -%}
 {% if state.scene.recent_events -%}
 ## Recent Events
 {% include "sections/_recent_events.j2" %}
