@@ -57,7 +57,7 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - **KV-cache pinning** — ensure system prompts are stable strings eligible for provider-side KV caching. See `plans/p3-inference/prompt-optimization.md`
 - **Model-agnostic thinking infra** — abstract reasoning/thinking config so it works across Anthropic, Gemini, and local models. See `plans/p3-inference/prompt-optimization.md`
 - **Dev mode dual-model setup** — cheap fast model for dev iteration, production model behind a flag. See `plans/p3-inference/prompt-optimization.md`
-- **Two-tier eval harness** — (1) Tier 1: `_FakeLLM` fixture-based integration tests in `tests/test_evals.py`, parametrized over `tests/evals/fixtures/*.yaml`, runs as part of `make test`, offline/fast/CI-safe; (2) Tier 2: `make eval` live-server qualitative pipeline — `scripts/run_evals.py` seeds state, POSTs turns via `GET /turn?input=`, fetches `GET /turn_viewer/data`, writes per-phase JSONL to `evals/outputs/` (gitignored), inspectable with `jq` or `scripts/eval_inspect.py`. See `plans/p3-inference/eval-harness.md`
+- **Eval harness** — Two-tier system. Tier 1: `tests/test_engine_pipeline.py` — token-budget ceilings, multi-turn invariants, scope-gating tests; uses `_FakeLLM`; runs under `make test`. Tier 2: `make eval` — in-process `run_turn()` driver over static `eval-pack`, 6-turn `full_cycle` scenario, single LLM judge, REPORT.md with token-regression flags at top. See `plans/p3-inference/eval-harness.md` and phase files `plans/p3-inference/eval-harness/0{1..7}-*.md`. **7 phases, implement in order — each phase ends with a STOP HERE / new chat point.**
 
 ---
 

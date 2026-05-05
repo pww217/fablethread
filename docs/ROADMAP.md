@@ -54,6 +54,7 @@ flowchart TD
         P3D[KV-cache pinning]:::p3
         P3E[Model-agnostic thinking infra]:::p3
         P3F[Dev mode dual-model setup]:::p3
+        P3G["Eval harness — 7 phases<br/>Tier 1: token ceilings + multi-turn invariants<br/>Tier 2: make eval, judge, REPORT.md"]:::p3
     end
 
     subgraph P4["P4 — World Continuity"]
@@ -73,8 +74,9 @@ flowchart TD
     P1J --> P2A
     P2A --> P2B --> P2C
     P2A --> P2D & P2E & P2F & P2G
-    P1J --> P3A & P3B & P3C
+    P1J --> P3A & P3B & P3C & P3G
     P3A & P3B --> P3D & P3E & P3F
+    P3C --> P3G
     P1J --> P4A
     P4A --> P4B & P4C & P4D & P4E & P4F & P4G & P4H
 ```
@@ -113,6 +115,8 @@ flowchart TD
 - `recent_turns` context replaced with compact outcome summaries
 - System prompts verified stable for KV-cache eligibility
 - Local and remote model selection controlled by a single config flag
+- `make test` includes token-budget ceiling assertions and multi-turn invariant tests (Tier 1 eval harness)
+- `make eval` runs the `full_cycle` scenario end-to-end: in-process driver → LLM judge → REPORT.md with per-stream token regression flags (Tier 2 eval harness)
 
 ---
 
