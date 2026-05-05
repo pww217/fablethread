@@ -13,6 +13,11 @@
 - mixed / boon: partial. Minor complication or resource loss.
 - success / crit_success: apply changes freely.
 
+## roll_context
+skill: {{ rules_outcome.skill }}
+band: {{ rules_outcome.band }}
+directive: {{ rules_outcome.directive }}
+
 {% endif -%}
 ## pc
 {{ pc.name }} — {{ pc.tagline }}
@@ -20,11 +25,6 @@
 {% if "pc_condition" in active_domains and conditions -%}
 ## active_conditions
 {% for c in conditions %}- `{{ c.id if c is mapping else c }}` | {{ c.label if c is mapping else c }}{% if c is mapping and c.get('description') %} — {{ c.description }}{% endif %}
-{% endfor %}
-{% endif -%}
-{% if engine_expired_conditions -%}
-## engine_expired_conditions (already removed by engine — do NOT re-add)
-{% for c in engine_expired_conditions %}- `{{ c.id if c is mapping else c }}`: {{ c.label if c is mapping else c }}
 {% endfor %}
 {% endif -%}
 {% if "inventory" in active_domains and inventory -%}

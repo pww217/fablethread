@@ -246,6 +246,36 @@ def resolve_inventory_remove_target(
     return None
 
 
+def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> list[str]:
+    """Validate and clean `delta` against current `state`.
+
+    Returns a list of warning strings for logging.
+    Mutates delta in place.
+    """
+    warnings: list[str] = []
+
+    # 1. Inventory: item in both add and remove -> drop from add
+    add_ids = {i.id for i in delta.inventory_add}
+    remove_ids = {r.id for r in delta.inventory_remove}
+    conflict = add_ids & remove_ids
+    if conflict:
+        delta.inventory_add = [i for i in delta.inventory_add if i.id not in conflict]
+        warnings.append(f"inventory conflict (add+remove same turn): {sorted(conflict)}")
+
+    # 2. Conditions: don't add a condition already active
+    existing_conds = {
+        c.get("id") for c in (state.get("pc") or {}).get("conditions") or []
+        if isinstance(c, dict)
+    }
+    remove_ids = {r.id for r in delta.pc_condition_remove}
+    dupes = [c for c in delta.pc_condition_add if c.id in existing_conds and c.id not in remove_ids]
+    if dupes:
+        delta.pc_condition_add = [c for c in delta.pc_condition_add if c.id not in existing_conds and c.id not in remove_ids]
+        warnings.append(f"duplicate condition add ignored: {[c.id for c in dupes]}")
+
+    return warnings
+
+
 def apply_delta(
     state: dict[str, Any], delta: StateDelta, *, recent_events_max: int = 15
 ) -> dict[str, Any]:

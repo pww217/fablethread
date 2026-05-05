@@ -125,14 +125,6 @@
                                 </div>
 
                                 <div class="tv-stage-body" x-show="expandedKey(t.turn, stage)">
-                                    <template x-if="stage === 'state' && t.engine_expired_conditions && t.engine_expired_conditions.length">
-                                        <div class="tv-ttl-chip">
-                                            TTL removed:
-                                            <template x-for="ex in t.engine_expired_conditions" :key="(ex.id || ex.label || '?') + '-' + $index">
-                                                <span class="tv-chip" x-text="ex.id || ex.label || '?'"></span>
-                                            </template>
-                                        </div>
-                                    </template>
                                     <template x-if="stage === 'state' && t.state_rejections && t.state_rejections.length">
                                         <div class="tv-rejection-banner">
                                             <template x-for="r in t.state_rejections" :key="(r.value || '') + '-' + (r.reason || '') + '-' + $index">

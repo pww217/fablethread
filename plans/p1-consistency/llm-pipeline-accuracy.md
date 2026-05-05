@@ -456,8 +456,11 @@ def run_compaction(game_state):
 | Python engine | Strip `_reasoning`; `build_state_slice()`; `_failed` logging | B, C, D | B, C, D done |
 | `ccya/prompts/compact_system.j2` | New file | F | Pending |
 | `ccya/prompts/compact_user.j2` | New file | F | Pending |
+| `ccya/prompts/sections/_quests.j2` | Add active-quest filter | G | Done |
 
 ## Plan G: Active-Quest-Only Filter
+
+### Status: **COMPLETE** (this commit)
 
 ### Problem
 `_quests.j2` renders all quests every turn, including completed and failed ones. This wastes tokens and can confuse the extractor with stale quest data.
@@ -495,5 +498,5 @@ Add to `extract_user.j2` after the rules outcome block:
 4. **D** — state slicing (depends on C being stable) ✅
 5. **E** — actions placement: ABANDONED (actions stay in extractor)
 6. **F** — compaction redesign (current cadence is functional; do last)
-7. **G** — active-quest-only filter (template change, zero risk)
+7. **G** — active-quest-only filter (template change, zero risk) ✅
 8. **H** — band-scoped extract examples (template change)
