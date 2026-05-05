@@ -1,2 +1,2 @@
-{% for fact in (state.scene.recent_events or []) %}- {{ fact }}
+{% for event in (state.scene.recent_events or []) %}- {{ event.text if event is mapping else event }}
 {% endfor -%}

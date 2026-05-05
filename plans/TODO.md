@@ -14,8 +14,8 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 
 ### State Integrity
 
-- `**recent_events` ID-keyed overhaul** — replace string list with `{id, text, turn}` objects; extractor uses IDs for update/remove; exact ID comparison replaces fuzzy norm in `summarize_changes()`; `_fact_in_list`/`_norm_fact` in engine.py deleted. See `plans/recent-events-overhaul.md`
-- **Entity deduplication** — canonical `snake_case` IDs for inventory and NPCs at creation; extractor match instruction checks existing state before adding; NPC alias registry (`aliases: list[str]`) on compendium entries; engine alias map + fuzzy token-overlap safety net (pure Python). See `plans/entity-dedup.md`
+- ~~**recent_events` ID-keyed overhaul** — replace string list with `{id, text, turn}` objects; extractor uses IDs for update/remove; exact ID comparison replaces fuzzy norm in `summarize_changes()`; `_fact_in_list`/`_norm_fact` in engine.py deleted. See `plans/recent-events-overhaul.md`~~
+- ~~**Entity deduplication** — canonical `snake_case` IDs for inventory and NPCs at creation; extractor match instruction checks existing state before adding; NPC alias registry (`aliases: list[str]`) on compendium entries; engine alias map + fuzzy token-overlap safety net (pure Python). See `plans/entity-dedup.md`~~
 - ~~**Remove condition TTL** — delete `CONDITION_TTL_TURNS`, `condition_ttl_turns` config, and the engine pre-extraction loop; conditions cleared only by extractor. See `plans/condition-overhaul.md`~~
 - ~~**Condition → skill feedback loop** — surface `rules_outcome.skill` + `band` + `directive` in `extract_state_user.j2`; add condition-trigger guidance keyed to failing skill in both `extract_state_system.j2` and `extract_state_user.j2`. See `plans/condition-overhaul.md`~~
 - ~~**Active-quest-only filter** — `_quests.j2` renders only quests with `status: active`; completed/failed quests go to compaction chronicle. See `plans/p1-consistency/llm-pipeline-accuracy.md`~~

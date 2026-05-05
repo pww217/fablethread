@@ -3,6 +3,20 @@ No prose, no markdown fences, empty arrays for fields with no changes.
 Always check against existing inventory before adding or removing an item. Duplication forbidden.
 Only items that are explicitly received by the player character are to be extracted, not every item mentioned, observed, or items belonging to NPCS or the world.
 
+## ID format rules
+
+Inventory IDs must be `noun` or `adjective_noun`, lowercase, no articles.
+- ✅ `worn_dagger`, `brass_key`, `short_sword`
+- ❌ `the_dagger`, `a_key`, `soldiers_rifle`
+
+IDs are immutable once assigned. If an item is renamed or upgraded, use `inventory_update` with the existing ID and put the old name in `aliases`.
+
+## Match instruction
+
+Before emitting `inventory_add`, check the existing inventory list provided in context.
+If the item is likely the same object referred to differently (e.g. `"dagger"` when `"worn_dagger"` already exists), use the existing ID and emit an `inventory_update` instead of an `inventory_add`.
+Only emit `inventory_add` for a genuinely new item not present in the current inventory.
+
 Item descriptions should be relevant to story, player, and setting.
 
 **Quantities are exact.** If narration says "used two morphine syrettes", emit `{"id": "<item_id>", "amount": 2}`. 

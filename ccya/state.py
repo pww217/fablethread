@@ -82,6 +82,30 @@ def _migrate_state(state: dict[str, Any]) -> None:
             }
             touch_compendium_order(state, nid)
 
+    # Migrate string recent_events to object form
+    _migrate_recent_events(state)
+
+
+def _migrate_recent_events(state: dict[str, Any]) -> None:
+    """Upgrade string recent_events to object form in-place."""
+    events = (state.get("scene") or {}).get("recent_events") or []
+    if events and isinstance(events[0], str):
+        def _slugify(s: str) -> str:
+            words = re.sub(r"[^a-z0-9 ]", "", s.lower()).split()[:6]
+            return "_".join(words) or "event"
+        seen: set[str] = set()
+        migrated: list[dict[str, Any]] = []
+        for idx, e in enumerate(events):
+            base_id = _slugify(e)
+            slug = base_id
+            counter = 1
+            while slug in seen:
+                slug = f"{base_id}_{counter}"
+                counter += 1
+            seen.add(slug)
+            migrated.append({"id": slug, "text": e, "turn": 0})
+        state["scene"]["recent_events"] = migrated
+
 
 def save_state(save_dir: Path, state: dict[str, Any]) -> None:
     tmp_path = save_dir / "state.yaml.tmp"
@@ -229,6 +253,9 @@ def resolve_inventory_canonical_id(
     for it in inventory:
         if normalize_inventory_id(it.get("id", "")) == want:
             return str(it["id"])
+        for alias in (it.get("aliases") or []):
+            if isinstance(alias, str) and normalize_inventory_id(alias) == want:
+                return str(it["id"])
     return None
 
 
@@ -303,11 +330,36 @@ def apply_delta(
             ex["amount"] = int(ex.get("amount", 1)) + amt
             if d.get("notes"):
                 ex["notes"] = d["notes"]
+            if d.get("aliases"):
+                existing_aliases = set(ex.get("aliases") or [])
+                for a in d["aliases"]:
+                    if a.lower() not in {x.lower() for x in existing_aliases}:
+                        existing_aliases.add(a.lower())
+                ex["aliases"] = list(existing_aliases)
         else:
-            d["amount"] = amt
-            d["id"] = target_id
-            inv.append(d)
-            by_id = _by_id()
+            # Fuzzy match safety net: check if name matches existing item
+            fuzzy_id = _fuzzy_match_inventory(d.get("name", item.id), inv)
+            if fuzzy_id and fuzzy_id in by_id:
+                ex = by_id[fuzzy_id]
+                ex["amount"] = int(ex.get("amount", 1)) + amt
+                if d.get("notes"):
+                    ex["notes"] = d["notes"]
+                if d.get("aliases"):
+                    existing_aliases = set(ex.get("aliases") or [])
+                    for a in d["aliases"]:
+                        if a.lower() not in {x.lower() for x in existing_aliases}:
+                            existing_aliases.add(a.lower())
+                    ex["aliases"] = list(existing_aliases)
+                _log.info(
+                    "inventory fuzzy merge: %s → %s (score via _fuzzy_match_inventory)",
+                    d.get("name", item.id),
+                    fuzzy_id,
+                )
+            else:
+                d["amount"] = amt
+                d["id"] = target_id
+                inv.append(d)
+                by_id = _by_id()
 
     for rem in delta.inventory_remove:
         canonical = resolve_inventory_remove_target(inv, rem.id)
@@ -483,31 +535,35 @@ def apply_delta(
         existing_ids.add(cid)
     state["pc"]["conditions"] = existing_conds[-PC_CONDITIONS_MAX:]
 
-    existing_events: list[str] = list(state.get("scene", {}).get("recent_events") or [])
-    remove_keys = {_normalize_fact(s) for s in delta.recent_events_remove}
-    existing_events = [
-        f for f in existing_events if _normalize_fact(f) not in remove_keys
-    ]
+    current_turn = (state.get("meta") or {}).get("turn", 0)
+    scene = state.setdefault("scene", {})
+    existing_events: list[dict[str, Any]] = list(scene.get("recent_events") or [])
+
+    # Remove by ID
+    for rid in delta.recent_events_remove:
+        existing_events = [e for e in existing_events if e.get("id") != rid]
+
+    # Update by ID
     for upd in delta.recent_events_update:
-        nk = _normalize_fact(upd.old)
-        matched = False
-        for i, f in enumerate(existing_events):
-            if _normalize_fact(f) == nk:
-                existing_events[i] = upd.new
-                matched = True
+        for i, e in enumerate(existing_events):
+            if e.get("id") == upd.id:
+                existing_events[i]["text"] = upd.text
                 break
-        if (
-            not matched
-            and upd.new
-            and not _fact_already_exists(upd.new, existing_events)
-        ):
-            existing_events.append(upd.new)
-    for fact in delta.recent_events_add:
-        if not _fact_already_exists(fact, existing_events):
-            existing_events.append(fact)
-    state.setdefault("scene", {})["recent_events"] = existing_events[
-        -recent_events_max:
-    ]
+
+    # Add — reject if ID already exists
+    existing_ids = {e.get("id") for e in existing_events}
+    for evt in delta.recent_events_add:
+        if evt.id not in existing_ids:
+            existing_events.append({
+                "id": evt.id,
+                "text": evt.text,
+                "turn": evt.turn or current_turn,
+            })
+            existing_ids.add(evt.id)
+
+    # Evict oldest by turn (sort ascending, drop oldest)
+    existing_events.sort(key=lambda e: e.get("turn", 0))
+    scene["recent_events"] = existing_events[-recent_events_max:]
 
     if delta.scene_tags:
         state["scene"]["tags"] = delta.scene_tags
@@ -521,8 +577,10 @@ def apply_delta(
     old_present_ids: set[str] = {
         n.get("id") for n in state.get("scene", {}).get("present_npcs", [])
     }
+    new_present_ids: set[str] = set()
     if delta.present_npcs:
         comp = state.setdefault("compendium", {}).setdefault("npcs", {})
+        alias_map = build_npc_alias_map(comp)
 
         def _hydrate_npc_text(delta_val: str | None, stored: Any) -> str:
             st = str(stored).strip() if stored is not None else ""
@@ -536,21 +594,32 @@ def apply_delta(
         rows: list[dict[str, Any]] = []
         for n in delta.present_npcs:
             nid = normalize_inventory_id(n.id)
-            ce_raw = comp.get(nid)
+
+            # Alias map lookup: if incoming name/id matches existing NPC alias, route to canonical
+            resolved_id = nid
+            if nid in alias_map and alias_map[nid] != nid:
+                resolved_id = alias_map[nid]
+            if n.name:
+                name_alias = n.name.lower().strip()
+                if name_alias in alias_map:
+                    resolved_id = alias_map[name_alias]
+
+            new_present_ids.add(resolved_id)
+            ce_raw = comp.get(resolved_id)
             ce = ce_raw if isinstance(ce_raw, dict) else {}
             name = _hydrate_npc_text(n.name, ce.get("name"))
             title = _hydrate_npc_text(n.title, ce.get("title"))
             bio = _hydrate_npc_text(n.bio, ce.get("bio"))
             notes = n.notes or ""
             row = {
-                "id": n.id,
+                "id": resolved_id,
                 "name": name,
                 "title": title,
                 "notes": notes,
                 "bio": bio,
             }
             rows.append(row)
-            entry = comp.setdefault(nid, {})
+            entry = comp.setdefault(resolved_id, {})
             if n.name is not None and str(n.name).strip():
                 entry["name"] = str(n.name).strip()
             elif "name" not in entry:
@@ -563,15 +632,12 @@ def apply_delta(
                 entry["bio"] = n.bio
             elif "bio" not in entry:
                 entry["bio"] = row["bio"]
-            touch_compendium_order(state, nid)
+            touch_compendium_order(state, resolved_id)
         state.setdefault("scene", {})["present_npcs"] = rows
 
     # Compute recently_left: NPCs in old present_npcs but not in new.
     # Returnees (in both old and new) are excluded automatically.
-    # Use delta.present_npcs for new ids (not state, which may not have been updated).
-    new_present_ids: set[str] = {
-        n.id for n in (delta.present_npcs or [])
-    }
+    # Use resolved IDs from the present_npcs loop above.
     left_ids = old_present_ids - new_present_ids
     scene = state.setdefault("scene", {})
     if left_ids:
@@ -587,17 +653,36 @@ def apply_delta(
         scene["recently_left"] = recently_left
         scene.setdefault("recently_left_turns", 2)
 
+    comp = state.setdefault("compendium", {}).setdefault("npcs", {})
+    alias_map = build_npc_alias_map(comp)
     for u in delta.compendium_npc_update:
         nid = normalize_inventory_id(u.id)
-        comp = state.setdefault("compendium", {}).setdefault("npcs", {})
-        entry = comp.setdefault(nid, {})
+
+        # Alias map lookup: if incoming name/id matches existing NPC alias, route to canonical
+        resolved_id = nid
+        # Check if the provided ID (normalized) maps to a different canonical ID
+        if nid in alias_map and alias_map[nid] != nid:
+            resolved_id = alias_map[nid]
+        # Check if the NPC name matches any existing alias
+        if u.name:
+            name_alias = u.name.lower().strip()
+            if name_alias in alias_map:
+                resolved_id = alias_map[name_alias]
+
+        entry = comp.setdefault(resolved_id, {})
         if u.name is not None:
             entry["name"] = u.name
         if u.title is not None:
             entry["title"] = u.title
         if u.bio is not None:
             entry["bio"] = u.bio
-        touch_compendium_order(state, nid)
+        if u.aliases:
+            existing_aliases = set(entry.get("aliases") or [])
+            for a in u.aliases:
+                if a.lower() not in {x.lower() for x in existing_aliases}:
+                    existing_aliases.add(a.lower())
+            entry["aliases"] = list(existing_aliases)
+        touch_compendium_order(state, resolved_id)
 
     return state
 
@@ -609,27 +694,72 @@ def _item_to_dict(item: Any) -> dict[str, Any]:
             out["amount"] = 1
         return out
     amt = getattr(item, "amount", 1)
-    return {
+    result: dict[str, Any] = {
         "id": item.id,
         "name": item.name,
         "notes": item.notes,
         "amount": max(1, int(amt or 1)),
     }
+    aliases = getattr(item, "aliases", None)
+    if aliases:
+        result["aliases"] = list(aliases)
+    return result
 
 
 PC_CONDITIONS_MAX: int = 5
 """Hard cap on simultaneous pc.conditions; oldest is evicted FIFO when exceeded."""
 
 
-def _normalize_fact(text: Any) -> str:
-    if not isinstance(text, str):
-        text = str(text)
-    return " ".join(text.lower().split())
+def build_npc_alias_map(npcs: dict[str, dict[str, Any]]) -> dict[str, str]:
+    """Returns alias -> canonical_id mapping for NPCs.
+
+    The canonical ID maps to itself; all aliases map to the canonical ID.
+    Both raw and normalized (snake_case) forms of aliases are indexed.
+    """
+    result: dict[str, str] = {}
+    for npc_id, npc in npcs.items():
+        if not isinstance(npc, dict):
+            continue
+        result[npc_id] = npc_id
+        for alias in (npc.get("aliases") or []):
+            if not isinstance(alias, str):
+                continue
+            result[alias.lower()] = npc_id
+            # Also index the normalized form so "scarred soldier" matches "scarred_soldier"
+            normalized = normalize_inventory_id(alias)
+            result[normalized] = npc_id
+    return result
 
 
-def _fact_already_exists(fact: str, existing: list[str]) -> bool:
-    nk = _normalize_fact(fact)
-    for ef in existing:
-        if nk == _normalize_fact(ef):
-            return True
-    return False
+def _fuzzy_match_inventory(name: str, inventory: list[dict[str, Any]]) -> str | None:
+    """Returns canonical ID if `name` is a likely duplicate of an existing item.
+
+    Uses token overlap — no external dependencies. Threshold 0.6.
+    If all incoming tokens are contained in the candidate, uses containment score.
+    """
+    name_tokens = set(name.lower().split())
+    if not name_tokens:
+        return None
+    best_id, best_score = None, 0.0
+    for item in inventory:
+        if not isinstance(item, dict):
+            continue
+        candidate_tokens: set[str] = set()
+        item_name = item.get("name", "")
+        if isinstance(item_name, str):
+            candidate_tokens |= set(item_name.lower().split())
+        for alias in (item.get("aliases") or []):
+            if isinstance(alias, str):
+                candidate_tokens |= set(alias.lower().split())
+        if not candidate_tokens:
+            continue
+        overlap = len(name_tokens & candidate_tokens)
+        if name_tokens.issubset(candidate_tokens):
+            # Full containment: incoming is a subset of existing (e.g. "dagger" in "worn dagger")
+            score = overlap / len(name_tokens)
+        else:
+            score = overlap / max(len(name_tokens), len(candidate_tokens))
+        if score > best_score:
+            best_score = score
+            best_id = item["id"]
+    return best_id if best_score >= 0.6 else None
