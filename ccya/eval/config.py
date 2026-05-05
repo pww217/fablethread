@@ -1,0 +1,78 @@
+"""Eval-harness configuration loading."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+
+@dataclass
+class InferenceConfig:
+    temperature_override: float | None = None
+    cache: bool = False
+
+
+@dataclass
+class JudgeConfig:
+    enabled: bool = True
+    model: str | None = None
+    rubric_path: str = "evals/rubrics/default.md"
+    temperature: float = 0.3
+    max_input_chars: int = 30000
+
+
+@dataclass
+class ReportConfig:
+    token_warn_pct: float = 10.0
+    token_fail_pct: float = 25.0
+    flag_at_top: list[str] = field(default_factory=list)
+
+
+@dataclass
+class EvalConfig:
+    default_pack: str = "eval-pack"
+    default_save_root: str = "~/.cache/ccya-eval"
+    runs_dir: str = "evals/runs"
+    inference: InferenceConfig = field(default_factory=InferenceConfig)
+    judge: JudgeConfig = field(default_factory=JudgeConfig)
+    report: ReportConfig = field(default_factory=ReportConfig)
+
+
+_DEFAULT_PATH = Path("evals/config.yaml")
+
+
+def load_eval_config(path: str | Path | None = None) -> EvalConfig:
+    p = Path(path) if path else _DEFAULT_PATH
+    if not p.exists():
+        raise FileNotFoundError(f"eval config not found: {p}")
+    with open(p) as f:
+        raw: dict[str, Any] = yaml.safe_load(f) or {}
+
+    inf_raw = raw.get("inference") or {}
+    jdg_raw = raw.get("judge") or {}
+    rpt_raw = raw.get("report") or {}
+
+    return EvalConfig(
+        default_pack=str(raw.get("default_pack", "eval-pack")),
+        default_save_root=str(raw.get("default_save_root", "~/.cache/ccya-eval")),
+        runs_dir=str(raw.get("runs_dir", "evals/runs")),
+        inference=InferenceConfig(
+            temperature_override=inf_raw.get("temperature_override"),
+            cache=bool(inf_raw.get("cache", False)),
+        ),
+        judge=JudgeConfig(
+            enabled=bool(jdg_raw.get("enabled", True)),
+            model=jdg_raw.get("model"),
+            rubric_path=str(jdg_raw.get("rubric_path", "evals/rubrics/default.md")),
+            temperature=float(jdg_raw.get("temperature", 0.3)),
+            max_input_chars=int(jdg_raw.get("max_input_chars", 30000)),
+        ),
+        report=ReportConfig(
+            token_warn_pct=float(rpt_raw.get("token_warn_pct", 10.0)),
+            token_fail_pct=float(rpt_raw.get("token_fail_pct", 25.0)),
+            flag_at_top=list(rpt_raw.get("flag_at_top") or []),
+        ),
+    )

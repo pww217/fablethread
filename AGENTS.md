@@ -53,8 +53,9 @@ If you find logic in the wrong layer, move it rather than pile on.
 - `make typecheck` — runs mypy on `ccya/`.
 - Tests mock the LLM client — never call a real model server.
 
-## Plan & TODO lifecycle
+## Plan & TODO/Roadmap lifecycle
 
+- Directories are plans/ (TODO.md) and docs/ROADMAP.md
 - Move completed plans to `plans/completed/`.
 - Update `TODO.md` when starting work: mark items `[x]` or note status.
 - Abandoned items get struck through or moved to a `## Abandoned` section with one-line reason.

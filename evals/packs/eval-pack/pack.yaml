@@ -1,0 +1,15 @@
+id: eval-pack
+name: "Eval Pack — Deterministic Test World"
+description: "Hand-authored static pack for the ccya eval harness. Mid-game state exercising NPCs, quests, conditions, inventory, recent_events, and aliases."
+genre: neutral
+tone_tags: [deterministic, test-fixture]
+version: 1
+mode: static
+files:
+  seed: seed_state.yaml
+  opening: opening_scene.md
+  style: style.md
+  extract_examples: extract_examples.yaml
+name_locales:
+  - locale: en_US
+    weight: 1.0

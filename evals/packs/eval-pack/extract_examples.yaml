@@ -1,0 +1,41 @@
+examples:
+  - title: "Bandages used (2 rolls) — inventory_remove with amount"
+    band: partial
+    thinking: |
+      - Player wrapped Halden's wound. Used 2 of the 3 bandage rolls.
+      - Inventory remove by id, amount=2; the engine subtracts from the stack.
+    json: |
+      {
+        "scene_tags": ["dialogue", "first_aid"],
+        "scene_tagline": "Bandaged — one roll left",
+        "present_npcs": [{"id": "halden", "notes": "Wincing but steady; pressing the wrap with one hand."}],
+        "inventory_remove": [{"id": "bandages", "amount": 2}],
+        "outcome_summary": "You wrapped Halden's gash. Two rolls used; one remains."
+      }
+
+  - title: "Condition added — bruised ribs flare after a brawl"
+    band: setback
+    thinking: |
+      - Strength check failed mid-brawl; ribs cracked harder than the bruising already there.
+      - Add a new condition with explicit id, label, description.
+    json: |
+      {
+        "scene_tags": ["combat", "consequence"],
+        "scene_tagline": "Ribs cracked — breath comes hard",
+        "pc_condition_add": [{"id": "cracked_ribs", "label": "cracked ribs", "description": "Tough hit landed flat on already-bruised ribs; deep breaths sting."}],
+        "outcome_summary": "You took the punch flat to the ribs. The bruise just became a fracture."
+      }
+
+  - title: "Quest objective done by index"
+    band: success
+    thinking: |
+      - Player handed Halden the ledger; first objective of deliver_the_ledger is done.
+      - Use index=1 to mark it; engine resolves index → objective.
+    json: |
+      {
+        "scene_tags": ["dialogue", "delivery"],
+        "scene_tagline": "Ledger handed over",
+        "present_npcs": [{"id": "halden", "notes": "Takes the ledger with both hands; thumbs the wax seal."}],
+        "quest_updates": [{"id": "deliver_the_ledger", "objectives": [{"index": 1, "done": true}]}],
+        "outcome_summary": "Halden took the ledger and pressed the seal home with his thumb."
+      }
