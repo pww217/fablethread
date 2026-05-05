@@ -29,3 +29,7 @@ ccya/static/app.css
 
 # OS
 .DS_Store
+
+# Eval harness outputs
+evals/runs/
+.eval-tmp/
