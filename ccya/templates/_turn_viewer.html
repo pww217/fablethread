@@ -17,7 +17,7 @@
     id="tv-root"
     x-data="tvRoot({{ turns | tojson }})"
     x-init="init()"
-    @keydown.escape.window="filterText = ''"
+    @keydown.escape.window="onlyRejected = false; onlyRetried = false; onlyErrors = false; onlySkipped = false"
 >
     <div class="turn-viewer-header">
         <span class="turn-viewer-title">Turn Viewer</span>
@@ -29,8 +29,10 @@
         </div>
     </div>
     <div class="turn-viewer-filter-bar" x-show="turns.length">
-        <input type="search" class="tv-filter-input" placeholder="Filter by input…" x-model="filterText">
-        <label class="tv-filter-toggle"><input type="checkbox" x-model="onlyRejected"> rejections only</label>
+        <label class="tv-filter-toggle"><input type="checkbox" x-model="onlyRejected"> rejections</label>
+        <label class="tv-filter-toggle"><input type="checkbox" x-model="onlyRetried"> retries</label>
+        <label class="tv-filter-toggle"><input type="checkbox" x-model="onlyErrors"> errors</label>
+        <label class="tv-filter-toggle"><input type="checkbox" x-model="onlySkipped"> skipped</label>
     </div>
     <div class="turn-viewer-body" id="tv-body">
         <template x-if="visibleTurns().length === 0">
@@ -47,6 +49,7 @@
                         <span x-text="t.total_tokens_out_display + ' out'"></span>
                         <span x-show="t.has_rejections" class="tv-meta-rejected">rejected</span>
                         <span x-show="t.has_retries" class="tv-meta-retried">retries</span>
+                        <span x-show="t.has_errors" class="tv-meta-error">errors</span>
                     </div>
                     <span class="tv-turn-chevron" :class="{ 'open': !isTurnCollapsed(t.turn) }">▶</span>
                 </div>
@@ -63,44 +66,22 @@
                             <template x-for="(c, ci) in connectorsBefore(t, stage)" :key="c.before_stage + '-' + ci">
                                 <div class="tv-flow-block">
                                     <template x-for="(seg, si) in c.segments" :key="seg.from + '-' + si">
-                                        <template x-if="seg.from === 'narrate'">
-                                            <div class="tv-flow-segment tv-flow-segment--narrate">
-                                                <div class="tv-flow-pill tv-flow-pill--compact">
-                                                    <span class="tv-flow-pill-label">[Narration]</span>
-                                                </div>
-                                            </div>
-                                        </template>
-                                        <template x-if="seg.from !== 'narrate'">
-                                            <div class="tv-flow-segment" :class="seg.upstream_status_class">
-                                                <div class="tv-flow-line" :class="'tv-flow-line--' + (seg.upstream_status || 'ok')"></div>
-                                                <div class="tv-flow-pill" :class="{ 'expanded': isFlowOpen(t.turn, seg.from) }" @click.prevent="toggleFlow(t.turn, seg.from)">
-                                                    <div class="tv-flow-pill-label" x-text="seg.label"></div>
-                                                    <template x-for="ln in seg.lines" :key="ln.k + '-' + String(ln.v).slice(0,48)">
-                                                        <div class="tv-flow-line-kv" :class="{ 'dim': ln.dim }">
+                                        <div class="tv-flow-segment"
+                                             :class="[seg.upstream_status_class, seg.from === 'narrate' ? 'tv-flow-segment--narrate' : '']">
+                                            <div class="tv-flow-line" :class="'tv-flow-line--' + (seg.upstream_status || 'ok')"></div>
+                                            <div class="tv-flow-pill" :class="{ 'expanded': isFlowOpen(t.turn, seg.from) }" @click.prevent="toggleFlow(t.turn, seg.from)">
+                                                <div class="tv-flow-pill-label" x-text="seg.label + (seg.lines && seg.lines.length ? ' (' + seg.lines.length + ')' : '')"></div>
+                                                <div class="tv-flow-kv-grid" :style="'grid-template-columns: repeat(' + Math.ceil((seg.lines || []).length / 3) + ', minmax(100px, 1fr))'">
+                                                    <template x-for="ln in seg.lines" :key="ln.k">
+                                                        <div class="tv-flow-kv-item" :class="{ 'tv-flow-kv-item--full': ln.full_width, 'dim': ln.dim }">
                                                             <span class="k" x-text="ln.k"></span>
-                                                            <span class="v" x-text="ln.v"></span>
+                                                            <span class="v" x-show="isFlowOpen(t.turn, seg.from)" x-text="ln.v"></span>
                                                         </div>
                                                     </template>
-                                                    <div class="tv-flow-expand-hint" x-show="!isFlowOpen(t.turn, seg.from)">click to expand</div>
                                                 </div>
-                                                <template x-if="isFlowOpen(t.turn, seg.from)">
-                                                    <div class="tv-flow-expanded">
-                                                        <template x-if="seg.from === 'rules' && t.rules_prompt">
-                                                            <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.rules_prompt.output || '')"></code></pre>
-                                                        </template>
-                                                        <template x-if="seg.from === 'scene' && t.scene_prompt">
-                                                            <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.scene_prompt.output || '')"></code></pre>
-                                                        </template>
-                                                        <template x-if="seg.from === 'state' && t.state_prompt">
-                                                            <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.state_prompt.output || '')"></code></pre>
-                                                        </template>
-                                                        <template x-if="seg.from === 'progress' && t.progress_prompt">
-                                                            <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.progress_prompt.output || '')"></code></pre>
-                                                        </template>
-                                                    </div>
-                                                </template>
+                                                <div class="tv-flow-expand-hint" x-show="!isFlowOpen(t.turn, seg.from)">click to see values</div>
                                             </div>
-                                        </template>
+                                        </div>
                                     </template>
                                 </div>
                             </template>
@@ -113,7 +94,7 @@
                                 <div class="tv-stage-accent"></div>
                                 <div class="tv-stage-header" @click="toggleStage(t.turn, stage)">
                                     <span class="tv-stage-name" x-text="stage"></span>
-                                    <span class="tv-stage-status" x-text="t.streams[stage].status"></span>
+                                    <span class="tv-stage-status" x-text="t.streams[stage].status + (t.streams[stage].attempts > 1 ? ' (' + t.streams[stage].attempts + '\u00d7)' : '')"></span>
                                     <span class="tv-stage-badge">
                                         <span class="tv-token-bar-wrap" :title="'tokens ' + (t.streams[stage].token_sum || 0)">
                                             <span class="tv-token-bar" :style="'width:' + (t.streams[stage].token_bar_pct || 0) + '%'"></span>
@@ -129,6 +110,25 @@
                                         <div class="tv-rejection-banner">
                                             <template x-for="r in t.state_rejections" :key="(r.value || '') + '-' + (r.reason || '') + '-' + $index">
                                                 <div x-text="(r.field || '') + ': ' + (r.reason || '')"></div>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="t.streams[stage].error">
+                                        <div class="tv-error-banner">
+                                            <span class="tv-error-banner-label">error</span>
+                                            <span x-text="t.streams[stage].error"></span>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="t.streams[stage].retry_errors && t.streams[stage].retry_errors.length">
+                                        <div class="tv-retry-errors">
+                                            <div class="tv-retry-errors-label" x-text="'retry errors (' + t.streams[stage].retry_errors.length + ')'"></div>
+                                            <template x-for="(re, rei) in t.streams[stage].retry_errors" :key="rei">
+                                                <div class="tv-retry-error-line">
+                                                    <span class="tv-retry-error-idx" x-text="'#' + (rei + 1)"></span>
+                                                    <span x-text="re"></span>
+                                                </div>
                                             </template>
                                         </div>
                                     </template>
@@ -235,8 +235,10 @@ function tvInitJsonBlock(el, raw) {
 function tvRoot(initialTurns) {
     return {
         turns: Array.isArray(initialTurns) ? initialTurns : [],
-        filterText: '',
         onlyRejected: false,
+        onlyRetried: false,
+        onlyErrors: false,
+        onlySkipped: false,
         expanded: {},
         stageTabs: {},
         systemOpenMap: {},
@@ -340,12 +342,16 @@ function tvRoot(initialTurns) {
             return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
         },
         visibleTurns() {
-            var ft = (this.filterText || '').toLowerCase();
             var onlyR = this.onlyRejected;
+            var onlyRe = this.onlyRetried;
+            var onlyE = this.onlyErrors;
+            var onlyS = this.onlySkipped;
             return this.turns.filter(function(t) {
                 if (onlyR && !t.has_rejections) return false;
-                if (!ft) return true;
-                return String(t.user_input || '').toLowerCase().indexOf(ft) !== -1;
+                if (onlyRe && !t.has_retries) return false;
+                if (onlyE && !t.has_errors) return false;
+                if (onlyS && !t.has_skipped) return false;
+                return true;
             });
         },
         hlAllVisibleJson() {
