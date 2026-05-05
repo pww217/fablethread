@@ -28,7 +28,8 @@ If a character is named or re-identified this turn (e.g. you learn the scarred s
   "compendium_npc_update": [],
   "scene_pressure_add": [{"id": "snake_case_id", "text": "Threat description", "urgency": "immediate|building|background", "turn_added": 0, "max_turns": null}],
   "scene_pressure_remove": ["existing_id"],
-  "scene_pressure_update": [{"id": "existing_id", "text": "Updated text", "urgency": "immediate|building|background"}]
+  "scene_pressure_update": [{"id": "existing_id", "text": "Updated text", "urgency": "immediate|building|background"}],
+  "gm_beat": {"type": "complication|revelation|opportunity|breathing_room|pressure", "instruction": "1-2 sentence concrete forward-facing beat", "surface_as": "ambient|event|npc_behavior"} | null
 }
 ```
 
@@ -60,7 +61,7 @@ Each new event must have a stable `snake_case` ID (e.g. `"guard_left_room"`, `"p
 `scene_pressure_update`: Changes to existing pressure text or urgency. Each: `{"id": "existing_pressure_id", "text": "updated text", "urgency": "new_urgency"}`.
 
 ## Rules-outcome guidance (for objective resolution)
-- crit_fail / fail / setback / mixed / boon: do NOT mark quest objectives done for the attempted action.
+- crit_fail / fail / setback / partial: do NOT mark quest objectives done for the attempted action.
 - success / crit_success: apply objective completions freely.
 - No dice roll: apply as narrated.
 
