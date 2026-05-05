@@ -200,6 +200,9 @@ class StateDelta(BaseModel):
     recent_events_add: list[RecentEvent] = Field(default_factory=list)
     recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
     recent_events_remove: list[str] = Field(default_factory=list)
+    scene_pressure_add: list[ScenePressure] = Field(default_factory=list)
+    scene_pressure_remove: list[str] = Field(default_factory=list)
+    scene_pressure_update: list[ScenePressure] = Field(default_factory=list)
 
     @field_validator("pc_condition_add", mode="before")
     @classmethod
@@ -280,6 +283,14 @@ class StateExtractResult(BaseModel):
         return out
 
 
+class ScenePressure(BaseModel):
+    id: str
+    text: str
+    urgency: Literal["immediate", "building", "background"] = "background"
+    turn_added: int = 0
+    max_turns: int | None = None
+
+
 class ProgressExtractResult(BaseModel):
     quest_updates: list[QuestUpdate] = Field(default_factory=list)
     recent_events_add: list[RecentEvent] = Field(default_factory=list)
@@ -288,6 +299,9 @@ class ProgressExtractResult(BaseModel):
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
+    scene_pressure_add: list[ScenePressure] = Field(default_factory=list)
+    scene_pressure_remove: list[str] = Field(default_factory=list)
+    scene_pressure_update: list[ScenePressure] = Field(default_factory=list)
 
 
 class ExtractResult(BaseModel):

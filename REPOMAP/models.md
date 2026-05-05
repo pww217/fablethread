@@ -2,7 +2,7 @@
 
 ## Pydantic models
 
-`Condition`, `ConditionAdd`, `ConditionRemove`, `RulesCheck`, `Scope`, `IntentEnvelope`, `RulesOutcome`, `InventoryItem`, `InventoryRemove`, `InventoryUpdate`, `LocationRef`, `QuestObjective`, `QuestObjectiveUpdate`, `QuestUpdate`, `NpcRef`, `CompendiumNpcUpdate`, `RecentEventUpdate`, `StateDelta`, `SceneExtractResult`, `StateExtractResult`, `ProgressExtractResult`, `ExtractResult`.
+`Condition`, `ConditionAdd`, `ConditionRemove`, `RulesCheck`, `Scope`, `IntentEnvelope`, `RulesOutcome`, `InventoryItem`, `InventoryRemove`, `InventoryUpdate`, `LocationRef`, `QuestObjective`, `QuestObjectiveUpdate`, `QuestUpdate`, `NpcRef`, `CompendiumNpcUpdate`, `RecentEventUpdate`, `ScenePressure`, `StateDelta`, `SceneExtractResult`, `StateExtractResult`, `ProgressExtractResult`, `ExtractResult`.
 
 ## Dataclasses
 

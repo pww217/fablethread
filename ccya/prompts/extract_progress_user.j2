@@ -34,6 +34,11 @@
 {% for f in world_state %}- {{ f if f is string else f.values() | join(': ') }}
 {% endfor %}
 {% endif -%}
+{% if scene_pressure -%}
+## scene_pressure (time-sensitive threats — add/remove/update as fiction demands)
+{% for p in scene_pressure %}- `{{ p.id }}` [{{ p.urgency }}] {{ p.text }} (added turn {{ p.turn_added }}){% if p.get('max_turns') %} max {{ p.max_turns }} turns{% endif %}
+{% endfor -%}
+{% endif -%}
 {% if known_characters -%}
 ## known_characters (compendium — reuse id for compendium_npc_update)
 {% for row in known_characters %}- `{{ row.id }}` | {{ row.name }}{% if row.title %} — {{ row.title }}{% endif %}{% if row.bio_preview %} | {{ row.bio_preview }}{% endif %}
