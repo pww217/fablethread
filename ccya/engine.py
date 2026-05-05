@@ -268,7 +268,11 @@ def _summarize_applied(applied: dict[str, Any]) -> list[str]:
         if isinstance(it, dict) and it.get("id"):
             lines.append(f"~ {it['id']} updated")
     for f in applied.get("recent_events_add") or []:
-        if isinstance(f, str):
+        if isinstance(f, dict):
+            text = f.get("text") or f.get("id", "?")
+            short = str(text)[:56]
+            lines.append(f"+ {short}{'…' if len(short) > 56 else ''}")
+        elif isinstance(f, str):
             short = f[:56] + ("…" if len(f) > 56 else "")
             lines.append(f"+ {short}")
     for f in applied.get("recent_events_remove") or []:
@@ -308,18 +312,6 @@ def _summarize_applied(applied: dict[str, Any]) -> list[str]:
 def _title_case_id(item_id: str) -> str:
     s = str(item_id or "").replace("_", " ").strip()
     return s.title() if s else "?"
-
-
-def _norm_fact(s: Any) -> str:
-    return " ".join(str(s or "").lower().split())
-
-
-def _fact_in_list(needle: str, haystack: list[Any]) -> bool:
-    hn = _norm_fact(needle)
-    for h in haystack:
-        if _norm_fact(h) == hn:
-            return True
-    return False
 
 
 def _inv_amount_map(st: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -471,12 +463,19 @@ def summarize_changes(
 
     pre_events = list((pre.get("scene") or {}).get("recent_events") or [])
     post_events = list((post.get("scene") or {}).get("recent_events") or [])
-    for pf in post_events:
-        if not _fact_in_list(str(pf), pre_events):
-            facts.append({"kind": "added", "value": str(pf)})
-    for pf in pre_events:
-        if not _fact_in_list(str(pf), post_events):
-            facts.append({"kind": "removed", "value": str(pf)})
+    pre_event_ids = {e["id"] for e in pre_events if isinstance(e, dict)}
+    post_event_ids = {e["id"] for e in post_events if isinstance(e, dict)}
+    for eid in post_event_ids - pre_event_ids:
+        evt = next(e for e in post_events if e.get("id") == eid)
+        facts.append({"kind": "added", "value": evt.get("text", eid)})
+    for eid in pre_event_ids - post_event_ids:
+        evt = next(e for e in pre_events if e.get("id") == eid)
+        facts.append({"kind": "removed", "value": evt.get("text", eid)})
+    for eid in pre_event_ids & post_event_ids:
+        pre_text = next(e for e in pre_events if e.get("id") == eid).get("text", "")
+        post_text = next(e for e in post_events if e.get("id") == eid).get("text", "")
+        if pre_text != post_text:
+            facts.append({"kind": "updated", "old": pre_text, "new": post_text})
 
     pre_q = _quests_by_id(pre)
     post_q = _quests_by_id(post)
@@ -1419,7 +1418,7 @@ async def run_turn(
     narrative_chunks: list[str] = []
     delta: StateDelta | None = None
     actions: list[str] = []
-    recent_events: list[str] = []
+    recent_events: list[dict[str, Any]] = []
     intent = IntentEnvelope(
         intent="", intent_verb="act", check=RulesCheck(required=False)
     )

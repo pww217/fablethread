@@ -26,8 +26,8 @@ _MOCK_NARRATE = (
 _MOCK_EXTRACT_NARRATE = {
     "state_delta": {
         "recent_events_add": [
-            "You are at Docking Ring 7.",
-            "Your hand terminal carries an encrypted pinger.",
+            {"id": "at_docking_ring_7", "text": "You are at Docking Ring 7.", "turn": 0},
+            {"id": "hand_terminal_pinger", "text": "Your hand terminal carries an encrypted pinger.", "turn": 0},
         ],
         "scene_tags": ["exploration"],
     },
@@ -42,7 +42,7 @@ _MOCK_EXTRACT_NARRATE = {
 _MOCK_EXTRACT_EXAMINE = {
     "state_delta": {
         "recent_events_add": [
-            "The pinger is from a shell company called 'Quiet Systems.'"
+            {"id": "pinger_shell_company", "text": "The pinger is from a shell company called 'Quiet Systems.'", "turn": 0},
         ],
         "scene_tags": ["dialogue"],
     },
@@ -62,8 +62,8 @@ _MOCK_EXTRACT_CARGO = {
             "description": "Open cargo bay, crates stacked along the walls, smelling of lubricant.",
         },
         "recent_events_add": [
-            "A hauler offers passage to the lower ring.",
-            "There is a terminal in the cargo bay.",
+            {"id": "hauler_passage", "text": "A hauler offers passage to the lower ring.", "turn": 0},
+            {"id": "cargo_bay_terminal", "text": "There is a terminal in the cargo bay.", "turn": 0},
         ],
         "scene_tags": ["travel"],
     },

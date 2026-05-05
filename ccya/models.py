@@ -97,6 +97,7 @@ class InventoryItem(BaseModel):
     name: str
     notes: str = ""
     amount: int = Field(default=1, ge=1)
+    aliases: list[str] = Field(default_factory=list)
 
 
 class InventoryRemove(BaseModel):
@@ -151,11 +152,18 @@ class CompendiumNpcUpdate(BaseModel):
     name: str | None = None
     title: str | None = None
     bio: str | None = None
+    aliases: list[str] = Field(default_factory=list)
+
+
+class RecentEvent(BaseModel):
+    id: str
+    text: str
+    turn: int = 0
 
 
 class RecentEventUpdate(BaseModel):
-    old: str
-    new: str
+    id: str
+    text: str
 
 
 class StateDelta(BaseModel):
@@ -181,9 +189,6 @@ class StateDelta(BaseModel):
     quest_updates: list[QuestUpdate] = Field(default_factory=list)
     pc_condition_add: list[ConditionAdd] = Field(default_factory=list, max_length=6)
     pc_condition_remove: list[ConditionRemove] = Field(default_factory=list)
-    recent_events_add: list[str] = Field(default_factory=list)
-    recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
-    recent_events_remove: list[str] = Field(default_factory=list)
     scene_tags: list[str] = Field(default_factory=list)
     scene_tagline: str | None = (
         None  # 3–6 words for UI header; persisted to state.scene.tagline
@@ -192,6 +197,9 @@ class StateDelta(BaseModel):
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
+    recent_events_add: list[RecentEvent] = Field(default_factory=list)
+    recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
+    recent_events_remove: list[str] = Field(default_factory=list)
 
     @field_validator("pc_condition_add", mode="before")
     @classmethod
@@ -274,7 +282,7 @@ class StateExtractResult(BaseModel):
 
 class ProgressExtractResult(BaseModel):
     quest_updates: list[QuestUpdate] = Field(default_factory=list)
-    recent_events_add: list[str] = Field(default_factory=list)
+    recent_events_add: list[RecentEvent] = Field(default_factory=list)
     recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
     recent_events_remove: list[str] = Field(default_factory=list)
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
@@ -299,7 +307,7 @@ class TurnResult:
     rejected: list[dict[str, Any]] = field(default_factory=list)
     actions: list[str] = field(default_factory=list)
     scene_tags: list[str] = field(default_factory=list)
-    recent_events: list[str] = field(default_factory=list)
+    recent_events: list[dict[str, Any]] = field(default_factory=list)
     diff: list[str] = field(
         default_factory=list
     )  # short human-readable delta lines for UI toast

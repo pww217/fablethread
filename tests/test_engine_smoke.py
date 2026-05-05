@@ -33,6 +33,7 @@ from ccya.models import (
     ConditionAdd,
     ConditionRemove,
     LocationRef,
+    RecentEvent,
     RecentEventUpdate,
     InventoryItem,
     InventoryRemove,
@@ -129,6 +130,12 @@ def _make_state(turn: int = 0) -> dict:
     }
 
 
+def _make_state_with_events(events: list[dict]) -> dict:
+    state = _make_state()
+    state["scene"]["recent_events"] = events
+    return state
+
+
 # ---------------------------------------------------------------------------
 # Fake LLM helpers — mock ccya.engine.llm_chat / ccya.engine.llm_chat_stream
 # ---------------------------------------------------------------------------
@@ -160,6 +167,10 @@ _PROGRESS_RESPONSE = json.dumps({
     "recent_events_remove": [],
     "compendium_npc_update": [],
 })
+
+
+def _make_recent_event(event_id: str, text: str, turn: int = 0) -> dict:
+    return {"id": event_id, "text": text, "turn": turn}
 
 
 class _FakeLLM:
@@ -442,7 +453,10 @@ class TestPromptComposition:
     def test_extract_progress_user_contains_recent_events(self):
         env = self._env()
         state = _make_state()
-        state["scene"]["recent_events"] = ["Alpha fact.", "Beta fact."]
+        state["scene"]["recent_events"] = [
+            _make_recent_event("alpha", "Alpha fact."),
+            _make_recent_event("beta", "Beta fact."),
+        ]
         scene = SceneExtractResult()
         state_res = StateExtractResult()
         msgs = _extract_progress_messages(env, "N.", state, scene_result=scene, state_result=state_res)
@@ -564,7 +578,7 @@ class TestPromptComposition:
         env = self._env()
         state1 = _make_state(turn=0)
         state2 = _make_state(turn=5)
-        state2["scene"]["recent_events"] = ["some new fact"]
+        state2["scene"]["recent_events"] = [_make_recent_event("some_fact", "some new fact")]
         from ccya.models import RulesOutcome
         roll = RulesOutcome(rolled=True, skill="strength", difficulty="hard", final_total=8, band="mixed", directive="The strike succeeds with cost.")
         m1 = _narrate_messages(env, state1, "look", pack_style="dark sci-fi")
@@ -591,7 +605,7 @@ class TestHappyPath:
         narrative = "You step through the airlock. The corridor stretches ahead, dim and humming."
         progress_response = json.dumps({
             "quest_updates": [],
-            "recent_events_add": ["You found an airlock at Docking Ring 7."],
+            "recent_events_add": [{"id": "airlock_found", "text": "You found an airlock at Docking Ring 7.", "turn": 0}],
             "recent_events_update": [],
             "recent_events_remove": [],
             "compendium_npc_update": [],
@@ -604,7 +618,8 @@ class TestHappyPath:
             )
 
         assert result.narrative == narrative
-        assert result.recent_events == ["You found an airlock at Docking Ring 7."]
+        assert len(result.recent_events) == 1
+        assert result.recent_events[0].text == "You found an airlock at Docking Ring 7."
         assert result.metrics["narrate"]["total_ms"] >= 0
         assert result.metrics["extract"]["total_ms"] >= 0
         assert len(result.errors) == 0
@@ -823,7 +838,7 @@ class TestFactCanonization:
 
         progress_response = json.dumps({
             "quest_updates": [],
-            "recent_events_add": ["The airlock hums with residual charge."],
+            "recent_events_add": [{"id": "airlock_hums", "text": "The airlock hums with residual charge.", "turn": 0}],
             "recent_events_update": [],
             "recent_events_remove": [],
             "compendium_npc_update": [],
@@ -834,7 +849,8 @@ class TestFactCanonization:
 
         loaded = load_state(_SAVE_DIR)
         facts = loaded.get("scene", {}).get("recent_events", [])
-        assert "The airlock hums with residual charge." in facts
+        assert len(facts) == 1
+        assert facts[0]["text"] == "The airlock hums with residual charge."
 
 
 # ---------------------------------------------------------------------------
@@ -1157,62 +1173,85 @@ class TestTurnResultTraceId:
 class TestFactsDelta:
     def test_add_only(self) -> None:
         state = _make_state()
-        state["scene"]["recent_events"] = ["fact one", "fact two"]
-        delta = StateDelta(recent_events_add=["fact three"])
+        state["scene"]["recent_events"] = [
+            _make_recent_event("fact-one", "fact one"),
+            _make_recent_event("fact-two", "fact two"),
+        ]
+        delta = StateDelta(recent_events_add=[RecentEvent(id="fact-three", text="fact three")])
         updated = apply_delta(state, delta)
         facts = updated["scene"]["recent_events"]
-        assert facts == ["fact one", "fact two", "fact three"]
+        assert len(facts) == 3
+        assert facts[2]["text"] == "fact three"
 
     def test_empty_delta_noop(self) -> None:
         state = _make_state()
-        state["scene"]["recent_events"] = ["keep me"]
+        state["scene"]["recent_events"] = [_make_recent_event("keep-me", "keep me")]
         delta = StateDelta()
         updated = apply_delta(state, delta)
-        assert updated["scene"]["recent_events"] == ["keep me"]
+        assert updated["scene"]["recent_events"] == [_make_recent_event("keep-me", "keep me")]
 
-    def test_update_preserves_position(self) -> None:
+    def test_update_by_id(self) -> None:
         state = _make_state()
-        state["scene"]["recent_events"] = ["alpha", "beta", "gamma"]
+        state["scene"]["recent_events"] = [
+            _make_recent_event("alpha", "alpha"),
+            _make_recent_event("beta", "beta"),
+            _make_recent_event("gamma", "gamma"),
+        ]
         delta = StateDelta(
-            recent_events_update=[RecentEventUpdate(old="beta", new="beta revised")],
+            recent_events_update=[RecentEventUpdate(id="beta", text="beta revised")],
         )
         updated = apply_delta(state, delta)
         facts = updated["scene"]["recent_events"]
-        assert facts[1] == "beta revised"
-        assert facts[0] == "alpha"
+        assert facts[1]["text"] == "beta revised"
+        assert facts[0]["text"] == "alpha"
 
-    def test_remove_normalized_match(self) -> None:
+    def test_remove_by_id(self) -> None:
         state = _make_state()
-        state["scene"]["recent_events"] = ["  The Ship is damaged.  ", "Other fact."]
-        delta = StateDelta(recent_events_remove=["The Ship is damaged."])
+        state["scene"]["recent_events"] = [
+            _make_recent_event("ship-damaged", "  The Ship is damaged.  "),
+            _make_recent_event("other-fact", "Other fact."),
+        ]
+        delta = StateDelta(recent_events_remove=["ship-damaged"])
         updated = apply_delta(state, delta)
         facts = updated["scene"]["recent_events"]
-        assert "Other fact." in facts
-        assert not any("damaged" in f for f in facts)
+        assert len(facts) == 1
+        assert facts[0]["id"] == "other-fact"
 
-    def test_update_fallback_appends_when_old_missing(self) -> None:
+    def test_update_fallback_noop_when_id_missing(self) -> None:
         state = _make_state()
-        state["scene"]["recent_events"] = ["only"]
+        state["scene"]["recent_events"] = [_make_recent_event("only", "only")]
         delta = StateDelta(
             recent_events_update=[
-                RecentEventUpdate(old="no such fact", new="appended instead")
+                RecentEventUpdate(id="no-such-id", text="not appended")
             ],
         )
         updated = apply_delta(state, delta)
         facts = updated["scene"]["recent_events"]
-        assert facts == ["only", "appended instead"]
+        assert len(facts) == 1
+        assert facts[0]["text"] == "only"
+
+    def test_add_rejects_duplicate_id(self) -> None:
+        state = _make_state()
+        state["scene"]["recent_events"] = [_make_recent_event("dup", "existing")]
+        delta = StateDelta(recent_events_add=[RecentEvent(id="dup", text="duplicate")])
+        updated = apply_delta(state, delta)
+        facts = updated["scene"]["recent_events"]
+        assert len(facts) == 1
+        assert facts[0]["text"] == "existing"
 
 
 class TestEstablishedFactsEviction:
     def test_eviction(self) -> None:
         state = _make_state()
-        state["scene"]["recent_events"] = ["f1", "f2", "f3", "f4", "f5"]
-        delta = StateDelta(recent_events_add=["f6", "f7", "f8", "f9", "f10", "f11"])
+        state["scene"]["recent_events"] = [_make_recent_event(f"f{i}", f"f{i}", turn=i) for i in range(1, 6)]
+        delta = StateDelta(recent_events_add=[
+            RecentEvent(id=f"f{i}", text=f"f{i}", turn=6) for i in range(6, 12)
+        ])
         updated = apply_delta(state, delta, recent_events_max=10)
         facts = updated["scene"]["recent_events"]
         assert len(facts) <= 10
-        assert "f11" in facts
-        assert "f1" not in facts
+        assert any(f["id"] == "f11" for f in facts)
+        assert not any(f["id"] == "f1" for f in facts)
 
 
 class TestPcConditionsDelta:
@@ -1334,13 +1373,15 @@ class TestExtractionStreamSkip:
 class TestEstablishedFactsCap25:
     def test_cap_at_25(self) -> None:
         state = _make_state()
-        state["scene"]["recent_events"] = [f"f{i}" for i in range(24)]
-        delta = StateDelta(recent_events_add=["f24", "f25", "f26"])
+        state["scene"]["recent_events"] = [_make_recent_event(f"f{i}", f"f{i}") for i in range(24)]
+        delta = StateDelta(recent_events_add=[
+            RecentEvent(id=f"f{i}", text=f"f{i}") for i in range(24, 27)
+        ])
         updated = apply_delta(state, delta, recent_events_max=25)
         facts = updated["scene"]["recent_events"]
         assert len(facts) == 25
-        assert "f26" in facts
-        assert "f0" not in facts
+        assert any(f["id"] == "f26" for f in facts)
+        assert not any(f["id"] == "f0" for f in facts)
 
 
 class TestQuestStatusSideEffects:
@@ -1447,12 +1488,14 @@ class TestQuestStatusSideEffects:
 class TestApplyDeltaEstablishedFactsMax:
     def test_custom_max_wired(self) -> None:
         state = _make_state()
-        state["scene"]["recent_events"] = ["f1"]
-        delta = StateDelta(recent_events_add=["f2", "f3", "f4"])
+        state["scene"]["recent_events"] = [_make_recent_event("f1", "f1")]
+        delta = StateDelta(recent_events_add=[
+            RecentEvent(id=f"f{i}", text=f"f{i}") for i in range(2, 5)
+        ])
         updated = apply_delta(state, delta, recent_events_max=2)
         facts = updated["scene"]["recent_events"]
         assert len(facts) <= 2
-        assert facts == ["f3", "f4"]
+        assert facts[-1]["id"] == "f4"
 
 
 class TestInventoryCompendiumTagline:
@@ -1692,7 +1735,7 @@ class TestInventoryCompendiumTagline:
         _write_state(_SAVE_DIR, state)
         progress_response = json.dumps({
             "quest_updates": [],
-            "recent_events_add": ["A fact."],
+            "recent_events_add": [{"id": "a-fact", "text": "A fact.", "turn": 0}],
             "recent_events_update": [],
             "recent_events_remove": [],
             "compendium_npc_update": [],
@@ -1751,7 +1794,7 @@ class TestEstablishedFactsInEvent:
 
         progress_response = json.dumps({
             "quest_updates": [],
-            "recent_events_add": ["This fact matters."],
+            "recent_events_add": [{"id": "fact-matters", "text": "This fact matters.", "turn": 0}],
             "recent_events_update": [],
             "recent_events_remove": [],
             "compendium_npc_update": [],
@@ -1763,7 +1806,8 @@ class TestEstablishedFactsInEvent:
         events = (_SAVE_DIR / "events.jsonl").read_text().strip().split("\n")
         event = json.loads(events[-1])
         applied_add = event.get("applied", {}).get("recent_events_add", [])
-        assert "This fact matters." in applied_add
+        assert len(applied_add) == 1
+        assert applied_add[0]["text"] == "This fact matters."
         assert "narrative" not in event
 
 
@@ -1879,3 +1923,152 @@ class TestPackKwargs:
             eng.llm_chat = _orig_chat
 
         assert any("UNIQUE_STYLE_MARKER_7483" in s for s in captured_narrate_system)
+
+
+# ---------------------------------------------------------------------------
+# TestEntityDedup — alias map, fuzzy match, and dedup in apply_delta
+# ---------------------------------------------------------------------------
+
+
+class TestEntityDedup:
+    """Tests for NPC alias map, inventory fuzzy match, and dedup in apply_delta."""
+
+    def test_build_npc_alias_map(self) -> None:
+        from ccya.state import build_npc_alias_map
+
+        npcs = {
+            "kael_marsh": {
+                "name": "Kael Marsh",
+                "aliases": ["scarred soldier", "the soldier"],
+            },
+            "torben_klask": {"name": "Torben Klask", "aliases": []},
+        }
+        alias_map = build_npc_alias_map(npcs)
+        assert alias_map["kael_marsh"] == "kael_marsh"
+        assert alias_map["scarred soldier"] == "kael_marsh"
+        assert alias_map["the soldier"] == "kael_marsh"
+        assert alias_map["torben_klask"] == "torben_klask"
+        # Unknown alias not in map
+        assert "unknown" not in alias_map
+
+    def test_fuzzy_match_inventory_exact(self) -> None:
+        from ccya.state import _fuzzy_match_inventory
+
+        inventory = [
+            {"id": "worn_dagger", "name": "Worn Dagger", "aliases": []},
+        ]
+        result = _fuzzy_match_inventory("worn dagger", inventory)
+        assert result == "worn_dagger"
+
+    def test_fuzzy_match_inventory_partial(self) -> None:
+        from ccya.state import _fuzzy_match_inventory
+
+        inventory = [
+            {"id": "brass_key", "name": "Brass Key", "aliases": []},
+        ]
+        result = _fuzzy_match_inventory("brass key", inventory)
+        assert result == "brass_key"
+
+    def test_fuzzy_match_inventory_below_threshold(self) -> None:
+        from ccya.state import _fuzzy_match_inventory
+
+        inventory = [
+            {"id": "short_sword", "name": "Short Sword", "aliases": []},
+        ]
+        result = _fuzzy_match_inventory("long sword", inventory)
+        assert result is None
+
+    def test_fuzzy_match_inventory_with_alias(self) -> None:
+        from ccya.state import _fuzzy_match_inventory
+
+        inventory = [
+            {"id": "worn_dagger", "name": "Worn Dagger", "aliases": ["dagger", "the dagger"]},
+        ]
+        result = _fuzzy_match_inventory("dagger", inventory)
+        assert result == "worn_dagger"
+
+    def test_inventory_add_fuzzy_merge(self) -> None:
+        state = _make_state()
+        state["inventory"] = [
+            {"id": "worn_dagger", "name": "Worn Dagger", "amount": 1, "aliases": []},
+        ]
+        delta = StateDelta(inventory_add=[InventoryItem(id="dagger", name="Dagger", amount=1)])
+        updated = apply_delta(state, delta)
+        inv = updated["inventory"]
+        assert len(inv) == 1
+        assert inv[0]["id"] == "worn_dagger"
+        assert inv[0]["amount"] == 2
+
+    def test_inventory_add_with_aliases_merge(self) -> None:
+        state = _make_state()
+        state["inventory"] = [
+            {"id": "worn_dagger", "name": "Worn Dagger", "amount": 1, "aliases": []},
+        ]
+        delta = StateDelta(inventory_add=[
+            InventoryItem(id="dagger", name="Dagger", amount=1, aliases=["the dagger"])
+        ])
+        updated = apply_delta(state, delta)
+        inv = updated["inventory"]
+        assert len(inv) == 1
+        assert inv[0]["id"] == "worn_dagger"
+        assert "the dagger" in inv[0]["aliases"]
+
+    def test_compendium_npc_update_alias_route(self) -> None:
+        state = _make_state()
+        state["compendium"]["npcs"] = {
+            "kael_marsh": {
+                "name": "Kael Marsh",
+                "aliases": ["scarred soldier"],
+            },
+        }
+        delta = StateDelta(compendium_npc_update=[
+            CompendiumNpcUpdate(id="scarred_soldier", name="Kael Marsh", bio="A veteran")
+        ])
+        updated = apply_delta(state, delta)
+        npcs = updated["compendium"]["npcs"]
+        assert "scarred_soldier" not in npcs
+        assert "kael_marsh" in npcs
+        assert npcs["kael_marsh"]["bio"] == "A veteran"
+
+    def test_present_npcs_alias_route(self) -> None:
+        state = _make_state()
+        state["compendium"]["npcs"] = {
+            "kael_marsh": {
+                "name": "Kael Marsh",
+                "aliases": ["scarred soldier"],
+            },
+        }
+        delta = StateDelta(present_npcs=[NpcRef(id="scarred_soldier", name="Kael Marsh")])
+        updated = apply_delta(state, delta)
+        present = updated["scene"]["present_npcs"]
+        assert len(present) == 1
+        assert present[0]["id"] == "kael_marsh"
+
+    def test_inventory_add_new_item_no_merge(self) -> None:
+        state = _make_state()
+        state["inventory"] = [
+            {"id": "worn_dagger", "name": "Worn Dagger", "amount": 1, "aliases": []},
+        ]
+        delta = StateDelta(inventory_add=[InventoryItem(id="brass_key", name="Brass Key", amount=1)])
+        updated = apply_delta(state, delta)
+        inv = updated["inventory"]
+        assert len(inv) == 2
+        ids = {i["id"] for i in inv}
+        assert "worn_dagger" in ids
+        assert "brass_key" in ids
+
+    def test_npc_update_adds_aliases(self) -> None:
+        state = _make_state()
+        state["compendium"]["npcs"] = {
+            "kael_marsh": {
+                "name": "Kael Marsh",
+                "aliases": [],
+            },
+        }
+        delta = StateDelta(compendium_npc_update=[
+            CompendiumNpcUpdate(id="kael_marsh", aliases=["scarred soldier", "the soldier"])
+        ])
+        updated = apply_delta(state, delta)
+        npcs = updated["compendium"]["npcs"]
+        assert "scarred soldier" in npcs["kael_marsh"]["aliases"]
+        assert "the soldier" in npcs["kael_marsh"]["aliases"]
