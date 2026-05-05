@@ -7,7 +7,7 @@ llm:
   max_extract_retries: 1
   enable_extract_thinking: false
   enable_narrate_thinking: false
-  prompt_token_budget: 28672
+  prompt_token_budget: 32768
 
 rules:
   temperature: 0.2

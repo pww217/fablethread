@@ -37,6 +37,6 @@ location: `{{ scene_result.location_id }}`
 {% if scene_result.present_npcs -%}
 present_npcs: {% for n in scene_result.present_npcs %}{{ n.name or n.id }}{% if not loop.last %}, {% endif %}{% endfor %}
 {% endif %}
-=== NARRATION ===
+## CURRENT TURN NARRATION
 {{ narration }}
-=== END NARRATION ===
+## END CURRENT TURN NARRATION

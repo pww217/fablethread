@@ -150,14 +150,29 @@ def trim_messages(
     def estimate(s: str) -> int:
         return int(len(s) / 3.5)
 
+    # System message is never dropped or truncated
+    if messages and messages[0].get("role") == "system":
+        sys_est = estimate(messages[0].get("content", ""))
+        if sys_est > max_tokens:
+            raise ValueError(
+                f"System message ({sys_est} tokens) exceeds budget ({max_tokens} tokens)"
+            )
+
     total = sum(estimate(m.get("content", "")) for m in messages)
-    while total > max_tokens and len(messages) > 1:
-        idx = 1 if messages[0].get("role") == "system" else 0
+    while total > max_tokens:
+        # Find the oldest non-system message to truncate
+        idx = next(
+            (i for i, m in enumerate(messages) if m.get("role") != "system"),
+            None,
+        )
+        if idx is None:
+            break  # only system messages remain, already checked above
         msg = messages[idx]
         content = msg.get("content", "")
         est = estimate(content)
         budget = max_tokens - (total - est)
         if budget <= 0:
+            # No room for this message at all — drop it
             messages.pop(idx)
             total = sum(estimate(m.get("content", "")) for m in messages)
         else:

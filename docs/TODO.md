@@ -11,7 +11,6 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - Fix `trim_messages` — truncate content instead of dropping messages; never drop `system` role
 - Audit and increase prompt token budget across all three streams
 - Context block labeling: `## PRIOR HISTORY` wrapper in `_chronicle.j2`, `## RECENT TURNS` in `_recent.j2`, `## CURRENT TURN NARRATION` label in `extract_user.j2`
-- Compaction redesign: token-threshold trigger, new `compact_system.j2` + `compact_user.j2`, engine archive logic. See `plans/compaction-strategy.md`
 
 ### State Integrity
 
@@ -26,6 +25,10 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 ### Reconciliation
 
 - **Reconciliation system** — post-extraction pass: no item in both inventory and removed list, no NPC in both present and recently_left, no duplicate IDs. See `plans/reconciliation-system.md`
+
+### Deferred
+
+- **Compaction redesign** — token-threshold trigger, new `compact_system.j2` + `compact_user.j2`, engine archive logic. See `plans/compaction-strategy.md`
 
 > **Deferred from P1:** New-NPC compendium guarantee (LRU injection fix). Will be superseded
 > by location-keyed NPC storage in a future milestone. See `plans/npc-compendium-guarantee.md`.
