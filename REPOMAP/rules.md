@@ -9,6 +9,7 @@
 - `DIFFICULTY_MOD` — difficulty level modifiers
 - `CONDITION_MODS` — condition effect modifiers
 - `GM_MOVES` — GM move classifications (5 bands: crit_fail, fail, setback, partial, success, crit_success)
+- `MOMENTUM_DELTA` — deterministic momentum delta per band (crit_success:+2, success:+1, partial:0, setback:-1, fail:-1, crit_fail:-2)
 - `VALID_SKILLS` — allowed skill names
 - `_VERB_CATEGORY` — maps intent verbs to categories (combat, social, exploration, movement, default)
 - `_DIRECTIVE_TABLE` — per-(band, category) directive text for setback/partial

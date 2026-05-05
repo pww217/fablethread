@@ -20,6 +20,7 @@ Steps 2a–2c merge into `StateDelta` → `_validate()` → `apply_delta()` → 
 
 ## Internal functions
 
+- `_narrate_messages()` — prompt builder for narrator; accepts `momentum` param for advisory directive injection
 - `_extract_scene_messages()` — prompt builder for scene extractor (imported by tests)
 - `_extract_state_messages()` — prompt builder for state extractor (imported by tests)
 - `_extract_progress_messages()` — prompt builder for progress extractor (imported by tests)
