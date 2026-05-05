@@ -57,6 +57,22 @@ MOMENTUM: LOW ({{ m }}). The player has been struggling. Unless the fiction dema
 punishment, offer a small break...
 
 {% endif -%}
+{% if pending_gm_beat and pending_gm_beat.type -%}
+GM DIRECTION ({{ pending_gm_beat.type | upper }}, surface as {{ pending_gm_beat.surface_as }}):
+{{ pending_gm_beat.instruction }}
+This is a backstage instruction, not player-visible narration. Integrate it naturally.
+
+{% endif -%}
+{% set scene_age = ((meta | default({})).turn | default(0)) - ((scene | default({})).turn_entered | default(0)) -%}
+{% if scene_age >= 6 and not state.scene.scene_pressure -%}
+SCENE AGE: This scene has been active for {{ scene_age }} turns with no location change.
+Consider advancing: a new arrival, a change in atmosphere, a time skip, or a reason for the
+player to move. Do not force it if the player's action anchors them here — but look for a
+natural opportunity to shift.
+{% elif scene_age >= 10 -%}
+SCENE AGE: {{ scene_age }} turns in this location. The scene needs to move. Something should
+change this turn: an NPC departs, conditions worsen, time pressure becomes visible.
+{% endif -%}
 {% if last_turn_failed -%}
 ## last_turn_failed (already resolved by prior narrator; do NOT retry)
 {% for f in last_turn_failed %}- {{ f }}

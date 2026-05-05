@@ -161,6 +161,7 @@ class PlayerOverrides(BaseModel):
 
 class ExtractExample(BaseModel):
     title: str
+    band: str = ""
     thinking: str = ""
     json_text: str = Field(alias="json")
 

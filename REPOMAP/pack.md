@@ -8,7 +8,7 @@
 
 ## Models
 
-`PackManifest`, `PackFiles`, `Pack`, `SeedState`, `SeedEnvelope`, `ScenarioBrief`, `Constraints`, `Inspiration`, `PlayerOverrides`, `ExtractExample`.
+`PackManifest`, `PackFiles`, `Pack`, `SeedState`, `SeedEnvelope`, `ScenarioBrief`, `Constraints`, `Inspiration`, `PlayerOverrides`, `ExtractExample` (has optional `band` field for band-scoped filtering in state extractor).
 
 ## Seed models
 

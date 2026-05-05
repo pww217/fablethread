@@ -143,6 +143,7 @@ def _narrate_messages(
     last_turn_failed: list[str] = [],
     recently_left: list[dict[str, Any]] = [],
     momentum: int = 0,
+    pending_gm_beat: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
     user_ctx = {
         "state": state,
@@ -154,6 +155,9 @@ def _narrate_messages(
         "recently_left": recently_left,
         "user_input": user_input,
         "momentum": momentum,
+        "pending_gm_beat": pending_gm_beat,
+        "meta": state.get("meta", {}),
+        "scene": state.get("scene", {}),
     }
     system_text = _render(env, "narrate_system.j2", {"pack_style": pack_style})
     user_text = _render(env, "narrate_user.j2", user_ctx)
@@ -725,6 +729,7 @@ def _extract_state_messages(
     rules_outcome: "RulesOutcome | None" = None,
     intent: "IntentEnvelope | None" = None,
     enable_thinking: bool = False,
+    pack_examples: list["ExtractExample"] | None = None,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 2 (inventory + conditions)."""
     pc = state.get("pc") or {}
@@ -746,6 +751,13 @@ def _extract_state_messages(
         ],
     }
 
+    # Filter examples by band (band-scoped extract examples)
+    band = rules_outcome.band if rules_outcome and rules_outcome.rolled else ""
+    band_examples = [
+        ex for ex in (pack_examples or [])
+        if not ex.band or ex.band == band
+    ]
+
     system_text = _render(env, "extract_state_system.j2", {})
     user_text = _render(
         env,
@@ -758,6 +770,7 @@ def _extract_state_messages(
             "scene_result": scene_ctx,
             "rules_outcome": rules_outcome,
             "active_domains": active,
+            "band_examples": band_examples,
         },
     )
     msgs = [
@@ -937,10 +950,10 @@ async def _run_extraction_pipeline(
     trace_id: str,
     turn_no: int,
     pack_examples: list["ExtractExample"] | None = None,
-) -> tuple["StateDelta", list[str], str, list[str], dict[str, Any]]:
+) -> tuple["StateDelta", list[str], str, list[str], dict[str, Any], "ProgressExtractResult"]:
     """Run the three extraction streams in sequence.
 
-    Returns: (merged_delta, actions, outcome_summary, failed, per_stream_event_data)
+    Returns: (merged_delta, actions, outcome_summary, failed, per_stream_event_data, progress_result)
     """
     scope = intent.scope if intent else Scope()
     skip = set(scope.skip_domains or [])
@@ -1001,6 +1014,7 @@ async def _run_extraction_pipeline(
             scene_result=scene_result,
             rules_outcome=rules_outcome, intent=intent,
             enable_thinking=config.enable_extract_thinking,
+            pack_examples=pack_examples,
         )
         state_msgs = trim_messages(state_msgs, config.prompt_token_budget)
         if config.log_prompts:
@@ -1100,6 +1114,7 @@ async def _run_extraction_pipeline(
         scene_result.outcome_summary,
         state_result.failed,
         extraction_event,
+        progress_result,
     )
 
 
@@ -1611,6 +1626,9 @@ async def run_turn(
                 seed=state.get("meta", {}).get("turn", 0),
             )
 
+        # Read pending_gm_beat from previous turn's progress extraction
+        _pending_gm_beat = (state.get("meta") or {}).get("pending_gm_beat")
+
         narr_messages = _narrate_messages(
             env,
             state,
@@ -1624,6 +1642,7 @@ async def run_turn(
             last_turn_failed=last_turn_failed,
             recently_left=(state.get("scene") or {}).get("recently_left", []),
             momentum=(state.get("pc") or {}).get("momentum", 0),
+            pending_gm_beat=_pending_gm_beat,
         )
         narr_messages = trim_messages(narr_messages, config.prompt_token_budget)
         if config.log_prompts:
@@ -1675,6 +1694,9 @@ async def run_turn(
 
         yield ("phase", {"phase": "narrate_done"})
 
+        # Clear pending_gm_beat after narration consumed it
+        state.setdefault("meta", {})["pending_gm_beat"] = None
+
         turn_no = state.get("meta", {}).get("turn", 0) + 1
 
         # === Extraction pipeline (3 streams) ===
@@ -1689,7 +1711,7 @@ async def run_turn(
         extraction_event: dict[str, Any] = {}
 
         try:
-            delta, actions, outcome_summary, failed, extraction_event = (
+            delta, actions, outcome_summary, failed, extraction_event, progress_result = (
                 await _run_extraction_pipeline(
                     env, state, narrative,
                     rules_outcome=outcome,
@@ -1700,6 +1722,9 @@ async def run_turn(
                     pack_examples=pack_examples,
                 )
             )
+            # Store gm_beat for next turn's narration
+            if progress_result and progress_result.gm_beat and progress_result.gm_beat.type:
+                state.setdefault("meta", {})["pending_gm_beat"] = progress_result.gm_beat.model_dump(exclude_none=True)
             if failed:
                 _log.info(
                     "Turn %d: failed preconditions: %s",
