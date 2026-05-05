@@ -9,7 +9,7 @@ Plans live in `plans/` organized by milestone. TODOs are in `docs/TODO.md` organ
 3. **P3 — Inference Speed** — cut token waste, fix prompt overflow, improve local latency
 4. **P4 — World Continuity** — make the world feel authored and reusable across turns
 
-Each phase's exit criteria are listed below. A phase is "done enough" to move on when the critical items are complete — not when every item is closed.
+Each phase’s exit criteria are listed below. A phase is “done enough” to move on when the critical items are complete — not when every item is closed.
 
 ---
 
@@ -28,86 +28,95 @@ flowchart TD
         P1A[Fix trim_messages context drop]:::p1
         P1B[Increase prompt token budget]:::p1
         P1C[recent_events ID-keyed overhaul]:::p1
-        P1D[Canonical inventory IDs]:::p1
-        P1E[NPC alias dedup]:::p1
-        P1F[Remove condition TTL]:::p1
-        P1G[Condition→skill feedback loop]:::p1
-        P1H[Quest filter to active only]:::p1
-        P1I[Fix present/recently-left contradiction]:::p1
-        P1J[New-NPC compendium guarantee]:::p1
-        P1K[Reconciliation system]:::p1
+        P1D[Entity deduplication - inventory + NPCs]:::p1
+        P1E[Remove condition TTL]:::p1
+        P1F[Condition to skill feedback loop]:::p1
+        P1G[Quest filter to active only]:::p1
+        P1H[Fix present/recently-left contradiction]:::p1
+        P1I[Intent expansion]:::p1
+        P1J[Reconciliation system]:::p1
     end
 
     subgraph P2["P2 — Interesting Storytelling"]
-        P2A[Momentum track]:::p2
-        P2B[Scene pressure]:::p2
-        P2C[Active DM / GM beat]:::p2
-        P2D[Band collapse → partial]:::p2
-        P2E[Verb-differentiated directives]:::p2
+        P2A[Band collapse to partial]:::p2
+        P2B[Verb-differentiated directives]:::p2
+        P2C[Momentum track]:::p2
+        P2D[Scene pressure]:::p2
+        P2E[Active DM / GM beat]:::p2
         P2F[Scene age anti-stall]:::p2
         P2G[Band-scoped extract examples]:::p2
     end
 
     subgraph P3["P3 — Inference Speed"]
-        P3A[Replace recent_turns prose with outcome_summary]:::p3
-        P3B[Move world_state + name_pool to system prompt]:::p3
-        P3C[Remove unused Rules outputs: target/stakes/check.tags]:::p3
-        P3D[Static/dynamic prompt split audit]:::p3
-        P3E[Context block labeling - Plan A]:::p3
-        P3F[Compaction redesign - Plan F]:::p3
-        P3G[KV-cache pinning]:::p3
-        P3H[Model-agnostic thinking infra]:::p3
-        P3I[Dev mode dual-model setup]:::p3
-        P3J[Per-call token instrumentation]:::p3
+        P3A[Prompt trimming through pipeline]:::p3
+        P3B[Static/dynamic prompt split audit]:::p3
+        P3C[Per-call token instrumentation]:::p3
+        P3D[KV-cache pinning]:::p3
+        P3E[Model-agnostic thinking infra]:::p3
+        P3F[Dev mode dual-model setup]:::p3
     end
 
     subgraph P4["P4 — World Continuity"]
-        P4A[Typed place pool generation]:::p4
-        P4B[Organization/faction name pool]:::p4
-        P4C[Rumor pool]:::p4
-        P4D[Object epithet pool]:::p4
-        P4E[Narrator prop injection rule]:::p4
-        P4F[Locale-aware word lists by genre]:::p4
-        P4G[Character traits + relationships]:::p4
-        P4H[Character avatars]:::p4
-        P4I[Physical descriptions]:::p4
+        P4A[Location-keyed NPC storage]:::p4
+        P4B[Typed place pool generation]:::p4
+        P4C[Organization/faction name pool]:::p4
+        P4D[Rumor pool]:::p4
+        P4E[Object epithet pool]:::p4
+        P4F[Narrator prop injection rule]:::p4
+        P4G[Locale-aware word lists by genre]:::p4
+        P4H[Character traits + relationships]:::p4
     end
 
-    START --> P1
-    P1 --> P2
-    P1 --> P3
-    P2 --> P4
-    P3 --> P4
+    START --> P1A & P1B
+    P1A & P1B --> P1C & P1D & P1E & P1F & P1G & P1H & P1I
+    P1C & P1D & P1E & P1F & P1G & P1H & P1I --> P1J
+    P1J --> P2A
+    P2A --> P2B --> P2C
+    P2A --> P2D & P2E & P2F & P2G
+    P1J --> P3A & P3B & P3C
+    P3A & P3B --> P3D & P3E & P3F
+    P1J --> P4A
+    P4A --> P4B & P4C & P4D & P4E & P4F & P4G & P4H
 ```
 
 ---
 
-## Phase Exit Criteria
+## P1 Exit Criteria
 
-### P1 — Story Logical Consistency
-- `trim_messages` truncates content instead of dropping messages
-- `recent_events` are ID-keyed with no string-match deduplication
-- Inventory items have stable canonical IDs
-- NPC aliases prevent clone creation
-- Condition TTL removed; conditions only clear via fiction
-- Active-quest-only filtering in `_quests.j2`
-- No present/recently-left contradictions in state
+- `recent_events` are ID-keyed; no string-match deduplication
+- Inventory items have stable canonical IDs; no duplicate entries from rephrasings
+- NPC alias registry prevents duplicate compendium entries on name reveal
+- Condition TTL removed; conditions only cleared by extractor
+- Condition additions are keyed to the skill that failed, not free-form narration reading
+- Active quests only injected into context; completed/failed quests compacted
+- `present_npcs` and `recently_left` are mutually exclusive at all times
+- Intent envelope carries domain scope; extractor skips inactive domains
+- Reconciliation pass catches cross-domain state contradictions before they persist
 
-### P2 — Interesting Storytelling
-- Momentum track live and wired to narrate prompt
-- `scene_pressure` split from `world_state`
-- GM beat emitted by progress extractor and consumed by narrator
-- `mixed`/`boon` collapsed to `partial`
-- Directives branch by `intent_verb` category
+---
 
-### P3 — Inference Speed
-- Full `recent_turns` prose replaced with compact `outcome_summary`
-- Static world data moved to system prompts
-- Unused Rules output fields removed from schema
-- Token counts instrumented per stream
-- Context block labels in place (Plan A)
+## P2 Exit Criteria
 
-### P4 — World Continuity
-- Place, org, rumor, and object pools generated at seed time
-- Narrator instructed to use pool names over invented ones
-- Character traits and physical descriptions persisted in compendium
+- 5-band resolution system (`crit_fail`, `fail`, `setback`, `partial`, `success`, `crit_success`); `mixed`/`boon` removed
+- `build_directive()` produces verb-category-differentiated instructions for `setback` and `partial`
+- Momentum track persists on PC; narrator receives directive at |momentum| >= 2
+- Scene pressure list drives `ACTIVE THREATS` block in narrator; at least one pack using it
+- GM beat emitted by progress extractor and consumed by narrator on following turn
+- No scene runs longer than N turns without a scene-change nudge
+
+---
+
+## P3 Exit Criteria
+
+- Per-turn token counts logged and visible in debug UI
+- `recent_turns` context replaced with compact outcome summaries
+- System prompts verified stable for KV-cache eligibility
+- Local and remote model selection controlled by a single config flag
+
+---
+
+## P4 Exit Criteria
+
+- NPCs stored per location; LRU injection heuristic eliminated
+- Place pool seeded at game start; narrator uses pool names over invented ones
+- NPC traits, relationships, and descriptions persisted across sessions
