@@ -20,6 +20,8 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - ~~**Condition → skill feedback loop** — surface `rules_outcome.skill` + `band` + `directive` in `extract_state_user.j2`; add condition-trigger guidance keyed to failing skill in both `extract_state_system.j2` and `extract_state_user.j2`. See `plans/condition-overhaul.md`~~
 - ~~**Active-quest-only filter** — `_quests.j2` renders only quests with `status: active`; completed/failed quests go to compaction chronicle. See `plans/p1-consistency/llm-pipeline-accuracy.md`~~
 - **Intent expansion** — extend `IntentEnvelope` with `active_domains`, `skip_domains`, `ambiguities`, `genre_note`; wire domains into extractor context, ambiguities into narrator context. See `plans/intent-expansion.md`
+- **Index system for inventory + NPCs** — replace slug references in LLM-facing prompts with sequential integers (`[0] Rusty Dagger`, `[1] Health Potion`); engine owns index assignment, compaction (gap-close on removal), and the ephemeral `index → slug` map rebuilt each turn via `enumerate()`; extractor resolves index → slug before any `apply_delta` call; out-of-range index is an extraction failure. Slugs remain the durable identity in `state.yaml`. Start with inventory, then NPCs. See `plans/p1-consistency/index-system.md`
+- **Engine-owned quantity arithmetic** — LLM flags consumable/ammo usage events; engine applies the numeric delta; extractor never writes raw quantities directly to state.
 
 ### Reconciliation
 
@@ -30,7 +32,8 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - **Compaction redesign** — token-threshold trigger, new `compact_system.j2` + `compact_user.j2`, engine archive logic. See `plans/compaction-strategy.md`
 
 > **Deferred from P1:** New-NPC compendium guarantee (LRU injection fix). Will be superseded
-> by location-keyed NPC storage in a future milestone. See `plans/npc-compendium-guarantee.md`.
+> by location-keyed NPC storage in a future milestone. The index system above is the intended
+> interim fix for NPC slug hallucination until P4 lands. See `plans/npc-compendium-guarantee.md`.
 
 ---
 
@@ -54,6 +57,7 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - **KV-cache pinning** — ensure system prompts are stable strings eligible for provider-side KV caching. See `plans/p3-inference/prompt-optimization.md`
 - **Model-agnostic thinking infra** — abstract reasoning/thinking config so it works across Anthropic, Gemini, and local models. See `plans/p3-inference/prompt-optimization.md`
 - **Dev mode dual-model setup** — cheap fast model for dev iteration, production model behind a flag. See `plans/p3-inference/prompt-optimization.md`
+- **Fixture-based eval harness** — FakeLLM fixtures (`tests/evals/fixtures/`) each containing initial state + player command + canned LLM responses (including retry/failure variants); `run_evals.py` runs full pipeline and dumps `TurnResult` JSON to `tests/evals/outputs/` (gitignored); structural assertions run in CI via pytest; debug UI gains a fixture replay mode to inspect pipeline traces visually. One golden mid-game fixture (inventory, active NPCs, moderately complex command) serves as the primary regression baseline.
 
 ---
 
@@ -69,4 +73,3 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - **Character traits + relationships** — persist trait list and relationship map per NPC in compendium. See `plans/p4-world/npc-location-storage.md`
 - **Character avatars** — generated or assigned avatar per NPC/PC, stored in compendium. See `plans/p4-world/npc-location-storage.md`
 - **Physical descriptions** — generated physical description per NPC at first encounter, stored in compendium. See `plans/p4-world/npc-location-storage.md`
-
