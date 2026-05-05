@@ -442,12 +442,32 @@ def _tv_dict_to_lines(
                 lines.append({"k": k, "v": f"[{len(v)} items]", "dim": False})
         elif isinstance(v, dict):
             if not v:
-                lines.append({"k": k, "v": "{}", "dim": True})
+                lines.append({"k": k, "v": "∅", "dim": True})
             else:
-                raw = json.dumps(v, ensure_ascii=False)
-                if len(raw) > max_str:
-                    raw = raw[:max_str] + "…"
-                lines.append({"k": k, "v": raw, "dim": False})
+                for sk, sv in v.items():
+                    sub_k = f"{k}.{sk}"
+                    if sv is None:
+                        lines.append({"k": sub_k, "v": "null", "dim": True})
+                    elif isinstance(sv, bool):
+                        lines.append({"k": sub_k, "v": str(sv).lower(), "dim": not sv})
+                    elif isinstance(sv, list):
+                        if not sv:
+                            lines.append({"k": sub_k, "v": "∅", "dim": True})
+                        elif all(isinstance(x, (str, int, float)) for x in sv):
+                            joined = ", ".join(str(x) for x in sv)
+                            if len(joined) > max_str:
+                                joined = joined[:max_str] + "…"
+                            lines.append({"k": sub_k, "v": joined or "∅", "dim": not sv})
+                        else:
+                            lines.append({"k": sub_k, "v": f"[{len(sv)} items]", "dim": False})
+                    elif isinstance(sv, str):
+                        display = sv[:max_str] + ("…" if len(sv) > max_str else "")
+                        lines.append({"k": sub_k, "v": display or "∅", "dim": not sv})
+                    else:
+                        s = str(sv)
+                        if len(s) > max_str:
+                            s = s[:max_str] + "…"
+                        lines.append({"k": sub_k, "v": s, "dim": not sv})
         elif isinstance(v, str):
             if not v:
                 lines.append({"k": k, "v": "∅", "dim": True})
@@ -653,6 +673,20 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
 
         narr_text = str(narr_prompt.get("output") or "")
         connectors: list[dict[str, Any]] = []
+
+        def _rules_seg(target: str) -> dict[str, Any]:
+            return {
+                "from": "rules",
+                "label": f"rules → {target}",
+                "lines": _tv_dict_to_lines(
+                    rules_ev_d,
+                    skip_keys=("tokens_in", "tokens_out", "total_ms"),
+                ),
+                "anchor": "rules",
+                "upstream_status": streams["rules"]["status"],
+                "upstream_status_class": streams["rules"]["status_class"],
+            }
+
         if rules_ev_d:
             connectors.append(
                 {
@@ -672,75 +706,71 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                     ],
                 }
             )
-        connectors.append(
+        scene_segments: list[dict[str, Any]] = [
             {
-                "before_stage": "scene",
-                "segments": [
-                    {
-                        "from": "narrate",
-                        "label": "narrate → scene",
-                        "lines": _tv_narration_lines(narr_text),
-                        "anchor": "narrate",
-                        "upstream_status": streams["narrate"]["status"],
-                        "upstream_status_class": streams["narrate"]["status_class"],
-                    }
-                ],
+                "from": "narrate",
+                "label": "narrate → scene",
+                "lines": _tv_narration_lines(narr_text),
+                "anchor": "narrate",
+                "upstream_status": streams["narrate"]["status"],
+                "upstream_status_class": streams["narrate"]["status_class"],
             }
-        )
-        connectors.append(
+        ]
+        if rules_ev_d:
+            scene_segments.insert(0, _rules_seg("scene"))
+        connectors.append({"before_stage": "scene", "segments": scene_segments})
+
+        state_segments: list[dict[str, Any]] = [
             {
-                "before_stage": "state",
-                "segments": [
-                    {
-                        "from": "narrate",
-                        "label": "narrate → state",
-                        "lines": _tv_narration_lines(narr_text),
-                        "anchor": "narrate",
-                        "upstream_status": streams["narrate"]["status"],
-                        "upstream_status_class": streams["narrate"]["status_class"],
-                    },
-                    {
-                        "from": "scene",
-                        "label": "scene → state",
-                        "lines": _tv_dict_to_lines(scene_out),
-                        "anchor": "scene",
-                        "upstream_status": streams["scene"]["status"],
-                        "upstream_status_class": streams["scene"]["status_class"],
-                    },
-                ],
-            }
-        )
-        connectors.append(
+                "from": "narrate",
+                "label": "narrate → state",
+                "lines": _tv_narration_lines(narr_text),
+                "anchor": "narrate",
+                "upstream_status": streams["narrate"]["status"],
+                "upstream_status_class": streams["narrate"]["status_class"],
+            },
             {
-                "before_stage": "progress",
-                "segments": [
-                    {
-                        "from": "narrate",
-                        "label": "narrate → progress",
-                        "lines": _tv_narration_lines(narr_text),
-                        "anchor": "narrate",
-                        "upstream_status": streams["narrate"]["status"],
-                        "upstream_status_class": streams["narrate"]["status_class"],
-                    },
-                    {
-                        "from": "scene",
-                        "label": "scene → progress",
-                        "lines": _tv_dict_to_lines(scene_out),
-                        "anchor": "scene",
-                        "upstream_status": streams["scene"]["status"],
-                        "upstream_status_class": streams["scene"]["status_class"],
-                    },
-                    {
-                        "from": "state",
-                        "label": "state → progress",
-                        "lines": _tv_dict_to_lines(state_out),
-                        "anchor": "state",
-                        "upstream_status": streams["state"]["status"],
-                        "upstream_status_class": streams["state"]["status_class"],
-                    },
-                ],
-            }
-        )
+                "from": "scene",
+                "label": "scene → state",
+                "lines": _tv_dict_to_lines(scene_out),
+                "anchor": "scene",
+                "upstream_status": streams["scene"]["status"],
+                "upstream_status_class": streams["scene"]["status_class"],
+            },
+        ]
+        if rules_ev_d:
+            state_segments.insert(0, _rules_seg("state"))
+        connectors.append({"before_stage": "state", "segments": state_segments})
+
+        progress_segments: list[dict[str, Any]] = [
+            {
+                "from": "narrate",
+                "label": "narrate → progress",
+                "lines": _tv_narration_lines(narr_text),
+                "anchor": "narrate",
+                "upstream_status": streams["narrate"]["status"],
+                "upstream_status_class": streams["narrate"]["status_class"],
+            },
+            {
+                "from": "scene",
+                "label": "scene → progress",
+                "lines": _tv_dict_to_lines(scene_out),
+                "anchor": "scene",
+                "upstream_status": streams["scene"]["status"],
+                "upstream_status_class": streams["scene"]["status_class"],
+            },
+            {
+                "from": "state",
+                "label": "state → progress",
+                "lines": _tv_dict_to_lines(state_out),
+                "anchor": "state",
+                "upstream_status": streams["state"]["status"],
+                "upstream_status_class": streams["state"]["status_class"],
+            },
+        ]
+        if rules_ev_d:
+            progress_segments.insert(0, _rules_seg("progress"))
+        connectors.append({"before_stage": "progress", "segments": progress_segments})
 
         state_rej = [
             r

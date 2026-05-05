@@ -65,22 +65,25 @@
                         <div class="tv-stage-wrap">
                             <template x-for="(c, ci) in connectorsBefore(t, stage)" :key="c.before_stage + '-' + ci">
                                 <div class="tv-flow-block">
-                                    <template x-for="(seg, si) in c.segments" :key="seg.from + '-' + si">
+                                    <template x-for="(seg, si) in c.segments" :key="c.before_stage + '-' + seg.from + '-' + si">
                                         <div class="tv-flow-segment"
                                              :class="[seg.upstream_status_class, seg.from === 'narrate' ? 'tv-flow-segment--narrate' : '']">
-                                            <div class="tv-flow-line" :class="'tv-flow-line--' + (seg.upstream_status || 'ok')"></div>
-                                            <div class="tv-flow-pill" :class="{ 'expanded': isFlowOpen(t.turn, seg.from) }" @click.prevent="toggleFlow(t.turn, seg.from)">
+                                            <div class="tv-flow-pill" :class="{ 'expanded': isFlowOpen(t.turn, c.before_stage, seg.from) }" @click.prevent="toggleFlow(t.turn, c.before_stage, seg.from)">
                                                 <div class="tv-flow-pill-label" x-text="seg.label + (seg.lines && seg.lines.length ? ' (' + seg.lines.length + ')' : '')"></div>
-                                                <div class="tv-flow-kv-grid" :style="'grid-template-columns: repeat(' + Math.ceil((seg.lines || []).length / 3) + ', minmax(100px, 1fr))'">
+                                                <div class="tv-flow-kv-grid"
+                                                     :style="isFlowOpen(t.turn, c.before_stage, seg.from)
+                                                         ? 'display: flex; flex-direction: column; gap: 5px'
+                                                         : 'display: grid; grid-template-columns: repeat(' + Math.ceil((seg.lines || []).length / 3) + ', minmax(60px, auto)); gap: 2px 8px'">
                                                     <template x-for="ln in seg.lines" :key="ln.k">
                                                         <div class="tv-flow-kv-item" :class="{ 'tv-flow-kv-item--full': ln.full_width, 'dim': ln.dim }">
                                                             <span class="k" x-text="ln.k"></span>
-                                                            <span class="v" x-show="isFlowOpen(t.turn, seg.from)" x-text="ln.v"></span>
+                                                            <span class="v" x-show="isFlowOpen(t.turn, c.before_stage, seg.from)" x-text="ln.v"></span>
                                                         </div>
                                                     </template>
                                                 </div>
-                                                <div class="tv-flow-expand-hint" x-show="!isFlowOpen(t.turn, seg.from)">click to see values</div>
+                                                <div class="tv-flow-expand-hint" x-show="!isFlowOpen(t.turn, c.before_stage, seg.from)">click to see values</div>
                                             </div>
+                                            <div class="tv-flow-line" :class="'tv-flow-line--' + (seg.upstream_status || 'ok')"></div>
                                         </div>
                                     </template>
                                 </div>
@@ -307,11 +310,11 @@ function tvRoot(initialTurns) {
         toggleTurnCollapsed(turn) {
             this.turnCollapsed[turn] = !this.turnCollapsed[turn];
         },
-        isFlowOpen(turn, anchor) {
-            return !!this.flowOpen['t' + turn + '-' + anchor];
+        isFlowOpen(turn, dst, src) {
+            return !!this.flowOpen['t' + turn + '-' + dst + '-' + src];
         },
-        toggleFlow(turn, anchor) {
-            var k = 't' + turn + '-' + anchor;
+        toggleFlow(turn, dst, src) {
+            var k = 't' + turn + '-' + dst + '-' + src;
             this.flowOpen[k] = !this.flowOpen[k];
             this.$nextTick(function() {
                 document.querySelectorAll('.tv-flow-expanded code.language-json').forEach(function(el) {

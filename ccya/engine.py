@@ -1831,12 +1831,16 @@ async def run_turn(
 
         # === Write: events.jsonl → atomic state.yaml → chronicle.md ===
         # Narrative is canonical in chronicle.md only (see load_recent_chronicle_turns).
-        rules_event: dict[str, Any] | None = None
+        rules_event: dict[str, Any] = {
+            "intent_verb": intent.intent_verb,
+            "intent": intent.intent,
+            "rolled": outcome.rolled,
+            "total_ms": rules_metrics.get("total_ms"),
+            "tokens_in": rules_metrics.get("tokens_in", 0),
+            "tokens_out": rules_metrics.get("tokens_out", 0),
+        }
         if outcome.rolled:
-            rules_event = {
-                "intent_verb": outcome.intent_verb,
-                "intent": outcome.intent,
-                "rolled": True,
+            rules_event.update({
                 "skill": outcome.skill,
                 "difficulty": outcome.difficulty,
                 "dice": outcome.dice,
@@ -1846,19 +1850,7 @@ async def run_turn(
                 "final_total": outcome.final_total,
                 "band": outcome.band,
                 "outcome_summary": outcome_summary,
-                "total_ms": rules_metrics.get("total_ms"),
-                "tokens_in": rules_metrics.get("tokens_in", 0),
-                "tokens_out": rules_metrics.get("tokens_out", 0),
-            }
-        elif intent.intent_verb and intent.intent_verb != "act":
-            rules_event = {
-                "intent_verb": intent.intent_verb,
-                "intent": intent.intent,
-                "rolled": False,
-                "total_ms": rules_metrics.get("total_ms"),
-                "tokens_in": rules_metrics.get("tokens_in", 0),
-                "tokens_out": rules_metrics.get("tokens_out", 0),
-            }
+            })
 
         event = {
             "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
