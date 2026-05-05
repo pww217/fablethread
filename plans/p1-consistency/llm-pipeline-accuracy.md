@@ -457,6 +457,36 @@ def run_compaction(game_state):
 | `ccya/prompts/compact_system.j2` | New file | F | Pending |
 | `ccya/prompts/compact_user.j2` | New file | F | Pending |
 
+## Plan G: Active-Quest-Only Filter
+
+### Problem
+`_quests.j2` renders all quests every turn, including completed and failed ones. This wastes tokens and can confuse the extractor with stale quest data.
+
+### Implementation
+Add a `{% if q.status == "active" %}` filter to `_quests.j2` so only active quests are rendered in the extractor context. Completed/failed quests go to the compaction chronicle instead.
+
+Pure template change — no Python logic required.
+
+---
+
+## Plan H: Band-Scoped Extract Examples
+
+### Problem
+`pack_examples` in the extractor prompt are generic — they don't show what a correct extraction looks like for each specific band outcome. The model benefits from seeing band-specific examples.
+
+### Implementation
+Condition `pack_examples` rendering on the actual roll outcome band. When `rules_outcome.band` is `fail`, show the extractor what a `fail` extraction looks like. When it's `crit_success`, show a `crit_success` example. This gives the model a concrete reference for the expected extraction style at each difficulty level.
+
+Add to `extract_user.j2` after the rules outcome block:
+```jinja
+{% if pack_examples and rules_outcome.band %}
+## EXAMPLE EXTRACTIONS (band: {{ rules_outcome.band }})
+{{ pack_examples }}
+{% endif %}
+```
+
+---
+
 ## Recommended Implementation Order
 
 1. **A** — labels (template only, zero risk, immediate signal)
@@ -465,3 +495,5 @@ def run_compaction(game_state):
 4. **D** — state slicing (depends on C being stable) ✅
 5. **E** — actions placement: ABANDONED (actions stay in extractor)
 6. **F** — compaction redesign (current cadence is functional; do last)
+7. **G** — active-quest-only filter (template change, zero risk)
+8. **H** — band-scoped extract examples (template change)

@@ -4,7 +4,6 @@
 
 The extractor can produce internally inconsistent deltas:
 - An item added to inventory and also in the remove list
-- An NPC in both `present_npcs` and `recently_left`
 - A fact ID added that already exists verbatim
 - A condition added that's already active
 
@@ -31,15 +30,7 @@ def reconcile_delta(state: dict, delta: dict) -> list[str]:
         delta["inventory_add"] = [i for i in delta["inventory_add"] if i.get("id") not in conflict]
         warnings.append(f"inventory conflict (add+remove same turn): {conflict}")
 
-    # 2. NPC: present and recently_left mutually exclusive -> prefer present
-    present = set(delta.get("present_npcs") or [])
-    left = set(delta.get("recently_left_add") or [])
-    overlap = present & left
-    if overlap:
-        delta["recently_left_add"] = [x for x in delta.get("recently_left_add", []) if x not in overlap]
-        warnings.append(f"NPC present/left conflict: {overlap}")
-
-    # 3. Conditions: don't add a condition already active
+    # 2. Conditions: don't add a condition already active
     existing_conds = {c.get("id") for c in (state.get("pc") or {}).get("conditions") or []}
     new_conds = delta.get("pc_condition_add") or []
     dupes = [c for c in new_conds if c.get("id") in existing_conds]
@@ -47,7 +38,7 @@ def reconcile_delta(state: dict, delta: dict) -> list[str]:
         delta["pc_condition_add"] = [c for c in new_conds if c.get("id") not in existing_conds]
         warnings.append(f"duplicate condition add ignored: {[c.get('id') for c in dupes]}")
 
-    # 4. Facts: don't add a fact ID that already exists
+    # 3. Facts: don't add a fact ID that already exists
     existing_facts = {f.get("id") for f in (state.get("scene") or {}).get("established_facts") or [] if isinstance(f, dict)}
     new_facts = delta.get("established_facts_add") or []
     dupe_facts = [f for f in new_facts if f.get("id") in existing_facts]
