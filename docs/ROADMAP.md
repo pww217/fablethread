@@ -40,7 +40,7 @@ flowchart TD
     subgraph P2["P2 — Interesting Storytelling"]
     P2A[Band collapse to partial ~~done~~]:::p2
     P2B[Verb-differentiated directives ~~done~~]:::p2
-        P2C[Momentum track]:::p2
+        P2C[Momentum track ~~done~~]:::p2
         P2D[Scene pressure]:::p2
         P2E[Active DM / GM beat]:::p2
         P2F[Scene age anti-stall]:::p2
@@ -99,7 +99,7 @@ flowchart TD
 
 - ~~5-band resolution system (`crit_fail`, `fail`, `setback`, `partial`, `success`, `crit_success`); `mixed`/`boon` removed~~
 - ~~`build_directive()` produces verb-category-differentiated instructions for `setback` and `partial`~~
-- Momentum track persists on PC; narrator receives directive at |momentum| >= 2
+- ~~Momentum track persists on PC; narrator receives directive at |momentum| >= 2~~
 - Scene pressure list drives `ACTIVE THREATS` block in narrator; at least one pack using it
 - GM beat emitted by progress extractor and consumed by narrator on following turn
 - No scene runs longer than N turns without a scene-change nudge

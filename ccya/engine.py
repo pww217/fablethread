@@ -48,6 +48,7 @@ from ccya.state import (
     append_chronicle,
     append_event,
     apply_delta,
+    apply_momentum,
     load_chronicle_tail,
     load_recent_chronicle_turns,
     load_recent_events,
@@ -138,6 +139,7 @@ def _narrate_messages(
     npc_name_pool: list[str] = [],
     last_turn_failed: list[str] = [],
     recently_left: list[dict[str, Any]] = [],
+    momentum: int = 0,
 ) -> list[dict[str, str]]:
     user_ctx = {
         "state": state,
@@ -148,6 +150,7 @@ def _narrate_messages(
         "last_turn_failed": last_turn_failed,
         "recently_left": recently_left,
         "user_input": user_input,
+        "momentum": momentum,
     }
     system_text = _render(env, "narrate_system.j2", {"pack_style": pack_style})
     user_text = _render(env, "narrate_user.j2", user_ctx)
@@ -1498,6 +1501,10 @@ async def run_turn(
                 rolled=False, intent_verb=intent.intent_verb, intent=intent.intent
             )
 
+        # Apply momentum deterministically from band (never from LLM)
+        if outcome.rolled:
+            apply_momentum(state, outcome.band)
+
         if config.log_prompts:
             _log_rules_outcome(
                 state.get("meta", {}).get("turn", 0) + 1, intent, outcome
@@ -1555,6 +1562,7 @@ async def run_turn(
             npc_name_pool=_npc_name_pool,
             last_turn_failed=last_turn_failed,
             recently_left=(state.get("scene") or {}).get("recently_left", []),
+            momentum=(state.get("pc") or {}).get("momentum", 0),
         )
         narr_messages = trim_messages(narr_messages, config.prompt_token_budget)
         if config.log_prompts:

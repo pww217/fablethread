@@ -28,6 +28,7 @@ class SeedPC(BaseModel):
     bio: str = ""
     stats: dict[str, int] = Field(default_factory=dict)
     conditions: list[str] = Field(default_factory=list)
+    momentum: int = 0
 
     @model_validator(mode="before")
     @classmethod

@@ -10,6 +10,14 @@
 
 `PackManifest`, `PackFiles`, `Pack`, `SeedState`, `SeedEnvelope`, `ScenarioBrief`, `Constraints`, `Inspiration`, `PlayerOverrides`, `ExtractExample`.
 
+## Seed models
+
+- `SeedPC` — `name`, `tagline`, `bio`, `stats`, `conditions`, `momentum` (default 0)
+- `SeedLocation` — `id`, `name`, `description`
+- `SeedQuest`, `SeedQuestObjective` — quest upsert schema
+- `SeedScene` — `tags`, `world_state`, `present_npcs`, `recent_events`
+- `SeedCompendium` — `npcs: dict`
+
 ## Pack structure
 
 Each pack in `packs/{pack_id}/`:

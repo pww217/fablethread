@@ -52,6 +52,8 @@ def _migrate_state(state: dict[str, Any]) -> None:
         pc["tagline"] = ""
     if "bio" not in pc:
         pc["bio"] = ""
+    if "momentum" not in pc:
+        pc["momentum"] = 0
 
     stats = pc.setdefault("stats", {})
     for old, new in _STAT_RENAME.items():
@@ -107,6 +109,23 @@ def _migrate_recent_events(state: dict[str, Any]) -> None:
         state["scene"]["recent_events"] = migrated
 
 
+_MOMENTUM_MIN: int = -3
+_MOMENTUM_MAX: int = 3
+
+
+def apply_momentum(state: dict[str, Any], band: str) -> None:
+    """Update pc.momentum deterministically from a rules band.
+
+    Clamped to [-3, +3]. Mutates state in place.
+    """
+    from ccya.rules import MOMENTUM_DELTA
+
+    pc = state.setdefault("pc", {})
+    current = int(pc.get("momentum", 0))
+    delta = MOMENTUM_DELTA.get(band, 0)
+    pc["momentum"] = max(_MOMENTUM_MIN, min(_MOMENTUM_MAX, current + delta))
+
+
 def save_state(save_dir: Path, state: dict[str, Any]) -> None:
     tmp_path = save_dir / "state.yaml.tmp"
     real_path = save_dir / "state.yaml"
@@ -137,6 +156,7 @@ def _default_state() -> dict[str, Any]:
                 "resolve": 2,
             },
             "conditions": [],
+            "momentum": 0,
         },
         "location": {"id": "", "name": "", "description": ""},
         "inventory": [],

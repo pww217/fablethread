@@ -71,6 +71,15 @@ _VERB_CATEGORY: dict[str, str] = {
     "search": "exploration", "investigate": "exploration", "sneak": "exploration",
 }
 
+MOMENTUM_DELTA: dict[str, int] = {
+    "crit_success": 2,
+    "success": 1,
+    "partial": 0,
+    "setback": -1,
+    "fail": -1,
+    "crit_fail": -2,
+}
+
 _DIRECTIVE_TABLE: dict[str, dict[str, str]] = {
     "setback": {
         "combat":      "You land the blow but take a wound or lose ground.",

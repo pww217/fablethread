@@ -5,6 +5,7 @@
 - **`load_state(save_dir)`** → `dict` — loads YAML, runs `_migrate_state()`.
 - **`save_state(save_dir, state)`** — atomic write (tmp + rename).
 - **`apply_delta(state, delta, recent_events_max=15)`** → `dict` — mutates state in-place (deep copy), returns updated state. Handles inventory merge/remove, location change, quest upsert, condition add/remove (id-based dedup, FIFO cap 5), recent events (remove→update→add, FIFO cap), scene tags, present NPCs (hydrate from compendium), compendium updates, recently_left tracking.
+- **`apply_momentum(state, band)`** — updates `pc.momentum` deterministically from a rules band, clamped to [-3, +3].
 - **`append_event(save_dir, event)`** — appends to events.jsonl.
 - **`append_chronicle(save_dir, text)`** — appends to chronicle.md.
 - **`init_save_dir(save_dir, seed)`** — writes seed state, truncates chronicle/events.
@@ -42,6 +43,7 @@ pc:
       label: str
       description: str
       added_turn: int
+  momentum: int                # [-3, +3], engine-computed from roll bands
 
 location:
   id: str

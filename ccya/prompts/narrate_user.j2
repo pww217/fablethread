@@ -41,6 +41,17 @@ Roll: {{ rules_outcome.dice | join(' + ') }}{% if rules_outcome.stat_mod != 0 %}
 Directive: {{ rules_outcome.directive }}
 
 {% endif -%}
+{% set m = momentum | default(0) -%}
+{% if m >= 2 -%}
+## momentum (engine-computed, advisory only)
+MOMENTUM: HIGH (+{{ m }}). The player is on a strong run. Consider raising the stakes...
+
+{% elif m <= -2 -%}
+## momentum (engine-computed, advisory only)
+MOMENTUM: LOW ({{ m }}). The player has been struggling. Unless the fiction demands
+punishment, offer a small break...
+
+{% endif -%}
 {% if last_turn_failed -%}
 ## last_turn_failed (already resolved by prior narrator; do NOT retry)
 {% for f in last_turn_failed %}- {{ f }}
