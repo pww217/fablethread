@@ -57,7 +57,7 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - **KV-cache pinning** — ensure system prompts are stable strings eligible for provider-side KV caching. See `plans/p3-inference/prompt-optimization.md`
 - **Model-agnostic thinking infra** — abstract reasoning/thinking config so it works across Anthropic, Gemini, and local models. See `plans/p3-inference/prompt-optimization.md`
 - **Dev mode dual-model setup** — cheap fast model for dev iteration, production model behind a flag. See `plans/p3-inference/prompt-optimization.md`
-- **Fixture-based eval harness** — FakeLLM fixtures (`tests/evals/fixtures/`) each containing initial state + player command + canned LLM responses (including retry/failure variants); `run_evals.py` runs full pipeline and dumps `TurnResult` JSON to `tests/evals/outputs/` (gitignored); structural assertions run in CI via pytest; debug UI gains a fixture replay mode to inspect pipeline traces visually. One golden mid-game fixture (inventory, active NPCs, moderately complex command) serves as the primary regression baseline.
+- **Two-tier eval harness** — (1) Tier 1: `_FakeLLM` fixture-based integration tests in `tests/test_evals.py`, parametrized over `tests/evals/fixtures/*.yaml`, runs as part of `make test`, offline/fast/CI-safe; (2) Tier 2: `make eval` live-server qualitative pipeline — `scripts/run_evals.py` seeds state, POSTs turns via `GET /turn?input=`, fetches `GET /turn_viewer/data`, writes per-phase JSONL to `evals/outputs/` (gitignored), inspectable with `jq` or `scripts/eval_inspect.py`. See `plans/p3-inference/eval-harness.md`
 
 ---
 
