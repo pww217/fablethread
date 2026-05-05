@@ -1449,14 +1449,12 @@ def _expire_scene_pressures(
         building_at = config.scene_pressure_building_at
         immediate_at = config.scene_pressure_immediate_at
 
-    alive: list[dict[str, Any]] = []
     for p in pressures:
         if not isinstance(p, dict):
             continue
         turn_added = p.get("turn_added")
         # Skip pressures without turn_added — they predate this tracking.
         if turn_added is None or turn_added == 0:
-            alive.append(p)
             continue
         max_turns = p.get("max_turns")
         if max_turns is not None and (current_turn - turn_added) >= max_turns:
@@ -1468,7 +1466,6 @@ def _expire_scene_pressures(
             p["urgency"] = "immediate"
         elif age >= building_at and urgency == "background":
             p["urgency"] = "building"
-        alive.append(p)
 
     if removed_ids:
         delta.scene_pressure_remove.extend(sorted(removed_ids))
