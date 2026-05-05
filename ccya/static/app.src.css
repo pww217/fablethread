@@ -2627,19 +2627,22 @@ body {
   border-radius: 2px;
 }
 
-/* Data-flow connectors — horizontal pills */
+/* Data-flow connectors — stable horizontal pill row with downward arrows */
 .tv-flow-block {
   display: flex;
   flex-direction: row;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 12px;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  overflow-x: auto;
   padding: 4px 18px 0 28px;
 }
 
 .tv-flow-segment {
   display: flex;
-  gap: 10px;
-  align-items: stretch;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
   flex-shrink: 0;
 }
 
@@ -2647,43 +2650,44 @@ body {
   opacity: 0.6;
 }
 
+/* Vertical downward arrow below each pill */
 .tv-flow-line {
-  width: 32px;
-  height: 4px;
+  width: 4px;
+  height: 16px;
   border-radius: 2px;
   background: var(--status-ok);
   flex-shrink: 0;
   position: relative;
-  align-self: center;
+  margin-left: 16px;
 }
 
 .tv-flow-line::after {
   content: '';
   position: absolute;
-  right: -6px;
-  top: -5px;
-  border-top: 6px solid transparent;
-  border-bottom: 6px solid transparent;
-  border-left: 8px solid var(--status-ok);
+  bottom: -7px;
+  left: -4px;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid var(--status-ok);
 }
 
 .tv-flow-line--ok { background: var(--status-ok); }
-.tv-flow-line--ok::after { border-left-color: var(--status-ok); }
+.tv-flow-line--ok::after { border-top-color: var(--status-ok); }
 
 .tv-flow-line--skipped { background: var(--status-skipped); }
-.tv-flow-line--skipped::after { border-left-color: var(--status-skipped); }
+.tv-flow-line--skipped::after { border-top-color: var(--status-skipped); }
 
 .tv-flow-line--retried { background: var(--status-retried); }
-.tv-flow-line--retried::after { border-left-color: var(--status-retried); }
+.tv-flow-line--retried::after { border-top-color: var(--status-retried); }
 
 .tv-flow-line--rejected { background: var(--status-rejected); }
-.tv-flow-line--rejected::after { border-left-color: var(--status-rejected); }
+.tv-flow-line--rejected::after { border-top-color: var(--status-rejected); }
 
 .tv-flow-line--error { background: var(--status-error); }
-.tv-flow-line--error::after { border-left-color: var(--status-error); }
+.tv-flow-line--error::after { border-top-color: var(--status-error); }
 
 .tv-flow-line--neutral { background: var(--status-neutral); }
-.tv-flow-line--neutral::after { border-left-color: var(--status-neutral); }
+.tv-flow-line--neutral::after { border-top-color: var(--status-neutral); }
 
 .tv-flow-pill {
   flex: none;
@@ -2716,8 +2720,8 @@ body {
 }
 
 .tv-flow-pill.expanded {
-  flex: 1 1 auto;
-  min-width: 340px;
+  flex: none;
+  width: auto;
   padding: 10px 12px;
 }
 
@@ -2771,17 +2775,16 @@ body {
 }
 
 /* key/value grid inside connector pills — columns set dynamically via Alpine :style */
+/* collapsed: multi-column key grid (inline style sets grid columns); expanded: flex column via inline style */
 .tv-flow-kv-grid {
-  display: grid;
-  gap: 3px 16px;
   margin-top: 4px;
-  width: 100%;
 }
 
+/* each item: key label above, value below when expanded */
 .tv-flow-kv-item {
   display: flex;
-  gap: 5px;
-  align-items: baseline;
+  flex-direction: column;
+  gap: 1px;
   min-width: 0;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -2789,33 +2792,38 @@ body {
 }
 
 .tv-flow-kv-item .k {
-  flex-shrink: 0;
-  color: var(--text-muted);
-  font-weight: 600;
-  font-size: 11px;
-}
-
-.tv-flow-kv-item .v {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #468284;
   white-space: nowrap;
 }
 
-.tv-flow-kv-item--full {
-  grid-column: 1 / -1;
+.tv-flow-kv-item.dim .k {
+  color: #2d5557;
+}
+
+.tv-flow-kv-item .v {
+  font-size: 12px;
+  max-width: 320px;
+  white-space: normal;
+  word-break: break-word;
+  overflow: visible;
 }
 
 .tv-flow-kv-item--full .v {
   white-space: pre-wrap;
   word-break: break-word;
-  overflow: visible;
-  text-overflow: unset;
 }
 
 .tv-flow-kv-item.dim {
-  opacity: 0.45;
+  opacity: 0.55;
+}
+
+.tv-flow-kv-item.dim .v {
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .tv-flash {
