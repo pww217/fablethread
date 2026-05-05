@@ -262,3 +262,77 @@ Add to `TODO.md` under Mechanics:
 - [ ] **Object epithet pool** — named items pool for loot/discovery/combat turns. See `plans/world-prop-injection.md`.
 - [ ] **Narrator prop injection rule** — add rule to `narrate_system.j2` instructing narrator to prefer pool names over invented ones. See `plans/world-prop-injection.md`.
 - [ ] **Locale-aware word lists by genre** — `pack.genre` flag selects appropriate `_WORD_LISTS_BY_GENRE` entry. See `plans/world-prop-injection.md`.
+
+---
+
+## Part 5: Location-Keyed NPC Storage
+
+### Problem
+
+NPCs are stored in a flat global compendium. The LRU-based injection (`_known_characters_for_extract`) evicts current-scene NPCs in favor of frequently-seen but irrelevant ones. New NPCs get no compendium entry. This causes duplicate NPC creation and poor context for the extractor.
+
+### Design
+
+Store NPCs per location instead of in a flat global compendium:
+
+- NPCs are stored under `compendium.npcs_by_location[location_id]`
+- When the player enters a location, NPCs known to be there are loaded into context
+- The extractor writes new NPCs to the current location's list
+- A lightweight global index (`compendium.npc_index`: `{id: {name, home_location}}`) handles cross-location references
+- Mobile NPCs (followers, recurring characters) have a `home_location` + `currently_at` override
+
+### State schema
+
+```yaml
+compendium:
+  npc_index:
+    kael_marsh:
+      name: "Kael Marsh"
+      home_location: "durn_tavern"
+      currently_at: null  # null = at home location
+    torben_klask:
+      name: "Torben Klask"
+      home_location: "durn_docks"
+      currently_at: "durn_tavern"  # mobile — overrides home
+  npc_by_location:
+    durn_tavern:
+      kael_marsh: { name: "Kael Marsh", ... }
+      torben_klask: { name: "Torben Klask", ... }
+    durn_docks:
+      torben_klask: { name: "Torben Klask", ... }
+```
+
+### Implementation
+
+**`ccya/state.py`** — add migration in `_migrate_state()`:
+```python
+def _migrate_npc_storage(state: dict) -> dict:
+    """Migrate flat compendium.npcs to location-keyed storage."""
+    npcs = state.get("compendium", {}).get("npcs") or {}
+    if not npcs:
+        return state
+    by_location: dict[str, dict] = {}
+    index: dict[str, dict] = {}
+    for npc_id, npc in npcs.items():
+        loc = npc.get("location", "unknown")
+        by_location.setdefault(loc, {})[npc_id] = npc
+        index[npc_id] = {"name": npc.get("name", npc_id), "home_location": loc, "currently_at": npc.get("currently_at")}
+    state.setdefault("compendium", {})["npc_index"] = index
+    state.setdefault("compendium", {})["npc_by_location"] = by_location
+    del state["compendium"]["npcs"]
+    return state
+```
+
+**`ccya/engine.py`** — update `_known_characters_for_extract()` to read from `npc_by_location[location]` instead of the flat compendium.
+
+**`ccya/prompts/extract_state_system.j2`** — update NPC context section to render `npc_by_location[location]` instead of the flat list.
+
+### Related: NPC Enrichment
+
+This plan also covers adding richer NPC data to the compendium:
+
+- **Character traits + relationships** — persist `traits: list[str]` and `relationships: dict[str, str]` per NPC in compendium. Extractor emits these from narration.
+- **Character avatars** — generated or assigned avatar string per NPC/PC, stored in compendium. Seed from name pool or generate via narrator.
+- **Physical descriptions** — generated physical description per NPC at first encounter, stored in compendium. Extractor emits `npc_physical_description` for new NPCs.
+
+All three are model/schema additions to NPC entries — no new architecture needed beyond the location-keyed storage.
