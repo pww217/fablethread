@@ -78,6 +78,9 @@ If you find logic in the wrong layer, move it rather than pile on.
 - When planning or gathering information to execute a task, split large jobs into segments to preserve your context window. Aim to take in at most 3500 lines of code at time, execute as much as you can, then pause and ask user for input or compaction before the next execution.
 - Limit your reasoning to what's necessary. Plan out your process before you begin and stick to it. Keep it as terse as possible, avoid repeating yourself or going in circles. 
 
+## Execution Rules
+- Feel free to curl against a running server (assume it's running) to pull information or rendered templates live to examine
+
 ## Known tooling notes
 
 - `pyproject.toml` has `follow_imports = "skip"` in mypy config — prevents pydantic plugin from resolving `BaseModel`. Workaround: `disallow_subclassing_any = false` + per-module `disable_error_code` overrides for `ccya.models`, `ccya.pack`, `ccya.server`.
