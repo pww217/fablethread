@@ -888,10 +888,11 @@ async def _call_stream(
     phase: str,
     model_cls: type[Any],
     strip_keys: tuple[str, ...] = ("_reasoning",),
-) -> tuple[Any, dict[str, Any], int]:
-    """Call llm_chat with retry. Returns (parsed_result, usage_dict, attempts_used)."""
+) -> tuple[Any, dict[str, Any], int, list[str]]:
+    """Call llm_chat with retry. Returns (parsed_result, usage_dict, attempts_used, retry_errors)."""
     parse_error = ""
     usage: dict[str, Any] = {}
+    retry_errors: list[str] = []
     for attempt in range(1 + config.max_extract_retries):
         if config.log_llm_io:
             _log_llm_io(
@@ -917,9 +918,10 @@ async def _call_stream(
                 max_chars=config.log_llm_io_max_chars,
             )
         try:
-            return _parse_stream_result(raw, model_cls, strip_keys), usage, attempt + 1
+            return _parse_stream_result(raw, model_cls, strip_keys), usage, attempt + 1, retry_errors
         except Exception as exc:
             parse_error = str(exc)
+            retry_errors.append(parse_error)
             _log.warning(
                 "%s parse failed (attempt %d/%d): %s",
                 phase,
@@ -964,6 +966,7 @@ async def _run_extraction_pipeline(
         "tokens_out": 0,
         "ms": 0,
         "attempts": 0,
+        "retry_errors": [],
     }
 
     # Defaults if a stream is skipped
@@ -987,7 +990,7 @@ async def _run_extraction_pipeline(
     rendered_scene_user = scene_msgs[-1]["content"]
 
     try:
-        scene_result, scene_usage, scene_attempts = await _call_stream(
+        scene_result, scene_usage, scene_attempts, scene_retry_errors = await _call_stream(
             scene_msgs, config, trace_id, "extract_scene", SceneExtractResult
         )
         extraction_event["scene"] = {
@@ -996,6 +999,7 @@ async def _run_extraction_pipeline(
             "output": scene_result.model_dump(),
             "skipped": False,
             "attempts": scene_attempts,
+            "retry_errors": scene_retry_errors,
             "tokens_in": scene_usage.get("prompt_tokens", 0),
             "tokens_out": scene_usage.get("total_tokens", 0),
             "ms": round((asyncio.get_event_loop().time() - t_scene) * 1000, 1),
@@ -1024,7 +1028,7 @@ async def _run_extraction_pipeline(
         rendered_state_user = state_msgs[-1]["content"]
 
         try:
-            state_result, state_usage, state_attempts = await _call_stream(
+            state_result, state_usage, state_attempts, state_retry_errors = await _call_stream(
                 state_msgs, config, trace_id, "extract_state",
                 StateExtractResult, strip_keys=("_reasoning",),
             )
@@ -1034,6 +1038,7 @@ async def _run_extraction_pipeline(
                 "output": state_result.model_dump(),
                 "skipped": False,
                 "attempts": state_attempts,
+                "retry_errors": state_retry_errors,
                 "tokens_in": state_usage.get("prompt_tokens", 0),
                 "tokens_out": state_usage.get("total_tokens", 0),
                 "ms": round((asyncio.get_event_loop().time() - t_state) * 1000, 1),
@@ -1065,7 +1070,7 @@ async def _run_extraction_pipeline(
         rendered_prog_user = progress_msgs[-1]["content"]
 
         try:
-            progress_result, prog_usage, progress_attempts = await _call_stream(
+            progress_result, prog_usage, progress_attempts, progress_retry_errors = await _call_stream(
                 progress_msgs, config, trace_id, "extract_progress",
                 ProgressExtractResult, strip_keys=("_reasoning",),
             )
@@ -1075,6 +1080,7 @@ async def _run_extraction_pipeline(
                 "output": progress_result.model_dump(),
                 "skipped": False,
                 "attempts": progress_attempts,
+                "retry_errors": progress_retry_errors,
                 "tokens_in": prog_usage.get("prompt_tokens", 0),
                 "tokens_out": prog_usage.get("total_tokens", 0),
                 "ms": round((asyncio.get_event_loop().time() - t_progress) * 1000, 1),

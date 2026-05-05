@@ -393,16 +393,70 @@ def _tv_parse_json_blob(raw: Any) -> dict[str, Any] | None:
         return None
 
 
-def _tv_npc_names(present: Any) -> list[str]:
-    names: list[str] = []
-    if not isinstance(present, list):
-        return names
-    for n in present:
-        if isinstance(n, dict):
-            nm = str(n.get("name") or n.get("id") or "").strip()
-            if nm:
-                names.append(nm)
-    return names
+def _tv_dict_to_lines(
+    d: dict[str, Any],
+    skip_keys: tuple[str, ...] = (),
+    max_str: int = 150,
+) -> list[dict[str, Any]]:
+    """Generic: render every top-level key of a dict as a KV line.
+
+    Values are stringified with enough context to be useful:
+    - empty list/None/empty string → "∅", dim=True
+    - list of primitives (≤4) → comma-joined
+    - list of dicts → "[N] id1, id2, …" using id/name/text heuristics
+    - longer list → "[N items] first_item_summary"
+    - dict → flat inline JSON (truncated)
+    - bool → "true"/"false"
+    - string → truncated to max_str
+    """
+    lines: list[dict[str, Any]] = []
+    for k, v in d.items():
+        if k in skip_keys:
+            continue
+        if v is None:
+            lines.append({"k": k, "v": "null", "dim": True})
+        elif isinstance(v, bool):
+            lines.append({"k": k, "v": str(v).lower(), "dim": not v})
+        elif isinstance(v, list):
+            if not v:
+                lines.append({"k": k, "v": "∅", "dim": True})
+            elif all(isinstance(x, (str, int, float)) for x in v):
+                joined = ", ".join(str(x) for x in v)
+                if len(joined) > max_str:
+                    joined = joined[:max_str] + "…"
+                lines.append({"k": k, "v": joined, "dim": False})
+            elif all(isinstance(x, dict) for x in v):
+                def _label(x: dict[str, Any]) -> str:
+                    for key in ("id", "name", "text", "label"):
+                        val = x.get(key)
+                        if val and isinstance(val, str):
+                            return val[:60]
+                    return str(list(x.values())[0])[:60] if x else ""
+                labels = [_label(x) for x in v if x]
+                summary = ", ".join(l for l in labels if l)
+                if len(summary) > max_str:
+                    summary = summary[:max_str] + "…"
+                display = f"[{len(v)}] {summary}" if summary else f"[{len(v)}]"
+                lines.append({"k": k, "v": display, "dim": False})
+            else:
+                lines.append({"k": k, "v": f"[{len(v)} items]", "dim": False})
+        elif isinstance(v, dict):
+            if not v:
+                lines.append({"k": k, "v": "{}", "dim": True})
+            else:
+                raw = json.dumps(v, ensure_ascii=False)
+                if len(raw) > max_str:
+                    raw = raw[:max_str] + "…"
+                lines.append({"k": k, "v": raw, "dim": False})
+        elif isinstance(v, str):
+            if not v:
+                lines.append({"k": k, "v": "∅", "dim": True})
+            else:
+                display = v[:max_str] + ("…" if len(v) > max_str else "")
+                lines.append({"k": k, "v": display, "dim": False})
+        else:
+            lines.append({"k": k, "v": str(v), "dim": not v})
+    return lines
 
 
 def _tv_extract_stream_status(
@@ -434,66 +488,12 @@ def _tv_rules_status(rules_ev: Any) -> str:
 
 def _tv_narration_lines(narr: str) -> list[dict[str, Any]]:
     s = narr or ""
-    lines = [{"k": "chars", "v": str(len(s)), "dim": False}]
+    lines: list[dict[str, Any]] = [
+        {"k": "chars", "v": str(len(s)), "dim": not s, "full_width": False}
+    ]
     if s:
-        prev = s[:400] + ("…" if len(s) > 400 else "")
-        lines.append({"k": "head", "v": prev, "dim": len(s) <= 400})
-    return lines
-
-
-def _tv_scene_to_state_lines(scene_out: dict[str, Any]) -> list[dict[str, Any]]:
-    lines: list[dict[str, Any]] = []
-    lc = scene_out.get("location_change")
-    changed = bool(isinstance(lc, dict) and lc.get("id"))
-    loc_id = str(lc["id"]) if changed and isinstance(lc, dict) else ""
-    if changed:
-        lines.append({"k": "location_id", "v": loc_id, "dim": False})
-    else:
-        lines.append({"k": "location", "v": "(unchanged)", "dim": True})
-    names = _tv_npc_names(scene_out.get("present_npcs"))
-    lines.append(
-        {
-            "k": "present_npcs",
-            "v": ", ".join(names) if names else "∅",
-            "dim": not names,
-        }
-    )
-    return lines
-
-
-def _tv_items_from_state_out(
-    state_out: dict[str, Any],
-) -> tuple[list[str], list[str]]:
-    gained: list[str] = []
-    lost: list[str] = []
-    for it in state_out.get("inventory_add") or []:
-        if isinstance(it, dict):
-            nm = str(it.get("name") or it.get("id") or "").strip()
-            if nm:
-                gained.append(nm)
-    for it in state_out.get("inventory_remove") or []:
-        if isinstance(it, dict) and it.get("id"):
-            lost.append(str(it["id"]))
-    return gained, lost
-
-
-def _tv_rules_to_narrate_lines(rules_ev: dict[str, Any]) -> list[dict[str, Any]]:
-    lines: list[dict[str, Any]] = []
-    if not rules_ev:
-        return lines
-    if rules_ev.get("rolled"):
-        lines.append({"k": "band", "v": str(rules_ev.get("band", "")), "dim": False})
-        lines.append({"k": "dice", "v": str(rules_ev.get("dice", [])), "dim": False})
-        lines.append(
-            {"k": "final_total", "v": str(rules_ev.get("final_total", "")), "dim": False}
-        )
-        if rules_ev.get("skill"):
-            lines.append({"k": "skill", "v": str(rules_ev.get("skill")), "dim": False})
-    else:
-        iv = str(rules_ev.get("intent_verb") or "")
-        if iv and iv != "act":
-            lines.append({"k": "intent_verb", "v": iv, "dim": False})
-        lines.append({"k": "rolled", "v": "false", "dim": True})
+        prev = s[:100] + ("…" if len(s) > 100 else "")
+        lines.append({"k": "text", "v": prev, "dim": False, "full_width": True})
     return lines
 
 
@@ -550,6 +550,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "skipped": bool(sev.get("skipped", False)),
                 "error": sev.get("error"),
                 "attempts": int(sev.get("attempts") or 1),
+                "retry_errors": sev.get("retry_errors") or [],
             }
 
         streams: dict[str, dict[str, Any]] = {}
@@ -614,6 +615,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "skipped": s_skip,
                 "error": err_s,
                 "attempts": attempts,
+                "retry_errors": s_data.get("retry_errors") or [],
                 "status": st,
                 "status_class": _STATUS_CSS.get(st, "tv-sts-ok"),
                 "stage_class": _STAGE_CSS[key],
@@ -659,7 +661,10 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                         {
                             "from": "rules",
                             "label": "rules → narrate",
-                            "lines": _tv_rules_to_narrate_lines(rules_ev_d),
+                            "lines": _tv_dict_to_lines(
+                                rules_ev_d,
+                                skip_keys=("tokens_in", "tokens_out", "total_ms"),
+                            ),
                             "anchor": "rules",
                             "upstream_status": streams["rules"]["status"],
                             "upstream_status_class": streams["rules"]["status_class"],
@@ -697,7 +702,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                     {
                         "from": "scene",
                         "label": "scene → state",
-                        "lines": _tv_scene_to_state_lines(scene_out),
+                        "lines": _tv_dict_to_lines(scene_out),
                         "anchor": "scene",
                         "upstream_status": streams["scene"]["status"],
                         "upstream_status_class": streams["scene"]["status_class"],
@@ -705,8 +710,6 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 ],
             }
         )
-        gained, lost = _tv_items_from_state_out(state_out)
-        npc_prog = _tv_npc_names(scene_out.get("present_npcs"))
         connectors.append(
             {
                 "before_stage": "progress",
@@ -722,13 +725,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                     {
                         "from": "scene",
                         "label": "scene → progress",
-                        "lines": [
-                            {
-                                "k": "present_npcs",
-                                "v": ", ".join(npc_prog) if npc_prog else "∅",
-                                "dim": not npc_prog,
-                            }
-                        ],
+                        "lines": _tv_dict_to_lines(scene_out),
                         "anchor": "scene",
                         "upstream_status": streams["scene"]["status"],
                         "upstream_status_class": streams["scene"]["status_class"],
@@ -736,18 +733,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                     {
                         "from": "state",
                         "label": "state → progress",
-                        "lines": [
-                            {
-                                "k": "items_gained",
-                                "v": ", ".join(gained) if gained else "∅",
-                                "dim": not gained,
-                            },
-                            {
-                                "k": "items_lost",
-                                "v": ", ".join(lost) if lost else "∅",
-                                "dim": not lost,
-                            },
-                        ],
+                        "lines": _tv_dict_to_lines(state_out),
                         "anchor": "state",
                         "upstream_status": streams["state"]["status"],
                         "upstream_status_class": streams["state"]["status_class"],
@@ -765,6 +751,14 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
             int((extraction.get(s) or {}).get("attempts") or 1) > 1
             for s in ("scene", "state", "progress")
         )
+        has_errors = any(
+            bool(streams[s].get("error"))
+            for s in ("scene", "state", "progress")
+        )
+        has_skipped = any(
+            streams[s].get("skipped")
+            for s in ("scene", "state", "progress")
+        )
 
         rules_intent = _tv_parse_json_blob(rules_prompt.get("output"))
 
@@ -775,6 +769,8 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "trace_id_full": tid,
                 "has_rejections": bool(rej),
                 "has_retries": has_retries,
+                "has_errors": has_errors,
+                "has_skipped": has_skipped,
                 "streams": streams,
                 "connectors": connectors,
                 "rules_event": rules_ev_d,
