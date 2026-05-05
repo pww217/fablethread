@@ -40,9 +40,9 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - ~~**Verb-differentiated directives** — `build_directive()` branches on `_verb_category(intent_verb)` with per-`(band, category)` directive table. See `plans/band-collapse.md`~~
 - ~~**Momentum track** — add `momentum: int` to PC state; `apply_momentum()` in `engine.py` after rules resolves; inject directive into `narrate_user.j2` at |momentum| >= 2. Depends on band collapse. See `plans/momentum-track.md`~~
 - ~~**Scene pressure** — `scene.scene_pressure` list separate from `world_state`; extractor adds/removes pressure entries; narrator gets `ACTIVE THREATS` block. See `plans/scene-pressure.md`~~
-- **Active DM / GM beat** — progress extractor emits `gm_beat`; engine stores as `pending_gm_beat` in meta; narrator consumes on next turn. See `plans/progress-dm-storytelling.md`
-- **Scene age anti-stall** — track `scene.turn_entered`; after N turns in same location, narrator gets a nudge to advance or change the scene. See `plans/p2-storytelling/scene-age-anti-stall.md`
-- **Band-scoped extract examples** — `pack_examples` conditioned on actual roll outcome band; show extractor what a `fail` extraction looks like vs. `crit_success`
+- ~~**Active DM / GM beat** — progress extractor emits `gm_beat`; engine stores as `pending_gm_beat` in meta; narrator consumes on next turn. See `plans/progress-dm-storytelling.md`~~
+- ~~**Scene age anti-stall** — track `scene.turn_entered`; after N turns in same location, narrator gets a nudge to advance or change the scene. See `plans/p2-storytelling/scene-age-anti-stall.md`~~
+- ~~**Band-scoped extract examples** — `pack_examples` conditioned on actual roll outcome band; show extractor what a `fail` extraction looks like vs. `crit_success`~~
 
 ---
 

@@ -429,6 +429,7 @@ def apply_delta(
         state.setdefault("scene", {})["present_npcs"] = []
         state.setdefault("scene", {})["recently_left"] = []
         state.setdefault("scene", {})["recently_left_turns"] = 0
+        state.setdefault("scene", {})["turn_entered"] = state.get("meta", {}).get("turn", 0)
     elif delta.location_description:
         state.setdefault("location", {})["description"] = delta.location_description
 

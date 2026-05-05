@@ -291,6 +291,12 @@ class ScenePressure(BaseModel):
     max_turns: int | None = None
 
 
+class GMBeat(BaseModel):
+    type: Literal["complication", "revelation", "opportunity", "breathing_room", "pressure"] | None = None
+    instruction: str = ""
+    surface_as: Literal["ambient", "event", "npc_behavior"] = "ambient"
+
+
 class ProgressExtractResult(BaseModel):
     quest_updates: list[QuestUpdate] = Field(default_factory=list)
     recent_events_add: list[RecentEvent] = Field(default_factory=list)
@@ -302,6 +308,7 @@ class ProgressExtractResult(BaseModel):
     scene_pressure_add: list[ScenePressure] = Field(default_factory=list)
     scene_pressure_remove: list[str] = Field(default_factory=list)
     scene_pressure_update: list[ScenePressure] = Field(default_factory=list)
+    gm_beat: GMBeat | None = None
 
 
 class ExtractResult(BaseModel):

@@ -26,6 +26,7 @@ meta:
   setting_pack: str
   model: str
   compendium_touch_order: [str]  # LRU order for NPC selection
+  pending_gm_beat: dict | None  # GM beat from progress extractor, consumed by next turn's narrator
 
 pc:
   name: str
@@ -73,6 +74,7 @@ scene:
   recent_events: [str]         # FIFO cap (configurable, default 15)
   recently_left: [dict]        # NPCs that left this turn
   recently_left_turns: int     # decay counter
+  turn_entered: int            # turn number when scene was entered (anti-stall tracking)
 
 compendium:
   npcs:                        # dict[id] → {name, title, bio} — durable NPC identity

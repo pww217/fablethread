@@ -20,11 +20,11 @@ Steps 2a–2c merge into `StateDelta` → `_validate()` → `apply_delta()` → 
 
 ## Internal functions
 
-- `_narrate_messages()` — prompt builder for narrator; accepts `momentum` param for advisory directive injection
+- `_narrate_messages()` — prompt builder for narrator; accepts `momentum`, `pending_gm_beat` params for advisory directive / GM beat injection
 - `_extract_scene_messages()` — prompt builder for scene extractor (imported by tests)
-- `_extract_state_messages()` — prompt builder for state extractor (imported by tests)
+- `_extract_state_messages()` — prompt builder for state extractor; accepts `pack_examples` for band-scoped example injection (imported by tests)
 - `_extract_progress_messages()` — prompt builder for progress extractor (imported by tests)
-- `_run_extraction_pipeline()` — runs 3 streams, merges into StateDelta
+- `_run_extraction_pipeline()` — runs 3 streams, merges into StateDelta, returns `ProgressExtractResult`
 - `_expire_scene_pressures()` — post-extraction expiry/urgency escalation for `scene_pressure`
 - `_validate(state, delta)` — rejects bad inventory_remove IDs, overdraws
 - `summarize_changes(pre, post, applied, rejected)` → `{inventory, player, facts, quests}`
