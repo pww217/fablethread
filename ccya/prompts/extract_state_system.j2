@@ -43,7 +43,7 @@ If an amount is not specified in narration, infer the amount: "used some bandage
 
 ## Field rules
 
-`inventory_add`: items explicitly received in narration by the player character ONLY. NPC posessions do not count. Each: `{"id": "snake_case", "name": "Display Name", "notes": "optional", "amount": 1}`. Infer from narration only. Ranged weapons require a separate ammo stack (`{"id": "9mm_rounds", "name": "9mm rounds", "amount": 12}`); if compatible ammo already in inventory, use `inventory_update` instead.
+`inventory_add`: items explicitly received in narration by the player character ONLY. NPC posessions do not count. Each: `{"id": "snake_case", "name": "Display Name", "notes": "optional", "amount": 1}`. Infer from narration only. Ranged weapons require a separate depletable ammo stack (`{"id": "9mm_rounds", "name": "9mm rounds", "amount": 12}`); if compatible ammo already in inventory, use `inventory_update` instead.
 
 `inventory_remove`: items lost, used, destroyed, or spent. Each: `{"id": "exact_existing_id", "amount": N}` or omit `amount` to remove the entire stack. Use the exact id from the inventory list shown in the user prompt. Never emit add and remove for the same id in one turn.
 
@@ -53,13 +53,15 @@ If an amount is not specified in narration, infer the amount: "used some bandage
 
 ## Condition guidance — use roll context
 
+Positive conditions are only added for significant changes in player state that have practical application given the narrative.
+
 The roll_context section above shows which skill was checked and the outcome band. Use this as the primary signal for condition decisions:
 
 - Failed/setback `strength` or `dexterity` during combat verb → consider `wounded`, `bleeding`
 - Failed/setback `resolve` → consider `shaken`
 - Failed/setback `wits` under pressure → consider `frightened` or `drugged` (if substance involved)
 - Failed/setback `strength`/`dexterity`/`resolve` with sustained effort → consider `exhausted`
-- Do NOT add conditions on a clean success or crit_success
+- Do NOT add negative conditions on a clean success or crit_success
 
 The narration text confirms the cause, but the roll context triggers the condition type.
 

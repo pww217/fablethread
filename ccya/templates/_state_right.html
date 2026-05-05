@@ -27,7 +27,7 @@
     <div class="sidebar-card-body">
         {% if _recent %}
         {% for event in _recent | reverse %}
-        <div class="fact-item" data-md>{{ event if event is string else event.values() | join(': ') }}</div>
+        <div class="fact-item" data-md>{{ event if event is string else event.get("text", event) }}</div>
         {% endfor %}
         {% else %}
         <span class="empty-state">No recent events yet.</span>
