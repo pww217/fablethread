@@ -22,11 +22,6 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from ccya.models import InventoryItem, NpcRef
 
 
-# ---------------------------------------------------------------------------
-# Seed state sub-models
-# ---------------------------------------------------------------------------
-
-
 class SeedPC(BaseModel):
     name: str
     tagline: str = ""
@@ -37,7 +32,6 @@ class SeedPC(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _migrate_concept(cls, v: Any) -> Any:
-        """v3 renamed pc.concept → pc.tagline; accept either on load."""
         if isinstance(v, dict) and "concept" in v and "tagline" not in v:
             v = dict(v)
             v["tagline"] = v.pop("concept")
@@ -111,25 +105,16 @@ class SeedEnvelope(BaseModel):
     actions: list[str] = Field(min_length=4, max_length=4)
 
 
-# ---------------------------------------------------------------------------
-# Scenario brief (dynamic mode only)
-# ---------------------------------------------------------------------------
-
-
 class Constraints(BaseModel):
-    # required-presence
     min_named_npcs: int = 2
     min_objectives_per_quest: int = 2
     starting_quest_count: int = 1
-    # ranges
     inventory_size_range: tuple[int, int] = (4, 8)
     pc_stat_range: tuple[int, int] = (1, 4)
     pc_stat_total_range: tuple[int, int] = (12, 18)
     prose_word_range: tuple[int, int] = (200, 500)
-    # composition
     required_inventory_kinds: list[str] = Field(default_factory=list)
     npc_distinct_first_letters: bool = True
-    # creativity guards (ASCII field name; yaml key also "forbid_cliches")
     forbid_cliches: list[str] = Field(default_factory=list)
     forbid_player_dependents: bool = True
     forbid_legendary_items: bool = True
@@ -146,11 +131,6 @@ class Inspiration(BaseModel):
 class ScenarioBrief(BaseModel):
     constraints: Constraints = Field(default_factory=Constraints)
     inspiration: Inspiration = Field(default_factory=Inspiration)
-
-
-# ---------------------------------------------------------------------------
-# Player overrides — Tool B (wiring built, UI deferred)
-# ---------------------------------------------------------------------------
 
 
 class PlayerOverrides(BaseModel):
@@ -178,11 +158,6 @@ class PlayerOverrides(BaseModel):
         )
 
 
-# ---------------------------------------------------------------------------
-# Extract examples
-# ---------------------------------------------------------------------------
-
-
 class ExtractExample(BaseModel):
     title: str
     thinking: str = ""
@@ -200,11 +175,6 @@ class ExtractExample(BaseModel):
                 f"extract example 'json' is not valid JSON: {exc}"
             ) from exc
         return v
-
-
-# ---------------------------------------------------------------------------
-# Pack manifest and files
-# ---------------------------------------------------------------------------
 
 
 class PackFiles(BaseModel):
@@ -228,20 +198,8 @@ class PackManifest(BaseModel):
     version: int = 1
     mode: Literal["static", "dynamic"]
     files: PackFiles = Field(default_factory=PackFiles)
-    # Hand-curated genre-defining facts that get prepended to the seed's
-    # world_state on New Game. Keep these specific, interesting, and
-    # tension-loaded — every fact should shape what the player can do.
-    # Recommended exactly 2; hard cap 3.
     baseline_facts: list[str] = Field(default_factory=list, max_length=3)
-    # Weighted locale list for Faker-backed name generation. Each entry is
-    # {"locale": "en_US", "weight": 0.75}. Weights are normalised at call time.
-    # Empty list → falls back to en_US at weight 1.0.
     name_locales: list[dict[str, Any]] = Field(default_factory=list)
-
-
-# ---------------------------------------------------------------------------
-# Assembled Pack object
-# ---------------------------------------------------------------------------
 
 
 class Pack(BaseModel):
@@ -272,13 +230,7 @@ class Pack(BaseModel):
         return self
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
-
 def load_pack(pack_id: str, packs_dir: Path) -> Pack:
-    """Load and validate a pack from disk. Raises FileNotFoundError / ValidationError on bad input."""
     pack_dir = packs_dir / pack_id
     if not pack_dir.is_dir():
         raise FileNotFoundError(f"Pack directory not found: {pack_dir}")
@@ -344,7 +296,6 @@ def load_pack(pack_id: str, packs_dir: Path) -> Pack:
 
 
 def list_packs(packs_dir: Path) -> list[PackManifest]:
-    """Return manifests for all valid packs in packs_dir, sorted by id."""
     manifests: list[PackManifest] = []
     if not packs_dir.is_dir():
         return manifests
@@ -361,13 +312,6 @@ def list_packs(packs_dir: Path) -> list[PackManifest]:
 
 
 def parse_world_facts(world_md: str) -> list[str]:
-    """Parse world.md into a list of established facts (one per non-blank, non-heading line).
-
-    Rules:
-    - Skip headings (lines starting with #) and blank lines
-    - Bullet lines (- * +): strip bullet marker, use remainder as fact
-    - Other non-empty lines: include as-is
-    """
     facts: list[str] = []
     for line in world_md.splitlines():
         line = line.strip()

@@ -8,10 +8,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-# ---------------------------------------------------------------------------
-# Rules engine types
-# ---------------------------------------------------------------------------
-
 SkillName = Literal["strength", "dexterity", "wits", "lore", "charisma", "resolve"]
 Difficulty = Literal["trivial", "easy", "normal", "hard", "extreme"]
 Band = Literal[
@@ -19,14 +15,7 @@ Band = Literal[
 ]
 
 
-# ---------------------------------------------------------------------------
-# Condition types (structured — replaces plain strings)
-# ---------------------------------------------------------------------------
-
-
 class Condition(BaseModel):
-    """Stored condition in pc.conditions."""
-
     id: str
     label: str
     description: str = ""
@@ -34,10 +23,8 @@ class Condition(BaseModel):
 
 
 def _coerce_condition_str(v: Any) -> Any:
-    """Coerce a plain string condition to a dict with id/label."""
     if isinstance(v, str):
         cid = v.lower().strip().replace(" ", "_")
-        # strip markdown punctuation from id
         for ch in ("*", "_", "`", ".", ",", ";", ":", "!", "?"):
             cid = cid.replace(ch, "")
         cid = "_".join(cid.split()) or "condition"
@@ -46,8 +33,6 @@ def _coerce_condition_str(v: Any) -> Any:
 
 
 class ConditionAdd(BaseModel):
-    """LLM-emitted condition to add this turn."""
-
     id: str
     label: str
     description: str = ""
@@ -59,8 +44,6 @@ class ConditionAdd(BaseModel):
 
 
 class ConditionRemove(BaseModel):
-    """LLM-emitted condition to remove this turn (id-only)."""
-
     id: str
 
     @field_validator("id", mode="before")
@@ -122,8 +105,6 @@ class InventoryRemove(BaseModel):
 
 
 class InventoryUpdate(BaseModel):
-    """Patch name/notes on an existing stack without changing amount."""
-
     id: str
     name: str | None = None
     notes: str | None = None
@@ -136,16 +117,12 @@ class LocationRef(BaseModel):
 
 
 class QuestObjective(BaseModel):
-    """Stored objective shape in state.yaml (not used in LLM deltas)."""
-
     description: str
     done: bool = False
     failed: bool = False
 
 
 class QuestObjectiveUpdate(BaseModel):
-    """Objective patch in quest_updates: prefer 1-based index over description."""
-
     index: int | None = None  # 1-based into existing objectives list
     description: str | None = (
         None  # fallback match; required when adding a new objective
@@ -157,7 +134,6 @@ class QuestObjectiveUpdate(BaseModel):
 class QuestUpdate(BaseModel):
     id: str
     title: str = ""
-    # active | completed | failed | abandoned
     status: str = "active"
     objectives: list[QuestObjectiveUpdate] = Field(default_factory=list)
 
@@ -171,8 +147,6 @@ class NpcRef(BaseModel):
 
 
 class CompendiumNpcUpdate(BaseModel):
-    """Update compendium entry for an NPC who may not be present this turn."""
-
     id: str
     name: str | None = None
     title: str | None = None
@@ -180,8 +154,6 @@ class CompendiumNpcUpdate(BaseModel):
 
 
 class RecentEventUpdate(BaseModel):
-    """Replace one recent event by normalized match on `old`; write `new`."""
-
     old: str
     new: str
 
@@ -245,14 +217,7 @@ class StateDelta(BaseModel):
         return out
 
 
-# ---------------------------------------------------------------------------
-# Per-stream extraction result models
-# ---------------------------------------------------------------------------
-
-
 class SceneExtractResult(BaseModel):
-    """Output of stream 1 (scene + UI hints)."""
-
     scene_tags: list[str] = Field(default_factory=list)
     scene_tagline: str | None = None
     location_change: LocationRef | None = None
@@ -263,8 +228,6 @@ class SceneExtractResult(BaseModel):
 
 
 class StateExtractResult(BaseModel):
-    """Output of stream 2 (mechanical state deltas)."""
-
     inventory_add: list[InventoryItem] = Field(default_factory=list, max_length=6)
     inventory_remove: list[InventoryRemove] = Field(default_factory=list)
     inventory_update: list[InventoryUpdate] = Field(default_factory=list, max_length=6)
@@ -310,8 +273,6 @@ class StateExtractResult(BaseModel):
 
 
 class ProgressExtractResult(BaseModel):
-    """Output of stream 3 (quests, facts, compendium)."""
-
     quest_updates: list[QuestUpdate] = Field(default_factory=list)
     recent_events_add: list[str] = Field(default_factory=list)
     recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
@@ -326,9 +287,6 @@ class ExtractResult(BaseModel):
     failed: list[str] = Field(default_factory=list)
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = Field(default="", description="One-sentence flavor summary of what just happened in this turn")
-
-
-# --- TurnResult (returned from engine, not Pydantic) ---
 
 
 @dataclass
@@ -354,9 +312,6 @@ class TurnResult:
         default_factory=dict
     )  # serialized RulesOutcome + intent for logging/UI
     outcome_summary: str = field(default="")
-
-
-# --- Config ---
 
 
 def load_config(path: str | os.PathLike[str] = "config.yaml") -> dict[str, Any]:

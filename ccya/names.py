@@ -19,7 +19,6 @@ def _build_weighted_fakers(
     rng: random.Random,
     seed: int | None,
 ) -> tuple[list[Faker], list[float]]:
-    """Return (fakers, normalised_weights). Falls back to en_US if locales empty."""
     if not locales:
         locales = _FALLBACK
     Faker.seed(seed or rng.randint(0, 2**31))
@@ -42,11 +41,6 @@ def generate_name_pool(
     location_count: int = 5,
     seed: int | None = None,
 ) -> dict[str, list[str]]:
-    """Return {"pc": [...], "npc": [...], "location": [...]}.
-
-    Names are drawn with probability proportional to each locale's weight,
-    so a locale with weight 0.75 produces ~75% of the names.
-    """
     rng = random.Random(seed)
     fakers, weights = _build_weighted_fakers(locales, rng, seed)
 
@@ -63,11 +57,6 @@ def generate_npc_names(
     count: int = 10,
     seed: int | None = None,
 ) -> list[str]:
-    """Return a flat list of NPC name candidates for mid-game injection.
-
-    Enough names to anchor the narrator for one or two new characters without
-    bloating the prompt. More names = less chance the LLM rejects all options.
-    """
     rng = random.Random(seed)
     fakers, weights = _build_weighted_fakers(locales, rng, seed)
     return [_pick(fakers, weights, rng).name() for _ in range(count)]

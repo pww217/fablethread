@@ -12,10 +12,6 @@ from ccya.models import load_config
 
 
 def setup_logging(config: dict[str, Any] | None = None) -> logging.Logger:
-    """Configure stdlib logging with JSONL RotatingFileHandler.
-
-    Returns the root logger for the app.
-    """
     if config is None:
         config = load_config()
 
@@ -24,14 +20,12 @@ def setup_logging(config: dict[str, Any] | None = None) -> logging.Logger:
     level_str = log_cfg.get("level", "INFO")
     level = getattr(logging, level_str, logging.INFO)
 
-    # Ensure log directory exists
     log_path = Path(log_file)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     logger = logging.getLogger("ccya")
     logger.setLevel(level)
 
-    # JSONL file handler
     fh = logging.handlers.RotatingFileHandler(
         str(log_path), maxBytes=5 * 1024 * 1024, backupCount=3
     )
@@ -39,7 +33,6 @@ def setup_logging(config: dict[str, Any] | None = None) -> logging.Logger:
     fh.setFormatter(_JsonFormatter())
     logger.addHandler(fh)
 
-    # Console handler (human-readable)
     ch = logging.StreamHandler()
     ch.setLevel(level)
     ch.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
@@ -49,7 +42,6 @@ def setup_logging(config: dict[str, Any] | None = None) -> logging.Logger:
 
 
 class _JsonFormatter(logging.Formatter):
-    """Format log records as JSONL."""
 
     def format(self, record: logging.LogRecord) -> str:
         log_data: dict[str, Any] = {
@@ -66,7 +58,6 @@ class _JsonFormatter(logging.Formatter):
 
 
 class _SseErrorHandler:
-    """Pushes error messages to the SSE errors panel during a turn."""
 
     def __init__(self) -> None:
         self._events: list[dict[str, Any]] = []

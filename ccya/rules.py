@@ -32,7 +32,6 @@ CONDITION_MODS: dict[str, dict[str, int]] = {
     "bleeding": {"strength": -1},
 }
 
-# GM move suggestions per band — first entry is the binding directive.
 GM_MOVES: dict[str, list[str]] = {
     "crit_fail": [
         "Something precious is lost, damaged, or turned against you.",
@@ -80,7 +79,6 @@ def roll_2d6(rng: random.Random | None = None) -> tuple[int, int]:
 
 
 def compute_band(final_total: int, dice: tuple[int, int]) -> str:
-    """Return the PbtA band. Crits are triggered by raw dice sum, not final total."""
     raw_sum = dice[0] + dice[1]
     if raw_sum == 2:
         return "crit_fail"
@@ -100,12 +98,6 @@ def compute_band(final_total: int, dice: tuple[int, int]) -> str:
 
 
 def conditions_modifier(skill: str, conditions: list[Any]) -> int:
-    """Sum all condition penalties that apply to the given skill.
-
-    Accepts either plain strings (legacy) or structured Condition dicts
-    ({"id": ..., "label": ..., ...}). The id (or string) is matched against
-    CONDITION_MODS case-insensitively.
-    """
     total = 0
     for cond in conditions:
         if isinstance(cond, dict):
@@ -120,7 +112,6 @@ def conditions_modifier(skill: str, conditions: list[Any]) -> int:
 
 
 def build_directive(band: str, intent_verb: str, skill: str) -> str:
-    """Return a binding one-sentence directive for the narrator based on the roll outcome."""
     moves = GM_MOVES.get(band, GM_MOVES["success"])
     base = moves[0]
     verb = intent_verb or "action"
@@ -151,11 +142,6 @@ def resolve_check(
     intent: str = "",
     rng: random.Random | None = None,
 ) -> "RulesOutcome":  # noqa: F821
-    """Roll 2d6 and return a fully-populated RulesOutcome.
-
-    Raises ValueError for unknown skill or difficulty (programming errors, not player input).
-    Pass a seeded ``rng`` for deterministic results in tests.
-    """
     from ccya.models import RulesOutcome
 
     if skill not in VALID_SKILLS:

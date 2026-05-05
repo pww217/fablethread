@@ -1,5 +1,3 @@
-"""CLI entry point for ccya."""
-
 import argparse
 import sys
 
@@ -9,7 +7,6 @@ from ccya.server import app, config, SAVE_DIR
 
 
 def _hyperlink(url: str, label: str | None = None) -> str:
-    """OSC 8 hyperlink for supported terminals; plain URL when not a TTY."""
     label = label or url
     if not sys.stdout.isatty():
         return url

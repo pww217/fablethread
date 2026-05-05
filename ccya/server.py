@@ -59,10 +59,6 @@ engine_config = EngineConfig(
 
 logger = setup_logging(config)
 
-# ---------------------------------------------------------------------------
-# Pack loading — active pack is mutable (changed via New Game picker)
-# ---------------------------------------------------------------------------
-
 _pack_id: str = config.get("game", {}).get("setting_pack", "expanse-belter")
 try:
     _active_pack: Pack = load_pack(_pack_id, PACKS_DIR)
@@ -71,7 +67,6 @@ except Exception as exc:
     logger.error("Failed to load pack %r: %s", _pack_id, exc)
     raise
 
-# Cache for the opening text of dynamic packs (written on New Game / re-roll, read on GET /)
 _dynamic_opening: str = ""
 _dynamic_opening_actions: list[str] = []
 
@@ -94,13 +89,7 @@ def _render(template_name: str, context: dict[str, Any]) -> HTMLResponse:
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
 def _validate_stats(stats: dict[str, int]) -> bool:
-    """Return True if *stats* is a valid six-stat allocation (1–4 each, total 12–18)."""
     SKILLS = {"strength", "dexterity", "wits", "lore", "charisma", "resolve"}
     if set(stats.keys()) != SKILLS:
         return False
@@ -169,7 +158,6 @@ def _load_last_actions(save_dir: Path) -> list[str]:
 
 
 def _get_opening() -> str:
-    """Return opening prose: dynamic packs use the cached LLM-generated text; static use pack file."""
     global _dynamic_opening
     if _active_pack.manifest.mode == "dynamic":
         return _dynamic_opening
@@ -177,7 +165,6 @@ def _get_opening() -> str:
 
 
 def _get_opening_actions() -> list[str]:
-    """Return opening actions: dynamic packs use the cached list; static use pack file."""
     if _active_pack.manifest.mode == "dynamic":
         return _dynamic_opening_actions
     return _active_pack.opening_actions
@@ -193,7 +180,6 @@ def _fmt_ms_seconds(ms: Any) -> str:
 
 
 def _fmt_tokens(n: Any) -> str:
-    """Format token count as abbreviated string (e.g. 5.5k)."""
     if n is None:
         return "—"
     try:
@@ -230,8 +216,8 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
         tid = str(ev.get("trace_id") or "")
         n_in, n_out = narr.get("tokens_in"), narr.get("tokens_out")
         tin, tout = ext.get("tokens_in"), ext.get("tokens_out")
+        raw_streams: dict[str, dict[str, Any]] = {}
         # Per-stream data from extraction event
-        raw_streams = {}
         for s in ("scene", "state", "progress"):
             sev = extraction.get(s) or {}
             raw_streams[s] = {
@@ -247,14 +233,12 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
         if tin is not None and tout is not None:
             tok_parts.append(f"E{_fmt_tokens(tin)}/{_fmt_tokens(tout)}")
         tok = "\n".join(tok_parts) if tok_parts else "—"
-        # Per-pipeline fields for debug table (Pipe, TTFT, TT, TOK)
         rules_ev = ev.get("rules") or {}
         def _tok(ti: Any = None, to: Any = None) -> str:
             if ti is None or to is None:
                 return "—"
             return f"{_fmt_tokens(ti)}/{_fmt_tokens(to)}"
         def _ttft(ms: Any, first_token_ms: Any = None) -> str:
-            """For non-streaming calls TTFT=TT; for streaming use first_token_ms."""
             if first_token_ms is not None and first_token_ms > 0:
                 return _fmt_ms_seconds(first_token_ms)
             return _fmt_ms_seconds(ms)
@@ -514,11 +498,6 @@ def _tv_rules_to_narrate_lines(rules_ev: dict[str, Any]) -> list[dict[str, Any]]
 
 
 def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
-    """Build full turn viewer data from events.jsonl (all turns, newest first).
-
-    Returns (rows, no_events) where no_events is True when the file exists
-    but is empty.
-    """
     path = save_dir / "events.jsonl"
     if not path.exists():
         return [], True
@@ -541,7 +520,6 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         tid = str(ev.get("trace_id") or "")
         rules_ev = ev.get("rules") or {}
 
-        # Prompt data (new fields, may be absent in old events)
         rules_prompt = ev.get("rules_prompt") or {}
         narr_prompt = ev.get("narrate_prompt") or {}
 
@@ -852,11 +830,6 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
     return rows, False
 
 
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
-
-
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     history = _load_recent_history(SAVE_DIR)
@@ -885,15 +858,6 @@ async def index(request: Request):
 
 @app.get("/turn")
 async def get_turn(input: str = ""):
-    """GET /turn?input=... -> SSE stream.
-
-    SSE event types:
-      narrative_token  data: {"chunk": "..."}
-      phase            data: {phase, expected_ms?, attempt?}
-      turn_complete    data: {turn, trace_id, narrative, actions, scene_tags,
-                              rejected, errors, diff, state, metrics}
-      turn_error       data: {"error": "...", "trace_id": "..."}
-    """
     user_input = input.strip()
     if not user_input:
 
@@ -965,8 +929,6 @@ async def get_turn(input: str = ""):
 
 @app.post("/new-game")
 async def new_game(request: Request):
-    """Reset save: static packs load seed directly; dynamic packs call generate_seed.
-    Accepts optional form field `pack_id` to switch the active pack."""
     global _dynamic_opening, _dynamic_opening_actions, _active_pack, _pack_id
     _ERRORS_LOG.clear()
 
@@ -999,7 +961,6 @@ async def new_game(request: Request):
     except ValueError:
         npc_count = 0
 
-    # Build PlayerOverrides from form fields
     from ccya.pack import PlayerOverrides
 
     overrides = PlayerOverrides(
@@ -1011,7 +972,6 @@ async def new_game(request: Request):
         npc_count=npc_count,
     )
 
-    # Add hard overrides as pc_hints for dynamic packs
     if (pc_name or pc_tagline or pc_stats_raw) and overrides:
         hint_parts = []
         if pc_name:
@@ -1069,7 +1029,6 @@ async def new_game(request: Request):
 
 @app.post("/new-game/reroll")
 async def new_game_reroll(request: Request):
-    """Re-roll the seed for a dynamic pack (before turn 1) without changing pack mode."""
     global _dynamic_opening, _dynamic_opening_actions
     if _active_pack.manifest.mode != "dynamic":
         return HTMLResponse(
@@ -1105,7 +1064,6 @@ async def new_game_reroll(request: Request):
 
 @app.get("/panels/state")
 def panel_state(request: Request):
-    """Legacy combined fragment (left + right)."""
     return _render("_state.html", _debug_context())
 
 
@@ -1150,27 +1108,23 @@ def panel_debug():
 
 @app.get("/panels/pack-picker", response_class=HTMLResponse)
 def panel_pack_picker():
-    """Return HTML fragment: pack picker cards for the New Game modal."""
     packs = list_packs(PACKS_DIR)
     return _render("_pack_picker.html", {"packs": packs, "active_pack_id": _pack_id})
 
 
 @app.get("/panels/char-creation", response_class=HTMLResponse)
 def panel_char_creation():
-    """Return HTML fragment: character creation form for the New Game modal."""
     return _render("_char_creation.html", {})
 
 
 @app.get("/panels/turn-log", response_class=HTMLResponse)
 def panel_turn_log(limit: int = 50):
-    """HTMX fragment: human-readable turn summaries from events.jsonl."""
     lim = max(1, min(limit, 200))
     return _render("_turn_log.html", {"entries": _turn_log_entries(SAVE_DIR, lim)})
 
 
 @app.get("/turn_viewer", response_class=HTMLResponse)
 def turn_viewer():
-    """Standalone full-page turn viewer: all turns from events.jsonl."""
     css_path = BASE_DIR / "static" / "app.css"
     css_v = int(css_path.stat().st_mtime) if css_path.exists() else 0
     turns, no_events = _turn_viewer_data(SAVE_DIR)
@@ -1187,7 +1141,6 @@ def turn_viewer():
 
 @app.get("/turn_viewer/data")
 def turn_viewer_data():
-    """JSON snapshot for live refresh of the turn viewer."""
     turns, no_events = _turn_viewer_data(SAVE_DIR)
     latest = turns[0] if turns else None
     return JSONResponse(
@@ -1203,8 +1156,6 @@ def turn_viewer_data():
 
 @app.get("/turn_viewer/stream")
 async def turn_viewer_stream():
-    """SSE: emits `updated` when events.jsonl changes (mtime poll, 1s)."""
-
     path = SAVE_DIR / "events.jsonl"
 
     async def gen():
@@ -1265,11 +1216,6 @@ def healthz():
         }
 
 
-# ---------------------------------------------------------------------------
-# Startup
-# ---------------------------------------------------------------------------
-
-
 @app.on_event("startup")
 async def startup_event():
     import asyncio
@@ -1285,11 +1231,6 @@ async def startup_event():
             logger.info("Model warmup complete")
 
         asyncio.create_task(_warmup_bg())
-
-
-# ---------------------------------------------------------------------------
-# CLI entry (used by uvicorn directly, not __main__)
-# ---------------------------------------------------------------------------
 
 
 def main() -> None:
