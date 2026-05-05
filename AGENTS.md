@@ -73,9 +73,10 @@ If you find logic in the wrong layer, move it rather than pile on.
 - Fail fast — validate inputs at module boundaries, not deep in logic.
 - No `# noqa` / `# type: ignore` unless absolutely unavoidable (document why).
 
-## Planning
+## Planning/Reasoning
 
-When planning or gathering information to execute a task, split large jobs into segments to preserve your context window. Aim to take in at most 3500 lines of code at time, execute as much as you can, then pause and ask user for input or compaction before the next execution.
+- When planning or gathering information to execute a task, split large jobs into segments to preserve your context window. Aim to take in at most 3500 lines of code at time, execute as much as you can, then pause and ask user for input or compaction before the next execution.
+- Limit your reasoning to what's necessary. Plan out your process before you begin and stick to it. Keep it as terse as possible, avoid repeating yourself or going in circles. 
 
 ## Known tooling notes
 
