@@ -4,7 +4,7 @@ install:
 	uv sync
 
 llama-swap:
-	@bash scripts/llama-swap.sh
+	@bash scripts/infra/llama-swap.sh
 
 run: llama-swap
 	uv run ccya
