@@ -1,0 +1,146 @@
+meta:
+  game_name: eval
+  turn: 12
+  setting_pack: eval-pack
+  model: ""
+
+pc:
+  name: Aren Voss
+  tagline: Reluctant courier on the merchant road
+  bio: |
+    Mid-thirties, broad shoulders, careful with words. Took on a courier contract
+    to clear an old debt. Twelve days into a fortnight job and already two days
+    behind schedule.
+  stats:
+    strength: 3
+    dexterity: 3
+    wits: 2
+    lore: 2
+    charisma: 3
+    resolve: 3
+  conditions: []
+  momentum: 0
+
+location:
+  id: roadside_inn
+  name: The Crossed Keys Inn
+  description: |
+    A timber-framed inn at the junction of the merchant road and the old quarry track.
+    Common room half-full, hearth banked low, stew bubbling on the hook. The merchant
+    Halden sits at the corner table, ledger open. A pair of road-toughs lean by the
+    door, watching everyone who comes in.
+
+inventory:
+  - id: credits
+    name: Credits
+    amount: 850
+    notes: Common coin, accepted at any inn or stall on the merchant road.
+  - id: iron_dagger
+    name: Iron dagger
+    amount: 1
+    notes: Plain crossguard, edge worn from honing. Belt-carried.
+  - id: bandages
+    name: Linen bandages
+    amount: 3
+    notes: Three rolls. Field-grade — won't replace a healer.
+  - id: brass_key
+    name: Brass key
+    amount: 1
+    notes: Halden gave you this in trust. You don't yet know what it opens.
+  - id: merchant_seal
+    name: Halden's merchant seal
+    amount: 1
+    notes: Pressed wax sigil. Proof of contract — show this only to the right people.
+  - id: traveler_cloak
+    name: Traveler's cloak
+    amount: 1
+    notes: Oiled wool, road-stained, hood deep enough to hide a face.
+    aliases:
+      - cloak
+      - travel cloak
+
+quests:
+  - id: deliver_the_ledger
+    title: Deliver Halden's Ledger
+    status: active
+    objectives:
+      - description: Carry the ledger to the merchant Halden at the Crossed Keys Inn.
+        done: false
+      - description: Confirm the contract with Halden in person.
+        done: false
+  - id: clear_the_road_toughs
+    title: Clear the Road Toughs
+    status: active
+    objectives:
+      - description: Find out who hired the toughs blocking the road.
+        done: true
+        failed: false
+      - description: Convince, pay, or remove the toughs from the inn.
+        done: false
+  - id: settle_the_debt
+    title: Settle the Old Debt
+    status: active
+    objectives:
+      - description: Earn at least 1000 credits from courier work.
+        done: true
+        failed: false
+      - description: Find Caron, the man you owe.
+        done: true
+        failed: false
+      - description: Pay Caron in person and have him mark the debt cleared.
+        done: false
+
+scene:
+  tagline: Stew, ledger, watching eyes
+  tags:
+    - dialogue
+    - mid-game
+  present_npcs:
+    - id: halden
+      name: Halden
+      title: Merchant
+      notes: Sits at the corner table with his ledger open, glances up when the door swings.
+      bio: A road merchant in his fifties who hires couriers when his usual runners are spoken for. Honest by reputation, careful with money.
+    - id: tough_a
+      name: Bald Tough
+      title: Road thug
+      notes: Leans by the door with arms crossed, watching the room without subtlety.
+      bio: Hired muscle. No personal stake in this — he'll back off if the price is right or the fight goes bad.
+    - id: tough_b
+      name: Scarred Tough
+      title: Road thug
+      notes: Stands close to Bald Tough, hand resting on the hilt of a short blade.
+      bio: Same outfit as the other — hired by the same person. Quicker to violence; not the brains.
+  world_state:
+    - The Crossed Keys Inn sits at the junction of the merchant road and the old quarry track, a half-day's walk from the nearest village.
+    - Iron coin (credits) is the universal currency on the merchant road; barter is acceptable but slower.
+    - The road has been quieter than usual this season — fewer caravans, more independent runners, more opportunists.
+  recent_events:
+    - You took on Halden's courier contract twelve days ago in Marrow's Crossing.
+    - You spent two nights in the open after the bridge at Holt's Ford was washed out.
+    - At the village of Brindle's End you were warned that road-toughs were extorting travelers near the Crossed Keys Inn.
+    - You arrived at the Crossed Keys Inn this evening and saw Halden already at his corner table.
+    - You overheard one of the toughs at the door mention "Caron's coin" before you stepped inside.
+
+compendium:
+  npcs:
+    halden:
+      name: Halden
+      title: Merchant
+      bio: A road merchant in his fifties who hires couriers when his usual runners are spoken for. Honest by reputation, careful with money.
+    tough_a:
+      name: Bald Tough
+      title: Road thug
+      bio: Hired muscle. No personal stake in this — he'll back off if the price is right or the fight goes bad.
+    tough_b:
+      name: Scarred Tough
+      title: Road thug
+      bio: Same outfit as the other — hired by the same person. Quicker to violence; not the brains.
+    caron:
+      name: Caron
+      title: Old creditor
+      bio: The man you owe coin to. Lives in Marrow's Crossing. Patient, but not forgiving.
+    innkeeper:
+      name: Edda
+      title: Innkeeper at the Crossed Keys
+      bio: Runs the inn alone since her husband died. Knows every traveler by face if not by name. Stays out of trouble unless it walks through her door.

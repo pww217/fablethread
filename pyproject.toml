@@ -62,6 +62,10 @@ disable_error_code = ["untyped-decorator", "no-untyped-def", "no-untyped-call"]
 module = ["ccya.rules"]
 disable_error_code = ["name-defined"]
 
+[[tool.mypy.overrides]]
+module = ["ccya.eval"]
+disable_error_code = ["no-any-return"]
+
 [dependency-groups]
 dev = [
     "mypy>=1.20.2",
