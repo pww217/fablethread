@@ -485,14 +485,14 @@ def summarize_changes(
     pre_event_ids = {e["id"] for e in pre_events if isinstance(e, dict)}
     post_event_ids = {e["id"] for e in post_events if isinstance(e, dict)}
     for eid in post_event_ids - pre_event_ids:
-        evt = next(e for e in post_events if e.get("id") == eid)
+        evt = next(e for e in post_events if isinstance(e, dict) and e.get("id") == eid)
         facts.append({"kind": "added", "value": evt.get("text", eid)})
     for eid in pre_event_ids - post_event_ids:
-        evt = next(e for e in pre_events if e.get("id") == eid)
+        evt = next(e for e in pre_events if isinstance(e, dict) and e.get("id") == eid)
         facts.append({"kind": "removed", "value": evt.get("text", eid)})
     for eid in pre_event_ids & post_event_ids:
-        pre_text = next(e for e in pre_events if e.get("id") == eid).get("text", "")
-        post_text = next(e for e in post_events if e.get("id") == eid).get("text", "")
+        pre_text = next(e for e in pre_events if isinstance(e, dict) and e.get("id") == eid).get("text", "")
+        post_text = next(e for e in post_events if isinstance(e, dict) and e.get("id") == eid).get("text", "")
         if pre_text != post_text:
             facts.append({"kind": "updated", "old": pre_text, "new": post_text})
 
