@@ -2,7 +2,9 @@
 
 ## Problem
 
-`recent_events` in scene state is a flat list of strings. The current deduplication logic in `engine.py` (`_fact_in_list`) compares events by normalizing them to lowercase and checking word equality:
+`recent_events` in scene state is a flat list of strings. The current deduplication logic
+in `engine.py` (`_fact_in_list`) compares events by normalizing them to lowercase and
+checking word equality:
 
 ```python
 def _norm_fact(s: Any) -> str:
@@ -16,15 +18,15 @@ def _fact_in_list(needle: str, haystack: list[Any]) -> bool:
     return False
 ```
 
-This is doing semantic comparison at the string level, which is the wrong tool for the job. The result:
+This is the wrong tool: near-identical strings don't match, slightly rephrased strings do.
+The result is false merges and duplicate events living side by side.
 
-- **False positives**: two distinct events that happen to share most words get silently merged (e.g. "The guard left the room" and "The guard left the building" normalize to different strings, but slight rephrasing — "The guard has left" vs. "The guard left" — can collide).
-- **False negatives**: the same event rephrased by the LLM on a retry or re-extraction doesn't match its original and gets added as a duplicate.
-- **No edit path**: because events are matched by content, there's no reliable way to update an existing event without the risk of creating a duplicate.
+### Root cause
 
-### Why PbtA-style event tracking is cleaner
-
-In tabletop PbtA, the GM's move list is a *discrete set of named outcomes*, not a prose log. Each move has an identity independent of how it's worded. The equivalent here is: every `recent_event` should have a stable ID that the extractor assigns, so "event X was updated" is a clean operation rather than a string-match gamble.
+The extractor has no stable reference to compare against when writing events. It sees
+narration text and tries to emit strings, with no IDs to anchor identity across turns.
+The `summarize_changes()` diff in `engine.py` suffers from the same problem — it compares
+previous and current event lists by string content, making the diff unreliable.
 
 ---
 
@@ -42,7 +44,7 @@ class RecentEvent(BaseModel):
     turn: int         # turn added (for age-based eviction ordering)
 ```
 
-The state schema becomes:
+State schema:
 
 ```yaml
 scene:
@@ -57,45 +59,52 @@ scene:
 
 ### Extractor changes
 
-**`StateDelta` / `ProgressExtractResult`** — update the event fields:
+**`StateDelta`** — update event fields:
 
 - `recent_events_add: list[RecentEvent]` — new events with fresh IDs
 - `recent_events_update: list[RecentEvent]` — revised text for an existing ID
 - `recent_events_remove: list[str]` — IDs to remove (not content strings)
 
-The extractor prompt instructs:
-> Assign a stable `snake_case` ID to each new event. To update an existing event's text, emit it under `recent_events_update` using its existing ID. To remove an event, emit its ID in `recent_events_remove`. Never emit a new event with the same ID as an existing one.
+Extractor prompt instruction:
+> Assign a stable `snake_case` ID to each new event. To update an existing event's text,
+> emit it under `recent_events_update` using its existing ID. To remove an event, emit its
+> ID in `recent_events_remove`. Never emit a new event with the same ID as an existing one.
 
 ### `apply_delta` changes
 
-**`ccya/state.py`** — update `apply_delta()` to:
+**`ccya/state.py`** — update `apply_delta()`:
 
-1. On `recent_events_add`: append new event objects, reject if ID already exists.
-2. On `recent_events_update`: find by ID, replace `text` field only.
-3. On `recent_events_remove`: filter out by ID.
-4. Eviction (max events): sort by `turn` ascending, drop oldest.
+1. `recent_events_add`: append new objects; reject if ID already exists
+2. `recent_events_update`: find by ID, replace `text` only
+3. `recent_events_remove`: filter out by ID
+4. Eviction (max events): sort by `turn` ascending, drop oldest
 
-### Deduplication
+### `summarize_changes()` deduplication fix
 
-`_fact_in_list` and `_norm_fact` are deleted entirely. The `summarize_changes()` diff in `engine.py` compares by event ID, not content:
+**`ccya/engine.py`** — replace fuzzy norm comparison with exact ID comparison:
 
 ```python
 pre_event_ids = {e["id"] for e in pre_events if isinstance(e, dict)}
 post_event_ids = {e["id"] for e in post_events if isinstance(e, dict)}
-# added = post - pre
-# removed = pre - post
+# added = post_event_ids - pre_event_ids
+# removed = pre_event_ids - post_event_ids
 ```
+
+`_fact_in_list` and `_norm_fact` in `engine.py` are deleted entirely once this lands.
+The `_fact_in_list` / `_norm_fact` functions in `state.py` are **untouched** — they
+serve a different purpose there.
 
 ### Template changes
 
-Narrate and extract templates that render `recent_events` currently iterate over strings. Update to iterate over objects and render `event.text`. The `id` and `turn` fields are metadata — don't render them to the LLM in prose contexts, only use them for diff/dedup logic.
+Narrate and extract templates that render `recent_events` currently iterate over strings.
+Update to iterate over objects and render `event.text`. The `id` and `turn` fields are
+metadata — do not render them to the LLM in prose contexts, use them for diff/dedup only.
 
 ---
 
 ## Migration
 
-- Existing saves with string `recent_events` lists need a one-time migration: read each string, generate a deterministic ID from it (slugify first 6 words), set `turn: 0`.
-- Add a migration helper in `ccya/state.py`:
+Existing saves with string `recent_events` lists get a one-time upgrade at `load_state()`:
 
 ```python
 def migrate_recent_events(state: dict) -> dict:
@@ -113,4 +122,13 @@ def migrate_recent_events(state: dict) -> dict:
     return state
 ```
 
-Call this at `load_state()` time as a transparent upgrade.
+---
+
+## Relationship to other plans
+
+- **`reconciliation-system.md`** handles cross-domain state contradictions (item in both
+  add and remove lists, etc.). Event-specific ID conflicts (duplicate `recent_events_add`
+  IDs) are handled here in `apply_delta`, not in reconciliation.
+- **`entity-dedup.md`** covers the same ID + alias pattern for inventory and NPCs.
+  `recent_events` uses the same ID discipline but simpler — events are never aliased,
+  only added, updated, or removed by ID.
