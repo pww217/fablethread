@@ -18,6 +18,6 @@ Conditions: {% for c in conditions %}{{ c.label if c is mapping else c }}{% if n
 {% for n in npc_roster %}- `{{ n.id }}` | {{ n.name }} [{{ n.tags | join(",") }}]{% if n.notes %} — {{ n.notes }}{% endif %}
 {% endfor %}
 {% endif -%}
-=== NARRATION ===
+## CURRENT TURN NARRATION
 {{ narration }}
-=== END NARRATION ===
+## END CURRENT TURN NARRATION
