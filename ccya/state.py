@@ -87,6 +87,11 @@ def _migrate_state(state: dict[str, Any]) -> None:
     # Migrate string recent_events to object form
     _migrate_recent_events(state)
 
+    # Migrate quests missing status field
+    for q in state.get("quests") or []:
+        if isinstance(q, dict) and "status" not in q:
+            q["status"] = "active"
+
 
 def _migrate_recent_events(state: dict[str, Any]) -> None:
     """Upgrade string recent_events to object form in-place."""
@@ -97,7 +102,7 @@ def _migrate_recent_events(state: dict[str, Any]) -> None:
             return "_".join(words) or "event"
         seen: set[str] = set()
         migrated: list[dict[str, Any]] = []
-        for idx, e in enumerate(events):
+        for e in events:
             base_id = _slugify(e)
             slug = base_id
             counter = 1
