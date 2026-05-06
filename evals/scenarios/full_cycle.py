@@ -69,7 +69,6 @@ scenario = Scenario(
             asserts=[
                 TurnAssert(stream="rules", field="rolled", expected="true"),
                 TurnAssert(stream="extract.progress", field="quest_updates", expected="deliver_the_ledger"),
-                TurnAssert(stream="extract.scene", field="present_npcs", expected="halden"),
             ],
         ),
         # --- Turn 4: Location change — travel to the road ---
@@ -125,7 +124,6 @@ scenario = Scenario(
             ],
             asserts=[
                 TurnAssert(stream="extract.progress", field="quest_updates", expected="deliver_the_ledger"),
-                TurnAssert(stream="extract.scene", field="present_npcs", expected="halden"),
             ],
         ),
         # --- Turn 8: Unconventional — try to use the brass key on the inn door ---
@@ -167,7 +165,6 @@ scenario = Scenario(
             ],
             asserts=[
                 TurnAssert(stream="rules", field="rolled", expected="true"),
-                TurnAssert(stream="extract.scene", field="present_npcs", expected="matthew_estrada"),
             ],
         ),
     ],

@@ -231,7 +231,6 @@ class StateDelta(BaseModel):
     scene_tagline: str | None = (
         None  # 3–6 words for UI header; persisted to state.scene.tagline
     )
-    present_npcs: list[NpcRef] = Field(default_factory=list)
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
@@ -274,7 +273,6 @@ class SceneExtractResult(BaseModel):
     scene_tagline: str | None = None
     location_change: LocationRef | None = None
     location_description: str | None = None
-    present_npcs: list[NpcRef] = Field(default_factory=list)
     npc_add: list[NpcAdd] = Field(default_factory=list)
     npc_remove: list[NpcRemove] = Field(default_factory=list)
     npc_update: list[NpcUpdate] = Field(default_factory=list)

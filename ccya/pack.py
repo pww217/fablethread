@@ -19,7 +19,7 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from ccya.models import InventoryItem, NpcRef
+from ccya.models import InventoryItem
 
 
 class SeedPC(BaseModel):
@@ -72,7 +72,6 @@ class SeedCompendium(BaseModel):
 class SeedScene(BaseModel):
     tagline: str = ""
     tags: list[str] = Field(default_factory=list)
-    present_npcs: list[NpcRef] = Field(default_factory=list)
     world_state: list[str] = Field(default_factory=list)
     recent_events: list[str] = Field(default_factory=list)
 

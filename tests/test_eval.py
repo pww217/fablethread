@@ -205,7 +205,7 @@ def test_patch_eval_pack_starting_state(tmp_path: Path):
             "location": {"id": "", "name": "", "description": ""},
             "inventory": [],
             "quests": [],
-            "scene": {"tags": [], "present_npcs": [], "world_state": [], "recent_events": [], "tagline": ""},
+            "scene": {"tags": [],  "world_state": [], "recent_events": [], "tagline": ""},
             "compendium": {"npcs": {}},
         })
     )
@@ -229,7 +229,7 @@ def test_patch_eval_pack_starting_state_noop():
                 "location": {"id": "", "name": "", "description": ""},
                 "inventory": [],
                 "quests": [],
-                "scene": {"tags": [], "present_npcs": [], "world_state": [], "recent_events": [], "tagline": ""},
+                "scene": {"tags": [],  "world_state": [], "recent_events": [], "tagline": ""},
                 "compendium": {"npcs": {}},
             })
         )

@@ -5,9 +5,6 @@ Conditions: {% if pc.conditions %}{% for c in pc.conditions %}{{ c.label if c is
 
 ## scene
 Location: {{ location.name or location.id or "Unknown" }}
-{% if present_npcs -%}
-Present: {% for npc in present_npcs %}{{ npc.name if npc is mapping else npc }}{% if not loop.last %}, {% endif %}{% endfor %}
-{% endif %}
 {%- if recent_turns %}
 ## last_turn (tail of the most recent narrative)
 {%- set t = recent_turns[-1] %}

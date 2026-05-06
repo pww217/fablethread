@@ -175,7 +175,7 @@ class TestNewGameStaticOverrides:
             ],
             "scene": {
                 "tags": [],
-                "present_npcs": [],
+                
                 "recent_events": [],
                 "tagline": "",
             },
@@ -359,7 +359,7 @@ class TestNewGameDynamicOverrides:
             ],
             "scene": {
                 "tags": [],
-                "present_npcs": [],
+                
                 "recent_events": [],
                 "tagline": "",
             },
@@ -441,7 +441,7 @@ class TestNewGameDynamicOverrides:
             ],
             "scene": {
                 "tags": [],
-                "present_npcs": [],
+                
                 "recent_events": [],
                 "tagline": "",
             },

@@ -76,7 +76,7 @@ def _minimal_static_pack_files(
             "scene": {
                 "tagline": "",
                 "tags": [],
-                "present_npcs": [],
+                
                 "recent_events": [],
             },
             "compendium": {"npcs": {}},

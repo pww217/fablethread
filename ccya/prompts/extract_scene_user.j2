@@ -14,7 +14,7 @@ Conditions: {% for c in conditions %}{{ c.label if c is mapping else c }}{% if n
 {{ location.description }}
 
 {% if npc_roster -%}
-## npc_roster (reuse `id` for present_npcs; tags show why each is listed)
+## known_characters (compendium — reuse `id` for npc_add/npc_update)
 {% for n in npc_roster %}- `{{ n.id }}` | {{ n.name }} [{{ n.tags | join(",") }}]{% if n.notes %} — {{ n.notes }}{% endif %}
 {% endfor %}
 {% endif -%}

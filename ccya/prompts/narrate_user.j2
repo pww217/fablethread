@@ -2,13 +2,6 @@
 {% include "sections/_pc.j2" %}
 ## Location
 {% include "sections/_location.j2" %}
-## Present NPCs
-{% if state.scene.present_npcs -%}
-{% for n in state.scene.present_npcs %}- {{ n.name or n }}{% if n is mapping and n.get('title') %} ({{ n.title }}){% endif %}{% if n is mapping and n.get('notes') %} — {{ n.notes }}{% endif %}
-{% endfor -%}
-{%- else -%}
-- (none named — ambient only)
-{% endif %}
 {% if recently_left -%}
 ## Recently Left (do NOT write dialogue or action for these — may briefly acknowledge their departure)
 {% for n in recently_left %}- {{ n.name or n }}{% if n is mapping and n.get('title') %} ({{ n.title }}){% endif %}

@@ -276,12 +276,7 @@ def _check_asserts(
 
         elif a.stream == "extract.scene":
             applied = event.get("applied") or {}
-            if a.field == "present_npcs":
-                npcs = applied.get("present_npcs") or []
-                ids = [n.get("id") for n in npcs if isinstance(n, dict)]
-                passed = a.expected in ids
-                detail = f"present_npcs[{a.expected}] {'found' if passed else 'not found'}"
-            elif a.field == "scene_tags":
+            if a.field == "scene_tags":
                 tags = applied.get("scene_tags") or []
                 passed = a.expected in tags
                 detail = f"scene_tags[{a.expected}] {'found' if passed else 'not found'}"

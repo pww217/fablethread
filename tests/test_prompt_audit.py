@@ -205,30 +205,23 @@ class TestQuestThresholdDirective:
 
 
 class TestSceneNpcRoster:
-    def test_present_only(self):
-        roster = _scene_npc_roster(
-            present_npcs=[{"id": "a", "name": "Anna", "notes": "watching"}],
-            known_characters=[],
-        )
-        assert len(roster) == 1
-        assert roster[0]["tags"] == ["present"]
-
     def test_compendium_only(self):
         roster = _scene_npc_roster(
-            present_npcs=[],
             known_characters=[{"id": "b", "name": "Bo"}],
         )
         assert len(roster) == 1
         assert roster[0]["tags"] == ["compendium"]
 
-    def test_overlap_merges(self):
+    def test_multiple_compendium_entries(self):
         roster = _scene_npc_roster(
-            present_npcs=[{"id": "a", "name": "Anna", "notes": "watching"}],
-            known_characters=[{"id": "a", "name": "Anna"}],
+            known_characters=[
+                {"id": "a", "name": "Anna"},
+                {"id": "b", "name": "Bo"},
+            ],
         )
-        assert len(roster) == 1
-        assert set(roster[0]["tags"]) == {"present", "compendium"}
-        assert roster[0]["notes"] == "watching"
+        assert len(roster) == 2
+        assert roster[0]["tags"] == ["compendium"]
+        assert roster[1]["tags"] == ["compendium"]
 
 
 # ---------------------------------------------------------------------------
