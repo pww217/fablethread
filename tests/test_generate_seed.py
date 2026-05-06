@@ -68,16 +68,6 @@ def _valid_envelope_json(
     opening_text: str | None = None,
 ) -> str:
     npc_names = npc_names or ["Amara Cole", "Blake Osei"]
-    npcs = [
-        {
-            "id": n.lower().replace(" ", "-"),
-            "name": n,
-            "title": "Survivor",
-            "notes": "Cautious.",
-            "bio": f"{n} has been here a while.",
-        }
-        for n in npc_names
-    ]
     opening = opening_text or " ".join(["word"] * opening_words)
     envelope = {
         "seed_state": {
@@ -124,7 +114,6 @@ def _valid_envelope_json(
             "scene": {
                 "tagline": "Ruins at dusk",
                 "tags": ["arrival"],
-                "present_npcs": npcs,
                 "recent_events": ["Tester arrived this morning."],
             },
             "compendium": {"npcs": {}},
@@ -167,7 +156,6 @@ async def test_generate_seed_happy_path():
 
     assert isinstance(envelope, SeedEnvelope)
     assert envelope.seed_state.pc.name == "Tester"
-    assert len(envelope.seed_state.scene.present_npcs) == 2
     assert envelope.opening_narrative.startswith("word")
     mock_chat.assert_called_once()
 
@@ -318,27 +306,6 @@ async def test_generate_seed_raises_after_all_retries_fail():
 # ---------------------------------------------------------------------------
 # Soft validation warnings (logged, not raised)
 # ---------------------------------------------------------------------------
-
-
-async def test_generate_seed_soft_warning_npc_count(caplog):
-    """With min_named_npcs=3, only 2 NPCs should trigger a warning (not a failure)."""
-    pack = _minimal_dynamic_pack(min_named_npcs=3)
-    payload = _valid_envelope_json(npc_names=["Amara Cole", "Blake Osei"])
-
-    with patch.object(
-        ccya.engine,
-        "llm_chat",
-        new=AsyncMock(return_value={"response": payload, "done": True}),
-    ):
-        import logging
-
-        with caplog.at_level(logging.WARNING, logger="ccya.engine"):
-            envelope = await generate_seed(
-                pack, _config(), template_dir=str(PROMPTS_DIR)
-            )
-
-    assert isinstance(envelope, SeedEnvelope)
-    assert any("named NPCs" in r.message for r in caplog.records)
 
 
 async def test_generate_seed_soft_warning_cliche(caplog):

@@ -44,11 +44,6 @@
 {% for row in known_characters %}- `{{ row.id }}` | {{ row.name }}{% if row.title %} — {{ row.title }}{% endif %}{% if row.bio_preview %} | {{ row.bio_preview }}{% endif %}
 {% endfor %}
 {% endif -%}
-{% if scene_result.present_npcs -%}
-## present_npcs (this turn)
-{% for n in scene_result.present_npcs %}- {{ n.name or n.id }}
-{% endfor %}
-{% endif -%}
 {% if state_result.items_gained -%}
 ## items_gained
 {{ state_result.items_gained | join(', ') }}

@@ -224,7 +224,6 @@ def build_state_slice(
             "stats": pc.get("stats", {}),
         },
         "location": location,
-        "present_npcs": list(scene.get("present_npcs") or []),
         "known_characters": _known_characters_for_extract(state),
     }
 
@@ -636,7 +635,6 @@ def _active_domains(intent: "IntentEnvelope | None") -> list[str]:
     scope = intent.scope if intent else Scope()
     return scope.active_domains or [
         "scene",
-        "present_npcs",
         "inventory",
         "quest_updates",
         "location_change",
@@ -645,13 +643,10 @@ def _active_domains(intent: "IntentEnvelope | None") -> list[str]:
     ]
 
 
-def _scene_npc_roster(
-    present_npcs: list[Any], known_characters: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
-    """Build a deduped scene-NPC roster for the scene extractor user prompt.
+def _scene_npc_roster(known_characters: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Build a deduped NPC roster for the scene extractor user prompt.
 
-    Each row is ``{id, name, notes, tags}`` where tags ⊆ {"present", "compendium"}.
-    NPCs that appear in both lists merge into a single row with both tags.
+    Each row is ``{id, name, notes, tags}`` where tags = {"compendium"}.
     """
     by_id: dict[str, dict[str, Any]] = {}
 
@@ -665,12 +660,6 @@ def _scene_npc_roster(
             row["notes"] = notes
         if tag not in row["tags"]:
             row["tags"].append(tag)
-
-    for n in present_npcs or []:
-        if isinstance(n, dict):
-            _put(str(n.get("id") or ""), str(n.get("name") or ""), str(n.get("notes") or ""), "present")
-        elif isinstance(n, str):
-            _put(n, n, "", "present")
 
     for row in known_characters or []:
         _put(str(row.get("id") or ""), str(row.get("name") or ""), "", "compendium")
@@ -690,12 +679,10 @@ def _extract_scene_messages(
     """Build [system, user] messages for stream 1 (scene + UI hints)."""
     pc = state.get("pc") or {}
     location = state.get("location") or {}
-    scene = state.get("scene") or {}
-    present_npcs = list(scene.get("present_npcs") or [])
     conditions = list(pc.get("conditions") or [])
     known_characters = _known_characters_for_extract(state, compact=True)
     active = _active_domains(intent)
-    npc_roster = _scene_npc_roster(present_npcs, known_characters)
+    npc_roster = _scene_npc_roster(known_characters)
 
     system_text = _render(env, "extract_scene_system.j2", {})
     user_text = _render(
@@ -745,10 +732,6 @@ def _extract_state_messages(
     scene_ctx = {
         "location_id": loc_id,
         "location_changed": bool(scene_result.location_change),
-        "present_npcs": [
-            {"id": n.id, "name": n.name or n.id}
-            for n in scene_result.present_npcs
-        ],
     }
 
     # Filter examples by band (band-scoped extract examples)
@@ -830,12 +813,7 @@ def _extract_progress_messages(
     known_characters = _known_characters_for_extract(state, compact=False)
 
     # Cross-stream: minimal surfaces
-    scene_ctx = {
-        "present_npcs": [
-            {"id": n.id, "name": n.name or n.id}
-            for n in scene_result.present_npcs
-        ],
-    }
+    scene_ctx: dict[str, Any] = {}
     state_ctx = {
         "items_gained": [it.name for it in state_result.inventory_add],
         "items_lost": [it.id for it in state_result.inventory_remove],
@@ -1098,7 +1076,6 @@ async def _run_extraction_pipeline(
         scene_tagline=scene_result.scene_tagline,
         location_change=scene_result.location_change,
         location_description=scene_result.location_description,
-        present_npcs=scene_result.present_npcs,
         npc_add=scene_result.npc_add,
         npc_remove=scene_result.npc_remove,
         npc_update=scene_result.npc_update,
@@ -1136,7 +1113,6 @@ def _rules_messages(
 ) -> list[dict[str, str]]:
     pc = state.get("pc") or {}
     location = state.get("location") or {}
-    present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
     system_text = _render(env, "rules_system.j2", {})
     user_text = _render(
         env,
@@ -1144,7 +1120,6 @@ def _rules_messages(
         {
             "pc": pc,
             "location": location,
-            "present_npcs": present_npcs,
             "recent_turns": recent_turns or [],
             "user_input": user_input,
         },
@@ -1167,7 +1142,6 @@ async def _call_rules(
         scope=Scope(
             active_domains=[
                 "scene",
-                "present_npcs",
                 "inventory",
                 "quest_updates",
                 "location_change",
@@ -1975,26 +1949,6 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
     # quest_updates is create-or-update: new quest IDs are allowed (apply_delta creates them).
     # No quest ID validation here.
 
-    # NPC validation: npc_remove and npc_update IDs must exist in current present_npcs
-    present_ids = {
-        n.get("id") for n in (state.get("scene") or {}).get("present_npcs") or []
-        if isinstance(n, dict)
-    }
-    for rem in delta.npc_remove:
-        if rem.id not in present_ids:
-            rejections.append({
-                "field": "npc_remove",
-                "value": rem.id,
-                "reason": f"NPC '{rem.id}' not in present_npcs",
-            })
-    for upd in delta.npc_update:
-        if upd.id not in present_ids:
-            rejections.append({
-                "field": "npc_update",
-                "value": upd.id,
-                "reason": f"NPC '{upd.id}' not in present_npcs",
-            })
-
     return rejections
 
 
@@ -2032,25 +1986,10 @@ def _soft_validate_seed(
     if not c:
         return warnings
 
-    npcs = envelope.seed_state.scene.present_npcs
-    named = [n for n in npcs if n.name]
-    min_npcs = (
-        overrides.npc_count if (overrides and overrides.npc_count > 0) else None
-    ) or c.min_named_npcs
-    if len(named) < min_npcs:
-        warnings.append(f"Only {len(named)} named NPCs (min {min_npcs})")
-
     words = len(envelope.opening_narrative.split())
     lo, hi = c.prose_word_range
     if not (lo <= words <= hi):
         warnings.append(f"Opening narrative {words} words (expected {lo}-{hi})")
-
-    if c.npc_distinct_first_letters:
-        first_letters = [n.name[0].upper() for n in named if n.name]
-        if len(first_letters) != len(set(first_letters)):
-            warnings.append(
-                "NPC names share first letters (npc_distinct_first_letters)"
-            )
 
     text_lower = envelope.opening_narrative.lower()
     for cliche in c.forbid_cliches:
@@ -2067,13 +2006,9 @@ def _soft_validate_seed(
             "son",
             "daughter",
         }
-        npc_notes = " ".join(
-            (n.notes or "") + " " + (n.bio or "") for n in npcs
-        ).lower()
-        found = dependent_words & set(npc_notes.split())
-        if found:
+        if any(word in text_lower for word in dependent_words):
             warnings.append(
-                f"NPC text may contain player-dependent relationship: {found}"
+                "Opening narrative may contain player-dependent relationships"
             )
 
     return warnings

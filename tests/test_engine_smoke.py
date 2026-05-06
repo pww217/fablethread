@@ -34,12 +34,14 @@ from ccya.models import (
     ConditionAdd,
     ConditionRemove,
     LocationRef,
+    NpcAdd,
+    NpcRemove,
+    NpcUpdate,
     RecentEvent,
     RecentEventUpdate,
     InventoryItem,
     InventoryRemove,
     InventoryUpdate,
-    NpcRef,
     QuestObjectiveUpdate,
     QuestUpdate,
     SceneExtractResult,
@@ -67,7 +69,7 @@ _RULES_NO_ROLL = json.dumps(
         "stakes": "",
         "check": {"required": False},
         "scope": {
-            "active_domains": ["scene", "present_npcs"],
+            "active_domains": ["scene"],
             "skip_domains": [],
             "implicit_preconditions": [],
             "ambiguities": [],
@@ -126,7 +128,7 @@ def _make_state(turn: int = 0) -> dict:
                 "objectives": [{"description": "Find the payer", "done": False}],
             }
         ],
-        "scene": {"tags": [], "present_npcs": [], "recent_events": [], "tagline": ""},
+        "scene": {"tags": [], "recent_events": [], "tagline": ""},
         "compendium": {"npcs": {}},
     }
 
@@ -147,7 +149,6 @@ _SCENE_RESPONSE = json.dumps({
     "scene_tagline": "Quiet corridor stretches ahead",
     "location_change": None,
     "location_description": None,
-    "present_npcs": [],
     "actions": ["Look around carefully", "Check the panels", "Listen at the door", "Go back"],
     "outcome_summary": "You step through the airlock into silence.",
 })
@@ -365,7 +366,7 @@ class TestPromptComposition:
         system = next(m for m in msgs if m["role"] == "system")["content"]
         assert "## Output schema" in system
         assert "scene_tags" in system
-        assert "present_npcs" in system
+        assert "npc_add" in system
         assert "actions" in system
         assert "outcome_summary" in system
 
@@ -635,7 +636,6 @@ class TestHappyPath:
             "scene_tagline": "Dim corridors ahead",
             "location_change": None,
             "location_description": None,
-            "present_npcs": [],
             "actions": ["Open door", "Take stairs", "Check map", "Go back"],
             "outcome_summary": "You looked around carefully.",
         })
@@ -654,7 +654,6 @@ class TestHappyPath:
             "scene_tagline": "Quiet",
             "location_change": None,
             "location_description": None,
-            "present_npcs": [],
             "actions": [],
             "outcome_summary": "",
         })
@@ -1521,8 +1520,8 @@ class TestInventoryCompendiumTagline:
     def test_npc_bio_mirrored_to_compendium(self) -> None:
         state = _make_state()
         delta = StateDelta(
-            present_npcs=[
-                NpcRef(
+            npc_add=[
+                NpcAdd(
                     id="fixer",
                     name="Anna",
                     title="Fence",
@@ -1542,8 +1541,8 @@ class TestInventoryCompendiumTagline:
             "bio": "Old bio.",
         }
         delta = StateDelta(
-            present_npcs=[
-                NpcRef(
+            npc_add=[
+                NpcAdd(
                     id="fixer", name="Anna", title="Fence", notes="New mood.", bio=""
                 ),
             ],
@@ -1551,7 +1550,7 @@ class TestInventoryCompendiumTagline:
         out = apply_delta(state, delta)
         assert out["compendium"]["npcs"]["fixer"]["bio"] == "Old bio."
 
-    def test_present_npcs_id_and_notes_only_hydrates_from_compendium(self) -> None:
+    def test_npc_add_id_and_notes_only_hydrates_from_compendium(self) -> None:
         state = _make_state()
         state["compendium"]["npcs"]["fixer"] = {
             "name": "Anna",
@@ -1559,7 +1558,7 @@ class TestInventoryCompendiumTagline:
             "bio": "Stored dossier.",
         }
         delta = StateDelta(
-            present_npcs=[NpcRef(id="fixer", notes="Suspicious tonight.")]
+            npc_add=[NpcAdd(id="fixer", notes="Suspicious tonight.")]
         )
         out = apply_delta(state, delta)
         npc = out["scene"]["present_npcs"][0]
@@ -1580,7 +1579,7 @@ class TestInventoryCompendiumTagline:
         assert out["compendium"]["npcs"]["missing_wife"]["bio"] == "Seen on Ganymede."
 
     def test_recently_left_computed_when_npcs_leave(self) -> None:
-        """NPCs removed from present_npcs should appear in recently_left."""
+        """NPCs removed via npc_remove should appear in recently_left."""
         state = _make_state()
         state["compendium"]["npcs"]["fixer"] = {
             "name": "Anna",
@@ -1596,9 +1595,8 @@ class TestInventoryCompendiumTagline:
             {"id": "bouncer", "name": "Kweku", "title": "Doorman", "notes": "Arms crossed."},
         ]
         delta = StateDelta(
-            present_npcs=[
-                NpcRef(id="fixer", notes="Nodding at you."),
-            ],
+            npc_remove=[NpcRemove(id="bouncer")],
+            npc_update=[NpcUpdate(id="fixer", notes="Nodding at you.")],
         )
         out = apply_delta(state, delta)
         recently_left = out["scene"]["recently_left"]
@@ -1620,9 +1618,9 @@ class TestInventoryCompendiumTagline:
             {"id": "bouncer", "name": "Kweku", "title": "Doorman", "notes": "Arms crossed."},
         ]
         delta = StateDelta(
-            present_npcs=[
-                NpcRef(id="fixer", notes="Nodding."),
-                NpcRef(id="bouncer", notes="Stepping aside."),
+            npc_update=[
+                NpcUpdate(id="fixer", notes="Nodding."),
+                NpcUpdate(id="bouncer", notes="Stepping aside."),
             ],
         )
         out = apply_delta(state, delta)
@@ -1639,7 +1637,7 @@ class TestInventoryCompendiumTagline:
         ]
         state["scene"]["recently_left_turns"] = 1
         delta = StateDelta(
-            present_npcs=[NpcRef(id="fixer", notes="At the new place.")],
+            npc_update=[NpcUpdate(id="fixer", notes="At the new place.")],
             location_change=LocationRef(id="new-station", name="New Station", description="Bright lights."),
         )
         out = apply_delta(state, delta)
@@ -1657,7 +1655,7 @@ class TestInventoryCompendiumTagline:
             {"id": "fixer", "name": "Anna", "title": "Fence", "notes": "Watching."},
         ]
         delta = StateDelta(
-            present_npcs=[],
+            npc_remove=[NpcRemove(id="fixer")],
         )
         out = apply_delta(state, delta)
         recently_left = out["scene"]["recently_left"]
@@ -1696,7 +1694,6 @@ class TestInventoryCompendiumTagline:
             "quests": [],
             "scene": {
                 "tags": [],
-                "present_npcs": [],
                 "recent_events": [],
                 "tagline": "",
             },
@@ -1724,7 +1721,7 @@ class TestInventoryCompendiumTagline:
             "location": {"id": "", "name": "", "description": ""},
             "inventory": [],
             "quests": [],
-            "scene": {"tags": [], "present_npcs": [], "recent_events": []},
+            "scene": {"tags": [], "recent_events": []},
         }
         ls_save(tmp_path, raw)
         st = ls_load(tmp_path)
@@ -2031,7 +2028,7 @@ class TestEntityDedup:
         assert "kael_marsh" in npcs
         assert npcs["kael_marsh"]["bio"] == "A veteran"
 
-    def test_present_npcs_alias_route(self) -> None:
+    def test_npc_add_alias_route(self) -> None:
         state = _make_state()
         state["compendium"]["npcs"] = {
             "kael_marsh": {
@@ -2039,7 +2036,7 @@ class TestEntityDedup:
                 "aliases": ["scarred soldier"],
             },
         }
-        delta = StateDelta(present_npcs=[NpcRef(id="scarred_soldier", name="Kael Marsh")])
+        delta = StateDelta(npc_add=[NpcAdd(id="scarred_soldier", name="Kael Marsh", notes="Present.")])
         updated = apply_delta(state, delta)
         present = updated["scene"]["present_npcs"]
         assert len(present) == 1

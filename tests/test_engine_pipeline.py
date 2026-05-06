@@ -330,14 +330,13 @@ def _progress_response(
     )
 
 
-def _scene_response(*, present_npcs: list[dict] | None = None, tags: list[str] | None = None) -> str:
+def _scene_response(*, tags: list[str] | None = None) -> str:
     return json.dumps(
         {
             "scene_tags": tags or ["dialogue"],
             "scene_tagline": "",
             "location_change": None,
             "location_description": None,
-            "present_npcs": present_npcs or [],
             "actions": ["A", "B", "C", "D"],
             "outcome_summary": "ok",
         },
@@ -401,16 +400,12 @@ async def test_multi_turn_compendium_grows_by_unique_npcs(save_dir):
     ]
 
     for turn_idx, ids in enumerate(introductions):
-        present = [
-            {"id": nid, "name": nid.title(), "title": "", "bio": "", "notes": ""}
-            for nid in ids
-        ]
         npc_updates = [
             {"id": nid, "name": nid.title(), "title": "guide", "bio": f"bio of {nid}"}
             for nid in ids
         ]
         with _FakeLLM(
-            scene_response=_scene_response(present_npcs=present),
+            scene_response=_scene_response(),
             progress_response=_progress_response(npc_updates=npc_updates),
         ):
             await _run(save_dir, f"meet {','.join(ids)}")
@@ -467,7 +462,7 @@ _RULES_SKIP_STATE = json.dumps(
         "stakes": "",
         "check": {"required": False},
         "scope": {
-            "active_domains": ["scene", "present_npcs"],
+            "active_domains": ["scene"],
             "skip_domains": ["inventory", "pc_condition"],
             "implicit_preconditions": [],
             "ambiguities": [],

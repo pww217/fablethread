@@ -34,9 +34,7 @@ directive: {{ rules_outcome.directive }}
 {% endif -%}
 ## scene_result
 location: `{{ scene_result.location_id }}`
-{% if scene_result.present_npcs -%}
-present_npcs: {% for n in scene_result.present_npcs %}{{ n.name or n.id }}{% if not loop.last %}, {% endif %}{% endfor %}
-{% endif %}
+{% if scene_result.location_changed %}(location changed){% endif %}
 {% if band_examples -%}
 ## EXTRACT EXAMPLES (band: {{ rules_outcome.band if rules_outcome else "none" }})
 {% for ex in band_examples %}

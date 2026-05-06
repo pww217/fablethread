@@ -12,7 +12,6 @@ Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON.
 ## Hard constraints
 {% if scenario and scenario.constraints %}
 {% set c = scenario.constraints %}
-- present_npcs in scene: ≥{{ npc_count_override if npc_count_override > 0 else c.min_named_npcs }} entries with proper personal names
 - quests: exactly {{ c.starting_quest_count }}, each with ≥{{ c.min_objectives_per_quest }} objectives
 - inventory: {{ c.inventory_size_range[0] }}–{{ c.inventory_size_range[1] }} items
 - pc.stats values: {{ c.pc_stat_range[0] }}–{{ c.pc_stat_range[1] }}; total: {{ c.pc_stat_total_range[0] }}–{{ c.pc_stat_total_range[1] }}
@@ -36,7 +35,6 @@ Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON.
     scene: {
       tagline: string,
       tags: string[],
-      present_npcs: Array<{id: snake_case, name: string, title: string, notes: string, bio: string}>,
       world_state: string[],   // exactly 3 immutable global facts
       recent_events: string[]  // exactly 5 mutable local facts
     },
@@ -51,8 +49,6 @@ Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON.
 - `pc.stats`: six integer values, range 1–4, total 12–18.
 - `pc.tagline`: 5–10 words — role + defining trait (e.g. "Structural engineer, nine months sober").
 - `pc.bio`: 2–4 sentences — pre-event history, what shaped this person, what they want now.
-- `present_npcs[*].bio`: 1–3 sentences of durable identity and motivation.
-- `present_npcs[*].notes`: current attitude in this opening scene.
 - `scene.world_state`: exactly 3 consolidated global facts — political, economic, infrastructural reality the player would know from living in this setting. Immutable for the entire game. Don't make a separate fact per faction or vocabulary word — consolidate.
 - `scene.recent_events`: exactly 5 local facts — specific to this location, these NPCs, this week. Mutable. Each substantial and consequential. Each fact is a plain string — do NOT include category labels or prefixes. Pick distinct categories (one per fact, no two paraphrasing the same truth): faction/power, recent event, infrastructure/resource, local history, key relationships, most recent player action.
 - `inventory`: starting items appropriate to PC and scenario. Ranged weapons require a separate ammo stack with a believable starting `amount` (e.g. `{"id": "9mm_rounds", "name": "9mm rounds", "amount": 12}`). Ammo amount is the single source of truth — never put loaded counts in the weapon's `notes`. Melee/single-shot thrown items are exempt. No exotic/legendary weapons at start.

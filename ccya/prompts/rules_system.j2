@@ -47,7 +47,7 @@ If the player's phrasing asserts the result ("I one-shot the guard", "I instantl
     "tags": []
   },
   "scope": {
-    "active_domains": ["scene", "present_npcs", "..."],
+    "active_domains": ["scene", "..."],
     "skip_domains": [],
     "implicit_preconditions": [],
     "ambiguities": []
@@ -64,12 +64,12 @@ If the player's phrasing asserts the result ("I one-shot the guard", "I instantl
   - `required`: true or false.
   - `skill`: strength|dexterity|wits|lore|charisma|resolve.
   - `difficulty`: trivial|easy|normal|hard|extreme.
-- `scope.active_domains`: listing only the state domains that COULD change based on the player's action this turn only. `scene` and `present_npcs` are always active.
+- `scope.active_domains`: listing only the state domains that COULD change based on the player's action this turn only. `scene` is always active.
 
 Domain mapping examples:
-- Movement            → location_change, scene, present_npcs
-- Combat / violence   → inventory (ammo), pc_condition, present_npcs, quest_updates (if objective)
-- Dialogue / social   → recent_events (if info revealed), quest_updates (if info revealed), present_npcs, scene
+- Movement            → location_change, scene
+- Combat / violence   → inventory (ammo), pc_condition
+- Dialogue / social   → recent_events (if info revealed), quest_updates (if info revealed), scene
 - Item interaction    → inventory, recent_events, scene
 - Observation / idle  → scene, recent_events only
 - Rest / recovery     → pc_condition, scene
