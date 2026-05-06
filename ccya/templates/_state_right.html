@@ -23,7 +23,7 @@
 </details>
 
 <details class="sidebar-card" id="card-recent-events" data-card="recent-events" open>
-    <summary>Recent Events <span class="card-count" title="Recent events (capped at 15)">{{ _recent|length }}</span></summary>
+    <summary>Recent Events <span class="card-count" title="Recent events (capped at 20)">{{ _recent|length }}</span></summary>
     <div class="sidebar-card-body">
         {% if _recent %}
         {% for event in _recent | reverse %}

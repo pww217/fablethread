@@ -128,6 +128,7 @@ async def get_turn(input: str = ""):
                                 "state": _load_current_state(),
                                 "metrics": result.metrics,
                                 "rules": result.rules,
+                                "recent_events_evicted": result.recent_events_evicted,
                             }
                         ),
                     }
@@ -226,6 +227,7 @@ async def retry_turn():
                                 "metrics": result.metrics,
                                 "rules": result.rules,
                                 "retry": True,
+                                "recent_events_evicted": result.recent_events_evicted,
                             }
                         ),
                     }
