@@ -55,8 +55,8 @@ If you find logic in the wrong layer, move it rather than pile on.
 
 ## Plan & TODO/Roadmap lifecycle
 
-- Directories are plans/ (TODO.md) and docs/ROADMAP.md
-- Move completed plans to `plans/completed/`.
+- Directories are docs/plans/ and docs/ROADMAP.md
+- Move completed docs/plans to `docs/plans/completed/`.
 - Update `TODO.md` when starting work: mark items `[x]` or note status.
 - Abandoned items get struck through or moved to a `## Abandoned` section with one-line reason.
 - Fix merge conflict markers in `TODO.md` immediately — never leave them.
@@ -90,22 +90,22 @@ If you find logic in the wrong layer, move it rather than pile on.
 
 ## Repo map
 
-Detailed file/function/directory info lives in `REPOMAP/`. Read the relevant files using your Read tool when the task requires it:
+Detailed file/function/directory info lives in `docs/REPOMAP/`. Read the relevant files using your Read tool when the task requires it:
 
 | Working on... | Read |
 |---|---|
-| turn pipeline, extractors, retry | `@REPOMAP/engine.md` |
-| state.yaml, apply_delta, persistence | `@REPOMAP/state.md` |
-| FastAPI routes, SSE, HTMX | `@REPOMAP/server.md` |
-| Pydantic models, TurnResult | `@REPOMAP/models.md` |
-| pack loading, pack modes, name gen | `@REPOMAP/pack.md` |
-| dice, 2d6, bands | `@REPOMAP/rules.md` |
-| LLM client, streaming, mock | `@REPOMAP/llm_client.md` |
-| prompt templates | `@REPOMAP/prompts.md` |
-| frontend, CSS, JS, templates | `@REPOMAP/frontend.md` |
-| testing, FakeLLM, commands | `@REPOMAP/testing.md` |
-| config.yaml, EngineConfig | `@REPOMAP/config.md` |
-| directory layout | `@REPOMAP/directory.md` |
+| turn pipeline, extractors, retry | `@docs/REPOMAP/engine.md` |
+| state.yaml, apply_delta, persistence | `@docs/REPOMAP/state.md` |
+| FastAPI routes, SSE, HTMX | `@docs/REPOMAP/server.md` |
+| Pydantic models, TurnResult | `@docs/REPOMAP/models.md` |
+| pack loading, pack modes, name gen | `@docs/REPOMAP/pack.md` |
+| dice, 2d6, bands | `@docs/REPOMAP/rules.md` |
+| LLM client, streaming, mock | `@docs/REPOMAP/llm_client.md` |
+| prompt templates | `@docs/REPOMAP/prompts.md` |
+| frontend, CSS, JS, templates | `@docs/REPOMAP/frontend.md` |
+| testing, FakeLLM, commands | `@docs/REPOMAP/testing.md` |
+| config.yaml, EngineConfig | `@docs/REPOMAP/config.md` |
+| directory layout | `@docs/REPOMAP/directory.md` |
 
 Cross-cutting tasks (read multiple):
 - Modify turn pipeline → `engine.md` + `state.md` + `models.md`
