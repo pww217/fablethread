@@ -28,20 +28,20 @@ Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON.
 {
   seed_state: {
     meta: {turn: 0, model: string, setting_pack: string},
-    pc: {name: string, tagline: string, bio: string, stats: {strength: 1-4, dexterity: 1-4, wits: 1-4, lore: 1-4, charisma: 1-4, resolve: 1-4}, conditions: []},
+    pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, lore: int, charisma: int, resolve: int}, conditions: []},
     location: {id: snake_case, name: string, description: string},
-    inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,  // 1..12 items
-    quests: Array<{id: snake_case, title: string, status: "active", objectives: Array<{description: string, done: false, failed: false}>}>,  // ≥1 quest
+    inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
+    quests: Array<{id: snake_case, title: string, status: string, objectives: Array<{description: string, done: boolean, failed: boolean}>}>,
     scene: {
       tagline: string,
       tags: string[],
-      world_state: string[],   // exactly 3 immutable global facts
-      recent_events: string[]  // exactly 5 mutable local facts
+      world_state: string[],
+      recent_events: string[]
     },
-    compendium: {npcs: {}}      // engine-managed; emit {}
+    compendium: {npcs: {}}
   },
-  opening_narrative: string,    // ≥50 chars; 3-4 paragraphs
-  actions: [string, string, string, string]  // exactly 4, 7-10 words each
+  opening_narrative: string,
+  actions: string[]
 }
 ```
 
