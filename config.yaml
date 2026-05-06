@@ -24,6 +24,9 @@ game:
   # Scene pressure urgency escalation thresholds (turns)
   scene_pressure_building_at: 6   # background → building
   scene_pressure_immediate_at: 10 # building → immediate
+  # Compaction: compress narrative history every N turns (0 = disabled)
+  compact_every: 4
+  compact_temperature: 0.1
 
 server:
   bind_host: 127.0.0.1

@@ -65,6 +65,9 @@ class EngineConfig:
     # Scene pressure urgency escalation thresholds (turns)
     scene_pressure_building_at: int = 6
     scene_pressure_immediate_at: int = 10
+    # Compaction: periodically compress narrative history + events
+    compact_every: int = 0
+    compact_temperature: float = 0.1
 
 
 def _build_jinja_env(template_dir: str) -> Environment:

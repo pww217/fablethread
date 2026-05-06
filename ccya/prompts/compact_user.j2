@@ -1,0 +1,33 @@
+## TURNS TO COMPACT
+
+{% for t in turns %}
+### Turn {{ t.turn }} — {{ t.input }}
+{{ t.narrative }}
+{% endfor -%}
+
+## RECENT EVENTS TO COMPACT
+
+{% for e in events %}- Turn {{ e.get('turn', '?') }}: {{ e.text if e is mapping else e }}
+{% endfor -%}
+{% if not events %}(no events){% endif %}
+
+## ACTIVE CONTEXT (relevance anchors — protect information related to these)
+
+{% if active_quests %}
+### Active Quests
+{% for q in active_quests -%}
+- **{{ q.get("title", q.get("id", "?")) }}**: {% for obj in (q.get("objectives") or []) %}[{{ "x" if obj.get("done") else " " }}] {{ obj.get("description", "?") }} {% endfor %}
+{% endfor -%}
+{% endif -%}
+
+{% if npc_names %}
+### Present NPCs
+{{ npc_names | join(', ') }}
+{% endif -%}
+
+{% if pressures %}
+### Active Pressures
+{% for p in pressures -%}
+- [{{ p.get('urgency', '').upper() }}] {{ p.get('text', p) }}
+{% endfor -%}
+{% endif -%}
