@@ -58,6 +58,16 @@ class RulesCheck(BaseModel):
     difficulty: Difficulty = "normal"
     tags: list[str] = Field(default_factory=list, max_length=4)
 
+    @field_validator("skill", mode="before")
+    @classmethod
+    def _coerce_skill(cls, v: Any) -> Any:
+        return None if v == "" else v
+
+    @field_validator("difficulty", mode="before")
+    @classmethod
+    def _coerce_difficulty(cls, v: Any) -> Any:
+        return "normal" if v == "" else v
+
 
 class Scope(BaseModel):
     active_domains: list[str] = Field(default_factory=list)
@@ -168,6 +178,11 @@ class NpcRemove(BaseModel):
     """Remove an NPC from the scene."""
     id: str
 
+    @field_validator("id", mode="before")
+    @classmethod
+    def _strip(cls, v: Any) -> Any:
+        return str(v).strip() if v is not None else v
+
 
 class NpcUpdate(BaseModel):
     """Update an existing scene NPC's notes (and optionally name/title/bio when new info arrives)."""
@@ -265,6 +280,19 @@ class SceneExtractResult(BaseModel):
     npc_update: list[NpcUpdate] = Field(default_factory=list)
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = ""
+
+    @field_validator("npc_remove", mode="before")
+    @classmethod
+    def _coerce_npc_remove(cls, v: Any) -> Any:
+        if not v:
+            return v
+        out: list[Any] = []
+        for x in v:
+            if isinstance(x, str):
+                out.append({"id": x})
+            else:
+                out.append(x)
+        return out
 
 
 class StateExtractResult(BaseModel):
