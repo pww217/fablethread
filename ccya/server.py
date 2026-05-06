@@ -1243,21 +1243,18 @@ async def startup_event():
     import asyncio
 
     logger.info(
-        "ccya starting — pack: %s (mode=%s)", _pack_id, _active_pack.manifest.mode
+        "pack: %s (mode=%s) | LLM: %s",
+        _pack_id,
+        _active_pack.manifest.mode,
+        engine_config.model,
     )
     if config.get("game", {}).get("warmup_on_start", True):
 
         async def _warmup_bg() -> None:
-            logger.info("Warming up LLM model (background)…")
+            logger.info("warming up LLM model (background)…")
             await warmup(engine_config)
-            logger.info("Model warmup complete")
+            logger.info("model warmup complete")
 
         asyncio.create_task(_warmup_bg())
 
 
-def main() -> None:
-    import uvicorn
-
-    host = config["server"]["bind_host"]
-    port = config["server"]["bind_port"]
-    uvicorn.run("ccya.server:app", host=host, port=port, reload=False)
