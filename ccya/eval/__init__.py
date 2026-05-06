@@ -14,7 +14,7 @@ from ccya.eval.runner import (
     load_run_result,
     run_scenario,
 )
-from ccya.eval.scenario import Scenario, Turn, discover_scenarios, load_scenario
+from ccya.eval.scenario import Scenario, Turn, TurnAssert, discover_scenarios, load_scenario
 
 __all__ = [
     "EvalConfig",
@@ -22,6 +22,7 @@ __all__ = [
     "RunResult",
     "Scenario",
     "Turn",
+    "TurnAssert",
     "TurnRecord",
     "build_trace",
     "discover_scenarios",

@@ -13,6 +13,20 @@ from pathlib import Path
 
 
 @dataclass
+class TurnAssert:
+    """A structured assertion the auto-checker can verify against events.jsonl."""
+
+    # What to check: one of the stream keys
+    stream: str
+    # Field path within the stream (e.g. "inventory_remove", "rules.rolled")
+    field: str
+    # Expected value (string match) or None for "must exist"
+    expected: str | None = None
+    # Minimum amount for inventory_remove checks
+    min_amount: int | None = None
+
+
+@dataclass
 class Turn:
     """One player command in a scenario."""
 
@@ -23,6 +37,8 @@ class Turn:
     # Soft assertions surfaced as report annotations. Not test failures.
     # Examples: "scope_skips_inventory", "rules_call_required", "skill=charisma".
     expects: list[str] = field(default_factory=list)
+    # Structured assertions the auto-checker verifies against events.jsonl.
+    asserts: list[TurnAssert] = field(default_factory=list)
 
 
 @dataclass

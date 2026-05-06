@@ -250,7 +250,10 @@ async def run_judge(
 
     events_lines = events_path.read_text().splitlines() if events_path.exists() else []
     events = [json.loads(line) for line in events_lines if line.strip()]
-    trace = build_trace(events, max_chars=eval_cfg.judge.max_input_chars)
+    # Build trace without hard limit; let the model's context window be the constraint.
+    # If the trace is extremely long, the model may truncate internally, but we don't
+    # artificially cut it here — the judge needs the full picture to make quality calls.
+    trace = build_trace(events, max_chars=100000)
 
     messages = [
         {"role": "system", "content": rubric_text},
