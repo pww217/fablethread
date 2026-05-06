@@ -2204,6 +2204,357 @@ async def generate_seed(
     )
 
 
+async def run_turn_retry(
+    save_dir: Path,
+    rules_outcome: RulesOutcome,
+    intent: IntentEnvelope,
+    config: EngineConfig | None = None,
+    *,
+    template_dir: str | None = None,
+    pack_style: str = "",
+    pack_examples: list[ExtractExample] | None = None,
+    pack_name_locales: list[dict[str, Any]] = [],
+) -> AsyncIterator[tuple[str, Any]]:
+    """Re-roll narration + extraction with the same rules outcome.
+
+    Skips Call 0 (rules), uses the provided rules_outcome for Call 1 (narrate),
+    then re-runs the extraction pipeline. Increments turn counter and writes
+    a new turn entry.
+    """
+    if config is None:
+        config = EngineConfig()
+
+    template_dir = template_dir or str(Path(__file__).parent / "prompts")
+    env = _build_jinja_env(template_dir)
+
+    trace_id = uuid.uuid4().hex[:8]
+    errors: list[dict[str, Any]] = []
+    metrics: dict[str, Any] = {}
+    state = load_state(save_dir)
+    narrative_chunks: list[str] = []
+    delta: StateDelta | None = None
+    actions: list[str] = []
+    recent_events: list[dict[str, Any]] = []
+    outcome = rules_outcome
+
+    try:
+        await _inflight.acquire(str(save_dir))
+
+        rendered_narr_system = ""
+        rendered_narr_user = ""
+        narrative = ""
+
+        recent_turns = load_recent_chronicle_turns(save_dir, config.window_turns)
+        chronicle_tail = load_chronicle_tail(
+            save_dir,
+            config.chronicle_prefix_budget_tokens,
+            skip_last_n_turns=config.window_turns,
+        )
+
+        last_events = load_recent_events(save_dir, 1)
+        last_turn_failed: list[str] = []
+        if last_events:
+            last_turn_failed = last_events[0].get("failed", [])
+
+        # === Call 1: Narrate (streaming) — same as run_turn ===
+        exp_narrate_ms = _avg_narrate_ms(save_dir)
+        yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
+
+        _npc_name_pool: list[str] = []
+        if pack_name_locales:
+            _npc_name_pool = generate_npc_names(
+                pack_name_locales,
+                count=10,
+                seed=state.get("meta", {}).get("turn", 0),
+            )
+
+        _pending_gm_beat = (state.get("meta") or {}).get("pending_gm_beat")
+
+        narr_messages = _narrate_messages(
+            env,
+            state,
+            intent.intent,
+            chronicle_tail=chronicle_tail,
+            recent_turns=recent_turns,
+            enable_narrate_thinking=config.enable_narrate_thinking,
+            pack_style=pack_style,
+            rules_outcome=outcome,
+            npc_name_pool=_npc_name_pool,
+            last_turn_failed=last_turn_failed,
+            recently_left=(state.get("scene") or {}).get("recently_left", []),
+            momentum=(state.get("pc") or {}).get("momentum", 0),
+            pending_gm_beat=_pending_gm_beat,
+        )
+        narr_messages = trim_messages(narr_messages, config.prompt_token_budget)
+        if config.log_prompts:
+            _log_prompts(
+                state.get("meta", {}).get("turn", 0) + 1, "narrate", narr_messages
+            )
+        rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
+        rendered_narr_user = narr_messages[-1]["content"] if narr_messages else ""
+
+        first_ms = 0.0
+        t0 = asyncio.get_event_loop().time()
+        narr_stream_stats: dict[str, Any] = {}
+        if config.log_llm_io:
+            _log_llm_io(
+                trace_id=trace_id,
+                phase="narrate_request",
+                messages=narr_messages,
+                max_chars=config.log_llm_io_max_chars,
+            )
+        async for chunk in llm_chat_stream(
+            config.host,
+            config.model,
+            narr_messages,
+            temperature=config.narrate_temperature,
+            timeout=float(config.request_timeout_s),
+            stream_stats=narr_stream_stats,
+        ):
+            if not narrative_chunks:
+                first_ms = (asyncio.get_event_loop().time() - t0) * 1000
+            narrative_chunks.append(chunk)
+            yield ("token", chunk)
+
+        narr_ms = (asyncio.get_event_loop().time() - t0) * 1000
+        narrative = strip_thinking("".join(narrative_chunks))
+        narr_metrics = {
+            "first_token_ms": round(first_ms, 1),
+            "total_ms": round(narr_ms, 1),
+            "tokens_in": int(narr_stream_stats.get("prompt_eval_count", 0)),
+            "tokens_out": int(narr_stream_stats.get("eval_count", 0)),
+        }
+        if config.log_llm_io:
+            _log_llm_io(
+                trace_id=trace_id,
+                phase="narrate_response",
+                response=narrative,
+                extra={"timing_ms": narr_metrics},
+                max_chars=config.log_llm_io_max_chars,
+            )
+
+        yield ("phase", {"phase": "narrate_done"})
+
+        state.setdefault("meta", {})["pending_gm_beat"] = None
+
+        turn_no = state.get("meta", {}).get("turn", 0) + 1
+
+        # === Extraction pipeline (3 streams) ===
+        exp_ms = _avg_extract_ms(save_dir)
+        yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
+        t2 = asyncio.get_event_loop().time()
+
+        delta = None
+        actions = []
+        outcome_summary: str = ""
+        failed: list[str] = []
+        extraction_event: dict[str, Any] = {}
+
+        try:
+            delta, actions, outcome_summary, failed, extraction_event, progress_result = (
+                await _run_extraction_pipeline(
+                    env, state, narrative,
+                    rules_outcome=outcome,
+                    intent=intent,
+                    config=config,
+                    trace_id=trace_id,
+                    turn_no=turn_no,
+                    pack_examples=pack_examples,
+                )
+            )
+            if progress_result and progress_result.gm_beat and progress_result.gm_beat.type:
+                state.setdefault("meta", {})["pending_gm_beat"] = progress_result.gm_beat.model_dump(exclude_none=True)
+            if failed:
+                _log.info(
+                    "Turn %d: failed preconditions: %s",
+                    turn_no,
+                    failed,
+                    extra={"trace_id": trace_id},
+                )
+        except Exception as exc:
+            errors.append({"trace_id": trace_id, "message": str(exc)})
+
+        yield ("phase", {"phase": "extract_done"})
+
+        if delta is not None:
+            _expire_scene_pressures(state, delta, config)
+
+        ext_ms = (asyncio.get_event_loop().time() - t2) * 1000
+        _tokens_in = sum(
+            (extraction_event.get(s) or {}).get("tokens_in", 0)
+            for s in ("scene", "state", "progress")
+        )
+        _tokens_out = sum(
+            (extraction_event.get(s) or {}).get("tokens_out", 0)
+            for s in ("scene", "state", "progress")
+        )
+        _streams = {}
+        for s in ("scene", "state", "progress"):
+            ev = extraction_event.get(s)
+            if ev:
+                _streams[s] = {
+                    "ms": ev.get("ms", 0),
+                    "tokens_in": ev.get("tokens_in", 0),
+                    "tokens_out": ev.get("tokens_out", 0),
+                    "skipped": ev.get("skipped", False),
+                }
+        ext_metrics = {
+            "total_ms": round(ext_ms, 1),
+            "tokens_in": _tokens_in,
+            "tokens_out": _tokens_out,
+            "retries": 0,
+            "streams": _streams,
+        }
+        metrics = {
+            "rules": {"total_ms": 0, "rolled": False},
+            "narrate": narr_metrics,
+            "extract": ext_metrics,
+        }
+
+        # === Validate & apply delta ===
+        state_pre_apply = copy.deepcopy(state)
+        applied: dict[str, Any] = {}
+        rejected: list[dict[str, Any]] = []
+
+        if delta is not None:
+            rejected = _validate(state, delta)
+            blocking = [r for r in rejected if r.get("kind") != "warn_overdraw"]
+            if blocking:
+                errors.append(
+                    {
+                        "trace_id": trace_id,
+                        "message": f"Delta validation failed ({len(blocking)} rejection(s)).",
+                    }
+                )
+                narrative += f"\n\n*That action didn't resolve as expected. Trace `{trace_id}` — try rephrasing.*"
+            else:
+                reconcile_warnings = reconcile_delta(state, delta)
+                for w in reconcile_warnings:
+                    _log.warning("[reconcile] turn %s: %s", state.get("meta", {}).get("turn", "?"), w, extra={"trace_id": trace_id})
+                state = apply_delta(
+                    state, delta, recent_events_max=config.recent_events_max
+                )
+                recent_events = list(delta.recent_events_add)
+                applied = delta.model_dump(exclude_none=True)
+                for r in rejected:
+                    if r.get("kind") == "warn_overdraw":
+                        _log.warning(
+                            "inventory over-draw clamped: %s",
+                            r.get("reason"),
+                            extra={"trace_id": trace_id},
+                        )
+
+        scene = state.get("scene", {})
+        turns = scene.get("recently_left_turns", 0)
+        if turns > 0:
+            turns -= 1
+            if turns == 0:
+                scene["recently_left"] = []
+            else:
+                scene["recently_left_turns"] = turns
+
+        diff_lines = _summarize_applied(applied)
+        changes = summarize_changes(state_pre_apply, state, applied, rejected)
+
+        state.setdefault("meta", {})["turn"] = state.get("meta", {}).get("turn", 0) + 1
+
+        yield ("phase", {"phase": "persist"})
+
+        rules_event: dict[str, Any] = {
+            "intent_verb": intent.intent_verb,
+            "intent": intent.intent,
+            "rolled": outcome.rolled,
+            "total_ms": 0,
+            "tokens_in": 0,
+            "tokens_out": 0,
+        }
+        if outcome.rolled:
+            rules_event.update({
+                "skill": outcome.skill,
+                "difficulty": outcome.difficulty,
+                "dice": outcome.dice,
+                "stat_mod": outcome.stat_mod,
+                "diff_mod": outcome.diff_mod,
+                "cond_mod": outcome.cond_mod,
+                "final_total": outcome.final_total,
+                "band": outcome.band,
+                "outcome_summary": outcome_summary,
+            })
+
+        event = {
+            "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "trace_id": trace_id,
+            "turn": state["meta"]["turn"],
+            "input": intent.intent,
+            "applied": applied,
+            "rejected": rejected,
+            "actions": actions,
+            "scene_tags": list(getattr(delta, "scene_tags", [])),
+            "rules": rules_event,
+            "narrate": narr_metrics,
+            "extract": ext_metrics,
+            "extraction": extraction_event,
+            "changes": changes,
+            "failed": failed if failed else [],
+            "rules_prompt": {
+                "rendered_system": "",
+                "rendered_user": "",
+                "output": "",
+            },
+            "narrate_prompt": {
+                "rendered_system": rendered_narr_system,
+                "rendered_user": rendered_narr_user,
+                "output": narrative,
+            },
+        }
+        append_event(save_dir, event)
+        save_state(save_dir, state)
+        append_chronicle(
+            save_dir,
+            f"\n\n## Turn {state['meta']['turn']} — {intent.intent}\n\n{narrative.strip()}",
+        )
+
+        result_obj = TurnResult(
+            turn=state["meta"]["turn"],
+            trace_id=trace_id,
+            narrative=narrative,
+            state_delta=applied,
+            applied=applied,
+            rejected=rejected,
+            actions=actions,
+            scene_tags=list(getattr(delta, "scene_tags", [])),
+            recent_events=recent_events,
+            diff=diff_lines,
+            changes=changes,
+            metrics=metrics,
+            errors=errors,
+            rules=rules_event or {},
+            outcome_summary=outcome_summary,
+        )
+        yield ("complete", result_obj)
+
+    except Exception as exc:
+        errors.append({"trace_id": trace_id, "message": str(exc)})
+        fallback = narrative_chunks and "".join(narrative_chunks) or ""
+        if not fallback:
+            fallback = f"*An error occurred. Trace `{trace_id}` — try rephrasing.*"
+        yield (
+            "complete",
+            TurnResult(
+                turn=state.get("meta", {}).get("turn", 0),
+                trace_id=trace_id,
+                narrative=fallback,
+                state_delta={},
+                errors=errors,
+                metrics=metrics,
+                diff=[],
+                changes={},
+            ),
+        )
+    finally:
+        await _inflight.release(str(save_dir))
+
+
 async def warmup(config: EngineConfig) -> None:
     try:
         await llm_chat(

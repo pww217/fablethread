@@ -21,12 +21,20 @@ from ccya.engine import (
     generate_seed,
     is_turn_in_progress,
     run_turn,
+    run_turn_retry,
     warmup,
 )
 from ccya.logging_setup import setup_logging
 from ccya.models import load_config as _load_config
 from ccya.pack import Pack, load_pack, list_packs
-from ccya.state import init_save_dir, load_recent_chronicle_turns, load_state
+from ccya.state import (
+    init_save_dir,
+    load_recent_chronicle_turns,
+    load_recent_events,
+    load_state,
+    remove_last_chronicle_turn,
+    remove_last_event,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -944,6 +952,108 @@ async def get_turn(input: str = ""):
                     }
         except Exception as e:
             logger.exception("Turn failed")
+            yield {"event": "turn_error", "data": json.dumps({"error": str(e)})}
+
+    return EventSourceResponse(event_stream())
+
+
+@app.get("/turn/retry")
+async def retry_turn():
+    if is_turn_in_progress(str(SAVE_DIR)):
+        return JSONResponse(
+            {"error": "Turn already in progress"}, status_code=409
+        )
+
+    # Load the last turn's rules outcome from events.jsonl
+    last_events = load_recent_events(SAVE_DIR, 1)
+    if not last_events:
+        return JSONResponse(
+            {"error": "No previous turn to retry"}, status_code=400
+        )
+
+    last_event = last_events[-1]
+    rules_data = last_event.get("rules", {})
+    if not rules_data or not rules_data.get("rolled"):
+        return JSONResponse(
+            {"error": "Last turn had no roll to retry"}, status_code=400
+        )
+
+    from ccya.models import IntentEnvelope, RulesOutcome
+
+    rules_outcome = RulesOutcome(
+        rolled=rules_data.get("rolled", False),
+        skill=rules_data.get("skill", ""),
+        stat_value=0,
+        difficulty=rules_data.get("difficulty", "normal"),
+        stat_mod=rules_data.get("stat_mod", 0),
+        diff_mod=rules_data.get("diff_mod", 0),
+        cond_mod=rules_data.get("cond_mod", 0),
+        dice=rules_data.get("dice", []),
+        raw_total=rules_data.get("raw_total", 0),
+        final_total=rules_data.get("final_total", 0),
+        band=rules_data.get("band", "success"),
+        directive=rules_data.get("directive", ""),
+        intent_verb=rules_data.get("intent_verb", "act"),
+        intent=rules_data.get("intent", ""),
+    )
+
+    intent = IntentEnvelope(
+        intent=rules_outcome.intent,
+        intent_verb=rules_outcome.intent_verb,
+    )
+
+    # Remove the last turn from events and chronicle before retrying
+    remove_last_event(SAVE_DIR)
+    remove_last_chronicle_turn(SAVE_DIR)
+
+    async def event_stream():
+        try:
+            async for kind, payload in run_turn_retry(
+                SAVE_DIR,
+                rules_outcome,
+                intent,
+                config=engine_config,
+                template_dir=str(PROMPTS_DIR),
+                pack_style=_active_pack.style_text,
+                pack_examples=_active_pack.extract_examples,
+                pack_name_locales=_active_pack.manifest.name_locales,
+            ):
+                if kind == "token":
+                    yield {
+                        "event": "narrative_token",
+                        "data": json.dumps({"chunk": payload}),
+                    }
+                elif kind == "phase":
+                    yield {"event": "phase", "data": json.dumps(payload)}
+                elif kind == "complete":
+                    result = payload
+                    for err in result.errors:
+                        _ERRORS_LOG.appendleft(err)
+                    ch = result.changes if isinstance(result.changes, dict) else {}
+                    yield {
+                        "event": "turn_complete",
+                        "data": json.dumps(
+                            {
+                                "turn": result.turn,
+                                "trace_id": result.trace_id,
+                                "narrative": result.narrative,
+                                "actions": result.actions,
+                                "scene_tags": result.scene_tags,
+                                "game_over": "game_over" in (result.scene_tags or []),
+                                "rejected": result.rejected,
+                                "errors": result.errors,
+                                "diff": result.diff,
+                                "changes": ch,
+                                "change_lines": format_change_lines(ch),
+                                "state": _load_current_state(),
+                                "metrics": result.metrics,
+                                "rules": result.rules,
+                                "retry": True,
+                            }
+                        ),
+                    }
+        except Exception as e:
+            logger.exception("Retry failed")
             yield {"event": "turn_error", "data": json.dumps({"error": str(e)})}
 
     return EventSourceResponse(event_stream())

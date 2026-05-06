@@ -257,6 +257,36 @@ def load_recent_chronicle_turns(save_dir: Path, n: int) -> list[dict[str, Any]]:
     return turns[-n:] if n > 0 else []
 
 
+def remove_last_event(save_dir: Path) -> bool:
+    """Remove the last line from events.jsonl. Returns True if a line was removed."""
+    path = save_dir / "events.jsonl"
+    if not path.exists():
+        return False
+    lines = path.read_text().strip().split("\n")
+    lines = [l for l in lines if l.strip()]
+    if not lines:
+        return False
+    lines = lines[:-1]
+    path.write_text("\n".join(lines) + "\n" if lines else "")
+    return True
+
+
+def remove_last_chronicle_turn(save_dir: Path) -> bool:
+    """Remove the last ## Turn N — ... section from chronicle.md. Returns True if removed."""
+    path = save_dir / "chronicle.md"
+    if not path.exists():
+        return False
+    text = path.read_text()
+    matches = list(_TURN_HEADER.finditer(text))
+    if not matches:
+        return False
+    last_match = matches[-1]
+    prev_end = matches[-2].end() if len(matches) >= 2 else 0
+    new_text = text[:prev_end]
+    path.write_text(new_text)
+    return True
+
+
 def init_save_dir(save_dir: Path, seed: dict[str, Any]) -> None:
     save_dir.mkdir(parents=True, exist_ok=True)
     save_state(save_dir, seed)
