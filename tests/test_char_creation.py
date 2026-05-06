@@ -219,12 +219,12 @@ class TestNewGameStaticOverrides:
 
         with (
             patch.object(
-                __import__("ccya.server", fromlist=["_active_pack"]),
+                __import__("ccya.server.app", fromlist=["_active_pack"]),
                 "_active_pack",
                 mock_pack,
             ),
-            patch("ccya.server.SAVE_DIR", save_dir),
-            patch("ccya.server.init_save_dir") as mock_init,
+            patch("ccya.server.app.SAVE_DIR", save_dir),
+            patch("ccya.server.routes.init_save_dir") as mock_init,
         ):
             resp = client.post(
                 "/new-game",
@@ -251,12 +251,12 @@ class TestNewGameStaticOverrides:
 
         with (
             patch.object(
-                __import__("ccya.server", fromlist=["_active_pack"]),
+                __import__("ccya.server.app", fromlist=["_active_pack"]),
                 "_active_pack",
                 mock_pack,
             ),
-            patch("ccya.server.SAVE_DIR", save_dir),
-            patch("ccya.server.init_save_dir") as mock_init,
+            patch("ccya.server.app.SAVE_DIR", save_dir),
+            patch("ccya.server.routes.init_save_dir") as mock_init,
         ):
             resp = client.post(
                 "/new-game",
@@ -283,12 +283,12 @@ class TestNewGameStaticOverrides:
 
         with (
             patch.object(
-                __import__("ccya.server", fromlist=["_active_pack"]),
+                __import__("ccya.server.app", fromlist=["_active_pack"]),
                 "_active_pack",
                 mock_pack,
             ),
-            patch("ccya.server.SAVE_DIR", save_dir),
-            patch("ccya.server.init_save_dir") as mock_init,
+            patch("ccya.server.app.SAVE_DIR", save_dir),
+            patch("ccya.server.routes.init_save_dir") as mock_init,
         ):
             resp = client.post("/new-game", data={"pack_id": "test-static"})
 
@@ -376,12 +376,12 @@ class TestNewGameDynamicOverrides:
 
         with (
             patch.object(
-                __import__("ccya.server", fromlist=["_active_pack"]),
+                __import__("ccya.server.app", fromlist=["_active_pack"]),
                 "_active_pack",
                 mock_pack,
             ),
-            patch("ccya.server.SAVE_DIR", save_dir),
-            patch("ccya.server.generate_seed", mock_generate_seed),
+            patch("ccya.server.app.SAVE_DIR", save_dir),
+            patch("ccya.server.routes.generate_seed", mock_generate_seed),
         ):
             resp = client.post(
                 "/new-game",
@@ -458,12 +458,12 @@ class TestNewGameDynamicOverrides:
 
         with (
             patch.object(
-                __import__("ccya.server", fromlist=["_active_pack"]),
+                __import__("ccya.server.app", fromlist=["_active_pack"]),
                 "_active_pack",
                 mock_pack,
             ),
-            patch("ccya.server.SAVE_DIR", save_dir),
-            patch("ccya.server.generate_seed", mock_generate_seed),
+            patch("ccya.server.app.SAVE_DIR", save_dir),
+            patch("ccya.server.routes.generate_seed", mock_generate_seed),
         ):
             resp = client.post("/new-game", data={"pack_id": "test-dynamic"})
 
