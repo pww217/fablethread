@@ -19,7 +19,7 @@ game:
   window_turns: 3
   chronicle_prefix_budget_tokens: 1500
   recent_events_max: 15    # rolling window; world_state is immutable after seed
-  warmup_on_start: true
+  warmup_on_start: false
   character_creation_enabled: true
   # Scene pressure urgency escalation thresholds (turns)
   scene_pressure_building_at: 6   # background → building

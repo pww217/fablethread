@@ -130,6 +130,7 @@ Across the whole run, does the state evolve coherently?
 - Quest objectives complete in a sensible order.
 - Recent_events doesn't accumulate stale duplicates.
 - NPCs aren't created with conflicting bios on different turns.
+- NPCs leave scenes when no longer in proximity to the player POV
 - State drift breaks immersion — the player's world becomes inconsistent.
 
 ### 11. mechanical_consistency

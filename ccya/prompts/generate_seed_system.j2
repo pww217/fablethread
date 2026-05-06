@@ -54,8 +54,7 @@ Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON.
 - `present_npcs[*].bio`: 1–3 sentences of durable identity and motivation.
 - `present_npcs[*].notes`: current attitude in this opening scene.
 - `scene.world_state`: exactly 3 consolidated global facts — political, economic, infrastructural reality the player would know from living in this setting. Immutable for the entire game. Don't make a separate fact per faction or vocabulary word — consolidate.
-- `scene.recent_events`: exactly 5 local facts — specific to this location, these NPCs, this week. Mutable. Each substantial and consequential. Categories (one per fact, no two paraphrasing the same truth):
-  faction/power · recent event · infrastructure/resource · local history · key relationships · most recent player action
+- `scene.recent_events`: exactly 5 local facts — specific to this location, these NPCs, this week. Mutable. Each substantial and consequential. Each fact is a plain string — do NOT include category labels or prefixes. Pick distinct categories (one per fact, no two paraphrasing the same truth): faction/power, recent event, infrastructure/resource, local history, key relationships, most recent player action.
 - `inventory`: starting items appropriate to PC and scenario. Ranged weapons require a separate ammo stack with a believable starting `amount` (e.g. `{"id": "9mm_rounds", "name": "9mm rounds", "amount": 12}`). Ammo amount is the single source of truth — never put loaded counts in the weapon's `notes`. Melee/single-shot thrown items are exempt. No exotic/legendary weapons at start.
 - `opening_narrative`: second person, present tense — exactly 3-4 paragraphs:
   1. Who you are: not biography — one or two sentences grounding the PC in their role and place, with one specific concrete detail.
