@@ -1,4 +1,4 @@
-# server.py — FastAPI routes
+# server/ — FastAPI routes
 
 ## Public APIs
 
@@ -19,14 +19,49 @@
 
 ## Global state
 
-- `_active_pack` (Pack)
-- `_pack_id`
-- `_dynamic_opening`
-- `_dynamic_opening_actions`
-- `_ERRORS_LOG` (deque, last 50)
+- `_active_pack` (Pack) — in `server/app.py`
+- `_pack_id` — in `server/app.py`
+- `_dynamic_opening` — in `server/app.py`
+- `_dynamic_opening_actions` — in `server/app.py`
+- `_ERRORS_LOG` (deque, last 50) — in `server/app.py`
 
 ## Internal functions
 
-- `_turn_viewer_data(save_dir)` → `(rows, no_events)` — full turn viewer data from events.jsonl
-- `_recent_turn_metrics(save_dir, n)` — debug panel metrics
-- `_debug_context()` → dict for panel templates
+### server/app.py
+- FastAPI `app` instance + middleware/mounts
+- Jinja env
+- Config bootstrap (EngineConfig, pack loading)
+- `_ERRORS_LOG` deque
+- `_render()` helper
+- Module-level globals: `SAVE_DIR`, `PACKS_DIR`, `_active_pack`, `engine_config`
+- `startup_event` / `main()`
+- `_validate_stats()`
+
+### server/routes.py
+- All `@app.get` / `@app.post` handlers
+- Imports from `server/app.py` for shared state, from `server/panels.py` for context,
+  from `server/tv.py` for turn viewer data
+
+### server/panels.py
+- `_debug_context()`
+- `_load_current_state()`
+- `_load_recent_history()`
+- `_load_last_actions()`
+- `_load_rules_map()`
+- `_get_opening()`, `_get_opening_actions()`
+
+### server/tv.py
+- `_turn_viewer_data()`
+- `_tv_parse_json_blob()`
+- `_tv_dict_to_lines()`
+- `_tv_extract_stream_status()`
+- `_tv_narration_lines()`
+- `_tv_rules_status()`
+- `_STATUS_CSS`, `_STAGE_CSS` constants
+
+### server/metrics.py
+- `_recent_turn_metrics()`
+- `_turn_log_entries()`
+- `_fmt_ms_seconds()`
+- `_fmt_tokens()`
+- `_fmt_tokens_exact()`

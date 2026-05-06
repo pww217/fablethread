@@ -148,7 +148,7 @@ async def test_generate_seed_happy_path():
     payload = _valid_envelope_json()
 
     with patch.object(
-        ccya.engine,
+        ccya.engine.seed,
         "llm_chat",
         new=AsyncMock(return_value={"response": payload, "done": True}),
     ) as mock_chat:
@@ -170,7 +170,7 @@ async def test_generate_seed_injects_world_facts():
     ]
 
     with patch.object(
-        ccya.engine,
+        ccya.engine.seed,
         "llm_chat",
         new=AsyncMock(
             return_value={"response": json.dumps(envelope_raw), "done": True}
@@ -200,7 +200,7 @@ async def test_generate_seed_baseline_facts_override_world_md():
     envelope_raw["seed_state"]["scene"]["world_state"] = ["A scenario-specific fact."]
 
     with patch.object(
-        ccya.engine,
+        ccya.engine.seed,
         "llm_chat",
         new=AsyncMock(
             return_value={"response": json.dumps(envelope_raw), "done": True}
@@ -230,7 +230,7 @@ async def test_generate_seed_clears_compendium():
     envelope_raw["seed_state"]["meta"]["compendium_touch_order"] = ["someone"]
 
     with patch.object(
-        ccya.engine,
+        ccya.engine.seed,
         "llm_chat",
         new=AsyncMock(
             return_value={"response": json.dumps(envelope_raw), "done": True}
@@ -260,7 +260,7 @@ async def test_generate_seed_retries_on_invalid_json():
             return {"response": "not valid json at all {{{{", "done": True}
         return {"response": good, "done": True}
 
-    with patch.object(ccya.engine, "llm_chat", new=_side_effect):
+    with patch.object(ccya.engine.seed, "llm_chat", new=_side_effect):
         envelope = await generate_seed(pack, _config(), template_dir=str(PROMPTS_DIR))
 
     assert isinstance(envelope, SeedEnvelope)
@@ -284,7 +284,7 @@ async def test_generate_seed_retries_on_validation_failure():
         call_count += 1
         return {"response": bad_envelope if call_count == 1 else good, "done": True}
 
-    with patch.object(ccya.engine, "llm_chat", new=_side_effect):
+    with patch.object(ccya.engine.seed, "llm_chat", new=_side_effect):
         envelope = await generate_seed(pack, _config(), template_dir=str(PROMPTS_DIR))
 
     assert isinstance(envelope, SeedEnvelope)
@@ -298,7 +298,7 @@ async def test_generate_seed_raises_after_all_retries_fail():
     async def _always_bad(*args, **kwargs):
         return {"response": "not json {{{", "done": True}
 
-    with patch.object(ccya.engine, "llm_chat", new=_always_bad):
+    with patch.object(ccya.engine.seed, "llm_chat", new=_always_bad):
         with pytest.raises(RuntimeError, match="generate_seed failed"):
             await generate_seed(pack, _config(), template_dir=str(PROMPTS_DIR))
 
@@ -315,7 +315,7 @@ async def test_generate_seed_soft_warning_cliche(caplog):
     payload = _valid_envelope_json(opening_text=opening)
 
     with patch.object(
-        ccya.engine,
+        ccya.engine.seed,
         "llm_chat",
         new=AsyncMock(return_value={"response": payload, "done": True}),
     ):
@@ -345,7 +345,7 @@ async def test_generate_seed_with_player_overrides():
     payload = _valid_envelope_json()
 
     with patch.object(
-        ccya.engine,
+        ccya.engine.seed,
         "llm_chat",
         new=AsyncMock(return_value={"response": payload, "done": True}),
     ) as mock_chat:
@@ -394,7 +394,7 @@ async def test_generate_seed_zombie_pack_disk(tmp_path):
     )
 
     with patch.object(
-        ccya.engine,
+        ccya.engine.seed,
         "llm_chat",
         new=AsyncMock(return_value={"response": payload, "done": True}),
     ):

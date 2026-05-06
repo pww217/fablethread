@@ -4,10 +4,28 @@
 
 | Module | Owns | Does NOT own |
 |---|---|---|
-| `engine.py` | `run_turn()` generator, `generate_seed()`, retry logic, metrics, cross-stream message building | state file I/O, HTTP |
-| `state.py` | `load_state`, `save_state`, `apply_delta`, `append_event`, `append_chronicle`, `_migrate_state`, `summarize_changes` | LLM calls, HTTP |
+| `engine/` | `run_turn()` generator, `generate_seed()`, retry logic, metrics, cross-stream message building | state file I/O, HTTP |
+| `engine/turn.py` | `run_turn()` orchestrator (thin — imports from submodules) | helper logic |
+| `engine/config.py` | `EngineConfig` dataclass, `_EventLock`, `is_turn_in_progress` | game logic |
+| `engine/narrate.py` | `_narrate_messages()`, NPC name generation | state mutation |
+| `engine/rules.py` | `_rules_messages()`, `_call_rules()`, retry logic | deterministic dice/bands |
+| `engine/extraction.py` | `_run_extraction_pipeline()`, all `_extract_*_messages`, `_call_stream()` | state mutation |
+| `engine/seed.py` | `generate_seed()`, `_build_generate_seed_messages()`, `_soft_validate_seed()` | game logic |
+| `engine/changes.py` | `summarize_changes()`, `format_change_lines()`, `_summarize_applied()` | LLM calls |
+| `engine/pressure.py` | `_expire_scene_pressures()` | state mutation |
+| `state/` | `load_state`, `save_state`, `apply_delta`, `append_event`, `append_chronicle`, `_migrate_state`, `summarize_changes` | LLM calls, HTTP |
+| `state/io.py` | `load_state`, `save_state`, `init_save_dir`, state migration | state mutation logic |
+| `state/delta.py` | `apply_delta`, `reconcile_delta`, `PC_CONDITIONS_MAX` | I/O |
+| `state/inventory.py` | `normalize_inventory_id`, resolve/fuzzy match helpers | state mutation |
+| `state/npcs.py` | `build_npc_alias_map`, `touch_compendium_order` | state mutation |
+| `state/chronicle.py` | `append_event`, `append_chronicle`, `load_chronicle_tail`, `load_recent_events` | state mutation |
+| `state/momentum.py` | `apply_momentum` | deterministic dice/bands |
 | `models.py` | all Pydantic models, `TurnResult` dataclass, `load_config()` | business logic |
-| `server.py` | FastAPI routes, SSE streaming, `EngineConfig` wiring, active pack management, `/new-game` | game logic |
+| `server/app.py` | FastAPI app, config bootstrap, Jinja env, pack loading, startup, `_render`, `_validate_stats` | route handlers |
+| `server/routes.py` | All `@app.get` / `@app.post` route handlers | app bootstrap |
+| `server/panels.py` | `_debug_context()`, `_load_*` helpers, `_get_opening` | route handlers |
+| `server/tv.py` | `_turn_viewer_data()`, `_tv_*` helpers | route handlers |
+| `server/metrics.py` | `_recent_turn_metrics()`, `_turn_log_entries()`, fmt helpers | route handlers |
 | `pack.py` | `Pack`, `PackManifest`, `SeedEnvelope`, `load_pack()`, `list_packs()`, `parse_world_facts()` | state mutation |
 | `rules.py` | `resolve_check()` (2d6 + stat + cond − diff → Band), `SkillName`, `Difficulty`, `Band` | LLM calls, state |
 | `llm_client.py` | `chat()`, `chat_stream()` (OpenAI-compatible → `mlx_lm.server`), thinking helpers, token-budget trim | prompt construction |
@@ -20,7 +38,7 @@ If you find logic in the wrong layer, move it rather than pile on.
 
 ## Clean code rules
 
-- **No dead config keys.** If you remove a feature, remove its `config.yaml` key, `EngineConfig` field, and wiring in `server.py` in the same PR.
+- **No dead config keys.** If you remove a feature, remove its `config.yaml` key, `EngineConfig` field, and wiring in `server/app.py` in the same PR.
 - **No commented-out code.** If something is deferred, track it in `TODO.md` or the plan file; delete it from source.
 - **No silent fallbacks that hide bugs.** Prefer an explicit `if key not in state: raise` or a visible warning over silently inventing a default mid-turn.
 - **One source of truth per concept.** `meta.turn` is the turn counter. `chronicle.md` is narrative history. `compendium.npcs` is durable NPC identity. Don't replicate these elsewhere.
@@ -65,7 +83,7 @@ If you find logic in the wrong layer, move it rather than pile on.
 
 - **No redundant docstrings or comments.** Remove anything that says what's obvious from the code. Keep only docstrings that explain non-obvious behavior: design decisions, tradeoffs, edge cases, why something is done a certain way, or parameters not obvious from type hints.
 - **No section headers (`# --- ... ---`).** Use blank lines and clear function naming instead.
-- **No dead config keys.** If you remove a feature, remove its `config.yaml` key, `EngineConfig` field, and wiring in `server.py` in the same PR.
+- **No dead config keys.** If you remove a feature, remove its `config.yaml` key, `EngineConfig` field, and wiring in `server/app.py` in the same PR.
 - **No commented-out code.** If something is deferred, track it in `TODO.md` or the plan file; delete it from source.
 - **No silent fallbacks that hide bugs.** Prefer an explicit `if key not in state: raise` or a visible warning over silently inventing a default mid-turn.
 - **One source of truth per concept.** `meta.turn` is the turn counter. `chronicle.md` is narrative history. `compendium.npcs` is durable NPC identity. Don't replicate these elsewhere.
@@ -86,7 +104,14 @@ If you find logic in the wrong layer, move it rather than pile on.
 
 - `pyproject.toml` has `follow_imports = "skip"` in mypy config — prevents pydantic plugin from resolving `BaseModel`. Workaround: `disallow_subclassing_any = false` + per-module `disable_error_code` overrides for `ccya.models`, `ccya.pack`, `ccya.server`.
 - Server.py route handlers use untyped FastAPI decorators (`@app.get`, `@app.post`). Mypy overrides disable `no-untyped-def`, `no-untyped-call`, `untyped-decorator` for `ccya.server`.
-- FastAPI `on_event` is deprecated (see `server.py:1273`). Migrate to lifespan event handlers when convenient — not blocking.
+- FastAPI `on_event` is deprecated (see `server/app.py`). Migrate to lifespan event handlers when convenient — not blocking.
+
+## Server module guidance
+
+- Server routes questions → `server/routes.py`
+- Debug panel questions → `server/panels.py` + `server/tv.py`
+- Server bootstrap/config → `server/app.py`
+- Turn metrics → `server/metrics.py`
 
 ## Repo map
 

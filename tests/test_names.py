@@ -4,7 +4,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from ccya.names import generate_name_pool, generate_npc_names
+from ccya.engine.names import generate_name_pool, generate_npc_names
 
 
 # ---------------------------------------------------------------------------

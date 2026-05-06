@@ -4,7 +4,7 @@ Notable design decisions captured here:
 - Turn counter increments in engine.py ONLY (not in apply_delta).
 - run_turn() is an async generator: yields ("token", str)* then ("complete", TurnResult).
 - LLM client is OpenAI-compatible (mlx_lm.server). Tests mock at the
-  ccya.engine.llm_chat / ccya.engine.llm_chat_stream level — both return the
+  ccya.engine.llm_chat / ccya.llm_client.chat_stream level — both return the
   ccya-internal shape {"response": str, "usage": {...}}.
 - Narrate call uses [system, user] message roles.
 - Extract call uses [system, assistant, user] message roles.
@@ -140,7 +140,7 @@ def _make_state_with_events(events: list[dict]) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Fake LLM helpers — mock ccya.engine.llm_chat / ccya.engine.llm_chat_stream
+# Fake LLM helpers — mock ccya.engine.llm_chat / ccya.llm_client.chat_stream
 # ---------------------------------------------------------------------------
 
 
@@ -244,15 +244,25 @@ class _FakeLLM:
         self._fake_chat = _fake_chat
 
     def __enter__(self):
-        self._orig_stream = ccya.engine.llm_chat_stream
-        self._orig_chat = ccya.engine.llm_chat
-        ccya.engine.llm_chat_stream = self._fake_stream
-        ccya.engine.llm_chat = self._fake_chat
+        import ccya.engine.turn as turn_mod
+        import ccya.engine.rules as rules_mod
+        import ccya.engine.seed as seed_mod
+        import ccya.engine.extraction as extract_mod
+
+        self._mods = [turn_mod, rules_mod, seed_mod, extract_mod]
+        self._origs = {}
+        for mod in self._mods:
+            if hasattr(mod, "llm_chat"):
+                self._origs[mod] = ("llm_chat", mod.llm_chat)
+                mod.llm_chat = self._fake_chat
+            if hasattr(mod, "llm_chat_stream"):
+                self._origs[mod] = ("llm_chat_stream", mod.llm_chat_stream)
+                mod.llm_chat_stream = self._fake_stream
         return self
 
     def __exit__(self, *exc_info):
-        ccya.engine.llm_chat_stream = self._orig_stream
-        ccya.engine.llm_chat = self._orig_chat
+        for mod, (name, orig) in self._origs.items():
+            setattr(mod, name, orig)
 
     def stream_calls(self) -> list[dict]:
         return [c for c in self.call_log if c["kind"] == "stream"]
@@ -810,17 +820,22 @@ class TestSchemaFailureRetry:
                 return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
             return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
 
-        _orig_stream = ccya.engine.llm_chat_stream
-        _orig_chat = ccya.engine.llm_chat
+        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
+        _origs: list[tuple] = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = fake_stream
         try:
-            ccya.engine.llm_chat_stream = fake_stream
-            ccya.engine.llm_chat = fake_chat
             result = await _run(
                 _SAVE_DIR, "examine", config=EngineConfig(max_extract_retries=1)
             )
         finally:
-            ccya.engine.llm_chat_stream = _orig_stream
-            ccya.engine.llm_chat = _orig_chat
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
 
         assert len(result.errors) == 0
         assert result.scene_tags == ["exploration"]
@@ -893,20 +908,24 @@ class TestChroniclePrefixBudget:
                 return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
             return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
 
-        import ccya.engine as eng
-
-        _orig_stream, _orig_chat = eng.llm_chat_stream, eng.llm_chat
+        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
+        _origs: list[tuple] = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = fake_stream
         try:
-            eng.llm_chat_stream = fake_stream
-            eng.llm_chat = fake_chat
             await _run(
                 _SAVE_DIR,
                 "look",
                 config=EngineConfig(chronicle_prefix_budget_tokens=1500),
             )
         finally:
-            eng.llm_chat_stream = _orig_stream
-            eng.llm_chat = _orig_chat
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
 
         all_texts = " ".join(m.get("content", "") for m in captured_messages)
         assert "MARKER_TEXT_FOR_ASSERTION" in all_texts
@@ -1356,14 +1375,20 @@ class TestExtractionStreamSkip:
             # 3rd call should be progress (state is skipped)
             return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
 
-        _orig_stream, _orig_chat = ccya.engine.llm_chat_stream, ccya.engine.llm_chat
+        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
+        _origs: list[tuple] = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = fake_stream
         try:
-            ccya.engine.llm_chat_stream = fake_stream
-            ccya.engine.llm_chat = fake_chat
             result = await _run(_SAVE_DIR, "look", config=EngineConfig())
         finally:
-            ccya.engine.llm_chat_stream = _orig_stream
-            ccya.engine.llm_chat = _orig_chat
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
 
         # rules(1) + scene(2) + progress(3) — no state call
         assert chat_call_count == 3
@@ -1847,16 +1872,20 @@ class TestRecentTurnsInjected:
                 return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
             return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
 
-        import ccya.engine as eng
-
-        _orig_stream, _orig_chat = eng.llm_chat_stream, eng.llm_chat
+        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
+        _origs: list[tuple] = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = fake_stream
         try:
-            eng.llm_chat_stream = fake_stream
-            eng.llm_chat = fake_chat
             await _run(_SAVE_DIR, "go north", config=EngineConfig(window_turns=6))
         finally:
-            eng.llm_chat_stream = _orig_stream
-            eng.llm_chat = _orig_chat
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
 
         combined = " ".join(captured_messages)
         assert (
@@ -1902,12 +1931,16 @@ class TestPackKwargs:
                 return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
             return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
 
-        import ccya.engine as eng
-
-        _orig_stream, _orig_chat = eng.llm_chat_stream, eng.llm_chat
+        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
+        _origs: list[tuple] = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = _fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = _fake_stream
         try:
-            eng.llm_chat_stream = _fake_stream
-            eng.llm_chat = _fake_chat
             async for _ in run_turn(
                 _SAVE_DIR,
                 "look",
@@ -1917,8 +1950,8 @@ class TestPackKwargs:
             ):
                 pass
         finally:
-            eng.llm_chat_stream = _orig_stream
-            eng.llm_chat = _orig_chat
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
 
         assert any("UNIQUE_STYLE_MARKER_7483" in s for s in captured_narrate_system)
 
