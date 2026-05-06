@@ -63,6 +63,7 @@ If you find logic in the wrong layer, move it rather than pile on.
 
 - Write/update tests as you build features. Change tests when changing behavior.
 - Run `make check && make test` only as a final step when ALL work is complete.
+- Run `make check && make test` only as a final step when ALL work is complete.
 - Do not waste tokens on incremental check runs during implementation.
 - `make test` — quiet mode (dots + summary). Default for development.
 - `make test-v` — verbose output (full tracebacks, test names). For debugging.
@@ -96,6 +97,7 @@ If you find logic in the wrong layer, move it rather than pile on.
 
 - When planning or gathering information to execute a task, split large jobs into segments to preserve your context window. Aim to take in at most 3500 lines of code at time, execute as much as you can, then pause and ask user for input or compaction before the next execution.
 - Limit your reasoning to what's necessary. Plan out your process before you begin and stick to it. Keep it as terse as possible, avoid repeating yourself or going in circles. 
+- When instructed to make a commit, make a detailed memo of all major and key changes.
 
 ## Execution Rules
 - Feel free to curl against a running server (assume it's running) to pull information or rendered templates live to examine

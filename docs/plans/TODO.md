@@ -29,7 +29,8 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 
 ### Deferred
 
-- **Compaction redesign** — token-threshold trigger, new `compact_system.j2` + `compact_user.j2`, engine archive logic. See `plans/compaction-strategy.md`
+- ~~**Compaction redesign** — token-threshold trigger, new `compact_system.j2` + `compact_user.j2`, engine archive logic. See `plans/compaction-strategy.md`~~
+- ~~**Compactor** — periodic context token reduction (supersedes compaction redesign). See `plans/completed/compactor-plan.md`~~
 
 > **Deferred from P1:** New-NPC compendium guarantee (LRU injection fix). Will be superseded
 > by location-keyed NPC storage in a future milestone. The index system above is the intended

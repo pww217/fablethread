@@ -1,5 +1,6 @@
 """Engine package: turn pipeline, seed generation, and configuration."""
 
+from ccya.engine.compactor import maybe_compact
 from ccya.engine.config import EngineConfig, is_turn_in_progress
 from ccya.engine.seed import generate_seed
 from ccya.engine.changes import format_change_lines
@@ -41,6 +42,7 @@ __all__ = [
     "is_turn_in_progress",
     "llm_chat",
     "llm_chat_stream",
+    "maybe_compact",
     "run_turn",
     "run_turn_retry",
     "warmup",

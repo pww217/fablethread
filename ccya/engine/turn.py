@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, AsyncIterator
 
 from ccya.engine.changes import _summarize_applied, summarize_changes
+from ccya.engine.compactor import maybe_compact
 from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, _log_llm_io, _log_prompts
 from ccya.engine.extraction import (
     _avg_extract_ms,
@@ -463,6 +464,15 @@ async def run_turn(
             f"\n\n## Turn {state['meta']['turn']} — {user_input}\n\n{narrative.strip()}",
         )
 
+        # === Compaction (after persist, before yield complete) ===
+        if config.compact_every > 0:
+            yield ("phase", {"phase": "compact_start", "expected_ms": 0})
+            t_compact = asyncio.get_running_loop().time()
+            state = await maybe_compact(save_dir, state, config)
+            save_state(save_dir, state)
+            compact_ms = (asyncio.get_running_loop().time() - t_compact) * 1000
+            yield ("phase", {"phase": "compact_done", "ms": round(compact_ms, 1)})
+
         result_obj = TurnResult(
             turn=state["meta"]["turn"],
             trace_id=trace_id,
@@ -863,6 +873,15 @@ async def run_turn_retry(
             save_dir,
             f"\n\n## Turn {state['meta']['turn']} — {intent.intent}\n\n{narrative.strip()}",
         )
+
+        # === Compaction (after persist, before yield complete) ===
+        if config.compact_every > 0:
+            yield ("phase", {"phase": "compact_start", "expected_ms": 0})
+            t_compact = asyncio.get_running_loop().time()
+            state = await maybe_compact(save_dir, state, config)
+            save_state(save_dir, state)
+            compact_ms = (asyncio.get_running_loop().time() - t_compact) * 1000
+            yield ("phase", {"phase": "compact_done", "ms": round(compact_ms, 1)})
 
         result_obj = TurnResult(
             turn=state["meta"]["turn"],

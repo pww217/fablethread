@@ -45,6 +45,8 @@ engine_config = EngineConfig(
     log_prompts=config.get("logging", {}).get("log_prompts", False),
     rules_temperature=config.get("rules", {}).get("temperature", 0.2),
     max_rules_retries=config.get("rules", {}).get("max_retries", 1),
+    compact_every=config["game"].get("compact_every", 0),
+    compact_temperature=config["game"].get("compact_temperature", 0.1),
 )
 
 logger = setup_logging(config)
