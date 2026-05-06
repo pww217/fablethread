@@ -5,7 +5,7 @@
 default_pack: eval-pack
 default_save_root: ~/.cache/ccya-eval   # per-run subdir created under this
 runs_dir: evals/runs                 # where REPORT.md and trace files land
-num_turns: 4                        # run only first N turns (default/max 10, override with --turns)
+num_turns: 10                        # run only first N turns (default/max 10, override with --turns)
 
 inference:
   # null = use prod temps from the engine config (game's config.yaml).
