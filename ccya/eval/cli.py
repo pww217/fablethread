@@ -69,15 +69,24 @@ async def _cmd_run(args: argparse.Namespace) -> int:
     if args.pack:
         scenario = replace(scenario, pack=args.pack)
 
-    print(f"[eval] scenario={scenario.id} pack={scenario.pack} temp={eval_cfg.inference.temperature_override}", file=sys.stderr)
-    print(f"[eval] scenario_file={scenario_path}", file=sys.stderr)
+    num_turns = args.turns if args.turns is not None else eval_cfg.num_turns
+    if num_turns < len(scenario.turns):
+        scenario = replace(scenario, turns=scenario.turns[:num_turns])
+
+    cfg_lines = [
+        f"[eval] scenario={scenario.id} pack={scenario.pack} temp={eval_cfg.inference.temperature_override}",
+        f"[eval] scenario_file={scenario_path}",
+        f"[eval] model={eval_cfg.judge.model or '(engine default)'} num_turns={num_turns} rubric={eval_cfg.judge.rubric_path}",
+    ]
+    for line in cfg_lines:
+        print(line, file=sys.stderr)
 
     rr: RunResult = await run_scenario(
         scenario,
         eval_cfg=eval_cfg,
         packs_dir=_resolve_packs_dir(args.packs_dir),
     )
-    print(f"[eval] runner done: {len(rr.turns)} turns, {rr.total_errors} errors → {rr.output_dir}", file=sys.stderr)
+    print(f"[eval] runner done: {len(rr.turns)} turns (of {num_turns}), {rr.total_errors} errors → {rr.output_dir}", file=sys.stderr)
 
     judge_result = None
     if not args.no_judge and eval_cfg.judge.enabled:
@@ -141,6 +150,7 @@ def _cmd_pack(args: argparse.Namespace) -> int:
         "default_pack",
         "default_save_root",
         "runs_dir",
+        "num_turns",
     ):
         print(f"  {k}: {getattr(cfg, k)}")
     print(f"  inference.temperature_override: {cfg.inference.temperature_override}")
@@ -187,6 +197,8 @@ def main(argv: list[str] | None = None) -> int:
                      help="Skip the judge call (still writes REPORT.md without judge block).")
     run.add_argument("--packs-dir", default=None,
                      help="Override packs directory (defaults to evals/packs).")
+    run.add_argument("--turns", type=int, default=None,
+                     help="Run only the first N turns (default: from config, 10).")
     run.set_defaults(func=_cmd_run, _is_async=True)
 
     j = sub.add_parser("judge-only", help="Re-run the judge against a prior run dir")

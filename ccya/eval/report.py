@@ -257,6 +257,34 @@ def _collect_flags(
             ),
         )
 
+    # Parse failure flags
+    rules_parse_total = sum(t.rules_parse_failures for t in run_result.turns)
+    extract_parse_total = sum(t.extract_parse_failures for t in run_result.turns)
+    if rules_parse_total:
+        flags.append(
+            Flag(
+                kind="rules_parse_failures",
+                summary=f"{rules_parse_total} rules parse failure(s) across the run",
+                detail="\n".join(
+                    f"- turn {t.turn_number}: {t.rules_parse_failures} failure(s)"
+                    for t in run_result.turns
+                    if t.rules_parse_failures
+                ),
+            ),
+        )
+    if extract_parse_total:
+        flags.append(
+            Flag(
+                kind="extract_parse_failures",
+                summary=f"{extract_parse_total} extract parse failure(s) across the run",
+                detail="\n".join(
+                    f"- turn {t.turn_number}: {t.extract_parse_failures} failure(s)"
+                    for t in run_result.turns
+                    if t.extract_parse_failures
+                ),
+            ),
+        )
+
     if judge is not None:
         prev_score = getattr(judge, "previous_overall", None)
         cur_score = getattr(judge, "overall_score", None)
@@ -306,12 +334,56 @@ def _render_flag_block(flags: list[Flag], flag_at_top: list[str]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _render_per_turn_table(cur: list[TurnMetrics], prev: list[TurnMetrics]) -> str:
-    if not cur:
+def _render_judge_summary(judge: Any | None) -> str:
+    """Render a single combined judge summary at the top of the report."""
+    if judge is None:
+        return ""
+    overall = getattr(judge, "overall_score", "?")
+    rubric = getattr(judge, "rubric_path", "?")
+    findings = getattr(judge, "findings", []) or []
+    comments = getattr(judge, "comments", "") or ""
+    narrative_recap = getattr(judge, "narrative_recap", "") or ""
+    remediation = getattr(judge, "remediation", "") or ""
+
+    parts = [f"**Overall:** {overall}/5  ", f"**Rubric:** `{rubric}`", ""]
+    if findings:
+        for f in findings:
+            name = f.get("criterion", "?")
+            score = f.get("score", "?")
+            note = f.get("note", "")
+            parts.append(f"- **{name}** ({score}/5): {note}")
+        parts.append("")
+    if comments:
+        parts.append(f"**Verdict:** {comments}")
+        parts.append("")
+    if narrative_recap:
+        parts.append(f"**Narrative recap:** {narrative_recap}")
+        parts.append("")
+    if remediation:
+        parts.append(f"**Remediation:** {remediation}")
+        parts.append("")
+    return "\n".join(parts)
+
+
+def _render_combined_table(
+    cur_metrics: list[TurnMetrics],
+    prev_metrics: list[TurnMetrics],
+    run_result: RunResult,
+) -> str:
+    """Render a combined table with tokens, timing, parse failures, and totals."""
+    if not cur_metrics:
         return "_(no turns)_\n"
+
     rows: list[str] = []
-    rows.append("| # | input | rules tok_in | narrate tok_in | scene tok_in | state tok_in | progress tok_in | retries | rejected |")
-    rows.append("|---|---|---:|---:|---:|---:|---:|---:|---:|")
+    rows.append("| # | input | rules tok_in | narrate tok_in | scene tok_in | state tok_in | progress tok_in | retries | parse_fail | duration_s |")
+    rows.append("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+
+    total_tok_in = 0
+    total_tok_out = 0
+    total_ms = 0
+    total_duration = 0.0
+    total_retries = 0
+    total_parse_failures = 0
 
     def _delta(cur_v: int, prev_v: int | None) -> str:
         if prev_v is None or prev_v == 0:
@@ -320,8 +392,8 @@ def _render_per_turn_table(cur: list[TurnMetrics], prev: list[TurnMetrics]) -> s
         sign = "+" if diff >= 0 else "-"
         return f"{cur_v} ({sign}{abs(diff)})"
 
-    for i, t in enumerate(cur):
-        p = prev[i] if i < len(prev) else None
+    for i, t in enumerate(cur_metrics):
+        p = prev_metrics[i] if i < len(prev_metrics) else None
 
         def _gv(stream: str, src: TurnMetrics | None) -> int | None:
             if src is None:
@@ -348,39 +420,74 @@ def _render_per_turn_table(cur: list[TurnMetrics], prev: list[TurnMetrics]) -> s
             for sm in t.streams.values()
             if not sm.skipped and sm.attempts > 1
         )
+        total_retries += retries_in_turn
         cells.append(str(retries_in_turn) if retries_in_turn else "0")
-        cells.append(str(t.rejected_count) if t.rejected_count else "0")
+
+        # Parse failures from TurnRecord
+        parse_fails = 0
+        if i < len(run_result.turns):
+            parse_fails = (
+                run_result.turns[i].rules_parse_failures
+                + run_result.turns[i].extract_parse_failures
+            )
+        total_parse_failures += parse_fails
+        cells.append(str(parse_fails) if parse_fails else "0")
+
+        # Duration from TurnRecord
+        duration = 0.0
+        if i < len(run_result.turns):
+            duration = run_result.turns[i].duration_s
+        total_duration += duration
+        cells.append(f"{duration:.2f}")
+
+        # Accumulate totals
+        for stream in _STREAM_KEYS:
+            sm = t.streams.get(stream)
+            if sm and not sm.skipped:
+                total_tok_in += sm.tokens_in
+                total_tok_out += sm.tokens_out
+                total_ms += sm.ms
 
         rows.append("| " + " | ".join(cells) + " |")
 
-    return "\n".join(rows) + "\n"
+    # Totals row
+    total_cells = ["", "TOTALS"]
+    for stream in _STREAM_KEYS:
+        total_cells.append(str(total_tok_in))
+    total_cells.extend([str(total_retries), str(total_parse_failures), f"{total_duration:.2f}"])
+    rows.append("| " + " | ".join(total_cells) + " |")
+
+    # Summary stats
+    parts = [
+        "",
+        f"**Total turns:** {len(cur_metrics)} · **Total duration:** {total_duration:.2f}s · **Avg/turn:** {total_duration/len(cur_metrics):.2f}s",
+        f"**Total tokens in:** {total_tok_in:,} · **Total tokens out:** {total_tok_out:,} · **Total LLM time:** {total_ms/1000:.1f}s",
+        f"**Total retries:** {total_retries} · **Total parse failures:** {total_parse_failures}",
+    ]
+
+    return "\n".join(rows) + "\n" + "\n".join(parts) + "\n"
 
 
-def _render_judge_block(judge: Any | None) -> str:
-    if judge is None:
-        return "_Judge was not run._\n"
-    overall = getattr(judge, "overall_score", "?")
-    rubric = getattr(judge, "rubric_path", "?")
-    raw = getattr(judge, "raw_response", "")
-    parts = [f"**Overall:** {overall}/5  ", f"**Rubric:** `{rubric}`", ""]
-    findings = getattr(judge, "findings", []) or []
-    if findings:
-        parts.append("### Per-criterion findings\n")
-        for f in findings:
-            name = f.get("criterion", "?")
-            score = f.get("score", "?")
-            note = f.get("note", "")
-            parts.append(f"- **{name}** ({score}/5): {note}")
-        parts.append("")
-    comments = getattr(judge, "comments", "") or ""
-    if comments:
-        parts.append("### Judge summary\n")
-        parts.append(comments)
-        parts.append("")
-    if raw:
-        parts.append("<details><summary>Raw judge response</summary>\n\n```json\n"
-                      + raw[:6000]
-                      + "\n```\n</details>\n")
+def _render_auto_checker_block(run_result: RunResult) -> str:
+    """Render structured auto-checker results."""
+    all_results: list[dict] = []
+    for t in run_result.turns:
+        for r in t.assert_results:
+            all_results.append({"turn": t.turn_number, **r})
+
+    if not all_results:
+        return ""
+
+    passed = sum(1 for r in all_results if r["passed"])
+    failed = sum(1 for r in all_results if not r["passed"])
+
+    parts = [f"**{passed} passed, {failed} failed**", ""]
+    parts.append("| Turn | Assertion | Result | Detail |")
+    parts.append("|---|---|---|---|")
+    for r in all_results:
+        status = "✅" if r["passed"] else "❌"
+        parts.append(f"| {r['turn']} | `{r['assertion']}` | {status} | {r['detail']} |")
+    parts.append("")
     return "\n".join(parts)
 
 
@@ -441,11 +548,24 @@ def generate_report(
         parts.append("**Compared against:** _(no prior run found)_")
     parts.append("")
 
+    # Judge summary at top
+    judge_summary = _render_judge_summary(judge_result)
+    if judge_summary:
+        parts.append("## Judge Summary\n")
+        parts.append(judge_summary)
+
     parts.append(_render_flag_block(flags, eval_cfg.report.flag_at_top))
     parts.append("")
 
-    parts.append("## Per-turn metrics\n")
-    parts.append(_render_per_turn_table(cur_metrics, prev_metrics))
+    # Auto-checker results
+    auto_block = _render_auto_checker_block(run_result)
+    if auto_block:
+        parts.append("## Auto-Checker\n")
+        parts.append(auto_block)
+
+    # Combined table at bottom
+    parts.append("## Turn Metrics\n")
+    parts.append(_render_combined_table(cur_metrics, prev_metrics, run_result))
 
     if regressions:
         warns = [r for r in regressions if r.severity == "warn"]
@@ -457,18 +577,10 @@ def generate_report(
                     f"{r.prev_tokens_in} → {r.cur_tokens_in} (+{r.pct_change:.1f}%)"
                 )
 
-    parts.append("\n## Judge\n")
-    parts.append(_render_judge_block(judge_result))
-
-    parts.append("\n## Runner turn timing\n")
-    parts.append("| # | engine_turn | duration_s | error |")
-    parts.append("|---|---:|---:|---|")
-    for t in run_result.turns:
-        parts.append(
-            f"| {t.turn_number} | {t.engine_turn_number} | "
-            f"{t.duration_s:.2f} | {t.error or '—'} |"
-        )
-
     out_path = output_dir / "REPORT.md"
     out_path.write_text("\n".join(parts) + "\n")
     return out_path
+
+
+if __name__ == "__main__":
+    pass

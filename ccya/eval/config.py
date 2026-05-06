@@ -36,6 +36,7 @@ class EvalConfig:
     default_pack: str = "eval-pack"
     default_save_root: str = "~/.cache/ccya-eval"
     runs_dir: str = "evals/runs"
+    num_turns: int = 10
     inference: InferenceConfig = field(default_factory=InferenceConfig)
     judge: JudgeConfig = field(default_factory=JudgeConfig)
     report: ReportConfig = field(default_factory=ReportConfig)
@@ -59,6 +60,7 @@ def load_eval_config(path: str | Path | None = None) -> EvalConfig:
         default_pack=str(raw.get("default_pack", "eval-pack")),
         default_save_root=str(raw.get("default_save_root", "~/.cache/ccya-eval")),
         runs_dir=str(raw.get("runs_dir", "evals/runs")),
+        num_turns=int(raw.get("num_turns", 10)),
         inference=InferenceConfig(
             temperature_override=inf_raw.get("temperature_override"),
             cache=bool(inf_raw.get("cache", False)),

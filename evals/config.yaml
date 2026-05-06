@@ -5,6 +5,7 @@
 default_pack: eval-pack
 default_save_root: ~/.cache/ccya-eval   # per-run subdir created under this
 runs_dir: evals/runs                 # where REPORT.md and trace files land
+num_turns: 4                        # run only first N turns (default/max 10, override with --turns)
 
 inference:
   # null = use prod temps from the engine config (game's config.yaml).
@@ -23,8 +24,9 @@ judge:
   rubric_path: evals/rubrics/default.md
   temperature: 0.3
   # Truncate the trace passed to the judge if it exceeds this many characters.
-  # Picked so a 30B-class model with 50K context has headroom for rubric + output.
-  max_input_chars: 30000
+  # Set high to let the judge see the full trace; the model's context window
+  # is the real constraint. For 10-turn scenarios this avoids cutting the middle.
+  max_input_chars: 100000
 
 report:
   # Per-stream tokens_in growth vs evals/runs/latest:

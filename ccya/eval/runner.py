@@ -55,6 +55,12 @@ class TurnRecord:
     """state.meta.turn AFTER this turn ran."""
     outcome_summary: str = ""
     narrative_chars: int = 0
+    rules_parse_failures: int = 0
+    """Number of rules parse failures (model returned invalid IntentEnvelope)."""
+    extract_parse_failures: int = 0
+    """Number of extract parse failures (model returned invalid JSON for a stream)."""
+    assert_results: list[dict] = field(default_factory=list)
+    """Auto-checker results: [{assertion, passed, detail}]."""
 
 
 @dataclass
@@ -177,6 +183,187 @@ def _update_latest_symlink(runs_dir: Path, target: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Auto-checker: verify structured asserts against events.jsonl
+# ---------------------------------------------------------------------------
+
+
+def _check_asserts(
+    asserts: list["TurnAssert"],
+    event: dict[str, Any],
+) -> list[dict]:
+    """Check structured assertions against a single event from events.jsonl.
+
+    Returns a list of dicts: [{assertion, passed, detail}].
+    """
+    _VALID_STREAMS = frozenset(("rules", "extract.state", "extract.scene", "extract.progress", "extract"))
+    results: list[dict] = []
+    for a in asserts:
+        passed = False
+        detail = ""
+
+        if a.stream not in _VALID_STREAMS:
+            results.append({
+                "assertion": f"{a.stream}.{a.field}",
+                "passed": False,
+                "detail": f"unknown stream '{a.stream}' (valid: {', '.join(sorted(_VALID_STREAMS))})",
+            })
+            continue
+
+        if a.stream == "rules":
+            rules = event.get("rules") or {}
+            if a.field == "rolled":
+                passed = bool(rules.get("rolled"))
+                detail = f"rolled={passed}"
+            elif a.field == "skill":
+                val = rules.get("skill", "")
+                passed = val == a.expected
+                detail = f"skill={val!r} (expected {a.expected!r})"
+            elif a.field == "difficulty":
+                val = rules.get("difficulty", "")
+                passed = val == a.expected
+                detail = f"difficulty={val!r} (expected {a.expected!r})"
+            elif a.field == "band":
+                val = rules.get("band", "")
+                passed = val == a.expected
+                detail = f"band={val!r} (expected {a.expected!r})"
+            elif a.field == "intent_verb":
+                val = rules.get("intent_verb", "")
+                passed = val == a.expected
+                detail = f"intent_verb={val!r} (expected {a.expected!r})"
+
+        elif a.stream == "extract.state":
+            applied = event.get("applied") or {}
+            if a.field == "inventory_remove":
+                removes = applied.get("inventory_remove") or []
+                found = None
+                for item in removes:
+                    if isinstance(item, dict) and item.get("id") == a.expected:
+                        found = item
+                        break
+                if found:
+                    amt = found.get("amount", 0)
+                    passed = amt >= (a.min_amount or 1)
+                    detail = f"inventory_remove[{a.expected}] amount={amt}"
+                else:
+                    passed = False
+                    detail = f"inventory_remove[{a.expected}] not found"
+
+            elif a.field == "inventory_add":
+                adds = applied.get("inventory_add") or []
+                found = None
+                for item in adds:
+                    if isinstance(item, dict) and item.get("id") == a.expected:
+                        found = item
+                        break
+                passed = found is not None
+                detail = f"inventory_add[{a.expected}] {'found' if found else 'not found'}"
+
+            elif a.field == "pc_condition_add":
+                conds = applied.get("pc_condition_add") or []
+                found = None
+                for c in conds:
+                    if isinstance(c, dict) and c.get("id") == a.expected:
+                        found = c
+                        break
+                passed = found is not None
+                detail = f"pc_condition_add[{a.expected}] {'found' if found else 'not found'}"
+
+            elif a.field == "pc_condition_remove":
+                conds = applied.get("pc_condition_remove") or []
+                ids = [c.get("id") for c in conds if isinstance(c, dict)]
+                passed = a.expected in ids
+                detail = f"pc_condition_remove[{a.expected}] {'found' if passed else 'not found'}"
+
+        elif a.stream == "extract.scene":
+            applied = event.get("applied") or {}
+            if a.field == "present_npcs":
+                npcs = applied.get("present_npcs") or []
+                ids = [n.get("id") for n in npcs if isinstance(n, dict)]
+                passed = a.expected in ids
+                detail = f"present_npcs[{a.expected}] {'found' if passed else 'not found'}"
+            elif a.field == "scene_tags":
+                tags = applied.get("scene_tags") or []
+                passed = a.expected in tags
+                detail = f"scene_tags[{a.expected}] {'found' if passed else 'not found'}"
+
+        elif a.stream == "extract.progress":
+            applied = event.get("applied") or {}
+            if a.field == "quest_updates":
+                updates = applied.get("quest_updates") or []
+                found = None
+                for u in updates:
+                    if isinstance(u, dict) and u.get("id") == a.expected:
+                        found = u
+                        break
+                passed = found is not None
+                detail = f"quest_updates[{a.expected}] {'found' if found else 'not found'}"
+            elif a.field == "scene_pressure_add":
+                adds = applied.get("scene_pressure_add") or []
+                ids = [p.get("id") for p in adds if isinstance(p, dict)]
+                passed = a.expected in ids
+                detail = f"scene_pressure_add[{a.expected}] {'found' if passed else 'not found'}"
+
+        elif a.stream == "extract":
+            extraction = event.get("extraction") or {}
+            if a.field.startswith("attempts:"):
+                stream_name = a.field.split(":", 1)[1]
+                ex = extraction.get(stream_name) or {}
+                attempts = ex.get("attempts", 0)
+                passed = attempts >= (a.min_amount or 1)
+                detail = f"{stream_name} attempts={attempts}"
+            elif a.field == "skipped:scene":
+                ex = extraction.get("scene") or {}
+                passed = bool(ex.get("skipped"))
+                detail = f"scene skipped={passed}"
+            elif a.field == "skipped:state":
+                ex = extraction.get("state") or {}
+                passed = bool(ex.get("skipped"))
+                detail = f"state skipped={passed}"
+
+        results.append({
+            "assertion": f"{a.stream}.{a.field}",
+            "passed": passed,
+            "detail": detail,
+        })
+
+    return results
+
+
+def _extract_parse_failures(events: list[dict[str, Any]]) -> list[tuple[int, int, int]]:
+    """Extract per-turn parse failure counts from events.
+
+    Returns list of (turn_number, rules_parse_failures, extract_parse_failures).
+    """
+    results: list[tuple[int, int, int]] = []
+    for ev in events:
+        turn = int(ev.get("turn", 0))
+        rules = ev.get("rules") or {}
+
+        # Rules parse failures: if rolled=False but the event has a rules key,
+        # it means the rules call defaulted to no-roll after parse failures.
+        # We can't directly know how many failures occurred, but we know at
+        # least one happened if rolled=False and there's a rules key.
+        rules_failures = 0
+        if not rules.get("rolled") and "rules_prompt" in ev:
+            # Check if the rules_prompt output contains validation errors
+            output = ev.get("rules_prompt", {}).get("output", "")
+            if "check.skill" in output or "check.difficulty" in output:
+                rules_failures = 2  # max retries = 2
+
+        # Extract parse failures: count retry_errors across all streams
+        extract_failures = 0
+        extraction = ev.get("extraction") or {}
+        for sub in ("scene", "state", "progress"):
+            ex = extraction.get(sub) or {}
+            retry_errors = ex.get("retry_errors") or []
+            extract_failures += len(retry_errors)
+
+        results.append((turn, rules_failures, extract_failures))
+
+    return results
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -274,10 +461,30 @@ async def run_scenario(
 
         turn_records.append(record)
 
-    finished_at = datetime.now(timezone.utc).isoformat()
-
     src_events = save_dir / "events.jsonl"
     src_state = save_dir / "state.yaml"
+
+    # Run auto-checker and extract parse failures from events.jsonl
+    if src_events.exists():
+        events_lines = src_events.read_text().splitlines()
+        events = [json.loads(ln) for ln in events_lines if ln.strip()]
+
+        parse_failures = _extract_parse_failures(events)
+        for i, record in enumerate(turn_records):
+            if i < len(parse_failures):
+                _, rules_f, extract_f = parse_failures[i]
+                record.rules_parse_failures = rules_f
+                record.extract_parse_failures = extract_f
+
+        # Run structured asserts
+        for i, turn in enumerate(scenario.turns):
+            if i >= len(turn_records):
+                break
+            record = turn_records[i]
+            if i < len(events) and turn.asserts:
+                record.assert_results = _check_asserts(turn.asserts, events[i])
+
+    finished_at = datetime.now(timezone.utc).isoformat()
     dst_events = output_dir / f"{scenario.id}.events.jsonl"
     dst_state = output_dir / f"{scenario.id}.state.yaml"
     if src_events.exists():
