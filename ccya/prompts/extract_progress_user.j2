@@ -10,7 +10,11 @@
 ## rules_outcome
 {{ rules_outcome.band | upper }} on {{ rules_outcome.skill }}.
 
-{% endif -%}
+{%- elif rules_outcome and not rules_outcome.rolled -%}
+## no_dice_roll
+No dice were rolled this turn. The rules engine determined the action has no mechanical obstacle (pure social, travel, or exploration). Do NOT complete quest objectives on this turn unless the narration explicitly and unambiguously states the objective is fulfilled. Ambiguous or partial narration means the objective is NOT done.
+
+{%- endif -%}
 ## quest_threshold
 {{ quest_threshold_directive }}
 

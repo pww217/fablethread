@@ -33,7 +33,7 @@ location:
 inventory:
   - id: credits
     name: Credits
-    amount: 350
+    amount: 500
     notes: Common coin, accepted at any inn or stall on the merchant road.
   - id: iron_dagger
     name: Iron dagger
@@ -50,6 +50,10 @@ inventory:
     aliases:
       - cloak
       - travel cloak
+  - id: brass_key
+    name: Brass key
+    amount: 1
+    notes: A small brass key Halden gave you with the ledger.
 
 quests:
   - id: settle_the_debt
