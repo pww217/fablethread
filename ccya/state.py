@@ -632,25 +632,120 @@ def apply_delta(
     if delta.scene_tagline is not None:
         state.setdefault("scene", {})["tagline"] = delta.scene_tagline
 
-    # Present NPCs — replace when non-empty (avoid wiping on []);
-    # hydrate name/title/bio from compendium when delta omits them (token-saving path).
-    # Capture old ids before applying so we can compute recently_left.
-    old_present_ids: set[str] = {
-        n.get("id") for n in state.get("scene", {}).get("present_npcs", [])
-    }
+    # --- NPC scene management ---
+    # Delta-based (npc_add/npc_remove/npc_update) takes priority over
+    # legacy present_npcs full-replacement.
+    NPC_SCENE_CAP = 6
+    old_present: list[dict[str, Any]] = list(state.get("scene", {}).get("present_npcs") or [])
+    old_present_ids: set[str] = {str(n.get("id", "")) for n in old_present if n.get("id")}
+    scene = state.setdefault("scene", {})
+    comp = state.setdefault("compendium", {}).setdefault("npcs", {})
+    # Track new present IDs separately (like original code) so empty present_npcs
+    # correctly computes recently_left as all old NPCs having left.
     new_present_ids: set[str] = set()
-    if delta.present_npcs:
-        comp = state.setdefault("compendium", {}).setdefault("npcs", {})
-        alias_map = build_npc_alias_map(comp)
 
-        def _hydrate_npc_text(delta_val: str | None, stored: Any) -> str:
-            st = str(stored).strip() if stored is not None else ""
-            if delta_val is None:
-                return st
-            dv = str(delta_val).strip()
-            if not dv:
-                return st
-            return dv
+    def _hydrate_npc_text(delta_val: str | None, stored: Any) -> str:
+        st = str(stored).strip() if stored is not None else ""
+        if delta_val is None:
+            return st
+        dv = str(delta_val).strip()
+        if not dv:
+            return st
+        return dv
+
+    def _resolve_npc_id(nid: str, comp: dict[str, Any], alias_map: dict[str, str]) -> str:
+        resolved = normalize_inventory_id(nid)
+        if resolved in alias_map and alias_map[resolved] != resolved:
+            resolved = alias_map[resolved]
+        return resolved
+
+    def _apply_npc_to_present(npc: dict[str, Any], present: list[dict[str, Any]], comp: dict[str, Any], alias_map: dict[str, str]) -> str:
+        """Add/update an NPC in present list. Returns resolved ID."""
+        nid = npc["id"]
+        resolved = _resolve_npc_id(nid, comp, alias_map)
+        # Check if already present
+        for i, p in enumerate(present):
+            if p.get("id") == resolved:
+                # Update existing
+                if npc.get("notes") is not None:
+                    present[i]["notes"] = npc["notes"]
+                if npc.get("name") is not None and str(npc["name"]).strip():
+                    present[i]["name"] = str(npc["name"]).strip()
+                if npc.get("title") is not None and str(npc["title"]).strip():
+                    present[i]["title"] = str(npc["title"]).strip()
+                if npc.get("bio") is not None and str(npc["bio"]).strip():
+                    present[i]["bio"] = str(npc["bio"]).strip()
+                return resolved
+        # Add new
+        ce = comp.get(resolved, {})
+        row = {
+            "id": resolved,
+            "name": _hydrate_npc_text(npc.get("name"), ce.get("name")),
+            "title": _hydrate_npc_text(npc.get("title"), ce.get("title")),
+            "notes": npc.get("notes", ""),
+            "bio": _hydrate_npc_text(npc.get("bio"), ce.get("bio")),
+        }
+        present.append(row)
+        return resolved
+
+    if delta.npc_add or delta.npc_remove or delta.npc_update:
+        # --- Delta-based NPC merge ---
+        alias_map = build_npc_alias_map(comp)
+        present = list(old_present)
+
+        # Process removes first
+        removed_ids: set[str] = set()
+        for rem in delta.npc_remove:
+            rid = _resolve_npc_id(rem.id, comp, alias_map)
+            present = [p for p in present if p.get("id") != rid]
+            removed_ids.add(rid)
+
+        # Process updates
+        for upd in delta.npc_update:
+            _apply_npc_to_present(
+                {"id": upd.id, "notes": upd.notes or "", "name": upd.name, "title": upd.title, "bio": upd.bio},
+                present, comp, alias_map,
+            )
+
+        # Process adds
+        for add in delta.npc_add:
+            _apply_npc_to_present(
+                {"id": add.id, "notes": add.notes or "", "name": add.name, "title": add.title, "bio": add.bio},
+                present, comp, alias_map,
+            )
+            # Update compendium with new durable info
+            entry = comp.setdefault(add.id, {})
+            if add.name is not None and str(add.name).strip():
+                entry["name"] = str(add.name).strip()
+            elif "name" not in entry:
+                entry["name"] = _hydrate_npc_text(add.name, entry.get("name"))
+            if add.title is not None and str(add.title).strip():
+                entry["title"] = str(add.title).strip()
+            elif "title" not in entry:
+                entry["title"] = _hydrate_npc_text(add.title, entry.get("title"))
+            if add.bio is not None and str(add.bio).strip():
+                entry["bio"] = str(add.bio).strip()
+            elif "bio" not in entry:
+                entry["bio"] = _hydrate_npc_text(add.bio, entry.get("bio"))
+            touch_compendium_order(state, add.id)
+
+        # Enforce 6-NPC cap: evict least relevant named NPCs
+        named_npcs = [p for p in present if p.get("id") != "ambient_crowd"]
+        ambient_npcs = [p for p in present if p.get("id") == "ambient_crowd"]
+        if len(named_npcs) > NPC_SCENE_CAP:
+            # Evict from the end (oldest/least relevant)
+            evicted = named_npcs[NPC_SCENE_CAP:]
+            named_npcs = named_npcs[:NPC_SCENE_CAP]
+            present = named_npcs + ambient_npcs
+            for evicted_npc in evicted:
+                removed_ids.add(evicted_npc["id"])
+
+        scene["present_npcs"] = present
+        new_present_ids = {str(p.get("id", "")) for p in present if p.get("id")}
+
+    elif delta.present_npcs:
+        # --- Legacy full-replacement (backward compat, non-empty) ---
+        alias_map = build_npc_alias_map(comp)
 
         rows: list[dict[str, Any]] = []
         for n in delta.present_npcs:
@@ -665,7 +760,6 @@ def apply_delta(
                 if name_alias in alias_map:
                     resolved_id = alias_map[name_alias]
 
-            new_present_ids.add(resolved_id)
             ce_raw = comp.get(resolved_id)
             ce = ce_raw if isinstance(ce_raw, dict) else {}
             name = _hydrate_npc_text(n.name, ce.get("name"))
@@ -694,13 +788,15 @@ def apply_delta(
             elif "bio" not in entry:
                 entry["bio"] = row["bio"]
             touch_compendium_order(state, resolved_id)
-        state.setdefault("scene", {})["present_npcs"] = rows
+        scene["present_npcs"] = rows
+        new_present_ids = {r["id"] for r in rows}
 
     # Compute recently_left: NPCs in old present_npcs but not in new.
-    # Returnees (in both old and new) are excluded automatically.
-    # Use resolved IDs from the present_npcs loop above.
+    # Always runs after both delta and legacy paths.
+    # new_present_ids is tracked separately so empty present_npcs correctly
+    # computes recently_left as all old NPCs having left.
     left_ids = old_present_ids - new_present_ids
-    scene = state.setdefault("scene", {})
+    left_ids = old_present_ids - new_present_ids
     if left_ids:
         comp = state.get("compendium", {}).get("npcs", {})
         recently_left: list[dict[str, str]] = []

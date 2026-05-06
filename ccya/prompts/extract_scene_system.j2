@@ -10,8 +10,11 @@ Emit one JSON object matching the schema. No prose, no markdown fences, null for
   "location_change": null,
   "location_description": null,
   "present_npcs": [],
+  "npc_add": [],
+  "npc_remove": [],
+  "npc_update": [],
   "actions": ["", "", "", ""],
-  "outcome_summary": "one sentence"
+  "outcome_summary": ""
 }
 ```
 
@@ -30,9 +33,19 @@ Emit one JSON object matching the schema. No prose, no markdown fences, null for
 - New NPC: `{"id": "snake_case", "name": "Full Name", "title": "Role", "bio": "1-3 short sentences appearance, backstory, motivations", "notes": "current situation relevant to recent narration, scene, location, motivation, etc."}`.
 - Spatial position in `notes` when relevant to scene, combat, stealth, etc.: `"20 feet away, behind cover, pistol drawn"`, `"between you and the only exit, eyes peeled"`, `"peeking over the edge of the roof, looking down."`.
 
-`actions`: exactly 4 distinct player choices, ~10 words each, drawn from THIS turn's narration only (not prior history). Weight toward the player's strongest stat (don't mention stat), quest objectives, and motivations. Each one should move the plot forward substentially in a different direction. Examples: "Aim for the chest and fire", "Sneak past the guards and search the room", "Convince the guard to let you pass", "Create a diversion to slip past the guards". Bias to bold, good storytelling choices.
+`npc_add`: new NPCs entering the scene this turn. Each: `{"id": "snake_case", "notes": "current situation", "name": "Full Name", "title": "Role", "bio": "1-3 sentences"}`. Only include name/title/bio for genuinely new NPCs not in the compendium. Omit name/title/bio for ambient/extra NPCs.
 
-`outcome_summary`: one sentence (10-20 words) of what just happened in flavor terms, showing narrative impact on player, npcs, scene, and location.For failures: describe what went wrong narratively. Examples: `"You successfully picklock the padlock and enter the vault."`, `"The guard spots you and raises the alarm."`
+`npc_remove`: IDs of named NPCs who left the scene or are no longer relevant. Each: `{"id": "existing_id"}`. Only remove NPCs that are explicitly gone or no longer in proximity. Do NOT remove allies, family, or key characters who follow the player.
+
+`npc_update`: existing scene NPCs whose notes changed this turn. Each: `{"id": "existing_id", "notes": "updated situation"}`. Name/title/bio only change when new information arrives — don't re-emit them. Notes change every turn to reflect what the NPC is doing.
+
+`actions`: exactly 4 distinct player choices, ~10 words each, drawn from THIS turn's narration only (not prior history). Weight toward the player's strongest stat (don't mention stat), quest objectives, and motivations. Each one should move the plot forward substantially in a different direction. Examples: "Aim for the chest and fire", "Sneak past the guards and search the room", "Convince the guard to let you pass", "Create a diversion to slip past the guards". Bias to bold, good storytelling choices.
+
+`outcome_summary`: one sentence (10-20 words) of what just happened in flavor terms, showing narrative impact on player, npcs, scene, and location. For failures: describe what went wrong narratively. Examples: `"You successfully picklock the padlock and enter the vault."`, `"The guard spots you and raises the alarm."`
+
+## NPC scene cap
+
+No more than 6 named NPCs in a scene. If the narration introduces a 7th, the oldest/least relevant named NPC should be removed (goes into `npc_remove`). Ambient NPCs don't count toward the cap. Allies, family, and key characters should be assumed to follow the player when he moves — don't remove them on location change. Others should be assumed to have stayed behind.
 
 ## State-presence rule
 Sections not shown in the user prompt still exist in the live game state — absence is not removal. Only infer changes that are explicit.
