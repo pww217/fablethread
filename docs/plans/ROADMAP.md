@@ -1,6 +1,6 @@
 # CCYA Roadmap
 
-Plans live in `plans/` organized by milestone. TODOs are in `docs/TODO.md` organized by the same buckets.
+Plans live in `plans/` organized by milestone. TODOs are in `docs/plans/TODO.md` organized by the same buckets.
 
 ## Priorities
 
@@ -25,16 +25,16 @@ flowchart TD
     START([Start])
 
     subgraph P1["P1 — Story Logical Consistency"]
-        P1A[Fix trim_messages context drop]:::p1
-        P1B[Increase prompt token budget]:::p1
-        P1C[recent_events ID-keyed overhaul]:::p1
-        P1D[Entity deduplication - inventory + NPCs]:::p1
-        P1E[Remove condition TTL]:::p1
-        P1F[Condition to skill feedback loop]:::p1
-        P1G[Quest filter to active only]:::p1
-        P1H[Fix present/recently-left contradiction]:::p1
+        P1A[Fix trim_messages context drop ~~done~~]:::p1
+        P1B[Increase prompt token budget ~~done~~]:::p1
+        P1C[recent_events ID-keyed overhaul ~~done~~]:::p1
+        P1D[Entity deduplication - inventory + NPCs ~~done~~]:::p1
+        P1E[Remove condition TTL ~~done~~]:::p1
+        P1F[Condition to skill feedback loop ~~done~~]:::p1
+        P1G[Quest filter to active only ~~done~~]:::p1
+        P1H[Fix present/recently-left contradiction ~~done~~]:::p1
         P1I[Intent expansion]:::p1
-        P1J[Reconciliation system]:::p1
+        P1J[Reconciliation system ~~done~~]:::p1
     end
 
     subgraph P2["P2 — Interesting Storytelling"]
@@ -54,7 +54,7 @@ flowchart TD
         P3D[KV-cache pinning]:::p3
         P3E[Model-agnostic thinking infra]:::p3
         P3F[Dev mode dual-model setup]:::p3
-        P3G["Eval harness — 7 phases<br/>Tier 1: token ceilings + multi-turn invariants<br/>Tier 2: make eval, judge, REPORT.md"]:::p3
+        P3G["Eval harness — 7 phases<br/>Tier 1: token ceilings + multi-turn invariants<br/>Tier 2: make eval, judge, REPORT.md<br/>~~Partially done~~ (infra exists, phases in progress)"]:::p3
     end
 
     subgraph P4["P4 — World Continuity"]
@@ -94,6 +94,14 @@ flowchart TD
 - `present_npcs` and `recently_left` are mutually exclusive at all times
 - Intent envelope carries domain scope; extractor skips inactive domains
 - Reconciliation pass catches cross-domain state contradictions before they persist
+- ~~Context compaction implemented (chronicle bullet summaries, recent_events pruning)~~ — completed as part of implementation plans
+
+---
+
+## Implementation Plans (Completed)
+
+- ~~Module split refactor~~ — `engine.py`, `state.py`, `server.py` split into packages (`engine/`, `state/`, `server/`)
+- ~~Context compactor~~ — chronicle bullet summaries, recent_events pruning, `compact_every` config
 
 ---
 

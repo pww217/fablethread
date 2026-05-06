@@ -3,24 +3,58 @@
 ```
 ccya/                          # Python package
   __main__.py                  # CLI entry: argparse + uvicorn.run
-  server.py                    # FastAPI routes, SSE, EngineConfig wiring, /new-game
-  engine.py                    # run_turn() async generator, generate_seed(), retry logic
-  state.py                     # load/save YAML, apply_delta, append_event/chronicle
+  cli.py                       # CLI commands
+  engine/                      # Turn pipeline package
+    __init__.py                # Re-exports: EngineConfig, run_turn, generate_seed, warmup, format_change_lines
+    config.py                  # EngineConfig dataclass, _EventLock, is_turn_in_progress, Jinja env setup
+    turn.py                    # run_turn() async orchestrator (thin — imports from submodules)
+    narrate.py                 # _narrate_messages(), NPC name generation (absorbs old names.py)
+    rules.py                   # _rules_messages(), _call_rules(), retry logic (NOT ccya/rules.py)
+    extraction.py              # _run_extraction_pipeline(), all _extract_*_messages, _call_stream()
+    seed.py                    # generate_seed(), _build_generate_seed_messages(), _soft_validate_seed()
+    changes.py                 # summarize_changes(), format_change_lines(), _summarize_applied()
+    pressure.py                # _expire_scene_pressures()
+    compactor.py               # maybe_compact(), chronicle compaction + recent_events pruning
+  state/                       # State persistence package
+    __init__.py                # Re-exports all state symbols
+    io.py                      # load_state, save_state, init_save_dir, _migrate_state
+    delta.py                   # apply_delta, reconcile_delta, PC_CONDITIONS_MAX
+    inventory.py               # normalize_inventory_id, resolve/fuzzy match helpers
+    npcs.py                    # build_npc_alias_map, touch_compendium_order
+    chronicle.py               # append_event, append_chronicle, load_chronicle_tail, load_recent_events, load_recent_chronicle_turns
+    momentum.py                # apply_momentum (imports MOMENTUM_DELTA from ccya.rules)
+  server/                      # FastAPI server package
+    __init__.py                # Re-exports: app, main
+    app.py                     # FastAPI app, config bootstrap, Jinja env, pack loading, startup, _render, _validate_stats
+    routes.py                  # All @app.get / @app.post route handlers
+    panels.py                  # _debug_context(), _load_* helpers, _get_opening
+    tv.py                      # _turn_viewer_data(), _tv_* helpers, _STATUS_CSS, _STAGE_CSS
+    metrics.py                 # _recent_turn_metrics(), _turn_log_entries(), fmt helpers
+  eval/                        # Eval harness package
+    __init__.py
+    __main__.py                # CLI entry
+    cli.py                     # CLI commands
+    config.py                  # Eval config
+    judge.py                   # LLM judge
+    report.py                  # REPORT.md generation
+    runner.py                  # In-process run_turn() driver
+    scenario.py                # Scenario definitions (full_cycle, etc.)
   models.py                    # All Pydantic models, TurnResult dataclass, load_config()
   pack.py                      # Pack loading, PackManifest, SeedEnvelope, list_packs()
   rules.py                     # Pure-Python dice resolver: resolve_check() (2d6+stat+cond−diff→Band)
   llm_client.py                # chat(), chat_stream() (OpenAI-compatible → mlx_lm.server)
-  names.py                     # Faker-backed culturally-appropriate name pools
   logging_setup.py             # JSONL RotatingFileHandler + SSE error push
-  prompts/                     # Jinja2 templates for all LLM calls
+  prompts/                     # Jinja2 templates for all LLM calls — ccya/prompts/
     rules_system.j2 / rules_user.j2
     narrate_system.j2 / narrate_user.j2
     extract_scene_system.j2 / extract_scene_user.j2
     extract_state_system.j2 / extract_state_user.j2
     extract_progress_system.j2 / extract_progress_user.j2
     generate_seed_system.j2 / generate_seed_user.j2
-    sections/                  # Shared partials: _chronicle, _inventory, _location, _pc, _quests, _recent, _recent_events, _world_state
-  templates/                   # Jinja2 HTML templates (server renders these)
+    compact_system.j2 / compact_user.j2
+    sections/                  # Shared partials — ccya/prompts/sections/
+      _chronicle / _inventory / _location / _pc / _quests / _recent / _recent_events / _world_state
+  templates/                   # Jinja2 HTML templates (server renders these) — ccya/templates/
     index.html                 # Main UI: Alpine.js x-data component + HTMX panels
     _state.html / _state_left.html / _state_right.html
     _actions.html
@@ -51,4 +85,28 @@ saves/default/                 # Active game save
 config.yaml                    # Server/engine config (LLM host, temps, timeouts, logging)
 pyproject.toml                 # uv project: fastapi, uvicorn, jinja2, pydantic, sse-starlette, openai, faker
 Makefile                       # install, run, dev, test, lint, fmt, css, new-game
-tests/                         # Smoke tests (mock LLM): test_engine_smoke.py, test_rules.py, test_pack_loader.py, etc.
+tests/                         # Smoke tests (mock LLM): test_engine_pipeline.py, test_engine_smoke.py, test_rules.py, etc.
+
+docs/                          # Plans, roadmap, repo map
+  plans/                       # Implementation plans
+    TODO.md                    # Master TODO (feature + implementation plans)
+    ROADMAP.md                 # Priority phases + exit criteria
+    completed/                 # Completed plan docs
+    p1-consistency/            # P1 plan docs
+    p2-inference/              # P2 plan docs
+    p3-inference/              # P3 plan docs
+    p4-world/                  # P4 plan docs
+  REPOMAP/                     # File/function/directory reference docs
+    config.md
+    directory.md
+    engine.md
+    frontend.md
+    llm_client.md
+    models.md
+    pack.md
+    prompts.md
+    rules.md
+    server.md
+    state.md
+    testing.md
+
