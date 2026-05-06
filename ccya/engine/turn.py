@@ -77,6 +77,7 @@ async def run_turn(
     delta: StateDelta | None = None
     actions: list[str] = []
     recent_events: list[dict[str, Any]] = []
+    recent_events_evicted: bool = False
     intent = IntentEnvelope(
         intent="", intent_verb="act", check=RulesCheck(required=False)
     )
@@ -374,7 +375,7 @@ async def run_turn(
                 reconcile_warnings = reconcile_delta(state, delta)
                 for w in reconcile_warnings:
                     _log.warning("[reconcile] turn %s: %s", state.get("meta", {}).get("turn", "?"), w, extra={"trace_id": trace_id})
-                state = apply_delta(
+                state, recent_events_evicted = apply_delta(
                     state, delta, recent_events_max=config.recent_events_max
                 )
                 recent_events = list(delta.recent_events_add)
@@ -478,6 +479,7 @@ async def run_turn(
             errors=errors,
             rules=rules_event or {},
             outcome_summary=outcome_summary,
+            recent_events_evicted=recent_events_evicted,
         )
         yield ("complete", result_obj)
 
@@ -582,6 +584,7 @@ async def run_turn_retry(
     delta: StateDelta | None = None
     actions: list[str] = []
     recent_events: list[dict[str, Any]] = []
+    recent_events_evicted: bool = False
     outcome = rules_outcome
 
     try:
@@ -778,7 +781,7 @@ async def run_turn_retry(
                 reconcile_warnings = reconcile_delta(state, delta)
                 for w in reconcile_warnings:
                     _log.warning("[reconcile] turn %s: %s", state.get("meta", {}).get("turn", "?"), w, extra={"trace_id": trace_id})
-                state = apply_delta(
+                state, recent_events_evicted = apply_delta(
                     state, delta, recent_events_max=config.recent_events_max
                 )
                 recent_events = list(delta.recent_events_add)
@@ -877,6 +880,7 @@ async def run_turn_retry(
             errors=errors,
             rules=rules_event or {},
             outcome_summary=outcome_summary,
+            recent_events_evicted=recent_events_evicted,
         )
         yield ("complete", result_obj)
 

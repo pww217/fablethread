@@ -51,7 +51,7 @@ class EngineConfig:
     max_extract_retries: int = 1
     window_turns: int = 3
     chronicle_prefix_budget_tokens: int = 1500
-    recent_events_max: int = 15
+    recent_events_max: int = 20
     enable_extract_thinking: bool = False
     enable_narrate_thinking: bool = False
     # generate_seed settings (used by POST /new-game on dynamic packs)

@@ -944,14 +944,14 @@ class TestStateApplyDelta:
                 {"id": "plasma-cutter", "name": "Plasma cutter", "notes": "Hot."}
             ]
         )
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         assert "plasma-cutter" in [item["id"] for item in updated["inventory"]]
         assert len(updated["inventory"]) == 3
 
     def test_inventory_remove(self) -> None:
         state = _make_state()
         delta = StateDelta(inventory_remove=["hand-terminal"])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         assert "hand-terminal" not in [item["id"] for item in updated["inventory"]]
 
     def test_inventory_merges_by_id(self) -> None:
@@ -966,7 +966,7 @@ class TestStateApplyDelta:
                 InventoryItem(id="credits", name="Credits", amount=50, notes="Cash.")
             ],
         )
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         cred = next(i for i in updated["inventory"] if i["id"] == "credits")
         assert cred["amount"] == 150
 
@@ -978,7 +978,7 @@ class TestStateApplyDelta:
             ],
         }
         delta = StateDelta(inventory_remove=[InventoryRemove(id="credits", amount=500)])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         cred = next(i for i in updated["inventory"] if i["id"] == "credits")
         assert cred["amount"] == 1300
 
@@ -990,7 +990,7 @@ class TestStateApplyDelta:
             ],
         }
         delta = StateDelta(inventory_remove=[InventoryRemove(id="credits", amount=100)])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         assert "credits" not in [i["id"] for i in updated["inventory"]]
 
     def test_credits_sort_to_top(self) -> None:
@@ -1006,7 +1006,7 @@ class TestStateApplyDelta:
                 {"id": "credits", "name": "Credits", "amount": 50, "notes": ""},
             ],
         }
-        updated = apply_delta(state, StateDelta())
+        updated, _ = apply_delta(state, StateDelta())
         assert updated["inventory"][0]["id"] == "credits"
 
     def test_location_change(self) -> None:
@@ -1018,13 +1018,13 @@ class TestStateApplyDelta:
                 "description": "Wide and bright.",
             }
         )
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         assert updated["location"]["id"] == "concourse-b"
 
     def test_location_description_in_place(self) -> None:
         state = _make_state()
         delta = StateDelta(location_description="The berth lights flicker.")
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         assert updated["location"]["description"] == "The berth lights flicker."
         assert updated["location"]["id"] == "docking-ring-7"
 
@@ -1036,7 +1036,7 @@ class TestStateApplyDelta:
                 InventoryItem(id="Water_Filter", name="Filter", amount=1),
             ],
         )
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         assert (
             len(updated["inventory"]) == 3
         )  # hand-terminal, vac-jacket, merged water stack
@@ -1051,7 +1051,7 @@ class TestStateApplyDelta:
         """apply_delta must NOT change meta.turn — that is the engine's job."""
         state = _make_state(turn=5)
         delta = StateDelta()
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         assert updated["meta"]["turn"] == 5
 
 
@@ -1197,7 +1197,7 @@ class TestFactsDelta:
             _make_recent_event("fact-two", "fact two"),
         ]
         delta = StateDelta(recent_events_add=[RecentEvent(id="fact-three", text="fact three")])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         facts = updated["scene"]["recent_events"]
         assert len(facts) == 3
         assert facts[2]["text"] == "fact three"
@@ -1206,7 +1206,7 @@ class TestFactsDelta:
         state = _make_state()
         state["scene"]["recent_events"] = [_make_recent_event("keep-me", "keep me")]
         delta = StateDelta()
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         assert updated["scene"]["recent_events"] == [_make_recent_event("keep-me", "keep me")]
 
     def test_update_by_id(self) -> None:
@@ -1219,7 +1219,7 @@ class TestFactsDelta:
         delta = StateDelta(
             recent_events_update=[RecentEventUpdate(id="beta", text="beta revised")],
         )
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         facts = updated["scene"]["recent_events"]
         assert facts[1]["text"] == "beta revised"
         assert facts[0]["text"] == "alpha"
@@ -1231,7 +1231,7 @@ class TestFactsDelta:
             _make_recent_event("other-fact", "Other fact."),
         ]
         delta = StateDelta(recent_events_remove=["ship-damaged"])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         facts = updated["scene"]["recent_events"]
         assert len(facts) == 1
         assert facts[0]["id"] == "other-fact"
@@ -1244,7 +1244,7 @@ class TestFactsDelta:
                 RecentEventUpdate(id="no-such-id", text="not appended")
             ],
         )
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         facts = updated["scene"]["recent_events"]
         assert len(facts) == 1
         assert facts[0]["text"] == "only"
@@ -1253,7 +1253,7 @@ class TestFactsDelta:
         state = _make_state()
         state["scene"]["recent_events"] = [_make_recent_event("dup", "existing")]
         delta = StateDelta(recent_events_add=[RecentEvent(id="dup", text="duplicate")])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         facts = updated["scene"]["recent_events"]
         assert len(facts) == 1
         assert facts[0]["text"] == "existing"
@@ -1266,7 +1266,7 @@ class TestEstablishedFactsEviction:
         delta = StateDelta(recent_events_add=[
             RecentEvent(id=f"f{i}", text=f"f{i}", turn=6) for i in range(6, 12)
         ])
-        updated = apply_delta(state, delta, recent_events_max=10)
+        updated, _ = apply_delta(state, delta, recent_events_max=10)
         facts = updated["scene"]["recent_events"]
         assert len(facts) <= 10
         assert any(f["id"] == "f11" for f in facts)
@@ -1280,12 +1280,12 @@ class TestPcConditionsDelta:
             ConditionAdd(id="wanted", label="wanted"),
             ConditionAdd(id="injured", label="injured", description="Hit by debris."),
         ])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         cond_ids = [c["id"] for c in updated["pc"]["conditions"]]
         assert "wanted" in cond_ids and "injured" in cond_ids
 
         delta2 = StateDelta(pc_condition_remove=[ConditionRemove(id="wanted")])
-        updated2 = apply_delta(updated, delta2)
+        updated2, _ = apply_delta(updated, delta2)
         cond_ids2 = [c["id"] for c in updated2["pc"]["conditions"]]
         assert "wanted" not in cond_ids2
         assert "injured" in cond_ids2
@@ -1294,7 +1294,7 @@ class TestPcConditionsDelta:
         """Plain strings in pc_condition_add are coerced to ConditionAdd dicts."""
         state = _make_state()
         delta = StateDelta(pc_condition_add=["wanted", "injured"])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         conds = updated["pc"]["conditions"]
         assert all(isinstance(c, dict) for c in conds)
         ids = [c["id"] for c in conds]
@@ -1305,7 +1305,7 @@ class TestPcConditionsDelta:
         state = _make_state()
         state["pc"]["conditions"] = [{"id": "bruised_ribs", "label": "bruised ribs", "description": "", "added_turn": 0}]
         delta = StateDelta(pc_condition_add=[ConditionAdd(id="bruised_ribs", label="Bruised Ribs")])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         assert len(updated["pc"]["conditions"]) == 1
 
     def test_cap_at_5_evicts_oldest(self) -> None:
@@ -1319,7 +1319,7 @@ class TestPcConditionsDelta:
             ConditionAdd(id="c6", label="c6"),
             ConditionAdd(id="c7", label="c7"),
         ])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         conds = updated["pc"]["conditions"]
         assert len(conds) == 5
         ids = [c["id"] for c in conds]
@@ -1330,7 +1330,7 @@ class TestPcConditionsDelta:
         """apply_delta stamps added_turn = state.meta.turn on each new condition."""
         state = _make_state(turn=5)
         delta = StateDelta(pc_condition_add=[ConditionAdd(id="shaken", label="shaken")])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         cond = next(c for c in updated["pc"]["conditions"] if c["id"] == "shaken")
         assert cond["added_turn"] == 5
 
@@ -1402,7 +1402,7 @@ class TestEstablishedFactsCap25:
         delta = StateDelta(recent_events_add=[
             RecentEvent(id=f"f{i}", text=f"f{i}") for i in range(24, 27)
         ])
-        updated = apply_delta(state, delta, recent_events_max=25)
+        updated, _ = apply_delta(state, delta, recent_events_max=25)
         facts = updated["scene"]["recent_events"]
         assert len(facts) == 25
         assert any(f["id"] == "f26" for f in facts)
@@ -1421,7 +1421,7 @@ class TestQuestStatusSideEffects:
                 QuestUpdate(id="quiet-signal", status="completed", objectives=[])
             ],
         )
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
         assert q["status"] == "completed"
         for o in q["objectives"]:
@@ -1439,7 +1439,7 @@ class TestQuestStatusSideEffects:
                 QuestUpdate(id="quiet-signal", status="failed", objectives=[])
             ]
         )
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
         assert q["status"] == "failed"
         objs = {o["description"]: o for o in q["objectives"]}
@@ -1456,7 +1456,7 @@ class TestQuestStatusSideEffects:
                 QuestUpdate(id="quiet-signal", status="abandoned", objectives=[])
             ]
         )
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
         assert q["status"] == "abandoned"
         assert q["objectives"][0]["done"] is False
@@ -1472,7 +1472,7 @@ class TestQuestStatusSideEffects:
                 ),
             ],
         )
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
         assert q["status"] == "active"
         assert q["objectives"][0].get("failed") is True
@@ -1487,7 +1487,7 @@ class TestQuestStatusSideEffects:
                 )
             ],
         )
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
         assert q["objectives"][0]["done"] is True
 
@@ -1505,7 +1505,7 @@ class TestQuestStatusSideEffects:
                 ),
             ],
         )
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
         assert q["objectives"][0]["done"] is True
 
@@ -1517,7 +1517,7 @@ class TestApplyDeltaEstablishedFactsMax:
         delta = StateDelta(recent_events_add=[
             RecentEvent(id=f"f{i}", text=f"f{i}") for i in range(2, 5)
         ])
-        updated = apply_delta(state, delta, recent_events_max=2)
+        updated, _ = apply_delta(state, delta, recent_events_max=2)
         facts = updated["scene"]["recent_events"]
         assert len(facts) <= 2
         assert facts[-1]["id"] == "f4"
@@ -1529,7 +1529,7 @@ class TestInventoryCompendiumTagline:
         delta = StateDelta(
             inventory_update=[InventoryUpdate(id="vac-jacket", notes="Patched.")]
         )
-        out = apply_delta(state, delta)
+        out, _ = apply_delta(state, delta)
         item = next(x for x in out["inventory"] if x["id"] == "vac-jacket")
         assert item["notes"] == "Patched."
 
@@ -1539,7 +1539,7 @@ class TestInventoryCompendiumTagline:
         delta = StateDelta(
             inventory_update=[InventoryUpdate(id="nope-item", notes="x")]
         )
-        out = apply_delta(state, delta)
+        out, _ = apply_delta(state, delta)
         assert len(out["inventory"]) == before
 
     def test_npc_bio_mirrored_to_compendium(self) -> None:
@@ -1555,7 +1555,7 @@ class TestInventoryCompendiumTagline:
                 ),
             ],
         )
-        out = apply_delta(state, delta)
+        out, _ = apply_delta(state, delta)
         assert out["compendium"]["npcs"]["fixer"]["bio"] == "Owes you from Tycho."
 
     def test_npc_bio_preserved_when_bio_empty_in_delta(self) -> None:
@@ -1572,7 +1572,7 @@ class TestInventoryCompendiumTagline:
                 ),
             ],
         )
-        out = apply_delta(state, delta)
+        out, _ = apply_delta(state, delta)
         assert out["compendium"]["npcs"]["fixer"]["bio"] == "Old bio."
 
     def test_npc_add_id_and_notes_only_hydrates_from_compendium(self) -> None:
@@ -1585,7 +1585,7 @@ class TestInventoryCompendiumTagline:
         delta = StateDelta(
             npc_add=[NpcAdd(id="fixer", notes="Suspicious tonight.")]
         )
-        out = apply_delta(state, delta)
+        out, _ = apply_delta(state, delta)
         npc = out["scene"]["present_npcs"][0]
         assert npc["id"] == "fixer"
         assert npc["name"] == "Anna"
@@ -1600,7 +1600,7 @@ class TestInventoryCompendiumTagline:
                 CompendiumNpcUpdate(id="missing-wife", bio="Seen on Ganymede.")
             ],
         )
-        out = apply_delta(state, delta)
+        out, _ = apply_delta(state, delta)
         assert out["compendium"]["npcs"]["missing_wife"]["bio"] == "Seen on Ganymede."
 
     def test_recently_left_computed_when_npcs_leave(self) -> None:
@@ -1623,7 +1623,7 @@ class TestInventoryCompendiumTagline:
             npc_remove=[NpcRemove(id="bouncer")],
             npc_update=[NpcUpdate(id="fixer", notes="Nodding at you.")],
         )
-        out = apply_delta(state, delta)
+        out, _ = apply_delta(state, delta)
         recently_left = out["scene"]["recently_left"]
         assert len(recently_left) == 1
         assert recently_left[0]["id"] == "bouncer"
@@ -1648,7 +1648,7 @@ class TestInventoryCompendiumTagline:
                 NpcUpdate(id="bouncer", notes="Stepping aside."),
             ],
         )
-        out = apply_delta(state, delta)
+        out, _ = apply_delta(state, delta)
         assert out["scene"].get("recently_left") in ([], None)
 
     def test_recently_left_cleared_on_location_change(self) -> None:
@@ -1665,7 +1665,7 @@ class TestInventoryCompendiumTagline:
             npc_update=[NpcUpdate(id="fixer", notes="At the new place.")],
             location_change=LocationRef(id="new-station", name="New Station", description="Bright lights."),
         )
-        out = apply_delta(state, delta)
+        out, _ = apply_delta(state, delta)
         assert out["scene"]["recently_left"] == []
         assert out["scene"]["recently_left_turns"] == 0
 
@@ -1682,7 +1682,7 @@ class TestInventoryCompendiumTagline:
         delta = StateDelta(
             npc_remove=[NpcRemove(id="fixer")],
         )
-        out = apply_delta(state, delta)
+        out, _ = apply_delta(state, delta)
         recently_left = out["scene"]["recently_left"]
         assert len(recently_left) == 1
         assert recently_left[0]["id"] == "fixer"
@@ -1692,7 +1692,7 @@ class TestInventoryCompendiumTagline:
     def test_scene_tagline_set(self) -> None:
         state = _make_state()
         delta = StateDelta(scene_tagline="Fees due at dawn")
-        out = apply_delta(state, delta)
+        out, _ = apply_delta(state, delta)
         assert out["scene"]["tagline"] == "Fees due at dawn"
 
     def test_load_state_migrates_old_stats(self, tmp_path: Path) -> None:
@@ -2024,7 +2024,7 @@ class TestEntityDedup:
             {"id": "worn_dagger", "name": "Worn Dagger", "amount": 1, "aliases": []},
         ]
         delta = StateDelta(inventory_add=[InventoryItem(id="dagger", name="Dagger", amount=1)])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         inv = updated["inventory"]
         assert len(inv) == 1
         assert inv[0]["id"] == "worn_dagger"
@@ -2038,7 +2038,7 @@ class TestEntityDedup:
         delta = StateDelta(inventory_add=[
             InventoryItem(id="dagger", name="Dagger", amount=1, aliases=["the dagger"])
         ])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         inv = updated["inventory"]
         assert len(inv) == 1
         assert inv[0]["id"] == "worn_dagger"
@@ -2055,7 +2055,7 @@ class TestEntityDedup:
         delta = StateDelta(compendium_npc_update=[
             CompendiumNpcUpdate(id="scarred_soldier", name="Kael Marsh", bio="A veteran")
         ])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         npcs = updated["compendium"]["npcs"]
         assert "scarred_soldier" not in npcs
         assert "kael_marsh" in npcs
@@ -2070,7 +2070,7 @@ class TestEntityDedup:
             },
         }
         delta = StateDelta(npc_add=[NpcAdd(id="scarred_soldier", name="Kael Marsh", notes="Present.")])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         present = updated["scene"]["present_npcs"]
         assert len(present) == 1
         assert present[0]["id"] == "kael_marsh"
@@ -2081,7 +2081,7 @@ class TestEntityDedup:
             {"id": "worn_dagger", "name": "Worn Dagger", "amount": 1, "aliases": []},
         ]
         delta = StateDelta(inventory_add=[InventoryItem(id="brass_key", name="Brass Key", amount=1)])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         inv = updated["inventory"]
         assert len(inv) == 2
         ids = {i["id"] for i in inv}
@@ -2099,7 +2099,7 @@ class TestEntityDedup:
         delta = StateDelta(compendium_npc_update=[
             CompendiumNpcUpdate(id="kael_marsh", aliases=["scarred soldier", "the soldier"])
         ])
-        updated = apply_delta(state, delta)
+        updated, _ = apply_delta(state, delta)
         npcs = updated["compendium"]["npcs"]
         assert "scarred soldier" in npcs["kael_marsh"]["aliases"]
         assert "the soldier" in npcs["kael_marsh"]["aliases"]

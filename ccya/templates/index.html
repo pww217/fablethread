@@ -944,8 +944,15 @@ function game() {
                     const rollBadge = _buildRollBadge(result.rules);
                     if (rollBadge) { lastInserted.after(rollBadge); lastInserted = rollBadge; }
                 }
-                const changes = _buildTurnChanges(result.change_lines || []);
-                if (changes) { lastInserted.after(changes); lastInserted = changes; }
+                if (result.recent_events_evicted) {
+                    const evictNote = document.createElement('div');
+                    evictNote.className = 'rejection-note';
+                    evictNote.textContent = '\u26a0 Some recent events were pruned (limit reached)';
+                    lastInserted.after(evictNote);
+                } else {
+                    const changes = _buildTurnChanges(result.change_lines || []);
+                    if (changes) { lastInserted.after(changes); lastInserted = changes; }
+                }
                 _applyMarkdown(block);
 
                 if (result.rejected && result.rejected.length > 0) {
@@ -971,7 +978,9 @@ function game() {
                     zone.innerHTML = '<span class="empty-state">No suggested actions.</span>';
                 }
 
-                _prependTurnLogTurn(result.turn, result.change_lines || [], result.rules);
+                if (!result.recent_events_evicted) {
+                    _prependTurnLogTurn(result.turn, result.change_lines || [], result.rules);
+                }
 
                 htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
                 htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
@@ -1174,7 +1183,9 @@ function game() {
                     zone.innerHTML = '<span class="empty-state">No suggested actions.</span>';
                 }
 
-                _prependTurnLogTurn(result.turn, result.change_lines || [], result.rules);
+                if (!result.recent_events_evicted) {
+                    _prependTurnLogTurn(result.turn, result.change_lines || [], result.rules);
+                }
 
                 htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
                 htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });

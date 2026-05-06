@@ -71,8 +71,8 @@ def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> list[str]:
 
 
 def apply_delta(
-    state: dict[str, Any], delta: StateDelta, *, recent_events_max: int = 15
-) -> dict[str, Any]:
+    state: dict[str, Any], delta: StateDelta, *, recent_events_max: int = 20
+) -> tuple[dict[str, Any], bool]:
     state = copy.deepcopy(state)
 
     inv: list[dict[str, Any]] = copy.deepcopy(state.get("inventory", []))
@@ -329,6 +329,7 @@ def apply_delta(
 
     # Evict oldest by turn (sort ascending, drop oldest)
     existing_events.sort(key=lambda e: e.get("turn", 0))
+    recent_events_evicted = len(existing_events) > recent_events_max
     scene["recent_events"] = existing_events[-recent_events_max:]
 
     # --- scene_pressure ---
@@ -512,4 +513,4 @@ def apply_delta(
             entry["aliases"] = list(existing_aliases)
         touch_compendium_order(state, resolved_id)
 
-    return state
+    return state, recent_events_evicted
