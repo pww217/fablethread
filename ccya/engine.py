@@ -1099,6 +1099,9 @@ async def _run_extraction_pipeline(
         location_change=scene_result.location_change,
         location_description=scene_result.location_description,
         present_npcs=scene_result.present_npcs,
+        npc_add=scene_result.npc_add,
+        npc_remove=scene_result.npc_remove,
+        npc_update=scene_result.npc_update,
         inventory_add=state_result.inventory_add,
         inventory_remove=state_result.inventory_remove,
         inventory_update=state_result.inventory_update,
@@ -1971,6 +1974,26 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
 
     # quest_updates is create-or-update: new quest IDs are allowed (apply_delta creates them).
     # No quest ID validation here.
+
+    # NPC validation: npc_remove and npc_update IDs must exist in current present_npcs
+    present_ids = {
+        n.get("id") for n in (state.get("scene") or {}).get("present_npcs") or []
+        if isinstance(n, dict)
+    }
+    for rem in delta.npc_remove:
+        if rem.id not in present_ids:
+            rejections.append({
+                "field": "npc_remove",
+                "value": rem.id,
+                "reason": f"NPC '{rem.id}' not in present_npcs",
+            })
+    for upd in delta.npc_update:
+        if upd.id not in present_ids:
+            rejections.append({
+                "field": "npc_update",
+                "value": upd.id,
+                "reason": f"NPC '{upd.id}' not in present_npcs",
+            })
 
     return rejections
 

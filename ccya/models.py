@@ -155,6 +155,29 @@ class CompendiumNpcUpdate(BaseModel):
     aliases: list[str] = Field(default_factory=list)
 
 
+class NpcAdd(BaseModel):
+    """Add an NPC to the scene. Notes always required; name/title/bio only for new NPCs or when new info arrives."""
+    id: str
+    notes: str = ""
+    name: str | None = None  # omit when known from compendium
+    title: str | None = None
+    bio: str | None = None
+
+
+class NpcRemove(BaseModel):
+    """Remove an NPC from the scene."""
+    id: str
+
+
+class NpcUpdate(BaseModel):
+    """Update an existing scene NPC's notes (and optionally name/title/bio when new info arrives)."""
+    id: str
+    notes: str | None = None
+    name: str | None = None
+    title: str | None = None
+    bio: str | None = None
+
+
 class RecentEvent(BaseModel):
     id: str
     text: str
@@ -197,6 +220,9 @@ class StateDelta(BaseModel):
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
+    npc_add: list[NpcAdd] = Field(default_factory=list, max_length=6)
+    npc_remove: list[NpcRemove] = Field(default_factory=list)
+    npc_update: list[NpcUpdate] = Field(default_factory=list, max_length=6)
     recent_events_add: list[RecentEvent] = Field(default_factory=list)
     recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
     recent_events_remove: list[str] = Field(default_factory=list)
@@ -234,6 +260,9 @@ class SceneExtractResult(BaseModel):
     location_change: LocationRef | None = None
     location_description: str | None = None
     present_npcs: list[NpcRef] = Field(default_factory=list)
+    npc_add: list[NpcAdd] = Field(default_factory=list)
+    npc_remove: list[NpcRemove] = Field(default_factory=list)
+    npc_update: list[NpcUpdate] = Field(default_factory=list)
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = ""
 
