@@ -10,6 +10,7 @@ Located in `ccya/prompts/`:
 - `extract_state_system.j2` / `extract_state_user.j2` — Call 2b: state extraction
 - `extract_progress_system.j2` / `extract_progress_user.j2` — Call 2c: progress extraction
 - `generate_seed_system.j2` / `generate_seed_user.j2` — Seed generation for dynamic packs
+- `compact_system.j2` / `compact_user.j2` — Chronicle compaction (LLM historian, bullet summaries)
 
 ## Shared partials
 
@@ -19,7 +20,7 @@ Located in `ccya/prompts/sections/`:
 - `_inventory` — player inventory
 - `_location` — current location
 - `_pc` — player character
-- `_quests` — active quests
+- `_quests` — active quests only
 - `_recent` — recent events
 - `_recent_events` — event list
 - `_world_state` — immutable world facts
