@@ -408,3 +408,89 @@ def test_parse_judge_response_trailing_braces():
     s = '{"overall_score": 4, "findings": [], "comments": ""} trailing {text}'
     out = parse_judge_response(s)
     assert out["overall_score"] == 4
+
+
+# ---------------------------------------------------------------------------
+# _check_asserts — rolled field
+# ---------------------------------------------------------------------------
+
+
+def test_check_asserts_rolled_true():
+    from ccya.eval.runner import _check_asserts
+    from ccya.eval.scenario import TurnAssert
+
+    event = {"rules": {"rolled": True, "skill": "charisma", "band": "success"}}
+    asserts = [TurnAssert(stream="rules", field="rolled", expected="true")]
+    results = _check_asserts(asserts, event)
+    assert len(results) == 1
+    assert results[0]["passed"] is True
+    assert results[0]["detail"] == "rolled=True"
+
+
+def test_check_asserts_rolled_false():
+    from ccya.eval.runner import _check_asserts
+    from ccya.eval.scenario import TurnAssert
+
+    event = {"rules": {"rolled": False, "intent_verb": "move"}}
+    asserts = [TurnAssert(stream="rules", field="rolled", expected="false")]
+    results = _check_asserts(asserts, event)
+    assert len(results) == 1
+    assert results[0]["passed"] is True
+    assert results[0]["detail"] == "rolled=False"
+
+
+def test_check_asserts_rolled_mismatch():
+    from ccya.eval.runner import _check_asserts
+    from ccya.eval.scenario import TurnAssert
+
+    event = {"rules": {"rolled": True}}
+    asserts = [TurnAssert(stream="rules", field="rolled", expected="false")]
+    results = _check_asserts(asserts, event)
+    assert len(results) == 1
+    assert results[0]["passed"] is False
+
+
+def test_check_asserts_inventory_remove_found():
+    from ccya.eval.runner import _check_asserts
+    from ccya.eval.scenario import TurnAssert
+
+    event = {"applied": {"inventory_remove": [{"id": "credits", "amount": 500}]}}
+    asserts = [TurnAssert(stream="extract.state", field="inventory_remove", expected="credits", min_amount=500)]
+    results = _check_asserts(asserts, event)
+    assert len(results) == 1
+    assert results[0]["passed"] is True
+    assert results[0]["detail"] == "inventory_remove[credits] amount=500"
+
+
+def test_check_asserts_inventory_remove_not_found():
+    from ccya.eval.runner import _check_asserts
+    from ccya.eval.scenario import TurnAssert
+
+    event = {"applied": {"inventory_remove": []}}
+    asserts = [TurnAssert(stream="extract.state", field="inventory_remove", expected="credits", min_amount=200)]
+    results = _check_asserts(asserts, event)
+    assert len(results) == 1
+    assert results[0]["passed"] is False
+    assert results[0]["detail"] == "inventory_remove[credits] not found"
+
+
+def test_check_asserts_quest_updates_found():
+    from ccya.eval.runner import _check_asserts
+    from ccya.eval.scenario import TurnAssert
+
+    event = {"applied": {"quest_updates": [{"id": "deliver_the_ledger", "status": "active"}]}}
+    asserts = [TurnAssert(stream="extract.progress", field="quest_updates", expected="deliver_the_ledger")]
+    results = _check_asserts(asserts, event)
+    assert len(results) == 1
+    assert results[0]["passed"] is True
+
+
+def test_check_asserts_scene_tags_found():
+    from ccya.eval.runner import _check_asserts
+    from ccya.eval.scenario import TurnAssert
+
+    event = {"applied": {"scene_tags": ["combat", "stealth"]}}
+    asserts = [TurnAssert(stream="extract.scene", field="scene_tags", expected="combat")]
+    results = _check_asserts(asserts, event)
+    assert len(results) == 1
+    assert results[0]["passed"] is True

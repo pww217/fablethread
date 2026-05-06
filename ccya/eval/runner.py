@@ -212,8 +212,9 @@ def _check_asserts(
         if a.stream == "rules":
             rules = event.get("rules") or {}
             if a.field == "rolled":
-                passed = bool(rules.get("rolled"))
-                detail = f"rolled={passed}"
+                val = rules.get("rolled", False)
+                passed = (val == (a.expected == "true"))
+                detail = f"rolled={val}"
             elif a.field == "skill":
                 val = rules.get("skill", "")
                 passed = val == a.expected

@@ -91,7 +91,7 @@ scenario = Scenario(
             expects=[
                 "rules.required=true skill=strength|charisma (social combat)",
                 "scope active_domains includes pc_condition",
-                "scene_tags should include combat or social_conflict",
+                "scene_tags should include combat",
             ],
             asserts=[
                 TurnAssert(stream="rules", field="rolled", expected="true"),

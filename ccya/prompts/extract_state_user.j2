@@ -18,7 +18,11 @@ skill: {{ rules_outcome.skill }}
 band: {{ rules_outcome.band }}
 directive: {{ rules_outcome.directive }}
 
-{% endif -%}
+{%- elif rules_outcome and not rules_outcome.rolled -%}
+## no_dice_roll
+No dice were rolled this turn. The rules engine determined the action has no mechanical obstacle (pure social, travel, or exploration). Apply inventory and condition changes based on what the narration describes — do NOT infer success or failure from a roll outcome.
+
+{%- endif -%}
 ## pc
 {{ pc.name }} — {{ pc.tagline }}
 
