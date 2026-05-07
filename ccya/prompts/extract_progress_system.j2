@@ -12,10 +12,11 @@ IDs are immutable once assigned. Name changes go in the `name` field and `aliase
 
 ## NPC match instruction
 
-Before emitting `compendium_npc_update` to add a new NPC, check the existing compendium list provided in context.
+Before emitting `compendium_npc_update` to add a new NPC, check the existing compendium list.
 If the character is likely the same person referred to differently (e.g. `"scarred soldier"` when `"kael_marsh"` is already in the compendium), use the existing ID and emit an update instead of an add.
 Add the old descriptor as an alias. Only emit an add for a genuinely new NPC not present in the current compendium.
 If a character is named or re-identified this turn (e.g. you learn the scarred soldier's name is Kael), emit `compendium_npc_update` on the existing ID — do not create a new entry. Add the old descriptor as an alias.
+**If the character's name matches an existing compendium NPC (case-insensitive), use their existing ID. Do NOT create a new entry.**
 
 ## Output schema
 
@@ -54,7 +55,7 @@ Each new event must have a stable `snake_case` ID (e.g. `"guard_left_room"`, `"p
 
 `compendium_npc_update`: NPC records to create or update based on genuinely new durable info (allegiance changed, died, new name learned, relationship revealed). Each: `{"id": "npc_id", "name": "optional", "title": "optional", "bio": "updated 1-3 sentence durable identity"}`. Don't re-emit NPCs whose info didn't change.
 
-If the narration describes an NPC as killed, mortally wounded, captured, or permanently removed: emit `compendium_npc_update` with `bio` recording their fate in one sentence. The engine will stamp `last_scene`. Do not omit this update — dead NPCs must be recorded.
+If the narration describes an NPC as killed, mortally wounded, captured, or permanently removed: emit `compendium_npc_update` with `bio` recording their fate in one sentence. The engine will stamp `last_seen`. Do not omit this update — dead NPCs must be recorded.
 
 `scene_pressure_add`: Add a `scene_pressure` entry when the narration introduces a time-sensitive threat, pursuit, hazard, or countdown. Set `urgency` based on immediacy: "immediate" if it must be addressed this turn, "building" if it escalates over 2-4 turns, "background" for ambient threat. Set `max_turns` to an explicit fiction-grounded expiry if the narration implies a hard deadline. Do NOT add lore or permanent world facts to `scene_pressure`; those go in `world_state`. Each: `{"id": "snake_case_id", "text": "Threat description", "urgency": "immediate|building|background", "turn_added": 0, "max_turns": null}`.
 
@@ -85,17 +86,15 @@ Emit `null` if:
 - Nothing meaningful has changed in faction, NPC, or quest state to react to
 
 Emit a beat when:
-- `pc.momentum` >= +2: the player is winning; emit `complication` to raise stakes
-- `pc.momentum` <= -2: the player is struggling; emit `opportunity` or `breathing_room`
+- `pc.momentum` >= +2: emit `complication` to raise stakes
+- `pc.momentum` <= -2: emit `opportunity` or `breathing_room`
 - A quest has been stalled (same objective for 3+ turns): emit `pressure` or `revelation`
 - An NPC with unknown or shifting allegiance is present: emit `revelation`
 
 Beat instruction rules:
 - 1-2 sentences. Concrete, not vague.
-- BAD: "Something bad happens to the player."
-- GOOD: "A contact the player trusted has been seen meeting with the opposing faction at the dockside inn."
-- BAD: "Give the player a break."
-- GOOD: "The player spots a satchel left behind by a fleeing guard — it contains a vial and a partial map."
+- BAD: "Something bad happens to the player." GOOD: "A contact the player trusted has been seen meeting with the opposing faction at the dockside inn."
+- BAD: "Give the player a break." GOOD: "The player spots a satchel left behind by a fleeing guard — it contains a vial and a partial map."
 
 When emitting a `complication` or `pressure` beat, you may reference factions from the Known Factions list. Example: "The Iron Compact has been seen recruiting in the docks."
 

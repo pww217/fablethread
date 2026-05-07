@@ -408,6 +408,19 @@ def apply_delta(
             resolved = alias_map[resolved]
         return resolved
 
+    def _find_npc_by_name(name: str, comp: dict[str, Any]) -> str | None:
+        """Find an existing compendium NPC by name (case-insensitive). Returns canonical ID or None."""
+        if not name:
+            return None
+        target = name.lower().strip()
+        for npc_id, npc in comp.items():
+            if not isinstance(npc, dict):
+                continue
+            existing_name = (npc.get("name") or "").lower().strip()
+            if existing_name and existing_name == target:
+                return npc_id
+        return None
+
     def _apply_npc_to_present(npc: dict[str, Any], present: list[dict[str, Any]], comp: dict[str, Any], alias_map: dict[str, str]) -> str:
         """Add/update an NPC in present list. Returns resolved ID."""
         nid = npc["id"]
@@ -444,6 +457,9 @@ def apply_delta(
             rid = _resolve_npc_id(rem.id, comp, alias_map)
             present = [p for p in present if p.get("id") != rid]
             removed_ids.add(rid)
+            # Store last_seen_state on compendium entry
+            if rid in comp and rem.last_seen_state:
+                comp[rid]["last_seen_state"] = rem.last_seen_state
 
         for upd in delta.npc_update:
             _apply_npc_to_present(
@@ -461,6 +477,11 @@ def apply_delta(
                 name_alias = add.name.lower().strip()
                 if name_alias in alias_map and alias_map[name_alias] != name_alias:
                     add_id = alias_map[name_alias]
+                # Name collision: if ID is new but name matches existing NPC, route to existing
+                if add_id not in comp:
+                    name_match = _find_npc_by_name(add.name, comp)
+                    if name_match:
+                        add_id = name_match
             _apply_npc_to_present(
                 {"id": add_id, "notes": add.notes or "", "name": add.name, "title": add.title, "bio": add.bio},
                 present, comp, alias_map,
@@ -543,6 +564,11 @@ def apply_delta(
             name_alias = u.name.lower().strip()
             if name_alias in alias_map:
                 resolved_id = alias_map[name_alias]
+            # Name collision: if ID is new but name matches existing NPC, route to existing
+            if resolved_id not in comp:
+                name_match = _find_npc_by_name(u.name, comp)
+                if name_match:
+                    resolved_id = name_match
 
         entry = comp.setdefault(resolved_id, {})
         if u.name is not None:

@@ -57,7 +57,7 @@
             <div class="npc-item{% if npc_bio %} has-tooltip{% endif %}">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
                 {% if npc_notes %}
-                <div class="npc-notes-inline">{{ npc_notes }}</div>
+                <span class="npc-notes-inline">{{ npc_notes }}</span>
                 {% endif %}
                 {% if npc_bio %}
                 <div class="tooltip-body">
@@ -170,13 +170,20 @@
             {% set nm = entry.name if entry is mapping else '' %}
             {% set ttl = entry.title if entry is mapping else '' %}
             {% set bio = entry.bio if entry is mapping else '' %}
-            {% set ls = entry.last_scene if entry is mapping and entry.last_scene else None %}
+            {% set ls = entry.last_seen if entry is mapping and entry.last_seen else None %}
+            {% set ls_state = ls.last_seen_state if ls else None %}
             <div class="compendium-item has-tooltip">
                 <span class="compendium-line">{{ nm or nid }}{% if ttl %}<span class="compendium-title"> — {{ ttl }}</span>{% endif %}</span>
-                {% if ls %}
-                <span class="compendium-last-seen">Last seen: Turn {{ ls.turn }} · {{ ls.location_name }} — {{ ls.summary }}</span>
+                {% if ls_state %}
+                <span class="compendium-last-seen">{{ ls_state | capitalize }}</span>
                 {% endif %}
-                <div class="tooltip-body" data-md>{{ bio or '—' }}</div>
+                <div class="tooltip-body" data-md>
+                    {{ bio or '—' }}
+                    {% if ls %}
+                    <br>
+                    <div class="compendium-tooltip-location">Last seen: {{ ls.location_name }}</div>
+                    {% endif %}
+                </div>
             </div>
             {% endfor %}
         </div>

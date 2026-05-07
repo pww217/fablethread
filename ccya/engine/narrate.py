@@ -90,9 +90,9 @@ def _known_characters_for_extract(
         e = comp.get(nid) or {}
         if compact:
             row: dict[str, Any] = {"id": nid, "name": e.get("name") or ""}
-            ls = e.get("last_scene")
+            ls = e.get("last_seen")
             if ls:
-                row["last_scene"] = ls
+                row["last_seen"] = ls
             rows.append(row)
         else:
             bio = (e.get("bio") or "").strip()
