@@ -16,6 +16,120 @@
 | D-5 | `note` field constraint stays for narrative criteria; mechanical criteria get `note` + `turns` array | Breaking the single-field contract means updating `JudgeResult` parsing — scoped to mechanical criteria only to minimize blast radius |
 | D-6 | Quest `auto_complete` check is a new `TurnAssert` field (`field="quest_status"`) rather than a separate assertion type | Keeps the existing `_check_asserts` switch pattern, adds one case |
 | D-7 | `pacing_and_pressure` stays as one criterion in rubric but with two mandatory sub-scores surfaced via `pressure_mechanics_score` and `pacing_score` sub-fields | Avoids adding a 16th criterion to the rubric schema while still separating signals |
+| D-8 | Engine constants live in `ccya/eval/engine_mirror.py`, imported by scenarios | Single source of truth: scenarios never hardcode urgency thresholds or momentum bounds. When `EngineConfig` defaults change, `engine_mirror` reflects them and all scenarios pick it up with zero edits. |
+| D-9 | `TurnAssert` field-path validation is a Tier 1 `make test` test, not a runtime guard | Catches renames at CI time, not mid-eval. Keeps the runner lean. |
+| D-10 | `build_trace()` prepends a live engine-constants block to every judge context | Judge always sees actual current thresholds; rubric prose never needs manual updates when e.g. `scene_pressure_building_at` changes in `EngineConfig`. |
+
+---
+
+## Engine-Eval Integration Strategy
+
+The eval harness already calls `run_turn()` in-process, so any change to the turn pipeline — prompt templates, extraction output, state mutations — is automatically exercised. The gap is the **assertion and observation layer**:
+
+- `TurnAssert` field paths are hardcoded strings. Field renames silently break assertions.
+- Urgency thresholds and momentum bounds in scenarios are magic numbers that diverge when `EngineConfig` defaults change.
+- The LLM judge sees the rubric prose but not the live engine constants (e.g. what turn `background→building` fires at), so it reasons from potentially stale values.
+- There is no Tier 1 test that fails when an assertion path or constant goes stale.
+
+The fix is three small additions that require **zero ongoing maintenance** for structural changes:
+
+1. `ccya/eval/engine_mirror.py` — imports live values from engine modules; scenarios import from here.
+2. `tests/test_eval_schema.py` — validates all scenario `TurnAssert` paths against live model fields; runs under `make test`.
+3. `build_trace()` prefix — injects a `## Engine Constants` block from `engine_mirror` into every judge trace.
+
+Rubric *prose* (what scores mean, how to weight things) still requires manual update when mechanics are added. Everything else — constants, thresholds, field names — is automated.
+
+---
+
+## Phase 0 — Engine Mirror Module (new, prerequisite)
+
+**Run before Phases 3–7.** No changes to engine code. Read-only imports.
+
+### 0.1 — Create `ccya/eval/engine_mirror.py`
+
+**File:** `ccya/eval/engine_mirror.py`
+
+**What:** A module that imports live values from the engine and exposes them as named constants for use by eval scenarios and `build_trace`. Scenarios import from here instead of hardcoding.
+
+**Why:** Single source of truth. When `EngineConfig` default for `scene_pressure_building_at` changes from 6 to 5, every scenario that uses `PRESSURE_BUILDING_AT` picks it up automatically. No scenario needs editing.
+
+**Code Snippet**
+```python
+"""Read-only mirror of engine constants for use by eval scenarios and build_trace.
+
+Import from here in scenarios — never hardcode thresholds or field names.
+All values reflect current engine defaults. Where EngineConfig controls the
+value at runtime, the default is used (eval runs use default EngineConfig
+unless overridden in EvalConfig).
+"""
+from __future__ import annotations
+
+from ccya.engine.config import EngineConfig
+from ccya.state.momentum import _MOMENTUM_MIN, _MOMENTUM_MAX
+from ccya.rules import MOMENTUM_DELTA
+
+_defaults = EngineConfig()
+
+# Scene pressure urgency escalation thresholds (turns since pressure was added)
+PRESSURE_BUILDING_AT: int = _defaults.scene_pressure_building_at   # background → building
+PRESSURE_IMMEDIATE_AT: int = _defaults.scene_pressure_immediate_at  # building → immediate
+PRESSURE_MAX_AGE: int = _defaults.scene_pressure_max_age
+
+URGENCY_LEVELS: tuple[str, ...] = ("background", "building", "immediate")
+
+# Momentum
+MOMENTUM_MIN: int = _MOMENTUM_MIN
+MOMENTUM_MAX: int = _MOMENTUM_MAX
+MOMENTUM_DELTA: dict[str, int] = dict(MOMENTUM_DELTA)
+
+# Extraction stream names — used in TurnAssert.stream validation
+EXTRACT_STREAMS: tuple[str, ...] = ("rules", "extract.scene", "extract.state", "extract.progress", "state_yaml")
+
+# Known TurnAssert.field values per stream — used by test_eval_schema.py
+# to validate that scenario assertions reference real fields.
+# Keep in sync with runner._check_asserts handler names.
+KNOWN_ASSERT_FIELDS: dict[str, set[str]] = {
+    "rules": {"rolled", "skill", "band"},
+    "extract.progress": {"quest_updates", "quest_status"},
+    "extract.scene": {"scene_pressure_add"},
+    "extract.state": {"condition_add", "condition_remove"},
+    "state_yaml": {"pending_gm_beat.present", "pending_gm_beat.absent"},
+}
+
+
+def constants_block() -> str:
+    """Return a markdown block of live engine constants for injection into judge traces.
+
+    Called by build_trace() so the LLM judge always reasons from current values,
+    not from whatever the rubric prose says.
+    """
+    return (
+        "## Engine Constants (live — do not override with rubric prose)\n\n"
+        f"- Scene pressure: background→building at turn age {PRESSURE_BUILDING_AT}, "
+        f"building→immediate at turn age {PRESSURE_IMMEDIATE_AT}, "
+        f"max age {PRESSURE_MAX_AGE}\n"
+        f"- Urgency levels (ordered): {' → '.join(URGENCY_LEVELS)}\n"
+        f"- Momentum range: [{MOMENTUM_MIN}, {MOMENTUM_MAX}]\n"
+        f"- Momentum delta per band: {MOMENTUM_DELTA}\n\n"
+    )
+```
+
+**Validation:** `python -c "from ccya.eval.engine_mirror import constants_block; print(constants_block())"` prints the block without errors.
+
+### 0.2 — Export `engine_mirror` from `ccya/eval/__init__.py`
+
+**File:** `ccya/eval/__init__.py`
+
+**What:** Add `engine_mirror` to the module's public surface.
+
+**Why:** Scenarios in `evals/scenarios/` import from `ccya.eval.engine_mirror`; having it in `__init__` makes it discoverable.
+
+**Code Snippet**
+```python
+from ccya.eval import engine_mirror as engine_mirror  # re-export
+```
+
+**Validation:** `from ccya.eval import engine_mirror` works from any context.
 
 ---
 
@@ -196,9 +310,22 @@ ctx_meta["trimmed"] = was_trimmed
 ctx_meta["trimmed_chars"] = trimmed_chars
 ```
 
-### 2.3 — Extend `build_trace` in `judge.py` to include context telemetry
+### 2.3 — Extend `build_trace` in `judge.py` to include context telemetry and live constants
 
-The judge's `build_trace` function currently shows only output summaries. Extend each TURN block to include a `[context]` line:
+The judge's `build_trace` function currently shows only output summaries. Make two additions:
+
+**a) Prepend a live engine constants block** (from `engine_mirror.constants_block()`) at the top of every trace so the judge reasons from current values, not stale rubric prose:
+
+```python
+# At the top of build_trace():
+from ccya.eval.engine_mirror import constants_block
+
+def build_trace(events: list[dict[str, Any]], scenario: Scenario) -> str:
+    lines: list[str] = [constants_block()]
+    # ... rest of existing build_trace logic ...
+```
+
+**b) Add a `[context]` line per turn** showing per-stream token estimates and truncation flags:
 
 ```python
 def _context_line(event: dict[str, Any]) -> str:
@@ -270,6 +397,8 @@ if context_warns:
 
 **Goal:** Add scenario variants that actually exercise scene pressure, GM beats, and momentum.
 
+**Note on live constants:** All turn-number expectations in these scenarios derive from `engine_mirror` constants, not hardcoded values. If `EngineConfig.scene_pressure_building_at` changes, the scenario expectations update automatically.
+
 ### 3.1 — `pressure_lifecycle` scenario
 
 Create `evals/scenarios/pressure_lifecycle.py`. This scenario must:
@@ -283,6 +412,7 @@ Create `evals/scenarios/pressure_lifecycle.py`. This scenario must:
 ```python
 # evals/scenarios/pressure_lifecycle.py
 from ccya.eval.scenario import Scenario, Turn, TurnAssert
+from ccya.eval.engine_mirror import PRESSURE_BUILDING_AT, PRESSURE_IMMEDIATE_AT
 
 scenario = Scenario(
     id="pressure_lifecycle",
@@ -316,7 +446,7 @@ scenario = Scenario(
         Turn(
             input="I spend the afternoon making discreet inquiries at the market.",
             phase="pressure_build_1",
-            expects=["urgency should advance toward building"],
+            expects=[f"urgency should advance toward building (threshold: age {PRESSURE_BUILDING_AT})"],
         ),
         Turn(
             input="I try to get a full meal and rest at the inn before dealing with anything.",
@@ -327,12 +457,12 @@ scenario = Scenario(
             input="I duck into the alley behind the smithy when I hear heavy footsteps on the cobblestones.",
             phase="pressure_building",
             expects=[
-                "urgency should be building or immediate by now",
+                f"urgency should be building or immediate by now (building_at={PRESSURE_BUILDING_AT}, immediate_at={PRESSURE_IMMEDIATE_AT})",
                 "scope should include pc_condition if physical",
             ],
             asserts=[
                 TurnAssert(
-                    stream="extract.progress",
+                    stream="extract.scene",
                     field="scene_pressure_add",
                     expected="debt_collector_approaching",
                 ),
@@ -592,23 +722,26 @@ In `evals/rubrics/default.md`, update criterion `extraction_consistency`:
 
 **Goal:** Test high-momentum and low-momentum paths using the `seed_overrides` infrastructure from Phase 3.3.
 
+**Note on live constants:** `MOMENTUM_MAX` and `MOMENTUM_MIN` are imported from `engine_mirror`, so `seed_overrides` values and `expects` strings are always accurate.
+
 ### 5.1 — `momentum_high` scenario
 
 ```python
 # evals/scenarios/momentum_high.py
 from ccya.eval.scenario import Scenario, Turn, TurnAssert
+from ccya.eval.engine_mirror import MOMENTUM_MAX
 
 scenario = Scenario(
     id="momentum_high",
     pack="eval-pack",
-    description="Starts with momentum=+3. Verifies narration tone reflects opportunity, not struggle.",
-    seed_overrides={"meta.momentum": 3},
+    description=f"Starts with momentum={MOMENTUM_MAX}. Verifies narration tone reflects opportunity, not struggle.",
+    seed_overrides={"meta.momentum": MOMENTUM_MAX},
     turns=[
         Turn(
             input="I walk up to Caron confidently and tell him the debt is settled before he can speak.",
             phase="high_momentum_social",
             expects=[
-                "Narrate should reflect HIGH MOMENTUM advisory from narrate_user.j2",
+                f"Narrate should reflect HIGH MOMENTUM advisory from narrate_user.j2 (momentum={MOMENTUM_MAX})",
                 "Raised stakes or elevated consequence expected in narration",
             ],
             asserts=[TurnAssert(stream="rules", field="rolled", expected="true")],
@@ -636,18 +769,19 @@ scenario = Scenario(
 ```python
 # evals/scenarios/momentum_low.py
 from ccya.eval.scenario import Scenario, Turn, TurnAssert
+from ccya.eval.engine_mirror import MOMENTUM_MIN
 
 scenario = Scenario(
     id="momentum_low",
     pack="eval-pack",
-    description="Starts with momentum=-3. Verifies engine offers small breaks per narrate_user.j2 advisory.",
-    seed_overrides={"meta.momentum": -3},
+    description=f"Starts with momentum={MOMENTUM_MIN}. Verifies engine offers small breaks per narrate_user.j2 advisory.",
+    seed_overrides={"meta.momentum": MOMENTUM_MIN},
     turns=[
         Turn(
             input="I try to reason with Caron. Tell him I can get the money by nightfall.",
             phase="low_momentum_plea",
             expects=[
-                "Narrate should reflect LOW MOMENTUM advisory",
+                f"Narrate should reflect LOW MOMENTUM advisory (momentum={MOMENTUM_MIN})",
                 "Small break or partial success expected — not piling on",
             ],
             asserts=[TurnAssert(stream="rules", field="rolled", expected="true")],
@@ -719,15 +853,127 @@ cm = (ev.get("extraction") or {}).get(stream, {}).get("context_meta") or {}
 
 ---
 
+## Phase 7 — Tier 1 Schema Validation Test (new, `make test`)
+
+**Goal:** Catch stale `TurnAssert` field paths and broken `engine_mirror` imports at `make test` time, before any LLM is involved.
+
+This is the "automatic reflection" layer. It doesn't test LLM output — it tests that the eval harness itself is structurally valid against the live codebase.
+
+### 7.1 — Create `tests/test_eval_schema.py`
+
+**File:** `tests/test_eval_schema.py`
+
+**What:** A Tier 1 test that loads all scenarios via `discover_scenarios()`, then for each `TurnAssert` validates that `(stream, field)` is a known combination according to `engine_mirror.KNOWN_ASSERT_FIELDS`. Also validates that `engine_mirror` constants are importable and self-consistent.
+
+**Why:** If a field is renamed in `runner._check_asserts` (e.g. `quest_updates` → `quest_progress`), this test fails immediately under `make test` with a clear error naming the scenario, turn, and field. Without this, the assertion silently passes or fails wrong during a full eval run — which is slow, costs LLM calls, and produces misleading scores.
+
+**Code Snippet**
+```python
+"""Tier 1 schema validation for eval scenarios and engine_mirror.
+
+Runs under `make test`. No LLM calls. No I/O beyond imports.
+"""
+import pytest
+from ccya.eval.scenario import discover_scenarios
+from ccya.eval.engine_mirror import (
+    KNOWN_ASSERT_FIELDS,
+    EXTRACT_STREAMS,
+    PRESSURE_BUILDING_AT,
+    PRESSURE_IMMEDIATE_AT,
+    MOMENTUM_MIN,
+    MOMENTUM_MAX,
+    constants_block,
+)
+
+
+def test_engine_mirror_imports() -> None:
+    """engine_mirror constants are importable and self-consistent."""
+    assert PRESSURE_BUILDING_AT < PRESSURE_IMMEDIATE_AT, (
+        f"PRESSURE_BUILDING_AT ({PRESSURE_BUILDING_AT}) must be < "
+        f"PRESSURE_IMMEDIATE_AT ({PRESSURE_IMMEDIATE_AT})"
+    )
+    assert MOMENTUM_MIN < 0 < MOMENTUM_MAX
+    block = constants_block()
+    assert "Engine Constants" in block
+    assert str(PRESSURE_BUILDING_AT) in block
+
+
+def test_engine_mirror_known_fields_cover_streams() -> None:
+    """Every stream in EXTRACT_STREAMS has an entry in KNOWN_ASSERT_FIELDS."""
+    for stream in EXTRACT_STREAMS:
+        assert stream in KNOWN_ASSERT_FIELDS, (
+            f"Stream {stream!r} in EXTRACT_STREAMS has no entry in KNOWN_ASSERT_FIELDS. "
+            f"Add it or remove it from EXTRACT_STREAMS."
+        )
+
+
+@pytest.mark.parametrize("scenario", discover_scenarios())
+def test_scenario_assert_fields_are_known(scenario) -> None:
+    """Every TurnAssert in every scenario uses a known (stream, field) combination.
+
+    Fails immediately with the scenario id, turn index, and field name when a
+    field is renamed in runner._check_asserts without updating KNOWN_ASSERT_FIELDS.
+    """
+    for turn_idx, turn in enumerate(scenario.turns):
+        for assert_ in (turn.asserts or []):
+            known_fields = KNOWN_ASSERT_FIELDS.get(assert_.stream)
+            assert known_fields is not None, (
+                f"Scenario {scenario.id!r} turn {turn_idx} uses unknown stream "
+                f"{assert_.stream!r}. Add it to KNOWN_ASSERT_FIELDS in engine_mirror.py "
+                f"and add a handler in runner._check_asserts."
+            )
+            assert assert_.field in known_fields, (
+                f"Scenario {scenario.id!r} turn {turn_idx}: stream {assert_.stream!r} "
+                f"has no field {assert_.field!r}. "
+                f"Known fields: {sorted(known_fields)}. "
+                f"Update engine_mirror.KNOWN_ASSERT_FIELDS and runner._check_asserts together."
+            )
+
+
+def test_scenario_seed_overrides_use_known_paths() -> None:
+    """seed_overrides dotpaths are in a known set — catches typos before a full eval run."""
+    KNOWN_SEED_PATHS: set[str] = {
+        "meta.momentum",
+        "scene.scene_pressure",
+        "pc.conditions",
+        "pc.credits",
+    }
+    for scenario in discover_scenarios():
+        for path in (scenario.seed_overrides or {}):
+            assert path in KNOWN_SEED_PATHS, (
+                f"Scenario {scenario.id!r} uses unknown seed_override path {path!r}. "
+                f"Add it to KNOWN_SEED_PATHS in test_eval_schema.py if it's intentional."
+            )
+```
+
+**Validation:** `make test` passes. Rename `rolled` → `roll_fired` in `KNOWN_ASSERT_FIELDS` without updating a scenario → test fails naming the scenario and field.
+
+### 7.2 — Maintenance contract for `KNOWN_ASSERT_FIELDS`
+
+When a new assert handler is added to `runner._check_asserts`:
+1. Add the `(stream, field)` to `engine_mirror.KNOWN_ASSERT_FIELDS`.
+2. `make test` will enforce it from that point forward.
+
+When a field is renamed:
+1. Update `runner._check_asserts`.
+2. Update `engine_mirror.KNOWN_ASSERT_FIELDS`.
+3. `make test` catches any scenario that still uses the old name.
+
+This is the only manual step required when extending the assertion system.
+
+---
+
 ## Implementation Order
 
 ```
-Phase 1 (rubric text only — no code)
+Phase 0 (engine_mirror — no engine changes, pure imports)
+  → Phase 1 (rubric text only — no code)
   → Phase 2 (engine telemetry — most invasive, touches llm_client + extraction + narrate)
-  → Phase 3 (new scenarios + runner seed_overrides + state snapshots)
+  → Phase 3 (new scenarios using engine_mirror + runner seed_overrides + state snapshots)
   → Phase 4 (TurnAssert.stream_id + quest_status handler + full_cycle update)
   → Phase 5 (momentum scenarios — depend on seed_overrides from Phase 3)
   → Phase 6 (config + report guards)
+  → Phase 7 (Tier 1 schema test — run last so all scenarios/handlers exist)
 ```
 
 ---
@@ -736,8 +982,10 @@ Phase 1 (rubric text only — no code)
 
 | File | Change |
 |---|---|
+| `ccya/eval/engine_mirror.py` | Phase 0.1 (new file — live constants + KNOWN_ASSERT_FIELDS + constants_block()) |
+| `ccya/eval/__init__.py` | Phase 0.2 (re-export engine_mirror) |
 | `evals/rubrics/default.md` | Phases 1.1, 1.2, 1.3, 4.3 |
-| `ccya/eval/judge.py` | Phase 1.2 (`turns` field in findings), Phase 2.3 (`[context]` line in `build_trace`) |
+| `ccya/eval/judge.py` | Phase 1.2 (`turns` field in findings), Phase 2.3 (constants_block prefix + `[context]` line in `build_trace`) |
 | `ccya/eval/report.py` | Phases 1.2, 2.4 (render `turns`, context warnings section) |
 | `ccya/eval/scenario.py` | Phase 3.3 (`seed_overrides` on `Scenario`), Phase 4.1 (`stream_id` on `TurnAssert`) |
 | `ccya/eval/runner.py` | Phases 3.3 (seed_overrides, state snapshots, `state_yaml` assert handler), 4.1 (`quest_status` handler) |
@@ -745,9 +993,11 @@ Phase 1 (rubric text only — no code)
 | `ccya/llm_client.py` | Phase 2.2 (`trim_messages` returns `(messages, was_trimmed, trimmed_chars)`) |
 | `ccya/engine/extraction.py` | Phases 2.1, 2.2 (attach `context_meta`, capture truncation flag) |
 | `ccya/engine/narrate.py` | Phases 2.1, 2.2 (attach `context_meta` to narrate event) |
-| `evals/scenarios/pressure_lifecycle.py` | Phase 3.1 (new file) |
+| `evals/scenarios/pressure_lifecycle.py` | Phase 3.1 (new — imports PRESSURE_BUILDING_AT/IMMEDIATE_AT from engine_mirror) |
 | `evals/scenarios/gm_beat_lifecycle.py` | Phase 3.2 (new file) |
-| `evals/scenarios/momentum_high.py` | Phase 5.1 (new file) |
-| `evals/scenarios/momentum_low.py` | Phase 5.2 (new file) |
+| `evals/scenarios/momentum_high.py` | Phase 5.1 (new — imports MOMENTUM_MAX from engine_mirror) |
+| `evals/scenarios/momentum_low.py` | Phase 5.2 (new — imports MOMENTUM_MIN from engine_mirror) |
 | `evals/scenarios/full_cycle.py` | Phase 4.2 (`quest_status` assert on turn 7) |
 | `evals/config.yaml` | Phases 6.1, 6.2 (scenario list, `context_economy_warn_tokens`) |
+| `tests/test_eval_schema.py` | Phase 7.1 (new Tier 1 test — validates scenario assert paths against live engine) |
+| `docs/REPOMAP/eval.md` | Add `engine_mirror` row to package structure table; add `test_eval_schema.py` to test files |
