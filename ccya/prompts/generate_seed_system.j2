@@ -7,7 +7,7 @@ Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON.
 - Avoid the obvious scenario; avoid clichés. Specific and mundane beats generic and dramatic.
 - Names: pick from the name pool the user prompt provides; favor names that fit the genre, role, and culture, mixing linguistic origins.
 - Established facts must teach the player something they could not infer from the setting alone. World state, factions, recent events — not character traits.
-- `compendium.npcs` must be empty `{}`. `meta.compendium_touch_order` absent or `[]`. Engine manages both.
+- `meta.compendium_touch_order` absent or `[]`. Engine manages both.
 
 ## Hard constraints
 {% if scenario and scenario.constraints %}
@@ -36,9 +36,10 @@ Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON.
       tagline: string,
       tags: string[],
       world_state: string[],
-      recent_events: string[]
+      recent_events: string[],
+      present_npcs: Array<{id: string, name: string, title: string, notes: string, bio: string}>
     },
-    compendium: {npcs: {}}
+    compendium: {npcs: {snake_case: {name: string, title: string, bio: string}}}
   },
   opening_narrative: string,
   actions: string[]
@@ -56,4 +57,5 @@ Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON.
   1. Who you are: not biography — one or two sentences grounding the PC in their role and place, with one specific concrete detail.
   2. The local situation right now: drawn directly from the established local facts — what's happening in this specific place this week.
   3. The immediate scene (≥2 paragraphs): drop the player mid-scene with sensory detail. Something is already in motion. The quest tension is implied or beginning to surface — visible in what the player sees and hears, not summarized.
-- `actions`: 4 distinct meaningful choices (7-10 words each), valid given the opening situation, each leading in a different direction.
+- `actions`: 4 distinct meaningful choices (7-10 words each), valid given the opening situation, each leading in a different direction, 2 related to quest, one to an NPC.
+- `present_npcs`: exactly 2 NPCs that appear in the opening scene — {id: snake_case, name, title, notes: current attitude/situation, bio: durable identity}. These are the characters the player meets immediately.

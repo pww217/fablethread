@@ -434,7 +434,8 @@ def apply_delta(
         present.append(row)
         return resolved
 
-    if delta.npc_add or delta.npc_remove or delta.npc_update:
+    has_npc_delta = bool(delta.npc_add or delta.npc_remove or delta.npc_update)
+    if has_npc_delta:
         alias_map = build_npc_alias_map(comp)
         present = list(old_present)
 
@@ -490,29 +491,28 @@ def apply_delta(
 
         scene["present_npcs"] = present
         new_present_ids = {str(p.get("id", "")) for p in present if p.get("id")}
-    else:
-        # No NPC deltas — populate present_npcs from compendium if empty
-        if not old_present:
-            alias_map = build_npc_alias_map(comp)
-            fallback_present: list[dict[str, Any]] = []
-            for nid, entry in comp.items():
-                name = (entry.get("name") or "").strip()
-                if not name:
-                    continue
-                fallback_present.append({
-                    "id": nid,
-                    "name": name,
-                    "title": (entry.get("title") or "").strip(),
-                    "notes": "",
-                    "bio": (entry.get("bio") or "").strip(),
-                })
-            if fallback_present:
-                scene["present_npcs"] = fallback_present[:NPC_SCENE_CAP]
-                new_present_ids = {str(p.get("id", "")) for p in scene["present_npcs"] if p.get("id")}
-            else:
-                new_present_ids = set()
+    elif not old_present and comp:
+        # No NPC deltas and compendium has NPCs — auto-populate present_npcs
+        # (e.g., seed-generated NPCs on turn 0 that extraction didn't emit as npc_add)
+        fallback_present: list[dict[str, Any]] = []
+        for nid, entry in comp.items():
+            name = (entry.get("name") or "").strip()
+            if not name:
+                continue
+            fallback_present.append({
+                "id": nid,
+                "name": name,
+                "title": (entry.get("title") or "").strip(),
+                "notes": "",
+                "bio": (entry.get("bio") or "").strip(),
+            })
+        if fallback_present:
+            scene["present_npcs"] = fallback_present[:NPC_SCENE_CAP]
+            new_present_ids = {str(p.get("id", "")) for p in scene["present_npcs"] if p.get("id")}
         else:
-            new_present_ids = old_present_ids
+            new_present_ids = set()
+    else:
+        new_present_ids = old_present_ids
 
     left_ids = old_present_ids - new_present_ids
     if left_ids:

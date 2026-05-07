@@ -64,6 +64,7 @@ def _default_state() -> dict[str, Any]:
             "tagline": "",
             "scene_pressure": [],
             "turn_entered": 0,
+            "present_npcs": [],
         },
         "compendium": {"npcs": {}},
         "world": {
