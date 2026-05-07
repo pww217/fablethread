@@ -52,6 +52,7 @@ def _default_state() -> dict[str, Any]:
             },
             "conditions": [],
             "momentum": 0,
+            "allegiance": None,
         },
         "location": {"id": "", "name": "", "description": ""},
         "inventory": [],
@@ -65,6 +66,10 @@ def _default_state() -> dict[str, Any]:
             "turn_entered": 0,
         },
         "compendium": {"npcs": {}},
+        "world": {
+            "factions": [],
+            "locations": [],
+        },
     }
 
 
@@ -80,6 +85,8 @@ def _migrate_state(state: dict[str, Any]) -> None:
         pc["bio"] = ""
     if "momentum" not in pc:
         pc["momentum"] = 0
+    if "allegiance" not in pc:
+        pc["allegiance"] = None
 
     stats = pc.setdefault("stats", {})
     for old, new in _STAT_RENAME.items():
@@ -103,6 +110,16 @@ def _migrate_state(state: dict[str, Any]) -> None:
     for q in state.get("quests") or []:
         if isinstance(q, dict) and "status" not in q:
             q["status"] = "active"
+
+    # Migrate world key (Phase 5)
+    if "world" not in state:
+        state["world"] = {"factions": [], "locations": []}
+    else:
+        w = state.setdefault("world", {})
+        if "factions" not in w:
+            w["factions"] = []
+        if "locations" not in w:
+            w["locations"] = []
 
 
 def _migrate_recent_events(state: dict[str, Any]) -> None:

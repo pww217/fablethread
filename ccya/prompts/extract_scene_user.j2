@@ -17,6 +17,11 @@ Conditions: {% for c in conditions %}{{ c.label if c is mapping else c }}{% if n
 `{{ location.id }}` | {{ location.name }}
 {{ location.description }}
 
+{% if present_npcs -%}
+## present_npcs (currently in scene — emit npc_update for these if narration mentions them)
+{% for n in present_npcs %}- `{{ n.id }}` | {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}
+{% endfor %}
+{% endif -%}
 {% if npc_roster -%}
 ## known_characters (compendium — reuse `id` for npc_add/npc_update)
 {% for n in npc_roster %}- `{{ n.id }}` | {{ n.name }} [{{ n.tags | join(",") }}]{% if n.notes %} — {{ n.notes }}{% endif %}

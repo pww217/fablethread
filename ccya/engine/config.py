@@ -65,6 +65,10 @@ class EngineConfig:
     # Scene pressure urgency escalation thresholds (turns)
     scene_pressure_building_at: int = 6
     scene_pressure_immediate_at: int = 10
+    # Scene pressure hard age cap (turns) — auto-remove pressures older than this
+    scene_pressure_max_age: int = 15
+    # Gate for de-escalation flag on successful rolls
+    scene_pressure_deescalate_on_success: bool = True
     # Compaction: periodically compress narrative history + events
     compact_every: int = 0
     compact_temperature: float = 0.1

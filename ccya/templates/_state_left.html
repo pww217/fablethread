@@ -170,8 +170,12 @@
             {% set nm = entry.name if entry is mapping else '' %}
             {% set ttl = entry.title if entry is mapping else '' %}
             {% set bio = entry.bio if entry is mapping else '' %}
+            {% set ls = entry.last_scene if entry is mapping and entry.last_scene else None %}
             <div class="compendium-item has-tooltip">
                 <span class="compendium-line">{{ nm or nid }}{% if ttl %}<span class="compendium-title"> — {{ ttl }}</span>{% endif %}</span>
+                {% if ls %}
+                <span class="compendium-last-seen">Last seen: Turn {{ ls.turn }} · {{ ls.location_name }} — {{ ls.summary }}</span>
+                {% endif %}
                 <div class="tooltip-body" data-md>{{ bio or '—' }}</div>
             </div>
             {% endfor %}

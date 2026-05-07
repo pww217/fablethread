@@ -19,11 +19,18 @@ def _narrate_messages(
     enable_narrate_thinking: bool = False,
     pack_style: str = "",
     rules_outcome: "RulesOutcome | None" = None,
-    npc_name_pool: list[str] = [],
+    npc_name_pool: dict[str, list[str]] = {},
     last_turn_failed: list[str] = [],
     recently_left: list[dict[str, Any]] = [],
     momentum: int = 0,
     pending_gm_beat: dict[str, Any] | None = None,
+    deescalate: bool = False,
+    ages: dict[str, int] | None = None,
+    known_npcs: list[dict[str, Any]] = [],
+    present_npcs: list[dict[str, Any]] = [],
+    world_factions: list[dict[str, str]] = [],
+    world_locations: list[dict[str, str]] = [],
+    pc_allegiance: str | None = None,
 ) -> list[dict[str, str]]:
     user_ctx = {
         "state": state,
@@ -38,8 +45,19 @@ def _narrate_messages(
         "pending_gm_beat": pending_gm_beat,
         "meta": state.get("meta", {}),
         "scene": state.get("scene", {}),
+        "deescalate": deescalate,
+        "ages": ages or {},
+        "known_npcs": known_npcs,
+        "present_npcs": present_npcs,
+        "world_factions": world_factions,
+        "world_locations": world_locations,
+        "pc_allegiance": pc_allegiance,
     }
-    system_text = _render(env, "narrate_system.j2", {"pack_style": pack_style})
+    system_text = _render(env, "narrate_system.j2", {
+        "pack_style": pack_style,
+        "world_factions": world_factions,
+        "world_locations": world_locations,
+    })
     user_text = _render(env, "narrate_user.j2", user_ctx)
     msgs = [
         {"role": "system", "content": system_text},
@@ -71,7 +89,11 @@ def _known_characters_for_extract(
     for nid in out_ids:
         e = comp.get(nid) or {}
         if compact:
-            rows.append({"id": nid, "name": e.get("name") or ""})
+            row: dict[str, Any] = {"id": nid, "name": e.get("name") or ""}
+            ls = e.get("last_scene")
+            if ls:
+                row["last_scene"] = ls
+            rows.append(row)
         else:
             bio = (e.get("bio") or "").strip()
             if len(bio) > 120:

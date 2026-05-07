@@ -48,6 +48,11 @@ No dice were rolled this turn. The rules engine determined the action has no mec
 {% for row in known_characters %}- `{{ row.id }}` | {{ row.name }}{% if row.title %} — {{ row.title }}{% endif %}{% if row.bio_preview %} | {{ row.bio_preview }}{% endif %}
 {% endfor %}
 {% endif -%}
+{% for qa in quest_ages %}
+{% if qa.stalled_turns >= 3 %}
+⚠ Quest "{{ qa.title }}" stalled for {{ qa.stalled_turns }} turns. Advance it, branch it, or mark an objective failed.
+{% endif %}
+{% endfor %}
 {% if state_result.items_gained -%}
 ## items_gained
 {{ state_result.items_gained | join(', ') }}

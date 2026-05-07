@@ -163,6 +163,7 @@ class CompendiumNpcUpdate(BaseModel):
     title: str | None = None
     bio: str | None = None
     aliases: list[str] = Field(default_factory=list)
+    allegiance: str | None = None
 
 
 class NpcAdd(BaseModel):

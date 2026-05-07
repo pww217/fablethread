@@ -151,7 +151,10 @@ class TestJinjaRender:
         """Per-turn NPC name pool now lives in the user prompt (cache stability)."""
         env = self._env()
         ctx = {
-            "npc_name_pool": ["Yuki Tanaka", "Carlos Mendez", "Fatima Al-Rashid"],
+            "npc_name_pool": {
+                "male": ["Yuki Tanaka", "Carlos Mendez"],
+                "female": ["Fatima Al-Rashid", "Maria Santos"],
+            },
             "state": {
                 "pc": {"name": "Test", "tagline": "tester", "concept": ""},
                 "location": {},
@@ -169,6 +172,7 @@ class TestJinjaRender:
         }
         text = env.get_template("narrate_user.j2").render(**ctx)
         assert "Yuki Tanaka" in text
+        assert "Fatima Al-Rashid" in text
         assert "name_pool" in text
 
     def test_narrate_system_byte_stable_without_per_turn_data(self):

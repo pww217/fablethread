@@ -7,6 +7,7 @@ Owned entirely by this module. Do not import faker elsewhere.
 from __future__ import annotations
 
 import random
+import re
 from typing import Any
 
 from faker import Faker
@@ -60,3 +61,107 @@ def generate_npc_names(
     rng = random.Random(seed)
     fakers, weights = _build_weighted_fakers(locales, rng, seed)
     return [_pick(fakers, weights, rng).name() for _ in range(count)]
+
+
+def generate_npc_names_split(
+    locales: list[dict[str, Any]],
+    *,
+    male_count: int = 5,
+    female_count: int = 5,
+    seed: int | None = None,
+) -> dict[str, list[str]]:
+    """Generate NPC names split by gender for gender-aware casting."""
+    rng = random.Random(seed)
+    fakers, weights = _build_weighted_fakers(locales, rng, seed)
+    male_names = []
+    female_names = []
+    for _ in range(male_count):
+        faker = _pick(fakers, weights, rng)
+        male_names.append(faker.first_name_male() if hasattr(faker, 'first_name_male') else faker.name())
+    for _ in range(female_count):
+        faker = _pick(fakers, weights, rng)
+        female_names.append(faker.first_name_female() if hasattr(faker, 'first_name_female') else faker.name())
+    return {"male": male_names, "female": female_names}
+
+
+def _slugify(value: str) -> str:
+    """Convert a string to a URL-safe slug."""
+    value = value.lower().strip()
+    value = re.sub(r"[^a-z0-9\s-]", "", value)
+    value = re.sub(r"[\s]+", "-", value)
+    value = re.sub(r"-+", "-", value)
+    return value.strip("-")
+
+
+def generate_faction_pool(
+    seed: int | None = None,
+    count: int = 4,
+) -> list[dict[str, str]]:
+    """Generate faction names for the world.
+
+    Returns list of dicts with keys: id, name, alignment.
+    """
+    rng = random.Random(seed)
+    adjectives = [
+        "Iron", "Gilded", "Shadow", "Quiet", "Pale",
+        "Broken", "Ash", "Crimson", "Silent", "Rusted",
+    ]
+    nouns = [
+        "Hand", "Circle", "Order", "Coin", "Brand",
+        "Chain", "Compact", "Lodge", "Crown", "Veil",
+    ]
+    alignments = ["hostile", "neutral", "friendly"]
+
+    factions: list[dict[str, str]] = []
+    used: set[str] = set()
+    for _ in range(count):
+        for _ in range(100):
+            name = f"The {rng.choice(adjectives)} {rng.choice(nouns)}"
+            if name not in used:
+                used.add(name)
+                break
+        else:
+            name = f"Faction {len(factions) + 1}"
+        factions.append({
+            "id": _slugify(name),
+            "name": name,
+            "alignment": rng.choice(alignments),
+        })
+    return factions
+
+
+def generate_location_pool(
+    seed: int | None = None,
+    count: int = 5,
+) -> list[dict[str, str]]:
+    """Generate location names for the world.
+
+    Returns list of dicts with keys: id, name.
+    """
+    rng = random.Random(seed)
+    modifiers = [
+        "Copper", "Tanner's", "Miller's", "Salt", "Old",
+        "Low", "High", "Ember", "Dust", "River",
+        "Harbor", "Ash", "Iron", "Wax", "Black", "Pale",
+    ]
+    suffixes = [
+        "gate", "ward", "quarter", "row", "yard",
+        "cross", "lane", "end", "side", "docks",
+        "market", "square",
+    ]
+
+    locations: list[dict[str, str]] = []
+    used: set[str] = set()
+    for _ in range(count):
+        for _ in range(100):
+            name = f"{rng.choice(modifiers)}{rng.choice(suffixes)}"
+            if name not in used:
+                used.add(name)
+                break
+        else:
+            name = f"District {len(locations) + 1}"
+        locations.append({
+            "id": _slugify(name),
+            "name": name,
+        })
+    return locations

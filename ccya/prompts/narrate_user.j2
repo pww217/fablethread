@@ -56,24 +56,79 @@ GM DIRECTION ({{ pending_gm_beat.type | upper }}, surface as {{ pending_gm_beat.
 This is a backstage instruction, not player-visible narration. Integrate it naturally.
 
 {% endif -%}
-{% set scene_age = ((meta | default({})).turn | default(0)) - ((scene | default({})).turn_entered | default(0)) -%}
-{% if scene_age >= 6 and not state.scene.scene_pressure -%}
-SCENE AGE: This scene has been active for {{ scene_age }} turns with no location change.
-Consider advancing: a new arrival, a change in atmosphere, a time skip, or a reason for the
-player to move. Do not force it if the player's action anchors them here — but look for a
-natural opportunity to shift.
-{% elif scene_age >= 10 -%}
-SCENE AGE: {{ scene_age }} turns in this location. The scene needs to move. Something should
-change this turn: an NPC departs, conditions worsen, time pressure becomes visible.
+## Narration Directive
+
+{% if rules_outcome and rules_outcome.rolled %}
+{% if rules_outcome.band in ("crit_success", "success") %}
+RESOLUTION: The action lands. Deliver the outcome clearly — one physical, concrete consequence.
+{% if deescalate %}
+BREATHE: A pressure has resolved. Pull back. Let the scene have a moment of relief. No new hook this turn. Show the aftermath, not the next crisis.
+{% endif %}
+{% elif rules_outcome.band == "partial" %}
+COMPLICATION: Partial success. They got something; something else got worse. One new wrinkle — not a catastrophe.
+{% elif rules_outcome.band in ("fail", "crit_fail") %}
+CONSEQUENCE: The action failed. One cost. Don't pile on. If crit_fail, the cost is severe — injury, loss, exposure.
+{% endif %}
+{% else %}
+NARRATE: No roll was required. Describe what happens with appropriate weight for the moment.
+{% endif %}
+
+{% if scene_pressure and not deescalate %}
+{% set immediate_count = scene_pressure | selectattr("urgency", "equalto", "immediate") | list | length %}
+{% if immediate_count >= 3 %}
+OVERWHELM: Multiple immediate threats. Focus on the most pressing one. Don't try to address everything at once — the player can't either.
+{% elif immediate_count > 0 %}
+PRESSURE: Active immediate threat(s). Keep them present and felt.
+{% else %}
+{% set building_count = scene_pressure | selectattr("urgency", "equalto", "building") | list | length %}
+{% if building_count > 0 %}
+TENSION: Danger is building — show it in the environment and character behavior, not in explicit new threats.
+{% endif %}
+{% endif %}
+{% endif %}
+
+{% if ages and ages.get('combat_age', 0) >= 3 -%}
+COMBAT FATIGUE: This fight has run {{ ages.combat_age }} turns. Bring it to a decisive close — one side prevails, flees, or is incapacitated. Do not extend it.
+{% endif -%}
+
+{% if ages and ages.get('location_age', 0) >= 6 -%}
+LOCATION IMPERATIVE: The party has been here {{ ages.location_age }} turns. Begin steering toward a natural exit — pursuit, a new goal elsewhere, or the scene resolving into transit.
+{% elif ages and ages.get('location_age', 0) >= 4 -%}
+LOCATION HINT: {{ ages.location_age }} turns in this location. If a natural opening to move on presents itself, take it.
 {% endif -%}
 {% if last_turn_failed -%}
 ## last_turn_failed (already resolved by prior narrator; do NOT retry)
 {% for f in last_turn_failed %}- {{ f }}
 {% endfor %}
 {% endif -%}
+{% if known_npcs -%}
+## Known Characters
+Before introducing anyone new, check this list. Re-use characters when they could plausibly be present.
+{% for n in known_npcs %}- **{{ n.name }}**{% if n.last_scene %} — last seen turn {{ n.last_scene.turn }}: {{ n.last_scene.summary }}{% endif %}
+{% endfor -%}
+{% endif -%}
+{% if present_npcs -%}
+## NPCs Present in Scene
+{% for n in present_npcs %}- {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}
+{% endfor -%}
+{% endif -%}
+{% if world_factions -%}
+## Known Factions
+{% for f in world_factions %}- **{{ f.name }}** ({{ f.alignment }}){% if f.alignment == "friendly" and pc_allegiance == f.id %} — your faction{% endif %}
+{% endfor -%}
+{% endif -%}
+{% if world_locations and ages and ages.get('location_age', 0) >= 3 -%}
+## Nearby Locations (use when steering the player toward a new area)
+{% for loc in world_locations %}- {{ loc.name }}
+{% endfor -%}
+{% endif -%}
 {% if npc_name_pool -%}
 ## name_pool (use one of these when introducing a new named NPC)
-{{ npc_name_pool | join(' · ') }}
+{% if npc_name_pool.male -%}
+**Male:** {{ npc_name_pool.male | join(' · ') }}
+{% endif %}{% if npc_name_pool.female -%}
+**Female:** {{ npc_name_pool.female | join(' · ') }}
+{% endif %}
 
 {% endif -%}
 === PLAYER INPUT ===
