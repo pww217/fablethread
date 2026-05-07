@@ -173,9 +173,12 @@ def apply_delta(
         state.setdefault("scene", {})["present_npcs"] = []
         state.setdefault("scene", {})["recently_left"] = []
         state.setdefault("scene", {})["recently_left_turns"] = 0
-        state.setdefault("scene", {})["turn_entered"] = state.get("meta", {}).get("turn", 0)
+        state["scene"]["turn_entered"] = state.get("meta", {}).get("turn", 0)
+        state["scene"]["location_entered_turn"] = state.get("meta", {}).get("turn", 0)
     elif delta.location_description:
         state.setdefault("location", {})["description"] = delta.location_description
+
+    current_turn = (state.get("meta") or {}).get("turn", 0)
 
     existing_quests: dict[str, dict[str, Any]] = {
         q["id"]: q for q in state.get("quests", [])
@@ -206,6 +209,7 @@ def apply_delta(
         s = " ".join(text.lower().split())
         return s.rstrip(".!?")
 
+    touched_quest_ids: set[str] = set()
     for qu in delta.quest_updates:
         if qu.id in existing_quests:
             q = existing_quests[qu.id]
@@ -254,6 +258,7 @@ def apply_delta(
                             },
                         )
             _apply_quest_status_side_effects(q)
+            touched_quest_ids.add(qu.id)
         else:
             new_q: dict[str, Any] = {
                 "id": qu.id,
@@ -272,8 +277,12 @@ def apply_delta(
             state.setdefault("quests", []).append(new_q)
             existing_quests[qu.id] = new_q
             _apply_quest_status_side_effects(new_q)
+            touched_quest_ids.add(qu.id)
 
     for q in existing_quests.values():
+        if q.get("status") == "active":
+            if q["id"] in touched_quest_ids:
+                q["last_advanced_turn"] = current_turn
         _auto_complete_quest(q)
 
     state.setdefault("pc", {}).setdefault("conditions", [])
@@ -287,7 +296,6 @@ def apply_delta(
     remove_ids = {r.id for r in delta.pc_condition_remove}
     existing_conds = [c for c in existing_conds if c.get("id") not in remove_ids]
     existing_ids = {c.get("id") for c in existing_conds}
-    current_turn = (state.get("meta") or {}).get("turn", 0)
     for ca in delta.pc_condition_add:
         cid = ca.id
         if not cid or cid in existing_ids:
@@ -367,12 +375,18 @@ def apply_delta(
 
     if delta.scene_tags:
         state["scene"]["tags"] = delta.scene_tags
+        new_tags = set(delta.scene_tags)
+        old_tags = set(state.get("scene", {}).get("tags") or [])
+        if "combat" in new_tags and "combat" not in old_tags:
+            state["scene"]["combat_started_turn"] = state.get("meta", {}).get("turn", 0)
+        elif "combat" not in new_tags and "combat" in old_tags:
+            state["scene"].pop("combat_started_turn", None)
 
     if delta.scene_tagline is not None:
         state.setdefault("scene", {})["tagline"] = delta.scene_tagline
 
     # --- NPC scene management (delta-based: npc_add/npc_remove/npc_update) ---
-    NPC_SCENE_CAP = 6
+    NPC_SCENE_CAP = 8
     old_present: list[dict[str, Any]] = list(state.get("scene", {}).get("present_npcs") or [])
     old_present_ids: set[str] = {str(n.get("id", "")) for n in old_present if n.get("id")}
     scene = state.setdefault("scene", {})
@@ -437,11 +451,20 @@ def apply_delta(
             )
 
         for add in delta.npc_add:
+            # Check alias map before adding — prevent duplicate entries
+            add_id = add.id
+            normalized_add = normalize_inventory_id(add_id)
+            if normalized_add in alias_map and alias_map[normalized_add] != normalized_add:
+                add_id = alias_map[normalized_add]
+            if add.name:
+                name_alias = add.name.lower().strip()
+                if name_alias in alias_map and alias_map[name_alias] != name_alias:
+                    add_id = alias_map[name_alias]
             _apply_npc_to_present(
-                {"id": add.id, "notes": add.notes or "", "name": add.name, "title": add.title, "bio": add.bio},
+                {"id": add_id, "notes": add.notes or "", "name": add.name, "title": add.title, "bio": add.bio},
                 present, comp, alias_map,
             )
-            entry = comp.setdefault(add.id, {})
+            entry = comp.setdefault(add_id, {})
             if add.name is not None and str(add.name).strip():
                 entry["name"] = str(add.name).strip()
             elif "name" not in entry:
@@ -454,7 +477,7 @@ def apply_delta(
                 entry["bio"] = str(add.bio).strip()
             elif "bio" not in entry:
                 entry["bio"] = _hydrate_npc_text(add.bio, entry.get("bio"))
-            touch_compendium_order(state, add.id)
+            touch_compendium_order(state, add_id)
 
         named_npcs = [p for p in present if p.get("id") != "ambient_crowd"]
         ambient_npcs = [p for p in present if p.get("id") == "ambient_crowd"]
@@ -467,6 +490,29 @@ def apply_delta(
 
         scene["present_npcs"] = present
         new_present_ids = {str(p.get("id", "")) for p in present if p.get("id")}
+    else:
+        # No NPC deltas — populate present_npcs from compendium if empty
+        if not old_present:
+            alias_map = build_npc_alias_map(comp)
+            fallback_present: list[dict[str, Any]] = []
+            for nid, entry in comp.items():
+                name = (entry.get("name") or "").strip()
+                if not name:
+                    continue
+                fallback_present.append({
+                    "id": nid,
+                    "name": name,
+                    "title": (entry.get("title") or "").strip(),
+                    "notes": "",
+                    "bio": (entry.get("bio") or "").strip(),
+                })
+            if fallback_present:
+                scene["present_npcs"] = fallback_present[:NPC_SCENE_CAP]
+                new_present_ids = {str(p.get("id", "")) for p in scene["present_npcs"] if p.get("id")}
+            else:
+                new_present_ids = set()
+        else:
+            new_present_ids = old_present_ids
 
     left_ids = old_present_ids - new_present_ids
     if left_ids:
@@ -511,6 +557,8 @@ def apply_delta(
                 if a.lower() not in {x.lower() for x in existing_aliases}:
                     existing_aliases.add(a.lower())
             entry["aliases"] = list(existing_aliases)
+        if u.allegiance is not None:
+            entry["allegiance"] = u.allegiance
         touch_compendium_order(state, resolved_id)
 
     return state, recent_events_evicted

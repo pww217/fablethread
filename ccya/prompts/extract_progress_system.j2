@@ -43,7 +43,7 @@ If a character is named or re-identified this turn (e.g. you learn the scarred s
 - A quest is failed when the key objective(s) are failed, or are impossible to complete due to new information or changes in the player, recent_events, narration.
 - A quest is abandoned when the player/narration implies they are giving up on it, gets too far away to continue, or the quest is no longer relevant to the player's current goals due to new developments or information.
 
-`recent_events_add`: Default to no new facts. Never restate facts that overlap or exist already in recent_events or world_state. Top priority for new facts: must be relevant to the quest, player, scene, and location, and not already known.  It must be narratively significant: an obstacle, revelation, opportunity, relevant news of politics, intrigue, or other event that changes the player, location, or quest state substantially. 
+`recent_events_add`: Default to no new facts. Never restate facts that overlap or exist already in recent_events or world_state. Top priority for new facts: must be relevant to the quest, player, scene, and location, and not already known. It must be narratively significant: an obstacle, revelation, opportunity, relevant news of politics, intrigue, or other event that changes the player, location, or quest state substantially.
  Avoid facts about NPCs unless relevant to the player or quest. NPCs bios/notes will be updated separately. Examples:"We learn of a new plot to overthrow the emperor", "We learned another faction amassing troops on the border", "The enemy has quietly flanked the party to the West", "The quest is now impossible to complete". If a new detail updates an existing fact, use `recent_events_update` instead. Each: `{"id": "snake_case_id", "text": "Event description", "turn": 0}`.
 
 Each new event must have a stable `snake_case` ID (e.g. `"guard_left_room"`, `"player_found_key"`). To update an existing event's text, emit it under `recent_events_update` using its existing ID. To remove an event, emit its ID in `recent_events_remove`. Never emit a new event with the same ID as an existing one.
@@ -54,11 +54,17 @@ Each new event must have a stable `snake_case` ID (e.g. `"guard_left_room"`, `"p
 
 `compendium_npc_update`: NPC records to create or update based on genuinely new durable info (allegiance changed, died, new name learned, relationship revealed). Each: `{"id": "npc_id", "name": "optional", "title": "optional", "bio": "updated 1-3 sentence durable identity"}`. Don't re-emit NPCs whose info didn't change.
 
+If the narration describes an NPC as killed, mortally wounded, captured, or permanently removed: emit `compendium_npc_update` with `bio` recording their fate in one sentence. The engine will stamp `last_scene`. Do not omit this update — dead NPCs must be recorded.
+
 `scene_pressure_add`: Add a `scene_pressure` entry when the narration introduces a time-sensitive threat, pursuit, hazard, or countdown. Set `urgency` based on immediacy: "immediate" if it must be addressed this turn, "building" if it escalates over 2-4 turns, "background" for ambient threat. Set `max_turns` to an explicit fiction-grounded expiry if the narration implies a hard deadline. Do NOT add lore or permanent world facts to `scene_pressure`; those go in `world_state`. Each: `{"id": "snake_case_id", "text": "Threat description", "urgency": "immediate|building|background", "turn_added": 0, "max_turns": null}`.
 
 `scene_pressure_remove`: IDs of pressures now resolved — the fire is out, the guards were evaded, the bomb was defused.
 
 `scene_pressure_update`: Changes to existing pressure text or urgency. Each: `{"id": "existing_pressure_id", "text": "updated text", "urgency": "immediate|building|background"}`.
+
+## De-escalation
+
+When `deescalate` is true: do NOT emit `scene_pressure_add`. Emit `scene_pressure_update` to downgrade urgency (`immediate → building`, `building → background`). If fully resolved, emit `scene_pressure_remove`. Pair with a `breathing_room` GM beat.
 
 ## Rules-outcome guidance (for objective resolution)
 - crit_fail / fail / setback / partial: do NOT mark quest objectives done for the attempted action.
@@ -73,7 +79,8 @@ Sections not shown in the user prompt still exist in the live game state — abs
 After extracting this turn's changes, decide whether to emit a forward-facing story beat for the NEXT turn.
 
 Emit `null` if:
-- The current scene already has active `scene_pressure` entries (don't pile on)
+- There are 3+ active `scene_pressure` entries (don't pile on)
+- `deescalate` is true (use `breathing_room` GM beat instead)
 - The player is in a critical resolution moment (final quest objective in reach)
 - Nothing meaningful has changed in faction, NPC, or quest state to react to
 
@@ -89,6 +96,8 @@ Beat instruction rules:
 - GOOD: "A contact the player trusted has been seen meeting with the opposing faction at the dockside inn."
 - BAD: "Give the player a break."
 - GOOD: "The player spots a satchel left behind by a fleeing guard — it contains a vial and a partial map."
+
+When emitting a `complication` or `pressure` beat, you may reference factions from the Known Factions list. Example: "The Iron Compact has been seen recruiting in the docks."
 
 `surface_as` guidance:
 - `ambient`: low-stakes background texture. Used for `breathing_room` and most `revelation` beats.

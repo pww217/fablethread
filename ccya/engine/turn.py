@@ -18,9 +18,9 @@ from ccya.engine.extraction import (
     _avg_narrate_ms,
     _run_extraction_pipeline,
 )
-from ccya.engine.names import generate_npc_names
-from ccya.engine.narrate import _narrate_messages
-from ccya.engine.pressure import _expire_scene_pressures
+from ccya.engine.names import generate_npc_names_split
+from ccya.engine.narrate import _known_characters_for_extract, _narrate_messages
+from ccya.engine.pressure import _expire_scene_pressures, _purge_scene_pressures
 from ccya.engine.rules import _avg_rules_ms, _call_rules, _log_rules_outcome, _rules_messages
 from ccya.llm_client import (
     chat as llm_chat,
@@ -52,6 +52,47 @@ from ccya.state import (
 )
 
 _log = logging.getLogger("ccya.engine")
+
+
+def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
+    """Compute age/staleness counters for narration directives."""
+    meta = state.get("meta") or {}
+    scene = state.get("scene") or {}
+    current_turn = meta.get("turn", 0)
+
+    scene_entered = scene.get("turn_entered", 0)
+    scene_age = current_turn - scene_entered if scene_entered > 0 else 0
+
+    loc_entered = scene.get("location_entered_turn", 0)
+    location_age = current_turn - loc_entered if loc_entered > 0 else 0
+
+    tags = scene.get("tags") or []
+    combat_entered = scene.get("combat_started_turn", 0)
+    # combat_started_turn is set during apply_delta (post-narrate), so this
+    # reads the pre-delta value. combat_age will be 0 on the turn combat
+    # starts; COMBAT FATIGUE fires one turn late (acceptable — minor).
+    combat_age = current_turn - combat_entered if ("combat" in tags and combat_entered > 0) else 0
+
+    return {
+        "scene_age": scene_age,
+        "location_age": location_age,
+        "combat_age": combat_age,
+    }
+
+
+def _compute_quest_ages(state: dict[str, Any], current_turn: int) -> list[dict[str, Any]]:
+    result = []
+    for q in (state.get("quests") or []):
+        if q.get("status") != "active":
+            continue
+        last_advanced = q.get("last_advanced_turn", 0)
+        stalled = current_turn - last_advanced if last_advanced > 0 else 0
+        result.append({
+            "id": q["id"],
+            "title": q.get("title", ""),
+            "stalled_turns": stalled,
+        })
+    return result
 
 
 async def run_turn(
@@ -162,6 +203,23 @@ async def run_turn(
         if outcome.rolled:
             apply_momentum(state, outcome.band)
 
+        # De-escalation flag: success on a scene with active pressure
+        deescalate = False
+        if config and config.scene_pressure_deescalate_on_success:
+            deescalate = (
+                outcome.rolled
+                and outcome.band in ("success", "crit_success")
+                and any(
+                    p.get("urgency") in ("immediate", "building")
+                    for p in (state.get("scene") or {}).get("scene_pressure") or []
+                )
+            )
+
+        # Age counters for narration directives
+        ages = _compute_ages(state)
+        turn_no = state.get("meta", {}).get("turn", 0) + 1
+        quest_ages = _compute_quest_ages(state, turn_no)
+
         if config.log_prompts:
             _log_rules_outcome(
                 state.get("meta", {}).get("turn", 0) + 1, intent, outcome
@@ -198,17 +256,30 @@ async def run_turn(
         exp_narrate_ms = _avg_narrate_ms(save_dir)
         yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
 
-        # Rolling NPC name pool for mid-game cultural anchoring
-        _npc_name_pool: list[str] = []
+        # Rolling NPC name pool for mid-game cultural anchoring (split by gender)
+        _npc_name_pool: dict[str, list[str]] = {}
         if pack_name_locales:
-            _npc_name_pool = generate_npc_names(
+            _npc_name_pool = generate_npc_names_split(
                 pack_name_locales,
-                count=10,
+                male_count=5,
+                female_count=5,
                 seed=state.get("meta", {}).get("turn", 0),
             )
 
         # Read pending_gm_beat from previous turn's progress extraction
         _pending_gm_beat = (state.get("meta") or {}).get("pending_gm_beat")
+
+        # Known NPCs for narrator context (Phase 4A)
+        _known_npcs = _known_characters_for_extract(state, compact=True)
+
+        # Present NPCs from delta-maintained state (Phase 4H)
+        _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
+
+        # Phase 5: world context
+        _world = state.get("world") or {}
+        _world_factions = list(_world.get("factions") or [])
+        _world_locations = list(_world.get("locations") or [])
+        _pc_allegiance = (state.get("pc") or {}).get("allegiance")
 
         narr_messages = _narrate_messages(
             env,
@@ -224,6 +295,13 @@ async def run_turn(
             recently_left=(state.get("scene") or {}).get("recently_left", []),
             momentum=(state.get("pc") or {}).get("momentum", 0),
             pending_gm_beat=_pending_gm_beat,
+            deescalate=deescalate,
+            ages=ages,
+            known_npcs=_known_npcs,
+            present_npcs=_present_npcs,
+            world_factions=_world_factions,
+            world_locations=_world_locations,
+            pc_allegiance=_pc_allegiance,
         )
         narr_messages = trim_messages(narr_messages, config.prompt_token_budget)
         if config.log_prompts:
@@ -278,8 +356,6 @@ async def run_turn(
         # Clear pending_gm_beat after narration consumed it
         state.setdefault("meta", {})["pending_gm_beat"] = None
 
-        turn_no = state.get("meta", {}).get("turn", 0) + 1
-
         # === Extraction pipeline (3 streams) ===
         exp_ms = _avg_extract_ms(save_dir)
         yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
@@ -301,6 +377,8 @@ async def run_turn(
                     trace_id=trace_id,
                     turn_no=turn_no,
                     pack_examples=pack_examples,
+                    deescalate=deescalate,
+                    quest_ages=quest_ages,
                 )
             )
             # Store gm_beat for next turn's narration
@@ -318,8 +396,24 @@ async def run_turn(
 
         yield ("phase", {"phase": "extract_done"})
 
-        # --- Scene pressure: expiry + urgency escalation ---
+        # --- Scene pressure: purge stale pressures, then expire/escalate ---
         if delta is not None:
+            location_changed = bool(delta.location_change)
+            # Combat ended: combat was in last turn's tags but not in current
+            combat_ended = False
+            if not location_changed and delta.scene_tags is not None:
+                current_tags = set(delta.scene_tags)
+                prev_events = load_recent_events(save_dir, 1)
+                if prev_events:
+                    prev_tags = set(prev_events[0].get("scene_tags") or [])
+                    if "combat" in prev_tags and "combat" not in current_tags:
+                        combat_ended = True
+            _purge_scene_pressures(
+                state, delta,
+                location_changed=location_changed,
+                combat_ended=combat_ended,
+                config=config,
+            )
             _expire_scene_pressures(state, delta, config)
 
         ext_ms = (asyncio.get_event_loop().time() - t2) * 1000
@@ -388,6 +482,25 @@ async def run_turn(
                             r.get("reason"),
                             extra={"trace_id": trace_id},
                         )
+
+                # Stamp last_scene on touched NPCs (Phase 4C)
+                comp = state.get("compendium", {}).get("npcs", {})
+                location = state.get("location", {})
+                outcome_summary_text = outcome_summary or ""
+                touched_ids: set[str] = set()
+                for na in (delta.npc_add or []):
+                    touched_ids.add(na.id)
+                for nu in (delta.npc_update or []):
+                    touched_ids.add(nu.id)
+                for cu in (delta.compendium_npc_update or []):
+                    touched_ids.add(cu.id)
+                for nid in touched_ids:
+                    comp.setdefault(nid, {})["last_scene"] = {
+                        "turn": turn_no,
+                        "location_id": location.get("id", ""),
+                        "location_name": location.get("name", ""),
+                        "summary": outcome_summary_text,
+                    }
 
         # Decay recently_left counter (engine-side, not in state.py).
         scene = state.get("scene", {})
@@ -620,15 +733,30 @@ async def run_turn_retry(
         exp_narrate_ms = _avg_narrate_ms(save_dir)
         yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
 
-        _npc_name_pool: list[str] = []
+        _npc_name_pool: dict[str, list[str]] = {}
         if pack_name_locales:
-            _npc_name_pool = generate_npc_names(
+            _npc_name_pool = generate_npc_names_split(
                 pack_name_locales,
-                count=10,
+                male_count=5,
+                female_count=5,
                 seed=state.get("meta", {}).get("turn", 0),
             )
 
         _pending_gm_beat = (state.get("meta") or {}).get("pending_gm_beat")
+
+        ages = _compute_ages(state)
+
+        # Known NPCs for narrator context (Phase 4A)
+        _known_npcs = _known_characters_for_extract(state, compact=True)
+
+        # Present NPCs from delta-maintained state (Phase 4H)
+        _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
+
+        # Phase 5: world context
+        _world = state.get("world") or {}
+        _world_factions = list(_world.get("factions") or [])
+        _world_locations = list(_world.get("locations") or [])
+        _pc_allegiance = (state.get("pc") or {}).get("allegiance")
 
         narr_messages = _narrate_messages(
             env,
@@ -644,6 +772,16 @@ async def run_turn_retry(
             recently_left=(state.get("scene") or {}).get("recently_left", []),
             momentum=(state.get("pc") or {}).get("momentum", 0),
             pending_gm_beat=_pending_gm_beat,
+            # Retry: skip deescalation/quest-age awareness since the rules
+            # outcome is already fixed — re-rolling narration shouldn't
+            # change the pacing directive.
+            deescalate=False,
+            ages=ages,
+            known_npcs=_known_npcs,
+            present_npcs=_present_npcs,
+            world_factions=_world_factions,
+            world_locations=_world_locations,
+            pc_allegiance=_pc_allegiance,
         )
         narr_messages = trim_messages(narr_messages, config.prompt_token_budget)
         if config.log_prompts:
@@ -720,6 +858,8 @@ async def run_turn_retry(
                     trace_id=trace_id,
                     turn_no=turn_no,
                     pack_examples=pack_examples,
+                    deescalate=False,
+                    quest_ages=[],
                 )
             )
             if progress_result and progress_result.gm_beat and progress_result.gm_beat.type:
@@ -737,6 +877,21 @@ async def run_turn_retry(
         yield ("phase", {"phase": "extract_done"})
 
         if delta is not None:
+            location_changed = bool(delta.location_change)
+            combat_ended = False
+            if not location_changed and delta.scene_tags is not None:
+                current_tags = set(delta.scene_tags)
+                prev_events = load_recent_events(save_dir, 1)
+                if prev_events:
+                    prev_tags = set(prev_events[0].get("scene_tags") or [])
+                    if "combat" in prev_tags and "combat" not in current_tags:
+                        combat_ended = True
+            _purge_scene_pressures(
+                state, delta,
+                location_changed=location_changed,
+                combat_ended=combat_ended,
+                config=config,
+            )
             _expire_scene_pressures(state, delta, config)
 
         ext_ms = (asyncio.get_event_loop().time() - t2) * 1000
@@ -803,6 +958,25 @@ async def run_turn_retry(
                             r.get("reason"),
                             extra={"trace_id": trace_id},
                         )
+
+                # Stamp last_scene on touched NPCs (Phase 4C)
+                comp = state.get("compendium", {}).get("npcs", {})
+                location = state.get("location", {})
+                outcome_summary_text = outcome_summary or ""
+                touched_ids: set[str] = set()
+                for na in (delta.npc_add or []):
+                    touched_ids.add(na.id)
+                for nu in (delta.npc_update or []):
+                    touched_ids.add(nu.id)
+                for cu in (delta.compendium_npc_update or []):
+                    touched_ids.add(cu.id)
+                for nid in touched_ids:
+                    comp.setdefault(nid, {})["last_scene"] = {
+                        "turn": turn_no,
+                        "location_id": location.get("id", ""),
+                        "location_name": location.get("name", ""),
+                        "summary": outcome_summary_text,
+                    }
 
         scene = state.get("scene", {})
         turns = scene.get("recently_left_turns", 0)

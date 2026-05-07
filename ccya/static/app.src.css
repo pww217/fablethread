@@ -1097,6 +1097,13 @@ body {
   font-weight: 400;
   color: var(--text-muted);
 }
+.compendium-last-seen {
+  display: block;
+  font-size: 0.75em;
+  color: var(--muted);
+  margin-top: 2px;
+  font-style: italic;
+}
 
 .quest-card-body[data-tab="active"] .quest-list-resolved { display: none; }
 .quest-card-body[data-tab="resolved"] .quest-list-active { display: none; }

@@ -205,7 +205,7 @@ PROMPT_CEILINGS_CHARS = {
     "scene.user": 14_000,
     "state.system": 8_000,
     "state.user": 14_000,
-    "progress.system": 8_000,
+    "progress.system": 8_500,
     "progress.user": 14_000,
 }
 
@@ -286,6 +286,7 @@ class TestTokenBudgetCeilings:
             scene_result=scene_result,
             state_result=state_result,
             rules_outcome=RulesOutcome(rolled=False),
+            deescalate=False,
         )
         self._check(msgs, "progress.system", "progress.user")
 

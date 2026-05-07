@@ -18,6 +18,7 @@ from ccya.engine import (
     run_turn,
     run_turn_retry,
 )
+from ccya.engine.names import generate_faction_pool, generate_location_pool
 from ccya.models import IntentEnvelope, RulesOutcome
 from ccya.pack import PlayerOverrides, load_pack, list_packs
 from ccya.state import (
@@ -321,6 +322,12 @@ async def new_game(request: Request):
             seed = envelope.seed_state.model_dump()
             seed.setdefault("meta", {})["model"] = _app_mod.config["llm"]["model"]
             seed["meta"]["setting_pack"] = _app_mod._pack_id
+            # Phase 5: seed world factions and locations
+            meta = seed.setdefault("meta", {})
+            faction_seed = meta.pop("faction_pool_seed", None)
+            location_seed = meta.pop("location_pool_seed", None)
+            seed.setdefault("world", {})["factions"] = generate_faction_pool(faction_seed)
+            seed.setdefault("world", {})["locations"] = generate_location_pool(location_seed)
             init_save_dir(_app_mod.SAVE_DIR, seed)
             _app_mod._dynamic_opening = envelope.opening_narrative
             _app_mod._dynamic_opening_actions = envelope.actions
@@ -349,6 +356,12 @@ async def new_game_reroll(request: Request):
         seed = envelope.seed_state.model_dump()
         seed.setdefault("meta", {})["model"] = _app_mod.config["llm"]["model"]
         seed["meta"]["setting_pack"] = _app_mod._pack_id
+        # Phase 5: seed world factions and locations
+        meta = seed.setdefault("meta", {})
+        faction_seed = meta.pop("faction_pool_seed", None)
+        location_seed = meta.pop("location_pool_seed", None)
+        seed.setdefault("world", {})["factions"] = generate_faction_pool(faction_seed)
+        seed.setdefault("world", {})["locations"] = generate_location_pool(location_seed)
         init_save_dir(_app_mod.SAVE_DIR, seed)
         _app_mod._dynamic_opening = envelope.opening_narrative
         _app_mod._dynamic_opening_actions = envelope.actions

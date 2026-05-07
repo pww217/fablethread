@@ -20,7 +20,7 @@ inference:
 judge:
   enabled: true
   # null = use the engine's model (config.yaml -> llm.model).
-  model: null
+  model: mlx-community/Qwen3.6-27B-4bit # Smarter than game model
   rubric_path: evals/rubrics/default.md
   temperature: 0.3
   # Truncate the trace passed to the judge if it exceeds this many characters.

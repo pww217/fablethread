@@ -83,6 +83,7 @@ def _extract_scene_messages(
     known_characters = _known_characters_for_extract(state, compact=True)
     active = _active_domains(intent)
     npc_roster = _scene_npc_roster(known_characters)
+    present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
 
     system_text = _render(env, "extract_scene_system.j2", {})
     user_text = _render(
@@ -94,6 +95,7 @@ def _extract_scene_messages(
             "location": location,
             "conditions": conditions,
             "npc_roster": npc_roster,
+            "present_npcs": present_npcs,
             "rules_outcome": rules_outcome,
             "active_domains": active,
         },
@@ -199,6 +201,8 @@ def _extract_progress_messages(
     rules_outcome: "RulesOutcome | None" = None,
     intent: "IntentEnvelope | None" = None,
     enable_thinking: bool = False,
+    deescalate: bool = False,
+    quest_ages: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 3 (quests + facts + compendium)."""
     pc = state.get("pc") or {}
@@ -237,6 +241,8 @@ def _extract_progress_messages(
             "rules_outcome": rules_outcome,
             "active_domains": active,
             "quest_threshold_directive": _quest_threshold_directive(active_quests),
+            "deescalate": deescalate,
+            "quest_ages": quest_ages or [],
         },
     )
     msgs = [
@@ -330,6 +336,8 @@ async def _run_extraction_pipeline(
     trace_id: str,
     turn_no: int,
     pack_examples: list["ExtractExample"] | None = None,
+    deescalate: bool = False,
+    quest_ages: list[dict[str, Any]] | None = None,
 ) -> tuple["StateDelta", list[str], str, list[str], dict[str, Any], "ProgressExtractResult"]:
     """Run the three extraction streams in sequence.
 
@@ -439,6 +447,8 @@ async def _run_extraction_pipeline(
             state_result=state_result,
             rules_outcome=rules_outcome, intent=intent,
             enable_thinking=config.enable_extract_thinking,
+            deescalate=deescalate,
+            quest_ages=quest_ages,
         )
         progress_msgs = trim_messages(progress_msgs, config.prompt_token_budget)
         if config.log_prompts:

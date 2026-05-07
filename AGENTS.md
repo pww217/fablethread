@@ -9,7 +9,7 @@ This file is your **signpost**. It tells you what to do and where to find detail
 2. **`docs/REPOMAP/`** — where code lives, what each file does, function signatures
 3. **`docs/plans/TODO.md`** — what needs to be done, what's done, what's deferred
 4. **`docs/plans/`** — detailed plan docs for each feature
-5. **`docs/ROADMAP.md`** — priority ordering and exit criteria
+5. **`docs/plans/ROADMAP.md`** — priority ordering and exit criteria
 6. **The codebase itself** — the source of truth
 
 When working on a task:
@@ -118,7 +118,7 @@ If you find logic in the wrong layer, move it rather than pile on.
 
 ## Plan & TODO/Roadmap lifecycle
 
-- Directories are `docs/plans/` and `docs/ROADMAP.md`.
+- Directories are `docs/plans/` and `docs/plans/ROADMAP.md`.
 - Move completed `docs/plans/` to `docs/plans/completed/`.
 - Update `docs/plans/TODO.md` when starting work: mark items `[x]` or note status.
 - Abandoned items get struck through or moved to a `## Abandoned` section with one-line reason.
