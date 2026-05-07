@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -34,6 +35,8 @@ from ccya.eval.runner import (
     run_scenario,
 )
 from ccya.eval.scenario import discover_scenarios, load_scenario
+
+_log = logging.getLogger("ccya.eval")
 
 
 def _resolve_packs_dir(arg: str | None) -> Path:
@@ -58,6 +61,12 @@ def _resolve_scenario_path(arg: str | None) -> Path:
 
 async def _cmd_run(args: argparse.Namespace) -> int:
     eval_cfg = load_eval_config()
+    log_level = eval_cfg.logging.level
+    if log_level != "WARNING":
+        logging.basicConfig(
+            level=getattr(logging, log_level, logging.WARNING),
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        )
     if args.temp is not None:
         eval_cfg = replace(eval_cfg, inference=InferenceConfig(
             temperature_override=float(args.temp),
@@ -81,11 +90,15 @@ async def _cmd_run(args: argparse.Namespace) -> int:
     for line in cfg_lines:
         print(line, file=sys.stderr)
 
+    _log.debug("scenario=%s pack=%s turns=%d", scenario.id, scenario.pack, num_turns)
+    _log.debug("judge_model=%s rubric=%s", eval_cfg.judge.model or "(engine default)", eval_cfg.judge.rubric_path)
+
     rr: RunResult = await run_scenario(
         scenario,
         eval_cfg=eval_cfg,
         packs_dir=_resolve_packs_dir(args.packs_dir),
     )
+    _log.debug("runner done: turns=%d errors=%d output_dir=%s", len(rr.turns), rr.total_errors, rr.output_dir)
     print(f"[eval] runner done: {len(rr.turns)} turns (of {num_turns}), {rr.total_errors} errors → {rr.output_dir}", file=sys.stderr)
 
     judge_result = None
@@ -102,6 +115,7 @@ async def _cmd_run(args: argparse.Namespace) -> int:
             eval_cfg=eval_cfg,
             previous_report_path=prev_report,
         )
+        _log.debug("judge overall_score=%d findings=%d prev_overall=%s", judge_result.overall_score, len(judge_result.findings), judge_result.previous_overall)
         print(f"[eval] judge overall_score={judge_result.overall_score}", file=sys.stderr)
 
     report_path = generate_report(rr, eval_cfg=eval_cfg, judge_result=judge_result)
@@ -112,6 +126,12 @@ async def _cmd_run(args: argparse.Namespace) -> int:
 
 async def _cmd_judge_only(args: argparse.Namespace) -> int:
     eval_cfg = load_eval_config()
+    log_level = eval_cfg.logging.level
+    if log_level != "WARNING":
+        logging.basicConfig(
+            level=getattr(logging, log_level, logging.WARNING),
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        )
     run_dir = Path(args.run_dir).resolve()
     if not run_dir.is_dir():
         print(f"[eval] not a directory: {run_dir}", file=sys.stderr)
@@ -153,6 +173,7 @@ def _cmd_pack(args: argparse.Namespace) -> int:
         "num_turns",
     ):
         print(f"  {k}: {getattr(cfg, k)}")
+    print(f"  logging.level: {cfg.logging.level}")
     print(f"  inference.temperature_override: {cfg.inference.temperature_override}")
     print(f"  inference.cache: {cfg.inference.cache}")
     print(f"  judge.enabled: {cfg.judge.enabled}")

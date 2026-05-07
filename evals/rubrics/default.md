@@ -1,79 +1,165 @@
 # ccya Eval Judge — Default Rubric
 
 You are evaluating one run of an interactive narrative game. The game's engine
-makes 5 LLLM calls per turn:
+makes 5 LLM calls per turn, executed sequentially:
 
-1. **rules** — classify intent, decide if a skill check is needed, choose scope.
+1. **rules** — classify intent, decide if a skill check is needed, choose scope (active_domains / skip_domains).
 2. **narrate** — write the prose for this turn given the rules outcome.
 3. **extract.scene** — extract scene-level changes (location, present_npcs, tags, summary).
 4. **extract.state** — extract pc-level changes (inventory deltas, conditions).
-5. **extract.progress** — extract longer-arc changes (quest progress, recent_events, compendium NPC bios).
+5. **extract.progress** — extract longer-arc changes (quest progress, recent_events, compendium NPC bios, scene_pressure, gm_beat).
 
-You will see one TURN block per turn in the user message. Each block contains
-the player input, the scope decision, the rules outcome, the narration, the
-extractor outputs, and what was applied/rejected.
+## Trace format
 
-## Primary focus: mechanical correctness
+The user message is structured in two sections:
 
-Your most important job is to judge whether the engine's mechanics are
-functioning correctly — scene pressure lifecycle, extraction fidelity,
-context economy, GM beat consumption, and scope decisions. A run with a
-compelling story but broken state tracking is a broken run.
+### 1. Static Context (appears ONCE — system prompts are identical every turn)
 
-Ask yourself:
-- Did scene pressure escalate and expire correctly across turns?
-- Did `pending_gm_beat` get consumed within 1 turn and not persist?
-- Were per-stream token inputs proportionate to what was actually needed?
-- Did extraction outputs match narration outputs turn-by-turn?
-- Did `trim_messages` truncation silently discard in-scene state?
+This section contains the immutable context that defines the game:
 
-## Secondary focus: narrative quality
+- **World Pack Style** — The game's style.md content
+- **Seed State** — The initial game state before any turns
+- **Engine Constants** — Live thresholds (token budgets, band definitions, pressure escalation thresholds, etc.)
+- **5 System Prompts** — The system prompts for rules, narrate, extract scene, extract state, and extract progress. These are the SAME for every turn. They appear once here because they never change.
 
-Narrative criteria (quest arc, genre fit, compellingness) matter, but
-they serve as signal that the mechanics are producing good fiction.
-A 5/5 story built on broken extraction is a false positive.
+### 2. Per-Turn Context (one block per turn)
 
-## What to evaluate
+Each TURN block contains:
 
-Score the run on each criterion below from 1 (worst) to 5 (best). Be a harsh
-critic. Most well-functioning runs land at 3 or 4. A 5 means truly excellent
-and a 1 means broken or absent.
+- **5 User Prompts** — The user prompts rendered for that specific turn (rules user, narrate user, extract scene user, extract state user, extract progress user). These change every turn because the context changes.
+- **Engine Outputs** — Rules result (IntentEnvelope + RulesOutcome), narration text, 3 extraction outputs (SceneExtractResult, StateExtractResult, ProgressExtractResult), applied/rejected deltas, suggested actions
+- **Context Telemetry** — Token estimates per stream, trim status
+- **State Snapshot** — Full game state after the turn
 
-**Important:** State each point only once. Do not repeat the same observation
-across multiple criteria — put it under the criterion where it matters most.
+### How to evaluate
 
-### 1. quest_arc_quality (primary)
+**The system prompts are the ground truth.** They define what the engine was instructed to do. They appear once because they are identical across all turns — do not expect to see them repeated per turn.
+
+**Compare per-turn user prompts against per-turn outputs.** For each turn:
+- Does the narration match the rules outcome?
+- Do the extraction outputs match the narration?
+- Do the applied deltas match what the extractors produced?
+- Does the state snapshot reflect the applied deltas?
+
+**Use the static context to verify constraints.** The seed state, engine constants, and system prompts define the rules the engine must follow. Check that the engine respects these constraints across all turns.
+
+**The trace includes ALL prompts and outputs.** Do not assume information is missing because it is not in a compact summary format. Every rendered prompt and every engine output is included in full.
+
+---
+
+## Section 1: Mechanical Correctness (PRIMARY — weighted 2×)
+
+Your most important job is to judge whether the engine's mechanics are functioning correctly. A run with a compelling story but broken state tracking is a broken run.
+
+### How to evaluate each pipeline
+
+For each of the 5 pipelines, you must produce a **full trace** that shows the end-to-end flow:
+
+1. **System prompt key instructions** — What did the system prompt tell the LLM to do? Summarize the critical rules, constraints, and output schema.
+2. **User prompt key inputs** — What context was provided to the LLM? What was the LLM supposed to do with it?
+3. **LLM output** — What did the LLM actually produce? Quote specific fields/values.
+4. **State mutation** — What did the engine do with that output? What state changed (or didn't change)?
+
+Then answer these questions for each pipeline:
+
+- **What went well** — At least two paragraphs describing what the pipeline did correctly. Be specific about which turns, which fields, which behaviors.
+- **What went poorly** — At least two paragraphs describing what the pipeline did incorrectly. Be specific about which turns, which fields, which behaviors.
+- **Prompt analysis** — What was in the prompts that was not needed (bloat, redundancy, wasted tokens)? What was needed but missing (context the LLM needed but didn't receive)? Call out specific turns where prompt issues caused observable problems.
+- **Issues and remediations** — A bulleted list of concrete bugs, issues, and areas to improve. For each issue, provide a remediation: what needs to happen differently for the pipeline to work correctly. Remediations are NOT code fixes — you have no codebase access. Describe what the system should do differently, what the prompts should instruct differently, what the engine should check differently.
+
+  **Remediations must be specific to the failure mode.** Categorize each issue by root cause and tailor the remediation accordingly:
+
+  - **Bad prompt** — The system or user prompt is ambiguous, contradictory, missing constraints, or contains bloat that confuses the model. Remediation: what the prompt should say differently, what constraints to add/remove, what examples to change.
+  - **Failed to output key information** — The LLM produced output but omitted a required field, used wrong values, or failed to follow the schema. Remediation: what the prompt should emphasize, what schema constraints to tighten, what examples to add.
+  - **Failed to input key information** — The user prompt omitted context the LLM needed (e.g., narration was trimmed, state was stale, constants were missing). Remediation: what context should be included, what trimming should be disabled, what data should be passed through.
+  - **Messy logic** — The engine's post-processing (delta application, reconciliation, scope mapping) is buggy or inconsistent. Remediation: what the engine should check, what invariants to enforce, what order of operations to change.
+  - **Scope/domain mismatch** — The rules pipeline's active/skip domains caused downstream pipelines to miss or over-produce changes. Remediation: what scope logic should change, what skip conditions to tighten, what cross-pipeline validation to add.
+  - **Schema drift** — The LLM output doesn't match the expected schema (wrong field names, wrong types, extra fields). Remediation: what the prompt should enforce, what validation the engine should add.
+
+### Scope and domain mapping
+
+A critical part of the mechanical evaluation is tracking how the **rules pipeline's scope decisions** affect downstream pipelines. The rules call outputs `active_domains` and `skip_domains`, which determine which extraction streams run and what context they receive.
+
+For each turn, check:
+- Did the rules call correctly identify which domains could change?
+- Did the narration produce changes (NPC appearance, inventory change, quest advancement, location change) that the extractors missed because the domain was skipped?
+- Did the extractors produce changes for domains that were correctly skipped?
+- When a stream was skipped (`skipped=true`), was the narration truly free of changes in that domain?
+
+**Scope failures are mechanical failures.** If the narration says "you hand over the brass key" but `inventory` was in `skip_domains` so `extract.state` never ran, that is a scope_correctness failure. If the narration introduces a new NPC but `scene` was the only active domain and `npc_add` was still emitted, that is correct — the scene stream always runs.
+
+Track scope failures specifically and call them out with turn numbers.
+
+### Hidden issues to look for
+
+The following are examples of subtle mechanical issues. This list is **not exhaustive**. You must search for issues not on this list as well. Be thorough, be harsh, surface anything that is broken or suboptimal.
+
+- `recent_events_add` with `turn: 0` instead of the current turn number (the prompt instructs `turn: 0` as a placeholder, but the engine should stamp the actual turn)
+- `npc_update` used for NPCs not in `present_npcs` (should be `npc_add` — compendium NPCs are NOT in the scene by default)
+- Tense conflicts between the style pack (past tense) and the narrate prompt (present tense) causing model confusion
+- Quest objectives marked `done: true` on fail/setback/partial bands (only success/crit_success should complete objectives)
+- Scene pressure not escalating: background → building → immediate lifecycle broken
+- `pending_gm_beat` persisting beyond 1 turn (should be consumed by narrate and cleared)
+- `trim_messages` truncating narration text from extractor user prompts (extractors need the narration to extract from)
+- Duplicate conditions for the same injury (e.g., `wounded` added twice)
+- `inventory_remove` IDs not matching existing inventory IDs (fuzzy matching should resolve, but mismatches indicate prompt confusion)
+- Momentum not updating correctly per band deltas (crit_success +2, success +1, partial 0, setback -1, fail -1, crit_fail -2)
+- Dice band not matching narration (e.g., "fail" band but narration describes clean success)
+- `scene_tags` including "combat" when no combat occurred, or omitting "combat" when combat clearly happened
+- Quest auto-complete not firing when all objectives are `done: true` (quest hangs open)
+- NPC scene cap (8 named NPCs) exceeded without eviction
+- `actions` field containing fewer than 4 choices or choices not drawn from the current turn's narration
+- `deescalate=true` but new `scene_pressure_add` entries emitted
+- Condition guidance ignored: negative conditions added on clean success/crit_success
+- Compound actions: LLM rolled for a trivial sub-action instead of the gating action
+- Anti-declare-outcome rule violated: player asserted success ("I instantly convince her") but difficulty was not hardened
+
+### Pipeline evaluation criteria
+
+Score each pipeline 1-5. Major mechanical failures (scope errors, extraction mismatches, dice-narration contradictions) should not allow a score above 1 or 2 for that pipeline.
+
+**rules** — intent classification, skill/difficulty selection, scope/domain mapping, compound action handling, anti-declare-outcome enforcement
+**narrate** — dice outcome adherence (BINDING), GM beat consumption, de-escalation directives, age-based directives, style adherence
+**extract.scene** — NPC add/update/remove accuracy, location change fidelity, scene tag correctness, actions quality, scene cap enforcement
+**extract.state** — inventory delta accuracy, condition delta accuracy, hard cap adherence, reconciliation correctness, ID normalization
+**extract.progress** — quest update accuracy, recent events management, compendium NPC updates, scene pressure lifecycle, GM beat generation
+
+---
+
+## Section 2: Narrative Quality (SECONDARY)
+
+Narrative criteria matter, but they serve as signal that the mechanics are producing good fiction. A 5/5 story built on broken extraction is a false positive.
+
+The narrative section judges whether the mechanics produced a good story. The first section determines whether the pace, pressure, and storytelling mechanics supplied by Python actually worked. The second section judges whether they were a good story and produced the wanted qualitative/narrative results.
+
+Score each narrative criterion 1-5. Be a harsh critic. Most well-functioning runs land at 3 or 4. A 5 means truly excellent and a 1 means broken or absent.
+
+### quest_arc_quality
 Did the quests form a compelling long-arc narrative?
-- Did quest objectives feel like real goals with meaningful stakes, or just
-  checklist items the player was already going to do?
+- Did quest objectives feel like real goals with meaningful stakes, or just checklist items the player was already going to do?
 - Did completing a quest feel earned, or did it happen too easily?
 - Did failing or partially completing a quest create interesting new problems?
 - Did the quests create tension between competing priorities?
-- Did the quest rewards (credits, information, NPC trust, items) feel appropriate
-  to the effort required?
+- Did the quest rewards (credits, information, NPC trust, items) feel appropriate to the effort required?
 - Did the quest structure support the genre — gritty, grounded, morally gray?
 
-### 2. rewards_and_consequences (primary)
+### rewards_and_consequences
 Did the game give the player real rewards for success and real consequences for failure?
-- Did successful actions produce satisfying outcomes (credits earned, NPCs helped,
-  obstacles removed, information gained)?
+- Did successful actions produce satisfying outcomes (credits earned, NPCs helped, obstacles removed, information gained)?
 - Did failures create interesting new problems rather than dead-ends?
-- Did the player feel the weight of their choices — spending credits, taking
-  conditions, burning NPC trust?
+- Did the player feel the weight of their choices — spending credits, taking conditions, burning NPC trust?
 - Were there meaningful trade-offs (spend credits on X vs save for Y)?
 - Did the game punish reckless behavior or reward careful play?
 
-### 3. narrative_compellingness (primary)
+### narrative_compellingness
 Was the overall story compelling enough that a player would want to keep playing?
-- Did the narrative have a satisfying arc — rising tension, meaningful choices,
-  a payoff at the end?
+- Did the narrative have a satisfying arc — rising tension, meaningful choices, a payoff at the end?
 - Did the player feel like their choices mattered, or were they on rails?
 - Were there moments of surprise, tension, or emotional resonance?
-- Did the story feel coherent and purposeful, or like a series of disconnected
-  encounters?
+- Did the story feel coherent and purposeful, or like a series of disconnected encounters?
 - Would a player want to continue playing after this run?
 
-### 4. genre_and_universe_fit (primary)
+### genre_and_universe_fit
 Did the story feel appropriate to the genre and universe?
 - Was the tone consistent — gritty, grounded, morally gray?
 - Did NPCs feel like real people in a lived-in world, or like quest dispensers?
@@ -81,72 +167,7 @@ Did the story feel appropriate to the genre and universe?
 - Were there moments that felt authentic to the world, not generic fantasy/sci-fi?
 - Did the story respect the established lore and world-building?
 
-### 5. extraction_consistency
-Do the extractors emit deltas that match the narration? Examples of low scores:
-- Narration says "you pay 50 credits" but extract.state has no inventory_remove.
-- Narration introduces a new NPC but extract.scene.present_npcs doesn't include them.
-- extract.progress invents a quest objective the narration didn't actually advance.
-- extract.progress marks quest `status: completed` when all objectives are `done: true`
-  (auto_complete) — failure here means the quest silently hangs open.
-- Low scores here break immersion — the player sees one thing in the prose but
-  the state says something else.
-
-### 6. context_fidelity
-Did each call have enough context, with no obviously missing fields?
-- The rules call should know the player's stats, conditions, and current scene.
-- The narrate call should know the rules band and recent turns.
-- The extract calls should know the active scope and the narration to extract from.
-Penalize when context is clearly missing (e.g. an extractor invents an NPC the
-narration doesn't mention — likely missing the rendered narration).
-
-### 7. context_economy
-Was each call given only what it needed, or is there obvious bloat?
-- Penalize repeating the entire chronicle in every system prompt.
-- Penalize listing all 50 known NPCs when only 3 are in scene and the touch order
-  list is short.
-- Penalize unbounded recent_events growth across turns.
-
-### 8. narrative_quality
-Is the prose in service of the game?
-- Specific, concrete sensory detail.
-- Honors the dice — failed actions don't sneak through as successes.
-- Honors the present NPCs — they act, react, or are visibly present.
-- Plain language, no archaic or trope-heavy phrasing.
-- Length appropriate to the action.
-
-### 9. scope_correctness
-Were the right domains active for each turn?
-- A pure dialogue turn should NOT have inventory in active_domains.
-- A combat turn SHOULD have pc_condition in active_domains.
-- Skipped streams (skipped=true) should be skipped only when the narration truly
-  contains no changes for that domain.
-- Wrong scope produces narratively nonsensical outcomes.
-
-### 10. state_drift
-Across the whole run, does the state evolve coherently?
-- Inventory totals match what was used / acquired.
-- Quest objectives complete in a sensible order.
-- Recent_events doesn't accumulate stale duplicates.
-- NPCs aren't created with conflicting bios on different turns.
-- NPCs leave scenes when no longer in proximity to the player POV
-- State drift breaks immersion — the player's world becomes inconsistent.
-
-### 11. mechanical_consistency
-Do dice outcomes actually match the narration and state changes?
-- A "fail" band should not result in the player succeeding at their stated intent.
-- Momentum should move correctly: crit_success +2, success +1, partial 0, setback -1, fail -1, crit_fail -2.
-- Scene pressure should escalate or expire according to its max_turns and urgency.
-- Conditions should stack or replace logically (no duplicate conditions for the same injury).
-- If the player tries to use an item they don't have, the engine should reject it or narrate the failure.
-
-### 12. intent_parsing_accuracy
-Did the rules call correctly classify the player's intent?
-- Verb classification: "sneak" → exploration, "persuade" → social, "fight" → combat.
-- Skill selection: physical actions → strength/dexterity, social → charisma, mental → wits/lore.
-- Difficulty assignment: trivial/easy/normal/hard/extreme should match the situation's complexity.
-- Scope decision: dialogue-only turns should skip inventory; combat turns should include pc_condition.
-
-### 13. npc_development
+### npc_development
 Do NPCs change meaningfully throughout the narrative?
 - Do NPC bios evolve based on interactions (not just static descriptions)?
 - Do NPCs react to the player's actions (positive and negative)?
@@ -154,7 +175,7 @@ Do NPCs change meaningfully throughout the narrative?
 - Are new NPCs introduced with enough context to feel real?
 - Do NPCs drive the narrative forward, or just react?
 
-### 14. player_agency
+### player_agency
 Does the game respect player choice?
 - Do failures create new options rather than dead-ends?
 - Are there multiple valid approaches to problems (social, combat, stealth, resource)?
@@ -162,13 +183,12 @@ Does the game respect player choice?
 - Are the suggested actions (actions field) contextually appropriate?
 - Does the player feel like their choices matter?
 
-### 15. pacing_and_pressure
+### pacing_and_pressure
 
 Score this criterion once. Internally weigh two distinct signals:
 
 **pressure_mechanics (objective — weight 60%):**
-- Did scene_pressure entries escalate from `background` → `building` → `immediate`
-  across their expected turn span?
+- Did scene_pressure entries escalate from `background` → `building` → `immediate` across their expected turn span?
 - Did pressures expire (disappear from applied state) when `max_turns` was reached?
 - Did the narration reflect urgency changes (not just internally tracked)?
 - Were new pressures seeded at appropriate story moments?
@@ -178,59 +198,180 @@ Score this criterion once. Internally weigh two distinct signals:
 - Does momentum (positive/negative swings) visibly affect narration tone?
 - Does the arc feel satisfying across the full run?
 
-Your single `score` is the weighted composite. Call out pressure_mechanics
-failures specifically in `note` — they are harder to observe and more critical.
-Include offending turn numbers in `turns`.
+Your single `score` is the weighted composite. Call out pressure_mechanics failures specifically — they are harder to observe and more critical.
+
+---
+
+## Auto-checker integration
+
+The trace includes an auto-checker table showing assertion results (passed/failed). For **every** auto-checker failure, you must:
+
+1. Explain **why** the assertion failed — what went wrong mechanically.
+2. Provide a **remediation** — what needs to happen differently for this assertion to pass. Describe what the system should do differently, what the prompts should instruct differently, what the engine should check differently. Do not propose code fixes.
+
+Do not ignore minor failures. Every failure is a signal that something in the pipeline is broken or unreliable.
+
+---
 
 ## Output format
 
-Return ONLY a JSON object matching exactly this schema. No prose before or after.
-No markdown fences.
-
-> For mechanical criteria (`mechanical_consistency`, `extraction_consistency`,
-> `context_economy`, `context_fidelity`, `scope_correctness`, `state_drift`,
-> `pacing_and_pressure`), populate `turns` with turn numbers where the issue
-> was observed. Leave `turns` as `[]` for narrative criteria.
+Return ONLY a JSON object matching exactly this schema. No prose before or after. No markdown fences.
 
 ```json
 {
-  "overall_score": 3,
-  "findings": [
-    {"criterion": "quest_arc_quality",           "score": 4, "note": "One short sentence.", "turns": []},
-    {"criterion": "rewards_and_consequences",    "score": 3, "note": "One short sentence.", "turns": []},
-    {"criterion": "narrative_compellingness",    "score": 4, "note": "One short sentence.", "turns": []},
-    {"criterion": "genre_and_universe_fit",      "score": 3, "note": "One short sentence.", "turns": []},
-    {"criterion": "extraction_consistency",      "score": 4, "note": "One short sentence.", "turns": [3, 7]},
-    {"criterion": "context_fidelity",            "score": 3, "note": "One short sentence.", "turns": []},
-    {"criterion": "context_economy",             "score": 3, "note": "One short sentence.", "turns": [5]},
-    {"criterion": "narrative_quality",           "score": 4, "note": "One short sentence.", "turns": []},
-    {"criterion": "scope_correctness",           "score": 3, "note": "One short sentence.", "turns": [2]},
-    {"criterion": "state_drift",                 "score": 3, "note": "One short sentence.", "turns": []},
-    {"criterion": "mechanical_consistency",      "score": 3, "note": "One short sentence.", "turns": [4]},
-    {"criterion": "intent_parsing_accuracy",     "score": 3, "note": "One short sentence.", "turns": []},
-    {"criterion": "npc_development",             "score": 3, "note": "One short sentence.", "turns": []},
-    {"criterion": "player_agency",               "score": 3, "note": "One short sentence.", "turns": []},
-    {"criterion": "pacing_and_pressure",         "score": 3, "note": "One short sentence.", "turns": [6]}
+  "mechanical_score": 3,
+  "narrative_score": 4,
+  "pipelines": {
+    "rules": {
+      "score": 4,
+      "trace": "Full end-to-end trace: system prompt key instructions → user prompt key inputs → LLM output → state mutation. Cover all turns or representative turns if many. Quote specific fields, values, and state changes.",
+      "scope_analysis": "Track scope/domain mapping: what domains were active/skipped, did narration produce changes that extractors missed due to scope failures, specific turn numbers where scope was wrong.",
+      "what_went_well": "At least two paragraphs. What the pipeline did correctly, specific to turns and fields.",
+      "what_went_poorly": "At least two paragraphs. What the pipeline did incorrectly, specific to turns and fields.",
+      "prompt_analysis": "What was in the prompts that was not needed (bloat, redundancy, wasted tokens)? What was needed but missing? Call out specific turns where prompt issues caused observable problems.",
+      "issues": [
+        {
+          "description": "One sentence describing the issue.",
+          "turns": [3, 7],
+          "remediation": "What needs to happen differently for this to work correctly. Not a code fix — describe what the system should do differently, what the prompts should instruct differently, what the engine should check differently. Be specific about the failure mode: bad prompt, failed to output key information, failed to input key information, messy logic, scope mismatch, or schema drift."
+        }
+      ]
+    },
+    "narrate": {
+      "score": 4,
+      "trace": "...",
+      "what_went_well": "...",
+      "what_went_poorly": "...",
+      "prompt_analysis": "...",
+      "issues": [
+        { "description": "...", "turns": [], "remediation": "..." }
+      ]
+    },
+    "extract_scene": {
+      "score": 4,
+      "trace": "...",
+      "what_went_well": "...",
+      "what_went_poorly": "...",
+      "prompt_analysis": "...",
+      "issues": [
+        { "description": "...", "turns": [], "remediation": "..." }
+      ]
+    },
+    "extract_state": {
+      "score": 4,
+      "trace": "...",
+      "what_went_well": "...",
+      "what_went_poorly": "...",
+      "prompt_analysis": "...",
+      "issues": [
+        { "description": "...", "turns": [], "remediation": "..." }
+      ]
+    },
+    "extract_progress": {
+      "score": 4,
+      "trace": "...",
+      "what_went_well": "...",
+      "what_went_poorly": "...",
+      "prompt_analysis": "...",
+      "issues": [
+        { "description": "...", "turns": [], "remediation": "..." }
+      ]
+    }
+  },
+  "narrative_criteria": [
+    {
+      "criterion": "quest_arc_quality",
+      "score": 4,
+      "note": "At least two sentences. What went well, what went poorly, and more if there's more to say.",
+      "issues": [
+        { "description": "...", "turns": [], "remediation": "..." }
+      ]
+    },
+    {
+      "criterion": "rewards_and_consequences",
+      "score": 3,
+      "note": "...",
+      "issues": [
+        { "description": "...", "turns": [], "remediation": "..." }
+      ]
+    },
+    {
+      "criterion": "narrative_compellingness",
+      "score": 4,
+      "note": "...",
+      "issues": [
+        { "description": "...", "turns": [], "remediation": "..." }
+      ]
+    },
+    {
+      "criterion": "genre_and_universe_fit",
+      "score": 3,
+      "note": "...",
+      "issues": [
+        { "description": "...", "turns": [], "remediation": "..." }
+      ]
+    },
+    {
+      "criterion": "npc_development",
+      "score": 4,
+      "note": "...",
+      "issues": [
+        { "description": "...", "turns": [], "remediation": "..." }
+      ]
+    },
+    {
+      "criterion": "player_agency",
+      "score": 4,
+      "note": "...",
+      "issues": [
+        { "description": "...", "turns": [], "remediation": "..." }
+      ]
+    },
+    {
+      "criterion": "pacing_and_pressure",
+      "score": 4,
+      "note": "...",
+      "issues": [
+        { "description": "...", "turns": [6], "remediation": "..." }
+      ]
+    }
   ],
-  "comments": "Two to four sentences. Concrete, specific, actionable. Reference turn numbers.",
-  "narrative_recap": "Brief recap of the arc: player did X, acquired Y items, completed Z quests, met these NPCs. Focus on qualitative summary, not mechanical details.",
-  "remediation": "Actionable suggestions for improvement based on what you observed. Group by category: (1) Prompt/engine fixes, (2) Scenario design improvements, (3) Judge rubric adjustments. Be specific about what to change and why."
+  "auto_checker": {
+    "passed": 7,
+    "failed": 2,
+    "failures": [
+      {
+        "turn": 1,
+        "assertion": "rules.rolled",
+        "detail": "rolled=True",
+        "explanation": "Concrete explanation of why this assertion failed. What went wrong mechanically.",
+        "remediation": "What needs to happen differently. Not a code fix. Be specific about the failure mode: bad prompt, failed to output key information, failed to input key information, messy logic, scope mismatch, or schema drift."
+      }
+    ]
+  },
+  "comments": "Two to four sentences. Concrete, specific, actionable. Reference turn numbers. Justify why mechanical_score diverges from narrative_score if applicable.",
+  "narrative_recap": "Brief recap of the arc: player did X, acquired Y items, completed Z quests, met these NPCs. Focus on qualitative summary, not mechanical details. 3-5 sentences max."
 }
 ```
 
-`overall_score` weights `mechanical_consistency`, `context_economy`,
-`context_fidelity`, `pacing_and_pressure`, `extraction_consistency`,
-`scope_correctness`, and `state_drift` at 2× relative to the narrative
-criteria. Briefly justify in `comments` when the overall diverges from
-criterion scores.
+### Remediation guidance
 
-`narrative_recap` should summarize the qualitative arc: what the player accomplished,
-how NPCs evolved, whether quests felt meaningful, and whether the narrative had a
-satisfying shape. Keep it brief — 3-5 sentences max.
+Every `remediation` field across all sections (pipelines, narrative criteria, auto-checker) must identify the **failure mode** that caused the issue. Use these categories:
 
-`remediation` should offer concrete suggestions for improvement. Think about:
-- Were there prompt issues causing parse failures or inconsistent behavior?
-- Were there scenario design gaps (missing mechanics, edge cases not tested)?
-- Were there token usage patterns that suggest bloat or inefficiency?
-- Are there judge rubric criteria that need adjustment?
-- What would make the next eval run more informative?
+- **Bad prompt** — The system or user prompt is ambiguous, contradictory, missing constraints, or contains bloat.
+- **Failed to output key information** — The LLM produced output but omitted a required field, used wrong values, or failed to follow the schema.
+- **Failed to input key information** — The user prompt omitted context the LLM needed (e.g., narration was trimmed, state was stale).
+- **Messy logic** — The engine's post-processing (delta application, reconciliation, scope mapping) is buggy or inconsistent.
+- **Scope/domain mismatch** — The rules pipeline's active/skip domains caused downstream pipelines to miss or over-produce changes.
+- **Schema drift** — The LLM output doesn't match the expected schema (wrong field names, wrong types, extra fields).
+
+A good remediation starts with the failure mode: "Bad prompt: the system prompt should..." or "Failed to input key information: the user prompt should include..."
+
+### Scoring notes
+
+- `mechanical_score` is a weighted composite of the 5 pipeline scores, with major mechanical failures (scope errors, extraction mismatches, dice-narration contradictions) capping that pipeline at 1-2.
+- `narrative_score` is a weighted composite of the 7 narrative criteria.
+- `overall_score` is not needed — report both `mechanical_score` and `narrative_score` separately. The mechanical score is the primary signal.
+- For pipeline issues, `turns` should list the specific turns where the issue was observed. Leave as `[]` for narrative criteria where turn numbers are not applicable.
+- Every issue must have a `remediation` field. Every auto-checker failure must have an `explanation` and `remediation`.
+- Be harsh. Surface hidden issues. Do not accept "good enough" — the engine should be mechanically precise.

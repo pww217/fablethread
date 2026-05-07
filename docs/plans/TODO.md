@@ -67,7 +67,7 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - **Dev mode dual-model setup** — cheap fast model for dev iteration
 - ~~**Eval harness** — Tier 1: `tests/test_engine_pipeline.py` with `_FakeLLM`; Tier 2: `make eval` with in-process driver, judge, REPORT.md~~ — see [`p3-inference/eval-harness.md`](p3-inference/eval-harness.md) and phase files [`p3-inference/eval-harness/0{1..7}-*.md`](p3-inference/eval-harness/)
 - ~~**Eval improvement plan** — Rubric rewrite, context telemetry, new scenarios, Tier 1 schema validation~~ — see [`completed/eval_improvement_plan.md`](completed/eval_improvement_plan.md)
-- **Eval full-context trace** — Replace compact `build_trace()` with full-context trace including system prompts (rendered once), user prompts (per turn), world pack content, and state snapshots — see [`eval-full-context.md`](eval-full-context.md)
+- ~~**Eval full-context trace** — Replace compact `build_trace()` with full-context trace including system prompts (per-turn), user prompts (per turn), world pack content, and state snapshots~~ — see [`completed/eval-full-context.md`](completed/eval-full-context.md)
 
 ---
 

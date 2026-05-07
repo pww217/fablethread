@@ -205,7 +205,7 @@ PROMPT_CEILINGS_CHARS = {
     "scene.user": 14_000,
     "state.system": 8_000,
     "state.user": 14_000,
-    "progress.system": 8_500,
+    "progress.system": 9_000,
     "progress.user": 14_000,
 }
 
