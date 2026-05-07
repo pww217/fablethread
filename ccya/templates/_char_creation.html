@@ -19,17 +19,21 @@
     <div class="char-creation-section">
         <div class="char-creation-section-header">
             <span class="char-creation-section-title">Stats</span>
-            <span class="point-budget" x-text="'Total: ' + total + ' / 16 (min 12)'"></span>
+            <span class="point-budget" x-text="'Total: ' + total + ' / 16'"></span>
         </div>
 
-        <!-- Presets -->
+        <!-- Archetypes -->
         <div class="char-creation-presets">
             <button type="button" class="char-creation-preset-btn"
-                    @click="applyPreset('brawler')">Brawler</button>
+                    @click="applyPreset('warrior')">Warrior</button>
             <button type="button" class="char-creation-preset-btn"
-                    @click="applyPreset('smooth_talker')">Smooth Talker</button>
+                    @click="applyPreset('scout')">Scout</button>
             <button type="button" class="char-creation-preset-btn"
-                    @click="applyPreset('balanced')">Balanced</button>
+                    @click="applyPreset('scholar')">Scholar</button>
+            <button type="button" class="char-creation-preset-btn"
+                    @click="applyPreset('charmer')">Charmer</button>
+            <button type="button" class="char-creation-preset-btn"
+                    @click="applyPreset('survivor')">Survivor</button>
         </div>
 
         <!-- Point budget bar -->
