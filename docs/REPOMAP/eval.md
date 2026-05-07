@@ -7,7 +7,7 @@
 | `ccya/eval/__init__.py` | Re-exports: `EvalConfig`, `Scenario`, `RunResult`, `run_scenario`, `run_judge`, `generate_report` |
 | `ccya/eval/config.py` | `EvalConfig`, `InferenceConfig`, `JudgeConfig` (`context_economy_warn_tokens`), `ReportConfig`, `load_eval_config()` |
 | `ccya/eval/runner.py` | `run_scenario()`, `RunResult`, `TurnRecord`, `_build_engine_config()`, `_check_asserts()`, `_patch_eval_pack_starting_state()`, `_apply_dotpath()` |
-| `ccya/eval/judge.py` | `run_judge()`, `JudgeResult` (`narrative_recap`, `remediation`), `build_trace()` (constants block prefix, truncation reserves constants), `parse_judge_response()`, `_context_line()` |
+| `ccya/eval/judge.py` | `run_judge()`, `JudgeResult` (`narrative_recap`, `remediation`), `build_trace()` (full-context trace: static context with turn-1 system prompts + per-turn user prompts, no truncation), `_render_static_context()` (world pack, seed state, constants, turn-1 system prompts), `_render_turn_context()` (per-turn user prompts, engine outputs, state snapshots), `_summarize_applied()`, `_summarize_rejected()`, `_context_line()`, `parse_judge_response()`, `_find_json_object()`, `_coerce_score()`, `_lookup_previous_overall()` |
 | `ccya/eval/report.py` | `generate_report()` — produces REPORT.md with token-regression flags, context economy warnings, per-stream totals in combined table |
 | `ccya/eval/scenario.py` | `Scenario` (with `seed_overrides`), `Turn`, `TurnAssert` (with `stream_id`), `load_scenario()`, `discover_scenarios()` |
 | `ccya/eval/cli.py` | CLI entry point |
@@ -34,5 +34,5 @@
 
 ## Test files
 
-- `tests/test_eval.py` — Tests for eval config loading, scenario loading, engine config building, run result loading, judge response parsing, assertion checking.
+- `tests/test_eval.py` — Tests for eval config loading, scenario loading, engine config building, run result loading, judge response parsing, assertion checking, `build_trace()` full-context trace structure and content.
 - `tests/test_eval_schema.py` — Tier 1 schema validation: validates TurnAssert paths against live engine, engine_mirror self-consistency, seed_override path validation.

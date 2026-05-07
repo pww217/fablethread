@@ -77,6 +77,11 @@ Sections not shown in the user prompt still exist in the live game state — abs
 
 ## GM Beat (gm_beat)
 
+**IMPORTANT: `type` vs `surface_as` are different fields.**
+- `type` is the beat category: `complication`, `revelation`, `opportunity`, `breathing_room`, `pressure`, or `ambient`.
+- `surface_as` is how the beat is presented: `ambient`, `event`, or `npc_behavior`.
+- **Common mistake:** Do NOT set `type: "ambient"`. `ambient` is a `surface_as` value. If you want an ambient-type beat, set `type: "breathing_room"` or `type: "revelation"` and `surface_as: "ambient"`.
+
 After extracting this turn's changes, decide whether to emit a forward-facing story beat for the NEXT turn.
 
 Emit `null` if:

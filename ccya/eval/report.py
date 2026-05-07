@@ -12,8 +12,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import logging
+
 from ccya.eval.config import EvalConfig
 from ccya.eval.runner import RunResult, find_previous_run, load_run_result
+
+_log = logging.getLogger("ccya.eval")
 
 
 # ---------------------------------------------------------------------------
@@ -287,7 +291,7 @@ def _collect_flags(
 
     if judge is not None:
         prev_score = getattr(judge, "previous_overall", None)
-        cur_score = getattr(judge, "overall_score", None)
+        cur_score = getattr(judge, "mechanical_score", None)
         if (
             prev_score is not None
             and cur_score is not None
@@ -296,7 +300,7 @@ def _collect_flags(
             flags.append(
                 Flag(
                     kind="judge_score_drop",
-                    summary=f"judge overall {prev_score} → {cur_score} (-{prev_score - cur_score})",
+                    summary=f"judge mechanical {prev_score} → {cur_score} (-{prev_score - cur_score})",
                     detail=getattr(judge, "comments", ""),
                 ),
             )
@@ -338,14 +342,24 @@ def _render_judge_summary(judge: Any | None) -> str:
     """Render a single combined judge summary at the top of the report."""
     if judge is None:
         return ""
-    overall = getattr(judge, "overall_score", "?")
+    mechanical = getattr(judge, "mechanical_score", "?")
+    narrative = getattr(judge, "narrative_score", "?")
     rubric = getattr(judge, "rubric_path", "?")
     findings = getattr(judge, "findings", []) or []
     comments = getattr(judge, "comments", "") or ""
     narrative_recap = getattr(judge, "narrative_recap", "") or ""
     remediation = getattr(judge, "remediation", "") or ""
+    auto_checker = getattr(judge, "auto_checker", {}) or {}
 
-    parts = [f"**Overall:** {overall}/5  ", f"**Rubric:** `{rubric}`", ""]
+    parts = [f"**Mechanical:** {mechanical}/5  ", f"**Narrative:** {narrative}/5  ", f"**Rubric:** `{rubric}`", ""]
+
+    # Auto-checker summary
+    ac_passed = auto_checker.get("passed", 0)
+    ac_failed = auto_checker.get("failed", 0)
+    if ac_passed or ac_failed:
+        parts.append(f"**Auto-checker:** {ac_passed} passed, {ac_failed} failed")
+        parts.append("")
+
     if findings:
         for f in findings:
             name = f.get("criterion", "?")
@@ -509,8 +523,9 @@ def generate_report(
       run_result: result from runner.run_scenario.
       eval_cfg: needed for token thresholds + flag_at_top list.
       judge_result: optional JudgeResult-like object (phase 5 fills this in).
-        Should expose: overall_score: int, findings: list[dict],
-        comments: str, raw_response: str, rubric_path: str, previous_overall: int | None.
+        Should expose: mechanical_score: int, narrative_score: int, findings: list[dict],
+        comments: str, raw_response: str, rubric_path: str, previous_overall: int | None,
+        auto_checker: dict.
       runs_dir: where prior runs live; defaults to dirname(run_result.output_dir).
 
     Always returns the report path; never raises on regression.
@@ -519,6 +534,7 @@ def generate_report(
     runs_dir = runs_dir or output_dir.parent
     cur_events = _read_events(Path(run_result.events_jsonl_path))
     cur_metrics = _summarize_events(cur_events)
+    _log.debug("report: loaded %d current events", len(cur_events))
 
     prev_metrics: list[TurnMetrics] = []
     prev_run_path: Path | None = None
@@ -528,6 +544,9 @@ def generate_report(
         prev_run = load_run_result(prev_json)
         prev_events = _read_events(Path(prev_run.events_jsonl_path))
         prev_metrics = _summarize_events(prev_events)
+        _log.debug("report: loaded %d previous events from %s", len(prev_events), prev_run_path)
+    else:
+        _log.debug("report: no prior run found for comparison")
 
     regressions = _compute_regressions(
         cur_metrics,
@@ -535,7 +554,9 @@ def generate_report(
         warn_pct=eval_cfg.report.token_warn_pct,
         fail_pct=eval_cfg.report.token_fail_pct,
     )
+    _log.debug("report: computed %d regressions", len(regressions))
     flags = _collect_flags(cur_metrics, regressions, run_result, judge_result)
+    _log.debug("report: collected %d flags", len(flags))
 
     parts: list[str] = []
     parts.append(f"# Eval Report — `{run_result.scenario_id}`\n")
@@ -604,6 +625,8 @@ def generate_report(
 
     out_path = output_dir / "REPORT.md"
     out_path.write_text("\n".join(parts) + "\n")
+    _log.info("report written: %d chars, %d flags, %d regressions",
+              len(parts), len(flags), len(regressions))
     return out_path
 
 

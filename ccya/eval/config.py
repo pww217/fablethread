@@ -33,11 +33,17 @@ class ReportConfig:
 
 
 @dataclass
+class LoggingConfig:
+    level: str = "WARNING"
+
+
+@dataclass
 class EvalConfig:
     default_pack: str = "eval-pack"
     default_save_root: str = "~/.cache/ccya-eval"
     runs_dir: str = "evals/runs"
     num_turns: int = 10
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
     inference: InferenceConfig = field(default_factory=InferenceConfig)
     judge: JudgeConfig = field(default_factory=JudgeConfig)
     report: ReportConfig = field(default_factory=ReportConfig)
@@ -56,12 +62,16 @@ def load_eval_config(path: str | Path | None = None) -> EvalConfig:
     inf_raw = raw.get("inference") or {}
     jdg_raw = raw.get("judge") or {}
     rpt_raw = raw.get("report") or {}
+    log_raw = raw.get("logging") or {}
 
     return EvalConfig(
         default_pack=str(raw.get("default_pack", "eval-pack")),
         default_save_root=str(raw.get("default_save_root", "~/.cache/ccya-eval")),
         runs_dir=str(raw.get("runs_dir", "evals/runs")),
         num_turns=int(raw.get("num_turns", 10)),
+        logging=LoggingConfig(
+            level=str(log_raw.get("level", "WARNING")),
+        ),
         inference=InferenceConfig(
             temperature_override=inf_raw.get("temperature_override"),
             cache=bool(inf_raw.get("cache", False)),

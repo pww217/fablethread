@@ -8,6 +8,7 @@ canonical eval data source. Does not invoke the judge or generate the report.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import tempfile
@@ -22,6 +23,8 @@ from ccya.eval.scenario import Scenario, TurnAssert
 from ccya.models import TurnResult, load_config
 from ccya.pack import load_pack
 from ccya.state import init_save_dir, load_state, save_state
+
+_log = logging.getLogger("ccya.eval")
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -461,6 +464,8 @@ async def run_scenario(
     state_snapshots: list[dict[str, Any]] = []
     total_errors = 0
 
+    _log.debug("starting run: scenario=%s pack=%s model=%s turns=%d", scenario.id, scenario.pack, engine_config.model, len(scenario.turns))
+
     for idx, turn in enumerate(scenario.turns, start=1):
         record = TurnRecord(
             turn_number=idx,
@@ -468,6 +473,7 @@ async def run_scenario(
             phase=turn.phase,
             expects=list(turn.expects),
         )
+        _log.debug("turn %d/%d: %s", idx, len(scenario.turns), turn.input[:120])
         t0 = time.monotonic()
         result_obj: TurnResult | None = None
         try:
@@ -485,6 +491,7 @@ async def run_scenario(
         except Exception as exc:
             record.error = f"exception: {exc!r}"
             total_errors += 1
+            _log.debug("turn %d: exception: %s", idx, exc)
         record.duration_s = time.monotonic() - t0
         if result_obj is None:
             record.error = "no complete event from engine"
@@ -497,6 +504,7 @@ async def run_scenario(
             if result_obj.errors:
                 record.error = f"engine_errors: {json.dumps(result_obj.errors[:3])}"
                 total_errors += 1
+            _log.debug("turn %d: engine_turn=%d narrative=%d chars errors=%d", idx, record.engine_turn_number, record.narrative_chars, len(result_obj.errors or []))
 
         turn_records.append(record)
 
@@ -537,6 +545,7 @@ async def run_scenario(
                 record.assert_results = _check_asserts(turn.asserts, events[i])
 
     finished_at = datetime.now(timezone.utc).isoformat()
+    output_dir.mkdir(parents=True, exist_ok=True)
     dst_events = output_dir / f"{scenario.id}.events.jsonl"
     dst_state = output_dir / f"{scenario.id}.state.yaml"
     if src_events.exists():
@@ -566,6 +575,8 @@ async def run_scenario(
     )
 
     _update_latest_symlink(runs_dir, output_dir)
+
+    _log.debug("run complete: scenario=%s turns=%d errors=%d output_dir=%s", scenario.id, len(turn_records), total_errors, output_dir)
 
     return run_result
 

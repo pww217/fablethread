@@ -8,6 +8,7 @@ the eval.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -17,6 +18,8 @@ from ccya.eval.config import EvalConfig
 from ccya.eval.engine_mirror import constants_block
 from ccya.llm_client import chat, strip_thinking
 from ccya.models import load_config
+
+_log = logging.getLogger("ccya.eval")
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -277,6 +280,7 @@ async def run_judge(
     events_lines = events_path.read_text().splitlines() if events_path.exists() else []
     events = [json.loads(line) for line in events_lines if line.strip()]
     trace = build_trace(events, max_chars=eval_cfg.judge.max_input_chars)
+    _log.debug("judge: %d events, trace=%d chars", len(events), len(trace))
 
     messages = [
         {"role": "system", "content": rubric_text},
@@ -313,8 +317,10 @@ async def run_judge(
         comments = str(parsed.get("comments", ""))
         narrative_recap = str(parsed.get("narrative_recap", ""))
         remediation = str(parsed.get("remediation", ""))
+        _log.debug("judge parsed: overall=%d findings=%d", overall, len(findings))
     except ValueError as exc:
         comments = f"(judge response could not be parsed: {exc})"
+        _log.debug("judge parse failed: %s", exc)
 
     previous_overall = (
         _lookup_previous_overall(previous_report_path) if previous_report_path else None

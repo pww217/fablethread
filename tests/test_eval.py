@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -405,9 +406,9 @@ def test_find_json_object_multiline():
 
 def test_parse_judge_response_trailing_braces():
     from ccya.eval.judge import parse_judge_response
-    s = '{"overall_score": 4, "findings": [], "comments": ""} trailing {text}'
+    s = '{"mechanical_score": 4, "narrative_score": 3, "findings": [], "comments": ""} trailing {text}'
     out = parse_judge_response(s)
-    assert out["overall_score"] == 4
+    assert out["mechanical_score"] == 4
 
 
 # ---------------------------------------------------------------------------
@@ -494,3 +495,200 @@ def test_check_asserts_scene_tags_found():
     results = _check_asserts(asserts, event)
     assert len(results) == 1
     assert results[0]["passed"] is True
+
+
+# ---------------------------------------------------------------------------
+# build_trace — full-context trace
+# ---------------------------------------------------------------------------
+
+
+def _make_metadata(**kwargs) -> dict[str, Any]:
+    return {
+        "__metadata__": True,
+        "pack_id": "test-pack",
+        "pack_style": "A gritty sci-fi setting.",
+        "seed_state": {
+            "meta": {"game_name": "test", "turn": 0, "setting_pack": "test-pack", "model": ""},
+            "pc": {"name": "Test", "tagline": "", "bio": "", "stats": {}, "conditions": [], "momentum": 0},
+            "location": {"id": "", "name": "", "description": ""},
+            "inventory": [],
+            "quests": [],
+            "scene": {"tags": [], "world_state": [], "recent_events": [], "tagline": ""},
+            "compendium": {"npcs": {}},
+        },
+        **kwargs,
+    }
+
+
+def _make_turn_event(
+    turn: int = 1,
+    input_text: str = "Hello",
+    rules_prompt: dict | None = None,
+    narrate_prompt: dict | None = None,
+    extraction: dict | None = None,
+    rules: dict | None = None,
+    applied: dict | None = None,
+    rejected: list | None = None,
+    actions: list | None = None,
+    state_snapshot: dict | None = None,
+) -> dict[str, Any]:
+    return {
+        "turn": turn,
+        "input": input_text,
+        "rules_prompt": rules_prompt or {},
+        "narrate_prompt": narrate_prompt or {},
+        "extraction": extraction or {},
+        "rules": rules or {},
+        "applied": applied or {},
+        "rejected": rejected or [],
+        "actions": actions or [],
+        "state_snapshot": state_snapshot or {},
+    }
+
+
+def test_build_trace_full_context_structure():
+    from ccya.eval.judge import build_trace
+
+    metadata = _make_metadata()
+    turn1 = _make_turn_event(
+        turn=1,
+        input_text="Attack the guard",
+        rules_prompt={
+            "rendered_system": "Rules system prompt",
+            "rendered_user": "Rules user prompt",
+        },
+        narrate_prompt={
+            "rendered_system": "Narrate system prompt",
+            "rendered_user": "Narrate user prompt",
+            "output": "You swing your sword.",
+        },
+        extraction={
+            "scene": {"rendered_system": "Scene system", "rendered_user": "Scene user", "output": {"scene_tags": ["combat"]}},
+            "state": {"rendered_system": "State system", "rendered_user": "State user", "output": {}},
+            "progress": {"rendered_system": "Progress system", "rendered_user": "Progress user", "output": {}},
+        },
+        rules={"rolled": True, "band": "success", "skill": "strength"},
+        applied={"inventory_add": [{"id": "gold", "amount": 10}]},
+        state_snapshot={
+            "meta": {"turn": 1},
+            "inventory": [{"id": "gold", "amount": 10}],
+        },
+    )
+
+    events = [metadata, turn1]
+    trace = build_trace(events)
+
+    assert "## World Pack Style" in trace
+    assert "## Seed State" in trace
+    assert "## Engine Constants" in trace
+    assert "## System Prompts (from turn 1)" in trace
+    assert "### Rules System Prompt" in trace
+    assert "### Narrate System Prompt" in trace
+    assert "### Extract Scene System Prompt" in trace
+    assert "### Extract State System Prompt" in trace
+    assert "### Extract Progress System Prompt" in trace
+    assert "TURN 1" in trace
+    assert "### User Prompts" in trace
+    assert "### Engine Outputs" in trace
+    assert "#### Rules" in trace
+    assert "#### Narration" in trace
+    assert "#### Extract Scene" in trace
+    assert "#### Extract State" in trace
+    assert "#### Extract Progress" in trace
+    assert "#### Applied Deltas" in trace
+    assert "#### Context Telemetry" in trace
+    assert "### State After Turn" in trace
+    assert "A gritty sci-fi setting." in trace
+
+
+def test_build_trace_no_metadata():
+    from ccya.eval.judge import build_trace
+
+    turn1 = _make_turn_event(turn=1, input_text="Hello")
+    events = [turn1]
+    trace = build_trace(events)
+
+    assert "## Engine Constants" in trace
+    assert "TURN 1" in trace
+
+
+def test_build_trace_all_turns_included():
+    """Verify all turns are included in the trace (no truncation)."""
+    from ccya.eval.judge import build_trace
+
+    metadata = _make_metadata()
+    events = [metadata]
+
+    for i in range(1, 11):
+        events.append(_make_turn_event(
+            turn=i,
+            input_text=f"Turn {i}",
+            narrate_prompt={"output": f"Narration for turn {i}"},
+            state_snapshot={"meta": {"turn": i}},
+        ))
+
+    trace = build_trace(events)
+
+    assert "TURN 1" in trace
+    assert "TURN 10" in trace
+    # All 10 turns should be present
+    for i in range(1, 11):
+        assert f"TURN {i}" in trace
+    assert "[... trace truncated" not in trace
+
+
+def test_build_trace_retry_turns():
+    from ccya.eval.judge import build_trace
+
+    metadata = _make_metadata()
+    # Retry turn: empty rules_prompt (from run_turn_retry)
+    retry_turn = _make_turn_event(
+        turn=2,
+        input_text="Retry",
+        rules_prompt={},
+        narrate_prompt={
+            "rendered_system": "Narrate system",
+            "rendered_user": "Narrate user",
+            "output": "You try again.",
+        },
+        state_snapshot={"meta": {"turn": 2}},
+    )
+    events = [metadata, retry_turn]
+    trace = build_trace(events)
+
+    assert "TURN 2" in trace
+    assert "You try again." in trace
+
+
+def test_build_trace_no_truncation_small_run():
+    from ccya.eval.judge import build_trace
+
+    metadata = _make_metadata()
+    events = [metadata]
+
+    for i in range(1, 4):
+        events.append(_make_turn_event(
+            turn=i,
+            input_text=f"Turn {i}",
+            narrate_prompt={"output": f"Narration {i}"},
+            state_snapshot={"meta": {"turn": i}},
+        ))
+
+    trace = build_trace(events)
+
+    assert "TURN 1" in trace
+    assert "TURN 2" in trace
+    assert "TURN 3" in trace
+    assert "[... trace truncated" not in trace
+
+
+def test_metadata_event_format():
+    from ccya.eval.judge import build_trace
+
+    metadata = _make_metadata()
+    events = [metadata]
+    trace = build_trace(events)
+
+    assert "test-pack" in trace
+    assert "A gritty sci-fi setting." in trace
+    assert '"game_name": "test"' in trace
