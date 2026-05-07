@@ -4,11 +4,11 @@
 
 | File | Responsibility |
 |---|---|
-| `ccya/eval/__init__.py` | Re-exports: `EvalConfig`, `Scenario`, `RunResult`, `run_scenario`, `run_judge`, `generate_report` |
-| `ccya/eval/config.py` | `EvalConfig`, `InferenceConfig`, `JudgeConfig` (`context_economy_warn_tokens`), `ReportConfig`, `load_eval_config()` |
-| `ccya/eval/runner.py` | `run_scenario()`, `RunResult`, `TurnRecord`, `_build_engine_config()`, `_check_asserts()`, `_patch_eval_pack_starting_state()`, `_apply_dotpath()` |
-| `ccya/eval/judge.py` | `run_judge()`, `JudgeResult` (`narrative_recap`, `remediation`), `build_trace()` (full-context trace: static context with turn-1 system prompts + per-turn user prompts, no truncation), `_render_static_context()` (world pack, seed state, constants, turn-1 system prompts), `_render_turn_context()` (per-turn user prompts, engine outputs, state snapshots), `_summarize_applied()`, `_summarize_rejected()`, `_context_line()`, `parse_judge_response()`, `_find_json_object()`, `_coerce_score()`, `_lookup_previous_overall()` |
-| `ccya/eval/report.py` | `generate_report()` — produces REPORT.md with token-regression flags, context economy warnings, per-stream totals in combined table |
+| `ccya/eval/__init__.py` | Re-exports: `EvalConfig`, `JudgeResult`, `RunResult`, `Scenario`, `Turn`, `TurnAssert`, `TurnRecord`, `build_trace`, `discover_scenarios`, `engine_mirror`, `find_previous_run`, `generate_report`, `load_eval_config`, `load_run_result`, `load_scenario`, `parse_judge_response`, `run_judge`, `run_scenario` |
+| `ccya/eval/config.py` | `EvalConfig`, `InferenceConfig`, `JudgeConfig` (`context_economy_warn_tokens`), `ReportConfig`, `LoggingConfig`, `load_eval_config()` |
+| `ccya/eval/runner.py` | `run_scenario()`, `RunResult`, `TurnRecord`, `_build_engine_config()`, `_check_asserts()`, `_patch_eval_pack_starting_state()`, `_apply_dotpath()`, `load_run_result()`, `find_previous_run()`, `_extract_parse_failures()`, `REPO_ROOT`, `PROMPTS_DIR` |
+| `ccya/eval/judge.py` | `run_judge()`, `JudgeResult` (`narrative_recap`, `remediation`), `build_trace()` (truncates to `max_chars`), `_render_static_context()` (world pack, seed state, constants, turn-1 system prompts), `_render_turn_context()` (per-turn user prompts, engine outputs, state snapshots), `_summarize_applied()`, `_summarize_rejected()`, `_context_line()`, `parse_judge_response()`, `_find_json_object()`, `_coerce_score()`, `_lookup_previous_overall()`, `_scope_summary()`, `_trim()`, `REPO_ROOT` |
+| `ccya/eval/report.py` | `generate_report()` — produces REPORT.md with token-regression flags, context economy warnings, per-stream totals in combined table. Also: `_read_events()`, `_extract_stream_metrics()`, `_summarize_events()`, `_compute_regressions()`, `_collect_flags()`, `_render_flag_block()`, `_render_judge_summary()`, `_render_combined_table()`, `_render_auto_checker_block()`, `StreamMetrics`, `TurnMetrics`, `StreamRegression`, `Flag` |
 | `ccya/eval/scenario.py` | `Scenario` (with `seed_overrides`), `Turn`, `TurnAssert` (with `stream_id`), `load_scenario()`, `discover_scenarios()` |
 | `ccya/eval/cli.py` | CLI entry point |
 | `ccya/eval/engine_mirror.py` | Live engine constants for scenarios + `constants_block()` for judge traces + `KNOWN_ASSERT_FIELDS` + `KNOWN_SEED_PATHS` + `EXTRACT_STREAMS` |

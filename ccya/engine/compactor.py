@@ -171,18 +171,22 @@ def _parse_compact_response(response_text: str) -> tuple[str, list[str]]:
         if m:
             bullets.append(line.strip())
 
-    # Extract last JSON array from response (non-greedy to avoid matching
-    # bracket pairs in bullet lines like `- [T1] ...`)
+    # Extract last JSON array from response. Bullet lines use `- [T\d+] `
+    # pattern which would match the non-greedy bracket regex; instead we
+    # scan from the end of the response to find the last valid JSON array.
     compacted_events: list[str] = []
-    array_match = list(re.finditer(r"\[[\s\S]*?\]", response_text))
-    if array_match:
-        last_array_str = array_match[-1].group()
-        try:
-            parsed = json.loads(last_array_str)
-            if isinstance(parsed, list):
-                compacted_events = [str(e) for e in parsed]
-        except (json.JSONDecodeError, ValueError):
-            pass
+    last_open = response_text.rfind("[")
+    if last_open >= 0:
+        # Find the matching closing bracket (simple: last ] after the [)
+        last_close = response_text.rfind("]", last_open)
+        if last_close > last_open:
+            candidate = response_text[last_open : last_close + 1]
+            try:
+                parsed = json.loads(candidate)
+                if isinstance(parsed, list):
+                    compacted_events = [str(e) for e in parsed]
+            except (json.JSONDecodeError, ValueError):
+                pass
 
     bullets_text = "\n".join(bullets)
     return bullets_text, compacted_events

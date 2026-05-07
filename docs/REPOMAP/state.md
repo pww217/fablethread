@@ -5,18 +5,18 @@
 | File | Responsibility |
 |---|---|
 | `ccya/state/__init__.py` | Re-exports all state symbols |
-| `ccya/state/io.py` | `load_state`, `save_state`, `init_save_dir`, `_migrate_state` |
-| `ccya/state/delta.py` | `apply_delta`, `reconcile_delta`, `PC_CONDITIONS_MAX` |
-| `ccya/state/inventory.py` | `normalize_inventory_id`, resolve/fuzzy match helpers |
+| `ccya/state/io.py` | `load_state`, `save_state`, `init_save_dir`, `_migrate_state`, `_migrate_recent_events`, `_default_state` |
+| `ccya/state/delta.py` | `apply_delta`, `reconcile_delta`, `PC_CONDITIONS_MAX`, `_item_to_dict` |
+| `ccya/state/inventory.py` | `normalize_inventory_id`, `resolve_inventory_canonical_id`, `resolve_inventory_remove_target`, `_fuzzy_match_inventory` |
 | `ccya/state/npcs.py` | `build_npc_alias_map`, `touch_compendium_order` |
-| `ccya/state/chronicle.py` | `append_event`, `append_chronicle`, `load_chronicle_tail`, `load_recent_events`, `load_recent_chronicle_turns` |
-| `ccya/state/momentum.py` | `apply_momentum` |
+| `ccya/state/chronicle.py` | `append_event`, `append_chronicle`, `load_chronicle_tail`, `load_recent_events`, `load_recent_chronicle_turns`, `remove_last_event`, `remove_last_chronicle_turn` |
+| `ccya/state/momentum.py` | `MOMENTUM_MIN`, `MOMENTUM_MAX`, `apply_momentum` |
 
 ## Public APIs
 
 - **`load_state(save_dir)`** → `dict` — loads YAML, runs `_migrate_state()`.
 - **`save_state(save_dir, state)`** — atomic write (tmp + rename).
-- **`apply_delta(state, delta, recent_events_max=20)`** → `dict` — mutates state in-place (deep copy), returns updated state. Handles inventory merge/remove, location change, quest upsert, condition add/remove (id-based dedup, FIFO cap 5), recent events (remove→update→add, FIFO cap), scene tags, present NPCs (hydrate from compendium), compendium updates, recently_left tracking.
+- **`apply_delta(state, delta, recent_events_max=20)`** → `tuple[dict, bool]` — returns (deep-copied state, recent_events_evicted bool). Handles inventory merge/remove/update, location change, quest upsert, condition add/remove (id-based dedup, FIFO cap 5), recent events (object form: id/text/turn, remove→update→add, FIFO cap), scene tags (combat started/ended turn tracking), scene tagline, scene_pressure (add/update/remove by ID), present NPCs (delta-based: add/remove/update with alias resolution, compendium hydration, NPC_SCENE_CAP=8), recently_left tracking, compendium NPC updates (with alias routing), auto-complete quests.
 - **`apply_momentum(state, band)`** — updates `pc.momentum` deterministically from a rules band, clamped to [-3, +3].
 - **`append_event(save_dir, event)`** — appends to events.jsonl.
 - **`append_chronicle(save_dir, text)`** — appends to chronicle.md.
@@ -26,8 +26,12 @@
 - **`load_recent_events(save_dir, n)`** → `list[dict]` — last N events from JSONL.
 - **`normalize_inventory_id(raw)`** → `str` — canonical id for merge/remove lookup.
 - **`resolve_inventory_remove_target(inventory, raw_id)`** → `str | None` — resolves id or name to stored id.
+- **`resolve_inventory_canonical_id(inventory, raw_id)`** → `str | None` — resolves id or alias to stored id (name matching not attempted).
+- **`reconcile_delta(state, delta)`** → `list[str]` — validates delta against state, returns warning strings, mutates delta in place.
+- **`remove_last_event(save_dir)`** → `bool` — removes last line from events.jsonl.
+- **`remove_last_chronicle_turn(save_dir)`** → `bool` — removes last turn section from chronicle.md.
 - **`touch_compendium_order(state, npc_id)`** — LRU ordering for compendium NPC selection.
-- Constants: `PC_CONDITIONS_MAX = 5`.
+- Constants: `PC_CONDITIONS_MAX = 5`, `MOMENTUM_MIN = -3`, `MOMENTUM_MAX = 3`.
 
 ## State shape — `state.yaml`
 
@@ -38,7 +42,7 @@ meta:
   setting_pack: str
   model: str
   compendium_touch_order: [str]  # LRU order for NPC selection
-  pending_gm_beat: dict | None  # GM beat from progress extractor, consumed by next turn's narrator
+  pending_gm_beat: dict | None  # GM beat from progress extractor, consumed by next turn's narrator (runtime-only, not in default state)
   last_compacted_turn: int     # compaction tracking (0 = never compacted)
 
 pc:
@@ -58,6 +62,7 @@ pc:
       description: str
       added_turn: int
   momentum: int                # [-3, +3], engine-computed from roll bands
+  allegiance: str | None
 
 location:
   id: str
@@ -84,15 +89,24 @@ scene:
   tagline: str
   present_npcs: [NpcRef]       # id, name, title, notes, bio
   world_state: [str]           # immutable after seed
-  recent_events: [str]         # FIFO cap (configurable, default 20)
+  recent_events: [Event]       # object form: {id, text, turn} — FIFO cap (configurable, default 20)
   recently_left: [dict]        # NPCs that left this turn
   recently_left_turns: int     # decay counter
   turn_entered: int            # turn number when scene was entered (anti-stall tracking)
+  location_entered_turn: int   # turn number when location was last changed
+  scene_pressure: [Pressure]   # {id, text, urgency, turn_added, max_turns}
 
 compendium:
-  npcs:                        # dict[id] → {name, title, bio} — durable NPC identity
+  npcs:                        # dict[id] → {name, title, bio, aliases, allegiance, last_seen_state} — durable NPC identity
     {id}:
       name: str
       title: str
       bio: str
+      aliases: [str]
+      allegiance: str | None
+      last_seen_state: str | None
+
+world:
+  factions: [str]
+  locations: [str]
 ```

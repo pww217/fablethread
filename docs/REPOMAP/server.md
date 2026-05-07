@@ -6,36 +6,55 @@
 
 ## Routes
 
-- `GET /` — index page
-- `GET /turn?input=` — SSE stream
-- `POST /new-game` — static/dynamic seed
-- `POST /new-game/reroll` — reroll character generation
-- `GET /panels/*` — HTMX fragments
-- `GET /turn_viewer` — standalone viewer
-- `GET /turn_viewer/data` — JSON
-- `GET /turn_viewer/stream` — SSE mtime poll
-- `GET /opening` — opening scene
-- `GET /healthz` — health check
+| Route | Method | Handler | Description |
+|---|---|---|---|
+| `/` | GET | `index()` | Index page with state, history, actions, opening |
+| `/turn` | GET | `get_turn()` | SSE stream for turn pipeline (narrative tokens, phases, complete) |
+| `/turn/retry` | GET | `retry_turn()` | SSE stream for retrying last turn's roll |
+| `/new-game` | POST | `new_game()` | Start new game (static seed or dynamic LLM generation) |
+| `/new-game/reroll` | POST | `new_game_reroll()` | Re-roll dynamic pack seed |
+| `/panels/state` | GET | `panel_state()` | State panel fragment |
+| `/panels/state-left` | GET | `panel_state_left()` | Left state panel |
+| `/panels/state-right` | GET | `panel_state_right()` | Right state panel |
+| `/panels/actions` | GET | `panel_actions()` | Actions panel |
+| `/panels/debug` | GET | `panel_debug()` | Debug panel |
+| `/panels/debug/clear-errors` | POST | `debug_clear_errors()` | Clear error log |
+| `/panels/pack-picker` | GET | `panel_pack_picker()` | Pack selection dropdown |
+| `/panels/char-creation` | GET | `panel_char_creation()` | Character creation form |
+| `/panels/turn-log` | GET | `panel_turn_log()` | Turn log with change lines |
+| `/turn_viewer` | GET | `turn_viewer()` | Standalone turn viewer page |
+| `/turn_viewer/data` | GET | `turn_viewer_data()` | Turn viewer JSON data |
+| `/turn_viewer/stream` | GET | `turn_viewer_stream()` | SSE mtime polling for turn viewer |
+| `/opening` | GET | `opening()` | Opening scene HTML |
+| `/healthz` | GET | `healthz()` | LLM health check (mock or live) |
 
 ## Global state
 
-- `_active_pack` (Pack) — in `server/app.py`
-- `_pack_id` — in `server/app.py`
-- `_dynamic_opening` — in `server/app.py`
-- `_dynamic_opening_actions` — in `server/app.py`
-- `_ERRORS_LOG` (deque, last 50) — in `server/app.py`
+- `BASE_DIR`, `REPO_ROOT`, `TEMPLATES_DIR`, `PROMPTS_DIR`, `PACKS_DIR`, `SAVE_DIR` — Path constants (in `server/app.py`)
+- `config` — raw config dict (in `server/app.py`)
+- `engine_config` — EngineConfig instance (in `server/app.py`)
+- `_pack_id` (str) — current pack ID (in `server/app.py`)
+- `_active_pack` (Pack) — current pack (in `server/app.py`)
+- `_dynamic_opening` (str) — dynamic pack opening narrative (in `server/app.py`)
+- `_dynamic_opening_actions` (list[str]) — dynamic pack opening actions (in `server/app.py`)
+- `_ERRORS_LOG` (deque, last 50) — in-process errors (in `server/app.py`)
+- `_jinja_env` (Environment) — Jinja2 env with autoescape (in `server/app.py`)
 
 ## Internal functions
 
 ### server/app.py
-- FastAPI `app` instance + middleware/mounts
-- Jinja env
-- Config bootstrap (EngineConfig, pack loading)
-- `_ERRORS_LOG` deque
-- `_render()` helper
-- Module-level globals: `SAVE_DIR`, `PACKS_DIR`, `_active_pack`, `engine_config`
-- `startup_event` / `main()`
-- `_validate_stats()`
+- `app` — FastAPI instance, created after pack loading
+- `BASE_DIR`, `REPO_ROOT`, `TEMPLATES_DIR`, `PROMPTS_DIR`, `PACKS_DIR`, `SAVE_DIR` — Path constants
+- `config` — raw config dict from `_load_config()`
+- `engine_config` — EngineConfig instance from config.yaml
+- `logger` — from `setup_logging()`
+- `_jinja_env` — Jinja2 Environment with autoescape + `tojson` filter
+- `_render(template_name, context)` → `HTMLResponse` — renders template with context
+- `_validate_stats(stats)` → `bool` — validates PC stats (1-4 each, 12-16 total, all 6 skills)
+- `startup_event()` — on_event("startup"), runs LLM warmup if configured
+- `main()` — uvicorn entry point
+- Module-level globals: `config`, `engine_config`, `logger`, `_pack_id`, `_active_pack`, `_dynamic_opening`, `_dynamic_opening_actions`, `_ERRORS_LOG`
+- `app.mount("/static", ...)` — serves static files
 
 ### server/routes.py
 - All `@app.get` / `@app.post` handlers
@@ -43,25 +62,27 @@
   from `server/tv.py` for turn viewer data
 
 ### server/panels.py
-- `_debug_context()`
-- `_load_current_state()`
-- `_load_recent_history()`
-- `_load_last_actions()`
-- `_load_rules_map()`
-- `_get_opening()`, `_get_opening_actions()`
+- `_debug_context()` → `dict` — builds debug panel context (errors, turns, mock_mode, state, log flags, log_file)
+- `_load_current_state()` → `dict` — loads state from save dir
+- `_load_recent_history(save_dir, n=8)` → `list[dict]` — last n turns from chronicle.md with rules map
+- `_load_last_actions(save_dir)` → `list[str]` — actions from most recent turn event
+- `_get_opening()` → `str` — opening text (dynamic or static pack)
+- `_get_opening_actions()` → `list[str]` — opening actions (dynamic or static pack)
+- `_load_rules_map(save_dir)` → `dict[int, dict]` — turn→rules map from events.jsonl
 
 ### server/tv.py
-- `_turn_viewer_data()`
-- `_tv_parse_json_blob()`
-- `_tv_dict_to_lines()`
-- `_tv_extract_stream_status()`
-- `_tv_narration_lines()`
-- `_tv_rules_status()`
-- `_STATUS_CSS`, `_STAGE_CSS` constants
+- `_turn_viewer_data(save_dir)` → `tuple[list[dict], bool]` — builds turn viewer rows from events.jsonl (streams, connectors, prompts, token sums, status bars)
+- `_tv_parse_json_blob(raw)` → `dict | None` — parses JSON from string (bare or brace-scan fallback)
+- `_tv_dict_to_lines(d, skip_keys, max_str=150)` → `list[dict]` — renders dict as KV lines with smart value formatting
+- `_tv_extract_stream_status(name, skipped, error, attempts, rejected)` → `str` — "ok"/"skipped"/"retried"/"rejected"/"error"
+- `_tv_rules_status(rules_ev)` → `str` — "ok" or "neutral"
+- `_tv_narration_lines(narr)` → `list[dict]` — chars + text preview for narration
+- `_STATUS_CSS` — dict mapping status → CSS class (ok, skipped, retried, rejected, error, neutral)
+- `_STAGE_CSS` — dict mapping stage → CSS class (rules, narrate, scene, state, progress)
 
 ### server/metrics.py
-- `_recent_turn_metrics()`
-- `_turn_log_entries()`
-- `_fmt_ms_seconds()`
-- `_fmt_tokens()`
-- `_fmt_tokens_exact()`
+- `_recent_turn_metrics(save_dir, n=10)` → `list[dict]` — last n turns from events.jsonl with per-stream metrics (tt, ttft, tokens, rejections)
+- `_turn_log_entries(save_dir, limit=50)` → `list[dict]` — turn log rows with change lines and rules data
+- `_fmt_ms_seconds(ms)` → `str` — formats ms as "X.Xs" or "—"
+- `_fmt_tokens(n)` → `str` — formats tokens as "123" or "1.23k"
+- `_fmt_tokens_exact(n)` → `str` — formats tokens as "1,234" or "—"

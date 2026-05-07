@@ -5,15 +5,16 @@ ccya/                          # Python package
   __main__.py                  # CLI entry: argparse + uvicorn.run
   cli.py                       # CLI commands
   engine/                      # Turn pipeline package
-    __init__.py                # Re-exports: EngineConfig, run_turn, generate_seed, warmup, format_change_lines
+    __init__.py                # Re-exports: EngineConfig, run_turn, run_turn_retry, warmup, generate_seed, maybe_compact, format_change_lines, is_turn_in_progress + internal helpers for tests + LLM client re-exports
     config.py                  # EngineConfig dataclass, _EventLock, is_turn_in_progress, Jinja env setup
     turn.py                    # run_turn() async orchestrator (thin — imports from submodules)
-    narrate.py                 # _narrate_messages(), NPC name generation (absorbs old names.py)
+    narrate.py                 # _narrate_messages(), NPC name helpers
+    names.py                   # generate_name_pool(), generate_npc_names(), generate_faction_pool(), generate_location_pool()
     rules.py                   # _rules_messages(), _call_rules(), retry logic (NOT ccya/rules.py)
     extraction.py              # _run_extraction_pipeline(), all _extract_*_messages, _call_stream()
     seed.py                    # generate_seed(), _build_generate_seed_messages(), _soft_validate_seed()
     changes.py                 # summarize_changes(), format_change_lines(), _summarize_applied()
-    pressure.py                # _expire_scene_pressures()
+    pressure.py                # _expire_scene_pressures(), _purge_scene_pressures()
     compactor.py               # maybe_compact(), chronicle compaction + recent_events pruning
   state/                       # State persistence package
     __init__.py                # Re-exports all state symbols
@@ -21,17 +22,17 @@ ccya/                          # Python package
     delta.py                   # apply_delta, reconcile_delta, PC_CONDITIONS_MAX
     inventory.py               # normalize_inventory_id, resolve/fuzzy match helpers
     npcs.py                    # build_npc_alias_map, touch_compendium_order
-    chronicle.py               # append_event, append_chronicle, load_chronicle_tail, load_recent_events, load_recent_chronicle_turns
+    chronicle.py               # append_event, append_chronicle, load_chronicle_tail, load_recent_events, load_recent_chronicle_turns, remove_last_chronicle_turn, remove_last_event
     momentum.py                # apply_momentum, MOMENTUM_MIN, MOMENTUM_MAX
   server/                      # FastAPI server package
-    __init__.py                # Re-exports: app, main
+    __init__.py                # Re-exports: app, main, config, SAVE_DIR, _validate_stats
     app.py                     # FastAPI app, config bootstrap, Jinja env, pack loading, startup, _render, _validate_stats
     routes.py                  # All @app.get / @app.post route handlers
     panels.py                  # _debug_context(), _load_* helpers, _get_opening
     tv.py                      # _turn_viewer_data(), _tv_* helpers, _STATUS_CSS, _STAGE_CSS
     metrics.py                 # _recent_turn_metrics(), _turn_log_entries(), fmt helpers
   eval/                        # Eval harness package
-    __init__.py
+    __init__.py                # Re-exports: EvalConfig, JudgeResult, RunResult, Scenario, Turn, TurnAssert, TurnRecord, build_trace, discover_scenarios, engine_mirror, find_previous_run, generate_report, load_eval_config, load_run_result, load_scenario, parse_judge_response, run_judge, run_scenario
     __main__.py                # CLI entry
     cli.py                     # CLI commands
     config.py                  # Eval config
