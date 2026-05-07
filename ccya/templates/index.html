@@ -331,54 +331,89 @@ function _narrativePanelEl() {
     return document.getElementById('narrative-panel');
 }
 
-/** Scroll #narrative-panel so anchorEl sits ~upper-quarter (readable medium-page position). */
-function _scrollNarrativeToReadingAnchor(container, anchorEl, ratio) {
-    if (!container || !anchorEl) return;
-    const r = ratio == null ? 0.25 : ratio;
-    const cRect = container.getBoundingClientRect();
-    const eRect = anchorEl.getBoundingClientRect();
-    const desiredTop = cRect.top + r * cRect.height;
-    const delta = eRect.top - desiredTop;
-    if (Math.abs(delta) < 6) return;
-    container.scrollTop += delta;
-}
+/**
+ * Smoothly animate container's scrollTop so targetEl's top edge aligns
+ * with the container's top edge. Aborts if user scrolls during animation.
+ */
+function _smoothScrollContainerToTop(container, targetEl, duration) {
+    if (!container || !targetEl) return;
+    duration = duration == null ? 420 : duration;
 
-// Stream-follow scroll: keeps the bottom of the streaming textDiv visible as
-// tokens arrive, advancing the view only as far as needed. Pauses automatically
-// if the user scrolls up. Stops cleanly without snapping to absolute bottom.
-let _streamFollowRafId = null;
+    const startScrollTop = container.scrollTop;
+    const containerTop = container.getBoundingClientRect().top;
+    const targetTop    = targetEl.getBoundingClientRect().top;
+    const targetScrollTop = startScrollTop + (targetTop - containerTop);
 
-function _startStreamFollow(np, textDiv) {
-    if (_streamFollowRafId !== null) return;
-    let lastScrollTop = np ? np.scrollTop : 0;
-    let userScrolledUp = false;
-    const BOTTOM_MARGIN = 80;
-    const MAX_STEP = 28;
+    const delta = targetScrollTop - startScrollTop;
+    if (Math.abs(delta) < 4) return;
 
-    function tick() {
-        if (_streamFollowRafId === null) return;
-        const el = _narrativePanelEl();
-        if (!el || !textDiv.isConnected) { _stopStreamFollow(); return; }
-        if (el.scrollTop < lastScrollTop - 5) userScrolledUp = true;
-        if (!userScrolledUp) {
-            const npRect = el.getBoundingClientRect();
-            const tdRect = textDiv.getBoundingClientRect();
-            const targetBottom = npRect.bottom - BOTTOM_MARGIN;
-            if (tdRect.bottom > targetBottom) {
-                el.scrollTop += Math.min(tdRect.bottom - targetBottom, MAX_STEP);
-            }
-        }
-        lastScrollTop = el.scrollTop;
-        _streamFollowRafId = requestAnimationFrame(tick);
+    const maxScroll = container.scrollHeight - container.clientHeight;
+    const finalScrollTop = Math.max(0, Math.min(maxScroll, targetScrollTop));
+
+    const startTime = performance.now();
+    const ABORT_THRESHOLD = 8;
+    let lastKnownScrollTop = startScrollTop;
+    let rafId;
+
+    function ease(t) {
+        return t < 0.5
+            ? 4 * t * t * t
+            : 1 - Math.pow(-2 * t + 2, 3) / 2;
     }
 
-    _streamFollowRafId = requestAnimationFrame(tick);
+    function tick(now) {
+        const currentScrollTop = container.scrollTop;
+        if (Math.abs(currentScrollTop - lastKnownScrollTop) > ABORT_THRESHOLD) {
+            cancelAnimationFrame(rafId);
+            return;
+        }
+
+        const elapsed  = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        container.scrollTop = startScrollTop + (finalScrollTop - startScrollTop) * ease(progress);
+        lastKnownScrollTop  = container.scrollTop;
+
+        if (progress < 1) {
+            rafId = requestAnimationFrame(tick);
+        }
+    }
+
+    rafId = requestAnimationFrame(tick);
 }
 
-function _stopStreamFollow() {
-    if (_streamFollowRafId !== null) {
-        cancelAnimationFrame(_streamFollowRafId);
-        _streamFollowRafId = null;
+// Display drain: decouples token arrival from visual text reveal.
+// pendingQueue accumulates raw text; the drain loop reveals it at CHARS_PER_FRAME
+// characters per animation frame (~60 fps).
+let _drainRafId  = null;
+let _drainRender = null;
+
+const CHARS_PER_FRAME = 6;
+
+function _startDisplayDrain(state, renderFn) {
+    if (_drainRafId !== null) return;
+
+    function drain() {
+        if (state.pendingQueue.length === 0) {
+            _drainRafId  = null;
+            _drainRender = null;
+            return;
+        }
+        const chunk = state.pendingQueue.slice(0, CHARS_PER_FRAME);
+        state.pendingQueue = state.pendingQueue.slice(CHARS_PER_FRAME);
+        state.displayBuf  += chunk;
+        renderFn(state.displayBuf);
+        _drainRafId = requestAnimationFrame(drain);
+    }
+
+    _drainRender = renderFn;
+    _drainRafId  = requestAnimationFrame(drain);
+}
+
+function _stopDisplayDrain() {
+    if (_drainRafId !== null) {
+        cancelAnimationFrame(_drainRafId);
+        _drainRafId  = null;
+        _drainRender = null;
     }
 }
 
@@ -841,9 +876,10 @@ function game() {
             const textDiv = document.createElement('div');
             textDiv.className = 'narrative-text';
             textDiv.innerHTML = '<span class="streaming-cursor"></span>';
+            textDiv.classList.add('streaming');
             // Detached element — kept for compatibility with existing cleanup paths
             // that call `cursor.remove()`. The live cursor span lives inside textDiv
-            // and is replaced each render in `_renderStreaming`.
+            // and is replaced each render in `_drainRenderFn`.
             const cursor = document.createElement('span');
             const strip = document.createElement('div');
             strip.className = 'progress-strip';
@@ -858,6 +894,7 @@ function game() {
             const self = this;
             this._turnEs = null;
             this._turnCancel = function () {
+                _stopDisplayDrain();
                 const t = self._turnEs;
                 if (t) {
                     try { t.close(); } catch (err) { /* ignore */ }
@@ -893,41 +930,41 @@ function game() {
             const es = new EventSource(url);
             this._turnEs = es;
 
-            // Streaming markdown: keep raw buffer, re-render via marked at most ~5×/s.
+            // Streaming: two-buffer architecture.
+            // streamBuf  — complete LLM output so far (source of truth for final flush).
+            // drainState — mutable object shared with _startDisplayDrain drain loop.
             let streamBuf = '';
-            let streamRafPending = false;
             let didScrollToNarrationStart = false;
-            const _renderStreaming = () => {
-                streamRafPending = false;
+            const drainState = { pendingQueue: '', displayBuf: '' };
+
+            const _drainRenderFn = (currentDisplayBuf) => {
                 _configureMarked();
-                const html = _renderMarkdown(streamBuf);
+                const html = _renderMarkdown(currentDisplayBuf);
                 textDiv.innerHTML = html + '<span class="streaming-cursor"></span>';
-                if (!didScrollToNarrationStart && streamBuf.length > 0) {
+                if (!didScrollToNarrationStart && currentDisplayBuf.length > 0) {
                     didScrollToNarrationStart = true;
                     requestAnimationFrame(() => {
-                        _scrollNarrativeToReadingAnchor(np, textDiv);
-                        _startStreamFollow(np, textDiv);
+                        _smoothScrollContainerToTop(np, block);
                     });
                 }
-            };
-            const _scheduleStreamRender = () => {
-                if (streamRafPending) return;
-                streamRafPending = true;
-                setTimeout(_renderStreaming, 120);
             };
 
             es.addEventListener('narrative_token', (e) => {
                 const data = JSON.parse(e.data);
-                streamBuf += (data.chunk || '');
-                _scheduleStreamRender();
+                const chunk = data.chunk || '';
+                streamBuf            += chunk;
+                drainState.pendingQueue += chunk;
+                _startDisplayDrain(drainState, _drainRenderFn);
             });
 
             es.addEventListener('phase', (e) => {
                 const payload = JSON.parse(e.data);
                 if (payload && payload.phase === 'narrate_done') {
-                    _stopStreamFollow();
-                    streamRafPending = false;
+                    _stopDisplayDrain();
+                    drainState.displayBuf   += drainState.pendingQueue;
+                    drainState.pendingQueue  = '';
                     textDiv.classList.remove('streaming');
+                    _configureMarked();
                     textDiv.innerHTML = _renderMarkdown(streamBuf);
                 }
                 _setProgressFromPhase(strip, payload);
@@ -949,7 +986,6 @@ function game() {
                 if (cursor.parentNode) cursor.remove();
                 textDiv.classList.remove('streaming');
                 textDiv.innerHTML = _renderMarkdown(result.narrative || '');
-                _stopStreamFollow();
 
                 const met = document.createElement('div');
                 met.className = 'turn-metrics';
@@ -1033,7 +1069,6 @@ function game() {
                 self._turnCancel = null;
                 if (this.submitting) {
                 _clearProgressStrip(strip);
-                _stopStreamFollow();
                 if (cursor.parentNode) cursor.remove();
                     textDiv.insertAdjacentHTML('beforeend',
                         '<span style="color:var(--accent-error)"> [connection\u00a0lost\u00a0\u2014 try again]</span>');
@@ -1074,6 +1109,7 @@ function game() {
             const textDiv = document.createElement('div');
             textDiv.className = 'narrative-text';
             textDiv.innerHTML = '<span class="streaming-cursor"></span>';
+            textDiv.classList.add('streaming');
             const cursor = document.createElement('span');
             const strip = document.createElement('div');
             strip.className = 'progress-strip';
@@ -1087,6 +1123,7 @@ function game() {
 
             this._turnEs = null;
             this._turnCancel = function () {
+                _stopDisplayDrain();
                 const t = self._turnEs;
                 if (t) {
                     try { t.close(); } catch (err) { /* ignore */ }
@@ -1121,31 +1158,37 @@ function game() {
             this._turnEs = es;
 
             let streamBuf = '';
-            let streamRafPending = false;
-            const _renderStreaming = () => {
-                streamRafPending = false;
+            let didScrollToNarrationStart = false;
+            const drainState = { pendingQueue: '', displayBuf: '' };
+
+            const _drainRenderFn = (currentDisplayBuf) => {
                 _configureMarked();
-                const html = _renderMarkdown(streamBuf);
+                const html = _renderMarkdown(currentDisplayBuf);
                 textDiv.innerHTML = html + '<span class="streaming-cursor"></span>';
-            };
-            const _scheduleStreamRender = () => {
-                if (streamRafPending) return;
-                streamRafPending = true;
-                setTimeout(_renderStreaming, 120);
+                if (!didScrollToNarrationStart && currentDisplayBuf.length > 0) {
+                    didScrollToNarrationStart = true;
+                    requestAnimationFrame(() => {
+                        _smoothScrollContainerToTop(np, block);
+                    });
+                }
             };
 
             es.addEventListener('narrative_token', (e) => {
                 const data = JSON.parse(e.data);
-                streamBuf += (data.chunk || '');
-                _scheduleStreamRender();
+                const chunk = data.chunk || '';
+                streamBuf               += chunk;
+                drainState.pendingQueue += chunk;
+                _startDisplayDrain(drainState, _drainRenderFn);
             });
 
             es.addEventListener('phase', (e) => {
                 const payload = JSON.parse(e.data);
                 if (payload && payload.phase === 'narrate_done') {
-                    _stopStreamFollow();
-                    streamRafPending = false;
+                    _stopDisplayDrain();
+                    drainState.displayBuf   += drainState.pendingQueue;
+                    drainState.pendingQueue  = '';
                     textDiv.classList.remove('streaming');
+                    _configureMarked();
                     textDiv.innerHTML = _renderMarkdown(streamBuf);
                 }
                 _setProgressFromPhase(strip, payload);
@@ -1162,7 +1205,6 @@ function game() {
                 if (cursor.parentNode) cursor.remove();
                 textDiv.classList.remove('streaming');
                 textDiv.innerHTML = _renderMarkdown(result.narrative || '');
-                _stopStreamFollow();
 
                 const met = document.createElement('div');
                 met.className = 'turn-metrics';
@@ -1238,7 +1280,6 @@ function game() {
                 self._turnCancel = null;
                 if (this.submitting) {
                     _clearProgressStrip(strip);
-                    _stopStreamFollow();
                     if (cursor.parentNode) cursor.remove();
                     textDiv.insertAdjacentHTML('beforeend',
                         '<span style="color:var(--accent-error)"> [connection\u00a0lost\u00a0\u2014 try again]</span>');
