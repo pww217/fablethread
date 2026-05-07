@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib.util
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -24,6 +25,9 @@ class TurnAssert:
     expected: str | None = None
     # Minimum amount for inventory_remove checks
     min_amount: int | None = None
+    # Used for quest_status and similar keyed lookups to identify the specific
+    # quest/entry by its "id" field within a list of updates.
+    stream_id: str = ""
 
 
 @dataclass
@@ -47,6 +51,7 @@ class Scenario:
     pack: str
     description: str
     turns: list[Turn]
+    seed_overrides: dict[str, Any] = field(default_factory=dict)
 
 
 def load_scenario(path: str | Path) -> Scenario:

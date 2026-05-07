@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from ccya.eval.config import EvalConfig
+from ccya.eval.engine_mirror import constants_block
 from ccya.llm_client import chat, strip_thinking
 from ccya.models import load_config
 
@@ -30,6 +31,8 @@ class JudgeResult:
     rubric_path: str = ""
     model: str = ""
     previous_overall: int | None = None
+    narrative_recap: str = ""
+    remediation: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -75,6 +78,26 @@ def _trim(s: str, n: int) -> str:
     return s[:n].rstrip() + "…"
 
 
+def _context_line(event: dict[str, Any]) -> str:
+    """Summarize per-stream context sizes and truncation for the judge."""
+    parts = []
+    narrate = event.get("narrate_prompt") or {}
+    nm = narrate.get("context_meta") or {}
+    if nm:
+        trunc = " TRIMMED" if nm.get("trimmed") else ""
+        parts.append(f"narrate={nm.get('est_tokens', '?')}t{trunc}")
+
+    extraction = event.get("extraction") or {}
+    for stream in ("scene", "state", "progress"):
+        ex = extraction.get(stream) or {}
+        cm = ex.get("context_meta") or {}
+        if cm:
+            trunc = " TRIMMED" if cm.get("trimmed") else ""
+            parts.append(f"{stream}={cm.get('est_tokens', '?')}t{trunc}")
+
+    return ", ".join(parts) if parts else "(no context telemetry)"
+
+
 def _scope_summary(rules_event: dict[str, Any] | None, rules_prompt: dict[str, Any]) -> str:
     """Scope is in the rules prompt's raw output — try to extract from there."""
     raw = rules_prompt.get("output", "")
@@ -94,6 +117,7 @@ def _scope_summary(rules_event: dict[str, Any] | None, rules_prompt: dict[str, A
 
 def build_trace(events: list[dict[str, Any]], *, max_chars: int) -> str:
     """Build the compact trace string sent to the judge as the user message."""
+    lines: list[str] = [constants_block()]
     blocks: list[str] = []
     for ev in events:
         turn = ev.get("turn", "?")
@@ -120,6 +144,7 @@ def build_trace(events: list[dict[str, Any]], *, max_chars: int) -> str:
 
         block = (
             f"TURN {turn} — {inp}\n"
+            f"[context] {_context_line(ev)}\n"
             f"[scope] {scope_line}\n"
             f"[rules] {rules_line}\n"
             f"[narrate] {_trim(narration, _NARRATE_TRUNC)}\n"
@@ -133,15 +158,16 @@ def build_trace(events: list[dict[str, Any]], *, max_chars: int) -> str:
         blocks.append(block)
 
     full = "\n".join(blocks)
-    if len(full) <= max_chars:
-        return full
+    trace = "\n".join(lines) + full
+    if len(trace) <= max_chars:
+        return trace
     _TRUNC_MARKER = "\n\n[... trace truncated to fit judge window ...]\n\n"
-    head_keep = int(max_chars * 0.6)
+    head_keep = max(int(max_chars * 0.6), len(lines[0]) + 1)
     tail_keep = max_chars - head_keep - len(_TRUNC_MARKER)
     return (
-        full[:head_keep]
+        trace[:head_keep]
         + _TRUNC_MARKER
-        + full[-tail_keep:]
+        + trace[-tail_keep:]
     )
 
 
@@ -250,10 +276,7 @@ async def run_judge(
 
     events_lines = events_path.read_text().splitlines() if events_path.exists() else []
     events = [json.loads(line) for line in events_lines if line.strip()]
-    # Build trace without hard limit; let the model's context window be the constraint.
-    # If the trace is extremely long, the model may truncate internally, but we don't
-    # artificially cut it here — the judge needs the full picture to make quality calls.
-    trace = build_trace(events, max_chars=100000)
+    trace = build_trace(events, max_chars=eval_cfg.judge.max_input_chars)
 
     messages = [
         {"role": "system", "content": rubric_text},
@@ -271,6 +294,8 @@ async def run_judge(
     overall = 0
     findings: list[dict[str, Any]] = []
     comments = ""
+    narrative_recap = ""
+    remediation = ""
     try:
         parsed = parse_judge_response(raw)
         overall = _coerce_score(parsed.get("overall_score", 0))
@@ -282,9 +307,12 @@ async def run_judge(
                     "criterion": str(f.get("criterion", "")),
                     "score": _coerce_score(f.get("score", 0)),
                     "note": str(f.get("note", "")),
+                    "turns": [int(t) for t in (f.get("turns") or []) if str(t).isdigit()],
                 }
             )
         comments = str(parsed.get("comments", ""))
+        narrative_recap = str(parsed.get("narrative_recap", ""))
+        remediation = str(parsed.get("remediation", ""))
     except ValueError as exc:
         comments = f"(judge response could not be parsed: {exc})"
 
@@ -300,4 +328,6 @@ async def run_judge(
         rubric_path=str(rubric_path),
         model=judge_model,
         previous_overall=previous_overall,
+        narrative_recap=narrative_recap,
+        remediation=remediation,
     )

@@ -14,6 +14,7 @@ Located in `tests/` at repo root. Run with `make test` (uses `uv run pytest -q`)
 - `test_char_creation.py` — Character creation tests
 - `test_server_routes.py` — Server route tests
 - `test_eval.py` — Eval harness tests
+- `test_eval_schema.py` — Tier 1 schema validation: TurnAssert paths against live engine, engine_mirror self-consistency, seed_override path validation
 
 ## Mocking
 

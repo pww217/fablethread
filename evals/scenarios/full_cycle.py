@@ -124,6 +124,12 @@ scenario = Scenario(
             ],
             asserts=[
                 TurnAssert(stream="extract.progress", field="quest_updates", expected="deliver_the_ledger"),
+                TurnAssert(
+                    stream="extract.progress",
+                    field="quest_status",
+                    stream_id="deliver_the_ledger",
+                    expected="completed",
+                ),
             ],
         ),
         # --- Turn 8: Unconventional — try to use the brass key on the inn door ---

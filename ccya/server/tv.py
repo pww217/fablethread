@@ -84,7 +84,7 @@ def _tv_dict_to_lines(
                             return val[:60]
                     return str(list(x.values())[0])[:60] if x else ""
                 labels = [_label(x) for x in v if x]
-                summary = ", ".join(l for l in labels if l)
+                summary = ", ".join(label for label in labels if label)
                 if len(summary) > max_str:
                     summary = summary[:max_str] + "\u2026"
                 display = f"[{len(v)}] {summary}" if summary else f"[{len(v)}]"

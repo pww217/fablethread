@@ -66,7 +66,7 @@ app = FastAPI(title="ccya")
 
 # Import routes so @app.get/@app.post decorators register handlers.
 # Must be after `app` is created to avoid circular import.
-import ccya.server.routes  # noqa: F401
+import ccya.server.routes  # noqa: F401, E402
 _jinja_env = Environment(
     loader=FileSystemLoader(str(TEMPLATES_DIR)),
     autoescape=True,

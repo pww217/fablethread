@@ -22,6 +22,7 @@ class JudgeConfig:
     rubric_path: str = "evals/rubrics/default.md"
     temperature: float = 0.3
     max_input_chars: int = 30000
+    context_economy_warn_tokens: int = 8000
 
 
 @dataclass
@@ -71,6 +72,7 @@ def load_eval_config(path: str | Path | None = None) -> EvalConfig:
             rubric_path=str(jdg_raw.get("rubric_path", "evals/rubrics/default.md")),
             temperature=float(jdg_raw.get("temperature", 0.3)),
             max_input_chars=int(jdg_raw.get("max_input_chars", 30000)),
+            context_economy_warn_tokens=int(jdg_raw.get("context_economy_warn_tokens", 8000)),
         ),
         report=ReportConfig(
             token_warn_pct=float(rpt_raw.get("token_warn_pct", 10.0)),

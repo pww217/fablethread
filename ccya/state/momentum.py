@@ -6,8 +6,8 @@ from typing import Any
 
 from ccya.rules import MOMENTUM_DELTA
 
-_MOMENTUM_MIN: int = -3
-_MOMENTUM_MAX: int = 3
+MOMENTUM_MIN: int = -3
+MOMENTUM_MAX: int = 3
 
 
 def apply_momentum(state: dict[str, Any], band: str) -> None:
@@ -18,4 +18,4 @@ def apply_momentum(state: dict[str, Any], band: str) -> None:
     pc = state.setdefault("pc", {})
     current = int(pc.get("momentum", 0))
     delta = MOMENTUM_DELTA.get(band, 0)
-    pc["momentum"] = max(_MOMENTUM_MIN, min(_MOMENTUM_MAX, current + delta))
+    pc["momentum"] = max(MOMENTUM_MIN, min(MOMENTUM_MAX, current + delta))

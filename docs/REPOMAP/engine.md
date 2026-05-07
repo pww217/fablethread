@@ -66,6 +66,7 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_extract_state_messages()` — prompt builder for state extractor
 - `_extract_progress_messages()` — prompt builder for progress extractor
 - `_call_stream()` — streaming LLM call wrapper
+- `_context_meta()` — computes context size signals for telemetry
 
 ### seed.py
 - `generate_seed()` — LLM-generated SeedEnvelope

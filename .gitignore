@@ -31,5 +31,5 @@ ccya/static/app.css
 .DS_Store
 
 # Eval harness outputs
-evals/runs/
+# evals/runs/ # Send them to Github for Perplexity reviews
 .eval-tmp/

@@ -27,6 +27,7 @@ judge:
   # Set high to let the judge see the full trace; the model's context window
   # is the real constraint. For 10-turn scenarios this avoids cutting the middle.
   max_input_chars: 100000
+  context_economy_warn_tokens: 8000
 
 report:
   # Per-stream tokens_in growth vs evals/runs/latest:
