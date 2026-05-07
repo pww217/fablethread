@@ -65,7 +65,8 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - **KV-cache pinning** — ensure system prompts are stable strings
 - **Model-agnostic thinking infra** — abstract reasoning/thinking config across providers
 - **Dev mode dual-model setup** — cheap fast model for dev iteration
-- **Eval harness** — Tier 1: `tests/test_engine_pipeline.py` with `_FakeLLM`; Tier 2: `make eval` with in-process driver, judge, REPORT.md — see [`p3-inference/eval-harness.md`](p3-inference/eval-harness.md) and phase files [`p3-inference/eval-harness/0{1..7}-*.md`](p3-inference/eval-harness/)
+- ~~**Eval harness** — Tier 1: `tests/test_engine_pipeline.py` with `_FakeLLM`; Tier 2: `make eval` with in-process driver, judge, REPORT.md~~ — see [`p3-inference/eval-harness.md`](p3-inference/eval-harness.md) and phase files [`p3-inference/eval-harness/0{1..7}-*.md`](p3-inference/eval-harness/)
+- ~~**Eval improvement plan** — Rubric rewrite, context telemetry, new scenarios, Tier 1 schema validation~~ — see [`eval_improvement_plan.md`](eval_improvement_plan.md)
 
 ---
 

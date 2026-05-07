@@ -5,8 +5,9 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
+from ccya.pack import Pack
 from ccya.state import load_recent_chronicle_turns, load_state
 
 from .metrics import _recent_turn_metrics
@@ -77,15 +78,17 @@ def _load_last_actions(save_dir: Path) -> list[str]:
 
 
 def _get_opening() -> str:
-    if _app._active_pack.manifest.mode == "dynamic":
+    pack = cast(Pack, _app._active_pack)
+    if pack.manifest.mode == "dynamic":
         return _app._dynamic_opening
-    return _app._active_pack.opening_text
+    return pack.opening_text
 
 
 def _get_opening_actions() -> list[str]:
-    if _app._active_pack.manifest.mode == "dynamic":
+    pack = cast(Pack, _app._active_pack)
+    if pack.manifest.mode == "dynamic":
         return _app._dynamic_opening_actions
-    return _app._active_pack.opening_actions
+    return pack.opening_actions
 
 
 def _debug_context() -> dict[str, Any]:

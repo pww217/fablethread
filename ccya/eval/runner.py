@@ -15,9 +15,10 @@ import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 from ccya.engine import EngineConfig, run_turn
 from ccya.eval.config import EvalConfig
-from ccya.eval.scenario import Scenario
+from ccya.eval.scenario import Scenario, TurnAssert
 from ccya.models import TurnResult, load_config
 from ccya.pack import load_pack
 from ccya.state import init_save_dir, load_state, save_state
@@ -59,7 +60,7 @@ class TurnRecord:
     """Number of rules parse failures (model returned invalid IntentEnvelope)."""
     extract_parse_failures: int = 0
     """Number of extract parse failures (model returned invalid JSON for a stream)."""
-    assert_results: list[dict] = field(default_factory=list)
+    assert_results: list[dict[str, Any]] = field(default_factory=list)
     """Auto-checker results: [{assertion, passed, detail}]."""
 
 
@@ -155,18 +156,34 @@ _EVAL_PACK_STARTING_CONDITIONS = [
 ]
 
 
-def _patch_eval_pack_starting_state(save_dir: Path, pack_id: str) -> None:
+def _patch_eval_pack_starting_state(
+    save_dir: Path, pack_id: str, seed_overrides: dict[str, Any] | None = None
+) -> None:
     """Apply runtime-only seed adjustments that SeedState's schema can't express.
 
     Currently only affects eval-pack: adds two structured Condition objects with
     explicit `added_turn` that SeedPC.conditions (list[str]) cannot represent.
     No-op for any other pack.
+
+    If `seed_overrides` is provided, applies dotpath overrides on top of the
+    pack seed state (e.g. {"meta.momentum": 3, "scene.scene_pressure": [...]}).
     """
-    if pack_id != "eval-pack":
-        return
-    state = load_state(save_dir)
-    state["pc"]["conditions"] = list(_EVAL_PACK_STARTING_CONDITIONS)
-    save_state(save_dir, state)
+    if pack_id == "eval-pack" or seed_overrides:
+        state = load_state(save_dir)
+        if pack_id == "eval-pack":
+            state["pc"]["conditions"] = list(_EVAL_PACK_STARTING_CONDITIONS)
+        if seed_overrides:
+            for dotpath, value in seed_overrides.items():
+                _apply_dotpath(state, dotpath, value)
+        save_state(save_dir, state)
+
+
+def _apply_dotpath(obj: dict[str, Any], path: str, value: Any) -> None:
+    """Set obj[a][b][c] = value for dotpath 'a.b.c'."""
+    parts = path.split(".")
+    for part in parts[:-1]:
+        obj = obj.setdefault(part, {})
+    obj[parts[-1]] = value
 
 
 def _ensure_runs_dir(runs_dir: Path) -> None:
@@ -188,15 +205,15 @@ def _update_latest_symlink(runs_dir: Path, target: Path) -> None:
 
 
 def _check_asserts(
-    asserts: list["TurnAssert"],
+    asserts: list[TurnAssert],
     event: dict[str, Any],
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Check structured assertions against a single event from events.jsonl.
 
     Returns a list of dicts: [{assertion, passed, detail}].
     """
-    _VALID_STREAMS = frozenset(("rules", "extract.state", "extract.scene", "extract.progress", "extract"))
-    results: list[dict] = []
+    _VALID_STREAMS = frozenset(("rules", "extract.state", "extract.scene", "extract.progress", "extract", "state_yaml"))
+    results: list[dict[str, Any]] = []
     for a in asserts:
         passed = False
         detail = ""
@@ -293,6 +310,20 @@ def _check_asserts(
                         break
                 passed = found is not None
                 detail = f"quest_updates[{a.expected}] {'found' if found else 'not found'}"
+            elif a.field == "quest_status":
+                updates = applied.get("quest_updates") or []
+                found = None
+                for u in updates:
+                    if isinstance(u, dict) and u.get("id") == a.stream_id:
+                        found = u
+                        break
+                if found:
+                    status = found.get("status", "")
+                    passed = status == a.expected
+                    detail = f"quest[{a.stream_id}].status={status!r} (expected {a.expected!r})"
+                else:
+                    passed = False
+                    detail = f"quest[{a.stream_id}] not found in quest_updates"
             elif a.field == "scene_pressure_add":
                 adds = applied.get("scene_pressure_add") or []
                 ids = [p.get("id") for p in adds if isinstance(p, dict)]
@@ -315,6 +346,17 @@ def _check_asserts(
                 ex = extraction.get("state") or {}
                 passed = bool(ex.get("skipped"))
                 detail = f"state skipped={passed}"
+
+        elif a.stream == "state_yaml":
+            state_snap = event.get("state_snapshot") or {}
+            if a.field == "pending_gm_beat.present":
+                beat = (state_snap.get("scene") or {}).get("pending_gm_beat")
+                passed = beat is not None
+                detail = f"pending_gm_beat={'present' if passed else 'absent'}"
+            elif a.field == "pending_gm_beat.absent":
+                beat = (state_snap.get("scene") or {}).get("pending_gm_beat")
+                passed = beat is None
+                detail = f"pending_gm_beat={'present' if beat else 'absent'}"
 
         results.append({
             "assertion": f"{a.stream}.{a.field}",
@@ -410,12 +452,13 @@ async def run_scenario(
 
     seed = pack.seed.model_dump()
     init_save_dir(save_dir, seed)
-    _patch_eval_pack_starting_state(save_dir, pack.manifest.id)
+    _patch_eval_pack_starting_state(save_dir, pack.manifest.id, scenario.seed_overrides)
 
     engine_config = _build_engine_config(eval_cfg)
 
     started_at = datetime.now(timezone.utc).isoformat()
     turn_records: list[TurnRecord] = []
+    state_snapshots: list[dict[str, Any]] = []
     total_errors = 0
 
     for idx, turn in enumerate(scenario.turns, start=1):
@@ -457,6 +500,14 @@ async def run_scenario(
 
         turn_records.append(record)
 
+        # Capture state snapshot after each turn for state_yaml assertions
+        state_snap: dict[str, Any] = {}
+        try:
+            state_snap = load_state(save_dir)
+        except Exception:
+            pass
+        state_snapshots.append(state_snap)
+
     src_events = save_dir / "events.jsonl"
     src_state = save_dir / "state.yaml"
 
@@ -471,6 +522,11 @@ async def run_scenario(
                 _, rules_f, extract_f = parse_failures[i]
                 record.rules_parse_failures = rules_f
                 record.extract_parse_failures = extract_f
+
+        # Merge state snapshots into events for state_yaml assertions
+        for i, snap in enumerate(state_snapshots):
+            if i < len(events):
+                events[i]["state_snapshot"] = snap
 
         # Run structured asserts
         for i, turn in enumerate(scenario.turns):

@@ -22,7 +22,7 @@ ccya/                          # Python package
     inventory.py               # normalize_inventory_id, resolve/fuzzy match helpers
     npcs.py                    # build_npc_alias_map, touch_compendium_order
     chronicle.py               # append_event, append_chronicle, load_chronicle_tail, load_recent_events, load_recent_chronicle_turns
-    momentum.py                # apply_momentum (imports MOMENTUM_DELTA from ccya.rules)
+    momentum.py                # apply_momentum, MOMENTUM_MIN, MOMENTUM_MAX
   server/                      # FastAPI server package
     __init__.py                # Re-exports: app, main
     app.py                     # FastAPI app, config bootstrap, Jinja env, pack loading, startup, _render, _validate_stats
@@ -39,6 +39,7 @@ ccya/                          # Python package
     report.py                  # REPORT.md generation
     runner.py                  # In-process run_turn() driver
     scenario.py                # Scenario definitions (full_cycle, etc.)
+    engine_mirror.py           # Live engine constants, KNOWN_ASSERT_FIELDS, KNOWN_SEED_PATHS, EXTRACT_STREAMS, constants_block()
   models.py                    # All Pydantic models, TurnResult dataclass, load_config()
   pack.py                      # Pack loading, PackManifest, SeedEnvelope, list_packs()
   rules.py                     # Pure-Python dice resolver: resolve_check() (2d6+stat+cond−diff→Band)
@@ -85,7 +86,18 @@ saves/default/                 # Active game save
 config.yaml                    # Server/engine config (LLM host, temps, timeouts, logging)
 pyproject.toml                 # uv project: fastapi, uvicorn, jinja2, pydantic, sse-starlette, openai, faker
 Makefile                       # install, run, dev, test, lint, fmt, css, new-game
-tests/                         # Smoke tests (mock LLM): test_engine_pipeline.py, test_engine_smoke.py, test_rules.py, etc.
+tests/                         # Smoke tests (mock LLM): test_engine_pipeline.py, test_engine_smoke.py, test_rules.py, test_eval.py, test_eval_schema.py, etc.
+
+evals/                         # Eval harness scenarios, rubrics, and config
+  config.yaml                  # EvalConfig: scenarios list, judge model, context_economy_warn_tokens
+  rubrics/
+    default.md                 # Judge rubric: mechanical correctness priority, 15 criteria
+  scenarios/
+    full_cycle.py              # Baseline 7-turn regression
+    pressure_lifecycle.py      # Scene pressure escalation/expiry
+    gm_beat_lifecycle.py       # pending_gm_beat lifecycle
+    momentum_high.py           # High-momentum narration tone
+    momentum_low.py            # Low-momentum narration tone
 
 docs/                          # Plans, roadmap, repo map
   plans/                       # Implementation plans
@@ -109,4 +121,5 @@ docs/                          # Plans, roadmap, repo map
     server.md
     state.md
     testing.md
+    eval.md
 

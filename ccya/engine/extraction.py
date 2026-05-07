@@ -31,6 +31,18 @@ from ccya.pack import ExtractExample
 _log = logging.getLogger("ccya.engine")
 
 
+def _context_meta(rendered_system: str, rendered_user: str, was_trimmed: bool, trimmed_chars: int) -> dict[str, Any]:
+    """Compute context size signals for telemetry."""
+    return {
+        "system_chars": len(rendered_system),
+        "user_chars": len(rendered_user),
+        "total_chars": len(rendered_system) + len(rendered_user),
+        "est_tokens": int((len(rendered_system) + len(rendered_user)) / 3.5),
+        "trimmed": was_trimmed,
+        "trimmed_chars": trimmed_chars,
+    }
+
+
 def _active_domains(intent: "IntentEnvelope | None") -> list[str]:
     scope = intent.scope if intent else Scope()
     return scope.active_domains or [
@@ -368,12 +380,12 @@ async def _run_extraction_pipeline(
         rules_outcome=rules_outcome, intent=intent,
         enable_thinking=config.enable_extract_thinking,
     )
-    scene_msgs = trim_messages(scene_msgs, config.prompt_token_budget)
+    # Capture pre-trim content for context_meta so the judge sees original sizes
+    rendered_scene_system = scene_msgs[0]["content"] if scene_msgs else ""
+    rendered_scene_user = scene_msgs[-1]["content"] if scene_msgs else ""
+    scene_msgs, scene_trimmed, scene_trimmed_chars = trim_messages(scene_msgs, config.prompt_token_budget)
     if config.log_prompts:
         _log_prompts(turn_no, "extract_scene", scene_msgs)
-
-    rendered_scene_system = scene_msgs[0]["content"]
-    rendered_scene_user = scene_msgs[-1]["content"]
 
     try:
         scene_result, scene_usage, scene_attempts, scene_retry_errors = await _call_stream(
@@ -389,6 +401,7 @@ async def _run_extraction_pipeline(
             "tokens_in": scene_usage.get("prompt_tokens", 0),
             "tokens_out": scene_usage.get("total_tokens", 0),
             "ms": round((asyncio.get_event_loop().time() - t_scene) * 1000, 1),
+            "context_meta": _context_meta(rendered_scene_system, rendered_scene_user, scene_trimmed, scene_trimmed_chars),
         }
     except Exception as exc:
         _log.warning("extract_scene failed: %s", exc, extra={"trace_id": trace_id})
@@ -406,12 +419,12 @@ async def _run_extraction_pipeline(
             enable_thinking=config.enable_extract_thinking,
             pack_examples=pack_examples,
         )
-        state_msgs = trim_messages(state_msgs, config.prompt_token_budget)
+        # Capture pre-trim content for context_meta so the judge sees original sizes
+        rendered_state_system = state_msgs[0]["content"] if state_msgs else ""
+        rendered_state_user = state_msgs[-1]["content"] if state_msgs else ""
+        state_msgs, state_trimmed, state_trimmed_chars = trim_messages(state_msgs, config.prompt_token_budget)
         if config.log_prompts:
             _log_prompts(turn_no, "extract_state", state_msgs)
-
-        rendered_state_system = state_msgs[0]["content"]
-        rendered_state_user = state_msgs[-1]["content"]
 
         try:
             state_result, state_usage, state_attempts, state_retry_errors = await _call_stream(
@@ -428,6 +441,7 @@ async def _run_extraction_pipeline(
                 "tokens_in": state_usage.get("prompt_tokens", 0),
                 "tokens_out": state_usage.get("total_tokens", 0),
                 "ms": round((asyncio.get_event_loop().time() - t_state) * 1000, 1),
+                "context_meta": _context_meta(rendered_state_system, rendered_state_user, state_trimmed, state_trimmed_chars),
             }
         except Exception as exc:
             _log.warning("extract_state failed: %s", exc, extra={"trace_id": trace_id})
@@ -450,12 +464,12 @@ async def _run_extraction_pipeline(
             deescalate=deescalate,
             quest_ages=quest_ages,
         )
-        progress_msgs = trim_messages(progress_msgs, config.prompt_token_budget)
+        # Capture pre-trim content for context_meta so the judge sees original sizes
+        rendered_prog_system = progress_msgs[0]["content"] if progress_msgs else ""
+        rendered_prog_user = progress_msgs[-1]["content"] if progress_msgs else ""
+        progress_msgs, prog_trimmed, prog_trimmed_chars = trim_messages(progress_msgs, config.prompt_token_budget)
         if config.log_prompts:
             _log_prompts(turn_no, "extract_progress", progress_msgs)
-
-        rendered_prog_system = progress_msgs[0]["content"]
-        rendered_prog_user = progress_msgs[-1]["content"]
 
         try:
             progress_result, prog_usage, progress_attempts, progress_retry_errors = await _call_stream(
@@ -472,6 +486,7 @@ async def _run_extraction_pipeline(
                 "tokens_in": prog_usage.get("prompt_tokens", 0),
                 "tokens_out": prog_usage.get("total_tokens", 0),
                 "ms": round((asyncio.get_event_loop().time() - t_progress) * 1000, 1),
+                "context_meta": _context_meta(rendered_prog_system, rendered_prog_user, prog_trimmed, prog_trimmed_chars),
             }
         except Exception as exc:
             _log.warning("extract_progress failed: %s", exc, extra={"trace_id": trace_id})

@@ -16,6 +16,7 @@ from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, _log_l
 from ccya.engine.extraction import (
     _avg_extract_ms,
     _avg_narrate_ms,
+    _context_meta,
     _run_extraction_pipeline,
 )
 from ccya.engine.names import generate_npc_names_split
@@ -161,13 +162,14 @@ async def run_turn(
         rules_messages = _rules_messages(
             env, state, user_input, recent_turns=recent_turns[-1:]
         )
-        rules_messages = trim_messages(rules_messages, config.prompt_token_budget)
+        # Capture pre-trim content for context_meta so the judge sees original sizes
+        rendered_rules_system = rules_messages[0]["content"] if rules_messages else ""
+        rendered_rules_user = rules_messages[-1]["content"] if rules_messages else ""
+        rules_messages, rules_trimmed, rules_trimmed_chars = trim_messages(rules_messages, config.prompt_token_budget)
         if config.log_prompts:
             _log_prompts(
                 state.get("meta", {}).get("turn", 0) + 1, "rules", rules_messages
             )
-        rendered_rules_system = rules_messages[0]["content"] if rules_messages else ""
-        rendered_rules_user = rules_messages[-1]["content"] if rules_messages else ""
         intent, rules_usage, rules_raw_response = await _call_rules(rules_messages, config, trace_id)
 
         # Resolve dice in Python (deterministic) — _call_rules degrades intent, we do outcome here
@@ -303,13 +305,14 @@ async def run_turn(
             world_locations=_world_locations,
             pc_allegiance=_pc_allegiance,
         )
-        narr_messages = trim_messages(narr_messages, config.prompt_token_budget)
+        # Capture pre-trim content for context_meta so the judge sees original sizes
+        rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
+        rendered_narr_user = narr_messages[-1]["content"] if narr_messages else ""
+        narr_messages, narr_trimmed, narr_trimmed_chars = trim_messages(narr_messages, config.prompt_token_budget)
         if config.log_prompts:
             _log_prompts(
                 state.get("meta", {}).get("turn", 0) + 1, "narrate", narr_messages
             )
-        rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
-        rendered_narr_user = narr_messages[-1]["content"] if narr_messages else ""
 
         first_ms = 0.0
         t0 = asyncio.get_event_loop().time()
@@ -563,11 +566,13 @@ async def run_turn(
                 "rendered_system": rendered_rules_system,
                 "rendered_user": rendered_rules_user,
                 "output": rules_raw_response,
+                "context_meta": _context_meta(rendered_rules_system, rendered_rules_user, rules_trimmed, rules_trimmed_chars),
             },
             "narrate_prompt": {
                 "rendered_system": rendered_narr_system,
                 "rendered_user": rendered_narr_user,
                 "output": narrative,
+                "context_meta": _context_meta(rendered_narr_system, rendered_narr_user, narr_trimmed, narr_trimmed_chars),
             },
         }
         append_event(save_dir, event)
@@ -783,13 +788,14 @@ async def run_turn_retry(
             world_locations=_world_locations,
             pc_allegiance=_pc_allegiance,
         )
-        narr_messages = trim_messages(narr_messages, config.prompt_token_budget)
+        # Capture pre-trim content for context_meta so the judge sees original sizes
+        rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
+        rendered_narr_user = narr_messages[-1]["content"] if narr_messages else ""
+        narr_messages, narr_trimmed, narr_trimmed_chars = trim_messages(narr_messages, config.prompt_token_budget)
         if config.log_prompts:
             _log_prompts(
                 state.get("meta", {}).get("turn", 0) + 1, "narrate", narr_messages
             )
-        rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
-        rendered_narr_user = narr_messages[-1]["content"] if narr_messages else ""
 
         first_ms = 0.0
         t0 = asyncio.get_event_loop().time()
@@ -1034,11 +1040,13 @@ async def run_turn_retry(
                 "rendered_system": "",
                 "rendered_user": "",
                 "output": "",
+                "context_meta": {},
             },
             "narrate_prompt": {
                 "rendered_system": rendered_narr_system,
                 "rendered_user": rendered_narr_user,
                 "output": narrative,
+                "context_meta": _context_meta(rendered_narr_system, rendered_narr_user, narr_trimmed, narr_trimmed_chars),
             },
         }
         append_event(save_dir, event)

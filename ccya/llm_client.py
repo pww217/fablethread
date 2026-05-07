@@ -146,9 +146,17 @@ def strip_thinking(text: str) -> str:
 
 def trim_messages(
     messages: list[dict[str, str]], max_tokens: int
-) -> list[dict[str, str]]:
+) -> tuple[list[dict[str, str]], bool, int]:
+    """Return (trimmed_messages, was_truncated, chars_removed).
+
+    was_truncated is True when any message was dropped or truncated.
+    chars_removed is the total characters removed from all messages.
+    """
     def estimate(s: str) -> int:
         return int(len(s) / 3.5)
+
+    # Capture original total chars before any mutation
+    original_total_chars = sum(len(m.get("content", "")) for m in messages)
 
     # System message is never dropped or truncated
     if messages and messages[0].get("role") == "system":
@@ -187,7 +195,10 @@ def trim_messages(
                     + content[-tail_keep:]
                 )
             total = max_tokens + 1  # exit loop
-    return messages
+    new_total_chars = sum(len(m.get("content", "")) for m in messages)
+    chars_removed = original_total_chars - new_total_chars
+    was_truncated = chars_removed > 0
+    return messages, was_truncated, chars_removed
 
 
 async def chat_stream(

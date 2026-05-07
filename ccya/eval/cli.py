@@ -160,6 +160,7 @@ def _cmd_pack(args: argparse.Namespace) -> int:
     print(f"  judge.rubric_path: {cfg.judge.rubric_path}")
     print(f"  judge.temperature: {cfg.judge.temperature}")
     print(f"  judge.max_input_chars: {cfg.judge.max_input_chars}")
+    print(f"  judge.context_economy_warn_tokens: {cfg.judge.context_economy_warn_tokens}")
     print(f"  report.token_warn_pct: {cfg.report.token_warn_pct}")
     print(f"  report.token_fail_pct: {cfg.report.token_fail_pct}")
     print(f"  report.flag_at_top: {cfg.report.flag_at_top}")

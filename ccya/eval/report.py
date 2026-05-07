@@ -351,6 +351,9 @@ def _render_judge_summary(judge: Any | None) -> str:
             name = f.get("criterion", "?")
             score = f.get("score", "?")
             note = f.get("note", "")
+            turns = f.get("turns")
+            if turns:
+                note = f"{note} *(turns {', '.join(str(t) for t in turns)})*"
             parts.append(f"- **{name}** ({score}/5): {note}")
         parts.append("")
     if comments:
@@ -384,6 +387,7 @@ def _render_combined_table(
     total_duration = 0.0
     total_retries = 0
     total_parse_failures = 0
+    stream_tok_in: dict[str, int] = {s: 0 for s in _STREAM_KEYS}
 
     def _delta(cur_v: int, prev_v: int | None) -> str:
         if prev_v is None or prev_v == 0:
@@ -447,13 +451,14 @@ def _render_combined_table(
                 total_tok_in += sm.tokens_in
                 total_tok_out += sm.tokens_out
                 total_ms += sm.ms
+                stream_tok_in[stream] += sm.tokens_in
 
         rows.append("| " + " | ".join(cells) + " |")
 
     # Totals row
     total_cells = ["", "TOTALS"]
     for stream in _STREAM_KEYS:
-        total_cells.append(str(total_tok_in))
+        total_cells.append(str(stream_tok_in[stream]))
     total_cells.extend([str(total_retries), str(total_parse_failures), f"{total_duration:.2f}"])
     rows.append("| " + " | ".join(total_cells) + " |")
 
@@ -470,7 +475,7 @@ def _render_combined_table(
 
 def _render_auto_checker_block(run_result: RunResult) -> str:
     """Render structured auto-checker results."""
-    all_results: list[dict] = []
+    all_results: list[dict[str, Any]] = []
     for t in run_result.turns:
         for r in t.assert_results:
             all_results.append({"turn": t.turn_number, **r})
@@ -553,6 +558,26 @@ def generate_report(
     if judge_summary:
         parts.append("## Judge Summary\n")
         parts.append(judge_summary)
+
+    # Context economy warnings
+    context_warns = []
+    for ev in cur_events:
+        for stream in ("scene", "state", "progress"):
+            cm = (ev.get("extraction") or {}).get(stream, {}).get("context_meta") or {}
+            if cm.get("est_tokens", 0) > eval_cfg.judge.context_economy_warn_tokens:
+                context_warns.append(
+                    f"Turn {ev['turn']} {stream}: {cm['est_tokens']}t "
+                    f"({'TRIMMED' if cm.get('trimmed') else 'ok'})"
+                )
+        nm = (ev.get("narrate_prompt") or {}).get("context_meta") or {}
+        if nm.get("est_tokens", 0) > eval_cfg.judge.context_economy_warn_tokens:
+            context_warns.append(f"Turn {ev['turn']} narrate: {nm['est_tokens']}t")
+
+    if context_warns:
+        parts.append("## Context Economy Warnings\n")
+        for w in context_warns:
+            parts.append(f"- {w}")
+        parts.append("")
 
     parts.append(_render_flag_block(flags, eval_cfg.report.flag_at_top))
     parts.append("")

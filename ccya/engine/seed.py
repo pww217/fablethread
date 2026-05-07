@@ -95,7 +95,7 @@ async def generate_seed(
     trace_id = uuid.uuid4().hex[:8]
 
     messages = _build_generate_seed_messages(env, pack, overrides)
-    messages = trim_messages(messages, config.prompt_token_budget)
+    messages, _, _ = trim_messages(messages, config.prompt_token_budget)
     if config.log_prompts:
         _log_prompts(0, "generate_seed", messages)
     # Prefer hand-curated baseline_facts on the manifest; fall back to parsing

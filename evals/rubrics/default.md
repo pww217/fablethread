@@ -13,29 +13,25 @@ You will see one TURN block per turn in the user message. Each block contains
 the player input, the scope decision, the rules outcome, the narration, the
 extractor outputs, and what was applied/rejected.
 
-## Primary focus: the long arc
+## Primary focus: mechanical correctness
 
-Your most important job is to judge whether the run tells a compelling story.
-Score the long-arc criteria (quest progression, rewards/punishments, genre fit,
-narrative shape) more heavily than the mechanical ones. A run can have perfect
-extraction consistency and still be a boring, forgettable experience.
+Your most important job is to judge whether the engine's mechanics are
+functioning correctly — scene pressure lifecycle, extraction fidelity,
+context economy, GM beat consumption, and scope decisions. A run with a
+compelling story but broken state tracking is a broken run.
 
 Ask yourself:
-- Did the quests feel like real goals with real stakes, or just checklist items?
-- Did the player earn their rewards and suffer real consequences for failures?
-- Did the story feel appropriate to the genre and universe — gritty, grounded,
-  morally gray, with consequences that matter?
-- Did the narrative arc have a satisfying shape — rising tension, meaningful
-  choices, a payoff at the end?
-- Would a player want to keep playing after this run?
+- Did scene pressure escalate and expire correctly across turns?
+- Did `pending_gm_beat` get consumed within 1 turn and not persist?
+- Were per-stream token inputs proportionate to what was actually needed?
+- Did extraction outputs match narration outputs turn-by-turn?
+- Did `trim_messages` truncation silently discard in-scene state?
 
-## Secondary focus: mechanical correctness
+## Secondary focus: narrative quality
 
-The mechanical criteria below matter, but they serve the story. Good extraction
-consistency is important because broken state tracking breaks immersion. Good
-scope correctness matters because wrong domains produce narratively nonsensical
-outcomes. Judge mechanics through the lens of whether they support or undermine
-the narrative.
+Narrative criteria (quest arc, genre fit, compellingness) matter, but
+they serve as signal that the mechanics are producing good fiction.
+A 5/5 story built on broken extraction is a false positive.
 
 ## What to evaluate
 
@@ -90,6 +86,8 @@ Do the extractors emit deltas that match the narration? Examples of low scores:
 - Narration says "you pay 50 credits" but extract.state has no inventory_remove.
 - Narration introduces a new NPC but extract.scene.present_npcs doesn't include them.
 - extract.progress invents a quest objective the narration didn't actually advance.
+- extract.progress marks quest `status: completed` when all objectives are `done: true`
+  (auto_complete) — failure here means the quest silently hangs open.
 - Low scores here break immersion — the player sees one thing in the prose but
   the state says something else.
 
@@ -165,37 +163,54 @@ Does the game respect player choice?
 - Does the player feel like their choices matter?
 
 ### 15. pacing_and_pressure
-Does the game create and manage tension effectively?
-- Does scene pressure create urgency without railroading?
-- Do pressure timers escalate naturally (background → building → immediate)?
-- Does momentum affect the feel of the game (positive momentum = opportunities, negative = complications)?
-- Are there breathing room moments between high-tension turns?
-- Does the narrative arc feel satisfying across the full run?
+
+Score this criterion once. Internally weigh two distinct signals:
+
+**pressure_mechanics (objective — weight 60%):**
+- Did scene_pressure entries escalate from `background` → `building` → `immediate`
+  across their expected turn span?
+- Did pressures expire (disappear from applied state) when `max_turns` was reached?
+- Did the narration reflect urgency changes (not just internally tracked)?
+- Were new pressures seeded at appropriate story moments?
+
+**narrative_pacing (subjective — weight 40%):**
+- Are there breathing-room turns between high-tension beats?
+- Does momentum (positive/negative swings) visibly affect narration tone?
+- Does the arc feel satisfying across the full run?
+
+Your single `score` is the weighted composite. Call out pressure_mechanics
+failures specifically in `note` — they are harder to observe and more critical.
+Include offending turn numbers in `turns`.
 
 ## Output format
 
 Return ONLY a JSON object matching exactly this schema. No prose before or after.
 No markdown fences.
 
+> For mechanical criteria (`mechanical_consistency`, `extraction_consistency`,
+> `context_economy`, `context_fidelity`, `scope_correctness`, `state_drift`,
+> `pacing_and_pressure`), populate `turns` with turn numbers where the issue
+> was observed. Leave `turns` as `[]` for narrative criteria.
+
 ```json
 {
   "overall_score": 3,
   "findings": [
-    {"criterion": "quest_arc_quality",           "score": 4, "note": "One short sentence."},
-    {"criterion": "rewards_and_consequences",    "score": 3, "note": "One short sentence."},
-    {"criterion": "narrative_compellingness",    "score": 4, "note": "One short sentence."},
-    {"criterion": "genre_and_universe_fit",      "score": 3, "note": "One short sentence."},
-    {"criterion": "extraction_consistency",      "score": 4, "note": "One short sentence."},
-    {"criterion": "context_fidelity",            "score": 3, "note": "One short sentence."},
-    {"criterion": "context_economy",             "score": 3, "note": "One short sentence."},
-    {"criterion": "narrative_quality",           "score": 4, "note": "One short sentence."},
-    {"criterion": "scope_correctness",           "score": 3, "note": "One short sentence."},
-    {"criterion": "state_drift",                 "score": 3, "note": "One short sentence."},
-    {"criterion": "mechanical_consistency",      "score": 3, "note": "One short sentence."},
-    {"criterion": "intent_parsing_accuracy",     "score": 3, "note": "One short sentence."},
-    {"criterion": "npc_development",             "score": 3, "note": "One short sentence."},
-    {"criterion": "player_agency",               "score": 3, "note": "One short sentence."},
-    {"criterion": "pacing_and_pressure",         "score": 3, "note": "One short sentence."}
+    {"criterion": "quest_arc_quality",           "score": 4, "note": "One short sentence.", "turns": []},
+    {"criterion": "rewards_and_consequences",    "score": 3, "note": "One short sentence.", "turns": []},
+    {"criterion": "narrative_compellingness",    "score": 4, "note": "One short sentence.", "turns": []},
+    {"criterion": "genre_and_universe_fit",      "score": 3, "note": "One short sentence.", "turns": []},
+    {"criterion": "extraction_consistency",      "score": 4, "note": "One short sentence.", "turns": [3, 7]},
+    {"criterion": "context_fidelity",            "score": 3, "note": "One short sentence.", "turns": []},
+    {"criterion": "context_economy",             "score": 3, "note": "One short sentence.", "turns": [5]},
+    {"criterion": "narrative_quality",           "score": 4, "note": "One short sentence.", "turns": []},
+    {"criterion": "scope_correctness",           "score": 3, "note": "One short sentence.", "turns": [2]},
+    {"criterion": "state_drift",                 "score": 3, "note": "One short sentence.", "turns": []},
+    {"criterion": "mechanical_consistency",      "score": 3, "note": "One short sentence.", "turns": [4]},
+    {"criterion": "intent_parsing_accuracy",     "score": 3, "note": "One short sentence.", "turns": []},
+    {"criterion": "npc_development",             "score": 3, "note": "One short sentence.", "turns": []},
+    {"criterion": "player_agency",               "score": 3, "note": "One short sentence.", "turns": []},
+    {"criterion": "pacing_and_pressure",         "score": 3, "note": "One short sentence.", "turns": [6]}
   ],
   "comments": "Two to four sentences. Concrete, specific, actionable. Reference turn numbers.",
   "narrative_recap": "Brief recap of the arc: player did X, acquired Y items, completed Z quests, met these NPCs. Focus on qualitative summary, not mechanical details.",
@@ -203,11 +218,11 @@ No markdown fences.
 }
 ```
 
-`overall_score` is a 1-5 integer that is your overall verdict — NOT an average.
-Weight the long-arc criteria (quest_arc_quality, rewards_and_consequences,
-narrative_compellingness, genre_and_universe_fit) more heavily than the mechanical
-ones. Briefly justify the weighting in `comments` when the overall score diverges
-from the criterion scores.
+`overall_score` weights `mechanical_consistency`, `context_economy`,
+`context_fidelity`, `pacing_and_pressure`, `extraction_consistency`,
+`scope_correctness`, and `state_drift` at 2× relative to the narrative
+criteria. Briefly justify in `comments` when the overall diverges from
+criterion scores.
 
 `narrative_recap` should summarize the qualitative arc: what the player accomplished,
 how NPCs evolved, whether quests felt meaningful, and whether the narrative had a

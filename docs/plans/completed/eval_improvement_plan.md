@@ -1,7 +1,8 @@
 # ccya Eval Improvement Plan
 
-**Status:** Draft · May 2026  
-**Scope:** Issues 1–6, 8–10 from the eval audit. Issue 7 (additional genre packs) deferred.
+**Status:** Phase 7 complete · May 2026  
+**Scope:** Issues 1–6, 8–10 from the eval audit. Issue 7 (additional genre packs) deferred.  
+**Post-implementation:** Fixed `build_trace` truncation bug (constants block could be cut in half) — `ccya/eval/judge.py:164`.
 
 ---
 

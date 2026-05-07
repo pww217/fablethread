@@ -9,7 +9,7 @@
 
 - `apply_thinking(msgs, enable)` — wrap messages for thinking model
 - `strip_thinking(text)` — remove thinking tags from output
-- `trim_messages(msgs, max_tokens)` — token-budget trim
+- `trim_messages(msgs, max_tokens)` — token-budget trim; returns `(messages, was_truncated, chars_removed)`
 
 ## Mock mode
 
