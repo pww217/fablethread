@@ -293,6 +293,32 @@ class SceneExtractResult(BaseModel):
                 out.append(x)
         return out
 
+    @field_validator("actions", mode="before")
+    @classmethod
+    def _coerce_actions(cls, v: Any) -> Any:
+        if not v:
+            return v
+        out: list[str] = []
+        for x in v:
+            if isinstance(x, str):
+                out.append(x)
+            elif isinstance(x, dict):
+                out.append(x.get("action", str(x)))
+            else:
+                out.append(str(x))
+        return out
+
+    @field_validator("location_description", mode="before")
+    @classmethod
+    def _coerce_location_description(cls, v: Any) -> Any:
+        if not v:
+            return v
+        if isinstance(v, str):
+            return v
+        if isinstance(v, dict):
+            return v.get("description", str(v))
+        return str(v)
+
 
 class StateExtractResult(BaseModel):
     inventory_add: list[InventoryItem] = Field(default_factory=list, max_length=6)
