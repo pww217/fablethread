@@ -1,0 +1,39 @@
+{
+  "scenario_id": "full_cycle",
+  "pack": "eval-pack",
+  "model": "mlx-community/gemma-4-26b-a4b-it-mxfp8",
+  "temperature_override": null,
+  "started_at": "2026-05-07T21:58:17.090668+00:00",
+  "finished_at": "2026-05-07T21:58:47.883351+00:00",
+  "save_dir": "/Users/pwilson/.cache/ccya-eval/20260507T215817Z/save",
+  "output_dir": "/Users/pwilson/Repos/ccya/evals/runs/20260507T215817Z_j52neb8t",
+  "events_jsonl_path": "/Users/pwilson/Repos/ccya/evals/runs/20260507T215817Z_j52neb8t/full_cycle.events.jsonl",
+  "state_yaml_path": "/Users/pwilson/Repos/ccya/evals/runs/20260507T215817Z_j52neb8t/full_cycle.state.yaml",
+  "turns": [
+    {
+      "turn_number": 1,
+      "input": "Walk over to Caron's table and sit down across from him. I'm ready to talk about the debt.",
+      "phase": "dialogue",
+      "expects": [
+        "rules.required=false (pure social, no obstacle)",
+        "scope skips inventory and pc_condition",
+        "extract.state should be near-empty"
+      ],
+      "duration_s": 30.787196334000328,
+      "error": null,
+      "engine_turn_number": 2,
+      "outcome_summary": "You successfully negotiated a reduction in interest, but Caron has now coerced you into spying on Halden's upcoming shipment.",
+      "narrative_chars": 1262,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": false,
+          "detail": "rolled=True"
+        }
+      ]
+    }
+  ],
+  "total_errors": 0
+}

@@ -46,4 +46,41 @@
 
 ## EngineConfig dataclass
 
-Mirrors config.yaml sections. Fields: temps, timeouts, token budget, thinking toggles, compaction settings (`compact_every`, `compact_temperature`), scene pressure thresholds.
+```
+host: str = "http://localhost:8080/v1"
+model: str = "mlx-community/Qwen3.6-27B-4bit"
+prompt_token_budget: int = 32768
+request_timeout_s: int = 180
+narrate_temperature: float = 0.9
+extract_temperature: float = 0.4
+max_extract_retries: int = 1
+window_turns: int = 3
+chronicle_prefix_budget_tokens: int = 1500
+recent_events_max: int = 20
+enable_extract_thinking: bool = False
+enable_narrate_thinking: bool = False
+generate_seed_temperature: float = 0.9
+generate_seed_max_retries: int = 1
+log_llm_io: bool = False
+log_llm_io_max_chars: int = 4000
+rules_temperature: float = 0.2
+max_rules_retries: int = 1
+log_prompts: bool = False
+scene_pressure_building_at: int = 6
+scene_pressure_immediate_at: int = 10
+scene_pressure_max_age: int = 15
+scene_pressure_deescalate_on_success: bool = True
+compact_every: int = 0
+compact_temperature: float = 0.1
+```
+
+## Helpers
+
+- `_EventLock` — per-save `asyncio.Lock` dict for turn in-flight guard.
+- `is_turn_in_progress(save_dir)` → `bool` — checks if a save's lock is held.
+- `_build_jinja_env(template_dir)` → `Environment` — Jinja2 env with `FileSystemLoader`.
+- `_render(env, template_name, ctx)` → `str` — renders a Jinja2 template.
+- `_find_json(text)` → `dict | None` — extracts JSON from LLM response (bare, fenced, or brace-scan).
+- `_truncate(s, n)` → `str` — truncates string with ellipsis suffix.
+- `_log_llm_io(trace_id, phase, messages, response, extra, max_chars)` — structured debug log for LLM I/O.
+- `_log_prompts(turn, call, messages)` — appends formatted prompts to `logs/prompts.log`.

@@ -1,0 +1,212 @@
+compendium:
+  npcs:
+    caron:
+      bio: A portly man in his sixties with a merchant's ledger and a patient demeanor.
+        You owe him 500 credits from a failed venture three years ago.
+      last_seen:
+        last_seen_state: ''
+        location_id: marrows_crossing
+        location_name: Marrow's Crossing
+        turn: 2
+      name: Caron
+      title: Old creditor
+    halden:
+      bio: A road merchant in his fifties who hires couriers when his usual runners
+        are spoken for. Honest by reputation, careful with money.
+      name: Halden
+      title: Merchant
+    innkeeper:
+      bio: Runs the inn alone since her husband died. Knows every traveler by face
+        if not by name. Stays out of trouble unless it walks through her door.
+      name: Edda
+      title: Innkeeper at the Crossed Keys
+    matthew_estrada:
+      bio: A tall, broad-shoulded man in a stained leather jerkin carrying a heavy
+        rucksack. Looks like a road runner but moves with military precision.
+      name: Matthew Estrada
+      title: Traveler
+    tough_a:
+      bio: Hired muscle. No personal stake in this — he'll back off if the price is
+        right or the fight goes bad.
+      name: Bald Tough
+      title: Road thug
+    tough_b:
+      bio: Same outfit as the other — hired by the same person. Quicker to violence;
+        not the brains.
+      name: Scarred Tough
+      title: Road thug
+inventory:
+- aliases: []
+  amount: 500
+  id: credits
+  name: Credits
+  notes: Common coin, accepted at any inn or stall on the merchant road.
+- aliases: []
+  amount: 1
+  id: iron_dagger
+  name: Iron dagger
+  notes: Plain crossguard, edge worn from honing. Belt-carried.
+- aliases: []
+  amount: 3
+  id: bandages
+  name: Linen bandages
+  notes: Three rolls. Field-grade — won't replace a healer.
+- aliases:
+  - cloak
+  - travel cloak
+  amount: 1
+  id: traveler_cloak
+  name: Traveler's cloak
+  notes: Oiled wool, road-stained, hood deep enough to hide a face.
+- aliases: []
+  amount: 1
+  id: brass_key
+  name: Brass key
+  notes: A small brass key Halden gave you with the ledger.
+location:
+  description: 'A market town built around the confluence of two rivers. Cobblestone
+    streets,
+
+    timber-framed buildings, and the constant sound of water from the mills. The
+
+    town square has a stone well and a statue of the founder. Most shops are closing
+
+    for the evening.
+
+    '
+  id: marrows_crossing
+  name: Marrow's Crossing
+meta:
+  compendium_touch_order: []
+  game_name: eval
+  model: ''
+  pending_gm_beat:
+    instruction: ''
+    surface_as: ambient
+    type: revelation
+  setting_pack: eval-pack
+  turn: 2
+pc:
+  allegiance: null
+  bio: 'Mid-thirties, broad shoulders, careful with words. Took on a courier contract
+
+    to clear an old debt. Just arrived in Marrow''s Crossing with a heavy pack and
+
+    a heavier obligation.
+
+    '
+  conditions:
+  - added_turn: 8
+    description: A hard fall on the bridge two days ago left a deep, aching bruise
+      along the right ribcage.
+    id: bruised_ribs
+    label: bruised ribs
+  - added_turn: 10
+    description: Twelve days on the road, two days behind schedule, and an old debt
+      waiting at the end of it.
+    id: low_morale
+    label: low morale
+  momentum: 0
+  name: Aren Voss
+  stats:
+    charisma: 3
+    dexterity: 3
+    lore: 2
+    resolve: 3
+    strength: 3
+    wits: 2
+  tagline: Reluctant courier on the merchant road
+quests:
+- id: settle_the_debt
+  last_advanced_turn: 1
+  objectives:
+  - description: Find Caron, the man you owe.
+    done: true
+    failed: false
+  - description: Pay Caron in person and have him mark the debt cleared.
+    done: false
+    failed: false
+  status: active
+  title: Settle the Old Debt
+- id: deliver_the_ledger
+  objectives:
+  - description: Accept the courier contract from Halden.
+    done: false
+    failed: false
+  - description: Carry the ledger to the merchant Halden at the Crossed Keys Inn.
+    done: false
+    failed: false
+  - description: Confirm the contract with Halden in person.
+    done: false
+    failed: false
+  status: active
+  title: Deliver Halden's Ledger
+- id: clear_the_road_toughs
+  objectives:
+  - description: Find out who hired the toughs blocking the road.
+    done: false
+    failed: false
+  - description: Convince, pay, or remove the toughs from the inn.
+    done: false
+    failed: false
+  status: active
+  title: Clear the Road Toughs
+- id: investigate_halden_shipment
+  last_advanced_turn: 1
+  objectives:
+  - description: Discover the contents of Halden's shipment moving through the northern
+      pass.
+    done: false
+    failed: false
+  status: active
+  title: The Northern Pass Shipment
+scene:
+  present_npcs:
+  - bio: A portly man in his sixties with a merchant's ledger and a patient demeanor.
+      You owe him 500 credits from a failed venture three years ago.
+    id: caron
+    name: Caron
+    notes: Leaning forward with a calculating gaze, demanding intelligence on Halden's
+      shipment as collateral for the debt.
+    title: Old creditor
+  - bio: A road merchant in his fifties who hires couriers when his usual runners
+      are spoken for. Honest by reputation, careful with money.
+    id: halden
+    name: Halden
+    notes: Stands near the town well, examining a map and a pressed wax seal.
+    title: Merchant
+  - bio: Runs the inn alone since her husband died. Knows every traveler by face if
+      not by name. Stays out of trouble unless it walks through her door.
+    id: innkeeper
+    name: Edda
+    notes: Wiping down the bar at the Crossed Keys, which is two streets over.
+    title: Innkeeper at the Crossed Keys
+  recent_events:
+  - id: you_arrived_in_marrows_crossing_after
+    text: You arrived in Marrow's Crossing after three days on the road.
+    turn: 0
+  - id: you_heard_rumors_of_roadtoughs_extorting
+    text: You heard rumors of road-toughs extorting travelers near the Crossed Keys
+      Inn.
+    turn: 0
+  - id: you_found_caron_in_the_tavern
+    text: You found Caron in the tavern — he's been waiting for you.
+    turn: 0
+  - id: caron_demands_intel
+    text: Caron has demanded intelligence on Halden's upcoming shipment through the
+      northern pass as partial payment for the debt.
+    turn: 1
+  scene_pressure: []
+  tagline: A Debt Paid In Danger
+  tags:
+  - dialogue
+  world_state:
+  - Marrow's Crossing is a market town at the confluence of two rivers, known for
+    its mills and the annual river festival.
+  - Iron coin (credits) is the universal currency on the merchant road; barter is
+    acceptable but slower.
+  - The road has been quieter than usual this season — fewer caravans, more independent
+    runners, more opportunists.
+world:
+  factions: []
+  locations: []
