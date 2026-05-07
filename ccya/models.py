@@ -178,6 +178,7 @@ class NpcAdd(BaseModel):
 class NpcRemove(BaseModel):
     """Remove an NPC from the scene."""
     id: str
+    last_seen_state: str = ""  # 1-sentence description of what NPC was last seen doing
 
     @field_validator("id", mode="before")
     @classmethod

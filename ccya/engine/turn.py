@@ -483,10 +483,9 @@ async def run_turn(
                             extra={"trace_id": trace_id},
                         )
 
-                # Stamp last_scene on touched NPCs (Phase 4C)
+                # Stamp last_seen on touched NPCs (Phase 4C)
                 comp = state.get("compendium", {}).get("npcs", {})
                 location = state.get("location", {})
-                outcome_summary_text = outcome_summary or ""
                 touched_ids: set[str] = set()
                 for na in (delta.npc_add or []):
                     touched_ids.add(na.id)
@@ -495,11 +494,12 @@ async def run_turn(
                 for cu in (delta.compendium_npc_update or []):
                     touched_ids.add(cu.id)
                 for nid in touched_ids:
-                    comp.setdefault(nid, {})["last_scene"] = {
+                    entry = comp.setdefault(nid, {})
+                    entry["last_seen"] = {
                         "turn": turn_no,
                         "location_id": location.get("id", ""),
                         "location_name": location.get("name", ""),
-                        "summary": outcome_summary_text,
+                        "last_seen_state": entry.get("last_seen_state", ""),
                     }
 
         # Decay recently_left counter (engine-side, not in state.py).
@@ -959,10 +959,9 @@ async def run_turn_retry(
                             extra={"trace_id": trace_id},
                         )
 
-                # Stamp last_scene on touched NPCs (Phase 4C)
+                # Stamp last_seen on touched NPCs (Phase 4C)
                 comp = state.get("compendium", {}).get("npcs", {})
                 location = state.get("location", {})
-                outcome_summary_text = outcome_summary or ""
                 touched_ids: set[str] = set()
                 for na in (delta.npc_add or []):
                     touched_ids.add(na.id)
@@ -971,11 +970,12 @@ async def run_turn_retry(
                 for cu in (delta.compendium_npc_update or []):
                     touched_ids.add(cu.id)
                 for nid in touched_ids:
-                    comp.setdefault(nid, {})["last_scene"] = {
+                    entry = comp.setdefault(nid, {})
+                    entry["last_seen"] = {
                         "turn": turn_no,
                         "location_id": location.get("id", ""),
                         "location_name": location.get("name", ""),
-                        "summary": outcome_summary_text,
+                        "last_seen_state": entry.get("last_seen_state", ""),
                     }
 
         scene = state.get("scene", {})
