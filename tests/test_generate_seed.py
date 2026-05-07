@@ -11,6 +11,7 @@ import pytest
 import ccya.engine
 from ccya.engine import EngineConfig, generate_seed
 from ccya.pack import (
+    CompendiumEntry,
     Constraints,
     Inspiration,
     Pack,
@@ -220,8 +221,8 @@ async def test_generate_seed_baseline_facts_override_world_md():
     assert "A scenario-specific fact." in facts
 
 
-async def test_generate_seed_clears_compendium():
-    """Engine must reset compendium.npcs to {} even if LLM populated it."""
+async def test_generate_seed_clears_compendium_touch_order():
+    """Engine preserves compendium.npcs from LLM but clears touch order."""
     pack = _minimal_dynamic_pack()
     envelope_raw = json.loads(_valid_envelope_json())
     envelope_raw["seed_state"]["compendium"] = {
@@ -238,7 +239,7 @@ async def test_generate_seed_clears_compendium():
     ):
         envelope = await generate_seed(pack, _config(), template_dir=str(PROMPTS_DIR))
 
-    assert envelope.seed_state.compendium.npcs == {}
+    assert envelope.seed_state.compendium.npcs == {"someone": CompendiumEntry(name="Someone", title="Role", bio="Bio.")}
     assert "compendium_touch_order" not in envelope.seed_state.meta
 
 
