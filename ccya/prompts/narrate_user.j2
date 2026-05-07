@@ -104,7 +104,7 @@ LOCATION HINT: {{ ages.location_age }} turns in this location. If a natural open
 {% if known_npcs -%}
 ## Known Characters
 Before introducing anyone new, check this list. Re-use characters when they could plausibly be present.
-{% for n in known_npcs %}- **{{ n.name }}**{% if n.last_scene %} — last seen turn {{ n.last_scene.turn }}: {{ n.last_scene.summary }}{% endif %}
+{% for n in known_npcs %}- **{{ n.name }}**{% if n.last_seen %} — last seen {{ n.last_seen.location_name }}{% if n.last_seen.last_seen_state %}: {{ n.last_seen.last_seen_state }}{% endif %}{% endif %}
 {% endfor -%}
 {% endif -%}
 {% if present_npcs -%}
