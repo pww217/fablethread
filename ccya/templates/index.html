@@ -567,6 +567,16 @@ function charCreation() {
                 && this.stats.every(s => s.value >= 1 && s.value <= 4);
         },
 
+        getArchetypeDescriptions() {
+            return {
+                warrior: 'A frontline fighter. High Strength and Resolve for melee combat and endurance.',
+                scout: 'A nimble tracker. High Dexterity and Wits for stealth, perception, and reflexes.',
+                scholar: 'A learned researcher. High Lore and Wits for knowledge, investigation, and analysis.',
+                charmer: 'A charismatic leader. High Charisma and Wits for persuasion, leadership, and influence.',
+                survivor: 'A resilient survivor. High Resolve and Strength for endurance, toughness, and adaptability.',
+            };
+        },
+
         increment(statKey) {
             const stat = this.stats.find(s => s.key === statKey);
             if (stat && stat.value < 4 && this.total < 16) {
@@ -582,15 +592,17 @@ function charCreation() {
         },
 
         applyPreset(name) {
-            const presets = {
-                brawler: { strength: 4, dexterity: 2, wits: 2, lore: 1, charisma: 1, resolve: 2 },
-                smooth_talker: { strength: 1, dexterity: 2, wits: 2, lore: 2, charisma: 4, resolve: 1 },
-                balanced: { strength: 2, dexterity: 2, wits: 2, lore: 2, charisma: 2, resolve: 2 },
+            const archetypes = {
+                warrior:   { strength: 4, dexterity: 3, wits: 2, lore: 2, charisma: 2, resolve: 3 },
+                scout:     { strength: 2, dexterity: 4, wits: 3, lore: 2, charisma: 2, resolve: 3 },
+                scholar:   { strength: 3, dexterity: 2, wits: 4, lore: 4, charisma: 2, resolve: 1 },
+                charmer:   { strength: 2, dexterity: 2, wits: 3, lore: 2, charisma: 4, resolve: 3 },
+                survivor:  { strength: 3, dexterity: 3, wits: 2, lore: 2, charisma: 2, resolve: 4 },
             };
-            const p = presets[name];
-            if (p) {
+            const a = archetypes[name];
+            if (a) {
                 for (const s of this.stats) {
-                    if (p[s.key] !== undefined) s.value = p[s.key];
+                    if (a[s.key] !== undefined) s.value = a[s.key];
                 }
             }
         },
