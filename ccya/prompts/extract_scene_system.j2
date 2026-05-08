@@ -13,7 +13,8 @@ Emit one JSON object matching the schema. No prose, no markdown fences, null for
   "npc_remove": [],
   "npc_update": [],
   "actions": [],
-  "outcome_summary": ""
+  "outcome_summary": "",
+  "scene_pressure_remove": []
 }
 ```
 
@@ -36,6 +37,8 @@ Emit one JSON object matching the schema. No prose, no markdown fences, null for
 `actions`: exactly 4 distinct player choices, ~10 words each, drawn from THIS turn's narration only (not prior history). Structure: two choices should offer distinct avenues related to the current quest (if any), one should involve an NPC who is present in the scene, and one should be an exploration/environmental action or freeform option. Weight toward the player's strongest stat (don't mention stat), quest objectives, and motivations. Each one should move the plot forward substantially in a different direction. Examples: "Aim for the chest and fire", "Sneak past the guards and search the room", "Convince the guard to let you pass", "Create a diversion to slip past the guards". Bias to bold, good storytelling choices.
 
 `outcome_summary`: one or two short sentences: what just happened in flavor terms, showing narrative impact on player, npcs, scene, and location. For failures: describe what went wrong narratively. Examples: `"You successfully picklock the padlock and enter the vault."`, `"The guard spots you and raises the alarm."`
+
+`scene_pressure_remove`: IDs of pressures now resolved. Before emitting a removal, ask: did the narration show the underlying threat itself was eliminated? Examples of valid removal evidence: "the fire was extinguished", "the guards were evaded and the gates sealed behind you", "the bomb was defused". Examples of invalid removal evidence: "the player moved to a new location", "the player succeeded on a roll", "the threat is no longer mentioned". A location change alone NEVER justifies removing an immediate or building pressure — those can follow the player. A background pressure may be removed on location change only if the narration explicitly implies the source of the threat is in the now-left location.
 
 ## NPC scene cap
 

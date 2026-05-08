@@ -22,7 +22,7 @@ The current three-stream extraction pipeline has fields assigned to the wrong ex
 ## Affected files
 | File | Change type | Summary of change |
 |---|---|---|
-| `ccya/models.py` | modify | Move `actions`, `outcome_summary` out of `SceneExtractResult`; move `compendium_npc_update`, `scene_pressure_*`, `gm_beat` out of `ProgressExtractResult` and into `SceneExtractResult`; remove `failed` from `StateExtractResult` |
+| `ccya/models.py` | modify | Move `actions`, `outcome_summary` out of `SceneExtractResult`; move `compendium_npc_update`, `scene_pressure_*`, `gm_beat` out of `ProgressExtractResult` and into `SceneExtractResult`; remove `failed` from `StateExtractResult`; delete dead `ExtractResult` model |
 | `ccya/engine/extraction.py` | modify | Update `_extract_scene_messages` to pass `known_characters`, `scene_pressure`, `deescalate`, `quest_ages`; update `_extract_progress_messages` to remove scene_pressure, compendium, gm_beat from its context; update merge block to read routed fields from correct results; fix return tuple to pull `actions`/`outcome_summary` from `progress_result`, `compendium_npc_update`/`scene_pressure_*`/`gm_beat` from `scene_result` |
 | `ccya/prompts/extract_scene_system.j2` | modify | Add field rules for `compendium_npc_update`, `scene_pressure_*`, `gm_beat`; remove `actions`/`outcome_summary` field rules |
 | `ccya/prompts/extract_scene_user.j2` | modify | Add `scene_pressure`, `known_characters`, `deescalate`, `quest_ages` sections; remove nothing (backwards-compatible rendering) |
@@ -30,7 +30,9 @@ The current three-stream extraction pipeline has fields assigned to the wrong ex
 | `ccya/prompts/extract_progress_user.j2` | modify | Add narration context needed for `actions`/`outcome_summary`; remove `scene_pressure` block; remove `known_characters` block |
 | `ccya/engine/turn.py` | modify | Fix `failed` removal — cut LLM-extracted `failed` field; load `last_turn_failed` from events (already done), but remove `state_result.failed` from the pipeline return and event logging |
 | `docs/REPOMAP/extraction.md` | update | Reflect new field assignments per stream |
+| `docs/REPOMAP/models.md` | update | Remove `ExtractResult` from model list |
 | `docs/plans/TODO.md` | update | Add this plan |
+| `tests/test_engine_pipeline.py` | modify | Remove `outcome_summary` from `SceneExtractResult()` constructor calls (lines 267, 281) |
 
 ## Firm decisions
 
@@ -56,7 +58,7 @@ Restructure the three extractor result models and `StateDelta` to reflect the ne
 **File:** `ccya/models.py`
 
 **What:** 
-1. Move `ScenePressure` and `GMBeat` class definitions above `SceneExtractResult` (they are currently at lines 376/384, below `SceneExtractResult` at line 265). This is required because `SceneExtractResult` will reference them.
+1. `ScenePressure` (line 376) and `GMBeat` (line 384) are defined after `SceneExtractResult` (line 265), but `from __future__ import annotations` is present at line 3 of models.py so forward references resolve safely at runtime. No reordering required. Confirm this annotation import remains at the top of models.py before proceeding.
 2. Add `compendium_npc_update`, `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update`, and `gm_beat` to `SceneExtractResult`. Remove `actions` and `outcome_summary`.
 3. **Explicitly delete** the `_coerce_actions` field validator from `SceneExtractResult` (currently at lines 289-302). It is being moved to `ProgressExtractResult` in Step 1.2.
 
@@ -105,7 +107,7 @@ class SceneExtractResult(BaseModel):
         return str(v)
 ```
 
-**Validation:** `python -c "from ccya.models import SceneExtractResult; r = SceneExtractResult(); assert hasattr(r, 'scene_pressure_add'); assert not hasattr(r, 'actions')"` — passes without error.
+**Validation:** `python -c "from ccya.models import SceneExtractResult; r = SceneExtractResult(); assert hasattr(r, 'scene_pressure_add'); assert not hasattr(r, 'actions')"` — passes without error. `grep -n "_coerce_actions\|field_validator.*actions" ccya/models.py` — should match exactly once (inside ProgressExtractResult in Step 1.2, not in SceneExtractResult).
 
 ---
 
@@ -320,6 +322,12 @@ def _extract_progress_messages(
     recent_events = list(scene.get("recent_events") or [])
     world_state = list(scene.get("world_state") or [])
 
+    # Cross-stream: minimal surfaces
+    state_ctx = {
+        "items_gained": [it.name for it in state_result.inventory_add],
+        "items_lost": [it.id for it in state_result.inventory_remove],
+    }
+
     system_text = _render(env, "extract_progress_system.j2", {})
     user_text = _render(
         env,
@@ -347,7 +355,7 @@ def _extract_progress_messages(
     return msgs
 ```
 
-**Validation:** No Python errors on import; `scene_pressure`, `known_characters`, `deescalate`, `quest_ages`, and `scene_result` are no longer passed; `recent_turns` and `intent` are present.
+**Validation:** No Python errors on import; `scene_pressure`, `known_characters`, `deescalate`, `quest_ages`, and `scene_result` are no longer passed; `recent_turns` and `intent` are present. `grep -n "scene_result" ccya/engine/extraction.py` — confirm no matches inside `_extract_progress_messages` function body.
 
 ---
 
@@ -411,6 +419,10 @@ merged = StateDelta(
     recent_events_remove=progress_result.recent_events_remove,
 )
 
+# NOTE: gm_beat is intentionally absent from StateDelta — it is written
+# directly to state["meta"]["pending_gm_beat"] in turn.py Step 2.5.
+# Do NOT add gm_beat to the merge block.
+
 # Return tuple (7 elements — was 6):
 return (
     merged,
@@ -448,7 +460,6 @@ async def _run_extraction_pipeline(
     config: "EngineConfig",
     trace_id: str,
     turn_no: int,
-    pack_examples: list["ExtractExample"] | None = None,
     deescalate: bool = False,
     quest_ages: list[dict[str, Any]] | None = None,
     recent_turns: list[dict[str, Any]] | None = None,   # NEW
@@ -465,7 +476,7 @@ async def _run_extraction_pipeline(
 
 **What:** 
 1. The `gm_beat` store-to-meta logic currently reads from `progress_result.gm_beat` in both `run_turn` (line 552) and `run_turn_retry` (line 1068). Change both to read from `scene_result`.
-2. Pass `recent_turns` to `_run_extraction_pipeline` in both `run_turn` and `run_turn_retry`. Note: `run_turn_retry` already builds `recent_turns` at the top of the function (line 900) — it just needs to be threaded through.
+2. Pass `recent_turns` to `_run_extraction_pipeline` in both `run_turn` and `run_turn_retry`. Both functions already build `recent_turns` via `load_recent_chronicle_turns()` at the top of their try blocks (`run_turn` line 285, `run_turn_retry` line 900) — just thread the existing variable through.
 3. Update the unpacking in both call sites from 6 to 7 elements: add `scene_result` as the 7th variable.
 4. Remove the `failed` field from the event dict (replace with `[]` hardcoded since it's now always empty — keep the key for backwards compat with existing event log readers).
 
@@ -859,7 +870,7 @@ No dice were rolled this turn. The rules engine determined the action has no mec
 
 **File:** `ccya/prompts/extract_state_user.j2`
 
-**What:** No change needed to the user template — `failed` was never rendered in the user prompt, only in the system schema.
+**What:** Confirm `failed` is not rendered in the user template. `grep -n "failed" ccya/prompts/extract_state_user.j2` — expect zero matches (there is currently one match on line 7 but it's in a comment about roll outcomes, not the `failed` field). If any actual `failed` variable references are found, the template also needs updating.
 
 **Code Snippet** (schema block in `extract_state_system.j2`, replace with):
 ```json
@@ -930,7 +941,9 @@ def test_run_extraction_pipeline_returns_actions_from_progress(mock_llm_env):
 1. **`extra="forbid"` on `StateExtractResult`** — if the LLM still emits a `failed` key, Pydantic will raise. Add `model_config = {"extra": "ignore"}` to `StateExtractResult` as a guard. Check before deploying.
 2. **`_run_extraction_pipeline` return tuple arity change** — all callers unpack 6 values; changing to 7 (adding `scene_result`) breaks both call sites in `turn.py`. Both must be updated in lock-step in Step 2.5.
 3. **Template context variables misspelled or missing** — any Jinja `UndefinedError` in production silently falls through to the retry path. Run `make test` against the template renders directly.
-4. **Class definition order in `models.py`** — `ScenePressure` (line 376) and `GMBeat` (line 384) are defined below `SceneExtractResult` (line 265). Step 1.1 must move them above `SceneExtractResult` first, otherwise Python raises `NameError` at class definition time.
+4. **`from __future__ import annotations` defers forward references** — `ScenePressure` and `GMBeat` are defined after `SceneExtractResult` in models.py, but `from __future__ import annotations` is present at line 3 so forward references resolve safely. No reordering required. Confirm this annotation import remains at the top of models.py before proceeding.
+5. **`ExtractResult` is dead code** — defined at `models.py:404-408` with `failed`, `actions`, `outcome_summary` fields but never imported or used. Delete it in Phase 1.
+6. **Existing tests pass `outcome_summary` to `SceneExtractResult()`** — `tests/test_engine_pipeline.py:267,281` construct `SceneExtractResult(scene_tags=["dialogue"], outcome_summary="ok")`. After removing `outcome_summary` from `SceneExtractResult`, these will raise `TypeError`. Update to `SceneExtractResult(scene_tags=["dialogue"])`.
 
 ## Ambiguities requiring resolution before execution
 None — all questions were resolved in pre-planning.

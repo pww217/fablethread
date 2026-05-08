@@ -118,7 +118,7 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 
 ### pressure.py
 - `_expire_scene_pressures(state, delta, config=None)` — post-extraction expiry/urgency escalation for `scene_pressure`. Removes pressures past `max_turns`, escalates background→building→immediate at config thresholds (default 6/10).
-- `_purge_scene_pressures(state, delta, *, location_changed=False, combat_ended=False, config=None)` — removes stale/irrelevant pressures (location change, combat end, age cap at 15 turns default).
+- `_purge_scene_pressures(state, delta, *, location_changed=False, combat_ended=False, config=None)` — removes stale/irrelevant pressures. On location change: only auto-purges `urgency == "background"` pressures; `immediate` and `building` pressures survive location change and must be explicitly removed by the scene extractor. On combat end: removes `immediate` pressures. Age cap at 15 turns default.
 
 ### compactor.py
 - `maybe_compact(save_dir, state, config)` → `state` (async) — runs compaction if `turn % compact_every == 0`. Mutates chronicle.md and state.

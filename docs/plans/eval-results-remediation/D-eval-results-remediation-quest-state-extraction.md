@@ -63,6 +63,8 @@ delta, actions, outcome_summary, failed, extraction_event, progress_result = awa
 
 **Plan A** may cut or move `failed` from `StateExtractResult`. If Plan A removes `failed` from the return tuple, both call sites in `turn.py` will break with an unpacking error. **Plan D must not change the return tuple arity.** If Plan A changes the return signature, Plan D's Phase 2 step 2.2 logging block that references `state_result.failed` will need to be updated to match the new signature, and both `turn.py` call sites must be updated in lockstep. This plan assumes the 6-tuple signature remains stable.
 
+**After Plan A**, `scene_result.actions` and `scene_result.outcome_summary` will no longer exist — they will be on `progress_result` instead. The return tuple at line ~500-507 will reference `progress_result.actions` and `progress_result.outcome_summary`. Plan D's executor must confirm Plan A moved these fields before touching the return line.
+
 ## Implementation — Phase 1: Contact objective completion rule
 
 ### Context files to load
@@ -164,11 +166,11 @@ assert not _narration_has_transfer("The guard watches you from across the room."
 
 **File:** `ccya/engine/extraction.py`
 
-**What:** Inside `_run_extraction_pipeline`, after the `active = set(active_domains)` line (line 333) and before the `run_state = bool({"inventory", "pc_condition"} & active)` line (line 393), add the transfer-verb scan. The narration string is available as a parameter to `_run_extraction_pipeline` (line 318).
+**What:** Inside `_run_extraction_pipeline`, immediately before the `run_state = bool({"inventory", "pc_condition"} & active)` line (line 393), add the transfer-verb scan. The narration string is available as a parameter to `_run_extraction_pipeline` (line 318). **Critical:** this must go after Stream 1 (scene) completes (after line 390) and before the `run_state` guard — not at the top of the function after `active = set(active_domains)`. If inserted at the top, the `active` set used by Stream 1 would already be computed and the mutation to `active_domains` would not affect Stream 1's execution (which is correct — Stream 1 doesn't need inventory), but the `run_state` guard at line 393 would still see the old `active` set unless it is refreshed. The scan must be placed right before the guard so `active` is refreshed and the state stream runs when transfer verbs are detected.
 
 ```python
-# After: active = set(active_domains)
-# Before: run_state = bool({"inventory", "pc_condition"} & active)
+# Immediately before: run_state = bool({"inventory", "pc_condition"} & active)
+# (after Stream 1 scene block ends at line ~390)
 
 # Transfer-verb scan: supplementary inventory domain trigger
 if "inventory" not in active and _narration_has_transfer(narration):
@@ -260,12 +262,6 @@ def _dedup_compendium_add(
             (npc.get("id") or "").lower().replace("_", " "),
         ] + [(a or "").lower() for a in (npc.get("aliases") or [])]
         if candidate in npc_names:
-            _log.info(
-                "extraction.dedup: redirecting compendium add '%s' → existing id '%s'",
-                proposed.id,
-                npc["id"],
-                extra={},
-            )
             return proposed.model_copy(update={"id": npc["id"]})
     return proposed
 ```
@@ -274,19 +270,36 @@ def _dedup_compendium_add(
 
 ```python
 # --- Dedup compendium updates before merging into StateDelta ---
-existing_npcs = list(state.get("known_characters") or [])
+# Build NPC list from compendium directly — _known_characters_for_extract
+# does not include aliases, which are needed for dedup matching.
+_comp = (state.get("compendium") or {}).get("npcs") or {}
+existing_npcs: list[dict[str, Any]] = []
+for nid, npc in _comp.items():
+    if not isinstance(npc, dict):
+        continue
+    existing_npcs.append({
+        "id": nid,
+        "name": npc.get("name") or "",
+        "title": npc.get("title") or "",
+        "bio_preview": (npc.get("bio") or "").strip()[:120],
+        "aliases": list(npc.get("aliases") or []),
+    })
 deduped_compendium: list["CompendiumNpcUpdate"] = []
 for cu in (progress_result.compendium_npc_update or []):
     deduped_compendium.append(_dedup_compendium_add(cu, existing_npcs))
-# Replace progress_result.compendium_npc_update with deduped version
-# (mutate in place to avoid replacing the entire result object)
-progress_result.compendium_npc_update = deduped_compendium
+if deduped_compendium != (progress_result.compendium_npc_update or []):
+    _log.debug(
+        "extraction.dedup: compendium dedup redirected %d entries",
+        len(progress_result.compendium_npc_update or []),
+        extra={"turn": turn_no, "trace_id": trace_id},
+    )
+progress_result = progress_result.model_copy(update={"compendium_npc_update": deduped_compendium})
 
 # --- Merge into single StateDelta ---
 merged = StateDelta(
 ```
 
-Note: `known_characters` in state is the list of NPC dicts with `id`, `name`, `aliases` fields. The dedup function compares against this list before the delta is constructed.
+Note: The dedup pre-pass builds the NPC list directly from `state["compendium"]["npcs"]` (not via `_known_characters_for_extract`, which omits aliases). Each dict has `id`, `name`, `title`, `bio_preview`, and `aliases` fields. The dedup function compares against this list before the delta is constructed.
 
 **Validation:**
 
@@ -350,7 +363,7 @@ def test_contact_objective_completes_on_npc_presence():
     # narration: "Torben looks up from his ledger and nods. 'What do you want?'"
     # FakeLLM returns quest_updates with objectives.done = True
     # Assert that the prompt rule permits this even with no_dice_roll outcome
-    ...
+    # TODO: implement using FakeLLM pattern from docs/REPOMAP/testing.md — see test_progress_extraction tests for reference.
 ```
 
 ### REPOMAP updates required
@@ -360,7 +373,7 @@ def test_contact_objective_completes_on_npc_presence():
 ### Risks
 
 1. **Transfer-verb false positives** — "takes a seat", "drops the subject", "passes a moment" are idiomatic uses that don't signal inventory transfer. The verb list should be reviewed against actual narration samples. Worst case: inventory domain runs an extra time — this is low-risk since the state extractor is conservative and only extracts explicit items.
-2. **Dedup operates on `known_characters` from state** — the dedup pre-pass uses `state.get("known_characters")` which is the full NPC list. This is the correct source because it includes all known NPCs, not just compendium entries. The `known_characters` list has `id`, `name`, and `aliases` fields (aliases may be absent on older records — the snippet handles this with `npc.get("aliases") or []`).
+2. **Dedup operates on NPC list built from compendium directly** — the dedup pre-pass reads `state["compendium"]["npcs"]` directly (not via `_known_characters_for_extract`, which omits aliases). This is the correct source because it includes all known NPCs with full bio/alias data. Each dict has `id`, `name`, `title`, `bio_preview`, and `aliases` fields (aliases may be absent on older records — the snippet handles this with `npc.get("aliases") or []`).
 3. **Cross-plan seam with Plan A** — if Plan A removes `failed` from the `_run_extraction_pipeline` return tuple, both `turn.py` call sites (lines 538 and 1055) will break with an unpacking error. Plan D does not change the return tuple, but if Plan A changes it, Plan D's Phase 2 step 2.2 that references `state_result.failed` will need updating. This is tracked in the cross-plan seam section above.
 4. **scene_pressure is still passed via user template** — Plan D's non-goals say it doesn't touch pressure, which is fine. `scene_pressure` is read from `state["scene"]["scene_pressure"]` and injected into `extract_progress_user.j2` (line 214 of `extraction.py`). After Plan A moves pressure fields to the scene extractor, whoever updates Plan D needs to know scene_pressure is still passed via the user template from state, not from `scene_result`. Plan D's Phase 3 step 3.1 says "post Plan A, post Plan B" as a dependency for `extract_scene_system.j2`, which is correct.
 

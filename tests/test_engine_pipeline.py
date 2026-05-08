@@ -201,7 +201,7 @@ PROMPT_CEILINGS_CHARS = {
     "rules.user": 8_000,
     "narrate.system": 8_000,
     "narrate.user": 18_000,
-    "scene.system": 6_000,
+    "scene.system": 6_500,
     "scene.user": 14_000,
     "state.system": 8_000,
     "state.user": 14_000,
@@ -264,7 +264,7 @@ class TestTokenBudgetCeilings:
     def test_extract_state_prompt_under_ceiling(self, env, state):
         from ccya.models import RulesOutcome, SceneExtractResult
 
-        scene_result = SceneExtractResult(scene_tags=["dialogue"], outcome_summary="ok")
+        scene_result = SceneExtractResult(scene_tags=["dialogue"])
         msgs = _extract_state_messages(
             env,
             "You crossed the room to Halden's table and sat across from him.",
@@ -278,7 +278,7 @@ class TestTokenBudgetCeilings:
     def test_extract_progress_prompt_under_ceiling(self, env, state):
         from ccya.models import RulesOutcome, SceneExtractResult, StateExtractResult
 
-        scene_result = SceneExtractResult(scene_tags=["dialogue"], outcome_summary="ok")
+        scene_result = SceneExtractResult(scene_tags=["dialogue"])
         state_result = StateExtractResult()
         msgs = _extract_progress_messages(
             env,
