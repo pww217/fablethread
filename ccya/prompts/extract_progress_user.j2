@@ -38,9 +38,11 @@ No dice were rolled this turn. The rules engine determined the action has no mec
 {% endfor %}
 {% endif -%}
 {% if not active_quests and world_state -%}
+<<<TRACE_IMMUTABLE_START>>>
 ## world_state (read-only — use to reason about new quests only)
 {% for f in world_state %}- {{ f if f is string else f.values() | join(': ') }}
 {% endfor %}
+<<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
 {% endif -%}
 
@@ -51,9 +53,11 @@ No dice were rolled this turn. The rules engine determined the action has no mec
 {% endif -%}
 
 {% if "compendium_npc" in active_domains and known_characters -%}
+<<<TRACE_IMMUTABLE_START>>>
 ## known_characters (compendium — reuse id for compendium_npc_update)
 {% for row in known_characters %}- `{{ row.id }}` | {{ row.name }}{% if row.title %} — {{ row.title }}{% endif %}{% if row.bio_preview %} | {{ row.bio_preview }}{% endif %}
 {% endfor %}
+<<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
 
 {% if state_result.items_gained -%}

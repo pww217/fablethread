@@ -15,6 +15,7 @@ from typing import Any
 import logging
 
 from ccya.eval.config import EvalConfig
+from ccya.eval.judge import JudgeResult
 from ccya.eval.runner import RunResult, find_previous_run, load_run_result
 
 _log = logging.getLogger("ccya.eval")
@@ -56,9 +57,12 @@ def _read_events(events_path: Path) -> list[dict[str, Any]]:
         if not s:
             continue
         try:
-            out.append(json.loads(s))
+            ev = json.loads(s)
         except json.JSONDecodeError:
             continue
+        if ev.get("__metadata__"):
+            continue
+        out.append(ev)
     return out
 
 
@@ -188,7 +192,7 @@ def _collect_flags(
     cur: list[TurnMetrics],
     regressions: list[StreamRegression],
     run_result: RunResult,
-    judge: Any | None,
+    judge: JudgeResult | None,
 ) -> list[Flag]:
     flags: list[Flag] = []
 
@@ -290,18 +294,14 @@ def _collect_flags(
         )
 
     if judge is not None:
-        prev_score = getattr(judge, "previous_overall", None)
-        cur_score = getattr(judge, "mechanical_score", None)
-        if (
-            prev_score is not None
-            and cur_score is not None
-            and (prev_score - cur_score) >= 1
-        ):
+        prev_score = (judge.previous_scores or {}).get("mechanical_score") if judge.previous_scores else None
+        cur_score = (judge.scores or {}).get("mechanical_score")
+        if prev_score is not None and cur_score is not None and (prev_score - cur_score) >= 1:
             flags.append(
                 Flag(
                     kind="judge_score_drop",
                     summary=f"judge mechanical {prev_score} → {cur_score} (-{prev_score - cur_score})",
-                    detail=getattr(judge, "comments", ""),
+                    detail="See judge.md for verdict.",
                 ),
             )
 
@@ -338,47 +338,36 @@ def _render_flag_block(flags: list[Flag], flag_at_top: list[str]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _render_judge_summary(judge: Any | None) -> str:
-    """Render a single combined judge summary at the top of the report."""
+def _render_judge_summary(judge: JudgeResult | None) -> str:
     if judge is None:
         return ""
-    mechanical = getattr(judge, "mechanical_score", "?")
-    narrative = getattr(judge, "narrative_score", "?")
-    rubric = getattr(judge, "rubric_path", "?")
-    findings = getattr(judge, "findings", []) or []
-    comments = getattr(judge, "comments", "") or ""
-    narrative_recap = getattr(judge, "narrative_recap", "") or ""
-    remediation = getattr(judge, "remediation", "") or ""
-    auto_checker = getattr(judge, "auto_checker", {}) or {}
-
-    parts = [f"**Mechanical:** {mechanical}/5  ", f"**Narrative:** {narrative}/5  ", f"**Rubric:** `{rubric}`", ""]
-
-    # Auto-checker summary
-    ac_passed = auto_checker.get("passed", 0)
-    ac_failed = auto_checker.get("failed", 0)
-    if ac_passed or ac_failed:
-        parts.append(f"**Auto-checker:** {ac_passed} passed, {ac_failed} failed")
+    parts: list[str] = []
+    scores = judge.scores or {}
+    mech = scores.get("mechanical_score", "?")
+    narr = scores.get("narrative_score", "?")
+    parts.append(f"**Mechanical:** {mech}/5  ")
+    parts.append(f"**Narrative:** {narr}/5  ")
+    parts.append(f"**Rubric:** `{judge.rubric_path}`")
+    parts.append(f"**Judge model:** `{judge.model}`")
+    ps = scores.get("pipeline_scores") or {}
+    if ps:
         parts.append("")
-
-    if findings:
-        for f in findings:
-            name = f.get("criterion", "?")
-            score = f.get("score", "?")
-            note = f.get("note", "")
-            turns = f.get("turns")
-            if turns:
-                note = f"{note} *(turns {', '.join(str(t) for t in turns)})*"
-            parts.append(f"- **{name}** ({score}/5): {note}")
+        parts.append("**Pipeline scores:**")
+        for k in ("rules", "narrate", "extract_scene", "extract_state", "extract_progress"):
+            v = ps.get(k, "?")
+            parts.append(f"- {k}: {v}/5")
+    parts.append("")
+    if judge.previous_scores:
+        prev_mech = judge.previous_scores.get("mechanical_score")
+        prev_narr = judge.previous_scores.get("narrative_score")
+        if prev_mech is not None:
+            parts.append(f"**Previous mechanical:** {prev_mech}/5")
+        if prev_narr is not None:
+            parts.append(f"**Previous narrative:** {prev_narr}/5")
         parts.append("")
-    if comments:
-        parts.append(f"**Verdict:** {comments}")
-        parts.append("")
-    if narrative_recap:
-        parts.append(f"**Narrative recap:** {narrative_recap}")
-        parts.append("")
-    if remediation:
-        parts.append(f"**Remediation:** {remediation}")
-        parts.append("")
+    parts.append(f"**Trace:** [`{Path(judge.trace_md_path).name}`]({Path(judge.trace_md_path).name})")
+    parts.append(f"**Judge response:** [`{Path(judge.judge_md_path).name}`]({Path(judge.judge_md_path).name})")
+    parts.append("")
     return "\n".join(parts)
 
 
@@ -514,7 +503,7 @@ def generate_report(
     run_result: RunResult,
     *,
     eval_cfg: EvalConfig,
-    judge_result: Any | None = None,
+    judge_result: JudgeResult | None = None,
     runs_dir: Path | None = None,
 ) -> Path:
     """Write REPORT.md to the run directory and return its path.
@@ -522,10 +511,7 @@ def generate_report(
     Args:
       run_result: result from runner.run_scenario.
       eval_cfg: needed for token thresholds + flag_at_top list.
-      judge_result: optional JudgeResult-like object (phase 5 fills this in).
-        Should expose: mechanical_score: int, narrative_score: int, findings: list[dict],
-        comments: str, raw_response: str, rubric_path: str, previous_overall: int | None,
-        auto_checker: dict.
+      judge_result: optional JudgeResult from judge.run_judge.
       runs_dir: where prior runs live; defaults to dirname(run_result.output_dir).
 
     Always returns the report path; never raises on regression.
@@ -579,26 +565,6 @@ def generate_report(
     if judge_summary:
         parts.append("## Judge Summary\n")
         parts.append(judge_summary)
-
-    # Context economy warnings
-    context_warns = []
-    for ev in cur_events:
-        for stream in ("scene", "state", "progress"):
-            cm = (ev.get("extraction") or {}).get(stream, {}).get("context_meta") or {}
-            if cm.get("est_tokens", 0) > eval_cfg.judge.context_economy_warn_tokens:
-                context_warns.append(
-                    f"Turn {ev['turn']} {stream}: {cm['est_tokens']}t "
-                    f"({'TRIMMED' if cm.get('trimmed') else 'ok'})"
-                )
-        nm = (ev.get("narrate_prompt") or {}).get("context_meta") or {}
-        if nm.get("est_tokens", 0) > eval_cfg.judge.context_economy_warn_tokens:
-            context_warns.append(f"Turn {ev['turn']} narrate: {nm['est_tokens']}t")
-
-    if context_warns:
-        parts.append("## Context Economy Warnings\n")
-        for w in context_warns:
-            parts.append(f"- {w}")
-        parts.append("")
 
     parts.append(_render_flag_block(flags, eval_cfg.report.flag_at_top))
     parts.append("")

@@ -8,8 +8,9 @@ unless overridden in EvalConfig).
 from __future__ import annotations
 
 from ccya.engine.config import EngineConfig
+from ccya.state.delta import PC_CONDITIONS_MAX
 from ccya.state.momentum import MOMENTUM_MIN as _MOMENTUM_MIN, MOMENTUM_MAX as _MOMENTUM_MAX
-from ccya.rules import MOMENTUM_DELTA as _RULES_MOMENTUM_DELTA
+from ccya.rules import MOMENTUM_DELTA as _RULES_MOMENTUM_DELTA, VALID_SKILLS
 
 _defaults = EngineConfig()
 
@@ -24,6 +25,17 @@ URGENCY_LEVELS: tuple[str, ...] = ("background", "building", "immediate")
 MOMENTUM_MIN: int = _MOMENTUM_MIN
 MOMENTUM_MAX: int = _MOMENTUM_MAX
 MOMENTUM_DELTA: dict[str, int] = dict(_RULES_MOMENTUM_DELTA)
+
+# Schema constants — sourced from production code so the rubric stays in sync
+BANDS: tuple[str, ...] = ("crit_fail", "fail", "setback", "partial", "success", "crit_success")
+SKILLS: tuple[str, ...] = tuple(VALID_SKILLS)
+DIFFICULTIES: tuple[str, ...] = ("trivial", "easy", "normal", "hard", "extreme")
+INTENT_VERBS_HINT: tuple[str, ...] = (
+    "attack", "persuade", "sneak", "hack", "deceive", "intimidate",
+    "climb", "repair", "recall", "escape", "negotiate",
+)
+SCENE_NAMED_NPC_CAP: int = 8  # see ccya/prompts/extract_scene_system.j2 "## NPC scene cap"
+PC_CONDITION_CAP: int = PC_CONDITIONS_MAX
 
 # Extraction stream names — used in TurnAssert.stream validation
 EXTRACT_STREAMS: tuple[str, ...] = (
@@ -61,7 +73,13 @@ def constants_block() -> str:
         f"max age {PRESSURE_MAX_AGE}\n"
         f"- Urgency levels (ordered): {' → '.join(URGENCY_LEVELS)}\n"
         f"- Momentum range: [{MOMENTUM_MIN}, {MOMENTUM_MAX}]\n"
-        f"- Momentum delta per band: {MOMENTUM_DELTA}\n\n"
+        f"- Momentum delta per band: {MOMENTUM_DELTA}\n"
+        f"- Bands (ordered worst→best): {', '.join(BANDS)}\n"
+        f"- Skills: {', '.join(SKILLS)}\n"
+        f"- Difficulties (ordered): {', '.join(DIFFICULTIES)}\n"
+        f"- Intent verb hints: {', '.join(INTENT_VERBS_HINT)}\n"
+        f"- PC condition cap: {PC_CONDITION_CAP}\n"
+        f"- Scene named NPC cap: {SCENE_NAMED_NPC_CAP}\n\n"
     )
 
 

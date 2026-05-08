@@ -11,43 +11,40 @@ makes 5 LLM calls per turn, executed sequentially:
 
 ## Trace format
 
-The user message is structured in two sections:
+You will receive the trace as a single markdown document with two top-level sections:
 
-### 1. Static Context (appears ONCE — system prompts are identical every turn)
+### 1. Static Context (immutable across all turns — appears once at the top)
 
-This section contains the immutable context that defines the game:
+- **World Pack Style** — the game's `style.md` content
+- **Seed State** — the initial game state before any turns (full JSON)
+- **Engine Constants** — live thresholds (pressure escalation turns, momentum range, momentum delta per band)
+- **System Prompts** — the 5 system prompts (rules, narrate, extract scene, extract state, extract progress) pulled from turn 1. They are identical every turn.
 
-- **World Pack Style** — The game's style.md content
-- **Seed State** — The initial game state before any turns
-- **Engine Constants** — Live thresholds (token budgets, band definitions, pressure escalation thresholds, etc.)
-- **5 System Prompts** — The system prompts for rules, narrate, extract scene, extract state, and extract progress. These are the SAME for every turn. They appear once here because they never change.
+### 2. Per-Turn blocks
 
-### 2. Per-Turn Context (one block per turn)
+Each `# TURN N` block contains:
+- **Input** — the player command
+- **User Prompts** — the rendered user prompt for each of the 5 streams (some may say "(skipped)")
+- **Engine Outputs** — Rules (parsed JSON + raw LLM output), Narration (full prose), Extract Scene/State/Progress (full JSON)
+- **Applied Deltas** — what the engine actually applied
+- **Rejected Deltas** — what was rejected
+- **Suggested Actions** — actions field
+- **Context Telemetry** — token estimates per stream, trim status
+- **State After Turn** — full game state JSON
 
-Each TURN block contains:
-
-- **5 User Prompts** — The user prompts rendered for that specific turn (rules user, narrate user, extract scene user, extract state user, extract progress user). These change every turn because the context changes.
-- **Engine Outputs** — Rules result (IntentEnvelope + RulesOutcome), narration text, 3 extraction outputs (SceneExtractResult, StateExtractResult, ProgressExtractResult), applied/rejected deltas, suggested actions
-- **Context Telemetry** — Token estimates per stream, trim status
-- **State Snapshot** — Full game state after the turn
-
-### How to evaluate
-
-**The system prompts are the ground truth.** They define what the engine was instructed to do. They appear once because they are identical across all turns — do not expect to see them repeated per turn.
-
-**Compare per-turn user prompts against per-turn outputs.** For each turn:
-- Does the narration match the rules outcome?
-- Do the extraction outputs match the narration?
-- Do the applied deltas match what the extractors produced?
-- Does the state snapshot reflect the applied deltas?
-
-**Use the static context to verify constraints.** The seed state, engine constants, and system prompts define the rules the engine must follow. Check that the engine respects these constraints across all turns.
-
-**The trace includes ALL prompts and outputs.** Do not assume information is missing because it is not in a compact summary format. Every rendered prompt and every engine output is included in full.
+In Phase 3, two more top-level sections may appear: `# Deterministic Signals` (with `## Auto-Checker Failures` and `## Metrics` subsections).
 
 ---
 
-## Section 1: Mechanical Correctness (PRIMARY — weighted 2×)
+## How to evaluate
+
+The system prompts are the ground truth — they define what the engine instructed the LLM to do. They appear ONCE because they are identical across all turns; do not expect to see them repeated per turn.
+
+The trace contains everything the engine sent and received in full. Do not assume information is missing because it is not in a compact summary format.
+
+---
+
+## Section 1: Mechanical Correctness (PRIMARY — weighted 2x)
 
 Your most important job is to judge whether the engine's mechanics are functioning correctly. A run with a compelling story but broken state tracking is a broken run.
 
@@ -204,174 +201,112 @@ Your single `score` is the weighted composite. Call out pressure_mechanics failu
 
 ## Auto-checker integration
 
-The trace includes an auto-checker table showing assertion results (passed/failed). For **every** auto-checker failure, you must:
+The trace's `# Deterministic Signals` section lists every universal cross-pipeline assertion that failed. For **every** failure:
 
 1. Explain **why** the assertion failed — what went wrong mechanically.
-2. Provide a **remediation** — what needs to happen differently for this assertion to pass. Describe what the system should do differently, what the prompts should instruct differently, what the engine should check differently. Do not propose code fixes.
+2. Provide a **remediation** — what needs to happen differently. Categorize the failure mode (bad prompt | failed to output key information | failed to input key information | messy logic | scope/domain mismatch | schema drift).
 
-Do not ignore minor failures. Every failure is a signal that something in the pipeline is broken or unreliable.
+These failures are deterministic signals — the auto-checker has confirmed them from the raw event data. Do not re-derive whether they passed; engage with the WHY and the FIX.
 
 ---
 
 ## Output format
 
-Return ONLY a JSON object matching exactly this schema. No prose before or after. No markdown fences.
+Return the response as a YAML front matter block followed by a structured markdown body. Use this exact structure:
 
-```json
-{
-  "mechanical_score": 3,
-  "narrative_score": 4,
-  "pipelines": {
-    "rules": {
-      "score": 4,
-      "trace": "Full end-to-end trace: system prompt key instructions → user prompt key inputs → LLM output → state mutation. Cover all turns or representative turns if many. Quote specific fields, values, and state changes.",
-      "scope_analysis": "Track scope/domain mapping: what domains were active/skipped, did narration produce changes that extractors missed due to scope failures, specific turn numbers where scope was wrong.",
-      "what_went_well": "At least two paragraphs. What the pipeline did correctly, specific to turns and fields.",
-      "what_went_poorly": "At least two paragraphs. What the pipeline did incorrectly, specific to turns and fields.",
-      "prompt_analysis": "What was in the prompts that was not needed (bloat, redundancy, wasted tokens)? What was needed but missing? Call out specific turns where prompt issues caused observable problems.",
-      "issues": [
-        {
-          "description": "One sentence describing the issue.",
-          "turns": [3, 7],
-          "remediation": "What needs to happen differently for this to work correctly. Not a code fix — describe what the system should do differently, what the prompts should instruct differently, what the engine should check differently. Be specific about the failure mode: bad prompt, failed to output key information, failed to input key information, messy logic, scope mismatch, or schema drift."
-        }
-      ]
-    },
-    "narrate": {
-      "score": 4,
-      "trace": "...",
-      "what_went_well": "...",
-      "what_went_poorly": "...",
-      "prompt_analysis": "...",
-      "issues": [
-        { "description": "...", "turns": [], "remediation": "..." }
-      ]
-    },
-    "extract_scene": {
-      "score": 4,
-      "trace": "...",
-      "what_went_well": "...",
-      "what_went_poorly": "...",
-      "prompt_analysis": "...",
-      "issues": [
-        { "description": "...", "turns": [], "remediation": "..." }
-      ]
-    },
-    "extract_state": {
-      "score": 4,
-      "trace": "...",
-      "what_went_well": "...",
-      "what_went_poorly": "...",
-      "prompt_analysis": "...",
-      "issues": [
-        { "description": "...", "turns": [], "remediation": "..." }
-      ]
-    },
-    "extract_progress": {
-      "score": 4,
-      "trace": "...",
-      "what_went_well": "...",
-      "what_went_poorly": "...",
-      "prompt_analysis": "...",
-      "issues": [
-        { "description": "...", "turns": [], "remediation": "..." }
-      ]
-    }
-  },
-  "narrative_criteria": [
-    {
-      "criterion": "quest_arc_quality",
-      "score": 4,
-      "note": "At least two sentences. What went well, what went poorly, and more if there's more to say.",
-      "issues": [
-        { "description": "...", "turns": [], "remediation": "..." }
-      ]
-    },
-    {
-      "criterion": "rewards_and_consequences",
-      "score": 3,
-      "note": "...",
-      "issues": [
-        { "description": "...", "turns": [], "remediation": "..." }
-      ]
-    },
-    {
-      "criterion": "narrative_compellingness",
-      "score": 4,
-      "note": "...",
-      "issues": [
-        { "description": "...", "turns": [], "remediation": "..." }
-      ]
-    },
-    {
-      "criterion": "genre_and_universe_fit",
-      "score": 3,
-      "note": "...",
-      "issues": [
-        { "description": "...", "turns": [], "remediation": "..." }
-      ]
-    },
-    {
-      "criterion": "npc_development",
-      "score": 4,
-      "note": "...",
-      "issues": [
-        { "description": "...", "turns": [], "remediation": "..." }
-      ]
-    },
-    {
-      "criterion": "player_agency",
-      "score": 4,
-      "note": "...",
-      "issues": [
-        { "description": "...", "turns": [], "remediation": "..." }
-      ]
-    },
-    {
-      "criterion": "pacing_and_pressure",
-      "score": 4,
-      "note": "...",
-      "issues": [
-        { "description": "...", "turns": [6], "remediation": "..." }
-      ]
-    }
-  ],
-  "auto_checker": {
-    "passed": 7,
-    "failed": 2,
-    "failures": [
-      {
-        "turn": 1,
-        "assertion": "rules.rolled",
-        "detail": "rolled=True",
-        "explanation": "Concrete explanation of why this assertion failed. What went wrong mechanically.",
-        "remediation": "What needs to happen differently. Not a code fix. Be specific about the failure mode: bad prompt, failed to output key information, failed to input key information, messy logic, scope mismatch, or schema drift."
-      }
-    ]
-  },
-  "comments": "Two to four sentences. Concrete, specific, actionable. Reference turn numbers. Justify why mechanical_score diverges from narrative_score if applicable.",
-  "narrative_recap": "Brief recap of the arc: player did X, acquired Y items, completed Z quests, met these NPCs. Focus on qualitative summary, not mechanical details. 3-5 sentences max."
-}
 ```
+---
+mechanical_score: <int 1-5>
+narrative_score: <int 1-5>
+pipeline_scores:
+  rules: <int 1-5>
+  narrate: <int 1-5>
+  extract_scene: <int 1-5>
+  extract_state: <int 1-5>
+  extract_progress: <int 1-5>
+---
 
-### Remediation guidance
+# Mechanical Analysis
 
-Every `remediation` field across all sections (pipelines, narrative criteria, auto-checker) must identify the **failure mode** that caused the issue. Use these categories:
+## Pipeline: rules
 
-- **Bad prompt** — The system or user prompt is ambiguous, contradictory, missing constraints, or contains bloat.
-- **Failed to output key information** — The LLM produced output but omitted a required field, used wrong values, or failed to follow the schema.
-- **Failed to input key information** — The user prompt omitted context the LLM needed (e.g., narration was trimmed, state was stale).
-- **Messy logic** — The engine's post-processing (delta application, reconciliation, scope mapping) is buggy or inconsistent.
-- **Scope/domain mismatch** — The rules pipeline's active/skip domains caused downstream pipelines to miss or over-produce changes.
-- **Schema drift** — The LLM output doesn't match the expected schema (wrong field names, wrong types, extra fields).
+### Trace
+<End-to-end trace of one or two representative turns: system instructions key points → user prompt key inputs → LLM output → state mutation. Quote specific fields and values.>
 
-A good remediation starts with the failure mode: "Bad prompt: the system prompt should..." or "Failed to input key information: the user prompt should include..."
+### Scope Analysis
+<Track active_domains / skip_domains across turns. Call out turns where scope failed: e.g. narration mentioned an inventory change but inventory was in skip_domains.>
 
-### Scoring notes
+### What Went Well
+<At least two paragraphs. Specific to turns and fields.>
 
-- `mechanical_score` is a weighted composite of the 5 pipeline scores, with major mechanical failures (scope errors, extraction mismatches, dice-narration contradictions) capping that pipeline at 1-2.
-- `narrative_score` is a weighted composite of the 7 narrative criteria.
-- `overall_score` is not needed — report both `mechanical_score` and `narrative_score` separately. The mechanical score is the primary signal.
-- For pipeline issues, `turns` should list the specific turns where the issue was observed. Leave as `[]` for narrative criteria where turn numbers are not applicable.
-- Every issue must have a `remediation` field. Every auto-checker failure must have an `explanation` and `remediation`.
-- Be harsh. Surface hidden issues. Do not accept "good enough" — the engine should be mechanically precise.
+### What Went Poorly
+<At least two paragraphs. Specific to turns and fields.>
+
+### Prompt Analysis
+<What was bloated or redundant in the prompts? What was needed but missing? Cite turns.>
+
+### Issues
+- **<short description>** (turns: <list>) — Failure mode: <bad prompt | failed to output key information | failed to input key information | messy logic | scope/domain mismatch | schema drift>. Remediation: <what should change>.
+- ...
+
+## Pipeline: narrate
+<Same subsections as above.>
+
+## Pipeline: extract_scene
+<Same subsections as above.>
+
+## Pipeline: extract_state
+<Same subsections as above.>
+
+## Pipeline: extract_progress
+<Same subsections as above.>
+
+# Narrative Analysis
+
+## Criterion: quest_arc_quality
+**Score:** <1-5>
+<Two or more sentences. Cite turns.>
+
+### Issues
+- ...
+
+## Criterion: rewards_and_consequences
+**Score:** <1-5>
+<...>
+
+## Criterion: narrative_compellingness
+**Score:** <1-5>
+<...>
+
+## Criterion: genre_and_universe_fit
+**Score:** <1-5>
+<...>
+
+## Criterion: npc_development
+**Score:** <1-5>
+<...>
+
+## Criterion: player_agency
+**Score:** <1-5>
+<...>
+
+## Criterion: pacing_and_pressure
+**Score:** <1-5>
+<Internally weight pressure_mechanics (60%) + narrative_pacing (40%). Call out pressure_mechanics failures explicitly.>
+
+# Auto-Checker Failures
+
+<For every failure shown in the Deterministic Signals section of the trace (Phase 3), explain WHY it failed and propose a remediation. If no failures, write "None.".>
+
+# Additional Observations
+
+<Use this section for patterns or bugs that did not fit into the structured sections above. Always present; may be empty.>
+
+# Verdict
+
+<2-4 sentences. Concrete, specific, actionable. Reference turn numbers. Justify why mechanical_score diverges from narrative_score if applicable.>
+
+# Narrative Recap
+
+<3-5 sentences summarizing the player's arc, items, quests, NPCs. Qualitative only.>
+```

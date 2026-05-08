@@ -16,13 +16,18 @@ class InferenceConfig:
 
 
 @dataclass
+class TraceConfig:
+    dedup_immutable_sections: bool = True
+    state_as_diff: bool = True
+
+
+@dataclass
 class JudgeConfig:
     enabled: bool = True
     model: str | None = None
     rubric_path: str = "evals/rubrics/default.md"
     temperature: float = 0.3
-    max_input_chars: int = 30000
-    context_economy_warn_tokens: int = 8000
+    trace: TraceConfig = field(default_factory=TraceConfig)
 
 
 @dataclass
@@ -64,6 +69,12 @@ def load_eval_config(path: str | Path | None = None) -> EvalConfig:
     rpt_raw = raw.get("report") or {}
     log_raw = raw.get("logging") or {}
 
+    trace_raw = jdg_raw.get("trace") or {}
+    trace_cfg = TraceConfig(
+        dedup_immutable_sections=bool(trace_raw.get("dedup_immutable_sections", True)),
+        state_as_diff=bool(trace_raw.get("state_as_diff", True)),
+    )
+
     return EvalConfig(
         default_pack=str(raw.get("default_pack", "eval-pack")),
         default_save_root=str(raw.get("default_save_root", "~/.cache/ccya-eval")),
@@ -81,8 +92,7 @@ def load_eval_config(path: str | Path | None = None) -> EvalConfig:
             model=jdg_raw.get("model"),
             rubric_path=str(jdg_raw.get("rubric_path", "evals/rubrics/default.md")),
             temperature=float(jdg_raw.get("temperature", 0.3)),
-            max_input_chars=int(jdg_raw.get("max_input_chars", 30000)),
-            context_economy_warn_tokens=int(jdg_raw.get("context_economy_warn_tokens", 8000)),
+            trace=trace_cfg,
         ),
         report=ReportConfig(
             token_warn_pct=float(rpt_raw.get("token_warn_pct", 10.0)),

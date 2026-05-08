@@ -2,7 +2,7 @@
 
 ## Public APIs
 
-- **`chat(host, model, messages, *, temperature=None, timeout=180.0)`** → `{"response": str, "done": bool, "usage": {...}}` — non-streaming.
+- **`chat(host, model, messages, *, temperature=None, timeout=180.0)`** → `{"response": str, "done": bool, "usage": {...}}` — non-streaming. Logs start (model, message count, estimated tokens), duration, token usage on success, and error with retry count on failure.
 - **`chat_stream(host, model, messages, *, temperature=None, timeout=180.0, stream_stats=None)`** → `AsyncIterator[str]` — streaming tokens. Accepts optional `stream_stats` dict for collecting eval counts.
 
 ## Helpers

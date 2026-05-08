@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _log_prompts, _render
+from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.engine.narrate import _known_characters_for_extract
 from ccya.llm_client import (
     apply_thinking,
@@ -371,6 +372,7 @@ async def _run_extraction_pipeline(
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_scene_system = scene_msgs[0]["content"] if scene_msgs else ""
         rendered_scene_user = scene_msgs[-1]["content"] if scene_msgs else ""
+        strip_trace_markers_in_messages(scene_msgs)
         scene_msgs, scene_trimmed, scene_trimmed_chars = trim_messages(scene_msgs, config.prompt_token_budget)
         if config.log_prompts:
             _log_prompts(turn_no, "extract_scene", scene_msgs)
@@ -413,6 +415,7 @@ async def _run_extraction_pipeline(
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_state_system = state_msgs[0]["content"] if state_msgs else ""
         rendered_state_user = state_msgs[-1]["content"] if state_msgs else ""
+        strip_trace_markers_in_messages(state_msgs)
         state_msgs, state_trimmed, state_trimmed_chars = trim_messages(state_msgs, config.prompt_token_budget)
         if config.log_prompts:
             _log_prompts(turn_no, "extract_state", state_msgs)
@@ -456,6 +459,7 @@ async def _run_extraction_pipeline(
     # Capture pre-trim content for context_meta so the judge sees original sizes
     rendered_prog_system = progress_msgs[0]["content"] if progress_msgs else ""
     rendered_prog_user = progress_msgs[-1]["content"] if progress_msgs else ""
+    strip_trace_markers_in_messages(progress_msgs)
     progress_msgs, prog_trimmed, prog_trimmed_chars = trim_messages(progress_msgs, config.prompt_token_budget)
     if config.log_prompts:
         _log_prompts(turn_no, "extract_progress", progress_msgs)

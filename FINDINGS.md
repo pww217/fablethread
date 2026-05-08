@@ -1,83 +1,36 @@
 # Phase 2 Review Findings
 
-## Bug: `build_trace` truncation can cut the constants block in half
+## Observation: Sentinel markers in Jinja templates are visible to production LLM
 
-**File:** `ccya/eval/judge.py:164-166`
+**Files:** `ccya/prompts/narrate_user.j2`, `ccya/prompts/extract_scene_user.j2`, `ccya/prompts/extract_progress_user.j2`
 
-```python
-_TRUNC_MARKER = "\n\n[... trace truncated to fit judge window ...]\n\n"
-head_keep = int(max_chars * 0.6)
-tail_keep = max_chars - head_keep - len(_TRUNC_MARKER)
-```
+The sentinel markers (`<<<TRACE_IMMUTABLE_START>>>` / `<<<TRACE_IMMUTABLE_END>>>`) are injected into the Jinja templates. The rendered user prompts stored in `events.jsonl` contain these markers. The engine strips them via `strip_trace_markers_in_messages()` BEFORE sending to the LLM.
 
-`head_keep` and `tail_keep` are computed from `max_chars` without accounting for the constants block length. If the constants block is ~300 chars and `max_chars` is 30000, the truncation splits the combined string at arbitrary positions. The constants block (which the judge needs to reason from current values) could be partially cut off, leaving the judge with a truncated header.
+**Verification:** All 5 chat call sites (rules, narrate x2, extract_scene, extract_state, extract_progress) now call `strip_trace_markers_in_messages()` after capturing the rendered content but before trimming and sending to the LLM. The `rendered_user` stored in events retains the markers for the eval trace.
 
-**Fix:** Set `head_keep = max(int(max_chars * 0.6), len(lines[0]) + 1)` so the constants block is always preserved in the head portion.
-
-**Status:** ✅ Fixed — `ccya/eval/judge.py:164`
+**Status:** ✅ Implemented — `ccya/engine/markers.py` + `turn.py` (3 sites) + `extraction.py` (3 sites)
 
 ---
 
-## Bug: `build_trace` concatenation has no separator between constants block and first turn
+## Observation: `npc_roster` in extract_scene_user.j2 may not be truly immutable
 
-**File:** `ccya/eval/judge.py:161`
+**File:** `ccya/prompts/extract_scene_user.j2:25-29`
 
-```python
-trace = "\n".join(lines) + full
-```
+The compendium NPC roster (`npc_roster`) is marked as immutable. However, the compendium can grow over time as new NPCs are added via `compendium_npc_update`. If the roster grows, the judge would not see new entries in the deduped trace.
 
-`lines` contains one element (`constants_block()`), so `"\n".join(lines)` is just the constants block string with no trailing newline. `full` starts with `TURN 1 ...`. The result is:
+**Mitigation:** New compendium entries appear in the per-turn `applied.compendium_npc_update` and in the `state_snapshot` at end of turn. The judge can reconstruct from those signals. If this becomes a problem, the markers can be removed from this section.
 
-```
-## Engine Constants (live ...)\n\n- Scene pressure: ...TURN 1 — ...
-```
-
-The constants block ends with a `\n\n` from `constants_block()`, so this actually works — the constants block's own trailing newlines provide the separator. This is fine, just worth noting the dependency on `constants_block()`'s internal formatting.
+**Status:** ⚠️ Documented — acceptable for Phase 2; monitor in practice.
 
 ---
 
-## Minor: `_context_line` iterates over events that may lack `extraction` key
+## Observation: State diff uses `id` as identity for all list-of-dict items
 
-**File:** `ccya/eval/judge.py:90-96`
+**File:** `ccya/eval/judge.py:_diff_list`
 
-```python
-extraction = event.get("extraction") or {}
-for stream in ("scene", "state", "progress"):
-    ex = extraction.get(stream) or {}
-    cm = ex.get("context_meta") or {}
-```
+The diff helper assumes list items have an `id` field. If a list has dicts without `id`, it falls back to set-diff via `_hashable`. This may be lossy for complex nested objects.
 
-This is defensive and correct — old events without `extraction` or without `context_meta` will produce `"(no context telemetry)"`. No bug here, just confirming the guard is adequate.
-
----
-
-## Minor: `trim_messages` callers in `turn.py` — `run_turn_retry` doesn't add `context_meta` to `rules_prompt`
-
-**File:** `ccya/engine/turn.py:1033-1037`
-
-In `run_turn_retry`, the `rules_prompt` event is set to empty strings:
-
-```python
-"rules_prompt": {
-    "rendered_system": "",
-    "rendered_user": "",
-    "output": "",
-},
-```
-
-This is correct — `run_turn_retry` skips the rules call, so there's no rules prompt to log. No `context_meta` needed.
-
----
-
-## Minor: Rubric example JSON shows `"turns": [3, 7]` for `extraction_consistency` but `"turns": []` for narrative criteria
-
-**File:** `evals/rubrics/default.md`
-
-The example JSON in the rubric shows mixed `turns` values — some criteria have turn numbers, others have empty arrays. This is intentional per the plan (mechanical criteria get turns, narrative criteria get `[]`). The plan says:
-
-> For mechanical criteria, populate `turns` with turn numbers where the issue was observed. Leave `turns` as `[]` for narrative criteria.
-
-The example is illustrative, not prescriptive. This is fine.
+**Status:** ✅ Acceptable — fallback is documented in code; no known lists without `id` in the state schema.
 
 ---
 
@@ -85,7 +38,77 @@ The example is illustrative, not prescriptive. This is fine.
 
 | # | Severity | Issue | Status |
 |---|----------|-------|--------|
-| 1 | **Bug** | `build_trace` truncation doesn't reserve space for constants block — can cut it in half | ✅ Fixed |
-| 2 | Minor | Constants block separator depends on `constants_block()` internal formatting (works, but fragile) | ✅ No fix needed — `constants_block()` ends with `\n\n` |
+| 1 | Design | Sentinel markers visible to production LLM if not stripped | ✅ Fixed — all 5 call sites strip |
+| 2 | Minor | `npc_roster` may not be truly immutable | ⚠️ Documented — judge can reconstruct from applied deltas |
+| 3 | Minor | State diff fallback for lists without `id` may be lossy | ✅ Acceptable — no known cases in state schema |
 
-Only issue #1 was a real bug. The rest are observations.
+---
+
+## Bug: Runner writes raw disk events (no `state_snapshot`) to output
+
+**File:** `ccya/eval/runner.py:584-592`
+
+The runner injects `state_snapshot` into `turn_events` (line 570) for use by structured asserts, but then writes `all_events` (raw disk events) to the output directory. The judge never sees `state_snapshot` in the output events.
+
+**Fix:** Write enriched events built from `turn_events` (with injected snapshots) + metadata event.
+
+**Status:** ✅ Fixed — `ccya/eval/runner.py:584-590`
+
+---
+
+## Minor: Variable shadowing in `report.py:_collect_flags`
+
+**File:** `ccya/eval/report.py:296-306`
+
+`cur` shadows the function parameter `cur: list[TurnMetrics]`. The outer `cur` is not used after this block, so it's latent, not active.
+
+**Fix:** Renamed to `cur_score`.
+
+**Status:** ✅ Fixed — `ccya/eval/report.py:296-306`
+
+---
+
+## Summary
+
+| # | Severity | Issue | Status |
+|---|----------|-------|--------|
+| 1 | Design | Sentinel markers visible to production LLM if not stripped | ✅ Fixed — all 5 call sites strip |
+| 2 | Minor | `npc_roster` may not be truly immutable | ⚠️ Documented — judge can reconstruct from applied deltas |
+| 3 | Minor | State diff fallback for lists without `id` may be lossy | ✅ Acceptable — no known cases in state schema |
+| 4 | **Bug** | Runner writes raw disk events (no `state_snapshot`) to output | ✅ Fixed |
+| 5 | Minor | Variable shadowing: `cur` in `_collect_flags` | ✅ Fixed — renamed to `cur_score` |
+
+---
+
+## Phase 3 Implementation Notes
+
+### New file: `ccya/eval/universal_asserts.py`
+
+5 universal assertion functions covering:
+- `check_recent_events_turn_stamped` — verifies `recent_events_add[].turn` is stamped with current turn
+- `check_pending_gm_beat_consumed` — verifies `pending_gm_beat` doesn't persist unchanged across turns
+- `check_location_change_applied` — verifies `location_change` applied delta matches state location.id
+- `check_rolled_implies_binding` — verifies `rules.rolled=true` implies narrate prompt has BINDING block
+- `check_npc_mention_extracted` — heuristic: flags narration names not in npc_add/update/known (conservative, >3 missing suppressed)
+
+### Changes to `ccya/eval/judge.py`
+
+- `build_trace()` now accepts `auto_checker_failures` and `metrics_rows` kwargs
+- `_render_deterministic_signals()` renders Auto-Checker Failures + Metrics tables
+- `_build_metrics_rows()` extracts token counts from `rules_prompt.context_meta.est_tokens` and `narrate_prompt.context_meta.est_tokens` (not from old `rules["tokens_in"]` path)
+- `run_judge()` computes universal assert failures from events and passes them to `build_trace()`
+
+### Changes to `ccya/eval/runner.py`
+
+- Universal asserts run after scenario-specific asserts for every turn
+- Results appended to `record.assert_results` (same format as scenario asserts)
+
+### Changes to `ccya/eval/engine_mirror.py`
+
+- Added `BANDS`, `SKILLS`, `DIFFICULTIES`, `INTENT_VERBS_HINT`, `PC_CONDITION_CAP`, `SCENE_NAMED_NPC_CAP` constants
+- `constants_block()` now includes all schema constants for judge trace
+
+### Changes to `evals/rubrics/default.md`
+
+- Auto-checker integration section updated to reference `# Deterministic Signals` section
+- Output format already had `# Auto-Checker Failures` section referencing Deterministic Signals

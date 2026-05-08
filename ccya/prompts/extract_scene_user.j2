@@ -23,9 +23,11 @@ Conditions: {% for c in conditions %}{{ c.label if c is mapping else c }}{% if n
 {% endfor %}
 {% endif -%}
 {% if npc_roster -%}
+<<<TRACE_IMMUTABLE_START>>>
 ## known_characters (compendium — reuse `id` for npc_add/npc_update)
 {% for n in npc_roster %}- `{{ n.id }}` | {{ n.name }} [{{ n.tags | join(",") }}]{% if n.notes %} — {{ n.notes }}{% endif %}
 {% endfor %}
+<<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
 ## CURRENT TURN NARRATION
 {{ narration }}

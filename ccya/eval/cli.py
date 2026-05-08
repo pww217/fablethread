@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import logging
 import sys
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 
 from ccya.eval.config import InferenceConfig, load_eval_config
@@ -63,10 +64,12 @@ async def _cmd_run(args: argparse.Namespace) -> int:
     eval_cfg = load_eval_config()
     log_level = eval_cfg.logging.level
     if log_level != "WARNING":
-        logging.basicConfig(
-            level=getattr(logging, log_level, logging.WARNING),
-            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        )
+        logger = logging.getLogger("ccya.eval")
+        logger.setLevel(getattr(logging, log_level, logging.WARNING))
+        if not logger.handlers:
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+            logger.addHandler(handler)
     if args.temp is not None:
         eval_cfg = replace(eval_cfg, inference=InferenceConfig(
             temperature_override=float(args.temp),
@@ -108,15 +111,27 @@ async def _cmd_run(args: argparse.Namespace) -> int:
             scenario.id,
             exclude=Path(rr.output_dir),
         )
-        prev_report = prev_json.parent / "REPORT.md" if prev_json else None
+        prev_judge_md = None
+        if prev_json is not None:
+            candidate = prev_json.parent / f"{scenario.id}.judge.md"
+            if candidate.exists():
+                prev_judge_md = candidate
         print("[eval] running judge (model defaults to engine model)…", file=sys.stderr)
         judge_result = await run_judge(
             Path(rr.events_jsonl_path),
             eval_cfg=eval_cfg,
-            previous_report_path=prev_report,
+            output_dir=Path(rr.output_dir),
+            scenario_id=scenario.id,
+            previous_judge_md_path=prev_judge_md,
         )
-        _log.debug("judge overall_score=%d findings=%d prev_overall=%s", judge_result.overall_score, len(judge_result.findings), judge_result.previous_overall)
-        print(f"[eval] judge overall_score={judge_result.overall_score}", file=sys.stderr)
+        _log.debug("judge scores=%s", judge_result.scores)
+        mech = judge_result.scores.get("mechanical_score", "?")
+        print(f"[eval] judge mechanical_score={mech}", file=sys.stderr)
+        rr.trace_md_path = judge_result.trace_md_path
+        rr.judge_md_path = judge_result.judge_md_path
+        (Path(rr.output_dir) / f"{scenario.id}.run.json").write_text(
+            json.dumps(asdict(rr), indent=2, default=str)
+        )
 
     report_path = generate_report(rr, eval_cfg=eval_cfg, judge_result=judge_result)
     print(f"[eval] report: {report_path}", file=sys.stderr)
@@ -128,10 +143,12 @@ async def _cmd_judge_only(args: argparse.Namespace) -> int:
     eval_cfg = load_eval_config()
     log_level = eval_cfg.logging.level
     if log_level != "WARNING":
-        logging.basicConfig(
-            level=getattr(logging, log_level, logging.WARNING),
-            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        )
+        logger = logging.getLogger("ccya.eval")
+        logger.setLevel(getattr(logging, log_level, logging.WARNING))
+        if not logger.handlers:
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+            logger.addHandler(handler)
     run_dir = Path(args.run_dir).resolve()
     if not run_dir.is_dir():
         print(f"[eval] not a directory: {run_dir}", file=sys.stderr)
@@ -150,15 +167,22 @@ async def _cmd_judge_only(args: argparse.Namespace) -> int:
 
     runs_dir = run_dir.parent
     prev_json = find_previous_run(runs_dir, rr.scenario_id, exclude=run_dir)
-    prev_report = prev_json.parent / "REPORT.md" if prev_json else None
+    prev_judge_md = None
+    if prev_json is not None:
+        candidate = prev_json.parent / f"{rr.scenario_id}.judge.md"
+        if candidate.exists():
+            prev_judge_md = candidate
 
     judge_result = await run_judge(
         Path(rr.events_jsonl_path),
         eval_cfg=eval_cfg,
-        previous_report_path=prev_report,
+        output_dir=Path(rr.output_dir),
+        scenario_id=rr.scenario_id,
+        previous_judge_md_path=prev_judge_md,
     )
     report_path = generate_report(rr, eval_cfg=eval_cfg, judge_result=judge_result)
-    print(f"[eval] re-judged: overall={judge_result.overall_score}", file=sys.stderr)
+    mech = judge_result.scores.get("mechanical_score", "?")
+    print(f"[eval] re-judged: mechanical_score={mech}", file=sys.stderr)
     print(str(report_path))
     return 0
 
@@ -180,8 +204,6 @@ def _cmd_pack(args: argparse.Namespace) -> int:
     print(f"  judge.model: {cfg.judge.model}")
     print(f"  judge.rubric_path: {cfg.judge.rubric_path}")
     print(f"  judge.temperature: {cfg.judge.temperature}")
-    print(f"  judge.max_input_chars: {cfg.judge.max_input_chars}")
-    print(f"  judge.context_economy_warn_tokens: {cfg.judge.context_economy_warn_tokens}")
     print(f"  report.token_warn_pct: {cfg.report.token_warn_pct}")
     print(f"  report.token_fail_pct: {cfg.report.token_fail_pct}")
     print(f"  report.flag_at_top: {cfg.report.flag_at_top}")

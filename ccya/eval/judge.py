@@ -1,8 +1,11 @@
 """Single LLM judge over events.jsonl.
 
-One call, one rubric, structured JSON output. Truncates input to fit the
-configured judge model's window. Parses tolerantly — one bad turn shouldn't kill
-the eval.
+Renders a full structured-markdown trace containing static context (pack
+style, seed state, engine constants, 5 system prompts) once at the top,
+then per-turn blocks (user prompts, outputs, state, applied/rejected,
+scope, telemetry). Saves trace.md to disk before the LLM call, and the
+raw judge response to judge.md after. Parses only the YAML front matter
+of the response for scores.
 """
 
 from __future__ import annotations
@@ -10,32 +13,132 @@ from __future__ import annotations
 import json
 import logging
 import re
-from dataclasses import dataclass, field
+import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from ccya.eval.config import EvalConfig
 from ccya.eval.engine_mirror import constants_block
+from ccya.eval.universal_asserts import run_all_universal_asserts
 from ccya.llm_client import chat, strip_thinking
 from ccya.models import load_config
 
 _log = logging.getLogger("ccya.eval")
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+@dataclass(frozen=True)
+class TraceOptions:
+    """Dedup options for trace rendering."""
+    dedup_immutable_sections: bool = True
+    state_as_diff: bool = True
 
 
 @dataclass
 class JudgeResult:
-    overall_score: int
-    findings: list[dict[str, Any]] = field(default_factory=list)
-    comments: str = ""
-    raw_response: str = ""
-    rubric_path: str = ""
-    model: str = ""
-    previous_overall: int | None = None
-    narrative_recap: str = ""
-    remediation: str = ""
+    """Structured result of one judge invocation.
+
+    `body_md` is the raw markdown the judge returned (front matter stripped).
+    `scores` is the parsed front matter dict. Missing scores are None.
+    """
+    raw_response: str
+    body_md: str
+    scores: dict[str, Any]
+    rubric_path: str
+    model: str
+    trace_md_path: str = ""
+    judge_md_path: str = ""
+    previous_scores: dict[str, Any] | None = None
+
+
+# ---------------------------------------------------------------------------
+# Dedup helpers
+# ---------------------------------------------------------------------------
+
+_IMMUTABLE_MARKER_RE = re.compile(
+    r"<<<TRACE_IMMUTABLE_START>>>(.*?)<<<TRACE_IMMUTABLE_END>>>",
+    re.DOTALL,
+)
+
+_IMMUTABLE_PLACEHOLDER = "_(immutable section omitted — see Static Context > Seed State)_"
+
+
+def _strip_immutable_sections(text: str) -> str:
+    """Replace marker-bracketed sections with a placeholder. No-op if no markers."""
+    return _IMMUTABLE_MARKER_RE.sub(_IMMUTABLE_PLACEHOLDER, text)
+
+
+def _strip_remaining_markers(text: str) -> str:
+    """Strip bare sentinels so they don't appear in the rendered trace."""
+    return text.replace("<<<TRACE_IMMUTABLE_START>>>", "").replace("<<<TRACE_IMMUTABLE_END>>>", "")
+
+
+def _maybe_dedup_user_prompt(text: str, options: TraceOptions) -> str:
+    if options.dedup_immutable_sections:
+        return _strip_immutable_sections(text)
+    return _strip_remaining_markers(text)
+
+
+def _hashable(x: Any) -> Any:
+    if isinstance(x, dict):
+        return tuple(sorted((k, _hashable(v)) for k, v in x.items()))
+    if isinstance(x, list):
+        return tuple(_hashable(v) for v in x)
+    return x
+
+
+def _diff_list(prev: list[Any], cur: list[Any]) -> dict[str, Any]:
+    """Diff two lists. If items are dicts with 'id', use id as identity."""
+    if all(isinstance(x, dict) and "id" in x for x in prev + cur):
+        prev_by_id = {x["id"]: x for x in prev}
+        cur_by_id = {x["id"]: x for x in cur}
+        added = [v for k, v in cur_by_id.items() if k not in prev_by_id]
+        removed = [v for k, v in prev_by_id.items() if k not in cur_by_id]
+        changed = []
+        for k, cv in cur_by_id.items():
+            pv = prev_by_id.get(k)
+            if pv is not None and pv != cv:
+                changed.append({"from": pv, "to": cv})
+        out: dict[str, Any] = {}
+        if added:
+            out["added"] = added
+        if removed:
+            out["removed"] = removed
+        if changed:
+            out["changed"] = changed
+        return out
+    # Fallback: set diff
+    p = set(map(_hashable, prev))
+    c = set(map(_hashable, cur))
+    return {"added": list(c - p), "removed": list(p - c)} if (c - p) or (p - c) else {}
+
+
+def _diff_state_snapshots(prev: dict[str, Any], cur: dict[str, Any]) -> dict[str, Any]:
+    """Compute a diff between two state snapshots.
+
+    For dict values: recurse. For list-of-dicts: emit {added, removed, changed}.
+    For scalars: emit {from, to}. Unchanged keys are omitted.
+    """
+    out: dict[str, Any] = {}
+    all_keys = set(prev.keys()) | set(cur.keys())
+    for key in sorted(all_keys):
+        pv = prev.get(key)
+        cv = cur.get(key)
+        if pv == cv:
+            continue
+        if isinstance(pv, dict) and isinstance(cv, dict):
+            sub = _diff_state_snapshots(pv, cv)
+            if sub:
+                out[key] = sub
+        elif isinstance(pv, list) and isinstance(cv, list):
+            out[key] = _diff_list(pv, cv)
+        else:
+            out[key] = {"from": pv, "to": cv}
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -43,203 +146,338 @@ class JudgeResult:
 # ---------------------------------------------------------------------------
 
 
-_NARRATE_TRUNC = 800
-_EXTRACT_TRUNC = 300
+def build_trace(
+    events: list[dict[str, Any]],
+    *,
+    options: TraceOptions | None = None,
+    auto_checker_failures: list[dict[str, Any]] | None = None,
+    metrics_rows: list[dict[str, Any]] | None = None,
+) -> str:
+    """Render the full markdown trace sent to the judge as the user message.
 
+    Expects events[0] to be a metadata event ({"__metadata__": True, ...}).
+    If absent, the static context block falls back to engine constants only.
+    Subsequent events are per-turn events with rendered_system, rendered_user,
+    output for rules, narrate, and each extraction stream.
 
-def _summarize_applied(applied: dict[str, Any]) -> str:
-    parts: list[str] = []
-    for k in ("inventory_add", "inventory_remove", "inventory_update"):
-        v = applied.get(k) or []
-        if v:
-            parts.append(f"{k}={len(v)}")
-    for k in ("pc_condition_add", "pc_condition_remove"):
-        v = applied.get(k) or []
-        if v:
-            parts.append(f"{k}={len(v)}")
-    for k in ("quest_updates", "recent_events_add", "compendium_npc_update"):
-        v = applied.get(k) or []
-        if v:
-            parts.append(f"{k}={len(v)}")
-    if applied.get("location_change"):
-        parts.append("location_change")
-    if applied.get("scene_tags"):
-        parts.append(f"scene_tags={applied['scene_tags']}")
-    return ", ".join(parts) or "(no changes)"
+    No truncation. No size enforcement. Caller is responsible for choosing
+    a judge model with adequate context.
 
-
-def _summarize_rejected(rejected: list[Any]) -> str:
-    if not rejected:
-        return "(none)"
-    return f"{len(rejected)} rejected: " + json.dumps(rejected[:3], default=str)[:200]
-
-
-def _trim(s: str, n: int) -> str:
-    s = s or ""
-    if len(s) <= n:
-        return s
-    return s[:n].rstrip() + "…"
-
-
-def _context_line(event: dict[str, Any]) -> str:
-    """Summarize per-stream context sizes and truncation for the judge."""
-    parts = []
-    narrate = event.get("narrate_prompt") or {}
-    nm = narrate.get("context_meta") or {}
-    if nm:
-        trunc = " TRIMMED" if nm.get("trimmed") else ""
-        parts.append(f"narrate={nm.get('est_tokens', '?')}t{trunc}")
-
-    extraction = event.get("extraction") or {}
-    for stream in ("scene", "state", "progress"):
-        ex = extraction.get(stream) or {}
-        cm = ex.get("context_meta") or {}
-        if cm:
-            trunc = " TRIMMED" if cm.get("trimmed") else ""
-            parts.append(f"{stream}={cm.get('est_tokens', '?')}t{trunc}")
-
-    return ", ".join(parts) if parts else "(no context telemetry)"
-
-
-def _scope_summary(rules_event: dict[str, Any] | None, narrate_prompt: dict[str, Any]) -> str:
-    """Scope is now in the narrator's <scope>...</scope> tail in narrate output."""
-    raw = narrate_prompt.get("output", "")
-    raw = strip_thinking(raw or "")
-    m = re.search(r"<scope>(.*?)</scope>", raw, re.DOTALL)
-    if not m:
-        return "active=? (no tail)"
-    try:
-        data = json.loads(m.group(1).strip())
-        active = data.get("active_domains", [])
-        return f"active={active}"
-    except (json.JSONDecodeError, AttributeError):
-        return "active=? (unparseable)"
-
-
-def build_trace(events: list[dict[str, Any]], *, max_chars: int) -> str:
-    """Build the compact trace string sent to the judge as the user message."""
-    lines: list[str] = [constants_block()]
-    blocks: list[str] = []
-    for ev in events:
-        turn = ev.get("turn", "?")
-        inp = ev.get("input", "")
-        rules = ev.get("rules") or {}
-        narrate_prompt = ev.get("narrate_prompt") or {}
-        extraction = ev.get("extraction") or {}
-        applied = ev.get("applied") or {}
-        rejected = ev.get("rejected") or []
-
-        scene = (extraction.get("scene") or {}).get("output", "")
-        state = (extraction.get("state") or {}).get("output", "")
-        progress = (extraction.get("progress") or {}).get("output", "")
-        narration = narrate_prompt.get("output", "")
-
-        scope_line = _scope_summary(rules, narrate_prompt)
-        rules_line = (
-            f"band={rules.get('band', '—')} skill={rules.get('skill', '—')} "
-            f"summary={(rules.get('outcome_summary') or '')[:140]}"
-            if rules and rules.get("rolled")
-            else f"intent_only verb={rules.get('intent_verb', '—') if rules else '—'}"
-        )
-
-        block = (
-            f"TURN {turn} — {inp}\n"
-            f"[context] {_context_line(ev)}\n"
-            f"[scope] {scope_line}\n"
-            f"[rules] {rules_line}\n"
-            f"[narrate] {_trim(narration, _NARRATE_TRUNC)}\n"
-            f"[extract.scene] {_trim(scene, _EXTRACT_TRUNC)}\n"
-            f"[extract.state] {_trim(state, _EXTRACT_TRUNC)}\n"
-            f"[extract.progress] {_trim(progress, _EXTRACT_TRUNC)}\n"
-            f"[applied] {_summarize_applied(applied)}\n"
-            f"[rejected] {_summarize_rejected(rejected)}\n"
-            f"---\n"
-        )
-        blocks.append(block)
-
-    full = "\n".join(blocks)
-    trace = "\n".join(lines) + full
-    if len(trace) <= max_chars:
-        return trace
-    _TRUNC_MARKER = "\n\n[... trace truncated to fit judge window ...]\n\n"
-    head_keep = max(int(max_chars * 0.6), len(lines[0]) + 1)
-    tail_keep = max_chars - head_keep - len(_TRUNC_MARKER)
-    return (
-        trace[:head_keep]
-        + _TRUNC_MARKER
-        + trace[-tail_keep:]
-    )
-
-
-# ---------------------------------------------------------------------------
-# Response parsing
-# ---------------------------------------------------------------------------
-
-
-def _find_json_object(text: str) -> str | None:
-    """Find the outermost JSON object in text by counting brace depth."""
-    start = text.find("{")
-    if start == -1:
-        return None
-    depth = 0
-    for i in range(start, len(text)):
-        ch = text[i]
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                return text[start : i + 1]
-    return None
-
-
-def parse_judge_response(raw: str) -> dict[str, Any]:
-    """Best-effort JSON extraction from a judge response.
-
-    Strips think tags, finds the outermost JSON object, returns the parsed dict.
-    Raises ValueError on unrecoverable output.
+    auto_checker_failures: optional list of dicts with keys turn, assertion, detail.
+                           Pass-through; render at the end of the trace.
+    metrics_rows: optional list of per-turn dicts with keys turn, rules_tok_in,
+                  narrate_tok_in, scene_tok_in, state_tok_in, progress_tok_in,
+                  parse_failures, retries.
     """
-    s = strip_thinking(raw or "")
-    s = s.strip()
+    options = options or TraceOptions()
+    metadata, turn_events = _split_metadata(events)
+    parts: list[str] = []
+    parts.append(_render_static_context(metadata, turn_events))
+    prev_snap: dict[str, Any] | None = None
+    for i, ev in enumerate(turn_events):
+        is_first = (i == 0)
+        is_last = (i == len(turn_events) - 1)
+        parts.append(_render_turn_context(
+            ev,
+            options=options,
+            prev_state_snapshot=prev_snap,
+            full_snapshot=is_first or is_last,
+        ))
+        prev_snap = ev.get("state_snapshot") or prev_snap
+    if auto_checker_failures or metrics_rows:
+        parts.append(_render_deterministic_signals(auto_checker_failures, metrics_rows))
+    return "\n".join(parts)
+
+
+def _split_metadata(events: list[dict[str, Any]]) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+    if events and events[0].get("__metadata__"):
+        return events[0], events[1:]
+    return None, list(events)
+
+
+def _render_static_context(metadata: dict[str, Any] | None, turn_events: list[dict[str, Any]]) -> str:
+    """Render: World Pack Style, Seed State, Engine Constants, 5 System Prompts.
+
+    If metadata is None: render only constants_block().
+    System prompts come from turn_events[0]'s rendered_system fields. If turn 1
+    is a retry-only turn (rules_prompt empty), pull from the first turn that
+    has the field populated.
+    """
+    sections: list[str] = []
+    if metadata is not None:
+        sections.append("# Static Context (immutable across all turns)\n")
+        sections.append("## World Pack Style\n")
+        sections.append("```\n" + (metadata.get("pack_style") or "(none)") + "\n```\n")
+        sections.append("## Seed State\n")
+        sections.append("```json\n" + json.dumps(metadata.get("seed_state") or {}, indent=2, default=str) + "\n```\n")
+        sections.append("## Engine Constants\n")
+        sections.append("```json\n" + json.dumps(metadata.get("engine_constants") or {}, indent=2) + "\n```\n")
+    else:
+        sections.append("# Static Context\n")
+        sections.append(constants_block())
+
+    sections.append("## System Prompts (from turn 1 — identical every turn)\n")
+    sys_prompts = _collect_system_prompts(turn_events)
+    for label, key in [
+        ("Rules System Prompt", "rules"),
+        ("Narrate System Prompt", "narrate"),
+        ("Extract Scene System Prompt", "extract_scene"),
+        ("Extract State System Prompt", "extract_state"),
+        ("Extract Progress System Prompt", "extract_progress"),
+    ]:
+        sections.append(f"### {label}\n")
+        sections.append("```\n" + (sys_prompts.get(key) or "(not captured this run)") + "\n```\n")
+
+    return "\n".join(sections)
+
+
+def _collect_system_prompts(turn_events: list[dict[str, Any]]) -> dict[str, str]:
+    """Find the first event with each rendered_system populated.
+
+    Returns dict with keys: rules, narrate, extract_scene, extract_state, extract_progress.
+    """
+    out: dict[str, str] = {}
+    for ev in turn_events:
+        if "rules" not in out:
+            v = (ev.get("rules_prompt") or {}).get("rendered_system")
+            if v:
+                out["rules"] = v
+        if "narrate" not in out:
+            v = (ev.get("narrate_prompt") or {}).get("rendered_system")
+            if v:
+                out["narrate"] = v
+        ext = ev.get("extraction") or {}
+        for stream_key, out_key in [("scene", "extract_scene"), ("state", "extract_state"), ("progress", "extract_progress")]:
+            if out_key not in out:
+                v = (ext.get(stream_key) or {}).get("rendered_system")
+                if v:
+                    out[out_key] = v
+        if all(k in out for k in ("rules", "narrate", "extract_scene", "extract_state", "extract_progress")):
+            break
+    return out
+
+
+def _render_turn_context(
+    event: dict[str, Any],
+    *,
+    options: TraceOptions,
+    prev_state_snapshot: dict[str, Any] | None,
+    full_snapshot: bool,
+) -> str:
+    """Render one TURN block: header, user prompts, engine outputs, state, telemetry."""
+    turn = event.get("turn", "?")
+    inp = event.get("input", "")
+    parts: list[str] = []
+    parts.append(f"\n---\n\n# TURN {turn}\n")
+    parts.append(f"**Input:** `{inp}`\n")
+
+    parts.append("## User Prompts\n")
+    rules_user = (event.get("rules_prompt") or {}).get("rendered_user") or "(no rules call this turn)"
+    narrate_user = (event.get("narrate_prompt") or {}).get("rendered_user") or "(no narrate call)"
+    ext = event.get("extraction") or {}
+    parts.append("### Rules User Prompt\n```\n" + _maybe_dedup_user_prompt(rules_user, options) + "\n```\n")
+    parts.append("### Narrate User Prompt\n```\n" + _maybe_dedup_user_prompt(narrate_user, options) + "\n```\n")
+    for stream_key, label in [("scene", "Extract Scene User Prompt"), ("state", "Extract State User Prompt"), ("progress", "Extract Progress User Prompt")]:
+        s = ext.get(stream_key) or {}
+        if s.get("skipped"):
+            parts.append(f"### {label}\n*(skipped)*\n")
+        else:
+            v = s.get("rendered_user") or "(not captured)"
+            parts.append(f"### {label}\n```\n" + _maybe_dedup_user_prompt(v, options) + "\n```\n")
+
+    parts.append("## Engine Outputs\n")
+    rules = event.get("rules") or {}
+    rules_raw = (event.get("rules_prompt") or {}).get("output") or ""
+    parts.append("### Rules\n")
+    parts.append("**Parsed (engine):**\n```json\n" + json.dumps(rules, indent=2, default=str) + "\n```\n")
+    parts.append("**Raw LLM output:**\n```\n" + rules_raw + "\n```\n")
+
+    narrate_out = (event.get("narrate_prompt") or {}).get("output") or ""
+    parts.append("### Narration\n")
+    parts.append(narrate_out + "\n")
+
+    for stream_key, label in [("scene", "Extract Scene"), ("state", "Extract State"), ("progress", "Extract Progress")]:
+        s = ext.get(stream_key) or {}
+        parts.append(f"### {label}\n")
+        if s.get("skipped"):
+            parts.append("*(skipped — domain not active this turn)*\n")
+        else:
+            out = s.get("output")
+            parts.append("```json\n" + json.dumps(out or {}, indent=2, default=str) + "\n```\n")
+
+    parts.append("### Applied Deltas\n")
+    parts.append("```json\n" + json.dumps(event.get("applied") or {}, indent=2, default=str) + "\n```\n")
+    rejected = event.get("rejected") or []
+    parts.append("### Rejected Deltas\n")
+    if rejected:
+        parts.append("```json\n" + json.dumps(rejected, indent=2, default=str) + "\n```\n")
+    else:
+        parts.append("*(none)*\n")
+
+    parts.append("### Suggested Actions\n")
+    actions = event.get("actions") or []
+    if actions:
+        for a in actions:
+            parts.append(f"- {a}\n")
+    else:
+        parts.append("*(none)*\n")
+
+    parts.append("### Context Telemetry\n")
+    parts.append(_render_context_telemetry(event))
+
+    parts.append("### State After Turn\n")
+    snap = event.get("state_snapshot") or {}
+    if options.state_as_diff and not full_snapshot and prev_state_snapshot:
+        diff = _diff_state_snapshots(prev_state_snapshot, snap)
+        parts.append("*(diff vs previous turn — full snapshot only on first and last turns)*\n")
+        parts.append("```json\n" + json.dumps(diff, indent=2, default=str) + "\n```\n")
+    else:
+        parts.append("```json\n" + json.dumps(snap, indent=2, default=str) + "\n```\n")
+
+    return "\n".join(parts)
+
+
+def _render_context_telemetry(event: dict[str, Any]) -> str:
+    """One-line per-stream token estimate + trim status, for the judge."""
+    rows: list[str] = []
+    rules_meta = (event.get("rules_prompt") or {}).get("context_meta") or {}
+    if rules_meta:
+        rows.append(f"- rules: est={rules_meta.get('est_tokens', '?')}t trimmed={bool(rules_meta.get('trimmed'))}")
+    narr_meta = (event.get("narrate_prompt") or {}).get("context_meta") or {}
+    if narr_meta:
+        rows.append(f"- narrate: est={narr_meta.get('est_tokens', '?')}t trimmed={bool(narr_meta.get('trimmed'))}")
+    ext = event.get("extraction") or {}
+    for stream in ("scene", "state", "progress"):
+        s = ext.get(stream) or {}
+        if s.get("skipped"):
+            rows.append(f"- extract.{stream}: skipped")
+            continue
+        cm = s.get("context_meta") or {}
+        if cm:
+            rows.append(f"- extract.{stream}: est={cm.get('est_tokens', '?')}t trimmed={bool(cm.get('trimmed'))} attempts={s.get('attempts', 1)}")
+    return "\n".join(rows) + "\n" if rows else "*(no telemetry)*\n"
+
+
+def _render_deterministic_signals(
+    failures: list[dict[str, Any]] | None,
+    metrics: list[dict[str, Any]] | None,
+) -> str:
+    parts: list[str] = ["\n---\n", "# Deterministic Signals\n"]
+    parts.append("\n## Auto-Checker Failures\n")
+    if failures:
+        parts.append("| Turn | Assertion | Detail |\n|---|---|---|\n")
+        for f in failures:
+            t = f.get("turn", "?")
+            a = f.get("assertion", "?")
+            d = f.get("detail", "").replace("|", "&#124;")
+            parts.append(f"| {t} | `{a}` | {d} |\n")
+    else:
+        parts.append("*(no failures)*\n")
+
+    parts.append("\n## Metrics\n")
+    if metrics:
+        parts.append("| Turn | rules tok_in | narrate tok_in | scene tok_in | state tok_in | progress tok_in | parse_fail | retries |\n")
+        parts.append("|---|---:|---:|---:|---:|---:|---:|---:|\n")
+        for m in metrics:
+            parts.append(
+                f"| {m.get('turn','?')} | {m.get('rules_tok_in',0)} | "
+                f"{m.get('narrate_tok_in',0)} | {m.get('scene_tok_in',0)} | "
+                f"{m.get('state_tok_in',0)} | {m.get('progress_tok_in',0)} | "
+                f"{m.get('parse_failures',0)} | {m.get('retries',0)} |\n"
+            )
+    else:
+        parts.append("*(no metrics)*\n")
+    return "".join(parts)
+
+
+def _build_metrics_rows(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for ev in events:
+        if ev.get("__metadata__"):
+            continue
+        rules_meta = (ev.get("rules_prompt") or {}).get("context_meta") or {}
+        narr_meta = (ev.get("narrate_prompt") or {}).get("context_meta") or {}
+        ext = ev.get("extraction") or {}
+        retries = 0
+        for s in ("scene", "state", "progress"):
+            sub = ext.get(s) or {}
+            retries += max(0, int(sub.get("attempts") or 1) - 1)
+        rows.append({
+            "turn": ev.get("turn", "?"),
+            "rules_tok_in": int(rules_meta.get("est_tokens", 0) or 0),
+            "narrate_tok_in": int(narr_meta.get("est_tokens", 0) or 0),
+            "scene_tok_in": int((ext.get("scene") or {}).get("context_meta", {}).get("est_tokens", 0) or 0),
+            "state_tok_in": int((ext.get("state") or {}).get("context_meta", {}).get("est_tokens", 0) or 0),
+            "progress_tok_in": int((ext.get("progress") or {}).get("context_meta", {}).get("est_tokens", 0) or 0),
+            "parse_failures": sum(
+                len((ext.get(s) or {}).get("retry_errors") or [])
+                for s in ("scene", "state", "progress")
+            ),
+            "retries": retries,
+        })
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# Front matter parsing
+# ---------------------------------------------------------------------------
+
+_FM_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n(.*)\Z", re.DOTALL | re.MULTILINE)
+
+
+def parse_judge_response(raw: str) -> tuple[dict[str, Any], str]:
+    """Strip thinking tags, then split YAML front matter from markdown body.
+
+    Returns (scores, body_md). If no front matter present, scores is empty dict
+    and body_md is the entire (think-stripped) response.
+    """
+    s = strip_thinking(raw or "").strip()
+    # Tolerate optional leading code fence
     if s.startswith("```"):
-        # markdown fence; strip first and last line
-        s = "\n".join(s.splitlines()[1:-1])
-    obj = _find_json_object(s)
-    if obj is None:
-        raise ValueError("no JSON object found in judge response")
-    try:
-        return json.loads(obj)  # type: ignore[no-any-return]
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"judge JSON parse failed: {exc}") from exc
-
-
-def _coerce_score(v: Any) -> int:
-    try:
-        n = int(round(float(v)))
-    except (TypeError, ValueError):
-        return 0
-    return max(1, min(5, n))
-
-
-# ---------------------------------------------------------------------------
-# Previous-run lookup (for previous_overall)
-# ---------------------------------------------------------------------------
-
-
-_OVERALL_RE = re.compile(r"\*\*Overall:\*\*\s*(\d+)\s*/\s*5", re.MULTILINE)
-
-
-def _lookup_previous_overall(prev_report_path: Path) -> int | None:
-    if not prev_report_path.exists():
-        return None
-    txt = prev_report_path.read_text()
-    m = _OVERALL_RE.search(txt)
+        s = "\n".join(s.splitlines()[1:])
+        if s.endswith("```"):
+            s = "\n".join(s.splitlines()[:-1])
+    m = _FM_RE.match(s)
     if not m:
-        return None
+        return {}, s
+    fm_text = m.group(1)
+    body = m.group(2)
     try:
-        return int(m.group(1))
-    except ValueError:
+        fm = yaml.safe_load(fm_text) or {}
+    except yaml.YAMLError as exc:
+        _log.warning("judge front matter YAML parse failed: %s", exc)
+        return {}, s
+    if not isinstance(fm, dict):
+        return {}, s
+    return _normalize_scores(fm), body
+
+
+def _normalize_scores(fm: dict[str, Any]) -> dict[str, Any]:
+    """Coerce score values to ints clamped 1-5. Pass through other fields untouched."""
+    def _coerce(v: Any) -> int | None:
+        try:
+            n = int(round(float(v)))
+        except (TypeError, ValueError):
+            return None
+        return max(1, min(5, n))
+
+    out: dict[str, Any] = {}
+    for k in ("mechanical_score", "narrative_score"):
+        if k in fm:
+            out[k] = _coerce(fm[k])
+    ps = fm.get("pipeline_scores") or {}
+    if isinstance(ps, dict):
+        out["pipeline_scores"] = {k: _coerce(v) for k, v in ps.items() if k in ("rules", "narrate", "extract_scene", "extract_state", "extract_progress")}
+    return out
+
+
+def parse_previous_judge_md(path: Path) -> dict[str, Any] | None:
+    """Load a prior judge.md and return its front matter scores, or None."""
+    if not path.exists():
         return None
+    txt = path.read_text()
+    scores, _ = parse_judge_response(txt)
+    return scores or None
 
 
 # ---------------------------------------------------------------------------
@@ -251,14 +489,12 @@ async def run_judge(
     events_path: Path,
     *,
     eval_cfg: EvalConfig,
-    previous_report_path: Path | None = None,
+    output_dir: Path,
+    scenario_id: str,
+    previous_judge_md_path: Path | None = None,
     game_config_path: Path | None = None,
 ) -> JudgeResult:
-    """Read events.jsonl, send to judge, return JudgeResult.
-
-    Honors MOCK_MODE via llm_client (returns canned response — score will be
-    parsed from the mock and JudgeResult will have overall_score=0).
-    """
+    """Read events.jsonl, build trace, write trace.md, call LLM, write judge.md, parse front matter."""
     rubric_path = Path(eval_cfg.judge.rubric_path)
     if not rubric_path.is_absolute():
         rubric_path = REPO_ROOT / rubric_path
@@ -272,65 +508,80 @@ async def run_judge(
     host = str(llm.get("host", "http://localhost:8080/v1"))
     judge_model = eval_cfg.judge.model or str(llm.get("model", ""))
     if not judge_model:
-        raise ValueError("judge model not set (eval_cfg.judge.model is null AND game config llm.model is empty)")
+        raise ValueError("judge model not set")
 
     events_lines = events_path.read_text().splitlines() if events_path.exists() else []
     events = [json.loads(line) for line in events_lines if line.strip()]
-    trace = build_trace(events, max_chars=eval_cfg.judge.max_input_chars)
-    _log.debug("judge: %d events, trace=%d chars", len(events), len(trace))
+    options = TraceOptions(
+        dedup_immutable_sections=eval_cfg.judge.trace.dedup_immutable_sections,
+        state_as_diff=eval_cfg.judge.trace.state_as_diff,
+    )
+
+    # Build per-turn metrics
+    metrics_rows = _build_metrics_rows(events)
+
+    # Auto-checker failures: derive from events using universal_asserts
+    turn_events_for_check = [e for e in events if not e.get("__metadata__")]
+    failures: list[dict[str, Any]] = []
+    prev_ev: dict[str, Any] | None = None
+    for ev in turn_events_for_check:
+        for r in run_all_universal_asserts(ev, prev_ev):
+            if not r.get("passed"):
+                failures.append({
+                    "turn": ev.get("turn", "?"),
+                    "assertion": r["assertion"],
+                    "detail": r.get("detail", ""),
+                })
+        prev_ev = ev
+
+    trace = build_trace(events, options=options, auto_checker_failures=failures, metrics_rows=metrics_rows)
+    _log.info("judge: %d events, trace=%d chars", len(events), len(trace))
+
+    trace_md_path = output_dir / f"{scenario_id}.trace.md"
+    trace_md_path.write_text(trace)
+    _log.info("wrote trace: %s", trace_md_path)
 
     messages = [
         {"role": "system", "content": rubric_text},
         {"role": "user", "content": trace},
     ]
-
-    resp = await chat(
-        host=host,
-        model=judge_model,
-        messages=messages,
-        temperature=eval_cfg.judge.temperature,
-    )
+    _log.info("judge: calling LLM model=%s trace_chars=%d", judge_model, len(trace))
+    t0 = time.monotonic()
+    try:
+        resp = await chat(
+            host=host,
+            model=judge_model,
+            messages=messages,
+            temperature=eval_cfg.judge.temperature,
+        )
+        elapsed = time.monotonic() - t0
+        _log.info("judge: LLM call succeeded in %.1fs", elapsed)
+    except Exception as exc:
+        elapsed = time.monotonic() - t0
+        retry_count = getattr(exc, "retry_count", None)
+        msg = f"judge: LLM call failed after {elapsed:.1f}s: {exc}"
+        if retry_count is not None:
+            msg += f" (retries={retry_count})"
+        _log.warning(msg)
+        raise
     raw = resp.get("response", "") or ""
 
-    overall = 0
-    findings: list[dict[str, Any]] = []
-    comments = ""
-    narrative_recap = ""
-    remediation = ""
-    try:
-        parsed = parse_judge_response(raw)
-        overall = _coerce_score(parsed.get("overall_score", 0))
-        for f in parsed.get("findings") or []:
-            if not isinstance(f, dict):
-                continue
-            findings.append(
-                {
-                    "criterion": str(f.get("criterion", "")),
-                    "score": _coerce_score(f.get("score", 0)),
-                    "note": str(f.get("note", "")),
-                    "turns": [int(t) for t in (f.get("turns") or []) if str(t).isdigit()],
-                }
-            )
-        comments = str(parsed.get("comments", ""))
-        narrative_recap = str(parsed.get("narrative_recap", ""))
-        remediation = str(parsed.get("remediation", ""))
-        _log.debug("judge parsed: overall=%d findings=%d", overall, len(findings))
-    except ValueError as exc:
-        comments = f"(judge response could not be parsed: {exc})"
-        _log.debug("judge parse failed: %s", exc)
+    judge_md_path = output_dir / f"{scenario_id}.judge.md"
+    judge_md_path.write_text(raw)
+    _log.info("wrote judge: %s", judge_md_path)
 
-    previous_overall = (
-        _lookup_previous_overall(previous_report_path) if previous_report_path else None
-    )
+    scores, body = parse_judge_response(raw)
+    _log.info("judge: parsed scores=%s", scores)
+
+    previous_scores = parse_previous_judge_md(previous_judge_md_path) if previous_judge_md_path else None
 
     return JudgeResult(
-        overall_score=overall,
-        findings=findings,
-        comments=comments,
         raw_response=raw,
+        body_md=body,
+        scores=scores,
         rubric_path=str(rubric_path),
         model=judge_model,
-        previous_overall=previous_overall,
-        narrative_recap=narrative_recap,
-        remediation=remediation,
+        trace_md_path=str(trace_md_path),
+        judge_md_path=str(judge_md_path),
+        previous_scores=previous_scores,
     )

@@ -11,6 +11,7 @@ import pytest
 import yaml
 
 from ccya.eval.config import EvalConfig, InferenceConfig, load_eval_config
+from ccya.eval.judge import build_trace, parse_judge_response
 from ccya.eval.runner import (
     _build_engine_config,
     _patch_eval_pack_starting_state,
@@ -360,55 +361,77 @@ def test_load_run_result(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# _find_json_object
+# parse_judge_response — YAML front matter
 # ---------------------------------------------------------------------------
 
 
-def test_find_json_object_simple():
-    from ccya.eval.judge import _find_json_object
-    obj = _find_json_object('{"a": 1}')
-    assert obj == '{"a": 1}'
-
-
-def test_find_json_object_nested():
-    from ccya.eval.judge import _find_json_object
-    obj = _find_json_object('{"a": {"b": 2}}')
-    assert obj == '{"a": {"b": 2}}'
-
-
-def test_find_json_object_with_trailing_text():
-    from ccya.eval.judge import _find_json_object
-    obj = _find_json_object('{"a": 1} trailing {text}')
-    assert obj == '{"a": 1}'
-
-
-def test_find_json_object_no_braces():
-    from ccya.eval.judge import _find_json_object
-    assert _find_json_object("no braces here") is None
-
-
-def test_find_json_object_unmatched():
-    from ccya.eval.judge import _find_json_object
-    assert _find_json_object('{"a": 1') is None
-
-
-def test_find_json_object_multiline():
-    from ccya.eval.judge import _find_json_object
-    text = '{\n  "a": 1,\n  "b": 2\n}'
-    obj = _find_json_object(text)
-    assert obj == text
-
-
-# ---------------------------------------------------------------------------
-# parse_judge_response with trailing braces
-# ---------------------------------------------------------------------------
-
-
-def test_parse_judge_response_trailing_braces():
+def test_parse_judge_response_yaml_front_matter():
     from ccya.eval.judge import parse_judge_response
-    s = '{"mechanical_score": 4, "narrative_score": 3, "findings": [], "comments": ""} trailing {text}'
-    out = parse_judge_response(s)
-    assert out["mechanical_score"] == 4
+
+    s = (
+        "---\n"
+        "mechanical_score: 4\n"
+        "narrative_score: 3\n"
+        "pipeline_scores:\n"
+        "  rules: 4\n"
+        "  narrate: 3\n"
+        "  extract_scene: 5\n"
+        "  extract_state: 4\n"
+        "  extract_progress: 3\n"
+        "---\n\n"
+        "# Mechanical Analysis\n\n"
+        "The engine worked well.\n"
+    )
+    scores, body = parse_judge_response(s)
+    assert scores["mechanical_score"] == 4
+    assert scores["narrative_score"] == 3
+    assert scores["pipeline_scores"]["rules"] == 4
+    assert scores["pipeline_scores"]["narrate"] == 3
+    assert scores["pipeline_scores"]["extract_scene"] == 5
+    assert scores["pipeline_scores"]["extract_state"] == 4
+    assert scores["pipeline_scores"]["extract_progress"] == 3
+    assert "Mechanical Analysis" in body
+
+
+def test_parse_judge_response_missing_scores():
+    from ccya.eval.judge import parse_judge_response
+
+    s = "---\n---\n\n# No scores here\n"
+    scores, body = parse_judge_response(s)
+    assert scores == {}
+
+
+def test_parse_judge_response_with_thinking():
+    from ccya.eval.judge import parse_judge_response
+
+    s = (
+        "<think>\nSome reasoning\n</think>\n"
+        "---\nmechanical_score: 5\nnarrative_score: 5\npipeline_scores:\n  rules: 5\n  narrate: 5\n  extract_scene: 5\n  extract_state: 5\n  extract_progress: 5\n---\n\nDone.\n"
+    )
+    scores, body = parse_judge_response(s)
+    assert scores["mechanical_score"] == 5
+    assert scores["narrative_score"] == 5
+
+
+def test_parse_judge_response_no_front_matter():
+    from ccya.eval.judge import parse_judge_response
+
+    s = "Just plain text, no YAML front matter.\n"
+    scores, body = parse_judge_response(s)
+    assert scores == {}
+    assert body == "Just plain text, no YAML front matter."
+
+
+def test_parse_judge_response_partial_scores():
+    from ccya.eval.judge import parse_judge_response
+
+    s = (
+        "---\nmechanical_score: 3\n---\n\nOnly mechanical score.\n"
+    )
+    scores, body = parse_judge_response(s)
+    assert scores["mechanical_score"] == 3
+    assert "narrative_score" not in scores
+    assert scores["pipeline_scores"] == {}
 
 
 # ---------------------------------------------------------------------------
@@ -576,27 +599,27 @@ def test_build_trace_full_context_structure():
     )
 
     events = [metadata, turn1]
-    trace = build_trace(events, max_chars=30000)
+    trace = build_trace(events)
 
     assert "## World Pack Style" in trace
     assert "## Seed State" in trace
     assert "## Engine Constants" in trace
-    assert "## System Prompts (from turn 1)" in trace
+    assert "## System Prompts (from turn 1 — identical every turn)" in trace
     assert "### Rules System Prompt" in trace
     assert "### Narrate System Prompt" in trace
     assert "### Extract Scene System Prompt" in trace
     assert "### Extract State System Prompt" in trace
     assert "### Extract Progress System Prompt" in trace
     assert "TURN 1" in trace
-    assert "### User Prompts" in trace
-    assert "### Engine Outputs" in trace
-    assert "#### Rules" in trace
-    assert "#### Narration" in trace
-    assert "#### Extract Scene" in trace
-    assert "#### Extract State" in trace
-    assert "#### Extract Progress" in trace
-    assert "#### Applied Deltas" in trace
-    assert "#### Context Telemetry" in trace
+    assert "## User Prompts" in trace
+    assert "## Engine Outputs" in trace
+    assert "### Rules" in trace
+    assert "### Narration" in trace
+    assert "### Extract Scene" in trace
+    assert "### Extract State" in trace
+    assert "### Extract Progress" in trace
+    assert "### Applied Deltas" in trace
+    assert "### Context Telemetry" in trace
     assert "### State After Turn" in trace
     assert "A gritty sci-fi setting." in trace
 
@@ -606,7 +629,7 @@ def test_build_trace_no_metadata():
 
     turn1 = _make_turn_event(turn=1, input_text="Hello")
     events = [turn1]
-    trace = build_trace(events, max_chars=30000)
+    trace = build_trace(events)
 
     assert "## Engine Constants" in trace
     assert "TURN 1" in trace
@@ -627,7 +650,7 @@ def test_build_trace_all_turns_included():
             state_snapshot={"meta": {"turn": i}},
         ))
 
-    trace = build_trace(events, max_chars=30000)
+    trace = build_trace(events)
 
     assert "TURN 1" in trace
     assert "TURN 10" in trace
@@ -654,7 +677,7 @@ def test_build_trace_retry_turns():
         state_snapshot={"meta": {"turn": 2}},
     )
     events = [metadata, retry_turn]
-    trace = build_trace(events, max_chars=30000)
+    trace = build_trace(events)
 
     assert "TURN 2" in trace
     assert "You try again." in trace
@@ -674,7 +697,7 @@ def test_build_trace_no_truncation_small_run():
             state_snapshot={"meta": {"turn": i}},
         ))
 
-    trace = build_trace(events, max_chars=30000)
+    trace = build_trace(events)
 
     assert "TURN 1" in trace
     assert "TURN 2" in trace
@@ -687,8 +710,318 @@ def test_metadata_event_format():
 
     metadata = _make_metadata()
     events = [metadata]
-    trace = build_trace(events, max_chars=30000)
+    trace = build_trace(events)
 
     assert "test-pack" in trace
     assert "A gritty sci-fi setting." in trace
     assert '"game_name": "test"' in trace
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: Dedup tests
+# ---------------------------------------------------------------------------
+
+
+def test_strip_immutable_sections():
+    from ccya.eval.judge import _strip_immutable_sections
+    text = "before\n<<<TRACE_IMMUTABLE_START>>>\n## Factions\n- one\n- two\n<<<TRACE_IMMUTABLE_END>>>\nafter"
+    out = _strip_immutable_sections(text)
+    assert "## Factions" not in out
+    assert "before" in out
+    assert "after" in out
+    assert "_(immutable section omitted" in out
+
+
+def test_strip_immutable_sections_no_markers():
+    from ccya.eval.judge import _strip_immutable_sections
+    text = "no markers here"
+    assert _strip_immutable_sections(text) == text
+
+
+def test_strip_remaining_markers_when_dedup_off():
+    from ccya.eval.judge import _strip_remaining_markers
+    text = "before\n<<<TRACE_IMMUTABLE_START>>>\nbody\n<<<TRACE_IMMUTABLE_END>>>\nafter"
+    out = _strip_remaining_markers(text)
+    assert "<<<TRACE" not in out
+    assert "body" in out
+
+
+def test_diff_state_snapshots_simple():
+    from ccya.eval.judge import _diff_state_snapshots
+    prev = {"meta": {"turn": 1}, "pc": {"momentum": 0}}
+    cur = {"meta": {"turn": 2}, "pc": {"momentum": 1}}
+    diff = _diff_state_snapshots(prev, cur)
+    assert diff == {"meta": {"turn": {"from": 1, "to": 2}}, "pc": {"momentum": {"from": 0, "to": 1}}}
+
+
+def test_diff_state_snapshots_inventory_add_remove():
+    from ccya.eval.judge import _diff_state_snapshots
+    prev = {"inventory": [{"id": "credits", "amount": 500}]}
+    cur = {"inventory": [{"id": "credits", "amount": 500}, {"id": "key", "amount": 1}]}
+    diff = _diff_state_snapshots(prev, cur)
+    assert diff == {"inventory": {"added": [{"id": "key", "amount": 1}]}}
+
+
+def test_diff_state_snapshots_inventory_change():
+    from ccya.eval.judge import _diff_state_snapshots
+    prev = {"inventory": [{"id": "credits", "amount": 500}]}
+    cur = {"inventory": [{"id": "credits", "amount": 300}]}
+    diff = _diff_state_snapshots(prev, cur)
+    assert diff == {"inventory": {"changed": [{"from": {"id": "credits", "amount": 500}, "to": {"id": "credits", "amount": 300}}]}}
+
+
+def test_build_trace_dedup_off_keeps_immutable():
+    from ccya.eval.judge import build_trace, TraceOptions
+    metadata = _make_metadata()
+    turn = {
+        "turn": 1,
+        "input": "hi",
+        "narrate_prompt": {
+            "rendered_user": "before\n<<<TRACE_IMMUTABLE_START>>>\n## Factions\n- one\n<<<TRACE_IMMUTABLE_END>>>\nafter",
+            "output": "narration",
+        },
+        "extraction": {},
+        "rules_prompt": {},
+        "state_snapshot": {},
+    }
+    trace_off = build_trace([metadata, turn], options=TraceOptions(dedup_immutable_sections=False, state_as_diff=False))
+    assert "## Factions" in trace_off
+    assert "<<<TRACE_IMMUTABLE_START>>>" not in trace_off
+
+
+def test_build_trace_dedup_on_strips_immutable():
+    from ccya.eval.judge import build_trace, TraceOptions
+    metadata = _make_metadata()
+    turn = {
+        "turn": 1,
+        "input": "hi",
+        "narrate_prompt": {
+            "rendered_user": "before\n<<<TRACE_IMMUTABLE_START>>>\n## Factions\n- one\n<<<TRACE_IMMUTABLE_END>>>\nafter",
+            "output": "narration",
+        },
+        "extraction": {},
+        "rules_prompt": {},
+        "state_snapshot": {},
+    }
+    trace = build_trace([metadata, turn], options=TraceOptions(dedup_immutable_sections=True, state_as_diff=False))
+    assert "## Factions" not in trace
+    assert "_(immutable section omitted" in trace
+
+
+def test_build_trace_state_diff_middle_turns():
+    from ccya.eval.judge import build_trace, TraceOptions
+    metadata = _make_metadata()
+    turns = []
+    for i in range(1, 4):
+        turns.append({
+            "turn": i,
+            "input": f"t{i}",
+            "rules_prompt": {},
+            "narrate_prompt": {},
+            "extraction": {},
+            "state_snapshot": {"meta": {"turn": i}, "pc": {"momentum": i}},
+        })
+    trace = build_trace([metadata] + turns, options=TraceOptions(dedup_immutable_sections=False, state_as_diff=True))
+    assert "TURN 1" in trace
+    assert "TURN 2" in trace
+    assert "TURN 3" in trace
+    assert "diff vs previous turn" in trace
+
+
+def test_load_eval_config_trace_defaults():
+    from ccya.eval.config import load_eval_config
+    cfg = load_eval_config()
+    assert cfg.judge.trace.dedup_immutable_sections is True
+    assert cfg.judge.trace.state_as_diff is True
+
+
+def test_load_eval_config_trace_custom(tmp_path: Path):
+    from ccya.eval.config import load_eval_config
+    import yaml
+    cfg_yaml = tmp_path / "evals" / "config.yaml"
+    cfg_yaml.parent.mkdir(parents=True)
+    cfg_yaml.write_text(yaml.dump({
+        "judge": {"trace": {"dedup_immutable_sections": False, "state_as_diff": False}},
+    }))
+    cfg = load_eval_config(cfg_yaml)
+    assert cfg.judge.trace.dedup_immutable_sections is False
+    assert cfg.judge.trace.state_as_diff is False
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — Universal asserts
+# ---------------------------------------------------------------------------
+
+
+def test_universal_recent_events_turn_stamped_pass():
+    from ccya.eval.universal_asserts import check_recent_events_turn_stamped
+    ev = {"turn": 5, "applied": {"recent_events_add": [{"turn": 5, "text": "x"}]}}
+    r = check_recent_events_turn_stamped(ev)
+    assert r["passed"] is True
+
+
+def test_universal_recent_events_turn_stamped_fail():
+    from ccya.eval.universal_asserts import check_recent_events_turn_stamped
+    ev = {"turn": 5, "applied": {"recent_events_add": [{"turn": 0, "text": "x"}]}}
+    r = check_recent_events_turn_stamped(ev)
+    assert r["passed"] is False
+    assert "turn=0" in r["detail"]
+
+
+def test_universal_pending_gm_beat_persists_fail():
+    from ccya.eval.universal_asserts import check_pending_gm_beat_consumed
+    prev = {"state_snapshot": {"scene": {"pending_gm_beat": {"type": "complication"}}}}
+    cur = {"state_snapshot": {"scene": {"pending_gm_beat": {"type": "complication"}}}}
+    r = check_pending_gm_beat_consumed(cur, prev)
+    assert r["passed"] is False
+
+
+def test_universal_pending_gm_beat_consumed_pass():
+    from ccya.eval.universal_asserts import check_pending_gm_beat_consumed
+    prev = {"state_snapshot": {"scene": {"pending_gm_beat": {"type": "complication"}}}}
+    cur = {"state_snapshot": {"scene": {"pending_gm_beat": None}}}
+    r = check_pending_gm_beat_consumed(cur, prev)
+    assert r["passed"] is True
+
+
+def test_universal_location_change_applied_pass():
+    from ccya.eval.universal_asserts import check_location_change_applied
+    prev = {"state_snapshot": {"location": {"id": "marrows_crossing"}}}
+    cur = {"state_snapshot": {"location": {"id": "the_road"}}, "applied": {"location_change": {"id": "the_road"}}}
+    r = check_location_change_applied(cur, prev)
+    assert r["passed"] is True
+
+
+def test_universal_location_change_applied_fail():
+    from ccya.eval.universal_asserts import check_location_change_applied
+    prev = {"state_snapshot": {"location": {"id": "marrows_crossing"}}}
+    cur = {"state_snapshot": {"location": {"id": "marrows_crossing"}}, "applied": {"location_change": {"id": "the_road"}}}
+    r = check_location_change_applied(cur, prev)
+    assert r["passed"] is False
+
+
+def test_universal_rolled_implies_binding_pass():
+    from ccya.eval.universal_asserts import check_rolled_implies_binding
+    ev = {"rules": {"rolled": True}, "narrate_prompt": {"rendered_user": "stuff\n## rules_outcome (BINDING — narrate this result)\nbla"}}
+    r = check_rolled_implies_binding(ev)
+    assert r["passed"] is True
+
+
+def test_universal_rolled_implies_binding_fail():
+    from ccya.eval.universal_asserts import check_rolled_implies_binding
+    ev = {"rules": {"rolled": True}, "narrate_prompt": {"rendered_user": "stuff with no binding directive"}}
+    r = check_rolled_implies_binding(ev)
+    assert r["passed"] is False
+
+
+def test_universal_npc_mention_extracted_pass():
+    from ccya.eval.universal_asserts import check_npc_mention_extracted
+    ev = {
+        "narrate_prompt": {"output": "Caron leans forward and frowns."},
+        "applied": {"npc_update": [{"id": "caron", "name": "Caron"}]},
+        "state_snapshot": {},
+    }
+    r = check_npc_mention_extracted(ev)
+    assert r["passed"] is True
+
+
+def test_universal_npc_mention_extracted_fail():
+    from ccya.eval.universal_asserts import check_npc_mention_extracted
+    ev = {
+        "narrate_prompt": {"output": "A man named Brennan stands at the door."},
+        "applied": {},
+        "state_snapshot": {"scene": {"present_npcs": []}, "compendium": {"npcs": {}}},
+    }
+    r = check_npc_mention_extracted(ev)
+    assert r["passed"] is False
+
+
+def test_run_all_universal_asserts_returns_five():
+    from ccya.eval.universal_asserts import run_all_universal_asserts
+    ev = {"turn": 1}
+    rs = run_all_universal_asserts(ev, None)
+    assert len(rs) == 5
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — Deterministic signals in trace
+# ---------------------------------------------------------------------------
+
+
+def test_build_trace_includes_deterministic_signals():
+    from ccya.eval.judge import build_trace
+    metadata = {"__metadata__": True, "scenario": "test", "pack": "test-pack"}
+    turn = {"turn": 1, "input": "x", "rules_prompt": {}, "narrate_prompt": {}, "extraction": {}, "state_snapshot": {}}
+    failures = [{"turn": 1, "assertion": "universal.foo", "detail": "bad"}]
+    metrics = [{"turn": 1, "rules_tok_in": 100, "narrate_tok_in": 200, "scene_tok_in": 50, "state_tok_in": 0, "progress_tok_in": 80, "parse_failures": 0, "retries": 0}]
+    trace = build_trace([metadata, turn], auto_checker_failures=failures, metrics_rows=metrics)
+    assert "# Deterministic Signals" in trace
+    assert "## Auto-Checker Failures" in trace
+    assert "universal.foo" in trace
+    assert "## Metrics" in trace
+    assert "100" in trace
+
+
+def test_build_trace_deterministic_signals_empty():
+    from ccya.eval.judge import build_trace
+    metadata = {"__metadata__": True}
+    turn = {"turn": 1, "rules_prompt": {}, "narrate_prompt": {}, "extraction": {}, "state_snapshot": {}}
+    trace = build_trace([metadata, turn])
+    assert "# Deterministic Signals" not in trace
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — Metrics rows
+# ---------------------------------------------------------------------------
+
+
+def test_build_metrics_rows():
+    from ccya.eval.judge import _build_metrics_rows
+    events = [
+        {"__metadata__": True},
+        {
+            "turn": 1,
+            "rules_prompt": {"context_meta": {"est_tokens": 500}},
+            "narrate_prompt": {"context_meta": {"est_tokens": 300}},
+            "extraction": {
+                "scene": {"context_meta": {"est_tokens": 200}, "attempts": 1},
+                "state": {"context_meta": {"est_tokens": 150}, "attempts": 2},
+                "progress": {"context_meta": {"est_tokens": 100}, "attempts": 1},
+            },
+        },
+    ]
+    rows = _build_metrics_rows(events)
+    assert len(rows) == 1
+    assert rows[0]["turn"] == 1
+    assert rows[0]["rules_tok_in"] == 500
+    assert rows[0]["narrate_tok_in"] == 300
+    assert rows[0]["scene_tok_in"] == 200
+    assert rows[0]["state_tok_in"] == 150
+    assert rows[0]["progress_tok_in"] == 100
+    assert rows[0]["parse_failures"] == 0
+    assert rows[0]["retries"] == 1  # state had 2 attempts
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — Engine mirror constants
+# ---------------------------------------------------------------------------
+
+
+def test_engine_mirror_constants_block_includes_schema():
+    from ccya.eval.engine_mirror import constants_block
+    txt = constants_block()
+    assert "Bands" in txt and "crit_success" in txt
+    assert "Skills" in txt and "charisma" in txt
+    assert "Difficulties" in txt
+    assert "PC condition cap" in txt
+    assert "Scene named NPC cap" in txt
+
+
+def test_engine_mirror_schema_constants_exist():
+    from ccya.eval.engine_mirror import BANDS, SKILLS, DIFFICULTIES, INTENT_VERBS_HINT, PC_CONDITION_CAP, SCENE_NAMED_NPC_CAP
+    assert "crit_success" in BANDS
+    assert "charisma" in SKILLS
+    assert "normal" in DIFFICULTIES
+    assert "attack" in INTENT_VERBS_HINT
+    assert PC_CONDITION_CAP == 5
+    assert SCENE_NAMED_NPC_CAP == 8

@@ -1,18 +1,23 @@
 compendium:
   npcs:
     caron:
-      bio: A portly man in his sixties with a merchant's ledger and a patient demeanor.
-        You owe him 500 credits from a failed venture three years ago.
+      bio: A hard-eyed man who collects debts; he has officially cleared Aren Voss's
+        debt but remains unsympathetic.
       last_seen:
         last_seen_state: ''
         location_id: marrows_crossing
         location_name: Marrow's Crossing
-        turn: 2
+        turn: 3
       name: Caron
-      title: Old creditor
+      title: Merchant/Creditor
     halden:
-      bio: A road merchant in his fifties who hires couriers when his usual runners
-        are spoken for. Honest by reputation, careful with money.
+      bio: A merchant at Marrow's Crossing who hires couriers to transport sensitive
+        ledgers.
+      last_seen:
+        last_seen_state: ''
+        location_id: marrows_crossing
+        location_name: Marrow's Crossing
+        turn: 4
       name: Halden
       title: Merchant
     innkeeper:
@@ -63,29 +68,33 @@ inventory:
   id: brass_key
   name: Brass key
   notes: A small brass key Halden gave you with the ledger.
+- amount: 1
+  id: leather_bound_ledger
+  name: leather-bound ledger
+  notes: A heavy book containing important merchant documents; must be kept secure.
+- amount: 1
+  id: coin_purse
+  name: coin purse
+  notes: A heavy pouch containing 200 credits.
 location:
-  description: 'A market town built around the confluence of two rivers. Cobblestone
-    streets,
-
-    timber-framed buildings, and the constant sound of water from the mills. The
-
-    town square has a stone well and a statue of the founder. Most shops are closing
-
-    for the evening.
-
-    '
+  description: The dim light of the Crossed Keys feels oppressive as the silence between
+    you and Caron thickens.
   id: marrows_crossing
   name: Marrow's Crossing
 meta:
-  compendium_touch_order: []
+  compendium_touch_order:
+  - caron
+  - halden
   game_name: eval
+  last_compacted_turn: 0
   model: ''
   pending_gm_beat:
     instruction: ''
     surface_as: ambient
     type: revelation
+  prior_history: []
   setting_pack: eval-pack
-  turn: 2
+  turn: 4
 pc:
   allegiance: null
   bio: 'Mid-thirties, broad shoulders, careful with words. Took on a courier contract
@@ -118,28 +127,28 @@ pc:
   tagline: Reluctant courier on the merchant road
 quests:
 - id: settle_the_debt
-  last_advanced_turn: 1
   objectives:
   - description: Find Caron, the man you owe.
     done: true
     failed: false
   - description: Pay Caron in person and have him mark the debt cleared.
-    done: false
+    done: true
     failed: false
-  status: active
+  status: completed
   title: Settle the Old Debt
 - id: deliver_the_ledger
+  last_advanced_turn: 3
   objectives:
   - description: Accept the courier contract from Halden.
-    done: false
+    done: true
     failed: false
   - description: Carry the ledger to the merchant Halden at the Crossed Keys Inn.
-    done: false
+    done: true
     failed: false
   - description: Confirm the contract with Halden in person.
-    done: false
+    done: true
     failed: false
-  status: active
+  status: completed
   title: Deliver Halden's Ledger
 - id: clear_the_road_toughs
   objectives:
@@ -151,23 +160,14 @@ quests:
     failed: false
   status: active
   title: Clear the Road Toughs
-- id: investigate_halden_shipment
-  last_advanced_turn: 1
-  objectives:
-  - description: Discover the contents of Halden's shipment moving through the northern
-      pass.
-    done: false
-    failed: false
-  status: active
-  title: The Northern Pass Shipment
 scene:
   present_npcs:
   - bio: A portly man in his sixties with a merchant's ledger and a patient demeanor.
       You owe him 500 credits from a failed venture three years ago.
     id: caron
     name: Caron
-    notes: Leaning forward with a calculating gaze, demanding intelligence on Halden's
-      shipment as collateral for the debt.
+    notes: Dismissive and impatient, leaning forward with a scent of stale grain and
+      sweat while demanding physical coin.
     title: Old creditor
   - bio: A road merchant in his fifties who hires couriers when his usual runners
       are spoken for. Honest by reputation, careful with money.
@@ -192,12 +192,16 @@ scene:
   - id: you_found_caron_in_the_tavern
     text: You found Caron in the tavern — he's been waiting for you.
     turn: 0
-  - id: caron_demands_intel
-    text: Caron has demanded intelligence on Halden's upcoming shipment through the
-      northern pass as partial payment for the debt.
-    turn: 1
+  - id: caron_debt_cleared
+    text: Aren Voss successfully paid off the debt to Caron, and the ledger has been
+      marked.
+    turn: 2
+  - id: red_haired_stranger_confrontation
+    text: A red-haired man in boiled leather has approached Aren Voss, eyeing his
+      coin with predatory intent.
+    turn: 2
   scene_pressure: []
-  tagline: A Debt Paid In Danger
+  tagline: Debt Remains Unpaid
   tags:
   - dialogue
   world_state:

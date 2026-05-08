@@ -65,6 +65,9 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - ~~**Eval harness** — Tier 1: `tests/test_engine_pipeline.py` with `_FakeLLM`; Tier 2: `make eval` with in-process driver, judge, REPORT.md~~ — see `[p3-inference/eval-harness.md](p3-inference/eval-harness.md)` and phase files `[p3-inference/eval-harness/0{1..7}-*.md](p3-inference/eval-harness/)`
 - ~~**Eval improvement plan** — Rubric rewrite, context telemetry, new scenarios, Tier 1 schema validation~~ — see `[completed/eval_improvement_plan.md](completed/eval_improvement_plan.md)`
 - ~~**Eval full-context trace** — Replace compact `build_trace()` with full-context trace including system prompts (per-turn), user prompts (per turn), world pack content, and state snapshots~~ — see `[completed/eval-full-context.md](completed/eval-full-context.md)`
+- ~~**Phase 1: Trace/judge/report rewrite** — Full markdown traces, YAML front matter scoring, deterministic REPORT.md header, metadata event emission, dead config cleanup~~ — see `[p3-inference/eval-harness/08-trace-judge-report.md](p3-inference/eval-harness/08-trace-judge-report.md)`
+- ~~**Phase 2: Dedup** — Sentinel markers in Jinja templates, `strip_trace_markers()` in engine, `_strip_immutable_sections`/`_diff_state_snapshots` in judge, `TraceOptions` config plumbing, `evals/config.yaml` trace knobs~~ — see `[completed/eval-engine-refactor.md](completed/eval-engine-refactor.md)` Phase 2
+- ~~**Phase 3: Auto-checker** — `universal_asserts.py` with 5 cross-pipeline assertions, runner wiring, `build_trace` deterministic signals section, `_build_metrics_rows`, `engine_mirror` schema constants, rubric updates~~ — see `[completed/eval-engine-refactor.md](completed/eval-engine-refactor.md)` Phase 3
 
 ---
 

@@ -12,8 +12,10 @@
 ## Quests
 {% include "sections/_quests.j2" %}
 {% if state.scene.world_state -%}
+<<<TRACE_IMMUTABLE_START>>>
 ## World State (immutable)
 {% include "sections/_world_state.j2" %}
+<<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
 {% if state.scene.scene_pressure -%}
 ## ACTIVE THREATS (must be reflected in narration)
@@ -113,23 +115,28 @@ Before introducing anyone new, check this list. Re-use characters when they coul
 {% endfor -%}
 {% endif -%}
 {% if world_factions -%}
+<<<TRACE_IMMUTABLE_START>>>
 ## Known Factions
 {% for f in world_factions %}- **{{ f.name }}** ({{ f.alignment }}){% if f.alignment == "friendly" and pc_allegiance == f.id %} — your faction{% endif %}
 {% endfor -%}
+<<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
 {% if world_locations and ages and ages.get('location_age', 0) >= 3 -%}
+<<<TRACE_IMMUTABLE_START>>>
 ## Nearby Locations (use when steering the player toward a new area)
 {% for loc in world_locations %}- {{ loc.name }}
 {% endfor -%}
+<<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
 {% if npc_name_pool -%}
+<<<TRACE_IMMUTABLE_START>>>
 ## name_pool (use one of these when introducing a new named NPC)
 {% if npc_name_pool.male -%}
 **Male:** {{ npc_name_pool.male | join(' · ') }}
 {% endif %}{% if npc_name_pool.female -%}
 **Female:** {{ npc_name_pool.female | join(' · ') }}
 {% endif %}
-
+<<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
 === PLAYER INPUT ===
 {{ user_input }}
