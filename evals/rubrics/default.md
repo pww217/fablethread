@@ -110,6 +110,10 @@ The following are examples of subtle mechanical issues. This list is **not exhau
 - Condition guidance ignored: negative conditions added on clean success/crit_success
 - Compound actions: LLM rolled for a trivial sub-action instead of the gating action
 - Anti-declare-outcome rule violated: player asserted success ("I instantly convince her") but difficulty was not hardened
+- Compaction bullets omit named NPCs, key items, or quest outcomes that affect future play
+- Compaction bullets include atmospheric repetition or uneventful content that should have been culled
+- State sanitization misses obvious structural problems (duplicate NPCs, closed quests still open, resolved pressures still active)
+- Post-compaction narration ignores compacted state (e.g., references events that were compacted away, or contradicts compacted bullets)
 
 ### Pipeline evaluation criteria
 
@@ -120,6 +124,19 @@ Score each pipeline 1-5. Major mechanical failures (scope errors, extraction mis
 **extract.scene** — NPC add/update/remove accuracy, location change fidelity, scene tag correctness, actions quality, scene cap enforcement
 **extract.state** — inventory delta accuracy, condition delta accuracy, hard cap adherence, reconciliation correctness, ID normalization
 **extract.progress** — quest update accuracy, recent events management, compendium NPC updates, scene pressure lifecycle, GM beat generation
+
+### Compaction evaluation
+
+The engine runs a compaction pass after a set number of turns (typically between turns 6 and 7). Compaction compresses prior-turn narrative into bullet points in `recent_events` and performs state sanitization (NPC dedup, inventory cleanup, quest closing, pressure removal, condition removal).
+
+When you see evidence of compaction in the trace (sudden restructuring of `recent_events` between turns, or state diffs showing `npc_merge`, `inventory_remove`, `quest_close`, `pressure_remove`, `condition_remove` actions):
+
+1. **Bullet quality** — Are the compaction bullets accurate summaries? Do they preserve named NPCs, key items, quest outcomes, and irreversible choices? Do they correctly cull atmospheric repetition and uneventful content?
+2. **State sanitization** — Were the right structural problems caught? Were false positives avoided (e.g., conditions not removed when they might still plausibly apply)?
+3. **Narration awareness** — Does the narration on the turn after compaction (e.g., turn 7) reflect the compacted state correctly? Does it treat the compacted bullets as the authoritative session history?
+4. **Deduplication/truing-up** — Did NPC merges resolve identity confusion? Did quest closing prevent stale open quests? Did pressure removal clear resolved pressures?
+
+Score the extract_progress pipeline lower if compaction produced inaccurate bullets, missed real structural problems, or caused the post-compaction turn to behave inconsistently with the compacted state.
 
 ---
 
