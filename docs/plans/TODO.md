@@ -50,7 +50,7 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 
 ## P2 — Interesting Storytelling
 
-- ~~**Band collapse to `partial**` — remove `mixed` + `boon`, add `partial` (finals 8–9)~~ — see `[completed/p2-inference/band-collapse.md](completed/p2-inference/band-collapse.md)`
+- ~~**Band collapse to `partial`** — remove `mixed` + `boon`, add `partial` (finals 8–9)~~ — see `[completed/p2-inference/band-collapse.md](completed/p2-inference/band-collapse.md)`
 - ~~**Verb-differentiated directives** — `build_directive()` branches on `_verb_category(intent_verb)`~~ — see `[completed/p2-inference/band-collapse.md](completed/p2-inference/band-collapse.md)`
 - ~~**Momentum track** — `momentum: int` on PC state, directive at |momentum| >= 2~~ — see `[completed/p2-inference/momentum-track.md](completed/p2-inference/momentum-track.md)`
 - ~~**Scene pressure** — `scene.scene_pressure` list, `ACTIVE THREATS` block in narrator~~ — see `[completed/p2-inference/scene-pressure.md](completed/p2-inference/scene-pressure.md)`
