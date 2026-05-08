@@ -100,7 +100,7 @@ async def maybe_compact(
     new_bullets = [b.strip() for b in bullets_text.splitlines() if b.strip()]
     state.setdefault("meta", {}).setdefault("prior_history", []).extend(new_bullets)
 
-    _write_compacted_block(save_dir, bullets_text)
+    _write_compacted_block(save_dir, bullets_text, compact_start, compact_end)
 
     if sanitization is not None:
         _apply_sanitization(state, sanitization)
@@ -294,11 +294,17 @@ def _apply_sanitization(
             _log.info("compactor: removed resolved condition %r", cid, extra=log_ctx)
 
 
-def _write_compacted_block(save_dir: Path, bullets_text: str) -> None:
-    """Write or append COMPACTED block to chronicle.md.
+def _write_compacted_block(
+    save_dir: Path,
+    bullets_text: str,
+    compact_start: int,
+    compact_end: int,
+) -> None:
+    """Write COMPACTED block to chronicle.md and remove compacted turn sections.
 
     If a COMPACTED block already exists, appends new bullets after it.
     Otherwise, prepends a new COMPACTED block before the first turn.
+    After writing, removes the prose sections for turns in [compact_start, compact_end].
     """
     path = save_dir / "chronicle.md"
     if not path.exists():
@@ -308,9 +314,6 @@ def _write_compacted_block(save_dir: Path, bullets_text: str) -> None:
     existing = _COMPACTED_HEADER.search(text)
 
     if existing:
-        # Find the end of the entire COMPACTED block (next ## header or EOF),
-        # not just the header line, so subsequent compactions append after
-        # existing bullets rather than re-inserting after the header.
         block_end = existing.end()
         remaining = text[block_end:]
         next_header = _TURN_HEADER.search(remaining)
@@ -319,14 +322,30 @@ def _write_compacted_block(save_dir: Path, bullets_text: str) -> None:
         new_block = f"\n{bullets_text}\n"
         text = text[:block_end] + new_block + text[block_end:]
     else:
-        # Prepend before first turn header
         turn_match = _TURN_HEADER.search(text)
         if turn_match:
             insert_pos = turn_match.start()
             new_block = f"## COMPACTED\n{bullets_text}\n\n"
             text = text[:insert_pos] + new_block + text[insert_pos:]
         else:
-            # No turns yet, just append
             text += f"\n## COMPACTED\n{bullets_text}\n"
+
+    # Remove the prose sections for all compacted turns (1..compact_end).
+    # This also cleans up any turns that were compacted by a previous version
+    # of the code that didn't remove them.
+    matches = list(_TURN_HEADER.finditer(text))
+    turns_to_remove = {int(m.group(1)) for m in matches if int(m.group(1)) <= compact_end}
+    if turns_to_remove:
+        new_text_parts: list[str] = []
+        prev_end = 0
+        for m in matches:
+            turn_num = int(m.group(1))
+            if turn_num in turns_to_remove:
+                new_text_parts.append(text[prev_end:m.start()])
+                prev_end = m.end()
+                while prev_end < len(text) and text[prev_end] in ("\n", "\r"):
+                    prev_end += 1
+        new_text_parts.append(text[prev_end:])
+        text = "".join(new_text_parts)
 
     path.write_text(text)
