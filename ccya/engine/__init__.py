@@ -3,6 +3,7 @@
 from ccya.engine.compactor import maybe_compact
 from ccya.engine.config import EngineConfig, is_turn_in_progress
 from ccya.engine.seed import generate_seed
+from ccya.engine.pack_gen import generate_pack
 from ccya.engine.changes import format_change_lines
 from ccya.engine.turn import run_turn, run_turn_retry, warmup
 
@@ -38,6 +39,7 @@ __all__ = [
     "_scene_npc_roster",
     "_validate",
     "format_change_lines",
+    "generate_pack",
     "generate_seed",
     "is_turn_in_progress",
     "llm_chat",

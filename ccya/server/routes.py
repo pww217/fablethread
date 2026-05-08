@@ -58,7 +58,7 @@ async def index(request: Request):
     ctx["opening"] = opening
     ctx["opening_actions"] = opening_actions
     ctx["has_narrative"] = bool(opening or history)
-    ctx["pack_mode"] = _app_mod._active_pack.manifest.mode
+    ctx["pack_mode"] = _app_mod._active_pack.mode
     ctx["pack_name"] = _app_mod._active_pack.manifest.name
     ctx["character_creation_enabled"] = _app_mod.config.get("game", {}).get(
         "character_creation_enabled", True
@@ -96,8 +96,10 @@ async def get_turn(input: str = ""):
                 config=_app_mod.engine_config,
                 template_dir=str(_app_mod.PROMPTS_DIR),
                 pack_style=_app_mod._active_pack.style_text,
-                pack_examples=_app_mod._active_pack.extract_examples,
                 pack_name_locales=_app_mod._active_pack.manifest.name_locales,
+                pack_factions=[f.model_dump() for f in (_app_mod._active_pack.scenario.factions if _app_mod._active_pack.scenario else [])],
+                pack_locations=[loc.model_dump() for loc in (_app_mod._active_pack.scenario.locations if _app_mod._active_pack.scenario else [])],
+                pack_narrator_rules=_app_mod._active_pack.scenario.narrator_rules if _app_mod._active_pack.scenario else [],
             ):
                 if kind == "token":
                     yield {
@@ -190,8 +192,10 @@ async def retry_turn():
                 config=_app_mod.engine_config,
                 template_dir=str(_app_mod.PROMPTS_DIR),
                 pack_style=_app_mod._active_pack.style_text,
-                pack_examples=_app_mod._active_pack.extract_examples,
                 pack_name_locales=_app_mod._active_pack.manifest.name_locales,
+                pack_factions=[f.model_dump() for f in (_app_mod._active_pack.scenario.factions if _app_mod._active_pack.scenario else [])],
+                pack_locations=[loc.model_dump() for loc in (_app_mod._active_pack.scenario.locations if _app_mod._active_pack.scenario else [])],
+                pack_narrator_rules=_app_mod._active_pack.scenario.narrator_rules if _app_mod._active_pack.scenario else [],
             ):
                 if kind == "token":
                     yield {
@@ -246,7 +250,7 @@ async def new_game(request: Request):
             _app_mod._active_pack = load_pack(requested_pack, _app_mod.PACKS_DIR)
             _app_mod._pack_id = requested_pack
             _app_mod.logger.info(
-                "Switched pack to %s (mode=%s)", _app_mod._pack_id, _app_mod._active_pack.manifest.mode
+                "Switched pack to %s (mode=%s)", _app_mod._pack_id, _app_mod._active_pack.mode
             )
         except Exception as exc:
             _app_mod.logger.error("Failed to switch pack %r: %s", requested_pack, exc)
@@ -289,7 +293,7 @@ async def new_game(request: Request):
                 update={"pc_hints": " ".join(hint_parts) + " " + overrides.pc_hints}
             )
 
-    if _app_mod._active_pack.manifest.mode == "static":
+    if _app_mod._active_pack.mode == "static":
         assert _app_mod._active_pack.seed is not None
         seed = _app_mod._active_pack.seed.model_dump()
         if pc_name:
@@ -332,13 +336,13 @@ async def new_game(request: Request):
             _app_mod._ERRORS_LOG.appendleft({"message": f"New game generation failed: {exc}"})
 
     ctx = _debug_context()
-    ctx["pack_mode"] = _app_mod._active_pack.manifest.mode
+    ctx["pack_mode"] = _app_mod._active_pack.mode
     return _app_mod._render("_state.html", ctx)
 
 
 @_app_mod.app.post("/new-game/reroll")
 async def new_game_reroll(request: Request):
-    if _app_mod._active_pack.manifest.mode != "dynamic":
+    if _app_mod._active_pack.mode != "dynamic":
         return HTMLResponse(
             "<p>Re-roll only available for dynamic packs.</p>", status_code=400
         )

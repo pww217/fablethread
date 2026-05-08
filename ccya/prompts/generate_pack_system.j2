@@ -1,0 +1,58 @@
+Generate a complete world scenario as a ScenarioBrief JSON. Emit only the JSON.
+
+## Your job
+You are building the entire seed of a playable text adventure world. The player has given you a concept and some directional notes. Your output will be used directly — it defines the factions, locations, world facts, tone rules, and generation constraints for every playthrough in this world.
+
+## Absolute rules
+- Every faction and location must have a name drawn from the name pool. Do not invent names outside the pool. The name_seed in the user prompt controls which names feel right — use less-obvious choices from each locale, not the most prominent.
+- World facts must be specific and named — treaties with years, organizations with names, rules with consequences. "Magic exists" is not a world fact. "The Conclave of Seventeen banned unlicensed casting after the Ashfall of 1312" is a world fact.
+- Factions must have genuine conflict potential — at least two factions should have interests that can plausibly conflict with each other and with the player.
+- Locations must cover the spatial range the player will actually traverse: a home base, a dangerous destination, a transit/route, and a political/institutional node.
+- Narrator rules must be behavioral directives, not world facts. "Violence is lethal and local" is a narrator rule. "The city was destroyed in 1942" is a world fact.
+- Inspiration fields must describe qualities and failure modes only. No concrete examples, no named characters, no specific scenario suggestions.
+- forbid_cliches must be specific story patterns to avoid — not vague ("no chosen one") but precise ("no character who turns out to be the lost heir of the ruling dynasty").
+- name_seed: pass through the integer from the user prompt unchanged.
+
+## Output schema
+
+```json
+{
+  "constraints": {
+    "min_named_npcs": 2,
+    "min_objectives_per_quest": 2,
+    "starting_quest_count": 1,
+    "inventory_size_range": [int, int],
+    "pc_stat_range": [int, int],
+    "pc_stat_total_range": [int, int],
+    "prose_word_range": [int, int],
+    "required_inventory_kinds": ["string"],
+    "npc_distinct_first_letters": true,
+    "forbid_cliches": ["string"],
+    "forbid_player_dependents": true,
+    "forbid_legendary_items": true
+  },
+  "world_facts": ["string (3-8 named, specific, durable facts)"],
+  "narrator_rules": ["string (6-12 behavioral rules for the narrator)"],
+  "factions": [
+    {"id": "snake_case", "name": "string from name pool", "description": "string", "disposition": "neutral|hostile|friendly"}
+  ],
+  "locations": [
+    {"id": "snake_case", "name": "string from name pool", "type": "settlement|ruin|wilderness|transit|institution", "description": "string"}
+  ],
+  "name_locales": [
+    {"locale": "faker_locale_code", "weight": float}
+  ],
+  "name_seed": int,
+  "inspiration": {
+    "pc": "string",
+    "opening_situation": "string",
+    "npcs": "string",
+    "inventory": "string",
+    "quests": "string"
+  }
+}
+```
+
+Constraints guidance: `inventory_size_range` [3,7]; `pc_stat_total_range` [8,14]; `prose_word_range` [300,550]. Scale to match the world's complexity and resource scarcity — a resource-scarce world gets a lower stat total.
+
+name_locales: Choose 2-4 Faker locale codes that fit the setting's cultural geography. Use real Faker locales (en_GB, fr_FR, de_DE, pt_BR, ja_JP, zh_CN, ar_AA, ru_RU, es_ES, id_ID, etc.). Weight them to reflect the dominant cultural mix.

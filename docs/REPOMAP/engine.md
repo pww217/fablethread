@@ -4,10 +4,11 @@
 
 | File | Responsibility |
 |---|---|
-| `ccya/engine/__init__.py` | Re-exports: `EngineConfig`, `run_turn`, `run_turn_retry`, `warmup`, `generate_seed`, `format_change_lines`, `maybe_compact`, `is_turn_in_progress`. Internal helpers for tests: `_build_jinja_env`, `_narrate_messages`, `_extract_scene_messages`, `_extract_state_messages`, `_extract_progress_messages`, `_quest_threshold_directive`, `_scene_npc_roster`, `_rules_messages`, `_expire_scene_pressures`, `_validate`. LLM client re-exports: `llm_chat`, `llm_chat_stream` |
+| `ccya/engine/__init__.py` | Re-exports: `EngineConfig`, `run_turn`, `run_turn_retry`, `warmup`, `generate_seed`, `generate_pack`, `format_change_lines`, `maybe_compact`, `is_turn_in_progress`. Internal helpers for tests: `_build_jinja_env`, `_narrate_messages`, `_extract_scene_messages`, `_extract_state_messages`, `_extract_progress_messages`, `_quest_threshold_directive`, `_scene_npc_roster`, `_rules_messages`, `_expire_scene_pressures`, `_validate`. LLM client re-exports: `llm_chat`, `llm_chat_stream` |
 | `ccya/engine/config.py` | `EngineConfig` dataclass, `_EventLock`, `is_turn_in_progress`, `_build_jinja_env()`, `_render()`, `_find_json()`, `_log_llm_io()`, `_log_prompts()` |
 | `ccya/engine/turn.py` | `run_turn()` async orchestrator (thin — imports from submodules), `_validate()`, `run_turn_retry()`, `warmup()` |
 | `ccya/engine/narrate.py` | `_narrate_messages()`, `_known_characters_for_extract()`, `build_state_slice()` |
+| `ccya/engine/pack_gen.py` | `generate_pack()` — takes `WorldBrief`, generates `ScenarioBrief` via LLM, writes pack files to `packs/custom/<slug>/`, returns `Pack`. Uses `generate_pack_system.j2` + `generate_pack_user.j2` prompts. |
 | `ccya/engine/names.py` | `generate_name_pool()`, `generate_npc_names()`, `generate_npc_names_split()`, `generate_faction_pool()`, `generate_location_pool()`, `_slugify()` |
 | `ccya/engine/rules.py` | `_rules_messages()`, `_call_rules()`, `_avg_rules_ms()`, `_log_rules_outcome()` |
 | `ccya/engine/extraction.py` | `_run_extraction_pipeline()`, all `_extract_*_messages()`, `_call_stream()`, `_context_meta()`, `_scene_npc_roster()`, `_avg_narrate_ms()`, `_avg_extract_ms()` |
@@ -18,8 +19,9 @@
 
 ## Public APIs
 
-- **`run_turn(save_dir, user_input, config, template_dir, pack_style, pack_examples, pack_name_locales)`** — Async generator yielding `("token", str)`, `("phase", dict)`, `("complete", TurnResult)`. The 5-call turn pipeline.
+- **`run_turn(save_dir, user_input, config, template_dir, pack_style, pack_name_locales, pack_factions, pack_locations, pack_narrator_rules)`** — Async generator yielding `("token", str)`, `("phase", dict)`, `("complete", TurnResult)`. The 5-call turn pipeline.
 - **`generate_seed(pack, config, overrides, template_dir)`** — LLM-generated SeedEnvelope for dynamic packs.
+- **`generate_pack(brief, config, packs_dir, template_dir, max_retries)`** — LLM-generated ScenarioBrief from WorldBrief, writes pack to `packs/custom/<slug>/`, returns loaded Pack.
 - **`warmup(config)`** — Silent chat call to pre-load model.
 - **`is_turn_in_progress(save_dir)`** — Guard against concurrent turns.
 - **`EngineConfig`** dataclass — all tunable params (temps, timeouts, token budget, thinking toggles, compaction settings).
@@ -48,9 +50,9 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_SCOPE_OPEN`, `_SCOPE_CLOSE`, `_SCOPE_TAIL_RE`, `_SCOPE_TAIL_BUFFER_SIZE` — constants for scope tail parsing
 - `_split_scope_tail(text)` → `tuple[str, list[str] | None]` — extracts `<scope>...</scope>` JSON tail, returns (prose, active_domains | None)
 - `_StreamTailFilter` — filters streaming text to suppress everything from `<scope>` onward; maintains sliding tail buffer for cross-chunk sentinel detection
-- `run_turn(save_dir, user_input, config=None, *, template_dir=None, pack_style="", pack_examples=None, pack_name_locales=[])` → `AsyncIterator[tuple[str, Any]]` — 5-call turn pipeline (rules→narrate→scope-parse→scene→state→progress extract). Yields ("phase", dict), ("token", str), ("complete", TurnResult).
+- `run_turn(save_dir, user_input, config=None, *, template_dir=None, pack_style="", pack_name_locales=[], pack_factions=[], pack_locations=[], pack_narrator_rules=[])` → `AsyncIterator[tuple[str, Any]]` — 5-call turn pipeline (rules→narrate→scope-parse→scene→state→progress extract). Yields ("phase", dict), ("token", str), ("complete", TurnResult). Factions/locations/narrator_rules sourced from pack.scenario when present, falling back to state.world (legacy).
 - `_validate(state, delta)` → `list[dict]` — validates inventory_remove IDs exist, warns on overdraw
-- `run_turn_retry(save_dir, rules_outcome, intent, config=None, *, template_dir=None, pack_style="", pack_examples=None, pack_name_locales=[])` → `AsyncIterator[tuple[str, Any]]` — skips Call 0, re-runs narrate + extraction with same rules outcome
+- `run_turn_retry(save_dir, rules_outcome, intent, config=None, *, template_dir=None, pack_style="", pack_name_locales=[], pack_factions=[], pack_locations=[], pack_narrator_rules=[])` → `AsyncIterator[tuple[str, Any]]` — skips Call 0, re-runs narrate + extraction with same rules outcome
 - `warmup(config)` → `None` (async) — silent chat call to pre-load model
 
 ### config.py
@@ -65,7 +67,7 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_log_prompts(turn, phase, messages)` — logs rendered prompts when config.log_prompts is True
 
 ### narrate.py
-- `_narrate_messages(env, state, user_input, *, chronicle_tail="", recent_turns=None, enable_narrate_thinking=False, pack_style="", rules_outcome=None, npc_name_pool=None, last_turn_failed=None, recently_left=None, momentum=0, pending_gm_beat=None, deescalate=False, ages=None, known_npcs=None, present_npcs=None, world_factions=None, world_locations=None, pc_allegiance=None)` → `list[dict]` — prompt builder for narrator; accepts momentum, pending_gm_beat, deescalate, ages, known_npcs, present_npcs, world context params
+- `_narrate_messages(env, state, user_input, *, chronicle_tail="", recent_turns=None, enable_narrate_thinking=False, pack_style="", narrator_rules=[], rules_outcome=None, npc_name_pool=None, last_turn_failed=None, recently_left=None, momentum=0, pending_gm_beat=None, deescalate=False, ages=None, known_npcs=None, present_npcs=None, world_factions=None, world_locations=None, pc_allegiance=None)` → `list[dict]` — prompt builder for narrator; accepts momentum, pending_gm_beat, deescalate, ages, known_npcs, present_npcs, world context params, and narrator_rules
 - `_known_characters_for_extract(state, compact=True)` → `list[dict]` — deduped NPC roster from compendium
 - `build_state_slice(state)` — (used in prompts for state context)
 
@@ -86,9 +88,9 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_pick(fakers, weights, rng)` → `Faker` — weighted random selection
 
 ### extraction.py
-- `_run_extraction_pipeline(env, state, narration, *, active_domains, rules_outcome=None, intent=None, config, trace_id, turn_no, pack_examples=None, deescalate=False, quest_ages=None)` → `tuple[StateDelta, list[str], str, list[str], dict, ProgressExtractResult]` (async) — runs 3 streams in sequence (scene gated by active_domains, state gated by active_domains, progress always runs), merges into StateDelta
+- `_run_extraction_pipeline(env, state, narration, *, active_domains, rules_outcome=None, intent=None, config, trace_id, turn_no, deescalate=False, quest_ages=None)` → `tuple[StateDelta, list[str], str, list[str], dict, ProgressExtractResult]` (async) — runs 3 streams in sequence (scene gated by active_domains, state gated by active_domains, progress always runs), merges into StateDelta
 - `_extract_scene_messages(env, narration, state, *, active_domains, rules_outcome=None, enable_thinking=False)` → `list[dict]` — prompt builder for scene extractor
-- `_extract_state_messages(env, narration, state, *, active_domains, scene_result, rules_outcome=None, enable_thinking=False, pack_examples=None)` → `list[dict]` — prompt builder for state extractor
+- `_extract_state_messages(env, narration, state, *, active_domains, scene_result, rules_outcome=None, enable_thinking=False)` → `list[dict]` — prompt builder for state extractor
 - `_extract_progress_messages(env, narration, state, *, active_domains, scene_result, state_result, rules_outcome=None, enable_thinking=False, deescalate=False, quest_ages=None)` → `list[dict]` — prompt builder for progress extractor
 - `_call_stream(messages, config, trace_id, phase, model_cls, strip_keys=("_reasoning",))` → `tuple[result, usage, attempts, retry_errors]` (async) — LLM call with retry
 - `_parse_stream_result(raw, model_cls, strip_keys=("_reasoning",))` → model instance — JSON parsing + model validation for streams
@@ -99,9 +101,15 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_avg_extract_ms(save_dir, n=5)` → `int` — rolling average extract latency from events
 
 ### seed.py
-- `generate_seed(pack, config, *, overrides=None, seed=None, template_dir=None)` → `SeedEnvelope` (async) — LLM-generated SeedEnvelope for dynamic packs. Retries on parse/validation failure (up to 1 + max_retries). Injects baseline_facts into world_state, sets faction/location pool seeds, runs soft validation.
-- `_build_generate_seed_messages(env, pack, overrides=None)` → `list[dict]` — renders generate_seed_system.j2 + generate_seed_user.j2
+- `generate_seed(pack, config, *, overrides=None, seed=None, template_dir=None)` → `SeedEnvelope` (async) — LLM-generated SeedEnvelope for dynamic packs. Retries on parse/validation failure (up to 1 + max_retries). Sources world_facts from scenario.world_facts (new) → manifest.baseline_facts → parse_world_facts(world.md) (legacy). Raises ValueError on static packs. Injects world_facts into world_state, sets faction/location pool seeds, runs soft validation.
+- `_build_generate_seed_messages(env, pack, overrides=None)` → `list[dict]` — renders generate_seed_system.j2 + generate_seed_user.j2; passes name_seed (randomized if scenario.name_seed is 0)
 - `_soft_validate_seed(envelope, pack, overrides=None)` → `list[str]` — word count, cliché, player-dependent checks
+
+### pack_gen.py
+- `generate_pack(brief, config, packs_dir, *, template_dir=None, max_retries=2)` → `Pack` (async) — takes `WorldBrief`, generates `ScenarioBrief` via LLM, writes `pack.yaml` + `scenario.yaml` to `packs/custom/<slug>/`, returns loaded `Pack`. Uses `generate_pack_system.j2` + `generate_pack_user.j2` prompts. Retries on parse/validation failure.
+- `_slugify(text)` → `str` — converts concept string to URL-safe slug (max 40 chars)
+- `_build_generate_pack_messages(env, brief, name_pool, name_seed)` → `list[dict]` — renders pack generation prompts
+- `_convert_tuples_to_lists(obj)` → `Any` — recursively converts tuples to lists for YAML compatibility (yaml.dump serializes tuples with !!python/tuple which safe_load can't read)
 
 ### changes.py
 - `summarize_changes(pre, post, applied, rejected)` → `dict` — diffs pre vs post state → `{inventory, player, facts, quests}`

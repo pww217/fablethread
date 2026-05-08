@@ -272,7 +272,6 @@ class TestTokenBudgetCeilings:
             active_domains=["inventory", "pc_condition"],
             scene_result=scene_result,
             rules_outcome=RulesOutcome(rolled=False),
-            pack_examples=None,
         )
         self._check(msgs, "state.system", "state.user")
 

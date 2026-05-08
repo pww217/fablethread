@@ -1,10 +1,21 @@
-## world_bible (non-negotiable canon)
-{{ world_text }}
-{% if style_text %}
-## tone_and_style
-{{ style_text }}
-{% endif %}
-{% if scenario and scenario.inspiration %}
+{% if scenario %}
+{% if scenario.world_facts %}
+## world_facts (non-negotiable canon — inject into world_state verbatim)
+{% for fact in scenario.world_facts %}- {{ fact }}
+{% endfor %}{% endif %}
+{% if scenario.narrator_rules %}
+## tone_rules (narrator must follow these every turn)
+{% for rule in scenario.narrator_rules %}- {{ rule }}
+{% endfor %}{% endif %}
+{% if scenario.factions %}
+## factions (name these in the seed — use ids and names as given, do not rename)
+{% for f in scenario.factions %}- {{ f.name }} ({{ f.disposition }}): {{ f.description }}
+{% endfor %}{% endif %}
+{% if scenario.locations %}
+## locations (use these as named places in the seed — do not invent new top-level locations)
+{% for loc in scenario.locations %}- {{ loc.name }} ({{ loc.type }}): {{ loc.description }}
+{% endfor %}{% endif %}
+{% if scenario.inspiration %}
 {% set ins = scenario.inspiration %}
 ## creative_direction (guidance only — do not borrow phrasing or pick the obvious answer)
 {% if ins.pc %}### pc
@@ -18,6 +29,7 @@
 {% endif %}{% if ins.quests %}### quest
 {{ ins.quests }}
 {% endif %}{% endif %}
+{% endif %}
 {% if overrides %}
 ## player_overrides (soft — honor when compatible with canon)
 {% if overrides.pc_hints %}- pc: {{ overrides.pc_hints }}
@@ -27,7 +39,8 @@
 {% endif %}{% if overrides.free_form %}- other: {{ overrides.free_form }}
 {% endif %}{% endif %}
 {% if name_pool %}
-## name_pool (sampled from this setting's locales — use at least one)
+## name_pool (sampled from this setting's locales — use at least one per category)
+name_seed: {{ name_seed }}
 - pc candidates: {{ name_pool.pc | join(", ") }}
 - npc candidates: {{ name_pool.npc | join(", ") }}
 - place name inspiration: {{ name_pool.location | join(", ") }}

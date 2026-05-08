@@ -475,6 +475,9 @@ async def run_scenario(
         "pack_id": pack.manifest.id,
         "pack_name": pack.manifest.name,
         "pack_style": pack.style_text,
+        "narrator_rules": pack.scenario.narrator_rules if pack.scenario else [],
+        "world_factions": [f.model_dump() for f in (pack.scenario.factions if pack.scenario else [])],
+        "world_locations": [loc.model_dump() for loc in (pack.scenario.locations if pack.scenario else [])],
         "seed_state": seed,
         "engine_constants": {
             "pressure_building_at": PRESSURE_BUILDING_AT,
@@ -516,8 +519,10 @@ async def run_scenario(
                 config=engine_config,
                 template_dir=str(PROMPTS_DIR),
                 pack_style=pack.style_text,
-                pack_examples=pack.extract_examples,
                 pack_name_locales=pack.manifest.name_locales or [],
+                pack_factions=[f.model_dump() for f in (pack.scenario.factions if pack.scenario else [])],
+                pack_locations=[loc.model_dump() for loc in (pack.scenario.locations if pack.scenario else [])],
+                pack_narrator_rules=pack.scenario.narrator_rules if pack.scenario else [],
             ):
                 if kind == "complete":
                     result_obj = payload
