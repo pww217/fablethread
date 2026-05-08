@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import json
+import json as _json
 from pathlib import Path
 from typing import Any
 
 from .metrics import _fmt_tokens_exact
+from .tv_mirror import _STREAMS, STREAM_BY_KEY, _get_nested
 
 _STATUS_CSS: dict[str, str] = {
     "ok": "tv-sts-ok",
@@ -14,7 +15,6 @@ _STATUS_CSS: dict[str, str] = {
     "retried": "tv-sts-retried",
     "rejected": "tv-sts-rejected",
     "error": "tv-sts-error",
-    "neutral": "tv-sts-neutral",
 }
 
 _STAGE_CSS: dict[str, str] = {
@@ -31,15 +31,15 @@ def _tv_parse_json_blob(raw: Any) -> dict[str, Any] | None:
         return None
     s = raw.strip()
     try:
-        out = json.loads(s)
+        out = _json.loads(s)
         return out if isinstance(out, dict) else None
-    except json.JSONDecodeError:
+    except _json.JSONDecodeError:
         i, j = s.find("{"), s.rfind("}")
         if 0 <= i < j:
             try:
-                out = json.loads(s[i : j + 1])
+                out = _json.loads(s[i : j + 1])
                 return out if isinstance(out, dict) else None
-            except json.JSONDecodeError:
+            except _json.JSONDecodeError:
                 return None
         return None
 
@@ -138,6 +138,7 @@ def _tv_extract_stream_status(
     attempts: int,
     rejected: list[Any],
 ) -> str:
+    # NOTE: stream key "state" hardcoded here; see _STREAMS in tv_mirror.py
     if skipped:
         return "skipped"
     if error:
@@ -148,12 +149,6 @@ def _tv_extract_stream_status(
         return "rejected"
     if int(attempts or 1) > 1:
         return "retried"
-    return "ok"
-
-
-def _tv_rules_status(rules_ev: Any) -> str:
-    if not rules_ev or not isinstance(rules_ev, dict):
-        return "neutral"
     return "ok"
 
 
@@ -181,18 +176,9 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
     rows: list[dict[str, Any]] = []
     for line in lines:
         try:
-            ev = json.loads(line)
-        except json.JSONDecodeError:
+            ev = _json.loads(line)
+        except _json.JSONDecodeError:
             continue
-        narr = ev.get("narrate") or {}
-        ext = ev.get("extract") or {}
-        extraction = ev.get("extraction") or {}
-        rej = ev.get("rejected") or []
-        tid = str(ev.get("trace_id") or "")
-        rules_ev = ev.get("rules") or {}
-
-        rules_prompt = ev.get("rules_prompt") or {}
-        narr_prompt = ev.get("narrate_prompt") or {}
 
         def _fmt_ms(ms: Any) -> str:
             if ms is None:
@@ -202,253 +188,173 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
             except (TypeError, ValueError):
                 return "\u2014"
 
-        rules_ev_d = rules_ev if isinstance(rules_ev, dict) else {}
-        scene_blk = extraction.get("scene") or {}
-        state_blk = extraction.get("state") or {}
-        prog_blk = extraction.get("progress") or {}
+        rej: list[Any] = ev.get("rejected") or []
 
-        scene_out: dict[str, Any] = scene_blk.get("output") or {}
-        state_out: dict[str, Any] = state_blk.get("output") or {}
-        prog_out: dict[str, Any] = prog_blk.get("output") or {}
-
-        raw_streams: dict[str, dict[str, Any]] = {}
-        for s in ("scene", "state", "progress"):
-            sev = extraction.get(s) or {}
-            raw_streams[s] = {
-                "ms": sev.get("ms"),
-                "tokens_in": sev.get("tokens_in"),
-                "tokens_out": sev.get("tokens_out"),
-                "skipped": bool(sev.get("skipped", False)),
-                "error": sev.get("error"),
-                "attempts": int(sev.get("attempts") or 1),
-                "retry_errors": sev.get("retry_errors") or [],
-            }
-
+        # Step 2.1: Stream metric collection from _STREAMS
         streams: dict[str, dict[str, Any]] = {}
-
-        r_in = rules_ev_d.get("tokens_in")
-        r_out = rules_ev_d.get("tokens_out")
-        r_ms = rules_ev_d.get("total_ms")
-        rules_status = _tv_rules_status(rules_ev_d)
-
-        streams["rules"] = {
-            "tt": _fmt_ms(r_ms),
-            "tokens_in": r_in,
-            "tokens_out": r_out,
-            "tokens_in_display": _fmt_tokens_exact(r_in),
-            "tokens_out_display": _fmt_tokens_exact(r_out),
-            "skipped": False,
-            "error": None,
-            "attempts": 1,
-            "status": rules_status,
-            "status_class": _STATUS_CSS.get(rules_status, "tv-sts-ok"),
-            "stage_class": _STAGE_CSS["rules"],
-        }
-
-        n_in = narr.get("tokens_in")
-        n_out = narr.get("tokens_out")
-        n_ms = narr.get("total_ms")
-        streams["narrate"] = {
-            "tt": _fmt_ms(n_ms),
-            "tokens_in": n_in,
-            "tokens_out": n_out,
-            "tokens_in_display": _fmt_tokens_exact(n_in),
-            "tokens_out_display": _fmt_tokens_exact(n_out),
-            "skipped": False,
-            "error": None,
-            "attempts": 1,
-            "status": "ok",
-            "status_class": _STATUS_CSS["ok"],
-            "stage_class": _STAGE_CSS["narrate"],
-        }
-
-        for key in ("scene", "state", "progress"):
-            s_data = raw_streams[key]
-            s_in = s_data["tokens_in"]
-            s_out = s_data["tokens_out"]
-            s_ms = s_data["ms"]
-            s_skip = s_data["skipped"]
-            err = s_data.get("error")
-            err_s = str(err) if err else None
-            attempts = int(s_data.get("attempts") or 1)
-            st = _tv_extract_stream_status(
-                key,
-                skipped=s_skip,
-                error=err_s,
+        for sd in _STREAMS:
+            blob = _get_nested(ev, sd.metrics_path) or {}
+            if not isinstance(blob, dict):
+                blob = {}
+            t_in = blob.get("tokens_in")
+            t_out = blob.get("tokens_out")
+            ms_val = blob.get(sd.ms_key)
+            skipped = bool(blob.get("skipped", False))
+            error = blob.get("error")
+            error_s = str(error) if error else None
+            attempts = int(blob.get("attempts") or 1)
+            retry_errors: list[Any] = blob.get("retry_errors") or []
+            status = _tv_extract_stream_status(
+                sd.key,
+                skipped=skipped,
+                error=error_s,
                 attempts=attempts,
-                rejected=rej if isinstance(rej, list) else [],
+                rejected=rej,
             )
-            streams[key] = {
-                "tt": "\u2014" if s_skip else _fmt_ms(s_ms),
-                "tokens_in": s_in,
-                "tokens_out": s_out,
-                "tokens_in_display": "\u2014" if s_skip else _fmt_tokens_exact(s_in),
-                "tokens_out_display": "\u2014" if s_skip else _fmt_tokens_exact(s_out),
-                "skipped": s_skip,
-                "error": err_s,
+            tok_in_display = "\u2014" if (skipped and sd.skip_token_display) else _fmt_tokens_exact(t_in)
+            tok_out_display = "\u2014" if (skipped and sd.skip_token_display) else _fmt_tokens_exact(t_out)
+            streams[sd.key] = {
+                "tt": "\u2014" if (skipped and sd.skip_token_display) else _fmt_ms(ms_val),
+                "tokens_in": t_in,
+                "tokens_out": t_out,
+                "tokens_in_display": tok_in_display,
+                "tokens_out_display": tok_out_display,
+                "skipped": skipped,
+                "error": error_s,
                 "attempts": attempts,
-                "retry_errors": s_data.get("retry_errors") or [],
-                "status": st,
-                "status_class": _STATUS_CSS.get(st, "tv-sts-ok"),
-                "stage_class": _STAGE_CSS[key],
+                "retry_errors": retry_errors,
+                "status": status,
+                "status_class": _STATUS_CSS.get(status, "tv-sts-ok"),
+                "stage_class": _STAGE_CSS.get(sd.stage_css, ""),
             }
 
+        # Step 2.2: Token bar calculation from _STREAMS
         token_sums: list[int] = []
-        for stg in ("rules", "narrate", "scene", "state", "progress"):
-            tin = streams[stg].get("tokens_in") or 0
-            tout = streams[stg].get("tokens_out") or 0
-            sm = int(tin) + int(tout)
+        for sd in _STREAMS:
+            tin = int(streams[sd.key].get("tokens_in") or 0)
+            tout = int(streams[sd.key].get("tokens_out") or 0)
+            sm = tin + tout
+            streams[sd.key]["token_sum"] = sm
             token_sums.append(sm)
-            streams[stg]["token_sum"] = sm
-        max_sum = max(token_sums) if token_sums else 1
-        if max_sum < 1:
-            max_sum = 1
-        for stg in ("rules", "narrate", "scene", "state", "progress"):
-            sm = int(streams[stg]["token_sum"])
-            streams[stg]["token_bar_pct"] = round(100.0 * sm / float(max_sum), 1)
+        max_sum = max(token_sums, default=1) or 1
+        for sd in _STREAMS:
+            sm = streams[sd.key]["token_sum"]
+            streams[sd.key]["token_bar_pct"] = round(100.0 * sm / float(max_sum), 1)
 
-        total_in = (
-            (r_in or 0)
-            + (n_in or 0)
-            + (raw_streams["scene"]["tokens_in"] or 0)
-            + (raw_streams["state"]["tokens_in"] or 0)
-            + (raw_streams["progress"]["tokens_in"] or 0)
+        # Totals from streams dict
+        total_in = sum(int(streams[sd.key].get("tokens_in") or 0) for sd in _STREAMS)
+        total_out = sum(int(streams[sd.key].get("tokens_out") or 0) for sd in _STREAMS)
+        # total_tt: rules.total_ms + narrate.total_ms + extract.total_ms
+        rules_ev = ev.get("rules") or {}
+        narr_ev = ev.get("narrate") or {}
+        extract_ev = ev.get("extract") or {}
+        total_tt_ms = (
+            (rules_ev.get("total_ms") or 0)
+            + (narr_ev.get("total_ms") or 0)
+            + (extract_ev.get("total_ms") or 0)
         )
-        total_out = (
-            (r_out or 0)
-            + (n_out or 0)
-            + (raw_streams["scene"]["tokens_out"] or 0)
-            + (raw_streams["state"]["tokens_out"] or 0)
-            + (raw_streams["progress"]["tokens_out"] or 0)
-        )
-        total_tt_ms = (r_ms or 0) + (n_ms or 0) + (ext.get("total_ms") or 0)
 
-        narr_text = str(narr_prompt.get("output") or "")
+        # Step 2.3: Prompts dict
+        prompts: dict[str, dict[str, str]] = {}
+        for sd in _STREAMS:
+            p_path = sd.prompt_path or sd.metrics_path
+            p_blob = _get_nested(ev, p_path) or {}
+            if not isinstance(p_blob, dict):
+                p_blob = {}
+            raw_out = p_blob.get(sd.output_subkey) if sd.output_subkey else None
+
+            # Normalize output to a display string
+            if streams[sd.key]["skipped"] and sd.skip_token_display:
+                out_str = ""
+            elif sd.is_text_output:
+                out_str = str(raw_out or "")
+            elif sd.output_is_json_string and isinstance(raw_out, str):
+                try:
+                    parsed = _json.loads(raw_out)
+                    out_str = _json.dumps(parsed, indent=2)
+                except Exception:
+                    out_str = raw_out
+            elif isinstance(raw_out, dict):
+                out_str = _json.dumps(raw_out, indent=2)
+            else:
+                out_str = str(raw_out or "")
+
+            prompts[sd.key] = {
+                "system": p_blob.get("rendered_system") or "",
+                "user": p_blob.get("rendered_user") or "",
+                "output": out_str,
+            }
+
+        # Step 2.4: Connector generation from sd.inputs
         connectors: list[dict[str, Any]] = []
+        for sd in _STREAMS:
+            if not sd.inputs:
+                continue
+            segments: list[dict[str, Any]] = []
+            for inp_key in sd.inputs:
+                inp_sd = STREAM_BY_KEY.get(inp_key)
+                if inp_sd is None:
+                    continue
+                # Get the output value for this upstream stream
+                inp_p_path = inp_sd.prompt_path or inp_sd.metrics_path
+                inp_p_blob = _get_nested(ev, inp_p_path) or {}
+                if not isinstance(inp_p_blob, dict):
+                    inp_p_blob = {}
+                raw_out = inp_p_blob.get(inp_sd.output_subkey) if inp_sd.output_subkey else inp_p_blob
 
-        def _rules_seg(target: str) -> dict[str, Any]:
-            return {
-                "from": "rules",
-                "label": f"rules \u2192 {target}",
-                "lines": _tv_dict_to_lines(
-                    rules_ev_d,
-                    skip_keys=("tokens_in", "tokens_out", "total_ms"),
-                ),
-                "anchor": "rules",
-                "upstream_status": streams["rules"]["status"],
-                "upstream_status_class": streams["rules"]["status_class"],
-            }
+                if inp_sd.is_text_output:
+                    seg_lines = _tv_narration_lines(str(raw_out or ""))
+                elif inp_sd.output_is_json_string and isinstance(raw_out, str):
+                    try:
+                        parsed = _json.loads(raw_out)
+                        seg_lines = _tv_dict_to_lines(parsed) if isinstance(parsed, dict) else [{"k": "_", "v": str(raw_out), "dim": False}]
+                    except Exception:
+                        seg_lines = [{"k": "_", "v": str(raw_out), "dim": False}]
+                elif isinstance(raw_out, dict):
+                    seg_lines = _tv_dict_to_lines(raw_out)
+                else:
+                    seg_lines = [{"k": "_", "v": str(raw_out), "dim": False}] if raw_out else []
 
-        if rules_ev_d:
-            connectors.append(
-                {
-                    "before_stage": "narrate",
-                    "segments": [
-                        {
-                            "from": "rules",
-                            "label": "rules \u2192 narrate",
-                            "lines": _tv_dict_to_lines(
-                                rules_ev_d,
-                                skip_keys=("tokens_in", "tokens_out", "total_ms"),
-                            ),
-                            "anchor": "rules",
-                            "upstream_status": streams["rules"]["status"],
-                            "upstream_status_class": streams["rules"]["status_class"],
-                        }
-                    ],
-                }
-            )
-        scene_segments: list[dict[str, Any]] = [
-            {
-                "from": "narrate",
-                "label": "narrate \u2192 scene",
-                "lines": _tv_narration_lines(narr_text),
-                "anchor": "narrate",
-                "upstream_status": streams["narrate"]["status"],
-                "upstream_status_class": streams["narrate"]["status_class"],
-            }
-        ]
-        if rules_ev_d:
-            scene_segments.insert(0, _rules_seg("scene"))
-        connectors.append({"before_stage": "scene", "segments": scene_segments})
+                segments.append({
+                    "from": inp_key,
+                    "label": f"{inp_key} \u2192 {sd.key}",
+                    "lines": seg_lines,
+                    "anchor": inp_key,
+                    "upstream_status": streams[inp_key]["status"],
+                    "upstream_status_class": streams[inp_key]["status_class"],
+                })
+            connectors.append({"before_stage": sd.key, "segments": segments})
 
-        state_segments: list[dict[str, Any]] = [
-            {
-                "from": "narrate",
-                "label": "narrate \u2192 state",
-                "lines": _tv_narration_lines(narr_text),
-                "anchor": "narrate",
-                "upstream_status": streams["narrate"]["status"],
-                "upstream_status_class": streams["narrate"]["status_class"],
-            },
-            {
-                "from": "scene",
-                "label": "scene \u2192 state",
-                "lines": _tv_dict_to_lines(scene_out),
-                "anchor": "scene",
-                "upstream_status": streams["scene"]["status"],
-                "upstream_status_class": streams["scene"]["status_class"],
-            },
-        ]
-        if rules_ev_d:
-            state_segments.insert(0, _rules_seg("state"))
-        connectors.append({"before_stage": "state", "segments": state_segments})
+        # Step 2.5: Scope block
+        raw_scope: dict[str, Any] = ev.get("scope") or {}
+        scope_block = {
+            "active_domains": raw_scope.get("active_domains") or [],
+            "decided_by": raw_scope.get("decided_by") or "\u2014",
+            "skipped_streams": raw_scope.get("skipped_streams") or [],
+        }
 
-        progress_segments: list[dict[str, Any]] = [
-            {
-                "from": "narrate",
-                "label": "narrate \u2192 progress",
-                "lines": _tv_narration_lines(narr_text),
-                "anchor": "narrate",
-                "upstream_status": streams["narrate"]["status"],
-                "upstream_status_class": streams["narrate"]["status_class"],
-            },
-            {
-                "from": "scene",
-                "label": "scene \u2192 progress",
-                "lines": _tv_dict_to_lines(scene_out),
-                "anchor": "scene",
-                "upstream_status": streams["scene"]["status"],
-                "upstream_status_class": streams["scene"]["status_class"],
-            },
-            {
-                "from": "state",
-                "label": "state \u2192 progress",
-                "lines": _tv_dict_to_lines(state_out),
-                "anchor": "state",
-                "upstream_status": streams["state"]["status"],
-                "upstream_status_class": streams["state"]["status_class"],
-            },
-        ]
-        if rules_ev_d:
-            progress_segments.insert(0, _rules_seg("progress"))
-        connectors.append({"before_stage": "progress", "segments": progress_segments})
+        # Derived flags from streams dict
+        has_retries = any(streams[sd.key].get("attempts", 1) > 1 for sd in _STREAMS)
+        has_errors = any(bool(streams[sd.key].get("error")) for sd in _STREAMS)
+        has_skipped = any(streams[sd.key].get("skipped") for sd in _STREAMS)
 
+        # rules_intent for template (parsed from rules_prompt.output)
+        rules_intent = _tv_parse_json_blob(prompts["rules"]["output"])
+
+        # state_rejections
         state_rej = [
             r
             for r in (rej if isinstance(rej, list) else [])
             if isinstance(r, dict) and r.get("field") == "inventory_remove"
         ]
-        has_retries = any(
-            int((extraction.get(s) or {}).get("attempts") or 1) > 1
-            for s in ("scene", "state", "progress")
-        )
-        has_errors = any(
-            bool(streams[s].get("error"))
-            for s in ("scene", "state", "progress")
-        )
-        has_skipped = any(
-            streams[s].get("skipped")
-            for s in ("scene", "state", "progress")
-        )
 
-        rules_intent = _tv_parse_json_blob(rules_prompt.get("output"))
-        scope_ev = ev.get("scope") or {}
+        tid = str(ev.get("trace_id") or "")
+        tid_short = tid[:8] if len(tid) >= 8 else tid
 
         rows.append(
             {
                 "turn": ev.get("turn", 0),
-                "trace_id": tid[:8] if len(tid) >= 8 else tid,
+                "trace_id": tid_short,
                 "trace_id_full": tid,
                 "has_rejections": bool(rej),
                 "has_retries": has_retries,
@@ -456,54 +362,16 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "has_skipped": has_skipped,
                 "streams": streams,
                 "connectors": connectors,
-                "rules_event": rules_ev_d,
-                "rules_intent": rules_intent,
-                "state_rejections": state_rej,
-                "scope": {
-                    "active_domains": scope_ev.get("active_domains", []),
-                    "decided_by": scope_ev.get("decided_by", "unknown"),
-                    "skipped_streams": scope_ev.get("skipped_streams", []),
-                },
+                "scope": scope_block,
                 "total_tt": _fmt_ms(total_tt_ms),
                 "total_tokens_in": total_in,
                 "total_tokens_out": total_out,
                 "total_tokens_in_display": _fmt_tokens_exact(total_in),
                 "total_tokens_out_display": _fmt_tokens_exact(total_out),
                 "user_input": ev.get("input", ""),
-                "rules_prompt": {
-                    "system": rules_prompt.get("rendered_system", ""),
-                    "user": rules_prompt.get("rendered_user", ""),
-                    "output": rules_prompt.get("output", ""),
-                },
-                "narrate_prompt": {
-                    "system": narr_prompt.get("rendered_system", ""),
-                    "user": narr_prompt.get("rendered_user", ""),
-                    "output": narr_text,
-                },
-                "scene_prompt": {
-                    "system": extraction.get("scene", {}).get("rendered_system", ""),
-                    "user": extraction.get("scene", {}).get("rendered_user", ""),
-                    "output": json.dumps(scene_out, indent=2)
-                    if extraction.get("scene")
-                    and not extraction.get("scene", {}).get("skipped", False)
-                    else "",
-                },
-                "state_prompt": {
-                    "system": extraction.get("state", {}).get("rendered_system", ""),
-                    "user": extraction.get("state", {}).get("rendered_user", ""),
-                    "output": json.dumps(state_out, indent=2)
-                    if extraction.get("state")
-                    and not extraction.get("state", {}).get("skipped", False)
-                    else "",
-                },
-                "progress_prompt": {
-                    "system": extraction.get("progress", {}).get("rendered_system", ""),
-                    "user": extraction.get("progress", {}).get("rendered_user", ""),
-                    "output": json.dumps(prog_out, indent=2)
-                    if extraction.get("progress")
-                    and not extraction.get("progress", {}).get("skipped", False)
-                    else "",
-                },
+                "rules_intent": rules_intent,
+                "state_rejections": state_rej,
+                "prompts": prompts,
             }
         )
     rows.reverse()

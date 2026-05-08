@@ -63,6 +63,32 @@
 
                     <template x-for="stage in stages" :key="t.turn + '-' + stage">
                         <div class="tv-stage-wrap">
+                            <template x-if="stage === 'scene' && t.scope && (t.scope.active_domains.length || t.scope.skipped_streams.length)">
+                                <div class="tv-scope-block">
+                                    <div class="tv-scope-label">Scope</div>
+                                    <div class="tv-scope-content">
+                                        <template x-if="t.scope.active_domains.length">
+                                            <div>
+                                                <span class="tv-scope-sublabel">Active domains:</span>
+                                                <template x-for="(d, di) in t.scope.active_domains" :key="di">
+                                                    <span class="tv-scope-tag" x-text="d"></span>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template x-if="t.scope.decided_by !== '—'">
+                                            <div><span class="tv-scope-sublabel">Decided by:</span> <span x-text="t.scope.decided_by"></span></div>
+                                        </template>
+                                        <template x-if="t.scope.skipped_streams.length">
+                                            <div>
+                                                <span class="tv-scope-sublabel">Skipped streams:</span>
+                                                <template x-for="(s, si) in t.scope.skipped_streams" :key="si">
+                                                    <span class="tv-scope-tag tv-scope-tag--muted" x-text="s"></span>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
                             <template x-for="(c, ci) in connectorsBefore(t, stage)" :key="c.before_stage + '-' + ci">
                                 <div class="tv-flow-block">
                                     <template x-for="(seg, si) in c.segments" :key="c.before_stage + '-' + seg.from + '-' + si">
@@ -158,25 +184,25 @@
                                             </dl>
                                         </template>
 
-                                        <div x-show="t[stage + '_prompt'] && (t[stage + '_prompt'].system || t[stage + '_prompt'].user || t[stage + '_prompt'].output)">
+                                        <div x-show="t.prompts[stage] && (t.prompts[stage].system || t.prompts[stage].user || t.prompts[stage].output)">
                                             <div class="tv-prompt-output-tabs">
                                                 <button type="button" class="tv-tab-btn" :class="{ 'active': tabKey(t.turn, stage) !== 'output' }" @click="setTab(t.turn, stage, 'prompt')">Prompt</button>
                                                 <button type="button" class="tv-tab-btn" :class="{ 'active': tabKey(t.turn, stage) === 'output' }" @click="setTab(t.turn, stage, 'output')">Output</button>
                                             </div>
 
                                             <div class="tv-content-panel" x-show="tabKey(t.turn, stage) !== 'output'">
-                                                <div class="tv-prompt-block" x-show="t[stage + '_prompt'].system">
+                                                <div class="tv-prompt-block" x-show="t.prompts[stage].system">
                                                     <div class="tv-prompt-label-row">
                                                         <span class="tv-prompt-label">System</span>
-                                                        <button type="button" class="tv-sys-toggle" @click.stop="toggleSystem(t.turn, stage)" x-text="systemOpen(t.turn, stage) ? 'Collapse' : ('Expand (~' + approxTokens(t[stage + '_prompt'].system) + ' tok)')"></button>
+                                                        <button type="button" class="tv-sys-toggle" @click.stop="toggleSystem(t.turn, stage)" x-text="systemOpen(t.turn, stage) ? 'Collapse' : ('Expand (~' + approxTokens(t.prompts[stage].system) + ' tok)')"></button>
                                                     </div>
-                                                    <div class="tv-prompt-text markdown" x-show="systemOpen(t.turn, stage)" x-html="mdText(t[stage + '_prompt'].system)"></div>
+                                                    <div class="tv-prompt-text markdown" x-show="systemOpen(t.turn, stage)" x-html="mdText(t.prompts[stage].system)"></div>
                                                 </div>
-                                                <div class="tv-prompt-block" x-show="t[stage + '_prompt'].user">
+                                                <div class="tv-prompt-block" x-show="t.prompts[stage].user">
                                                     <div class="tv-prompt-label">User</div>
-                                                    <div class="tv-prompt-text markdown" x-html="mdText(t[stage + '_prompt'].user)"></div>
+                                                    <div class="tv-prompt-text markdown" x-html="mdText(t.prompts[stage].user)"></div>
                                                 </div>
-                                                <div class="tv-no-prompt" x-show="!t[stage + '_prompt'].system && !t[stage + '_prompt'].user">No prompt data available</div>
+                                                <div class="tv-no-prompt" x-show="!t.prompts[stage].system && !t.prompts[stage].user">No prompt data available</div>
                                             </div>
 
                                             <div class="tv-content-panel" x-show="tabKey(t.turn, stage) === 'output'">
@@ -184,13 +210,13 @@
                                                     <div class="tv-output-text markdown" x-html="mdNarrative(t) + '\n' + (t.scope ? JSON.stringify(t.scope, null, 2) : '')"></div>
                                                 </template>
                                                 <template x-if="stage !== 'narrate'">
-                                                    <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t[stage + '_prompt'] ? (t[stage + '_prompt'].output || '') : '')"></code></pre>
+                                                    <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.prompts[stage] ? (t.prompts[stage].output || '') : '')"></code></pre>
                                                 </template>
-                                                <div class="tv-no-prompt" x-show="!t[stage + '_prompt'].output">No output data available</div>
+                                                <div class="tv-no-prompt" x-show="!t.prompts[stage].output">No output data available</div>
                                             </div>
                                         </div>
 
-                                        <div class="tv-no-prompt" x-show="!t[stage + '_prompt'] || (!t[stage + '_prompt'].system && !t[stage + '_prompt'].user && !t[stage + '_prompt'].output)">
+                                        <div class="tv-no-prompt" x-show="!t.prompts[stage] || (!t.prompts[stage].system && !t.prompts[stage].user && !t.prompts[stage].output)">
                                             No data for this stage
                                         </div>
                                     </div>
@@ -337,7 +363,7 @@ function tvRoot(initialTurns) {
             setTimeout(function() { el.classList.remove('tv-flash'); }, 900);
         },
         mdNarrative(t) {
-            var raw = (t.narrate_prompt && t.narrate_prompt.output) ? String(t.narrate_prompt.output) : '';
+            var raw = (t.prompts && t.prompts.narrate && t.prompts.narrate.output) ? String(t.prompts.narrate.output) : '';
             return this.mdText(raw);
         },
         mdText(s) {
