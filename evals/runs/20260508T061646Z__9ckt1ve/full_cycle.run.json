@@ -1,0 +1,602 @@
+{
+  "scenario_id": "full_cycle",
+  "pack": "eval-pack",
+  "model": "mlx-community/gemma-4-26b-a4b-it-mxfp8",
+  "temperature_override": null,
+  "started_at": "2026-05-08T06:16:46.715247+00:00",
+  "finished_at": "2026-05-08T06:21:07.258991+00:00",
+  "save_dir": "/Users/pwilson/.cache/ccya-eval/20260508T061646Z/save",
+  "output_dir": "/Users/pwilson/Repos/ccya/evals/runs/20260508T061646Z__9ckt1ve",
+  "events_jsonl_path": "/Users/pwilson/Repos/ccya/evals/runs/20260508T061646Z__9ckt1ve/full_cycle.events.jsonl",
+  "state_yaml_path": "/Users/pwilson/Repos/ccya/evals/runs/20260508T061646Z__9ckt1ve/full_cycle.state.yaml",
+  "trace_md_path": "",
+  "judge_md_path": "",
+  "turns": [
+    {
+      "turn_number": 1,
+      "input": "Walk over to Caron's table and sit down across from him. I'm ready to talk about the debt.",
+      "phase": "dialogue",
+      "expects": [
+        "rules.required=false (pure social, no obstacle)",
+        "scope skips inventory and pc_condition",
+        "extract.state should be near-empty"
+      ],
+      "duration_s": 27.454761749999307,
+      "error": null,
+      "engine_turn_number": 2,
+      "outcome_summary": "You successfully negotiate a reduction in interest, but Caron now holds a notched token as leverage over your future payments.",
+      "narrative_chars": 1351,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": false,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "(no adds)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(first turn)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Fine', 'Aren', 'Keep']",
+          "scope": "universal"
+        }
+      ]
+    },
+    {
+      "turn_number": 2,
+      "input": "I slide 500 credits across the table to Caron and ask him to mark the debt cleared in his ledger.",
+      "phase": "debt_settlement",
+      "expects": [
+        "rules.required=true skill=charisma (social negotiation)",
+        "extract.state.inventory_remove includes credits amount=500",
+        "extract.progress marks settle_the_debt objectives done"
+      ],
+      "duration_s": 16.93054045899771,
+      "error": null,
+      "engine_turn_number": 3,
+      "outcome_summary": "",
+      "narrative_chars": 1338,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "extract.state.inventory_remove",
+          "passed": false,
+          "detail": "inventory_remove[credits] not found"
+        },
+        {
+          "assertion": "extract.progress.quest_updates",
+          "passed": true,
+          "detail": "quest_updates[settle_the_debt] found"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "(no adds)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Credits', 'Aren', 'Don']",
+          "scope": "universal"
+        }
+      ]
+    },
+    {
+      "turn_number": 3,
+      "input": "I find Halden by the town well and offer to carry his ledger to the Crossed Keys Inn. I'll do it for 200 credits.",
+      "phase": "quest_accept",
+      "expects": [
+        "rules.required=true skill=charisma (negotiation)",
+        "extract.progress marks deliver_the_ledger objectives done (accept contract)",
+        "compendium_npc_update for halden"
+      ],
+      "duration_s": 25.51392158299859,
+      "error": null,
+      "engine_turn_number": 4,
+      "outcome_summary": "",
+      "narrative_chars": 1852,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "extract.progress.quest_updates",
+          "passed": true,
+          "detail": "quest_updates[deliver_the_ledger] found"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": false,
+          "detail": "1 entries had turn=0/null instead of 4: ['Halden has hired the player to deliver his ledger to the Crossed Keys Inn.']",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": true,
+          "detail": "5 candidates skipped (likely locations/items, not NPCs)",
+          "scope": "universal"
+        }
+      ]
+    },
+    {
+      "turn_number": 4,
+      "input": "I leave Marrow's Crossing by the east gate and head for the Crossed Keys Inn, following the merchant road.",
+      "phase": "travel",
+      "expects": [
+        "extract.scene.location_change to road or inn exterior",
+        "scene_tags should include travel or exploration",
+        "no rules call needed (pure movement)"
+      ],
+      "duration_s": 25.115621000004467,
+      "error": null,
+      "engine_turn_number": 5,
+      "outcome_summary": "You exit the main town and approach the Crossed Keys, only to find a group of suspicious men watching the road.",
+      "narrative_chars": 1363,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=False"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "(no adds)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "marrows_crossing -> merchant_road_east",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": true,
+          "detail": "4 candidates skipped (likely locations/items, not NPCs)",
+          "scope": "universal"
+        }
+      ]
+    },
+    {
+      "turn_number": 5,
+      "input": "I walk up to the two toughs at the inn door and ask them what they're doing here. I'm not leaving until I hear their side.",
+      "phase": "confrontation",
+      "expects": [
+        "rules.required=true skill=strength|charisma (social combat)",
+        "scope active_domains includes pc_condition",
+        "scene_tags should include combat"
+      ],
+      "duration_s": 20.67991337499552,
+      "error": null,
+      "engine_turn_number": 6,
+      "outcome_summary": "",
+      "narrative_chars": 1429,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "extract.scene.scene_tags",
+          "passed": false,
+          "detail": "scene_tags[combat] not found"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "(no adds)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Man', 'Unnamed Bearded', 'Beside']",
+          "scope": "universal"
+        }
+      ]
+    },
+    {
+      "turn_number": 6,
+      "input": "I drop 200 credits on the ground between the toughs and tell them Caron's coin is paid \u2014 they can go home now.",
+      "phase": "payoff",
+      "expects": [
+        "rules.required=true skill=charisma",
+        "extract.state.inventory_remove includes credits amount=200",
+        "extract.progress marks clear_the_road_toughs done"
+      ],
+      "duration_s": 21.317437958998198,
+      "error": null,
+      "engine_turn_number": 7,
+      "outcome_summary": "",
+      "narrative_chars": 1570,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "extract.state.inventory_remove",
+          "passed": false,
+          "detail": "inventory_remove[credits] not found"
+        },
+        {
+          "assertion": "extract.progress.quest_updates",
+          "passed": false,
+          "detail": "quest_updates[clear_the_road_toughs] not found"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "(no adds)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": true,
+          "detail": "5 candidates skipped (likely locations/items, not NPCs)",
+          "scope": "universal"
+        }
+      ]
+    },
+    {
+      "turn_number": 7,
+      "input": "I sit across from Halden at his table, slide the merchant seal across, and hand him the ledger from my coat.",
+      "phase": "quest_complete",
+      "expects": [
+        "extract.progress marks deliver_the_ledger objectives done",
+        "auto_complete should fire \u2014 quest status becomes completed",
+        "compendium_npc_update for halden"
+      ],
+      "duration_s": 35.73388554099802,
+      "error": null,
+      "engine_turn_number": 8,
+      "outcome_summary": "You successfully deliver the ledger to Halden, but his warning reveals that Marcus and the bearded man are tracking you.",
+      "narrative_chars": 1815,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "extract.progress.quest_updates",
+          "passed": true,
+          "detail": "quest_updates[deliver_the_ledger] found"
+        },
+        {
+          "assertion": "extract.progress.quest_status",
+          "passed": false,
+          "detail": "quest[deliver_the_ledger].status='active' (expected 'completed')"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": false,
+          "detail": "1 entries had turn=0/null instead of 8: ['Halden reveals that the pursuers are specifically targeting the ledger and warns Aren to flee.']",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "merchant_road_east -> crossed_keys_inn",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": true,
+          "detail": "6 candidates skipped (likely locations/items, not NPCs)",
+          "scope": "universal"
+        }
+      ]
+    },
+    {
+      "turn_number": 8,
+      "input": "I pull out the brass key Halden gave me and try to unlock the inn's front door with it. Maybe it opens a back room.",
+      "phase": "unconventional_item_use",
+      "expects": [
+        "rules.required=true skill=wits (investigation)",
+        "extract.state.inventory_remove includes brass_key",
+        "narration should honor the attempt even if it fails"
+      ],
+      "duration_s": 37.49922466699354,
+      "error": null,
+      "engine_turn_number": 9,
+      "outcome_summary": "You successfully escape the main room through a service door, but find yourself cornered in a dead-end hallway facing an alarmed staff member.",
+      "narrative_chars": 1621,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "extract.state.inventory_remove",
+          "passed": false,
+          "detail": "inventory_remove[brass_key] not found"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": false,
+          "detail": "1 entries had turn=0/null instead of 9: ['Aren fled the main room of the Crossed Keys Inn through a service corridor to evade the pursuers.']",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "crossed_keys_inn -> service_corridor",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Before', 'Brass']",
+          "scope": "universal"
+        }
+      ]
+    },
+    {
+      "turn_number": 9,
+      "input": "I press my ear against the inn's stone wall and whisper 'I have credits. Open up.' Then I offer a single credit to the wall.",
+      "phase": "absurd_edge_case",
+      "expects": [
+        "rules.required=true skill=charisma (absurd social attempt)",
+        "narration should handle the absurdity without crashing",
+        "extract.state should NOT remove credits (engine should reject or narrate failure)"
+      ],
+      "duration_s": 24.352456208005606,
+      "error": null,
+      "engine_turn_number": 10,
+      "outcome_summary": "Your desperate shout and the offering of a coin cause the violent pounding to cease, replaced by an ominous silence.",
+      "narrative_chars": 1223,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "extract.scene.scene_tags",
+          "passed": false,
+          "detail": "scene_tags[social] not found"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "(no adds)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['For', 'Lowering', 'Open']",
+          "scope": "universal"
+        }
+      ]
+    },
+    {
+      "turn_number": 10,
+      "input": "I approach Matthew Estrada at the bar, grab his wrist, and demand to know who he really is and why he's watching the room like a soldier.",
+      "phase": "npc_development",
+      "expects": [
+        "rules.required=true skill=charisma (aggressive social)",
+        "compendium_npc_update for matthew_estrada",
+        "narration should show character development or revelation"
+      ],
+      "duration_s": 25.888874375006708,
+      "error": null,
+      "engine_turn_number": 11,
+      "outcome_summary": "You successfully confront Matthew Estrada, catching him off guard and drawing the attention of the entire tavern.",
+      "narrative_chars": 1404,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "(no adds)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "service_corridor -> main_tavern",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Who']",
+          "scope": "universal"
+        }
+      ]
+    }
+  ],
+  "total_errors": 0
+}
