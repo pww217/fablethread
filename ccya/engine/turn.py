@@ -293,12 +293,6 @@ async def run_turn(
             skip_last_n_turns=config.window_turns,
         )
 
-        # Load failed preconditions from the most recent event (for narrate feedback)
-        last_events = load_recent_events(save_dir, 1)
-        last_turn_failed: list[str] = []
-        if last_events:
-            last_turn_failed = last_events[0].get("failed", [])
-
         # === Call 0: Rules / intent classification ===
         exp_rules_ms = _avg_rules_ms(save_dir)
         yield ("phase", {"phase": "rules_start", "expected_ms": exp_rules_ms})
@@ -441,7 +435,6 @@ async def run_turn(
             narrator_rules=_pack_narrator_rules,
             rules_outcome=outcome,
             npc_name_pool=_npc_name_pool,
-            last_turn_failed=last_turn_failed,
             recently_left=(state.get("scene") or {}).get("recently_left", []),
             momentum=(state.get("pc") or {}).get("momentum", 0),
             pending_gm_beat=_pending_gm_beat,
@@ -531,11 +524,10 @@ async def run_turn(
         delta = None
         actions = []
         outcome_summary: str = ""
-        failed: list[str] = []
         extraction_event: dict[str, Any] = {}
 
         try:
-            delta, actions, outcome_summary, failed, extraction_event, progress_result, scene_result = (
+            delta, actions, outcome_summary, extraction_event, progress_result, scene_result = (
                 await _run_extraction_pipeline(
                     env, state, narrative,
                     active_domains=_active_domains,
@@ -552,13 +544,6 @@ async def run_turn(
             # Store gm_beat for next turn's narration
             if scene_result and scene_result.gm_beat and scene_result.gm_beat.type:
                 state.setdefault("meta", {})["pending_gm_beat"] = scene_result.gm_beat.model_dump(exclude_none=True)
-            if failed:
-                _log.info(
-                    "Turn %d: failed preconditions: %s",
-                    turn_no,
-                    failed,
-                    extra={"trace_id": trace_id},
-                )
         except Exception as exc:
             errors.append({"trace_id": trace_id, "message": str(exc)})
 
@@ -733,7 +718,6 @@ async def run_turn(
                 ],
             },
             "changes": changes,
-            "failed": failed if failed else [],
             # Prompt logging (for turn viewer)
             "rules_prompt": {
                 "rendered_system": rendered_rules_system,
@@ -909,11 +893,6 @@ async def run_turn_retry(
             skip_last_n_turns=config.window_turns,
         )
 
-        last_events = load_recent_events(save_dir, 1)
-        last_turn_failed: list[str] = []
-        if last_events:
-            last_turn_failed = last_events[0].get("failed", [])
-
         # === Call 1: Narrate (streaming) — same as run_turn ===
         exp_narrate_ms = _avg_narrate_ms(save_dir)
         yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
@@ -955,7 +934,6 @@ async def run_turn_retry(
             narrator_rules=_pack_narrator_rules,
             rules_outcome=outcome,
             npc_name_pool=_npc_name_pool,
-            last_turn_failed=last_turn_failed,
             recently_left=(state.get("scene") or {}).get("recently_left", []),
             momentum=(state.get("pc") or {}).get("momentum", 0),
             pending_gm_beat=_pending_gm_beat,
@@ -1049,11 +1027,10 @@ async def run_turn_retry(
         delta = None
         actions = []
         outcome_summary: str = ""
-        failed: list[str] = []
         extraction_event: dict[str, Any] = {}
 
         try:
-            delta, actions, outcome_summary, failed, extraction_event, progress_result, scene_result = (
+            delta, actions, outcome_summary, extraction_event, progress_result, scene_result = (
                 await _run_extraction_pipeline(
                     env, state, narrative,
                     active_domains=_active_domains,
@@ -1069,13 +1046,6 @@ async def run_turn_retry(
             )
             if scene_result and scene_result.gm_beat and scene_result.gm_beat.type:
                 state.setdefault("meta", {})["pending_gm_beat"] = scene_result.gm_beat.model_dump(exclude_none=True)
-            if failed:
-                _log.info(
-                    "Turn %d: failed preconditions: %s",
-                    turn_no,
-                    failed,
-                    extra={"trace_id": trace_id},
-                )
         except Exception as exc:
             errors.append({"trace_id": trace_id, "message": str(exc)})
 
@@ -1242,7 +1212,6 @@ async def run_turn_retry(
                 ],
             },
             "changes": changes,
-            "failed": failed if failed else [],
             "rules_prompt": {
                 "rendered_system": "",
                 "rendered_user": "",

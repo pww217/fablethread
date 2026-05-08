@@ -167,7 +167,6 @@ class TestJinjaRender:
             "recent_turns": [],
             "rules_outcome": None,
             "user_input": "look",
-            "last_turn_failed": [],
             "recently_left": [],
         }
         text = env.get_template("narrate_user.j2").render(**ctx)

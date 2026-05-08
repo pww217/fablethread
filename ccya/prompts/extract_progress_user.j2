@@ -29,11 +29,6 @@ No dice were rolled this turn. The rules engine determined the action has no mec
 {% for o in (q.objectives or []) %}    {{ loop.index }}. [{% if o.done %}x{% elif o.failed %}f{% else %} {% endif %}] {{ o.description }}
 {% endfor %}{% endfor %}
 {% endif -%}
-{% for qa in quest_ages %}
-{% if qa.stalled_turns >= 3%}
-⚠ Quest "{{ qa.title }}" stalled for {{ qa.stalled_turns }} turns. Advance it, branch it, or mark an objective failed.
-{% endif %}
-{% endfor %}
 {% endif -%}
 
 {% if "recent_events" in active_domains -%}

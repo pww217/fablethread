@@ -98,11 +98,6 @@ LOCATION IMPERATIVE: The party has been here {{ ages.location_age }} turns. Begi
 {% elif ages and ages.get('location_age', 0) >= 4 -%}
 LOCATION HINT: {{ ages.location_age }} turns in this location. If a natural opening to move on presents itself, take it.
 {% endif -%}
-{% if last_turn_failed -%}
-## last_turn_failed (already resolved by prior narrator; do NOT retry)
-{% for f in last_turn_failed %}- {{ f }}
-{% endfor %}
-{% endif -%}
 {% if known_npcs -%}
 ## Known Characters
 Before introducing anyone new, check this list. Re-use characters when they could plausibly be present.

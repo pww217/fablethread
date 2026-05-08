@@ -4,32 +4,32 @@ overview: ""
 todos:
   - id: phase-01
     content: Phase 01 — comment out token-budget ceilings + TestTokenBudgetCeilings in tests/test_engine_pipeline.py
-    status: pending
+    status: completed
   - id: phase-02
     content: Phase 02 — remove `failed`/`last_turn_failed` plumbing across extraction.py, turn.py (both run_turn + run_turn_retry), narrate.py, narrate_user.j2, and 4 test files
-    status: pending
+    status: completed
   - id: phase-03
     content: Phase 03 — drop dead quest_ages loop in extract_progress_user.j2; trim recent_turns slice to [-1:] for scene call in extraction.py
-    status: pending
+    status: completed
   - id: phase-04
     content: Phase 04 — rewrite _SCENE/_STATE/_PROGRESS_RESPONSE fixtures + _state_response() helper to match post-Plan-A schema
-    status: pending
+    status: completed
   - id: phase-05
-    content: Phase 05 — narration markers alignment (BLOCKED on owner picking option a or b)
-    status: pending
+    content: Phase 05 — narration markers alignment (option b — update PROMPTING.md)
+    status: completed
   - id: phase-06
     content: Phase 06 — ARCHITECTURE.md (Step 2a/2b/2c, Delta Merge, Cross-Pipeline arrows), REPOMAP/{state,engine,testing}.md, 4 plan-doc pointer fixes, TODO.md updates, final grep sweep
-    status: pending
+    status: completed
   - id: extract-to-files
     content: "When approved: extract phases into docs/plans/four-plans-cleanup/01-...md through 06-...md per project plan-folder convention"
-    status: pending
+    status: cancelled
 isProject: false
 ---
 
 # Cleanup pass after pipeline-remediation Plans A–D
 
 ## Status
-`open`
+`completed`
 
 ## Part of
 `docs/plans/four-plans-cleanup/` (effort folder created by phase 01; this plan replaces the previous draft cleanup plan).
@@ -1334,4 +1334,4 @@ The following known-incorrect references in the eval surface are deliberately NO
 These items are pre-loaded for the next planning session and explicitly out of this plan.
 
 ## Ambiguities requiring resolution before execution
-1. **Phase 05 option (a) vs (b)** — see the Phase 05 Ambiguities block. Executor must NOT proceed past Phase 04 until owner picks one.
+1. ~~**Phase 05 option (a) vs (b)**~~ — Resolved: option (b) chosen. PROMPTING.md rule 5 updated to document two delimiter conventions.
