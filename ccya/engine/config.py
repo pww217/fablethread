@@ -72,6 +72,22 @@ class EngineConfig:
     # Compaction: periodically compress narrative history + events
     compact_every: int = 0
     compact_temperature: float = 0.1
+    recent_turns_min: int = 2
+
+
+def _validate_compactor_config(config: EngineConfig) -> None:
+    if config.window_turns < 1:
+        raise ValueError(f"window_turns must be >= 1, got {config.window_turns}")
+    if 0 < config.compact_every <= config.window_turns:
+        raise ValueError(
+            f"compact_every ({config.compact_every}) must be > window_turns ({config.window_turns})"
+        )
+    if config.recent_turns_min < 0:
+        raise ValueError(f"recent_turns_min must be >= 0, got {config.recent_turns_min}")
+    if config.recent_turns_min > config.window_turns:
+        raise ValueError(
+            f"recent_turns_min ({config.recent_turns_min}) must be <= window_turns ({config.window_turns})"
+        )
 
 
 def _build_jinja_env(template_dir: str) -> Environment:
