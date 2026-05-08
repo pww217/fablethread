@@ -56,7 +56,7 @@ logger = setup_logging(config)
 _pack_id: str = config.get("game", {}).get("setting_pack", "expanse-belter")
 try:
     _active_pack: Pack = load_pack(_pack_id, PACKS_DIR)
-    logger.info("Loaded pack: %s (mode=%s)", _pack_id, _active_pack.manifest.mode)
+    logger.info("Loaded pack: %s (mode=%s)", _pack_id, _active_pack.mode)
 except Exception as exc:
     logger.error("Failed to load pack %r: %s", _pack_id, exc)
     raise
@@ -102,7 +102,7 @@ async def startup_event():
     logger.info(
         "pack: %s (mode=%s) | LLM: %s",
         _pack_id,
-        _active_pack.manifest.mode,
+        _active_pack.mode,
         engine_config.model,
     )
     if config.get("game", {}).get("warmup_on_start", True):

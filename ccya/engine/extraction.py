@@ -26,7 +26,6 @@ from ccya.models import (
     StateExtractResult,
     StateDelta,
 )
-from ccya.pack import ExtractExample
 
 _log = logging.getLogger("ccya.engine")
 
@@ -117,7 +116,6 @@ def _extract_state_messages(
     scene_result: "SceneExtractResult",
     rules_outcome: "RulesOutcome | None" = None,
     enable_thinking: bool = False,
-    pack_examples: list["ExtractExample"] | None = None,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 2 (inventory + conditions)."""
     pc = state.get("pc") or {}
@@ -134,13 +132,6 @@ def _extract_state_messages(
         "location_changed": bool(scene_result.location_change),
     }
 
-    # Filter examples by band (band-scoped extract examples)
-    band = rules_outcome.band if rules_outcome and rules_outcome.rolled else ""
-    band_examples = [
-        ex for ex in (pack_examples or [])
-        if not ex.band or ex.band == band
-    ]
-
     system_text = _render(env, "extract_state_system.j2", {})
     user_text = _render(
         env,
@@ -153,7 +144,6 @@ def _extract_state_messages(
             "scene_result": scene_ctx,
             "rules_outcome": rules_outcome,
             "active_domains": active_domains,
-            "band_examples": band_examples,
         },
     )
     msgs = [
@@ -333,7 +323,6 @@ async def _run_extraction_pipeline(
     config: "EngineConfig",
     trace_id: str,
     turn_no: int,
-    pack_examples: list["ExtractExample"] | None = None,
     deescalate: bool = False,
     quest_ages: list[dict[str, Any]] | None = None,
 ) -> tuple["StateDelta", list[str], str, list[str], dict[str, Any], "ProgressExtractResult"]:
@@ -410,7 +399,6 @@ async def _run_extraction_pipeline(
             scene_result=scene_result,
             rules_outcome=rules_outcome,
             enable_thinking=config.enable_extract_thinking,
-            pack_examples=pack_examples,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_state_system = state_msgs[0]["content"] if state_msgs else ""

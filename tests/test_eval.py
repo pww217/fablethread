@@ -11,7 +11,6 @@ import pytest
 import yaml
 
 from ccya.eval.config import EvalConfig, InferenceConfig, load_eval_config
-from ccya.eval.judge import build_trace, parse_judge_response
 from ccya.eval.runner import (
     _build_engine_config,
     _patch_eval_pack_starting_state,
@@ -604,7 +603,7 @@ def test_build_trace_full_context_structure():
     assert "## World Pack Style" in trace
     assert "## Seed State" in trace
     assert "## Engine Constants" in trace
-    assert "## System Prompts (from turn 1 — identical every turn)" in trace
+    assert "## System Prompts (identical every turn)" in trace
     assert "### Rules System Prompt" in trace
     assert "### Narrate System Prompt" in trace
     assert "### Extract Scene System Prompt" in trace

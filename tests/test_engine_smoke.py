@@ -2143,12 +2143,12 @@ class TestRecentTurnsInjected:
 
 
 # ---------------------------------------------------------------------------
-# TestPackKwargs — pack_style and pack_examples wired through run_turn
+# TestPackKwargs — pack_style wired through run_turn
 # ---------------------------------------------------------------------------
 
 
 class TestPackKwargs:
-    """pack_style appears in narrate system; pack_examples appear in extract system."""
+    """pack_style appears in narrate system."""
 
     async def test_pack_style_in_narrate_system(self) -> None:
         state = _make_state()
@@ -2203,6 +2203,67 @@ class TestPackKwargs:
                 setattr(_m, _name, _orig)
 
         assert any("UNIQUE_STYLE_MARKER_7483" in s for s in captured_narrate_system)
+
+    async def test_pack_factions_in_narrate_system(self) -> None:
+        """Factions from pack.scenario should appear in the narrate system prompt."""
+        state = _make_state()
+        _write_state(_SAVE_DIR, state)
+
+        captured_narrate_system = []
+
+        async def _fake_stream(*args, **kwargs):
+            msgs = args[2] if len(args) > 2 else kwargs.get("messages", [])
+            for m in msgs:
+                if m.get("role") == "system":
+                    captured_narrate_system.append(m["content"])
+            ss = kwargs.get("stream_stats")
+            if ss is not None:
+                ss["prompt_eval_count"] = 42
+                ss["eval_count"] = 24
+            yield "narrative"
+
+        _narrate_chat_calls = 0
+
+        async def _fake_chat(*args, **kwargs):
+            nonlocal _narrate_chat_calls
+            _narrate_chat_calls += 1
+            if _narrate_chat_calls == 1:
+                return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
+            if _narrate_chat_calls == 2:
+                return {"response": _SCENE_RESPONSE, "done": True, "usage": {}}
+            if _narrate_chat_calls == 3:
+                return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
+            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
+
+        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
+        _origs: list[tuple] = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = _fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = _fake_stream
+        try:
+            async for _ in run_turn(
+                _SAVE_DIR,
+                "look",
+                config=EngineConfig(),
+                template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts"),
+                pack_factions=[{"name": "Test Faction", "disposition": "hostile", "description": "A test faction."}],
+                pack_locations=[{"name": "Test Location", "type": "settlement", "description": "A test place."}],
+                pack_narrator_rules=["Rule one.", "Rule two."],
+            ):
+                pass
+        finally:
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
+
+        assert any("Test Faction" in s for s in captured_narrate_system)
+        assert any("hostile" in s for s in captured_narrate_system)
+        assert any("Test Location" in s for s in captured_narrate_system)
+        assert any("Rule one." in s for s in captured_narrate_system)
+        assert any("Rule two." in s for s in captured_narrate_system)
 
 
 # ---------------------------------------------------------------------------

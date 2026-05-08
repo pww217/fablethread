@@ -208,6 +208,18 @@ def _render_static_context(metadata: dict[str, Any] | None, turn_events: list[di
         sections.append("# Static Context (immutable across all turns)\n")
         sections.append("## World Pack Style\n")
         sections.append("```\n" + (metadata.get("pack_style") or "(none)") + "\n```\n")
+        if metadata.get("narrator_rules"):
+            sections.append("## Narrator Rules\n")
+            for rule in metadata["narrator_rules"]:
+                sections.append(f"- {rule}\n")
+        if metadata.get("world_factions"):
+            sections.append("## World Factions\n")
+            for f in metadata["world_factions"]:
+                sections.append(f"- **{f.get('name', '')}** ({f.get('disposition', 'neutral')}): {f.get('description', '')}\n")
+        if metadata.get("world_locations"):
+            sections.append("## World Locations\n")
+            for loc in metadata["world_locations"]:
+                sections.append(f"- **{loc.get('name', '')}** ({loc.get('type', '')}): {loc.get('description', '')}\n")
         sections.append("## Seed State\n")
         sections.append("```json\n" + json.dumps(metadata.get("seed_state") or {}, indent=2, default=str) + "\n```\n")
         sections.append("## Engine Constants\n")

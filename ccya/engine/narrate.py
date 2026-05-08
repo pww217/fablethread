@@ -18,6 +18,7 @@ def _narrate_messages(
     recent_turns: list[dict[str, Any]] = [],
     enable_narrate_thinking: bool = False,
     pack_style: str = "",
+    narrator_rules: list[str] = [],
     rules_outcome: "RulesOutcome | None" = None,
     npc_name_pool: dict[str, list[str]] = {},
     last_turn_failed: list[str] = [],
@@ -55,6 +56,7 @@ def _narrate_messages(
     }
     system_text = _render(env, "narrate_system.j2", {
         "pack_style": pack_style,
+        "narrator_rules": narrator_rules,
         "world_factions": world_factions,
         "world_locations": world_locations,
     })

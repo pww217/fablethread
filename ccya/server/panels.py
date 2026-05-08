@@ -79,14 +79,14 @@ def _load_last_actions(save_dir: Path) -> list[str]:
 
 def _get_opening() -> str:
     pack = cast(Pack, _app._active_pack)
-    if pack.manifest.mode == "dynamic":
+    if pack.mode == "dynamic":
         return _app._dynamic_opening
     return pack.opening_text
 
 
 def _get_opening_actions() -> list[str]:
     pack = cast(Pack, _app._active_pack)
-    if pack.manifest.mode == "dynamic":
+    if pack.mode == "dynamic":
         return _app._dynamic_opening_actions
     return pack.opening_actions
 

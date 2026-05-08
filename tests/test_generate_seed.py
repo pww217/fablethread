@@ -54,7 +54,6 @@ def _minimal_dynamic_pack(
         manifest=PackManifest(
             id="test-dynamic",
             name="Test Dynamic",
-            mode="dynamic",
         ),
         world_text="The world is dangerous.\n- There is no power grid.\n- Water is scarce.",
         scenario=ScenarioBrief(constraints=constraints, inspiration=inspiration),
@@ -369,9 +368,10 @@ async def test_generate_seed_with_player_overrides():
 async def test_generate_seed_rejects_static_pack():
     """Calling generate_seed() on a static pack should raise ValueError immediately."""
     static_pack = Pack.model_construct(
-        manifest=PackManifest.model_construct(id="s", name="S", mode="static"),
+        manifest=PackManifest.model_construct(id="s", name="S"),
+        seed=object(),  # has seed = static pack
     )
-    with pytest.raises(ValueError, match="dynamic"):
+    with pytest.raises(ValueError, match="scenario"):
         await generate_seed(static_pack, _config(), template_dir=str(PROMPTS_DIR))
 
 
@@ -388,7 +388,7 @@ async def test_generate_seed_zombie_pack_disk(tmp_path):
     from ccya.pack import load_pack
 
     pack = load_pack("zombie-survival", PACKS_DIR)
-    assert pack.manifest.mode == "dynamic"
+    assert pack.mode == "dynamic"
 
     payload = _valid_envelope_json(
         opening_text="You are standing in a ruined " + " building " * 30
@@ -405,3 +405,103 @@ async def test_generate_seed_zombie_pack_disk(tmp_path):
     # World facts should have been injected
     facts = envelope.seed_state.scene.world_state
     assert len(facts) > 1
+
+
+async def test_generate_seed_sources_world_facts_from_scenario():
+    """World facts from scenario.world_facts should take precedence over baseline_facts/world.md."""
+    constraints = Constraints(
+        min_named_npcs=2,
+        starting_quest_count=1,
+        min_objectives_per_quest=2,
+        inventory_size_range=(4, 8),
+        prose_word_range=(50, 1000),
+    )
+    inspiration = Inspiration(pc="A person.", opening_situation="A situation.", npcs="People.", inventory="Items.", quests="A task.")
+    pack = Pack(
+        manifest=PackManifest(id="test-scenario-facts", name="Test Scenario Facts"),
+        world_text="Old world fact.",
+        scenario=ScenarioBrief(
+            constraints=constraints,
+            inspiration=inspiration,
+            world_facts=["Scenario fact one.", "Scenario fact two."],
+        ),
+    )
+    envelope_raw = json.loads(_valid_envelope_json())
+    envelope_raw["seed_state"]["scene"]["world_state"] = ["A scenario-specific fact."]
+
+    with patch.object(
+        ccya.engine.seed,
+        "llm_chat",
+        new=AsyncMock(return_value={"response": json.dumps(envelope_raw), "done": True}),
+    ):
+        envelope = await generate_seed(pack, _config(), template_dir=str(PROMPTS_DIR))
+
+    facts = envelope.seed_state.scene.world_state
+    assert "Scenario fact one." in facts
+    assert "Scenario fact two." in facts
+    assert "Old world fact." not in facts
+
+
+async def test_generate_seed_name_seed_in_user_prompt():
+    """name_seed should be nonzero and appear in the rendered user prompt."""
+    pack = _minimal_dynamic_pack()
+
+    captured_user_contents: list[str] = []
+
+    async def _capture_chat(*args, **kwargs):
+        msgs = kwargs.get("messages") or (args[2] if len(args) > 2 else [])
+        for m in msgs:
+            if m.get("role") == "user":
+                captured_user_contents.append(m["content"])
+        return {"response": _valid_envelope_json(), "done": True}
+
+    with patch.object(ccya.engine.seed, "llm_chat", new=AsyncMock(side_effect=_capture_chat)):
+        await generate_seed(pack, _config(), template_dir=str(PROMPTS_DIR))
+
+    assert len(captured_user_contents) >= 1
+    user_text = captured_user_contents[0]
+    # name_seed should be a large integer (randomized)
+    assert "name_seed:" in user_text
+    # Extract the seed value and verify it's nonzero and large
+    for line in user_text.splitlines():
+        if "name_seed:" in line:
+            seed_val = int(line.split("name_seed:")[1].strip())
+            assert seed_val >= 10_000_000
+            assert seed_val <= 99_999_999
+            break
+
+
+async def test_generate_seed_scenario_world_facts_in_user_prompt():
+    """scenario.world_facts should appear in the rendered user prompt."""
+    constraints = Constraints(
+        min_named_npcs=2,
+        starting_quest_count=1,
+        min_objectives_per_quest=2,
+        inventory_size_range=(4, 8),
+        prose_word_range=(50, 1000),
+    )
+    inspiration = Inspiration(pc="A person.", opening_situation="A situation.", npcs="People.", inventory="Items.", quests="A task.")
+    pack = Pack(
+        manifest=PackManifest(id="test-prompt-facts", name="Test Prompt Facts"),
+        scenario=ScenarioBrief(
+            constraints=constraints,
+            inspiration=inspiration,
+            world_facts=["Canon fact about the world."],
+        ),
+    )
+
+    captured_user_contents: list[str] = []
+
+    async def _capture_chat(*args, **kwargs):
+        msgs = kwargs.get("messages") or (args[2] if len(args) > 2 else [])
+        for m in msgs:
+            if m.get("role") == "user":
+                captured_user_contents.append(m["content"])
+        return {"response": _valid_envelope_json(), "done": True}
+
+    with patch.object(ccya.engine.seed, "llm_chat", new=AsyncMock(side_effect=_capture_chat)):
+        await generate_seed(pack, _config(), template_dir=str(PROMPTS_DIR))
+
+    assert len(captured_user_contents) >= 1
+    assert "Canon fact about the world." in captured_user_contents[0]
+

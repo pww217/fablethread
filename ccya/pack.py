@@ -12,12 +12,11 @@ The models here are the schema-of-record for:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from ccya.models import InventoryItem
 
@@ -106,6 +105,20 @@ class SeedEnvelope(BaseModel):
     actions: list[str] = Field(min_length=4, max_length=4)
 
 
+class Faction(BaseModel):
+    id: str
+    name: str
+    description: str
+    disposition: str = "neutral"
+
+
+class NamedLocation(BaseModel):
+    id: str
+    name: str
+    type: str
+    description: str
+
+
 class Constraints(BaseModel):
     min_named_npcs: int = 2
     min_objectives_per_quest: int = 2
@@ -130,8 +143,51 @@ class Inspiration(BaseModel):
 
 
 class ScenarioBrief(BaseModel):
+    """Complete world definition for a generated pack.
+
+    Sections:
+      constraints   — hard numeric rules for seed generation
+      world_facts   — 3–8 durable facts injected into world_state (replaces world.md)
+      narrator_rules — tone/style rules injected into narrate system prompt (replaces style.md)
+      factions      — 3–6 named power groups injected into narrate context each turn
+      locations     — 5–10 named places injected into narrate context each turn
+      name_locales  — weighted Faker locales for name generation
+      name_seed     — int; controls name selection randomness at generate time
+      inspiration   — quality anti-pattern guidance for seed generation (no concrete examples)
+    """
     constraints: Constraints = Field(default_factory=Constraints)
+    world_facts: list[str] = Field(default_factory=list, max_length=8)
+    narrator_rules: list[str] = Field(default_factory=list, max_length=12)
+    factions: list[Faction] = Field(default_factory=list, max_length=6)
+    locations: list[NamedLocation] = Field(default_factory=list, max_length=10)
+    name_locales: list[dict[str, Any]] = Field(default_factory=list)
+    name_seed: int = 0
     inspiration: Inspiration = Field(default_factory=Inspiration)
+
+
+class WorldBrief(BaseModel):
+    """Player input for generate_pack(). Five structured sections + one free-form.
+
+    Each section drives a distinct part of world generation:
+      concept       — the one-line pitch ("post-flood survival", "1930s supernatural noir")
+      tone          — feel and register ("grim survival", "darkly comedic", "tense political")
+      geography     — what the physical world looks like and how it shapes daily life
+      power         — who holds power, how it was won, what it costs ordinary people
+      daily_life    — what people eat, trade, fear, and talk about (grounds the narrator)
+      player_hint   — optional: what kind of person the player wants to be (soft guidance)
+    """
+    concept: str
+    tone: str = ""
+    geography: str = ""
+    power: str = ""
+    daily_life: str = ""
+    player_hint: str = ""
+
+
+class GeneratedPackMeta(BaseModel):
+    """Written into pack.yaml for generated packs. Marks provenance."""
+    generated: bool = True
+    world_brief_concept: str = ""
 
 
 class PlayerOverrides(BaseModel):
@@ -159,83 +215,68 @@ class PlayerOverrides(BaseModel):
         )
 
 
-class ExtractExample(BaseModel):
-    title: str
-    band: str = ""
-    thinking: str = ""
-    json_text: str = Field(alias="json")
-
-    model_config = {"populate_by_name": True}
-
-    @field_validator("json_text", mode="after")
-    @classmethod
-    def _validate_json(cls, v: str) -> str:
-        try:
-            json.loads(v)
-        except json.JSONDecodeError as exc:
-            raise ValueError(
-                f"extract example 'json' is not valid JSON: {exc}"
-            ) from exc
-        return v
-
-
-class PackFiles(BaseModel):
-    # static mode
-    seed: str | None = None
-    opening: str | None = None
-    # dynamic mode
-    world: str | None = None
-    scenario: str | None = None
-    # both modes (optional)
-    style: str | None = None
-    extract_examples: str | None = None
-
-
 class PackManifest(BaseModel):
+    model_config = {"extra": "ignore"}
     id: str
     name: str
     description: str = ""
     genre: str = ""
     tone_tags: list[str] = Field(default_factory=list)
-    version: int = 1
-    mode: Literal["static", "dynamic"]
-    files: PackFiles = Field(default_factory=PackFiles)
     baseline_facts: list[str] = Field(default_factory=list, max_length=3)
     name_locales: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class Pack(BaseModel):
     manifest: PackManifest
+    # Legacy text fields (world.md / style.md — still loaded for old packs)
+    world_text: str = ""
     style_text: str = ""
-    extract_examples: list[ExtractExample] = Field(default_factory=list)
-    # static-mode fields
+    # Static mode
     seed: SeedState | None = None
     opening_text: str = ""
     opening_actions: list[str] = Field(default_factory=list)
-    # dynamic-mode fields
-    world_text: str = ""
+    # Generated mode (new consolidated scenario.yaml)
     scenario: ScenarioBrief | None = None
 
+    @property
+    def mode(self) -> str:
+        """Return 'static' or 'dynamic' based on which fields are populated."""
+        if self.seed is not None:
+            return "static"
+        return "dynamic"
+
     @model_validator(mode="after")
-    def _check_mode_files(self) -> "Pack":
-        mode = self.manifest.mode
-        if mode == "static":
-            if self.seed is None:
-                raise ValueError("static pack requires seed (seed_state.yaml)")
-            if not self.opening_text:
-                raise ValueError("static pack requires opening_text (opening_scene.md)")
-        elif mode == "dynamic":
-            if not self.world_text:
-                raise ValueError("dynamic pack requires world_text (world.md)")
-            if self.scenario is None:
-                raise ValueError("dynamic pack requires scenario (scenario.yaml)")
+    def _check_playable(self) -> "Pack":
+        if self.seed is None and self.scenario is None:
+            raise ValueError(
+                "Pack must have either seed_state.yaml (static) or scenario.yaml (generated)"
+            )
         return self
 
 
+def _resolve_pack_dir(pack_id: str, packs_dir: Path) -> Path:
+    """Resolve pack_id to a directory.
+
+    Accepts:
+      "flooded-world"          -> searches packs/default/, then packs/custom/
+      "default/flooded-world"  -> packs/default/flooded-world
+      "custom/my-world"        -> packs/custom/my-world
+    """
+    if "/" in pack_id:
+        namespace, slug = pack_id.split("/", 1)
+        candidate = packs_dir / namespace / slug
+        if not candidate.is_dir():
+            raise FileNotFoundError(f"Pack not found: {candidate}")
+        return candidate
+    for namespace in ("default", "custom"):
+        candidate = packs_dir / namespace / pack_id
+        if candidate.is_dir():
+            return candidate
+    raise FileNotFoundError(f"Pack '{pack_id}' not found in {packs_dir}")
+
+
 def load_pack(pack_id: str, packs_dir: Path) -> Pack:
-    pack_dir = packs_dir / pack_id
-    if not pack_dir.is_dir():
-        raise FileNotFoundError(f"Pack directory not found: {pack_dir}")
+    pack_dir = _resolve_pack_dir(pack_id, packs_dir)
 
     manifest_path = pack_dir / "pack.yaml"
     if not manifest_path.exists():
@@ -244,55 +285,50 @@ def load_pack(pack_id: str, packs_dir: Path) -> Pack:
         manifest_data = yaml.safe_load(f) or {}
     manifest = PackManifest(**manifest_data)
 
-    def _read(filename: str | None, default: str = "") -> str:
-        if not filename:
-            return default
+    def _read(filename: str, default: str = "") -> str:
         p = pack_dir / filename
         return p.read_text() if p.exists() else default
 
-    def _read_yaml(filename: str | None) -> dict[str, Any]:
-        if not filename:
-            return {}
+    def _read_yaml(filename: str) -> dict[str, Any]:
         p = pack_dir / filename
         if not p.exists():
             return {}
         with open(p) as f:
             return yaml.safe_load(f) or {}
 
-    files = manifest.files
     seed: SeedState | None = None
     opening_text = ""
     opening_actions: list[str] = []
     world_text = ""
     scenario: ScenarioBrief | None = None
 
-    if manifest.mode == "static":
-        seed_data = _read_yaml(files.seed or "seed_state.yaml")
+    # Static mode: seed_state.yaml + opening_scene.md
+    seed_path = pack_dir / "seed_state.yaml"
+    if seed_path.exists():
+        seed_data = _read_yaml("seed_state.yaml")
         opening_actions = seed_data.pop("opening_actions", [])
         if seed_data:
             seed = SeedState(**seed_data)
-        opening_text = _read(files.opening or "opening_scene.md")
-    else:
-        world_text = _read(files.world or "world.md")
-        scenario_data = _read_yaml(files.scenario or "scenario.yaml")
+        opening_text = _read("opening_scene.md", "")
+
+    # Dynamic mode: scenario.yaml (new consolidated schema)
+    scenario_path = pack_dir / "scenario.yaml"
+    if scenario_path.exists():
+        scenario_data = _read_yaml("scenario.yaml")
         if scenario_data:
             scenario = ScenarioBrief(**scenario_data)
 
-    style_text = _read(files.style or "style.md")
-
-    extract_examples: list[ExtractExample] = []
-    examples_data = _read_yaml(files.extract_examples or "extract_examples.yaml")
-    for ex in examples_data.get("examples", []):
-        extract_examples.append(ExtractExample(**ex))
+    # Legacy fallback: world.md and style.md (old dynamic packs)
+    world_text = _read("world.md", "")
+    style_text = _read("style.md", "")
 
     return Pack(
         manifest=manifest,
+        world_text=world_text,
         style_text=style_text,
-        extract_examples=extract_examples,
         seed=seed,
         opening_text=opening_text,
         opening_actions=opening_actions,
-        world_text=world_text,
         scenario=scenario,
     )
 
@@ -301,15 +337,26 @@ def list_packs(packs_dir: Path) -> list[PackManifest]:
     manifests: list[PackManifest] = []
     if not packs_dir.is_dir():
         return manifests
-    for child in sorted(packs_dir.iterdir()):
-        manifest_path = child / "pack.yaml"
-        if manifest_path.exists():
-            try:
-                with open(manifest_path) as f:
-                    data = yaml.safe_load(f) or {}
-                manifests.append(PackManifest(**data))
-            except Exception:
-                pass
+    search_dirs = [
+        packs_dir / "default",
+        packs_dir / "custom",
+    ]
+    seen: set[str] = set()
+    for search in search_dirs:
+        if not search.is_dir():
+            continue
+        for child in sorted(search.iterdir()):
+            if not child.is_dir():
+                continue
+            manifest_path = child / "pack.yaml"
+            if manifest_path.exists() and child.name not in seen:
+                seen.add(child.name)
+                try:
+                    with open(manifest_path) as f:
+                        data = yaml.safe_load(f) or {}
+                    manifests.append(PackManifest(**data))
+                except Exception:
+                    pass
     return manifests
 
 

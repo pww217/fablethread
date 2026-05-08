@@ -39,7 +39,6 @@ from ccya.models import (
     StateDelta,
     TurnResult,
 )
-from ccya.pack import ExtractExample
 from ccya.rules import resolve_check
 from ccya.state import (
     apply_delta,
@@ -242,8 +241,10 @@ async def run_turn(
     *,
     template_dir: str | None = None,
     pack_style: str = "",
-    pack_examples: list[ExtractExample] | None = None,
     pack_name_locales: list[dict[str, Any]] = [],
+    pack_factions: list[dict[str, str]] = [],
+    pack_locations: list[dict[str, str]] = [],
+    pack_narrator_rules: list[str] = [],
 ) -> AsyncIterator[tuple[str, Any]]:
     if config is None:
         config = EngineConfig()
@@ -422,11 +423,12 @@ async def run_turn(
         # Present NPCs from delta-maintained state (Phase 4H)
         _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
 
-        # Phase 5: world context
+        # Phase 5: world context from pack scenario (primary) or state world (legacy)
         _world = state.get("world") or {}
-        _world_factions = list(_world.get("factions") or [])
-        _world_locations = list(_world.get("locations") or [])
+        _world_factions = pack_factions if pack_factions else list(_world.get("factions") or [])
+        _world_locations = pack_locations if pack_locations else list(_world.get("locations") or [])
         _pc_allegiance = (state.get("pc") or {}).get("allegiance")
+        _pack_narrator_rules = pack_narrator_rules if pack_narrator_rules else []
 
         narr_messages = _narrate_messages(
             env,
@@ -436,6 +438,7 @@ async def run_turn(
             recent_turns=recent_turns,
             enable_narrate_thinking=config.enable_narrate_thinking,
             pack_style=pack_style,
+            narrator_rules=_pack_narrator_rules,
             rules_outcome=outcome,
             npc_name_pool=_npc_name_pool,
             last_turn_failed=last_turn_failed,
@@ -541,7 +544,6 @@ async def run_turn(
                     config=config,
                     trace_id=trace_id,
                     turn_no=turn_no,
-                    pack_examples=pack_examples,
                     deescalate=deescalate,
                     quest_ages=quest_ages,
                 )
@@ -859,8 +861,10 @@ async def run_turn_retry(
     *,
     template_dir: str | None = None,
     pack_style: str = "",
-    pack_examples: list[ExtractExample] | None = None,
     pack_name_locales: list[dict[str, Any]] = [],
+    pack_factions: list[dict[str, str]] = [],
+    pack_locations: list[dict[str, str]] = [],
+    pack_narrator_rules: list[str] = [],
 ) -> AsyncIterator[tuple[str, Any]]:
     """Re-roll narration + extraction with the same rules outcome.
 
@@ -932,11 +936,12 @@ async def run_turn_retry(
         # Present NPCs from delta-maintained state (Phase 4H)
         _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
 
-        # Phase 5: world context
+        # Phase 5: world context from pack scenario (primary) or state world (legacy)
         _world = state.get("world") or {}
-        _world_factions = list(_world.get("factions") or [])
-        _world_locations = list(_world.get("locations") or [])
+        _world_factions = pack_factions if pack_factions else list(_world.get("factions") or [])
+        _world_locations = pack_locations if pack_locations else list(_world.get("locations") or [])
         _pc_allegiance = (state.get("pc") or {}).get("allegiance")
+        _pack_narrator_rules = pack_narrator_rules if pack_narrator_rules else []
 
         narr_messages = _narrate_messages(
             env,
@@ -946,6 +951,7 @@ async def run_turn_retry(
             recent_turns=recent_turns,
             enable_narrate_thinking=config.enable_narrate_thinking,
             pack_style=pack_style,
+            narrator_rules=_pack_narrator_rules,
             rules_outcome=outcome,
             npc_name_pool=_npc_name_pool,
             last_turn_failed=last_turn_failed,
@@ -1055,7 +1061,6 @@ async def run_turn_retry(
                     config=config,
                     trace_id=trace_id,
                     turn_no=turn_no,
-                    pack_examples=pack_examples,
                     deescalate=False,
                     quest_ages=[],
                 )

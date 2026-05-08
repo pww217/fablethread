@@ -20,16 +20,23 @@ def _build_generate_seed_messages(
     pack: Pack,
     overrides: PlayerOverrides | None = None,
 ) -> list[dict[str, str]]:
-    name_pool = generate_name_pool(pack.manifest.name_locales)
+    import random
+    scenario = pack.scenario
+    locales = scenario.name_locales if scenario else pack.manifest.name_locales
+    name_pool = generate_name_pool(locales)
+    # Randomize name_seed if not set
+    name_seed = (scenario.name_seed if scenario and scenario.name_seed else 0) or random.randint(10_000_000, 99_999_999)
     ctx = {
-        "world_text": pack.world_text,
-        "style_text": pack.style_text,
-        "scenario": pack.scenario,
+        "scenario": scenario,
         "overrides": overrides if (overrides and not overrides.is_empty()) else None,
         "npc_count_override": overrides.npc_count
         if (overrides and overrides.npc_count > 0)
         else 0,
         "name_pool": name_pool,
+        "name_seed": name_seed,
+        # Legacy fallbacks for old packs without scenario
+        "world_text": pack.world_text,
+        "style_text": pack.style_text,
     }
     system_text = _render(env, "generate_seed_system.j2", ctx)
     user_text = _render(env, "generate_seed_user.j2", ctx)
@@ -85,10 +92,8 @@ async def generate_seed(
     seed: int | None = None,
     template_dir: str | None = None,
 ) -> SeedEnvelope:
-    if pack.manifest.mode != "dynamic":
-        raise ValueError(
-            f"generate_seed() requires a dynamic pack, got mode={pack.manifest.mode!r}"
-        )
+    if pack.seed is not None and pack.scenario is None:
+        raise ValueError("generate_seed() requires a generated pack (scenario.yaml), got static seed pack")
 
     template_dir = template_dir or str(Path(__file__).parent.parent / "prompts")
     env = _build_jinja_env(template_dir)
@@ -98,10 +103,11 @@ async def generate_seed(
     messages, _, _ = trim_messages(messages, config.prompt_token_budget)
     if config.log_prompts:
         _log_prompts(0, "generate_seed", messages)
-    # Prefer hand-curated baseline_facts on the manifest; fall back to parsing
-    # world.md prose (legacy behavior) for packs that haven't been migrated.
+    # Source world_facts from scenario (new) or fall back to manifest baseline_facts / world.md parsing (legacy)
     world_facts: list[str] = (
-        list(pack.manifest.baseline_facts)
+        list(pack.scenario.world_facts)
+        if pack.scenario and pack.scenario.world_facts
+        else list(pack.manifest.baseline_facts)
         if pack.manifest.baseline_facts
         else parse_world_facts(pack.world_text)
     )
