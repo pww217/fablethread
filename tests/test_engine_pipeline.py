@@ -257,6 +257,7 @@ class TestTokenBudgetCeilings:
             env,
             "Walk over to Halden and sit down.",
             state,
+            active_domains=["scene"],
         )
         self._check(msgs, "scene.system", "scene.user")
 
@@ -268,6 +269,7 @@ class TestTokenBudgetCeilings:
             env,
             "You crossed the room to Halden's table and sat across from him.",
             state,
+            active_domains=["inventory", "pc_condition"],
             scene_result=scene_result,
             rules_outcome=RulesOutcome(rolled=False),
             pack_examples=None,
@@ -283,6 +285,7 @@ class TestTokenBudgetCeilings:
             env,
             "You crossed the room to Halden's table and sat across from him.",
             state,
+            active_domains=["quest_updates", "recent_events", "compendium_npc"],
             scene_result=scene_result,
             state_result=state_result,
             rules_outcome=RulesOutcome(rolled=False),
@@ -462,20 +465,15 @@ _RULES_SKIP_STATE = json.dumps(
         "target": "",
         "stakes": "",
         "check": {"required": False},
-        "scope": {
-            "active_domains": ["scene"],
-            "skip_domains": ["inventory", "pc_condition"],
-            "implicit_preconditions": [],
-            "ambiguities": [],
-        },
     },
 )
 
 
 class _ScopedFakeLLM(_FakeLLM):
-    """Variant of _FakeLLM that returns a scope-restricted rules response.
+    """Variant of _FakeLLM that yields a narrative with scope tail.
 
-    Routes calls 1=rules (custom), 2=scene, 3=progress (state is skipped).
+    Routes calls 1=rules (custom), 2=scene, 3=progress (state is skipped
+    because narrator emitted active_domains=['scene']).
     """
 
     def __init__(
@@ -483,6 +481,8 @@ class _ScopedFakeLLM(_FakeLLM):
         rules_response: str = _RULES_SKIP_STATE,
         **kwargs,
     ) -> None:
+        narrative_with_scope = kwargs.get("narrative", "narrative text") + '\n\n<scope>{"active_domains":["scene","quest_updates","recent_events","compendium_npc"]}</scope>'
+        kwargs["narrative"] = narrative_with_scope
         super().__init__(**kwargs)
         self._rules_response = rules_response
         _self = self
@@ -495,7 +495,7 @@ class _ScopedFakeLLM(_FakeLLM):
                 return {"response": _self._rules_response, "done": True, "usage": {"prompt_tokens": 30, "total_tokens": 40}}
             if n == 2:
                 return {"response": _self._scene_response, "done": True, "usage": {"prompt_tokens": 100, "total_tokens": 200}}
-            # When state is in skip_domains the engine should NOT make a state extraction call.
+            # When narrator scope excludes state domains the engine should NOT make a state extraction call.
             # The next call is progress.
             return {"response": _self._progress_response, "done": True, "usage": {"prompt_tokens": 90, "total_tokens": 180}}
 
@@ -503,11 +503,10 @@ class _ScopedFakeLLM(_FakeLLM):
 
 
 @pytest.mark.asyncio
-async def test_rules_scope_skip_state_skips_state_extraction(save_dir):
-    """If rules sets scope.skip_domains=['state'], the state extraction call
-    must NOT be made AND no inventory_add from a hypothetical state response
-    can possibly leak into applied state.
-    """
+async def test_narration_scope_tail_skip_state_skips_state_extraction(save_dir):
+    """If narrator emits <scope>{"active_domains":["scene"]}</scope>, the state
+    extraction call must NOT be made AND no inventory_add from a hypothetical
+    state response can possibly leak into applied state."""
     state = _make_state(turn=0)
     save_state(save_dir, state)
 

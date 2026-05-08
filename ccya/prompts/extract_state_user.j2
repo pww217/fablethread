@@ -1,11 +1,6 @@
 ## active_domains
 {{ active_domains | join(", ") }}
 
-{% if rules_outcome and rules_outcome.scope and rules_outcome.scope.implicit_preconditions -%}
-## preconditions_assumed
-{{ rules_outcome.scope.implicit_preconditions | join("; ") }}
-
-{% endif -%}
 {% if rules_outcome and rules_outcome.rolled -%}
 ## rules_outcome
 {{ rules_outcome.band | upper }} on {{ rules_outcome.skill }}. {{ rules_outcome.directive }}

@@ -10,7 +10,7 @@ from typing import Any
 
 from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _PROMPTS_LOG_PATH, _render
 from ccya.llm_client import chat as llm_chat, strip_thinking
-from ccya.models import IntentEnvelope, RulesCheck, RulesOutcome, Scope
+from ccya.models import IntentEnvelope, RulesCheck, RulesOutcome
 
 _log = logging.getLogger("ccya.engine")
 
@@ -50,17 +50,6 @@ async def _call_rules(
         intent="",
         intent_verb="act",
         check=RulesCheck(required=False),
-        scope=Scope(
-            active_domains=[
-                "scene",
-                "inventory",
-                "quest_updates",
-                "location_change",
-                "recent_events",
-                "pc_condition",
-            ],
-            skip_domains=[],
-        ),
     )
     _no_usage: dict[str, int] = {"prompt_tokens": 0, "total_tokens": 0}
     parse_error = ""

@@ -5,6 +5,10 @@ pipeline (Rules → Narrate → Scene Extract → State Extract → Progress Ext
 a pure-Python validation+persist tail. Two additional LLM pipelines handle new-game
 creation: **Character Creation** (static packs) and **Generate Seed** (dynamic packs).
 
+Scope (which extraction streams to run) is decided **post-narration**: the narrator
+emits a `<scope>` tail that the server strips from SSE, parses into `active_domains`,
+and feeds into the extraction pipeline.
+
 ---
 
 ## High-Level Overview
@@ -102,7 +106,7 @@ flowchart LR
     end
 
     subgraph OUT["Outputs"]
-        O1["IntentEnvelope<br>  intent: str<br>  intent_verb: str<br>  target: str<br>  stakes: str<br>  check.required: bool<br>  check.skill: SkillName<br>  check.difficulty: Difficulty<br>  scope.active_domains: list[str]<br>  scope.skip_domains: list[str]<br>  scope.implicit_preconditions: list[str]<br>  scope.ambiguities: list[str]"]:::outNode
+        O1["IntentEnvelope<br>  intent: str<br>  intent_verb: str<br>  target: str<br>  stakes: str<br>  check.required: bool<br>  check.skill: SkillName<br>  check.difficulty: Difficulty"]:::outNode
         O2["RulesOutcome<br>  rolled: bool<br>  skill, difficulty, stat_value, stat_mod<br>  diff_mod, cond_mod<br>  dice: list[int]<br>  raw_total, final_total: int<br>  band: Band<br>  directive: str<br>  intent, intent_verb: str"]:::outNode
     end
 
@@ -111,9 +115,9 @@ flowchart LR
     PYRES --> OUT
 ```
 
-> **Key forward dependency:** `scope.active_domains` / `scope.skip_domains` (plus
-> `implicit_preconditions` / `ambiguities`) flow into all three extraction streams.
-> `rules_outcome.directive` shapes the narrator's creative latitude.
+> **Key forward dependency:** `rules_outcome.directive` shapes the narrator's creative
+> latitude. `scope.active_domains` is now decided by the narrator (Step 1), not the
+> rules call.
 
 ---
 
@@ -154,6 +158,12 @@ flowchart LR
 
 > **Key forward dependency:** `narrative` is the primary content input for all three
 > extraction streams below.
+>
+> **Scope tail:** The narrator emits `<scope>{"active_domains":["..."]}</scope>` as the
+> last line of output. The server-side stream filter strips it before SSE emission.
+> Parsed `active_domains` flows into Steps 2a/2b/2c. Scene runs only when `scene` or
+> `location_change` is in active_domains. State runs only when `inventory` or
+> `pc_condition` is in active_domains. Progress always runs.
 
 ---
 
@@ -175,7 +185,7 @@ flowchart LR
         S5["state.pc.conditions"]
         S6["known_characters<br>(compact: id+name, up to 10 LRU<br>from compendium)"]
         S7["rules_outcome"]:::xstream
-        S8["scope.active_domains<br>(from Step 0)"]:::xstream
+        S8["active_domains<br>(from Step 1 tail)"]:::xstream
         S9["known_locations<br>(currently always [] in engine — stub)"]
     end
 
@@ -199,6 +209,9 @@ flowchart LR
 
 > **Note:** `known_locations` is passed to the template but the engine currently sets
 > it to an empty list (`engine.py` — location ids are inferred from narration context).
+>
+> **Skippable:** Scene stream is skipped when neither `scene` nor `location_change` is
+> in `active_domains`.
 
 > **Key forward dependency:** `location_change` and `present_npcs` are passed into
 > Steps 2b and 2c.
@@ -221,7 +234,7 @@ flowchart LR
         S3["state.location"]
         S4["state.inventory"]
         S5["rules_outcome"]:::xstream
-        S6["scope.active_domains (from Step 0)"]:::xstream
+        S6["active_domains (from Step 1 tail)"]:::xstream
         S7["engine_expired_conditions<br>(TTL-expired, engine pre-removed)"]
         S8["scene_result.location_change<br>(from Step 2a)"]:::xstream
         S9["scene_result.present_npcs<br>(from Step 2a)"]:::xstream
@@ -244,6 +257,9 @@ flowchart LR
     LLM2B --> OUT
 ```
 
+> **Skippable:** State stream is skipped when neither `inventory` nor `pc_condition` is
+> in `active_domains`.
+>
 > **Key forward dependency:** Step 2c receives a **minimal cross-stream surface** from
 > Step 2b: `items_gained` (item **names** from `inventory_add`) and `items_lost` (item
 > **ids** from `inventory_remove`) — see `_extract_progress_messages` in `engine.py`.
@@ -269,7 +285,7 @@ flowchart LR
         S5["active_quests (status=active only)"]
         S6["known_characters<br>(full: id, name, title, bio_preview,<br>up to 10 LRU from compendium)"]
         S7["rules_outcome"]:::xstream
-        S8["scope.active_domains (from Step 0)"]:::xstream
+        S8["active_domains (from Step 1 tail)"]:::xstream
         S9["scene_result.present_npcs<br>(from Step 2a)"]:::xstream
         S10["items_gained: list[str] (names)<br>items_lost: list[str] (ids)<br>(from Step 2b — minimal cross-stream)"]:::xstream
     end
@@ -289,6 +305,10 @@ flowchart LR
     IN --> LLM2C
     LLM2C --> OUT
 ```
+
+> **Always runs:** Progress is the post-narration storytelling brain. It always executes
+> every turn (never skipped) and feeds next turn's rules call via `pending_gm_beat`,
+> `recent_events_add`, and `scene_pressure_*`.
 
 ---
 
@@ -338,7 +358,7 @@ flowchart LR
 
     subgraph IN["Inputs"]
         P1["state (post-apply)"]
-        P2["event dict<br>(turn, input, applied, rejected,<br>actions, scene_tags, rules,<br>narrate/extract metrics, extraction<br>with per-stream prompts + attempts,<br>rules_prompt, narrate_prompt,<br>engine_expired_conditions, changes, failed)"]
+        P2["event dict<br>(turn, input, applied, rejected,<br>actions, scene_tags, rules,<br>narrate/extract metrics, extraction<br>with per-stream prompts + attempts,<br>scope: {active_domains, decided_by,<br>skipped_streams}, rules_prompt,<br>narrate_prompt, engine_expired_conditions,<br>changes, failed)"]
         P3["narrative: str"]
         P4["turn number"]
     end
@@ -447,15 +467,12 @@ flowchart TD
     CHRONICLE -- "chronicle_tail<br>recent_turns" --> STEP1["Step 1<br>Narrate"]:::stageNarrate
     STATE -- "pc, inventory,<br>quests, compendium" --> STEP1
     STEP0 -- "IntentEnvelope<br>RulesOutcome" --> STEP1
-    STEP1 -- "narrative: str" --> STEP2A["Step 2a<br>Scene"]:::stageScene
-    STEP0 -- "scope<br>rules_outcome" --> STEP2A
+    STEP1 -- "narrative: str<br>active_domains" --> STEP2A["Step 2a<br>Scene"]:::stageScene
     STEP2A -- "location_change<br>present_npcs" --> STEP2B["Step 2b<br>State"]:::stageState
-    STEP1 -- "narrative" --> STEP2B
-    STEP0 -- "scope<br>rules_outcome" --> STEP2B
+    STEP1 -- "narrative<br>active_domains" --> STEP2B
     STEP2B -- "items_gained, items_lost" --> STEP2C["Step 2c<br>Progress"]:::stageProgress
     STEP2A -- "present_npcs" --> STEP2C
-    STEP1 -- "narrative" --> STEP2C
-    STEP0 -- "scope<br>rules_outcome" --> STEP2C
+    STEP1 -- "narrative<br>active_domains" --> STEP2C
     STEP2A & STEP2B & STEP2C -- "merge" --> DELTA["StateDelta"]:::mergeNode
     DELTA -- "validate + apply" --> STATE
     DELTA -- "event record" --> EVENTS
@@ -476,7 +493,7 @@ boxes use neutral dark fills. This table is the canonical turn-viewer status leg
 | Token | Meaning |
 |-------|---------|
 | `--status-ok` | Stage ran and completed (no extraction error). |
-| `--status-skipped` | Stream elided by scope (`skip_domains` covered all domains). |
+| `--status-skipped` | Stream elided by narrator scope (active_domains did not include required domains). |
 | `--status-retried` | LLM output required a parse retry (`attempts` &gt; 1 in event). |
 | `--status-rejected` | Post-extract validation rejected part of the delta (e.g. bad `inventory_remove`). |
 | `--status-error` | LLM call or parse ultimately failed for that stream. |

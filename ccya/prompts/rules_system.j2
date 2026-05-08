@@ -45,12 +45,6 @@ If the player's phrasing asserts the result ("I one-shot the guard", "I instantl
     "skill": "",
     "difficulty": "",
     "tags": []
-  },
-  "scope": {
-    "active_domains": [],
-    "skip_domains": [],
-    "implicit_preconditions": [],
-    "ambiguities": []
   }
 }
 
@@ -64,18 +58,3 @@ If the player's phrasing asserts the result ("I one-shot the guard", "I instantl
   - `required`: true or false.
   - `skill`: strength|dexterity|wits|lore|charisma|resolve.
   - `difficulty`: trivial|easy|normal|hard|extreme.
-- `scope.active_domains`: listing only the state domains that COULD change based on the player's action this turn only. `scene` is always active.
-
-Domain mapping examples:
-- Movement            → location_change, scene
-- Combat / violence   → inventory (ammo), pc_condition
-- Dialogue / social   → recent_events (if info revealed), quest_updates (if info revealed), scene
-- Item interaction    → inventory, recent_events, scene
-- Observation / idle  → scene, recent_events only
-- Rest / recovery     → pc_condition, scene
-
-If multiple domains are applicable, scopes are additive. 
-
-Emit `scope.skip_domains` for domains that definitely cannot change this turn.
-Emit `scope.implicit_preconditions` for things the player assumes are true that may not be (e.g. "the guard is still unconscious").
-Emit `scope.ambiguities` for references that need world-state to resolve ("the chest", "him").

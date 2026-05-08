@@ -69,20 +69,12 @@ class RulesCheck(BaseModel):
         return "normal" if v == "" else v
 
 
-class Scope(BaseModel):
-    active_domains: list[str] = Field(default_factory=list)
-    skip_domains: list[str] = Field(default_factory=list)
-    implicit_preconditions: list[str] = Field(default_factory=list)
-    ambiguities: list[str] = Field(default_factory=list)
-
-
 class IntentEnvelope(BaseModel):
     intent: str = Field(default="", max_length=200)
     intent_verb: str = Field(default="act", max_length=24)
     target: str = ""
     stakes: str = ""
     check: RulesCheck = Field(default_factory=RulesCheck)
-    scope: Scope = Field(default_factory=Scope)
 
 
 class RulesOutcome(BaseModel):

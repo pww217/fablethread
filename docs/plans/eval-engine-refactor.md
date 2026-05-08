@@ -1,20 +1,3 @@
----
-name: eval engine markdown rewrite
-overview: Rewrite the ccya eval harness so the judge sees the full pipeline (system prompts, seed, all per-turn user prompts/outputs, state) in a single rendered markdown trace; the rubric instructs the judge to emit YAML-front-matter + structured markdown (no JSON); and a small set of universal cross-pipeline auto-checks runs every event. Three independent phases.
-todos:
-  - id: phase1
-    content: "Phase 1 — Foundation: metadata event in runner, full structured-markdown build_trace, trace.md + judge.md artifacts, rubric rewrite (drop JSON, YAML front matter), drop dead JSON parsing helpers, rewrite report.py for new JudgeResult shape, update tests"
-    status: pending
-  - id: phase2
-    content: "Phase 2 — Dedup: add <<<TRACE_IMMUTABLE_*>>> sentinels to user-prompt Jinja templates, strip_trace_markers in engine before LLM calls, _strip_immutable_sections + _diff_state_snapshots in judge.py, TraceOptions/TraceConfig knobs, tests"
-    status: pending
-  - id: phase3
-    content: "Phase 3 — Auto-checker: universal_asserts.py with 5 cross-pipeline checks, wire universal asserts in runner, render Deterministic Signals section (failures + metrics) in trace, expand engine_mirror constants_block with schema enums, rubric updates, tests"
-    status: pending
-isProject: false
----
-
-
 # Eval Engine Rewrite — Full Implementation Spec
 
 ## Why this exists

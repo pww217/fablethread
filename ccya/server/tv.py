@@ -443,6 +443,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         )
 
         rules_intent = _tv_parse_json_blob(rules_prompt.get("output"))
+        scope_ev = ev.get("scope") or {}
 
         rows.append(
             {
@@ -458,6 +459,11 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "rules_event": rules_ev_d,
                 "rules_intent": rules_intent,
                 "state_rejections": state_rej,
+                "scope": {
+                    "active_domains": scope_ev.get("active_domains", []),
+                    "decided_by": scope_ev.get("decided_by", "unknown"),
+                    "skipped_streams": scope_ev.get("skipped_streams", []),
+                },
                 "total_tt": _fmt_ms(total_tt_ms),
                 "total_tokens_in": total_in,
                 "total_tokens_out": total_out,

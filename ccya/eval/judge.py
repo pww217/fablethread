@@ -101,21 +101,19 @@ def _context_line(event: dict[str, Any]) -> str:
     return ", ".join(parts) if parts else "(no context telemetry)"
 
 
-def _scope_summary(rules_event: dict[str, Any] | None, rules_prompt: dict[str, Any]) -> str:
-    """Scope is in the rules prompt's raw output — try to extract from there."""
-    raw = rules_prompt.get("output", "")
+def _scope_summary(rules_event: dict[str, Any] | None, narrate_prompt: dict[str, Any]) -> str:
+    """Scope is now in the narrator's <scope>...</scope> tail in narrate output."""
+    raw = narrate_prompt.get("output", "")
     raw = strip_thinking(raw or "")
+    m = re.search(r"<scope>(.*?)</scope>", raw, re.DOTALL)
+    if not m:
+        return "active=? (no tail)"
     try:
-        obj = _find_json_object(raw)
-        if obj:
-            data = json.loads(obj)
-            scope = data.get("scope") or {}
-            active = scope.get("active_domains") or []
-            skip = scope.get("skip_domains") or []
-            return f"active={active} skip={skip}"
+        data = json.loads(m.group(1).strip())
+        active = data.get("active_domains", [])
+        return f"active={active}"
     except (json.JSONDecodeError, AttributeError):
-        pass
-    return "active=? skip=?"
+        return "active=? (unparseable)"
 
 
 def build_trace(events: list[dict[str, Any]], *, max_chars: int) -> str:
@@ -126,7 +124,6 @@ def build_trace(events: list[dict[str, Any]], *, max_chars: int) -> str:
         turn = ev.get("turn", "?")
         inp = ev.get("input", "")
         rules = ev.get("rules") or {}
-        rules_prompt = ev.get("rules_prompt") or {}
         narrate_prompt = ev.get("narrate_prompt") or {}
         extraction = ev.get("extraction") or {}
         applied = ev.get("applied") or {}
@@ -137,7 +134,7 @@ def build_trace(events: list[dict[str, Any]], *, max_chars: int) -> str:
         progress = (extraction.get("progress") or {}).get("output", "")
         narration = narrate_prompt.get("output", "")
 
-        scope_line = _scope_summary(rules, rules_prompt)
+        scope_line = _scope_summary(rules, narrate_prompt)
         rules_line = (
             f"band={rules.get('band', '—')} skill={rules.get('skill', '—')} "
             f"summary={(rules.get('outcome_summary') or '')[:140]}"

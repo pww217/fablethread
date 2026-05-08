@@ -68,12 +68,6 @@ _RULES_NO_ROLL = json.dumps(
         "target": "",
         "stakes": "",
         "check": {"required": False},
-        "scope": {
-            "active_domains": ["scene"],
-            "skip_domains": [],
-            "implicit_preconditions": [],
-            "ambiguities": [],
-        },
     }
 )
 
@@ -360,19 +354,19 @@ class TestPromptComposition:
 
     def test_extract_scene_has_system_user_roles(self):
         env = self._env()
-        msgs = _extract_scene_messages(env, "The airlock opened.", _make_state())
+        msgs = _extract_scene_messages(env, "The airlock opened.", _make_state(), active_domains=["scene"])
         assert [m["role"] for m in msgs] == ["system", "user"]
 
     def test_extract_scene_user_contains_narration(self):
         env = self._env()
         narrative = "You step through the airlock. The corridor hums."
-        msgs = _extract_scene_messages(env, narrative, _make_state())
+        msgs = _extract_scene_messages(env, narrative, _make_state(), active_domains=["scene"])
         user = next(m for m in msgs if m["role"] == "user")
         assert narrative in user["content"]
 
     def test_extract_scene_system_has_output_schema(self):
         env = self._env()
-        msgs = _extract_scene_messages(env, "N.", _make_state())
+        msgs = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"])
         system = next(m for m in msgs if m["role"] == "system")["content"]
         assert "## Output schema" in system
         assert "scene_tags" in system
@@ -383,15 +377,15 @@ class TestPromptComposition:
     def test_extract_scene_no_inventory_or_quests(self):
         """Scene stream must not include inventory or quest sections."""
         env = self._env()
-        msgs = _extract_scene_messages(env, "N.", _make_state())
+        msgs = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"])
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "inventory" not in user.lower()
         assert "quest" not in user.lower()
 
     def test_extract_scene_thinking_toggle(self):
         env = self._env()
-        off = _extract_scene_messages(env, "N.", _make_state(), enable_thinking=False)
-        on = _extract_scene_messages(env, "N.", _make_state(), enable_thinking=True)
+        off = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"], enable_thinking=False)
+        on = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"], enable_thinking=True)
         assert not off[-1]["content"].endswith("/think")
         assert on[-1]["content"].endswith("/think")
 
@@ -400,14 +394,14 @@ class TestPromptComposition:
     def test_extract_state_has_system_user_roles(self):
         env = self._env()
         scene = SceneExtractResult()
-        msgs = _extract_state_messages(env, "N.", _make_state(), scene_result=scene)
+        msgs = _extract_state_messages(env, "N.", _make_state(), active_domains=["inventory", "pc_condition"], scene_result=scene)
         assert [m["role"] for m in msgs] == ["system", "user"]
 
     def test_extract_state_user_contains_inventory(self):
         env = self._env()
         state = _make_state()
         scene = SceneExtractResult()
-        msgs = _extract_state_messages(env, "N.", state, scene_result=scene)
+        msgs = _extract_state_messages(env, "N.", state, active_domains=["inventory", "pc_condition"], scene_result=scene)
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "hand-terminal" in user
 
@@ -416,7 +410,7 @@ class TestPromptComposition:
         state = _make_state()
         state["pc"]["conditions"] = [{"id": "injured", "label": "injured", "description": "", "added_turn": 0}]
         scene = SceneExtractResult()
-        msgs = _extract_state_messages(env, "N.", state, scene_result=scene)
+        msgs = _extract_state_messages(env, "N.", state, active_domains=["inventory", "pc_condition"], scene_result=scene)
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "injured" in user
 
@@ -430,8 +424,8 @@ class TestPromptComposition:
         s2["pc"]["conditions"] = [{"id": "wounded", "label": "wounded", "description": "hit", "added_turn": 4}]
         from ccya.models import RulesOutcome
         roll = RulesOutcome(rolled=True, skill="strength", difficulty="hard", final_total=8, band="partial", directive="The strike succeeds with cost.")
-        m1 = _extract_state_messages(env, "N1", s1, scene_result=scene)
-        m2 = _extract_state_messages(env, "N2", s2, scene_result=scene, rules_outcome=roll)
+        m1 = _extract_state_messages(env, "N1", s1, active_domains=["inventory", "pc_condition"], scene_result=scene)
+        m2 = _extract_state_messages(env, "N2", s2, active_domains=["inventory", "pc_condition"], scene_result=scene, rules_outcome=roll)
         sys1 = next(m for m in m1 if m["role"] == "system")["content"]
         sys2 = next(m for m in m2 if m["role"] == "system")["content"]
         assert sys1 == sys2
@@ -439,7 +433,7 @@ class TestPromptComposition:
     def test_extract_state_user_has_quantity_discipline(self):
         env = self._env()
         scene = SceneExtractResult()
-        msgs = _extract_state_messages(env, "N.", _make_state(), scene_result=scene)
+        msgs = _extract_state_messages(env, "N.", _make_state(), active_domains=["inventory", "pc_condition"], scene_result=scene)
         system = next(m for m in msgs if m["role"] == "system")["content"]
         # Quantity exactness lives in the system prompt as a static rule.
         assert "Quantities are exact" in system
@@ -450,14 +444,14 @@ class TestPromptComposition:
         env = self._env()
         scene = SceneExtractResult()
         state_res = StateExtractResult()
-        msgs = _extract_progress_messages(env, "N.", _make_state(), scene_result=scene, state_result=state_res)
+        msgs = _extract_progress_messages(env, "N.", _make_state(), active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
         assert [m["role"] for m in msgs] == ["system", "user"]
 
     def test_extract_progress_user_contains_quests(self):
         env = self._env()
         scene = SceneExtractResult()
         state_res = StateExtractResult()
-        msgs = _extract_progress_messages(env, "N.", _make_state(), scene_result=scene, state_result=state_res)
+        msgs = _extract_progress_messages(env, "N.", _make_state(), active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "quiet-signal" in user
         assert "The Quiet Signal" in user
@@ -471,7 +465,7 @@ class TestPromptComposition:
         ]
         scene = SceneExtractResult()
         state_res = StateExtractResult()
-        msgs = _extract_progress_messages(env, "N.", state, scene_result=scene, state_result=state_res)
+        msgs = _extract_progress_messages(env, "N.", state, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "Alpha fact." in user
         assert "Beta fact." in user
@@ -485,13 +479,13 @@ class TestPromptComposition:
         state_res = StateExtractResult()
 
         # With active quest: world state should NOT appear
-        msgs_with_quest = _extract_progress_messages(env, "N.", state, scene_result=scene, state_result=state_res)
+        msgs_with_quest = _extract_progress_messages(env, "N.", state, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
         user_with_quest = next(m for m in msgs_with_quest if m["role"] == "user")["content"]
         assert "WORLD_FACT_MARKER" not in user_with_quest
 
         # Without quests: world state SHOULD appear
         state_no_quests = {**state, "quests": []}
-        msgs_no_quest = _extract_progress_messages(env, "N.", state_no_quests, scene_result=scene, state_result=state_res)
+        msgs_no_quest = _extract_progress_messages(env, "N.", state_no_quests, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
         user_no_quest = next(m for m in msgs_no_quest if m["role"] == "user")["content"]
         assert "WORLD_FACT_MARKER" in user_no_quest
 
@@ -502,7 +496,7 @@ class TestPromptComposition:
         state_res = StateExtractResult()
 
         state_no_q = {**_make_state(), "quests": []}
-        msgs = _extract_progress_messages(env, "N.", state_no_q, scene_result=scene, state_result=state_res)
+        msgs = _extract_progress_messages(env, "N.", state_no_q, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "quest_threshold" in user
         assert "LOW" in user
@@ -510,7 +504,7 @@ class TestPromptComposition:
         state_many_q = {**_make_state(), "quests": [
             {"id": f"q{i}", "title": f"Q{i}", "status": "active", "objectives": []} for i in range(3)
         ]}
-        msgs2 = _extract_progress_messages(env, "N.", state_many_q, scene_result=scene, state_result=state_res)
+        msgs2 = _extract_progress_messages(env, "N.", state_many_q, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
         user2 = next(m for m in msgs2 if m["role"] == "user")["content"]
         assert "HIGH" in user2
 
@@ -523,8 +517,8 @@ class TestPromptComposition:
         s_many = {**_make_state(), "quests": [
             {"id": f"q{i}", "title": f"Q{i}", "status": "active", "objectives": []} for i in range(3)
         ]}
-        m_no = _extract_progress_messages(env, "N.", s_no, scene_result=scene, state_result=state_res)
-        m_many = _extract_progress_messages(env, "N.", s_many, scene_result=scene, state_result=state_res)
+        m_no = _extract_progress_messages(env, "N.", s_no, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
+        m_many = _extract_progress_messages(env, "N.", s_many, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
         sys_no = next(m for m in m_no if m["role"] == "system")["content"]
         sys_many = next(m for m in m_many if m["role"] == "system")["content"]
         assert sys_no == sys_many
@@ -1337,23 +1331,17 @@ class TestPcConditionsDelta:
 
 class TestExtractionStreamSkip:
     async def test_state_stream_skipped_when_all_state_domains_skipped(self) -> None:
-        """When inventory and pc_condition are both in skip_domains, only 3 chat calls occur
-        (rules + scene + progress — state is omitted)."""
+        """When narrator emits active_domains without inventory/pc_condition,
+        only 3 chat calls occur (rules + scene + progress — state is omitted)."""
         state = _make_state()
         _write_state(_SAVE_DIR, state)
 
-        rules_with_skip = json.dumps({
+        rules_no_scope = json.dumps({
             "intent": "observe",
             "intent_verb": "act",
             "target": "",
             "stakes": "",
             "check": {"required": False},
-            "scope": {
-                "active_domains": ["scene", "quest_updates", "recent_events"],
-                "skip_domains": ["inventory", "pc_condition"],
-                "implicit_preconditions": [],
-                "ambiguities": [],
-            },
         })
 
         chat_call_count = 0
@@ -1363,13 +1351,13 @@ class TestExtractionStreamSkip:
             if ss is not None:
                 ss["prompt_eval_count"] = 42
                 ss["eval_count"] = 24
-            yield "narrative"
+            yield "narrative<scope>{\"active_domains\":[\"scene\",\"quest_updates\",\"recent_events\"]}</scope>"
 
         async def fake_chat(*args, **kwargs):
             nonlocal chat_call_count
             chat_call_count += 1
             if chat_call_count == 1:
-                return {"response": rules_with_skip, "done": True, "usage": {}}
+                return {"response": rules_no_scope, "done": True, "usage": {}}
             if chat_call_count == 2:
                 return {"response": _SCENE_RESPONSE, "done": True, "usage": {}}
             # 3rd call should be progress (state is skipped)
@@ -1393,6 +1381,265 @@ class TestExtractionStreamSkip:
         # rules(1) + scene(2) + progress(3) — no state call
         assert chat_call_count == 3
         assert len(result.errors) == 0
+
+
+class TestNarratorScopeStreamSkip:
+    """Phase 3 — narrator-emitted <scope> tail drives stream skipping."""
+
+    async def test_empty_scope_skips_scene_and_state_runs_progress(self) -> None:
+        """active_domains=[] → only progress runs (rules + stream + progress = 3 stream/chat calls)."""
+        state = _make_state()
+        _write_state(_SAVE_DIR, state)
+
+        rules_no_scope = json.dumps({
+            "intent": "observe",
+            "intent_verb": "act",
+            "target": "",
+            "stakes": "",
+            "check": {"required": False},
+        })
+
+        chat_call_count = 0
+
+        async def fake_stream(*args, **kwargs):
+            ss = kwargs.get("stream_stats")
+            if ss is not None:
+                ss["prompt_eval_count"] = 42
+                ss["eval_count"] = 24
+            yield "narrative<scope>{\"active_domains\":[]}</scope>"
+
+        async def fake_chat(*args, **kwargs):
+            nonlocal chat_call_count
+            chat_call_count += 1
+            if chat_call_count == 1:
+                return {"response": rules_no_scope, "done": True, "usage": {}}
+            # 2nd call should be progress (scene + state are skipped)
+            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
+
+        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
+        _origs: list[tuple] = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = fake_stream
+        try:
+            result = await _run(_SAVE_DIR, "look", config=EngineConfig())
+        finally:
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
+
+        # rules(1) + progress(2) — scene and state skipped
+        assert chat_call_count == 2
+        assert len(result.errors) == 0
+
+    async def test_scene_only_runs_scene_and_progress(self) -> None:
+        """active_domains=['scene'] → scene + progress, no state."""
+        state = _make_state()
+        _write_state(_SAVE_DIR, state)
+
+        rules_no_scope = json.dumps({
+            "intent": "observe",
+            "intent_verb": "act",
+            "target": "",
+            "stakes": "",
+            "check": {"required": False},
+        })
+
+        chat_call_count = 0
+
+        async def fake_stream(*args, **kwargs):
+            ss = kwargs.get("stream_stats")
+            if ss is not None:
+                ss["prompt_eval_count"] = 42
+                ss["eval_count"] = 24
+            yield "narrative<scope>{\"active_domains\":[\"scene\"]}</scope>"
+
+        async def fake_chat(*args, **kwargs):
+            nonlocal chat_call_count
+            chat_call_count += 1
+            if chat_call_count == 1:
+                return {"response": rules_no_scope, "done": True, "usage": {}}
+            if chat_call_count == 2:
+                return {"response": _SCENE_RESPONSE, "done": True, "usage": {}}
+            # 3rd call should be progress (state is skipped)
+            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
+
+        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
+        _origs: list[tuple] = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = fake_stream
+        try:
+            result = await _run(_SAVE_DIR, "look", config=EngineConfig())
+        finally:
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
+
+        # rules(1) + scene(2) + progress(3) — state skipped
+        assert chat_call_count == 3
+        assert len(result.errors) == 0
+
+    async def test_state_only_runs_state_and_progress(self) -> None:
+        """active_domains=['inventory','pc_condition'] → state + progress, no scene."""
+        state = _make_state()
+        _write_state(_SAVE_DIR, state)
+
+        rules_no_scope = json.dumps({
+            "intent": "observe",
+            "intent_verb": "act",
+            "target": "",
+            "stakes": "",
+            "check": {"required": False},
+        })
+
+        chat_call_count = 0
+
+        async def fake_stream(*args, **kwargs):
+            ss = kwargs.get("stream_stats")
+            if ss is not None:
+                ss["prompt_eval_count"] = 42
+                ss["eval_count"] = 24
+            yield "narrative<scope>{\"active_domains\":[\"inventory\",\"pc_condition\"]}</scope>"
+
+        async def fake_chat(*args, **kwargs):
+            nonlocal chat_call_count
+            chat_call_count += 1
+            if chat_call_count == 1:
+                return {"response": rules_no_scope, "done": True, "usage": {}}
+            if chat_call_count == 2:
+                return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
+            # 3rd call should be progress (scene is skipped)
+            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
+
+        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
+        _origs: list[tuple] = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = fake_stream
+        try:
+            result = await _run(_SAVE_DIR, "look", config=EngineConfig())
+        finally:
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
+
+        # rules(1) + state(2) + progress(3) — scene skipped
+        assert chat_call_count == 3
+        assert len(result.errors) == 0
+
+    async def test_default_runs_all_three(self) -> None:
+        """No scope tag → defaults applied → all 3 streams run."""
+        state = _make_state()
+        _write_state(_SAVE_DIR, state)
+
+        rules_no_scope = json.dumps({
+            "intent": "observe",
+            "intent_verb": "act",
+            "target": "",
+            "stakes": "",
+            "check": {"required": False},
+        })
+
+        chat_call_count = 0
+
+        async def fake_stream(*args, **kwargs):
+            ss = kwargs.get("stream_stats")
+            if ss is not None:
+                ss["prompt_eval_count"] = 42
+                ss["eval_count"] = 24
+            # No <scope> tag — defaults to all domains
+            yield "narrative text"
+
+        async def fake_chat(*args, **kwargs):
+            nonlocal chat_call_count
+            chat_call_count += 1
+            if chat_call_count == 1:
+                return {"response": rules_no_scope, "done": True, "usage": {}}
+            if chat_call_count == 2:
+                return {"response": _SCENE_RESPONSE, "done": True, "usage": {}}
+            if chat_call_count == 3:
+                return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
+            # 4th call should be progress
+            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
+
+        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
+        _origs: list[tuple] = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = fake_stream
+        try:
+            result = await _run(_SAVE_DIR, "look", config=EngineConfig())
+        finally:
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
+
+        # rules(1) + scene(2) + state(3) + progress(4) — all run
+        assert chat_call_count == 4
+        assert len(result.errors) == 0
+
+    async def test_progress_always_runs_even_with_empty_scope(self) -> None:
+        """active_domains=[] still runs progress.
+
+        Verify progress runs (2 chat calls total: rules + progress).
+        """
+        state = _make_state()
+        _write_state(_SAVE_DIR, state)
+
+        rules_no_scope = json.dumps({
+            "intent": "observe",
+            "intent_verb": "act",
+            "target": "",
+            "stakes": "",
+            "check": {"required": False},
+        })
+
+        chat_call_count = 0
+
+        async def fake_stream(*args, **kwargs):
+            ss = kwargs.get("stream_stats")
+            if ss is not None:
+                ss["prompt_eval_count"] = 42
+                ss["eval_count"] = 24
+            yield "narrative<scope>{\"active_domains\":[]}</scope>"
+
+        async def fake_chat(*args, **kwargs):
+            nonlocal chat_call_count
+            chat_call_count += 1
+            if chat_call_count == 1:
+                return {"response": rules_no_scope, "done": True, "usage": {}}
+            # Only progress call after rules
+            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
+
+        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
+        _origs: list[tuple] = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = fake_stream
+        try:
+            await _run(_SAVE_DIR, "look", config=EngineConfig())
+        finally:
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
+
+        assert chat_call_count == 2
 
 
 class TestEstablishedFactsCap25:
@@ -2241,3 +2488,76 @@ class TestExpireScenePressures:
         assert "c" in delta.scene_pressure_remove
         # State list is unchanged — apply_delta handles the actual removal.
         assert len(state["scene"]["scene_pressure"]) == 3
+
+
+class TestNarrationScopeTailFilter:
+    """Phase 1 — verifies <scope> tail never reaches SSE consumer.
+
+    Pipeline behavior is unchanged in Phase 1: defaults are used regardless
+    of what's in the tail. We just verify the filter strips visibly.
+    """
+
+    async def test_scope_tail_not_in_streamed_tokens(self) -> None:
+        state = _make_state()
+        _write_state(_SAVE_DIR, state)
+
+        chat_call_count = 0
+
+        async def fake_stream(*args, **kwargs):
+            ss = kwargs.get("stream_stats")
+            if ss is not None:
+                ss["prompt_eval_count"] = 42
+                ss["eval_count"] = 24
+            # Yield chunks that include a <scope> tag at the end
+            yield "He laughs."
+            yield " The room "
+            yield "stills."
+            yield '\n\n<scope>'
+            yield '{"active_domains":["scene"]}'
+            yield "</scope>"
+
+        async def fake_chat(*args, **kwargs):
+            nonlocal chat_call_count
+            chat_call_count += 1
+            if chat_call_count == 1:
+                return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
+            if chat_call_count == 2:
+                return {"response": _SCENE_RESPONSE, "done": True, "usage": {}}
+            if chat_call_count == 3:
+                return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
+            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
+
+        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
+        _origs: list[tuple] = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = fake_stream
+        try:
+            tokens: list[str] = []
+            result = None
+            async for kind, payload in run_turn(
+                _SAVE_DIR,
+                "look",
+                config=EngineConfig(),
+                template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts"),
+            ):
+                if kind == "token":
+                    tokens.append(payload)
+                elif kind == "complete":
+                    result = payload
+        finally:
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
+
+        aggregated = "".join(tokens)
+        assert "<scope>" not in aggregated
+        assert "</scope>" not in aggregated
+        assert "He laughs." in aggregated
+        assert "The room stills." in aggregated
+        assert result is not None
+        # The narrative stored in TurnResult should have the scope tag stripped
+        assert "<scope>" not in result.narrative

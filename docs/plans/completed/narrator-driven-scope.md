@@ -1,25 +1,3 @@
----
-name: narrator driven scope
-overview: Move active-domain scoping out of the pre-narration rules call (which can't know what will happen) and into a structured tail emitted by the narrator after it writes the prose. The tail is server-side stripped before reaching the user. Scene and state become skippable; progress always runs (it's the post-narration storytelling brain). Conditional templates per stream cut tokens further. Delivered in four self-contained phases.
-todos:
-  - id: split-phase-files
-    content: Extract Phases 1-4 from this master plan into self-contained per-phase files at ccya/docs/plans/narrator-driven-scope/01-streaming-and-parser.md, 02-narrator-emit-rules-drop.md, 03-stream-skip-and-conditional-templates.md, 04-telemetry-docs-cleanup.md. Each phase file must include the relevant Pre-read, File-by-file changes, code snippets, Tests, and Exit criteria sections from the master in full so the implementer can launch each phase with only that file as context.
-    status: pending
-  - id: phase-1
-    content: "Phase 1 — Streaming tail filter + scope parser. Add _ALL_DOMAINS, _DEFAULT_DOMAINS, _SCOPE_OPEN, _SCOPE_TAIL_RE constants and _split_scope_tail() + _StreamTailFilter class to engine/turn.py. Wire filter into run_turn and run_turn_retry streaming loops. Add tests/test_scope_tail_parser.py. Add integration test in tests/test_engine_smoke.py asserting <scope> never reaches SSE consumer. Active_domains computed but not yet consumed. Exit: filter active end-to-end, all tests pass, no behavior change in extraction."
-    status: pending
-  - id: phase-2
-    content: "Phase 2 — Narrator emits scope; rules drops scope. Append '## Active scope tail' section to narrate_system.j2. Strip scope schema/rules from rules_system.j2. Drop dead rules_outcome.scope.* references from extract_state_user.j2 and extract_progress_user.j2. Delete Scope class and IntentEnvelope.scope field from models.py. Clean up _call_rules fallback in engine/rules.py. Replace _active_domains(intent) helper in extraction.py with explicit active_domains: list[str] parameter on _run_extraction_pipeline and _extract_*_messages. Wire active_domains from turn.py into extraction calls. Update eval/judge.py _scope_summary to read narrator output. Update existing scope-related tests to use narrator-emitted scope. Exit: rules no longer emits scope, narrator does, pipeline consumes narrator domains, all tests pass."
-    status: pending
-  - id: phase-3
-    content: "Phase 3 — Stream skipping + conditional templates. In extraction.py: gate scene stream by {scene, location_change} ∩ active; delete progress skip path entirely so progress always runs; keep state skip from Phase 2. Rewrite extract_progress_user.j2 to gate active_quests/quest_threshold/quest_ages by quest_updates, recent_events/world_state by recent_events, known_characters by compendium_npc; keep scene_pressure unconditional. Confirm extract_state_user.j2 and extract_scene_user.j2 gating still correct. Add tests/test_extract_progress_template.py. Add TestNarratorScopeStreamSkip in tests/test_engine_smoke.py. Exit: scene skippable, progress always runs, intra-stream gating verified by tests."
-    status: pending
-  - id: phase-4
-    content: "Phase 4 — Telemetry, docs, cleanup. Add 'scope' field {active_domains, decided_by, skipped_streams} to events.jsonl event dicts in run_turn and run_turn_retry. Add scope pill to turn viewer (server/panels.py or metrics.py). Update ARCHITECTURE.md scope flow descriptions across Steps 0/1/2a/2b/2c. Update docs/REPOMAP/engine.md if it exists. Delete docs/plans/narration-active-domains.md. Move this plan and its phase files to docs/plans/completed/. Update docs/plans/TODO.md. Run final rg sweep for Scope/skip_domains/implicit_preconditions/ambiguities and clean up any remaining matches. Manual smoke turn end-to-end. Exit: telemetry visible, docs current, no stale references."
-    status: pending
-isProject: false
----
-
 # Narrator-Driven Scope — Master Plan
 
 ## Summary
