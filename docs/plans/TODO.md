@@ -83,3 +83,9 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - **Character traits + relationships** — persist per NPC in compendium
 - **Character avatars** — generated/assigned per NPC/PC
 - **Physical descriptions** — generated at first encounter, stored in compendium
+
+---
+
+## Debug / Tooling
+
+- [ ] **Turn viewer dynamic mirror** — schema-driven tv.py; stream registry in `tv_mirror.py`; connectors from `sd.inputs` — see [`turn-viewer-dynamic.md`](turn-viewer-dynamic.md)
