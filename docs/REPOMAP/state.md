@@ -21,7 +21,7 @@
 - **`append_event(save_dir, event)`** — appends to events.jsonl.
 - **`append_chronicle(save_dir, text)`** — appends to chronicle.md.
 - **`init_save_dir(save_dir, seed)`** — writes seed state, truncates chronicle/events.
-- **`load_recent_chronicle_turns(save_dir, n)`** → `list[dict]` — parses chronicle.md into turn blocks.
+- **`load_recent_chronicle_turns(save_dir, n, *, min_turn_exclusive=0)`** → `list[dict]` — parses chronicle.md into turn blocks, excludes turns < min_turn_exclusive.
 - **`load_chronicle_tail(save_dir, max_tokens, skip_last_n_turns)`** → `str` — word-truncated tail.
 - **`load_recent_events(save_dir, n)`** → `list[dict]` — last N events from JSONL.
 - **`normalize_inventory_id(raw)`** → `str` — canonical id for merge/remove lookup.
@@ -44,6 +44,7 @@ meta:
   compendium_touch_order: [str]  # LRU order for NPC selection
   pending_gm_beat: dict | None  # GM beat from progress extractor, consumed by next turn's narrator (runtime-only, not in default state)
   last_compacted_turn: int     # compaction tracking (0 = never compacted)
+  prior_history: list[str]     # canonical append-only compacted history (bullet format: - [T{n}] ...)
 
 pc:
   name: str
