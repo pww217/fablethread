@@ -92,7 +92,6 @@ class TestSystemPromptByteStability:
             chronicle_tail="prior arc",
             recent_turns=[{"turn": 1, "input": "look", "narrative": "..."}],
             rules_outcome=self._roll(),
-            last_turn_failed=["did not succeed"],
             npc_name_pool=["Anna", "Bo"],
             recently_left=[{"id": "old", "name": "Old"}],
         )

@@ -42,7 +42,7 @@ meta:
   setting_pack: str
   model: str
   compendium_touch_order: [str]  # LRU order for NPC selection
-  pending_gm_beat: dict | None  # GM beat from progress extractor, consumed by next turn's narrator (runtime-only, not in default state)
+  pending_gm_beat: dict | None  # GM beat from scene extractor, consumed by next turn's narrator (runtime-only, not in default state)
   last_compacted_turn: int     # compaction tracking (0 = never compacted)
   prior_history: list[str]     # canonical append-only compacted history (bullet format: - [T{n}] ...)
 

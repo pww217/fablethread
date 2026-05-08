@@ -4,7 +4,7 @@
 
 Located in `tests/` at repo root. Run with `make test` (uses `uv run pytest -q`).
 
-- `test_engine_pipeline.py` — Token-budget ceilings, multi-turn invariants, scope-gating tests (Tier 1 eval harness)
+- `test_engine_pipeline.py` — Multi-turn invariants, scope-gating tests (Tier 1 eval harness)
 - `test_engine_smoke.py` — Full turn pipeline smoke test
 - `test_rules.py` — Dice resolution tests
 - `test_pack_loader.py` — Pack loading tests
@@ -26,7 +26,7 @@ Located in `tests/` at repo root. Run with `make test` (uses `uv run pytest -q`)
 - When adding a new `EngineConfig` field or `StateDelta` sub-type, add a smoke test that: (a) verifies the toggle round-trips correctly, and (b) confirms the prompt template renders the expected content.
 - Per-stream prompt tests call `_extract_scene_messages`, `_extract_state_messages`, `_extract_progress_messages` directly — import from `ccya.engine.extraction`.
 - State mutation tests should exercise `apply_delta` directly (not through the full turn pipeline) for speed and isolation.
-- Tier 1 eval harness tests (`test_engine_pipeline.py`) use `_FakeLLM` and enforce token-budget ceilings and multi-turn invariants.
+- Tier 1 eval harness tests (`test_engine_pipeline.py`) use `_FakeLLM` and enforce multi-turn invariants.
 
 ## Commands
 

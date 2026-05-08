@@ -138,9 +138,8 @@ flowchart LR
         N4["rules_outcome<br>(band, directive, dice summary)"]:::xstream
         N5["pack_style (tone / prose guide)"]
         N6["npc_name_pool (cultural name list)"]
-        N7["last_turn_failed<br>(precondition failures from prev turn)"]
-        N8["recently_left NPCs"]
-        N9["user_input"]
+        N7["recently_left NPCs"]
+        N8["user_input"]
     end
 
     subgraph LLM1["LLM — narrate_system.j2 + narrate_user.j2"]
@@ -183,10 +182,13 @@ flowchart LR
         S3["state.location"]
         S4["state.scene.present_npcs"]
         S5["state.pc.conditions"]
-        S6["known_characters<br>(compact: id+name, up to 10 LRU<br>from compendium)"]
+        S6["known_characters<br>(full roster: id, name, tags, notes<br>up to 10 LRU from compendium)"]
         S7["rules_outcome"]:::xstream
         S8["active_domains<br>(from Step 1 tail)"]:::xstream
-        S9["known_locations<br>(currently always [] in engine — stub)"]
+        S9["scene_pressure (active threats)"]
+        S10["deescalate flag<br>(success on active pressure)"]:::xstream
+        S11["quest_ages<br>(stalled-quest signal)"]
+        S12["recent_turns[-1:]<br>(T-1 prior narration)"]
     end
 
     subgraph LLM2A["LLM — extract_scene_system.j2 + extract_scene_user.j2"]
@@ -198,18 +200,16 @@ flowchart LR
         O2["scene_tagline: str (3–6 words for UI header)"]:::outNode
         O3["location_change: LocationRef | None<br>  id, name, description"]:::outNode
         O4["location_description: str | None"]:::outNode
-        O5["present_npcs: list[NpcRef]<br>  id, name, title, notes, bio"]:::outNode
-        O6["actions: list[str] (suggested next actions)"]:::outNode
-        O7["outcome_summary: str"]:::outNode
+        O5["npc_add / npc_remove / npc_update<br>  delta-form NPC presence changes"]:::outNode
+        O6["compendium_npc_update<br>  durable identity changes"]:::outNode
+        O7["scene_pressure_add / remove / update<br>  active-threat lifecycle"]:::outNode
+        O8["gm_beat: GMBeat | None<br>  forward-facing storytelling beat"]:::outNode
     end
 
     IN --> LLM2A
     LLM2A --> OUT
 ```
 
-> **Note:** `known_locations` is passed to the template but the engine currently sets
-> it to an empty list (`engine.py` — location ids are inferred from narration context).
->
 > **Skippable:** Scene stream is skipped when neither `scene` nor `location_change` is
 > in `active_domains`.
 
@@ -250,7 +250,6 @@ flowchart LR
         O3["inventory_update: list[InventoryUpdate]<br>  id, name?, notes?"]:::outNode
         O4["pc_condition_add: list[ConditionAdd]<br>  id, label, description"]:::outNode
         O5["pc_condition_remove: list[ConditionRemove]<br>  id"]:::outNode
-        O6["failed: list[str]<br>  (unmet preconditions this turn)"]:::outNode
     end
 
     IN --> LLM2B
@@ -283,10 +282,10 @@ flowchart LR
         S3["state.scene.recent_events"]
         S4["state.scene.world_state"]
         S5["active_quests (status=active only)"]
-        S6["known_characters<br>(full: id, name, title, bio_preview,<br>up to 10 LRU from compendium)"]
-        S7["rules_outcome"]:::xstream
+        S6["rules_outcome"]:::xstream
+        S7["intent (from Step 0)"]:::xstream
         S8["active_domains (from Step 1 tail)"]:::xstream
-        S9["scene_result.present_npcs<br>(from Step 2a)"]:::xstream
+        S9["recent_turns[-2:]<br>(T-1 + T-2 prior narration<br>for outcome_summary context)"]
         S10["items_gained: list[str] (names)<br>items_lost: list[str] (ids)<br>(from Step 2b — minimal cross-stream)"]:::xstream
     end
 
@@ -296,10 +295,11 @@ flowchart LR
 
     subgraph OUT["Outputs — ProgressExtractResult"]
         O1["quest_updates: list[QuestUpdate]<br>  id, title, status,<br>  objectives[]: index, description,<br>  done, failed"]:::outNode
-        O2["recent_events_add: list[str]"]:::outNode
-        O3["recent_events_update: list[RecentEventUpdate]<br>  old, new"]:::outNode
+        O2["recent_events_add: list[RecentEvent]<br>  id, text, turn"]:::outNode
+        O3["recent_events_update: list[RecentEventUpdate]<br>  id, text"]:::outNode
         O4["recent_events_remove: list[str]"]:::outNode
-        O5["compendium_npc_update: list[CompendiumNpcUpdate]<br>  id, name?, title?, bio?"]:::outNode
+        O5["actions: list[str]<br>  exactly 4 suggested player choices"]:::outNode
+        O6["outcome_summary: str<br>  1–2 sentence narrative recap"]:::outNode
     end
 
     IN --> LLM2C
@@ -307,8 +307,10 @@ flowchart LR
 ```
 
 > **Always runs:** Progress is the post-narration storytelling brain. It always executes
-> every turn (never skipped) and feeds next turn's rules call via `pending_gm_beat`,
-> `recent_events_add`, and `scene_pressure_*`.
+> every turn (never skipped) and feeds next turn's rules call via `recent_events_add`
+> (durable narrative facts) and `quest_updates` (advancing or closing arcs). Scene-side
+> forward signals (`scene_pressure_*`, `pending_gm_beat`) are sourced from the scene
+> stream, not progress.
 
 ---
 
@@ -328,7 +330,7 @@ flowchart TD
     SR2["StateExtractResult<br>(Step 2b)"]:::stageState
     SR3["ProgressExtractResult<br>(Step 2c)"]:::stageProgress
 
-    MERGE["StateDelta<br>──────────────────<br>scene_tags, scene_tagline<br>location_change, location_description<br>present_npcs<br>inventory_add / remove / update<br>pc_condition_add / remove<br>quest_updates<br>recent_events_add / update / remove<br>compendium_npc_update"]:::mergeNode
+    MERGE["StateDelta<br>──────────────────<br>scene_tags, scene_tagline<br>location_change, location_description<br>npc_add / npc_remove / npc_update<br>compendium_npc_update<br>scene_pressure_add / remove / update<br>inventory_add / remove / update<br>pc_condition_add / remove<br>quest_updates<br>recent_events_add / update / remove<br><br>(gm_beat NOT in StateDelta —<br>written directly to state.meta.pending_gm_beat)"]:::mergeNode
 
     VALIDATE["_validate()<br>Check inventory_remove IDs exist<br>→ rejections: list[dict]"]:::pyNode
 
@@ -358,7 +360,7 @@ flowchart LR
 
     subgraph IN["Inputs"]
         P1["state (post-apply)"]
-        P2["event dict<br>(turn, input, applied, rejected,<br>actions, scene_tags, rules,<br>narrate/extract metrics, extraction<br>with per-stream prompts + attempts,<br>scope: {active_domains, decided_by,<br>skipped_streams}, rules_prompt,<br>narrate_prompt, engine_expired_conditions,<br>changes, failed)"]
+        P2["event dict<br>(turn, input, applied, rejected,<br>actions, scene_tags, rules,<br>narrate/extract metrics, extraction<br>with per-stream prompts + attempts,<br>scope: {active_domains, decided_by,<br>skipped_streams}, rules_prompt,<br>narrate_prompt, engine_expired_conditions,<br>changes)"]
         P3["narrative: str"]
         P4["turn number"]
     end
@@ -471,7 +473,6 @@ flowchart TD
     STEP2A -- "location_change<br>present_npcs" --> STEP2B["Step 2b<br>State"]:::stageState
     STEP1 -- "narrative<br>active_domains" --> STEP2B
     STEP2B -- "items_gained, items_lost" --> STEP2C["Step 2c<br>Progress"]:::stageProgress
-    STEP2A -- "present_npcs" --> STEP2C
     STEP1 -- "narrative<br>active_domains" --> STEP2C
     STEP2A & STEP2B & STEP2C -- "merge" --> DELTA["StateDelta"]:::mergeNode
     DELTA -- "validate + apply" --> STATE

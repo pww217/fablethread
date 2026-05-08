@@ -37,7 +37,7 @@ Three extraction bugs found in the eval runs:
 | `ccya/engine/extraction.py`               | modify      | Add `_narration_has_transfer` helper and call it in `_run_extraction_pipeline` before the `run_state` guard to activate inventory domain |
 | `ccya/prompts/extract_scene_system.j2`    | modify      | Add dedup pre-check instruction: inject alias lookup before emitting `compendium_npc_update add`                           |
 | `ccya/engine/extraction.py`               | modify      | Add `_dedup_compendium_add` helper and call it in `_run_extraction_pipeline` between the progress call and `StateDelta(...)` merge |
-| `docs/REPOMAP/extraction.md`              | update      | Document transfer-verb scan and NPC dedup pre-pass                                                                         |
+| `docs/REPOMAP/engine.md`              | update      | Document transfer-verb scan and NPC dedup pre-pass                                                                         |
 | `docs/plans/TODO.md`                      | update      | Add this plan                                                                                                              |
 
 
@@ -368,7 +368,7 @@ def test_contact_objective_completes_on_npc_presence():
 
 ### REPOMAP updates required
 
-`docs/REPOMAP/extraction.md` — document `_narration_has_transfer`, `_dedup_compendium_add`, the transfer-verb scan insertion point in `_run_extraction_pipeline`, the dedup pre-pass insertion point in `_run_extraction_pipeline`, and the contact-objective rule addition to the progress prompt.
+`docs/REPOMAP/engine.md` — document `_narration_has_transfer`, `_dedup_compendium_add`, the transfer-verb scan insertion point in `_run_extraction_pipeline`, the dedup pre-pass insertion point in `_run_extraction_pipeline`, and the contact-objective rule addition to the progress prompt.
 
 ### Risks
 

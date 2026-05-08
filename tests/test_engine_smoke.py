@@ -145,8 +145,14 @@ _SCENE_RESPONSE = json.dumps({
     "scene_tagline": "Quiet corridor stretches ahead",
     "location_change": None,
     "location_description": None,
-    "actions": ["Look around carefully", "Check the panels", "Listen at the door", "Go back"],
-    "outcome_summary": "You step through the airlock into silence.",
+    "npc_add": [],
+    "npc_remove": [],
+    "npc_update": [],
+    "compendium_npc_update": [],
+    "scene_pressure_add": [],
+    "scene_pressure_remove": [],
+    "scene_pressure_update": [],
+    "gm_beat": None,
 })
 
 _STATE_RESPONSE = json.dumps({
@@ -155,7 +161,6 @@ _STATE_RESPONSE = json.dumps({
     "inventory_update": [],
     "pc_condition_add": [],
     "pc_condition_remove": [],
-    "failed": [],
 })
 
 _PROGRESS_RESPONSE = json.dumps({
@@ -163,7 +168,8 @@ _PROGRESS_RESPONSE = json.dumps({
     "recent_events_add": [],
     "recent_events_update": [],
     "recent_events_remove": [],
-    "compendium_npc_update": [],
+    "actions": [],
+    "outcome_summary": "",
 })
 
 
@@ -521,24 +527,6 @@ class TestPromptComposition:
 
     # --- Narrate-specific ---
 
-    def test_narrate_last_turn_failed(self):
-        env = self._env()
-        state = _make_state()
-        failed = ["tried to pick up keys but guard is still conscious"]
-        msgs = _narrate_messages(env, state, "look", last_turn_failed=failed)
-        user_text = next(m for m in msgs if m["role"] == "user")["content"]
-        system_text = next(m for m in msgs if m["role"] == "system")["content"]
-        assert "last_turn_failed" in user_text
-        assert "tried to pick up keys but guard is still conscious" in user_text
-        assert "tried to pick up keys" not in system_text
-
-    def test_narrate_no_last_turn_failed_when_empty(self):
-        env = self._env()
-        state = _make_state()
-        msgs = _narrate_messages(env, state, "look", last_turn_failed=[])
-        user_text = next(m for m in msgs if m["role"] == "user")["content"]
-        assert "last_turn_failed" not in user_text
-
     def test_narrate_thinking_toggle(self):
         env = self._env()
         off = _narrate_messages(env, _make_state(), "look", enable_narrate_thinking=False)
@@ -587,7 +575,7 @@ class TestPromptComposition:
         m2 = _narrate_messages(
             env, state2, "examine", pack_style="dark sci-fi",
             chronicle_tail="prior arc", rules_outcome=roll,
-            last_turn_failed=["did not succeed"], npc_name_pool=["Anna", "Bo"],
+            npc_name_pool=["Anna", "Bo"],
         )
         sys1 = next(m for m in m1 if m["role"] == "system")["content"]
         sys2 = next(m for m in m2 if m["role"] == "system")["content"]

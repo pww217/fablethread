@@ -39,8 +39,12 @@ Examples already applied: dice resolution in `rules.py`, condition TTL in `engin
 ### 4. Label inputs with output-field nouns
 The user-prompt section feeding a `present_npcs` output field is titled `present_npcs` (not "Scene Characters"). The cheap noun-reinforcement reliably improves Gemma 4 field-name discipline.
 
-### 5. One delimiter pair for untrusted long content
-Use `=== NARRATION ===` / `=== END NARRATION ===` and `=== PLAYER INPUT ===` / `=== END PLAYER INPUT ===` everywhere. No `## CURRENT TURN NARRATION`, no bare unwrapped narration, no inconsistent `## Player's current input`.
+### 5. One delimiter pair per role
+Two delimiter conventions, applied consistently:
+- **`=== PLAYER INPUT ===` / `=== END PLAYER INPUT ===`** — the player's raw turn input. Used by `rules_user.j2` and `narrate_user.j2`.
+- **`## CURRENT TURN NARRATION` / `## END CURRENT TURN NARRATION`** — the narrator's prose handed to the three extractors. Used by `extract_scene_user.j2`, `extract_state_user.j2`, `extract_progress_user.j2`.
+
+The two markers signal different trust models: `=== PLAYER INPUT ===` marks user-controlled untrusted text; `## CURRENT TURN NARRATION` marks engine-controlled narration prose with a stable header that reads naturally inside markdown-style extract prompts. Do not invent a third convention.
 
 ### 6. Imperatives over role narration
 "Extract scene state from narration. JSON only." beats "You are the scene extractor. Your only job is to extract scene cosmetics, location state, NPC presence…". Each preamble is one short verb-led line.

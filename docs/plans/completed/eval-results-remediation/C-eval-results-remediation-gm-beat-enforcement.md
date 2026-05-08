@@ -23,7 +23,7 @@ The eval runs found that `gm_beat.instruction` was frequently empty or generic �
 |---|---|---|
 | `ccya/models.py` | modify | Add `@field_validator` on `GMBeat.instruction` that nullifies the beat if instruction is blank/whitespace/generic filler |
 | `ccya/prompts/extract_scene_system.j2` | modify | Strengthen the `gm_beat` instruction quality rule; add explicit BAD/GOOD examples; add pre-flight check requiring named entity before choosing `type` |
-| `docs/REPOMAP/extraction.md` | update | Note `GMBeat` validator behavior |
+| `docs/REPOMAP/engine.md` | update | Note `GMBeat` validator behavior |
 | `docs/plans/TODO.md` | update | Add this plan |
 
 ## Firm decisions
@@ -247,7 +247,7 @@ def test_scene_extract_result_preserves_good_beat():
 ```
 
 ### REPOMAP updates required
-`docs/REPOMAP/extraction.md` — document that `GMBeat.instruction` has a quality validator; note `SceneExtractResult._nullify_invalid_gm_beat` model validator.
+`docs/REPOMAP/engine.md` — document that `GMBeat.instruction` has a quality validator; note `SceneExtractResult._nullify_invalid_gm_beat` model validator.
 
 ### Risks
 1. **Filler prefix list is incomplete** — new generic patterns will emerge. The length floor (< 40 chars) is a reliable secondary catch. Accept that some low-quality beats survive the validator and rely on the prompt rule to reduce frequency. The `startswith` check is intentionally limited — it only catches instructions that open with these phrases. Mid-sentence filler is handled by the 40-char length floor. This is by design.

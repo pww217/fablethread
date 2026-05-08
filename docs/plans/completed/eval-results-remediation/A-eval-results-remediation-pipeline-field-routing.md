@@ -29,7 +29,7 @@ The current three-stream extraction pipeline has fields assigned to the wrong ex
 | `ccya/prompts/extract_progress_system.j2` | modify | Remove field rules for `compendium_npc_update`, `scene_pressure_*`, `gm_beat`; add field rules for `actions`, `outcome_summary` |
 | `ccya/prompts/extract_progress_user.j2` | modify | Add narration context needed for `actions`/`outcome_summary`; remove `scene_pressure` block; remove `known_characters` block |
 | `ccya/engine/turn.py` | modify | Fix `failed` removal — cut LLM-extracted `failed` field; load `last_turn_failed` from events (already done), but remove `state_result.failed` from the pipeline return and event logging |
-| `docs/REPOMAP/extraction.md` | update | Reflect new field assignments per stream |
+| `docs/REPOMAP/engine.md` | update | Reflect new field assignments per stream |
 | `docs/REPOMAP/models.md` | update | Remove `ExtractResult` from model list |
 | `docs/plans/TODO.md` | update | Add this plan |
 | `tests/test_engine_pipeline.py` | modify | Remove `outcome_summary` from `SceneExtractResult()` constructor calls (lines 267, 281) |
@@ -935,7 +935,7 @@ def test_run_extraction_pipeline_returns_actions_from_progress(mock_llm_env):
 ```
 
 ### REPOMAP updates required
-`docs/REPOMAP/extraction.md` — update the three-stream table to reflect new field ownership. Update `SceneExtractResult` row to include `compendium_npc_update`, `scene_pressure_*`, `gm_beat`. Update `ProgressExtractResult` row to include `actions`, `outcome_summary`. Remove `failed` from `StateExtractResult` row.
+`docs/REPOMAP/engine.md` — update the three-stream table to reflect new field ownership. Update `SceneExtractResult` row to include `compendium_npc_update`, `scene_pressure_*`, `gm_beat`. Update `ProgressExtractResult` row to include `actions`, `outcome_summary`. Remove `failed` from `StateExtractResult` row.
 
 ### Risks
 1. **`extra="forbid"` on `StateExtractResult`** — if the LLM still emits a `failed` key, Pydantic will raise. Add `model_config = {"extra": "ignore"}` to `StateExtractResult` as a guard. Check before deploying.

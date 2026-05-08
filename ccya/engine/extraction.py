@@ -376,10 +376,10 @@ async def _run_extraction_pipeline(
     deescalate: bool = False,
     quest_ages: list[dict[str, Any]] | None = None,
     recent_turns: list[dict[str, Any]] | None = None,
-) -> tuple["StateDelta", list[str], str, list[str], dict[str, Any], "ProgressExtractResult", "SceneExtractResult"]:
+) -> tuple["StateDelta", list[str], str, dict[str, Any], "ProgressExtractResult", "SceneExtractResult"]:
     """Run the three extraction streams in sequence.
 
-    Returns: (merged_delta, actions, outcome_summary, failed, per_stream_event_data, progress_result, scene_result)
+    Returns: (merged_delta, actions, outcome_summary, per_stream_event_data, progress_result, scene_result)
     """
     active = set(active_domains)
 
@@ -410,7 +410,7 @@ async def _run_extraction_pipeline(
             enable_thinking=config.enable_extract_thinking,
             deescalate=deescalate,
             quest_ages=quest_ages,
-            recent_turns=(recent_turns or [])[-2:],
+            recent_turns=(recent_turns or [])[-1:],
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_scene_system = scene_msgs[0]["content"] if scene_msgs else ""
@@ -591,7 +591,6 @@ async def _run_extraction_pipeline(
         merged,
         progress_result.actions,
         progress_result.outcome_summary,
-        [],
         extraction_event,
         progress_result,
         scene_result,
