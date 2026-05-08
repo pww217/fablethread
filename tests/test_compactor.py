@@ -78,6 +78,11 @@ class TestValidateCompactorConfig:
         with pytest.raises(ValueError, match="window_turns must be >= 1"):
             _validate_compactor_config(config)
 
+    def test_rejects_negative_compact_every(self):
+        config = EngineConfig(window_turns=3, compact_every=-1, recent_turns_min=0)
+        with pytest.raises(ValueError, match="compact_every must be >= 0"):
+            _validate_compactor_config(config)
+
     def test_boundary_recent_turns_min_eq_window_turns(self):
         config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=3)
         _validate_compactor_config(config)  # should not raise
