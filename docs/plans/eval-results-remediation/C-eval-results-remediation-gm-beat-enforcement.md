@@ -30,7 +30,7 @@ The eval runs found that `gm_beat.instruction` was frequently empty or generic �
 
 1. **Silent nullification, not hard error.** If `gm_beat.instruction` is empty, whitespace-only, or matches a known filler pattern, the validator sets the entire `gm_beat` to `None` on the parent `SceneExtractResult`. This prevents a bad beat from reaching the narrator without raising a pipeline exception.
 2. **The validator lives on `GMBeat` itself**, not on `SceneExtractResult`. It sets `instruction = None` on the `GMBeat` instance; the parent model treats a `GMBeat` with `instruction=None` as invalid. A second class-level validator on `SceneExtractResult` nullifies the `gm_beat` field entirely if `instruction` is absent.
-3. **Filler detection is simple string matching**, not LLM-based. Patterns: empty string, whitespace-only, length < 20 characters, or starts with a generic phrase from a fixed set. This is fast and deterministic.
+3. **Filler detection is simple string matching**, not LLM-based. Patterns: empty string, whitespace-only, length < 40 characters, or starts with a generic phrase from a fixed set. This is fast and deterministic.
 4. **Prompt rule requires a named entity** (NPC name, faction name, object name, or location name) to appear in the instruction before the beat type is chosen. This is a soft rule enforced by language, not code — the validator catches the worst cases mechanically.
 
 ## Implementation — Phase 1: Model validator
@@ -43,15 +43,29 @@ Add a `@field_validator` to `GMBeat` that cleans up a bad `instruction`. Add a `
 
 ### Detailed steps
 
-#### Step 1.1 — Add validator to `GMBeat`
+#### Step 1.1 — Change `GMBeat.instruction` type, add filler-prefix constant, add validator
 
 **File:** `ccya/models.py`
 
-**What:** Add a `@field_validator("instruction", mode="after")` to `GMBeat` that returns `None` if the instruction is blank, too short, or matches a filler phrase. Also ensure `type` is not `None` when the beat is otherwise valid.
+**Prerequisite — import change:** Add `model_validator` to the Pydantic import on line 9. The existing import is:
+```python
+from pydantic import BaseModel, Field, field_validator
+```
+Change to:
+```python
+from pydantic import BaseModel, Field, field_validator, model_validator
+```
+
+**Prerequisite — field type change:** The current `GMBeat.instruction` field (line 386) is `instruction: str = ""`. This must be changed to `instruction: str | None = None` before adding the validator, because the validator returns `None` for bad instructions and the field type must accept `None`. This is the first code change in this step.
+
+**What:** 
+1. Insert `_GM_BEAT_FILLER_PREFIXES` directly above the `class GMBeat` definition at line 384.
+2. Rewrite `GMBeat` with the type change on `instruction` and the `@field_validator`.
+3. Preserve the existing `Literal` constraints on `type` and `surface_as` — do not regress those types.
 
 **Why:** The eval found beats with `instruction: ""` or `instruction: "Something happens."` — these are noise. Silent nullification is cheaper than a retry.
 
-**Code Snippet**
+**Code Snippet** (replace lines 384–387 with the following, inserting the constant directly above):
 ```python
 _GM_BEAT_FILLER_PREFIXES: tuple[str, ...] = (
     "something happens",
@@ -69,8 +83,8 @@ _GM_BEAT_FILLER_PREFIXES: tuple[str, ...] = (
 )
 
 class GMBeat(BaseModel):
-    type: str | None = None
-    surface_as: str | None = None
+    type: Literal["complication", "revelation", "opportunity", "breathing_room", "pressure"] | None = None
+    surface_as: Literal["ambient", "event", "npc_behavior"] = "ambient"
     instruction: str | None = None
 
     @field_validator("instruction", mode="after")
@@ -79,13 +93,15 @@ class GMBeat(BaseModel):
         if not v:
             return None
         stripped = v.strip()
-        if len(stripped) < 20:
+        if len(stripped) < 40:
             return None
         lower = stripped.lower()
         if any(lower.startswith(prefix) for prefix in _GM_BEAT_FILLER_PREFIXES):
             return None
         return stripped
 ```
+
+**Note on `mode="after"`:** This mode receives the already-validated (post-coercion) value. With `instruction: str | None`, the validator will receive either a `str` or `None`. The `if not v` check handles both `None` (field not provided) and empty string `""` (Pydantic coerced from LLM output). This is intentional — we want to catch both cases.
 
 **Validation:**
 ```python
@@ -103,6 +119,8 @@ assert b.instruction is not None
 #### Step 1.2 — Nullify `gm_beat` in `SceneExtractResult` if instruction is gone
 
 **File:** `ccya/models.py`
+
+**Context:** The `SceneExtractResult` you are modifying is the **post-Plan-A version** produced by `A-eval-results-remediation-pipeline-field-routing.md`. Plan A moves `gm_beat` from `ProgressExtractResult` into `SceneExtractResult` and moves `ScenePressure`/`GMBeat` class definitions above `SceneExtractResult`. If Plan A has not been applied, this step will fail because `SceneExtractResult` currently has no `gm_beat` field. Verify that `SceneExtractResult` has a `gm_beat: GMBeat | None = None` field before proceeding.
 
 **What:** Add a `@model_validator(mode="after")` to `SceneExtractResult` that sets `self.gm_beat = None` if `self.gm_beat.instruction is None` or `self.gm_beat.type is None`.
 
@@ -228,9 +246,9 @@ def test_scene_extract_result_preserves_good_beat():
 `docs/REPOMAP/extraction.md` — document that `GMBeat.instruction` has a quality validator; note `SceneExtractResult._nullify_invalid_gm_beat` model validator.
 
 ### Risks
-1. **Filler prefix list is incomplete** — new generic patterns will emerge. The length floor (< 20 chars) is a reliable secondary catch. Accept that some low-quality beats survive the validator and rely on the prompt rule to reduce frequency.
+1. **Filler prefix list is incomplete** — new generic patterns will emerge. The length floor (< 40 chars) is a reliable secondary catch. Accept that some low-quality beats survive the validator and rely on the prompt rule to reduce frequency.
 2. **`model_validator(mode="after")` order** — Pydantic runs field validators before model validators. Confirm that `_validate_instruction_quality` runs before `_nullify_invalid_gm_beat`. If order is wrong, the model validator may see a non-None instruction that should have been cleared. Test explicitly.
-3. **False positives on short but valid beats** — a valid 18-character instruction like `"She lied to you."` is borderline. The 20-char floor may clip these. Given the eval evidence, erring toward nullification is correct — the narrator generates better beats from `null` than from vague noise.
+3. **False positives on short but valid beats** — a valid short instruction like `"She lied to you."` (16 chars) is clipped by the 40-char floor. This is intentional — the eval evidence shows the narrator generates better beats from `null` than from vague noise. If legitimate short beats are being lost, the prefix list should be extended rather than the floor lowered.
 
 ## Ambiguities requiring resolution before execution
 None.
@@ -238,4 +256,4 @@ None.
 ## TODO.md update
 Under `## P1 — Active`:
 
-GM beat quality enforcement — docs/plans/eval-results-remediation/eval-results-remediation-gm-beat-enforcement.md
+GM beat quality enforcement — docs/plans/eval-results-remediation/C-eval-results-remediation-gm-beat-enforcement.md
