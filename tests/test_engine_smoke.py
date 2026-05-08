@@ -86,6 +86,8 @@ def _make_state(turn: int = 0) -> dict:
             "setting_pack": "expanse-belter",
             "model": "mlx-community/Qwen3.6-27B-4bit",
             "compendium_touch_order": [],
+            "last_compacted_turn": 0,
+            "prior_history": "",
         },
         "pc": {
             "name": "Vex",
@@ -2090,7 +2092,7 @@ class TestRecentTurnsInjected:
     """After a turn is played, the next turn's prompt should include it."""
 
     async def test_recent_turn_in_next_narrate_system(self) -> None:
-        state = _make_state(turn=0)
+        state = _make_state(turn=1)
         _write_state(_SAVE_DIR, state)
         (_SAVE_DIR / "events.jsonl").touch()
         # Prior narrative lives in chronicle.md (canonical); engine reads via load_recent_chronicle_turns

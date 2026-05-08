@@ -213,6 +213,27 @@ def _compute_quest_ages(state: dict[str, Any], current_turn: int) -> list[dict[s
     return result
 
 
+def _compute_recent_window(
+    state: dict[str, Any], config: EngineConfig,
+) -> tuple[int, int]:
+    """Compute (desired_recent, last_compacted_turn) for narrate/extract calls.
+
+    Returns the number of recent chronicle turns to load and the compaction
+    boundary turn so the loader can skip already-compacted history.
+    """
+    meta = state.get("meta") or {}
+    last_compacted_turn = int(meta.get("last_compacted_turn", 0) or 0)
+    current_turn_completed = int(meta.get("turn", 0) or 0)
+    turns_since_compaction = max(0, current_turn_completed - last_compacted_turn)
+    desired_recent = min(config.window_turns, turns_since_compaction)
+    if current_turn_completed > 0:
+        desired_recent = max(
+            desired_recent,
+            min(config.recent_turns_min, turns_since_compaction),
+        )
+    return desired_recent, last_compacted_turn
+
+
 async def run_turn(
     save_dir: Path,
     user_input: str,
@@ -258,7 +279,12 @@ async def run_turn(
         # --- Memory: load chronicle tail + recent turns ---
         # chronicle_tail is older history (compressed); recent_turns is the rolling
         # window. Slice the last window_turns from the tail to avoid overlap.
-        recent_turns = load_recent_chronicle_turns(save_dir, config.window_turns)
+        desired_recent, last_compacted_turn = _compute_recent_window(state, config)
+        recent_turns = load_recent_chronicle_turns(
+            save_dir,
+            desired_recent,
+            min_turn_exclusive=last_compacted_turn,
+        )
         chronicle_tail = load_chronicle_tail(
             save_dir,
             config.chronicle_prefix_budget_tokens,
@@ -863,7 +889,12 @@ async def run_turn_retry(
         rendered_narr_user = ""
         narrative = ""
 
-        recent_turns = load_recent_chronicle_turns(save_dir, config.window_turns)
+        desired_recent, last_compacted_turn = _compute_recent_window(state, config)
+        recent_turns = load_recent_chronicle_turns(
+            save_dir,
+            desired_recent,
+            min_turn_exclusive=last_compacted_turn,
+        )
         chronicle_tail = load_chronicle_tail(
             save_dir,
             config.chronicle_prefix_budget_tokens,
