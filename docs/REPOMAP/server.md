@@ -71,14 +71,20 @@
 - `_load_rules_map(save_dir)` → `dict[int, dict]` — turn→rules map from events.jsonl
 
 ### server/tv.py
-- `_turn_viewer_data(save_dir)` → `tuple[list[dict], bool]` — builds turn viewer rows from events.jsonl (streams, connectors, prompts, token sums, status bars)
+- `_turn_viewer_data(save_dir)` → `tuple[list[dict], bool]` — builds turn viewer rows from events.jsonl by looping `_STREAMS` (from `tv_mirror.py`); connector segments derived from `sd.inputs`; `prompts` dict keyed by stream name; `scope` block from top-level event key; no named prompt keys (`rules_prompt`, etc.) exist in the row dict
 - `_tv_parse_json_blob(raw)` → `dict | None` — parses JSON from string (bare or brace-scan fallback)
 - `_tv_dict_to_lines(d, skip_keys, max_str=150)` → `list[dict]` — renders dict as KV lines with smart value formatting
-- `_tv_extract_stream_status(name, skipped, error, attempts, rejected)` → `str` — "ok"/"skipped"/"retried"/"rejected"/"error"
-- `_tv_rules_status(rules_ev)` → `str` — "ok" or "neutral"
+- `_tv_extract_stream_status(name, skipped, error, attempts, rejected)` → `str` — "ok"/"skipped"/"retried"/"rejected"/"error"; NOTE: hardcodes `"state"` stream key for inventory rejection logic (see `_STREAMS` in `tv_mirror.py`)
 - `_tv_narration_lines(narr)` → `list[dict]` — chars + text preview for narration
 - `_STATUS_CSS` — dict mapping status → CSS class (ok, skipped, retried, rejected, error, neutral)
 - `_STAGE_CSS` — dict mapping stage → CSS class (rules, narrate, scene, state, progress)
+
+### server/tv_mirror.py
+- `StreamDescriptor` — frozen dataclass: `key`, `label`, `stage_css`, `metrics_path`, `prompt_path`, `output_subkey`, `is_text_output`, `output_is_json_string`, `ms_key`, `inputs`, `skip_token_display`
+- `_STREAMS` — authoritative list of all turn-pipeline stages in execution order (5 descriptors: rules, narrate, scene, state, progress)
+- `STREAM_BY_KEY` — O(1) lookup dict by stream key
+- `_get_nested(d, path)` — resolves dot-separated path into nested dict; returns None if any key missing or intermediate value not a dict
+- `metrics_path` and `prompt_path` are separately tracked because `narrate` splits its metrics blob from its prompt blob
 
 ### server/metrics.py
 - `_recent_turn_metrics(save_dir, n=10)` → `list[dict]` — last n turns from events.jsonl with per-stream metrics (tt, ttft, tokens, rejections)
