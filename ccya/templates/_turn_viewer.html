@@ -148,9 +148,12 @@
                                                     <dt>check</dt>
                                                     <dd><pre class="tv-inline-json" x-text="JSON.stringify(t.rules_intent.check, null, 2)"></pre></dd>
                                                 </template>
-                                                <template x-if="t.rules_intent.scope">
+                                                <template x-if="t.scope && t.scope.active_domains.length">
                                                     <dt>scope</dt>
-                                                    <dd><pre class="tv-inline-json" x-text="JSON.stringify(t.rules_intent.scope, null, 2)"></pre></dd>
+                                                    <dd>
+                                                        <span x-text="t.scope.active_domains.join(', ')"></span>
+                                                        <span class="tv-scope-badge" x-text="t.scope.decided_by"></span>
+                                                    </dd>
                                                 </template>
                                             </dl>
                                         </template>
@@ -178,7 +181,7 @@
 
                                             <div class="tv-content-panel" x-show="tabKey(t.turn, stage) === 'output'">
                                                 <template x-if="stage === 'narrate'">
-                                                    <div class="tv-output-text markdown" x-html="mdNarrative(t)"></div>
+                                                    <div class="tv-output-text markdown" x-html="mdNarrative(t) + '\n' + (t.scope ? JSON.stringify(t.scope, null, 2) : '')"></div>
                                                 </template>
                                                 <template x-if="stage !== 'narrate'">
                                                     <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t[stage + '_prompt'] ? (t[stage + '_prompt'].output || '') : '')"></code></pre>

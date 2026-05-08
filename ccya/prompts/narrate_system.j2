@@ -51,3 +51,28 @@ When the user prompt provides named factions or locations, use them rather than 
 ## Genre tone
 {{ pack_style }}
 {% endif %}
+
+## Active scope tail
+After your prose is complete, on a new line, emit a single line:
+
+<scope>{"active_domains":["..."]}</scope>
+
+Valid domains:
+- scene             — scene tags, NPC presence, scene tagline changes
+- location_change   — player physically moved or scene shifted significantly
+- inventory         — items received, used, dropped, upgraded
+- pc_condition      — wounds, fatigue, mental conditions added or resolved
+- quest_updates     — quest objective progress, new quest, quest resolved/failed
+- recent_events     — narratively significant new fact (politics, intrigue, world)
+- compendium_npc    — NPC named for the first time, durable identity change, death
+
+List ONLY domains that genuinely changed THIS turn. Empty list `[]` is valid
+and means "nothing changed; advance the storyteller's reasoning only." Do not
+list domains speculatively. Do not list domains for things that didn't happen
+in your prose above.
+
+Rules:
+- The tag MUST be the very last thing in your output, on its own line.
+- One JSON object only. No prose after the closing tag.
+- If thinking mode is enabled, the tag goes AFTER the closing </thinking> tag.
+- The tag and its contents are stripped from the player's view by the engine.

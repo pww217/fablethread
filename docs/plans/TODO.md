@@ -8,6 +8,7 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 
 - ~~**Module split refactor** — `engine.py`, `state.py`, `server.py` split into packages~~ — see [`completed/refactor-plan.md`](completed/refactor-plan.md)
 - ~~**Context compactor** — chronicle bullet summaries, recent_events pruning, `compact_every` config~~ — see [`completed/compactor-plan.md`](completed/compactor-plan.md)
+- ~~**Narrator-driven scope** — move scope decision from rules LLM to narrator post-narration; stream skipping + conditional templates; telemetry~~ — see [`completed/narrator-driven-scope.md`](completed/narrator-driven-scope.md)
 
 ---
 

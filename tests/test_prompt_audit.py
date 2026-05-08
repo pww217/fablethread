@@ -103,8 +103,8 @@ class TestSystemPromptByteStability:
     def test_extract_scene_system_byte_stable(self):
         env = _env()
         s1, s2 = self._two_states()
-        m1 = _extract_scene_messages(env, "narration A", s1)
-        m2 = _extract_scene_messages(env, "narration B", s2, rules_outcome=self._roll())
+        m1 = _extract_scene_messages(env, "narration A", s1, active_domains=["scene"])
+        m2 = _extract_scene_messages(env, "narration B", s2, active_domains=["scene"], rules_outcome=self._roll())
         sys1 = next(m for m in m1 if m["role"] == "system")["content"]
         sys2 = next(m for m in m2 if m["role"] == "system")["content"]
         assert sys1 == sys2
@@ -113,8 +113,8 @@ class TestSystemPromptByteStability:
         env = _env()
         s1, s2 = self._two_states()
         scene = SceneExtractResult()
-        m1 = _extract_state_messages(env, "N1", s1, scene_result=scene)
-        m2 = _extract_state_messages(env, "N2", s2, scene_result=scene, rules_outcome=self._roll())
+        m1 = _extract_state_messages(env, "N1", s1, active_domains=["inventory", "pc_condition"], scene_result=scene)
+        m2 = _extract_state_messages(env, "N2", s2, active_domains=["inventory", "pc_condition"], scene_result=scene, rules_outcome=self._roll())
         sys1 = next(m for m in m1 if m["role"] == "system")["content"]
         sys2 = next(m for m in m2 if m["role"] == "system")["content"]
         assert sys1 == sys2
@@ -128,9 +128,9 @@ class TestSystemPromptByteStability:
         ]
         scene = SceneExtractResult()
         sres = StateExtractResult()
-        m1 = _extract_progress_messages(env, "N1", s1, scene_result=scene, state_result=sres)
+        m1 = _extract_progress_messages(env, "N1", s1, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=sres)
         m2 = _extract_progress_messages(
-            env, "N2", s2, scene_result=scene, state_result=sres, rules_outcome=self._roll(),
+            env, "N2", s2, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=sres, rules_outcome=self._roll(),
         )
         sys1 = next(m for m in m1 if m["role"] == "system")["content"]
         sys2 = next(m for m in m2 if m["role"] == "system")["content"]
