@@ -89,4 +89,4 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 
 ## Debug / Tooling
 
-- [ ] **Turn viewer dynamic mirror** — schema-driven tv.py; stream registry in `tv_mirror.py`; connectors from `sd.inputs` — see [`turn-viewer-dynamic.md`](turn-viewer-dynamic.md)
+- [ ] **Turn viewer dynamic mirror** — schema-driven tv.py; stream registry in `tv_mirror.py`; connectors + pills from `sd.inputs`; scope block; `stage_order` drives Alpine — see [`turn-viewer-dynamic.md`](turn-viewer-dynamic.md)
