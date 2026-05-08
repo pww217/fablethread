@@ -1,0 +1,264 @@
+compendium:
+  npcs:
+    bearded_man:
+      bio: A man with an unkempt beard and a predatory grace who demands 'convenience
+        fees' from travelers at the inn entrance.
+      last_seen:
+        last_seen_state: ''
+        location_id: merchant_road_east
+        location_name: Merchant Road East
+        turn: 5
+      last_seen_state: lingering outside the inn door as a silhouette
+      name: Unnamed Bearded Man
+      title: Thug
+    caron:
+      bio: A weary, gravel-voiced man who manages debts and issues notched wooden
+        tokens as proof of payment terms.
+      last_seen:
+        last_seen_state: ''
+        location_id: marrows_crossing
+        location_name: Marrow's Crossing
+        turn: 2
+      last_seen_state: remained in the market area near the well
+      name: Caron
+      title: Creditor
+    danielle:
+      bio: A woman with grey-streaked hair and a stained apron who works in the service
+        corridors of the inn.
+      last_seen:
+        last_seen_state: ''
+        location_id: service_corridor
+        location_name: Service Corridor
+        turn: 10
+      last_seen_state: left behind in the service corridor
+      name: Danielle
+      title: Inn Staff
+    halden:
+      bio: A nervous merchant at the Crossed Keys Inn who is being pursued by unknown
+        individuals interested in his ledger.
+      last_seen:
+        last_seen_state: standing near the town well examining a map
+        location_id: crossed_keys_inn
+        location_name: Crossed Keys Inn
+        turn: 8
+      last_seen_state: left behind in the main room of the inn
+      name: Halden
+      title: Merchant
+    innkeeper:
+      bio: Runs the Crossed Keys Inn alone; she is a stout, middle-aged woman with
+        grey-streaked hair.
+      last_seen:
+        last_seen_state: wiping down the bar at the Crossed Keys
+        location_id: service_corridor
+        location_name: Service Corridor
+        turn: 9
+      last_seen_state: wiping down the bar at the Crossed Keys
+      name: Edda
+      title: Innkeeper
+    marcus:
+      bio: A wiry man with a nervous, twitching eye who flanks the bearded man at
+        the inn entrance.
+      last_seen:
+        last_seen_state: ''
+        location_id: crossed_keys_inn
+        location_name: Crossed Keys Inn
+        turn: 8
+      last_seen_state: lingering outside the main entrance
+      name: Marcus
+      title: Thug
+    matthew_estrada:
+      bio: A calm and professional man who observes the tavern with a soldier-like
+        precision; he remains unruffled by sudden physical confrontation.
+      last_seen:
+        last_seen_state: ''
+        location_id: main_tavern
+        location_name: Main Tavern
+        turn: 11
+      name: Matthew Estrada
+      title: Professional Observer
+    tough_a:
+      bio: Hired muscle. No personal stake in this — he'll back off if the price is
+        right or the fight goes bad.
+      name: Bald Tough
+      title: Road thug
+    tough_b:
+      bio: Same outfit as the other — hired by the same person. Quicker to violence;
+        not the brains.
+      name: Scarred Tough
+      title: Road thug
+    unnamed_bearded_man:
+      last_seen:
+        last_seen_state: ''
+        location_id: merchant_road_east
+        location_name: Merchant Road East
+        turn: 6
+inventory:
+- aliases: []
+  amount: 300
+  id: credits
+  name: Credits
+  notes: Common coin, accepted at any inn or stall on the merchant road.
+- aliases: []
+  amount: 1
+  id: iron_dagger
+  name: Iron dagger
+  notes: Plain crossguard, edge worn from honing. Belt-carried.
+- aliases: []
+  amount: 3
+  id: bandages
+  name: Linen bandages
+  notes: Three rolls. Field-grade — won't replace a healer.
+- aliases:
+  - cloak
+  - travel cloak
+  amount: 1
+  id: traveler_cloak
+  name: Traveler's cloak
+  notes: Oiled wool, road-stained, hood deep enough to hide a face.
+- aliases: []
+  amount: 1
+  id: brass_key
+  name: Brass key
+  notes: A small brass key Halden gave you with the ledger.
+- amount: 1
+  id: ledger
+  name: leather-bound ledger
+  notes: Heavy, worn, smells of old parchment and wax.
+location:
+  description: A crowded room thick with the smell of mutton and the nervous murmurs
+    of patrons.
+  id: main_tavern
+  name: Main Tavern
+meta:
+  compendium_touch_order:
+  - caron
+  - bearded_man
+  - marcus
+  - halden
+  - innkeeper
+  - danielle
+  - matthew_estrada
+  game_name: eval
+  last_compacted_turn: 0
+  model: ''
+  pending_gm_beat:
+    instruction: ''
+    surface_as: npc_behavior
+    type: revelation
+  prior_history: []
+  setting_pack: eval-pack
+  turn: 11
+pc:
+  allegiance: null
+  bio: 'Mid-thirties, broad shoulders, careful with words. Took on a courier contract
+
+    to clear an old debt. Just arrived in Marrow''s Crossing with a heavy pack and
+
+    a heavier obligation.
+
+    '
+  conditions:
+  - added_turn: 8
+    description: A hard fall on the bridge two days ago left a deep, aching bruise
+      along the right ribcage.
+    id: bruised_ribs
+    label: bruised ribs
+  - added_turn: 10
+    description: Twelve days on the road, two days behind schedule, and an old debt
+      waiting at the end of it.
+    id: low_morale
+    label: low morale
+  momentum: 0
+  name: Aren Voss
+  stats:
+    charisma: 3
+    dexterity: 3
+    lore: 2
+    resolve: 3
+    strength: 3
+    wits: 2
+  tagline: Reluctant courier on the merchant road
+quests:
+- id: settle_the_debt
+  last_advanced_turn: 2
+  objectives:
+  - description: Find Caron, the man you owe.
+    done: false
+    failed: false
+  - description: Pay Caron in person and have him mark the debt cleared.
+    done: false
+    failed: false
+  status: active
+  title: Settle the Old Debt
+- id: deliver_the_ledger
+  last_advanced_turn: 7
+  objectives:
+  - description: Accept the courier contract from Halden.
+    done: true
+    failed: false
+  - description: Carry the ledger to the merchant Halden at the Crossed Keys Inn.
+    done: true
+    failed: false
+  - description: Confirm the contract with Halden in person.
+    done: false
+    failed: false
+  status: active
+  title: Deliver Halden's Ledger
+- id: clear_the_road_toughs
+  objectives:
+  - description: Find out who hired the toughs blocking the road.
+    done: false
+    failed: false
+  - description: Convince, pay, or remove the toughs from the inn.
+    done: false
+    failed: false
+  status: active
+  title: Clear the Road Toughs
+scene:
+  location_entered_turn: 10
+  present_npcs:
+  - bio: A man with a soldier's gaze and a chillingly calm demeanor.
+    id: matthew_estrada
+    name: Matthew Estrada
+    notes: Sitting at a shadowed table, reacting to being grabbed with professional
+      stillness.
+    title: Mysterious Traveler
+  recent_events:
+  - id: you_arrived_in_marrows_crossing_after
+    text: You arrived in Marrow's Crossing after three days on the road.
+    turn: 0
+  - id: you_heard_rumors_of_roadtoughs_extorting
+    text: You heard rumors of road-toughs extorting travelers near the Crossed Keys
+      Inn.
+    turn: 0
+  - id: you_found_caron_in_the_tavern
+    text: You found Caron in the tavern — he's been waiting for you.
+    turn: 0
+  - id: halden_contract_accepted
+    text: Halden has hired the player to deliver his ledger to the Crossed Keys Inn.
+    turn: 3
+  - id: halden_warned_of_pursuit
+    text: Halden reveals that the pursuers are specifically targeting the ledger and
+      warns Aren to flee.
+    turn: 7
+  - id: aren_escaped_main_room
+    text: Aren fled the main room of the Crossed Keys Inn through a service corridor
+      to evade the pursuers.
+    turn: 8
+  recently_left: []
+  recently_left_turns: 0
+  scene_pressure: []
+  tagline: A Confrontation In The Tavern
+  tags:
+  - dialogue
+  turn_entered: 10
+  world_state:
+  - Marrow's Crossing is a market town at the confluence of two rivers, known for
+    its mills and the annual river festival.
+  - Iron coin (credits) is the universal currency on the merchant road; barter is
+    acceptable but slower.
+  - The road has been quieter than usual this season — fewer caravans, more independent
+    runners, more opportunists.
+world:
+  factions: []
+  locations: []
