@@ -117,7 +117,7 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_extract_turns_for_compact(save_dir, start_turn, end_turn)` → `list[dict]` — reads chronicle.md for turns in range, returns {turn, input, narrative}
 - `_build_compact_messages(env, state, turns)` → `list[dict]` — renders compact_system.j2 + compact_user.j2
 - `_parse_compact_response(response_text)` → `tuple[str, CompactorSanitizationResult | None]` — extracts bullet lines (matching `- [T\d+] `) + JSON sanitization from LLM output (last JSON object, validated through CompactorSanitizationResult)
-- `_write_compacted_block(save_dir, bullets_text)` — appends COMPACTED block to chronicle.md (prepends if none exists, appends after existing block)
+- `_write_compacted_block(save_dir, bullets_text, compact_start, compact_end)` — writes COMPACTED block to chronicle.md (prepends if none exists, appends after existing block), then removes prose sections for turns in [compact_start, compact_end]
 
 ## Character creation
 

@@ -398,6 +398,46 @@ class TestMaybeCompactBandMath:
             result = await maybe_compact(tmp_path, state, config)
         assert result["scene"]["recent_events"] == [{"id": "old", "text": "old event", "turn": 1}]
 
+    @pytest.mark.asyncio
+    async def test_compacted_turns_removed_from_chronicle(self, tmp_path: Path):
+        self._write_chronicle(tmp_path, [
+            (1, "Attack", "Narrative 1"),
+            (2, "Talk", "Narrative 2"),
+            (3, "Explore", "Narrative 3"),
+            (4, "Rest", "Narrative 4"),
+            (5, "Travel", "Narrative 5"),
+            (6, "Fight", "Narrative 6"),
+        ])
+        state = self._make_state(6)
+        config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
+        with _mock_compact_llm():
+            result = await maybe_compact(tmp_path, state, config)
+        assert result["meta"]["last_compacted_turn"] == 3
+        chronicle_text = (tmp_path / "chronicle.md").read_text()
+        assert "## Turn 1 — Attack" not in chronicle_text
+        assert "## Turn 2 — Talk" not in chronicle_text
+        assert "## Turn 3 — Explore" not in chronicle_text
+        assert "## Turn 4 — Rest" in chronicle_text
+        assert "## Turn 5 — Travel" in chronicle_text
+        assert "## Turn 6 — Fight" in chronicle_text
+        assert "## COMPACTED" in chronicle_text
+
+    @pytest.mark.asyncio
+    async def test_incremental_compaction_removes_new_range(self, tmp_path: Path):
+        self._write_chronicle(tmp_path, [
+            (i, f"Action {i}", f"Narrative {i}") for i in range(1, 13)
+        ])
+        state = self._make_state(12, last_compacted_turn=3)
+        config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
+        with _mock_compact_llm():
+            result = await maybe_compact(tmp_path, state, config)
+        assert result["meta"]["last_compacted_turn"] == 9
+        chronicle_text = (tmp_path / "chronicle.md").read_text()
+        for t in range(1, 10):
+            assert f"## Turn {t} —" not in chronicle_text
+        for t in range(10, 13):
+            assert f"## Turn {t} —" in chronicle_text
+
 
 class TestParseCompactResponse:
     def test_returns_none_on_bad_json(self):
