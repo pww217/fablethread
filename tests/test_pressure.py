@@ -2,8 +2,6 @@
 
 from typing import Any
 
-import pytest
-
 from ccya.engine.pressure import _purge_scene_pressures
 from ccya.models import StateDelta
 

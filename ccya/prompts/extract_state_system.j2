@@ -32,8 +32,7 @@ If an amount is not specified in narration, infer the amount: "used some bandage
   "inventory_remove": [],
   "inventory_update": [],
   "pc_condition_add": [],
-  "pc_condition_remove": [],
-  "failed": []
+  "pc_condition_remove": []
 }
 ```
 
@@ -66,8 +65,6 @@ The roll_context section above shows which skill was checked and the outcome ban
 The narration text confirms the cause, but the roll context triggers the condition type.
 
 `pc_condition_remove`: conditions that resolved this turn. Each: `{"id": "existing_condition_id"}`. Prefer removal over accumulation — if narration implies resolution or enough time has passed, remove even when not stated explicitly.
-
-`failed`: precondition failures this turn (e.g. `"tried to pick up keys but guard is still conscious"`). Use the rules outcome (band) shown in the user prompt — crit_fail / fail / setback ⇒ action did not succeed.
 
 ## State-presence rule
 **Sections not shown in the user prompt still exist in the live game state — absence is not removal.** Only emit removals you can justify from the narration.

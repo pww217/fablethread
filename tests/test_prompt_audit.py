@@ -126,11 +126,10 @@ class TestSystemPromptByteStability:
             {"id": f"q{i}", "title": f"Q{i}", "status": "active", "objectives": []}
             for i in range(4)
         ]
-        scene = SceneExtractResult()
         sres = StateExtractResult()
-        m1 = _extract_progress_messages(env, "N1", s1, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=sres)
+        m1 = _extract_progress_messages(env, "N1", s1, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=sres, intent=None, recent_turns=[])
         m2 = _extract_progress_messages(
-            env, "N2", s2, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=sres, rules_outcome=self._roll(),
+            env, "N2", s2, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=sres, rules_outcome=self._roll(), intent=None, recent_turns=[],
         )
         sys1 = next(m for m in m1 if m["role"] == "system")["content"]
         sys2 = next(m for m in m2 if m["role"] == "system")["content"]

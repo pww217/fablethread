@@ -24,10 +24,36 @@ Conditions: {% for c in conditions %}{{ c.label if c is mapping else c }}{% if n
 {% endif -%}
 {% if npc_roster -%}
 <<<TRACE_IMMUTABLE_START>>>
-## known_characters (compendium — reuse `id` for npc_add/npc_update)
+## known_characters (compendium — reuse `id` for npc_add/npc_update/compendium_npc_update)
 {% for n in npc_roster %}- `{{ n.id }}` | {{ n.name }} [{{ n.tags | join(",") }}]{% if n.notes %} — {{ n.notes }}{% endif %}
 {% endfor %}
 <<<TRACE_IMMUTABLE_END>>>
+{% endif -%}
+{% if scene_pressure -%}
+## scene_pressure (active threats — add/remove/update as fiction demands)
+{% for p in scene_pressure %}- `{{ p.id }}` [{{ p.urgency }}] {{ p.text }} (added turn {{ p.turn_added }}){% if p.get('max_turns') %} max {{ p.max_turns }} turns{% endif %}
+{% endfor %}
+{% endif -%}
+{% if deescalate -%}
+## deescalate
+true — player succeeded on a check against active pressure. Do NOT add new pressures. Downgrade or remove existing ones.
+{% endif -%}
+{% if quest_ages -%}
+{% for qa in quest_ages %}{% if qa.stalled_turns >= 3%}
+⚠ Quest "{{ qa.title }}" stalled for {{ qa.stalled_turns }} turns.
+{% endif %}{% endfor %}
+{% endif -%}
+{% if active_quests -%}
+## active_quests (for gm_beat context only — quest objectives managed by progress extractor)
+{% for q in active_quests %}- `{{ q.id }}` | {{ q.title }}
+{% endfor %}
+{% endif -%}
+{% if recent_turns -%}
+{% set prev = recent_turns[-1] if recent_turns | length >= 1 else none %}
+{% if prev %}
+## previous_turn_narration (T{{ prev.turn }} context)
+{{ prev.narrative }}
+{% endif %}
 {% endif -%}
 ## CURRENT TURN NARRATION
 {{ narration }}

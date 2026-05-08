@@ -201,7 +201,7 @@ PROMPT_CEILINGS_CHARS = {
     "rules.user": 8_000,
     "narrate.system": 8_000,
     "narrate.user": 18_000,
-    "scene.system": 6_500,
+    "scene.system": 10_000,
     "scene.user": 14_000,
     "state.system": 8_000,
     "state.user": 14_000,
@@ -276,19 +276,18 @@ class TestTokenBudgetCeilings:
         self._check(msgs, "state.system", "state.user")
 
     def test_extract_progress_prompt_under_ceiling(self, env, state):
-        from ccya.models import RulesOutcome, SceneExtractResult, StateExtractResult
+        from ccya.models import RulesOutcome, StateExtractResult
 
-        scene_result = SceneExtractResult(scene_tags=["dialogue"])
         state_result = StateExtractResult()
         msgs = _extract_progress_messages(
             env,
             "You crossed the room to Halden's table and sat across from him.",
             state,
             active_domains=["quest_updates", "recent_events", "compendium_npc"],
-            scene_result=scene_result,
             state_result=state_result,
             rules_outcome=RulesOutcome(rolled=False),
-            deescalate=False,
+            intent=None,
+            recent_turns=[],
         )
         self._check(msgs, "progress.system", "progress.user")
 
@@ -320,7 +319,8 @@ def _progress_response(
     *,
     rec_add: list[dict] | None = None,
     quest_updates: list[dict] | None = None,
-    npc_updates: list[dict] | None = None,
+    actions: list[str] | None = None,
+    outcome_summary: str = "",
 ) -> str:
     return json.dumps(
         {
@@ -328,20 +328,31 @@ def _progress_response(
             "recent_events_add": rec_add or [],
             "recent_events_update": [],
             "recent_events_remove": [],
-            "compendium_npc_update": npc_updates or [],
+            "actions": actions or ["A", "B", "C", "D"],
+            "outcome_summary": outcome_summary,
         },
     )
 
 
-def _scene_response(*, tags: list[str] | None = None) -> str:
+def _scene_response(
+    *,
+    tags: list[str] | None = None,
+    compendium_npc_update: list[dict] | None = None,
+) -> str:
     return json.dumps(
         {
             "scene_tags": tags or ["dialogue"],
             "scene_tagline": "",
             "location_change": None,
             "location_description": None,
-            "actions": ["A", "B", "C", "D"],
-            "outcome_summary": "ok",
+            "npc_add": [],
+            "npc_remove": [],
+            "npc_update": [],
+            "compendium_npc_update": compendium_npc_update or [],
+            "scene_pressure_add": [],
+            "scene_pressure_remove": [],
+            "scene_pressure_update": [],
+            "gm_beat": None,
         },
     )
 
@@ -408,8 +419,8 @@ async def test_multi_turn_compendium_grows_by_unique_npcs(save_dir):
             for nid in ids
         ]
         with _FakeLLM(
-            scene_response=_scene_response(),
-            progress_response=_progress_response(npc_updates=npc_updates),
+            scene_response=_scene_response(compendium_npc_update=npc_updates),
+            progress_response=_progress_response(),
         ):
             await _run(save_dir, f"meet {','.join(ids)}")
 
@@ -548,3 +559,107 @@ async def test_rules_no_check_does_not_add_rules_metric(save_dir):
         assert result.rules.get("rolled", False) is False, (
             f"unexpected rolled=True for trivial intent: {result.rules}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Class D: Quest and state extraction fixes (Plan D)
+# ---------------------------------------------------------------------------
+
+
+def test_transfer_verb_activates_inventory_domain():
+    from ccya.engine.extraction import _narration_has_transfer
+
+    assert _narration_has_transfer("She hands you a sealed envelope.")
+    assert _narration_has_transfer("You pick up the coin from the floor.")
+    assert _narration_has_transfer("He gave you the key without a word.")
+    assert _narration_has_transfer("She receives the package at the door.")
+    assert _narration_has_transfer("You take the document from the desk.")
+    assert _narration_has_transfer("He drops the letter on the table.")
+    assert _narration_has_transfer("She passes the note across the room.")
+    assert _narration_has_transfer("He tosses the coin to you.")
+    assert _narration_has_transfer("She pockets the ring.")
+    assert _narration_has_transfer("He retrieves the sword from the rack.")
+    assert _narration_has_transfer("She grabs the handle and pulls.")
+
+    assert not _narration_has_transfer("The guard watches you from across the room.")
+
+
+@pytest.mark.asyncio
+async def test_domain_scan_adds_inventory_when_transfer_present(save_dir):
+    """Transfer-verb scan should activate inventory domain even when no other
+    inventory signal is present, causing the state stream to run."""
+    state = _make_state(turn=0)
+    save_state(save_dir, state)
+
+    fake = _FakeLLM(
+        narrative="She hands you a sealed envelope.",
+        scene_response=_scene_response(),
+        progress_response=_progress_response(),
+    )
+    with fake:
+        await _run(save_dir, "watch her")
+
+    chat_count = len(fake.chat_calls())
+    assert chat_count == 4, (
+        f"expected 4 chat calls (rules + scene + state + progress), got {chat_count}"
+    )
+
+
+def test_dedup_redirects_name_match():
+    from ccya.engine.extraction import _dedup_compendium_add
+    from ccya.models import CompendiumNpcUpdate
+
+    existing = [{"id": "torben_klask", "name": "Torben Klask", "aliases": ["the big man"]}]
+    proposed = CompendiumNpcUpdate(id="the_big_man", name="Torben Klask")
+    result = _dedup_compendium_add(proposed, existing)
+    assert result.id == "torben_klask"
+
+
+def test_dedup_redirects_alias_match():
+    from ccya.engine.extraction import _dedup_compendium_add
+    from ccya.models import CompendiumNpcUpdate
+
+    existing = [{"id": "kael_marsh", "name": "Kael Marsh", "aliases": ["the scarred soldier"]}]
+    proposed = CompendiumNpcUpdate(id="scarred_soldier_new", name="Kael Marsh")
+    result = _dedup_compendium_add(proposed, existing)
+    assert result.id == "kael_marsh"
+
+
+def test_dedup_redirects_id_as_name():
+    from ccya.engine.extraction import _dedup_compendium_add
+    from ccya.models import CompendiumNpcUpdate
+
+    existing = [{"id": "halden", "name": "Halden", "aliases": []}]
+    proposed = CompendiumNpcUpdate(id="new_halden", name="Halden")
+    result = _dedup_compendium_add(proposed, existing)
+    assert result.id == "halden"
+
+
+def test_dedup_allows_genuinely_new_npc():
+    from ccya.engine.extraction import _dedup_compendium_add
+    from ccya.models import CompendiumNpcUpdate
+
+    existing = [{"id": "torben_klask", "name": "Torben Klask", "aliases": []}]
+    proposed = CompendiumNpcUpdate(id="sera_lant", name="Sera Lant")
+    result = _dedup_compendium_add(proposed, existing)
+    assert result.id == "sera_lant"
+
+
+def test_dedup_handles_empty_name():
+    from ccya.engine.extraction import _dedup_compendium_add
+    from ccya.models import CompendiumNpcUpdate
+
+    existing = [{"id": "torben_klask", "name": "Torben Klask", "aliases": []}]
+    proposed = CompendiumNpcUpdate(id="mystery", name="")
+    result = _dedup_compendium_add(proposed, existing)
+    assert result.id == "mystery"
+
+
+def test_dedup_handles_case_insensitive():
+    from ccya.engine.extraction import _dedup_compendium_add
+    from ccya.models import CompendiumNpcUpdate
+
+    existing = [{"id": "torben_klask", "name": "Torben Klask", "aliases": []}]
+    proposed = CompendiumNpcUpdate(id="new_torben", name="torben klask")
+    result = _dedup_compendium_add(proposed, existing)
+    assert result.id == "torben_klask"
