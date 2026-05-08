@@ -19,10 +19,21 @@ from pathlib import Path
 from typing import Any
 from ccya.engine import EngineConfig, run_turn
 from ccya.eval.config import EvalConfig
+from ccya.eval.engine_mirror import (
+    MOMENTUM_DELTA,
+    MOMENTUM_MAX,
+    MOMENTUM_MIN,
+    PRESSURE_BUILDING_AT,
+    PRESSURE_IMMEDIATE_AT,
+    PRESSURE_MAX_AGE,
+    URGENCY_LEVELS,
+)
 from ccya.eval.scenario import Scenario, TurnAssert
 from ccya.models import TurnResult, load_config
 from ccya.pack import load_pack
 from ccya.state import init_save_dir, load_state, save_state
+from ccya.state.chronicle import append_event
+from ccya.eval.universal_asserts import run_all_universal_asserts
 
 _log = logging.getLogger("ccya.eval")
 
@@ -79,6 +90,8 @@ class RunResult:
     output_dir: str
     events_jsonl_path: str
     state_yaml_path: str
+    trace_md_path: str = ""
+    judge_md_path: str = ""
     turns: list[TurnRecord] = field(default_factory=list)
     total_errors: int = 0
 
@@ -457,6 +470,26 @@ async def run_scenario(
     init_save_dir(save_dir, seed)
     _patch_eval_pack_starting_state(save_dir, pack.manifest.id, scenario.seed_overrides)
 
+    metadata_event = {
+        "__metadata__": True,
+        "pack_id": pack.manifest.id,
+        "pack_name": pack.manifest.name,
+        "pack_style": pack.style_text,
+        "seed_state": seed,
+        "engine_constants": {
+            "pressure_building_at": PRESSURE_BUILDING_AT,
+            "pressure_immediate_at": PRESSURE_IMMEDIATE_AT,
+            "pressure_max_age": PRESSURE_MAX_AGE,
+            "urgency_levels": list(URGENCY_LEVELS),
+            "momentum_min": MOMENTUM_MIN,
+            "momentum_max": MOMENTUM_MAX,
+            "momentum_delta": dict(MOMENTUM_DELTA),
+        },
+        "scenario_id": scenario.id,
+        "scenario_description": scenario.description,
+    }
+    append_event(save_dir, metadata_event)
+
     engine_config = _build_engine_config(eval_cfg)
 
     started_at = datetime.now(timezone.utc).isoformat()
@@ -522,34 +555,49 @@ async def run_scenario(
     # Run auto-checker and extract parse failures from events.jsonl
     if src_events.exists():
         events_lines = src_events.read_text().splitlines()
-        events = [json.loads(ln) for ln in events_lines if ln.strip()]
+        all_events = [json.loads(ln) for ln in events_lines if ln.strip()]
+        turn_events = [e for e in all_events if not e.get("__metadata__")]
 
-        parse_failures = _extract_parse_failures(events)
+        parse_failures = _extract_parse_failures(turn_events)
         for i, record in enumerate(turn_records):
             if i < len(parse_failures):
                 _, rules_f, extract_f = parse_failures[i]
                 record.rules_parse_failures = rules_f
                 record.extract_parse_failures = extract_f
 
-        # Merge state snapshots into events for state_yaml assertions
+        # Merge state snapshots into turn_events for state_yaml assertions
         for i, snap in enumerate(state_snapshots):
-            if i < len(events):
-                events[i]["state_snapshot"] = snap
+            if i < len(turn_events):
+                turn_events[i]["state_snapshot"] = snap
 
         # Run structured asserts
         for i, turn in enumerate(scenario.turns):
             if i >= len(turn_records):
                 break
             record = turn_records[i]
-            if i < len(events) and turn.asserts:
-                record.assert_results = _check_asserts(turn.asserts, events[i])
+            if i < len(turn_events) and turn.asserts:
+                record.assert_results = _check_asserts(turn.asserts, turn_events[i])
+
+        # Run universal asserts for every turn
+        prev_ev: dict[str, Any] | None = None
+        for i, ev in enumerate(turn_events):
+            if i >= len(turn_records):
+                break
+            record = turn_records[i]
+            universal_results = run_all_universal_asserts(ev, prev_ev)
+            record.assert_results.extend(universal_results)
+            prev_ev = ev
 
     finished_at = datetime.now(timezone.utc).isoformat()
     output_dir.mkdir(parents=True, exist_ok=True)
     dst_events = output_dir / f"{scenario.id}.events.jsonl"
     dst_state = output_dir / f"{scenario.id}.state.yaml"
     if src_events.exists():
-        shutil.copyfile(src_events, dst_events)
+        # Write enriched events: metadata + turn events with state_snapshot
+        enriched = list(turn_events)  # turn events with injected state_snapshot
+        if all_events and all_events[0].get("__metadata__"):
+            enriched.insert(0, all_events[0])  # metadata event
+        dst_events.write_text("\n".join(json.dumps(e, default=str) for e in enriched) + "\n")
     else:
         dst_events.write_text("")
     if src_state.exists():

@@ -15,6 +15,7 @@ from typing import Any, AsyncIterator
 from ccya.engine.changes import _summarize_applied, summarize_changes
 from ccya.engine.compactor import maybe_compact
 from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, _log_llm_io, _log_prompts
+from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.engine.extraction import (
     _avg_extract_ms,
     _avg_narrate_ms,
@@ -308,6 +309,7 @@ async def run_turn(
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_rules_system = rules_messages[0]["content"] if rules_messages else ""
         rendered_rules_user = rules_messages[-1]["content"] if rules_messages else ""
+        strip_trace_markers_in_messages(rules_messages)
         rules_messages, rules_trimmed, rules_trimmed_chars = trim_messages(rules_messages, config.prompt_token_budget)
         if config.log_prompts:
             _log_prompts(
@@ -451,6 +453,7 @@ async def run_turn(
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
         rendered_narr_user = narr_messages[-1]["content"] if narr_messages else ""
+        strip_trace_markers_in_messages(narr_messages)
         narr_messages, narr_trimmed, narr_trimmed_chars = trim_messages(narr_messages, config.prompt_token_budget)
         if config.log_prompts:
             _log_prompts(
@@ -963,6 +966,7 @@ async def run_turn_retry(
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
         rendered_narr_user = narr_messages[-1]["content"] if narr_messages else ""
+        strip_trace_markers_in_messages(narr_messages)
         narr_messages, narr_trimmed, narr_trimmed_chars = trim_messages(narr_messages, config.prompt_token_budget)
         if config.log_prompts:
             _log_prompts(

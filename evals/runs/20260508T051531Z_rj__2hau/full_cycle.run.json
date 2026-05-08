@@ -1,0 +1,194 @@
+{
+  "scenario_id": "full_cycle",
+  "pack": "eval-pack",
+  "model": "mlx-community/gemma-4-26b-a4b-it-mxfp8",
+  "temperature_override": null,
+  "started_at": "2026-05-08T05:15:31.367651+00:00",
+  "finished_at": "2026-05-08T05:16:37.588665+00:00",
+  "save_dir": "/Users/pwilson/.cache/ccya-eval/20260508T051531Z/save",
+  "output_dir": "/Users/pwilson/Repos/ccya/evals/runs/20260508T051531Z_rj__2hau",
+  "events_jsonl_path": "/Users/pwilson/Repos/ccya/evals/runs/20260508T051531Z_rj__2hau/full_cycle.events.jsonl",
+  "state_yaml_path": "/Users/pwilson/Repos/ccya/evals/runs/20260508T051531Z_rj__2hau/full_cycle.state.yaml",
+  "trace_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260508T051531Z_rj__2hau/full_cycle.trace.md",
+  "judge_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260508T051531Z_rj__2hau/full_cycle.judge.md",
+  "turns": [
+    {
+      "turn_number": 1,
+      "input": "Walk over to Caron's table and sit down across from him. I'm ready to talk about the debt.",
+      "phase": "dialogue",
+      "expects": [
+        "rules.required=false (pure social, no obstacle)",
+        "scope skips inventory and pc_condition",
+        "extract.state should be near-empty"
+      ],
+      "duration_s": 26.403708082994854,
+      "error": null,
+      "engine_turn_number": 2,
+      "outcome_summary": "Your attempt to negotiate fails as Caron refuses to listen to excuses, demanding only the physical coin you owe.",
+      "narrative_chars": 1253,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": false,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "(no adds)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(first turn)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Crossed Keys']",
+          "scope": "universal"
+        }
+      ]
+    },
+    {
+      "turn_number": 2,
+      "input": "I slide 500 credits across the table to Caron and ask him to mark the debt cleared in his ledger.",
+      "phase": "debt_settlement",
+      "expects": [
+        "rules.required=true skill=charisma (social negotiation)",
+        "extract.state.inventory_remove includes credits amount=500",
+        "extract.progress marks settle_the_debt objectives done"
+      ],
+      "duration_s": 18.639417833001062,
+      "error": null,
+      "engine_turn_number": 3,
+      "outcome_summary": "",
+      "narrative_chars": 1403,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "extract.state.inventory_remove",
+          "passed": false,
+          "detail": "inventory_remove[credits] not found"
+        },
+        {
+          "assertion": "extract.progress.quest_updates",
+          "passed": true,
+          "detail": "quest_updates[settle_the_debt] found"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": false,
+          "detail": "2 entries had turn=0/null instead of 3: ['Aren Voss successfully paid off the debt to Caron, and the ledger has been marked.', 'A red-haired man in boiled leather has approached Aren Voss, eyeing his coin with predatory intent.']",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Seems', 'Credits', 'Don']",
+          "scope": "universal"
+        }
+      ]
+    },
+    {
+      "turn_number": 3,
+      "input": "I find Halden by the town well and offer to carry his ledger to the Crossed Keys Inn. I'll do it for 200 credits.",
+      "phase": "quest_accept",
+      "expects": [
+        "rules.required=true skill=charisma (negotiation)",
+        "extract.progress marks deliver_the_ledger objectives done (accept contract)",
+        "compendium_npc_update for halden"
+      ],
+      "duration_s": 21.16202487499686,
+      "error": null,
+      "engine_turn_number": 4,
+      "outcome_summary": "",
+      "narrative_chars": 1286,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "extract.progress.quest_updates",
+          "passed": true,
+          "detail": "quest_updates[deliver_the_ledger] found"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "(no adds)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": true,
+          "detail": "5 candidates skipped (likely locations/items, not NPCs)",
+          "scope": "universal"
+        }
+      ]
+    }
+  ],
+  "total_errors": 0
+}

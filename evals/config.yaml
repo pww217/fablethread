@@ -5,7 +5,7 @@
 default_pack: eval-pack
 default_save_root: ~/.cache/ccya-eval   # per-run subdir created under this
 runs_dir: evals/runs                 # where REPORT.md and trace files land
-num_turns: 1                         # run only first N turns (default/max 10, override with --turns)
+num_turns: 3                         # run only first N turns (default/max 10, override with --turns)
 
 logging:
   # Logging level for eval harness: DEBUG, INFO, WARNING, ERROR.
@@ -28,7 +28,9 @@ judge:
   model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit # mlx-community/Qwen3.6-27B-4bit
   rubric_path: evals/rubrics/default.md
   temperature: 0.3
-  context_economy_warn_tokens: 8000
+  trace:
+    dedup_immutable_sections: true
+    state_as_diff: true
 
 report:
   # Per-stream tokens_in growth vs evals/runs/latest:

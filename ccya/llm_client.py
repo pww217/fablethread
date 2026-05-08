@@ -8,11 +8,15 @@ No keep_alive, no num_ctx API knob, no format/grammar constraints.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
+import time
 from typing import Any, AsyncIterator, MutableMapping
 
 from openai import AsyncOpenAI
+
+_log = logging.getLogger("ccya.llm_client")
 
 _MOCK_MODE = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
 
@@ -250,19 +254,38 @@ async def chat(
     if _MOCK_MODE:
         return _mock_extract_chat(messages)
 
-    client = _get_client(host)
-    resp = await client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=temperature,
-        timeout=timeout,
-    )
-    content = resp.choices[0].message.content or ""
-    return {
-        "response": content,
-        "done": True,
-        "usage": {
-            "prompt_tokens": resp.usage.prompt_tokens if resp.usage else 0,
-            "total_tokens": resp.usage.total_tokens if resp.usage else 0,
-        },
-    }
+    est_tokens = sum(int(len(m.get("content", "")) / 3.5) for m in messages)
+    _log.info("chat: model=%s messages=%d est_tokens=%d", model, len(messages), est_tokens)
+    t0 = time.monotonic()
+    try:
+        client = _get_client(host)
+        resp = await client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            timeout=timeout,
+        )
+        elapsed = time.monotonic() - t0
+        content = resp.choices[0].message.content or ""
+        _log.info(
+            "chat: done in %.1fs prompt_tokens=%d completion_tokens=%d",
+            elapsed,
+            resp.usage.prompt_tokens if resp.usage else 0,
+            resp.usage.completion_tokens if resp.usage else 0,
+        )
+        return {
+            "response": content,
+            "done": True,
+            "usage": {
+                "prompt_tokens": resp.usage.prompt_tokens if resp.usage else 0,
+                "total_tokens": resp.usage.total_tokens if resp.usage else 0,
+            },
+        }
+    except Exception as exc:
+        elapsed = time.monotonic() - t0
+        retry_count = getattr(exc, "retry_count", None)
+        msg = f"chat: failed after {elapsed:.1f}s: {exc}"
+        if retry_count is not None:
+            msg += f" (retries={retry_count})"
+        _log.warning(msg)
+        raise

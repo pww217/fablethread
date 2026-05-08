@@ -6,7 +6,7 @@ See ccya/plans/p3-inference/eval-harness.md.
 
 from ccya.eval import engine_mirror as engine_mirror
 from ccya.eval.config import EvalConfig, load_eval_config
-from ccya.eval.judge import JudgeResult, build_trace, parse_judge_response, run_judge
+from ccya.eval.judge import JudgeResult, TraceOptions, build_trace, parse_judge_response, run_judge
 from ccya.eval.report import generate_report
 from ccya.eval.runner import (
     RunResult,
@@ -22,6 +22,7 @@ __all__ = [
     "JudgeResult",
     "RunResult",
     "Scenario",
+    "TraceOptions",
     "Turn",
     "TurnAssert",
     "TurnRecord",
