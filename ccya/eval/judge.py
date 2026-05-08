@@ -216,7 +216,7 @@ def _render_static_context(metadata: dict[str, Any] | None, turn_events: list[di
         sections.append("# Static Context\n")
         sections.append(constants_block())
 
-    sections.append("## System Prompts (from turn 1 — identical every turn)\n")
+    sections.append("## System Prompts (identical every turn)\n")
     sys_prompts = _collect_system_prompts(turn_events)
     for label, key in [
         ("Rules System Prompt", "rules"),

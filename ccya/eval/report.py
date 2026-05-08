@@ -477,24 +477,20 @@ def _render_combined_table(
 
 
 def _render_auto_checker_block(run_result: RunResult) -> str:
-    """Render structured auto-checker results."""
-    all_results: list[dict[str, Any]] = []
-    for t in run_result.turns:
-        for r in t.assert_results:
-            all_results.append({"turn": t.turn_number, **r})
-
-    if not all_results:
+    """Render structured auto-checker results with engine turn numbers."""
+    if not run_result.turns:
         return ""
 
-    passed = sum(1 for r in all_results if r["passed"])
-    failed = sum(1 for r in all_results if not r["passed"])
+    passed = sum(1 for t in run_result.turns for r in t.assert_results if r["passed"])
+    failed = sum(1 for t in run_result.turns for r in t.assert_results if not r["passed"])
 
-    parts = [f"**{passed} passed, {failed} failed**", ""]
+    parts: list[str] = [f"**{passed} passed, {failed} failed**", ""]
     parts.append("| Turn | Assertion | Result | Detail |")
     parts.append("|---|---|---|---|")
-    for r in all_results:
-        status = "✅" if r["passed"] else "❌"
-        parts.append(f"| {r['turn']} | `{r['assertion']}` | {status} | {r['detail']} |")
+    for t in run_result.turns:
+        for r in t.assert_results:
+            status = "✅" if r["passed"] else "❌"
+            parts.append(f"| {t.engine_turn_number} | `{r['assertion']}` | {status} | {r['detail']} |")
     parts.append("")
     return "\n".join(parts)
 
