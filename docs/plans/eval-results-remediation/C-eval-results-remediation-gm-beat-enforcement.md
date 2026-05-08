@@ -140,6 +140,10 @@ assert b.instruction is not None
 
 **Validation:**
 ```python
+# Prerequisite check — Plan A must be applied first:
+from ccya.models import SceneExtractResult
+assert hasattr(SceneExtractResult.model_fields, "gm_beat"), "Plan A not yet applied — gm_beat not in SceneExtractResult"
+
 from ccya.models import SceneExtractResult, GMBeat
 r = SceneExtractResult(gm_beat={"type": "complication", "instruction": ""})
 assert r.gm_beat is None
@@ -246,7 +250,7 @@ def test_scene_extract_result_preserves_good_beat():
 `docs/REPOMAP/extraction.md` — document that `GMBeat.instruction` has a quality validator; note `SceneExtractResult._nullify_invalid_gm_beat` model validator.
 
 ### Risks
-1. **Filler prefix list is incomplete** — new generic patterns will emerge. The length floor (< 40 chars) is a reliable secondary catch. Accept that some low-quality beats survive the validator and rely on the prompt rule to reduce frequency.
+1. **Filler prefix list is incomplete** — new generic patterns will emerge. The length floor (< 40 chars) is a reliable secondary catch. Accept that some low-quality beats survive the validator and rely on the prompt rule to reduce frequency. The `startswith` check is intentionally limited — it only catches instructions that open with these phrases. Mid-sentence filler is handled by the 40-char length floor. This is by design.
 2. **`model_validator(mode="after")` order** — Pydantic runs field validators before model validators. Confirm that `_validate_instruction_quality` runs before `_nullify_invalid_gm_beat`. If order is wrong, the model validator may see a non-None instruction that should have been cleared. Test explicitly.
 3. **False positives on short but valid beats** — a valid short instruction like `"She lied to you."` (16 chars) is clipped by the 40-char floor. This is intentional — the eval evidence shows the narrator generates better beats from `null` than from vague noise. If legitimate short beats are being lost, the prefix list should be extended rather than the floor lowered.
 

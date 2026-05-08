@@ -69,7 +69,9 @@ def _purge_scene_pressures(
     if location_changed:
         for p in pressures:
             if isinstance(p, dict):
-                delta.scene_pressure_remove.append(p.get("id", ""))
+                urgency = p.get("urgency", "background")
+                if urgency == "background":
+                    delta.scene_pressure_remove.append(p.get("id", ""))
         return
 
     removed: set[str] = set()

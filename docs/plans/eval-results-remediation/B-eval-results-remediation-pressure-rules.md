@@ -128,6 +128,8 @@ If the player is paying a stated or clearly implied fixed price to a willing or 
 
 **File:** `tests/test_pressure.py` (create or extend)
 ```python
+from typing import Any
+
 from ccya.engine.pressure import _purge_scene_pressures
 from ccya.models import StateDelta
 

@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 SkillName = Literal["strength", "dexterity", "wits", "lore", "charisma", "resolve"]
 Difficulty = Literal["trivial", "easy", "normal", "hard", "extreme"]
@@ -381,10 +381,39 @@ class ScenePressure(BaseModel):
     max_turns: int | None = None
 
 
+_GM_BEAT_FILLER_PREFIXES: tuple[str, ...] = (
+    "something happens",
+    "give the player",
+    "something bad",
+    "an event occurs",
+    "things get worse",
+    "a complication arises",
+    "add tension",
+    "raise the stakes",
+    "provide a",
+    "create a",
+    "introduce a",
+    "the gm",
+)
+
+
 class GMBeat(BaseModel):
     type: Literal["complication", "revelation", "opportunity", "breathing_room", "pressure"] | None = None
-    instruction: str = ""
     surface_as: Literal["ambient", "event", "npc_behavior"] = "ambient"
+    instruction: str | None = None
+
+    @field_validator("instruction", mode="after")
+    @classmethod
+    def _validate_instruction_quality(cls, v: str | None) -> str | None:
+        if not v:
+            return None
+        stripped = v.strip()
+        if len(stripped) < 40:
+            return None
+        lower = stripped.lower()
+        if any(lower.startswith(prefix) for prefix in _GM_BEAT_FILLER_PREFIXES):
+            return None
+        return stripped
 
 
 class ProgressExtractResult(BaseModel):
@@ -400,12 +429,12 @@ class ProgressExtractResult(BaseModel):
     scene_pressure_update: list[ScenePressure] = Field(default_factory=list)
     gm_beat: GMBeat | None = None
 
-
-class ExtractResult(BaseModel):
-    state_delta: StateDelta
-    failed: list[str] = Field(default_factory=list)
-    actions: list[str] = Field(default_factory=list)
-    outcome_summary: str = Field(default="", description="One-sentence flavor summary of what just happened in this turn")
+    @model_validator(mode="after")
+    def _nullify_invalid_gm_beat(self) -> "ProgressExtractResult":
+        if self.gm_beat is not None:
+            if not self.gm_beat.instruction or not self.gm_beat.type:
+                self.gm_beat = None
+        return self
 
 
 @dataclass

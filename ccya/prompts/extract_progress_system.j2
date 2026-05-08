@@ -2,20 +2,11 @@ Extract quest updates, recent events, and NPC compendium changes from a narratio
 
 ## NPC ID format rules
 
-NPC IDs must be `firstname_lastname` only. No titles, roles, or descriptors.
-- ✅ `kael_marsh`, `torben_klask`
-- ❌ `scarred_soldier`, `doctor_voss`, `the_merchant`
-- If only one name is known: `kael` (single token, no decorators)
-- When a full name is revealed later: emit `compendium_npc_update` to set the canonical ID and add old ID as alias
-
-IDs are immutable once assigned. Name changes go in the `name` field and `aliases`, not the ID.
+NPC IDs must be `firstname_lastname` only. No titles, roles, or descriptors. If only one name is known: `kael`. IDs are immutable — name changes go in the `name` field and `aliases`.
 
 ## NPC match instruction
 
-Before emitting `compendium_npc_update` to add a new NPC, check the existing compendium list.
-If the character is likely the same person referred to differently (e.g. `"scarred soldier"` when `"kael_marsh"` is already in the compendium), use the existing ID and emit an update instead of an add.
-Add the old descriptor as an alias. Only emit an add for a genuinely new NPC not present in the current compendium.
-If a character is named or re-identified this turn (e.g. you learn the scarred soldier's name is Kael), emit `compendium_npc_update` on the existing ID — do not create a new entry. Add the old descriptor as an alias.
+Before emitting `compendium_npc_update`, check the existing compendium list. If the character is likely the same person referred to differently, use the existing ID and emit an update. Add the old descriptor as an alias.
 **If the character's name matches an existing compendium NPC (case-insensitive), use their existing ID. Do NOT create a new entry.**
 
 ## Output schema
@@ -97,9 +88,20 @@ Emit a beat when:
 - An NPC with unknown or shifting allegiance is present: emit `revelation`
 
 Beat instruction rules:
-- 1-2 sentences. Concrete, not vague.
-- BAD: "Something bad happens to the player." GOOD: "A contact the player trusted has been seen meeting with the opposing faction at the dockside inn."
-- BAD: "Give the player a break." GOOD: "The player spots a satchel left behind by a fleeing guard — it contains a vial and a partial map."
+
+    Before writing instruction, confirm you can name at least one specific entity: an NPC by name, a faction, an object, or a named location. If you cannot, emit null for the entire beat.
+
+    instruction: 1–2 sentences. Concrete and story-specific — name the entity. Minimum ~25 words. Must not be empty or a generic category description.
+
+    BAD (too short): "Something happens." "Guards arrive." "Tension rises."
+
+    BAD (generic category): "Introduce a complication involving the guards." "Give the player an opportunity." "Add pressure to the scene."
+
+    BAD (no entity): "A rival faction acts against the player's interests." — no names, no scene anchor
+
+    GOOD: "Marten Voss, the dockmaster's enforcer the player spoke with earlier, has quietly signaled two armed men near the exit — they are waiting for the player to leave."
+
+    GOOD: "The satchel the fleeing guard dropped contains a partial map with a location marked in red ink — the same symbol the player saw on the warehouse door."
 
 When emitting a `complication` or `pressure` beat, you may reference factions from the Known Factions list. Example: "The Iron Compact has been seen recruiting in the docks."
 
