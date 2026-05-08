@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, pass_context
 
 from ccya.engine import EngineConfig, warmup
+from ccya.engine.config import _validate_compactor_config
 from ccya.logging_setup import setup_logging
 from ccya.models import load_config as _load_config
 from ccya.pack import Pack, load_pack
@@ -48,6 +49,7 @@ engine_config = EngineConfig(
     compact_every=config["game"].get("compact_every", 0),
     compact_temperature=config["game"].get("compact_temperature", 0.1),
 )
+_validate_compactor_config(engine_config)
 
 logger = setup_logging(config)
 

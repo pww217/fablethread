@@ -154,11 +154,7 @@ async def retry_turn():
         )
 
     last_event = last_events[-1]
-    rules_data = last_event.get("rules", {})
-    if not rules_data or not rules_data.get("rolled"):
-        return JSONResponse(
-            {"error": "Last turn had no roll to retry"}, status_code=400
-        )
+    rules_data = last_event.get("rules", {}) or {}
 
     rules_outcome = RulesOutcome(
         rolled=rules_data.get("rolled", False),

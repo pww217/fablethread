@@ -15,8 +15,8 @@ rules:
 
 game:
   default_save: default
-  setting_pack: zombie-survival
-  window_turns: 3
+  setting_pack: zombie-survival # Remove this, legacy
+  window_turns: 2 # 3
   chronicle_prefix_budget_tokens: 1500
   recent_events_max: 20    # rolling window; world_state is immutable after seed
   warmup_on_start: false
@@ -25,8 +25,9 @@ game:
   scene_pressure_building_at: 6   # background → building
   scene_pressure_immediate_at: 10 # building → immediate
   # Compaction: compress narrative history every N turns (0 = disabled)
-  compact_every: 4
+  compact_every: 3 # 6
   compact_temperature: 0.1
+  recent_turns_min: 2
 
 server:
   bind_host: 127.0.0.1

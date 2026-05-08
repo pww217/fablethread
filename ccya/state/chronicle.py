@@ -57,9 +57,15 @@ def load_recent_events(save_dir: Path, n: int) -> list[dict[str, Any]]:
     return events[-n:] if n > 0 else []
 
 
-def load_recent_chronicle_turns(save_dir: Path, n: int) -> list[dict[str, Any]]:
+def load_recent_chronicle_turns(
+    save_dir: Path,
+    n: int,
+    *,
+    min_turn_exclusive: int = 0,
+) -> list[dict[str, Any]]:
+    """Return up to the last n turns from chronicle.md with turn > min_turn_exclusive."""
     path = save_dir / "chronicle.md"
-    if not path.exists():
+    if not path.exists() or n <= 0:
         return []
     text = path.read_text()
     matches = list(_TURN_HEADER.finditer(text))
@@ -68,6 +74,8 @@ def load_recent_chronicle_turns(save_dir: Path, n: int) -> list[dict[str, Any]]:
     turns: list[dict[str, Any]] = []
     for i, m in enumerate(matches):
         turn_num = int(m.group(1))
+        if turn_num <= min_turn_exclusive:
+            continue
         turn_input = m.group(2).strip()
         body_start = m.end()
         body_end = matches[i + 1].start() if i + 1 < len(matches) else len(text)

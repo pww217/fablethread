@@ -113,6 +113,7 @@ If you find logic in the wrong layer, move it rather than pile on.
 - `make check` — runs `make lint` (ruff) + `make typecheck` (mypy).
 - `make typecheck` — runs mypy on `ccya/`.
 - Tests mock the LLM client — never call a real model server.
+- When running tests, use a killswitch of 15 seconds. If it fails, it sometimes hangs indefinitely.
 
 ---
 

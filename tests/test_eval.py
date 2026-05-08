@@ -576,7 +576,7 @@ def test_build_trace_full_context_structure():
     )
 
     events = [metadata, turn1]
-    trace = build_trace(events)
+    trace = build_trace(events, max_chars=30000)
 
     assert "## World Pack Style" in trace
     assert "## Seed State" in trace
@@ -606,7 +606,7 @@ def test_build_trace_no_metadata():
 
     turn1 = _make_turn_event(turn=1, input_text="Hello")
     events = [turn1]
-    trace = build_trace(events)
+    trace = build_trace(events, max_chars=30000)
 
     assert "## Engine Constants" in trace
     assert "TURN 1" in trace
@@ -627,7 +627,7 @@ def test_build_trace_all_turns_included():
             state_snapshot={"meta": {"turn": i}},
         ))
 
-    trace = build_trace(events)
+    trace = build_trace(events, max_chars=30000)
 
     assert "TURN 1" in trace
     assert "TURN 10" in trace
@@ -654,7 +654,7 @@ def test_build_trace_retry_turns():
         state_snapshot={"meta": {"turn": 2}},
     )
     events = [metadata, retry_turn]
-    trace = build_trace(events)
+    trace = build_trace(events, max_chars=30000)
 
     assert "TURN 2" in trace
     assert "You try again." in trace
@@ -674,7 +674,7 @@ def test_build_trace_no_truncation_small_run():
             state_snapshot={"meta": {"turn": i}},
         ))
 
-    trace = build_trace(events)
+    trace = build_trace(events, max_chars=30000)
 
     assert "TURN 1" in trace
     assert "TURN 2" in trace
@@ -687,7 +687,7 @@ def test_metadata_event_format():
 
     metadata = _make_metadata()
     events = [metadata]
-    trace = build_trace(events)
+    trace = build_trace(events, max_chars=30000)
 
     assert "test-pack" in trace
     assert "A gritty sci-fi setting." in trace
