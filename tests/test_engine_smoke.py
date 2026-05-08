@@ -373,16 +373,16 @@ class TestPromptComposition:
         assert "## Output schema" in system
         assert "scene_tags" in system
         assert "npc_add" in system
-        assert "actions" in system
-        assert "outcome_summary" in system
+        assert "compendium_npc_update" in system
+        assert "scene_pressure_add" in system
+        assert "gm_beat" in system
 
-    def test_extract_scene_no_inventory_or_quests(self):
-        """Scene stream must not include inventory or quest sections."""
+    def test_extract_scene_no_inventory(self):
+        """Scene stream must not include inventory sections."""
         env = self._env()
         msgs = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"])
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "inventory" not in user.lower()
-        assert "quest" not in user.lower()
 
     def test_extract_scene_thinking_toggle(self):
         env = self._env()
@@ -444,16 +444,14 @@ class TestPromptComposition:
 
     def test_extract_progress_has_system_user_roles(self):
         env = self._env()
-        scene = SceneExtractResult()
         state_res = StateExtractResult()
-        msgs = _extract_progress_messages(env, "N.", _make_state(), active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
+        msgs = _extract_progress_messages(env, "N.", _make_state(), active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
         assert [m["role"] for m in msgs] == ["system", "user"]
 
     def test_extract_progress_user_contains_quests(self):
         env = self._env()
-        scene = SceneExtractResult()
         state_res = StateExtractResult()
-        msgs = _extract_progress_messages(env, "N.", _make_state(), active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
+        msgs = _extract_progress_messages(env, "N.", _make_state(), active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "quiet-signal" in user
         assert "The Quiet Signal" in user
@@ -465,9 +463,8 @@ class TestPromptComposition:
             _make_recent_event("alpha", "Alpha fact."),
             _make_recent_event("beta", "Beta fact."),
         ]
-        scene = SceneExtractResult()
         state_res = StateExtractResult()
-        msgs = _extract_progress_messages(env, "N.", state, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
+        msgs = _extract_progress_messages(env, "N.", state, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "Alpha fact." in user
         assert "Beta fact." in user
@@ -477,28 +474,26 @@ class TestPromptComposition:
         env = self._env()
         state = _make_state()
         state["scene"]["world_state"] = ["WORLD_FACT_MARKER"]
-        scene = SceneExtractResult()
         state_res = StateExtractResult()
 
         # With active quest: world state should NOT appear
-        msgs_with_quest = _extract_progress_messages(env, "N.", state, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
+        msgs_with_quest = _extract_progress_messages(env, "N.", state, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
         user_with_quest = next(m for m in msgs_with_quest if m["role"] == "user")["content"]
         assert "WORLD_FACT_MARKER" not in user_with_quest
 
         # Without quests: world state SHOULD appear
         state_no_quests = {**state, "quests": []}
-        msgs_no_quest = _extract_progress_messages(env, "N.", state_no_quests, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
+        msgs_no_quest = _extract_progress_messages(env, "N.", state_no_quests, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
         user_no_quest = next(m for m in msgs_no_quest if m["role"] == "user")["content"]
         assert "WORLD_FACT_MARKER" in user_no_quest
 
     def test_extract_progress_user_has_quest_threshold_directive(self):
         """quest_threshold_directive is computed in engine and lives in user prompt."""
         env = self._env()
-        scene = SceneExtractResult()
         state_res = StateExtractResult()
 
         state_no_q = {**_make_state(), "quests": []}
-        msgs = _extract_progress_messages(env, "N.", state_no_q, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
+        msgs = _extract_progress_messages(env, "N.", state_no_q, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "quest_threshold" in user
         assert "LOW" in user
@@ -506,21 +501,20 @@ class TestPromptComposition:
         state_many_q = {**_make_state(), "quests": [
             {"id": f"q{i}", "title": f"Q{i}", "status": "active", "objectives": []} for i in range(3)
         ]}
-        msgs2 = _extract_progress_messages(env, "N.", state_many_q, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
+        msgs2 = _extract_progress_messages(env, "N.", state_many_q, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
         user2 = next(m for m in msgs2 if m["role"] == "user")["content"]
         assert "HIGH" in user2
 
     def test_extract_progress_system_byte_stable_across_quest_count(self):
         """The progress system prompt must not vary with active_quests count."""
         env = self._env()
-        scene = SceneExtractResult()
         state_res = StateExtractResult()
         s_no = {**_make_state(), "quests": []}
         s_many = {**_make_state(), "quests": [
             {"id": f"q{i}", "title": f"Q{i}", "status": "active", "objectives": []} for i in range(3)
         ]}
-        m_no = _extract_progress_messages(env, "N.", s_no, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
-        m_many = _extract_progress_messages(env, "N.", s_many, active_domains=["quest_updates", "recent_events", "compendium_npc"], scene_result=scene, state_result=state_res)
+        m_no = _extract_progress_messages(env, "N.", s_no, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
+        m_many = _extract_progress_messages(env, "N.", s_many, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
         sys_no = next(m for m in m_no if m["role"] == "system")["content"]
         sys_many = next(m for m in m_many if m["role"] == "system")["content"]
         assert sys_no == sys_many
@@ -633,7 +627,7 @@ class TestHappyPath:
         assert len(result.errors) == 0
         assert result.turn == 1
 
-    async def test_actions_captured_from_scene_stream(self) -> None:
+    async def test_actions_captured_from_progress_stream(self) -> None:
         state = _make_state()
         _write_state(_SAVE_DIR, state)
 
@@ -642,16 +636,30 @@ class TestHappyPath:
             "scene_tagline": "Dim corridors ahead",
             "location_change": None,
             "location_description": None,
+            "npc_add": [],
+            "npc_remove": [],
+            "npc_update": [],
+            "compendium_npc_update": [],
+            "scene_pressure_add": [],
+            "scene_pressure_remove": [],
+            "scene_pressure_update": [],
+            "gm_beat": None,
+        })
+        progress_response = json.dumps({
+            "quest_updates": [],
+            "recent_events_add": [],
+            "recent_events_update": [],
+            "recent_events_remove": [],
             "actions": ["Open door", "Take stairs", "Check map", "Go back"],
             "outcome_summary": "You looked around carefully.",
         })
-        fake = _FakeLLM(scene_response=scene_response)
+        fake = _FakeLLM(scene_response=scene_response, progress_response=progress_response)
         with fake:
             result = await _run(_SAVE_DIR, "look", config=EngineConfig())
 
         assert result.actions == ["Open door", "Take stairs", "Check map", "Go back"]
 
-    async def test_actions_empty_when_not_in_scene_response(self) -> None:
+    async def test_actions_empty_when_not_in_progress_response(self) -> None:
         state = _make_state()
         _write_state(_SAVE_DIR, state)
 
@@ -660,10 +668,24 @@ class TestHappyPath:
             "scene_tagline": "Quiet",
             "location_change": None,
             "location_description": None,
+            "npc_add": [],
+            "npc_remove": [],
+            "npc_update": [],
+            "compendium_npc_update": [],
+            "scene_pressure_add": [],
+            "scene_pressure_remove": [],
+            "scene_pressure_update": [],
+            "gm_beat": None,
+        })
+        progress_response = json.dumps({
+            "quest_updates": [],
+            "recent_events_add": [],
+            "recent_events_update": [],
+            "recent_events_remove": [],
             "actions": [],
             "outcome_summary": "",
         })
-        fake = _FakeLLM(narrative="narrative text without actions", scene_response=scene_response)
+        fake = _FakeLLM(narrative="narrative text without actions", scene_response=scene_response, progress_response=progress_response)
         with fake:
             result = await _run(_SAVE_DIR, "look", config=EngineConfig())
 

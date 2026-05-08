@@ -2,7 +2,7 @@
 
 import pytest
 
-from ccya.models import GMBeat, ProgressExtractResult
+from ccya.models import GMBeat, SceneExtractResult
 
 
 class TestGMBeatValidatorRejectsEmpty:
@@ -83,21 +83,21 @@ class TestGMBeatValidatorAcceptsSpecific:
         assert b.instruction is not None
 
 
-class TestProgressExtractResultNullifiesBadBeat:
+class TestSceneExtractResultNullifiesBadBeat:
     def test_nullifies_empty_instruction(self):
-        r = ProgressExtractResult(gm_beat={"type": "complication", "instruction": ""})
+        r = SceneExtractResult(gm_beat={"type": "complication", "instruction": ""})
         assert r.gm_beat is None
 
     def test_nullifies_short_instruction(self):
-        r = ProgressExtractResult(gm_beat={"type": "complication", "instruction": "Something bad happens."})
+        r = SceneExtractResult(gm_beat={"type": "complication", "instruction": "Something bad happens."})
         assert r.gm_beat is None
 
     def test_nullifies_missing_type(self):
-        r = ProgressExtractResult(gm_beat={"instruction": "A valid beat with enough words to pass the length check."})
+        r = SceneExtractResult(gm_beat={"instruction": "A valid beat with enough words to pass the length check."})
         assert r.gm_beat is None
 
     def test_preserves_good_beat(self):
-        r = ProgressExtractResult(gm_beat={
+        r = SceneExtractResult(gm_beat={
             "type": "complication",
             "surface_as": "npc_behavior",
             "instruction": "Torben Klask, who agreed to help the player, has just received a message that visibly disturbed him — he is avoiding eye contact."
@@ -106,5 +106,5 @@ class TestProgressExtractResultNullifiesBadBeat:
         assert r.gm_beat.type == "complication"
 
     def test_preserves_none_beat(self):
-        r = ProgressExtractResult(gm_beat=None)
+        r = SceneExtractResult(gm_beat=None)
         assert r.gm_beat is None

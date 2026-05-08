@@ -535,7 +535,7 @@ async def run_turn(
         extraction_event: dict[str, Any] = {}
 
         try:
-            delta, actions, outcome_summary, failed, extraction_event, progress_result = (
+            delta, actions, outcome_summary, failed, extraction_event, progress_result, scene_result = (
                 await _run_extraction_pipeline(
                     env, state, narrative,
                     active_domains=_active_domains,
@@ -546,11 +546,12 @@ async def run_turn(
                     turn_no=turn_no,
                     deescalate=deescalate,
                     quest_ages=quest_ages,
+                    recent_turns=recent_turns,
                 )
             )
             # Store gm_beat for next turn's narration
-            if progress_result and progress_result.gm_beat and progress_result.gm_beat.type:
-                state.setdefault("meta", {})["pending_gm_beat"] = progress_result.gm_beat.model_dump(exclude_none=True)
+            if scene_result and scene_result.gm_beat and scene_result.gm_beat.type:
+                state.setdefault("meta", {})["pending_gm_beat"] = scene_result.gm_beat.model_dump(exclude_none=True)
             if failed:
                 _log.info(
                     "Turn %d: failed preconditions: %s",
@@ -1052,7 +1053,7 @@ async def run_turn_retry(
         extraction_event: dict[str, Any] = {}
 
         try:
-            delta, actions, outcome_summary, failed, extraction_event, progress_result = (
+            delta, actions, outcome_summary, failed, extraction_event, progress_result, scene_result = (
                 await _run_extraction_pipeline(
                     env, state, narrative,
                     active_domains=_active_domains,
@@ -1063,10 +1064,11 @@ async def run_turn_retry(
                     turn_no=turn_no,
                     deescalate=False,
                     quest_ages=[],
+                    recent_turns=recent_turns,
                 )
             )
-            if progress_result and progress_result.gm_beat and progress_result.gm_beat.type:
-                state.setdefault("meta", {})["pending_gm_beat"] = progress_result.gm_beat.model_dump(exclude_none=True)
+            if scene_result and scene_result.gm_beat and scene_result.gm_beat.type:
+                state.setdefault("meta", {})["pending_gm_beat"] = scene_result.gm_beat.model_dump(exclude_none=True)
             if failed:
                 _log.info(
                     "Turn %d: failed preconditions: %s",

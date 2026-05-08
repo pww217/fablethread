@@ -7,11 +7,16 @@
 
 {%- elif rules_outcome and not rules_outcome.rolled -%}
 ## no_dice_roll
-No dice were rolled this turn. The rules engine determined the action has no mechanical obstacle (pure social, travel, or exploration). Do NOT complete quest objectives on this turn unless the narration explicitly and unambiguously states the objective is fulfilled. Ambiguous or partial narration means the objective is NOT done.
+No dice were rolled this turn. The rules engine determined the action has no mechanical obstacle (pure social, travel, or exploration). Do NOT complete quest objectives on this turn unless the narration explicitly and unambiguously states the objective is fulfilled.
 
 {%- endif -%}
 ## pc
 {{ pc.name }} — {{ pc.tagline }}
+
+{% if intent and intent.intent -%}
+## player_intent
+{{ intent.intent_verb }}: {{ intent.intent }}
+{% endif -%}
 
 {% if "quest_updates" in active_domains -%}
 ## quest_threshold
@@ -25,7 +30,7 @@ No dice were rolled this turn. The rules engine determined the action has no mec
 {% endfor %}{% endfor %}
 {% endif -%}
 {% for qa in quest_ages %}
-{% if qa.stalled_turns >= 3 %}
+{% if qa.stalled_turns >= 3%}
 ⚠ Quest "{{ qa.title }}" stalled for {{ qa.stalled_turns }} turns. Advance it, branch it, or mark an objective failed.
 {% endif %}
 {% endfor %}
@@ -46,20 +51,11 @@ No dice were rolled this turn. The rules engine determined the action has no mec
 {% endif -%}
 {% endif -%}
 
-{% if scene_pressure -%}
-## scene_pressure (time-sensitive threats — add/remove/update as fiction demands)
-{% for p in scene_pressure %}- `{{ p.id }}` [{{ p.urgency }}] {{ p.text }} (added turn {{ p.turn_added }}){% if p.get('max_turns') %} max {{ p.max_turns }} turns{% endif %}
-{% endfor -%}
-{% endif -%}
+{% if recent_turns and recent_turns | length >= 2 -%}
+## prior_turn_narration (T{{ recent_turns[-2].turn }} — for outcome_summary and actions context)
+{{ recent_turns[-2].narrative }}
 
-{% if "compendium_npc" in active_domains and known_characters -%}
-<<<TRACE_IMMUTABLE_START>>>
-## known_characters (compendium — reuse id for compendium_npc_update)
-{% for row in known_characters %}- `{{ row.id }}` | {{ row.name }}{% if row.title %} — {{ row.title }}{% endif %}{% if row.bio_preview %} | {{ row.bio_preview }}{% endif %}
-{% endfor %}
-<<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
-
 {% if state_result.items_gained -%}
 ## items_gained
 {{ state_result.items_gained | join(', ') }}

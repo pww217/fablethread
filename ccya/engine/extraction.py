@@ -19,6 +19,7 @@ from ccya.llm_client import (
     trim_messages,
 )
 from ccya.models import (
+    CompendiumNpcUpdate,
     IntentEnvelope,
     ProgressExtractResult,
     RulesOutcome,
@@ -40,6 +41,50 @@ def _context_meta(rendered_system: str, rendered_user: str, was_trimmed: bool, t
         "trimmed": was_trimmed,
         "trimmed_chars": trimmed_chars,
     }
+
+
+_TRANSFER_VERBS: frozenset[str] = frozenset({
+    "hand", "hands", "handed", "handing",
+    "gives", "give", "gave", "given",
+    "receives", "receive", "received", "receiving",
+    "picks up", "pick up", "picked up", "picking up",
+    "takes", "take", "took", "taken",
+    "drops", "drop", "dropped", "dropping",
+    "passes", "pass", "passed", "passing",
+    "tosses", "toss", "tossed",
+    "pockets", "pocket", "pocketed",
+    "retrieves", "retrieve", "retrieved",
+    "grabs", "grab", "grabbed",
+    "presses into", "slips into", "slides across",
+})
+
+
+def _narration_has_transfer(narration: str) -> bool:
+    """Return True if the narration contains explicit physical transfer language."""
+    lower = narration.lower()
+    return any(verb in lower for verb in _TRANSFER_VERBS)
+
+
+def _dedup_compendium_add(
+    proposed: "CompendiumNpcUpdate",
+    existing_npcs: list[dict[str, Any]],
+) -> "CompendiumNpcUpdate":
+    """
+    If proposed.name matches any existing NPC's name or aliases (case-insensitive),
+    redirect proposed.id to the existing NPC's id and return the modified update.
+    Otherwise return proposed unchanged.
+    """
+    if not proposed.name:
+        return proposed
+    candidate = proposed.name.strip().lower()
+    for npc in existing_npcs:
+        npc_names = [
+            (npc.get("name") or "").lower(),
+            (npc.get("id") or "").lower().replace("_", " "),
+        ] + [(a or "").lower() for a in (npc.get("aliases") or [])]
+        if candidate in npc_names:
+            return proposed.model_copy(update={"id": str(npc["id"])})  # type: ignore[no-any-return]
+    return proposed
 
 
 def _scene_npc_roster(known_characters: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -74,14 +119,21 @@ def _extract_scene_messages(
     active_domains: list[str],
     rules_outcome: "RulesOutcome | None" = None,
     enable_thinking: bool = False,
+    deescalate: bool = False,
+    quest_ages: list[dict[str, Any]] | None = None,
+    recent_turns: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
-    """Build [system, user] messages for stream 1 (scene + UI hints)."""
+    """Build [system, user] messages for stream 1 (scene + NPC + pressure + gm_beat + compendium)."""
     pc = state.get("pc") or {}
     location = state.get("location") or {}
     conditions = list(pc.get("conditions") or [])
-    known_characters = _known_characters_for_extract(state, compact=True)
+    known_characters = _known_characters_for_extract(state, compact=False)
     npc_roster = _scene_npc_roster(known_characters)
     present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
+    scene_pressure = list((state.get("scene") or {}).get("scene_pressure") or [])
+    active_quests = [
+        q for q in (state.get("quests") or []) if q.get("status") == "active"
+    ]
 
     system_text = _render(env, "extract_scene_system.j2", {})
     user_text = _render(
@@ -96,6 +148,11 @@ def _extract_scene_messages(
             "present_npcs": present_npcs,
             "rules_outcome": rules_outcome,
             "active_domains": active_domains,
+            "scene_pressure": scene_pressure,
+            "deescalate": deescalate,
+            "quest_ages": quest_ages or [],
+            "active_quests": active_quests,
+            "recent_turns": recent_turns or [],
         },
     )
     msgs = [
@@ -185,14 +242,13 @@ def _extract_progress_messages(
     state: dict[str, Any],
     *,
     active_domains: list[str],
-    scene_result: "SceneExtractResult",
     state_result: "StateExtractResult",
     rules_outcome: "RulesOutcome | None" = None,
     enable_thinking: bool = False,
-    deescalate: bool = False,
-    quest_ages: list[dict[str, Any]] | None = None,
+    intent: "IntentEnvelope | None" = None,
+    recent_turns: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
-    """Build [system, user] messages for stream 3 (quests + facts + compendium)."""
+    """Build [system, user] messages for stream 3 (quests + facts + actions + outcome_summary)."""
     pc = state.get("pc") or {}
     scene = state.get("scene") or {}
 
@@ -201,17 +257,14 @@ def _extract_progress_messages(
     ]
     recent_events = list(scene.get("recent_events") or [])
     world_state = list(scene.get("world_state") or [])
-    known_characters = _known_characters_for_extract(state, compact=False)
 
     # Cross-stream: minimal surfaces
-    scene_ctx: dict[str, Any] = {}
     state_ctx = {
         "items_gained": [it.name for it in state_result.inventory_add],
         "items_lost": [it.id for it in state_result.inventory_remove],
     }
 
     system_text = _render(env, "extract_progress_system.j2", {})
-    scene_pressure = list((state.get("scene") or {}).get("scene_pressure") or [])
     user_text = _render(
         env,
         "extract_progress_user.j2",
@@ -221,15 +274,12 @@ def _extract_progress_messages(
             "active_quests": active_quests,
             "recent_events": recent_events,
             "world_state": world_state,
-            "scene_pressure": scene_pressure,
-            "known_characters": known_characters,
-            "scene_result": scene_ctx,
             "state_result": state_ctx,
             "rules_outcome": rules_outcome,
             "active_domains": active_domains,
             "quest_threshold_directive": _quest_threshold_directive(active_quests),
-            "deescalate": deescalate,
-            "quest_ages": quest_ages or [],
+            "intent": intent,
+            "recent_turns": recent_turns or [],
         },
     )
     msgs = [
@@ -325,10 +375,11 @@ async def _run_extraction_pipeline(
     turn_no: int,
     deescalate: bool = False,
     quest_ages: list[dict[str, Any]] | None = None,
-) -> tuple["StateDelta", list[str], str, list[str], dict[str, Any], "ProgressExtractResult"]:
+    recent_turns: list[dict[str, Any]] | None = None,
+) -> tuple["StateDelta", list[str], str, list[str], dict[str, Any], "ProgressExtractResult", "SceneExtractResult"]:
     """Run the three extraction streams in sequence.
 
-    Returns: (merged_delta, actions, outcome_summary, failed, per_stream_event_data, progress_result)
+    Returns: (merged_delta, actions, outcome_summary, failed, per_stream_event_data, progress_result, scene_result)
     """
     active = set(active_domains)
 
@@ -357,6 +408,9 @@ async def _run_extraction_pipeline(
             active_domains=active_domains,
             rules_outcome=rules_outcome,
             enable_thinking=config.enable_extract_thinking,
+            deescalate=deescalate,
+            quest_ages=quest_ages,
+            recent_turns=(recent_turns or [])[-2:],
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_scene_system = scene_msgs[0]["content"] if scene_msgs else ""
@@ -388,6 +442,15 @@ async def _run_extraction_pipeline(
     else:
         _log.debug("Skipping scene stream — neither scene nor location_change in active_domains")
         extraction_event["scene"] = _SKIPPED
+
+    # Transfer-verb scan: supplementary inventory domain trigger
+    if "inventory" not in active and _narration_has_transfer(narration):
+        active_domains = list(active_domains) + ["inventory"]
+        active = set(active_domains)
+        _log.debug(
+            "extraction.domains: transfer-verb scan activated inventory domain",
+            extra={"turn": turn_no, "trace_id": trace_id},
+        )
 
     # --- Stream 2: State ---
     run_state = bool({"inventory", "pc_condition"} & active)
@@ -437,12 +500,11 @@ async def _run_extraction_pipeline(
     progress_msgs = _extract_progress_messages(
         env, narration, state,
         active_domains=active_domains,
-        scene_result=scene_result,
         state_result=state_result,
         rules_outcome=rules_outcome,
         enable_thinking=config.enable_extract_thinking,
-        deescalate=deescalate,
-        quest_ages=quest_ages,
+        intent=intent,
+        recent_turns=(recent_turns or [])[-2:],
     )
     # Capture pre-trim content for context_meta so the judge sees original sizes
     rendered_prog_system = progress_msgs[0]["content"] if progress_msgs else ""
@@ -473,6 +535,30 @@ async def _run_extraction_pipeline(
         _log.warning("extract_progress failed: %s", exc, extra={"trace_id": trace_id})
         extraction_event["progress"] = {**_SKIPPED, "error": str(exc)}
 
+    # --- Dedup compendium updates before merging into StateDelta ---
+    _comp = (state.get("compendium") or {}).get("npcs") or {}
+    existing_npcs: list[dict[str, Any]] = []
+    for nid, npc in _comp.items():
+        if not isinstance(npc, dict):
+            continue
+        existing_npcs.append({
+            "id": nid,
+            "name": npc.get("name") or "",
+            "title": npc.get("title") or "",
+            "bio_preview": (npc.get("bio") or "").strip()[:120],
+            "aliases": list(npc.get("aliases") or []),
+        })
+    deduped_compendium: list[CompendiumNpcUpdate] = []
+    for cu in (scene_result.compendium_npc_update or []):
+        deduped_compendium.append(_dedup_compendium_add(cu, existing_npcs))
+    if deduped_compendium != (scene_result.compendium_npc_update or []):
+        _log.debug(
+            "extraction.dedup: compendium dedup redirected %d entries",
+            len(scene_result.compendium_npc_update or []),
+            extra={"turn": turn_no, "trace_id": trace_id},
+        )
+    scene_result = scene_result.model_copy(update={"compendium_npc_update": deduped_compendium})
+
     # --- Merge into single StateDelta ---
     merged = StateDelta(
         scene_tags=scene_result.scene_tags,
@@ -482,28 +568,33 @@ async def _run_extraction_pipeline(
         npc_add=scene_result.npc_add,
         npc_remove=scene_result.npc_remove,
         npc_update=scene_result.npc_update,
+        compendium_npc_update=scene_result.compendium_npc_update,
+        scene_pressure_add=scene_result.scene_pressure_add,
+        scene_pressure_remove=scene_result.scene_pressure_remove,
+        scene_pressure_update=scene_result.scene_pressure_update,
         inventory_add=state_result.inventory_add,
-    inventory_remove=state_result.inventory_remove,
-    inventory_update=state_result.inventory_update,
-    pc_condition_add=state_result.pc_condition_add,
-    pc_condition_remove=state_result.pc_condition_remove,
-    quest_updates=progress_result.quest_updates,
-    recent_events_add=progress_result.recent_events_add,
-    recent_events_update=progress_result.recent_events_update,
-    recent_events_remove=progress_result.recent_events_remove,
-    compendium_npc_update=progress_result.compendium_npc_update,
-    scene_pressure_add=progress_result.scene_pressure_add,
-    scene_pressure_remove=progress_result.scene_pressure_remove,
-    scene_pressure_update=progress_result.scene_pressure_update,
-)
+        inventory_remove=state_result.inventory_remove,
+        inventory_update=state_result.inventory_update,
+        pc_condition_add=state_result.pc_condition_add,
+        pc_condition_remove=state_result.pc_condition_remove,
+        quest_updates=progress_result.quest_updates,
+        recent_events_add=progress_result.recent_events_add,
+        recent_events_update=progress_result.recent_events_update,
+        recent_events_remove=progress_result.recent_events_remove,
+    )
+
+    # NOTE: gm_beat is intentionally absent from StateDelta — it is written
+    # directly to state["meta"]["pending_gm_beat"] in turn.py Step 2.5.
+    # Do NOT add gm_beat to the merge block.
 
     return (
         merged,
-        scene_result.actions,
-        scene_result.outcome_summary,
-        state_result.failed,
+        progress_result.actions,
+        progress_result.outcome_summary,
+        [],
         extraction_event,
         progress_result,
+        scene_result,
     )
 
 

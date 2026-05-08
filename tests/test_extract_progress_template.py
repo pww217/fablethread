@@ -62,12 +62,14 @@ def test_known_characters_omitted_without_compendium_domain(env: Environment) ->
     assert "## known_characters" not in out
 
 
-def test_known_characters_included_with_compendium_domain(env: Environment) -> None:
+def test_known_characters_not_in_progress(env: Environment) -> None:
+    """known_characters moved to scene stream; should NOT appear in progress user prompt."""
     out = _render(env, active_domains=["compendium_npc"], known_characters=[{"id": "n1", "name": "N"}])
-    assert "## known_characters" in out
+    assert "## known_characters" not in out
 
 
-def test_scene_pressure_always_included(env: Environment) -> None:
+def test_scene_pressure_not_in_progress(env: Environment) -> None:
+    """scene_pressure moved to scene stream; should NOT appear in progress user prompt."""
     pressure = [{"id": "p1", "urgency": "immediate", "text": "fire", "turn_added": 1}]
     out = _render(env, active_domains=[], scene_pressure=pressure)
-    assert "## scene_pressure" in out
+    assert "## scene_pressure" not in out

@@ -270,8 +270,20 @@ class SceneExtractResult(BaseModel):
     npc_add: list[NpcAdd] = Field(default_factory=list)
     npc_remove: list[NpcRemove] = Field(default_factory=list)
     npc_update: list[NpcUpdate] = Field(default_factory=list)
-    actions: list[str] = Field(default_factory=list)
-    outcome_summary: str = ""
+    compendium_npc_update: list[CompendiumNpcUpdate] = Field(
+        default_factory=list, max_length=12
+    )
+    scene_pressure_add: list[ScenePressure] = Field(default_factory=list)
+    scene_pressure_remove: list[str] = Field(default_factory=list)
+    scene_pressure_update: list[ScenePressure] = Field(default_factory=list)
+    gm_beat: GMBeat | None = None
+
+    @model_validator(mode="after")
+    def _nullify_invalid_gm_beat(self) -> "SceneExtractResult":
+        if self.gm_beat is not None:
+            if not self.gm_beat.instruction or not self.gm_beat.type:
+                self.gm_beat = None
+        return self
 
     @field_validator("npc_remove", mode="before")
     @classmethod
@@ -284,21 +296,6 @@ class SceneExtractResult(BaseModel):
                 out.append({"id": x})
             else:
                 out.append(x)
-        return out
-
-    @field_validator("actions", mode="before")
-    @classmethod
-    def _coerce_actions(cls, v: Any) -> Any:
-        if not v:
-            return v
-        out: list[str] = []
-        for x in v:
-            if isinstance(x, str):
-                out.append(x)
-            elif isinstance(x, dict):
-                out.append(x.get("action", str(x)))
-            else:
-                out.append(str(x))
         return out
 
     @field_validator("location_description", mode="before")
@@ -319,7 +316,8 @@ class StateExtractResult(BaseModel):
     inventory_update: list[InventoryUpdate] = Field(default_factory=list, max_length=6)
     pc_condition_add: list[ConditionAdd] = Field(default_factory=list, max_length=2)
     pc_condition_remove: list[ConditionRemove] = Field(default_factory=list)
-    failed: list[str] = Field(default_factory=list)
+
+    model_config = {"extra": "ignore"}
 
     @field_validator("inventory_remove", mode="before")
     @classmethod
@@ -421,20 +419,23 @@ class ProgressExtractResult(BaseModel):
     recent_events_add: list[RecentEvent] = Field(default_factory=list)
     recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
     recent_events_remove: list[str] = Field(default_factory=list)
-    compendium_npc_update: list[CompendiumNpcUpdate] = Field(
-        default_factory=list, max_length=12
-    )
-    scene_pressure_add: list[ScenePressure] = Field(default_factory=list)
-    scene_pressure_remove: list[str] = Field(default_factory=list)
-    scene_pressure_update: list[ScenePressure] = Field(default_factory=list)
-    gm_beat: GMBeat | None = None
+    actions: list[str] = Field(default_factory=list)
+    outcome_summary: str = ""
 
-    @model_validator(mode="after")
-    def _nullify_invalid_gm_beat(self) -> "ProgressExtractResult":
-        if self.gm_beat is not None:
-            if not self.gm_beat.instruction or not self.gm_beat.type:
-                self.gm_beat = None
-        return self
+    @field_validator("actions", mode="before")
+    @classmethod
+    def _coerce_actions(cls, v: Any) -> Any:
+        if not v:
+            return v
+        out: list[str] = []
+        for x in v:
+            if isinstance(x, str):
+                out.append(x)
+            elif isinstance(x, dict):
+                out.append(x.get("action", str(x)))
+            else:
+                out.append(str(x))
+        return out
 
 
 @dataclass

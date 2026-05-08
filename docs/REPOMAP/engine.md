@@ -32,9 +32,9 @@
 1. **Rules / Intent** (Call 0, `llm_chat`, non-streaming) — classifies intent, resolves dice via `rules.resolve_check()`, returns `IntentEnvelope` + `RulesOutcome` (band, directive, dice).
 2. **Narrate** (Call 1, streaming → SSE → `chronicle.md`) — prose narrative. Emits `<scope>{"active_domains":["..."]}</scope>` as the last line. Server-side stream filter strips the tail before SSE emission. `RulesOutcome` injected as BINDING block the narrator must not contradict.
 3. **Scope parsing** — `_split_scope_tail()` extracts `active_domains` from the narrator's scope tail. Falls back to `_DEFAULT_DOMAINS` (all 7) on missing/malformed tag.
-4. **Scene Extract** (Call 2a, `llm_chat`, JSON → `SceneExtractResult`) — scene tags, location change, present NPCs, actions, outcome summary. Skipped when neither `scene` nor `location_change` is in `active_domains`.
-5. **State Extract** (Call 2b, `llm_chat`, JSON → `StateExtractResult`) — inventory deltas, condition add/remove, failed preconditions. Skipped when neither `inventory` nor `pc_condition` is in `active_domains`.
-6. **Progress Extract** (Call 2c, `llm_chat`, JSON → `ProgressExtractResult`) — quest updates, recent events, compendium NPC updates. Always runs (post-narration storytelling brain).
+4. **Scene Extract** (Call 2a, `llm_chat`, JSON → `SceneExtractResult`) — scene tags, location change, present NPCs, compendium NPC updates, scene pressure add/remove/update, gm_beat. Skipped when neither `scene` nor `location_change` is in `active_domains`.
+5. **State Extract** (Call 2b, `llm_chat`, JSON → `StateExtractResult`) — inventory deltas, condition add/remove. Skipped when neither `inventory` nor `pc_condition` is in `active_domains`.
+6. **Progress Extract** (Call 2c, `llm_chat`, JSON → `ProgressExtractResult`) — quest updates, recent events, actions, outcome_summary. Always runs (post-narration storytelling brain).
 
 Steps 2a–2c merge into `StateDelta` → `_validate()` → `apply_delta()` → `summarize_changes()` → persist (atomic writes: `events.jsonl`, `state.yaml`, `chronicle.md`).
 
@@ -88,13 +88,16 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_pick(fakers, weights, rng)` → `Faker` — weighted random selection
 
 ### extraction.py
-- `_run_extraction_pipeline(env, state, narration, *, active_domains, rules_outcome=None, intent=None, config, trace_id, turn_no, deescalate=False, quest_ages=None)` → `tuple[StateDelta, list[str], str, list[str], dict, ProgressExtractResult]` (async) — runs 3 streams in sequence (scene gated by active_domains, state gated by active_domains, progress always runs), merges into StateDelta
-- `_extract_scene_messages(env, narration, state, *, active_domains, rules_outcome=None, enable_thinking=False)` → `list[dict]` — prompt builder for scene extractor
+- `_run_extraction_pipeline(env, state, narration, *, active_domains, rules_outcome=None, intent=None, config, trace_id, turn_no, deescalate=False, quest_ages=None, recent_turns=None)` → `tuple[StateDelta, list[str], str, list[str], dict, ProgressExtractResult, SceneExtractResult]` (async) — runs 3 streams in sequence (scene gated by active_domains, state gated by active_domains, progress always runs), transfer-verb scan activates inventory domain before state stream, dedup pre-pass redirects compendium NPC IDs before StateDelta merge, merges into StateDelta; returns 7-tuple including scene_result
+- `_extract_scene_messages(env, narration, state, *, active_domains, rules_outcome=None, enable_thinking=False, deescalate=False, quest_ages=None, recent_turns=None)` → `list[dict]` — prompt builder for scene extractor; receives full compendium roster, scene_pressure, deescalate flag, quest_ages for gm_beat/pressure logic
 - `_extract_state_messages(env, narration, state, *, active_domains, scene_result, rules_outcome=None, enable_thinking=False)` → `list[dict]` — prompt builder for state extractor
-- `_extract_progress_messages(env, narration, state, *, active_domains, scene_result, state_result, rules_outcome=None, enable_thinking=False, deescalate=False, quest_ages=None)` → `list[dict]` — prompt builder for progress extractor
+- `_extract_progress_messages(env, narration, state, *, active_domains, state_result, rules_outcome=None, enable_thinking=False, intent=None, recent_turns=None)` → `list[dict]` — prompt builder for progress extractor; receives intent and recent_turns for actions/outcome_summary
 - `_call_stream(messages, config, trace_id, phase, model_cls, strip_keys=("_reasoning",))` → `tuple[result, usage, attempts, retry_errors]` (async) — LLM call with retry
 - `_parse_stream_result(raw, model_cls, strip_keys=("_reasoning",))` → model instance — JSON parsing + model validation for streams
 - `_context_meta(rendered_system, rendered_user, was_trimmed, trimmed_chars)` → `dict` — computes context size signals for telemetry
+- `_TRANSFER_VERBS` — frozenset of inventory-transfer verbs for deterministic pre-check
+- `_narration_has_transfer(narration)` → `bool` — scans narration for explicit physical transfer language (supplementary inventory domain trigger)
+- `_dedup_compendium_add(proposed, existing_npcs)` → `CompendiumNpcUpdate` — redirects proposed NPC ID to existing NPC ID if name/alias matches (engine-level dedup safety net)
 - `_scene_npc_roster(known_characters)` → `list[dict]` — deduped NPC roster for scene extractor
 - `_quest_threshold_directive(active_quests)` → `str` — guidance on when to start new quests
 - `_avg_narrate_ms(save_dir, n=5)` → `int` — rolling average narrate latency from events
@@ -136,9 +139,12 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 
 - **Cross-stream dependencies are minimal by design.**
   - Scene → State passes `location_change` (id, name, description) + `present_npcs` (id, name, title, notes, bio).
-  - Scene → Progress passes `present_npcs` (from scene result).
   - State → Progress passes minimal surface: `items_gained` (item **names** from `inventory_add`) + `items_lost` (item **ids** from `inventory_remove`).
   - No full state re-sends between extractors.
+- **Field routing** (post-remediation):
+  - `SceneExtractResult`: scene_tags, scene_tagline, location_change, location_description, npc_add/remove/update, **compendium_npc_update**, **scene_pressure_add/remove/update**, **gm_beat**.
+  - `StateExtractResult`: inventory_add/remove/update, pc_condition_add/remove. (No `failed` — removed from LLM output.)
+  - `ProgressExtractResult`: quest_updates, recent_events_add/update/remove, **actions**, **outcome_summary**.
 - **Conditions are structured.** `pc.conditions` is `list[Condition]` (`id`, `label`, `description`, `added_turn`). `apply_delta` stamps `added_turn` and uses `id`-based dedup — no text normalization. String coercion exists for test convenience only; LLM output must use the full object.
 - **`events.jsonl`** gains an `extraction` key with per-stream `{rendered_system, rendered_user, output, tokens_in, tokens_out, ms, skipped}` for debugging.
 - **`events.jsonl`** gains a `scope` key with `{active_domains, decided_by, skipped_streams}` for telemetry.

@@ -68,6 +68,10 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - ~~**Phase 1: Trace/judge/report rewrite** — Full markdown traces, YAML front matter scoring, deterministic REPORT.md header, metadata event emission, dead config cleanup~~ — see `[p3-inference/eval-harness/08-trace-judge-report.md](p3-inference/eval-harness/08-trace-judge-report.md)`
 - ~~**Phase 2: Dedup** — Sentinel markers in Jinja templates, `strip_trace_markers()` in engine, `_strip_immutable_sections`/`_diff_state_snapshots` in judge, `TraceOptions` config plumbing, `evals/config.yaml` trace knobs~~ — see `[completed/eval-engine-refactor.md](completed/eval-engine-refactor.md)` Phase 2
 - ~~**Phase 3: Auto-checker** — `universal_asserts.py` with 5 cross-pipeline assertions, runner wiring, `build_trace` deterministic signals section, `_build_metrics_rows`, `engine_mirror` schema constants, rubric updates~~ — see `[completed/eval-engine-refactor.md](completed/eval-engine-refactor.md)` Phase 3
+- **Pipeline field routing remediation** — `eval-results-remediation/A-eval-results-remediation-pipeline-field-routing.md` — route `actions`/`outcome_summary` to progress extractor, `compendium_npc_update`/`scene_pressure_*`/`gm_beat` to scene extractor, remove `failed` from state extractor
+- **Scene pressure lifecycle rules** — `eval-results-remediation/B-eval-results-remediation-pressure-rules.md` — survival check for pressure removal, location-change guard, fixed-price transaction carve-out
+- **GM beat quality enforcement** — `eval-results-remediation/C-eval-results-remediation-gm-beat-enforcement.md` — Pydantic validator nullifies beats with blank/generic instructions, strengthened prompt rule requiring named entity
+- **Quest and state extraction fixes** — `eval-results-remediation/D-eval-results-remediation-quest-state-extraction.md` — contact/meet objective auto-completion, transfer-verb inventory domain trigger, NPC compendium dedup pre-pass
 
 ---
 
