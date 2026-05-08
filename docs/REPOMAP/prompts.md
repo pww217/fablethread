@@ -10,7 +10,7 @@ Located in `ccya/prompts/`:
 - `extract_state_system.j2` / `extract_state_user.j2` — Call 2b: state extraction
 - `extract_progress_system.j2` / `extract_progress_user.j2` — Call 2c: progress extraction
 - `generate_seed_system.j2` / `generate_seed_user.j2` — Seed generation for dynamic packs
-- `compact_system.j2` / `compact_user.j2` — Chronicle compaction (LLM historian, bullet summaries)
+- `compact_system.j2` / `compact_user.j2` — Chronicle compaction (LLM historian, PART 1: prior-history bullets, PART 2: state sanitization JSON with Pydantic-validated output contract)
 
 ## Shared partials
 

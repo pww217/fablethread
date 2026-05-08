@@ -358,6 +358,21 @@ class StateExtractResult(BaseModel):
         return out
 
 
+class CompactorNpcMerge(BaseModel):
+    keep_id: str
+    remove_ids: list[str] = Field(default_factory=list)
+
+
+class CompactorSanitizationResult(BaseModel):
+    npc_merge: list[CompactorNpcMerge] = Field(default_factory=list)
+    inventory_remove: list[str] = Field(default_factory=list)
+    quest_close: list[str] = Field(default_factory=list)
+    pressure_remove: list[str] = Field(default_factory=list)
+    condition_remove: list[str] = Field(default_factory=list)
+
+    model_config = {"extra": "ignore"}
+
+
 class ScenePressure(BaseModel):
     id: str
     text: str

@@ -1,33 +1,64 @@
 ## TURNS TO COMPACT
 
-{% for t in turns %}
+{% for t in turns -%}
 ### Turn {{ t.turn }} — {{ t.input }}
 {{ t.narrative }}
+
 {% endfor -%}
 
-## RECENT EVENTS TO COMPACT
+## ACTIVE CONTEXT
 
-{% for e in events %}- Turn {{ e.get('turn', '?') }}: {{ e.text if e is mapping else e }}
-{% endfor -%}
-{% if not events %}(no events){% endif %}
-
-## ACTIVE CONTEXT (relevance anchors — protect information related to these)
-
-{% if active_quests %}
+{% if active_quests -%}
 ### Active Quests
 {% for q in active_quests -%}
-- **{{ q.get("title", q.get("id", "?")) }}**: {% for obj in (q.get("objectives") or []) %}[{{ "x" if obj.get("done") else " " }}] {{ obj.get("description", "?") }} {% endfor %}
+- **[{{ q.get("id", "?") }}] {{ q.get("title", "?") }}**
+{% for obj in (q.get("objectives") or []) -%}
+  - [{{ "x" if obj.get("done") else " " }}] {{ obj.get("description", "?") }}
 {% endfor -%}
+{% endfor %}
 {% endif -%}
 
-{% if npc_names %}
+{% if npc_names -%}
 ### Present NPCs
-{{ npc_names | join(', ') }}
+{{ npc_names | join(", ") }}
 {% endif -%}
 
-{% if pressures %}
-### Active Pressures
+{% if pressures -%}
+### Active Scene Pressures
 {% for p in pressures -%}
-- [{{ p.get('urgency', '').upper() }}] {{ p.get('text', p) }}
-{% endfor -%}
+- [{{ p.get("id", "?") }}] [{{ p.get("urgency", "").upper() }}] {{ p.get("text", p) }}
+{% endfor %}
 {% endif -%}
+
+## MECHANICAL STATE
+*(Read-only reference for sanitization. Use exact IDs shown.)*
+
+### Inventory
+{% for item in inventory -%}
+- [{{ item.get("id", "?") }}] {{ item.get("name", "?") }}{% if item.get("amount", 1) != 1 %} ×{{ item.get("amount") }}{% endif %}{% if item.get("notes") %}: {{ item.get("notes") }}{% endif %}
+
+{% else -%}
+(empty)
+{% endfor %}
+
+### Compendium NPCs
+{% for npc_id, npc in compendium_npcs -%}
+- [{{ npc_id }}] {{ npc.get("name", "?") }}{% if npc.get("title") %} ({{ npc.get("title") }}){% endif %}{% if npc.get("aliases") %} aka {{ npc.get("aliases") | join(", ") }}{% endif %}
+
+{% else -%}
+(none)
+{% endfor %}
+
+### All Quests
+{% for q in all_quests -%}
+- [{{ q.get("id", "?") }}] {{ q.get("title", "?") }} — {{ q.get("status", "?") }}
+{% else -%}
+(none)
+{% endfor %}
+
+### PC Conditions
+{% for c in conditions -%}
+- [{{ c.get("id", "?") }}] {{ c.get("label", "?") }}: {{ c.get("description", "") }}
+{% else -%}
+(none)
+{% endfor %}

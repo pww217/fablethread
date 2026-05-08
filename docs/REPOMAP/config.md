@@ -27,8 +27,9 @@
 - `character_creation_enabled` — allow character creation UI
 - `scene_pressure_building_at` — background → building urgency threshold (turns, default 6)
 - `scene_pressure_immediate_at` — building → immediate urgency threshold (turns, default 10)
-- `compact_every` — compress narrative history every N turns (0 = disabled, default 4)
+- `compact_every` — compress narrative history every N turns (0 = disabled, default 6)
 - `compact_temperature` — temperature for compaction LLM call (default 0.1)
+- `recent_turns_min` — minimum recent turns floor for narrator (default 2)
 
 ### `server`
 - `bind_host` — bind address (default 127.0.0.1)
@@ -70,9 +71,14 @@ scene_pressure_building_at: int = 6
 scene_pressure_immediate_at: int = 10
 scene_pressure_max_age: int = 15
 scene_pressure_deescalate_on_success: bool = True
-compact_every: int = 0
-compact_temperature: float = 0.1
+    compact_every: int = 0
+    compact_temperature: float = 0.1
+    recent_turns_min: int = 2
 ```
+
+## Validation
+
+- `_validate_compactor_config(config: EngineConfig) -> None` — enforces `window_turns >= 1`, `compact_every > window_turns`, `0 <= recent_turns_min <= window_turns`. Called after `EngineConfig` construction in `server/app.py`.
 
 ## Helpers
 

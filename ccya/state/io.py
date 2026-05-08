@@ -37,6 +37,7 @@ def _default_state() -> dict[str, Any]:
             "model": "",
             "compendium_touch_order": [],
             "last_compacted_turn": 0,
+            "prior_history": [],
         },
         "pc": {
             "name": "",
@@ -121,6 +122,13 @@ def _migrate_state(state: dict[str, Any]) -> None:
             w["factions"] = []
         if "locations" not in w:
             w["locations"] = []
+
+    # Migrate prior_history and last_compacted_turn
+    meta = state.setdefault("meta", {})
+    if not isinstance(meta.get("prior_history"), list):
+        meta["prior_history"] = []
+    if not isinstance(meta.get("last_compacted_turn"), int) or meta["last_compacted_turn"] < 0:
+        meta["last_compacted_turn"] = 0
 
 
 def _migrate_recent_events(state: dict[str, Any]) -> None:
