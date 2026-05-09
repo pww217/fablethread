@@ -432,7 +432,7 @@ class ProgressExtractResult(BaseModel):
             if isinstance(x, str):
                 out.append(x)
             elif isinstance(x, dict):
-                out.append(x.get("action", str(x)))
+                out.append(x.get("action") or x.get("description") or str(x))
             else:
                 out.append(str(x))
         return out
