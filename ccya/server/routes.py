@@ -110,6 +110,7 @@ async def get_turn(input: str = ""):
                 pack_factions=[f.model_dump() for f in (_app_mod._active_pack.scenario.factions if _app_mod._active_pack.scenario else [])],
                 pack_locations=[loc.model_dump() for loc in (_app_mod._active_pack.scenario.locations if _app_mod._active_pack.scenario else [])],
                 pack_narrator_rules=_app_mod._active_pack.scenario.narrator_rules if _app_mod._active_pack.scenario else [],
+                pack_world_rules=_app_mod._active_pack.scenario.world_rules if _app_mod._active_pack.scenario else [],
             ):
                 if kind == "token":
                     yield {
@@ -209,6 +210,7 @@ async def retry_turn():
                 pack_factions=[f.model_dump() for f in (_app_mod._active_pack.scenario.factions if _app_mod._active_pack.scenario else [])],
                 pack_locations=[loc.model_dump() for loc in (_app_mod._active_pack.scenario.locations if _app_mod._active_pack.scenario else [])],
                 pack_narrator_rules=_app_mod._active_pack.scenario.narrator_rules if _app_mod._active_pack.scenario else [],
+                pack_world_rules=_app_mod._active_pack.scenario.world_rules if _app_mod._active_pack.scenario else [],
             ):
                 if kind == "token":
                     yield {

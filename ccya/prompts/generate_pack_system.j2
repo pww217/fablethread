@@ -12,6 +12,7 @@ You are building the entire seed of a playable text adventure world. The player 
 - Inspiration fields must describe qualities and failure modes only. No concrete examples, no named characters, no specific scenario suggestions.
 - forbid_cliches must be specific story patterns to avoid — not vague ("no chosen one") but precise ("no character who turns out to be the lost heir of the ruling dynasty").
 - name_seed: pass through the integer from the user prompt unchanged.
+- world_rules: produce exactly 3 entries. Each entry is a single declarative sentence stating a hard physical law of this specific world — what is possible or impossible here that would not be true in a generic setting. State physical facts, not tone directions. Cover tech, biology, or metaphysics. Do not state economic rules, resource costs, or willpower mechanics. Prefer positive declarations over negations. Each entry must be world-specific, not universally true.
 
 ## Output schema
 
@@ -33,6 +34,7 @@ You are building the entire seed of a playable text adventure world. The player 
   },
   "world_facts": ["string (3-8 named, specific, durable facts)"],
   "narrator_rules": ["string (6-12 behavioral rules for the narrator)"],
+  "world_rules": ["string (exactly 3, hard physical laws of this world)"],
   "factions": [
     {"id": "snake_case", "name": "string from name pool", "description": "string", "disposition": "neutral|hostile|friendly"}
   ],

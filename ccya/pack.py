@@ -149,6 +149,7 @@ class ScenarioBrief(BaseModel):
       constraints   — hard numeric rules for seed generation
       world_facts   — 3–8 durable facts injected into world_state (replaces world.md)
       narrator_rules — tone/style rules injected into narrate system prompt (replaces style.md)
+      world_rules   — 0–5 hard physical laws of the world (rendered as ## Universe rules)
       factions      — 3–6 named power groups injected into narrate context each turn
       locations     — 5–10 named places injected into narrate context each turn
       name_locales  — weighted Faker locales for name generation
@@ -158,6 +159,7 @@ class ScenarioBrief(BaseModel):
     constraints: Constraints = Field(default_factory=Constraints)
     world_facts: list[str] = Field(default_factory=list, max_length=8)
     narrator_rules: list[str] = Field(default_factory=list, max_length=12)
+    world_rules: list[str] = Field(default_factory=list, max_length=5)
     factions: list[Faction] = Field(default_factory=list, max_length=6)
     locations: list[NamedLocation] = Field(default_factory=list, max_length=10)
     name_locales: list[dict[str, Any]] = Field(default_factory=list)

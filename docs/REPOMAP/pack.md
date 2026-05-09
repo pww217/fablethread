@@ -26,7 +26,7 @@
 - `NamedLocation` — `id` (snake_case), `name`, `type` (settlement | ruin | wilderness | transit | institution), `description`
 - `Constraints` — `min_named_npcs` (2), `min_objectives_per_quest` (2), `starting_quest_count` (1), `inventory_size_range` (4,8), `pc_stat_range` (1,4), `pc_stat_total_range` (12,18), `prose_word_range` (200,500), `required_inventory_kinds`, `npc_distinct_first_letters` (True), `forbid_cliches`, `forbid_player_dependents` (True), `forbid_legendary_items` (True)
 - `Inspiration` — `pc`, `opening_situation`, `npcs`, `inventory`, `quests` (all default "")
-- `ScenarioBrief` — `constraints` (Constraints), `world_facts` (max 8 strings, replaces world.md), `narrator_rules` (max 12 strings, replaces style.md), `factions` (max 6 Faction objects, injected into narrate context), `locations` (max 10 NamedLocation objects, injected into narrate context), `name_locales` (list[dict] for Faker), `name_seed` (int, 0 = randomized), `inspiration` (Inspiration). Old-format scenario.yaml (only constraints + inspiration) still validates — new fields default to empty.
+- `ScenarioBrief` — `constraints` (Constraints), `world_facts` (max 8 strings, replaces world.md), `narrator_rules` (max 12 strings, replaces style.md), `world_rules` (max 5 strings, hard physical laws rendered as `## Universe rules` block in narrator prompt), `factions` (max 6 Faction objects, injected into narrate context), `locations` (max 10 NamedLocation objects, injected into narrate context), `name_locales` (list[dict] for Faker), `name_seed` (int, 0 = randomized), `inspiration` (Inspiration). Old-format scenario.yaml (only constraints + inspiration) still validates — new fields default to empty.
 - `WorldBrief` — `concept` (required, the pitch), `tone`, `geography`, `power`, `daily_life`, `player_hint` (all default ""). Input contract for `generate_pack()`.
 - `GeneratedPackMeta` — `generated` (True), `world_brief_concept` (default ""). Provenance marker for generated packs.
 - `PlayerOverrides` — `pc_hints`, `npc_hints`, `location_hints`, `quest_hints`, `free_form` (all default ""), `npc_count` (0 = use pack default). Has `is_empty()` method.
@@ -47,7 +47,7 @@ Each pack in `packs/{namespace}/{pack_id}/` (namespace = `default` or `custom`):
 
 `pack.yaml` fields: `id`, `name`, `description`, `genre`, `tone_tags`, `baseline_facts` (hardcoded genre canon, max 3), `name_locales` (weighted Faker locales). Old fields (`mode`, `version`, `files`) are silently ignored.
 
-`scenario.yaml` fields (new consolidated schema): `constraints`, `world_facts` (3-8 durable facts), `narrator_rules` (6-12 behavioral rules), `factions` (3-6 Faction objects), `locations` (4-10 NamedLocation objects), `name_locales`, `name_seed`, `inspiration`. Replaces `world.md` + `style.md` + `pack.yaml` locale/facts fields.
+`scenario.yaml` fields (new consolidated schema): `constraints`, `world_facts` (3-8 durable facts), `narrator_rules` (6-12 behavioral rules), `world_rules` (0-5 hard physical laws), `factions` (3-6 Faction objects), `locations` (4-10 NamedLocation objects), `name_locales`, `name_seed`, `inspiration`. Replaces `world.md` + `style.md` + `pack.yaml` locale/facts fields.
 
 ## Name generation (names.py)
 
@@ -60,6 +60,6 @@ Each pack in `packs/{namespace}/{pack_id}/` (namespace = `default` or `custom`):
 
 - `generate_seed()` sources `world_facts` from `scenario.world_facts` (new) → `manifest.baseline_facts` → `parse_world_facts(world.md)` (legacy). Raises `ValueError` on static packs.
 - `_build_generate_seed_messages()` passes `name_seed` (randomized if `scenario.name_seed` is 0) to `generate_seed_user.j2`.
-- `generate_seed_user.j2` renders `scenario.world_facts`, `scenario.narrator_rules`, `scenario.factions`, `scenario.locations`, `name_seed`, `scenario.inspiration`, `player_overrides`, and `name_pool`.
+- `generate_seed_user.j2` renders `scenario.world_facts`, `scenario.narrator_rules`, `scenario.world_rules`, `scenario.factions`, `scenario.locations`, `name_seed`, `scenario.inspiration`, `player_overrides`, and `name_pool`.
 - **`generate_npc_names(locales, count, seed)`** → `list[str]` — NPC name candidates for mid-game injection.
 - Names drawn with probability proportional to each locale's weight. Falls back to en_US if locales empty.

@@ -45,6 +45,12 @@ If the action satisfies an objective or resolves a quest, make that resolution c
 - `*italic*` for ship names, books, broadcasts, in-world publication titles, emphasized proper nouns.
 - `> blockquote` only for signage or quoted broadcast text.
 - No headings, no bullet lists in prose.
+{% if world_rules %}
+## Universe rules
+These are physical laws of this world. They are not tone suggestions — they are hard constraints on what is physically possible. Never narrate events that contradict them, regardless of player action or dice outcome.
+{% for rule in world_rules %}- {{ rule }}
+{% endfor %}
+{% endif %}
 {% if narrator_rules %}
 ## Genre tone
 {% for rule in narrator_rules %}- {{ rule }}
