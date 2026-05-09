@@ -7,10 +7,51 @@ import uuid
 from jinja2 import Environment
 from pathlib import Path
 
+import re
+
 from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json, _log_llm_io, _log_prompts, _render
 from ccya.engine.names import generate_name_pool
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
 from ccya.pack import Pack, PlayerOverrides, SeedEnvelope, parse_world_facts
+
+_NAME_RE = re.compile(r"[^\x00-\x7F]")
+
+
+def _strip_non_ascii(text: str) -> str:
+    if not text:
+        return text
+    result = _NAME_RE.sub("", text).strip()
+    return result
+
+
+def _sanitize_envelope(envelope: SeedEnvelope) -> SeedEnvelope:
+    """Strip non-ASCII from all name fields as a safety net."""
+    envelope.seed_state.pc.name = _strip_non_ascii(envelope.seed_state.pc.name)
+    envelope.seed_state.location.name = _strip_non_ascii(envelope.seed_state.location.name)
+    for item in envelope.seed_state.inventory:
+        item.name = _strip_non_ascii(item.name)
+    for quest in envelope.seed_state.quests:
+        quest.title = _strip_non_ascii(quest.title)
+        for obj in quest.objectives:
+            obj.description = _strip_non_ascii(obj.description)
+    envelope.seed_state.scene.tagline = _strip_non_ascii(envelope.seed_state.scene.tagline)
+    for evt in envelope.seed_state.scene.world_state:
+        envelope.seed_state.scene.world_state[envelope.seed_state.scene.world_state.index(evt)] = _strip_non_ascii(evt)
+    for evt in envelope.seed_state.scene.recent_events:
+        envelope.seed_state.scene.recent_events[envelope.seed_state.scene.recent_events.index(evt)] = _strip_non_ascii(evt)
+    for npc in envelope.seed_state.scene.present_npcs:
+        npc["name"] = _strip_non_ascii(npc["name"])
+        npc["title"] = _strip_non_ascii(npc.get("title", ""))
+        npc["bio"] = _strip_non_ascii(npc.get("bio", ""))
+        npc["notes"] = _strip_non_ascii(npc.get("notes", ""))
+    for npc_id, npc_data in envelope.seed_state.compendium.npcs.items():
+        npc_data.name = _strip_non_ascii(npc_data.name)
+        npc_data.title = _strip_non_ascii(npc_data.title or "")
+        npc_data.bio = _strip_non_ascii(npc_data.bio or "")
+    envelope.opening_narrative = _strip_non_ascii(envelope.opening_narrative)
+    envelope.actions = [_strip_non_ascii(a) for a in envelope.actions]
+    return envelope
+
 
 _log = logging.getLogger("ccya.engine")
 
@@ -167,6 +208,7 @@ async def generate_seed(
                     "opening_narrative": j.pop("opening_narrative", "."),
                 }
             envelope = SeedEnvelope(**j)
+            envelope = _sanitize_envelope(envelope)
         except Exception as exc:
             parse_error = str(exc)
             _log.warning(

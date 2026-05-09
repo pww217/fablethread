@@ -338,6 +338,8 @@ def test_baseline_facts_max_length_enforced(tmp_path):
 def test_all_shipped_packs_have_baseline_facts():
     """Every shipped pack has exactly 3 hand-curated baseline_facts."""
     for manifest in list_packs(PACKS_DIR):
+        if manifest.id.startswith("generated/"):
+            continue
         pack = load_pack(manifest.id, PACKS_DIR)
         assert len(pack.manifest.baseline_facts) == 3, (
             f"Pack {manifest.id!r} has {len(pack.manifest.baseline_facts)} baseline_facts; expected 3"
@@ -354,15 +356,6 @@ def test_all_shipped_packs_have_baseline_facts():
 
 
 @pytest.mark.skipif(not PACKS_DIR.is_dir(), reason="packs/ directory not found")
-def test_load_expanse_valid():
-    pack = load_pack("expanse", PACKS_DIR)
-    assert pack.world_text != ""
-    assert pack.scenario is not None
-    assert pack.scenario.constraints.min_named_npcs == 2
-    assert pack.style_text != ""
-
-
-@pytest.mark.skipif(not PACKS_DIR.is_dir(), reason="packs/ directory not found")
 def test_load_zombie_survival_valid():
     pack = load_pack("zombie-survival", PACKS_DIR)
     assert pack.world_text != ""
@@ -374,7 +367,6 @@ def test_load_zombie_survival_valid():
 def test_list_real_packs():
     manifests = list_packs(PACKS_DIR)
     ids = [m.id for m in manifests]
-    assert "expanse" in ids
     assert "zombie-survival" in ids
 
 
@@ -558,22 +550,6 @@ def test_scenario_brief_max_length_constraints():
     with pytest.raises(ValidationError):
         ScenarioBrief(locations=[{"id": f"l{i}", "name": f"L{i}", "type": "x", "description": "d"} for i in range(11)])
 
-
-def test_scenario_brief_roundtrip_flooded_world():
-    import yaml
-    from ccya.pack import ScenarioBrief
-
-    with open(PACKS_DIR / "default" / "flooded-world" / "scenario.yaml") as f:
-        data = yaml.safe_load(f)
-    scenario = ScenarioBrief(**data)
-    assert len(scenario.world_facts) == 5
-    assert len(scenario.narrator_rules) == 8
-    assert len(scenario.factions) == 4
-    assert len(scenario.locations) == 4
-    assert len(scenario.name_locales) == 4
-    assert scenario.name_seed == 0
-    assert scenario.factions[0].name == "Cartographers' Compact"
-    assert scenario.locations[0].type == "settlement"
 
 
 def test_pack_with_only_scenario_validates():

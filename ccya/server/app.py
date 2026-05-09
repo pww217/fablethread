@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, pass_context
 
-from ccya.engine import EngineConfig, build_engine_config, warmup
+from ccya.engine import build_engine_config, warmup
 from ccya.engine.config import _validate_compactor_config
 from ccya.logging_setup import setup_logging
 from ccya.models import load_config as _load_config

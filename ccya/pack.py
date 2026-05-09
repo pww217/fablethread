@@ -147,6 +147,7 @@ class ScenarioBrief(BaseModel):
 
     Sections:
       constraints   — hard numeric rules for seed generation
+      world_name    — short evocative name for the world (LLM-generated)
       world_facts   — 3–8 durable facts injected into world_state (replaces world.md)
       narrator_rules — tone/style rules injected into narrate system prompt (replaces style.md)
       world_rules   — 0–5 hard physical laws of the world (rendered as ## Universe rules)
@@ -156,6 +157,7 @@ class ScenarioBrief(BaseModel):
       name_seed     — int; controls name selection randomness at generate time
       inspiration   — quality anti-pattern guidance for seed generation (no concrete examples)
     """
+    world_name: str = ""
     constraints: Constraints = Field(default_factory=Constraints)
     world_facts: list[str] = Field(default_factory=list, max_length=8)
     narrator_rules: list[str] = Field(default_factory=list, max_length=12)
@@ -223,6 +225,7 @@ class PackManifest(BaseModel):
     name: str
     description: str = ""
     genre: str = ""
+    mode: str = "dynamic"
     tone_tags: list[str] = Field(default_factory=list)
     baseline_facts: list[str] = Field(default_factory=list, max_length=3)
     name_locales: list[dict[str, Any]] = Field(default_factory=list)
@@ -345,6 +348,7 @@ def list_packs(packs_dir: Path) -> list[PackManifest]:
     if not packs_dir.is_dir():
         return manifests
     search_dirs = [
+        packs_dir / "generated",
         packs_dir / "default",
         packs_dir / "custom",
     ]

@@ -223,14 +223,16 @@ async def chat_stream(
         return
 
     client = _get_client(host)
-    stream = await client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=temperature,
-        stream=True,
-        stream_options={"include_usage": True},
-        timeout=timeout,
-    )
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "stream": True,
+        "stream_options": {"include_usage": True},
+        "timeout": timeout,
+    }
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    stream = await client.chat.completions.create(**kwargs)
 
     async for chunk in stream:
         if not chunk.choices:
@@ -259,12 +261,14 @@ async def chat(
     t0 = time.monotonic()
     try:
         client = _get_client(host)
-        resp = await client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            timeout=timeout,
-        )
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "timeout": timeout,
+        }
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+        resp = await client.chat.completions.create(**kwargs)
         elapsed = time.monotonic() - t0
         content = resp.choices[0].message.content or ""
         _log.info(

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import logging
+import re
 from typing import Any
 
 from ccya.models import StateDelta
@@ -14,6 +15,16 @@ from ccya.state.inventory import (
     resolve_inventory_remove_target,
 )
 from ccya.state.npcs import build_npc_alias_map, touch_compendium_order
+
+_NAME_RE = re.compile(r"[^\x00-\x7F]")
+
+
+def _strip_non_ascii(text: str) -> str:
+    if not text:
+        return text
+    result = _NAME_RE.sub("", text).strip()
+    return result
+
 
 _log = logging.getLogger("ccya.state")
 
@@ -87,6 +98,7 @@ def apply_delta(
 
     for item in delta.inventory_add:
         d = _item_to_dict(item)
+        d["name"] = _strip_non_ascii(d.get("name", item.id))
         amt = max(1, int(d.get("amount") or 1))
         canonical = resolve_inventory_canonical_id(inv, item.id)
         target_id = canonical if canonical else item.id
@@ -157,7 +169,7 @@ def apply_delta(
             continue
         ex = by_id[canonical]
         if u.name is not None:
-            ex["name"] = u.name
+            ex["name"] = _strip_non_ascii(u.name)
         if u.notes is not None:
             ex["notes"] = u.notes
 
@@ -167,7 +179,7 @@ def apply_delta(
     if delta.location_change:
         state["location"] = {
             "id": delta.location_change.id,
-            "name": delta.location_change.name,
+            "name": _strip_non_ascii(delta.location_change.name),
             "description": delta.location_change.description,
         }
         state.setdefault("scene", {})["present_npcs"] = []
@@ -214,7 +226,7 @@ def apply_delta(
         if qu.id in existing_quests:
             q = existing_quests[qu.id]
             if qu.title:
-                q["title"] = qu.title
+                q["title"] = _strip_non_ascii(qu.title)
             if qu.status:
                 q["status"] = qu.status
             if qu.objectives:
@@ -262,11 +274,11 @@ def apply_delta(
         else:
             new_q: dict[str, Any] = {
                 "id": qu.id,
-                "title": qu.title,
+                "title": _strip_non_ascii(qu.title) if qu.title else "",
                 "status": qu.status or "active",
                 "objectives": [
                     {
-                        "description": o.description or "",
+                        "description": _strip_non_ascii(o.description) if o.description else "",
                         "done": o.done if o.done is not None else False,
                         "failed": bool(o.failed) if o.failed is not None else False,
                     }
@@ -321,7 +333,7 @@ def apply_delta(
     for upd in delta.recent_events_update:
         for i, e in enumerate(existing_events):
             if e.get("id") == upd.id:
-                existing_events[i]["text"] = upd.text
+                existing_events[i]["text"] = _strip_non_ascii(upd.text)
                 break
 
     # Add — reject if ID already exists
@@ -330,7 +342,7 @@ def apply_delta(
         if evt.id not in existing_ids:
             existing_events.append({
                 "id": evt.id,
-                "text": evt.text,
+                "text": _strip_non_ascii(evt.text),
                 "turn": evt.turn or current_turn,
             })
             existing_ids.add(evt.id)
@@ -354,7 +366,7 @@ def apply_delta(
         for i, p in enumerate(pressures):
             if isinstance(p, dict) and p.get("id") == upd.id:
                 if upd.text:
-                    pressures[i]["text"] = upd.text
+                    pressures[i]["text"] = _strip_non_ascii(upd.text)
                 if upd.urgency:
                     pressures[i]["urgency"] = upd.urgency
                 break
@@ -364,7 +376,7 @@ def apply_delta(
         if press.id not in pressure_ids:
             pressures.append({
                 "id": press.id,
-                "text": press.text,
+                "text": _strip_non_ascii(press.text),
                 "urgency": press.urgency or "background",
                 "turn_added": press.turn_added or current_turn,
                 "max_turns": press.max_turns,
@@ -383,7 +395,7 @@ def apply_delta(
             state["scene"].pop("combat_started_turn", None)
 
     if delta.scene_tagline is not None:
-        state.setdefault("scene", {})["tagline"] = delta.scene_tagline
+        state.setdefault("scene", {})["tagline"] = _strip_non_ascii(delta.scene_tagline)
 
     # --- NPC scene management (delta-based: npc_add/npc_remove/npc_update) ---
     NPC_SCENE_CAP = 8
@@ -463,7 +475,7 @@ def apply_delta(
 
         for upd in delta.npc_update:
             _apply_npc_to_present(
-                {"id": upd.id, "notes": upd.notes or "", "name": upd.name, "title": upd.title, "bio": upd.bio},
+                {"id": upd.id, "notes": upd.notes or "", "name": _strip_non_ascii(upd.name or ""), "title": _strip_non_ascii(upd.title or ""), "bio": _strip_non_ascii(upd.bio or "")},
                 present, comp, alias_map,
             )
 
@@ -483,20 +495,20 @@ def apply_delta(
                     if name_match:
                         add_id = name_match
             _apply_npc_to_present(
-                {"id": add_id, "notes": add.notes or "", "name": add.name, "title": add.title, "bio": add.bio},
+                {"id": add_id, "notes": add.notes or "", "name": _strip_non_ascii(add.name or ""), "title": _strip_non_ascii(add.title or ""), "bio": _strip_non_ascii(add.bio or "")},
                 present, comp, alias_map,
             )
             entry = comp.setdefault(add_id, {})
             if add.name is not None and str(add.name).strip():
-                entry["name"] = str(add.name).strip()
+                entry["name"] = _strip_non_ascii(str(add.name).strip())
             elif "name" not in entry:
                 entry["name"] = _hydrate_npc_text(add.name, entry.get("name"))
             if add.title is not None and str(add.title).strip():
-                entry["title"] = str(add.title).strip()
+                entry["title"] = _strip_non_ascii(str(add.title).strip())
             elif "title" not in entry:
                 entry["title"] = _hydrate_npc_text(add.title, entry.get("title"))
             if add.bio is not None and str(add.bio).strip():
-                entry["bio"] = str(add.bio).strip()
+                entry["bio"] = _strip_non_ascii(str(add.bio).strip())
             elif "bio" not in entry:
                 entry["bio"] = _hydrate_npc_text(add.bio, entry.get("bio"))
             touch_compendium_order(state, add_id)
@@ -572,11 +584,11 @@ def apply_delta(
 
         entry = comp.setdefault(resolved_id, {})
         if u.name is not None:
-            entry["name"] = u.name
+            entry["name"] = _strip_non_ascii(u.name)
         if u.title is not None:
-            entry["title"] = u.title
+            entry["title"] = _strip_non_ascii(u.title)
         if u.bio is not None:
-            entry["bio"] = u.bio
+            entry["bio"] = _strip_non_ascii(u.bio)
         if u.aliases:
             existing_aliases = set(entry.get("aliases") or [])
             for a in u.aliases:
