@@ -34,6 +34,14 @@ def _pick(fakers: list[Faker], weights: list[float], rng: random.Random) -> Fake
     return rng.choices(fakers, weights=weights, k=1)[0]
 
 
+def _ensure_ascii(name: str) -> str:
+    """Strip non-ASCII characters from a name, keeping only Latin letters, digits, spaces, hyphens, and apostrophes."""
+    result = re.sub(r"[^\x00-\x7F]", "", name).strip()
+    if not result:
+        return "Unknown"
+    return result
+
+
 def generate_name_pool(
     locales: list[dict[str, Any]],
     *,
@@ -46,9 +54,9 @@ def generate_name_pool(
     fakers, weights = _build_weighted_fakers(locales, rng, seed)
 
     return {
-        "pc": [_pick(fakers, weights, rng).name() for _ in range(pc_count)],
-        "npc": [_pick(fakers, weights, rng).name() for _ in range(npc_count)],
-        "location": [_pick(fakers, weights, rng).city() for _ in range(location_count)],
+        "pc": [_ensure_ascii(_pick(fakers, weights, rng).name()) for _ in range(pc_count)],
+        "npc": [_ensure_ascii(_pick(fakers, weights, rng).name()) for _ in range(npc_count)],
+        "location": [_ensure_ascii(_pick(fakers, weights, rng).city()) for _ in range(location_count)],
     }
 
 
@@ -60,7 +68,7 @@ def generate_npc_names(
 ) -> list[str]:
     rng = random.Random(seed)
     fakers, weights = _build_weighted_fakers(locales, rng, seed)
-    return [_pick(fakers, weights, rng).name() for _ in range(count)]
+    return [_ensure_ascii(_pick(fakers, weights, rng).name()) for _ in range(count)]
 
 
 def generate_npc_names_split(
@@ -77,10 +85,10 @@ def generate_npc_names_split(
     female_names = []
     for _ in range(male_count):
         faker = _pick(fakers, weights, rng)
-        male_names.append(faker.first_name_male() if hasattr(faker, 'first_name_male') else faker.name())
+        male_names.append(_ensure_ascii(faker.first_name_male() if hasattr(faker, 'first_name_male') else faker.name()))
     for _ in range(female_count):
         faker = _pick(fakers, weights, rng)
-        female_names.append(faker.first_name_female() if hasattr(faker, 'first_name_female') else faker.name())
+        female_names.append(_ensure_ascii(faker.first_name_female() if hasattr(faker, 'first_name_female') else faker.name()))
     return {"male": male_names, "female": female_names}
 
 

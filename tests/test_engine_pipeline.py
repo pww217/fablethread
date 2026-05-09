@@ -601,7 +601,7 @@ async def test_generic_currency_term_does_not_invent_inventory_id(save_dir):
         progress_response=_progress_response(),
     )
     with fake:
-        result = await _run(save_dir, "pay the innkeeper")
+        await _run(save_dir, "pay the innkeeper")
 
     final = load_state(save_dir)
     credits_entry = next((i for i in final["inventory"] if i["id"] == "credits"), None)

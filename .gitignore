@@ -30,6 +30,9 @@ ccya/static/app.css
 # OS
 .DS_Store
 
+# Generated packs (ephemeral, not committed)
+packs/generated/
+
 # Eval harness outputs
 # evals/runs/ # Send them to Github for Perplexity reviews
 .eval-tmp/

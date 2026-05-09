@@ -16,12 +16,14 @@
 | `ccya/engine/changes.py` | `summarize_changes()`, `format_change_lines()`, `_summarize_applied()` |
 | `ccya/engine/pressure.py` | `_expire_scene_pressures()`, `_purge_scene_pressures()` |
 | `ccya/engine/compactor.py` | `maybe_compact()`, `_extract_turns_for_compact()`, `_build_compact_messages()`, `_parse_compact_response()`, `_write_compacted_block()` |
+| `ccya/engine/generate_pack.py` | `generate_pack_from_brief(inputs, packs_root, llm_host, llm_model, template_dir, trace_id) -> AsyncIterator[dict]` — SSE-driven ephemeral pack generation from world brief; writes `scenario.yaml` + `pack.yaml` to `packs/generated/<uuid>/`; yields `phase`, `pack_ready`, `generation_error` events |
 
 ## Public APIs
 
 - **`run_turn(save_dir, user_input, config, template_dir, pack_style, pack_name_locales, pack_factions, pack_locations, pack_narrator_rules)`** — Async generator yielding `("token", str)`, `("phase", dict)`, `("complete", TurnResult)`. The 5-call turn pipeline.
 - **`generate_seed(pack, config, overrides, template_dir)`** — LLM-generated SeedEnvelope for dynamic packs.
 - **`generate_pack(brief, config, packs_dir, template_dir, max_retries)`** — LLM-generated ScenarioBrief from WorldBrief, writes pack to `packs/custom/<slug>/`, returns loaded Pack.
+- **`generate_pack_from_brief(inputs, packs_root, llm_host, llm_model, template_dir, trace_id)`** — Async generator yielding SSE events (`phase`, `pack_ready`, `generation_error`); writes ephemeral pack to `packs/generated/<uuid>/`.
 - **`warmup(config)`** — Silent chat call to pre-load model.
 - **`is_turn_in_progress(save_dir)`** — Guard against concurrent turns.
 - **`EngineConfig`** dataclass — all tunable params (temps, timeouts, token budget, thinking toggles, compaction settings).
@@ -114,6 +116,9 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `generate_pack(brief, config, packs_dir, *, template_dir=None, max_retries=2)` → `Pack` (async) — takes `WorldBrief`, generates `ScenarioBrief` via LLM, writes `pack.yaml` + `scenario.yaml` to `packs/custom/<slug>/`, returns loaded `Pack`. Uses `generate_pack_system.j2` + `generate_pack_user.j2` prompts. Retries on parse/validation failure.
 - `_slugify(text)` → `str` — converts concept string to URL-safe slug (max 40 chars)
 - `_build_generate_pack_messages(env, brief, name_pool, name_seed)` → `list[dict]` — renders pack generation prompts
+
+### generate_pack.py
+- `generate_pack_from_brief(inputs, packs_root, llm_host, llm_model, template_dir, trace_id) -> AsyncIterator[dict]` (async) — SSE-driven ephemeral pack generation from world brief; renders `generate_pack_system.j2` + `generate_pack_user.j2`, calls `llm_chat`, parses YAML into `ScenarioBrief`, writes `scenario.yaml` + `pack.yaml` to `packs/generated/<uuid>/`; yields `{"type":"phase","label":...}`, `{"type":"pack_ready","pack_id":...}`, or `{"type":"generation_error","error":...}`
 - `_convert_tuples_to_lists(obj)` → `Any` — recursively converts tuples to lists for YAML compatibility (yaml.dump serializes tuples with !!python/tuple which safe_load can't read)
 
 ### changes.py

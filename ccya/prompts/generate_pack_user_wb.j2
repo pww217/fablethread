@@ -1,0 +1,20 @@
+## World Brief
+
+**Concept:** {{ concept }}
+{% if world_name %}
+**World name:** {{ world_name }}
+{% endif %}
+{% if tone_tags %}
+**Tone tags:** {{ tone_tags | join(", ") }}
+{% endif %}
+{% if mood_note %}
+**Mood note:** {{ mood_note }}
+{% endif %}
+{% if world_rules %}
+**World rules (hard physical laws):**
+{% for rule in world_rules %}
+- {{ rule }}
+{% endfor %}
+{% endif %}
+
+Emit the ScenarioBrief JSON now.

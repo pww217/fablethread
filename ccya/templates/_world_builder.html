@@ -1,0 +1,129 @@
+{# _world_builder.html — injected into #pack-picker-body #}
+<div x-data="worldBuilder()" class="world-builder">
+
+    {# ── Step 1: Concept ──────────────────────────────── #}
+    <div class="wbstep" x-show="currentStep === 1">
+        <p class="wbstep-hint">Describe your world in one or two sentences. This is the seed for everything.</p>
+
+        <label class="wbfield-label" for="wb-concept">World concept <span class="wbfield-required">*</span></label>
+        <textarea id="wb-concept"
+                  class="wbfield-textarea"
+                  x-model="concept"
+                  placeholder="e.g. A city-state floating on a dead god's back, slowly dissolving into the ocean below."
+                  rows="3"
+                  maxlength="400"></textarea>
+        <span class="wbfield-counter" x-text="concept.length + ' / 400'"></span>
+
+        <label class="wbfield-label" for="wb-name">World name <span class="wbfield-optional">(optional)</span></label>
+        <input id="wb-name"
+               type="text"
+               class="wbfield-input"
+               x-model="worldName"
+               placeholder="Leave blank to let the engine choose"
+               maxlength="60">
+    </div>
+
+    {# ── Step 2: Tone and Genre ────────────────────────── #}
+    <div class="wbstep" x-show="currentStep === 2">
+        <p class="wbstep-hint">Select up to 4 tags that define the feel of your world. These become <code>tone_tags</code> on the generated pack.</p>
+
+        <div class="wbtag-grid">
+            <template x-for="tag in availableTags" :key="tag">
+                <button type="button"
+                        class="wbtag"
+                        :class="{ 'wbtag--selected': selectedTags.includes(tag) }"
+                        @click="toggleTag(tag)"
+                        :disabled="!selectedTags.includes(tag) && selectedTags.length >= 4"
+                        x-text="tag">
+                </button>
+            </template>
+        </div>
+
+        <label class="wbfield-label" for="wb-mood">Additional mood note <span class="wbfield-optional">(optional)</span></label>
+        <input id="wb-mood"
+               type="text"
+               class="wbfield-input"
+               x-model="moodNote"
+               placeholder="e.g. melancholy, sun-bleached, claustrophobic"
+               maxlength="120">
+    </div>
+
+    {# ── Step 3: World Rules ───────────────────────────── #}
+    <div class="wbstep" x-show="currentStep === 3">
+        <p class="wbstep-hint">Define up to 3 physical laws of this world — hard constraints on what is possible here. Leave blank to let the engine decide.</p>
+
+        <template x-for="(rule, idx) in worldRules" :key="idx">
+            <div class="wbrule-row">
+                <label class="wbfield-label" :for="'wb-rule-' + idx" x-text="'Law ' + (idx + 1)"></label>
+                <input :id="'wb-rule-' + idx"
+                       type="text"
+                       class="wbfield-input"
+                       x-model="worldRules[idx]"
+                       placeholder="e.g. The dead do not stay dead — they animate within hours unless burned."
+                       maxlength="200">
+            </div>
+        </template>
+    </div>
+
+    {# ── Step 4: Review ────────────────────────────────── #}
+    <div class="wbstep" x-show="currentStep === 4">
+        <p class="wbstep-hint">Review your world before generating.</p>
+
+        <dl class="wbreview-list">
+            <dt>Concept</dt>
+            <dd x-text="concept || '—'"></dd>
+
+            <template x-if="worldName">
+                <dt>Name</dt>
+            </template>
+            <template x-if="worldName">
+                <dd x-text="worldName"></dd>
+            </template>
+
+            <dt>Tone</dt>
+            <dd x-text="selectedTags.length ? selectedTags.join(', ') : '(none selected)'"></dd>
+
+            <template x-if="nonEmptyRules.length">
+                <dt>World laws</dt>
+            </template>
+            <template x-if="nonEmptyRules.length">
+                <dd>
+                    <ul class="wbreview-rules">
+                        <template x-for="r in nonEmptyRules" :key="r">
+                            <li x-text="r"></li>
+                        </template>
+                    </ul>
+                </dd>
+            </template>
+        </dl>
+
+        <p class="wbfield-hint" x-show="nonEmptyRules.length === 0">No world laws specified — the engine will invent them.</p>
+    </div>
+
+    {# ── Navigation bar ────────────────────────────────── #}
+    <div class="wbnav">
+        <button type="button"
+                class="char-creation-btn--back"
+                @click="back()"
+                x-text="currentStep === 1 ? '← Worlds' : '← Back'">
+        </button>
+
+        <span class="wbstep-indicator" x-text="currentStep + ' / 4'"></span>
+
+        <button type="button"
+                class="char-creation-btn--confirm wb-next-btn"
+                x-show="currentStep < 4"
+                @click="next()"
+                :disabled="currentStep === 1 && concept.trim().length < 10"
+                x-text="'Next →'">
+        </button>
+
+        <button type="button"
+                class="char-creation-btn--confirm wb-generate-btn"
+                x-show="currentStep === 4"
+                @click="$dispatch('wb-generate')">
+            ✦ Generate World
+        </button>
+    </div>
+
+</div>

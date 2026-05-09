@@ -61,6 +61,7 @@ class EngineConfig:
     log_llm_io_max_chars: int = 4000
     rules_temperature: float = 0.2
     max_rules_retries: int = 1
+    max_generate_pack_retries: int = 1
     log_prompts: bool = False
     # Scene pressure urgency escalation thresholds (turns)
     scene_pressure_building_at: int = 6
@@ -125,6 +126,7 @@ def build_engine_config(
         log_prompts=bool(logging_cfg.get("log_prompts", False)),
         rules_temperature=rules_t,
         max_rules_retries=int(rules.get("max_retries", 1)),
+        max_generate_pack_retries=int(llm.get("max_generate_pack_retries", 1)),
         scene_pressure_building_at=int(game.get("scene_pressure_building_at", 6)),
         scene_pressure_immediate_at=int(
             game.get("scene_pressure_immediate_at", 10)

@@ -1199,8 +1199,9 @@ async def run_turn_retry(
                 "outcome_summary": outcome_summary,
             })
 
+        _ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         event = {
-            "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "ts": _ts,
             "trace_id": trace_id,
             "turn": state["meta"]["turn"],
             "input": intent.intent,

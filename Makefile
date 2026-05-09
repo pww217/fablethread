@@ -7,7 +7,7 @@ llama-swap:
 	@bash scripts/infra/llama-swap.sh
 
 run: llama-swap
-	uv run ccya
+	uv run ccya --host 0.0.0.0
 
 dev: llama-swap
 	uv run python -m ccya.cli
