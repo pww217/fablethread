@@ -73,9 +73,10 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 
 ### rules.py (engine/rules.py — NOT ccya/rules.py)
 - `_rules_messages(env, state, user_input, recent_turns=None)` → `list[dict]` — prompt builder for rules/intent call
-- `_call_rules(messages, config, trace_id)` → `tuple[IntentEnvelope, dict, str]` (async) — LLM call wrapper with retry on parse failure
+- `_call_rules(messages, config, trace_id)` → `tuple[IntentEnvelope, dict, str]` (async) — LLM call wrapper with retry on parse failure; calls `apply_thinking(messages, False)` to suppress thinking tokens unconditionally
 - `_avg_rules_ms(save_dir, n=5)` → `int` — rolling average rules latency from events
 - `_log_rules_outcome(turn, intent, outcome)` — logs rules outcome for debugging
+- Near-miss directive logic lives in `ccya/rules.py:build_directive()` — when `band == "fail"` and `final_total >= 6`, the directive appends a near-miss complication note giving the narrator latitude to make failures narratively generative rather than fully punitive.
 
 ### names.py
 - `generate_name_pool(locales, *, pc_count=3, npc_count=8, location_count=5, seed=None)` → `dict[str, list[str]]` — culturally-appropriate name pools via Faker (pc, npc, location keys)
