@@ -19,7 +19,7 @@
 - `roll_2d6(rng)` — roll two six-sided dice, returns `(die1, die2)`
 - `compute_band(final_total, dice)` — map 2d6 result to 6-band PbtA resolution (crit_fail on natural 2, crit_success on natural 12)
 - `conditions_modifier(skill, conditions)` — sum condition mods for a given skill
-- `build_directive(band, intent_verb, skill)` — verb-differentiated directive for setback/partial; verb-stamped for other bands
+- `build_directive(band, intent_verb, skill, *, near_miss=False)` — verb-differentiated directive for setback/partial; verb-stamped for other bands; near-miss fail band (final_total=6) appends complication note giving narrator latitude for "interesting failure" narration
 - `_verb_category(intent_verb)` — lookup verb category for directive table
 
 ## Type aliases

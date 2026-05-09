@@ -142,7 +142,7 @@ def conditions_modifier(skill: str, conditions: list[Any]) -> int:
     return total
 
 
-def build_directive(band: str, intent_verb: str, skill: str) -> str:
+def build_directive(band: str, intent_verb: str, skill: str, *, near_miss: bool = False) -> str:
     if band in ("setback", "partial"):
         cat = _verb_category(intent_verb)
         table = _DIRECTIVE_TABLE.get(band, {})
@@ -156,6 +156,8 @@ def build_directive(band: str, intent_verb: str, skill: str) -> str:
     if band == "crit_fail":
         return f"The {verb} fails catastrophically. {base}"
     if band == "fail":
+        if near_miss:
+            return f"The {verb} fails. {base} The roll was close — narrate a complication or setback that still allows the story to move forward, rather than a full dead-end punishment."
         return f"The {verb} fails. {base}"
     if band == "success":
         return f"The {verb} succeeds cleanly. {base}"
@@ -195,7 +197,8 @@ def resolve_check(
     final_total = raw_total + stat_mod + diff_mod + cond_mod
 
     band = compute_band(final_total, dice)
-    directive = build_directive(band, intent_verb, skill)
+    near_miss = band == "fail" and final_total >= 6
+    directive = build_directive(band, intent_verb, skill, near_miss=near_miss)
 
     return RulesOutcome(
         rolled=True,
