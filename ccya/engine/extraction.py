@@ -65,6 +65,24 @@ def _narration_has_transfer(narration: str) -> bool:
     return any(verb in lower for verb in _TRANSFER_VERBS)
 
 
+def _capitalize_inventory_names(items: list[Any]) -> list[Any]:
+    """Capitalize the first letter of inventory item names.
+
+    Modifies items in place and returns them.
+    Handles both Pydantic model instances and dicts.
+    """
+    for item in items:
+        if hasattr(item, "name"):
+            name = item.name
+            if name and name[0].islower():
+                item.name = name[0].upper() + name[1:]
+        elif isinstance(item, dict) and "name" in item:
+            name = item["name"]
+            if name and name[0].islower():
+                item["name"] = name[0].upper() + name[1:]
+    return items
+
+
 def _dedup_compendium_add(
     proposed: "CompendiumNpcUpdate",
     existing_npcs: list[dict[str, Any]],
@@ -400,7 +418,7 @@ async def _run_extraction_pipeline(
     extraction_event: dict[str, Any] = {}
 
     # --- Stream 1: Scene ---
-    scene_domains = {"scene", "location_change"}
+    scene_domains = {"scene", "location_change", "compendium_npc"}
     run_scene = bool(scene_domains & active)
     if run_scene:
         t_scene = asyncio.get_event_loop().time()
@@ -571,6 +589,10 @@ async def _run_extraction_pipeline(
             extra={"turn": turn_no, "trace_id": trace_id},
         )
     scene_result = scene_result.model_copy(update={"compendium_npc_update": deduped_compendium})
+
+    # --- Capitalize inventory item names ---
+    _capitalize_inventory_names(state_result.inventory_add)
+    _capitalize_inventory_names(state_result.inventory_update)
 
     # --- Merge into single StateDelta ---
     merged = StateDelta(

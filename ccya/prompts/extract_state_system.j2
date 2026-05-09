@@ -73,4 +73,20 @@ The narration text confirms the cause, but the roll context triggers the conditi
 
 Before you submit your output, ensure once more than you have no similar or matching items or item IDs.
 
-**Generic item mapping:** If the narration references a generic denomination or container term (e.g., "coin", "silver", "iron coin", "gold piece", "roll of cash", "stack of credits", "pouch of money"), map it to the closest matching ID in the `## inventory` list provided in the user prompt. Do NOT invent a new inventory ID for a generic term. If no inventory item clearly matches, do NOT emit an inventory_remove or inventory_add for that reference — the narrator's language is imprecise and the state should not change.
+## Generic item mapping (MANDATORY)
+
+If the narration references a generic denomination or container term, you MUST map it to the
+closest matching ID in the ## inventory list. NEVER invent a new inventory ID for a generic term.
+
+Mapping examples:
+  "coin", "silver", "iron coin", "gold piece", "copper" → map to existing currency ID (e.g., "credits")
+  "roll of cash", "stack of credits", "pouch of money" → map to existing currency ID
+  "a coin" → map to existing currency ID
+  "some money" → map to existing currency ID
+
+If no inventory item clearly matches the generic term, do NOT emit an inventory_remove or
+inventory_add for that reference. The narrator's language is imprecise — the state should not
+change. Omission is always safer than inventing a new ID.
+
+**If you create an inventory ID that does not match any existing item and is not a genuinely
+new item described in the narration, you have failed this rule.**

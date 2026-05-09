@@ -118,6 +118,11 @@ See `[eval-remediation/plan.md](eval-remediation/plan.md)` for phased implementa
 - ~~**Fix compactor recent_events compaction** — ring buffer grows unbounded, no culling — see `[eval-remediation/compactor-recent-events.md](eval-remediation/compactor-recent-events.md)` for full spec~~
 - ~~**Enforce quest deduplication** — progress extractor creates overlapping quest IDs instead of updating existing — see `[eval-remediation/quest-dedup.md](eval-remediation/quest-dedup.md)` for full spec~~
 - ~~**Fix eval pack turn-0 start** — eval scenario should start at turn 0 for clean baseline — see `[eval-remediation/eval-pack-turn-0.md](eval-remediation/eval-pack-turn-0.md)` for full spec~~
+- ~~**Fix scene extractor domain routing** — `eval-remediation/issues-4-8.md` Phase 1 — scene extractor skipped when compendium_npc active but scene/location_change not~~
+- ~~**Fix generic item mapping in state extractor** — `eval-remediation/issues-4-8.md` Phase 2 — invents iron_coin instead of mapping to credits~~
+- ~~**Strengthen scene extractor location_description nullification + npc_add compendium bloat** — `eval-remediation/issues-4-8.md` Phase 3 — redundant location descriptions, npc_add triggers compendium upserts for known NPCs~~
+- ~~**Remove redundant style injection in narrate** — `eval-remediation/issues-4-8.md` Phase 4 — World Pack Style copied verbatim into narrate prompt~~
+- ~~**Inventory item capitalization** — `eval-remediation/issues-4-8.md` Phase 5 — inventory items should start with a capital letter~~
 
 ## Standalone
 
