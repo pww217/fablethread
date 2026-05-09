@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 import sys
+from datetime import datetime
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -40,6 +41,15 @@ from .tv import _turn_viewer_data
 
 # Import the app module to reference its globals (enables test patching)
 _app_mod = sys.modules["ccya.server.app"]
+
+
+def _format_ts(ts_str: str) -> str:
+    """Convert UTC ISO string to a human-readable display string."""
+    try:
+        dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+        return dt.strftime("%d %b · %I:%M %p UTC").lstrip("0")
+    except (ValueError, AttributeError):
+        return ts_str  # fallback: return raw if unparseable
 
 
 @_app_mod.app.get("/", response_class=HTMLResponse)
@@ -113,6 +123,8 @@ async def get_turn(input: str = ""):
                     for err in result.errors:
                         _app_mod._ERRORS_LOG.appendleft(err)
                     ch = result.changes if isinstance(result.changes, dict) else {}
+                    # Format ts field for display (engine stores UTC ISO, UI gets human-readable)
+                    _ts_display = _format_ts(result.ts)
                     yield {
                         "event": "turn_complete",
                         "data": json.dumps(
@@ -132,6 +144,7 @@ async def get_turn(input: str = ""):
                                 "metrics": result.metrics,
                                 "rules": result.rules,
                                 "recent_events_evicted": result.recent_events_evicted,
+                                "ts": _ts_display,
                             }
                         ),
                     }
@@ -209,6 +222,7 @@ async def retry_turn():
                     for err in result.errors:
                         _app_mod._ERRORS_LOG.appendleft(err)
                     ch = result.changes if isinstance(result.changes, dict) else {}
+                    _ts_display = _format_ts(result.ts)
                     yield {
                         "event": "turn_complete",
                         "data": json.dumps(
@@ -229,6 +243,7 @@ async def retry_turn():
                                 "rules": result.rules,
                                 "retry": True,
                                 "recent_events_evicted": result.recent_events_evicted,
+                                "ts": _ts_display,
                             }
                         ),
                     }

@@ -462,6 +462,7 @@ class TurnResult:
     )  # serialized RulesOutcome + intent for logging/UI
     outcome_summary: str = field(default="")
     recent_events_evicted: bool = field(default=False)
+    ts: str = field(default="")
 
 
 def load_config(path: str | os.PathLike[str] = "config.yaml") -> dict[str, Any]:

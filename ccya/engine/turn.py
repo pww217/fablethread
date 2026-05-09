@@ -696,8 +696,9 @@ async def run_turn(
                 "outcome_summary": outcome_summary,
             })
 
+        _ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         event = {
-            "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "ts": _ts,
             "trace_id": trace_id,
             "turn": state["meta"]["turn"],
             "input": user_input,
@@ -765,6 +766,7 @@ async def run_turn(
             rules=rules_event or {},
             outcome_summary=outcome_summary,
             recent_events_evicted=recent_events_evicted,
+            ts=_ts,
         )
         yield ("complete", result_obj)
 
@@ -784,6 +786,7 @@ async def run_turn(
                 metrics=metrics,
                 diff=[],
                 changes={},
+                ts="",
             ),
         )
     finally:
@@ -1258,6 +1261,7 @@ async def run_turn_retry(
             rules=rules_event or {},
             outcome_summary=outcome_summary,
             recent_events_evicted=recent_events_evicted,
+            ts=_ts,
         )
         yield ("complete", result_obj)
 
@@ -1277,6 +1281,7 @@ async def run_turn_retry(
                 metrics=metrics,
                 diff=[],
                 changes={},
+                ts="",
             ),
         )
     finally:
