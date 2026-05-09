@@ -7,7 +7,7 @@
 {% for n in recently_left %}- {{ n.name or n }}{% if n is mapping and n.get('title') %} ({{ n.title }}){% endif %}
 {% endfor -%}
 {% endif -%}
-## Inventory
+## inventory (cross-reference before describing item use)
 {% include "sections/_inventory.j2" %}
 ## Quests
 {% include "sections/_quests.j2" %}
