@@ -48,6 +48,13 @@ engine_config = EngineConfig(
     max_rules_retries=config.get("rules", {}).get("max_retries", 1),
     compact_every=config["game"].get("compact_every", 0),
     compact_temperature=config["game"].get("compact_temperature", 0.1),
+    scene_pressure_building_at=config["game"].get("scene_pressure_building_at", 6),
+    scene_pressure_immediate_at=config["game"].get("scene_pressure_immediate_at", 10),
+    scene_pressure_max_age=config["game"].get("scene_pressure_max_age", 15),
+    scene_pressure_deescalate_on_success=config["game"].get(
+        "scene_pressure_deescalate_on_success", True
+    ),
+    recent_turns_min=config["game"].get("recent_turns_min", 2),
 )
 _validate_compactor_config(engine_config)
 

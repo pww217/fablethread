@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from ccya.engine import EngineConfig, run_turn
+from ccya.engine.config import _validate_compactor_config
 from ccya.eval.config import EvalConfig
 from ccya.eval.engine_mirror import (
     MOMENTUM_DELTA,
@@ -140,10 +141,12 @@ def _build_engine_config(
         extract_temperature=extract_t,
         max_extract_retries=int(llm.get("max_extract_retries", 1)),
         window_turns=int(game.get("window_turns", 3)),
+        compact_every=int(game.get("compact_every", 0)),
+        compact_temperature=float(game.get("compact_temperature", 0.1)),
         chronicle_prefix_budget_tokens=int(
             game.get("chronicle_prefix_budget_tokens", 1500)
         ),
-        recent_events_max=int(game.get("recent_events_max", 15)),
+        recent_events_max=int(game.get("recent_events_max", 20)),
         enable_extract_thinking=bool(llm.get("enable_extract_thinking", False)),
         enable_narrate_thinking=bool(llm.get("enable_narrate_thinking", False)),
         generate_seed_temperature=seed_t,
@@ -153,6 +156,13 @@ def _build_engine_config(
         log_prompts=bool(logging_cfg.get("log_prompts", False)),
         rules_temperature=rules_t,
         max_rules_retries=int(rules.get("max_retries", 1)),
+        scene_pressure_building_at=int(game.get("scene_pressure_building_at", 6)),
+        scene_pressure_immediate_at=int(game.get("scene_pressure_immediate_at", 10)),
+        scene_pressure_max_age=int(game.get("scene_pressure_max_age", 15)),
+        scene_pressure_deescalate_on_success=bool(
+            game.get("scene_pressure_deescalate_on_success", True)
+        ),
+        recent_turns_min=int(game.get("recent_turns_min", 2)),
     )
 
 
@@ -498,6 +508,7 @@ async def run_scenario(
     append_event(save_dir, metadata_event)
 
     engine_config = _build_engine_config(eval_cfg)
+    _validate_compactor_config(engine_config)
 
     started_at = datetime.now(timezone.utc).isoformat()
     turn_records: list[TurnRecord] = []
