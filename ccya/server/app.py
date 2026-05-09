@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, pass_context
 
-from ccya.engine import EngineConfig, warmup
+from ccya.engine import EngineConfig, build_engine_config, warmup
 from ccya.engine.config import _validate_compactor_config
 from ccya.logging_setup import setup_logging
 from ccya.models import load_config as _load_config
@@ -26,36 +26,7 @@ PACKS_DIR = REPO_ROOT / "packs"
 SAVE_DIR = Path("saves") / "default"
 
 config: dict[str, Any] = _load_config(REPO_ROOT / "config.yaml")
-engine_config = EngineConfig(
-    host=config["llm"]["host"],
-    model=config["llm"]["model"],
-    prompt_token_budget=config["llm"].get("prompt_token_budget", 28672),
-    request_timeout_s=config["llm"]["request_timeout_s"],
-    narrate_temperature=config["llm"]["narrate_temperature"],
-    extract_temperature=config["llm"]["extract_temperature"],
-    max_extract_retries=config["llm"]["max_extract_retries"],
-    window_turns=config["game"]["window_turns"],
-    chronicle_prefix_budget_tokens=config["game"]["chronicle_prefix_budget_tokens"],
-    recent_events_max=config["game"]["recent_events_max"],
-    enable_extract_thinking=config["llm"].get("enable_extract_thinking", False),
-    enable_narrate_thinking=config["llm"].get("enable_narrate_thinking", False),
-    generate_seed_temperature=config["llm"].get("generate_seed_temperature", 0.9),
-    generate_seed_max_retries=config["llm"].get("generate_seed_max_retries", 1),
-    log_llm_io=config.get("logging", {}).get("log_llm_io", False),
-    log_llm_io_max_chars=config.get("logging", {}).get("log_llm_io_max_chars", 4000),
-    log_prompts=config.get("logging", {}).get("log_prompts", False),
-    rules_temperature=config.get("rules", {}).get("temperature", 0.2),
-    max_rules_retries=config.get("rules", {}).get("max_retries", 1),
-    compact_every=config["game"].get("compact_every", 0),
-    compact_temperature=config["game"].get("compact_temperature", 0.1),
-    scene_pressure_building_at=config["game"].get("scene_pressure_building_at", 6),
-    scene_pressure_immediate_at=config["game"].get("scene_pressure_immediate_at", 10),
-    scene_pressure_max_age=config["game"].get("scene_pressure_max_age", 15),
-    scene_pressure_deescalate_on_success=config["game"].get(
-        "scene_pressure_deescalate_on_success", True
-    ),
-    recent_turns_min=config["game"].get("recent_turns_min", 2),
-)
+engine_config = build_engine_config(config)
 _validate_compactor_config(engine_config)
 
 logger = setup_logging(config)
