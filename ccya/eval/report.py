@@ -680,9 +680,11 @@ def generate_report(
     runs_dir: Path | None = None,
 ) -> Path:
     """Back-compat entry point. New code should call write_report_skeleton/finalize_report directly."""
-    path = write_report_skeleton(run_result, eval_cfg=eval_cfg, runs_dir=runs_dir)
     if judge_result is not None:
+        path = write_report_skeleton(run_result, eval_cfg=eval_cfg, runs_dir=runs_dir)
         finalize_report(path, run_result, eval_cfg=eval_cfg, judge_result=judge_result, runs_dir=runs_dir)
+    else:
+        path = write_report_skeleton(run_result, eval_cfg=eval_cfg, runs_dir=runs_dir)
     return path
 
 

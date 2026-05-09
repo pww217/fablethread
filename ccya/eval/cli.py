@@ -50,16 +50,6 @@ def _resolve_packs_dirs(arg: str | None, eval_cfg: EvalConfig) -> list[Path]:
     ]
 
 
-def _resolve_pack_path(pack_id: str, packs_dirs: list[Path]) -> Path:
-    """Find pack_id as a subdirectory of any of the configured packs-dirs."""
-    for pd in packs_dirs:
-        candidate = pd / pack_id
-        if candidate.is_dir():
-            return candidate
-    searched = ", ".join(str(p) for p in packs_dirs)
-    raise FileNotFoundError(f"pack {pack_id!r} not found in any of: {searched}")
-
-
 def _resolve_scenario_path(arg: str | None, eval_cfg: EvalConfig) -> Path:
     """Resolve a scenario name to its file path.
 

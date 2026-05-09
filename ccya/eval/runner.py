@@ -450,8 +450,8 @@ async def run_scenario(
 
     Does NOT invoke judge or generate report.
     """
-    from ccya.eval.cli import _resolve_pack_path
-    pack_path = _resolve_pack_path(scenario.pack, packs_dirs)
+    from ccya.eval.pack_utils import resolve_pack_path
+    pack_path = resolve_pack_path(scenario.pack, packs_dirs)
     pack = load_pack(scenario.pack, pack_path.parent)
     if pack.seed is None:
         raise ValueError(
