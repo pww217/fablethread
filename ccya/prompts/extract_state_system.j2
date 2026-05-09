@@ -72,3 +72,5 @@ The narration text confirms the cause, but the roll context triggers the conditi
 ## Deduplication rule
 
 Before you submit your output, ensure once more than you have no similar or matching items or item IDs.
+
+**Generic item mapping:** If the narration references a generic denomination or container term (e.g., "coin", "silver", "iron coin", "gold piece", "roll of cash", "stack of credits", "pouch of money"), map it to the closest matching ID in the `## inventory` list provided in the user prompt. Do NOT invent a new inventory ID for a generic term. If no inventory item clearly matches, do NOT emit an inventory_remove or inventory_add for that reference — the narrator's language is imprecise and the state should not change.
