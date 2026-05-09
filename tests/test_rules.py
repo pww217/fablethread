@@ -237,6 +237,22 @@ class TestVerbCategory:
         d = build_directive("crit_fail", "fight", "strength")
         assert "catastrophically" in d
 
+    def test_fail_near_miss_includes_complication_note(self):
+        d = build_directive("fail", "attack", "strength", near_miss=True)
+        assert "close" in d.lower() or "complication" in d.lower() or "move forward" in d.lower()
+
+    def test_fail_near_miss_still_contains_fail(self):
+        d = build_directive("fail", "attack", "strength", near_miss=True)
+        assert "fail" in d.lower()
+
+    def test_fail_without_near_miss_unchanged(self):
+        d = build_directive("fail", "attack", "strength", near_miss=False)
+        assert "close" not in d.lower() and "complication" not in d.lower() and "move forward" not in d.lower()
+
+    def test_non_fail_near_miss_ignored(self):
+        d = build_directive("partial", "sneak", "dexterity", near_miss=True)
+        assert "close" not in d.lower() and "move forward" not in d.lower()
+
 
 # ---------------------------------------------------------------------------
 # resolve_check — end-to-end
@@ -413,3 +429,65 @@ class TestResolveCheck:
                 "success",
                 "crit_success",
             }
+
+    def test_near_miss_fail_has_complication_in_directive(self):
+        """final_total=6 with band=fail should produce a near-miss directive."""
+        import ccya.rules as r
+
+        orig = r.roll_2d6
+        try:
+            r.roll_2d6 = lambda rng=None: (3, 3)  # raw_total=6, no modifiers → final=6
+            out = resolve_check(
+                skill="strength",
+                difficulty="normal",
+                pc_stats={"strength": 2},
+                pc_conditions=[],
+                intent_verb="attack",
+                rng=None,
+            )
+            assert out.band == "fail"
+            assert out.final_total == 6
+            assert "close" in out.directive.lower() or "complication" in out.directive.lower() or "move forward" in out.directive.lower()
+        finally:
+            r.roll_2d6 = orig
+
+    def test_clear_fail_has_no_complication_note(self):
+        """final_total=2 with band=fail should NOT produce a near-miss directive."""
+        import ccya.rules as r
+
+        orig = r.roll_2d6
+        try:
+            r.roll_2d6 = lambda rng=None: (1, 1)  # raw_total=2 → crit_fail, not fail
+            out = resolve_check(
+                skill="strength",
+                difficulty="normal",
+                pc_stats={"strength": 2},
+                pc_conditions=[],
+                intent_verb="attack",
+                rng=None,
+            )
+            assert out.band == "crit_fail"
+        finally:
+            r.roll_2d6 = orig
+
+    def test_clear_fail_no_complication(self):
+        """Use modifiers to force a clear fail and verify no near-miss note."""
+        import ccya.rules as r
+
+        orig = r.roll_2d6
+        try:
+            r.roll_2d6 = lambda rng=None: (1, 2)  # raw_total=3
+            out = resolve_check(
+                skill="strength",
+                difficulty="extreme",
+                pc_stats={"strength": 1},
+                pc_conditions=["exhausted"],
+                intent_verb="attack",
+                rng=None,
+            )
+            # final = 3 + (-1) + (-2) + (-1) = -1 → fail, not near-miss
+            assert out.band == "fail"
+            assert out.final_total == -1
+            assert "close" not in out.directive.lower() and "move forward" not in out.directive.lower()
+        finally:
+            r.roll_2d6 = orig
