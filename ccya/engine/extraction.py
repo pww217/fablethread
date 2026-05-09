@@ -131,6 +131,7 @@ def _extract_scene_messages(
     npc_roster = _scene_npc_roster(known_characters)
     present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
     scene_pressure = list((state.get("scene") or {}).get("scene_pressure") or [])
+    scene_location_description = (state.get("scene") or {}).get("location_description")
     active_quests = [
         q for q in (state.get("quests") or []) if q.get("status") == "active"
     ]
@@ -153,6 +154,7 @@ def _extract_scene_messages(
             "quest_ages": quest_ages or [],
             "active_quests": active_quests,
             "recent_turns": recent_turns or [],
+            "scene_location_description": scene_location_description,
         },
     )
     msgs = [
