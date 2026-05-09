@@ -1,3 +1,5 @@
+Narrate in second person, past tense.
+
 The water is the constant. It rises, it falls, it dictates everything.
 The drowned world is defined by elevation. The high ground is where you live. The Edge is where you risk everything. The flood is where you salvage and pray.
 Verticality is the defining spatial feature: skyscrapers as reefs, submerged highways, kelp forests in parking garages. The water line is visible everywhere.

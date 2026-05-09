@@ -91,3 +91,9 @@ Latency on these calls is dominated by **prefill cost**, which scales linearly w
 Cache stability (rule 1) is **architectural insurance**: it pays off the day mlx_lm gains prefix caching, or the day we swap to a multi-slot runtime. Until then, it's discipline that costs nothing and protects the upgrade path.
 
 If you're tempted to add tokens, ask: does this content change the model's output? If you can't show it does, cut it.
+
+---
+
+## Tense authority
+
+`narrate_system.j2` no longer declares a fixed tense. Tense authority belongs to the pack style block (`## Genre tone` section). Each pack's `style.md` should include a tense instruction (e.g., "Narrate in second person, past tense."). When no pack style is present, the system prompt defaults to past tense. This prevents conflicts between the system prompt's tense declaration and the pack's stylistic requirements.

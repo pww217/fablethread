@@ -1,3 +1,5 @@
+Narrate in second person, past tense.
+
 The war is fought with paper and trucks as much as rifles and artillery.
 Logistics matter more than heroism. A supply report can save a battalion.
 Communication is slow and unreliable. Orders travel by radio, messenger, or field telephone — and often get through wrong.

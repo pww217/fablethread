@@ -1,3 +1,5 @@
+Narrate in second person, past tense.
+
 The city runs on paper: ledgers, warrants, subpoenas, front-page stories, paychecks.
 The Depression is the ground condition. It shapes everything — who has power, who does not, who is desperate, who is patient.
 The police force is real: jurisdictional conflicts, political pressure, evidence rooms, court backlogs.

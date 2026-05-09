@@ -1,3 +1,5 @@
+Narrate in second person, past tense.
+
 Magic is a secret, not a superpower. Using it in the Muggle world carries real risk.
 The Statute of Secrecy is not abstract — it is the wall between the PC's two lives.
 Muggle technology is the great threat to magical concealment: cameras, phones, dashcams, doorbell cameras.

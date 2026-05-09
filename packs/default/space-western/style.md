@@ -1,3 +1,5 @@
+Narrate in second person, past tense.
+
 The Rim is dust, weld marks, and old grievances. Narrate the grit — boot prints on a wood-plank porch, the haze of a flickering oil lamp beside a holographic readout, the smell of axle grease and ozone in the same breath.
 
 The Coalition is a presence felt more than seen — a flag on a courthouse, a fuel certificate signed by a clerk on another world, a cruiser overhead that never lands. When Coalition uniforms do appear in person, the temperature of a room changes.
