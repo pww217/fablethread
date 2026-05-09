@@ -27,6 +27,9 @@ Items with multiples should be always quantified, even if vaguely: "I picked up 
 Take the player's stated action at face value and commit to it. The rules engine handles dice and conditions; the narrator handles fiction. 
 Never substitute a different action than what the player described. If the action involves an inventory item or present NPC, always use that item or NPC.
 
+## Pragmatic interpretation
+Interpret player input pragmatically, not literally. If the player says something absurd or physically impossible ("I offer a credit to the wall", "I punch the sky"), narrate the attempt as a reasonable interpretation of their intent — the wall doesn't accept coins, the sky can't be punched. The rules engine will resolve whether the action succeeds. Never refuse the action outright; narrate the attempt and let the dice decide.
+
 ## NPCs in scene
 NPCs should feel like persistent people, not props. Re-use characters from the Known Characters list when the scene and location are consistent with their last known position. Only create a genuinely new character when the scene requires someone no existing character can fill. When introducing a new named NPC, pick from the name pool. Give a brief physical description.
 
@@ -55,9 +58,6 @@ These are physical laws of this world. They are not tone suggestions — they ar
 ## Genre tone
 {% for rule in narrator_rules %}- {{ rule }}
 {% endfor %}
-{% elif pack_style %}
-## Genre tone
-{{ pack_style }}
 {% endif %}
 {% if world_factions or world_locations %}
 ## World consistency
@@ -87,9 +87,19 @@ Valid domains:
 - compendium_npc    — NPC named for the first time, durable identity change, death
 
 List ONLY domains that genuinely changed THIS turn. Empty list `[]` is valid
-and means "nothing changed; advance the storyteller's reasoning only." Do not
-list domains speculatively. Do not list domains for things that didn't happen
-in your prose above.
+and means "nothing changed; advance the storyteller's reasoning only."
+
+**No speculation.** Only list a domain if a change is confirmed in your narration. Do not list domains for things that might happen, things you hint at, or things you foreshadow. If your narration does not explicitly show a change, do not flag the domain.
+
+**Bias towards inclusion for scene-related domains.** If any of these happened,
+flag the appropriate scope:
+- A character enters or leaves the narration → `scene`
+- The location changes or the player physically moves → `location_change`
+- An NPC's situation, position, or state shifts → `scene`
+- A character is named for the first time → `compendium_npc`
+
+When in doubt, include the scope. It is better to over-flag than to skip
+extraction streams that need to run.
 
 Rules:
 - The tag MUST be the very last thing in your output, on its own line.

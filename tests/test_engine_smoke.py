@@ -397,6 +397,43 @@ class TestPromptComposition:
         assert not off[-1]["content"].endswith("/think")
         assert on[-1]["content"].endswith("/think")
 
+    def test_extract_scene_system_has_location_checklist(self):
+        """System prompt must contain location_description decision checklist."""
+        env = self._env()
+        msgs = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"])
+        system = next(m for m in msgs if m["role"] == "system")["content"]
+        assert "checklist" in system.lower()
+        assert "null" in system.lower()
+
+    def test_extract_scene_system_has_npc_compendium_check(self):
+        """System prompt must instruct npc_add to check compendium first."""
+        env = self._env()
+        msgs = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"])
+        system = next(m for m in msgs if m["role"] == "system")["content"]
+        assert "known_characters" in system
+        assert "compendium" in system.lower()
+
+    # --- inventory capitalization ---
+
+    def test_capitalize_inventory_names_lowercase(self):
+        from ccya.engine.extraction import _capitalize_inventory_names
+        items = [InventoryItem(id="brass_key", name="brass key", amount=1), InventoryItem(id="worn_dagger", name="worn dagger", amount=1)]
+        _capitalize_inventory_names(items)
+        assert items[0].name == "Brass key"
+        assert items[1].name == "Worn dagger"
+
+    def test_capitalize_inventory_names_already_capitalized(self):
+        from ccya.engine.extraction import _capitalize_inventory_names
+        items = [InventoryItem(id="brass_key", name="Brass key", amount=1)]
+        _capitalize_inventory_names(items)
+        assert items[0].name == "Brass key"
+
+    def test_capitalize_inventory_names_empty_name(self):
+        from ccya.engine.extraction import _capitalize_inventory_names
+        items = [InventoryItem(id="empty", name="", amount=1)]
+        _capitalize_inventory_names(items)
+        assert items[0].name == ""
+
     # --- extract_state ---
 
     def test_extract_state_has_system_user_roles(self):
@@ -445,6 +482,15 @@ class TestPromptComposition:
         system = next(m for m in msgs if m["role"] == "system")["content"]
         # Quantity exactness lives in the system prompt as a static rule.
         assert "Quantities are exact" in system
+
+    def test_extract_state_system_has_generic_item_mapping(self):
+        """System prompt must contain explicit generic item mapping rule."""
+        env = self._env()
+        scene = SceneExtractResult()
+        msgs = _extract_state_messages(env, "N.", _make_state(), active_domains=["inventory", "pc_condition"], scene_result=scene)
+        system = next(m for m in msgs if m["role"] == "system")["content"]
+        assert "generic item mapping" in system.lower() or "generic denomination" in system.lower()
+        assert "NEVER invent" in system
 
     # --- extract_progress ---
 
@@ -2212,7 +2258,7 @@ class TestPackKwargs:
             for _m, _name, _orig in _origs:
                 setattr(_m, _name, _orig)
 
-        assert any("UNIQUE_STYLE_MARKER_7483" in s for s in captured_narrate_system)
+        assert not any("UNIQUE_STYLE_MARKER_7483" in s for s in captured_narrate_system)
 
     async def test_pack_factions_in_narrate_system(self) -> None:
         """Factions from pack.scenario should appear in the narrate system prompt."""
