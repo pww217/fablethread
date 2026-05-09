@@ -63,8 +63,7 @@ def _narrate_messages(
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
     ]
-    if enable_narrate_thinking:
-        msgs = apply_thinking(msgs, True)
+    msgs = apply_thinking(msgs, enable_narrate_thinking)
     return msgs
 
 

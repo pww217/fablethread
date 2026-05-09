@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _PROMPTS_LOG_PATH, _render
-from ccya.llm_client import chat as llm_chat, strip_thinking
+from ccya.llm_client import apply_thinking, chat as llm_chat, strip_thinking
 from ccya.models import IntentEnvelope, RulesCheck, RulesOutcome
 
 _log = logging.getLogger("ccya.engine")
@@ -62,6 +62,7 @@ async def _call_rules(
                     messages=messages,
                     max_chars=config.log_llm_io_max_chars,
                 )
+            messages = apply_thinking(messages, False)
             result = await llm_chat(
                 config.host,
                 config.model,
