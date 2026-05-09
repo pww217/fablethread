@@ -612,3 +612,23 @@ async def test_generic_currency_term_does_not_invent_inventory_id(save_dir):
     assert all(i["id"] != "iron_coin" for i in final["inventory"]), (
         "no 'iron_coin' inventory entry should exist"
     )
+
+
+def test_progress_prompt_contains_quest_dedup_rule():
+    """Verify the progress extractor system prompt includes the quest
+    deduplication rule added in eval-remediation-2 Phase 07.
+
+    The dedup rule is a prompt-only instruction — behavioral verification
+    requires a real eval run. This test asserts the rule text is present
+    in the template so it cannot be accidentally removed.
+    """
+    prompt_text = (Path(PROMPTS_DIR) / "extract_progress_system.j2").read_text()
+    assert "Quest deduplication" in prompt_text, (
+        "extract_progress_system.j2 must contain the quest deduplication rule"
+    )
+    assert "deliver_stained_ledger" in prompt_text, (
+        "dedup rule must reference the deliver_stained_ledger example"
+    )
+    assert "deliver_the_ledger" in prompt_text, (
+        "dedup rule must reference the deliver_the_ledger example"
+    )
