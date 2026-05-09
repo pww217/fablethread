@@ -9,6 +9,22 @@ Scope (which extraction streams to run) is decided **post-narration**: the narra
 emits a `<scope>` tail that the server strips from SSE, parses into `active_domains`,
 and feeds into the extraction pipeline.
 
+<!-- EVAL_CONTEXT_START -->
+
+## 5-Pipeline Reference (engine design at a glance)
+
+Every player turn drives this 5-step pipeline, executed strictly in order. Step 0 runs once before narration; Step 1 emits the prose the player reads; Steps 2a/2b/2c extract structured changes from that prose. The Python tail validates and applies the merged delta.
+
+| Pipeline | When it runs | Key inputs | Key outputs | Mechanics it owns | Hand-off to next turn |
+|---|---|---|---|---|---|
+| **Step 0 — Rules / Intent** | Every turn (always) | `state.pc`, `state.location`, `state.scene.present_npcs`, `recent_turns[-1:]`, `user_input` | `IntentEnvelope` (intent, verb, target, stakes, check.required, check.skill, check.difficulty); `RulesOutcome` (rolled, dice, mods, band, directive) | Intent classification, dice roll resolution (2d6 + stat + cond − diff → band), difficulty selection, anti-declare-outcome enforcement | `rules_outcome.directive` shapes narrator latitude |
+| **Step 1 — Narrate** | Every turn (always, streamed) | Full `state` (pc, location, scene, inventory, quests, compendium), `chronicle_tail`, `recent_turns`, `RulesOutcome`, `pack_style`, `narrator_rules`, `pending_gm_beat`, `momentum`, `ages`, `recently_left`, name pools, world factions/locations | `narrative` (prose); a trailing `<scope>{"active_domains":[...]}</scope>` line stripped server-side | Prose generation, dice-band binding, GM-beat consumption (clears `state.meta.pending_gm_beat`), de-escalation directives, age-based stalling fixes, scope decision (active_domains) | `narrative` feeds all 3 extractors; `active_domains` gates which extractors run |
+| **Step 2a — Scene Extract** | When `scene` or `location_change` in active_domains | `narrative`, `state.pc/location`, `state.scene.present_npcs`, `state.pc.conditions`, `known_characters` (LRU compendium), `RulesOutcome`, `scene_pressure`, `deescalate` flag, `quest_ages`, `recent_turns[-1:]` | `SceneExtractResult`: `scene_tags`, `scene_tagline`, `location_change`, `npc_add/remove/update`, `compendium_npc_update`, `scene_pressure_add/remove/update`, `gm_beat` | NPC presence, location changes, scene tags, scene-pressure lifecycle (background→building→immediate, max-age expiry), durable NPC compendium identity, **GM beat generation** (forward-facing storytelling beat) | `gm_beat` written to `state.meta.pending_gm_beat`, consumed by NEXT turn's narrate |
+| **Step 2b — State Extract** | When `inventory` or `pc_condition` in active_domains; auto-activated by transfer-verb scan | `narrative`, `state.pc`, `state.location`, `state.inventory`, `RulesOutcome`, `engine_expired_conditions`, `scene_result.location_change`, `scene_result.present_npcs` | `StateExtractResult`: `inventory_add/remove/update`, `pc_condition_add/remove` | Inventory delta accuracy, condition lifecycle (with `added_turn`), engine-side TTL pre-removal, ID normalization | `items_gained` (names) + `items_lost` (ids) feed Step 2c |
+| **Step 2c — Progress Extract** | Every turn (always) | `narrative`, `state.pc`, `state.scene.recent_events`, `state.scene.world_state`, `active_quests`, `RulesOutcome`, `intent`, `recent_turns[-2:]`, `items_gained`/`items_lost` from 2b | `ProgressExtractResult`: `quest_updates`, `recent_events_add/update/remove`, `actions` (4 suggested choices), `outcome_summary` | Quest objective completion (with band-gating), `recent_events` ring buffer (max 15), action suggestions, narrative recap | `recent_events_add` becomes durable history; `quest_updates` advance arcs into next turn's `rules` and `narrate` |
+
+After Step 2c, results merge into a `StateDelta`, the validator checks (e.g. `inventory_remove` IDs exist), `apply_delta()` mutates state in-place, and the turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `events.jsonl`.
+
 ---
 
 ## High-Level Overview
@@ -20,59 +36,33 @@ flowchart TD
     classDef stageScene    fill:#064e3b,color:#a7f3d0,stroke:#10b981
     classDef stageState    fill:#451a03,color:#fde68a,stroke:#f59e0b
     classDef stageProgress fill:#500724,color:#fbcfe8,stroke:#ec4899
-    classDef llmNode       fill:#0f172a,color:#94a3b8,stroke:#334155
     classDef storageNode   fill:#0f172a,color:#7dd3fc,stroke:#1e40af
     classDef pyNode        fill:#1f2937,color:#9ca3af,stroke:#4b5563
 
-    BROWSER["🌐 Browser<br>(HTMX + SSE)"]
+    USER["user_input"]
 
-    subgraph SERVER["server.py — FastAPI"]
-        TURN["GET /turn<br>SSE EventSourceResponse"]
-        NEWGAME["POST /new-game<br>+ /new-game/reroll"]
-        PANELS["GET /panels/*<br>HTMX fragments"]
-    end
-
-    subgraph ENGINE["engine.py — run_turn()"]
+    subgraph ENGINE["engine — run_turn()"]
         STEP0["Step 0<br>Rules / Intent (LLM)"]:::stageRules
         DICE["Dice Resolution<br>(Python)"]:::pyNode
-        STEP1["Step 1<br>Narrate (LLM, streaming)"]:::stageNarrate
+        STEP1["Step 1<br>Narrate (LLM)"]:::stageNarrate
         STEP2A["Step 2a<br>Scene Extract (LLM)"]:::stageScene
         STEP2B["Step 2b<br>State Extract (LLM)"]:::stageState
         STEP2C["Step 2c<br>Progress Extract (LLM)"]:::stageProgress
         VALIDATE["Validate + Apply Delta<br>(Python)"]:::pyNode
     end
 
-    subgraph SEED_ENGINE["engine.py — generate_seed()"]
-        GS["Generate Seed (LLM)<br>dynamic packs only"]:::llmNode
-    end
-
-    subgraph CHAR_CREATION["server.py — /new-game"]
-        CC["Character Creation<br>(form fields → static seed<br>or LLM-generated seed)"]
-    end
-
-    subgraph PERSISTENCE["saves/default/"]
+    subgraph PERSISTENCE["persistence"]
         STATE["state.yaml<br>(canonical live state)"]:::storageNode
         CHRONICLE["chronicle.md<br>(narrative history)"]:::storageNode
         EVENTS["events.jsonl<br>(structured turn log)"]:::storageNode
     end
 
-    subgraph LLM["Local LLM<br>(OpenAI-compatible API)"]
-        LLM_HOST["host: config.yaml<br>model: config.yaml"]:::llmNode
-    end
-
-    BROWSER -- "user_input (GET /turn?input=...)" --> TURN
-    TURN --> ENGINE
-    NEWGAME --> CC
-    CC -- "static seed" --> STATE
-    CC -- "dynamic" --> SEED_ENGINE
-    GS --> STATE
-    ENGINE --> VALIDATE
+    USER --> STEP0
+    STEP0 --> DICE --> STEP1
+    STEP1 --> STEP2A & STEP2B & STEP2C
+    STEP2A & STEP2B & STEP2C --> VALIDATE
     VALIDATE --> PERSISTENCE
     PERSISTENCE -- "load_state()<br>chronicle_tail<br>recent_turns" --> ENGINE
-    ENGINE -- "SSE: narrative_token<br>phase / turn_complete" --> BROWSER
-    STEP0 & STEP1 & STEP2A & STEP2B & STEP2C --> LLM
-    GS --> LLM
-    PANELS -- "load_state()" --> STATE
 ```
 
 ---
@@ -123,7 +113,7 @@ flowchart LR
 
 ## Step 1 — Narrate (Streaming)
 
-Generates the narrative prose the player reads. Tokens stream live to the browser via SSE.
+Generates the narrative prose the player reads. Tokens are streamed to the client.
 
 ```mermaid
 flowchart LR
@@ -147,7 +137,7 @@ flowchart LR
     end
 
     subgraph OUT["Outputs"]
-        NO1["narrative: str<br>(streamed as tokens → SSE<br>then joined + thinking-stripped)"]:::outNode
+        NO1["narrative: str<br>(streamed as tokens → client<br>then joined + thinking-stripped)"]:::outNode
         NO2["narr_metrics<br>  first_token_ms<br>  total_ms<br>  tokens_in / tokens_out"]
     end
 
@@ -159,7 +149,7 @@ flowchart LR
 > extraction streams below.
 >
 > **Scope tail:** The narrator emits `<scope>{"active_domains":["..."]}</scope>` as the
-> last line of output. The server-side stream filter strips it before SSE emission.
+> last line of output. The server strips it before sending to the client.
 > Parsed `active_domains` flows into Steps 2a/2b/2c. Scene runs only when `scene` or
 > `location_change` is in active_domains. State runs only when `inventory` or
 > `pc_condition` is in active_domains. Progress always runs.
@@ -382,6 +372,47 @@ flowchart LR
 
 ---
 
+## Cross-Pipeline Data Flow
+
+```mermaid
+flowchart TD
+    classDef stageRules    fill:#4c1d95,color:#ddd6fe,stroke:#7c3aed
+    classDef stageNarrate  fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
+    classDef stageScene    fill:#064e3b,color:#a7f3d0,stroke:#10b981
+    classDef stageState    fill:#451a03,color:#fde68a,stroke:#f59e0b
+    classDef stageProgress fill:#500724,color:#fbcfe8,stroke:#ec4899
+    classDef storageNode   fill:#0f172a,color:#7dd3fc,stroke:#1e40af
+    classDef mergeNode     fill:#172554,color:#bfdbfe,stroke:#1d4ed8
+
+    STATE["state.yaml"]:::storageNode
+    CHRONICLE["chronicle.md"]:::storageNode
+    EVENTS["events.jsonl"]:::storageNode
+
+    STATE -- "load_state()" --> STEP0["Step 0<br>Rules / Intent"]:::stageRules
+    CHRONICLE -- "chronicle_tail<br>recent_turns" --> STEP1["Step 1<br>Narrate"]:::stageNarrate
+    STATE -- "pc, inventory,<br>quests, compendium" --> STEP1
+    STEP0 -- "IntentEnvelope<br>RulesOutcome" --> STEP1
+    STEP1 -- "narrative: str<br>active_domains" --> STEP2A["Step 2a<br>Scene"]:::stageScene
+    STEP2A -- "location_change<br>present_npcs" --> STEP2B["Step 2b<br>State"]:::stageState
+    STEP1 -- "narrative<br>active_domains" --> STEP2B
+    STEP2B -- "items_gained, items_lost" --> STEP2C["Step 2c<br>Progress"]:::stageProgress
+    STEP1 -- "narrative<br>active_domains" --> STEP2C
+    STEP2A & STEP2B & STEP2C -- "merge" --> DELTA["StateDelta"]:::mergeNode
+    DELTA -- "validate + apply" --> STATE
+    DELTA -- "event record" --> EVENTS
+    DELTA -- "narrative" --> CHRONICLE
+```
+
+<!-- EVAL_CONTEXT_END -->
+
+---
+
+## Out-of-band Pipelines (not part of the per-turn loop — for human reference)
+
+These run only at new-game time or are non-engine concerns. They are excluded from the eval-context region above.
+
+---
+
 ## Character Creation Pipeline
 
 Triggered by `POST /new-game`. Behavior differs by pack mode.
@@ -445,39 +476,6 @@ flowchart LR
 
     IN --> LLM_GS
     LLM_GS --> OUT
-```
-
----
-
-## Cross-Pipeline Data Flow
-
-```mermaid
-flowchart TD
-    classDef stageRules    fill:#4c1d95,color:#ddd6fe,stroke:#7c3aed
-    classDef stageNarrate  fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
-    classDef stageScene    fill:#064e3b,color:#a7f3d0,stroke:#10b981
-    classDef stageState    fill:#451a03,color:#fde68a,stroke:#f59e0b
-    classDef stageProgress fill:#500724,color:#fbcfe8,stroke:#ec4899
-    classDef storageNode   fill:#0f172a,color:#7dd3fc,stroke:#1e40af
-    classDef mergeNode     fill:#172554,color:#bfdbfe,stroke:#1d4ed8
-
-    STATE["state.yaml"]:::storageNode
-    CHRONICLE["chronicle.md"]:::storageNode
-    EVENTS["events.jsonl"]:::storageNode
-
-    STATE -- "load_state()" --> STEP0["Step 0<br>Rules / Intent"]:::stageRules
-    CHRONICLE -- "chronicle_tail<br>recent_turns" --> STEP1["Step 1<br>Narrate"]:::stageNarrate
-    STATE -- "pc, inventory,<br>quests, compendium" --> STEP1
-    STEP0 -- "IntentEnvelope<br>RulesOutcome" --> STEP1
-    STEP1 -- "narrative: str<br>active_domains" --> STEP2A["Step 2a<br>Scene"]:::stageScene
-    STEP2A -- "location_change<br>present_npcs" --> STEP2B["Step 2b<br>State"]:::stageState
-    STEP1 -- "narrative<br>active_domains" --> STEP2B
-    STEP2B -- "items_gained, items_lost" --> STEP2C["Step 2c<br>Progress"]:::stageProgress
-    STEP1 -- "narrative<br>active_domains" --> STEP2C
-    STEP2A & STEP2B & STEP2C -- "merge" --> DELTA["StateDelta"]:::mergeNode
-    DELTA -- "validate + apply" --> STATE
-    DELTA -- "event record" --> EVENTS
-    DELTA -- "narrative" --> CHRONICLE
 ```
 
 ---

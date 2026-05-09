@@ -268,6 +268,11 @@ def _resolve_pack_dir(pack_id: str, packs_dir: Path) -> Path:
         if not candidate.is_dir():
             raise FileNotFoundError(f"Pack not found: {candidate}")
         return candidate
+    # Check for pack directly under packs_dir (no namespace) first — supports
+    # eval packs and any other flat pack layout.
+    candidate = packs_dir / pack_id
+    if candidate.is_dir():
+        return candidate
     for namespace in ("default", "custom"):
         candidate = packs_dir / namespace / pack_id
         if candidate.is_dir():

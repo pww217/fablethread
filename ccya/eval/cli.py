@@ -25,9 +25,9 @@ import sys
 from dataclasses import asdict, replace
 from pathlib import Path
 
-from ccya.eval.config import InferenceConfig, load_eval_config
-from ccya.eval.judge import run_judge
-from ccya.eval.report import generate_report
+from ccya.eval.config import EvalConfig, InferenceConfig, load_eval_config
+from ccya.eval.judge import run_judge, run_judge_streaming
+from ccya.eval.report import generate_report, write_report_skeleton, finalize_report, append_judge_chunk
 from ccya.eval.runner import (
     REPO_ROOT,
     RunResult,
@@ -40,43 +40,50 @@ from ccya.eval.scenario import discover_scenarios, load_scenario
 _log = logging.getLogger("ccya.eval")
 
 
-def _resolve_packs_dir(arg: str | None) -> Path:
+def _resolve_packs_dirs(arg: str | None, eval_cfg: EvalConfig) -> list[Path]:
+    """Returns the ordered list of packs-dirs to search. --packs-dir overrides config."""
     if arg:
-        return Path(arg).resolve()
-    return REPO_ROOT / "evals" / "packs"
+        return [Path(arg).resolve()]
+    return [
+        (REPO_ROOT / d).resolve() if not Path(d).is_absolute() else Path(d).resolve()
+        for d in eval_cfg.pack_dirs
+    ]
 
 
-def _resolve_scenario_path(arg: str | None) -> Path:
-    if arg:
-        p = Path(arg)
-        if not p.exists() and (REPO_ROOT / "evals" / "scenarios" / arg).exists():
-            return REPO_ROOT / "evals" / "scenarios" / arg
-        if not p.exists() and (REPO_ROOT / "evals" / "scenarios" / f"{arg}.py").exists():
-            return REPO_ROOT / "evals" / "scenarios" / f"{arg}.py"
+def _resolve_pack_path(pack_id: str, packs_dirs: list[Path]) -> Path:
+    """Find pack_id as a subdirectory of any of the configured packs-dirs."""
+    for pd in packs_dirs:
+        candidate = pd / pack_id
+        if candidate.is_dir():
+            return candidate
+    searched = ", ".join(str(p) for p in packs_dirs)
+    raise FileNotFoundError(f"pack {pack_id!r} not found in any of: {searched}")
+
+
+def _resolve_scenario_path(arg: str | None, eval_cfg: EvalConfig) -> Path:
+    """Resolve a scenario name to its file path.
+
+    arg=None → use eval_cfg.default_scenario.
+    arg=<id> → look up evals/scenarios/<id>.py.
+    arg=<path> → resolve as filesystem path.
+    """
+    name = arg or eval_cfg.default_scenario
+    p = Path(name)
+    if p.suffix == ".py" and p.exists():
         return p.resolve()
-    candidates = discover_scenarios(REPO_ROOT / "evals" / "scenarios")
-    if not candidates:
-        raise FileNotFoundError("no scenarios found in evals/scenarios/")
-    return candidates[0]
+    candidate = REPO_ROOT / "evals" / "scenarios" / f"{name}.py"
+    if candidate.exists():
+        return candidate
+    raise FileNotFoundError(f"scenario {name!r} not found at {candidate}")
 
 
-async def _cmd_run(args: argparse.Namespace) -> int:
-    eval_cfg = load_eval_config()
-    log_level = eval_cfg.logging.level
-    if log_level != "WARNING":
-        logger = logging.getLogger("ccya.eval")
-        logger.setLevel(getattr(logging, log_level, logging.WARNING))
-        if not logger.handlers:
-            handler = logging.StreamHandler()
-            handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
-            logger.addHandler(handler)
-    if args.temp is not None:
-        eval_cfg = replace(eval_cfg, inference=InferenceConfig(
-            temperature_override=float(args.temp),
-            cache=eval_cfg.inference.cache,
-        ))
-
-    scenario_path = _resolve_scenario_path(args.scenario)
+async def _run_one_scenario(
+    scenario_path: Path,
+    args: argparse.Namespace,
+    eval_cfg: EvalConfig,
+    packs_dirs: list[Path],
+) -> Path:
+    """Run a single scenario end-to-end. Returns the REPORT.md path."""
     scenario = load_scenario(scenario_path)
     if args.pack:
         scenario = replace(scenario, pack=args.pack)
@@ -99,10 +106,13 @@ async def _cmd_run(args: argparse.Namespace) -> int:
     rr: RunResult = await run_scenario(
         scenario,
         eval_cfg=eval_cfg,
-        packs_dir=_resolve_packs_dir(args.packs_dir),
+        packs_dirs=packs_dirs,
     )
     _log.debug("runner done: turns=%d errors=%d output_dir=%s", len(rr.turns), rr.total_errors, rr.output_dir)
     print(f"[eval] runner done: {len(rr.turns)} turns (of {num_turns}), {rr.total_errors} errors → {rr.output_dir}", file=sys.stderr)
+
+    report_path = write_report_skeleton(rr, eval_cfg=eval_cfg)
+    print(f"[eval] skeleton written: {report_path}", file=sys.stderr)
 
     judge_result = None
     if not args.no_judge and eval_cfg.judge.enabled:
@@ -116,12 +126,13 @@ async def _cmd_run(args: argparse.Namespace) -> int:
             candidate = prev_json.parent / f"{scenario.id}.judge.md"
             if candidate.exists():
                 prev_judge_md = candidate
-        print("[eval] running judge (model defaults to engine model)…", file=sys.stderr)
-        judge_result = await run_judge(
+        print("[eval] judge streaming…", file=sys.stderr)
+        judge_result = await run_judge_streaming(
             Path(rr.events_jsonl_path),
             eval_cfg=eval_cfg,
             output_dir=Path(rr.output_dir),
             scenario_id=scenario.id,
+            on_chunk=lambda c: append_judge_chunk(report_path, c),
             previous_judge_md_path=prev_judge_md,
         )
         _log.debug("judge scores=%s", judge_result.scores)
@@ -129,13 +140,51 @@ async def _cmd_run(args: argparse.Namespace) -> int:
         print(f"[eval] judge mechanical_score={mech}", file=sys.stderr)
         rr.trace_md_path = judge_result.trace_md_path
         rr.judge_md_path = judge_result.judge_md_path
-        (Path(rr.output_dir) / f"{scenario.id}.run.json").write_text(
+        artifacts_dir = Path(rr.output_dir) / "artifacts"
+        (artifacts_dir / f"{scenario.id}.run.json").write_text(
             json.dumps(asdict(rr), indent=2, default=str)
         )
+        finalize_report(report_path, rr, eval_cfg=eval_cfg, judge_result=judge_result)
+        print(f"[eval] report finalized: {report_path}", file=sys.stderr)
 
-    report_path = generate_report(rr, eval_cfg=eval_cfg, judge_result=judge_result)
-    print(f"[eval] report: {report_path}", file=sys.stderr)
-    print(str(report_path))
+    return report_path
+
+
+async def _cmd_run(args: argparse.Namespace) -> int:
+    eval_cfg = load_eval_config()
+    log_level = eval_cfg.logging.level
+    if log_level != "WARNING":
+        logger = logging.getLogger("ccya.eval")
+        logger.setLevel(getattr(logging, log_level, logging.WARNING))
+        if not logger.handlers:
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+            logger.addHandler(handler)
+    if args.temp is not None:
+        eval_cfg = replace(eval_cfg, inference=InferenceConfig(
+            temperature_override=float(args.temp),
+            cache=eval_cfg.inference.cache,
+        ))
+
+    packs_dirs = _resolve_packs_dirs(args.packs_dir, eval_cfg)
+
+    if args.all:
+        scenario_paths = discover_scenarios(REPO_ROOT / "evals" / "scenarios")
+        if not scenario_paths:
+            print("[eval] no scenarios discovered", file=sys.stderr)
+            return 1
+    else:
+        scenario_paths = [_resolve_scenario_path(args.scenario, eval_cfg)]
+
+    print(f"[eval] running {len(scenario_paths)} scenario(s)", file=sys.stderr)
+    last_report: Path | None = None
+    for sp in scenario_paths:
+        report = await _run_one_scenario(sp, args, eval_cfg, packs_dirs)
+        last_report = report
+        print(f"[eval] {sp.stem} → {report}", file=sys.stderr)
+
+    if last_report is not None:
+        print(str(last_report))
     return 0
 
 
@@ -154,9 +203,9 @@ async def _cmd_judge_only(args: argparse.Namespace) -> int:
         print(f"[eval] not a directory: {run_dir}", file=sys.stderr)
         return 1
 
-    run_jsons = sorted(run_dir.glob("*.run.json"))
+    run_jsons = sorted((run_dir / "artifacts").glob("*.run.json")) if (run_dir / "artifacts").is_dir() else sorted(run_dir.glob("*.run.json"))
     if not run_jsons:
-        print(f"[eval] no *.run.json found in {run_dir}", file=sys.stderr)
+        print(f"[eval] no *.run.json found in {run_dir}/artifacts/", file=sys.stderr)
         return 1
     rr = load_run_result(run_jsons[0])
 
@@ -192,6 +241,8 @@ def _cmd_pack(args: argparse.Namespace) -> int:
     print("Eval config:")
     for k in (
         "default_pack",
+        "default_scenario",
+        "pack_dirs",
         "default_save_root",
         "runs_dir",
         "num_turns",
@@ -243,6 +294,8 @@ def main(argv: list[str] | None = None) -> int:
                      help="Override packs directory (defaults to evals/packs).")
     run.add_argument("--turns", type=int, default=None,
                      help="Run only the first N turns (default: from config, 10).")
+    run.add_argument("--all", action="store_true",
+                     help="Run every discovered scenario in serial (default: just default_scenario).")
     run.set_defaults(func=_cmd_run, _is_async=True)
 
     j = sub.add_parser("judge-only", help="Re-run the judge against a prior run dir")

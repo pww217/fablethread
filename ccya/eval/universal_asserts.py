@@ -60,8 +60,8 @@ def check_pending_gm_beat_consumed(
         }
     prev_snap = prev_event.get("state_snapshot") or {}
     cur_snap = event.get("state_snapshot") or {}
-    prev_beat = (prev_snap.get("scene") or {}).get("pending_gm_beat")
-    cur_beat = (cur_snap.get("scene") or {}).get("pending_gm_beat")
+    prev_beat = (prev_snap.get("meta") or {}).get("pending_gm_beat")
+    cur_beat = (cur_snap.get("meta") or {}).get("pending_gm_beat")
     if prev_beat is None:
         return {
             "assertion": "universal.pending_gm_beat.consumed",
@@ -222,6 +222,174 @@ def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def check_recent_events_ring_size(event: dict[str, Any]) -> dict[str, Any]:
+    """recent_events ring buffer must stay <= recent_events_max (default 15).
+    Hardcoded threshold of 20 here as a generous cap; if it exceeds 20, the
+    ring buffer is broken regardless of the configured max.
+    """
+    snap = event.get("state_snapshot") or {}
+    recent = (snap.get("scene") or {}).get("recent_events") or []
+    n = len(recent) if isinstance(recent, list) else 0
+    if n > 20:
+        return {
+            "assertion": "universal.recent_events.ring_bounded",
+            "passed": False,
+            "detail": f"recent_events has {n} entries (max should be ~15)",
+            "scope": "universal",
+        }
+    return {
+        "assertion": "universal.recent_events.ring_bounded",
+        "passed": True,
+        "detail": f"{n} entries",
+        "scope": "universal",
+    }
+
+
+def check_npc_scene_cap(event: dict[str, Any]) -> dict[str, Any]:
+    """state.scene.present_npcs must not exceed 8 (rubric-documented cap)."""
+    snap = event.get("state_snapshot") or {}
+    npcs = (snap.get("scene") or {}).get("present_npcs") or []
+    n = len(npcs) if isinstance(npcs, list) else 0
+    if n > 8:
+        names = [n2.get("name", n2.get("id", "?")) for n2 in npcs if isinstance(n2, dict)]
+        return {
+            "assertion": "universal.scene.npc_cap",
+            "passed": False,
+            "detail": f"{n} NPCs in scene (cap is 8): {names[:10]}",
+            "scope": "universal",
+        }
+    return {
+        "assertion": "universal.scene.npc_cap",
+        "passed": True,
+        "detail": f"{n} NPCs",
+        "scope": "universal",
+    }
+
+
+def check_condition_no_dupes(event: dict[str, Any]) -> dict[str, Any]:
+    """state.pc.conditions must not contain two entries with the same id."""
+    snap = event.get("state_snapshot") or {}
+    conds = (snap.get("pc") or {}).get("conditions") or []
+    ids = [c.get("id") for c in conds if isinstance(c, dict)]
+    seen: dict[str, int] = {}
+    for cid in ids:
+        if cid:
+            seen[cid] = seen.get(cid, 0) + 1
+    dupes = [cid for cid, n in seen.items() if n > 1]
+    if dupes:
+        return {
+            "assertion": "universal.pc.condition_no_dupes",
+            "passed": False,
+            "detail": f"duplicate condition ids: {dupes}",
+            "scope": "universal",
+        }
+    return {
+        "assertion": "universal.pc.condition_no_dupes",
+        "passed": True,
+        "detail": f"{len(ids)} conditions, no dupes",
+        "scope": "universal",
+    }
+
+
+def check_actions_count_and_distinct(event: dict[str, Any]) -> dict[str, Any]:
+    """progress.actions must contain exactly 4 distinct entries."""
+    actions = event.get("actions") or []
+    if not isinstance(actions, list):
+        return {
+            "assertion": "universal.progress.actions_quality",
+            "passed": False,
+            "detail": "actions is not a list",
+            "scope": "universal",
+        }
+    n = len(actions)
+    distinct = len(set(actions))
+    if n != 4:
+        return {
+            "assertion": "universal.progress.actions_quality",
+            "passed": False,
+            "detail": f"actions has {n} entries (expected 4)",
+            "scope": "universal",
+        }
+    if distinct != n:
+        return {
+            "assertion": "universal.progress.actions_quality",
+            "passed": False,
+            "detail": f"actions has {n - distinct} duplicate(s): {actions}",
+            "scope": "universal",
+        }
+    return {
+        "assertion": "universal.progress.actions_quality",
+        "passed": True,
+        "detail": "4 distinct actions",
+        "scope": "universal",
+    }
+
+
+def check_momentum_band_delta(
+    event: dict[str, Any], prev_event: dict[str, Any] | None
+) -> dict[str, Any]:
+    """If a roll happened, momentum should change per band: crit_success +2,
+    success +1, partial 0, setback/fail -1, crit_fail -2."""
+    rules = event.get("rules") or {}
+    if not rules.get("rolled"):
+        return {
+            "assertion": "universal.momentum.band_delta",
+            "passed": True,
+            "detail": "(no roll)",
+            "scope": "universal",
+        }
+    band = rules.get("band", "")
+    expected = {
+        "crit_success": 2,
+        "success": 1,
+        "partial": 0,
+        "setback": -1,
+        "fail": -1,
+        "crit_fail": -2,
+    }.get(band)
+    if expected is None:
+        return {
+            "assertion": "universal.momentum.band_delta",
+            "passed": True,
+            "detail": f"(unknown band {band!r})",
+            "scope": "universal",
+        }
+    cur_snap = event.get("state_snapshot") or {}
+    cur_m = (cur_snap.get("meta") or {}).get("momentum")
+    if cur_m is None:
+        return {
+            "assertion": "universal.momentum.band_delta",
+            "passed": True,
+            "detail": "(no momentum field)",
+            "scope": "universal",
+        }
+    if prev_event is None:
+        return {
+            "assertion": "universal.momentum.band_delta",
+            "passed": True,
+            "detail": "(first turn)",
+            "scope": "universal",
+        }
+    prev_snap = prev_event.get("state_snapshot") or {}
+    prev_m = (prev_snap.get("meta") or {}).get("momentum") or 0
+    actual = (cur_m or 0) - prev_m
+    # Engine clamps to [-3, 3] so an "expected +2" can show as +1 or 0 if at edge.
+    # We accept actual within [expected - 1, expected] (engine clamp) or exactly expected.
+    if actual == expected or (expected > 0 and 0 <= actual <= expected) or (expected < 0 and expected <= actual <= 0):
+        return {
+            "assertion": "universal.momentum.band_delta",
+            "passed": True,
+            "detail": f"band={band} delta={actual} (expected {expected:+d}, engine may clamp)",
+            "scope": "universal",
+        }
+    return {
+        "assertion": "universal.momentum.band_delta",
+        "passed": False,
+        "detail": f"band={band} expected delta {expected:+d} but got {actual:+d} (prev={prev_m} cur={cur_m})",
+        "scope": "universal",
+    }
+
+
 def run_all_universal_asserts(
     event: dict[str, Any], prev_event: dict[str, Any] | None
 ) -> list[dict[str, Any]]:
@@ -231,4 +399,9 @@ def run_all_universal_asserts(
         check_location_change_applied(event, prev_event),
         check_rolled_implies_binding(event),
         check_npc_mention_extracted(event),
+        check_recent_events_ring_size(event),
+        check_npc_scene_cap(event),
+        check_condition_no_dupes(event),
+        check_actions_count_and_distinct(event),
+        check_momentum_band_delta(event, prev_event),
     ]

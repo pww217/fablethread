@@ -27,6 +27,8 @@ class JudgeConfig:
     model: str | None = None
     rubric_path: str = "evals/rubrics/default.md"
     temperature: float = 0.3
+    timeout_s: float | None = None
+    max_tokens: int = 64000
     trace: TraceConfig = field(default_factory=TraceConfig)
 
 
@@ -45,6 +47,8 @@ class LoggingConfig:
 @dataclass
 class EvalConfig:
     default_pack: str = "eval-pack"
+    default_scenario: str = "full_cycle"
+    pack_dirs: list[str] = field(default_factory=lambda: ["evals/packs", "packs/default", "packs/custom"])
     default_save_root: str = "~/.cache/ccya-eval"
     runs_dir: str = "evals/runs"
     num_turns: int = 10
@@ -77,6 +81,8 @@ def load_eval_config(path: str | Path | None = None) -> EvalConfig:
 
     return EvalConfig(
         default_pack=str(raw.get("default_pack", "eval-pack")),
+        default_scenario=str(raw.get("default_scenario", "full_cycle")),
+        pack_dirs=list(raw.get("pack_dirs") or ["evals/packs", "packs/default", "packs/custom"]),
         default_save_root=str(raw.get("default_save_root", "~/.cache/ccya-eval")),
         runs_dir=str(raw.get("runs_dir", "evals/runs")),
         num_turns=int(raw.get("num_turns", 10)),
@@ -92,6 +98,8 @@ def load_eval_config(path: str | Path | None = None) -> EvalConfig:
             model=jdg_raw.get("model"),
             rubric_path=str(jdg_raw.get("rubric_path", "evals/rubrics/default.md")),
             temperature=float(jdg_raw.get("temperature", 0.3)),
+            timeout_s=jdg_raw.get("timeout_s"),
+            max_tokens=int(jdg_raw.get("max_tokens", 64000)),
             trace=trace_cfg,
         ),
         report=ReportConfig(

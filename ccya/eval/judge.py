@@ -16,14 +16,14 @@ import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import yaml
 
 from ccya.eval.config import EvalConfig
 from ccya.eval.engine_mirror import constants_block
 from ccya.eval.universal_asserts import run_all_universal_asserts
-from ccya.llm_client import chat, strip_thinking
+from ccya.llm_client import strip_thinking
 from ccya.models import load_config
 
 _log = logging.getLogger("ccya.eval")
@@ -152,6 +152,8 @@ def build_trace(
     options: TraceOptions | None = None,
     auto_checker_failures: list[dict[str, Any]] | None = None,
     metrics_rows: list[dict[str, Any]] | None = None,
+    redundancy_signals: dict[str, Any] | None = None,
+    compaction_signals: dict[str, Any] | None = None,
 ) -> str:
     """Render the full markdown trace sent to the judge as the user message.
 
@@ -184,8 +186,10 @@ def build_trace(
             full_snapshot=is_first or is_last,
         ))
         prev_snap = ev.get("state_snapshot") or prev_snap
-    if auto_checker_failures or metrics_rows:
-        parts.append(_render_deterministic_signals(auto_checker_failures, metrics_rows))
+    if auto_checker_failures or metrics_rows or redundancy_signals or compaction_signals:
+        parts.append(_render_deterministic_signals(
+            auto_checker_failures, metrics_rows, redundancy_signals, compaction_signals
+        ))
     return "\n".join(parts)
 
 
@@ -373,6 +377,8 @@ def _render_context_telemetry(event: dict[str, Any]) -> str:
 def _render_deterministic_signals(
     failures: list[dict[str, Any]] | None,
     metrics: list[dict[str, Any]] | None,
+    redundancy_signals: dict[str, Any] | None = None,
+    compaction_signals: dict[str, Any] | None = None,
 ) -> str:
     parts: list[str] = ["\n---\n", "# Deterministic Signals\n"]
     parts.append("\n## Auto-Checker Failures\n")
@@ -399,6 +405,15 @@ def _render_deterministic_signals(
             )
     else:
         parts.append("*(no metrics)*\n")
+
+    if redundancy_signals is not None:
+        from ccya.eval.redundancy import render_redundancy_section
+        parts.append(render_redundancy_section(redundancy_signals))
+
+    if compaction_signals is not None:
+        from ccya.eval.compaction_signals import render_compaction_section
+        parts.append(render_compaction_section(compaction_signals))
+
     return "".join(parts)
 
 
@@ -497,22 +512,35 @@ def parse_previous_judge_md(path: Path) -> dict[str, Any] | None:
 # ---------------------------------------------------------------------------
 
 
-async def run_judge(
+async def run_judge_streaming(
     events_path: Path,
     *,
     eval_cfg: EvalConfig,
     output_dir: Path,
     scenario_id: str,
+    on_chunk: Callable[[str], None],
     previous_judge_md_path: Path | None = None,
     game_config_path: Path | None = None,
 ) -> JudgeResult:
-    """Read events.jsonl, build trace, write trace.md, call LLM, write judge.md, parse front matter."""
+    """Same contract as run_judge() but uses chat_stream() and forwards each
+    chunk to on_chunk() so callers can append to REPORT.md in flight.
+    """
+    from ccya.llm_client import chat_stream
+
     rubric_path = Path(eval_cfg.judge.rubric_path)
     if not rubric_path.is_absolute():
         rubric_path = REPO_ROOT / rubric_path
     if not rubric_path.exists():
         raise FileNotFoundError(f"rubric not found: {rubric_path}")
     rubric_text = rubric_path.read_text()
+
+    # Phase 06: prepend architecture context to system message
+    try:
+        from ccya.eval.architecture_context import load_architecture_context
+        arch_context = load_architecture_context()
+    except ImportError:
+        arch_context = ""
+    system_text = (rubric_text + "\n\n" + arch_context) if arch_context else rubric_text
 
     cfg_path = game_config_path or (REPO_ROOT / "config.yaml")
     game_cfg = load_config(cfg_path)
@@ -546,45 +574,77 @@ async def run_judge(
                 })
         prev_ev = ev
 
-    trace = build_trace(events, options=options, auto_checker_failures=failures, metrics_rows=metrics_rows)
-    _log.info("judge: %d events, trace=%d chars", len(events), len(trace))
+    # Phase 07: prompt-redundancy signals
+    try:
+        from ccya.eval.redundancy import compute_redundancy_signals
+        redundancy = compute_redundancy_signals(events)
+    except ImportError:
+        redundancy = None
+
+    # Phase 08: compaction-feature signals
+    try:
+        from ccya.eval.compaction_signals import compute_compaction_signals
+        compaction = compute_compaction_signals(events)
+    except ImportError:
+        compaction = None
+
+    trace = build_trace(
+        events,
+        options=options,
+        auto_checker_failures=failures,
+        metrics_rows=metrics_rows,
+        redundancy_signals=redundancy,
+        compaction_signals=compaction,
+    )
 
     trace_md_path = output_dir / f"{scenario_id}.trace.md"
     trace_md_path.write_text(trace)
     _log.info("wrote trace: %s", trace_md_path)
 
     messages = [
-        {"role": "system", "content": rubric_text},
+        {"role": "system", "content": system_text},
         {"role": "user", "content": trace},
     ]
-    _log.info("judge: calling LLM model=%s trace_chars=%d", judge_model, len(trace))
+    _log.info("judge: streaming model=%s trace_chars=%d", judge_model, len(trace))
     t0 = time.monotonic()
+    chunks: list[str] = []
     try:
-        resp = await chat(
+        async for chunk in chat_stream(
             host=host,
             model=judge_model,
             messages=messages,
             temperature=eval_cfg.judge.temperature,
-        )
+            timeout=eval_cfg.judge.timeout_s or 180.0,
+            max_tokens=eval_cfg.judge.max_tokens,  # type: ignore[call-arg]
+        ):
+            chunks.append(chunk)
+            on_chunk(chunk)
         elapsed = time.monotonic() - t0
-        _log.info("judge: LLM call succeeded in %.1fs", elapsed)
+        _log.info("judge: streaming complete in %.1fs", elapsed)
+    except TypeError:
+        # chat_stream() doesn't accept max_tokens yet (Phase 12 not implemented)
+        # Fall back to the old signature
+        async for chunk in chat_stream(
+            host=host,
+            model=judge_model,
+            messages=messages,
+            temperature=eval_cfg.judge.temperature,
+            timeout=eval_cfg.judge.timeout_s or 180.0,
+        ):
+            chunks.append(chunk)
+            on_chunk(chunk)
+        elapsed = time.monotonic() - t0
+        _log.info("judge: streaming complete (fallback) in %.1fs", elapsed)
     except Exception as exc:
         elapsed = time.monotonic() - t0
-        retry_count = getattr(exc, "retry_count", None)
-        msg = f"judge: LLM call failed after {elapsed:.1f}s: {exc}"
-        if retry_count is not None:
-            msg += f" (retries={retry_count})"
-        _log.warning(msg)
+        _log.warning("judge: streaming failed after %.1fs: %s", elapsed, exc)
         raise
-    raw = resp.get("response", "") or ""
 
+    raw = "".join(chunks)
     judge_md_path = output_dir / f"{scenario_id}.judge.md"
     judge_md_path.write_text(raw)
-    _log.info("wrote judge: %s", judge_md_path)
 
     scores, body = parse_judge_response(raw)
-    _log.info("judge: parsed scores=%s", scores)
-
     previous_scores = parse_previous_judge_md(previous_judge_md_path) if previous_judge_md_path else None
 
     return JudgeResult(
@@ -596,4 +656,25 @@ async def run_judge(
         trace_md_path=str(trace_md_path),
         judge_md_path=str(judge_md_path),
         previous_scores=previous_scores,
+    )
+
+
+async def run_judge(
+    events_path: Path,
+    *,
+    eval_cfg: EvalConfig,
+    output_dir: Path,
+    scenario_id: str,
+    previous_judge_md_path: Path | None = None,
+    game_config_path: Path | None = None,
+) -> JudgeResult:
+    """Back-compat. New code should call run_judge_streaming with an on_chunk callback."""
+    return await run_judge_streaming(
+        events_path,
+        eval_cfg=eval_cfg,
+        output_dir=output_dir,
+        scenario_id=scenario_id,
+        on_chunk=lambda _c: None,
+        previous_judge_md_path=previous_judge_md_path,
+        game_config_path=game_config_path,
     )
