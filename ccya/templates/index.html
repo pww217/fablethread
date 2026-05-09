@@ -659,6 +659,59 @@ function charCreation() {
     };
 }
 
+function worldBuilder() {
+    return {
+        currentStep: 1,
+        concept: '',
+        worldName: '',
+        selectedTags: [],
+        moodNote: '',
+        worldRules: ['', '', ''],
+
+        availableTags: [
+            'dark fantasy', 'science fiction', 'post-apocalyptic', 'cyberpunk',
+            'horror', 'noir', 'mystery', 'survival', 'political intrigue',
+            'solarpunk', 'weird west', 'cosmic horror', 'biopunk', 'mythic',
+            'military', 'heist', 'espionage', 'slice of life', 'isekai',
+        ],
+
+        get nonEmptyRules() {
+            return this.worldRules.filter(r => r.trim().length > 0);
+        },
+
+        toggleTag(tag) {
+            const idx = this.selectedTags.indexOf(tag);
+            if (idx >= 0) {
+                this.selectedTags.splice(idx, 1);
+            } else if (this.selectedTags.length < 4) {
+                this.selectedTags.push(tag);
+            }
+        },
+
+        next() {
+            if (this.currentStep < 4) this.currentStep++;
+        },
+
+        back() {
+            if (this.currentStep > 1) {
+                this.currentStep--;
+            } else {
+                this.$dispatch('wb-back-to-packs');
+            }
+        },
+
+        serialize() {
+            return {
+                concept: this.concept.trim(),
+                world_name: this.worldName.trim(),
+                tone_tags: this.selectedTags,
+                mood_note: this.moodNote.trim(),
+                world_rules: this.nonEmptyRules,
+            };
+        },
+    };
+}
+
 function game() {
     return {
         input: '',
@@ -701,57 +754,116 @@ function game() {
                 document.removeEventListener('keydown', onKey);
             };
 
+            // ── Delete handler (reusable) ──
+            const handleDelete = (deleteBtn, currentHtml) => {
+                const packId = deleteBtn.dataset.deletePack;
+                if (!packId) return;
+                if (!confirm(`Delete "${packId}"? This cannot be undone.`)) return;
+                fetch(`/packs/${encodeURIComponent(packId)}`, { method: 'DELETE' })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.error) {
+                            body.innerHTML = `<p class="empty-state" style="color:var(--accent-red)">${data.error}</p>`;
+                            return;
+                        }
+                        body.innerHTML = '<p class="empty-state">Deleting…</p>';
+                        fetch('/panels/pack-picker')
+                            .then(r => r.text())
+                            .then(newHtml => {
+                                body.innerHTML = newHtml;
+                                if (window.Alpine) Alpine.initTree(body);
+                                self._wirePackCards(newHtml);
+                            });
+                    });
+            };
+
+            // ── Pack card click handler (reusable) ──
+            self._wirePackCards = function(originalHtml) {
+                // Attach delete handlers directly to each delete button so they
+                // fire before the body-level card handler and stop propagation.
+                body.querySelectorAll('.pack-card-delete').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        e.stopImmediatePropagation();
+                        handleDelete(btn, originalHtml);
+                    });
+                });
+                body.addEventListener('click', function onCardClick(e) {
+                    const card = e.target.closest('[data-pack-id]');
+                    if (!card) return;
+                    body.removeEventListener('click', onCardClick);
+
+                    if (card.dataset.packId === '__create__') {
+                        self._modalStep = 'worldbuilder';
+                        document.getElementById('pack-picker-title').textContent = 'Build Your World';
+                        body.innerHTML = '<p class="empty-state">Loading world builder…</p>';
+                        fetch('/panels/world-builder')
+                            .then(r => r.text())
+                            .then(wbHtml => {
+                                body.innerHTML = wbHtml;
+                                if (window.Alpine) Alpine.initTree(body);
+                                body.addEventListener('wb-generate', function onGenerate() {
+                                    body.removeEventListener('wb-generate', onGenerate);
+                                    const wbComp = body.querySelector('.world-builder');
+                                    const wbData = wbComp && window.Alpine ? Alpine.$data(wbComp) : null;
+                                    if (!wbData) return;
+                                    self.startWorldBuilder(wbData.serialize(), close, originalHtml);
+                                });
+                                body.addEventListener('wb-back-to-packs', function onBackToPacks() {
+                                    body.removeEventListener('wb-back-to-packs', onBackToPacks);
+                                    self._modalStep = 'pack';
+                                    document.getElementById('pack-picker-title').textContent = 'Choose a World';
+                                    body.innerHTML = originalHtml;
+                                    if (window.Alpine) Alpine.initTree(body);
+                                    body.addEventListener('click', onCardClick);
+                                });
+                            })
+                            .catch(() => { body.innerHTML = '<p class="empty-state">Failed to load world builder.</p>'; });
+                        return;
+                    }
+                    if (!self.characterCreationEnabled) {
+                        close();
+                        self.startNewGame(card.dataset.packId);
+                        return;
+                    }
+                    self._selectedPackId = card.dataset.packId;
+                    self._modalStep = 'character';
+                    document.getElementById('pack-picker-title').textContent = 'Create Your Character';
+                    body.innerHTML = '<p class="empty-state">Loading character creation…</p>';
+                    fetch('/panels/char-creation')
+                        .then(r => r.text())
+                        .then(charHtml => {
+                            body.innerHTML = charHtml;
+                            if (window.Alpine) Alpine.initTree(body);
+                            const confirmBtn = body.querySelector('.char-creation-btn--confirm');
+                            if (confirmBtn) {
+                                confirmBtn.addEventListener('click', function onConfirm(e) {
+                                    if (confirmBtn.disabled) return;
+                                    e.preventDefault();
+                                    close();
+                                    self.startNewGameWithCharCreation();
+                                });
+                            }
+                            const backBtn = body.querySelector('.char-creation-btn--back');
+                            if (backBtn) {
+                                backBtn.addEventListener('click', function onBack(e) {
+                                    e.preventDefault();
+                                    self._modalStep = 'pack';
+                                    document.getElementById('pack-picker-title').textContent = 'Choose a World';
+                                    body.innerHTML = originalHtml;
+                                    if (window.Alpine) Alpine.initTree(body);
+                                    body.addEventListener('click', onCardClick);
+                                });
+                            }
+                        })
+                        .catch(() => { body.innerHTML = '<p class="empty-state">Failed to load character creation.</p>'; });
+                });
+            };
+
             fetch('/panels/pack-picker')
                 .then(r => r.text())
                 .then(html => {
                     body.innerHTML = html;
-                    body.addEventListener('click', function onCardClick(e) {
-                        const card = e.target.closest('[data-pack-id]');
-                        if (!card) return;
-                        body.removeEventListener('click', onCardClick);
-                        // If character creation is disabled, close modal and go straight to new game
-                        if (!self.characterCreationEnabled) {
-                            close();
-                            self.startNewGame(card.dataset.packId);
-                            return;
-                        }
-                        // Capture selected pack ID for the character creation form
-                        self._selectedPackId = card.dataset.packId;
-                        // Advance to character creation step — keep modal open
-                        self._modalStep = 'character';
-                        document.getElementById('pack-picker-title').textContent = 'Create Your Character';
-                        body.innerHTML = '<p class="empty-state">Loading character creation…</p>';
-                        fetch('/panels/char-creation')
-                            .then(r => r.text())
-                            .then(charHtml => {
-                                body.innerHTML = charHtml;
-                                // Initialize Alpine.js on the injected subtree
-                                if (window.Alpine) Alpine.initTree(body);
-                                // Wire the confirm button to submit new game
-                                const confirmBtn = body.querySelector('.char-creation-btn--confirm');
-                                if (confirmBtn) {
-                                    confirmBtn.addEventListener('click', function onConfirm(e) {
-                                        if (confirmBtn.disabled) return;
-                                        e.preventDefault();
-                                        close();
-                                        self.startNewGameWithCharCreation();
-                                    });
-                                }
-                                // Wire back button
-                                const backBtn = body.querySelector('.char-creation-btn--back');
-                                if (backBtn) {
-                                    backBtn.addEventListener('click', function onBack(e) {
-                                        e.preventDefault();
-                                        self._modalStep = 'pack';
-                                        document.getElementById('pack-picker-title').textContent = 'Choose a World';
-                                        body.innerHTML = html;
-                                        if (window.Alpine) Alpine.initTree(body);
-                                        body.addEventListener('click', onCardClick);
-                                    });
-                                }
-                            })
-                            .catch(() => { body.innerHTML = '<p class="empty-state">Failed to load character creation.</p>'; });
-                    });
+                    self._wirePackCards(html);
                 })
                 .catch(() => { body.innerHTML = '<p class="empty-state">Failed to load packs.</p>'; });
 
@@ -783,6 +895,15 @@ function game() {
             this._forceNewGame = false;
             if (!shouldForce && this.turnNum > 0 && !confirm('Reset the current game? This cannot be undone.')) return;
             this.starting = true;
+            const narrativePanel = document.getElementById('narrative-panel');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'pack-generate-progress';
+            loadingDiv.id = 'new-game-loading';
+            loadingDiv.innerHTML = `
+                <div class="pack-generate-progress__spinner"></div>
+                <div class="pack-generate-progress__label">Starting new game…</div>
+                <div class="pack-generate-progress__sublabel">Preparing your adventure.</div>`;
+            narrativePanel.insertBefore(loadingDiv, narrativePanel.firstChild);
             try {
                 const body = new FormData();
                 if (packId) body.append('pack_id', packId);
@@ -791,16 +912,26 @@ function game() {
                 window.location.reload();
             } catch (e) {
                 console.error('New game failed:', e);
-                document.getElementById('narrative-panel').insertAdjacentHTML('beforeend',
-                    `<p style="color: var(--accent-error); font-size: 13px; margin-top: 12px;">
-                        Failed to start new game: ${_escapeHtml(e.message)}
-                     </p>`);
+                loadingDiv.className = 'pack-generate-progress';
+                loadingDiv.innerHTML = `
+                    <div class="pack-generate-progress__error">
+                        ✕ Failed to start new game: ${_escapeHtml(e.message)}
+                    </div>`;
                 this.starting = false;
             }
         },
 
         async startNewGameWithCharCreation() {
             this.starting = true;
+            const narrativePanel = document.getElementById('narrative-panel');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'pack-generate-progress';
+            loadingDiv.id = 'new-game-loading';
+            loadingDiv.innerHTML = `
+                <div class="pack-generate-progress__spinner"></div>
+                <div class="pack-generate-progress__label">Creating your character…</div>
+                <div class="pack-generate-progress__sublabel">Preparing your adventure.</div>`;
+            narrativePanel.insertBefore(loadingDiv, narrativePanel.firstChild);
             try {
                 // Collect character creation form data
                 const body = new FormData();
@@ -829,12 +960,132 @@ function game() {
                 window.location.reload();
             } catch (e) {
                 console.error('New game failed:', e);
-                document.getElementById('narrative-panel').insertAdjacentHTML('beforeend',
-                    `<p style="color: var(--accent-error); font-size: 13px; margin-top: 12px;">
-                        Failed to start new game: ${_escapeHtml(e.message)}
-                     </p>`);
+                loadingDiv.className = 'pack-generate-progress';
+                loadingDiv.innerHTML = `
+                    <div class="pack-generate-progress__error">
+                        ✕ Failed to start new game: ${_escapeHtml(e.message)}
+                     </div>`;
                 this.starting = false;
             }
+        },
+
+        async startWorldBuilder(worldData, closeModal, packPickerHtml) {
+            const body = document.getElementById('pack-picker-body');
+            document.getElementById('pack-picker-title').textContent = 'Generating World…';
+            body.innerHTML = `
+                <div class="pack-generate-progress" id="pack-gen-progress">
+                    <div class="pack-generate-progress__spinner"></div>
+                    <div class="pack-generate-progress__label">Building your world…</div>
+                    <div class="pack-generate-progress__sublabel">This takes 30–60 seconds.</div>
+                </div>`;
+
+            const self = this;
+            const progressEl = body.querySelector('.pack-generate-progress__label');
+            const sublabelEl = body.querySelector('.pack-generate-progress__sublabel');
+
+            const formData = new FormData();
+            formData.append('concept', worldData.concept);
+            formData.append('world_name', worldData.world_name || '');
+            formData.append('tone_tags', JSON.stringify(worldData.tone_tags));
+            formData.append('mood_note', worldData.mood_note || '');
+            formData.append('world_rules', JSON.stringify(worldData.world_rules));
+
+            try {
+                const resp = await fetch('/new-game/generate-pack', {
+                    method: 'POST',
+                    body: formData,
+                });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                if (!resp.body) throw new Error('No response body');
+
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buf = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buf += decoder.decode(value, { stream: true });
+
+                    const lines = buf.split('\n');
+                    buf = lines.pop(); // keep incomplete last line
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        let evt;
+                        try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+
+                        if (evt.type === 'phase') {
+                            if (progressEl) progressEl.textContent = evt.label || 'Generating…';
+                        } else if (evt.type === 'pack_ready') {
+                            self.startNewGameFromGenerated(evt.pack_id, closeModal, packPickerHtml);
+                            return;
+                        } else if (evt.type === 'generation_error') {
+                            body.innerHTML = `
+                                <div class="pack-generate-progress">
+                                    <div class="pack-generate-progress__error">
+                                        ✕ ${_escapeHtml(evt.error || 'World generation failed. Please try again.')}
+                                    </div>
+                                </div>`;
+                            document.getElementById('pack-picker-title').textContent = 'Build Your World';
+                            // Retry: re-fetch world builder form
+                            setTimeout(() => {
+                                fetch('/panels/world-builder')
+                                    .then(r => r.text())
+                                    .then(wbHtml => {
+                                        body.innerHTML = wbHtml;
+                                        if (window.Alpine) Alpine.initTree(body);
+                                    });
+                            }, 2500);
+                            return;
+                        }
+                    }
+                }
+            } catch (err) {
+                body.innerHTML = `
+                    <div class="pack-generate-progress">
+                        <div class="pack-generate-progress__error">
+                            ✕ ${_escapeHtml(err.message || 'Connection failed.')}
+                        </div>
+                    </div>`;
+                document.getElementById('pack-picker-title').textContent = 'Build Your World';
+            }
+        },
+
+        startNewGameFromGenerated(generatedPackId, closeModal, packPickerHtml) {
+            this._selectedPackId = generatedPackId;
+            this._modalStep = 'character';
+            document.getElementById('pack-picker-title').textContent = 'Create Your Character';
+            const body = document.getElementById('pack-picker-body');
+            body.innerHTML = '<p class="empty-state">Loading character creation…</p>';
+            const self = this;
+            fetch('/panels/char-creation')
+                .then(r => r.text())
+                .then(charHtml => {
+                    body.innerHTML = charHtml;
+                    if (window.Alpine) Alpine.initTree(body);
+                    const confirmBtn = body.querySelector('.char-creation-btn--confirm');
+                    if (confirmBtn) {
+                        confirmBtn.addEventListener('click', function onConfirm(e) {
+                            if (confirmBtn.disabled) return;
+                            e.preventDefault();
+                            closeModal();
+                            self.startNewGameWithCharCreation();
+                        });
+                    }
+                    const backBtn = body.querySelector('.char-creation-btn--back');
+                    if (backBtn) {
+                        backBtn.addEventListener('click', function onBack(e) {
+                            e.preventDefault();
+                            // Back from char creation after generation returns to pack picker (not world builder)
+                            self._modalStep = 'pack';
+                            document.getElementById('pack-picker-title').textContent = 'Choose a World';
+                            body.innerHTML = packPickerHtml;
+                            if (window.Alpine) Alpine.initTree(body);
+                        });
+                    }
+                })
+                .catch(() => { body.innerHTML = '<p class="empty-state">Failed to load character creation.</p>'; });
         },
 
         // Show reroll button after page loads with an opening (dynamic pack only)

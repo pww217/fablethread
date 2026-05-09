@@ -122,4 +122,6 @@ See `[eval-remediation/plan.md](eval-remediation/plan.md)` for phased implementa
 ## Standalone
 
 - [x] **`world_rules` — pack-level universe physical constants** — `ScenarioBrief.world_rules` (max 5), narrator `## Universe rules` block, seed context pass-through, pack-gen LLM instruction, `flooded-world` reference entries — see [`world-rules-backend-updates.md`](world-rules-backend-updates.md)
+- [x] **World Builder UI — new game flow with custom world generation** — "Create Your Own" pack picker card → world builder 4-step form → SSE pack generation → char creator → begin game; new `generate_pack.py` engine module, `_world_builder.html` template, `/new-game/generate-pack` SSE endpoint — see [`world-builder-ui.md`](world-builder-ui.md)
+- [x] **Pack deletion — delete custom/generated worlds from pack picker** — `DELETE /packs/{pack_id}` route, delete button on custom pack cards, confirmation dialog, JS re-wiring after deletion — see [`completed/pack-deletion.md`](completed/pack-deletion.md)
 

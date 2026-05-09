@@ -23,7 +23,8 @@ Located in `ccya/templates/`:
 - `_state.html` / `_state_left.html` / `_state_right.html` — State panels
 - `_actions.html` — Action buttons
 - `_debug.html` / `_errors.html` — Debug and error panels
-- `_pack_picker.html` / `_char_creation.html` — Character creation
+- `_pack_picker.html` / `_char_creation.html` — Pack selection (delete button on custom/generated packs) / Character creation
+- `_world_builder.html` — World builder 4-step form (concept → tone/tags → world rules → review); Alpine.js `worldBuilder()` component
 - `_turn_log.html` / `_turn_viewer.html` — Turn history/viewer
 
 ## Turn Viewer status colors
