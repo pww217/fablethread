@@ -531,7 +531,7 @@ class TestPromptComposition:
         env = self._env()
         off = _narrate_messages(env, _make_state(), "look", enable_narrate_thinking=False)
         on = _narrate_messages(env, _make_state(), "look", enable_narrate_thinking=True)
-        assert not off[-1]["content"].endswith("/think")
+        assert off[-1]["content"].endswith("/no_think")
         assert on[-1]["content"].endswith("/think")
 
     def test_strip_thinking_removes_thinking_block(self):

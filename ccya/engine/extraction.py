@@ -159,8 +159,7 @@ def _extract_scene_messages(
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
     ]
-    if enable_thinking:
-        msgs = apply_thinking(msgs, True)
+    msgs = apply_thinking(msgs, enable_thinking)
     return msgs
 
 
@@ -207,8 +206,7 @@ def _extract_state_messages(
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
     ]
-    if enable_thinking:
-        msgs = apply_thinking(msgs, True)
+    msgs = apply_thinking(msgs, enable_thinking)
     return msgs
 
 
@@ -286,8 +284,7 @@ def _extract_progress_messages(
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
     ]
-    if enable_thinking:
-        msgs = apply_thinking(msgs, True)
+    msgs = apply_thinking(msgs, enable_thinking)
     return msgs
 
 
