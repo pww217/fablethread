@@ -366,11 +366,11 @@ def _check_asserts(
         elif a.stream == "state_yaml":
             state_snap = event.get("state_snapshot") or {}
             if a.field == "pending_gm_beat.present":
-                beat = (state_snap.get("scene") or {}).get("pending_gm_beat")
+                beat = (state_snap.get("meta") or {}).get("pending_gm_beat")
                 passed = beat is not None
                 detail = f"pending_gm_beat={'present' if passed else 'absent'}"
             elif a.field == "pending_gm_beat.absent":
-                beat = (state_snap.get("scene") or {}).get("pending_gm_beat")
+                beat = (state_snap.get("meta") or {}).get("pending_gm_beat")
                 passed = beat is None
                 detail = f"pending_gm_beat={'present' if beat else 'absent'}"
 
@@ -426,7 +426,7 @@ async def run_scenario(
     scenario: Scenario,
     *,
     eval_cfg: EvalConfig,
-    packs_dir: Path,
+    packs_dirs: list[Path],
     runs_dir: Path | None = None,
     save_dir: Path | None = None,
 ) -> RunResult:
@@ -435,20 +435,24 @@ async def run_scenario(
     Args:
       scenario: parsed Scenario (from load_scenario()).
       eval_cfg: parsed EvalConfig (from load_eval_config()).
-      packs_dir: directory containing scenario.pack as a subdirectory.
+      packs_dirs: ordered list of directories to search for the pack.
       runs_dir: where to create the timestamped run dir. Defaults to
         eval_cfg.runs_dir resolved relative to REPO_ROOT.
       save_dir: isolated save-dir for this run. Defaults to a fresh subdir under
         eval_cfg.default_save_root.
 
     Side effects:
-      - Creates <runs_dir>/<ts>/ and writes events.jsonl, state.yaml, run.json.
+      - Creates <runs_dir>/<ts>/ with REPORT.md, <scenario>.trace.md,
+        <scenario>.judge.md, and artifacts/<scenario>.events.jsonl,
+        artifacts/<scenario>.run.json.
       - Updates <runs_dir>/latest symlink.
       - Reads/writes <save_dir>/.
 
     Does NOT invoke judge or generate report.
     """
-    pack = load_pack(scenario.pack, packs_dir)
+    from ccya.eval.cli import _resolve_pack_path
+    pack_path = _resolve_pack_path(scenario.pack, packs_dirs)
+    pack = load_pack(scenario.pack, pack_path.parent)
     if pack.seed is None:
         raise ValueError(
             f"scenario.pack={scenario.pack!r} is not static (no seed). "
@@ -555,7 +559,6 @@ async def run_scenario(
         state_snapshots.append(state_snap)
 
     src_events = save_dir / "events.jsonl"
-    src_state = save_dir / "state.yaml"
 
     # Run auto-checker and extract parse failures from events.jsonl
     if src_events.exists():
@@ -595,18 +598,21 @@ async def run_scenario(
 
     finished_at = datetime.now(timezone.utc).isoformat()
     output_dir.mkdir(parents=True, exist_ok=True)
-    dst_events = output_dir / f"{scenario.id}.events.jsonl"
-    dst_state = output_dir / f"{scenario.id}.state.yaml"
+    artifacts_dir = output_dir / "artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+    dst_events = artifacts_dir / f"{scenario.id}.events.jsonl"
     if src_events.exists():
-        # Write enriched events: metadata + turn events with state_snapshot
-        enriched = list(turn_events)  # turn events with injected state_snapshot
+        enriched = list(turn_events)
         if all_events and all_events[0].get("__metadata__"):
-            enriched.insert(0, all_events[0])  # metadata event
+            enriched.insert(0, all_events[0])
         dst_events.write_text("\n".join(json.dumps(e, default=str) for e in enriched) + "\n")
     else:
         dst_events.write_text("")
-    if src_state.exists():
-        shutil.copyfile(src_state, dst_state)
+
+    # NOTE: state.yaml is intentionally NOT copied — its content is fully
+    # reproduced inside <scenario>.trace.md as the last turn's "State After
+    # Turn" snapshot. See Phase 04 of eval-system-hardening.
 
     run_result = RunResult(
         scenario_id=scenario.id,
@@ -618,12 +624,12 @@ async def run_scenario(
         save_dir=str(save_dir),
         output_dir=str(output_dir),
         events_jsonl_path=str(dst_events),
-        state_yaml_path=str(dst_state),
+        state_yaml_path="",
         turns=turn_records,
         total_errors=total_errors,
     )
 
-    (output_dir / f"{scenario.id}.run.json").write_text(
+    (artifacts_dir / f"{scenario.id}.run.json").write_text(
         json.dumps(asdict(run_result), indent=2, default=str)
     )
 
@@ -648,8 +654,8 @@ def find_previous_run(
 ) -> Path | None:
     """Find the most recent prior run for the given scenario, excluding `exclude`.
 
-    Returns the path to the previous <run_dir>/<scenario_id>.run.json, or None
-    if no previous run exists.
+    Returns the path to the previous <run_dir>/artifacts/<scenario_id>.run.json,
+    or falls back to <run_dir>/<scenario_id>.run.json for pre-restructure runs.
     """
     if not runs_dir.is_dir():
         return None
@@ -659,7 +665,11 @@ def find_previous_run(
             continue
         if exclude is not None and child.resolve() == exclude.resolve():
             continue
-        run_json = child / f"{scenario_id}.run.json"
+        # New layout: artifacts/<scenario>.run.json
+        run_json = child / "artifacts" / f"{scenario_id}.run.json"
+        if not run_json.exists():
+            # Back-compat: pre-restructure runs had it at the top level
+            run_json = child / f"{scenario_id}.run.json"
         if run_json.exists():
             candidates.append(run_json)
     return candidates[0] if candidates else None

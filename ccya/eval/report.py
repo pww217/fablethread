@@ -495,28 +495,27 @@ def _render_auto_checker_block(run_result: RunResult) -> str:
     return "\n".join(parts)
 
 
-def generate_report(
+_JUDGE_STREAM_SENTINEL_OPEN = "<!-- JUDGE_STREAM_OPEN -->\n"
+_JUDGE_STREAM_SENTINEL_CLOSE = "<!-- JUDGE_STREAM_CLOSE -->\n"
+
+
+def write_report_skeleton(
     run_result: RunResult,
     *,
     eval_cfg: EvalConfig,
-    judge_result: JudgeResult | None = None,
     runs_dir: Path | None = None,
 ) -> Path:
-    """Write REPORT.md to the run directory and return its path.
+    """Write REPORT.md with everything except the judge body. Returns the path.
 
-    Args:
-      run_result: result from runner.run_scenario.
-      eval_cfg: needed for token thresholds + flag_at_top list.
-      judge_result: optional JudgeResult from judge.run_judge.
-      runs_dir: where prior runs live; defaults to dirname(run_result.output_dir).
-
-    Always returns the report path; never raises on regression.
+    The judge section contains a placeholder: '## Judge (streaming…)' followed by
+    a single empty fenced code block. Phase 05.2's appender writes into the
+    fence; Phase 05.3's finalizer rewrites the whole file with the judge body
+    hoisted into a normal section.
     """
     output_dir = Path(run_result.output_dir)
     runs_dir = runs_dir or output_dir.parent
     cur_events = _read_events(Path(run_result.events_jsonl_path))
     cur_metrics = _summarize_events(cur_events)
-    _log.debug("report: loaded %d current events", len(cur_events))
 
     prev_metrics: list[TurnMetrics] = []
     prev_run_path: Path | None = None
@@ -526,19 +525,13 @@ def generate_report(
         prev_run = load_run_result(prev_json)
         prev_events = _read_events(Path(prev_run.events_jsonl_path))
         prev_metrics = _summarize_events(prev_events)
-        _log.debug("report: loaded %d previous events from %s", len(prev_events), prev_run_path)
-    else:
-        _log.debug("report: no prior run found for comparison")
 
     regressions = _compute_regressions(
-        cur_metrics,
-        prev_metrics,
+        cur_metrics, prev_metrics,
         warn_pct=eval_cfg.report.token_warn_pct,
         fail_pct=eval_cfg.report.token_fail_pct,
     )
-    _log.debug("report: computed %d regressions", len(regressions))
-    flags = _collect_flags(cur_metrics, regressions, run_result, judge_result)
-    _log.debug("report: collected %d flags", len(flags))
+    flags = _collect_flags(cur_metrics, regressions, run_result, judge=None)
 
     parts: list[str] = []
     parts.append(f"# Eval Report — `{run_result.scenario_id}`\n")
@@ -550,31 +543,25 @@ def generate_report(
         f"**Started:** {run_result.started_at} · **Finished:** {run_result.finished_at}  "
     )
     parts.append(f"**Output dir:** `{run_result.output_dir}`  ")
-    if prev_run_path is not None:
-        parts.append(f"**Compared against:** `{prev_run_path}`")
-    else:
-        parts.append("**Compared against:** _(no prior run found)_")
+    parts.append(
+        f"**Compared against:** `{prev_run_path}`" if prev_run_path is not None
+        else "**Compared against:** _(no prior run found)_"
+    )
     parts.append("")
-
-    # Judge summary at top
-    judge_summary = _render_judge_summary(judge_result)
-    if judge_summary:
-        parts.append("## Judge Summary\n")
-        parts.append(judge_summary)
-
+    parts.append("## Judge (streaming…)\n")
+    parts.append("_Judge response is streaming live below. This block will be replaced with the parsed verdict once the call completes._\n")
+    parts.append("```\n")
+    parts.append(_JUDGE_STREAM_SENTINEL_OPEN)
+    parts.append(_JUDGE_STREAM_SENTINEL_CLOSE)
+    parts.append("```\n")
     parts.append(_render_flag_block(flags, eval_cfg.report.flag_at_top))
     parts.append("")
-
-    # Auto-checker results
     auto_block = _render_auto_checker_block(run_result)
     if auto_block:
         parts.append("## Auto-Checker\n")
         parts.append(auto_block)
-
-    # Combined table at bottom
     parts.append("## Turn Metrics\n")
     parts.append(_render_combined_table(cur_metrics, prev_metrics, run_result))
-
     if regressions:
         warns = [r for r in regressions if r.severity == "warn"]
         if warns:
@@ -587,9 +574,116 @@ def generate_report(
 
     out_path = output_dir / "REPORT.md"
     out_path.write_text("\n".join(parts) + "\n")
-    _log.info("report written: %d chars, %d flags, %d regressions",
-              len(parts), len(flags), len(regressions))
     return out_path
+
+
+def append_judge_chunk(report_path: Path, chunk: str) -> None:
+    """Append a streamed-judge token-or-chunk to REPORT.md atomically.
+
+    Reads the file, inserts `chunk` immediately before _SENTINEL_CLOSE, writes
+    back. Cheap because the file is small until the judge produces real volume.
+    For very long judge outputs this becomes O(n^2) over chunks — acceptable
+    because chunks are coarse (full sentences) and total judge output is
+    bounded at ~64K tokens.
+    """
+    text = report_path.read_text()
+    if _JUDGE_STREAM_SENTINEL_CLOSE not in text:
+        return                          # finalize already ran or skeleton missing
+    new_text = text.replace(
+        _JUDGE_STREAM_SENTINEL_CLOSE,
+        chunk + _JUDGE_STREAM_SENTINEL_CLOSE,
+        1,
+    )
+    report_path.write_text(new_text)
+
+
+def finalize_report(
+    report_path: Path,
+    run_result: RunResult,
+    *,
+    eval_cfg: EvalConfig,
+    judge_result: JudgeResult,
+    runs_dir: Path | None = None,
+) -> None:
+    """Rewrite REPORT.md with the judge summary hoisted to the top.
+
+    The streaming sentinel block is removed; a proper judge summary block is
+    inserted after the metadata header; the parsed scores update the flag
+    computation (judge_score_drop) so the flag block reflects them.
+    """
+    output_dir = Path(run_result.output_dir)
+    runs_dir = runs_dir or output_dir.parent
+    cur_events = _read_events(Path(run_result.events_jsonl_path))
+    cur_metrics = _summarize_events(cur_events)
+    prev_metrics: list[TurnMetrics] = []
+    prev_run_path: Path | None = None
+    prev_json = find_previous_run(runs_dir, run_result.scenario_id, exclude=output_dir)
+    if prev_json is not None:
+        prev_run_path = prev_json.parent
+        prev_run = load_run_result(prev_json)
+        prev_events = _read_events(Path(prev_run.events_jsonl_path))
+        prev_metrics = _summarize_events(prev_events)
+    regressions = _compute_regressions(
+        cur_metrics, prev_metrics,
+        warn_pct=eval_cfg.report.token_warn_pct,
+        fail_pct=eval_cfg.report.token_fail_pct,
+    )
+    flags = _collect_flags(cur_metrics, regressions, run_result, judge_result)
+
+    parts: list[str] = []
+    parts.append(f"# Eval Report — `{run_result.scenario_id}`\n")
+    parts.append(
+        f"**Pack:** `{run_result.pack}` · **Model:** `{run_result.model}` · "
+        f"**Temp override:** `{run_result.temperature_override}`  "
+    )
+    parts.append(
+        f"**Started:** {run_result.started_at} · **Finished:** {run_result.finished_at}  "
+    )
+    parts.append(f"**Output dir:** `{run_result.output_dir}`  ")
+    parts.append(
+        f"**Compared against:** `{prev_run_path}`" if prev_run_path is not None
+        else "**Compared against:** _(no prior run found)_"
+    )
+    parts.append("")
+    parts.append("## Judge Summary\n")
+    parts.append(_render_judge_summary(judge_result))
+    parts.append(_render_flag_block(flags, eval_cfg.report.flag_at_top))
+    parts.append("")
+    auto_block = _render_auto_checker_block(run_result)
+    if auto_block:
+        parts.append("## Auto-Checker\n")
+        parts.append(auto_block)
+    parts.append("## Turn Metrics\n")
+    parts.append(_render_combined_table(cur_metrics, prev_metrics, run_result))
+    if regressions:
+        warns = [r for r in regressions if r.severity == "warn"]
+        if warns:
+            parts.append("\n## Warnings (≥ warn threshold but < fail threshold)\n")
+            for r in warns:
+                parts.append(
+                    f"- `{r.stream}` turn {r.turn}: "
+                    f"{r.prev_tokens_in} → {r.cur_tokens_in} (+{r.pct_change:.1f}%)"
+                )
+    parts.append("\n## Judge Verdict (full)\n")
+    parts.append(judge_result.body_md)
+
+    tmp = report_path.with_suffix(".md.tmp")
+    tmp.write_text("\n".join(parts) + "\n")
+    tmp.replace(report_path)
+
+
+def generate_report(
+    run_result: RunResult,
+    *,
+    eval_cfg: EvalConfig,
+    judge_result: JudgeResult | None = None,
+    runs_dir: Path | None = None,
+) -> Path:
+    """Back-compat entry point. New code should call write_report_skeleton/finalize_report directly."""
+    path = write_report_skeleton(run_result, eval_cfg=eval_cfg, runs_dir=runs_dir)
+    if judge_result is not None:
+        finalize_report(path, run_result, eval_cfg=eval_cfg, judge_result=judge_result, runs_dir=runs_dir)
+    return path
 
 
 if __name__ == "__main__":

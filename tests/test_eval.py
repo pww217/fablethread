@@ -869,16 +869,16 @@ def test_universal_recent_events_turn_stamped_fail():
 
 def test_universal_pending_gm_beat_persists_fail():
     from ccya.eval.universal_asserts import check_pending_gm_beat_consumed
-    prev = {"state_snapshot": {"scene": {"pending_gm_beat": {"type": "complication"}}}}
-    cur = {"state_snapshot": {"scene": {"pending_gm_beat": {"type": "complication"}}}}
+    prev = {"state_snapshot": {"meta": {"pending_gm_beat": {"type": "complication"}}}}
+    cur = {"state_snapshot": {"meta": {"pending_gm_beat": {"type": "complication"}}}}
     r = check_pending_gm_beat_consumed(cur, prev)
     assert r["passed"] is False
 
 
 def test_universal_pending_gm_beat_consumed_pass():
     from ccya.eval.universal_asserts import check_pending_gm_beat_consumed
-    prev = {"state_snapshot": {"scene": {"pending_gm_beat": {"type": "complication"}}}}
-    cur = {"state_snapshot": {"scene": {"pending_gm_beat": None}}}
+    prev = {"state_snapshot": {"meta": {"pending_gm_beat": {"type": "complication"}}}}
+    cur = {"state_snapshot": {"meta": {}}}
     r = check_pending_gm_beat_consumed(cur, prev)
     assert r["passed"] is True
 
@@ -935,11 +935,11 @@ def test_universal_npc_mention_extracted_fail():
     assert r["passed"] is False
 
 
-def test_run_all_universal_asserts_returns_five():
+def test_run_all_universal_asserts_returns_ten():
     from ccya.eval.universal_asserts import run_all_universal_asserts
     ev = {"turn": 1}
     rs = run_all_universal_asserts(ev, None)
-    assert len(rs) == 5
+    assert len(rs) == 10
 
 
 # ---------------------------------------------------------------------------
