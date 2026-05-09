@@ -649,6 +649,9 @@ def finalize_report(
     parts.append(_render_judge_summary(judge_result))
     parts.append(_render_flag_block(flags, eval_cfg.report.flag_at_top))
     parts.append("")
+    parts.append("## Judge Verdict (full)\n")
+    parts.append(judge_result.body_md)
+    parts.append("")
     auto_block = _render_auto_checker_block(run_result)
     if auto_block:
         parts.append("## Auto-Checker\n")
@@ -664,8 +667,6 @@ def finalize_report(
                     f"- `{r.stream}` turn {r.turn}: "
                     f"{r.prev_tokens_in} → {r.cur_tokens_in} (+{r.pct_change:.1f}%)"
                 )
-    parts.append("\n## Judge Verdict (full)\n")
-    parts.append(judge_result.body_md)
 
     tmp = report_path.with_suffix(".md.tmp")
     tmp.write_text("\n".join(parts) + "\n")
