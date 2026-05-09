@@ -245,6 +245,7 @@ def _extract_progress_messages(
     enable_thinking: bool = False,
     intent: "IntentEnvelope | None" = None,
     recent_turns: list[dict[str, Any]] | None = None,
+    turn_no: int = 0,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 3 (quests + facts + actions + outcome_summary)."""
     pc = state.get("pc") or {}
@@ -278,6 +279,7 @@ def _extract_progress_messages(
             "quest_threshold_directive": _quest_threshold_directive(active_quests),
             "intent": intent,
             "recent_turns": recent_turns or [],
+            "turn_no": turn_no,
         },
     )
     msgs = [
@@ -502,6 +504,7 @@ async def _run_extraction_pipeline(
         enable_thinking=config.enable_extract_thinking,
         intent=intent,
         recent_turns=(recent_turns or [])[-2:],
+        turn_no=turn_no,
     )
     # Capture pre-trim content for context_meta so the judge sees original sizes
     rendered_prog_system = progress_msgs[0]["content"] if progress_msgs else ""
@@ -516,6 +519,17 @@ async def _run_extraction_pipeline(
             progress_msgs, config, trace_id, "extract_progress",
             ProgressExtractResult, strip_keys=("_reasoning",),
         )
+        # Overwrite turn stamp on any newly added events — the LLM cannot know the
+        # current turn number reliably; the engine stamps it authoritatively.
+        if progress_result.recent_events_add:
+            progress_result = progress_result.model_copy(
+                update={
+                    "recent_events_add": [
+                        e.model_copy(update={"turn": turn_no})
+                        for e in progress_result.recent_events_add
+                    ]
+                }
+            )
         extraction_event["progress"] = {
             "rendered_system": rendered_prog_system,
             "rendered_user": rendered_prog_user,
