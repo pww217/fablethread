@@ -1,7 +1,11 @@
 """Engine package: turn pipeline, seed generation, and configuration."""
 
 from ccya.engine.compactor import maybe_compact
-from ccya.engine.config import EngineConfig, is_turn_in_progress
+from ccya.engine.config import (
+    EngineConfig,
+    build_engine_config,
+    is_turn_in_progress,
+)
 from ccya.engine.seed import generate_seed
 from ccya.engine.pack_gen import generate_pack
 from ccya.engine.changes import format_change_lines
@@ -28,6 +32,7 @@ from ccya.llm_client import chat_stream as llm_chat_stream
 
 __all__ = [
     "EngineConfig",
+    "build_engine_config",
     "_build_jinja_env",
     "_expire_scene_pressures",
     "_extract_progress_messages",

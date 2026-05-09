@@ -17,7 +17,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from ccya.engine import EngineConfig, run_turn
+from ccya.engine import EngineConfig, build_engine_config, run_turn
 from ccya.engine.config import _validate_compactor_config
 from ccya.eval.config import EvalConfig
 from ccya.eval.engine_mirror import (
@@ -109,60 +109,14 @@ def _utc_ts() -> str:
 def _build_engine_config(
     eval_cfg: EvalConfig, game_config_path: Path | None = None
 ) -> EngineConfig:
-    """Mirror ccya/server.py's EngineConfig assembly from ccya/config.yaml.
-
-    Applies eval_cfg.inference.temperature_override uniformly to all temperature
-    knobs (rules, narrate, extract, generate_seed) when set.
-    """
+    """Build EngineConfig from config.yaml, applying temperature override."""
     cfg_path = game_config_path or (REPO_ROOT / "config.yaml")
     if not cfg_path.exists():
         raise FileNotFoundError(f"game config not found: {cfg_path}")
     cfg = load_config(cfg_path)
-    llm = cfg.get("llm", {})
-    game = cfg.get("game", {})
-    rules = cfg.get("rules", {})
-    logging_cfg = cfg.get("logging", {})
-
-    narrate_t = float(llm.get("narrate_temperature", 0.9))
-    extract_t = float(llm.get("extract_temperature", 0.4))
-    rules_t = float(rules.get("temperature", 0.2))
-    seed_t = float(llm.get("generate_seed_temperature", 0.9))
-
-    if eval_cfg.inference.temperature_override is not None:
-        t = float(eval_cfg.inference.temperature_override)
-        narrate_t = extract_t = rules_t = seed_t = t
-
-    return EngineConfig(
-        host=str(llm.get("host", "http://localhost:8080/v1")),
-        model=str(llm.get("model", "")),
-        prompt_token_budget=int(llm.get("prompt_token_budget", 28672)),
-        request_timeout_s=int(llm.get("request_timeout_s", 180)),
-        narrate_temperature=narrate_t,
-        extract_temperature=extract_t,
-        max_extract_retries=int(llm.get("max_extract_retries", 1)),
-        window_turns=int(game.get("window_turns", 3)),
-        compact_every=int(game.get("compact_every", 0)),
-        compact_temperature=float(game.get("compact_temperature", 0.1)),
-        chronicle_prefix_budget_tokens=int(
-            game.get("chronicle_prefix_budget_tokens", 1500)
-        ),
-        recent_events_max=int(game.get("recent_events_max", 20)),
-        enable_extract_thinking=bool(llm.get("enable_extract_thinking", False)),
-        enable_narrate_thinking=bool(llm.get("enable_narrate_thinking", False)),
-        generate_seed_temperature=seed_t,
-        generate_seed_max_retries=int(llm.get("generate_seed_max_retries", 1)),
-        log_llm_io=bool(logging_cfg.get("log_llm_io", False)),
-        log_llm_io_max_chars=int(logging_cfg.get("log_llm_io_max_chars", 4000)),
-        log_prompts=bool(logging_cfg.get("log_prompts", False)),
-        rules_temperature=rules_t,
-        max_rules_retries=int(rules.get("max_retries", 1)),
-        scene_pressure_building_at=int(game.get("scene_pressure_building_at", 6)),
-        scene_pressure_immediate_at=int(game.get("scene_pressure_immediate_at", 10)),
-        scene_pressure_max_age=int(game.get("scene_pressure_max_age", 15)),
-        scene_pressure_deescalate_on_success=bool(
-            game.get("scene_pressure_deescalate_on_success", True)
-        ),
-        recent_turns_min=int(game.get("recent_turns_min", 2)),
+    return build_engine_config(
+        cfg,
+        temperature_override=eval_cfg.inference.temperature_override,
     )
 
 
