@@ -20,7 +20,10 @@
 | `/panels/debug` | GET | `panel_debug()` | Debug panel |
 | `/panels/debug/clear-errors` | POST | `debug_clear_errors()` | Clear error log |
 | `/panels/pack-picker` | GET | `panel_pack_picker()` | Pack selection dropdown |
+| `/packs/{pack_id}` | DELETE | `delete_pack()` | Delete a custom/generated pack directory |
 | `/panels/char-creation` | GET | `panel_char_creation()` | Character creation form |
+| `/panels/world-builder` | GET | `panel_world_builder()` | World builder form (4-step Alpine.js) |
+| `/new-game/generate-pack` | POST | `new_game_generate_pack()` | SSE endpoint; streams pack generation events (`phase`, `pack_ready`, `generation_error`); writes to `packs/generated/` |
 | `/panels/turn-log` | GET | `panel_turn_log()` | Turn log with change lines |
 | `/turn_viewer` | GET | `turn_viewer()` | Standalone turn viewer page |
 | `/turn_viewer/data` | GET | `turn_viewer_data()` | Turn viewer JSON data |

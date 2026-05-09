@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
 from ccya.engine import (
@@ -428,15 +430,124 @@ def panel_debug():
     return _app_mod._render("_debug.html", _debug_context())
 
 
+@_app_mod.app.delete("/packs/{pack_id:path}")
+async def delete_pack(pack_id: str):
+    log = logging.getLogger(__name__)
+    # Only allow deleting custom/ or generated/ packs
+    if not (pack_id.startswith("custom/") or pack_id.startswith("generated/")):
+        return JSONResponse({"error": "Cannot delete built-in packs"}, status_code=403)
+    try:
+        pack_dir = _resolve_pack_dir(pack_id, _app_mod.PACKS_DIR)
+    except FileNotFoundError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=404)
+    # Guard: don't delete if it's the currently active pack with an active game
+    if _app_mod._pack_id == pack_id:
+        return JSONResponse({"error": "Cannot delete the currently active pack"}, status_code=409)
+    import shutil
+    shutil.rmtree(pack_dir)
+    log.info("Deleted pack: %s", pack_id)
+    return JSONResponse({"ok": True})
+
+
+def _resolve_pack_dir(pack_id: str, packs_dir: Path) -> Path:
+    """Resolve pack_id to a directory (mirrors pack._resolve_pack_dir for server-side use)."""
+    if "/" in pack_id:
+        namespace, slug = pack_id.split("/", 1)
+        candidate = packs_dir / namespace / slug
+        if not candidate.is_dir():
+            raise FileNotFoundError(f"Pack not found: {candidate}")
+        return candidate
+    candidate = packs_dir / pack_id
+    if candidate.is_dir():
+        return candidate
+    for namespace in ("default", "custom"):
+        candidate = packs_dir / namespace / pack_id
+        if candidate.is_dir():
+            return candidate
+    raise FileNotFoundError(f"Pack '{pack_id}' not found in {packs_dir}")
+
+
 @_app_mod.app.get("/panels/pack-picker", response_class=HTMLResponse)
 def panel_pack_picker():
-    packs = list_packs(_app_mod.PACKS_DIR)
-    return _app_mod._render("_pack_picker.html", {"packs": packs, "active_pack_id": _app_mod._pack_id})
+    all_packs = list_packs(_app_mod.PACKS_DIR)
+    custom_packs = [p for p in all_packs if p.id.startswith("custom/") or p.id.startswith("generated/")]
+    default_packs = [p for p in all_packs if not p.id.startswith("custom/") and not p.id.startswith("generated/")]
+    return _app_mod._render("_pack_picker.html", {
+        "custom_packs": custom_packs,
+        "default_packs": default_packs,
+        "active_pack_id": _app_mod._pack_id,
+    })
 
 
 @_app_mod.app.get("/panels/char-creation", response_class=HTMLResponse)
 def panel_char_creation():
     return _app_mod._render("_char_creation.html", {})
+
+
+@_app_mod.app.get("/panels/world-builder", response_class=HTMLResponse)
+def panel_world_builder():
+    return _app_mod._render("_world_builder.html", {})
+
+
+@_app_mod.app.post("/new-game/generate-pack")
+async def new_game_generate_pack(request: Request):
+    form = await request.form()
+    concept = str(form.get("concept", "")).strip()
+    world_name = str(form.get("world_name", "")).strip()
+    tone_tags_raw = str(form.get("tone_tags", "[]")).strip()
+    mood_note = str(form.get("mood_note", "")).strip()
+    world_rules_raw = str(form.get("world_rules", "[]")).strip()
+
+    trace_id = os.urandom(4).hex()
+
+    log = logging.getLogger(__name__)
+    log.info(
+        "new_game_generate_pack",
+        extra={"trace_id": trace_id, "concept_len": len(concept)},
+    )
+
+    if not concept:
+        async def _err():
+            yield "data: {\"type\":\"generation_error\",\"error\":\"Concept is required.\"}\n\n"
+        return StreamingResponse(_err(), media_type="text/event-stream")
+
+    try:
+        import json as _json
+        tags = _json.loads(tone_tags_raw)
+        rules = _json.loads(world_rules_raw)
+    except Exception:
+        tags = []
+        rules = []
+
+    inputs = {
+        "concept": concept,
+        "world_name": world_name,
+        "tone_tags": tags,
+        "mood_note": mood_note,
+        "world_rules": rules,
+    }
+
+    packs_root = _app_mod.PACKS_DIR
+    llm_host = str(_app_mod.config["llm"]["host"]).rstrip("/")
+    llm_model = str(_app_mod.config["llm"]["model"])
+    template_dir = str(_app_mod.PROMPTS_DIR)
+    max_retries = int(_app_mod.config.get("llm", {}).get("max_generate_pack_retries", 1))
+
+    from ccya.engine.generate_pack import generate_pack_from_brief
+
+    async def _stream():
+        async for event in generate_pack_from_brief(
+            inputs=inputs,
+            packs_root=packs_root,
+            llm_host=llm_host,
+            llm_model=llm_model,
+            template_dir=template_dir,
+            trace_id=trace_id,
+            max_retries=max_retries,
+        ):
+            yield f"data: {_json.dumps(event)}\n\n"
+
+    return StreamingResponse(_stream(), media_type="text/event-stream")
 
 
 @_app_mod.app.get("/panels/turn-log", response_class=HTMLResponse)
