@@ -63,11 +63,55 @@ After the bullet lines and a blank line, output exactly one JSON object:
   "inventory_remove": ["item_id"],
   "quest_close": ["quest_id"],
   "pressure_remove": ["pressure_id"],
-  "condition_remove": ["condition_id"]
+  "condition_remove": ["condition_id"],
+  "recent_events_compact": [{"id": "...", "text": "...", "turn": 0}]
 }
 ```
 
 Omit any key whose list would be empty. If nothing needs fixing, output `{}`.
+
+---
+
+## PART 3: Recent events compaction
+
+The game maintains a list of `recent_events` — narratively significant facts surfaced
+to the player in the UI. This list has grown across turns and needs consolidation.
+
+### What to do
+
+- **Consolidate:** Merge similar or related events into single entries. If two events
+  describe the same NPC, the same location change, or the same quest thread, combine
+  them into one coherent narrative sentence.
+- **Trim:** Aim to reduce the total count by about half. Keep the most narratively
+  significant events. Drop events that are now stale, irrelevant, or fully superseded
+  by later events.
+- **Preserve:** Keep key facts about:
+  - PC status changes (conditions, injuries, morale)
+  - NPC introductions and their roles
+  - Quest-relevant developments and leads
+  - Major world/state changes (location shifts, new alliances, conflicts)
+  - Durable facts that will matter for future turns
+- **Phase narratively:** Write each consolidated event as an in-universe narrative
+  fact, not a mechanical summary. The player reads these directly. Use the same
+  prose style as the narration. Examples:
+  - Bad: "Player met Caron and learned he's waiting for payment."
+  - Good: "Caron has been waiting for you — he knows about the debt."
+- **New IDs:** Generate fresh snake_case IDs for consolidated events. Do NOT reuse
+  old IDs — the compactor replaces the entire list.
+
+### Output format
+
+Include `recent_events_compact` in the JSON object. Each entry:
+```json
+{
+  "recent_events_compact": [
+    {"id": "caron_waiting", "text": "Caron has been waiting for you — he knows about the debt.", "turn": 2},
+    {"id": "road_toughs", "text": "Road-toughs are extorting travelers near the Crossed Keys Inn.", "turn": 3}
+  ]
+}
+```
+
+Omit the key if the list would be empty (no consolidation needed).
 
 ---
 

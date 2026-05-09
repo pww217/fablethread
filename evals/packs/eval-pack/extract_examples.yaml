@@ -39,3 +39,37 @@ examples:
         "quest_updates": [{"id": "deliver_the_ledger", "objectives": [{"index": 1, "done": true}]}],
         "outcome_summary": "Halden took the ledger and pressed the seal home with his thumb."
       }
+
+  - title: "Quest dedup — update existing instead of creating new"
+    band: success
+    thinking: |
+      - Player is delivering Halden's ledger to the inn. This is the same quest as `deliver_the_ledger` which already exists.
+      - The LLM must NOT create a new quest ID like `deliver_ledger_to_inn` or `deliver_halden_ledger`.
+      - Instead, update the existing `deliver_the_ledger` quest by marking the relevant objective done.
+    json: |
+      {
+        "scene_tags": ["dialogue", "delivery"],
+        "scene_tagline": "Ledger delivered to the inn",
+        "present_npcs": [{"id": "halden", "notes": "Takes the ledger; confirms the contract is complete."}],
+        "quest_updates": [
+          {"id": "deliver_the_ledger", "objectives": [{"index": 2, "done": true}]}
+        ],
+        "outcome_summary": "Halden took the ledger and confirmed the contract is fulfilled."
+      }
+
+  - title: "Quest dedup — same objective, different wording"
+    band: partial
+    thinking: |
+      - Player paid Caron 500 credits. This advances `settle_the_debt`, not a new `caron_debt` quest.
+      - The existing quest `settle_the_debt` has objectives about finding Caron and paying him.
+      - Must update `settle_the_debt` objectives, not create a new quest.
+    json: |
+      {
+        "scene_tags": ["dialogue", "debt_settlement"],
+        "scene_tagline": "Debt paid — Caron marks it cleared",
+        "present_npcs": [{"id": "caron", "notes": "Closes his ledger with a satisfied nod."}],
+        "quest_updates": [
+          {"id": "settle_the_debt", "objectives": [{"index": 2, "done": true}]}
+        ],
+        "outcome_summary": "Caron accepted the credits and marked the debt cleared in his ledger."
+      }

@@ -126,11 +126,12 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_purge_scene_pressures(state, delta, *, location_changed=False, combat_ended=False, config=None)` — removes stale/irrelevant pressures. On location change: only auto-purges `urgency == "background"` pressures; `immediate` and `building` pressures survive location change and must be explicitly removed by the scene extractor. On combat end: removes `immediate` pressures. Age cap at 15 turns default.
 
 ### compactor.py
-- `maybe_compact(save_dir, state, config)` → `state` (async) — runs compaction if `turn % compact_every == 0`. Mutates chronicle.md and state.
+- `maybe_compact(save_dir, state, config)` → `state` (async) — runs compaction if `turn % compact_every == 0`. Mutates chronicle.md and state. Compacts prior_history bullets, applies state sanitization (NPC merge, inventory remove, quest close, pressure remove, condition remove), and consolidates recent_events via LLM.
 - `_extract_turns_for_compact(save_dir, start_turn, end_turn)` → `list[dict]` — reads chronicle.md for turns in range, returns {turn, input, narrative}
-- `_build_compact_messages(env, state, turns)` → `list[dict]` — renders compact_system.j2 + compact_user.j2
+- `_build_compact_messages(env, state, turns)` → `list[dict]` — renders compact_system.j2 + compact_user.j2; passes recent_events from state.scene.recent_events to template
 - `_parse_compact_response(response_text)` → `tuple[str, CompactorSanitizationResult | None]` — extracts bullet lines (matching `- [T\d+] `) + JSON sanitization from LLM output (last JSON object, validated through CompactorSanitizationResult)
 - `_write_compacted_block(save_dir, bullets_text, compact_start, compact_end)` — writes COMPACTED block to chronicle.md (prepends if none exists, appends after existing block), then removes prose sections for turns in [compact_start, compact_end]
+- `_apply_sanitization(state, san)` — applies CompactorSanitizationResult to state in-place; validates all IDs against allowlists; unknown IDs silently skipped
 
 ## Character creation
 

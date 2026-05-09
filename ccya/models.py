@@ -361,12 +361,20 @@ class CompactorNpcMerge(BaseModel):
     remove_ids: list[str] = Field(default_factory=list)
 
 
+class CompactorRecentEventCompact(BaseModel):
+    """A consolidated recent event produced by the compactor."""
+    id: str
+    text: str
+    turn: int = 0
+
+
 class CompactorSanitizationResult(BaseModel):
     npc_merge: list[CompactorNpcMerge] = Field(default_factory=list)
     inventory_remove: list[str] = Field(default_factory=list)
     quest_close: list[str] = Field(default_factory=list)
     pressure_remove: list[str] = Field(default_factory=list)
     condition_remove: list[str] = Field(default_factory=list)
+    recent_events_compact: list[CompactorRecentEventCompact] = Field(default_factory=list)
 
     model_config = {"extra": "ignore"}
 

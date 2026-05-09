@@ -2,7 +2,7 @@
 
 ## Pydantic models
 
-`Condition`, `ConditionAdd`, `ConditionRemove`, `RulesCheck`, `Scope`, `IntentEnvelope`, `RulesOutcome`, `InventoryItem`, `InventoryRemove`, `InventoryUpdate`, `LocationRef`, `QuestObjective`, `QuestObjectiveUpdate`, `QuestUpdate`, `NpcRef`, `NpcAdd`, `NpcRemove`, `NpcUpdate`, `CompendiumNpcUpdate`, `RecentEvent`, `RecentEventUpdate`, `ScenePressure`, `StateDelta`, `SceneExtractResult`, `StateExtractResult`, `GMBeat`, `ProgressExtractResult`, `CompactorNpcMerge`, `CompactorSanitizationResult`.
+`Condition`, `ConditionAdd`, `ConditionRemove`, `RulesCheck`, `Scope`, `IntentEnvelope`, `RulesOutcome`, `InventoryItem`, `InventoryRemove`, `InventoryUpdate`, `LocationRef`, `QuestObjective`, `QuestObjectiveUpdate`, `QuestUpdate`, `NpcRef`, `NpcAdd`, `NpcRemove`, `NpcUpdate`, `CompendiumNpcUpdate`, `RecentEvent`, `RecentEventUpdate`, `ScenePressure`, `StateDelta`, `SceneExtractResult`, `StateExtractResult`, `GMBeat`, `ProgressExtractResult`, `CompactorNpcMerge`, `CompactorRecentEventCompact`, `CompactorSanitizationResult`.
 
 ## Dataclasses
 
@@ -21,6 +21,21 @@
 ## SceneExtractResult
 
 - `gm_beat: GMBeat | None = None` — validated by `_nullify_invalid_gm_beat` (model_validator, mode="after") which sets `gm_beat = None` if the beat has no instruction or no type.
+
+## CompactorRecentEventCompact
+
+- `id: str` — new snake_case ID for the consolidated event
+- `text: str` — consolidated narrative text, in-universe phrasing
+- `turn: int = 0` — turn this event originated from (for ordering)
+
+## CompactorSanitizationResult
+
+- `npc_merge: list[CompactorNpcMerge]` — NPC dedup merges
+- `inventory_remove: list[str]` — duplicate inventory item IDs to remove
+- `quest_close: list[str]` — active quest IDs to mark completed
+- `pressure_remove: list[str]` — stale scene_pressure IDs to remove
+- `condition_remove: list[str]` — resolved PC condition IDs to remove
+- `recent_events_compact: list[CompactorRecentEventCompact]` — consolidated recent_events from compactor
 
 ## Type aliases
 
