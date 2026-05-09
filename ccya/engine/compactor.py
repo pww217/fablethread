@@ -102,8 +102,28 @@ async def maybe_compact(
 
     _write_compacted_block(save_dir, bullets_text, compact_start, compact_end)
 
+    recent_events_count = len(state.get("scene", {}).get("recent_events") or [])
+
     if sanitization is not None:
         _apply_sanitization(state, sanitization)
+
+        # Replace recent_events with compactor's consolidated version
+        if sanitization.recent_events_compact:
+            scene = state.setdefault("scene", {})
+            scene["recent_events"] = [
+                {
+                    "id": e.id,
+                    "text": e.text,
+                    "turn": e.turn or current_turn,
+                }
+                for e in sanitization.recent_events_compact
+            ]
+            _log.info(
+                "compactor: compacted %d → %d recent_events",
+                recent_events_count,
+                len(sanitization.recent_events_compact),
+                extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "compactor"},
+            )
 
     state.setdefault("meta", {})["last_compacted_turn"] = compact_end
 
@@ -159,6 +179,7 @@ def _build_compact_messages(
     compendium_npcs: list[tuple[str, Any]] = list(_npcs_raw.items())
     all_quests = list(state.get("quests") or [])
     conditions = list((state.get("pc") or {}).get("conditions") or [])
+    recent_events = list((state.get("scene") or {}).get("recent_events") or [])
 
     user_prompt = env.get_template("compact_user.j2").render(
         turns=turns,
@@ -169,6 +190,7 @@ def _build_compact_messages(
         compendium_npcs=compendium_npcs,
         all_quests=all_quests,
         conditions=conditions,
+        recent_events=recent_events,
     )
 
     return [

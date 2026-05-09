@@ -15,6 +15,7 @@ Located in `tests/` at repo root. Run with `make test` (uses `uv run pytest -q`)
 - `test_server_routes.py` — Server route tests
 - `test_eval.py` — Eval harness tests
 - `test_eval_schema.py` — Tier 1 schema validation: TurnAssert paths against live engine, engine_mirror self-consistency, seed_override path validation
+- `test_compactor.py` — Compactor overhaul tests: config validation, prior_history migration, compaction math, prompt contract (PART 1/2/3), recent_events compaction (consolidation, empty input, full replacement), sanitization (NPC merge, inventory remove, quest close, pressure remove, condition remove), response parsing
 
 ## Mocking
 

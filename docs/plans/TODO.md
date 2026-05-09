@@ -108,3 +108,14 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 
 - ~~**Turn viewer dynamic mirror** — schema-driven tv.py; stream registry in `tv_mirror.py`; connectors from `sd.inputs`; scope block from narrator — see `[turn-viewer-dynamic.md](turn-viewer-dynamic.md)`~~
 
+---
+
+## Eval Remediation (May 2026)
+
+See `[eval-remediation/findings-2026-05-09.md](eval-remediation/findings-2026-05-09.md)` for full findings.
+See `[eval-remediation/plan.md](eval-remediation/plan.md)` for phased implementation plan.
+
+- ~~**Fix compactor recent_events compaction** — ring buffer grows unbounded, no culling — see `[eval-remediation/compactor-recent-events.md](eval-remediation/compactor-recent-events.md)` for full spec~~
+- ~~**Enforce quest deduplication** — progress extractor creates overlapping quest IDs instead of updating existing — see `[eval-remediation/quest-dedup.md](eval-remediation/quest-dedup.md)` for full spec~~
+- ~~**Fix eval pack turn-0 start** — eval scenario should start at turn 0 for clean baseline — see `[eval-remediation/eval-pack-turn-0.md](eval-remediation/eval-pack-turn-0.md)` for full spec~~
+

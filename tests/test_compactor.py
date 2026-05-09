@@ -219,6 +219,7 @@ class TestCompactorSanitizationResult:
         assert result.quest_close == []
         assert result.pressure_remove == []
         assert result.condition_remove == []
+        assert result.recent_events_compact == []
 
     def test_valid_full(self):
         result = CompactorSanitizationResult.model_validate({
@@ -227,6 +228,7 @@ class TestCompactorSanitizationResult:
             "quest_close": ["q1"],
             "pressure_remove": ["p1"],
             "condition_remove": ["c1"],
+            "recent_events_compact": [{"id": "e1", "text": "Event one", "turn": 1}],
         })
         assert len(result.npc_merge) == 1
         assert result.npc_merge[0].keep_id == "a"
@@ -235,6 +237,10 @@ class TestCompactorSanitizationResult:
         assert result.quest_close == ["q1"]
         assert result.pressure_remove == ["p1"]
         assert result.condition_remove == ["c1"]
+        assert len(result.recent_events_compact) == 1
+        assert result.recent_events_compact[0].id == "e1"
+        assert result.recent_events_compact[0].text == "Event one"
+        assert result.recent_events_compact[0].turn == 1
 
     def test_ignores_unknown_keys(self):
         result = CompactorSanitizationResult.model_validate({
@@ -387,16 +393,84 @@ class TestMaybeCompactBandMath:
         assert result["meta"]["prior_history"] == []
 
     @pytest.mark.asyncio
-    async def test_does_not_touch_recent_events(self, tmp_path: Path):
+    async def test_recent_events_compaction(self, tmp_path: Path):
+        """Compactor consolidates recent_events and writes back to state."""
         self._write_chronicle(tmp_path, [
             (i, f"Action {i}", f"Narrative {i}") for i in range(1, 7)
         ])
         state = self._make_state(6)
-        state["scene"]["recent_events"] = [{"id": "old", "text": "old event", "turn": 1}]
+        state["scene"]["recent_events"] = [
+            {"id": "arrived", "text": "You arrived in Marrow's Crossing after three days on the road.", "turn": 1},
+            {"id": "rumors", "text": "You heard rumors of road-toughs extorting travelers near the Crossed Keys Inn.", "turn": 2},
+            {"id": "caron_found", "text": "You found Caron in the tavern — he's been waiting for you.", "turn": 3},
+        ]
         config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
-        with _mock_compact_llm():
+        mock_response = (
+            "- [T1] You arrived in Marrow's Crossing after three days on the road.\n"
+            "- [T2] Uneventful — no mechanical changes.\n"
+            "- [T3] Uneventful — no mechanical changes.\n"
+            "\n"
+            '```json\n'
+            '{"recent_events_compact": ['
+            '{"id": "arrival_and_rumors", "text": "You arrived in Marrow\'s Crossing to hear that road-toughs are extorting travelers near the inn.", "turn": 1},'
+            '{"id": "caron_waiting", "text": "Caron has been waiting for you in the tavern — he knows about the debt.", "turn": 3}'
+            ']}\n'
+            '```'
+        )
+        with _mock_compact_llm(mock_response):
             result = await maybe_compact(tmp_path, state, config)
-        assert result["scene"]["recent_events"] == [{"id": "old", "text": "old event", "turn": 1}]
+        assert len(result["scene"]["recent_events"]) == 2
+        assert result["scene"]["recent_events"][0]["id"] == "arrival_and_rumors"
+        assert result["scene"]["recent_events"][1]["id"] == "caron_waiting"
+
+    @pytest.mark.asyncio
+    async def test_recent_events_empty_input(self, tmp_path: Path):
+        """Compactor with no recent_events produces no recent_events_compact."""
+        self._write_chronicle(tmp_path, [
+            (i, f"Action {i}", f"Narrative {i}") for i in range(1, 7)
+        ])
+        state = self._make_state(6)
+        state["scene"]["recent_events"] = []
+        config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
+        mock_response = (
+            "- [T1] You arrived in Marrow's Crossing.\n"
+            "\n"
+            "{}"
+        )
+        with _mock_compact_llm(mock_response):
+            result = await maybe_compact(tmp_path, state, config)
+        assert result["scene"]["recent_events"] == []
+
+    @pytest.mark.asyncio
+    async def test_recent_events_compact_replaces_all(self, tmp_path: Path):
+        """Compactor replaces ALL existing recent_events, not just updates."""
+        self._write_chronicle(tmp_path, [
+            (i, f"Action {i}", f"Narrative {i}") for i in range(1, 7)
+        ])
+        state = self._make_state(6)
+        state["scene"]["recent_events"] = [
+            {"id": "old_1", "text": "Old event 1", "turn": 1},
+            {"id": "old_2", "text": "Old event 2", "turn": 2},
+            {"id": "old_3", "text": "Old event 3", "turn": 3},
+            {"id": "old_4", "text": "Old event 4", "turn": 4},
+        ]
+        config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
+        mock_response = (
+            "- [T1] You arrived in Marrow's Crossing.\n"
+            "- [T2] Uneventful.\n"
+            "- [T3] Uneventful.\n"
+            "- [T4] Uneventful.\n"
+            "\n"
+            '```json\n'
+            '{"recent_events_compact": ['
+            '{"id": "consolidated", "text": "You arrived in Marrow\'s Crossing, heard about road-toughs, and found Caron waiting.", "turn": 1}'
+            ']}\n'
+            '```'
+        )
+        with _mock_compact_llm(mock_response):
+            result = await maybe_compact(tmp_path, state, config)
+        assert len(result["scene"]["recent_events"]) == 1
+        assert result["scene"]["recent_events"][0]["id"] == "consolidated"
 
     @pytest.mark.asyncio
     async def test_compacted_turns_removed_from_chronicle(self, tmp_path: Path):
@@ -585,7 +659,7 @@ class TestApplySanitization:
 
 
 class TestSystemPromptContract:
-    def test_contains_part1_and_part2(self):
+    def test_contains_part1_part2_and_part3(self):
         from jinja2 import Environment, FileSystemLoader
 
         env = Environment(loader=FileSystemLoader(str(Path(__file__).parent.parent / "ccya" / "prompts")))
@@ -593,14 +667,7 @@ class TestSystemPromptContract:
 
         assert "PART 1" in system_prompt
         assert "PART 2" in system_prompt
-
-    def test_no_recent_events_instruction(self):
-        from jinja2 import Environment, FileSystemLoader
-
-        env = Environment(loader=FileSystemLoader(str(Path(__file__).parent.parent / "ccya" / "prompts")))
-        system_prompt = env.get_template("compact_system.j2").render()
-
-        assert "recent_events" not in system_prompt.lower() or "player-facing chronicle" not in system_prompt.lower()
+        assert "PART 3" in system_prompt
 
     def test_json_must_be_last_thing(self):
         from jinja2 import Environment, FileSystemLoader
@@ -651,7 +718,7 @@ class TestUserPromptRendersIds:
         assert "Wizard" in user_prompt
         assert "Alicia" in user_prompt
 
-    def test_no_recent_events_section(self):
+    def test_renders_recent_events(self):
         from jinja2 import Environment, FileSystemLoader
 
         env = Environment(loader=FileSystemLoader(str(Path(__file__).parent.parent / "ccya" / "prompts")))
@@ -664,9 +731,17 @@ class TestUserPromptRendersIds:
             compendium_npcs=[],
             all_quests=[],
             conditions=[],
+            recent_events=[
+                {"id": "e1", "text": "You arrived in town.", "turn": 1},
+                {"id": "e2", "text": "You met Caron.", "turn": 2},
+            ],
         )
 
-        assert "RECENT EVENTS TO COMPACT" not in user_prompt
+        assert "RECENT EVENTS" in user_prompt
+        assert "e1" in user_prompt
+        assert "You arrived in town" in user_prompt
+        assert "e2" in user_prompt
+        assert "You met Caron" in user_prompt
 
     def test_renders_all_template_vars(self):
         from jinja2 import Environment, FileSystemLoader
@@ -681,6 +756,7 @@ class TestUserPromptRendersIds:
             compendium_npcs=[("npc_a", {"name": "Alice", "title": "Wizard", "aliases": []})],
             all_quests=[{"id": "q_1", "title": "Find artifact", "status": "active"}],
             conditions=[{"id": "cond_1", "label": "Wounded", "description": "Hurts"}],
+            recent_events=[{"id": "e1", "text": "Event one", "turn": 1}],
         )
 
         assert "TURN 1" in user_prompt or "Turn 1" in user_prompt
@@ -693,6 +769,8 @@ class TestUserPromptRendersIds:
         assert "inv_1" in user_prompt
         assert "cond_1" in user_prompt
         assert "Wounded" in user_prompt
+        assert "RECENT EVENTS" in user_prompt
+        assert "e1" in user_prompt
 
     def test_build_compact_messages_supplies_all_template_vars(self):
         state = {
@@ -700,6 +778,7 @@ class TestUserPromptRendersIds:
             "scene": {
                 "present_npcs": [{"id": "npc_a", "name": "Alice"}],
                 "scene_pressure": [{"id": "press_1", "text": "Chase", "urgency": "immediate"}],
+                "recent_events": [{"id": "e1", "text": "Event one", "turn": 1}],
             },
             "inventory": [{"id": "inv_1", "name": "Sword", "amount": 1, "notes": "Sharp"}],
             "quests": [
@@ -732,3 +811,5 @@ class TestUserPromptRendersIds:
         assert "q_2" in user_content
         assert "press_1" in user_content
         assert "cond_1" in user_content
+        assert "e1" in user_content
+        assert "Event one" in user_content
