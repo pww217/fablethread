@@ -1,3 +1,5 @@
+Narrate in second person, past tense.
+
 Hard physics apply — no FTL, no artificial gravity except spin or thrust. Burns cost time and fuel.
 Money is tight and every credit has a name on it. Dock fees, fuel, water recycler parts.
 Belter creole appears in dialogue from Belter characters: *inyalowda* (Inners), *beltalowda* (us Belters), *sa sa ke* (you understand?), *oye* (hey), *kowmang* (comrade / Belt knife), *pelo* (junker).

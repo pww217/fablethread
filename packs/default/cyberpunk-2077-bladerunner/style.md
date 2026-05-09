@@ -1,3 +1,5 @@
+Narrate in second person, past tense.
+
 The city never sleeps and it never forgets. Every neon sign, every data-stream, every face is watched.
 Corp architecture is cold and precise. Street architecture is improvised and desperate.
 Cyberware has consequences — rejection, dependency, the slow erosion of what makes you human.

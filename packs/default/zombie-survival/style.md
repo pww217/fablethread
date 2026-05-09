@@ -1,3 +1,5 @@
+Narrate in second person, past tense.
+
 Nature has reclaimed everything. Describe it — the tree root splitting the asphalt, the deer tracks through a grocery store, the silence of a city that used to be loud. The world is not destroyed; it is occupied by something else now.
 
 The infected are not monsters. They were people. A Stalker in a flooded lobby was someone's mother. A Clicker clicking through a school corridor was wearing a backpack when it turned. The horror is that the fungus does not destroy the body — it drives it. Narrate this when it helps. Don't overdo it.

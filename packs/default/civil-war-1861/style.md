@@ -1,3 +1,5 @@
+Narrate in second person, past tense.
+
 The war is fought with rifles and railroads and the will to keep going when the rifle runs dry.
 Language is formal but strained. Soldiers speak in understatement. Officers speak in orders and principles. Civilians speak in practical terms — food, shelter, survival.
 The terrain matters. Rivers determine strategy. Railroads determine logistics. Hills determine battle lines.
