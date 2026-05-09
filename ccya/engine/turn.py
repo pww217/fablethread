@@ -245,6 +245,7 @@ async def run_turn(
     pack_factions: list[dict[str, str]] = [],
     pack_locations: list[dict[str, str]] = [],
     pack_narrator_rules: list[str] = [],
+    pack_world_rules: list[str] = [],
 ) -> AsyncIterator[tuple[str, Any]]:
     if config is None:
         config = EngineConfig()
@@ -423,6 +424,7 @@ async def run_turn(
         _world_locations = pack_locations if pack_locations else list(_world.get("locations") or [])
         _pc_allegiance = (state.get("pc") or {}).get("allegiance")
         _pack_narrator_rules = pack_narrator_rules if pack_narrator_rules else []
+        _pack_world_rules = pack_world_rules if pack_world_rules else []
 
         narr_messages = _narrate_messages(
             env,
@@ -433,6 +435,7 @@ async def run_turn(
             enable_narrate_thinking=config.enable_narrate_thinking,
             pack_style=pack_style,
             narrator_rules=_pack_narrator_rules,
+            world_rules=_pack_world_rules,
             rules_outcome=outcome,
             npc_name_pool=_npc_name_pool,
             recently_left=(state.get("scene") or {}).get("recently_left", []),
@@ -853,6 +856,7 @@ async def run_turn_retry(
     pack_factions: list[dict[str, str]] = [],
     pack_locations: list[dict[str, str]] = [],
     pack_narrator_rules: list[str] = [],
+    pack_world_rules: list[str] = [],
 ) -> AsyncIterator[tuple[str, Any]]:
     """Re-roll narration + extraction with the same rules outcome.
 
@@ -925,6 +929,7 @@ async def run_turn_retry(
         _world_locations = pack_locations if pack_locations else list(_world.get("locations") or [])
         _pc_allegiance = (state.get("pc") or {}).get("allegiance")
         _pack_narrator_rules = pack_narrator_rules if pack_narrator_rules else []
+        _pack_world_rules = pack_world_rules if pack_world_rules else []
 
         narr_messages = _narrate_messages(
             env,
@@ -935,6 +940,7 @@ async def run_turn_retry(
             enable_narrate_thinking=config.enable_narrate_thinking,
             pack_style=pack_style,
             narrator_rules=_pack_narrator_rules,
+            world_rules=_pack_world_rules,
             rules_outcome=outcome,
             npc_name_pool=_npc_name_pool,
             recently_left=(state.get("scene") or {}).get("recently_left", []),

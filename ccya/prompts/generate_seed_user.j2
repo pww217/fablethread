@@ -7,6 +7,10 @@
 ## tone_rules (narrator must follow these every turn)
 {% for rule in scenario.narrator_rules %}- {{ rule }}
 {% endfor %}{% endif %}
+{% if scenario.world_rules %}
+## universe_rules (physical laws — seed must not contradict)
+{% for rule in scenario.world_rules %}- {{ rule }}
+{% endfor %}{% endif %}
 {% if scenario.factions %}
 ## factions (name these in the seed — use ids and names as given, do not rename)
 {% for f in scenario.factions %}- {{ f.name }} ({{ f.disposition }}): {{ f.description }}

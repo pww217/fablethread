@@ -3,6 +3,7 @@
 import pytest
 
 from ccya.models import GMBeat, SceneExtractResult
+from ccya.pack import ScenarioBrief
 
 
 class TestGMBeatValidatorRejectsEmpty:
@@ -108,3 +109,21 @@ class TestSceneExtractResultNullifiesBadBeat:
     def test_preserves_none_beat(self):
         r = SceneExtractResult(gm_beat=None)
         assert r.gm_beat is None
+
+
+class TestScenarioBriefWorldRules:
+    def test_defaults_empty(self):
+        s = ScenarioBrief()
+        assert s.world_rules == []
+
+    def test_accepts_three(self):
+        s = ScenarioBrief(world_rules=["a", "b", "c"])
+        assert len(s.world_rules) == 3
+
+    def test_rejects_six(self):
+        with pytest.raises(Exception):
+            ScenarioBrief(world_rules=["a", "b", "c", "d", "e", "f"])
+
+    def test_accepts_five(self):
+        s = ScenarioBrief(world_rules=["a", "b", "c", "d", "e"])
+        assert len(s.world_rules) == 5

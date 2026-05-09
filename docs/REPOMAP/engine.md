@@ -67,7 +67,7 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_log_prompts(turn, phase, messages)` — logs rendered prompts when config.log_prompts is True
 
 ### narrate.py
-- `_narrate_messages(env, state, user_input, *, chronicle_tail="", recent_turns=None, enable_narrate_thinking=False, pack_style="", narrator_rules=[], rules_outcome=None, npc_name_pool=None, recently_left=None, momentum=0, pending_gm_beat=None, deescalate=False, ages=None, known_npcs=None, present_npcs=None, world_factions=None, world_locations=None, pc_allegiance=None)` → `list[dict]` — prompt builder for narrator; accepts momentum, pending_gm_beat, deescalate, ages, known_npcs, present_npcs, world context params, and narrator_rules
+- `_narrate_messages(env, state, user_input, *, chronicle_tail="", recent_turns=None, enable_narrate_thinking=False, pack_style="", narrator_rules=[], world_rules=[], rules_outcome=None, npc_name_pool=None, recently_left=None, momentum=0, pending_gm_beat=None, deescalate=False, ages=None, known_npcs=None, present_npcs=None, world_factions=None, world_locations=None, pc_allegiance=None)` → `list[dict]` — prompt builder for narrator; accepts momentum, pending_gm_beat, deescalate, ages, known_npcs, present_npcs, world context params, narrator_rules, and world_rules
 - `_known_characters_for_extract(state, compact=True)` → `list[dict]` — deduped NPC roster from compendium
 - `build_state_slice(state)` — (used in prompts for state context)
 

@@ -119,3 +119,7 @@ See `[eval-remediation/plan.md](eval-remediation/plan.md)` for phased implementa
 - ~~**Enforce quest deduplication** — progress extractor creates overlapping quest IDs instead of updating existing — see `[eval-remediation/quest-dedup.md](eval-remediation/quest-dedup.md)` for full spec~~
 - ~~**Fix eval pack turn-0 start** — eval scenario should start at turn 0 for clean baseline — see `[eval-remediation/eval-pack-turn-0.md](eval-remediation/eval-pack-turn-0.md)` for full spec~~
 
+## Standalone
+
+- [x] **`world_rules` — pack-level universe physical constants** — `ScenarioBrief.world_rules` (max 5), narrator `## Universe rules` block, seed context pass-through, pack-gen LLM instruction, `flooded-world` reference entries — see [`world-rules-backend-updates.md`](world-rules-backend-updates.md)
+

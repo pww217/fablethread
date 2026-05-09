@@ -36,6 +36,11 @@ narrator_rules:
   - "The drowned cities are haunting: lower floors bioluminescent, upper floors weathered concrete, rooftops the only visible structure."
   - "Never describe the flood as a metaphor or as something that can be reversed. It is a permanent physical fact."
 
+world_rules:
+  - "Desalination at industrial scale is physically impossible with available technology — salt cannot be removed from seawater in bulk, only harvested where it has already precipitated."
+  - "The flood is a permanent hydrological fact: sea level rose two hundred feet over forty years and is not receding — no technology or political action in this world can reverse it."
+  - "Radio and optical communication are line-of-sight only above water; submerged infrastructure carries no electrical signals — there is no wireless communication below the flood line."
+
 factions:
   - id: cartographers_compact
     name: "Cartographers' Compact"

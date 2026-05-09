@@ -492,6 +492,7 @@ async def run_scenario(
                 pack_factions=[f.model_dump() for f in (pack.scenario.factions if pack.scenario else [])],
                 pack_locations=[loc.model_dump() for loc in (pack.scenario.locations if pack.scenario else [])],
                 pack_narrator_rules=pack.scenario.narrator_rules if pack.scenario else [],
+                pack_world_rules=pack.scenario.world_rules if pack.scenario else [],
             ):
                 if kind == "complete":
                     result_obj = payload
