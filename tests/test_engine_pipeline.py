@@ -576,3 +576,39 @@ def test_dedup_handles_case_insensitive():
     proposed = CompendiumNpcUpdate(id="new_torben", name="torben klask")
     result = _dedup_compendium_add(proposed, existing)
     assert result.id == "torben_klask"
+
+
+@pytest.mark.asyncio
+async def test_generic_currency_term_does_not_invent_inventory_id(save_dir):
+    """When narration references a generic currency term like 'iron coin' and
+    the inventory only has 'credits', the extractor must NOT invent a new
+    inventory ID such as 'iron_coin'. The delta validation pipeline rejects
+    non-existent IDs, so the worst case is a rejected delta.
+
+    This test mocks the state extractor returning an inventory_remove for a
+    non-existent 'iron_coin' id and asserts the engine rejects it, leaving
+    the credits balance unchanged.
+    """
+    state = _rich_state(turn=1)
+    save_state(save_dir, state)
+
+    fake = _FakeLLM(
+        narrative="You pay the innkeeper with an iron coin.",
+        scene_response=_scene_response(),
+        state_response=_state_response(
+            inv_remove=[{"id": "iron_coin", "amount": 1}]
+        ),
+        progress_response=_progress_response(),
+    )
+    with fake:
+        result = await _run(save_dir, "pay the innkeeper")
+
+    final = load_state(save_dir)
+    credits_entry = next((i for i in final["inventory"] if i["id"] == "credits"), None)
+    assert credits_entry is not None
+    assert credits_entry["amount"] == 850, (
+        "credits balance should be unchanged — 'iron_coin' delta was rejected"
+    )
+    assert all(i["id"] != "iron_coin" for i in final["inventory"]), (
+        "no 'iron_coin' inventory entry should exist"
+    )
