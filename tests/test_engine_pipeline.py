@@ -632,3 +632,63 @@ def test_progress_prompt_contains_quest_dedup_rule():
     assert "deliver_the_ledger" in prompt_text, (
         "dedup rule must reference the deliver_the_ledger example"
     )
+
+
+def test_progress_prompt_contains_contact_rule_override():
+    """Verify the progress extractor system prompt includes the contact
+    objective override added in eval-remediation-2 Phase 08.
+
+    The override makes the contact/meet rule explicit precedence over the
+    general no-dice-roll rule. This test asserts the override text is
+    present in the template so it cannot be accidentally removed.
+    """
+    prompt_text = (Path(PROMPTS_DIR) / "extract_progress_system.j2").read_text()
+    assert "This rule overrides the general rules-outcome guidance above" in prompt_text, (
+        "extract_progress_system.j2 must contain the contact rule override declaration"
+    )
+    assert "Exception: see Contact and meet objective rule below" in prompt_text, (
+        "general rules-outcome guidance must reference the contact rule exception"
+    )
+    assert "resolve on narrative presence, not roll outcome" in prompt_text, (
+        "contact rule must state it resolves on narrative presence"
+    )
+
+
+@pytest.mark.asyncio
+async def test_contact_objective_completes_without_dice_roll(save_dir):
+    """When a quest has a contact-type objective (e.g. 'Find Caron') and the
+    narration confirms the NPC is present and communication is established,
+    the progress extractor should mark the objective done even when
+    rules_outcome.rolled is false.
+
+    This is a behavioral test: the _FakeLLM returns a progress response
+    with the objective marked done despite no dice roll, and the engine
+    must apply it to state.
+    """
+    state = _rich_state(turn=1)
+    save_state(save_dir, state)
+
+    fake = _FakeLLM(
+        narrative="You sit across from Caron at the inn. He listens as you explain the debt situation and nods, reaching for his purse.",
+        scene_response=_scene_response(),
+        state_response=_state_response(),
+        progress_response=_progress_response(
+            quest_updates=[
+                {
+                    "id": "settle_the_debt",
+                    "status": "active",
+                    "objectives": [{"index": 3, "done": True}],
+                },
+            ],
+        ),
+    )
+    with fake:
+        await _run(save_dir, "talk to Caron about the debt")
+
+    final = load_state(save_dir)
+    debt_quest = next((q for q in final["quests"] if q["id"] == "settle_the_debt"), None)
+    assert debt_quest is not None, "settle_the_debt quest should exist in final state"
+    objective_3 = debt_quest["objectives"][2]
+    assert objective_3["done"] is True, (
+        f"contact objective 'Pay Caron in person' should be done after confirmed conversation, got: {objective_3}"
+    )
