@@ -147,6 +147,34 @@ def check_rolled_implies_binding(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _extract_candidate_names(narration: str, pc_name: str) -> set[str]:
+    """Extract capitalized tokens that are candidates for NPC names.
+
+    Excludes the PC name (case-insensitive) and sentence-initial words
+    to reduce false positives from tokens like 'Who', 'Instead', 'Your'.
+
+    Note: sentence-starters heuristic will miss NPC names that happen to
+    appear at the start of a sentence. This is an accepted tradeoff to
+    reduce false positives — the assert is for eval harness hygiene, not
+    production logic.
+    """
+    sentences = re.split(r'(?<=[.!?])\s+', narration)
+    sentence_starters: set[str] = set()
+    for s in sentences:
+        first = s.split()
+        if first:
+            sentence_starters.add(first[0].strip("\"'"))
+
+    candidates: set[str] = set()
+    for token in re.findall(r'\b[A-Z][a-z]{2,}\b', narration):
+        if token.lower() == pc_name.lower():
+            continue
+        if token in sentence_starters:
+            continue
+        candidates.add(token)
+    return candidates
+
+
 def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
     """If narration mentions a name AND scope includes scene, scene extract should npc_add/update.
 
@@ -170,6 +198,8 @@ def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
     applied = event.get("applied") or {}
     snap = event.get("state_snapshot") or {}
 
+    pc_name = (snap.get("pc") or {}).get("name", "")
+
     known_names: set[str] = set()
     for npc in (applied.get("npc_add") or []) + (applied.get("npc_update") or []):
         if isinstance(npc, dict):
@@ -187,10 +217,8 @@ def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
             if n:
                 known_names.add(n.lower())
 
-    # Crude name candidate extraction. Only flag obvious omissions.
-    # Find tokens like "Caron" or "Matthew Estrada" — Capitalized words, possibly bigrams.
-    candidates = set(re.findall(r"\b([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?)\b", narr))
-    # Filter common false positives: dialogue tags, sentence-initial words, common nouns.
+    candidates = _extract_candidate_names(narr, pc_name)
+    # Filter common false positives: dialogue tags, common nouns.
     stop = {
         "You", "The", "A", "An", "His", "Her", "Their",
         "He", "She", "It", "I", "We", "They",

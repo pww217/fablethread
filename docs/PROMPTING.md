@@ -97,3 +97,7 @@ If you're tempted to add tokens, ask: does this content change the model's outpu
 ## Tense authority
 
 `narrate_system.j2` no longer declares a fixed tense. Tense authority belongs to the pack style block (`## Genre tone` section). Each pack's `style.md` should include a tense instruction (e.g., "Narrate in second person, past tense."). When no pack style is present, the system prompt defaults to past tense. This prevents conflicts between the system prompt's tense declaration and the pack's stylistic requirements.
+
+## Contact/meet objective rule precedence
+
+`extract_progress_system.j2`'s "Contact and meet objective rule" is an explicit override of the general "no dice roll: do NOT complete quest objectives" guidance. Contact and meet objectives resolve on narrative presence, not roll outcome, even when no dice were rolled. The system prompt marks this with "**This rule overrides the general rules-outcome guidance above.**" and the general guidance points back with "**Exception: see Contact and meet objective rule below.**"

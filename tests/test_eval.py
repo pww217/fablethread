@@ -918,7 +918,7 @@ def test_universal_npc_mention_extracted_pass():
     ev = {
         "narrate_prompt": {"output": "Caron leans forward and frowns."},
         "applied": {"npc_update": [{"id": "caron", "name": "Caron"}]},
-        "state_snapshot": {},
+        "state_snapshot": {"pc": {"name": "Voss"}},
     }
     r = check_npc_mention_extracted(ev)
     assert r["passed"] is True
@@ -929,10 +929,44 @@ def test_universal_npc_mention_extracted_fail():
     ev = {
         "narrate_prompt": {"output": "A man named Brennan stands at the door."},
         "applied": {},
-        "state_snapshot": {"scene": {"present_npcs": []}, "compendium": {"npcs": {}}},
+        "state_snapshot": {"scene": {"present_npcs": []}, "compendium": {"npcs": {}}, "pc": {"name": "Voss"}},
     }
     r = check_npc_mention_extracted(ev)
     assert r["passed"] is False
+
+
+def test_extract_candidate_names_excludes_pc_name():
+    from ccya.eval.universal_asserts import _extract_candidate_names
+    result = _extract_candidate_names("Voss drew his sword and struck.", "Voss")
+    assert "Voss" not in result
+
+
+def test_extract_candidate_names_excludes_sentence_starters():
+    from ccya.eval.universal_asserts import _extract_candidate_names
+    result = _extract_candidate_names("Who stood at the gate? Caron answered.", "Voss")
+    assert "Who" not in result
+    # Caron starts a sentence so it's filtered by the sentence-starter heuristic
+    assert "Caron" not in result
+
+
+def test_extract_candidate_names_excludes_sentence_initial_capitals():
+    from ccya.eval.universal_asserts import _extract_candidate_names
+    result = _extract_candidate_names("Instead Caron spoke loudly.", "Voss")
+    assert "Instead" not in result
+    # Caron is the first word after "Instead" so it's not a sentence starter
+    assert "Caron" in result
+
+
+def test_extract_candidate_names_includes_genuine_npc():
+    from ccya.eval.universal_asserts import _extract_candidate_names
+    result = _extract_candidate_names("You see Halden approaching from the shadows.", "Voss")
+    assert "Halden" in result
+
+
+def test_extract_candidate_names_case_insensitive_pc():
+    from ccya.eval.universal_asserts import _extract_candidate_names
+    result = _extract_candidate_names("voss drew his sword.", "VOSS")
+    assert "voss" not in result
 
 
 def test_run_all_universal_asserts_returns_ten():
