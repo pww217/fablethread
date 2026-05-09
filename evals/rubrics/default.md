@@ -328,91 +328,125 @@ mechanic | wasted tokens`.
 Return the response as a YAML front matter block followed by the markdown body
 in the structure described above. Use this exact front matter shape:
 
+
+```yaml
+---
 mechanical_score: <int 1-5>
 narrative_score: <int 1-5>
 pipeline_scores:
-rules: <int 1-5>
-narrate: <int 1-5>
-extract_scene: <int 1-5>
-extract_state: <int 1-5>
-extract_progress: <int 1-5>
-Table of Contents
+  rules: <int 1-5>
+  narrate: <int 1-5>
+  extract_scene: <int 1-5>
+  extract_state: <int 1-5>
+  extract_progress: <int 1-5>
+---
+```
 
+
+Then produce the full markdown body using this structure:
+
+
+```
+# Table of Contents
 <list all sections below with relative path hyperlinks>
-ie Verdict
-Mechanical Design Critique
-Pipeline: rules
+ie [Verdict](#verdict)
 
+
+# Mechanical Design Critique
+
+
+## Pipeline: rules
 ... <subsections from Section 1> ...
-Pipeline: narrate
 
+
+## Pipeline: narrate
 ...
-Pipeline: extract_scene
 
+
+## Pipeline: extract_scene
 ...
-Pipeline: extract_state
 
+
+## Pipeline: extract_state
 ...
-Pipeline: extract_progress
 
+
+## Pipeline: extract_progress
 ...
-Storytelling Design Critique
-Criterion: quest_arc_quality
 
-Score: <1-5>
+
+# Storytelling Design Critique
+
+
+## Criterion: quest_arc_quality
+**Score:** <1-5>
 <two or more sentences with turn citations>
-Criterion: rewards_and_consequences
 
+
+## Criterion: rewards_and_consequences
 ...
-Criterion: narrative_compellingness
 
+
+## Criterion: narrative_compellingness
 ...
-Criterion: genre_and_universe_fit
 
+
+## Criterion: genre_and_universe_fit
 ...
-Criterion: npc_development
 
+
+## Criterion: npc_development
 ...
-Criterion: world_consistency
 
-Score: <1-5>
+
+## Criterion: world_consistency
+**Score:** <1-5>
 <two or more sentences with turn citations>
-Criterion: player_agency
 
+
+## Criterion: player_agency
 ...
-Criterion: consequence_persistence
 
-Score: <1-5>
+
+## Criterion: consequence_persistence
+**Score:** <1-5>
 <two or more sentences with turn citations>
-Criterion: pacing_and_pressure
 
+
+## Criterion: pacing_and_pressure
 ...
-Criterion: momentum_arc
 
-Score: <1-5>
+
+## Criterion: momentum_arc
+**Score:** <1-5>
 <two or more sentences with turn citations>
-Prompt Redundancy Analysis
 
-...
-Compaction Capabilities Report
 
+# Prompt Redundancy Analysis
 ...
-Auto-Checker Failures
 
-...
-Additional Observations
 
+# Compaction Capabilities Report
 ...
-Verdict
 
-...
-Actionable Issues and Remediations
-Major
 
+# Auto-Checker Failures
 ...
-Minor
 
-...
-Trivial
 
+# Additional Observations
 ...
+
+
+# Verdict
+...
+
+
+# Actionable Issues and Remediations
+## Major
+...
+## Minor
+...
+## Trivial
+...
+```
