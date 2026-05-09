@@ -336,16 +336,22 @@ def _write_compacted_block(
     matches = list(_TURN_HEADER.finditer(text))
     turns_to_remove = {int(m.group(1)) for m in matches if int(m.group(1)) <= compact_end}
     if turns_to_remove:
+        next_header_start: list[int] = []
+        for i in range(len(matches)):
+            if i + 1 < len(matches):
+                next_header_start.append(matches[i + 1].start())
+            else:
+                next_header_start.append(len(text))
         new_text_parts: list[str] = []
         prev_end = 0
-        for m in matches:
+        for i, m in enumerate(matches):
             turn_num = int(m.group(1))
+            section_end = next_header_start[i]
             if turn_num in turns_to_remove:
                 new_text_parts.append(text[prev_end:m.start()])
-                prev_end = m.end()
-                while prev_end < len(text) and text[prev_end] in ("\n", "\r"):
-                    prev_end += 1
-        new_text_parts.append(text[prev_end:])
+            else:
+                new_text_parts.append(text[prev_end:section_end])
+            prev_end = section_end
         text = "".join(new_text_parts)
 
     path.write_text(text)
