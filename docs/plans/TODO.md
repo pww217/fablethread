@@ -84,6 +84,7 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - ~~**Eval system hardening Phase 08** — Compaction-feature signals: `ccya/eval/compaction_signals.py` with 14 enumerated capabilities; render_compaction_section appended to # Deterministic Signals~~ — see `[eval-results-remediation/eval-system-hardening.md](eval-results-remediation/eval-system-hardening.md)` Phase 08
 - ~~**Eval system hardening Phase 09** — Universal asserts: fix `pending_gm_beat` path (`state.meta` not `state.scene`); add 5 new asserts (recent_events ring, NPC scene cap, condition dupes, actions count/distinct, momentum band delta)~~ — see `[eval-results-remediation/eval-system-hardening.md](eval-results-remediation/eval-system-hardening.md)` Phase 09
 - ~~**Eval system hardening Phase 10** — Rubric refresh: rewrite `default.md` as Mechanical Design Critique + Storytelling Design Critique + Prompt Redundancy + Compaction Capabilities + Auto-Checker + Verdict + Recap; explicit Mechanic Placement subsection per pipeline~~ — see `[eval-results-remediation/eval-system-hardening.md](eval-results-remediation/eval-system-hardening.md)` Phase 10
+- [ ] **Eval run remediation #2** — `eval-results-remediation2/` — narrator inventory binding rule (Phase 03) — see `[eval-results-remediation2/eval-result-remediation.md](eval-results-remediation2/eval-result-remediation.md)`
 
 ---
 
