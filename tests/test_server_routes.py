@@ -77,3 +77,22 @@ class TestRouteRegistration:
         """Static files should be mounted at /static."""
         route_paths = {r.path for r in client.app.routes}
         assert "/static" in route_paths
+
+    def test_format_ts(self):
+        """_format_ts should convert UTC ISO to human-readable format."""
+        from ccya.server.routes import _format_ts
+
+        result = _format_ts("2026-05-09T15:33:00Z")
+        # Should not contain ISO date format
+        assert "2026-05-09" not in result
+        # Should contain human-readable components
+        assert "May" in result
+        assert "3:33" in result or "03:33" in result
+        assert "UTC" in result
+
+    def test_format_ts_fallback(self):
+        """_format_ts should return raw string if unparseable."""
+        from ccya.server.routes import _format_ts
+
+        assert _format_ts("not-a-date") == "not-a-date"
+        assert _format_ts("") == ""
