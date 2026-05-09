@@ -48,6 +48,10 @@ true — player succeeded on a check against active pressure. Do NOT add new pre
 {% for q in active_quests %}- `{{ q.id }}` | {{ q.title }}
 {% endfor %}
 {% endif -%}
+{% if scene_location_description -%}
+## current_location_description (emit location_description only if narration adds NEW details)
+{{ scene_location_description }}
+{% endif -%}
 {% if recent_turns -%}
 {% set prev = recent_turns[-1] if recent_turns | length >= 1 else none %}
 {% if prev %}
