@@ -11,6 +11,7 @@ Location: {{ location.name or location.id or "Unknown" }}
 T{{ t.turn }}: {{ t.input }} — {% if t.narrative | length > 120 %}… {% endif %}{{ t.narrative[-120:] }}
 
 {% endif -%}
+## Current Turn: {{ meta.turn | default('?') }}
 === PLAYER INPUT ===
 {{ user_input }}
 === END PLAYER INPUT ===

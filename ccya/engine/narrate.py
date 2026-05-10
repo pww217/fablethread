@@ -32,6 +32,7 @@ def _narrate_messages(
     world_factions: list[dict[str, str]] = [],
     world_locations: list[dict[str, str]] = [],
     pc_allegiance: str | None = None,
+    turn_no: int = 0,
 ) -> list[dict[str, str]]:
     user_ctx = {
         "state": state,
@@ -43,7 +44,7 @@ def _narrate_messages(
         "user_input": user_input,
         "momentum": momentum,
         "pending_gm_beat": pending_gm_beat,
-        "meta": state.get("meta", {}),
+        "meta": {"turn": turn_no},
         "scene": state.get("scene", {}),
         "deescalate": deescalate,
         "ages": ages or {},

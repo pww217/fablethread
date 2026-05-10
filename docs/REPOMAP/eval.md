@@ -31,11 +31,11 @@
 ## Tier 1 vs Tier 2
 
 - **Tier 1**: `tests/test_engine_pipeline.py` — token-budget ceilings, multi-turn invariants, scope-gating tests. Uses `_FakeLLM`. Runs under `make test`.
-- **Tier 2**: `make eval` — in-process `run_turn()` driver over static `eval-pack`, 6-turn `full_cycle` scenario, single LLM judge, REPORT.md with deterministic header + auto-checker table.
+- **Tier 2**: `make eval` — in-process `run_turn()` driver over static `eval-pack`, 13-turn `full_cycle` scenario, single LLM judge, REPORT.md with deterministic header + auto-checker table.
 
 ## Scenario files
 
-- `evals/scenarios/full_cycle.py` — Baseline 7-turn regression scenario
+- `evals/scenarios/full_cycle.py` — Baseline 13-turn regression scenario with dual compaction (T6, T12)
 - `evals/scenarios/pressure_lifecycle.py` — Scene pressure urgency escalation and expiry (imports `PRESSURE_BUILDING_AT`, `PRESSURE_IMMEDIATE_AT`)
 - `evals/scenarios/gm_beat_lifecycle.py` — `pending_gm_beat` set/surface/consume lifecycle (uses `state_yaml` assert stream)
 - `evals/scenarios/momentum_high.py` — High-momentum narration tone (imports `MOMENTUM_MAX`)

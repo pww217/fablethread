@@ -10,7 +10,7 @@ pack_dirs:                             # Phase 02 — search order; first match 
   - packs/custom
 default_save_root: ~/.cache/ccya-eval   # per-run subdir created under this
 runs_dir: evals/runs                 # where REPORT.md and trace files land
-num_turns: 10                         # run only first N turns (default/max 10, override with --turns)
+num_turns: 13                         # run only first N turns (default/max 13, override with --turns)
 
 logging:
   # Logging level for eval harness: DEBUG, INFO, WARNING, ERROR.

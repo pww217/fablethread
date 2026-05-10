@@ -292,48 +292,65 @@ All turn references below are 1-indexed as they appear in the trace.
 **How `window_turns` works:** `window_turns` controls how many of the most
 recent turns are kept uncompressed in `chronicle.md`. Everything older is
 compacted into summary bullets. With `window_turns=3`:
-- After T6: turns 1–3 are compacted into bullets, turns 4–6 are kept as recent
-  narrative. Expect **3 bullets covering T1–T3**.
-- At T12: turns 7–11 are compacted into bullets, turns 9–12 are kept as
-  recent narrative. Expect **5 additional bullets covering T7–T11**.
-- The engine always retains the 3 most recent turns as full narrative plus
-  all compacted bullets for older turns.
+- `retain_from = max(1, current_turn - window_turns + 1)`
+- `compact_end = retain_from - 1`
+- `compact_start = last_compacted_turn + 1`
+- The compactor compacts turns `[compact_start .. compact_end]` and retains
+  turns `[compact_end+1 .. current_turn]` (the most recent `window_turns` turns).
 
 
-**Expectations for typical eval runs:** Most eval runs are 10 turns. With
-`compact_every=6` the compactor fires at T6 only (T12 is beyond the run).
-In T7 (it runs between 6 and 7) you should see **3 bullets covering T1–T3** and turns 4–6 kept as
-recent narrative. This is correct behavior. Do not penalize the engine for
-not compacting at T7–T10 — the compactor only fires at multiples of
-`compact_every`. Do not penalize for having only 3 bullets — that is the
-expected output for a 10-turn run.
+**When compaction results appear:** The compactor fires *after* a turn completes
+(when `current_turn % compact_every == 0`). The compaction results are visible
+in the *next* turn's chronicle. With `compact_every=6` and `window_turns=3`:
+
+- **T6 fires compaction:** `retain_from = max(1, 6-3+1) = 4`, `compact_end = 3`.
+  Compacts T1–3. Results visible at T7.
+- **T12 fires compaction:** `retain_from = max(1, 12-3+1) = 10`, `compact_end = 9`.
+  Compacts T7–9. Results visible at T13.
 
 
-**What correct compaction output looks like:** When the compactor fires at T6,
-evaluate all three of the following:
+**Expectations for typical eval runs (13 turns):** With `compact_every=6` and
+13 turns, the compactor fires at T6 and T12.
 
-1. **Narrative bullets:** T1–T3 should be represented as concise summary
-   bullets in `chronicle.md`. Each bullet must faithfully represent the key
-   event or player action of that turn. A bullet that misrepresents, inverts, or
-   omits a named entity (NPC name, item name, location name, quest ID) from the
-   turn it covers is a compaction failure. A bullet that is generic enough to
-   apply to any turn ("the player took an action") is also a failure.
+**First compaction (fires at T6):** At T7, you should see **3 bullets covering
+T1–T3** and turns 4–6 kept as recent narrative. This is correct behavior.
 
-2. **recent_events deduplication:** After compaction, `scene.recent_events`
-   should not contain events whose content is already covered by a compaction
-   bullet. The compactor is expected to consolidate overlapping `recent_events`
-   entries into fewer, denser records via `recent_events_compact`. Check the
-   applied sanitization in the Deterministic Signals block: if
-   `recent_events_compact` is empty but `recent_events` contains 5+ entries
-   spanning T1–T3, that is a deduplication miss.
+**Second compaction (fires at T12):** At T13, you should see **3 additional
+bullets covering T7–T9** for a total of **6 bullets** (3 from first pass + 3
+from second pass). Turns 10–12 are kept as recent narrative.
 
-3. **Stale state sanitization:** The compaction pass should close completed or
-   failed quests, remove resolved conditions, and remove expired pressures from
-   state. Check the `CompactorSanitizationResult` fields (`quest_close`,
-   `condition_remove`, `pressure_remove`, `inventory_remove`) against the state
-   snapshot at T6. Any obviously stale entry — a quest that was narratively
-   resolved but not closed, a condition that expired narratively but persists in
-   state — is a sanitization miss.
+Do not penalize the engine for not compacting at turns other than 6 and 12. Do
+not penalize for having only 3 bullets in a 10-turn run — that is the expected
+output when compaction fires only once.
+
+
+**What correct compaction output looks like:** When the compactor fires, evaluate
+ALL compaction passes:
+
+1. **Narrative bullets:** Each compaction pass should produce concise summary
+    bullets. For T6: T1–T3 as 3 bullets. For T12: T7–T9 as 3 bullets. Each
+    bullet must faithfully represent the key event or player action of that turn.
+    A bullet that misrepresents, inverts, or omits a named entity (NPC name, item
+    name, location name, quest ID) from the turn it covers is a compaction
+    failure. A bullet that is generic enough to apply to any turn ("the player
+    took an action") is also a failure.
+
+2. **recent_events deduplication:** After EACH compaction pass, `scene.recent_events`
+    should not contain events whose content is already covered by a compaction
+    bullet. The compactor is expected to consolidate overlapping `recent_events`
+    entries into fewer, denser records via `recent_events_compact`. Check the
+    applied sanitization in the Deterministic Signals block after both T6 and T12:
+    if `recent_events_compact` is empty but `recent_events` contains 5+ entries
+    spanning the compacted range (T1–3 for first pass, T7–9 for second pass),
+    that is a deduplication miss.
+
+3. **Stale state sanitization:** Each compaction pass should close completed or
+    failed quests, remove resolved conditions, and remove expired pressures from
+    state. Check the `CompactorSanitizationResult` fields (`quest_close`,
+    `condition_remove`, `pressure_remove`, `inventory_remove`) against the state
+    snapshots at T6 and T12. Any obviously stale entry — a quest that was
+    narratively resolved but not closed, a condition that expired narratively but
+    persists in state — is a sanitization miss.
 
 
 If compaction did not fire (run was too short), state that and skip the per-

@@ -140,6 +140,7 @@ def _extract_scene_messages(
     deescalate: float = 0.0,
     quest_ages: list[dict[str, Any]] | None = None,
     recent_turns: list[dict[str, Any]] | None = None,
+    turn_no: int = 0,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 1 (scene + NPC + pressure + gm_beat + compendium)."""
     pc = state.get("pc") or {}
@@ -173,6 +174,7 @@ def _extract_scene_messages(
             "active_quests": active_quests,
             "recent_turns": recent_turns or [],
             "scene_location_description": scene_location_description,
+            "turn_no": turn_no,
         },
     )
     msgs = [
@@ -192,6 +194,7 @@ def _extract_state_messages(
     scene_result: "SceneExtractResult",
     rules_outcome: "RulesOutcome | None" = None,
     enable_thinking: bool = False,
+    turn_no: int = 0,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 2 (inventory + conditions)."""
     pc = state.get("pc") or {}
@@ -220,6 +223,7 @@ def _extract_state_messages(
             "scene_result": scene_ctx,
             "rules_outcome": rules_outcome,
             "active_domains": active_domains,
+            "turn_no": turn_no,
         },
     )
     msgs = [
@@ -434,6 +438,7 @@ async def _run_extraction_pipeline(
             deescalate=deescalate,
             quest_ages=quest_ages,
             recent_turns=(recent_turns or [])[-1:],
+            turn_no=turn_no,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_scene_system = scene_msgs[0]["content"] if scene_msgs else ""
@@ -485,6 +490,7 @@ async def _run_extraction_pipeline(
             scene_result=scene_result,
             rules_outcome=rules_outcome,
             enable_thinking=config.enable_extract_thinking,
+            turn_no=turn_no,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_state_system = state_msgs[0]["content"] if state_msgs else ""

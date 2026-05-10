@@ -133,6 +133,7 @@ Before introducing anyone new, check this list. Re-use characters when they coul
 {% endif %}
 <<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
+## Current Turn: {{ meta.get('turn', '?') if meta is mapping else '?' }}
 === PLAYER INPUT ===
 {{ user_input }}
 === END PLAYER INPUT ===
