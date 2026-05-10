@@ -1,7 +1,7 @@
 # Eval Rubric Redesign — Verdict Expansion, Storytelling Trace, Cross-Pipeline Correlation
 
 **Eval run reference:** `evals/runs/20260510T180913Z_2do6ma7m` · `full_cycle` (13 turns)  
-**Current rubric:** `evals/rubrics/default.md` (646 lines)  
+**Current rubric:** `evals/rubrics/default.md` (592 lines)  
 **Related:** `eval-remediation-may10/02-extraction-quality.md` (extraction-quality criteria added in Phase 6)
 
 ---
@@ -41,19 +41,20 @@ The current rubric has four structural gaps:
 8. Additional Observations
 ```
 
-### After (proposed)
+### After (actual)
 
 ```
 1. Storytelling Trace (new — short, data collection)
 2. State Evolution Trace (new — short, data collection)
-3. Mechanical Design Critique (per-pipeline, unchanged)
-4. Cross-Pipeline Correlation (new — interaction analysis)
-5. Storytelling Design Critique (11 criteria: 7 kept + 4 new, 5 simplified)
-6. Prompt Redundancy Analysis (unchanged)
-7. Compaction Capabilities Report (unchanged)
-8. Auto-Checker Failures (unchanged)
-9. Verdict (expanded with subheaders, at the end)
-10. Additional Observations (unchanged)
+3. Actionable Issues Surfaced (unchanged, moved up)
+4. Mechanical Design Critique (per-pipeline, unchanged)
+5. Cross-Pipeline Correlation (new — interaction analysis)
+6. Storytelling Design Critique (11 criteria: 7 kept + 4 new, 5 simplified)
+7. Prompt Redundancy Analysis (unchanged)
+8. Compaction Capabilities Report (unchanged)
+9. Auto-Checker Failures (unchanged)
+10. Verdict (expanded with subheaders, at the end)
+11. Additional Observations (unchanged)
 ```
 
 ### Storytelling Design Critique — criteria changes
@@ -79,7 +80,7 @@ The current rubric has four structural gaps:
 | ~~`stakes_routing`~~ | **Removed** — covered by Cross-Pipeline Correlation |
 | `scenario_quality` | **New** — does scenario exercise all mechanics |
 
-Net: 14 → 11 criteria. Saves ~80 lines of rubric text while adding ~100 lines of trace sections.
+Net: 14 → 12 criteria. Saves ~80 lines of rubric text while adding ~100 lines of trace sections.
 
 ---
 
@@ -262,7 +263,7 @@ Replace the entire Storytelling Design Critique section (Section 4 in current ru
 
 **New criteria:** `npc_voice`, `world_reactivity`, `failure_arc`, `scenario_quality` (4 added)
 
-**Net: 14 → 11 criteria**
+**Net: 14 → 12 criteria**
 
 ```markdown
 ## Section 5: Storytelling Design Critique (SECONDARY)
@@ -410,6 +411,7 @@ Replace the Table of Contents (lines 11-19) with the updated version. Use hyphen
   - [State Coherence](#state-coherence)
   - [State Drift](#state-drift)
   - [State Completeness](#state-completeness)
+- [Actionable Issues Surfaced](#actionable-issues-surfaced)
 - [Mechanical Design Critique](#mechanical-design-critique)
 - [Cross-Pipeline Correlation](#cross-pipeline-correlation)
 - [Storytelling Design Critique](#storytelling-design-critique)
@@ -420,9 +422,9 @@ Replace the Table of Contents (lines 11-19) with the updated version. Use hyphen
   - [Mechanical Integrity](#mechanical-integrity)
   - [Narrative Quality](#narrative-quality)
   - [System Cohesion](#system-cohesion)
+  - [Pipeline I/O Relevance](#pipeline-io-relevance)
   - [Regression & Known Issues](#regression--known-issues)
   - [Key Findings](#key-findings)
-- [Actionable Issues Surfaced](#actionable-issues-surfaced)
 - [Additional Observations](#additional-observations)
 ```
 
@@ -436,7 +438,120 @@ Delete the Output Format section entirely (lines 526-645). The judge produces th
 
 ---
 
-## Phase 7: Update REPOMAP and TODO
+## Phase 7: Embed ARCHITECTURE.md EVAL_CONTEXT into trace.md
+
+**File:** `ccya/eval/judge.py`  
+**Type:** Code change — add architecture context to trace rendering  
+**Risk:** Low — adds a section to the trace markdown; the context is already loaded in `run_judge_streaming()`
+
+### Problem
+
+The judge's system message already includes the ARCHITECTURE.md EVAL_CONTEXT region (loaded by `architecture_context.py` in `judge.py:549-555`). However, the `trace.md` artifact written to disk does **not** contain this context. The trace only has Static Context (pack style, seed state, engine constants, 5 system prompts). This means:
+
+1. The trace.md on disk is not a self-contained record of what the judge saw — it's missing the engine design reference that shapes the judge's analysis.
+2. Anyone examining the trace artifact (e.g., for debugging or post-hoc review) cannot understand the judge's mechanical judgments without also reading ARCHITECTURE.md separately.
+3. The rubric's instruction "ENGINE DESIGN REFERENCE — extracted verbatim from the project's docs/ARCHITECTURE.md" is fulfilled by the system message but not by the trace artifact.
+
+### Fix
+
+Add a new section to `_render_static_context()` in `judge.py` that includes the EVAL_CONTEXT region from ARCHITECTURE.md. The section should be placed after "System Prompts" and before the closing of the Static Context block.
+
+In `_render_static_context()` (around line 246, after the system prompts loop), add:
+
+```python
+# Include engine design reference from ARCHITECTURE.md EVAL_CONTEXT region
+try:
+    from ccya.eval.architecture_context import load_architecture_context
+    arch_ctx = load_architecture_context()
+    if arch_ctx:
+        sections.append("## Engine Design Reference\n")
+        sections.append(
+            "The following is extracted from `docs/ARCHITECTURE.md` between "
+            "`<!-- EVAL_CONTEXT_START -->` and `<!-- EVAL_CONTEXT_END -->`. "
+            "It defines what the engine is supposed to do.\n"
+        )
+        sections.append(arch_ctx)
+except ImportError:
+    pass
+```
+
+This reuses the existing `load_architecture_context()` function which already wraps the content in a clear header. The section will appear in trace.md as part of the Static Context block, making the trace self-contained.
+
+### Verification
+
+- Run an eval and verify the trace.md contains an "Engine Design Reference" section after "System Prompts"
+- Verify the section contains the 5-pipeline reference table and pipeline descriptions from ARCHITECTURE.md
+- Verify the judge still produces correct output (the system message already had this context; adding it to the trace is additive)
+- Verify the trace.md file size increase is acceptable (ARCHITECTURE.md EVAL_CONTEXT is ~400 lines)
+
+---
+
+## Phase 8: Add Pipeline I/O Relevance to Verdict
+
+**File:** `evals/rubrics/default.md`  
+**Type:** Rubric instruction change — new verdict subsection  
+**Risk:** Low — adds a new evaluation criterion to the verdict
+
+### Problem
+
+The rubric evaluates each pipeline in isolation (Section 3) and cross-pipeline correlation (Section 4), but the Verdict does not include a focused assessment of whether each pipeline's **inputs and outputs are appropriate for that pipeline's task**. The goal is to keep only the inputs we need to achieve our outputs — no more — and ensure each pipeline is focused on its task with only relevant context.
+
+Specific concerns:
+- **State extractor** should not receive quest input/outputs (that belongs to progress) or rule outcome details (that belongs to rules).
+- **Scene extractor** should not receive inventory context (that belongs to state) or rule outcome directives beyond what's needed for NPC/item grounding.
+- **Narrator** and **Progress extractor** have the most input context and need to remain accurate, but every input should be justified by an output it enables.
+- Each pipeline should only have the inputs it needs to achieve its outputs, no more.
+
+### Fix
+
+Replace the placeholder Verdict section (currently Section 5 in the proposed structure, which will become Section 9 after new sections are inserted) with an expanded version that includes a "Pipeline I/O Relevance" subsection.
+
+Replace the current Phase 5 Verdict content (lines 358-375) with:
+
+```markdown
+## Section 9: Verdict
+
+### Mechanical Integrity
+Summarize the mechanical health of the run. Reference pipeline scores (rules, narrate, extract_scene, extract_state, extract_progress) and note which pipelines had major failures. Mention extraction quality issues (amount accuracy, spending action extraction, quest dedup, ambient NPC filtering). Score: 1-5.
+
+### Narrative Quality
+Summarize the narrative health of the run. Reference storytelling criteria scores (quest_arc_quality, rewards_and_consequences, narrative_compellingness, npc_development, npc_voice, world_consistency, world_reactivity, player_agency, failure_arc, pacing_and_pressure, deescalation_mechanics, scenario_quality). Note which criteria scored lowest. Score: 1-5.
+
+### System Cohesion
+Summarize how well the engine's systems work together. Reference cross-pipeline correlation findings (do mechanics from different pipelines interact correctly?), state evolution trace (does the game state evolve logically?), and scenario quality (does the scenario exercise all mechanics?). Score: 1-5.
+
+### Pipeline I/O Relevance
+For each of the 5 pipelines, assess whether its inputs and outputs are focused on its task and appropriate to its role. The goal is minimal, relevant context per pipeline — no more inputs than needed, no outputs that belong to another pipeline.
+
+**Rules (Step 0):** Inputs should be limited to state.pc, state.location, state.scene.present_npcs, scene_pressure, recent_turns[-1:], and user_input. Outputs are IntentEnvelope and RulesOutcome. Flag if the rules prompt includes unnecessary context (e.g., full inventory, quest lists, compendium) or if the output includes fields that should be computed downstream.
+
+**Narrate (Step 1):** Inputs are the richest — full state, chronicle_tail, recent_turns, RulesOutcome, pack_style, npc_name_pool, etc. This is justified because the narrator produces prose. Assess: is every input contributing to narrative quality? Are there inputs that could be trimmed without affecting prose? Flag if the narrator receives data it clearly doesn't use (e.g., rules dice values that don't appear in narration).
+
+**Extract Scene (Step 2a):** Inputs should be narrative, state.pc/location, scene.present_npcs, conditions, known_characters, RulesOutcome, active_domains, recent_turns[-1:]. Flag if the scene extractor receives inventory data, quest data, or pressure data — those belong to other pipelines. Flag if it receives too little context (e.g., no known_characters for NPC identity resolution).
+
+**Extract State (Step 2b):** Inputs should be narrative, state.pc, state.location, state.inventory, rules_outcome, active_domains, expired_conditions, scene_result (location_change, present_npcs), stakes, band. Flag if the state extractor receives quest data, recent_events, or pressure data — those belong to progress. Flag if it receives items_gained/items_lost from progress — that's a forward dependency that may cause confusion.
+
+**Extract Progress (Step 2c):** Inputs are the most complex — narrative, state.pc, recent_events, world_state, active_quests, scene_pressure, rules_outcome, intent, active_domains, recent_turns[-2:], items_gained/items_lost from 2b, stakes, band, deescalate, quest_ages, pending_beat. This is justified because progress is the "storytelling brain." Assess: is every input enabling a specific output? Flag inputs that appear unused (e.g., does pending_beat actually influence quest_updates?).
+
+For each pipeline, note: (a) inputs that seem unnecessary, (b) outputs that seem misplaced, (c) whether the input/output boundary aligns with the pipeline's responsibility. Score: 1-5.
+
+### Regression & Known Issues
+Note any regressions from previous eval runs (criteria that scored lower than before, new auto-checker failures, new extraction quality issues). Note any known issues that were confirmed again this run. Flag any issues that were previously reported but not fixed.
+
+### Key Findings
+2-4 sentences. Concrete, specific, actionable. Reference turn numbers. Justify why mechanical_score diverges from narrative_score if applicable. End with the single most important fix the engine needs.
+```
+
+### Verification
+
+- Read the updated rubric and verify the Pipeline I/O Relevance subsection is clear and actionable
+- Verify each pipeline's expected inputs/outputs are correctly stated per the ENGINE DESIGN REFERENCE
+- Verify the scoring guidance (1-5) is consistent with other verdict subsections
+- Verify the Pipeline I/O Relevance section references data available in the trace (user prompts show inputs, engine outputs show JSON outputs)
+
+---
+
+## Phase 9: Update REPOMAP and TODO
 
 **Files:** `docs/REPOMAP/eval.md`, `docs/plans/TODO.md`  
 **Type:** Documentation update  
@@ -447,7 +562,7 @@ Delete the Output Format section entirely (lines 526-645). The judge produces th
 Update `docs/REPOMAP/eval.md` to note the rubric redesign:
 
 ```markdown
-- `evals/rubrics/default.md` — Judge rubric with Storytelling Trace section (momentum, GM beat, scene pressure, condition lifecycle, quest arc, inventory evolution), State Evolution Trace section (coherence, drift, completeness), Cross-Pipeline Correlation section (rules→narrate, rules→state, narrate→scene, narrate→state, narrate→progress, state→progress, progress→narrate), Storytelling Design Critique with 11 criteria (quest_arc_quality, rewards_and_consequences [trace], narrative_compellingness, npc_development, npc_voice, world_consistency, world_reactivity, player_agency, failure_arc [trace], pacing_and_pressure, deescalation_mechanics, scenario_quality), Verdict at end with subheaders (Mechanical Integrity, Narrative Quality, System Cohesion, Regression & Known Issues, Key Findings)
+- `evals/rubrics/default.md` — Judge rubric with Storytelling Trace section (momentum, GM beat, scene pressure, condition lifecycle, quest arc, inventory evolution), State Evolution Trace section (coherence, drift, completeness), Cross-Pipeline Correlation section (rules→narrate, rules→state, narrate→scene, narrate→state, narrate→progress, state→progress, progress→narrate), Storytelling Design Critique with 11 criteria (quest_arc_quality, rewards_and_consequences [trace], narrative_compellingness, npc_development, npc_voice, world_consistency, world_reactivity, player_agency, failure_arc [trace], pacing_and_pressure, deescalation_mechanics, scenario_quality), Verdict at end with subheaders (Mechanical Integrity, Narrative Quality, System Cohesion, Pipeline I/O Relevance, Regression & Known Issues, Key Findings)
 ```
 
 Update `docs/plans/TODO.md` to add new items:
@@ -457,8 +572,10 @@ Update `docs/plans/TODO.md` to add new items:
 - [ ] **Rubric redesign: state evolution trace** — add State Evolution Trace section (coherence, drift, completeness) — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 2`
 - [ ] **Rubric redesign: cross-pipeline correlation** — add Cross-Pipeline Correlation section (rules→narrate, rules→state, narrate→scene, narrate→state, narrate→progress, state→progress, progress→narrate) — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 3`
 - [ ] **Rubric redesign: storytelling criteria** — remove 6 criteria, add 4 new, simplify 5 to reference traces — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 4`
-- [ ] **Rubric redesign: verdict** — move verdict to end, expand with subheaders (Mechanical Integrity, Narrative Quality, System Cohesion, Regression & Known Issues, Key Findings) — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 5`
+- [ ] **Rubric redesign: verdict** — move verdict to end, expand with subheaders (Mechanical Integrity, Narrative Quality, System Cohesion, Pipeline I/O Relevance, Regression & Known Issues, Key Findings) — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 5`
 - [ ] **Rubric redesign: TOC and output format** — update Table of Contents, remove redundant Output Format section — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 6`
+- [ ] **Embed ARCHITECTURE.md EVAL_CONTEXT into trace.md** — include engine design reference in the trace artifact so the judge's input is self-contained on disk — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 7`
+- [ ] **Pipeline I/O relevance verdict** — add verdict subsection checking each pipeline only receives inputs it owns and emits outputs it owns — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 8`
 ```
 
 ---
@@ -475,6 +592,10 @@ Update `docs/plans/TODO.md` to add new items:
 
 5. **Trace length:** Traces are data collection — keep them short (3-5 lines each). Verdicts and detailed evaluations can be as long as needed for insightful end-to-end analysis. **RESOLVED: traces short, verdict/analysis long.**
 
+6. **ARCHITECTURE.md in system message vs trace:** The architecture context is already in the judge's system message. Adding it to the trace makes the trace self-contained but increases trace.md size by ~400 lines. **RESOLVED: include in trace — the trace on disk should be a complete record of what the judge saw, and ~400 lines is acceptable given the judge model's context window.**
+
+7. **Pipeline I/O Relevance scope:** Assessing whether each pipeline has the right inputs/outputs requires the judge to understand the engine's internal data flow. The ENGINE DESIGN REFERENCE section in the trace provides this. **RESOLVED: the ENGINE DESIGN REFERENCE is now in the trace (Phase 7), so the judge has the reference it needs to assess I/O relevance.**
+
 ---
 
 ## Risk Assessment
@@ -482,10 +603,12 @@ Update `docs/plans/TODO.md` to add new items:
 | Risk | Likelihood | Mitigation |
 |---|---|---|
 | Judge model can't handle the expanded rubric | Medium | The judge already produces 12 storytelling criteria; adding 4 more and 2 trace sections is within its capacity |
-| Rubric becomes too long for judge context | Low | The rubric is ~650 lines; removing ~120 lines (Output Format + 6 criteria) and adding ~100 lines brings it to ~630 lines — actually shorter than current |
+| Rubric becomes too long for judge context | Low | The rubric is ~592 lines; removing the Output Format section and 6 criteria while adding trace sections and new criteria brought it from 646 to 592 lines — actually shorter than current |
 | Judge produces inconsistent traces | Medium | The trace sections have clear instructions and reference specific data points in the trace |
 | Rubric redesign breaks existing eval runs | Low | The rubric is only used by the judge; existing eval runs are stored as REPORT.md files |
 | Judge can't follow "reference trace, don't re-collect" instruction | Medium | The `[trace]` marker on simplified criteria makes this explicit |
+| Trace.md too large with ARCHITECTURE.md included | Low | Judge models typically have 128K+ context; ~400 lines of arch context is ~15K tokens, well within budget |
+| Pipeline I/O Relevance criterion too subjective | Medium | The rubric specifies concrete expected inputs/outputs per pipeline from the ENGINE DESIGN REFERENCE, making assessment objective |
 
 ---
 
@@ -497,6 +620,8 @@ Update `docs/plans/TODO.md` to add new items:
 4. **Phase 4:** Update Storytelling Design Critique criteria (remove 6, add 4, simplify 5)
 5. **Phase 5:** Move and expand Verdict to end with subheaders
 6. **Phase 6:** Update Table of Contents, remove Output Format section
-7. **Phase 7:** Update REPOMAP and TODO
+7. **Phase 7:** Embed ARCHITECTURE.md EVAL_CONTEXT into trace.md (code change in `judge.py`)
+8. **Phase 8:** Add Pipeline I/O Relevance to Verdict (rubric change in `default.md`)
+9. **Phase 9:** Update REPOMAP and TODO
 
-All phases modify `evals/rubrics/default.md` only (except Phase 7 which also updates REPOMAP and TODO). No engine code changes required.
+Phases 1-6, 8 modify `evals/rubrics/default.md` only. Phase 7 modifies `ccya/eval/judge.py`. Phase 9 updates REPOMAP and TODO.

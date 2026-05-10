@@ -410,9 +410,7 @@ flowchart TD
     DELTA -- "narrative" --> CHRONICLE
     STEP2C -- "scene_pressure_add<br>gm_beat, beat_disposition" --> STATE
 ```
-
 <!-- EVAL_CONTEXT_END -->
-
 ---
 
 ## Out-of-band Pipelines (not part of the per-turn loop — for human reference)

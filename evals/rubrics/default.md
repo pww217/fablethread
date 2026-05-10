@@ -9,13 +9,31 @@ pipeline_scores:
   extract_progress: <int 1-5>
 ---
 # Table of Contents
-- [Verdict](#verdict)
+- [Storytelling Trace](#storytelling-trace)
+  - [Momentum Trace](#momentum-trace)
+  - [GM Beat Trace](#gm-beat-trace)
+  - [Scene Pressure Trace](#scene-pressure-trace)
+  - [Condition Lifecycle Trace](#condition-lifecycle-trace)
+  - [Quest Arc Trace](#quest-arc-trace)
+  - [Inventory Evolution Trace](#inventory-evolution-trace)
+- [State Evolution Trace](#state-evolution-trace)
+  - [State Coherence](#state-coherence)
+  - [State Drift](#state-drift)
+  - [State Completeness](#state-completeness)
 - [Actionable Issues Surfaced](#actionable-issues-surfaced)
 - [Mechanical Design Critique](#mechanical-design-critique)
+- [Cross-Pipeline Correlation](#cross-pipeline-correlation)
 - [Storytelling Design Critique](#storytelling-design-critique)
 - [Prompt Redundancy Analysis](#prompt-redundancy-analysis)
 - [Compaction Capabilities Report](#compaction-capabilities-report)
 - [Auto-Checker Failures](#auto-checker-failures)
+- [Verdict](#verdict)
+  - [Mechanical Integrity](#mechanical-integrity)
+  - [Narrative Quality](#narrative-quality)
+  - [System Cohesion](#system-cohesion)
+  - [Pipeline I/O Relevance](#pipeline-io-relevance)
+  - [Regression & Known Issues](#regression--known-issues)
+  - [Key Findings](#key-findings)
 - [Additional Observations](#additional-observations)
 
 
@@ -89,18 +107,61 @@ and full state snapshot (or diff vs prev turn).
 ---
 
 
-## Section 1: Verdict
+## Section 1: Storytelling Trace
 
 
-2-4 sentences. Concrete, specific, actionable. Reference turn numbers. Justify
-why mechanical_score diverges from narrative_score if applicable. End with the
-single most important fix the engine needs.
+Produce a short trace for each narrative mechanic. Cite specific turns and state values. Keep each trace to 3-5 lines — this is data collection, not analysis.
+
+
+### Momentum Trace
+List each turn where `pc.momentum` changed: `T<n>: band=<band> <before>→<after>`. Note if narration tone matched momentum. Flag wrong-direction or flat momentum on significant rolls.
+
+
+### GM Beat Trace
+List each GM beat: `T<n>: generated=<instruction> → T<m>: surfaced=<yes/no> → impact=<none/complication/revelation/opportunity/breathing>`. Flag beats generated but never surfaced, or surfaced with no effect.
+
+
+### Scene Pressure Trace
+List each pressure: `T<n>: added=<description> urgency=<level> → escalated=<yes/no> → resolved=<yes/no>`. Flag pressures that sat inert across multiple turns. Flag `urgency: immediate` pressures without higher-stakes narration.
+
+
+### Condition Lifecycle Trace
+List each condition: `T<n>: added=<condition> → T<m>: still_present=<yes/no> → resolved=<yes/no, justification>`. Flag conditions that appeared and silently disappeared.
+
+
+### Quest Arc Trace
+List each quest: `T<n>: created=<quest_id> → T<m>: objectives_done=<list> → resolved=<completed/failed/abandoned>`. Flag quests created but never advanced, or completed without all objectives done.
+
+
+### Inventory Evolution Trace
+List each significant inventory change: `T<n>: <add/remove> <item> qty=<n>`. Note if narration reflected the change. Flag narration describing spending/gaining items with no corresponding extract.
 
 
 ---
 
 
-## Section 2: Actionable Issues Surfaced
+## Section 2: State Evolution Trace
+
+
+Assess how the game state evolved across the run. Keep this to 5-10 lines total — high-level coherence check, not a detailed analysis.
+
+
+### State Coherence
+Does the game state evolve logically? Note: inventory matches gains/losses, conditions persist until resolved, quests advance toward completion, pressures escalate or resolve. Flag any state entries inconsistent with narration or prior turns.
+
+
+### State Drift
+Are there any state entries that drift from expected values? Note: inventory items in narration but not state, conditions removed but narration still references them, quests completed but state still active. Flag drift and note whether it's a state extraction issue or narration issue.
+
+
+### State Completeness
+Are there any state domains that should have changed but didn't? Note: location changes not reflected in `state.location.id`, NPC interactions not reflected in `state.scene.present_npcs`, quest completions not reflected in `state.quests`. Flag missing updates and note which pipeline failed.
+
+
+---
+
+
+## Section 3: Actionable Issues Surfaced
 
 
 A paragraph per issue that arose during this evaluation, and a recommendation
@@ -117,7 +178,7 @@ mechanic | wasted tokens`.
 ---
 
 
-## Section 3: Mechanical Design Critique (PRIMARY — weighted 2x)
+## Section 4: Mechanical Design Critique (PRIMARY — weighted 2x)
 
 
 For EACH of the 5 pipelines (rules, narrate, extract_scene, extract_state,
@@ -201,54 +262,85 @@ contradictions, misplaced mechanics) cap the score at 1 or 2 for that pipeline.
 ---
 
 
-## Section 4: Storytelling Design Critique (SECONDARY)
+## Section 5: Cross-Pipeline Correlation
 
 
-The narrative quality serves as a check on whether the mechanics are producing
-good fiction. A 5/5 story built on broken extraction is a false positive.
+Assess how well the engine's pipelines work together. The rubric's per-pipeline analysis (Section 5) evaluates each pipeline in isolation; this section evaluates the interactions between pipelines.
 
 
-For each of the narrative criteria below, score 1-5 with two or more
-sentences and citations to specific turns:
+### Rules → Narrate Binding
+For each turn with a dice roll, verify the full chain: rules outcome → narrator binding → narration outcome. Flag turns where:
+- The roll band was `fail`/`setback` but the narration described a success
+- The roll band was `crit_success` but the narration described a failure
+- The roll directive was not honored by the narration
+
+
+### Rules → State Extract Routing
+For each turn with a dice roll, verify that stakes routing produced observable mechanical consequences:
+- When `stakes` named a condition and `band` was `setback`/`fail`/`crit_fail`, was the condition extracted by state extractor?
+- When `stakes` named a consequence and `band` was `crit_fail`, was a `scene_pressure_add` emitted by progress extractor?
+- When `stakes` named a consequence and `band` was `crit_success`, was an `opportunity` or `escalation` beat considered?
+Flag turns where stakes were named but no mechanical consequence followed.
+
+
+### Narrate → Scene Extract Consistency
+For each turn where the narrator described an NPC interaction, location change, or scene shift, verify that the scene extractor captured it:
+- Narration mentions a new NPC → scene extract has `npc_add` or `npc_update`
+- Narration describes a location change → scene extract has `location_change`
+- Narration describes a scene shift → scene extract has `scene_tags` or `scene_tagline`
+Flag turns where narration described changes that the scene extractor missed.
+
+
+### Narrate → State Extract Consistency
+For each turn where the narrator described an inventory change or condition change, verify that the state extractor captured it:
+- Narration describes gaining an item → state extract has `inventory_add`
+- Narration describes spending/losing an item → state extract has `inventory_remove`
+- Narration describes a condition being gained or resolved → state extract has `pc_condition_add` or `pc_condition_remove`
+Flag turns where narration described changes that the state extractor missed.
+
+
+### Narrate → Progress Extract Consistency
+For each turn where the narrator described a quest update, recent event, or pressure change, verify that the progress extractor captured it:
+- Narration describes a quest objective completion → progress extract has `quest_updates`
+- Narration describes a new significant fact → progress extract has `recent_events_add`
+- Narration describes a pressure being added or resolved → progress extract has `scene_pressure_add` or `scene_pressure_remove`
+Flag turns where narration described changes that the progress extractor missed.
+
+
+### State → Progress Extract Handoff
+Verify that the state → progress extract handoff works correctly:
+- `items_gained` (item names from `inventory_add`) appears in progress extract context
+- `items_lost` (item IDs from `inventory_remove`) appears in progress extract context
+- Progress extract uses this information when generating `actions` or `outcome_summary`
+Flag turns where the handoff appears broken (e.g., progress extract mentions items not in `items_gained`/`items_lost`).
+
+
+### Progress → Narrate Feedback Loop
+Verify that the progress → narrate feedback loop works correctly:
+- `gm_beat` generated in turn N is surfaced in narration of turn N+1
+- `recent_events_add` from turn N appears in `recent_turns` context of turn N+1
+- `scene_pressure_add` from turn N appears in rules context of turn N+1
+Flag turns where the feedback loop appears broken.
+
+
+---
+
+
+## Section 6: Storytelling Design Critique (SECONDARY)
+
+
+The narrative quality serves as a check on whether the mechanics are producing good fiction. A 5/5 story built on broken extraction is a false positive.
+
+
+For each of the narrative criteria below, score 1-5 with two or more sentences and citations to specific turns. Criteria marked [trace] reference data collected in the Storytelling Trace section above — do not re-collect data, just evaluate the quality of what the trace shows.
 
 
 ### quest_arc_quality
-Did quests form a compelling long arc? Did completing or failing them feel
-earned and create interesting consequences?
+Did quests form a compelling long arc? Did completing or failing them feel earned and create interesting consequences?
 
 
-### rewards_and_consequences
-
-Did the game give real rewards for success and real consequences for failure?
-Score this criterion by grounding it in observable mechanics — not narrative
-feel alone. For each turn where a roll occurred, check the following:
-
-**Roll directive honored:** Did the narration's outcome match the roll `band`
-and `directive`? A `crit_fail` that produces a cheerful narrative is a failure
-here regardless of prose quality. A `partial` that produces no cost or
-complication is also a failure.
-
-**Momentum moved correctly:** Did `pc.momentum` change in the direction the
-roll band implies? The engine defines momentum deltas per band (e.g.
-`crit_success` → +2, `fail` → −1, `crit_fail` → −2, `partial` → ±0 or −1
-depending on config). Cite the turn, the band, and the before/after momentum
-value. Flag any turn where momentum did not move or moved in the wrong direction.
-
-**Conditions applied for costs:** When the roll band was `partial` or worse and
-the `directive` specified a cost, check whether a `pc_condition_add` was
-extracted on that turn or the immediately following turn. A partial success with
-no cost extracted and no condition added is a soft failure of the consequence
-system.
-
-**gm_beat influence:** When a `gm_beat` was emitted (check the progress extract
-output for a non-null `gm_beat.instruction`), verify that the *next* turn's
-narration shows observable influence from it — a complication surfaced, a
-revelation revealed, an opportunity created, or breathing room given. A
-`gm_beat` that fires but produces no downstream narrative effect is a mechanic
-that is working structurally but failing functionally.
-
-Score based on the proportion of rolls where all four checks above pass. A run
-with no rolls scores this criterion N/A and should be noted.
+### rewards_and_consequences [trace]
+Did the game give real rewards for success and real consequences for failure? Score based on the overall pattern shown in the Momentum Trace, GM Beat Trace, and Condition Lifecycle Trace — did successful rolls produce positive momentum and conditions, did failures produce negative momentum and costs, did beats create meaningful story moments? Do not re-check individual rolls; the traces above already show the data.
 
 
 ### narrative_compellingness
@@ -259,108 +351,37 @@ Was the overall story compelling enough to keep playing? Did choices matter?
 Did NPCs evolve and react meaningfully across turns?
 
 
+### npc_voice
+Do NPCs have distinct voices and behaviors, or do they feel interchangeable? Score this criterion by checking:
+- **Distinct speech patterns:** Do different NPCs use different language, tone, or phrasing? Flag turns where multiple NPCs speak with identical or near-identical dialogue.
+- **Distinct behaviors:** Do different NPCs react differently to the same situation? Flag turns where multiple NPCs react identically to the same player action.
+- **Consistent characterization:** Do NPCs maintain their established personality across turns? Flag turns where an NPC's behavior contradicts their established characterization.
+Score based on the proportion of NPC interactions where distinct voice/behavior is maintained. A run where all NPCs sound the same scores 1-2.
+
+
 ### world_consistency
-Were all entities (NPCs, locations, items) that appeared in narration sanctioned
-by the engine, worldpack, or player input? Flag any unsanctioned introductions —
-invented NPCs, unregistered locations, items with no extraction grounding. This
-is a trust axis distinct from how existing NPCs are developed.
+Were all entities (NPCs, locations, items) that appeared in narration sanctioned by the engine, worldpack, or player input? Flag any unsanctioned introductions — invented NPCs, unregistered locations, items with no extraction grounding. This is a trust axis distinct from how existing NPCs are developed.
+
+
+### world_reactivity
+Does the world react to the player's actions, or does it feel static? Score this criterion by checking:
+- **Faction shifts:** Do factions change their disposition toward the player based on player actions? Flag turns where the player takes significant actions but no faction response follows.
+- **Location changes:** Do locations change based on player actions or time passage? Flag turns where locations remain static despite significant player activity.
+- **NPC memory:** Do NPCs reference past events or player actions from previous turns? Flag turns where NPCs act as if they have no memory of prior interactions.
+- **Consequence propagation:** Do player actions create ripple effects across the world? Flag turns where significant player actions have no observable effect beyond the immediate scene.
+Score based on the proportion of turns where the world shows observable reactivity to player actions. A run where the world feels static scores 1-2.
 
 
 ### player_agency
-Did the game respect player choice? Did failures create new options rather
-than dead-ends? Did the engine honor the player's stated action rather than
-redirecting or reinterpreting it?
+Did the game respect player choice? Did failures create new options rather than dead-ends? Did the engine honor the player's stated action rather than redirecting or reinterpreting it?
 
 
-### consequence_persistence
-Did the consequences of rolls — especially failures and partials — carry forward
-into subsequent turns? Anchor this to mechanics: check whether `pc_condition`
-entries added on a cost turn are still present in the state snapshot 2–3 turns
-later (or were explicitly removed with a corresponding narrative justification).
-Check whether `scene_pressure` entries added as a result of a failure escalate
-correctly per the engine's urgency thresholds (`background` → `building` →
-`immediate`) rather than sitting inert. A condition that silently disappears or a
-pressure that never escalates is a persistence failure. Score the session as a
-whole.
+### failure_arc [trace]
+When the player fails, does the game create interesting new options or dead ends? Score based on the Condition Lifecycle Trace and Momentum Trace — did failures produce lasting conditions that affected future turns, did negative momentum create interesting narrative tension, did different failure types (crit_fail, fail, setback, partial) produce different outcomes? Flag failures that were immediately forgotten or produced no downstream effect.
 
 
 ### pacing_and_pressure
-Score based on narrative pacing: breathing room between high-tension turns,
-momentum tone alignment (does narration at +2+ feel like a strong run? does
-narration at −2− offer relief unless fiction demands otherwise?), and overall
-arc satisfaction. The mechanical pressure component is evaluated separately
-under `pressure_arc`.
-
-
-### momentum_arc
-Did the momentum system produce a felt dramatic shape across the session?
-Reference `MOMENTUM_MIN = -3`, `MOMENTUM_MAX = +3`, and `MOMENTUM_DELTA` table.
-Plot `pc.momentum` across all turns from the state snapshots and assess:
-- Did momentum reach meaningful extremes (±2 or beyond)?
-- Did the momentum arc have a shape (rising, peaking, resolving) or was it flat/erratic?
-- Did momentum tone correlate with narration tone?
-A momentum field that barely moves across 10 turns scores 1–2. Score the
-session-level shape, not individual turn pacing.
-
-
-### pressure_arc
-Did the scene pressure system produce a felt dramatic shape across the session
-— rising tension toward a peak, followed by resolution or a meaningful cliffhanger?
-
-**Mechanical checks:**
-- Plot all pressure entries across turns: when added, urgency level, when removed/escalated.
-- Did pressures escalate correctly? `background → building` at 6 turns, `building → immediate` at 10 turns.
-- Did `urgency: immediate` pressures produce visibly higher-stakes narration?
-- Did expired pressures (`max_turns` elapsed) disappear from state?
-- Did location changes purge `background` pressures?
-- Did combat end purge `immediate` pressures?
-- A pressure system where entries sit inert across 10 turns without escalation scores 1–2.
-
-Score the session-level shape, not individual turn pacing.
-
-
-### beat_lifecycle
-Did GM beats function as effective storytelling devices across turns?
-
-**Mechanical checks:**
-- **Generation rate:** Were beats emitted at a reasonable frequency (not every turn, not never)? Flag beats emitted for routine action.
-- **Consumption rate:** Were stored beats surfaced in narration within 1–2 turns? Flag beats that sat in `pending_gm_beat` for 3+ turns without being narrated.
-- **Carry behavior:** When `beat_disposition == "carry"`, did the beat persist and eventually get surfaced? Flag carried beats that were silently dropped.
-- **TTL enforcement:** Did beats expire at `turn_no + 2`? Flag beats that survived past TTL.
-- **Instruction quality:** Were beat instructions specific and grounded in existing entities? Flag generic beats ("something happens") or beats referencing invented entities.
-- **Narrative impact:** Did surfaced beats create meaningful story moments (complications, revelations, opportunities, breathing room)? Flag beats that had no observable effect on narration.
-
-Score based on the proportion of beats where all checks above pass. A session with no beats scores this criterion N/A.
-
-
-### directive_narration_binding
-Did the rules engine's directives bind to the narrator's output as intended?
-
-**Mechanical checks:**
-- For each turn with a dice roll, verify the narration's outcome matches the roll band and directive:
-  - `crit_fail`: catastrophic failure, real loss
-  - `fail`: outright failure, complication
-  - `setback`: resource spent, time lost, new problem
-  - `partial`: success at a cost
-  - `success`: clean success
-  - `crit_success`: outstanding success, unexpected benefit
-- A `crit_fail` that produces a cheerful narrative is a failure regardless of prose quality.
-- A `partial` that produces no cost or complication is a failure.
-- A `success` that introduces unexpected costs is a failure.
-
-Score based on the proportion of rolls where the narration matches the band/directive. A run with no rolls scores N/A.
-
-
-### stakes_routing
-Did the stakes/band routing from rules to extractors produce mechanically consistent consequences?
-
-**Mechanical checks:**
-- When `stakes` named a condition and `band` was `setback`/`fail`/`crit_fail`, was the condition extracted by state extractor?
-- When `stakes` named a consequence and `band` was `crit_fail`, was a `scene_pressure_add` emitted by progress extractor?
-- When `stakes` named a consequence and `band` was `crit_success`, was an `opportunity` or `escalation` beat considered?
-- Flag turns where stakes were named but no mechanical consequence followed.
-
-Score based on the proportion of rolls where stakes routing produced observable mechanical consequences.
+Score based on narrative pacing: breathing room between high-tension turns, momentum tone alignment (does narration at +2+ feel like a strong run? does narration at −2− offer relief unless fiction demands otherwise?), and overall arc satisfaction. The mechanical pressure component is evaluated separately under the Scene Pressure Trace.
 
 
 ### deescalation_mechanics
@@ -375,10 +396,19 @@ Did deescalation work as a pressure-resolution mechanic?
 Score based on the proportion of deescalation turns where the mechanic was respected.
 
 
+### scenario_quality
+Does the scenario exercise the engine's mechanics adequately? Score this criterion by checking:
+- **Mechanic coverage:** Does the scenario include turns that exercise all major mechanics (dice rolls, inventory changes, condition changes, quest progression, pressure escalation, GM beats, location changes)? Flag mechanics that are never exercised.
+- **Turn variety:** Does the scenario include a variety of turn types (combat, social, exploration, investigation, travel, rest)? Flag scenarios where all turns are the same type.
+- **Pacing:** Does the scenario have a good mix of high-tension and low-tension turns? Flag scenarios where all turns are equally tense or equally calm.
+- **Narrative arc:** Does the scenario have a clear narrative arc (setup, development, climax, resolution)? Flag scenarios where the narrative feels aimless or repetitive.
+Score based on the proportion of mechanics exercised and the variety of turn types. A scenario that only exercises 2-3 mechanics scores 1-2.
+
+
 ---
 
 
-## Section 5: Prompt Redundancy Analysis
+## Section 7: Prompt Redundancy Analysis
 
 
 Reference the `## Prompt Redundancy` block in Deterministic Signals. For each
@@ -399,7 +429,7 @@ remediations.
 ---
 
 
-## Section 6: Compaction Capabilities Report
+## Section 8: Compaction Capabilities Report
 
 
 Reference the `## Compaction Features` block in Deterministic Signals. For
@@ -490,7 +520,7 @@ score the `extract_progress` pipeline lower in Section 3.
 ---
 
 
-## Section 7: Auto-Checker Failures
+## Section 9: Auto-Checker Failures
 
 
 For EACH failure shown in the Deterministic Signals `## Auto-Checker Failures`
@@ -513,134 +543,50 @@ If the auto-checker section is empty, write `None.`
 ---
 
 
-## Section 8: Additional Observations
+## Section 10: Verdict
+
+
+### Mechanical Integrity
+Summarize the mechanical health of the run. Reference pipeline scores (rules, narrate, extract_scene, extract_state, extract_progress) and note which pipelines had major failures. Mention extraction quality issues (amount accuracy, spending action extraction, quest dedup, ambient NPC filtering). Score: 1-5.
+
+
+### Narrative Quality
+Summarize the narrative health of the run. Reference storytelling criteria scores (quest_arc_quality, rewards_and_consequences, narrative_compellingness, npc_development, npc_voice, world_consistency, world_reactivity, player_agency, failure_arc, pacing_and_pressure, deescalation_mechanics, scenario_quality). Note which criteria scored lowest. Score: 1-5.
+
+
+### System Cohesion
+Summarize how well the engine's systems work together. Reference cross-pipeline correlation findings (do mechanics from different pipelines interact correctly?), state evolution trace (does the game state evolve logically?), and scenario quality (does the scenario exercise all mechanics?). Score: 1-5.
+
+
+### Pipeline I/O Relevance
+For each of the 5 pipelines, assess whether its inputs and outputs are focused on its task and appropriate to its role. The goal is minimal, relevant context per pipeline — no more inputs than needed, no outputs that belong to another pipeline.
+
+**Rules (Step 0):** Inputs should be limited to state.pc, state.location, state.scene.present_npcs, scene_pressure, recent_turns[-1:], and user_input. Outputs are IntentEnvelope and RulesOutcome. Flag if the rules prompt includes unnecessary context (e.g., full inventory, quest lists, compendium) or if the output includes fields that should be computed downstream.
+
+**Narrate (Step 1):** Inputs are the richest — full state, chronicle_tail, recent_turns, RulesOutcome, pack_style, npc_name_pool, etc. This is justified because the narrator produces prose. Assess: is every input contributing to narrative quality? Are there inputs that could be trimmed without affecting prose? Flag if the narrator receives data it clearly doesn't use (e.g., rules dice values that don't appear in narration).
+
+**Extract Scene (Step 2a):** Inputs should be narrative, state.pc/location, scene.present_npcs, conditions, known_characters, RulesOutcome, active_domains, recent_turns[-1:]. Flag if the scene extractor receives inventory data, quest data, or pressure data — those belong to other pipelines. Flag if it receives too little context (e.g., no known_characters for NPC identity resolution).
+
+**Extract State (Step 2b):** Inputs should be narrative, state.pc, state.location, state.inventory, rules_outcome, active_domains, expired_conditions, scene_result (location_change, present_npcs), stakes, band. Flag if the state extractor receives quest data, recent_events, or pressure data — those belong to progress. Flag if it receives items_gained/items_lost from progress — that's a forward dependency that may cause confusion.
+
+**Extract Progress (Step 2c):** Inputs are the most complex — narrative, state.pc, recent_events, world_state, active_quests, scene_pressure, rules_outcome, intent, active_domains, recent_turns[-2:], items_gained/items_lost from 2b, stakes, band, deescalate, quest_ages, pending_beat. This is justified because progress is the "storytelling brain." Assess: is every input enabling a specific output? Flag inputs that appear unused (e.g., does pending_beat actually influence quest_updates?).
+
+For each pipeline, note: (a) inputs that seem unnecessary, (b) outputs that seem misplaced, (c) whether the input/output boundary aligns with the pipeline's responsibility. Score: 1-5.
+
+
+### Regression & Known Issues
+Note any regressions from previous eval runs (criteria that scored lower than before, new auto-checker failures, new extraction quality issues). Note any known issues that were confirmed again this run. Flag any issues that were previously reported but not fixed.
+
+
+### Key Findings
+2-4 sentences. Concrete, specific, actionable. Reference turn numbers. Justify why mechanical_score diverges from narrative_score if applicable. End with the single most important fix the engine needs.
+
+
+---
+
+
+## Section 11: Additional Observations
 
 
 Patterns or bugs that did not fit into the structured sections above. Always
 present; may be `None.`.
-
-
----
-
-
-## Output format
-
-
-Return the response as a YAML front matter block followed by the markdown body
-in the structure described above. Use this exact front matter shape:
-
-
-```yaml
----
-mechanical_score: <int 1-5>
-narrative_score: <int 1-5>
-pipeline_scores:
-  rules: <int 1-5>
-  narrate: <int 1-5>
-  extract_scene: <int 1-5>
-  extract_state: <int 1-5>
-  extract_progress: <int 1-5>
----
-```
-
-
-Then produce the full markdown body using this structure:
-
-Table of Contents
-
-<list all sections below with relative path hyperlinks>
-ie Verdict
-Mechanical Design Critique
-Pipeline: rules
-
-... <subsections from Section 3> ...
-Pipeline: narrate
-
-...
-Pipeline: extract_scene
-
-...
-Pipeline: extract_state
-
-...
-Pipeline: extract_progress
-
-...
-Storytelling Design Critique
-Criterion: quest_arc_quality
-
-Score: <1-5>
-<two or more sentences with turn citations>
-Criterion: rewards_and_consequences
-
-Score: <1-5>
-<structured per-roll breakdown: band, directive honored, momentum delta, condition extracted, gm_beat downstream effect>
-Criterion: narrative_compellingness
-
-...
-Criterion: npc_development
-
-...
-Criterion: world_consistency
-
-Score: <1-5>
-<two or more sentences with turn citations>
-Criterion: player_agency
-
-...
-Criterion: consequence_persistence
-
-Score: <1-5>
-<condition persistence check + scene_pressure escalation check with turn citations>
-Criterion: pacing_and_pressure
-
-...
-Criterion: momentum_arc
-
-Score: <1-5>
-<momentum value plot across turns + arc shape assessment>
-Criterion: pressure_arc
-
-Score: <1-5>
-<pressure escalation plot + urgency alignment + purge checks>
-Criterion: beat_lifecycle
-
-Score: <1-5>
-<generation/consumption/carry/TTL/instruction quality/narrative impact>
-Criterion: directive_narration_binding
-
-Score: <1-5>
-<band/directive vs narration match rate>
-Criterion: stakes_routing
-
-Score: <1-5>
-<stakes named vs consequence extracted>
-Criterion: deescalation_mechanics
-
-Score: <1-5>
-<deescalation active vs new pressures added>
-Prompt Redundancy Analysis
-
-...
-Compaction Capabilities Report
-
-...
-Auto-Checker Failures
-
-...
-Additional Observations
-
-...
-Verdict
-
-...
-Actionable Issues Surfaced
-Major
-
-...
-Minor
-
-...
-Trivial
-
-...
