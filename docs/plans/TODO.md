@@ -125,9 +125,9 @@ See `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remedia
 - ~~**Inventory item capitalization** — `eval-remediation/issues-4-8.md` Phase 5 — inventory items should start with a capital letter~~
 
 - [ ] **Fix condition dedup** — extractor emits duplicate conditions, validator silently drops; add prompt directive + engine pre-filter — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 1`
-- [ ] **Fix location change scope** — extractor emits location_change when only description changes; add ID-change guard to prompt — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 2`
-- [ ] **Fix compendium NPC matching** — extractor creates duplicate IDs for known NPCs; extend dedup to npc_add + strengthen prompt — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 3`
-- [ ] **Tune auto-checker false positives** — NER flags descriptors, inventory items, and PC names as unsanctioned NPCs — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 4`
+- ~~**Fix location change scope** — extractor emits location_change when only description changes; add ID-change guard to prompt — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 2`~~
+- ~~**Fix compendium NPC matching** — extractor creates duplicate IDs for known NPCs; extend dedup to npc_add + strengthen prompt — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 3`~~
+- ~~**Tune auto-checker false positives** — NER flags descriptors, inventory items, and PC names as unsanctioned NPCs — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 4`~~
 
 ## Standalone
 

@@ -19,6 +19,10 @@ from ccya.pack import (
     PlayerOverrides,
     ScenarioBrief,
     SeedEnvelope,
+    SeedLocation,
+    SeedPC,
+    SeedScene,
+    SeedState,
 )
 
 PROMPTS_DIR = Path(__file__).parent.parent / "ccya" / "prompts"
@@ -78,7 +82,7 @@ def _valid_envelope_json(
                 "model": "",
             },
             "pc": {
-                "name": "Tester",
+                "name": "Tester Player",
                 "tagline": "quiet and careful",
                 "bio": "A history.",
                 "stats": {"body": 2, "mind": 2, "tech": 2, "social": 2},
@@ -155,7 +159,7 @@ async def test_generate_seed_happy_path():
         envelope = await generate_seed(pack, _config(), template_dir=str(PROMPTS_DIR))
 
     assert isinstance(envelope, SeedEnvelope)
-    assert envelope.seed_state.pc.name == "Tester"
+    assert envelope.seed_state.pc.name == "Tester Player"
     assert envelope.opening_narrative.startswith("word")
     mock_chat.assert_called_once()
 
@@ -504,4 +508,48 @@ async def test_generate_seed_scenario_world_facts_in_user_prompt():
 
     assert len(captured_user_contents) >= 1
     assert "Canon fact about the world." in captured_user_contents[0]
+
+
+# ---------------------------------------------------------------------------
+# _validate_seed_envelope
+# ---------------------------------------------------------------------------
+
+
+def test_validate_seed_envelope_rejects_single_token_name():
+    """A single-word PC name should raise ValueError."""
+    from ccya.engine.seed import _validate_seed_envelope
+
+    envelope = SeedEnvelope(
+        seed_state=SeedState(
+            meta={"game_name": "test", "turn": 0, "setting_pack": "test", "model": ""},
+            pc=SeedPC(name="Kovak", tagline="tough", bio="history", stats={"strength": 2, "dexterity": 2, "wits": 2, "lore": 2, "charisma": 2, "resolve": 2}),
+            location=SeedLocation(id="loc", name="Location", description="desc"),
+            inventory=[{"id": "knife", "name": "Knife", "amount": 1}],
+            quests=[{"id": "q1", "title": "Quest", "objectives": [{"description": "Do it", "done": False}]}],
+            scene=SeedScene(tagline="tag", tags=[], recent_events=[]),
+        ),
+        opening_narrative="You stand in a ruined building. The wind howls through broken windows. Dust coats your throat. You check your pockets for anything useful. A faded photograph catches the light. Somewhere in the distance, a dog barks.",
+        actions=["Search the building.", "Call out for survivors.", "Hide and wait.", "Move toward the shelter."],
+    )
+    with pytest.raises(ValueError, match="given name and family name"):
+        _validate_seed_envelope(envelope)
+
+
+def test_validate_seed_envelope_accepts_full_name():
+    """A two-word PC name should pass validation."""
+    from ccya.engine.seed import _validate_seed_envelope
+
+    envelope = SeedEnvelope(
+        seed_state=SeedState(
+            meta={"game_name": "test", "turn": 0, "setting_pack": "test", "model": ""},
+            pc=SeedPC(name="Kovak Strand", tagline="tough", bio="history", stats={"strength": 2, "dexterity": 2, "wits": 2, "lore": 2, "charisma": 2, "resolve": 2}),
+            location=SeedLocation(id="loc", name="Location", description="desc"),
+            inventory=[{"id": "knife", "name": "Knife", "amount": 1}],
+            quests=[{"id": "q1", "title": "Quest", "objectives": [{"description": "Do it", "done": False}]}],
+            scene=SeedScene(tagline="tag", tags=[], recent_events=[]),
+        ),
+        opening_narrative="You stand in a ruined building. The wind howls through broken windows. Dust coats your throat. You check your pockets for anything useful. A faded photograph catches the light. Somewhere in the distance, a dog barks.",
+        actions=["Search the building.", "Call out for survivors.", "Hide and wait.", "Move toward the shelter."],
+    )
+    _validate_seed_envelope(envelope)  # should not raise
 

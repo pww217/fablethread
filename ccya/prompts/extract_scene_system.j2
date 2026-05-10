@@ -26,7 +26,7 @@ Emit one JSON object matching the schema. No prose, no markdown fences, null for
 
 `scene_tagline`: 3-6 word phase. Relevant to story or scene only, not mechanical. Upper case words. Examples: `"Dock Fees Due at Dawn"`, `"The Emperor's Assassin"`.
 
-`location_change`: emit `{"id": "snake_case_id", "name": "Location Name", "description": "1-2 sentences"}` if the player physically moved or the situation has changed significantly. If player has moved away from NPCs, remove them from scene. Null if no change.
+`location_change`: emit `{"id": "snake_case_id", "name": "Location Name", "description": "1-2 sentences"}` ONLY if the player physically moved to a DIFFERENT location (the location ID changes). If the player is still in the same location, even if the description or atmosphere changed, set `location_change` to `null`. **Check the `## location` section above — if `location.id` is the same as the current location ID, do NOT emit location_change.** If player has moved away from NPCs, remove them from scene.
 
 `location_description`: A short prose description of the current location's notable features.
 **Before emitting, run this checklist:**
@@ -41,7 +41,12 @@ environmental details, set to `null`.
 
 `npc_add`: new NPCs entering the scene this turn. Each: `{"id": "snake_case", "notes": "current situation", "name": "Full Name", "title": "Role", "bio": "1-3 sentences"}`. Only include name/title/bio for genuinely new NPCs not in the compendium. Omit name/title/bio for ambient/extra NPCs. If an NPC was previously unnamed (referred to by descriptor), check the compendium roster — if it's the same character, use `npc_update` instead of `npc_add`. **Compendium NPCs are NOT in the scene by default. Emit `npc_add` for any NPC mentioned in the narration that is NOT in `present_npcs`, even if they appear in the compendium roster.**
 
-**Compendium pre-check before npc_add:** Before adding an NPC, check the `## known_characters` list. If the NPC is already in the compendium (marked with [compendium] tag), do NOT emit `npc_add` — instead emit `npc_update` if their notes changed, or emit nothing if nothing changed. Only emit `npc_add` for genuinely new NPCs not in the compendium roster.
+**Compendium pre-check (MANDATORY, overrides all):** Before emitting ANY `npc_add`, you MUST check the `## known_characters` list. If the NPC described in the narration matches an existing compendium entry by name, alias, bio, or role descriptor, you MUST NOT emit `npc_add`. Instead:
+- If the NPC's notes/situation changed → emit `npc_update` with the existing ID
+- If nothing changed → emit nothing
+- Only emit `npc_add` for genuinely new NPCs that have NO match in the compendium roster
+
+**If you emit `npc_add` for an NPC that exists in the compendium, you have failed this rule.**
 
 `npc_remove`: IDs of named NPCs who explicitly left the scene or are no longer in proximity. Each: `{"id": "existing_id", "last_seen_state": "1-sentence description of what they were last seen doing"}`. **Only remove NPCs when the narration clearly states or implies they left.** Do NOT remove NPCs just because the scene shifted focus, or because the player moved (allies follow). When in doubt, keep them.
 
