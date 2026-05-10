@@ -287,21 +287,30 @@ def _apply_sanitization(
         ]
 
     # inventory_remove
-    valid_inv_remove = {iid for iid in san.inventory_remove if iid in known_inventory_ids}
+    valid_inv_remove = {
+        item.id for item in san.inventory_remove
+        if item.id in known_inventory_ids
+    }
     if valid_inv_remove:
         state["inventory"] = [it for it in inventory if it.get("id") not in valid_inv_remove]
         for iid in valid_inv_remove:
             _log.info("compactor: removed duplicate inventory item %r", iid, extra=log_ctx)
 
     # quest_close (only active quests)
-    valid_quest_close = {qid for qid in san.quest_close if qid in known_quest_ids}
+    valid_quest_close = {
+        item.id for item in san.quest_close
+        if item.id in known_quest_ids
+    }
     for q in quests:
         if q.get("id") in valid_quest_close and q.get("status") == "active":
             q["status"] = "completed"
             _log.info("compactor: closed orphaned quest %r", q.get("id"), extra=log_ctx)
 
     # pressure_remove
-    valid_pressure_remove = {pid for pid in san.pressure_remove if pid in known_pressure_ids}
+    valid_pressure_remove = {
+        item.id for item in san.pressure_remove
+        if item.id in known_pressure_ids
+    }
     if valid_pressure_remove:
         scene = state.setdefault("scene", {})
         scene["scene_pressure"] = [p for p in pressures if p.get("id") not in valid_pressure_remove]
@@ -309,7 +318,10 @@ def _apply_sanitization(
             _log.info("compactor: removed stale pressure %r", pid, extra=log_ctx)
 
     # condition_remove
-    valid_cond_remove = {cid for cid in san.condition_remove if cid in known_condition_ids}
+    valid_cond_remove = {
+        item.id for item in san.condition_remove
+        if item.id in known_condition_ids
+    }
     if valid_cond_remove:
         pc = state.setdefault("pc", {})
         pc["conditions"] = [c for c in conditions if c.get("id") not in valid_cond_remove]
