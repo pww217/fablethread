@@ -24,6 +24,7 @@ from ccya.models import (
     ProgressExtractResult,
     RulesOutcome,
     SceneExtractResult,
+    ScenePressure,
     StateExtractResult,
     StateDelta,
 )
@@ -137,23 +138,16 @@ def _extract_scene_messages(
     active_domains: list[str],
     rules_outcome: "RulesOutcome | None" = None,
     enable_thinking: bool = False,
-    deescalate: float = 0.0,
-    quest_ages: list[dict[str, Any]] | None = None,
     recent_turns: list[dict[str, Any]] | None = None,
     turn_no: int = 0,
 ) -> list[dict[str, str]]:
-    """Build [system, user] messages for stream 1 (scene + NPC + pressure + gm_beat + compendium)."""
+    """Build [system, user] messages for stream 1 (NPC presence, location, tags)."""
     pc = state.get("pc") or {}
     location = state.get("location") or {}
     conditions = list(pc.get("conditions") or [])
     known_characters = _known_characters_for_extract(state, compact=False)
     npc_roster = _scene_npc_roster(known_characters)
     present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
-    scene_pressure = list((state.get("scene") or {}).get("scene_pressure") or [])
-    scene_location_description = (state.get("scene") or {}).get("location_description")
-    active_quests = [
-        q for q in (state.get("quests") or []) if q.get("status") == "active"
-    ]
 
     system_text = _render(env, "extract_scene_system.j2", {})
     user_text = _render(
@@ -168,12 +162,7 @@ def _extract_scene_messages(
             "present_npcs": present_npcs,
             "rules_outcome": rules_outcome,
             "active_domains": active_domains,
-            "scene_pressure": scene_pressure,
-            "deescalate": deescalate,
-            "quest_ages": quest_ages or [],
-            "active_quests": active_quests,
             "recent_turns": recent_turns or [],
-            "scene_location_description": scene_location_description,
             "turn_no": turn_no,
         },
     )
@@ -306,6 +295,7 @@ def _extract_progress_messages(
             "active_quests": active_quests,
             "recent_events": recent_events,
             "world_state": world_state,
+            "scene_pressure": list((state.get("scene") or {}).get("scene_pressure") or []),
             "state_result": state_ctx,
             "rules_outcome": rules_outcome,
             "active_domains": active_domains,
@@ -445,8 +435,6 @@ async def _run_extraction_pipeline(
             active_domains=active_domains,
             rules_outcome=rules_outcome,
             enable_thinking=config.enable_extract_thinking,
-            deescalate=deescalate,
-            quest_ages=quest_ages,
             recent_turns=(recent_turns or [])[-1:],
             turn_no=turn_no,
         )
@@ -659,6 +647,24 @@ async def _run_extraction_pipeline(
     _capitalize_inventory_names(state_result.inventory_add)
     _capitalize_inventory_names(state_result.inventory_update)
 
+    # --- Update-only guard: drop any scene_pressure_update whose id is not in current state ---
+    existing_pressure_ids: set[str] = {
+        p.get("id", "") for p in (state.get("scene") or {}).get("scene_pressure") or []
+        if isinstance(p, dict)
+    }
+
+    validated_pressure_update: list[ScenePressure] = []
+    for pu in (progress_result.scene_pressure_update or []):
+        pid = pu.id if hasattr(pu, "id") else (pu.get("id") if isinstance(pu, dict) else None)
+        if pid and pid in existing_pressure_ids:
+            validated_pressure_update.append(pu)
+        else:
+            _log.debug(
+                "extraction.pressure_update: dropped id=%r — not in existing pressures",
+                pid,
+                extra={"turn": turn_no, "trace_id": trace_id},
+            )
+
     # --- Merge into single StateDelta ---
     merged = StateDelta(
         scene_tags=scene_result.scene_tags,
@@ -670,8 +676,8 @@ async def _run_extraction_pipeline(
         npc_update=scene_result.npc_update,
         compendium_npc_update=scene_result.compendium_npc_update,
         scene_pressure_add=progress_result.scene_pressure_add,
-        scene_pressure_remove=scene_result.scene_pressure_remove,
-        scene_pressure_update=scene_result.scene_pressure_update,
+        scene_pressure_remove=progress_result.scene_pressure_remove,
+        scene_pressure_update=validated_pressure_update,
         inventory_add=state_result.inventory_add,
         inventory_remove=state_result.inventory_remove,
         inventory_update=state_result.inventory_update,

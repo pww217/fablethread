@@ -12,7 +12,9 @@ Extract quest updates, recent events, suggested player actions, and outcome summ
   "outcome_summary": "",
   "gm_beat": null,
   "beat_disposition": "consume",
-  "scene_pressure_add": []
+  "scene_pressure_add": [],
+  "scene_pressure_remove": [],
+  "scene_pressure_update": []
 }
 ```
 
@@ -57,6 +59,18 @@ Each new event must have a stable `snake_case` ID. To update an existing event's
 `beat_disposition`: controls what happens to the pending_gm_beat from the previous turn. Values: `"consume"` (default) — beat is cleared after narration; `"carry"` — beat stays in meta.pending_gm_beat unchanged for the next turn; `"replace"` — the new gm_beat above supersedes the carried one. If you emit a new gm_beat, use `"replace"`. If you want to preserve an unsurfaced beat, emit `"carry"` and leave gm_beat null.
 
 `scene_pressure_add`: new scene pressures generated from story causality this turn. Each: `{"id": "snake_case_id", "text": "Threat description", "urgency": "immediate|building|background", "turn_added": <CURRENT_TURN>}`. Add pressure when a named NPC/faction acts against the player off-screen, a quest deadline triggers, or a failed roll's consequence activates. Do NOT add pressure for resolved threats or vague ambient danger.
+
+`scene_pressure_remove`: IDs of pressures now resolved. Emit the id string in the list.
+
+`scene_pressure_update`: Change the text or urgency of an EXISTING pressure. Each: `{"id": "existing_pressure_id", "text": "updated text", "urgency": "immediate|building|background"}`.
+**RULE: update-only.** Every `id` you emit MUST match an id in the `## Current Pressures` list provided in the user prompt. Do not invent new pressure ids here. If you need a new pressure, use `scene_pressure_add` instead.
+
+## GM Beat Grounding Rule
+
+`gm_beat.instruction` must reference a specific named entity already present in state:
+an NPC id from the Present NPCs list, or a pressure id from the Current Pressures list.
+Do not invent new characters or situations in `gm_beat`. A beat that references no existing
+entity will be nullified by the engine.
 
 ## Rules-outcome guidance (for objective resolution)
 - crit_fail / fail / setback / partial: do NOT mark quest objectives done for the attempted action.

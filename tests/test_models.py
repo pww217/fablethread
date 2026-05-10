@@ -2,7 +2,7 @@
 
 import pytest
 
-from ccya.models import GMBeat, ProgressExtractResult, SceneExtractResult
+from ccya.models import GMBeat, ProgressExtractResult, SceneExtractResult, ScenePressure
 from ccya.pack import ScenarioBrief
 
 
@@ -166,3 +166,27 @@ class TestScenarioBriefWorldRules:
     def test_accepts_five(self):
         s = ScenarioBrief(world_rules=["a", "b", "c", "d", "e"])
         assert len(s.world_rules) == 5
+
+
+class TestSceneExtractResultNoPressureLifecycle:
+    def test_no_pressure_lifecycle_fields(self):
+        r = SceneExtractResult()
+        assert not hasattr(r, "scene_pressure_remove")
+        assert not hasattr(r, "scene_pressure_update")
+
+
+class TestProgressExtractResultHasPressureLifecycle:
+    def test_has_all_three_pressure_operations(self):
+        r = ProgressExtractResult()
+        assert hasattr(r, "scene_pressure_add")
+        assert hasattr(r, "scene_pressure_remove")
+        assert hasattr(r, "scene_pressure_update")
+        assert r.scene_pressure_remove == []
+        assert r.scene_pressure_update == []
+
+    def test_pressure_update_accepts_scene_pressure(self):
+        r = ProgressExtractResult(scene_pressure_update=[
+            ScenePressure(id="p1", text="updated", urgency="immediate")
+        ])
+        assert len(r.scene_pressure_update) == 1
+        assert r.scene_pressure_update[0].id == "p1"
