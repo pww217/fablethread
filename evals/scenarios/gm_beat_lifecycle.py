@@ -30,13 +30,15 @@ scenario = Scenario(
             ],
         ),
         Turn(
-            input="I leave the tavern and find Halden at the town well. I offer to courier his ledger.",
+            input="I find Halden by the town well and offer to courier his ledger.",
             phase="gm_beat_trigger",
             expects=[
                 "extract.progress should generate a pending_gm_beat here",
                 "state_yaml.pending_gm_beat should be present after this turn",
+                "beat_disposition should be present in progress extraction output",
             ],
             asserts=[
+                TurnAssert(stream="extract.progress", field="beat_disposition"),
                 TurnAssert(stream="state_yaml", field="pending_gm_beat.present"),
             ],
         ),
@@ -45,7 +47,7 @@ scenario = Scenario(
             phase="gm_beat_surface",
             expects=[
                 "narrate should reflect the gm_beat instruction",
-                "pending_gm_beat should be consumed after this turn",
+                "pending_gm_beat should be consumed after this turn (beat_disposition defaults to 'consume')",
             ],
             asserts=[
                 TurnAssert(stream="state_yaml", field="pending_gm_beat.absent"),

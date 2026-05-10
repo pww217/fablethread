@@ -52,7 +52,7 @@ EXTRACT_STREAMS: tuple[str, ...] = (
 # Keep in sync with runner._check_asserts handler names.
 KNOWN_ASSERT_FIELDS: dict[str, set[str]] = {
     "rules": {"rolled", "skill", "difficulty", "band", "intent_verb"},
-    "extract.progress": {"quest_updates", "quest_status", "scene_pressure_add"},
+    "extract.progress": {"quest_updates", "quest_status", "scene_pressure_add", "beat_disposition"},
     "extract.scene": {"scene_tags"},
     "extract.state": {"inventory_remove", "inventory_add", "pc_condition_add", "pc_condition_remove"},
     "extract": {"attempts:scene", "attempts:state", "skipped:scene", "skipped:state"},
