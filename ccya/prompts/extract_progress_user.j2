@@ -1,17 +1,5 @@
 ## Current Turn: {{ turn_no }}
 
-## active_domains
-{{ active_domains | join(", ") }}
-
-{% if rules_outcome and rules_outcome.rolled -%}
-## rules_outcome
-{{ rules_outcome.band | upper }} on {{ rules_outcome.skill }}.
-
-{%- elif rules_outcome and not rules_outcome.rolled -%}
-## no_dice_roll
-No dice were rolled this turn. The rules engine determined the action has no mechanical obstacle (pure social, travel, or exploration). Do NOT complete quest objectives on this turn unless the narration explicitly and unambiguously states the objective is fulfilled.
-
-{%- endif -%}
 ## pc
 {{ pc.name }} — {{ pc.tagline }}
 
@@ -20,7 +8,6 @@ No dice were rolled this turn. The rules engine determined the action has no mec
 {{ intent.intent_verb }}: {{ intent.intent }}
 {% endif -%}
 
-{% if "quest_updates" in active_domains -%}
 ## quest_threshold
 {{ quest_threshold_directive }}
 
@@ -31,9 +18,7 @@ No dice were rolled this turn. The rules engine determined the action has no mec
 {% for o in (q.objectives or []) %}    {{ loop.index }}. [{% if o.done %}x{% elif o.failed %}f{% else %} {% endif %}] {{ o.description }}
 {% endfor %}{% endfor %}
 {% endif -%}
-{% endif -%}
 
-{% if "recent_events" in active_domains -%}
 {% if recent_events -%}
 ## recent_events (don't duplicate; emit recent_events_add/update/remove for changes)
 {% for event in recent_events %}- {{ event.text if event is mapping else event }}
@@ -46,13 +31,7 @@ No dice were rolled this turn. The rules engine determined the action has no mec
 {% endfor %}
 <<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
-{% endif -%}
 
-{% if recent_turns -%}
-## prior_turn_narration (T{{ recent_turns[-1].turn }} — for outcome_summary and actions context)
-{{ recent_turns[-1].narrative }}
-
-{% endif -%}
 {% if state_result.items_gained -%}
 ## items_gained
 {{ state_result.items_gained | join(', ') }}
@@ -81,7 +60,7 @@ If `pending_beat` below is set and was not yet surfaced by the narrator, emit `b
 
 {% if pending_beat -%}
 ## pending_beat (carried from previous turn — not yet surfaced)
-Type: {{ pending_beat.type }} | Expires: T{{ pending_beat.beat_expires_turn }}
+Type: {{ pending_beat.type }} | Expires at turn: T{{ pending_beat.beat_expires_turn }}
 Instruction: {{ pending_beat.instruction }}
 {% endif -%}
 {% if deescalate > 0 -%}
@@ -99,13 +78,18 @@ Add pressure when: a named NPC or faction acts against the player off-screen, a 
 Do NOT add pressure for things the narrator already described as resolved or for vague ambient danger. Prefer 0–1 new pressures per turn.
 {% if quest_ages -%}
 ## quest_ages
-{% for q in quest_ages %}- `{{ q.id }}`: {{ q.age }} turns
+{% for q in quest_ages %}- `{{ q.id }}`: {{ q.stalled_turns }} turns stalled
 {% endfor %}
 {%- endif %}
 {% if scene_pressure -%}
 ## Current Pressures
 {% for p in scene_pressure %}- [{{ p.id }}] ({{ p.urgency }}) {{ p.text }}
 {% endfor %}
+{% endif -%}
+{% if recent_turns -%}
+## last_turn_narration (T{{ recent_turns[-1].turn }} — context for this turn's outcome)
+{{ recent_turns[-1].narrative }}
+
 {% endif -%}
 ## CURRENT TURN NARRATION
 {{ narration }}

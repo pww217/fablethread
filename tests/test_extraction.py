@@ -35,7 +35,6 @@ class TestProgressMessagesReceivesDeescalate:
         state_res = StateExtractResult()
         msgs = _extract_progress_messages(
             env, "N.", {},
-            active_domains=["quest_updates"],
             state_result=state_res,
             intent=None,
             deescalate=0.6,
@@ -52,7 +51,6 @@ class TestProgressMessagesReceivesDeescalate:
         state_res = StateExtractResult()
         msgs = _extract_progress_messages(
             env, "N.", {},
-            active_domains=["quest_updates"],
             state_result=state_res,
             intent=None,
             recent_turns=[],
@@ -68,7 +66,6 @@ class TestProgressMessagesReceivesQuestAges:
         quest_ages = [{"id": "q1", "title": "Test Quest", "age": 3}]
         msgs = _extract_progress_messages(
             env, "N.", {},
-            active_domains=["quest_updates"],
             state_result=state_res,
             intent=None,
             quest_ages=quest_ages,
@@ -82,7 +79,6 @@ class TestProgressMessagesReceivesQuestAges:
         state_res = StateExtractResult()
         msgs = _extract_progress_messages(
             env, "N.", {},
-            active_domains=["quest_updates"],
             state_result=state_res,
             intent=None,
             recent_turns=[],

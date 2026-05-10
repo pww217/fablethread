@@ -358,19 +358,19 @@ class TestPromptComposition:
 
     def test_extract_scene_has_system_user_roles(self):
         env = self._env()
-        msgs = _extract_scene_messages(env, "The airlock opened.", _make_state(), active_domains=["scene"])
+        msgs = _extract_scene_messages(env, "The airlock opened.", _make_state())
         assert [m["role"] for m in msgs] == ["system", "user"]
 
     def test_extract_scene_user_contains_narration(self):
         env = self._env()
         narrative = "You step through the airlock. The corridor hums."
-        msgs = _extract_scene_messages(env, narrative, _make_state(), active_domains=["scene"])
+        msgs = _extract_scene_messages(env, narrative, _make_state())
         user = next(m for m in msgs if m["role"] == "user")
         assert narrative in user["content"]
 
     def test_extract_scene_system_has_output_schema(self):
         env = self._env()
-        msgs = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"])
+        msgs = _extract_scene_messages(env, "N.", _make_state())
         system = next(m for m in msgs if m["role"] == "system")["content"]
         assert "Scene Extractor" in system
         assert "scene_tags" in system
@@ -381,28 +381,28 @@ class TestPromptComposition:
     def test_extract_scene_no_inventory(self):
         """Scene stream must not include inventory sections."""
         env = self._env()
-        msgs = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"])
+        msgs = _extract_scene_messages(env, "N.", _make_state())
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "inventory" not in user.lower()
 
     def test_extract_scene_thinking_toggle(self):
         env = self._env()
-        off = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"], enable_thinking=False)
-        on = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"], enable_thinking=True)
+        off = _extract_scene_messages(env, "N.", _make_state(), enable_thinking=False)
+        on = _extract_scene_messages(env, "N.", _make_state(), enable_thinking=True)
         assert not off[-1]["content"].endswith("/think")
         assert on[-1]["content"].endswith("/think")
 
     def test_extract_scene_system_has_location_checklist(self):
         """System prompt mentions location description as one of four responsibilities."""
         env = self._env()
-        msgs = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"])
+        msgs = _extract_scene_messages(env, "N.", _make_state())
         system = next(m for m in msgs if m["role"] == "system")["content"]
         assert "Location description" in system
 
     def test_extract_scene_system_has_npc_compendium_check(self):
         """System prompt mentions NPC presence as a responsibility."""
         env = self._env()
-        msgs = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"])
+        msgs = _extract_scene_messages(env, "N.", _make_state())
         system = next(m for m in msgs if m["role"] == "system")["content"]
         assert "NPC" in system or "npc" in system
 
@@ -432,14 +432,14 @@ class TestPromptComposition:
     def test_extract_state_has_system_user_roles(self):
         env = self._env()
         scene = SceneExtractResult()
-        msgs = _extract_state_messages(env, "N.", _make_state(), active_domains=["inventory", "pc_condition"], scene_result=scene)
+        msgs = _extract_state_messages(env, "N.", _make_state(), scene_result=scene)
         assert [m["role"] for m in msgs] == ["system", "user"]
 
     def test_extract_state_user_contains_inventory(self):
         env = self._env()
         state = _make_state()
         scene = SceneExtractResult()
-        msgs = _extract_state_messages(env, "N.", state, active_domains=["inventory", "pc_condition"], scene_result=scene)
+        msgs = _extract_state_messages(env, "N.", state, scene_result=scene)
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "hand-terminal" in user
 
@@ -448,7 +448,7 @@ class TestPromptComposition:
         state = _make_state()
         state["pc"]["conditions"] = [{"id": "injured", "label": "injured", "description": "", "added_turn": 0}]
         scene = SceneExtractResult()
-        msgs = _extract_state_messages(env, "N.", state, active_domains=["inventory", "pc_condition"], scene_result=scene)
+        msgs = _extract_state_messages(env, "N.", state, scene_result=scene)
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "injured" in user
 
@@ -462,8 +462,8 @@ class TestPromptComposition:
         s2["pc"]["conditions"] = [{"id": "wounded", "label": "wounded", "description": "hit", "added_turn": 4}]
         from ccya.models import RulesOutcome
         roll = RulesOutcome(rolled=True, skill="strength", difficulty="hard", final_total=8, band="partial", directive="The strike succeeds with cost.")
-        m1 = _extract_state_messages(env, "N1", s1, active_domains=["inventory", "pc_condition"], scene_result=scene)
-        m2 = _extract_state_messages(env, "N2", s2, active_domains=["inventory", "pc_condition"], scene_result=scene, rules_outcome=roll)
+        m1 = _extract_state_messages(env, "N1", s1, scene_result=scene)
+        m2 = _extract_state_messages(env, "N2", s2, scene_result=scene)
         sys1 = next(m for m in m1 if m["role"] == "system")["content"]
         sys2 = next(m for m in m2 if m["role"] == "system")["content"]
         assert sys1 == sys2
@@ -471,7 +471,7 @@ class TestPromptComposition:
     def test_extract_state_user_has_quantity_discipline(self):
         env = self._env()
         scene = SceneExtractResult()
-        msgs = _extract_state_messages(env, "N.", _make_state(), active_domains=["inventory", "pc_condition"], scene_result=scene)
+        msgs = _extract_state_messages(env, "N.", _make_state(), scene_result=scene)
         system = next(m for m in msgs if m["role"] == "system")["content"]
         # Quantity exactness lives in the system prompt as a static rule.
         assert "Quantities are exact" in system
@@ -480,7 +480,7 @@ class TestPromptComposition:
         """System prompt must contain explicit generic item mapping rule."""
         env = self._env()
         scene = SceneExtractResult()
-        msgs = _extract_state_messages(env, "N.", _make_state(), active_domains=["inventory", "pc_condition"], scene_result=scene)
+        msgs = _extract_state_messages(env, "N.", _make_state(), scene_result=scene)
         system = next(m for m in msgs if m["role"] == "system")["content"]
         assert "generic item mapping" in system.lower() or "generic denomination" in system.lower()
         assert "NEVER invent" in system
@@ -490,13 +490,13 @@ class TestPromptComposition:
     def test_extract_progress_has_system_user_roles(self):
         env = self._env()
         state_res = StateExtractResult()
-        msgs = _extract_progress_messages(env, "N.", _make_state(), active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
+        msgs = _extract_progress_messages(env, "N.", _make_state(), state_result=state_res, intent=None, recent_turns=[])
         assert [m["role"] for m in msgs] == ["system", "user"]
 
     def test_extract_progress_user_contains_quests(self):
         env = self._env()
         state_res = StateExtractResult()
-        msgs = _extract_progress_messages(env, "N.", _make_state(), active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
+        msgs = _extract_progress_messages(env, "N.", _make_state(), state_result=state_res, intent=None, recent_turns=[])
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "quiet-signal" in user
         assert "The Quiet Signal" in user
@@ -509,7 +509,7 @@ class TestPromptComposition:
             _make_recent_event("beta", "Beta fact."),
         ]
         state_res = StateExtractResult()
-        msgs = _extract_progress_messages(env, "N.", state, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
+        msgs = _extract_progress_messages(env, "N.", state, state_result=state_res, intent=None, recent_turns=[])
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "Alpha fact." in user
         assert "Beta fact." in user
@@ -522,13 +522,13 @@ class TestPromptComposition:
         state_res = StateExtractResult()
 
         # With active quest: world state should NOT appear
-        msgs_with_quest = _extract_progress_messages(env, "N.", state, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
+        msgs_with_quest = _extract_progress_messages(env, "N.", state, state_result=state_res, intent=None, recent_turns=[])
         user_with_quest = next(m for m in msgs_with_quest if m["role"] == "user")["content"]
         assert "WORLD_FACT_MARKER" not in user_with_quest
 
         # Without quests: world state SHOULD appear
         state_no_quests = {**state, "quests": []}
-        msgs_no_quest = _extract_progress_messages(env, "N.", state_no_quests, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
+        msgs_no_quest = _extract_progress_messages(env, "N.", state_no_quests, state_result=state_res, intent=None, recent_turns=[])
         user_no_quest = next(m for m in msgs_no_quest if m["role"] == "user")["content"]
         assert "WORLD_FACT_MARKER" in user_no_quest
 
@@ -538,7 +538,7 @@ class TestPromptComposition:
         state_res = StateExtractResult()
 
         state_no_q = {**_make_state(), "quests": []}
-        msgs = _extract_progress_messages(env, "N.", state_no_q, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
+        msgs = _extract_progress_messages(env, "N.", state_no_q, state_result=state_res, intent=None, recent_turns=[])
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "quest_threshold" in user
         assert "LOW" in user
@@ -546,7 +546,7 @@ class TestPromptComposition:
         state_many_q = {**_make_state(), "quests": [
             {"id": f"q{i}", "title": f"Q{i}", "status": "active", "objectives": []} for i in range(3)
         ]}
-        msgs2 = _extract_progress_messages(env, "N.", state_many_q, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
+        msgs2 = _extract_progress_messages(env, "N.", state_many_q, state_result=state_res, intent=None, recent_turns=[])
         user2 = next(m for m in msgs2 if m["role"] == "user")["content"]
         assert "HIGH" in user2
 
@@ -558,8 +558,8 @@ class TestPromptComposition:
         s_many = {**_make_state(), "quests": [
             {"id": f"q{i}", "title": f"Q{i}", "status": "active", "objectives": []} for i in range(3)
         ]}
-        m_no = _extract_progress_messages(env, "N.", s_no, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
-        m_many = _extract_progress_messages(env, "N.", s_many, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=state_res, intent=None, recent_turns=[])
+        m_no = _extract_progress_messages(env, "N.", s_no, state_result=state_res, intent=None, recent_turns=[])
+        m_many = _extract_progress_messages(env, "N.", s_many, state_result=state_res, intent=None, recent_turns=[])
         sys_no = next(m for m in m_no if m["role"] == "system")["content"]
         sys_many = next(m for m in m_many if m["role"] == "system")["content"]
         assert sys_no == sys_many

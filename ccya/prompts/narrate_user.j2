@@ -109,6 +109,11 @@ Before introducing anyone new, check this list. Re-use characters when they coul
 {% for n in present_npcs %}- {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}
 {% endfor -%}
 {% endif -%}
+{% if compendium_bios -%}
+## Compendium Bios (rich identity data for NPCs you interact with)
+{% for b in compendium_bios %}- **{{ b.name }}** ({{ b.title }}) — {{ b.bio }}
+{% endfor -%}
+{% endif -%}
 {% if world_factions -%}
 <<<TRACE_IMMUTABLE_START>>>
 ## Known Factions

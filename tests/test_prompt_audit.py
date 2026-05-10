@@ -102,8 +102,8 @@ class TestSystemPromptByteStability:
     def test_extract_scene_system_byte_stable(self):
         env = _env()
         s1, s2 = self._two_states()
-        m1 = _extract_scene_messages(env, "narration A", s1, active_domains=["scene"])
-        m2 = _extract_scene_messages(env, "narration B", s2, active_domains=["scene"], rules_outcome=self._roll())
+        m1 = _extract_scene_messages(env, "narration A", s1)
+        m2 = _extract_scene_messages(env, "narration B", s2)
         sys1 = next(m for m in m1 if m["role"] == "system")["content"]
         sys2 = next(m for m in m2 if m["role"] == "system")["content"]
         assert sys1 == sys2
@@ -112,8 +112,8 @@ class TestSystemPromptByteStability:
         env = _env()
         s1, s2 = self._two_states()
         scene = SceneExtractResult()
-        m1 = _extract_state_messages(env, "N1", s1, active_domains=["inventory", "pc_condition"], scene_result=scene)
-        m2 = _extract_state_messages(env, "N2", s2, active_domains=["inventory", "pc_condition"], scene_result=scene, rules_outcome=self._roll())
+        m1 = _extract_state_messages(env, "N1", s1, scene_result=scene)
+        m2 = _extract_state_messages(env, "N2", s2, scene_result=scene)
         sys1 = next(m for m in m1 if m["role"] == "system")["content"]
         sys2 = next(m for m in m2 if m["role"] == "system")["content"]
         assert sys1 == sys2
@@ -126,9 +126,9 @@ class TestSystemPromptByteStability:
             for i in range(4)
         ]
         sres = StateExtractResult()
-        m1 = _extract_progress_messages(env, "N1", s1, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=sres, intent=None, recent_turns=[])
+        m1 = _extract_progress_messages(env, "N1", s1, state_result=sres, intent=None, recent_turns=[])
         m2 = _extract_progress_messages(
-            env, "N2", s2, active_domains=["quest_updates", "recent_events", "compendium_npc"], state_result=sres, rules_outcome=self._roll(), intent=None, recent_turns=[],
+            env, "N2", s2, state_result=sres, intent=None, recent_turns=[],
         )
         sys1 = next(m for m in m1 if m["role"] == "system")["content"]
         sys2 = next(m for m in m2 if m["role"] == "system")["content"]

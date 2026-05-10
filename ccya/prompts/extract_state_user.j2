@@ -1,34 +1,14 @@
 ## Current Turn: {{ turn_no }}
 
-## active_domains
-{{ active_domains | join(", ") }}
-
-{% if rules_outcome and rules_outcome.rolled -%}
-## rules_outcome
-{{ rules_outcome.band | upper }} on {{ rules_outcome.skill }}. {{ rules_outcome.directive }}
-- crit_fail / fail / setback: action did NOT succeed. Don't add items from a failed grab/purchase. MAY add a condition if new player state has occurred.
-- partial: you got what you wanted but at a cost. Apply changes, but note any complications.
-- success / crit_success: apply changes freely.
-
-## roll_context
-skill: {{ rules_outcome.skill }}
-band: {{ rules_outcome.band }}
-directive: {{ rules_outcome.directive }}
-
-{%- elif rules_outcome and not rules_outcome.rolled -%}
-## no_dice_roll
-No dice were rolled this turn. The rules engine determined the action has no mechanical obstacle (pure social, travel, or exploration). Apply inventory and condition changes based on what the narration describes — do NOT infer success or failure from a roll outcome.
-
-{%- endif -%}
 ## pc
 {{ pc.name }} — {{ pc.tagline }}
 
-{% if "pc_condition" in active_domains and conditions -%}
+{% if conditions -%}
 ## active_conditions
 {% for c in conditions %}- `{{ c.id if c is mapping else c }}` | {{ c.label if c is mapping else c }}{% if c is mapping and c.get('description') %} — {{ c.description }}{% endif %}
 {% endfor %}
 {% endif -%}
-{% if "inventory" in active_domains and inventory -%}
+{% if inventory -%}
 ## inventory (current stacks — read amount before emitting `inventory_remove`)
 {% for item in inventory %}- `{{ item.id }}` | {{ item.name }} ×{{ item.amount or 1 }}{% if item.notes %} — {{ item.notes }}{% endif %}
 {% endfor %}
@@ -36,21 +16,6 @@ No dice were rolled this turn. The rules engine determined the action has no mec
 ## scene_result
 location: `{{ scene_result.location_id }}`
 {% if scene_result.location_changed %}(location changed){% endif %}
-{% if band_examples -%}
-## EXTRACT EXAMPLES (band: {{ rules_outcome.band if rules_outcome else "none" }})
-{% for ex in band_examples %}
-### {{ ex.title }}
-{% if ex.thinking %}Thinking: {{ ex.thinking }}
-
-{% endif %}JSON:
-{{ ex.json_text }}
-{% endfor %}
-{% endif -%}
-{% if stakes and band in ("setback", "fail", "crit_fail") -%}
-## rules_stakes_hint
-Rules engine named this cost on failure: {{ stakes }}
-If the narration is ambiguous, treat any condition name in the above as a strong signal to apply it.
-{% endif -%}
 ## CURRENT TURN NARRATION
 {{ narration }}
 ## END CURRENT TURN NARRATION

@@ -126,6 +126,8 @@ See `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remedia
 - ~~**Remove redundant style injection in narrate** — `eval-remediation/issues-4-8.md` Phase 4 — World Pack Style copied verbatim into narrate prompt~~
 - ~~**Inventory item capitalization** — `eval-remediation/issues-4-8.md` Phase 5 — inventory items should start with a capital letter~~
 
+- [ ] **Extraction stream remediation** — Phase 1: rules+narration NPC context enrichment (present_npcs in rules prompt, compendium bios in narration). Phase 2: extraction stream prompt cleanup (remove dead active_domains/rules_outcome from progress/state/scene, restructure progress prompt). Phase 3: compactor sanitization fix (strengthen directives). Phase 4: minor fixes (actions coercion text key, null-omission rule, quest age display) — see `[eval-remediation/extraction-stream-remediation.md](eval-remediation/extraction-stream-remediation.md)`
+
 - [ ] **Fix condition dedup** — extractor emits duplicate conditions, validator silently drops; add prompt directive + engine pre-filter — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 1`
 - ~~**Fix location change scope** — extractor emits location_change when only description changes; add ID-change guard to prompt — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 2`~~
 - ~~**Fix compendium NPC matching** — extractor creates duplicate IDs for known NPCs; extend dedup to npc_add + strengthen prompt — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 3`~~

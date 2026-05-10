@@ -1,14 +1,5 @@
 ## Current Turn: {{ turn_no }}
 
-{% if rules_outcome and rules_outcome.rolled -%}
-## rules_outcome
-{{ rules_outcome.band | upper }} on {{ rules_outcome.skill }} — {{ rules_outcome.directive }}
-
-{%- elif rules_outcome and not rules_outcome.rolled -%}
-## no_dice_roll
-No dice were rolled this turn. The rules engine determined the action has no mechanical obstacle.
-
-{%- endif -%}
 ## pc
 {{ pc.name }} — {{ pc.tagline }}
 Stats: {% for k, v in (pc.stats or {}).items() %}{{ k }}={{ v }}{% if not loop.last %} {% endif %}{% endfor %}
