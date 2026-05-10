@@ -102,6 +102,11 @@ Do NOT add pressure for things the narrator already described as resolved or for
 {% for q in quest_ages %}- `{{ q.id }}`: {{ q.age }} turns
 {% endfor %}
 {%- endif %}
+{% if scene_pressure -%}
+## Current Pressures
+{% for p in scene_pressure %}- [{{ p.id }}] ({{ p.urgency }}) {{ p.text }}
+{% endfor %}
+{% endif -%}
 ## CURRENT TURN NARRATION
 {{ narration }}
 ## END CURRENT TURN NARRATION

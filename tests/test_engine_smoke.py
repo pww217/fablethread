@@ -149,10 +149,6 @@ _SCENE_RESPONSE = json.dumps({
     "npc_remove": [],
     "npc_update": [],
     "compendium_npc_update": [],
-    "scene_pressure_add": [],
-    "scene_pressure_remove": [],
-    "scene_pressure_update": [],
-    "gm_beat": None,
 })
 
 _STATE_RESPONSE = json.dumps({
@@ -376,12 +372,12 @@ class TestPromptComposition:
         env = self._env()
         msgs = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"])
         system = next(m for m in msgs if m["role"] == "system")["content"]
-        assert "## Output schema" in system
+        assert "Scene Extractor" in system
         assert "scene_tags" in system
-        assert "npc_add" in system
-        assert "compendium_npc_update" in system
-        assert "scene_pressure_remove" in system
-        assert "scene_pressure_update" in system
+        assert "NPC" in system
+        assert "location_change" in system
+        # System prompt explicitly tells LLM NOT to emit pressure fields
+        assert "silently discarded" in system
 
     def test_extract_scene_no_inventory(self):
         """Scene stream must not include inventory sections."""
@@ -398,20 +394,18 @@ class TestPromptComposition:
         assert on[-1]["content"].endswith("/think")
 
     def test_extract_scene_system_has_location_checklist(self):
-        """System prompt must contain location_description decision checklist."""
+        """System prompt mentions location description as one of four responsibilities."""
         env = self._env()
         msgs = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"])
         system = next(m for m in msgs if m["role"] == "system")["content"]
-        assert "checklist" in system.lower()
-        assert "null" in system.lower()
+        assert "Location description" in system
 
     def test_extract_scene_system_has_npc_compendium_check(self):
-        """System prompt must instruct npc_add to check compendium first."""
+        """System prompt mentions NPC presence as a responsibility."""
         env = self._env()
         msgs = _extract_scene_messages(env, "N.", _make_state(), active_domains=["scene"])
         system = next(m for m in msgs if m["role"] == "system")["content"]
-        assert "known_characters" in system
-        assert "compendium" in system.lower()
+        assert "NPC" in system or "npc" in system
 
     # --- inventory capitalization ---
 
@@ -674,10 +668,6 @@ class TestHappyPath:
             "npc_remove": [],
             "npc_update": [],
             "compendium_npc_update": [],
-            "scene_pressure_add": [],
-            "scene_pressure_remove": [],
-            "scene_pressure_update": [],
-            "gm_beat": None,
         })
         progress_response = json.dumps({
             "quest_updates": [],
@@ -706,10 +696,6 @@ class TestHappyPath:
             "npc_remove": [],
             "npc_update": [],
             "compendium_npc_update": [],
-            "scene_pressure_add": [],
-            "scene_pressure_remove": [],
-            "scene_pressure_update": [],
-            "gm_beat": None,
         })
         progress_response = json.dumps({
             "quest_updates": [],

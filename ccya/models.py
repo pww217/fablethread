@@ -273,8 +273,7 @@ class SceneExtractResult(BaseModel):
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
-    scene_pressure_remove: list[str] = Field(default_factory=list)
-    scene_pressure_update: list[ScenePressure] = Field(default_factory=list)
+    # scene_pressure_remove and scene_pressure_update REMOVED — now on ProgressExtractResult
 
     @field_validator("npc_remove", mode="before")
     @classmethod
@@ -441,6 +440,8 @@ class ProgressExtractResult(BaseModel):
     gm_beat: GMBeat | None = None
     beat_disposition: Literal["consume", "carry", "replace"] = "consume"
     scene_pressure_add: list[ScenePressure] = Field(default_factory=list)
+    scene_pressure_remove: list[str] = Field(default_factory=list)       # migrated from SceneExtractResult
+    scene_pressure_update: list[ScenePressure] = Field(default_factory=list)  # migrated from SceneExtractResult
 
     @model_validator(mode="after")
     def _nullify_invalid_gm_beat(self) -> "ProgressExtractResult":

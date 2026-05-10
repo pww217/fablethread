@@ -22,10 +22,15 @@
 ## SceneExtractResult
 
 - No `gm_beat` field (moved to `ProgressExtractResult` in progress-rules-narration plan).
+- No `scene_pressure_remove` or `scene_pressure_update` (migrated to `ProgressExtractResult` in scene-progress-fixes plan).
+- Fields: `scene_tags`, `scene_tagline`, `location_change`, `location_description`, `npc_add`, `npc_remove`, `npc_update`, `compendium_npc_update`.
 
 ## ProgressExtractResult
 
 - `gm_beat: GMBeat | None = None` — validated by `_nullify_invalid_gm_beat` (model_validator, mode="after") which sets `gm_beat = None` if the beat has no instruction or no type.
+- `scene_pressure_remove: list[str]` — migrated from `SceneExtractResult` in scene-progress-fixes plan.
+- `scene_pressure_update: list[ScenePressure]` — migrated from `SceneExtractResult` in scene-progress-fixes plan.
+- Fields: `quest_updates`, `recent_events_add`, `recent_events_update`, `recent_events_remove`, `actions`, `outcome_summary`, `gm_beat`, `beat_disposition`, `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update`.
 
 ## CompactorRecentEventCompact
 

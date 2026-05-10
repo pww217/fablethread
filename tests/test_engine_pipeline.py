@@ -262,10 +262,6 @@ def _scene_response(
             "npc_remove": [],
             "npc_update": [],
             "compendium_npc_update": compendium_npc_update or [],
-            "scene_pressure_add": [],
-            "scene_pressure_remove": [],
-            "scene_pressure_update": [],
-            "gm_beat": None,
         },
     )
 
