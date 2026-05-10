@@ -68,8 +68,11 @@ def test_known_characters_not_in_progress(env: Environment) -> None:
     assert "## known_characters" not in out
 
 
-def test_scene_pressure_not_in_progress(env: Environment) -> None:
-    """scene_pressure moved to scene stream; should NOT appear in progress user prompt."""
+def test_scene_pressure_data_not_rendered(env: Environment) -> None:
+    """scene_pressure data context variable is not rendered in progress user prompt.
+    The ## scene_pressure_add instruction block is present, but actual pressure
+    data from the context variable should not appear."""
     pressure = [{"id": "p1", "urgency": "immediate", "text": "fire", "turn_added": 1}]
     out = _render(env, active_domains=[], scene_pressure=pressure)
-    assert "## scene_pressure" not in out
+    assert "## scene_pressure_add" in out
+    assert "fire" not in out

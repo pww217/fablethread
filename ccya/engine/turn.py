@@ -551,11 +551,22 @@ async def run_turn(
                     recent_turns=recent_turns,
                 )
             )
-            # Store gm_beat for next turn's narration (produced by progress extractor)
-            if progress_result and progress_result.gm_beat and progress_result.gm_beat.type:
-                _beat_dict = progress_result.gm_beat.model_dump(exclude_none=True)
+            # Beat lifecycle: handle disposition from progress extractor
+            _new_beat = progress_result.gm_beat if progress_result else None
+            _disposition = progress_result.beat_disposition if progress_result else "consume"
+            _current_beat = (state.get("meta") or {}).get("pending_gm_beat")
+
+            if _disposition == "carry" and _current_beat and not _new_beat:
+                # Keep existing beat — do not overwrite
+                pass
+            elif _new_beat and _new_beat.type:
+                # Replace or fresh write (includes implicit replace when carry+new_beat)
+                _beat_dict = _new_beat.model_dump(exclude_none=True)
                 _beat_dict["beat_expires_turn"] = turn_no + 2
                 state.setdefault("meta", {})["pending_gm_beat"] = _beat_dict
+            else:
+                # consume or no new beat — clear
+                state.setdefault("meta", {})["pending_gm_beat"] = None
         except Exception as exc:
             errors.append({"trace_id": trace_id, "message": str(exc)})
 
@@ -1067,10 +1078,22 @@ async def run_turn_retry(
                     recent_turns=recent_turns,
                 )
             )
-            if progress_result and progress_result.gm_beat and progress_result.gm_beat.type:
-                _beat_dict = progress_result.gm_beat.model_dump(exclude_none=True)
+            # Beat lifecycle: handle disposition from progress extractor
+            _new_beat = progress_result.gm_beat if progress_result else None
+            _disposition = progress_result.beat_disposition if progress_result else "consume"
+            _current_beat = (state.get("meta") or {}).get("pending_gm_beat")
+
+            if _disposition == "carry" and _current_beat and not _new_beat:
+                # Keep existing beat — do not overwrite
+                pass
+            elif _new_beat and _new_beat.type:
+                # Replace or fresh write (includes implicit replace when carry+new_beat)
+                _beat_dict = _new_beat.model_dump(exclude_none=True)
                 _beat_dict["beat_expires_turn"] = turn_no + 2
                 state.setdefault("meta", {})["pending_gm_beat"] = _beat_dict
+            else:
+                # consume or no new beat — clear
+                state.setdefault("meta", {})["pending_gm_beat"] = None
         except Exception as exc:
             errors.append({"trace_id": trace_id, "message": str(exc)})
 
