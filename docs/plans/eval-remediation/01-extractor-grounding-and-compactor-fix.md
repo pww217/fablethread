@@ -16,157 +16,40 @@ Eval remediation — May 2026 cycle
 None. All previously referenced plans (`intent-expansion.md`, `compactor-recent-events.md`, `entity-dedup.md`) are in `completed/`. No open plans touch the same files.
 
 ## Objective
-Fix the four highest-impact mechanical issues identified in the 2026-05-09 eval run (nvgcpdog): compactor stagnation after initial fire, condition duplication with silent drop, location change scope mismatch, and compendium NPC matching failure. These four issues account for 6 of 11 auto-checker failures and are the primary drivers of the low mechanical score (3/5).
+Fix the three highest-impact mechanical issues identified in the 2026-05-09 eval run (nvgcpdog): condition duplication with silent drop, location change scope mismatch, and compendium NPC matching failure. These three issues account for 4 of 11 auto-checker failures and are the primary drivers of the low mechanical score (3/5).
 
 ## Non-goals
 - Fixing rules target hallucination (M3) — deferred to a separate prompt-hardening pass
 - Fixing inherited intent hallucination (M4) — depends on M3 fix
 - Fixing scope over-flagging (N1) — lower impact, deferred
-- Fixing recent event bloat (N2) — depends on compactor fix (C1)
+- Fixing recent event bloat (N2) — lower impact, deferred
 - Adding new config keys or Pydantic model fields
-- Changing the compactor trigger interval (`compact_every`)
 
 ## Affected files
 
 | File | Change type | Summary |
 |---|---|---|
-| `ccya/engine/compactor.py` | modify | Fix compactor to run sanitization even when bullets are empty; always update `last_compacted_turn` |
 | `ccya/prompts/extract_state_system.j2` | modify | Add mandatory condition dedup pre-check directive |
 | `ccya/prompts/extract_scene_system.j2` | modify | Add location_change ID-change guard; strengthen compendium NPC matching constraint |
 | `ccya/engine/extraction.py` | modify | Add condition dedup pre-filter; extend compendium dedup to `npc_add` |
 | `ccya/eval/universal_asserts.py` | modify | Tighten NPC mention false positive filter |
 | `docs/plans/TODO.md` | modify | Add eval remediation items |
 | `docs/plans/eval-remediation/findings-2026-05-09.md` | create | Eval findings document |
-| `docs/REPOMAP/engine.md` | modify | Update compactor and extraction descriptions |
+| `docs/REPOMAP/engine.md` | modify | Update extraction descriptions |
 | `docs/REPOMAP/prompts.md` | modify | Update prompt template descriptions |
 | `docs/REPOMAP/eval.md` | modify | Update universal_asserts.py description |
 
 ## Firm decisions
 
-1. **Compactor fix is engine code, not prompt.** The compactor's `last_compacted_turn` math is correct in principle. The issue is that when the LLM returns empty bullets, the function returns early without running sanitization. The fix separates bullet generation from sanitization — sanitization runs independently.
+1. **Condition dedup is a two-layer fix.** The prompt needs a pre-check directive, AND the engine needs a pre-filter in `_run_extraction_pipeline()` to catch what the prompt misses. This mirrors the existing compendium NPC dedup pattern (`_dedup_compendium_add`).
 
-2. **Condition dedup is a two-layer fix.** The prompt needs a pre-check directive, AND the engine needs a pre-filter in `_run_extraction_pipeline()` to catch what the prompt misses. This mirrors the existing compendium NPC dedup pattern (`_dedup_compendium_add`).
+2. **Location change guard is prompt-only.** The extractor already has a novelty guard for `location_description`. Adding an ID-change guard to the `location_change` field rule is sufficient — no engine code change needed.
 
-3. **Location change guard is prompt-only.** The extractor already has a novelty guard for `location_description`. Adding an ID-change guard to the `location_change` field rule is sufficient — no engine code change needed.
-
-4. **Compendium NPC matching needs both prompt and engine.** The prompt's compendium pre-check instruction exists but is ignored by the LLM. The engine already has `_dedup_compendium_add()` but it only runs on `compendium_npc_update`, not on `npc_add`. The fix extends dedup to `npc_add` AND strengthens the prompt.
+3. **Compendium NPC matching needs both prompt and engine.** The prompt's compendium pre-check instruction exists but is ignored by the LLM. The engine already has `_dedup_compendium_add()` but it only runs on `compendium_npc_update`, not on `npc_add`. The fix extends dedup to `npc_add` AND strengthens the prompt.
 
 ---
 
-## Implementation — Phase 1: Compactor trigger fix
-
-### Context files to load
-- `ccya/engine/compactor.py` (lines 23-130)
-- `ccya/engine/turn.py` (lines 746-753, compaction call site)
-- `ccya/engine/config.py` (EngineConfig: `compact_every`, `window_turns`, `recent_turns_min`)
-
-### Overview
-The compactor fires at turn 6 (first `compact_every` boundary) but produces 0 bullets for turns 7-10. Root cause: when the LLM returns empty bullets, the function returns early without running sanitization. The fix removes the early return so sanitization runs independently, and ensures `last_compacted_turn` is always updated.
-
-### Detailed steps
-
-#### Step 1.1 — Remove early return on empty bullets
-
-**File:** `ccya/engine/compactor.py`
-
-**What:** In `maybe_compact()`, replace the early return when `bullets_text.strip()` is empty with a warning log that allows execution to continue to the sanitization block.
-
-**Why:** The eval report shows compaction at T6 produced bullets correctly, but T7-10 produced 0 bullets AND 0 sanitization. The early return on empty bullets prevents sanitization from running. The compactor should separate bullet generation from sanitization — sanitization can run independently.
-
-**Code Snippet**
-```python
-# In maybe_compact(), around line 92, replace:
-
-    if not bullets_text.strip():
-        _log.warning(
-            "compactor: LLM returned empty bullets at turn %d, skipping",
-            current_turn,
-            extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "compactor"},
-        )
-        return state
-
-# With:
-
-    if not bullets_text.strip():
-        _log.warning(
-            "compactor: LLM returned empty bullets at turn %d, "
-            "still attempting sanitization",
-            current_turn,
-            extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "compactor"},
-        )
-```
-
-#### Step 1.2 — Always update last_compacted_turn
-
-**File:** `ccya/engine/compactor.py`
-
-**What:** Move the `last_compacted_turn` assignment outside the `if sanitization is not None` block so it always executes, even when bullets are empty or sanitization is None.
-
-**Why:** If the compactor fires but produces no useful output, `last_compacted_turn` should still advance so the compactor fires on future boundaries. Without this, the compactor can get "stuck" — it keeps firing at the same boundary because `last_compacted_turn` never advances.
-
-**Code Snippet**
-```python
-# In maybe_compact(), around line 128, replace:
-
-    state.setdefault("meta", {})["last_compacted_turn"] = compact_end
-
-# With (move this line to after the sanitization block, unconditionally):
-
-    # Always update last_compacted_turn so the compactor fires on future boundaries
-    # even if bullets were empty or sanitization produced no changes.
-    state.setdefault("meta", {})["last_compacted_turn"] = compact_end
-```
-
-The line should be placed after the `if sanitization is not None:` block (after line 126 in the current code), not inside it.
-
-#### Step 1.3 — Add compactor prompt context for recent_events count
-
-**File:** `ccya/engine/compactor.py`
-
-**What:** In `_build_compact_messages()`, add `recent_events_count` and `condition_count` to the user prompt render.
-
-**Why:** The compactor prompt needs to know about current conditions to generate `bullet_conditions` bullets. The eval report shows `bullet_conditions: [FAIL]` at T6 — the compactor didn't generate condition bullets because it didn't have sufficient condition context.
-
-**Code Snippet**
-```python
-# In _build_compact_messages(), around line 184, replace the user_prompt render:
-
-    user_prompt = env.get_template("compact_user.j2").render(
-        turns=turns,
-        active_quests=active_quests,
-        npc_names=[n.get("name", n) if isinstance(n, dict) else n for n in present_npcs],
-        pressures=pressures,
-        inventory=inventory,
-        compendium_npcs=compendium_npcs,
-        all_quests=all_quests,
-        conditions=conditions,
-        recent_events=recent_events,
-        recent_events_count=len(recent_events),
-        condition_count=len(conditions),
-    )
-```
-
-**Validation:** After this change, the compactor should:
-1. Fire on every `compact_every` boundary (turn 6, 12, 18, ...)
-2. Attempt sanitization even when bullets are empty
-3. Always update `last_compacted_turn` to prevent compactor stagnation
-4. Have explicit counts for recent_events and conditions in the prompt
-
-### Tests to write or update
-- `tests/test_engine_pipeline.py`: Add test `test_compactor_sanitization_without_bullets` — use FakeLLM to return empty bullets, verify sanitization still runs and `last_compacted_turn` is updated
-- `tests/test_engine_pipeline.py`: Add test `test_compactor_updates_last_compacted_turn_on_empty` — verify `last_compacted_turn` advances even when LLM returns no bullets
-
-### REPOMAP updates required
-- `docs/REPOMAP/engine.md`: Update `maybe_compact()` description to note sanitization runs independently of bullets
-- `docs/REPOMAP/engine.md`: Update `_build_compact_messages()` to note new `recent_events_count` and `condition_count` parameters
-
-### Risks
-1. **Compactor fires more often than intended.** If `last_compacted_turn` is updated even when the LLM call fails, the compactor might skip turns. Mitigation: only update `last_compacted_turn` after a successful LLM call (current behavior already does this for the success path; the fix extends it to the empty-bullets path).
-2. **Sanitization runs on stale data.** If bullets are empty but sanitization runs, it might operate on outdated state. Mitigation: the compactor always reads current state before the LLM call, so sanitization operates on fresh state.
-
----
-
-## Implementation — Phase 2: Condition dedup pre-check
+## Implementation — Phase 1: Condition dedup pre-check
 
 ### Context files to load
 - `ccya/prompts/extract_state_system.j2` (lines 51-67)
