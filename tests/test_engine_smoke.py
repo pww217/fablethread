@@ -376,8 +376,7 @@ class TestPromptComposition:
         assert "scene_tags" in system
         assert "NPC" in system
         assert "location_change" in system
-        # System prompt explicitly tells LLM NOT to emit pressure fields
-        assert "silently discarded" in system
+        assert "compendium_npc_update" in system
 
     def test_extract_scene_no_inventory(self):
         """Scene stream must not include inventory sections."""
