@@ -312,7 +312,7 @@ async def run_turn(
             _log_prompts(
                 state.get("meta", {}).get("turn", 0) + 1, "rules", rules_messages
             )
-        intent, rules_usage, rules_raw_response = await _call_rules(rules_messages, config, trace_id)
+        intent, rules_usage, rules_raw_response, rules_parse_error = await _call_rules(rules_messages, config, trace_id)
 
         # Resolve dice in Python (deterministic) — _call_rules degrades intent, we do outcome here
         if intent.check.required and intent.check.skill:
@@ -747,6 +747,7 @@ async def run_turn(
                 "rendered_system": rendered_rules_system,
                 "rendered_user": rendered_rules_user,
                 "output": rules_raw_response,
+                "parse_error": rules_parse_error,
                 "context_meta": _context_meta(rendered_rules_system, rendered_rules_user, rules_trimmed, rules_trimmed_chars),
             },
             "narrate_prompt": {

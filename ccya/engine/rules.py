@@ -47,7 +47,7 @@ async def _call_rules(
     messages: list[dict[str, Any]],
     config: EngineConfig,
     trace_id: str,
-) -> tuple[IntentEnvelope, dict[str, int], str]:
+) -> tuple[IntentEnvelope, dict[str, int], str, str]:
     _no_intent = IntentEnvelope(
         intent="",
         intent_verb="act",
@@ -88,7 +88,7 @@ async def _call_rules(
             return IntentEnvelope(**j), {
                 "prompt_tokens": usage.get("prompt_tokens", 0),
                 "total_tokens": usage.get("total_tokens", 0),
-            }, raw
+            }, raw, ""
         except Exception as exc:
             parse_error = str(exc)
             _log.warning(
@@ -109,7 +109,7 @@ async def _call_rules(
         "rules call failed after all attempts — defaulting to no-roll",
         extra={"trace_id": trace_id},
     )
-    return _no_intent, _no_usage, ""
+    return _no_intent, _no_usage, "", parse_error
 
 
 def _avg_rules_ms(save_dir: Path, n: int = 5) -> int:

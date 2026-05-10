@@ -403,6 +403,15 @@ def _render_deterministic_signals(
                 f"{m.get('state_tok_in',0)} | {m.get('progress_tok_in',0)} | "
                 f"{m.get('parse_failures',0)} | {m.get('retries',0)} |\n"
             )
+        parse_details = [m.get("parse_error_details") for m in metrics if m.get("parse_error_details")]
+        if parse_details:
+            parts.append("\n### Parse Error Details\n")
+            for m in metrics:
+                errors = m.get("parse_error_details")
+                if errors:
+                    parts.append(f"**Turn {m.get('turn','?')}** ({len(errors)} error(s)):\n")
+                    for err in errors:
+                        parts.append(f"- `{err[:500]}`\n")
     else:
         parts.append("*(no metrics)*\n")
 
@@ -426,9 +435,14 @@ def _build_metrics_rows(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         narr_meta = (ev.get("narrate_prompt") or {}).get("context_meta") or {}
         ext = ev.get("extraction") or {}
         retries = 0
+        parse_errors: list[str] = []
+        rules_error = (ev.get("rules_prompt") or {}).get("parse_error") or ""
+        if rules_error:
+            parse_errors.append(f"[rules] {rules_error}")
         for s in ("scene", "state", "progress"):
             sub = ext.get(s) or {}
             retries += max(0, int(sub.get("attempts") or 1) - 1)
+            parse_errors.extend(sub.get("retry_errors") or [])
         rows.append({
             "turn": ev.get("turn", "?"),
             "rules_tok_in": int(rules_meta.get("est_tokens", 0) or 0),
@@ -436,11 +450,9 @@ def _build_metrics_rows(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "scene_tok_in": int((ext.get("scene") or {}).get("context_meta", {}).get("est_tokens", 0) or 0),
             "state_tok_in": int((ext.get("state") or {}).get("context_meta", {}).get("est_tokens", 0) or 0),
             "progress_tok_in": int((ext.get("progress") or {}).get("context_meta", {}).get("est_tokens", 0) or 0),
-            "parse_failures": sum(
-                len((ext.get(s) or {}).get("retry_errors") or [])
-                for s in ("scene", "state", "progress")
-            ),
+            "parse_failures": len(parse_errors),
             "retries": retries,
+            "parse_error_details": parse_errors,
         })
     return rows
 
