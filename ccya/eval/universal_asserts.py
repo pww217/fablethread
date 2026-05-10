@@ -147,11 +147,16 @@ def check_rolled_implies_binding(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _extract_candidate_names(narration: str, pc_name: str) -> set[str]:
+def _extract_candidate_names(
+    narration: str,
+    pc_name: str,
+    inventory_names: set[str] | None = None,
+) -> set[str]:
     """Extract capitalized tokens that are candidates for NPC names.
 
-    Excludes the PC name (case-insensitive) and sentence-initial words
-    to reduce false positives from tokens like 'Who', 'Instead', 'Your'.
+    Excludes the PC name (case-insensitive), sentence-initial words,
+    short tokens (<=4 chars, likely descriptors), common descriptor words,
+    and inventory item names.
 
     Note: sentence-starters heuristic will miss NPC names that happen to
     appear at the start of a sentence. This is an accepted tradeoff to
@@ -165,11 +170,31 @@ def _extract_candidate_names(narration: str, pc_name: str) -> set[str]:
         if first:
             sentence_starters.add(first[0].strip("\"'"))
 
+    # Common descriptors and titles that are not NPC names
+    descriptor_stop: set[str] = {
+        "Scarred", "Tough", "Hooded", "Burly", "Young", "Old", "Tall",
+        "Short", "Fat", "Thin", "Lean", "Dark", "Light", "Red", "Blue",
+        "Green", "Gold", "Silver", "Iron", "Brass", "Wooden", "Stone",
+        "Big", "Small", "Large", "Little", "High", "Low", "Fast", "Slow",
+        "Good", "Bad", "New", "Last", "First", "Next", "Other", "Same",
+        "Each", "Every", "Both", "All", "Some", "Any", "Many", "Few",
+    }
+
+    inv_lower: set[str] = set()
+    if inventory_names:
+        inv_lower = {n.lower() for n in inventory_names}
+
     candidates: set[str] = set()
     for token in re.findall(r'\b[A-Z][a-z]{2,}\b', narration):
         if token.lower() == pc_name.lower():
             continue
         if token in sentence_starters:
+            continue
+        if token in descriptor_stop:
+            continue
+        if len(token) <= 4:
+            continue
+        if inv_lower and token.lower() in inv_lower:
             continue
         candidates.add(token)
     return candidates
@@ -217,7 +242,15 @@ def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
             if n:
                 known_names.add(n.lower())
 
-    candidates = _extract_candidate_names(narr, pc_name)
+    # Extract inventory item names for false positive filtering
+    inventory_names: set[str] = set()
+    for item in (snap.get("inventory") or []):
+        if isinstance(item, dict):
+            name = item.get("name", "")
+            if name:
+                inventory_names.add(name)
+
+    candidates = _extract_candidate_names(narr, pc_name, inventory_names)
     # Filter common false positives: dialogue tags, common nouns.
     stop = {
         "You", "The", "A", "An", "His", "Her", "Their",

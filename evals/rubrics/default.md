@@ -96,12 +96,6 @@ For EACH of the 5 pipelines (rules, narrate, extract_scene, extract_state,
 extract_progress) produce all of the following subsections:
 
 
-### Trace
-End-to-end trace of one or two representative turns: system prompt key
-instructions → user prompt key inputs → LLM output → state mutation. Quote
-specific fields and values.
-
-
 ### What Went Well
 At least two paragraphs. Specific to turns and fields.
 
@@ -125,8 +119,7 @@ Signals section to focus on confirmed cross-stream duplication.
   narration) or later (e.g. as a delta post-validate)?
 - Should this mechanic's input source be different? (e.g. should the state
   extractor receive `recent_events` to dedupe condition IDs against prior
-  turns?)
-
+  turns?)\
 
 If you find a misplaced mechanic, write a clear remediation: which pipeline it
 belongs in, what data flow needs to change.
@@ -167,16 +160,41 @@ earned and create interesting consequences?
 
 
 ### rewards_and_consequences
+
 Did the game give real rewards for success and real consequences for failure?
-Were trade-offs meaningful?
+Score this criterion by grounding it in observable mechanics — not narrative
+feel alone. For each turn where a roll occurred, check the following:
+
+**Roll directive honored:** Did the narration's outcome match the roll `band`
+and `directive`? A `crit_fail` that produces a cheerful narrative is a failure
+here regardless of prose quality. A `partial` that produces no cost or
+complication is also a failure.
+
+**Momentum moved correctly:** Did `pc.momentum` change in the direction the
+roll band implies? The engine defines momentum deltas per band (e.g.
+`crit_success` → +2, `fail` → −1, `crit_fail` → −2, `partial` → ±0 or −1
+depending on config). Cite the turn, the band, and the before/after momentum
+value. Flag any turn where momentum did not move or moved in the wrong direction.
+
+**Conditions applied for costs:** When the roll band was `partial` or worse and
+the `directive` specified a cost, check whether a `pc_condition_add` was
+extracted on that turn or the immediately following turn. A partial success with
+no cost extracted and no condition added is a soft failure of the consequence
+system.
+
+**gm_beat influence:** When a `gm_beat` was emitted (check the scene extract
+output for a non-null `gm_beat.instruction`), verify that the *next* turn's
+narration shows observable influence from it — a complication surfaced, a
+revelation revealed, an opportunity created, or breathing room given. A
+`gm_beat` that fires but produces no downstream narrative effect is a mechanic
+that is working structurally but failing functionally.
+
+Score based on the proportion of rolls where all four checks above pass. A run
+with no rolls scores this criterion N/A and should be noted.
 
 
 ### narrative_compellingness
 Was the overall story compelling enough to keep playing? Did choices matter?
-
-
-### genre_and_universe_fit
-Did the story respect the established genre, tone, and world-building?
 
 
 ### npc_development
@@ -198,8 +216,14 @@ redirecting or reinterpreting it?
 
 ### consequence_persistence
 Did the consequences of rolls — especially failures and partials — carry forward
-meaningfully into subsequent turns, or were they quietly forgotten? Score based
-on the session as a whole, not just the turn the consequence occurred on.
+into subsequent turns? Anchor this to mechanics: check whether `pc_condition`
+entries added on a cost turn are still present in the state snapshot 2–3 turns
+later (or were explicitly removed with a corresponding narrative justification).
+Check whether `scene_pressure` entries added as a result of a failure escalate
+correctly per the engine's urgency thresholds (`background` → `building` →
+`immediate`) rather than sitting inert. A condition that silently disappears or a
+pressure that never escalates is a persistence failure. Score the session as a
+whole.
 
 
 ### pacing_and_pressure
@@ -207,13 +231,22 @@ Combined score, internally weighted 60% pressure_mechanics (objective —
 escalation, expiry, urgency reflected in narration) + 40% narrative_pacing
 (subjective — breathing room, momentum tone, arc satisfaction).
 
+For the pressure_mechanics component, check: did `scene_pressure` entries with
+`urgency: immediate` produce visibly higher-stakes narration on those turns? Did
+`urgency: building` pressures appear in the narration as background tension
+before escalating? Did expired pressures (`max_turns` elapsed) disappear from
+state? Cite specific pressure IDs and turns.
+
 
 ### momentum_arc
 Did the pressure and momentum system produce a felt dramatic shape across the
 session — rising tension toward a peak, followed by resolution or a meaningful
-cliffhanger? Score the session-level shape, not individual turn pacing. A score
-of 1 means the session felt flat or arbitrarily paced regardless of per-turn
-mechanics.
+cliffhanger? For the mechanical component: plot `pc.momentum` across all turns
+from the state snapshots and describe whether the arc had a clear shape (rising,
+peaking, resolving) or was flat/erratic. A momentum field that barely moves
+across 10 turns, or oscillates randomly with no narrative correlation, is a
+score of 1–2 regardless of whether individual turns felt tense. Score the
+session-level shape, not individual turn pacing.
 
 
 ---
@@ -255,31 +288,59 @@ each capability listed:
 etc.). The seed state has `"turn": 0` but the first game turn is "Turn 1".
 All turn references below are 1-indexed as they appear in the trace.
 
+
 **How `window_turns` works:** `window_turns` controls how many of the most
 recent turns are kept uncompressed in `chronicle.md`. Everything older is
 compacted into summary bullets. With `window_turns=3`:
-- At T6: turns 1–3 are compacted into bullets, turns 4–6 are kept as recent
+- After T6: turns 1–3 are compacted into bullets, turns 4–6 are kept as recent
   narrative. Expect **3 bullets covering T1–T3**.
 - At T12: turns 7–11 are compacted into bullets, turns 9–12 are kept as
   recent narrative. Expect **5 additional bullets covering T7–T11**.
 - The engine always retains the 3 most recent turns as full narrative plus
   all compacted bullets for older turns.
 
+
 **Expectations for typical eval runs:** Most eval runs are 10 turns. With
 `compact_every=6` the compactor fires at T6 only (T12 is beyond the run).
-At T6 you should see **3 bullets covering T1–T3** and turns 4–6 kept as
+In T7 (it runs between 6 and 7) you should see **3 bullets covering T1–T3** and turns 4–6 kept as
 recent narrative. This is correct behavior. Do not penalize the engine for
 not compacting at T7–T10 — the compactor only fires at multiples of
 `compact_every`. Do not penalize for having only 3 bullets — that is the
 expected output for a 10-turn run.
 
 
+**What correct compaction output looks like:** When the compactor fires at T6,
+evaluate all three of the following:
+
+1. **Narrative bullets:** T1–T3 should be represented as concise summary
+   bullets in `chronicle.md`. Each bullet must faithfully represent the key
+   event or player action of that turn. A bullet that misrepresents, inverts, or
+   omits a named entity (NPC name, item name, location name, quest ID) from the
+   turn it covers is a compaction failure. A bullet that is generic enough to
+   apply to any turn ("the player took an action") is also a failure.
+
+2. **recent_events deduplication:** After compaction, `scene.recent_events`
+   should not contain events whose content is already covered by a compaction
+   bullet. The compactor is expected to consolidate overlapping `recent_events`
+   entries into fewer, denser records via `recent_events_compact`. Check the
+   applied sanitization in the Deterministic Signals block: if
+   `recent_events_compact` is empty but `recent_events` contains 5+ entries
+   spanning T1–T3, that is a deduplication miss.
+
+3. **Stale state sanitization:** The compaction pass should close completed or
+   failed quests, remove resolved conditions, and remove expired pressures from
+   state. Check the `CompactorSanitizationResult` fields (`quest_close`,
+   `condition_remove`, `pressure_remove`, `inventory_remove`) against the state
+   snapshot at T6. Any obviously stale entry — a quest that was narratively
+   resolved but not closed, a condition that expired narratively but persists in
+   state — is a sanitization miss.
+
+
 If compaction did not fire (run was too short), state that and skip the per-
 capability evaluation for this run.
 
 
-If compaction fired but produced low-quality bullets (e.g. bullets that
-misrepresent turn content, omit critical state changes, or hallucinate events),
+If compaction fired but produced low-quality bullets (per criteria 1 above),
 score the `extract_progress` pipeline lower in Section 1.
 
 
@@ -369,108 +430,81 @@ pipeline_scores:
 
 Then produce the full markdown body using this structure:
 
+Table of Contents
 
-```
-# Table of Contents
 <list all sections below with relative path hyperlinks>
-ie [Verdict](#verdict)
+ie Verdict
+Mechanical Design Critique
+Pipeline: rules
 
-
-# Mechanical Design Critique
-
-
-## Pipeline: rules
 ... <subsections from Section 1> ...
+Pipeline: narrate
 
-
-## Pipeline: narrate
 ...
+Pipeline: extract_scene
 
-
-## Pipeline: extract_scene
 ...
+Pipeline: extract_state
 
-
-## Pipeline: extract_state
 ...
+Pipeline: extract_progress
 
-
-## Pipeline: extract_progress
 ...
+Storytelling Design Critique
+Criterion: quest_arc_quality
 
-
-# Storytelling Design Critique
-
-
-## Criterion: quest_arc_quality
-**Score:** <1-5>
+Score: <1-5>
 <two or more sentences with turn citations>
+Criterion: rewards_and_consequences
 
+Score: <1-5>
+<structured per-roll breakdown: band, directive honored, momentum delta, condition extracted, gm_beat downstream effect>
+Criterion: narrative_compellingness
 
-## Criterion: rewards_and_consequences
 ...
+Criterion: npc_development
 
-
-## Criterion: narrative_compellingness
 ...
+Criterion: world_consistency
 
-
-## Criterion: genre_and_universe_fit
-...
-
-
-## Criterion: npc_development
-...
-
-
-## Criterion: world_consistency
-**Score:** <1-5>
+Score: <1-5>
 <two or more sentences with turn citations>
+Criterion: player_agency
 
-
-## Criterion: player_agency
 ...
+Criterion: consequence_persistence
 
+Score: <1-5>
+<condition persistence check + scene_pressure escalation check with turn citations>
+Criterion: pacing_and_pressure
 
-## Criterion: consequence_persistence
-**Score:** <1-5>
-<two or more sentences with turn citations>
-
-
-## Criterion: pacing_and_pressure
 ...
+Criterion: momentum_arc
 
+Score: <1-5>
+<momentum value plot across turns + arc shape assessment>
+Prompt Redundancy Analysis
 
-## Criterion: momentum_arc
-**Score:** <1-5>
-<two or more sentences with turn citations>
-
-
-# Prompt Redundancy Analysis
 ...
+Compaction Capabilities Report
 
-
-# Compaction Capabilities Report
 ...
+Auto-Checker Failures
 
-
-# Auto-Checker Failures
 ...
+Additional Observations
 
-
-# Additional Observations
 ...
+Verdict
 
+...
+Actionable Issues and Remediations
+Major
 
-# Verdict
 ...
+Minor
 
+...
+Trivial
 
-# Actionable Issues and Remediations
-## Major
 ...
-## Minor
-...
-## Trivial
-...
-```

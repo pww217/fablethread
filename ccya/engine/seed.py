@@ -45,12 +45,23 @@ def _sanitize_envelope(envelope: SeedEnvelope) -> SeedEnvelope:
         npc["bio"] = _strip_non_ascii(npc.get("bio", ""))
         npc["notes"] = _strip_non_ascii(npc.get("notes", ""))
     for npc_id, npc_data in envelope.seed_state.compendium.npcs.items():
-        npc_data.name = _strip_non_ascii(npc_data.name)
+        if npc_data.name is not None:
+            npc_data.name = _strip_non_ascii(npc_data.name)
         npc_data.title = _strip_non_ascii(npc_data.title or "")
         npc_data.bio = _strip_non_ascii(npc_data.bio or "")
     envelope.opening_narrative = _strip_non_ascii(envelope.opening_narrative)
     envelope.actions = [_strip_non_ascii(a) for a in envelope.actions]
     return envelope
+
+
+def _validate_seed_envelope(envelope: SeedEnvelope) -> None:
+    """Raise ValueError if seed envelope violates hard constraints."""
+    name_parts = envelope.seed_state.pc.name.strip().split()
+    if len(name_parts) < 2:
+        raise ValueError(
+            f"PC name '{envelope.seed_state.pc.name}' must include a given name and family name. "
+            "Re-generate or provide a full name."
+        )
 
 
 _log = logging.getLogger("ccya.engine")
@@ -209,6 +220,7 @@ async def generate_seed(
                 }
             envelope = SeedEnvelope(**j)
             envelope = _sanitize_envelope(envelope)
+            _validate_seed_envelope(envelope)
         except Exception as exc:
             parse_error = str(exc)
             _log.warning(

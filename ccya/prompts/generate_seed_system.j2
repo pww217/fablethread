@@ -51,12 +51,54 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
 ```
 
 ## Field guidance
+- `pc.name`: Full name with a **given name and family name** (e.g. "Mira Sovak", "Dren Calloway"). Single-word names are not permitted. The name must fit the world's cultural tone.
 - `pc.stats`: six integer values, range 1–4, total 12–18.
 - `pc.tagline`: 5–10 words — role + defining trait (e.g. "Structural engineer, nine months sober").
 - `pc.bio`: 2–4 sentences — pre-event history, what shaped this person, what they want now.
 - `scene.world_state`: exactly 3 consolidated global facts — political, economic, infrastructural reality the player would know from living in this setting. Immutable for the entire game. Don't make a separate fact per faction or vocabulary word — consolidate.
-- `scene.recent_events`: exactly 5 local facts — specific to this location, these NPCs, this week. Mutable. Each substantial and consequential. Each fact is a plain string — do NOT include category labels or prefixes. Pick distinct categories (one per fact, no two paraphrasing the same truth): faction/power, recent event, infrastructure/resource, local history, key relationships, most recent player action.
-- `inventory`: starting items appropriate to PC and scenario. Ranged weapons require a separate ammo stack with a believable starting `amount` (e.g. `{"id": "9mm_rounds", "name": "9mm rounds", "amount": 12}`). Ammo amount is the single source of truth — never put loaded counts in the weapon's `notes`. Melee/single-shot thrown items are exempt. No exotic/legendary weapons at start.
-- `opening_narrative`: second person, present tense. Do NOT structure this as a biography paragraph → situation paragraph → scene paragraph. Instead: start mid-scene with specific sensory detail that places the player in a moment already in progress. Weave in who the character is through what they are doing, what they are carrying, and what they are thinking — not through summary. Let the quest tension surface through what the player observes rather than what the narrator announces. NPCs should appear in action, not be introduced. The opening should feel like chapter two, not a prologue. Bold NPC names on first introduction. Bold inventory item names on first use. {{ c.prose_word_range[0] }}–{{ c.prose_word_range[1] }} words.
-- `actions`: 4 distinct meaningful choices (7-10 words each), valid given the opening situation, each leading in a different direction, 2 related to quest, one to an NPC.
-- `present_npcs`: exactly 2 NPCs that appear in the opening scene — {id: snake_case, name, title, notes: current attitude/situation, bio: durable identity}. These are the characters the player meets immediately.
+
+## world_state — Hard Constraints Only
+`world_state` is a list of **immutable hard constraints** that govern what is physically, legally, or politically possible in this world.
+
+Rules:
+- Each entry states a constraint that will *directly affect gameplay choices*: border closures, active martial law, banned technologies, faction blockades, economic collapse.
+- No historical backstory older than 1 generation unless it is an active hard constraint right now.
+- No flavor lore, legends, myths, or distant history — those belong in prose, not world_state.
+- Maximum 5 entries. Each is one sentence.
+- BAD: "The old empire fell three centuries ago and its ruins dot the landscape."
+- GOOD: "Travel between the Northern and Southern districts requires a valid faction pass."
+
+## recent_events — Immediate Pre-Story Context
+`recent_events` are things that happened in the last few days or weeks, visible to anyone paying attention on the street.
+
+Rules:
+- Must be immediately relevant to the opening scene or the PC's situation.
+- Must NOT telegraph, echo, or foreshadow any gm_beat. The player should learn of gm_beat content through play, not world setup.
+- Maximum 4 entries. Each is one sentence in past tense.
+- BAD: "A mysterious figure was seen entering the Governor's mansion last night." (telegraphs a gm_beat)
+- GOOD: "A dockworkers' strike has slowed cargo movement across the port for three days."
+
+## inventory — Starter Inventory Rules
+- Generate 3–6 starting items appropriate to the opening scene.
+- **At least 2 items must be directly tied to the PC's strongest skills** (the top 2 by value in the stats block above).
+  Example: if the PC's top skills are `firearms` and `stealth`, starter items must include a sidearm/ammo AND a concealable tool (suppressor, dark clothing, lockpick).
+- Ranged weapons require a separate ammo stack with a believable starting `amount` (e.g. `{"id": "9mm_rounds", "name": "9mm rounds", "amount": 12}`). Ammo amount is the single source of truth — never put loaded counts in the weapon's `notes`. Melee/single-shot thrown items are exempt.
+- Do not add items for skills the PC has no investment in.
+- Quantities must be realistic and not overpowered for turn 1.
+- No exotic/legendary weapons at start.
+
+## opening_narrative
+Second person, present tense. Do NOT structure this as a biography paragraph → situation paragraph → scene paragraph. Instead: start mid-scene with specific sensory detail that places the player in a moment already in progress. Weave in who the character is through what they are doing, what they are carrying, and what they are thinking — not through summary. Let the quest tension surface through what the player observes rather than what the narrator announces. NPCs should appear in action, not be introduced. The opening should feel like chapter two, not a prologue. Bold NPC names on first introduction. Bold inventory item names on first use. {{ c.prose_word_range[0] }}–{{ c.prose_word_range[1] }} words.
+
+## actions
+4 distinct meaningful choices (7-10 words each), valid given the opening situation, each leading in a different direction, 2 related to quest, one to an NPC.
+
+## present_npcs
+Exactly 2 NPCs that appear in the opening scene — {id: snake_case, name, title, notes: current attitude/situation, bio: durable identity}. These are the characters the player meets immediately.
+
+## Quest Design Constraint
+The initial quest must be **completable within 10 player turns** under competent play.
+- Objectives must be concrete and local: find X, reach Y, deliver Z, kill or confront W.
+- No objective should require world travel, large-scale faction politics, or information chains longer than 2 steps.
+- Sub-objectives (if any) should each be resolvable in 1–2 turns.
+- Longer story arcs belong in gm_beats, not the initial quest.

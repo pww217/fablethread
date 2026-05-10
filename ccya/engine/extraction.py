@@ -590,6 +590,41 @@ async def _run_extraction_pipeline(
         )
     scene_result = scene_result.model_copy(update={"compendium_npc_update": deduped_compendium})
 
+    # --- Dedup npc_add against compendium ---
+    if existing_npcs:
+        deduped_adds: list[Any] = []
+        for npc in (scene_result.npc_add or []):
+            npc_name = getattr(npc, "name", None) if hasattr(npc, "name") else npc.get("name", "") if isinstance(npc, dict) else ""
+            if npc_name:
+                candidate = npc_name.strip().lower()
+                for existing in existing_npcs:
+                    existing_names = [
+                        (existing.get("name") or "").lower(),
+                        (existing.get("id") or "").lower().replace("_", " "),
+                    ] + [(a or "").lower() for a in (existing.get("aliases") or [])]
+                    if candidate in existing_names:
+                        _log.debug(
+                            "extraction.dedup: npc_add %r matches compendium %r, redirecting to update",
+                            npc_name,
+                            existing.get("id"),
+                            extra={"turn": turn_no, "trace_id": trace_id},
+                        )
+                        notes = getattr(npc, "notes", None) if hasattr(npc, "notes") else npc.get("notes", "") if isinstance(npc, dict) else ""
+                        if notes:
+                            scene_result = scene_result.model_copy(
+                                update={
+                                    "npc_update": (scene_result.npc_update or []) + [
+                                        {"id": str(existing["id"]), "notes": notes}
+                                    ]
+                                }
+                            )
+                        break
+                else:
+                    deduped_adds.append(npc)
+                continue
+            deduped_adds.append(npc)
+        scene_result = scene_result.model_copy(update={"npc_add": deduped_adds})
+
     # --- Capitalize inventory item names ---
     _capitalize_inventory_names(state_result.inventory_add)
     _capitalize_inventory_names(state_result.inventory_update)
