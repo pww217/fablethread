@@ -11,133 +11,116 @@
 {% include "sections/_inventory.j2" %}
 ## Quests
 {% include "sections/_quests.j2" %}
-{% if state.scene.world_state -%}
+
 <<<TRACE_IMMUTABLE_START>>>
-## World State (immutable)
+## Immutable Reference
+{% if state.scene.world_state -%}
+### World State
 {% include "sections/_world_state.j2" %}
-<<<TRACE_IMMUTABLE_END>>>
-{% endif -%}
-{% if state.scene.scene_pressure -%}
-## ACTIVE THREATS (must be reflected in narration)
-{% for p in state.scene.scene_pressure %}- [{{ p.urgency | upper }}] {{ p.text }}
-{% endfor -%}
-{% endif -%}
-{% if state.scene.recent_events -%}
-## Recent Events
-{% include "sections/_recent_events.j2" %}
-{% endif -%}
-{% if chronicle_tail and chronicle_tail.strip() -%}
-## Prior History (summarized — treat as background, not current scene)
-{% include "sections/_chronicle.j2" %}
-{% endif -%}
-{% if recent_turns -%}
-## Recent Turns (most recent last — these are done, not current)
-{% include "sections/_recent.j2" %}
-{% endif -%}
-{% if rules_outcome and rules_outcome.rolled -%}
-## rules_outcome (BINDING — narrate this result; do NOT invert)
-{{ rules_outcome.skill | capitalize }} ({{ rules_outcome.stat_value }}) | Difficulty: {{ rules_outcome.difficulty }}
-Roll: {{ rules_outcome.dice | join(' + ') }}{% if rules_outcome.stat_mod != 0 %} {% if rules_outcome.stat_mod > 0 %}+{% endif %}{{ rules_outcome.stat_mod }} (stat){% endif %}{% if rules_outcome.diff_mod != 0 %} {% if rules_outcome.diff_mod > 0 %}+{% endif %}{{ rules_outcome.diff_mod }} (diff){% endif %}{% if rules_outcome.cond_mod != 0 %} {% if rules_outcome.cond_mod > 0 %}+{% endif %}{{ rules_outcome.cond_mod }} (cond){% endif %} = {{ rules_outcome.final_total }} → {{ rules_outcome.band | upper | replace('_', ' ') }}
-Directive: {{ rules_outcome.directive }}
-
-{% endif -%}
-{% set m = momentum | default(0) -%}
-{% if m >= 2 -%}
-## momentum (engine-computed, advisory only)
-MOMENTUM: HIGH (+{{ m }}). The player is on a strong run. Consider raising the stakes...
-
-{% elif m <= -2 -%}
-## momentum (engine-computed, advisory only)
-MOMENTUM: LOW ({{ m }}). The player has been struggling. Unless the fiction demands
-punishment, offer a small break...
-
-{% endif -%}
-{% if pending_gm_beat and pending_gm_beat.type -%}
-GM DIRECTION ({{ pending_gm_beat.type | upper }}, surface as {{ pending_gm_beat.surface_as }}):
-{{ pending_gm_beat.instruction }}
-This is a backstage instruction, not player-visible narration. Integrate it naturally.
-
-{% endif -%}
-## Narration Directive
-
-{% if rules_outcome and rules_outcome.rolled %}
-{% if rules_outcome.band in ("crit_success", "success") %}
-RESOLUTION: The action lands. Deliver the outcome clearly — one physical, concrete consequence.
-{% if deescalate %}
-BREATHE: A pressure has resolved. Pull back. Let the scene have a moment of relief. No new hook this turn. Show the aftermath, not the next crisis.
-{% endif %}
-{% elif rules_outcome.band == "partial" %}
-COMPLICATION: Partial success. They got something; something else got worse. One new wrinkle — not a catastrophe.
-{% elif rules_outcome.band in ("fail", "crit_fail") %}
-CONSEQUENCE: The action failed. One cost. Don't pile on. If crit_fail, the cost is severe — injury, loss, exposure.
-{% endif %}
-{% else %}
-NARRATE: No roll was required. Describe what happens with appropriate weight for the moment.
-{% endif %}
-
-{% if scene_pressure and not deescalate %}
-{% set immediate_count = scene_pressure | selectattr("urgency", "equalto", "immediate") | list | length %}
-{% if immediate_count >= 3 %}
-OVERWHELM: Multiple immediate threats. Focus on the most pressing one. Don't try to address everything at once — the player can't either.
-{% elif immediate_count > 0 %}
-PRESSURE: Active immediate threat(s). Keep them present and felt.
-{% else %}
-{% set building_count = scene_pressure | selectattr("urgency", "equalto", "building") | list | length %}
-{% if building_count > 0 %}
-TENSION: Danger is building — show it in the environment and character behavior, not in explicit new threats.
-{% endif %}
-{% endif %}
-{% endif %}
-
-{% if ages and ages.get('combat_age', 0) >= 3 -%}
-COMBAT FATIGUE: This fight has run {{ ages.combat_age }} turns. Bring it to a decisive close — one side prevails, flees, or is incapacitated. Do not extend it.
-{% endif -%}
-
-{% if ages and ages.get('location_age', 0) >= 6 -%}
-LOCATION IMPERATIVE: The party has been here {{ ages.location_age }} turns. Begin steering toward a natural exit — pursuit, a new goal elsewhere, or the scene resolving into transit.
-{% elif ages and ages.get('location_age', 0) >= 4 -%}
-LOCATION HINT: {{ ages.location_age }} turns in this location. If a natural opening to move on presents itself, take it.
-{% endif -%}
-{% if known_npcs -%}
-## Known Characters
-Before introducing anyone new, check this list. Re-use characters when they could plausibly be present.
-{% for n in known_npcs %}- **{{ n.name }}**{% if n.last_seen %} — last seen {{ n.last_seen.location_name }}{% if n.last_seen.last_seen_state %}: {{ n.last_seen.last_seen_state }}{% endif %}{% endif %}
-{% endfor -%}
-{% endif -%}
-{% if present_npcs -%}
-## NPCs Present in Scene
-{% for n in present_npcs %}- {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}
-{% endfor -%}
-{% endif -%}
-{% if compendium_bios -%}
-## Compendium Bios (rich identity data for NPCs you interact with)
-{% for b in compendium_bios %}- **{{ b.name }}** ({{ b.title }}) — {{ b.bio }}
-{% endfor -%}
 {% endif -%}
 {% if world_factions -%}
-<<<TRACE_IMMUTABLE_START>>>
-## Known Factions
+### Known Factions
 {% for f in world_factions %}- **{{ f.name }}** ({{ f.alignment }}){% if f.alignment == "friendly" and pc_allegiance == f.id %} — your faction{% endif %}
 {% endfor -%}
-<<<TRACE_IMMUTABLE_END>>>
-{% endif -%}
-{% if world_locations and ages and ages.get('location_age', 0) >= 3 -%}
-<<<TRACE_IMMUTABLE_START>>>
-## Nearby Locations (use when steering the player toward a new area)
-{% for loc in world_locations %}- {{ loc.name }}
-{% endfor -%}
-<<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
 {% if npc_name_pool -%}
-<<<TRACE_IMMUTABLE_START>>>
-## name_pool (use one of these when introducing a new named NPC)
+### Name Pool
 {% if npc_name_pool.male -%}
 **Male:** {{ npc_name_pool.male | join(' · ') }}
 {% endif %}{% if npc_name_pool.female -%}
 **Female:** {{ npc_name_pool.female | join(' · ') }}
 {% endif %}
-<<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
+<<<TRACE_IMMUTABLE_END>>>
+
+## Scene Context
+{% if state.scene.scene_pressure -%}
+### Active Threats
+{% for p in state.scene.scene_pressure %}- [{{ p.urgency | upper }}] {{ p.text }}
+{% endfor -%}
+{% endif -%}
+{% if known_npcs -%}
+### Known Characters
+Before introducing anyone new, check this list. Re-use characters when they could plausibly be present.
+{% for n in known_npcs %}- **{{ n.name }}**{% if n.last_seen %} — last seen {{ n.last_seen.location_name }}{% if n.last_seen.last_seen_state %}: {{ n.last_seen.last_seen_state }}{% endif %}{% endif %}
+{% endfor -%}
+{% endif -%}
+{% if present_npcs -%}
+### NPCs Present in Scene
+{% for n in present_npcs %}- {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}
+{% endfor -%}
+{% endif -%}
+{% if compendium_bios -%}
+### Compendium Bios
+{% for b in compendium_bios %}- **{{ b.name }}** ({{ b.title }}) — {{ b.bio }}
+{% endfor -%}
+{% endif -%}
+{% if world_locations and ages and ages.get('location_age', 0) >= 3 -%}
+### Nearby Locations
+{% for loc in world_locations %}- {{ loc.name }}
+{% endfor -%}
+{% endif -%}
+
+## Recent History
+{% if recent_turns -%}
+{% for t in recent_turns -%}
+T{{ t.turn }}: {{ t.narrative }}
+{% endfor -%}
+{% endif -%}
+{% if chronicle_tail and chronicle_tail.strip() -%}
+{{ chronicle_tail }}
+{% endif -%}
+
+## This Turn's Result
+{% if rules_outcome and rules_outcome.rolled -%}
+**Band:** {{ rules_outcome.band | upper | replace('_', ' ') }} → {{ rules_outcome.directive }}
+{% elif rules_outcome and not rules_outcome.rolled -%}
+**No roll required.** Describe what happens with appropriate weight for the moment.
+{% endif -%}
+{% if pending_gm_beat and pending_gm_beat.type -%}
+
+**GM Beat:** {{ pending_gm_beat.instruction }}
+Surface as {{ pending_gm_beat.surface_as }}. This is backstage direction — integrate it naturally, not as player-visible narration.
+{% endif -%}
+{% set m = momentum | default(0) -%}
+{% if m >= 2 -%}
+
+**Momentum:** HIGH (+{{ m }}). The player is on a strong run. Consider raising the stakes.
+{% elif m <= -2 -%}
+
+**Momentum:** LOW ({{ m }}). The player has been struggling. Unless the fiction demands punishment, offer a small break.
+{% endif -%}
+{% if deescalate -%}
+
+**Breathe:** A pressure has resolved. Pull back. Let the scene have a moment of relief. No new hook this turn.
+{% elif scene_pressure and not deescalate %}
+{% set immediate_count = scene_pressure | selectattr("urgency", "equalto", "immediate") | list | length %}
+{% if immediate_count >= 3 -%}
+
+**Overwhelm:** Multiple immediate threats. Focus on the most pressing one. Don't try to address everything at once.
+{% elif immediate_count > 0 -%}
+
+**Pressure:** Active immediate threat(s). Keep them present and felt.
+{% else -%}
+{% set building_count = scene_pressure | selectattr("urgency", "equalto", "building") | list | length %}
+{% if building_count > 0 -%}
+
+**Tension:** Danger is building — show it in the environment and character behavior, not in explicit new threats.
+{% endif -%}
+{% endif -%}
+{% endif -%}
+{% if ages and ages.get('combat_age', 0) >= 3 -%}
+
+**Combat Fatigue:** This fight has run {{ ages.combat_age }} turns. Bring it to a decisive close — one side prevails, flees, or is incapacitated.
+{% endif -%}
+{% if ages and ages.get('location_age', 0) >= 6 -%}
+
+**Location Imperative:** The party has been here {{ ages.location_age }} turns. Begin steering toward a natural exit.
+{% elif ages and ages.get('location_age', 0) >= 4 -%}
+
+**Location Hint:** {{ ages.location_age }} turns here. If a natural opening to move on presents itself, take it.
+{% endif -%}
+
 ## Current Turn: {{ meta.get('turn', '?') if meta is mapping else '?' }}
 === PLAYER INPUT ===
 {{ user_input }}

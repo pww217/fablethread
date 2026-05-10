@@ -57,19 +57,15 @@ Read the current stack from the user prompt before emitting `amount`. Never emit
 
 `pc_condition_add`: new conditions with a clear, substantial cause in narration. Default to not adding for minor effects. Each: `{"id": "snake_case", "label": "1-4 word lowercase tag", "description": "one-sentence cause and effect of condition"}`. Don't duplicate by id. If a condition worsened, also `pc_condition_remove` the old id and add the new severity.
 
-## Condition guidance — use roll context
+## Condition guidance
 
-Positive conditions are only added for significant changes in player state that have practical application given the narrative.
+Add conditions only for significant changes in player state that have practical application given the narrative. Infer from the narration:
 
-The roll_context section above shows which skill was checked and the outcome band. Use this as the primary signal for condition decisions:
-
-- Failed/setback `strength` or `dexterity` during combat verb → consider `wounded`, `bleeding`
-- Failed/setback `resolve` → consider `shaken`
-- Failed/setback `wits` under pressure → consider `frightened` or `drugged` (if substance involved)
-- Failed/setback `strength`/`dexterity`/`resolve` with sustained effort → consider `exhausted`
+- Combat failure with `strength` or `dexterity` verbs → consider `wounded`, `bleeding`
+- Failed `resolve` → consider `shaken`
+- Failed `wits` under pressure → consider `frightened` or `drugged` (if substance involved)
+- Failed `strength`/`dexterity`/`resolve` with sustained effort → consider `exhausted`
 - Do NOT add negative conditions on a clean success or crit_success
-
-The narration text confirms the cause, but the roll context triggers the condition type.
 
 `pc_condition_remove`: conditions that resolved this turn. Each: `{"id": "existing_condition_id"}`. Prefer removal over accumulation — if narration implies resolution or enough time has passed, remove even when not stated explicitly.
 

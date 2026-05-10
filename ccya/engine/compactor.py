@@ -173,7 +173,6 @@ def _build_compact_messages(
     active_quests = [
         q for q in (state.get("quests") or []) if q.get("status") == "active"
     ]
-    present_npcs = state.get("scene", {}).get("present_npcs") or []
     pressures = state.get("scene", {}).get("scene_pressure") or []
     inventory = list(state.get("inventory") or [])
     _npcs_raw = (state.get("compendium") or {}).get("npcs") or {}
@@ -185,7 +184,6 @@ def _build_compact_messages(
     user_prompt = env.get_template("compact_user.j2").render(
         turns=turns,
         active_quests=active_quests,
-        npc_names=[n.get("name", n) if isinstance(n, dict) else n for n in present_npcs],
         pressures=pressures,
         inventory=inventory,
         compendium_npcs=compendium_npcs,

@@ -172,7 +172,7 @@ class TestJinjaRender:
         text = env.get_template("narrate_user.j2").render(**ctx)
         assert "Yuki Tanaka" in text
         assert "Fatima Al-Rashid" in text
-        assert "name_pool" in text
+        assert "Name Pool" in text
 
     def test_narrate_system_byte_stable_without_per_turn_data(self):
         """Narrate system prompt must not contain per-turn NPC names or pools."""
