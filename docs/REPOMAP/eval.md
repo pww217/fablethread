@@ -78,9 +78,6 @@ pipeline_scores:
 # State Evolution Trace
 ## State Coherence, State Drift, State Completeness
 
-# Actionable Issues Surfaced
-## Major, Minor, Trivial
-
 # Mechanical Design Critique
 ## Pipeline: rules, narrate, extract_scene, extract_state, extract_progress
 
@@ -101,6 +98,9 @@ pipeline_scores:
 
 # Verdict
 ## Mechanical Integrity, Narrative Quality, System Cohesion, Pipeline I/O Relevance, Regression & Known Issues, Key Findings
+
+# Actionable Issues Surfaced
+## Major, Minor, Trivial
 
 # Additional Observations
 ...
