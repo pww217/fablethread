@@ -1,7 +1,7 @@
 # Extraction Stream Remediation
 
 ## Status
-`open`
+`completed`
 
 ## Part of
 Standalone
