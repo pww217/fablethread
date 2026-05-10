@@ -89,6 +89,29 @@ and full state snapshot (or diff vs prev turn).
 ---
 
 
+## Extractor ownership reference
+
+Before scoring any pipeline, note the correct ownership of narrative mechanics:
+
+- **`gm_beat`** — emitted by **extract_progress** only. If you see it in the
+  extract_scene output, that is a misplacement.
+- **`scene_pressure_add`** — emitted by **extract_progress** only. New pressures
+  come from story causality (failed roll consequences, offscreen NPC actions,
+  quest deadlines triggering).
+- **`scene_pressure_update` / `scene_pressure_remove`** — emitted by
+  **extract_scene** only. The scene extractor observes and resolves existing
+  pressures; it does not create new ones.
+- **`beat_disposition`** — emitted by **extract_progress** only. Controls whether
+  the current `pending_gm_beat` is consumed (default), carried forward, or
+  replaced by a new beat.
+
+Use this reference when evaluating Mechanic Placement subsections and
+storytelling criteria below.
+
+
+---
+
+
 ## Section 1: Mechanical Design Critique (PRIMARY — weighted 2x)
 
 
@@ -112,14 +135,14 @@ Signals section to focus on confirmed cross-stream duplication.
 
 ### Mechanic Placement
 **Required.** For each mechanic this pipeline emits, ask:
-- Is this in the right pipeline per the ENGINE DESIGN REFERENCE? (e.g.
-  `gm_beat` is documented to live in scene; if you see it being emitted by
-  progress, that's misplacement.)
+- Is this in the right pipeline per the ENGINE DESIGN REFERENCE and the
+  Extractor ownership reference above? (e.g. `gm_beat` correctly lives in
+  **progress**; if you see it being emitted by scene, that is a misplacement.)
 - Would this mechanic produce better results if surfaced earlier (e.g. before
   narration) or later (e.g. as a delta post-validate)?
 - Should this mechanic's input source be different? (e.g. should the state
   extractor receive `recent_events` to dedupe condition IDs against prior
-  turns?)\
+  turns?)
 
 If you find a misplaced mechanic, write a clear remediation: which pipeline it
 belongs in, what data flow needs to change.
@@ -182,10 +205,10 @@ extracted on that turn or the immediately following turn. A partial success with
 no cost extracted and no condition added is a soft failure of the consequence
 system.
 
-**gm_beat influence:** When a `gm_beat` was emitted (check the scene extract
-output for a non-null `gm_beat.instruction`), verify that the *next* turn's
-narration shows observable influence from it — a complication surfaced, a
-revelation revealed, an opportunity created, or breathing room given. A
+**gm_beat influence:** When a `gm_beat` was emitted (check the **progress
+extract output** for a non-null `gm_beat.instruction`), verify that the *next*
+turn's narration shows observable influence from it — a complication surfaced,
+a revelation revealed, an opportunity created, or breathing room given. A
 `gm_beat` that fires but produces no downstream narrative effect is a mechanic
 that is working structurally but failing functionally.
 
@@ -219,11 +242,19 @@ Did the consequences of rolls — especially failures and partials — carry for
 into subsequent turns? Anchor this to mechanics: check whether `pc_condition`
 entries added on a cost turn are still present in the state snapshot 2–3 turns
 later (or were explicitly removed with a corresponding narrative justification).
-Check whether `scene_pressure` entries added as a result of a failure escalate
-correctly per the engine's urgency thresholds (`background` → `building` →
-`immediate`) rather than sitting inert. A condition that silently disappears or a
-pressure that never escalates is a persistence failure. Score the session as a
-whole.
+
+Check whether `scene_pressure` entries escalate correctly per the engine's
+urgency thresholds (`background` → `building` → `immediate`) rather than
+sitting inert. **New pressures are added via `scene_pressure_add` in the
+extract_progress output** (from story causality: failed roll consequences,
+offscreen NPC actions, quest deadlines). **Mutations to existing pressures**
+(urgency escalation, `turns_remaining` decrements, removal) appear in the
+extract_scene output. When checking persistence, verify both streams: that
+progress correctly added a pressure after a consequential failure, and that
+scene correctly escalated or removed it in subsequent turns.
+
+A condition that silently disappears or a pressure that never escalates is a
+persistence failure. Score the session as a whole.
 
 
 ### pacing_and_pressure
@@ -236,6 +267,15 @@ For the pressure_mechanics component, check: did `scene_pressure` entries with
 `urgency: building` pressures appear in the narration as background tension
 before escalating? Did expired pressures (`max_turns` elapsed) disappear from
 state? Cite specific pressure IDs and turns.
+
+**Pressure stream attribution:** New pressures appear in the **extract_progress
+output** (`scene_pressure_add`). Urgency escalations and removals appear in the
+**extract_scene output** (`scene_pressure_update`, `scene_pressure_remove`).
+When evaluating whether the pressure system is functioning, check both streams
+per turn — a pressure that was never added by progress after a failure is an
+extract_progress miss; a pressure that was added but never escalated by scene is
+an extract_scene miss. Score each failure type separately in your notes before
+arriving at the combined score.
 
 
 ### momentum_arc
@@ -492,7 +532,7 @@ Criterion: player_agency
 Criterion: consequence_persistence
 
 Score: <1-5>
-<condition persistence check + scene_pressure escalation check with turn citations>
+<condition persistence check + scene_pressure escalation check with turn citations, split by extract_progress adds vs extract_scene mutations>
 Criterion: pacing_and_pressure
 
 ...
