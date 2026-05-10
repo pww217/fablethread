@@ -143,6 +143,18 @@ See `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remedia
 - [x] **Narrator ignores player input** — Turn 7 narrator outputs stale context instead of processing input — see `[eval-remediation-may10/01-eval-remediation-may10.md](eval-remediation-may10/01-eval-remediation-may10.md) Phase 2`
 - [x] **Currency mapping failure (follow-up)** — state extractor still emits `iron_coins` instead of mapping to `credits` despite earlier fix; strengthened prompt directive needed — see `[eval-remediation-may10/01-eval-remediation-may10.md](eval-remediation-may10/01-eval-remediation-may10.md) Phase 3`
 
+## Eval Rubric Redesign (May 2026)
+
+- [x] **Trace artifact: inject ARCHITECTURE.md EVAL_CONTEXT into trace.md** — `_render_static_context()` now prepends Engine Design Reference section; trace.md is self-contained for debugging — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 7`
+- [x] **Rubric: add Pipeline I/O Relevance to Verdict** — assesses whether each pipeline receives minimal, relevant context; flags excess context as token waste and hallucination vector — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 8`
+- [x] **Docs: update REPOMAP/eval.md and TODO.md** — trace format, judge output format, rubric structure reflected — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 9`
+- [x] **Rubric: add Storytelling Trace section** — Momentum Trace, GM Beat Trace, Scene Pressure Trace, Condition Lifecycle Trace, Quest Arc Trace, Inventory Evolution Trace — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 1`
+- [x] **Rubric: add State Evolution Trace section** — State Coherence, State Drift, State Completeness — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 2`
+- [x] **Rubric: add Cross-Pipeline Correlation section** — Rules→Narrate, Rules→State, Narrate→Scene, Narrate→State, Narrate→Progress, State→Progress, Progress→Narrate — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 3`
+- [x] **Rubric: update Storytelling Design Critique criteria** — removed 6 criteria (momentum_arc, pressure_arc, beat_lifecycle, consequence_persistence, directive_narration_binding, stakes_routing), added 4 new (npc_voice, world_reactivity, failure_arc, scenario_quality), simplified 5 to reference traces — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 4`
+- [x] **Rubric: move and expand Verdict to end** — moved after Auto-Checker Failures, added subheaders (Mechanical Integrity, Narrative Quality, System Cohesion, Pipeline I/O Relevance, Regression & Known Issues, Key Findings) — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 5`
+- [x] **Rubric: update TOC and remove Output Format section** — TOC reflects new 11-section structure, redundant Output Format section deleted — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 6`
+
 ## Standalone
 
 - [ ] **ARCHITECTURE.md audit and correction** — correct Step 0 inputs, remove phantom IntentEnvelope fields, fix extractor ownership for `compendium_npc_update`, complete narrator input list, document `quest_threshold_directive`, all seven scope domains, `band_examples`, `beat_expires_turn`, and scene pressure mutations in `apply_delta` — see [`architecture-doc-audit.md`](architecture-doc-audit.md)

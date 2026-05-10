@@ -154,6 +154,7 @@ def build_trace(
     metrics_rows: list[dict[str, Any]] | None = None,
     redundancy_signals: dict[str, Any] | None = None,
     compaction_signals: dict[str, Any] | None = None,
+    arch_context: str = "",
 ) -> str:
     """Render the full markdown trace sent to the judge as the user message.
 
@@ -174,7 +175,7 @@ def build_trace(
     options = options or TraceOptions()
     metadata, turn_events = _split_metadata(events)
     parts: list[str] = []
-    parts.append(_render_static_context(metadata, turn_events))
+    parts.append(_render_static_context(metadata, turn_events, arch_context))
     prev_snap: dict[str, Any] | None = None
     for i, ev in enumerate(turn_events):
         is_first = (i == 0)
@@ -199,8 +200,8 @@ def _split_metadata(events: list[dict[str, Any]]) -> tuple[dict[str, Any] | None
     return None, list(events)
 
 
-def _render_static_context(metadata: dict[str, Any] | None, turn_events: list[dict[str, Any]]) -> str:
-    """Render: World Pack Style, Seed State, Engine Constants, 5 System Prompts.
+def _render_static_context(metadata: dict[str, Any] | None, turn_events: list[dict[str, Any]], arch_context: str = "") -> str:
+    """Render: Engine Design Reference (optional), World Pack Style, Seed State, Engine Constants, 5 System Prompts.
 
     If metadata is None: render only constants_block().
     System prompts come from turn_events[0]'s rendered_system fields. If turn 1
@@ -208,6 +209,9 @@ def _render_static_context(metadata: dict[str, Any] | None, turn_events: list[di
     has the field populated.
     """
     sections: list[str] = []
+    if arch_context:
+        sections.append("# Engine Design Reference (EVAL_CONTEXT from ARCHITECTURE.md)\n")
+        sections.append(arch_context + "\n")
     if metadata is not None:
         sections.append("# Static Context (immutable across all turns)\n")
         sections.append("## World Pack Style\n")
@@ -607,6 +611,7 @@ async def run_judge_streaming(
         metrics_rows=metrics_rows,
         redundancy_signals=redundancy,
         compaction_signals=compaction,
+        arch_context=arch_context,
     )
 
     trace_md_path = output_dir / f"{scenario_id}.trace.md"
