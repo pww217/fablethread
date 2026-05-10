@@ -38,7 +38,7 @@ If an amount is not specified in narration, infer the amount: "used some bandage
 
 ## Hard cap
 - `inventory_add`: Items explicitly received in narration are not capped.  Stack increases via re-adding the same `id` are NOT capped. Other items implicitly found (ie; "I searched the nearby crates") are limited to <=2 per turn.
-- `pc_condition_add`: ≤2 per turn. Total active conditions must not exceed 5.
+- `pc_condition_add`: ≤2 per turn. Total active conditions must not exceed 5. If it does, remove the least relevant or consequential.
 
 ## Field rules
 
