@@ -9,14 +9,14 @@ pipeline_scores:
   extract_progress: <int 1-5>
 ---
 # Table of Contents
+- [Verdict](#verdict)
+- [Actionable Issues Surfaced](#actionable-issues-surfaced)
 - [Mechanical Design Critique](#mechanical-design-critique)
 - [Storytelling Design Critique](#storytelling-design-critique)
 - [Prompt Redundancy Analysis](#prompt-redundancy-analysis)
 - [Compaction Capabilities Report](#compaction-capabilities-report)
 - [Auto-Checker Failures](#auto-checker-failures)
 - [Additional Observations](#additional-observations)
-- [Verdict](#verdict)
-- [Actionable Issues and Remediations](#actionable-issues-and-remediations)
 
 
 # ccya Eval Judge — Default Rubric
@@ -89,30 +89,35 @@ and full state snapshot (or diff vs prev turn).
 ---
 
 
-## Extractor ownership reference
+## Section 1: Verdict
 
-Before scoring any pipeline, note the correct ownership of narrative mechanics:
 
-- **`gm_beat`** — emitted by **extract_progress** only. If you see it in the
-  extract_scene output, that is a misplacement.
-- **`scene_pressure_add`** — emitted by **extract_progress** only. New pressures
-  come from story causality (failed roll consequences, offscreen NPC actions,
-  quest deadlines triggering).
-- **`scene_pressure_update` / `scene_pressure_remove`** — emitted by
-  **extract_scene** only. The scene extractor observes and resolves existing
-  pressures; it does not create new ones.
-- **`beat_disposition`** — emitted by **extract_progress** only. Controls whether
-  the current `pending_gm_beat` is consumed (default), carried forward, or
-  replaced by a new beat.
-
-Use this reference when evaluating Mechanic Placement subsections and
-storytelling criteria below.
+2-4 sentences. Concrete, specific, actionable. Reference turn numbers. Justify
+why mechanical_score diverges from narrative_score if applicable. End with the
+single most important fix the engine needs.
 
 
 ---
 
 
-## Section 1: Mechanical Design Critique (PRIMARY — weighted 2x)
+## Section 2: Actionable Issues Surfaced
+
+
+A paragraph per issue that arose during this evaluation, and a recommendation
+to fix or resolve it. Place them in appropriate major, minor, trivial categories
+and prefix each with the type of issue: `[Engine]`, `[Prompting]`,
+`[Consistency]`, etc.
+
+Each issue must also carry one of the following mechanical tags where
+applicable: `bad prompt | failed to output key information | failed to input key
+information | messy logic | scope/domain mismatch | schema drift | misplaced
+mechanic | wasted tokens`.
+
+
+---
+
+
+## Section 3: Mechanical Design Critique (PRIMARY — weighted 2x)
 
 
 For EACH of the 5 pipelines (rules, narrate, extract_scene, extract_state,
@@ -135,14 +140,14 @@ Signals section to focus on confirmed cross-stream duplication.
 
 ### Mechanic Placement
 **Required.** For each mechanic this pipeline emits, ask:
-- Is this in the right pipeline per the ENGINE DESIGN REFERENCE and the
-  Extractor ownership reference above? (e.g. `gm_beat` correctly lives in
-  **progress**; if you see it being emitted by scene, that is a misplacement.)
+- Is this in the right pipeline per the ENGINE DESIGN REFERENCE? (e.g.
+  `scene_pressure_add` is documented to live in progress; if you see it being
+  emitted by scene, that's misplacement.)
 - Would this mechanic produce better results if surfaced earlier (e.g. before
   narration) or later (e.g. as a delta post-validate)?
 - Should this mechanic's input source be different? (e.g. should the state
   extractor receive `recent_events` to dedupe condition IDs against prior
-  turns?)
+  turns?)\
 
 Reference table for correct stream ownership:
 
@@ -158,7 +163,8 @@ Reference table for correct stream ownership:
 | `scene_pressure_add` | progress | Flag if emitted by scene |
 | `scene_pressure_remove` | progress | Flag if emitted by scene |
 | `scene_pressure_update` | progress | Flag if emitted by scene; also flag if id not in existing pressure list |
-| `gm_beat` | progress (via meta) | — |
+| `gm_beat` | progress | Flag if emitted by scene |
+| `beat_disposition` | progress | — |
 | `actions`, `outcome_summary` | progress | — |
 
 If you find a misplaced mechanic, write a clear remediation: which pipeline it
@@ -183,7 +189,7 @@ contradictions, misplaced mechanics) cap the score at 1 or 2 for that pipeline.
 ---
 
 
-## Section 2: Storytelling Design Critique (SECONDARY)
+## Section 4: Storytelling Design Critique (SECONDARY)
 
 
 The narrative quality serves as a check on whether the mechanics are producing
@@ -222,10 +228,10 @@ extracted on that turn or the immediately following turn. A partial success with
 no cost extracted and no condition added is a soft failure of the consequence
 system.
 
-**gm_beat influence:** When a `gm_beat` was emitted (check the **progress
-extract output** for a non-null `gm_beat.instruction`), verify that the *next*
-turn's narration shows observable influence from it — a complication surfaced,
-a revelation revealed, an opportunity created, or breathing room given. A
+**gm_beat influence:** When a `gm_beat` was emitted (check the progress extract
+output for a non-null `gm_beat.instruction`), verify that the *next* turn's
+narration shows observable influence from it — a complication surfaced, a
+revelation revealed, an opportunity created, or breathing room given. A
 `gm_beat` that fires but produces no downstream narrative effect is a mechanic
 that is working structurally but failing functionally.
 
@@ -259,57 +265,108 @@ Did the consequences of rolls — especially failures and partials — carry for
 into subsequent turns? Anchor this to mechanics: check whether `pc_condition`
 entries added on a cost turn are still present in the state snapshot 2–3 turns
 later (or were explicitly removed with a corresponding narrative justification).
-
-Check whether `scene_pressure` entries escalate correctly per the engine's
-urgency thresholds (`background` → `building` → `immediate`) rather than
-sitting inert. **New pressures are added via `scene_pressure_add` in the
-extract_progress output** (from story causality: failed roll consequences,
-offscreen NPC actions, quest deadlines). **Mutations to existing pressures**
-(urgency escalation, `turns_remaining` decrements, removal) appear in the
-extract_scene output. When checking persistence, verify both streams: that
-progress correctly added a pressure after a consequential failure, and that
-scene correctly escalated or removed it in subsequent turns.
-
-A condition that silently disappears or a pressure that never escalates is a
-persistence failure. Score the session as a whole.
+Check whether `scene_pressure` entries added as a result of a failure escalate
+correctly per the engine's urgency thresholds (`background` → `building` →
+`immediate`) rather than sitting inert. A condition that silently disappears or a
+pressure that never escalates is a persistence failure. Score the session as a
+whole.
 
 
 ### pacing_and_pressure
-Combined score, internally weighted 60% pressure_mechanics (objective —
-escalation, expiry, urgency reflected in narration) + 40% narrative_pacing
-(subjective — breathing room, momentum tone, arc satisfaction).
-
-For the pressure_mechanics component, check: did `scene_pressure` entries with
-`urgency: immediate` produce visibly higher-stakes narration on those turns? Did
-`urgency: building` pressures appear in the narration as background tension
-before escalating? Did expired pressures (`max_turns` elapsed) disappear from
-state? Cite specific pressure IDs and turns.
-
-**Pressure stream attribution:** New pressures appear in the **extract_progress
-output** (`scene_pressure_add`). Urgency escalations and removals appear in the
-**extract_scene output** (`scene_pressure_update`, `scene_pressure_remove`).
-When evaluating whether the pressure system is functioning, check both streams
-per turn — a pressure that was never added by progress after a failure is an
-extract_progress miss; a pressure that was added but never escalated by scene is
-an extract_scene miss. Score each failure type separately in your notes before
-arriving at the combined score.
+Score based on narrative pacing: breathing room between high-tension turns,
+momentum tone alignment (does narration at +2+ feel like a strong run? does
+narration at −2− offer relief unless fiction demands otherwise?), and overall
+arc satisfaction. The mechanical pressure component is evaluated separately
+under `pressure_arc`.
 
 
 ### momentum_arc
-Did the pressure and momentum system produce a felt dramatic shape across the
-session — rising tension toward a peak, followed by resolution or a meaningful
-cliffhanger? For the mechanical component: plot `pc.momentum` across all turns
-from the state snapshots and describe whether the arc had a clear shape (rising,
-peaking, resolving) or was flat/erratic. A momentum field that barely moves
-across 10 turns, or oscillates randomly with no narrative correlation, is a
-score of 1–2 regardless of whether individual turns felt tense. Score the
+Did the momentum system produce a felt dramatic shape across the session?
+Reference `MOMENTUM_MIN = -3`, `MOMENTUM_MAX = +3`, and `MOMENTUM_DELTA` table.
+Plot `pc.momentum` across all turns from the state snapshots and assess:
+- Did momentum reach meaningful extremes (±2 or beyond)?
+- Did the momentum arc have a shape (rising, peaking, resolving) or was it flat/erratic?
+- Did momentum tone correlate with narration tone?
+A momentum field that barely moves across 10 turns scores 1–2. Score the
 session-level shape, not individual turn pacing.
+
+
+### pressure_arc
+Did the scene pressure system produce a felt dramatic shape across the session
+— rising tension toward a peak, followed by resolution or a meaningful cliffhanger?
+
+**Mechanical checks:**
+- Plot all pressure entries across turns: when added, urgency level, when removed/escalated.
+- Did pressures escalate correctly? `background → building` at 6 turns, `building → immediate` at 10 turns.
+- Did `urgency: immediate` pressures produce visibly higher-stakes narration?
+- Did expired pressures (`max_turns` elapsed) disappear from state?
+- Did location changes purge `background` pressures?
+- Did combat end purge `immediate` pressures?
+- A pressure system where entries sit inert across 10 turns without escalation scores 1–2.
+
+Score the session-level shape, not individual turn pacing.
+
+
+### beat_lifecycle
+Did GM beats function as effective storytelling devices across turns?
+
+**Mechanical checks:**
+- **Generation rate:** Were beats emitted at a reasonable frequency (not every turn, not never)? Flag beats emitted for routine action.
+- **Consumption rate:** Were stored beats surfaced in narration within 1–2 turns? Flag beats that sat in `pending_gm_beat` for 3+ turns without being narrated.
+- **Carry behavior:** When `beat_disposition == "carry"`, did the beat persist and eventually get surfaced? Flag carried beats that were silently dropped.
+- **TTL enforcement:** Did beats expire at `turn_no + 2`? Flag beats that survived past TTL.
+- **Instruction quality:** Were beat instructions specific and grounded in existing entities? Flag generic beats ("something happens") or beats referencing invented entities.
+- **Narrative impact:** Did surfaced beats create meaningful story moments (complications, revelations, opportunities, breathing room)? Flag beats that had no observable effect on narration.
+
+Score based on the proportion of beats where all checks above pass. A session with no beats scores this criterion N/A.
+
+
+### directive_narration_binding
+Did the rules engine's directives bind to the narrator's output as intended?
+
+**Mechanical checks:**
+- For each turn with a dice roll, verify the narration's outcome matches the roll band and directive:
+  - `crit_fail`: catastrophic failure, real loss
+  - `fail`: outright failure, complication
+  - `setback`: resource spent, time lost, new problem
+  - `partial`: success at a cost
+  - `success`: clean success
+  - `crit_success`: outstanding success, unexpected benefit
+- A `crit_fail` that produces a cheerful narrative is a failure regardless of prose quality.
+- A `partial` that produces no cost or complication is a failure.
+- A `success` that introduces unexpected costs is a failure.
+
+Score based on the proportion of rolls where the narration matches the band/directive. A run with no rolls scores N/A.
+
+
+### stakes_routing
+Did the stakes/band routing from rules to extractors produce mechanically consistent consequences?
+
+**Mechanical checks:**
+- When `stakes` named a condition and `band` was `setback`/`fail`/`crit_fail`, was the condition extracted by state extractor?
+- When `stakes` named a consequence and `band` was `crit_fail`, was a `scene_pressure_add` emitted by progress extractor?
+- When `stakes` named a consequence and `band` was `crit_success`, was an `opportunity` or `escalation` beat considered?
+- Flag turns where stakes were named but no mechanical consequence followed.
+
+Score based on the proportion of rolls where stakes routing produced observable mechanical consequences.
+
+
+### deescalation_mechanics
+Did deescalation work as a pressure-resolution mechanic?
+
+**Mechanical checks:**
+- When `deescalate > 0` (success/crit_success on active pressure), did the narration avoid adding new pressures?
+- When `deescalate >= 0.8` (success on immediate pressure), was a `breathing_room` beat type preferred or no beat emitted?
+- When `deescalate >= 1.0` (crit_success on immediate pressure), were new pressures suppressed entirely?
+- Flag turns where deescalation was active but new pressures were added.
+
+Score based on the proportion of deescalation turns where the mechanic was respected.
 
 
 ---
 
 
-## Section 3: Prompt Redundancy Analysis
+## Section 5: Prompt Redundancy Analysis
 
 
 Reference the `## Prompt Redundancy` block in Deterministic Signals. For each
@@ -330,7 +387,7 @@ remediations.
 ---
 
 
-## Section 4: Compaction Capabilities Report
+## Section 6: Compaction Capabilities Report
 
 
 Reference the `## Compaction Features` block in Deterministic Signals. For
@@ -415,13 +472,13 @@ capability evaluation for this run.
 
 
 If compaction fired but produced low-quality bullets (per criteria 1 above),
-score the `extract_progress` pipeline lower in Section 1.
+score the `extract_progress` pipeline lower in Section 3.
 
 
 ---
 
 
-## Section 5: Auto-Checker Failures
+## Section 7: Auto-Checker Failures
 
 
 For EACH failure shown in the Deterministic Signals `## Auto-Checker Failures`
@@ -430,8 +487,8 @@ table:
 
 1. Explain WHY it failed (mechanically — what state or prompt produced this).
 2. Provide a remediation. Categorize the failure mode (`bad prompt | failed to
-   output key information | failed to input key information | messy logic |
-   scope/domain mismatch | schema drift | misplaced mechanic | wasted tokens`).
+    output key information | failed to input key information | messy logic |
+    scope/domain mismatch | schema drift | misplaced mechanic | wasted tokens`).
 
 
 Do not re-derive whether the assertion passed. The auto-checker is
@@ -444,39 +501,12 @@ If the auto-checker section is empty, write `None.`
 ---
 
 
-## Section 6: Additional Observations
+## Section 8: Additional Observations
 
 
 Patterns or bugs that did not fit into the structured sections above. Always
 present; may be `None.`.
 
-
----
-
-
-## Section 7: Verdict
-
-
-2-4 sentences. Concrete, specific, actionable. Reference turn numbers. Justify
-why mechanical_score diverges from narrative_score if applicable. End with the
-single most important fix the engine needs.
-
-
----
-
-
-## Section 8: Actionable Issues Surfaced
-
-
-A paragraph per issue that arose during this evaluation, and a recommendation
-to fix or resolve it. Place them in appropriate major, minor, trivial categories
-and prefix each with the type of issue: `[Engine]`, `[Prompting]`,
-`[Consistency]`, etc.
-
-Each issue must also carry one of the following mechanical tags where
-applicable: `bad prompt | failed to output key information | failed to input key
-information | messy logic | scope/domain mismatch | schema drift | misplaced
-mechanic | wasted tokens`.
 
 ---
 
@@ -511,7 +541,7 @@ ie Verdict
 Mechanical Design Critique
 Pipeline: rules
 
-... <subsections from Section 1> ...
+... <subsections from Section 3> ...
 Pipeline: narrate
 
 ...
@@ -549,7 +579,7 @@ Criterion: player_agency
 Criterion: consequence_persistence
 
 Score: <1-5>
-<condition persistence check + scene_pressure escalation check with turn citations, split by extract_progress adds vs extract_scene mutations>
+<condition persistence check + scene_pressure escalation check with turn citations>
 Criterion: pacing_and_pressure
 
 ...
@@ -557,6 +587,26 @@ Criterion: momentum_arc
 
 Score: <1-5>
 <momentum value plot across turns + arc shape assessment>
+Criterion: pressure_arc
+
+Score: <1-5>
+<pressure escalation plot + urgency alignment + purge checks>
+Criterion: beat_lifecycle
+
+Score: <1-5>
+<generation/consumption/carry/TTL/instruction quality/narrative impact>
+Criterion: directive_narration_binding
+
+Score: <1-5>
+<band/directive vs narration match rate>
+Criterion: stakes_routing
+
+Score: <1-5>
+<stakes named vs consequence extracted>
+Criterion: deescalation_mechanics
+
+Score: <1-5>
+<deescalation active vs new pressures added>
 Prompt Redundancy Analysis
 
 ...
@@ -572,7 +622,7 @@ Additional Observations
 Verdict
 
 ...
-Actionable Issues and Remediations
+Actionable Issues Surfaced
 Major
 
 ...
