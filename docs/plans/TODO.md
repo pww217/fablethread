@@ -113,7 +113,7 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 ## Eval Remediation (May 2026)
 
 See `[eval-remediation/findings-2026-05-09.md](eval-remediation/findings-2026-05-09.md)` for full findings.
-See `[eval-remediation/plan.md](eval-remediation/plan.md)` for phased implementation plan.
+See `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md)` for phased implementation plan.
 
 - ~~**Fix compactor recent_events compaction** — ring buffer grows unbounded, no culling — see `[eval-remediation/compactor-recent-events.md](eval-remediation/compactor-recent-events.md)` for full spec~~
 - ~~**Enforce quest deduplication** — progress extractor creates overlapping quest IDs instead of updating existing — see `[eval-remediation/quest-dedup.md](eval-remediation/quest-dedup.md)` for full spec~~
@@ -123,6 +123,12 @@ See `[eval-remediation/plan.md](eval-remediation/plan.md)` for phased implementa
 - ~~**Strengthen scene extractor location_description nullification + npc_add compendium bloat** — `eval-remediation/issues-4-8.md` Phase 3 — redundant location descriptions, npc_add triggers compendium upserts for known NPCs~~
 - ~~**Remove redundant style injection in narrate** — `eval-remediation/issues-4-8.md` Phase 4 — World Pack Style copied verbatim into narrate prompt~~
 - ~~**Inventory item capitalization** — `eval-remediation/issues-4-8.md` Phase 5 — inventory items should start with a capital letter~~
+
+- [ ] **Fix compactor stagnation** — compactor fires once at T6, produces 0 bullets/sanitization after; add fallback and ensure last_compacted_turn always updates — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 1`
+- [ ] **Fix condition dedup** — extractor emits duplicate conditions, validator silently drops; add prompt directive + engine pre-filter — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 2`
+- [ ] **Fix location change scope** — extractor emits location_change when only description changes; add ID-change guard to prompt — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 3`
+- [ ] **Fix compendium NPC matching** — extractor creates duplicate IDs for known NPCs; extend dedup to npc_add + strengthen prompt — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 4`
+- [ ] **Tune auto-checker false positives** — NER flags descriptors, inventory items, and PC names as unsanctioned NPCs — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 5`
 
 ## Standalone
 
