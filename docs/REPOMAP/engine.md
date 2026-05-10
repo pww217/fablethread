@@ -34,9 +34,9 @@
 1. **Rules / Intent** (Call 0, `llm_chat`, non-streaming) — classifies intent, resolves dice via `rules.resolve_check()`, returns `IntentEnvelope` + `RulesOutcome` (band, directive, dice).
 2. **Narrate** (Call 1, streaming → SSE → `chronicle.md`) — prose narrative. Emits `<scope>{"active_domains":["..."]}</scope>` as the last line. Server-side stream filter strips the tail before SSE emission. `RulesOutcome` injected as BINDING block the narrator must not contradict.
 3. **Scope parsing** — `_split_scope_tail()` extracts `active_domains` from the narrator's scope tail. Falls back to `_DEFAULT_DOMAINS` (all 7) on missing/malformed tag.
-4. **Scene Extract** (Call 2a, `llm_chat`, JSON → `SceneExtractResult`) — scene tags, location change, present NPCs, compendium NPC updates, scene pressure add/remove/update, gm_beat. Skipped when neither `scene` nor `location_change` is in `active_domains`.
+4. **Scene Extract** (Call 2a, `llm_chat`, JSON → `SceneExtractResult`) — scene tags, location change, location description, present NPCs, compendium NPC updates. Skipped when neither `scene` nor `location_change` is in `active_domains`.
 5. **State Extract** (Call 2b, `llm_chat`, JSON → `StateExtractResult`) — inventory deltas, condition add/remove. Skipped when neither `inventory` nor `pc_condition` is in `active_domains`.
-6. **Progress Extract** (Call 2c, `llm_chat`, JSON → `ProgressExtractResult`) — quest updates, recent events, actions, outcome_summary. Always runs (post-narration storytelling brain).
+6. **Progress Extract** (Call 2c, `llm_chat`, JSON → `ProgressExtractResult`) — quest updates, recent events, actions, outcome_summary, gm_beat, beat_disposition, scene_pressure add/remove/update. Always runs (post-narration storytelling brain).
 
 Steps 2a–2c merge into `StateDelta` → `_validate()` → `apply_delta()` → `summarize_changes()` → persist (atomic writes: `events.jsonl`, `state.yaml`, `chronicle.md`).
 
