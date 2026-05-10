@@ -3,14 +3,14 @@
   "pack": "eval-pack",
   "model": "mlx-community/gemma-4-26b-a4b-it-mxfp8",
   "temperature_override": null,
-  "started_at": "2026-05-09T23:29:28.529133+00:00",
-  "finished_at": "2026-05-09T23:34:54.115707+00:00",
-  "save_dir": "/Users/pwilson/.cache/ccya-eval/20260509T232928Z/save",
-  "output_dir": "/Users/pwilson/Repos/ccya/evals/runs/20260509T232928Z_nvgcpdog",
-  "events_jsonl_path": "/Users/pwilson/Repos/ccya/evals/runs/20260509T232928Z_nvgcpdog/artifacts/full_cycle.events.jsonl",
+  "started_at": "2026-05-10T18:09:13.503916+00:00",
+  "finished_at": "2026-05-10T18:16:09.303789+00:00",
+  "save_dir": "/Users/pwilson/.cache/ccya-eval/20260510T180913Z/save",
+  "output_dir": "/Users/pwilson/Repos/ccya/evals/runs/20260510T180913Z_2do6ma7m",
+  "events_jsonl_path": "/Users/pwilson/Repos/ccya/evals/runs/20260510T180913Z_2do6ma7m/artifacts/full_cycle.events.jsonl",
   "state_yaml_path": "",
-  "trace_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260509T232928Z_nvgcpdog/full_cycle.trace.md",
-  "judge_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260509T232928Z_nvgcpdog/full_cycle.judge.md",
+  "trace_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260510T180913Z_2do6ma7m/full_cycle.trace.md",
+  "judge_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260510T180913Z_2do6ma7m/full_cycle.judge.md",
   "turns": [
     {
       "turn_number": 1,
@@ -21,11 +21,11 @@
         "scope skips inventory and pc_condition",
         "extract.state should be near-empty"
       ],
-      "duration_s": 32.12047633400289,
+      "duration_s": 29.709944624992204,
       "error": null,
       "engine_turn_number": 1,
-      "outcome_summary": "You successfully located Caron at the Crossed Keys Inn and confronted him about your debt.",
-      "narrative_chars": 1276,
+      "outcome_summary": "You have successfully located Caron in the tavern and confronted him about your debt.",
+      "narrative_chars": 1188,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -49,7 +49,7 @@
         {
           "assertion": "universal.location_change.applied",
           "passed": true,
-          "detail": "(first turn)",
+          "detail": "(no change)",
           "scope": "universal"
         },
         {
@@ -60,8 +60,8 @@
         },
         {
           "assertion": "universal.npc_mention.extracted",
-          "passed": true,
-          "detail": "6 candidates skipped (likely locations/items, not NPCs)",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Instead']",
           "scope": "universal"
         },
         {
@@ -73,7 +73,7 @@
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "2 NPCs",
+          "detail": "3 NPCs",
           "scope": "universal"
         },
         {
@@ -105,11 +105,11 @@
         "extract.state.inventory_remove includes credits amount=500",
         "extract.progress marks settle_the_debt objectives done"
       ],
-      "duration_s": 24.792730790999485,
+      "duration_s": 17.910598833987024,
       "error": null,
       "engine_turn_number": 2,
-      "outcome_summary": "You successfully present the 500 credits to Caron, but his attention shifts suspiciously toward the ledger you are carrying.",
-      "narrative_chars": 1270,
+      "outcome_summary": "You successfully pay Caron 500 credits, and he marks your debt as cleared in his ledger.",
+      "narrative_chars": 1314,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -120,8 +120,8 @@
         },
         {
           "assertion": "extract.state.inventory_remove",
-          "passed": true,
-          "detail": "inventory_remove[credits] amount=500"
+          "passed": false,
+          "detail": "inventory_remove[credits] not found"
         },
         {
           "assertion": "extract.progress.quest_updates",
@@ -137,7 +137,7 @@
         {
           "assertion": "universal.pending_gm_beat.consumed",
           "passed": true,
-          "detail": "beat consumed or replaced",
+          "detail": "(no prior beat)",
           "scope": "universal"
         },
         {
@@ -155,7 +155,7 @@
         {
           "assertion": "universal.npc_mention.extracted",
           "passed": false,
-          "detail": "narration mentions names not in npc_add/update or known: ['Credits', 'Instead', 'Voss']",
+          "detail": "narration mentions names not in npc_add/update or known: ['Instead']",
           "scope": "universal"
         },
         {
@@ -167,7 +167,7 @@
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "2 NPCs",
+          "detail": "3 NPCs",
           "scope": "universal"
         },
         {
@@ -199,112 +199,28 @@
         "extract.progress marks deliver_the_ledger objectives done (accept contract)",
         "compendium_npc_update for halden"
       ],
-      "duration_s": 33.190173833998415,
-      "error": "engine_errors: [{\"trace_id\": \"767d5224\", \"message\": \"Delta validation failed (1 rejection(s)).\"}]",
-      "engine_turn_number": 3,
-      "outcome_summary": "You successfully negotiated a 200-credit fee and secured the heavy satchel from Halden.",
-      "narrative_chars": 1722,
-      "rules_parse_failures": 0,
-      "extract_parse_failures": 0,
-      "assert_results": [
-        {
-          "assertion": "rules.rolled",
-          "passed": true,
-          "detail": "rolled=True"
-        },
-        {
-          "assertion": "extract.progress.quest_updates",
-          "passed": false,
-          "detail": "quest_updates[deliver_the_ledger] not found"
-        },
-        {
-          "assertion": "universal.recent_events_add.turn_stamped",
-          "passed": true,
-          "detail": "(no adds)",
-          "scope": "universal"
-        },
-        {
-          "assertion": "universal.pending_gm_beat.consumed",
-          "passed": true,
-          "detail": "beat consumed or replaced",
-          "scope": "universal"
-        },
-        {
-          "assertion": "universal.location_change.applied",
-          "passed": true,
-          "detail": "(no change)",
-          "scope": "universal"
-        },
-        {
-          "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "binding directive included",
-          "scope": "universal"
-        },
-        {
-          "assertion": "universal.npc_mention.extracted",
-          "passed": true,
-          "detail": "8 candidates skipped (likely locations/items, not NPCs)",
-          "scope": "universal"
-        },
-        {
-          "assertion": "universal.recent_events.ring_bounded",
-          "passed": true,
-          "detail": "3 entries",
-          "scope": "universal"
-        },
-        {
-          "assertion": "universal.scene.npc_cap",
-          "passed": true,
-          "detail": "2 NPCs",
-          "scope": "universal"
-        },
-        {
-          "assertion": "universal.pc.condition_no_dupes",
-          "passed": true,
-          "detail": "2 conditions, no dupes",
-          "scope": "universal"
-        },
-        {
-          "assertion": "universal.progress.actions_quality",
-          "passed": true,
-          "detail": "4 distinct actions",
-          "scope": "universal"
-        },
-        {
-          "assertion": "universal.momentum.band_delta",
-          "passed": true,
-          "detail": "(no momentum field)",
-          "scope": "universal"
-        }
-      ]
-    },
-    {
-      "turn_number": 4,
-      "input": "I leave Marrow's Crossing by the east gate and head for the Crossed Keys Inn, following the merchant road.",
-      "phase": "travel",
-      "expects": [
-        "extract.scene.location_change to road or inn exterior",
-        "scene_tags should include travel or exploration",
-        "no rules call needed (pure movement)"
-      ],
-      "duration_s": 29.20827454100072,
+      "duration_s": 34.885947208007565,
       "error": null,
-      "engine_turn_number": 4,
-      "outcome_summary": "You exit Marrow's Crossing under the unsettling gaze of two hooded figures, heading toward the Crossed Keys Inn.",
-      "narrative_chars": 1610,
+      "engine_turn_number": 3,
+      "outcome_summary": "You successfully negotiated a contract with Halden, securing the leather-bound ledger for delivery to the Crossed Keys Inn.",
+      "narrative_chars": 1497,
       "rules_parse_failures": 0,
-      "extract_parse_failures": 0,
+      "extract_parse_failures": 1,
       "assert_results": [
         {
           "assertion": "rules.rolled",
-          "passed": true,
+          "passed": false,
           "detail": "rolled=False"
         },
         {
+          "assertion": "extract.progress.quest_updates",
+          "passed": true,
+          "detail": "quest_updates[deliver_the_ledger] found"
+        },
+        {
           "assertion": "universal.recent_events_add.turn_stamped",
           "passed": true,
-          "detail": "all 1 entries stamped with turn=4",
+          "detail": "all 1 entries stamped with turn=3",
           "scope": "universal"
         },
         {
@@ -316,7 +232,7 @@
         {
           "assertion": "universal.location_change.applied",
           "passed": true,
-          "detail": "crossed_keys_inn -> marrow_crossing_outskirts",
+          "detail": "marrows_crossing -> marrows_crossing_streets",
           "scope": "universal"
         },
         {
@@ -327,8 +243,8 @@
         },
         {
           "assertion": "universal.npc_mention.extracted",
-          "passed": true,
-          "detail": "7 candidates skipped (likely locations/items, not NPCs)",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Crossed', 'Crossing', 'Marrow']",
           "scope": "universal"
         },
         {
@@ -364,6 +280,90 @@
       ]
     },
     {
+      "turn_number": 4,
+      "input": "I leave Marrow's Crossing by the east gate and head for the Crossed Keys Inn, following the merchant road.",
+      "phase": "travel",
+      "expects": [
+        "extract.scene.location_change to road or inn exterior",
+        "scene_tags should include travel or exploration",
+        "no rules call needed (pure movement)"
+      ],
+      "duration_s": 28.22171274998982,
+      "error": null,
+      "engine_turn_number": 4,
+      "outcome_summary": "You successfully depart Marrow's Crossing with the ledger, beginning your trek along the dark and misty merchant road.",
+      "narrative_chars": 1286,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=False"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "all 1 entries stamped with turn=4",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "marrows_crossing_streets -> merchant_road_east",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Crossing', 'Leather', 'Marrow']",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.recent_events.ring_bounded",
+          "passed": true,
+          "detail": "5 entries",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.scene.npc_cap",
+          "passed": true,
+          "detail": "1 NPCs",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pc.condition_no_dupes",
+          "passed": true,
+          "detail": "2 conditions, no dupes",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.progress.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal"
+        }
+      ]
+    },
+    {
       "turn_number": 5,
       "input": "I walk up to the two toughs at the inn door and ask them what they're doing here. I'm not leaving until I hear their side.",
       "phase": "confrontation",
@@ -372,13 +372,13 @@
         "scope active_domains includes pc_condition",
         "scene_tags should include combat"
       ],
-      "duration_s": 46.60804541700054,
+      "duration_s": 32.50316666599247,
       "error": null,
       "engine_turn_number": 5,
-      "outcome_summary": "Your attempt to persuade the thugs fails, leaving you face-to-face with two armed men demanding a toll.",
-      "narrative_chars": 1576,
+      "outcome_summary": "Your attempt to persuade the toughs fails; instead of an explanation, they demand a toll for your safe passage.",
+      "narrative_chars": 1752,
       "rules_parse_failures": 0,
-      "extract_parse_failures": 1,
+      "extract_parse_failures": 0,
       "assert_results": [
         {
           "assertion": "rules.rolled",
@@ -387,8 +387,8 @@
         },
         {
           "assertion": "extract.scene.scene_tags",
-          "passed": true,
-          "detail": "scene_tags[combat] found"
+          "passed": false,
+          "detail": "scene_tags[combat] not found"
         },
         {
           "assertion": "universal.recent_events_add.turn_stamped",
@@ -399,13 +399,13 @@
         {
           "assertion": "universal.pending_gm_beat.consumed",
           "passed": true,
-          "detail": "beat consumed or replaced",
+          "detail": "(no prior beat)",
           "scope": "universal"
         },
         {
           "assertion": "universal.location_change.applied",
           "passed": true,
-          "detail": "marrow_crossing_outskirts -> crossed_keys_inn_entrance",
+          "detail": "merchant_road_east -> crossed_keys_inn_exterior",
           "scope": "universal"
         },
         {
@@ -416,14 +416,14 @@
         },
         {
           "assertion": "universal.npc_mention.extracted",
-          "passed": true,
-          "detail": "7 candidates skipped (likely locations/items, not NPCs)",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Crossed']",
           "scope": "universal"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "5 entries",
+          "detail": "6 entries",
           "scope": "universal"
         },
         {
@@ -461,11 +461,11 @@
         "extract.state.inventory_remove includes credits amount=200",
         "extract.progress marks clear_the_road_toughs done"
       ],
-      "duration_s": 39.494517167000595,
-      "error": "engine_errors: [{\"trace_id\": \"3d9c6bdb\", \"message\": \"Delta validation failed (1 rejection(s)).\"}]",
+      "duration_s": 36.574952541996026,
+      "error": null,
       "engine_turn_number": 6,
-      "outcome_summary": "Your attempt to bribe the thugs fails as they realize they can extort even more from you, and they prepare to attack.",
-      "narrative_chars": 1539,
+      "outcome_summary": "The bribe is rejected; the Bald Tough and Scarred Tough flank you, turning the extortion attempt into a direct physical confrontation.",
+      "narrative_chars": 1533,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -477,7 +477,7 @@
         {
           "assertion": "extract.state.inventory_remove",
           "passed": false,
-          "detail": "inventory_remove[credits] not found"
+          "detail": "inventory_remove[credits] amount=50"
         },
         {
           "assertion": "extract.progress.quest_updates",
@@ -511,7 +511,7 @@
         {
           "assertion": "universal.npc_mention.extracted",
           "passed": true,
-          "detail": "5 candidates skipped (likely locations/items, not NPCs)",
+          "detail": "no missing NPC names detected",
           "scope": "universal"
         },
         {
@@ -555,23 +555,23 @@
         "auto_complete should fire \u2014 quest status becomes completed",
         "compendium_npc_update for halden"
       ],
-      "duration_s": 28.84644441600176,
+      "duration_s": 32.72620887499943,
       "error": null,
       "engine_turn_number": 7,
-      "outcome_summary": "Your attempt to use the merchant's authority only incited more violence, leaving you caught between a club swing and a brute grabbing your satchel.",
-      "narrative_chars": 1279,
+      "outcome_summary": "You successfully use the bribe and your authority to bypass the toughs and deliver the ledger to Halden, who is visibly relieved.",
+      "narrative_chars": 1982,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
         {
           "assertion": "extract.progress.quest_updates",
-          "passed": false,
-          "detail": "quest_updates[deliver_the_ledger] not found"
+          "passed": true,
+          "detail": "quest_updates[deliver_the_ledger] found"
         },
         {
           "assertion": "extract.progress.quest_status",
           "passed": false,
-          "detail": "quest[deliver_the_ledger] not found in quest_updates"
+          "detail": "quest[deliver_the_ledger].status='active' (expected 'completed')"
         },
         {
           "assertion": "universal.recent_events_add.turn_stamped",
@@ -588,7 +588,7 @@
         {
           "assertion": "universal.location_change.applied",
           "passed": true,
-          "detail": "(no change)",
+          "detail": "crossed_keys_inn_exterior -> crossed_keys_inn_interior",
           "scope": "universal"
         },
         {
@@ -599,8 +599,8 @@
         },
         {
           "assertion": "universal.npc_mention.extracted",
-          "passed": true,
-          "detail": "5 candidates skipped (likely locations/items, not NPCs)",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Leather', 'Crossed']",
           "scope": "universal"
         },
         {
@@ -612,7 +612,7 @@
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "2 NPCs",
+          "detail": "1 NPCs",
           "scope": "universal"
         },
         {
@@ -644,11 +644,11 @@
         "extract.state.inventory_remove includes brass_key",
         "narration should honor the attempt even if it fails"
       ],
-      "duration_s": 28.412551875000645,
+      "duration_s": 30.57543949999672,
       "error": null,
       "engine_turn_number": 8,
-      "outcome_summary": "You successfully use the brass key to unlock the inn's door and slip inside, momentarily escaping the thugs' reach.",
-      "narrative_chars": 1464,
+      "outcome_summary": "You successfully use the brass key to unlock a hidden passage, bypassing the main common room.",
+      "narrative_chars": 1567,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -676,8 +676,8 @@
         },
         {
           "assertion": "universal.location_change.applied",
-          "passed": false,
-          "detail": "location_change emitted but state.location.id unchanged: crossed_keys_inn_entrance",
+          "passed": true,
+          "detail": "crossed_keys_inn_interior -> crossed_keys_inn_back_passage",
           "scope": "universal"
         },
         {
@@ -688,8 +688,8 @@
         },
         {
           "assertion": "universal.npc_mention.extracted",
-          "passed": true,
-          "detail": "4 candidates skipped (likely locations/items, not NPCs)",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Ignoring']",
           "scope": "universal"
         },
         {
@@ -701,7 +701,7 @@
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "0 NPCs",
+          "detail": "2 NPCs",
           "scope": "universal"
         },
         {
@@ -733,11 +733,11 @@
         "narration should handle the absurdity without crashing",
         "extract.state should NOT remove credits (engine should reject or narrate failure)"
       ],
-      "duration_s": 31.467090209000162,
+      "duration_s": 29.273095957993064,
       "error": null,
       "engine_turn_number": 9,
-      "outcome_summary": "Your desperate attempt to bribe the wall fails, leaving you trapped in the entryway while the thugs pound on the door and Edda watches with disdain.",
-      "narrative_chars": 1783,
+      "outcome_summary": "Your attempt to bribe the wall fails fruitlessly, but the silence is broken by a sudden, unsettling scrape of leather from the darkness ahead.",
+      "narrative_chars": 1137,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -778,7 +778,7 @@
         {
           "assertion": "universal.npc_mention.extracted",
           "passed": false,
-          "detail": "narration mentions names not in npc_add/update or known: ['Tough', 'Scarred']",
+          "detail": "narration mentions names not in npc_add/update or known: ['Crossed', 'Credit', 'Passage']",
           "scope": "universal"
         },
         {
@@ -790,7 +790,7 @@
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "1 NPCs",
+          "detail": "3 NPCs",
           "scope": "universal"
         },
         {
@@ -822,11 +822,11 @@
         "compendium_npc_update for matthew_estrada",
         "narration should show character development or revelation"
       ],
-      "duration_s": 31.387560625000333,
+      "duration_s": 28.605133666991605,
       "error": null,
       "engine_turn_number": 10,
-      "outcome_summary": "Your attempt to intimidate Matthew Estrada fails to crack his composure, and the situation escalates as the thugs begin battering down the inn door.",
-      "narrative_chars": 1632,
+      "outcome_summary": "Your intimidation attempt fails to rattle Matthew, who meets your aggression with unsettling, disciplined calm.",
+      "narrative_chars": 1448,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -838,7 +838,182 @@
         {
           "assertion": "universal.recent_events_add.turn_stamped",
           "passed": true,
-          "detail": "all 2 entries stamped with turn=10",
+          "detail": "(no adds)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "crossed_keys_inn_back_passage -> crossed_keys_inn_common_room",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Estrada', 'Matthew', 'Passage']",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.recent_events.ring_bounded",
+          "passed": true,
+          "detail": "6 entries",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.scene.npc_cap",
+          "passed": true,
+          "detail": "2 NPCs",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pc.condition_no_dupes",
+          "passed": true,
+          "detail": "3 conditions, no dupes",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.progress.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no momentum field)",
+          "scope": "universal"
+        }
+      ]
+    },
+    {
+      "turn_number": 11,
+      "input": "Matthew's bodyguard draws a knife! I tackle him into the bar shelves and search his coat while he's dazed.",
+      "phase": "combat",
+      "expects": [
+        "rules.required=true skill=strength (combat)",
+        "pc_condition_add for player (e.g., wounded from knife)",
+        "inventory_add for bodyguard's items (e.g., estrada_wallet)",
+        "scene_tags should include combat"
+      ],
+      "duration_s": 35.68507925000449,
+      "error": null,
+      "engine_turn_number": 11,
+      "outcome_summary": "You successfully tackle the bodyguard into the shelves and loot a leather pouch and parchment from his coat, though your actions have caused a scene and drawn unwanted attention.",
+      "narrative_chars": 1743,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "extract.scene.scene_tags",
+          "passed": true,
+          "detail": "scene_tags[combat] found"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "all 1 entries stamped with turn=11",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Estrada', 'Matthew', 'Instead']",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.recent_events.ring_bounded",
+          "passed": true,
+          "detail": "7 entries",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.scene.npc_cap",
+          "passed": true,
+          "detail": "3 NPCs",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pc.condition_no_dupes",
+          "passed": true,
+          "detail": "4 conditions, no dupes",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.progress.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no momentum field)",
+          "scope": "universal"
+        }
+      ]
+    },
+    {
+      "turn_number": 12,
+      "input": "I grab the ledger from my coat and sprint out the back door toward the river dock, shouting for Halden to hold on.",
+      "phase": "chase",
+      "expects": [
+        "extract.scene.location_change to river_dock",
+        "extract.progress quest_updates for deliver_the_ledger",
+        "compaction fires at T12 (second pass)",
+        "npc_add for dock workers or rival courier"
+      ],
+      "duration_s": 43.16265383300197,
+      "error": null,
+      "engine_turn_number": 12,
+      "outcome_summary": "Your attempt to flee through the back exit fails as you slip on spilled oil, slamming into the doorframe and leaving you trapped between the locked door and an angry crowd.",
+      "narrative_chars": 1681,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": false,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "all 1 entries stamped with turn=12",
           "scope": "universal"
         },
         {
@@ -862,19 +1037,19 @@
         {
           "assertion": "universal.npc_mention.extracted",
           "passed": true,
-          "detail": "6 candidates skipped (likely locations/items, not NPCs)",
+          "detail": "4 candidates skipped (likely locations/items, not NPCs)",
           "scope": "universal"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "8 entries",
+          "detail": "3 entries",
           "scope": "universal"
         },
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "2 NPCs",
+          "detail": "3 NPCs",
           "scope": "universal"
         },
         {
@@ -896,7 +1071,92 @@
           "scope": "universal"
         }
       ]
+    },
+    {
+      "turn_number": 13,
+      "input": "I find a quiet corner at the dock and wrap my wounds with my shirt. Then I write a note to Caron about the intercepted courier and pay the dock boy to deliver it.",
+      "phase": "recovery",
+      "expects": [
+        "pc_condition_remove for wounded (self-treatment)",
+        "no rules call (social, no obstacle)",
+        "narrator operates with compacted history (2 compaction passes)",
+        "inventory_remove for shirt (used as bandage)"
+      ],
+      "duration_s": 35.88518225000007,
+      "error": null,
+      "engine_turn_number": 13,
+      "outcome_summary": "You narrowly escape the tavern's hostility and find refuge in a dockside alcove, where you tend your wounds and dispatch a message to Caron.",
+      "narrative_chars": 1988,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=False"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "all 1 entries stamped with turn=13",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "crossed_keys_inn_common_room -> river_docks_alcove",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": true,
+          "detail": "6 candidates skipped (likely locations/items, not NPCs)",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.recent_events.ring_bounded",
+          "passed": true,
+          "detail": "4 entries",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.scene.npc_cap",
+          "passed": true,
+          "detail": "1 NPCs",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.pc.condition_no_dupes",
+          "passed": true,
+          "detail": "4 conditions, no dupes",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.progress.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal"
+        }
+      ]
     }
   ],
-  "total_errors": 2
+  "total_errors": 0
 }
