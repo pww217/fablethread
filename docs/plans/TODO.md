@@ -57,7 +57,8 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - ~~**Active DM / GM beat** — progress extractor emits `gm_beat`, narrator consumes next turn~~ — see `[completed/p2-inference/progress-dm-storytelling.md](completed/p2-inference/progress-dm-storytelling.md)`
 - ~~**Scene age anti-stall** — track `scene.turn_entered`, nudge after N turns~~ — see `[completed/p2-inference/scene-age-anti-stall.md](completed/p2-inference/scene-age-anti-stall.md)`
 - ~~**Band-scoped extract examples** — `pack_examples` conditioned on roll outcome band~~
-- [ ] **GM beat ownership migration + deescalate float + beat expiry + rules full narration** — progress owns gm_beat, deescalate widened to float, beat expiry guard, rules step receives full narration — [`progress-rules-narration.md`](progress-rules-narration.md) (Phases 1–2 done)
+- ~~**GM beat ownership migration: template fixes** — rules_user.j2 full narration, extract_progress_user.j2 recent_turns index, gm_beat instruction block — [`progress-rules-narration.md`](progress-rules-narration.md) (Phases 1–3 done)~~
+- ~~**Narrative mechanics overhaul** — beat disposition (carry/replace/consume), scene_pressure_add migration to progress stream, stakes/band propagation to extractors, progress prompt context blocks — [`narrative-mechanics-overhaul.md`](narrative-mechanics-overhaul.md) (Phases 1–3 done)~~
 
 ---
 
@@ -130,6 +131,10 @@ See `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remedia
 - ~~**Fix compendium NPC matching** — extractor creates duplicate IDs for known NPCs; extend dedup to npc_add + strengthen prompt — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 3`~~
 - ~~**Tune auto-checker false positives** — NER flags descriptors, inventory items, and PC names as unsanctioned NPCs — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 4`~~
 - [x] **Eval 13-turn expansion: dual compaction + gap coverage** — extend full_cycle from 10 to 13 turns, add combat/inventory/condition/removal turns, update rubric for dual compaction — see `[eval-13-turn-expansion.md](eval-13-turn-expansion.md)`
+
+- [ ] **Compactor sanitization failure** — compactor fires at T6/T12 but LLM returns `{}` for all sanitization actions; quests not closed, pressures not removed — see `[eval-remediation-may10/01-eval-remediation-may10.md](eval-remediation-may10/01-eval-remediation-may10.md) Phase 1`
+- [ ] **Narrator ignores player input** — Turn 7 narrator outputs stale context instead of processing input — see `[eval-remediation-may10/01-eval-remediation-may10.md](eval-remediation-may10/01-eval-remediation-may10.md) Phase 2`
+- [ ] **Currency mapping failure (follow-up)** — state extractor still emits `iron_coins` instead of mapping to `credits` despite earlier fix; strengthened prompt directive needed — see `[eval-remediation-may10/01-eval-remediation-may10.md](eval-remediation-may10/01-eval-remediation-may10.md) Phase 3`
 
 ## Standalone
 

@@ -48,9 +48,9 @@ No dice were rolled this turn. The rules engine determined the action has no mec
 {% endif -%}
 {% endif -%}
 
-{% if recent_turns and recent_turns | length >= 2 -%}
-## prior_turn_narration (T{{ recent_turns[-2].turn }} — for outcome_summary and actions context)
-{{ recent_turns[-2].narrative }}
+{% if recent_turns -%}
+## prior_turn_narration (T{{ recent_turns[-1].turn }} — for outcome_summary and actions context)
+{{ recent_turns[-1].narrative }}
 
 {% endif -%}
 {% if state_result.items_gained -%}
@@ -63,6 +63,45 @@ No dice were rolled this turn. The rules engine determined the action has no mec
 {{ state_result.items_lost | join(', ') }}
 
 {% endif -%}
+{% if stakes and band -%}
+## rules_stakes
+Band: {{ band | upper }}. At-risk cost named by rules engine: {{ stakes }}
+{% if band in ("crit_fail", "fail") -%}
+If a narrative consequence is named above (e.g. an NPC acting, alarm raised, escape cut off), emit it as a scene_pressure_add entry at `immediate` urgency.
+{% elif band == "crit_success" -%}
+If a named entity was thwarted, consider a gm_beat of type `opportunity` or `escalation` naming that entity's reaction.
+{% endif -%}
+
+{% endif -%}
+## gm_beat (optional — leave null if nothing meaningful is ready)
+Emit a gm_beat when the story arc genuinely calls for it — a named NPC reacts, a thread escalates, an offscreen consequence surfaces, a moment of relief is earned.
+Do NOT emit a beat if this turn was routine action, minor dialogue, or you have nothing specific and concrete to say.
+
+If `pending_beat` below is set and was not yet surfaced by the narrator, emit `beat_disposition: "carry"` and leave `gm_beat` null. If it should be replaced, emit `beat_disposition: "replace"` and a new `gm_beat`. Otherwise emit `beat_disposition: "consume"` (default).
+
+{% if pending_beat -%}
+## pending_beat (carried from previous turn — not yet surfaced)
+Type: {{ pending_beat.type }} | Expires: T{{ pending_beat.beat_expires_turn }}
+Instruction: {{ pending_beat.instruction }}
+{% endif -%}
+{% if deescalate > 0 -%}
+## deescalate
+A pressure resolved this turn (magnitude: {{ "%.1f"|format(deescalate) }}).
+{% if deescalate >= 0.8 -%}
+Strong deescalation. Prefer `breathing_room` beat type or no beat. Do not add new immediate pressures.
+{% else -%}
+Partial deescalation. Prefer low-urgency beat or no beat.
+{% endif -%}
+
+{% endif -%}
+## scene_pressure_add (generate new threats from story causality only)
+Add pressure when: a named NPC or faction acts against the player off-screen, a quest deadline triggers, a failed roll's stated consequence activates, or a world-state change creates a new threat.
+Do NOT add pressure for things the narrator already described as resolved or for vague ambient danger. Prefer 0–1 new pressures per turn.
+{% if quest_ages -%}
+## quest_ages
+{% for q in quest_ages %}- `{{ q.id }}`: {{ q.age }} turns
+{% endfor %}
+{%- endif %}
 ## CURRENT TURN NARRATION
 {{ narration }}
 ## END CURRENT TURN NARRATION

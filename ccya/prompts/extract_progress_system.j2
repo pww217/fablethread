@@ -9,7 +9,10 @@ Extract quest updates, recent events, suggested player actions, and outcome summ
   "recent_events_update": [],
   "recent_events_remove": [],
   "actions": [],
-  "outcome_summary": ""
+  "outcome_summary": "",
+  "gm_beat": null,
+  "beat_disposition": "consume",
+  "scene_pressure_add": []
 }
 ```
 
@@ -39,6 +42,21 @@ Each new event must have a stable `snake_case` ID. To update an existing event's
 `actions`: exactly 4 distinct player choices, ~10 words each, drawn from THIS turn's narration and current quest state. Structure: two choices should offer distinct avenues related to the current quest (if any), one should involve an NPC who is present in the scene, and one should be an exploration/environmental or freeform option. Weight toward quest objectives and motivations. Each should move the plot forward substantially in a different direction. Examples: "Aim for the chest and fire", "Convince the guard to let you pass". Bias to bold, good storytelling choices.
 
 `outcome_summary`: one or two short sentences: what just happened in flavor terms, showing narrative impact on player, NPCs, scene, and location. Ground this in the roll outcome (if any) and the player's intent. For failures: describe what went wrong narratively. Examples: `"You successfully picklock the padlock and enter the vault."`, `"The guard spots you and raises the alarm."`
+
+`gm_beat`: a single GM beat to shape the next turn, or `null` if none is needed. Use `deescalate` and `quest_ages` context to decide:
+- `deescalate > 0.5` → prefer `breathing_room` or `null` (no beat)
+- `deescalate == 0.0` with active pressure → `pressure` or `escalation`
+- Quest staleness in `quest_ages` (age >= 3) → `setback` or `complication`
+- Recent `twist` or `callback` beats should not repeat within 2 turns
+- `type` values: `pressure`, `complication`, `breathing_room`, `twist`, `setback`, `escalation`, `callback`
+- `surface_as` values: `dialogue`, `environmental`, `player_discovery`, `item`, `npc_action`
+- Each beat must be narratively specific: name NPCs, reference locations, tie to active quests
+- Emit as: `{"type": "pressure", "surface_as": "dialogue", "instruction": "The guard captain returns with reinforcements."}`
+- If no beat is warranted, emit `null` (not an empty object)
+
+`beat_disposition`: controls what happens to the pending_gm_beat from the previous turn. Values: `"consume"` (default) — beat is cleared after narration; `"carry"` — beat stays in meta.pending_gm_beat unchanged for the next turn; `"replace"` — the new gm_beat above supersedes the carried one. If you emit a new gm_beat, use `"replace"`. If you want to preserve an unsurfaced beat, emit `"carry"` and leave gm_beat null.
+
+`scene_pressure_add`: new scene pressures generated from story causality this turn. Each: `{"id": "snake_case_id", "text": "Threat description", "urgency": "immediate|building|background", "turn_added": <CURRENT_TURN>}`. Add pressure when a named NPC/faction acts against the player off-screen, a quest deadline triggers, or a failed roll's consequence activates. Do NOT add pressure for resolved threats or vague ambient danger.
 
 ## Rules-outcome guidance (for objective resolution)
 - crit_fail / fail / setback / partial: do NOT mark quest objectives done for the attempted action.

@@ -46,6 +46,11 @@ location: `{{ scene_result.location_id }}`
 {{ ex.json_text }}
 {% endfor %}
 {% endif -%}
+{% if stakes and band in ("setback", "fail", "crit_fail") -%}
+## rules_stakes_hint
+Rules engine named this cost on failure: {{ stakes }}
+If the narration is ambiguous, treat any condition name in the above as a strong signal to apply it.
+{% endif -%}
 ## CURRENT TURN NARRATION
 {{ narration }}
 ## END CURRENT TURN NARRATION

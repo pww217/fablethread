@@ -195,6 +195,8 @@ def _extract_state_messages(
     rules_outcome: "RulesOutcome | None" = None,
     enable_thinking: bool = False,
     turn_no: int = 0,
+    stakes: str = "",
+    band: str = "",
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 2 (inventory + conditions)."""
     pc = state.get("pc") or {}
@@ -224,6 +226,8 @@ def _extract_state_messages(
             "rules_outcome": rules_outcome,
             "active_domains": active_domains,
             "turn_no": turn_no,
+            "stakes": stakes,
+            "band": band,
         },
     )
     msgs = [
@@ -272,6 +276,8 @@ def _extract_progress_messages(
     quest_ages: list[dict[str, Any]] = [],
     recent_turns: list[dict[str, Any]] | None = None,
     turn_no: int = 0,
+    stakes: str = "",
+    band: str = "",
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 3 (quests + facts + actions + outcome_summary)."""
     pc = state.get("pc") or {}
@@ -290,6 +296,7 @@ def _extract_progress_messages(
     }
 
     system_text = _render(env, "extract_progress_system.j2", {})
+    pending_beat = (state.get("meta") or {}).get("pending_gm_beat") or None
     user_text = _render(
         env,
         "extract_progress_user.j2",
@@ -308,6 +315,9 @@ def _extract_progress_messages(
             "quest_ages": quest_ages,
             "recent_turns": recent_turns or [],
             "turn_no": turn_no,
+            "stakes": stakes,
+            "band": band,
+            "pending_beat": pending_beat,
         },
     )
     msgs = [
@@ -484,12 +494,16 @@ async def _run_extraction_pipeline(
     run_state = bool({"inventory", "pc_condition"} & active)
     if run_state:
         t_state = asyncio.get_event_loop().time()
+        _stakes = (intent.stakes or "") if intent else ""
+        _band = (rules_outcome.band if rules_outcome and rules_outcome.rolled else "")
         state_msgs = _extract_state_messages(
             env, narration, state,
             active_domains=active_domains,
             scene_result=scene_result,
             rules_outcome=rules_outcome,
             enable_thinking=config.enable_extract_thinking,
+            stakes=_stakes,
+            band=_band,
             turn_no=turn_no,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
@@ -526,6 +540,8 @@ async def _run_extraction_pipeline(
 
     # --- Stream 3: Progress (always runs — post-narration storytelling brain) ---
     t_progress = asyncio.get_event_loop().time()
+    _stakes = (intent.stakes or "") if intent else ""
+    _band = (rules_outcome.band if rules_outcome and rules_outcome.rolled else "")
     progress_msgs = _extract_progress_messages(
         env, narration, state,
         active_domains=active_domains,
@@ -537,6 +553,8 @@ async def _run_extraction_pipeline(
         quest_ages=quest_ages or [],
         recent_turns=(recent_turns or [])[-2:],
         turn_no=turn_no,
+        stakes=_stakes,
+        band=_band,
     )
     # Capture pre-trim content for context_meta so the judge sees original sizes
     rendered_prog_system = progress_msgs[0]["content"] if progress_msgs else ""
@@ -651,7 +669,7 @@ async def _run_extraction_pipeline(
         npc_remove=scene_result.npc_remove,
         npc_update=scene_result.npc_update,
         compendium_npc_update=scene_result.compendium_npc_update,
-        scene_pressure_add=scene_result.scene_pressure_add,
+        scene_pressure_add=progress_result.scene_pressure_add,
         scene_pressure_remove=scene_result.scene_pressure_remove,
         scene_pressure_update=scene_result.scene_pressure_update,
         inventory_add=state_result.inventory_add,
