@@ -1,4 +1,4 @@
-"""Verify extract_progress_user.j2 conditional gating by active_domains."""
+"""Verify extract_progress_user.j2 rendering (no active_domains gating)."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -25,46 +25,36 @@ def _render(env: Environment, **ctx) -> str:
         "known_characters": [],
         "scene_result": {},
         "state_result": {"items_gained": [], "items_lost": []},
-        "rules_outcome": None,
-        "active_domains": [],
         "quest_threshold_directive": "test",
         "deescalate": False,
         "quest_ages": [],
+        "intent": None,
+        "recent_turns": [],
+        "turn_no": 1,
+        "stakes": "",
+        "band": "",
+        "pending_beat": None,
     }
     base.update(ctx)
     return tmpl.render(**base)
 
 
-def test_quest_section_omitted_without_quest_updates_domain(env: Environment) -> None:
-    out = _render(env, active_domains=["scene"], active_quests=[{"id": "q1", "title": "T", "objectives": []}])
-    assert "## active_quests" not in out
-    assert "## quest_threshold" not in out
-
-
-def test_quest_section_present_with_quest_updates_domain(env: Environment) -> None:
-    out = _render(env, active_domains=["quest_updates"], active_quests=[{"id": "q1", "title": "T", "objectives": []}])
+def test_quest_section_always_present(env: Environment) -> None:
+    """Quest sections are always rendered (no active_domains gating)."""
+    out = _render(env, active_quests=[{"id": "q1", "title": "T", "objectives": []}])
     assert "## active_quests" in out
     assert "## quest_threshold" in out
 
 
-def test_recent_events_omitted_without_domain(env: Environment) -> None:
-    out = _render(env, active_domains=[], recent_events=[{"id": "e1", "text": "fact"}])
-    assert "## recent_events" not in out
-
-
-def test_recent_events_included_with_domain(env: Environment) -> None:
-    out = _render(env, active_domains=["recent_events"], recent_events=[{"id": "e1", "text": "fact"}])
+def test_recent_events_always_present(env: Environment) -> None:
+    """Recent events section is always rendered (no active_domains gating)."""
+    out = _render(env, recent_events=[{"id": "e1", "text": "fact"}])
     assert "## recent_events" in out
-
-
-def test_known_characters_omitted_without_compendium_domain(env: Environment) -> None:
-    out = _render(env, active_domains=[], known_characters=[{"id": "n1", "name": "N"}])
-    assert "## known_characters" not in out
 
 
 def test_known_characters_not_in_progress(env: Environment) -> None:
     """known_characters moved to scene stream; should NOT appear in progress user prompt."""
-    out = _render(env, active_domains=["compendium_npc"], known_characters=[{"id": "n1", "name": "N"}])
+    out = _render(env, known_characters=[{"id": "n1", "name": "N"}])
     assert "## known_characters" not in out
 
 
@@ -72,7 +62,7 @@ def test_scene_pressure_data_rendered(env: Environment) -> None:
     """scene_pressure data context variable IS rendered in progress user prompt
     as ## Current Pressures block (migrated from scene stream)."""
     pressure = [{"id": "p1", "urgency": "immediate", "text": "fire", "turn_added": 1}]
-    out = _render(env, active_domains=[], scene_pressure=pressure)
+    out = _render(env, scene_pressure=pressure)
     assert "## Current Pressures" in out
     assert "p1" in out
     assert "fire" in out

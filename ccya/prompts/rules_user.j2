@@ -5,6 +5,11 @@ Conditions: {% if pc.conditions %}{% for c in pc.conditions %}{{ c.label if c is
 
 ## scene
 Location: {{ location.name or location.id or "Unknown" }}
+{%- if present_npcs %}
+## present_npcs (in scene right now)
+{% for n in present_npcs %}- {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}
+{% endfor -%}
+{% endif -%}
 {%- if recent_turns %}
 ## last_turn (tail of the most recent narrative)
 {%- set t = recent_turns[-1] %}

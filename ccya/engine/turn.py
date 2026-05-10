@@ -300,8 +300,12 @@ async def run_turn(
         t_rules = asyncio.get_event_loop().time()
         turn_no = state.get("meta", {}).get("turn", 0) + 1
 
+        _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
         rules_messages = _rules_messages(
-            env, state, user_input, recent_turns=recent_turns[-1:], turn_no=turn_no
+            env, state, user_input,
+            recent_turns=recent_turns[-1:],
+            turn_no=turn_no,
+            present_npcs=_present_npcs,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_rules_system = rules_messages[0]["content"] if rules_messages else ""
@@ -424,6 +428,34 @@ async def run_turn(
         # Present NPCs from delta-maintained state (Phase 4H)
         _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
 
+        # Compendium bios for present + recently_left NPCs (Phase 1)
+        _compendium_bios: list[dict[str, Any]] = []
+        _bio_ids: set[str] = set()
+        for npc in _present_npcs:
+            nid = npc.get("id", "")
+            if nid and nid not in _bio_ids:
+                _bio_ids.add(nid)
+                entry = (state.get("compendium") or {}).get("npcs", {}).get(nid, {})
+                if entry:
+                    _compendium_bios.append({
+                        "id": nid,
+                        "name": entry.get("name", ""),
+                        "title": entry.get("title", ""),
+                        "bio": (entry.get("bio") or "").strip(),
+                    })
+        for npc in (state.get("scene") or {}).get("recently_left", []):
+            nid = npc.get("id", "") if isinstance(npc, dict) else ""
+            if nid and nid not in _bio_ids:
+                _bio_ids.add(nid)
+                entry = (state.get("compendium") or {}).get("npcs", {}).get(nid, {})
+                if entry:
+                    _compendium_bios.append({
+                        "id": nid,
+                        "name": entry.get("name", ""),
+                        "title": entry.get("title", ""),
+                        "bio": (entry.get("bio") or "").strip(),
+                    })
+
         # Phase 5: world context from pack scenario (primary) or state world (legacy)
         _world = state.get("world") or {}
         _world_factions = pack_factions if pack_factions else list(_world.get("factions") or [])
@@ -451,6 +483,7 @@ async def run_turn(
             ages=ages,
             known_npcs=_known_npcs,
             present_npcs=_present_npcs,
+            compendium_bios=_compendium_bios,
             world_factions=_world_factions,
             world_locations=_world_locations,
             pc_allegiance=_pc_allegiance,
@@ -953,6 +986,34 @@ async def run_turn_retry(
         # Present NPCs from delta-maintained state (Phase 4H)
         _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
 
+        # Compendium bios for present + recently_left NPCs (Phase 1)
+        _compendium_bios: list[dict[str, Any]] = []
+        _bio_ids: set[str] = set()
+        for npc in _present_npcs:
+            nid = npc.get("id", "")
+            if nid and nid not in _bio_ids:
+                _bio_ids.add(nid)
+                entry = (state.get("compendium") or {}).get("npcs", {}).get(nid, {})
+                if entry:
+                    _compendium_bios.append({
+                        "id": nid,
+                        "name": entry.get("name", ""),
+                        "title": entry.get("title", ""),
+                        "bio": (entry.get("bio") or "").strip(),
+                    })
+        for npc in (state.get("scene") or {}).get("recently_left", []):
+            nid = npc.get("id", "") if isinstance(npc, dict) else ""
+            if nid and nid not in _bio_ids:
+                _bio_ids.add(nid)
+                entry = (state.get("compendium") or {}).get("npcs", {}).get(nid, {})
+                if entry:
+                    _compendium_bios.append({
+                        "id": nid,
+                        "name": entry.get("name", ""),
+                        "title": entry.get("title", ""),
+                        "bio": (entry.get("bio") or "").strip(),
+                    })
+
         # Phase 5: world context from pack scenario (primary) or state world (legacy)
         _world = state.get("world") or {}
         _world_factions = pack_factions if pack_factions else list(_world.get("factions") or [])
@@ -983,6 +1044,7 @@ async def run_turn_retry(
             ages=ages,
             known_npcs=_known_npcs,
             present_npcs=_present_npcs,
+            compendium_bios=_compendium_bios,
             world_factions=_world_factions,
             world_locations=_world_locations,
             pc_allegiance=_pc_allegiance,

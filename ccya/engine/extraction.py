@@ -135,8 +135,6 @@ def _extract_scene_messages(
     narration: str,
     state: dict[str, Any],
     *,
-    active_domains: list[str],
-    rules_outcome: "RulesOutcome | None" = None,
     enable_thinking: bool = False,
     recent_turns: list[dict[str, Any]] | None = None,
     turn_no: int = 0,
@@ -160,8 +158,6 @@ def _extract_scene_messages(
             "conditions": conditions,
             "npc_roster": npc_roster,
             "present_npcs": present_npcs,
-            "rules_outcome": rules_outcome,
-            "active_domains": active_domains,
             "recent_turns": recent_turns or [],
             "turn_no": turn_no,
         },
@@ -179,13 +175,9 @@ def _extract_state_messages(
     narration: str,
     state: dict[str, Any],
     *,
-    active_domains: list[str],
     scene_result: "SceneExtractResult",
-    rules_outcome: "RulesOutcome | None" = None,
     enable_thinking: bool = False,
     turn_no: int = 0,
-    stakes: str = "",
-    band: str = "",
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 2 (inventory + conditions)."""
     pc = state.get("pc") or {}
@@ -212,11 +204,7 @@ def _extract_state_messages(
             "conditions": list(pc.get("conditions") or []),
             "inventory": state.get("inventory") or [],
             "scene_result": scene_ctx,
-            "rules_outcome": rules_outcome,
-            "active_domains": active_domains,
             "turn_no": turn_no,
-            "stakes": stakes,
-            "band": band,
         },
     )
     msgs = [
@@ -256,9 +244,7 @@ def _extract_progress_messages(
     narration: str,
     state: dict[str, Any],
     *,
-    active_domains: list[str],
     state_result: "StateExtractResult",
-    rules_outcome: "RulesOutcome | None" = None,
     enable_thinking: bool = False,
     intent: "IntentEnvelope | None" = None,
     deescalate: float = 0.0,
@@ -297,8 +283,6 @@ def _extract_progress_messages(
             "world_state": world_state,
             "scene_pressure": list((state.get("scene") or {}).get("scene_pressure") or []),
             "state_result": state_ctx,
-            "rules_outcome": rules_outcome,
-            "active_domains": active_domains,
             "quest_threshold_directive": _quest_threshold_directive(active_quests),
             "intent": intent,
             "deescalate": deescalate,
@@ -432,8 +416,6 @@ async def _run_extraction_pipeline(
         t_scene = asyncio.get_event_loop().time()
         scene_msgs = _extract_scene_messages(
             env, narration, state,
-            active_domains=active_domains,
-            rules_outcome=rules_outcome,
             enable_thinking=config.enable_extract_thinking,
             recent_turns=(recent_turns or [])[-1:],
             turn_no=turn_no,
@@ -482,16 +464,10 @@ async def _run_extraction_pipeline(
     run_state = bool({"inventory", "pc_condition"} & active)
     if run_state:
         t_state = asyncio.get_event_loop().time()
-        _stakes = (intent.stakes or "") if intent else ""
-        _band = (rules_outcome.band if rules_outcome and rules_outcome.rolled else "")
         state_msgs = _extract_state_messages(
             env, narration, state,
-            active_domains=active_domains,
             scene_result=scene_result,
-            rules_outcome=rules_outcome,
             enable_thinking=config.enable_extract_thinking,
-            stakes=_stakes,
-            band=_band,
             turn_no=turn_no,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
@@ -532,9 +508,7 @@ async def _run_extraction_pipeline(
     _band = (rules_outcome.band if rules_outcome and rules_outcome.rolled else "")
     progress_msgs = _extract_progress_messages(
         env, narration, state,
-        active_domains=active_domains,
         state_result=state_result,
-        rules_outcome=rules_outcome,
         enable_thinking=config.enable_extract_thinking,
         intent=intent,
         deescalate=deescalate,
