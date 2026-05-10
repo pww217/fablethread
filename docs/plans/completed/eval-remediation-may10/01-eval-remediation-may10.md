@@ -1,340 +1,210 @@
-# Eval Remediation — May 10 Cycle
+# Eval Remediation — May 10, 2026 (01): Compactor Sanitization, Narrator Input, Currency Mapping
 
-## Status
-`open`
-
-## Part of
-Eval remediation — May 2026 cycle
-
-## Dependencies
-- Completed: `eval-results-remediation2/` (all 11 phases)
-- Completed: `compactor-overhaul.md` (compactor infrastructure)
-- Completed: `eval-results-remediation/` (phases A–E, system hardening Phases 01–10)
-- None required from open plans
-
-## Conflicts and overlap
-None. The existing `eval-remediation/01-extractor-grounding-and-compactor-fix.md` touches `extract_state_system.j2`, `extract_scene_system.j2`, `extraction.py`, and `universal_asserts.py` — but for condition dedup, location change guard, and NPC matching. This plan touches `compact_system.j2`, `narrate_system.j2`, and `extract_state_system.j2` — for compactor sanitization, narrator input validation, and currency mapping. The `extract_state_system.j2` overlap is non-conflicting: the existing plan adds condition dedup directives, this plan strengthens the generic item mapping section. Both are prompt-only changes to different sections of the same file. The `progress-rules-narration.md` plan is about GM beat ownership and does not touch any files in this plan.
-
-## Objective
-Fix three critical mechanical failures identified in the May 10 eval runs (e2fxi7rc and trrtunn7): (1) the compactor fires at turns 6 and 12 but the LLM returns empty sanitization JSON, leaving completed quests, resolved pressures, and expired conditions in state; (2) the narrator ignores player input on Turn 7, outputting stale context and breaking immersion; (3) the state extractor invents currency IDs (`iron_coins`) instead of mapping generic terms to existing inventory IDs (`credits`), causing delta rejections and runner errors. These three issues account for all runner errors, all rejected deltas, and are the primary drivers of the low mechanical score (3/5).
-
-## Non-goals
-- Fixing auto-checker false positives (flags known locations/items as NPCs) — already addressed in `eval-results-remediation2/` Phase 11
-- Fixing premature objective completion in progress extractor — lower impact, prompt-only, deferred
-- Fixing scene pressure ID validation (quest ID used as pressure ID) — lower impact, prompt-only, deferred
-- Adding new config keys or Pydantic model fields
-- Changing the compactor's bullet generation logic (only fixing sanitization JSON production)
-- Adding pre-narration engine validation step (prompt-only fix for now)
-
-## Affected files
-
-| File | Change type | Summary |
-|---|---|---|
-| `ccya/prompts/compact_system.j2` | modify | Strengthen sanitization directive with concrete examples and lower confidence threshold |
-| `ccya/engine/compactor.py` | modify | Add debug logging for LLM sanitization output to diagnose empty JSON |
-| `ccya/prompts/narrate_system.j2` | modify | Add explicit "process current turn input" directive and turn-number anchoring |
-| `ccya/prompts/extract_state_system.j2` | modify | Strengthen generic item mapping section with explicit "credits" example and negative constraint |
-| `docs/plans/TODO.md` | modify | Add new eval remediation items for compactor sanitization, narrator input, currency mapping |
-| `docs/REPOMAP/engine.md` | modify | Update compactor description with new debug logging |
-| `docs/REPOMAP/prompts.md` | modify | Update compact_system, narrate_system, extract_state_system descriptions |
-
-## Firm decisions
-
-1. **Compactor fix is prompt-only.** The engine code (`_apply_sanitization`) is correct — it validates IDs and applies deltas. The LLM is returning `{}` because the prompt's "highly confident" threshold is too conservative. We lower the threshold and add concrete examples of what to flag.
-
-2. **Narrator fix is prompt-only.** Adding an engine-level pre-narration validation step would add latency and complexity. The root cause is the LLM losing track of which turn's input to process. Strengthening the prompt with explicit turn anchoring and a "process current input" directive is sufficient.
-
-3. **Currency mapping fix is prompt-only.** The existing generic item mapping section exists but the LLM ignores it. We strengthen it with an explicit `credits` example and a stronger negative constraint ("NEVER invent currency IDs").
-
-4. **No engine code changes for delta validation.** The `_validate()` function correctly rejects invalid inventory removals. The fix is upstream — prevent the LLM from emitting invalid IDs in the first place.
+**Eval run:** `evals/runs/20260510T180913Z_2do6ma7m` · `full_cycle` (13 turns)  
+**Pack:** `eval-pack` · **Model:** `gemma-4-26b-a4b-it-mxfp8`  
+**Mechanical:** 3/5 · **Narrative:** 4/5  
+**Related:** `02-extraction-quality.md` (extraction-quality issues from same eval)
 
 ---
 
-## Implementation — Phase 1: Compactor Sanitization Fix
+## Problem Statement
 
-### Context files to load
-1. `ccya/prompts/compact_system.j2`
-2. `ccya/engine/compactor.py` (lines 1–130)
-3. `ccya/models.py` (CompactorSanitizationResult, lines 363–372)
+Three issues from the May 10 eval require prompt-level remediation:
 
-### Overview
-The compactor fires at turns 6 and 12 but the LLM returns empty sanitization JSON (`{}`), leaving completed quests active, resolved pressures in state, and expired conditions unremoved. The prompt's "highly confident" threshold is too conservative — the LLM needs concrete examples of what constitutes a fixable issue and a lower bar for flagging obvious problems. This phase adds debug logging to diagnose the LLM's output and strengthens the prompt.
+1. **Compactor sanitization failure** — Compactor fires at T6/T12 (multiples of `compact_every=6`) but the LLM returns `{}` for all sanitization actions. Quests are not closed, pressures are not removed, conditions are not resolved. The compactor produces history bullets but misses structural state cleanup.
 
-### Detailed steps
+2. **Narrator ignores player input** — Turn 7 narrator outputs stale context (rehashing the toughs confrontation from T5–T6) instead of processing the player's actual input (sitting with Halden, handing over the ledger and merchant seal). The narration spends significant prose on events the player already resolved.
 
-#### Step 1.1 — Add debug logging to compactor sanitization path
-
-**File:** `ccya/engine/compactor.py`
-
-**What:** Add logging around the `_parse_compact_response` call and the `_apply_sanitization` call to capture what the LLM actually returns. This will help diagnose whether the LLM is returning `{}`, malformed JSON, or something else.
-
-**Why:** Without visibility into the LLM's sanitization output, we cannot verify whether the prompt fix works. The log will show the raw sanitization JSON and whether it was parsed successfully.
-
-**Code Snippet**
-```python
-# In maybe_compact(), after line 90 (bullets_text, sanitization = _parse_compact_response(response_text)):
-
-    _log.debug(
-        "compactor: LLM sanitization raw = %r, parsed = %s",
-        response_text[-500:] if len(response_text) > 500 else response_text,
-        sanitization,
-        extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "compactor"},
-    )
-
-    if sanitization is not None:
-        _log.info(
-            "compactor: applying sanitization: quest_close=%s pressure_remove=%s condition_remove=%s",
-            san.quest_close if (san := sanitization) else [],
-            san.pressure_remove if san else [],
-            san.condition_remove if san else [],
-            extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "compactor"},
-        )
-```
-
-**Validation:** Run `make check` to verify no type errors. The new log lines use `_log.debug` and `_log.info` with the existing `extra` context pattern.
-
-#### Step 1.2 — Strengthen compactor sanitization prompt
-
-**File:** `ccya/prompts/compact_system.j2`
-
-**What:** Replace the PART 2 "State sanitization" section with a stronger directive that lowers the confidence threshold, adds concrete examples of what to flag, and explicitly instructs the LLM to always produce sanitization JSON (never omit it).
-
-**Why:** The current prompt says "Only flag problems you are **highly confident** about — false positives cause data loss." This is too conservative. The LLM interprets this as "don't flag anything unless you're 100% sure." We need to flip the default: flag obvious issues, omit uncertain ones.
-
-**Code Snippet**
-```jinja2
-## PART 2: State sanitization
-
-You have the full mechanical state. Identify structural problems that should be fixed.
-
-**Default to flagging.** If an issue is obvious from the bulletin and state, flag it. When in doubt, include it — the engine validates all IDs and silently skips unknown ones. False negatives (missing fixes) are worse than false positives (skipped unknown IDs).
-
-### What to flag
-
-**quest_close** — An active quest where ALL objectives have `done: true` but the quest status is still `active`. This is a mechanical bug — close it. Also flag quests whose narrative conclusively ended (e.g., "the debt was paid") but the quest is still listed as active.
-
-**pressure_remove** — A `scene_pressure` entry whose triggering situation has been resolved. Examples: the pursuers were escaped (remove `purposeful_pursuit`), the deadline passed without consequence (remove `ledger_delivery_deadline`), the confrontation ended (remove `toughs_aggression`).
-
-**condition_remove** — A `pc.condition` that the bulletin clearly shows was treated or resolved. Examples: "wrapped wounds to stave off pain" → remove the wound condition; "rested and recovered" → remove fatigue conditions. Do NOT remove conditions that might still plausibly apply.
-
-**npc_merge** — Two compendium NPC entries that are clearly the same person under different IDs (same name, same role, consistent bios). Provide `keep_id` (canonical) and `remove_ids` (duplicates).
-
-**inventory_remove** — An inventory item that appears twice with different IDs but identical name and purpose. Provide the ID of the copy to remove.
-
-### Output format
-
-After the bullet lines and a blank line, output exactly one JSON object. You MUST output this — even if nothing needs fixing, output `{}`.
-
-```json
-{
-  "quest_close": ["quest_id"],
-  "pressure_remove": ["pressure_id"],
-  "condition_remove": ["condition_id"]
-}
-```
-
-Omit any key whose list would be empty. If nothing needs fixing, output `{}`.
-
-### Concrete examples
-
-Example 1 — Quest completed but not closed:
-```
-Active quests: settle_the_debt (all objectives done: true)
-→ Output: {"quest_close": ["settle_the_debt"]}
-```
-
-Example 2 — Pressure resolved by escape:
-```
-Pressures: purposeful_pursuit (immediate), escaped through service hatch
-→ Output: {"pressure_remove": ["purposeful_pursuit"]}
-```
-
-Example 3 — Condition resolved by self-treatment:
-```
-Conditions: strained_ribs, narration: "wrapped wounds to stave off pain"
-→ Output: {"condition_remove": ["strained_ribs"]}
-```
-
-Example 4 — Nothing to fix:
-```
-All quests have incomplete objectives, no pressures, no resolved conditions
-→ Output: {}
-```
-```
-
-**Validation:** Read the full `compact_system.j2` after the edit to verify the Jinja2 syntax is correct and the section flows logically from PART 1 to PART 2 to PART 3.
-
-#### Step 1.3 — Update compact_user.j2 to surface completed quests
-
-**File:** `ccya/prompts/compact_user.j2`
-
-**What:** Add a "Completed/Failed Quests" section between "Active Quests" and "Present NPCs" to surface quests that are no longer active. This gives the LLM visibility into quests that may need to be closed.
-
-**Why:** The current prompt only shows active quests. If a quest was completed in a compacted turn but never closed, the LLM can't see it in the "Active Quests" section (because it's filtered to `status == "active"` in `_build_compact_messages`). The LLM needs to see ALL quests with their statuses to identify ones that should be closed.
-
-**Code Snippet**
-```jinja2
-## MECHANICAL STATE
-*(Read-only reference for sanitization. Use exact IDs shown.)*
-
-### Active Quests
-{% for q in active_quests -%}
-- **[{{ q.get("id", "?") }}] {{ q.get("title", "?") }}**
-{% for obj in (q.get("objectives") or []) -%}
-  - [{{ "x" if obj.get("done") else " " }}] {{ obj.get("description", "?") }}
-{% endfor -%}
-{% endfor %}
-
-{% if all_quests and active_quests and (all_quests | length) > (active_quests | length) -%}
-### Completed / Failed Quests
-{% for q in all_quests -%}
-{%- if q.get("status") != "active" -%}
-- **[{{ q.get("id", "?") }}] {{ q.get("title", "?") }} — {{ q.get("status", "?") }}**
-{%- endif -%}
-{% endfor %}
-{% endif -%}
-```
-
-**Validation:** Read the full `compact_user.j2` after the edit to verify Jinja2 syntax. The new section only renders when there are non-active quests AND there are also active quests (to avoid redundancy when all quests are active).
-
-### Tests to write or update
-- No new tests required. The compactor's sanitization path is tested indirectly through the eval harness (Tier 2). The debug logging will be visible in eval run traces.
-
-### REPOMAP updates required
-- `docs/REPOMAP/engine.md`: Update compactor description to mention debug logging for sanitization output.
-- `docs/REPOMAP/prompts.md`: Update `compact_system.j2` description to mention strengthened sanitization directive with examples.
-
-### Risks
-1. **Prompt change makes LLM over-flag.** Mitigation: The engine validates all IDs against allowlists and silently skips unknown ones. False positives are harmless — the LLM can't delete valid state.
-2. **Prompt change increases token count.** Mitigation: The added examples add ~200 tokens to the system prompt, which is acceptable for a compaction call that runs every 6 turns.
+3. **Currency mapping failure (follow-up)** — State extractor still emits `iron_coins` instead of mapping to `credits` despite earlier generic-item-mapping fix. The mapping rule in `extract_state_system.j2` is not being followed by the LLM.
 
 ---
 
-## Implementation — Phase 2: Narrator Input Validation
+## Phase 1: Compactor Sanitization Prompt Fix
 
-### Context files to load
-1. `ccya/prompts/narrate_system.j2`
-2. `ccya/prompts/narrate_user.j2`
-3. `ccya/engine/narrate.py` (`_narrate_messages()`)
+**File:** `ccya/prompts/compact_system.j2`  
+**Type:** Prompt-only  
+**Risk:** Low — changes LLM instruction, not engine logic
 
-### Overview
-The narrator ignores player input on Turn 7, outputting prose about Turn 6's aftermath instead. This is a context-tracking failure — the LLM loses track of which turn's input to process. This phase strengthens the narrator prompt with explicit turn anchoring and a directive to process the current turn's input before any other context.
+### Problem
 
-### Detailed steps
+The compactor prompt (line 41) says: *"Only flag problems you are **highly confident** about — false positives cause data loss."* This instruction is too conservative. The LLM interprets it as "only flag problems you are 100% certain about" and returns `{}` even when there are clear opportunities:
 
-#### Step 2.1 — Strengthen narrator system prompt for turn anchoring
+- Quests with all objectives `done: true` but status still `active`
+- Pressures whose triggering situation was resolved in narration
+- Conditions that narration clearly shows as resolved
 
-**File:** `ccya/prompts/narrate_system.j2`
+The compactor at T6 produced 3 bullets but `{}` for sanitization. At T12 it produced 6 bullets but `{}` for sanitization. The bullet production works; the sanitization section fails.
 
-**What:** Add a new section after the opening paragraph that explicitly anchors the narrator to the current turn's input. This section should be placed early in the system prompt so it takes precedence over later context.
+### Fix
 
-**Why:** The current system prompt says "Take the player's stated action at face value and commit to it" but doesn't explicitly tell the LLM to process the CURRENT turn's input. When the context window is large (52K+ tokens), the LLM can get confused about which input is current.
+Strengthen the sanitization instructions with three changes:
 
-**Code Snippet**
-```python
-# Insert after the opening paragraph (after line 3), before "## Style":
+1. **Lower the confidence threshold** — Replace "highly confident" with "reasonably confident." Add: *"When the bulletin clearly shows a quest ended, a pressure resolved, or a condition cured, flag it even if you're not 100% certain. It's safer to close a quest that's already done than to leave it open."*
 
-- **Process the current turn's input.** The user prompt below contains the player's action for THIS turn under `## Player input`. Narrate the consequences of THAT action. Do NOT narrate the aftermath of previous turns, do NOT re-narrate what already happened, and do NOT ignore the player's input to describe something else. The player input is the ONLY action you should narrate.
+2. **Add explicit examples of what to flag** — The prompt lists categories but no concrete examples. Add:
+
+```
+### Examples (flag these)
+
+- Quest `deliver_the_ledger` has all objectives `done: true` but status is still `active` → add to `quest_close`
+- Pressure `imminent_combat` was resolved by a successful charisma check last turn → add to `pressure_remove`
+- Condition `shaken` was resolved after the player found a safe place to rest → add to `condition_remove`
+- Inventory `bandages` appears twice with different IDs → add duplicate ID to `inventory_remove`
 ```
 
-**Validation:** Read the full `narrate_system.j2` after the edit to verify the bullet point fits the existing style and doesn't disrupt the prompt flow.
+3. **Add a "checklist" instruction** — Tell the LLM to systematically check each category:
 
-#### Step 2.2 — Strengthen "Player intent is truth" section
+```
+### Checklist (check each category)
 
-**File:** `ccya/prompts/narrate_system.j2`
+Before outputting, verify each category:
+1. **npc_merge:** Are there two NPC entries that are clearly the same person?
+2. **inventory_remove:** Are there duplicate inventory items with different IDs?
+3. **quest_close:** Are there active quests with all objectives done, or quests that ended narratively?
+4. **pressure_remove:** Are there pressures whose triggering situation is resolved?
+5. **condition_remove:** Are there conditions that narration shows as cured/resolved?
+6. **recent_events_compact:** Can similar events be merged? Is the list too long?
 
-**What:** Enhance the existing "Player intent is truth" section with a stronger directive that explicitly forbids ignoring the player's input.
+If a category has nothing to flag, omit it from the JSON. But check every category.
+```
 
-**Why:** The current section says "Take the player's stated action at face value" but doesn't explicitly say "do not ignore it." The eval report shows the narrator outputting Turn 6's aftermath instead of processing Turn 7's input — this is a direct violation of "player intent is truth."
+### Verification
 
-**Code Snippet**
-```python
-# Replace the existing "## Player intent is truth" section (lines 26-28):
+- Re-run eval, check that compactor sanitization at T6/T12 produces non-`{}` JSON
+- Verify quests are closed, pressures removed, conditions resolved in post-compaction state
+- Verify bullets still produce correctly (no regression)
 
-## Player intent is truth
+---
+
+## Phase 2: Narrator Input Processing Fix
+
+**File:** `ccya/prompts/narrate_system.j2`  
+**Type:** Prompt-only  
+**Risk:** Low — changes narrator instruction, not engine logic
+
+### Problem
+
+Turn 7 player input: *"I sit across from Halden at his table, slide the merchant seal across, and hand him the ledger from my coat."*
+
+The narrator's response (from trace) spends ~150 words on the toughs confrontation resolution (T5–T6 events) before reaching the actual Turn 7 action. The narration opens with:
+
+> "The tension of the confrontation at the door breaks not with a blow, but with the heavy, undeniable weight of your words..."
+
+This is stale context — the confrontation was already resolved. The player's input is about a completely different scene (sitting with Halden). The narrator should have opened directly with the Halden interaction.
+
+Root cause: The narrator prompt's "Active scope tail" section and the user prompt's `prior_turn_narration` block create a strong narrative momentum that causes the LLM to continue describing the previous scene's resolution before pivoting to the new input. The narrator lacks an explicit instruction to prioritize the player's current input over narrative continuity from the previous turn.
+
+### Fix
+
+Add an explicit "player input priority" rule to the narrator prompt, placed after "Player intent is truth" (line 27):
+
+```
+## Player input takes priority
+
+The player's stated action is the anchor for this turn. Open your narration with the player's action, not with a bridge from the previous turn. If the player changes scene, location, or focus, start fresh — do not rehash events the player already resolved. A brief transitional sentence is acceptable, but the bulk of your narration must address the current input.
+
+Bad: "The tension of the confrontation at the door breaks... [150 words about toughs] ... Meanwhile, you sit across from Halden..."
+Good: "You pull up a chair across from Halden and slide the ledger across the table. He stares at it, fingers grazing the leather..."
+```
+
+Also strengthen the "Player intent is truth" section (line 27) to add:
+
+```
 Take the player's stated action at face value and commit to it. The rules engine handles dice and conditions; the narrator handles fiction. 
-**You MUST narrate the player's current input — never ignore it, never substitute a different action, and never narrate previous turns instead.** If the action involves an inventory item or present NPC, always use that item or NPC.
+Never substitute a different action than what the player described. If the action involves an inventory item or present NPC, always use that item or NPC.
+**Open with the player's action. Do not spend more than one sentence bridging from the previous turn's events.**
 ```
 
-**Validation:** Read the full `narrate_system.j2` after the edit to verify the replacement is clean and the section flows logically.
+### Verification
 
-### Tests to write or update
-- No new tests required. The narrator's behavior is tested through the eval harness (Tier 2). The fix will be verified by re-running the eval and checking that Turn 7 no longer shows a narrator input ignore.
-
-### REPOMAP updates required
-- `docs/REPOMAP/prompts.md`: Update `narrate_system.j2` description to mention turn anchoring directive.
-
-### Risks
-1. **Prompt change increases token count.** Mitigation: The added text is ~100 tokens, negligible compared to the 52K token context.
-2. **Prompt change is too aggressive and causes other issues.** Mitigation: The directive reinforces existing behavior ("player intent is truth") rather than changing it. If issues arise, the directive can be toned down.
+- Re-run eval, check Turn 7 narration opens with the Halden/ledger interaction
+- Verify no more than 1–2 sentences of transitional context from previous turn
+- Verify the player's actual input (handing ledger + seal) is the primary focus
 
 ---
 
-## Implementation — Phase 3: Currency Mapping Fix
+## Phase 3: Currency Mapping Strengthening
 
-### Context files to load
-1. `ccya/prompts/extract_state_system.j2`
-2. `ccya/prompts/extract_state_user.j2`
+**File:** `ccya/prompts/extract_state_system.j2`  
+**Type:** Prompt-only  
+**Risk:** Low — strengthens existing mapping rule
 
-### Overview
-The state extractor emits `iron_coins` instead of mapping generic currency terms to the existing `credits` inventory ID, causing delta rejections and runner errors on turns 7 and 13. The existing "Generic item mapping (MANDATORY)" section exists but the LLM ignores it. This phase strengthens the mapping directive with an explicit `credits` example and a stronger negative constraint.
+### Problem
 
-### Detailed steps
+The generic item mapping rule (lines 76–92) exists but the LLM still sometimes emits `iron_coins` instead of mapping to `credits`. The rule provides examples but lacks a strong enough directive. The LLM treats the mapping as "suggested" rather than "mandatory."
 
-#### Step 3.1 — Strengthen generic item mapping section
+The current rule says: *"If the narration references a generic denomination or container term, you MUST map it to the closest matching ID in the ## inventory list. NEVER invent a new inventory ID for a generic term."*
 
-**File:** `ccya/prompts/extract_state_system.j2`
+The `MUST` and `NEVER` are present but the LLM is not following them. The rule needs reinforcement with a stronger framing and a concrete consequence statement.
 
-**What:** Replace the existing "Generic item mapping (MANDATORY)" section with a stronger, more explicit version that includes the `credits` example and a stronger negative constraint.
+### Fix
 
-**Why:** The current section lists mapping examples but doesn't explicitly mention `credits`. The LLM doesn't know that `credits` is the canonical currency ID in this game. By explicitly naming `credits` and adding a stronger negative constraint, we prevent the LLM from inventing new currency IDs.
+Strengthen the generic item mapping section with three changes:
 
-**Code Snippet**
-```python
-# Replace the existing "## Generic item mapping (MANDATORY)" section (lines 76–92):
+1. **Add a "zero-tolerance" framing** at the top of the section:
 
-## Generic item mapping (MANDATORY)
+```
+## Generic item mapping (ZERO TOLERANCE)
 
 If the narration references a generic denomination or container term, you MUST map it to the
 closest matching ID in the ## inventory list. NEVER invent a new inventory ID for a generic term.
 
-**Currency mapping is the most common error.** If the inventory contains a currency item (e.g., `credits`), ALL generic currency references in the narration MUST map to that ID. Examples:
-  "coin", "silver", "iron coin", "gold piece", "copper", "a coin", "a few coins", "roll of cash", "stack of credits", "pouch of money", "money" → map to `credits` (or whatever currency ID exists in inventory)
-
-**If the inventory has NO currency item**, do NOT emit an inventory_remove or inventory_add for currency references. Omission is safer than inventing a new ID.
-
-If no inventory item clearly matches the generic term (non-currency items), do NOT emit an inventory_remove or
-inventory_add for that reference. The narrator's language is imprecise — the state should not
-change. Omission is always safer than inventing a new ID.
-
-**If you create an inventory ID that does not match any existing item and is not a genuinely
-new item described in the narration, you have failed this rule.**
+**This rule has zero tolerance. Inventing a currency ID (e.g., "iron_coins", "silver", "gold_piece")
+when an existing currency ID (e.g., "credits") is in inventory is a critical failure.**
 ```
 
-**Validation:** Read the full `extract_state_system.j2` after the edit to verify the section flows logically and the examples are clear.
+2. **Add a "what happens if you fail" consequence:**
 
-### Tests to write or update
-- No new tests required. The currency mapping fix will be verified by re-running the eval and checking that turns 7 and 13 no longer show rejected deltas for `iron_coins`.
+```
+If you invent a currency ID instead of mapping to an existing one, the game state will contain
+a phantom item that doesn't exist in the player's actual inventory. This breaks all inventory
+tracking for that turn and every subsequent turn. When in doubt, map to the existing currency ID.
+```
 
-### REPOMAP updates required
-- `docs/REPOMAP/prompts.md`: Update `extract_state_system.j2` description to mention strengthened currency mapping with explicit `credits` example.
+3. **Add a "verify before emitting" step:**
 
-### Risks
-1. **Prompt change is too specific to `credits`.** Mitigation: The prompt says "or whatever currency ID exists in inventory" — it's an example, not a hardcode. Other packs with different currency IDs will still work.
-2. **Prompt change increases token count.** Mitigation: The added text is ~80 tokens, negligible.
+```
+Before emitting any inventory_remove or inventory_add involving currency:
+1. Check the ## inventory list for an existing currency ID
+2. If one exists, use it — even if the narration uses a different term
+3. If none exists, do NOT emit the change
+```
+
+### Verification
+
+- Re-run eval, check that state extractor maps all currency references to `credits`
+- Verify no `iron_coins` or other invented currency IDs appear in extracted deltas
+- Verify existing currency mapping still works (no regression on correct mappings)
 
 ---
 
-## Ambiguities requiring resolution before execution
-1. **Should we also add an engine-level pre-narration validation step?** The plan deliberately chooses prompt-only for now. If the prompt fix doesn't resolve the Turn 7 issue after eval re-run, an engine-level validation step (checking if input references absent NPCs/locations) can be added in a follow-up. **Decision: prompt-only for now.**
-2. **Should the compactor's "Completed/Failed Quests" section in `compact_user.j2` show objectives for non-active quests?** Currently it only shows the quest ID, title, and status. Adding objectives would increase token count significantly. **Decision: status only — the LLM can infer from the bulletin whether the quest is truly done.**
+## Phase Summary
 
-## TODO.md update
+| Phase | File | Change | Risk |
+|---|---|---|---|
+| 1 | `ccya/prompts/compact_system.j2` | Strengthen sanitization instructions: lower confidence threshold, add examples, add checklist | Low |
+| 2 | `ccya/prompts/narrate_system.j2` | Add "player input takes priority" rule; limit transitional bridging to 1 sentence | Low |
+| 3 | `ccya/prompts/extract_state_system.j2` | Strengthen currency mapping with zero-tolerance framing and consequence statement | Low |
 
-Add the following under a new section in `docs/plans/TODO.md`, after the "Eval Remediation (May 2026)" heading and before the existing items:
+---
 
-```markdown
+## Coordination with `02-extraction-quality.md`
+
+This plan addresses compactor sanitization (Phase 1) and currency mapping (Phase 3). The `02-extraction-quality.md` plan addresses:
+- Compaction phase logging (its Phase 1) — different issue, same compactor
+- Inventory amount parsing (its Phase 2) — different state extractor issue
+- Quest dedup (its Phase 3), ambient NPC filtering (its Phase 4), auto-checker (its Phase 5), rubric (its Phase 6)
+
+**Recommended execution order:**
+1. This plan (01): Phases 1–3 (compactor sanitization, narrator input, currency mapping)
+2. `02-extraction-quality.md`: Phases 1–6 (compaction logging, amount parsing, quest dedup, ambient NPC, auto-checker, rubric)
+
+Both plans are prompt-only. No engine code changes required.
+
+---
+
+## Mark as completed (items from existing TODO that this plan addresses):
+
 - [ ] **Compactor sanitization failure** — compactor fires at T6/T12 but LLM returns `{}` for all sanitization actions; quests not closed, pressures not removed — see `[eval-remediation-may10/01-eval-remediation-may10.md](eval-remediation-may10/01-eval-remediation-may10.md) Phase 1`
 - [ ] **Narrator ignores player input** — Turn 7 narrator outputs stale context instead of processing input — see `[eval-remediation-may10/01-eval-remediation-may10.md](eval-remediation-may10/01-eval-remediation-may10.md) Phase 2`
-- [ ] **Currency mapping failure** — state extractor emits `iron_coins` instead of mapping to `credits`, causing rejected deltas — see `[eval-remediation-may10/01-eval-remediation-may10.md](eval-remediation-may10/01-eval-remediation-may10.md) Phase 3`
-```
+- [ ] **Currency mapping failure (follow-up)** — state extractor still emits `iron_coins` instead of mapping to `credits` despite earlier fix; strengthened prompt directive needed — see `[eval-remediation-may10/01-eval-remediation-may10.md](eval-remediation-may10/01-eval-remediation-may10.md) Phase 3`
