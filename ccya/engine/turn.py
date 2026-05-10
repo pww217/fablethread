@@ -298,9 +298,10 @@ async def run_turn(
         exp_rules_ms = _avg_rules_ms(save_dir)
         yield ("phase", {"phase": "rules_start", "expected_ms": exp_rules_ms})
         t_rules = asyncio.get_event_loop().time()
+        turn_no = state.get("meta", {}).get("turn", 0) + 1
 
         rules_messages = _rules_messages(
-            env, state, user_input, recent_turns=recent_turns[-1:]
+            env, state, user_input, recent_turns=recent_turns[-1:], turn_no=turn_no
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_rules_system = rules_messages[0]["content"] if rules_messages else ""
@@ -361,7 +362,6 @@ async def run_turn(
 
         # Age counters for narration directives
         ages = _compute_ages(state)
-        turn_no = state.get("meta", {}).get("turn", 0) + 1
         quest_ages = _compute_quest_ages(state, turn_no)
 
         if config.log_prompts:
@@ -454,6 +454,7 @@ async def run_turn(
             world_factions=_world_factions,
             world_locations=_world_locations,
             pc_allegiance=_pc_allegiance,
+            turn_no=turn_no,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""

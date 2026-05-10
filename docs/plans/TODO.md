@@ -129,6 +129,7 @@ See `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remedia
 - ~~**Fix location change scope** — extractor emits location_change when only description changes; add ID-change guard to prompt — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 2`~~
 - ~~**Fix compendium NPC matching** — extractor creates duplicate IDs for known NPCs; extend dedup to npc_add + strengthen prompt — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 3`~~
 - ~~**Tune auto-checker false positives** — NER flags descriptors, inventory items, and PC names as unsanctioned NPCs — see `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remediation/01-extractor-grounding-and-compactor-fix.md) Phase 4`~~
+- [x] **Eval 13-turn expansion: dual compaction + gap coverage** — extend full_cycle from 10 to 13 turns, add combat/inventory/condition/removal turns, update rubric for dual compaction — see `[eval-13-turn-expansion.md](eval-13-turn-expansion.md)`
 
 ## Standalone
 

@@ -1,5 +1,15 @@
 # ccya eval harness
 
+## Scenarios
+
+| Scenario | Turns | Description |
+|---|---|---|
+| `full_cycle` | 13 | Peaceful start → debt settlement → courier contract → road travel → confrontation → combat → chase → recovery. Tests dual compaction (T6, T12). |
+| `pressure_lifecycle` | 8 | Scene pressure urgency escalation and expiry |
+| `gm_beat_lifecycle` | 5 | `pending_gm_beat` set/surface/consume lifecycle |
+| `momentum_high` | 3 | High-momentum narration tone |
+| `momentum_low` | 3 | Low-momentum narration tone |
+
 ## Adding a custom eval pack
 
 The eval harness searches for packs in the directories listed under `pack_dirs:`

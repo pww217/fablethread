@@ -1,24 +1,28 @@
-"""full_cycle — 10-turn arc testing all mechanics across 4+ locations.
+"""full_cycle — 13-turn arc testing all mechanics across 5+ locations with dual compaction.
 
 Starts peacefully in Marrow's Crossing, escalates through the road,
-and ends with absurd edge cases. First 5 turns test core mechanics;
-last 5 push boundaries.
+confrontation, combat, and recovery. First 5 turns test core mechanics;
+turns 6-10 push boundaries; turns 11-13 test combat, condition management,
+and post-dual-compaction narrator behavior.
 
 All inputs are hard-coded for deterministic testing. The engine handles
 mismatched assumptions gracefully (e.g. "talk to Caron" when he's not
 there → engine narrates and moves on).
 
-Designed for 10 turns. Use --turns 4 to test just the opening arc.
+Designed for 13 turns. Use --turns 4 to test just the opening arc.
 
 Expected emergent observations:
-  - rules call fires on turns 2, 3, 5, 6, 7, 8, 9, 10
-  - extract.state removes inventory on turns 2, 5, 8
-  - extract.progress marks quest objectives done on turns 2, 3, 5
-  - extract.scene shows location_change on turns 4, 6, 9
-  - context_economy: recent_events shouldn't balloon by turn 10
+  - rules call fires on turns 2, 3, 5, 6, 8, 9, 10, 11
+  - extract.state removes inventory on turns 2, 5, 8, 13
+  - extract.state adds inventory on turn 11
+  - extract.progress marks quest objectives done on turns 2, 3, 7, 12
+  - extract.scene shows location_change on turns 4, 6, 9, 12
+  - context_economy: recent_events shouldn't balloon by turn 13
   - scene_pressure should escalate across turns 7-10
   - momentum should swing based on band outcomes
   - compendium NPC bio should update on turns 3, 7, 10
+  - compaction fires at T6 (3 bullets for T1-3, visible at T7) and T12 (3 bullets for T7-9, visible at T13)
+  - condition management: pc_condition_add at T11, pc_condition_remove at T13
 """
 
 from ccya.eval.scenario import Scenario, Turn, TurnAssert
@@ -27,7 +31,7 @@ from ccya.eval.scenario import Scenario, Turn, TurnAssert
 scenario = Scenario(
     id="full_cycle",
     pack="eval-pack",
-    description="Peaceful start in Marrow's Crossing → debt settlement → courier contract → road travel → confrontation → absurd edge cases.",
+    description="Peaceful start in Marrow's Crossing → debt settlement → courier contract → road travel → confrontation → combat → chase → recovery. Tests dual compaction (T6, T12).",
     turns=[
         # --- Turn 1: Pure dialogue, no roll — quest: settle_the_debt ---
         Turn(
@@ -171,6 +175,49 @@ scenario = Scenario(
             ],
             asserts=[
                 TurnAssert(stream="rules", field="rolled", expected="true"),
+            ],
+        ),
+        # --- Turn 11: Combat — Matthew's bodyguard attacks, condition add + inventory add ---
+        Turn(
+            input="Matthew's bodyguard draws a knife! I tackle him into the bar shelves and search his coat while he's dazed.",
+            phase="combat",
+            expects=[
+                "rules.required=true skill=strength (combat)",
+                "pc_condition_add for player (e.g., wounded from knife)",
+                "inventory_add for bodyguard's items (e.g., estrada_wallet)",
+                "scene_tags should include combat",
+            ],
+            asserts=[
+                TurnAssert(stream="rules", field="rolled", expected="true"),
+                TurnAssert(stream="extract.scene", field="scene_tags", expected="combat"),
+            ],
+        ),
+        # --- Turn 12: Rush to river dock — quest completion + location change + second compaction ---
+        Turn(
+            input="I grab the ledger from my coat and sprint out the back door toward the river dock, shouting for Halden to hold on.",
+            phase="chase",
+            expects=[
+                "extract.scene.location_change to river_dock",
+                "extract.progress quest_updates for deliver_the_ledger",
+                "compaction fires at T12 (second pass)",
+                "npc_add for dock workers or rival courier",
+            ],
+            asserts=[
+                TurnAssert(stream="rules", field="rolled", expected="false"),
+            ],
+        ),
+        # --- Turn 13: Tend wounds + send message — condition removal, post-dual-compaction ---
+        Turn(
+            input="I find a quiet corner at the dock and wrap my wounds with my shirt. Then I write a note to Caron about the intercepted courier and pay the dock boy to deliver it.",
+            phase="recovery",
+            expects=[
+                "pc_condition_remove for wounded (self-treatment)",
+                "no rules call (social, no obstacle)",
+                "narrator operates with compacted history (2 compaction passes)",
+                "inventory_remove for shirt (used as bandage)",
+            ],
+            asserts=[
+                TurnAssert(stream="rules", field="rolled", expected="false"),
             ],
         ),
     ],
