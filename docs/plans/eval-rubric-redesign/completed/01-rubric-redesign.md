@@ -46,14 +46,14 @@ The current rubric has four structural gaps:
 ```
 1. Storytelling Trace (new — short, data collection)
 2. State Evolution Trace (new — short, data collection)
-3. Actionable Issues Surfaced (unchanged, moved up)
-4. Mechanical Design Critique (per-pipeline, unchanged)
-5. Cross-Pipeline Correlation (new — interaction analysis)
-6. Storytelling Design Critique (11 criteria: 7 kept + 4 new, 5 simplified)
-7. Prompt Redundancy Analysis (unchanged)
-8. Compaction Capabilities Report (unchanged)
-9. Auto-Checker Failures (unchanged)
-10. Verdict (expanded with subheaders, at the end)
+3. Mechanical Design Critique (per-pipeline, unchanged)
+4. Cross-Pipeline Correlation (new — interaction analysis)
+5. Storytelling Design Critique (12 criteria: 7 kept + 4 new, 5 simplified)
+6. Prompt Redundancy Analysis (unchanged)
+7. Compaction Capabilities Report (unchanged)
+8. Auto-Checker Failures (unchanged)
+9. Verdict (expanded with subheaders, at the end)
+10. Actionable Issues Surfaced (moved from top to bottom)
 11. Additional Observations (unchanged)
 ```
 
@@ -623,5 +623,6 @@ Update `docs/plans/TODO.md` to add new items:
 7. **Phase 7:** Embed ARCHITECTURE.md EVAL_CONTEXT into trace.md (code change in `judge.py`)
 8. **Phase 8:** Add Pipeline I/O Relevance to Verdict (rubric change in `default.md`)
 9. **Phase 9:** Update REPOMAP and TODO
+10. **Phase 10:** Move Actionable Issues Surfaced from Section 3 to Section 10 (after Verdict, before Additional Observations)
 
-Phases 1-6, 8 modify `evals/rubrics/default.md` only. Phase 7 modifies `ccya/eval/judge.py`. Phase 9 updates REPOMAP and TODO.
+Phases 1-6, 8-10 modify `evals/rubrics/default.md` only. Phase 7 modifies `ccya/eval/judge.py`. Phase 9 updates REPOMAP and TODO.

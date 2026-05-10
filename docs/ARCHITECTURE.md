@@ -17,11 +17,11 @@ Every player turn drives this 5-step pipeline, executed strictly in order. Step 
 
 | Pipeline | When it runs | Key inputs | Key outputs | Mechanics it owns | Hand-off to next turn |
 |---|---|---|---|---|---|
-| **Step 0 — Rules / Intent** | Every turn (always) | `state.pc`, `state.location`, `state.scene.present_npcs`, `scene_pressure`, `recent_turns[-1:]`, `user_input` | `IntentEnvelope` (intent, verb, target, stakes, check.required, check.skill, check.difficulty); `RulesOutcome` (rolled, dice, mods, band, directive) | Intent classification, dice roll resolution (2d6 + stat + cond − diff → band), difficulty selection, anti-declare-outcome enforcement | `rules_outcome.directive` shapes narrator latitude |
-| **Step 1 — Narrate** | Every turn (always, streamed) | Full `state` (pc, location, scene, inventory, quests, compendium), `chronicle_tail`, `recent_turns`, `RulesOutcome`, `pack_style`, `narrator_rules`, `pending_gm_beat`, `momentum`, `ages`, `recently_left`, name pools, world factions/locations | `narrative` (prose); a trailing `<scope>{"active_domains":[...]}</scope>` line stripped server-side | Prose generation, dice-band binding, GM-beat consumption (clears `state.meta.pending_gm_beat`), de-escalation directives, age-based stalling fixes, scope decision (active_domains) | `narrative` feeds all 3 extractors; `active_domains` gates which extractors run |
+| **Step 0 — Rules / Intent** | Every turn (always) | `state.pc`, `state.location`, `recent_turns[-1:]`, `user_input` | `IntentEnvelope` (intent, verb, target, stakes, check.required, check.skill, check.difficulty); `RulesOutcome` (rolled, dice, mods, band, directive) | Intent classification, dice roll resolution (2d6 + stat + cond − diff → band), difficulty selection, anti-declare-outcome enforcement | `rules_outcome.directive` shapes narrator latitude |
+| **Step 1 — Narrate** | Every turn (always, streamed) | Full `state` (pc, location, scene, inventory, quests, compendium), `chronicle_tail`, `recent_turns`, `rules_outcome` (when rolled), `pack_style`, `narrator_rules`, `pending_gm_beat`, `momentum`, `ages`, `recently_left`, `known_npcs`, `present_npcs`, `world_factions`, `world_locations`, `npc_name_pool`, `deescalate`, `scene_pressure`, `user_input` | `narrative` (prose); a trailing `<scope>{"active_domains":[...]}</scope>` line stripped server-side | Prose generation, dice-band binding, GM-beat consumption (clears `state.meta.pending_gm_beat`), de-escalation directives, age-based stalling fixes, scope decision (active_domains) | `narrative` feeds all 3 extractors; `active_domains` gates which extractors run |
 | **Step 2a — Scene Extract** | When `scene` or `location_change` in active_domains | `narrative`, `state.pc/location`, `state.scene.present_npcs`, `state.pc.conditions`, `known_characters` (LRU compendium), `RulesOutcome`, `recent_turns[-1:]` | `SceneExtractResult`: `scene_tags`, `scene_tagline`, `location_change`, `location_description`, `npc_add/remove/update`, `compendium_npc_update` | NPC presence, location changes, scene tags, scene classification (tags/tagline), durable NPC compendium identity | `location_change` and `present_npcs` passed to Steps 2b and 2c |
-| **Step 2b — State Extract** | When `inventory` or `pc_condition` in active_domains; auto-activated by transfer-verb scan | `narrative`, `state.pc`, `state.location`, `state.inventory`, `rules_outcome`, `engine_expired_conditions`, `scene_result.location_change`, `scene_result.present_npcs`, `stakes`, `band` | `StateExtractResult`: `inventory_add/remove/update`, `pc_condition_add/remove` | Inventory delta accuracy, condition lifecycle (with `added_turn`), engine-side TTL pre-removal, ID normalization | `items_gained` (names) + `items_lost` (ids) feed Step 2c |
-| **Step 2c — Progress Extract** | Every turn (always) | `narrative`, `state.pc`, `state.scene.recent_events`, `state.scene.world_state`, `active_quests`, `scene_pressure`, `RulesOutcome`, `intent`, `recent_turns[-2:]`, `items_gained`/`items_lost` from 2b, `stakes`, `band`, `deescalate`, `quest_ages`, `pending_beat` | `ProgressExtractResult`: `quest_updates`, `recent_events_add/update/remove`, `actions` (4 suggested choices), `outcome_summary`, `gm_beat`, `beat_disposition`, `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update` | Quest objectives, recent_events ring buffer, action suggestions, narrative recap, GM beat generation + disposition, scene pressure lifecycle (all three operations) | `recent_events_add` becomes durable history; `quest_updates` advance arcs; `scene_pressure_add` feeds next turn's rules call; `gm_beat` stored in `state.meta.pending_gm_beat` |
+| **Step 2b — State Extract** | When `inventory` or `pc_condition` in active_domains; auto-activated by transfer-verb scan | `narrative`, `state.pc`, `state.location`, `state.inventory`, `rules_outcome`, `engine_expired_conditions`, `scene_result.location_change`, `scene_result.present_npcs`, `stakes`, `band`, `band_examples` (few-shot extraction examples keyed to dice band) | `StateExtractResult`: `inventory_add/remove/update`, `pc_condition_add/remove` | Inventory delta accuracy, condition lifecycle (with `added_turn`), engine-side TTL pre-removal, ID normalization | `items_gained` (names) + `items_lost` (ids) feed Step 2c |
+| **Step 2c — Progress Extract** | Every turn (always) | `narrative`, `state.pc`, `state.scene.recent_events`, `state.scene.world_state`, `active_quests`, `scene_pressure`, `RulesOutcome`, `intent`, `recent_turns[-2:]`, `items_gained`/`items_lost` from 2b, `stakes`, `band`, `deescalate`, `quest_ages`, `pending_beat`, `quest_threshold_directive` | `ProgressExtractResult`: `quest_updates`, `recent_events_add/update/remove`, `actions` (4 suggested choices), `outcome_summary`, `gm_beat`, `beat_disposition`, `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update` | Quest objectives, recent_events ring buffer, action suggestions, narrative recap, GM beat generation + disposition, scene pressure lifecycle (all three operations) | `recent_events_add` becomes durable history; `quest_updates` advance arcs; `scene_pressure_add` feeds next turn's rules call; `gm_beat` stored in `state.meta.pending_gm_beat` |
 
 After Step 2c, results merge into a `StateDelta`, the validator checks (e.g. `inventory_remove` IDs exist), `apply_delta()` mutates state in-place, and the turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `events.jsonl`.
 
@@ -82,9 +82,8 @@ flowchart LR
     subgraph IN["Inputs"]
         I1["state.pc<br>(name, stats, conditions)"]
         I2["state.location"]
-        I3["state.scene.present_npcs"]
-        I4["recent_turns[-1:]<br>(from chronicle;<br>user prompt: narrative tail)"]
-        I5["user_input"]
+        I3["recent_turns[-1:]<br>(from chronicle;<br>user prompt: narrative tail)"]
+        I4["user_input"]
     end
 
     subgraph LLM0["LLM — rules_system.j2 + rules_user.j2"]
@@ -129,7 +128,16 @@ flowchart LR
         N5["pack_style (tone / prose guide)"]
         N6["npc_name_pool (cultural name list)"]
         N7["recently_left NPCs"]
-        N8["user_input"]
+        N8["known_npcs<br>(last-seen info)"]
+        N9["present_npcs<br>(attitudes)"]
+        N10["world_factions<br>(immutable trace)"]
+        N11["world_locations<br>(nearby, immutable)"]
+        N12["pending_gm_beat"]
+        N13["momentum"]
+        N14["ages<br>(combat/location)"]
+        N15["deescalate"]
+        N16["scene_pressure<br>(active threats)"]
+        N17["user_input"]
     end
 
     subgraph LLM1["LLM — narrate_system.j2 + narrate_user.j2"]
@@ -153,6 +161,22 @@ flowchart LR
 > Parsed `active_domains` flows into Steps 2a/2b/2c. Scene runs only when `scene` or
 > `location_change` is in active_domains. State runs only when `inventory` or
 > `pc_condition` is in active_domains. Progress always runs.
+>
+> ### Scope domains
+>
+> The narrator decides which extraction streams to run via seven scope domains. Each
+> domain gates one or more extractors:
+>
+> | Domain | Extractor(s) triggered | Condition for emission |
+> |--------|----------------------|----------------------|
+> | `scene` | 2a (Scene) | NPC enters/leaves narration, NPC situation shifts |
+> | `location_change` | 2a (Scene) | Player physically moves or scene shifts significantly |
+> | `inventory` | 2b (State) | Items received, used, dropped, upgraded |
+> | `pc_condition` | 2b (State) | Wounds, fatigue, mental conditions added or resolved |
+> | `quest_updates` | 2c (Progress) | Quest objective progress, new quest, quest resolved/failed |
+> | `recent_events` | 2c (Progress) | Narratively significant new fact (politics, intrigue, world) |
+> | `compendium_npc` | 2a (Scene) | NPC named for the first time, durable identity change, death |
+>
 
 ---
 
@@ -225,6 +249,7 @@ flowchart LR
         S9["scene_result.present_npcs<br>(from Step 2a)"]:::xstream
         S10["stakes: str<br>(mechanical cost from rules)"]:::xstream
         S11["band: str<br>(dice resolution band)"]:::xstream
+        S12["band_examples<br>(few-shot examples for current band)"]
     end
 
     subgraph LLM2B["LLM — extract_state_system.j2 + extract_state_user.j2"]
@@ -280,6 +305,7 @@ flowchart LR
         S14["deescalate: float<br>(pressure resolution magnitude)"]:::xstream
         S15["quest_ages: list[dict]<br>(stalled-quest signal)"]
         S16["pending_beat: dict | None<br>(carried beat from prev turn)"]
+        S17["quest_threshold_directive<br>(guidance on new-quest aggressiveness)"]
     end
 
     subgraph LLM2C["LLM — extract_progress_system.j2 + extract_progress_user.j2"]
@@ -308,6 +334,27 @@ flowchart LR
 > every turn (never skipped) and feeds next turn's rules call via `recent_events_add`
 > (durable narrative facts), `quest_updates` (advancing or closing arcs), `scene_pressure_add`
 > (new threats), and `gm_beat` (forward-facing beats stored in `state.meta.pending_gm_beat`).
+>
+> ### GMBeat schema
+>
+> ```
+> GMBeat
+>   type: complication | revelation | opportunity | breathing_room | pressure | twist | setback | escalation | callback
+>   surface_as: ambient | event | npc_behavior | environmental | player_discovery | item (default: ambient)
+>   instruction: str (must be ≥40 chars, not start with filler prefixes)
+>   beat_expires_turn: int | None (turn number at which the beat expires; set to turn_no + 2 when stored)
+> ```
+>
+> ### Beat lifecycle
+>
+> The progress extractor emits a `gm_beat` (or `null`). If a beat is emitted, `beat_disposition`
+> controls what happens to the `pending_gm_beat` from the previous turn: `consume` clears it,
+> `carry` preserves it unchanged, `replace` supersedes it with the new beat. The engine stores
+> the beat in `state.meta.pending_gm_beat` with `beat_expires_turn = turn_no + 2` as a hard
+> TTL ceiling. Pre-narration, the engine checks whether the carried beat has passed its TTL;
+> if so, it is nullified regardless of disposition. The narrator consumes the beat by integrating
+> its instruction into prose. If not consumed by the narrator, the beat expires at turn N and
+> is discarded.
 
 ---
 
@@ -331,7 +378,7 @@ flowchart TD
 
     VALIDATE["_validate()<br>Check inventory_remove IDs exist<br>→ rejections: list[dict]"]:::pyNode
 
-    APPLY["apply_delta() — mutates state in-place<br>──────────────────────────────<br>inventory add / remove / update<br>pc.conditions add / remove (+ added_turn)<br>location (id, name, description)<br>scene.present_npcs<br>scene.tagline<br>scene.recent_events (ring buffer, max 15)<br>scene.world_state<br>quests (create-or-update)<br>compendium.npcs (upsert)<br>meta.compendium_touch_order (LRU)<br>meta.turn += 1"]:::pyNode
+    APPLY["apply_delta() — mutates state in-place<br>──────────────────────────────<br>inventory add / remove / update<br>pc.conditions add / remove (+ added_turn)<br>location (id, name, description)<br>scene.present_npcs<br>scene.tagline<br>scene.recent_events (ring buffer, max 15)<br>scene.world_state<br>scene_pressure_add / remove / update<br>  (scene: add/update; progress: remove)<br>quests (create-or-update)<br>compendium.npcs (upsert)<br>meta.compendium_touch_order (LRU)<br>meta.turn += 1"]:::pyNode
 
     DIFF["summarize_changes()<br>diffs pre vs post state<br>→ changes{inventory, player, facts, quests}"]:::pyNode
 

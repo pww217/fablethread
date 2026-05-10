@@ -20,7 +20,6 @@ pipeline_scores:
   - [State Coherence](#state-coherence)
   - [State Drift](#state-drift)
   - [State Completeness](#state-completeness)
-- [Actionable Issues Surfaced](#actionable-issues-surfaced)
 - [Mechanical Design Critique](#mechanical-design-critique)
 - [Cross-Pipeline Correlation](#cross-pipeline-correlation)
 - [Storytelling Design Critique](#storytelling-design-critique)
@@ -34,6 +33,7 @@ pipeline_scores:
   - [Pipeline I/O Relevance](#pipeline-io-relevance)
   - [Regression & Known Issues](#regression--known-issues)
   - [Key Findings](#key-findings)
+- [Actionable Issues Surfaced](#actionable-issues-surfaced)
 - [Additional Observations](#additional-observations)
 
 
@@ -161,24 +161,7 @@ Are there any state domains that should have changed but didn't? Note: location 
 ---
 
 
-## Section 3: Actionable Issues Surfaced
-
-
-A paragraph per issue that arose during this evaluation, and a recommendation
-to fix or resolve it. Place them in appropriate major, minor, trivial categories
-and prefix each with the type of issue: `[Engine]`, `[Prompting]`,
-`[Consistency]`, etc.
-
-Each issue must also carry one of the following mechanical tags where
-applicable: `bad prompt | failed to output key information | failed to input key
-information | messy logic | scope/domain mismatch | schema drift | misplaced
-mechanic | wasted tokens`.
-
-
----
-
-
-## Section 4: Mechanical Design Critique (PRIMARY — weighted 2x)
+## Section 3: Mechanical Design Critique (PRIMARY — weighted 2x)
 
 
 For EACH of the 5 pipelines (rules, narrate, extract_scene, extract_state,
@@ -262,7 +245,7 @@ contradictions, misplaced mechanics) cap the score at 1 or 2 for that pipeline.
 ---
 
 
-## Section 5: Cross-Pipeline Correlation
+## Section 4: Cross-Pipeline Correlation
 
 
 Assess how well the engine's pipelines work together. The rubric's per-pipeline analysis (Section 5) evaluates each pipeline in isolation; this section evaluates the interactions between pipelines.
@@ -326,7 +309,7 @@ Flag turns where the feedback loop appears broken.
 ---
 
 
-## Section 6: Storytelling Design Critique (SECONDARY)
+## Section 5: Storytelling Design Critique (SECONDARY)
 
 
 The narrative quality serves as a check on whether the mechanics are producing good fiction. A 5/5 story built on broken extraction is a false positive.
@@ -408,7 +391,7 @@ Score based on the proportion of mechanics exercised and the variety of turn typ
 ---
 
 
-## Section 7: Prompt Redundancy Analysis
+## Section 6: Prompt Redundancy Analysis
 
 
 Reference the `## Prompt Redundancy` block in Deterministic Signals. For each
@@ -429,7 +412,7 @@ remediations.
 ---
 
 
-## Section 8: Compaction Capabilities Report
+## Section 7: Compaction Capabilities Report
 
 
 Reference the `## Compaction Features` block in Deterministic Signals. For
@@ -520,7 +503,7 @@ score the `extract_progress` pipeline lower in Section 3.
 ---
 
 
-## Section 9: Auto-Checker Failures
+## Section 8: Auto-Checker Failures
 
 
 For EACH failure shown in the Deterministic Signals `## Auto-Checker Failures`
@@ -543,7 +526,7 @@ If the auto-checker section is empty, write `None.`
 ---
 
 
-## Section 10: Verdict
+## Section 9: Verdict
 
 
 ### Mechanical Integrity
@@ -580,6 +563,23 @@ Note any regressions from previous eval runs (criteria that scored lower than be
 
 ### Key Findings
 2-4 sentences. Concrete, specific, actionable. Reference turn numbers. Justify why mechanical_score diverges from narrative_score if applicable. End with the single most important fix the engine needs.
+
+
+---
+
+
+## Section 10: Actionable Issues Surfaced
+
+
+A paragraph per issue that arose during this evaluation, and a recommendation
+to fix or resolve it. Place them in appropriate major, minor, trivial categories
+and prefix each with the type of issue: `[Engine]`, `[Prompting]`,
+`[Consistency]`, etc.
+
+Each issue must also carry one of the following mechanical tags where
+applicable: `bad prompt | failed to output key information | failed to input key
+information | messy logic | scope/domain mismatch | schema drift | misplaced
+mechanic | wasted tokens`.
 
 
 ---
