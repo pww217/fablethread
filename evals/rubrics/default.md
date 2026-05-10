@@ -179,6 +179,18 @@ A bulleted list. For each issue:
   Remediation: <what should change>.
 
 
+#### Extraction Quality (extract_state pipeline)
+- **Amount accuracy:** When narration states an explicit number for inventory changes ("drop 200 credits", "used three bandages"), the state extractor must emit that exact number. Flag turns where the extracted amount differs from the stated amount. A mismatch scores 1-2 for this criterion.
+- **Spending action extraction:** When narration describes the player spending, giving away, or parting with items/currency, the state extractor must emit `inventory_remove`. Flag turns where spending actions were narrated but no `inventory_remove` was extracted.
+
+#### Extraction Quality (extract_progress pipeline)
+- **Quest objective deduplication:** Before emitting `quest_updates`, the progress extractor must check `active_quests` and `recent_events`. If an objective is already marked `done: true`, it must NOT be re-emitted. Flag turns where already-done objectives were re-emitted. A dedup failure scores 1-2 for this criterion.
+- **Quest completion timing:** The extractor must NOT emit `status: completed` for a quest unless all objectives are done. Let the engine handle auto-completion. Flag premature completion status emissions.
+
+#### Extraction Quality (extract_scene pipeline)
+- **Ambient NPC filtering:** The scene extractor should NOT emit `npc_add` for ambient presence (crowds, bystanders, inn_patrons) when named NPCs are already present in the scene. Ambient NPCs should only be emitted when no named characters are present. Flag turns where ambient NPCs were added alongside named NPCs. Over-extraction of ambient NPCs scores 1-2 for this criterion.
+
+
 ### Pipeline Score (1-5)
 
 

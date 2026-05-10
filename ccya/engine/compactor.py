@@ -24,23 +24,22 @@ async def maybe_compact(
     save_dir: Path,
     state: dict[str, Any],
     config: EngineConfig,
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], bool]:
     """Run compaction if current turn triggers it.
 
-    Trigger: current_turn % compact_every == 0.
-    Compacts turns [last_compacted_turn+1 .. retain_from-1].
-    retain_from = max(1, current_turn - window_turns + 1).
-    Sets last_compacted_turn = compact_end (NOT current_turn).
+    Returns:
+        (state, compaction_ran) — compaction_ran is True only when
+        compaction actually produced bullets or sanitization.
     """
     if config.compact_every <= 0:
-        return state
+        return state, False
 
     current_turn = int((state.get("meta") or {}).get("turn", 0) or 0)
     if current_turn == 0:
-        return state
+        return state, False
 
     if current_turn % config.compact_every != 0:
-        return state
+        return state, False
 
     last_compacted_turn = int((state.get("meta") or {}).get("last_compacted_turn", 0) or 0)
     retain_from = max(1, current_turn - config.window_turns + 1)
@@ -53,7 +52,7 @@ async def maybe_compact(
             current_turn, compact_start, compact_end,
             extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "compactor"},
         )
-        return state
+        return state, False
 
     _log.info(
         "compactor: compacting turns %d–%d at turn %d (window=%d, compact_every=%d)",
@@ -63,7 +62,7 @@ async def maybe_compact(
 
     turns = _extract_turns_for_compact(save_dir, compact_start, compact_end)
     if not turns:
-        return state
+        return state, False
 
     env = state.get("_jinja_env")
     if env is None:
@@ -85,7 +84,7 @@ async def maybe_compact(
         response_text = resp.get("response", "")
     except Exception as exc:
         _log.warning("compactor: LLM call failed, skipping: %s", exc)
-        return state
+        return state, False
 
     bullets_text, sanitization = _parse_compact_response(response_text)
 
@@ -95,7 +94,7 @@ async def maybe_compact(
             current_turn,
             extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "compactor"},
         )
-        return state
+        return state, False
 
     new_bullets = [b.strip() for b in bullets_text.splitlines() if b.strip()]
     state.setdefault("meta", {}).setdefault("prior_history", []).extend(new_bullets)
@@ -103,6 +102,8 @@ async def maybe_compact(
     _write_compacted_block(save_dir, bullets_text, compact_start, compact_end)
 
     recent_events_count = len(state.get("scene", {}).get("recent_events") or [])
+
+    compaction_ran = True
 
     if sanitization is not None:
         _apply_sanitization(state, sanitization)
@@ -127,7 +128,7 @@ async def maybe_compact(
 
     state.setdefault("meta", {})["last_compacted_turn"] = compact_end
 
-    return state
+    return state, compaction_ran
 
 
 def _extract_turns_for_compact(

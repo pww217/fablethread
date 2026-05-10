@@ -766,12 +766,14 @@ async def run_turn(
 
         # === Compaction (after persist, before yield complete) ===
         if config.compact_every > 0:
-            yield ("phase", {"phase": "compact_start", "expected_ms": 0})
             t_compact = asyncio.get_running_loop().time()
-            state = await maybe_compact(save_dir, state, config)
+            state, compaction_ran = await maybe_compact(save_dir, state, config)
+            if compaction_ran:
+                yield ("phase", {"phase": "compact_start", "expected_ms": 0})
+                yield ("phase", {"phase": "compact_done", "ms": round(
+                    (asyncio.get_running_loop().time() - t_compact) * 1000, 1
+                )})
             save_state(save_dir, state)
-            compact_ms = (asyncio.get_running_loop().time() - t_compact) * 1000
-            yield ("phase", {"phase": "compact_done", "ms": round(compact_ms, 1)})
 
         result_obj = TurnResult(
             turn=state["meta"]["turn"],
@@ -1284,12 +1286,14 @@ async def run_turn_retry(
 
         # === Compaction (after persist, before yield complete) ===
         if config.compact_every > 0:
-            yield ("phase", {"phase": "compact_start", "expected_ms": 0})
             t_compact = asyncio.get_running_loop().time()
-            state = await maybe_compact(save_dir, state, config)
+            state, compaction_ran = await maybe_compact(save_dir, state, config)
+            if compaction_ran:
+                yield ("phase", {"phase": "compact_start", "expected_ms": 0})
+                yield ("phase", {"phase": "compact_done", "ms": round(
+                    (asyncio.get_running_loop().time() - t_compact) * 1000, 1
+                )})
             save_state(save_dir, state)
-            compact_ms = (asyncio.get_running_loop().time() - t_compact) * 1000
-            yield ("phase", {"phase": "compact_done", "ms": round(compact_ms, 1)})
 
         result_obj = TurnResult(
             turn=state["meta"]["turn"],
