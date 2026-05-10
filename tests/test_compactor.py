@@ -224,19 +224,25 @@ class TestCompactorSanitizationResult:
     def test_valid_full(self):
         result = CompactorSanitizationResult.model_validate({
             "npc_merge": [{"keep_id": "a", "remove_ids": ["b"]}],
-            "inventory_remove": ["item1"],
-            "quest_close": ["q1"],
-            "pressure_remove": ["p1"],
-            "condition_remove": ["c1"],
+            "inventory_remove": [{"id": "item1", "confidence": "high"}],
+            "quest_close": [{"id": "q1", "confidence": "high"}],
+            "pressure_remove": [{"id": "p1", "confidence": "medium"}],
+            "condition_remove": [{"id": "c1", "confidence": "high"}],
             "recent_events_compact": [{"id": "e1", "text": "Event one", "turn": 1}],
         })
         assert len(result.npc_merge) == 1
         assert result.npc_merge[0].keep_id == "a"
         assert result.npc_merge[0].remove_ids == ["b"]
-        assert result.inventory_remove == ["item1"]
-        assert result.quest_close == ["q1"]
-        assert result.pressure_remove == ["p1"]
-        assert result.condition_remove == ["c1"]
+        assert len(result.inventory_remove) == 1
+        assert result.inventory_remove[0].id == "item1"
+        assert result.inventory_remove[0].confidence == "high"
+        assert len(result.quest_close) == 1
+        assert result.quest_close[0].id == "q1"
+        assert len(result.pressure_remove) == 1
+        assert result.pressure_remove[0].id == "p1"
+        assert result.pressure_remove[0].confidence == "medium"
+        assert len(result.condition_remove) == 1
+        assert result.condition_remove[0].id == "c1"
         assert len(result.recent_events_compact) == 1
         assert result.recent_events_compact[0].id == "e1"
         assert result.recent_events_compact[0].text == "Event one"
@@ -615,7 +621,7 @@ class TestApplySanitization:
     def test_removes_known_inventory_item(self):
         state = self._make_state_with_data()
         san = CompactorSanitizationResult.model_validate({
-            "inventory_remove": ["inv_1"],
+            "inventory_remove": [{"id": "inv_1", "confidence": "high"}],
         })
         _apply_sanitization(state, san)
         inv_ids = {it.get("id") for it in state["inventory"]}
@@ -625,7 +631,7 @@ class TestApplySanitization:
     def test_closes_only_active_quests(self):
         state = self._make_state_with_data()
         san = CompactorSanitizationResult.model_validate({
-            "quest_close": ["q_1", "q_2"],
+            "quest_close": [{"id": "q_1", "confidence": "high"}, {"id": "q_2", "confidence": "high"}],
         })
         _apply_sanitization(state, san)
         quest_status = {q["id"]: q["status"] for q in state["quests"]}
@@ -635,7 +641,7 @@ class TestApplySanitization:
     def test_skips_unknown_pressure_id(self):
         state = self._make_state_with_data()
         san = CompactorSanitizationResult.model_validate({
-            "pressure_remove": ["press_1", "press_unknown"],
+            "pressure_remove": [{"id": "press_1", "confidence": "high"}, {"id": "press_unknown", "confidence": "low"}],
         })
         _apply_sanitization(state, san)
         press_ids = {p.get("id") for p in state["scene"]["scene_pressure"]}
@@ -646,7 +652,7 @@ class TestApplySanitization:
     def test_removes_condition(self):
         state = self._make_state_with_data()
         san = CompactorSanitizationResult.model_validate({
-            "condition_remove": ["cond_1"],
+            "condition_remove": [{"id": "cond_1", "confidence": "high"}],
         })
         _apply_sanitization(state, san)
         cond_ids = {c.get("id") for c in state["pc"]["conditions"]}

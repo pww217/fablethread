@@ -358,12 +358,18 @@ class CompactorRecentEventCompact(BaseModel):
     turn: int = 0
 
 
+class CompactorSanitizationAction(BaseModel):
+    """A sanitization action with confidence level."""
+    id: str
+    confidence: Literal["high", "medium", "low"] = "high"
+
+
 class CompactorSanitizationResult(BaseModel):
     npc_merge: list[CompactorNpcMerge] = Field(default_factory=list)
-    inventory_remove: list[str] = Field(default_factory=list)
-    quest_close: list[str] = Field(default_factory=list)
-    pressure_remove: list[str] = Field(default_factory=list)
-    condition_remove: list[str] = Field(default_factory=list)
+    inventory_remove: list[CompactorSanitizationAction] = Field(default_factory=list)
+    quest_close: list[CompactorSanitizationAction] = Field(default_factory=list)
+    pressure_remove: list[CompactorSanitizationAction] = Field(default_factory=list)
+    condition_remove: list[CompactorSanitizationAction] = Field(default_factory=list)
     recent_events_compact: list[CompactorRecentEventCompact] = Field(default_factory=list)
 
     model_config = {"extra": "ignore"}
@@ -460,7 +466,7 @@ class ProgressExtractResult(BaseModel):
             if isinstance(x, str):
                 out.append(x)
             elif isinstance(x, dict):
-                out.append(x.get("action") or x.get("description") or str(x))
+                out.append(x.get("action") or x.get("description") or x.get("text") or str(x))
             else:
                 out.append(str(x))
         return out

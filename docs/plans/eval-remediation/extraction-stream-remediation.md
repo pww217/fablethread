@@ -749,7 +749,7 @@ The compactor fires but the LLM returns `{}` for all sanitization actions. The s
 
 You MUST identify and flag structural problems in the mechanical state. The bullets from Part 1 are your evidence. Cross-reference each bullet against the mechanical state below.
 
-**CRITICAL: You must check every category. Returning `{}` when sanitization is needed is a failure. When in doubt, flag it — it is safer to close a quest that is already done than to leave it open.**
+**CRITICAL: You must check every category. Returning `{}` when sanitization is needed is a failure.**
 
 ### What to flag
 
@@ -784,20 +784,26 @@ Go through each category in order. For each, ask: "Does the bulletin show this s
 
 ### Output format
 
-After the bullet lines and a blank line, output exactly one JSON object:
+After the bullet lines and a blank line, output exactly one JSON object. Each action includes a `confidence` field: `"high"`, `"medium"`, or `"low"`.
 
 ```json
 {
-  "npc_merge": [{"keep_id": "...", "remove_ids": ["..."]}],
-  "inventory_remove": ["item_id"],
-  "quest_close": ["quest_id"],
-  "pressure_remove": ["pressure_id"],
-  "condition_remove": ["condition_id"],
+  "npc_merge": [{"keep_id": "...", "remove_ids": ["..."], "confidence": "high"}],
+  "inventory_remove": [{"id": "item_id", "confidence": "high"}],
+  "quest_close": [{"id": "quest_id", "confidence": "high"}],
+  "pressure_remove": [{"id": "pressure_id", "confidence": "medium"}],
+  "condition_remove": [{"id": "condition_id", "confidence": "high"}],
   "recent_events_compact": [{"id": "...", "text": "...", "turn": 0}]
 }
 ```
 
 Omit any key whose list would be empty. If nothing needs fixing, output `{}`. But you MUST have checked every category before deciding nothing needs fixing.
+
+### Confidence guidelines
+
+- **high** — The bulletin explicitly confirms the fix (e.g., "Player delivered the ledger" + all objectives done). Safe to apply.
+- **medium** — Strong narrative evidence but not explicit (e.g., "Player rested at the inn" + `wounded` condition). Likely correct but verify.
+- **low** — Plausible but uncertain (e.g., two NPCs with similar names but no clear evidence they're the same person). Flag but don't auto-apply.
 ```
 
 **Validation:** Compactor prompt now has explicit verification checklist, concrete examples, and stronger directives. The LLM should now emit sanitization actions when appropriate.

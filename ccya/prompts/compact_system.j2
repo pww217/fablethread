@@ -37,11 +37,9 @@ One bullet per turn. If a turn was uneventful, write `- [T{n}] Uneventful — no
 
 ## PART 2: State sanitization
 
-You have the full mechanical state. Identify structural problems that should be fixed.
-Only flag problems you are **reasonably confident** about — false positives cause data loss.
-When uncertain, omit. When the bulletin clearly shows a quest ended, a pressure resolved,
-or a condition cured, flag it even if you're not 100% certain. It's safer to close a quest
-that's already done than to leave it open.
+You MUST identify and flag structural problems in the mechanical state. The bullets from Part 1 are your evidence. Cross-reference each bullet against the mechanical state below.
+
+**CRITICAL: You must check every category. Returning `{}` when sanitization is needed is a failure.**
 
 ### What to flag
 
@@ -49,47 +47,53 @@ that's already done than to leave it open.
 
 **inventory_remove** — An inventory item that appears twice with different IDs but identical name and purpose. Provide the ID of the copy to remove (keep the one with higher amount or richer notes).
 
-**quest_close** — An active quest whose objectives are all `done: true` but the quest was never closed, OR a quest whose narrative conclusively ended multiple turns ago per the bulletin.
+**quest_close** — An active quest whose objectives are ALL `done: true` but the quest status is still `active`. ALSO: a quest whose narrative conclusively ended multiple turns ago per the bulletin (e.g., "Player delivered the ledger to Halden" when `deliver_the_ledger` has all objectives done).
 
-**pressure_remove** — A `scene_pressure` entry whose triggering situation has been fully resolved per the bulletin (e.g. the chase is over, the deadline passed).
+**pressure_remove** — A `scene_pressure` entry whose triggering situation has been fully resolved per the bulletin (e.g., "The chase is over" → remove `pursuers_approaching`; "The toughs were paid off" → remove `toughs_extortion_escalation`).
 
-**condition_remove** — A `pc.condition` that the bulletin clearly shows was cured or resolved. Do NOT remove conditions that might still plausibly apply.
+**condition_remove** — A `pc.condition` that the bulletin clearly shows was cured or resolved (e.g., "Player rested at the inn and recovered" → remove `wounded`; "Found a safe place to rest" → remove `shaken`). Do NOT remove conditions that might still plausibly apply.
 
-### Examples (flag these)
+### Verification checklist (MUST complete before outputting)
 
-- Quest `deliver_the_ledger` has all objectives `done: true` but status is still `active` → add to `quest_close`
-- Pressure `imminent_combat` was resolved by a successful charisma check last turn → add to `pressure_remove`
-- Condition `shaken` was resolved after the player found a safe place to rest → add to `condition_remove`
-- Inventory `bandages` appears twice with different IDs → add duplicate ID to `inventory_remove`
+Go through each category in order. For each, ask: "Does the bulletin show this should be cleaned up?"
 
-### Checklist (check each category)
+1. **npc_merge:** Are there two NPC entries that are clearly the same person? → If yes, add to `npc_merge`
+2. **inventory_remove:** Are there duplicate inventory items with different IDs? → If yes, add to `inventory_remove`
+3. **quest_close:** Are there active quests with ALL objectives done? → If yes, add to `quest_close`
+4. **pressure_remove:** Are there pressures whose triggering situation is resolved? → If yes, add to `pressure_remove`
+5. **condition_remove:** Are there conditions that the bulletin shows as cured/resolved? → If yes, add to `condition_remove`
+6. **recent_events_compact:** Can similar events be merged? Is the list too long? → If yes, add to `recent_events_compact`
 
-Before outputting, verify each category:
-1. **npc_merge:** Are there two NPC entries that are clearly the same person?
-2. **inventory_remove:** Are there duplicate inventory items with different IDs?
-3. **quest_close:** Are there active quests with all objectives done, or quests that ended narratively?
-4. **pressure_remove:** Are there pressures whose triggering situation is resolved?
-5. **condition_remove:** Are there conditions that narration shows as cured/resolved?
-6. **recent_events_compact:** Can similar events be merged? Is the list too long?
+### Concrete examples
 
-If a category has nothing to flag, omit it from the JSON. But check every category.
+- Quest `deliver_the_ledger` has objectives: `[1. {done: true}, 2. {done: true}]` but status is `active` → add `deliver_the_ledger` to `quest_close`
+- Bulletin says "T7: Player delivered ledger to Halden" and `deliver_the_ledger` has all objectives done → add to `quest_close`
+- Pressure `pursuers_approaching` (immediate) but bulletin says "T12: Player escaped to river bend, pursuers lost" → add `pursuers_approaching` to `pressure_remove`
+- Condition `shaken` but bulletin says "T8: Player found safe haven at the inn, felt calm" → add `shaken` to `condition_remove`
+- Inventory `bandages` appears with IDs `bandages` (amount:3) and `medical_bandages` (amount:2), same purpose → add `medical_bandages` to `inventory_remove`
 
 ### Output format
 
-After the bullet lines and a blank line, output exactly one JSON object:
+After the bullet lines and a blank line, output exactly one JSON object. Each action includes a `confidence` field: `"high"`, `"medium"`, or `"low"`.
 
 ```json
 {
-  "npc_merge": [{"keep_id": "...", "remove_ids": ["..."]}],
-  "inventory_remove": ["item_id"],
-  "quest_close": ["quest_id"],
-  "pressure_remove": ["pressure_id"],
-  "condition_remove": ["condition_id"],
+  "npc_merge": [{"keep_id": "...", "remove_ids": ["..."], "confidence": "high"}],
+  "inventory_remove": [{"id": "item_id", "confidence": "high"}],
+  "quest_close": [{"id": "quest_id", "confidence": "high"}],
+  "pressure_remove": [{"id": "pressure_id", "confidence": "medium"}],
+  "condition_remove": [{"id": "condition_id", "confidence": "high"}],
   "recent_events_compact": [{"id": "...", "text": "...", "turn": 0}]
 }
 ```
 
-Omit any key whose list would be empty. If nothing needs fixing, output `{}`.
+Omit any key whose list would be empty. If nothing needs fixing, output `{}`. But you MUST have checked every category before deciding nothing needs fixing.
+
+### Confidence guidelines
+
+- **high** — The bulletin explicitly confirms the fix (e.g., "Player delivered the ledger" + all objectives done). Safe to apply.
+- **medium** — Strong narrative evidence but not explicit (e.g., "Player rested at the inn" + `wounded` condition). Likely correct but verify.
+- **low** — Plausible but uncertain (e.g., two NPCs with similar names but no clear evidence they're the same person). Flag but don't auto-apply.
 
 ---
 
