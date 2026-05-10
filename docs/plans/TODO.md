@@ -57,6 +57,7 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - ~~**Active DM / GM beat** — progress extractor emits `gm_beat`, narrator consumes next turn~~ — see `[completed/p2-inference/progress-dm-storytelling.md](completed/p2-inference/progress-dm-storytelling.md)`
 - ~~**Scene age anti-stall** — track `scene.turn_entered`, nudge after N turns~~ — see `[completed/p2-inference/scene-age-anti-stall.md](completed/p2-inference/scene-age-anti-stall.md)`
 - ~~**Band-scoped extract examples** — `pack_examples` conditioned on roll outcome band~~
+- [ ] **GM beat ownership migration + deescalate float + beat expiry + rules full narration** — progress owns gm_beat, deescalate widened to float, beat expiry guard, rules step receives full narration — [`progress-rules-narration.md`](progress-rules-narration.md) (Phases 1–2 done)
 
 ---
 

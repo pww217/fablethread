@@ -276,14 +276,6 @@ class SceneExtractResult(BaseModel):
     scene_pressure_add: list[ScenePressure] = Field(default_factory=list)
     scene_pressure_remove: list[str] = Field(default_factory=list)
     scene_pressure_update: list[ScenePressure] = Field(default_factory=list)
-    gm_beat: GMBeat | None = None
-
-    @model_validator(mode="after")
-    def _nullify_invalid_gm_beat(self) -> "SceneExtractResult":
-        if self.gm_beat is not None:
-            if not self.gm_beat.instruction or not self.gm_beat.type:
-                self.gm_beat = None
-        return self
 
     @field_validator("npc_remove", mode="before")
     @classmethod
@@ -404,9 +396,27 @@ _GM_BEAT_FILLER_PREFIXES: tuple[str, ...] = (
 
 
 class GMBeat(BaseModel):
-    type: Literal["complication", "revelation", "opportunity", "breathing_room", "pressure"] | None = None
-    surface_as: Literal["ambient", "event", "npc_behavior"] = "ambient"
+    type: Literal[
+        "complication",
+        "revelation",
+        "opportunity",
+        "breathing_room",
+        "pressure",
+        "twist",
+        "setback",
+        "escalation",
+        "callback",
+    ] | None = None
+    surface_as: Literal[
+        "ambient",
+        "event",
+        "npc_behavior",
+        "environmental",
+        "player_discovery",
+        "item",
+    ] = "ambient"
     instruction: str | None = None
+    beat_expires_turn: int | None = None
 
     @field_validator("instruction", mode="after")
     @classmethod
@@ -429,6 +439,14 @@ class ProgressExtractResult(BaseModel):
     recent_events_remove: list[str] = Field(default_factory=list)
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = ""
+    gm_beat: GMBeat | None = None
+
+    @model_validator(mode="after")
+    def _nullify_invalid_gm_beat(self) -> "ProgressExtractResult":
+        if self.gm_beat is not None:
+            if not self.gm_beat.instruction or not self.gm_beat.type:
+                self.gm_beat = None
+        return self
 
     @field_validator("actions", mode="before")
     @classmethod

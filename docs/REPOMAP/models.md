@@ -14,11 +14,16 @@
 
 ## GMBeat
 
-- `type`: Literal["complication", "revelation", "opportunity", "breathing_room", "pressure"] | None
-- `surface_as`: Literal["ambient", "event", "npc_behavior"] = "ambient"
+- `type`: Literal["complication", "revelation", "opportunity", "breathing_room", "pressure", "twist", "setback", "escalation", "callback"] | None
+- `surface_as`: Literal["ambient", "event", "npc_behavior", "environmental", "player_discovery", "item"] = "ambient"
 - `instruction`: str | None — validated by `_validate_instruction_quality` (field_validator, mode="after") which nullifies the beat if instruction is empty, whitespace-only, under 40 chars, or starts with a filler prefix from `_GM_BEAT_FILLER_PREFIXES`.
+- `beat_expires_turn`: int | None — turn number at which a pending beat expires; set by `turn.py` when storing `pending_gm_beat`.
 
 ## SceneExtractResult
+
+- No `gm_beat` field (moved to `ProgressExtractResult` in progress-rules-narration plan).
+
+## ProgressExtractResult
 
 - `gm_beat: GMBeat | None = None` — validated by `_nullify_invalid_gm_beat` (model_validator, mode="after") which sets `gm_beat = None` if the beat has no instruction or no type.
 

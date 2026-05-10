@@ -346,17 +346,18 @@ async def run_turn(
         if outcome.rolled:
             apply_momentum(state, outcome.band)
 
-        # De-escalation flag: success on a scene with active pressure
-        deescalate = False
+        # De-escalation magnitude: success on a scene with active pressure
+        deescalate: float = 0.0
         if config and config.scene_pressure_deescalate_on_success:
-            deescalate = (
+            if (
                 outcome.rolled
                 and outcome.band in ("success", "crit_success")
                 and any(
                     p.get("urgency") in ("immediate", "building")
                     for p in (state.get("scene") or {}).get("scene_pressure") or []
                 )
-            )
+            ):
+                deescalate = 1.0 if outcome.band == "crit_success" else 0.6
 
         # Age counters for narration directives
         ages = _compute_ages(state)
@@ -411,6 +412,11 @@ async def run_turn(
 
         # Read pending_gm_beat from previous turn's progress extraction
         _pending_gm_beat = (state.get("meta") or {}).get("pending_gm_beat")
+        if _pending_gm_beat:
+            _expires = _pending_gm_beat.get("beat_expires_turn")
+            if _expires is not None and turn_no > _expires:
+                _pending_gm_beat = None
+                state.setdefault("meta", {})["pending_gm_beat"] = None
 
         # Known NPCs for narrator context (Phase 4A)
         _known_npcs = _known_characters_for_extract(state, compact=True)
@@ -544,9 +550,11 @@ async def run_turn(
                     recent_turns=recent_turns,
                 )
             )
-            # Store gm_beat for next turn's narration
-            if scene_result and scene_result.gm_beat and scene_result.gm_beat.type:
-                state.setdefault("meta", {})["pending_gm_beat"] = scene_result.gm_beat.model_dump(exclude_none=True)
+            # Store gm_beat for next turn's narration (produced by progress extractor)
+            if progress_result and progress_result.gm_beat and progress_result.gm_beat.type:
+                _beat_dict = progress_result.gm_beat.model_dump(exclude_none=True)
+                _beat_dict["beat_expires_turn"] = turn_no + 2
+                state.setdefault("meta", {})["pending_gm_beat"] = _beat_dict
         except Exception as exc:
             errors.append({"trace_id": trace_id, "message": str(exc)})
 
@@ -900,6 +908,8 @@ async def run_turn_retry(
             skip_last_n_turns=config.window_turns,
         )
 
+        turn_no = state.get("meta", {}).get("turn", 0) + 1
+
         # === Call 1: Narrate (streaming) — same as run_turn ===
         exp_narrate_ms = _avg_narrate_ms(save_dir)
         yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
@@ -914,6 +924,11 @@ async def run_turn_retry(
             )
 
         _pending_gm_beat = (state.get("meta") or {}).get("pending_gm_beat")
+        if _pending_gm_beat:
+            _expires = _pending_gm_beat.get("beat_expires_turn")
+            if _expires is not None and turn_no > _expires:
+                _pending_gm_beat = None
+                state.setdefault("meta", {})["pending_gm_beat"] = None
 
         ages = _compute_ages(state)
 
@@ -1026,8 +1041,6 @@ async def run_turn_retry(
 
         state.setdefault("meta", {})["pending_gm_beat"] = None
 
-        turn_no = state.get("meta", {}).get("turn", 0) + 1
-
         # === Extraction pipeline (3 streams) ===
         exp_ms = _avg_extract_ms(save_dir)
         yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
@@ -1053,8 +1066,10 @@ async def run_turn_retry(
                     recent_turns=recent_turns,
                 )
             )
-            if scene_result and scene_result.gm_beat and scene_result.gm_beat.type:
-                state.setdefault("meta", {})["pending_gm_beat"] = scene_result.gm_beat.model_dump(exclude_none=True)
+            if progress_result and progress_result.gm_beat and progress_result.gm_beat.type:
+                _beat_dict = progress_result.gm_beat.model_dump(exclude_none=True)
+                _beat_dict["beat_expires_turn"] = turn_no + 2
+                state.setdefault("meta", {})["pending_gm_beat"] = _beat_dict
         except Exception as exc:
             errors.append({"trace_id": trace_id, "message": str(exc)})
 

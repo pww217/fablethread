@@ -25,7 +25,7 @@ def _narrate_messages(
     recently_left: list[dict[str, Any]] = [],
     momentum: int = 0,
     pending_gm_beat: dict[str, Any] | None = None,
-    deescalate: bool = False,
+    deescalate: float = 0.0,
     ages: dict[str, int] | None = None,
     known_npcs: list[dict[str, Any]] = [],
     present_npcs: list[dict[str, Any]] = [],
