@@ -73,10 +73,13 @@ The narration text confirms the cause, but the roll context triggers the conditi
 
 Before you submit your output, ensure once more than you have no similar or matching items or item IDs.
 
-## Generic item mapping (MANDATORY)
+## Generic item mapping (ZERO TOLERANCE)
 
 If the narration references a generic denomination or container term, you MUST map it to the
 closest matching ID in the ## inventory list. NEVER invent a new inventory ID for a generic term.
+
+**This rule has zero tolerance. Inventing a currency ID (e.g., "iron_coins", "silver", "gold_piece")
+when an existing currency ID (e.g., "credits") is in inventory is a critical failure.**
 
 Mapping examples:
   "coin", "silver", "iron coin", "gold piece", "copper" → map to existing currency ID (e.g., "credits")
@@ -87,6 +90,15 @@ Mapping examples:
 If no inventory item clearly matches the generic term, do NOT emit an inventory_remove or
 inventory_add for that reference. The narrator's language is imprecise — the state should not
 change. Omission is always safer than inventing a new ID.
+
+If you invent a currency ID instead of mapping to an existing one, the game state will contain
+a phantom item that doesn't exist in the player's actual inventory. This breaks all inventory
+tracking for that turn and every subsequent turn. When in doubt, map to the existing currency ID.
+
+Before emitting any inventory_remove or inventory_add involving currency:
+1. Check the ## inventory list for an existing currency ID
+2. If one exists, use it — even if the narration uses a different term
+3. If none exists, do NOT emit the change
 
 **If you create an inventory ID that does not match any existing item and is not a genuinely
 new item described in the narration, you have failed this rule.**

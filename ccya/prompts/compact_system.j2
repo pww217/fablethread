@@ -38,8 +38,10 @@ One bullet per turn. If a turn was uneventful, write `- [T{n}] Uneventful — no
 ## PART 2: State sanitization
 
 You have the full mechanical state. Identify structural problems that should be fixed.
-Only flag problems you are **highly confident** about — false positives cause data loss.
-When uncertain, omit.
+Only flag problems you are **reasonably confident** about — false positives cause data loss.
+When uncertain, omit. When the bulletin clearly shows a quest ended, a pressure resolved,
+or a condition cured, flag it even if you're not 100% certain. It's safer to close a quest
+that's already done than to leave it open.
 
 ### What to flag
 
@@ -52,6 +54,25 @@ When uncertain, omit.
 **pressure_remove** — A `scene_pressure` entry whose triggering situation has been fully resolved per the bulletin (e.g. the chase is over, the deadline passed).
 
 **condition_remove** — A `pc.condition` that the bulletin clearly shows was cured or resolved. Do NOT remove conditions that might still plausibly apply.
+
+### Examples (flag these)
+
+- Quest `deliver_the_ledger` has all objectives `done: true` but status is still `active` → add to `quest_close`
+- Pressure `imminent_combat` was resolved by a successful charisma check last turn → add to `pressure_remove`
+- Condition `shaken` was resolved after the player found a safe place to rest → add to `condition_remove`
+- Inventory `bandages` appears twice with different IDs → add duplicate ID to `inventory_remove`
+
+### Checklist (check each category)
+
+Before outputting, verify each category:
+1. **npc_merge:** Are there two NPC entries that are clearly the same person?
+2. **inventory_remove:** Are there duplicate inventory items with different IDs?
+3. **quest_close:** Are there active quests with all objectives done, or quests that ended narratively?
+4. **pressure_remove:** Are there pressures whose triggering situation is resolved?
+5. **condition_remove:** Are there conditions that narration shows as cured/resolved?
+6. **recent_events_compact:** Can similar events be merged? Is the list too long?
+
+If a category has nothing to flag, omit it from the JSON. But check every category.
 
 ### Output format
 
