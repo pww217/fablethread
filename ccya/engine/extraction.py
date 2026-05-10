@@ -137,7 +137,7 @@ def _extract_scene_messages(
     active_domains: list[str],
     rules_outcome: "RulesOutcome | None" = None,
     enable_thinking: bool = False,
-    deescalate: bool = False,
+    deescalate: float = 0.0,
     quest_ages: list[dict[str, Any]] | None = None,
     recent_turns: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
@@ -264,6 +264,8 @@ def _extract_progress_messages(
     rules_outcome: "RulesOutcome | None" = None,
     enable_thinking: bool = False,
     intent: "IntentEnvelope | None" = None,
+    deescalate: float = 0.0,
+    quest_ages: list[dict[str, Any]] = [],
     recent_turns: list[dict[str, Any]] | None = None,
     turn_no: int = 0,
 ) -> list[dict[str, str]]:
@@ -298,6 +300,8 @@ def _extract_progress_messages(
             "active_domains": active_domains,
             "quest_threshold_directive": _quest_threshold_directive(active_quests),
             "intent": intent,
+            "deescalate": deescalate,
+            "quest_ages": quest_ages,
             "recent_turns": recent_turns or [],
             "turn_no": turn_no,
         },
@@ -392,7 +396,7 @@ async def _run_extraction_pipeline(
     config: "EngineConfig",
     trace_id: str,
     turn_no: int,
-    deescalate: bool = False,
+    deescalate: float = 0.0,
     quest_ages: list[dict[str, Any]] | None = None,
     recent_turns: list[dict[str, Any]] | None = None,
 ) -> tuple["StateDelta", list[str], str, dict[str, Any], "ProgressExtractResult", "SceneExtractResult"]:
@@ -523,6 +527,8 @@ async def _run_extraction_pipeline(
         rules_outcome=rules_outcome,
         enable_thinking=config.enable_extract_thinking,
         intent=intent,
+        deescalate=deescalate,
+        quest_ages=quest_ages or [],
         recent_turns=(recent_turns or [])[-2:],
         turn_no=turn_no,
     )

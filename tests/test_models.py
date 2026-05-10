@@ -2,7 +2,7 @@
 
 import pytest
 
-from ccya.models import GMBeat, SceneExtractResult
+from ccya.models import GMBeat, ProgressExtractResult, SceneExtractResult
 from ccya.pack import ScenarioBrief
 
 
@@ -84,21 +84,21 @@ class TestGMBeatValidatorAcceptsSpecific:
         assert b.instruction is not None
 
 
-class TestSceneExtractResultNullifiesBadBeat:
+class TestProgressExtractResultNullifiesBadBeat:
     def test_nullifies_empty_instruction(self):
-        r = SceneExtractResult(gm_beat={"type": "complication", "instruction": ""})
+        r = ProgressExtractResult(gm_beat={"type": "complication", "instruction": ""})
         assert r.gm_beat is None
 
     def test_nullifies_short_instruction(self):
-        r = SceneExtractResult(gm_beat={"type": "complication", "instruction": "Something bad happens."})
+        r = ProgressExtractResult(gm_beat={"type": "complication", "instruction": "Something bad happens."})
         assert r.gm_beat is None
 
     def test_nullifies_missing_type(self):
-        r = SceneExtractResult(gm_beat={"instruction": "A valid beat with enough words to pass the length check."})
+        r = ProgressExtractResult(gm_beat={"instruction": "A valid beat with enough words to pass the length check."})
         assert r.gm_beat is None
 
     def test_preserves_good_beat(self):
-        r = SceneExtractResult(gm_beat={
+        r = ProgressExtractResult(gm_beat={
             "type": "complication",
             "surface_as": "npc_behavior",
             "instruction": "Torben Klask, who agreed to help the player, has just received a message that visibly disturbed him — he is avoiding eye contact."
@@ -107,8 +107,47 @@ class TestSceneExtractResultNullifiesBadBeat:
         assert r.gm_beat.type == "complication"
 
     def test_preserves_none_beat(self):
-        r = SceneExtractResult(gm_beat=None)
+        r = ProgressExtractResult(gm_beat=None)
         assert r.gm_beat is None
+
+
+class TestSceneExtractResultNoGmBeat:
+    def test_no_gm_beat_attribute(self):
+        r = SceneExtractResult()
+        assert "gm_beat" not in r.model_fields
+
+
+class TestGMBeatNewTypes:
+    @pytest.mark.parametrize("beat_type", ["twist", "setback", "escalation", "callback"])
+    def test_new_types_validate(self, beat_type):
+        b = GMBeat(type=beat_type, instruction="A long enough instruction string that passes the quality gate without issues")
+        assert b.type == beat_type
+
+
+class TestGMBeatNewSurfaceAs:
+    @pytest.mark.parametrize("surface", ["environmental", "player_discovery", "item"])
+    def test_new_surface_as_validate(self, surface):
+        b = GMBeat(surface_as=surface, instruction="A long enough instruction string that passes the quality gate without issues")
+        assert b.surface_as == surface
+
+
+class TestGMBeatExpiresTurn:
+    def test_expires_turn_roundtrips(self):
+        b = GMBeat(
+            type="complication",
+            instruction="A long enough instruction string that passes the quality gate without issues",
+            beat_expires_turn=5,
+        )
+        dump = b.model_dump(exclude_none=True)
+        assert dump["beat_expires_turn"] == 5
+
+    def test_expires_turn_none_excluded(self):
+        b = GMBeat(
+            type="complication",
+            instruction="A long enough instruction string that passes the quality gate without issues",
+        )
+        dump = b.model_dump(exclude_none=True)
+        assert "beat_expires_turn" not in dump
 
 
 class TestScenarioBriefWorldRules:
