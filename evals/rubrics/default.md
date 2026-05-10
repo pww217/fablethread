@@ -121,6 +121,23 @@ Signals section to focus on confirmed cross-stream duplication.
   extractor receive `recent_events` to dedupe condition IDs against prior
   turns?)\
 
+Reference table for correct stream ownership:
+
+| Field | Correct stream | Violation if seen in wrong stream |
+|---|---|---|
+| `npc_add`, `npc_remove`, `npc_update`, `compendium_npc_update` | scene | — |
+| `location_change`, `location_description` | scene | — |
+| `scene_tags`, `scene_tagline` | scene | — |
+| `inventory_add`, `inventory_remove`, `inventory_update` | state | — |
+| `pc_condition_add`, `pc_condition_remove` | state | — |
+| `quest_updates` | progress | — |
+| `recent_events_add`, `recent_events_update`, `recent_events_remove` | progress | — |
+| `scene_pressure_add` | progress | Flag if emitted by scene |
+| `scene_pressure_remove` | progress | Flag if emitted by scene |
+| `scene_pressure_update` | progress | Flag if emitted by scene; also flag if id not in existing pressure list |
+| `gm_beat` | progress (via meta) | — |
+| `actions`, `outcome_summary` | progress | — |
+
 If you find a misplaced mechanic, write a clear remediation: which pipeline it
 belongs in, what data flow needs to change.
 
