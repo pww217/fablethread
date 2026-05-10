@@ -1,4 +1,4 @@
-Extract scene state, NPC presence, location, compendium NPC updates, scene pressure, and the GM beat from a narration.
+Extract scene state, NPC presence, location, compendium NPC updates, and scene pressure from a narration.
 Emit one JSON object matching the schema. No prose, no markdown fences, null for optional fields that don't apply, never omit a key.
 
 ## Output schema
@@ -14,8 +14,7 @@ Emit one JSON object matching the schema. No prose, no markdown fences, null for
   "npc_update": [],
   "compendium_npc_update": [],
   "scene_pressure_remove": [],
-  "scene_pressure_update": [],
-  "gm_beat": null
+  "scene_pressure_update": []
 }
 ```
 
@@ -80,55 +79,11 @@ If the narration describes an NPC as killed, mortally wounded, captured, or perm
 
 ## De-escalation
 
-When `deescalate` is true in the user prompt: do NOT emit `scene_pressure_add`. Emit `scene_pressure_update` to downgrade urgency (`immediate → building`, `building → background`). If fully resolved, emit `scene_pressure_remove`. Pair with a `breathing_room` GM beat.
+When `deescalate` is true in the user prompt: Emit `scene_pressure_update` to downgrade urgency (`immediate → building`, `building → background`). If fully resolved, emit `scene_pressure_remove`.
 
 ## NPC scene cap
 
 No more than 8 named NPCs in a scene. If the narration introduces a 9th, the oldest/least relevant named NPC should be removed. Ambient NPCs don't count toward the cap. Allies, family, and key characters should be assumed to follow the player when they move. **NPC removal should only happen for: (1) the narration clearly shows the NPC left, or (2) the scene cap is exceeded. Never remove NPCs for any other reason.**
-
-## GM Beat (gm_beat)
-
-**IMPORTANT: `type` vs `surface_as` are different fields.**
-- `type` is the beat category: `complication`, `revelation`, `opportunity`, `breathing_room`, `pressure`.
-- `surface_as` is how the beat is presented: `ambient`, `event`, or `npc_behavior`.
-- **Do NOT set `type: "ambient"`.** `ambient` is a `surface_as` value only.
-
-After extracting this turn's changes, decide whether to emit a forward-facing story beat for the NEXT turn.
-
-Emit `null` if:
-- There are 3+ active `scene_pressure` entries (don't pile on)
-- `deescalate` is true (use `breathing_room` GM beat instead — see De-escalation)
-- The player is in a critical resolution moment (final quest objective in reach)
-- Nothing meaningful has changed in faction, NPC, or quest state to react to
-
-Emit a beat when:
-- `pc.momentum` >= +2: emit `complication` to raise stakes
-- `pc.momentum` <= -2: emit `opportunity` or `breathing_room`
-- A quest has been stalled (same objective for 3+ turns, shown as ⚠ in user prompt): emit `pressure` or `revelation`
-- An NPC with unknown or shifting allegiance is present: emit `revelation`
-
-Beat instruction rules:
-
-    Before writing instruction, confirm you can name at least one specific entity from the current scene: an NPC by name, a faction, an object, or a named location. If you cannot, emit null for the entire beat.
-
-    instruction: 1–2 sentences. Concrete and story-specific — name the entity. Minimum ~25 words. Must not be empty, must not be a generic category description.
-
-    BAD (too short): "Something happens." "Guards arrive." "Tension rises."
-
-    BAD (generic category): "Introduce a complication involving the guards." "Give the player an opportunity." "Add pressure to the scene."
-
-    BAD (no entity): "A rival faction acts against the player's interests." ← no names, no scene anchor
-
-    GOOD: "Marten Voss, the dockmaster's enforcer the player spoke with earlier, has quietly signaled two armed men near the exit — they are waiting for the player to leave."
-
-    GOOD: "The satchel the fleeing guard dropped contains a partial map with a location marked in red ink — the same symbol the player saw on the warehouse door."
-
-    GOOD: "Councilor Drae has just entered the far end of the hall. She has not seen the player yet, but one of the staff has noticed both of them."
-
-`surface_as` guidance:
-- `ambient`: low-stakes background texture. Used for `breathing_room` and most `revelation` beats.
-- `event`: something the player can directly interact with. Used for `opportunity` and `pressure`.
-- `npc_behavior`: a present NPC shifts their demeanor, loyalty signal, or body language. Best for `revelation` and `complication`.
 
 ## State-presence rule
 
