@@ -251,12 +251,36 @@ each capability listed:
 - One-line justification citing the bullet text or the applied sanitization.
 
 
+**Turn numbering:** The trace uses 1-indexed turns (`## Turn 1`, `## Turn 2`,
+etc.). The seed state has `"turn": 0` but the first game turn is "Turn 1".
+All turn references below are 1-indexed as they appear in the trace.
+
+**How `window_turns` works:** `window_turns` controls how many of the most
+recent turns are kept uncompressed in `chronicle.md`. Everything older is
+compacted into summary bullets. With `window_turns=3`:
+- At T6: turns 1–3 are compacted into bullets, turns 4–6 are kept as recent
+  narrative. Expect **3 bullets covering T1–T3**.
+- At T12: turns 7–11 are compacted into bullets, turns 9–12 are kept as
+  recent narrative. Expect **5 additional bullets covering T7–T11**.
+- The engine always retains the 3 most recent turns as full narrative plus
+  all compacted bullets for older turns.
+
+**Expectations for typical eval runs:** Most eval runs are 10 turns. With
+`compact_every=6` the compactor fires at T6 only (T12 is beyond the run).
+At T6 you should see **3 bullets covering T1–T3** and turns 4–6 kept as
+recent narrative. This is correct behavior. Do not penalize the engine for
+not compacting at T7–T10 — the compactor only fires at multiples of
+`compact_every`. Do not penalize for having only 3 bullets — that is the
+expected output for a 10-turn run.
+
+
 If compaction did not fire (run was too short), state that and skip the per-
 capability evaluation for this run.
 
 
-If compaction fired but produced low-quality bullets, score the
-`extract_progress` pipeline lower in Section 1.
+If compaction fired but produced low-quality bullets (e.g. bullets that
+misrepresent turn content, omit critical state changes, or hallucinate events),
+score the `extract_progress` pipeline lower in Section 1.
 
 
 ---
