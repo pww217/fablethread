@@ -53,9 +53,6 @@ If a named entity was thwarted, consider a gm_beat of type `opportunity` or `esc
 
 {% endif -%}
 ## gm_beat (optional — leave null if nothing meaningful is ready)
-Emit a gm_beat when the story arc genuinely calls for it — a named NPC reacts, a thread escalates, an offscreen consequence surfaces, a moment of relief is earned.
-Do NOT emit a beat if this turn was routine action, minor dialogue, or you have nothing specific and concrete to say.
-
 If `pending_beat` below is set and was not yet surfaced by the narrator, emit `beat_disposition: "carry"` and leave `gm_beat` null. If it should be replaced, emit `beat_disposition: "replace"` and a new `gm_beat`. Otherwise emit `beat_disposition: "consume"` (default).
 
 {% if pending_beat -%}

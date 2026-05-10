@@ -593,7 +593,8 @@ class TestPromptComposition:
         recent = [{"turn": 1, "input": "look around", "narrative": "You see a docking bay."}]
         msgs = _narrate_messages(env, state, "go forward", recent_turns=recent)
         user_text = next(m for m in msgs if m["role"] == "user")["content"]
-        assert "look around" in user_text
+        assert "T1:" in user_text
+        assert "You see a docking bay" in user_text
 
     def test_chronicle_absent_when_empty(self):
         env = self._env()

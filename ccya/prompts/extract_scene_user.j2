@@ -2,10 +2,6 @@
 
 ## pc
 {{ pc.name }} — {{ pc.tagline }}
-Stats: {% for k, v in (pc.stats or {}).items() %}{{ k }}={{ v }}{% if not loop.last %} {% endif %}{% endfor %}
-{% if conditions -%}
-Conditions: {% for c in conditions %}{{ c.label if c is mapping else c }}{% if not loop.last %}, {% endif %}{% endfor %}
-{% endif %}
 ## location
 `{{ location.id }}` | {{ location.name }}
 {{ location.description }}
