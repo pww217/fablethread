@@ -380,8 +380,8 @@ class TestPromptComposition:
         assert "scene_tags" in system
         assert "npc_add" in system
         assert "compendium_npc_update" in system
-        assert "scene_pressure_add" in system
-        assert "gm_beat" in system
+        assert "scene_pressure_remove" in system
+        assert "scene_pressure_update" in system
 
     def test_extract_scene_no_inventory(self):
         """Scene stream must not include inventory sections."""

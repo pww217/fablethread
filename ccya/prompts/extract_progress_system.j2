@@ -48,10 +48,10 @@ Each new event must have a stable `snake_case` ID. To update an existing event's
 - `deescalate == 0.0` with active pressure → `pressure` or `escalation`
 - Quest staleness in `quest_ages` (age >= 3) → `setback` or `complication`
 - Recent `twist` or `callback` beats should not repeat within 2 turns
-- `type` values: `pressure`, `complication`, `breathing_room`, `twist`, `setback`, `escalation`, `callback`
-- `surface_as` values: `dialogue`, `environmental`, `player_discovery`, `item`, `npc_action`
+- `type` values: `complication`, `revelation`, `opportunity`, `breathing_room`, `pressure`, `twist`, `setback`, `escalation`, `callback`
+- `surface_as` values: `ambient`, `event`, `npc_behavior`, `environmental`, `player_discovery`, `item`
 - Each beat must be narratively specific: name NPCs, reference locations, tie to active quests
-- Emit as: `{"type": "pressure", "surface_as": "dialogue", "instruction": "The guard captain returns with reinforcements."}`
+- Emit as: `{"type": "pressure", "surface_as": "npc_behavior", "instruction": "The guard captain returns with reinforcements."}`
 - If no beat is warranted, emit `null` (not an empty object)
 
 `beat_disposition`: controls what happens to the pending_gm_beat from the previous turn. Values: `"consume"` (default) — beat is cleared after narration; `"carry"` — beat stays in meta.pending_gm_beat unchanged for the next turn; `"replace"` — the new gm_beat above supersedes the carried one. If you emit a new gm_beat, use `"replace"`. If you want to preserve an unsurfaced beat, emit `"carry"` and leave gm_beat null.
