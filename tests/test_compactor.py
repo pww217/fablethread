@@ -365,7 +365,7 @@ class TestMaybeCompactBandMath:
         state = self._make_state(6)
         config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
         with _mock_compact_llm():
-            result = await maybe_compact(tmp_path, state, config)
+            result, _ = await maybe_compact(tmp_path, state, config)
         assert result["meta"]["last_compacted_turn"] == 3
         assert len(result["meta"]["prior_history"]) == 2
 
@@ -377,7 +377,7 @@ class TestMaybeCompactBandMath:
         state = self._make_state(12, last_compacted_turn=3)
         config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
         with _mock_compact_llm():
-            result = await maybe_compact(tmp_path, state, config)
+            result, _ = await maybe_compact(tmp_path, state, config)
         assert result["meta"]["last_compacted_turn"] == 9
         assert len(result["meta"]["prior_history"]) == 2
 
@@ -388,9 +388,10 @@ class TestMaybeCompactBandMath:
         ])
         state = self._make_state(5)
         config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
-        result = await maybe_compact(tmp_path, state, config)
+        result, compaction_ran = await maybe_compact(tmp_path, state, config)
         assert result["meta"]["last_compacted_turn"] == 0
         assert result["meta"]["prior_history"] == []
+        assert compaction_ran is False
 
     @pytest.mark.asyncio
     async def test_recent_events_compaction(self, tmp_path: Path):
@@ -418,7 +419,7 @@ class TestMaybeCompactBandMath:
             '```'
         )
         with _mock_compact_llm(mock_response):
-            result = await maybe_compact(tmp_path, state, config)
+            result, _ = await maybe_compact(tmp_path, state, config)
         assert len(result["scene"]["recent_events"]) == 2
         assert result["scene"]["recent_events"][0]["id"] == "arrival_and_rumors"
         assert result["scene"]["recent_events"][1]["id"] == "caron_waiting"
@@ -438,7 +439,7 @@ class TestMaybeCompactBandMath:
             "{}"
         )
         with _mock_compact_llm(mock_response):
-            result = await maybe_compact(tmp_path, state, config)
+            result, _ = await maybe_compact(tmp_path, state, config)
         assert result["scene"]["recent_events"] == []
 
     @pytest.mark.asyncio
@@ -468,7 +469,7 @@ class TestMaybeCompactBandMath:
             '```'
         )
         with _mock_compact_llm(mock_response):
-            result = await maybe_compact(tmp_path, state, config)
+            result, _ = await maybe_compact(tmp_path, state, config)
         assert len(result["scene"]["recent_events"]) == 1
         assert result["scene"]["recent_events"][0]["id"] == "consolidated"
 
@@ -485,7 +486,7 @@ class TestMaybeCompactBandMath:
         state = self._make_state(6)
         config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
         with _mock_compact_llm():
-            result = await maybe_compact(tmp_path, state, config)
+            result, _ = await maybe_compact(tmp_path, state, config)
         assert result["meta"]["last_compacted_turn"] == 3
         chronicle_text = (tmp_path / "chronicle.md").read_text()
         assert "## Turn 1 — Attack" not in chronicle_text
@@ -504,7 +505,7 @@ class TestMaybeCompactBandMath:
         state = self._make_state(12, last_compacted_turn=3)
         config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
         with _mock_compact_llm():
-            result = await maybe_compact(tmp_path, state, config)
+            result, _ = await maybe_compact(tmp_path, state, config)
         assert result["meta"]["last_compacted_turn"] == 9
         chronicle_text = (tmp_path / "chronicle.md").read_text()
         for t in range(1, 10):

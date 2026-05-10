@@ -151,12 +151,13 @@ def _extract_candidate_names(
     narration: str,
     pc_name: str,
     inventory_names: set[str] | None = None,
+    location_names: set[str] | None = None,
 ) -> set[str]:
     """Extract capitalized tokens that are candidates for NPC names.
 
     Excludes the PC name (case-insensitive), sentence-initial words,
     short tokens (<=4 chars, likely descriptors), common descriptor words,
-    and inventory item names.
+    inventory item names (partial match), and location names (partial match).
 
     Note: sentence-starters heuristic will miss NPC names that happen to
     appear at the start of a sentence. This is an accepted tradeoff to
@@ -184,6 +185,10 @@ def _extract_candidate_names(
     if inventory_names:
         inv_lower = {n.lower() for n in inventory_names}
 
+    loc_lower: set[str] = set()
+    if location_names:
+        loc_lower = {n.lower() for n in location_names}
+
     candidates: set[str] = set()
     for token in re.findall(r'\b[A-Z][a-z]{2,}\b', narration):
         if token.lower() == pc_name.lower():
@@ -194,7 +199,12 @@ def _extract_candidate_names(
             continue
         if len(token) <= 4:
             continue
-        if inv_lower and token.lower() in inv_lower:
+        # Partial match against inventory names (e.g., "Leather" matches
+        # "Leather-bound ledger")
+        if inv_lower and any(token.lower() in inv_name for inv_name in inv_lower):
+            continue
+        # Partial match against location names
+        if loc_lower and any(token.lower() in loc_name for loc_name in loc_lower):
             continue
         candidates.add(token)
     return candidates
@@ -250,7 +260,19 @@ def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
             if name:
                 inventory_names.add(name)
 
-    candidates = _extract_candidate_names(narr, pc_name, inventory_names)
+    # Extract location names for false positive filtering
+    location_names: set[str] = set()
+    loc = (snap.get("location") or {})
+    if loc.get("name"):
+        location_names.add(loc["name"])
+    # Also check world locations if available
+    for wl in (snap.get("world") or {}).get("locations") or []:
+        if isinstance(wl, dict) and wl.get("name"):
+            location_names.add(wl["name"])
+        elif isinstance(wl, str):
+            location_names.add(wl)
+
+    candidates = _extract_candidate_names(narr, pc_name, inventory_names, location_names)
     # Filter common false positives: dialogue tags, common nouns.
     stop = {
         "You", "The", "A", "An", "His", "Her", "Their",

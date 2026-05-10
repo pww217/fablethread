@@ -61,7 +61,7 @@ All NPC `name`, `title`, and `bio` values must be grounded in the narration or t
 
 ## Constraints
 
-- **Always emit at least one NPC entry.** If no specific named character is present, emit ambient presence (e.g., a crowd, onlookers, guards, townsfolk). Use a generic ID like `"crowd"`, `"bystanders"`, `"inn_patrons"`, or `"guards"` with appropriate `notes`.
+- **NPC emission:** Only emit `npc_add` for named characters or entities that interact with the player or quest. If no named NPCs are present in the scene, emit ambient presence (e.g., "crowd", "bystanders", "inn_patrons") with a generic ID. Do NOT emit ambient presence when named NPCs are already present — the named NPCs are sufficient.
 - **Never invent location IDs.** Only use location IDs from the `## Current Location` section or well-known locations from the compendium.
 - **Keep scene_tags to at most 5.** Prefer the most salient descriptors.
 - **Limit `npc_add` to at most 3 per turn.** Only add NPCs that are meaningfully present or interact with the player. Background extras go in ambient presence.
