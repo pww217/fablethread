@@ -14,5 +14,5 @@
 
 ## Engine integration
 
-- `generate_seed()` calls `_build_generate_seed_messages()` → `trim_messages()` → LLM chat → `_find_json()` → `SeedEnvelope(**j)` → `_sanitize_envelope()` → `_validate_seed_envelope()` → injects baseline_facts into `world_state` → clears `compendium_touch_order` → seeds faction/location pools → runs `_soft_validate_seed()` → returns envelope.
+- `generate_seed()` calls `_build_generate_seed_messages()` → `trim_messages()` → LLM chat → `_find_json()` → `SeedEnvelope(**j)` → `_sanitize_envelope()` → `_validate_seed_envelope()` → injects baseline_facts into `world_state` → clears `compendium_touch_order` → runs `_soft_validate_seed()` → returns envelope.
 - Prompt templates: `generate_seed_system.j2` (PC name constraint, starter inventory rules, world_state/recent_events discipline, quest design constraint), `generate_seed_user.j2` (scenario facts, factions, locations, name pool, player overrides).

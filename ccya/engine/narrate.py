@@ -30,8 +30,6 @@ def _narrate_messages(
     known_npcs: list[dict[str, Any]] = [],
     present_npcs: list[dict[str, Any]] = [],
     compendium_bios: list[dict[str, Any]] = [],
-    world_factions: list[dict[str, str]] = [],
-    world_locations: list[dict[str, str]] = [],
     pc_allegiance: str | None = None,
     turn_no: int = 0,
 ) -> list[dict[str, str]]:
@@ -52,16 +50,12 @@ def _narrate_messages(
         "known_npcs": known_npcs,
         "present_npcs": present_npcs,
         "compendium_bios": compendium_bios,
-        "world_factions": world_factions,
-        "world_locations": world_locations,
         "pc_allegiance": pc_allegiance,
     }
     system_text = _render(env, "narrate_system.j2", {
         "pack_style": pack_style,
         "narrator_rules": narrator_rules,
         "world_rules": world_rules,
-        "world_factions": world_factions,
-        "world_locations": world_locations,
     })
     user_text = _render(env, "narrate_user.j2", user_ctx)
     msgs = [

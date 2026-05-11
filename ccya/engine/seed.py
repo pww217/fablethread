@@ -248,11 +248,6 @@ async def generate_seed(
         if "compendium_touch_order" in envelope.seed_state.meta:
             del envelope.seed_state.meta["compendium_touch_order"]
 
-        # Phase 5: seed world factions and locations
-        seed_val = seed or hash(envelope.seed_state.meta.get("game_name", ""))
-        envelope.seed_state.meta["faction_pool_seed"] = seed_val
-        envelope.seed_state.meta["location_pool_seed"] = seed_val + 1
-
         soft_warnings = _soft_validate_seed(envelope, pack, overrides)
         for w in soft_warnings:
             _log.warning(

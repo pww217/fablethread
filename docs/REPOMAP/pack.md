@@ -53,8 +53,6 @@ Each pack in `packs/{namespace}/{pack_id}/` (namespace = `default` or `custom`):
 
 - **`generate_name_pool(locales, pc_count, npc_count, location_count, seed)`** → `{"pc": [...], "npc": [...], "location": [...]}` — culturally-appropriate name pools via Faker.
 - **`generate_npc_names_split(locales, male_count, female_count, seed)`** → `{"male": [...], "female": [...]}` — gender-split name pool for narrate context.
-- **`generate_faction_pool(seed, count)`** → `list[dict]` — deterministic faction name generation (used by engine for legacy world.factions).
-- **`generate_location_pool(seed, count)`** → `list[dict]` — deterministic location name generation (used by engine for legacy world.locations).
 
 ## Engine integration (seed.py)
 

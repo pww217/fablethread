@@ -95,7 +95,7 @@ Full plan details are in `plans/`. See `docs/ROADMAP.md` for priority phases.
 - ~~**Custom world generator** — `generate_pack(WorldBrief)` → ScenarioBrief → Pack on disk; new schema (scenario.yaml absorbs world.md/style.md/factions/locations); extract_examples deleted; opening narrative quality pass; packs/default + packs/custom split — see [`completed/custom-world-gen.md`](completed/custom-world-gen.md)~~
 - **Location-keyed NPC storage** — NPCs per location, LRU injection eliminated
 - **Typed place pool generation** — settlements, taverns, districts, wilderness — see `[p4-world/world-prop-injection.md](p4-world/world-prop-injection.md)`
-- **Organization/faction name pool** — seeded at game start, injected with political context — see `[p4-world/world-prop-injection.md](p4-world/world-prop-injection.md)`
+- ~~**Organization/faction name pool** — seeded at game start, injected with political context — see `[p4-world/world-prop-injection.md](p4-world/world-prop-injection.md)`~~
 - **Rumor pool** — template-filled rumors using seeded NPC names and places — see `[p4-world/world-prop-injection.md](p4-world/world-prop-injection.md)`
 - **Object epithet pool** — named items for loot/discovery/combat — see `[p4-world/world-prop-injection.md](p4-world/world-prop-injection.md)`
 - **Narrator prop injection rule** — prefer pool names over invented ones — see `[p4-world/world-prop-injection.md](p4-world/world-prop-injection.md)`
