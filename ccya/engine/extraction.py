@@ -175,24 +175,12 @@ def _extract_state_messages(
     narration: str,
     state: dict[str, Any],
     *,
-    scene_result: "SceneExtractResult",
     enable_thinking: bool = False,
     turn_no: int = 0,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 2 (inventory + conditions)."""
     pc = state.get("pc") or {}
     location = state.get("location") or {}
-
-    # Cross-stream scene context (minimal surface)
-    loc_id = (
-        scene_result.location_change.id
-        if scene_result.location_change
-        else location.get("id", "")
-    )
-    scene_ctx = {
-        "location_id": loc_id,
-        "location_changed": bool(scene_result.location_change),
-    }
 
     system_text = _render(env, "extract_state_system.j2", {})
     user_text = _render(
@@ -203,7 +191,6 @@ def _extract_state_messages(
             "pc": pc,
             "conditions": list(pc.get("conditions") or []),
             "inventory": state.get("inventory") or [],
-            "scene_result": scene_ctx,
             "turn_no": turn_no,
         },
     )
@@ -257,6 +244,8 @@ def _extract_progress_messages(
     """Build [system, user] messages for stream 3 (quests + facts + actions + outcome_summary)."""
     pc = state.get("pc") or {}
     scene = state.get("scene") or {}
+    location = state.get("location") or {}
+    present_npcs = list(scene.get("present_npcs") or [])
 
     active_quests = [
         q for q in (state.get("quests") or []) if q.get("status") == "active"
@@ -278,6 +267,9 @@ def _extract_progress_messages(
         {
             "narration": narration,
             "pc": pc,
+            "pc_stats": pc.get("stats") or {},
+            "present_npcs": present_npcs,
+            "location": location,
             "active_quests": active_quests,
             "recent_events": recent_events,
             "world_state": world_state,
@@ -466,7 +458,6 @@ async def _run_extraction_pipeline(
         t_state = asyncio.get_event_loop().time()
         state_msgs = _extract_state_messages(
             env, narration, state,
-            scene_result=scene_result,
             enable_thinking=config.enable_extract_thinking,
             turn_no=turn_no,
         )

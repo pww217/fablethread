@@ -221,8 +221,6 @@ class TestTurnViewerDataMinimalEvent:
                 "trace_id": "abc123",
                 "scope": {
                     "active_domains": [],
-                    "decided_by": "narrator",
-                    "skipped_streams": [],
                 },
             }
             path.write_text(json.dumps(event) + "\n")
@@ -239,8 +237,6 @@ class TestTurnViewerDataMinimalEvent:
 
             # scope block
             assert row["scope"]["active_domains"] == []
-            assert row["scope"]["decided_by"] == "narrator"
-            assert row["scope"]["skipped_streams"] == []
 
             # prompts dict has all 5 keys
             assert set(row["prompts"].keys()) == {"rules", "narrate", "scene", "state", "progress"}
@@ -256,8 +252,6 @@ class TestTurnViewerDataRealEvent:
                 "input": "I search the crate for useful items.",
                 "scope": {
                     "active_domains": ["scene", "compendium_npc"],
-                    "decided_by": "narrator",
-                    "skipped_streams": ["state"],
                 },
                 "rules": {
                     "intent_verb": "search",
@@ -353,8 +347,6 @@ class TestTurnViewerDataRealEvent:
 
             # scope
             assert row["scope"]["active_domains"] == ["scene", "compendium_npc"]
-            assert row["scope"]["decided_by"] == "narrator"
-            assert row["scope"]["skipped_streams"] == ["state"]
 
             # prompts
             assert "unmarked crate" in row["prompts"]["narrate"]["output"]

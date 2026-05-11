@@ -9,6 +9,7 @@ from typing import Any
 
 
 _TURN_HEADER = re.compile(r"^## Turn (\d+) — (.+)$", re.MULTILINE)
+_COMPACTED_HEADER = re.compile(r"^## COMPACTED$", re.MULTILINE)
 
 
 def append_event(save_dir: Path, event: dict[str, Any]) -> None:
@@ -39,10 +40,20 @@ def load_chronicle_tail(
                 else 0
             )
             text = text[:cut_at]
-    words = text.split()
-    if len(words) <= max_tokens:
-        return text
-    return " ".join(words[-max_tokens:])
+    # Only return the COMPACTED section, not the raw prose for non-compacted turns.
+    # The non-compacted turns are provided separately via recent_turns.
+    compacted_match = _COMPACTED_HEADER.search(text)
+    if compacted_match:
+        compacted_text = text[compacted_match.end():]
+        # Find where the first non-compacted turn header starts after COMPACTED
+        turn_matches = list(_TURN_HEADER.finditer(compacted_text))
+        if turn_matches:
+            compacted_text = compacted_text[:turn_matches[0].start()]
+        words = compacted_text.split()
+        if len(words) <= max_tokens:
+            return "## COMPACTED\n" + compacted_text
+        return "## COMPACTED\n" + " ".join(words[-max_tokens:])
+    return ""
 
 
 def load_recent_events(save_dir: Path, n: int) -> list[dict[str, Any]]:

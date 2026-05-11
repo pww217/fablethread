@@ -1,6 +1,29 @@
 ## pc
 {{ pc.name }} — {{ pc.tagline }}
 
+{% if pc.stats -%}
+## pc_stats
+{% for k, v in pc.stats.items() %}- {{ k }}: {{ v }}
+{% endfor %}
+{% endif -%}
+
+{% if present_npcs -%}
+## present_npcs (in scene right now)
+{% for n in present_npcs %}- `{{ n.id }}` | {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}
+{% endfor %}
+{% endif -%}
+
+{% if known_npcs -%}
+## known_characters (not in scene — system-called, for quest/event reasoning only)
+{% for n in known_npcs %}- `{{ n.id }}` | {{ n.name }} — {{ n.bio }}{% if n.last_seen %} — last seen in {{ n.last_seen.location_name }}: {{ n.last_seen.last_seen_state }}{% endif %}
+{% endfor %}
+{% endif -%}
+
+{% if location -%}
+## location
+{{ location.name or location.id }}{% if location.description %} — {{ location.description }}{% endif %}
+{% endif -%}
+
 {% if intent and intent.intent -%}
 ## player_intent
 {{ intent.intent_verb }}: {{ intent.intent }}
@@ -82,7 +105,7 @@ Do NOT add pressure for things the narrator already described as resolved or for
 {% endfor %}
 {% endif -%}
 {% if recent_turns -%}
-## last_turn_narration (T{{ recent_turns[-1].turn }} — context for this turn's outcome)
+## last_turn_narration (T{{ recent_turns[-1].turn }})
 {{ recent_turns[-1].narrative }}
 
 {% endif -%}

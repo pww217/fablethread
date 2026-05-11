@@ -42,7 +42,7 @@
 {% if known_npcs -%}
 ### Known Characters
 Before introducing anyone new, check this list. Re-use characters when they could plausibly be present.
-{% for n in known_npcs %}- **{{ n.name }}** - {{ n.bio }} - {% if n.last_seen %} — last seen {{ n.last_seen.location_name }}{% if n.last_seen.last_seen_state %}: {{ n.last_seen.last_seen_state }}{% endif %}{% endif %}
+{% for n in known_npcs %}- **{{ n.name }}** - {{ n.bio }} - {% if n.last_seen %} last seen in{{ n.last_seen.location_name }} in: {% if n.last_seen.last_seen_state %}: {{ n.last_seen.last_seen_state }}{% endif %}{% endif %}
 {% endfor -%}
 {% endif -%}
 {% if present_npcs -%}
@@ -57,66 +57,69 @@ Before introducing anyone new, check this list. Re-use characters when they coul
 {% endif -%}
 
 ## Recent History
-{% if recent_turns -%}
-{% for t in recent_turns -%}
-T{{ t.turn }}: {{ t.narrative }}
-{% endfor -%}
-{% endif -%}
 {% if chronicle_tail and chronicle_tail.strip() -%}
 {{ chronicle_tail }}
 {% endif -%}
+{% if recent_turns -%}
+{% for t in recent_turns %}
+T{{ t.turn }}: {{ t.narrative }}
 
-## This Turn's Result
-{% if rules_outcome and rules_outcome.rolled -%}
-**Band:** {{ rules_outcome.band | upper | replace('_', ' ') }} → {{ rules_outcome.directive }}
-{% elif rules_outcome and not rules_outcome.rolled -%}
-**No roll required.** Describe what happens with appropriate weight for the moment.
+{% endfor -%}
 {% endif -%}
-{% if pending_gm_beat and pending_gm_beat.type -%}
+
+## This Turn's (Turn {{ meta.get('turn', '?') if meta is mapping else '?' }}) Result
+{% if rules_outcome and rules_outcome.rolled %}
+
+**Band:** {{ rules_outcome.band | upper | replace('_', ' ') }} → {{ rules_outcome.directive }}
+{% elif rules_outcome and not rules_outcome.rolled %}
+
+**No roll required.** Describe what happens with appropriate weight for the moment.
+{% endif %}
+{% if pending_gm_beat and pending_gm_beat.type %}
 
 **GM Beat:** {{ pending_gm_beat.instruction }}
 Surface as {{ pending_gm_beat.surface_as }}. This is backstage direction — integrate it naturally, not as player-visible narration.
-{% endif -%}
-{% set m = momentum | default(0) -%}
-{% if m >= 2 -%}
+{% endif %}
+{% set m = momentum | default(0) %}
+{% if m >= 2 %}
 
 **Momentum:** HIGH (+{{ m }}). The player is on a strong run. Consider raising the stakes.
-{% elif m <= -2 -%}
+{% elif m <= -2 %}
 
 **Momentum:** LOW ({{ m }}). The player has been struggling. Unless the fiction demands punishment, offer a small break.
-{% endif -%}
-{% if deescalate -%}
+{% endif %}
+{% if deescalate %}
 
 **Breathe:** A pressure has resolved. Pull back. Let the scene have a moment of relief. No new hook this turn.
 {% elif scene_pressure and not deescalate %}
 {% set immediate_count = scene_pressure | selectattr("urgency", "equalto", "immediate") | list | length %}
-{% if immediate_count >= 3 -%}
+{% if immediate_count >= 3 %}
 
 **Overwhelm:** Multiple immediate threats. Focus on the most pressing one. Don't try to address everything at once.
-{% elif immediate_count > 0 -%}
+{% elif immediate_count > 0 %}
 
 **Pressure:** Active immediate threat(s). Keep them present and felt.
-{% else -%}
+{% else %}
 {% set building_count = scene_pressure | selectattr("urgency", "equalto", "building") | list | length %}
-{% if building_count > 0 -%}
+{% if building_count > 0 %}
 
 **Tension:** Danger is building — show it in the environment and character behavior, not in explicit new threats.
-{% endif -%}
-{% endif -%}
-{% endif -%}
-{% if ages and ages.get('combat_age', 0) >= 3 -%}
+{% endif %}
+{% endif %}
+{% endif %}
+{% if ages and ages.get('combat_age', 0) >= 3 %}
 
 **Combat Fatigue:** This fight has run {{ ages.combat_age }} turns. Bring it to a decisive close — one side prevails, flees, or is incapacitated.
-{% endif -%}
-{% if ages and ages.get('location_age', 0) >= 6 -%}
+{% endif %}
+{% if ages and ages.get('location_age', 0) >= 6 %}
 
 **Location Imperative:** The party has been here {{ ages.location_age }} turns. Begin steering toward a natural exit.
-{% elif ages and ages.get('location_age', 0) >= 4 -%}
+{% elif ages and ages.get('location_age', 0) >= 4 %}
 
 **Location Hint:** {{ ages.location_age }} turns here. If a natural opening to move on presents itself, take it.
-{% endif -%}
+{% endif %}
 
-## Current Turn: {{ meta.get('turn', '?') if meta is mapping else '?' }}
+
 === PLAYER INPUT ===
 {{ user_input }}
 === END PLAYER INPUT ===

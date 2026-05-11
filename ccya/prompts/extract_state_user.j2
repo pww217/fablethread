@@ -3,7 +3,7 @@
 
 {% if conditions -%}
 ## active_conditions
-{% for c in conditions %}- `{{ c.id if c is mapping else c }}` | {{ c.label if c is mapping else c }}{% if c is mapping and c.get('description') %} — {{ c.description }}{% endif %}
+{% for c in conditions %}- {{ c.id if c is mapping else c }}{% if c is mapping and c.get('description') %} — {{ c.description }}{% endif %}
 {% endfor %}
 {% endif -%}
 {% if inventory -%}
@@ -11,9 +11,9 @@
 {% for item in inventory %}- `{{ item.id }}` | {{ item.name }} ×{{ item.amount or 1 }}{% if item.notes %} — {{ item.notes }}{% endif %}
 {% endfor %}
 {% endif -%}
-## scene_result
-location: `{{ scene_result.location_id }}`
-{% if scene_result.location_changed %}(location changed){% endif %}
+## player_input
+{{ user_input }}
+This is the raw text the player typed. Use it to gauge intent and context for interpreting the narration. Do NOT extract inventory, conditions, or state changes from it — only the narration describes what actually happened.
 ## CURRENT TURN {{ turn_no }} NARRATION
 {{ narration }}
 ## END CURRENT TURN NARRATION

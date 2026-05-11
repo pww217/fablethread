@@ -71,9 +71,6 @@ _DEFAULT_DOMAINS: list[str] = [
     "inventory",
     "pc_condition",
     "quest_updates",
-    "location_change",
-    "recent_events",
-    "compendium_npc",
 ]
 
 _SCOPE_OPEN = "<scope>"
@@ -768,11 +765,6 @@ async def run_turn(
             "extraction": extraction_event,
             "scope": {
                 "active_domains": _active_domains,
-                "decided_by": "narrator" if parsed_domains is not None else "default",
-                "skipped_streams": [
-                    s for s, ev in extraction_event.items()
-                    if ev.get("skipped")
-                ],
             },
             "changes": changes,
             # Prompt logging (for turn viewer)
@@ -1319,11 +1311,6 @@ async def run_turn_retry(
             "extraction": extraction_event,
             "scope": {
                 "active_domains": _active_domains,
-                "decided_by": "narrator" if parsed_domains is not None else "default",
-                "skipped_streams": [
-                    s for s, ev in extraction_event.items()
-                    if ev.get("skipped")
-                ],
             },
             "changes": changes,
             "rules_prompt": {

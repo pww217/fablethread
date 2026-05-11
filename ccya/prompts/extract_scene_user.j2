@@ -1,5 +1,3 @@
-## pc
-{{ pc.name }} — {{ pc.tagline }}
 ## location
 `{{ location.id }}` | {{ location.name }}
 {{ location.description }}
@@ -12,7 +10,7 @@
 {% if npc_roster -%}
 <<<TRACE_IMMUTABLE_START>>>
 ## known_characters (compendium — reuse `id` for npc_add/npc_update/compendium_npc_update)
-{% for n in npc_roster %}- `{{ n.id }}` | {{ n.name }} [{{ n.tags | join(",") }}]{% if n.notes %} — {{ n.notes }}{% endif %}
+{% for n in npc_roster %}- `{{ n.id }}` | {{ n.name }} [{{ n.tags | join(",") }}]{% if n.notes %} — {{ n.notes }}{% endif %}{% if n.last_seen %} — last seen in {{ n.last_seen.location_name }}: {{ n.last_seen.last_seen_state }}{% endif %}
 {% endfor %}
 <<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
