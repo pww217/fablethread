@@ -1,9 +1,9 @@
-#!/usr/bin/env zsh
-# qa-cycle.zsh — run eval, then generate a remediation plan via opencode
+#!/usr/bin/env bash
+# qa-cycle.sh — run eval, then generate a remediation plan via opencode
 # Usage:
-#   ./run-cycle.sh              — run eval (standard), then generate plan
-#   ./run-cycle.sh --fast       — run eval (fast), then generate plan
-#   ./run-cycle.sh <report>     — skip eval, use existing report
+#   ./run-cycle.sh                 — run eval (standard), then generate plan
+#   ./run-cycle.sh --fast          — run eval (fast), then generate plan
+#   ./run-cycle.sh <report>        — skip eval, use existing report
 #   ./run-cycle.sh --fast <report> — skip eval, use existing report
 
 set -euo pipefail
@@ -15,15 +15,10 @@ cd "$REPO_ROOT"
 DATE_SLUG="$(date +%b-%d | tr '[:upper:]' '[:lower:]')"   # e.g. may-10
 PLAN_PATH="plans/eval-remediation-${DATE_SLUG}.md"
 
-# ── Step 1: Run eval or use existing report ──────────────────────────────────
-# Usage:
-#   ./run-cycle.sh              — run eval (standard), then generate plan
-#   ./run-cycle.sh --fast       — run eval (fast), then generate plan
-#   ./run-cycle.sh <report>     — skip eval, use existing report
-#   ./run-cycle.sh --fast <report> — skip eval, use existing report
-
+# ── Step 1: Run eval or use existing report ─────────────────────────────────
 REPORT_ARG="${1:-}"
 FAST_FLAG=""
+
 if [[ "$REPORT_ARG" == "--fast" ]]; then
   FAST_FLAG="--fast"
   REPORT_ARG="${2:-}"
@@ -45,20 +40,22 @@ else
   fi
 
   # Eval writes to evals/runs/<timestamp>/REPORT.md
-  LATEST_RUN="$(ls -td evals/runs/*/ 2>/dev/null | head -1)"
+  LATEST_RUN="$(ls -td evals/runs/*/ 2>/dev/null | head -n 1)"
   if [[ -z "$LATEST_RUN" ]]; then
     echo "ERROR: no eval run directory found under evals/runs/" >&2
     exit 1
   fi
+
   REPORT="${LATEST_RUN}REPORT.md"
   if [[ ! -f "$REPORT" ]]; then
     echo "ERROR: REPORT.md not found at ${REPORT}" >&2
     exit 1
   fi
+
   echo "→ Using report: ${REPORT}"
 fi
 
-# ── Step 2: Generate remediation plan via opencode ───────────────────────────
+# ── Step 2: Generate remediation plan via opencode ──────────────────────────
 echo "→ Generating remediation plan → ${PLAN_PATH}…"
 
 PROMPT_FILE="$(mktemp)"
@@ -83,7 +80,7 @@ opencode run \
   < "$PROMPT_FILE" \
   > "$PLAN_PATH"
 
-# ── Done ─────────────────────────────────────────────────────────────────────
+# ── Done ────────────────────────────────────────────────────────────────────
 echo ""
 echo "✓ QA cycle complete."
 echo "  Report:  ${REPORT}"
