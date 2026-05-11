@@ -71,6 +71,8 @@ Before introducing anyone new, check this list. Re-use characters when they coul
 {% if rules_outcome and rules_outcome.rolled %}
 
 **Band:** {{ rules_outcome.band | upper | replace('_', ' ') }} → {{ rules_outcome.directive }}
+
+**rules_outcome (BINDING):** Your narration must reflect this band and directive. A `success` band means the player achieves their goal (with possible complications). A `partial` band means they succeed at a cost. A `setback`/`fail` band means they face a complication or partial failure. A `crit_fail` band means things go badly. The directive tells you the narrative flavor — follow it. Never contradict the band outcome.
 {% elif rules_outcome and not rules_outcome.rolled %}
 
 **No roll required.** Describe what happens with appropriate weight for the moment.
