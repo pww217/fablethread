@@ -2225,8 +2225,8 @@ class TestPackKwargs:
 
         assert not any("UNIQUE_STYLE_MARKER_7483" in s for s in captured_narrate_system)
 
-    async def test_pack_factions_in_narrate_system(self) -> None:
-        """Factions from pack.scenario should appear in the narrate system prompt."""
+    async def test_pack_narrator_rules_in_narrate_system(self) -> None:
+        """Narrator rules from pack.scenario should appear in the narrate system prompt."""
         state = _make_state()
         _write_state(_SAVE_DIR, state)
 
@@ -2271,8 +2271,6 @@ class TestPackKwargs:
                 "look",
                 config=EngineConfig(),
                 template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts"),
-                pack_factions=[{"name": "Test Faction", "disposition": "hostile", "description": "A test faction."}],
-                pack_locations=[{"name": "Test Location", "type": "settlement", "description": "A test place."}],
                 pack_narrator_rules=["Rule one.", "Rule two."],
             ):
                 pass
@@ -2280,9 +2278,6 @@ class TestPackKwargs:
             for _m, _name, _orig in _origs:
                 setattr(_m, _name, _orig)
 
-        assert any("Test Faction" in s for s in captured_narrate_system)
-        assert any("hostile" in s for s in captured_narrate_system)
-        assert any("Test Location" in s for s in captured_narrate_system)
         assert any("Rule one." in s for s in captured_narrate_system)
         assert any("Rule two." in s for s in captured_narrate_system)
 

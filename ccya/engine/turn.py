@@ -239,8 +239,6 @@ async def run_turn(
     template_dir: str | None = None,
     pack_style: str = "",
     pack_name_locales: list[dict[str, Any]] = [],
-    pack_factions: list[dict[str, str]] = [],
-    pack_locations: list[dict[str, str]] = [],
     pack_narrator_rules: list[str] = [],
     pack_world_rules: list[str] = [],
 ) -> AsyncIterator[tuple[str, Any]]:
@@ -453,13 +451,11 @@ async def run_turn(
                         "bio": (entry.get("bio") or "").strip(),
                     })
 
-        # Phase 5: world context from pack scenario (primary) or state world (legacy)
-        _world = state.get("world") or {}
-        _world_factions = pack_factions if pack_factions else list(_world.get("factions") or [])
-        _world_locations = pack_locations if pack_locations else list(_world.get("locations") or [])
         _pc_allegiance = (state.get("pc") or {}).get("allegiance")
         _pack_narrator_rules = pack_narrator_rules if pack_narrator_rules else []
         _pack_world_rules = pack_world_rules if pack_world_rules else []
+        _world_factions: list[dict[str, str]] = []
+        _world_locations: list[dict[str, str]] = []
 
         narr_messages = _narrate_messages(
             env,
@@ -481,8 +477,6 @@ async def run_turn(
             known_npcs=_known_npcs,
             present_npcs=_present_npcs,
             compendium_bios=_compendium_bios,
-            world_factions=_world_factions,
-            world_locations=_world_locations,
             pc_allegiance=_pc_allegiance,
             turn_no=turn_no,
         )
@@ -901,8 +895,6 @@ async def run_turn_retry(
     template_dir: str | None = None,
     pack_style: str = "",
     pack_name_locales: list[dict[str, Any]] = [],
-    pack_factions: list[dict[str, str]] = [],
-    pack_locations: list[dict[str, str]] = [],
     pack_narrator_rules: list[str] = [],
     pack_world_rules: list[str] = [],
 ) -> AsyncIterator[tuple[str, Any]]:
@@ -1006,13 +998,11 @@ async def run_turn_retry(
                         "bio": (entry.get("bio") or "").strip(),
                     })
 
-        # Phase 5: world context from pack scenario (primary) or state world (legacy)
-        _world = state.get("world") or {}
-        _world_factions = pack_factions if pack_factions else list(_world.get("factions") or [])
-        _world_locations = pack_locations if pack_locations else list(_world.get("locations") or [])
         _pc_allegiance = (state.get("pc") or {}).get("allegiance")
         _pack_narrator_rules = pack_narrator_rules if pack_narrator_rules else []
         _pack_world_rules = pack_world_rules if pack_world_rules else []
+        _world_factions: list[dict[str, str]] = []
+        _world_locations: list[dict[str, str]] = []
 
         narr_messages = _narrate_messages(
             env,
@@ -1037,8 +1027,6 @@ async def run_turn_retry(
             known_npcs=_known_npcs,
             present_npcs=_present_npcs,
             compendium_bios=_compendium_bios,
-            world_factions=_world_factions,
-            world_locations=_world_locations,
             pc_allegiance=_pc_allegiance,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes

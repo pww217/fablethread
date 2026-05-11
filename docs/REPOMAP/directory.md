@@ -9,7 +9,7 @@ ccya/                          # Python package
     config.py                  # EngineConfig dataclass, _EventLock, is_turn_in_progress, Jinja env setup
     turn.py                    # run_turn() async orchestrator (thin — imports from submodules)
     narrate.py                 # _narrate_messages(), NPC name helpers
-    names.py                   # generate_name_pool(), generate_npc_names(), generate_faction_pool(), generate_location_pool()
+    names.py                   # generate_name_pool(), generate_npc_names(), generate_npc_names_split()
     rules.py                   # _rules_messages(), _call_rules(), retry logic (NOT ccya/rules.py)
     extraction.py              # _run_extraction_pipeline(), all _extract_*_messages, _call_stream()
     seed.py                    # generate_seed(), _build_generate_seed_messages(), _soft_validate_seed()

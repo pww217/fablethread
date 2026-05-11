@@ -21,7 +21,7 @@ from ccya.engine import (
     run_turn,
     run_turn_retry,
 )
-from ccya.engine.names import generate_faction_pool, generate_location_pool
+
 from ccya.models import IntentEnvelope, RulesOutcome
 from ccya.pack import PlayerOverrides, load_pack, list_packs
 from ccya.state import (
@@ -109,8 +109,6 @@ async def get_turn(input: str = ""):
                 template_dir=str(_app_mod.PROMPTS_DIR),
                 pack_style=_app_mod._active_pack.style_text,
                 pack_name_locales=_app_mod._active_pack.manifest.name_locales,
-                pack_factions=[f.model_dump() for f in (_app_mod._active_pack.scenario.factions if _app_mod._active_pack.scenario else [])],
-                pack_locations=[loc.model_dump() for loc in (_app_mod._active_pack.scenario.locations if _app_mod._active_pack.scenario else [])],
                 pack_narrator_rules=_app_mod._active_pack.scenario.narrator_rules if _app_mod._active_pack.scenario else [],
                 pack_world_rules=_app_mod._active_pack.scenario.world_rules if _app_mod._active_pack.scenario else [],
             ):
@@ -209,8 +207,6 @@ async def retry_turn():
                 template_dir=str(_app_mod.PROMPTS_DIR),
                 pack_style=_app_mod._active_pack.style_text,
                 pack_name_locales=_app_mod._active_pack.manifest.name_locales,
-                pack_factions=[f.model_dump() for f in (_app_mod._active_pack.scenario.factions if _app_mod._active_pack.scenario else [])],
-                pack_locations=[loc.model_dump() for loc in (_app_mod._active_pack.scenario.locations if _app_mod._active_pack.scenario else [])],
                 pack_narrator_rules=_app_mod._active_pack.scenario.narrator_rules if _app_mod._active_pack.scenario else [],
                 pack_world_rules=_app_mod._active_pack.scenario.world_rules if _app_mod._active_pack.scenario else [],
             ):
@@ -341,12 +337,6 @@ async def new_game(request: Request):
             seed = envelope.seed_state.model_dump()
             seed.setdefault("meta", {})["model"] = _app_mod.config["llm"]["model"]
             seed["meta"]["setting_pack"] = _app_mod._pack_id
-            # Phase 5: seed world factions and locations
-            meta = seed.setdefault("meta", {})
-            faction_seed = meta.pop("faction_pool_seed", None)
-            location_seed = meta.pop("location_pool_seed", None)
-            seed.setdefault("world", {})["factions"] = generate_faction_pool(faction_seed)
-            seed.setdefault("world", {})["locations"] = generate_location_pool(location_seed)
             init_save_dir(_app_mod.SAVE_DIR, seed)
             _app_mod._dynamic_opening = envelope.opening_narrative
             _app_mod._dynamic_opening_actions = envelope.actions
@@ -375,12 +365,6 @@ async def new_game_reroll(request: Request):
         seed = envelope.seed_state.model_dump()
         seed.setdefault("meta", {})["model"] = _app_mod.config["llm"]["model"]
         seed["meta"]["setting_pack"] = _app_mod._pack_id
-        # Phase 5: seed world factions and locations
-        meta = seed.setdefault("meta", {})
-        faction_seed = meta.pop("faction_pool_seed", None)
-        location_seed = meta.pop("location_pool_seed", None)
-        seed.setdefault("world", {})["factions"] = generate_faction_pool(faction_seed)
-        seed.setdefault("world", {})["locations"] = generate_location_pool(location_seed)
         init_save_dir(_app_mod.SAVE_DIR, seed)
         _app_mod._dynamic_opening = envelope.opening_narrative
         _app_mod._dynamic_opening_actions = envelope.actions

@@ -499,8 +499,6 @@ async def run_scenario(
                 template_dir=str(PROMPTS_DIR),
                 pack_style=pack.style_text,
                 pack_name_locales=pack.manifest.name_locales or [],
-                pack_factions=[f.model_dump() for f in (pack.scenario.factions if pack.scenario else [])],
-                pack_locations=[loc.model_dump() for loc in (pack.scenario.locations if pack.scenario else [])],
                 pack_narrator_rules=pack.scenario.narrator_rules if pack.scenario else [],
                 pack_world_rules=pack.scenario.world_rules if pack.scenario else [],
             ):
