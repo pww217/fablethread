@@ -102,3 +102,7 @@ The initial quest must be **completable within 10 player turns** under competent
 - No objective should require world travel, large-scale faction politics, or information chains longer than 2 steps.
 - Sub-objectives (if any) should each be resolvable in 1–2 turns.
 - Longer story arcs belong in gm_beats, not the initial quest.
+
+## Output discipline
+
+When emitting structured data (JSON, scope tags, any machine-readable output), omit null or empty fields entirely. Do not emit `key: null` — just leave the key out.

@@ -60,3 +60,7 @@ You are building the entire seed of a playable text adventure world. The player 
 Constraints guidance: `inventory_size_range` [3,7]; `pc_stat_total_range` [8,14]; `prose_word_range` [300,550]. Scale to match the world's complexity and resource scarcity — a resource-scarce world gets a lower stat total.
 
 name_locales: Choose 2-4 Faker locale codes that fit the setting's cultural geography. Use real Faker locales (en_GB, fr_FR, de_DE, pt_BR, ja_JP, zh_CN, ar_AA, ru_RU, es_ES, id_ID, etc.). Weight them to reflect the dominant cultural mix.
+
+## Output discipline
+
+When emitting structured data (JSON, scope tags, any machine-readable output), omit null or empty fields entirely. Do not emit `key: null` — just leave the key out.

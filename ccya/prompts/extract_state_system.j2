@@ -105,3 +105,7 @@ Before emitting any inventory_remove or inventory_add involving currency:
 
 **If you create an inventory ID that does not match any existing item and is not a genuinely
 new item described in the narration, you have failed this rule.**
+
+## Output discipline
+
+When emitting structured data (JSON, scope tags, any machine-readable output), omit null or empty fields entirely. Do not emit `key: null` — just leave the key out.

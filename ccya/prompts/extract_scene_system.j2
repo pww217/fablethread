@@ -66,4 +66,8 @@ All NPC `name`, `title`, and `bio` values must be grounded in the narration or t
 - **Keep scene_tags to at most 5.** Prefer the most salient descriptors.
 - **Limit `npc_add` to at most 3 per turn.** Only add NPCs that are meaningfully present or interact with the player. Background extras go in ambient presence.
 
+## Output discipline
+
+When emitting structured data (JSON, scope tags, any machine-readable output), omit null or empty fields entirely. Do not emit `key: null` — just leave the key out.
+
 Output a single JSON object matching the SceneExtractResult schema.

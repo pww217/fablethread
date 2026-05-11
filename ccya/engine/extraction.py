@@ -435,7 +435,7 @@ async def _run_extraction_pipeline(
             extraction_event["scene"] = {
                 "rendered_system": rendered_scene_system,
                 "rendered_user": rendered_scene_user,
-                "output": scene_result.model_dump(),
+                "output": scene_result.model_dump(exclude_none=True),
                 "skipped": False,
                 "attempts": scene_attempts,
                 "retry_errors": scene_retry_errors,
@@ -486,7 +486,7 @@ async def _run_extraction_pipeline(
             extraction_event["state"] = {
                 "rendered_system": rendered_state_system,
                 "rendered_user": rendered_state_user,
-                "output": state_result.model_dump(),
+                "output": state_result.model_dump(exclude_none=True),
                 "skipped": False,
                 "attempts": state_attempts,
                 "retry_errors": state_retry_errors,
@@ -545,7 +545,7 @@ async def _run_extraction_pipeline(
         extraction_event["progress"] = {
             "rendered_system": rendered_prog_system,
             "rendered_user": rendered_prog_user,
-            "output": progress_result.model_dump(),
+                "output": progress_result.model_dump(exclude_none=True),
             "skipped": False,
             "attempts": progress_attempts,
             "retry_errors": progress_retry_errors,
