@@ -146,3 +146,7 @@ Omit the key if the list would be empty (no consolidation needed).
 - Never propose a key not listed above.
 - The JSON object must be the last thing you output.
 - Output bullet lines first, then a blank line, then the JSON object. No other sections.
+
+## Output discipline
+
+When emitting structured data (JSON, scope tags, any machine-readable output), omit null or empty fields entirely. Do not emit `key: null` — just leave the key out.

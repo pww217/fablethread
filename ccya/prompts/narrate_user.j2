@@ -42,17 +42,12 @@
 {% if known_npcs -%}
 ### Known Characters
 Before introducing anyone new, check this list. Re-use characters when they could plausibly be present.
-{% for n in known_npcs %}- **{{ n.name }}**{% if n.last_seen %} — last seen {{ n.last_seen.location_name }}{% if n.last_seen.last_seen_state %}: {{ n.last_seen.last_seen_state }}{% endif %}{% endif %}
+{% for n in known_npcs %}- **{{ n.name }}** - {{ n.bio }} - {% if n.last_seen %} — last seen {{ n.last_seen.location_name }}{% if n.last_seen.last_seen_state %}: {{ n.last_seen.last_seen_state }}{% endif %}{% endif %}
 {% endfor -%}
 {% endif -%}
 {% if present_npcs -%}
 ### NPCs Present in Scene
 {% for n in present_npcs %}- {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}
-{% endfor -%}
-{% endif -%}
-{% if compendium_bios -%}
-### Compendium Bios
-{% for b in compendium_bios %}- **{{ b.name }}** ({{ b.title }}) — {{ b.bio }}
 {% endfor -%}
 {% endif -%}
 {% if world_locations and ages and ages.get('location_age', 0) >= 3 -%}

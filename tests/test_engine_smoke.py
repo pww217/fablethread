@@ -385,13 +385,6 @@ class TestPromptComposition:
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "inventory" not in user.lower()
 
-    def test_extract_scene_thinking_toggle(self):
-        env = self._env()
-        off = _extract_scene_messages(env, "N.", _make_state(), enable_thinking=False)
-        on = _extract_scene_messages(env, "N.", _make_state(), enable_thinking=True)
-        assert not off[-1]["content"].endswith("/think")
-        assert on[-1]["content"].endswith("/think")
-
     def test_extract_scene_system_has_location_checklist(self):
         """System prompt mentions location description as one of four responsibilities."""
         env = self._env()
@@ -565,13 +558,6 @@ class TestPromptComposition:
         assert sys_no == sys_many
 
     # --- Narrate-specific ---
-
-    def test_narrate_thinking_toggle(self):
-        env = self._env()
-        off = _narrate_messages(env, _make_state(), "look", enable_narrate_thinking=False)
-        on = _narrate_messages(env, _make_state(), "look", enable_narrate_thinking=True)
-        assert off[-1]["content"].endswith("/no_think")
-        assert on[-1]["content"].endswith("/think")
 
     def test_strip_thinking_removes_thinking_block(self):
         raw = "<think>\n- bullet\n</think>\n\nYou step through."

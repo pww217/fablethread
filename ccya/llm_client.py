@@ -138,11 +138,7 @@ _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 def apply_thinking(
     messages: list[dict[str, str]], enable: bool
 ) -> list[dict[str, str]]:
-    if not enable:
-        return messages
-    msgs = [dict(m) for m in messages]
-    msgs[-1]["content"] = f"{msgs[-1]['content']} /think"
-    return msgs
+    return [dict(m) for m in messages]
 
 
 def strip_thinking(text: str) -> str:

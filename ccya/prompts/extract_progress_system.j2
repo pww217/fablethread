@@ -88,3 +88,7 @@ This applies regardless of rules_outcome.band. Contact objectives are resolved b
 
 ## State-presence rule
 Sections not shown in the user prompt still exist in the live game state — absence is not removal. Only emit removals you can justify from the narration.
+
+## Output discipline
+
+When emitting structured data (JSON, scope tags, any machine-readable output), omit null or empty fields entirely. Do not emit `key: null` — just leave the key out.
