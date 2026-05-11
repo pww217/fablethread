@@ -464,7 +464,7 @@ async def _run_extraction_pipeline(
                 "attempts": scene_attempts,
                 "retry_errors": scene_retry_errors,
                 "tokens_in": scene_usage.get("prompt_tokens", 0),
-                "tokens_out": scene_usage.get("total_tokens", 0),
+                "tokens_out": scene_usage.get("completion_tokens", 0),
                 "ms": round((asyncio.get_event_loop().time() - t_scene) * 1000, 1),
                 "context_meta": _context_meta(rendered_scene_system, rendered_scene_user, scene_trimmed, scene_trimmed_chars),
             }
@@ -515,7 +515,7 @@ async def _run_extraction_pipeline(
                 "attempts": state_attempts,
                 "retry_errors": state_retry_errors,
                 "tokens_in": state_usage.get("prompt_tokens", 0),
-                "tokens_out": state_usage.get("total_tokens", 0),
+                "tokens_out": state_usage.get("completion_tokens", 0),
                 "ms": round((asyncio.get_event_loop().time() - t_state) * 1000, 1),
                 "context_meta": _context_meta(rendered_state_system, rendered_state_user, state_trimmed, state_trimmed_chars),
             }
@@ -574,7 +574,7 @@ async def _run_extraction_pipeline(
             "attempts": progress_attempts,
             "retry_errors": progress_retry_errors,
             "tokens_in": prog_usage.get("prompt_tokens", 0),
-            "tokens_out": prog_usage.get("total_tokens", 0),
+            "tokens_out": prog_usage.get("completion_tokens", 0),
             "ms": round((asyncio.get_event_loop().time() - t_progress) * 1000, 1),
             "context_meta": _context_meta(rendered_prog_system, rendered_prog_user, prog_trimmed, prog_trimmed_chars),
         }
