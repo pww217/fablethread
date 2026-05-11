@@ -3,14 +3,14 @@
   "pack": "eval-pack",
   "model": "mlx-community/gemma-4-26b-a4b-it-mxfp8",
   "temperature_override": null,
-  "started_at": "2026-05-10T21:10:31.947413+00:00",
-  "finished_at": "2026-05-10T21:17:20.791059+00:00",
-  "save_dir": "/Users/pwilson/.cache/ccya-eval/20260510T211031Z/save",
-  "output_dir": "/Users/pwilson/Repos/ccya/evals/runs/20260510T211031Z_n2gg1cf3",
-  "events_jsonl_path": "/Users/pwilson/Repos/ccya/evals/runs/20260510T211031Z_n2gg1cf3/artifacts/full_cycle.events.jsonl",
+  "started_at": "2026-05-11T04:03:53.967398+00:00",
+  "finished_at": "2026-05-11T04:11:43.610784+00:00",
+  "save_dir": "/Users/pwilson/.cache/ccya-eval/20260511T040353Z/save",
+  "output_dir": "/Users/pwilson/Repos/ccya/evals/runs/20260511T040353Z_n8vfdtpv",
+  "events_jsonl_path": "/Users/pwilson/Repos/ccya/evals/runs/20260511T040353Z_n8vfdtpv/artifacts/full_cycle.events.jsonl",
   "state_yaml_path": "",
-  "trace_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260510T211031Z_n2gg1cf3/full_cycle.trace.md",
-  "judge_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260510T211031Z_n2gg1cf3/full_cycle.judge.md",
+  "trace_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260511T040353Z_n8vfdtpv/full_cycle.trace.md",
+  "judge_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260511T040353Z_n8vfdtpv/full_cycle.judge.md",
   "turns": [
     {
       "turn_number": 1,
@@ -21,18 +21,18 @@
         "scope skips inventory and pc_condition",
         "extract.state should be near-empty"
       ],
-      "duration_s": 23.081946750000498,
+      "duration_s": 32.291132749996905,
       "error": null,
       "engine_turn_number": 1,
-      "outcome_summary": "You have successfully located Caron at the Crossed Keys Inn and initiated a confrontation regarding your outstanding debt.",
-      "narrative_chars": 1101,
+      "outcome_summary": "You have successfully located Caron and initiated the confrontation regarding your outstanding debt.",
+      "narrative_chars": 1521,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
         {
           "assertion": "rules.rolled",
-          "passed": true,
-          "detail": "rolled=False"
+          "passed": false,
+          "detail": "rolled=True"
         },
         {
           "assertion": "universal.recent_events_add.turn_stamped",
@@ -54,8 +54,8 @@
         },
         {
           "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "(no roll)",
+          "passed": false,
+          "detail": "rolled=true but narrate user prompt did not include rules_outcome BINDING block",
           "scope": "universal"
         },
         {
@@ -91,7 +91,7 @@
         {
           "assertion": "universal.momentum.band_delta",
           "passed": true,
-          "detail": "(no roll)",
+          "detail": "(no momentum field)",
           "scope": "universal"
         }
       ]
@@ -105,11 +105,11 @@
         "extract.state.inventory_remove includes credits amount=500",
         "extract.progress marks settle_the_debt objectives done"
       ],
-      "duration_s": 21.567056541000056,
+      "duration_s": 29.068248750001658,
       "error": null,
       "engine_turn_number": 2,
-      "outcome_summary": "You successfully pay Caron 500 credits, and he officially marks your debt as cleared in his ledger.",
-      "narrative_chars": 1577,
+      "outcome_summary": "You successfully pay Caron the 500 credits, and he marks your debt as cleared in his ledger.",
+      "narrative_chars": 1634,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -155,7 +155,7 @@
         {
           "assertion": "universal.npc_mention.extracted",
           "passed": false,
-          "detail": "narration mentions names not in npc_add/update or known: ['Credits']",
+          "detail": "narration mentions names not in npc_add/update or known: ['Finally', 'Credits']",
           "scope": "universal"
         },
         {
@@ -173,7 +173,7 @@
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "2 conditions, no dupes",
+          "detail": "1 conditions, no dupes",
           "scope": "universal"
         },
         {
@@ -187,6 +187,11 @@
           "passed": true,
           "detail": "(no roll)",
           "scope": "universal"
+        },
+        {
+          "assertion": "progress.quest_id_collision",
+          "passed": false,
+          "detail": "quest_updates re-creates already-completed quest id='settle_the_debt'"
         }
       ]
     },
@@ -199,18 +204,18 @@
         "extract.progress marks deliver_the_ledger objectives done (accept contract)",
         "compendium_npc_update for halden"
       ],
-      "duration_s": 32.529624832999616,
+      "duration_s": 33.536619582999265,
       "error": null,
       "engine_turn_number": 3,
-      "outcome_summary": "You successfully negotiated a contract with Halden, receiving 200 credits and the heavy ledger to deliver to the Crossed Keys Inn.",
-      "narrative_chars": 1860,
+      "outcome_summary": "Halden's ledger was accidentally dropped and damaged, causing him to refuse the original delivery fee.",
+      "narrative_chars": 1786,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
         {
           "assertion": "rules.rolled",
-          "passed": false,
-          "detail": "rolled=False"
+          "passed": true,
+          "detail": "rolled=True"
         },
         {
           "assertion": "extract.progress.quest_updates",
@@ -220,7 +225,7 @@
         {
           "assertion": "universal.recent_events_add.turn_stamped",
           "passed": true,
-          "detail": "(no adds)",
+          "detail": "all 1 entries stamped with turn=3",
           "scope": "universal"
         },
         {
@@ -232,25 +237,25 @@
         {
           "assertion": "universal.location_change.applied",
           "passed": true,
-          "detail": "marrows_crossing -> marrows_crossing_street",
+          "detail": "marrows_crossing -> marrows_crossing_well",
           "scope": "universal"
         },
         {
           "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "(no roll)",
+          "passed": false,
+          "detail": "rolled=true but narrate user prompt did not include rules_outcome BINDING block",
           "scope": "universal"
         },
         {
           "assertion": "universal.npc_mention.extracted",
-          "passed": false,
-          "detail": "narration mentions names not in npc_add/update or known: ['Crossed']",
+          "passed": true,
+          "detail": "no missing NPC names detected",
           "scope": "universal"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "3 entries",
+          "detail": "4 entries",
           "scope": "universal"
         },
         {
@@ -262,7 +267,7 @@
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "2 conditions, no dupes",
+          "detail": "1 conditions, no dupes",
           "scope": "universal"
         },
         {
@@ -274,7 +279,7 @@
         {
           "assertion": "universal.momentum.band_delta",
           "passed": true,
-          "detail": "(no roll)",
+          "detail": "(no momentum field)",
           "scope": "universal"
         }
       ]
@@ -288,11 +293,11 @@
         "scene_tags should include travel or exploration",
         "no rules call needed (pure movement)"
       ],
-      "duration_s": 32.66417212499982,
+      "duration_s": 29.89116766599909,
       "error": null,
       "engine_turn_number": 4,
-      "outcome_summary": "You reach the Crossed Keys Inn only to find your path blocked by David Calloway and a group of suspicious men.",
-      "narrative_chars": 1641,
+      "outcome_summary": "You leave a distraught Halden behind and begin the trek toward the Crossed Keys Inn, noting a suspicious merchant cart approaching from the opposite direction.",
+      "narrative_chars": 1255,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -316,7 +321,7 @@
         {
           "assertion": "universal.location_change.applied",
           "passed": true,
-          "detail": "marrows_crossing_street -> crossed_keys_approach",
+          "detail": "marrows_crossing_well -> merchant_road_east",
           "scope": "universal"
         },
         {
@@ -328,13 +333,13 @@
         {
           "assertion": "universal.npc_mention.extracted",
           "passed": true,
-          "detail": "5 candidates skipped (likely locations/items, not NPCs)",
+          "detail": "4 candidates skipped (likely locations/items, not NPCs)",
           "scope": "universal"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "4 entries",
+          "detail": "5 entries",
           "scope": "universal"
         },
         {
@@ -346,7 +351,7 @@
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "2 conditions, no dupes",
+          "detail": "1 conditions, no dupes",
           "scope": "universal"
         },
         {
@@ -372,11 +377,11 @@
         "scope active_domains includes pc_condition",
         "scene_tags should include combat"
       ],
-      "duration_s": 30.95372700000007,
+      "duration_s": 39.9742427079982,
       "error": null,
       "engine_turn_number": 5,
-      "outcome_summary": "Your unwavering confidence disarms David Calloway, turning a potential brawl into a tense standoff where the toughs reveal they are running an extortion racket.",
-      "narrative_chars": 1612,
+      "outcome_summary": "You confront the toughs at the inn entrance, but they demand a 'tax' for passage and threaten violence if you refuse to pay.",
+      "narrative_chars": 1990,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -393,7 +398,7 @@
         {
           "assertion": "universal.recent_events_add.turn_stamped",
           "passed": true,
-          "detail": "(no adds)",
+          "detail": "all 1 entries stamped with turn=5",
           "scope": "universal"
         },
         {
@@ -410,32 +415,32 @@
         },
         {
           "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "binding directive included",
+          "passed": false,
+          "detail": "rolled=true but narrate user prompt did not include rules_outcome BINDING block",
           "scope": "universal"
         },
         {
           "assertion": "universal.npc_mention.extracted",
           "passed": false,
-          "detail": "narration mentions names not in npc_add/update or known: ['David', 'Calloway']",
+          "detail": "narration mentions names not in npc_add/update or known: ['Otherwise', 'Crossed']",
           "scope": "universal"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "4 entries",
+          "detail": "6 entries",
           "scope": "universal"
         },
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "3 NPCs",
+          "detail": "2 NPCs",
           "scope": "universal"
         },
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "2 conditions, no dupes",
+          "detail": "1 conditions, no dupes",
           "scope": "universal"
         },
         {
@@ -461,11 +466,11 @@
         "extract.state.inventory_remove includes credits amount=200",
         "extract.progress marks clear_the_road_toughs done"
       ],
-      "duration_s": 39.36766033300046,
+      "duration_s": 46.80710433400236,
       "error": null,
       "engine_turn_number": 6,
-      "outcome_summary": "Your attempt to bribe the toughs fails to end the standoff; instead, David Calloway and his men see your wealth as an invitation to demand even more.",
-      "narrative_chars": 1797,
+      "outcome_summary": "Your attempt to bribe the thugs with a lie about Caron's payment fails spectacularly, leaving you cornered and physically intimidated.",
+      "narrative_chars": 1731,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -504,32 +509,32 @@
         },
         {
           "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "binding directive included",
+          "passed": false,
+          "detail": "rolled=true but narrate user prompt did not include rules_outcome BINDING block",
           "scope": "universal"
         },
         {
           "assertion": "universal.npc_mention.extracted",
           "passed": true,
-          "detail": "5 candidates skipped (likely locations/items, not NPCs)",
+          "detail": "no missing NPC names detected",
           "scope": "universal"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "3 entries",
+          "detail": "2 entries",
           "scope": "universal"
         },
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "3 NPCs",
+          "detail": "2 NPCs",
           "scope": "universal"
         },
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "2 conditions, no dupes",
+          "detail": "1 conditions, no dupes",
           "scope": "universal"
         },
         {
@@ -555,11 +560,11 @@
         "auto_complete should fire \u2014 quest status becomes completed",
         "compendium_npc_update for halden"
       ],
-      "duration_s": 32.32159837499967,
+      "duration_s": 38.24886824999703,
       "error": null,
       "engine_turn_number": 7,
-      "outcome_summary": "You successfully use the seal and ledger to prove your legitimacy to Halden, completing your delivery and successfully bypassing the toughs' extortion.",
-      "narrative_chars": 1329,
+      "outcome_summary": "The thugs realize you have no coin and attempt to drag you into the shadows, while Edda emerges from the inn to scold the commotion.",
+      "narrative_chars": 1718,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -588,31 +593,31 @@
         {
           "assertion": "universal.location_change.applied",
           "passed": true,
-          "detail": "crossed_keys_approach -> crossed_keys_inn",
+          "detail": "(no change)",
           "scope": "universal"
         },
         {
           "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "binding directive included",
+          "passed": false,
+          "detail": "rolled=true but narrate user prompt did not include rules_outcome BINDING block",
           "scope": "universal"
         },
         {
           "assertion": "universal.npc_mention.extracted",
           "passed": false,
-          "detail": "narration mentions names not in npc_add/update or known: ['David', 'Calloway', 'Leather']",
+          "detail": "narration mentions names not in npc_add/update or known: ['Crossed']",
           "scope": "universal"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "3 entries",
+          "detail": "2 entries",
           "scope": "universal"
         },
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "1 NPCs",
+          "detail": "3 NPCs",
           "scope": "universal"
         },
         {
@@ -644,11 +649,11 @@
         "extract.state.inventory_remove includes brass_key",
         "narration should honor the attempt even if it fails"
       ],
-      "duration_s": 33.7831575830005,
+      "duration_s": 38.87857812499715,
       "error": null,
       "engine_turn_number": 8,
-      "outcome_summary": "You successfully used the brass key to enter a service corridor, but your presence has startled Matthew Estrada, who seems suspicious of your intrusion.",
-      "narrative_chars": 1550,
+      "outcome_summary": "Your attempt to use the brass key fails as the lock proves incompatible, and Bald Tough's grip tightens, pinning you against the inn's entrance while Scarred Tough closes in.",
+      "narrative_chars": 1703,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -677,31 +682,31 @@
         {
           "assertion": "universal.location_change.applied",
           "passed": true,
-          "detail": "crossed_keys_inn -> crossed_keys_service_corridor",
+          "detail": "(no change)",
           "scope": "universal"
         },
         {
           "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "binding directive included",
+          "passed": false,
+          "detail": "rolled=true but narrate user prompt did not include rules_outcome BINDING block",
           "scope": "universal"
         },
         {
           "assertion": "universal.npc_mention.extracted",
           "passed": false,
-          "detail": "narration mentions names not in npc_add/update or known: ['Estrada', 'Matthew']",
+          "detail": "narration mentions names not in npc_add/update or known: ['Crossed']",
           "scope": "universal"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "4 entries",
+          "detail": "3 entries",
           "scope": "universal"
         },
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "1 NPCs",
+          "detail": "5 NPCs",
           "scope": "universal"
         },
         {
@@ -733,11 +738,11 @@
         "narration should handle the absurdity without crashing",
         "extract.state should NOT remove credits (engine should reject or narrate failure)"
       ],
-      "duration_s": 29.35334758300087,
+      "duration_s": 31.23037629200553,
       "error": null,
       "engine_turn_number": 9,
-      "outcome_summary": "Your attempt to bribe Matthew fails as his panic outweighs his greed; he prepares to flee and alert the tavern staff.",
-      "narrative_chars": 1219,
+      "outcome_summary": "Your desperate attempt to bribe the inn through the wall fails, leaving you pinned against the stone and mocked by the thugs.",
+      "narrative_chars": 1652,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -771,32 +776,32 @@
         },
         {
           "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "binding directive included",
+          "passed": false,
+          "detail": "rolled=true but narrate user prompt did not include rules_outcome BINDING block",
           "scope": "universal"
         },
         {
           "assertion": "universal.npc_mention.extracted",
           "passed": false,
-          "detail": "narration mentions names not in npc_add/update or known: ['Estrada', 'Matthew']",
+          "detail": "narration mentions names not in npc_add/update or known: ['Shadowy', 'Figure', 'Inside']",
           "scope": "universal"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "4 entries",
+          "detail": "3 entries",
           "scope": "universal"
         },
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "1 NPCs",
+          "detail": "5 NPCs",
           "scope": "universal"
         },
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "3 conditions, no dupes",
+          "detail": "2 conditions, no dupes",
           "scope": "universal"
         },
         {
@@ -822,11 +827,11 @@
         "compendium_npc_update for matthew_estrada",
         "narration should show character development or revelation"
       ],
-      "duration_s": 30.463137291999374,
+      "duration_s": 34.70252308400086,
       "error": null,
       "engine_turn_number": 10,
-      "outcome_summary": "Your attempt to intimidate Matthew fails; he breaks free and screams for help, drawing the attention of the entire tavern to your position.",
-      "narrative_chars": 1664,
+      "outcome_summary": "Your attempt to reach the inn fails as Bald Tough yanks you back by your cloak, herding you toward the dark alleyway.",
+      "narrative_chars": 2232,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -855,26 +860,26 @@
         },
         {
           "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "binding directive included",
+          "passed": false,
+          "detail": "rolled=true but narrate user prompt did not include rules_outcome BINDING block",
           "scope": "universal"
         },
         {
           "assertion": "universal.npc_mention.extracted",
-          "passed": false,
-          "detail": "narration mentions names not in npc_add/update or known: ['Estrada', 'Matthew', 'Thief']",
+          "passed": true,
+          "detail": "4 candidates skipped (likely locations/items, not NPCs)",
           "scope": "universal"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "4 entries",
+          "detail": "3 entries",
           "scope": "universal"
         },
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "2 NPCs",
+          "detail": "5 NPCs",
           "scope": "universal"
         },
         {
@@ -907,11 +912,11 @@
         "inventory_add for bodyguard's items (e.g., estrada_wallet)",
         "scene_tags should include combat"
       ],
-      "duration_s": 35.28354170900093,
+      "duration_s": 35.04021745800128,
       "error": null,
       "engine_turn_number": 11,
-      "outcome_summary": "You successfully tackle Matthew Estrada and steal his silver-plated pocket watch, but a hidden assailant stabs you in the side just as Kenneth Miller arrives to intervene.",
-      "narrative_chars": 1513,
+      "outcome_summary": "You successfully tackle Scarred Tough into some crates and manage to snatch a leather pouch from his coat, but your victory draws the immediate fury of Bald Tough.",
+      "narrative_chars": 1589,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -928,7 +933,7 @@
         {
           "assertion": "universal.recent_events_add.turn_stamped",
           "passed": true,
-          "detail": "all 2 entries stamped with turn=11",
+          "detail": "all 1 entries stamped with turn=11",
           "scope": "universal"
         },
         {
@@ -945,32 +950,32 @@
         },
         {
           "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "binding directive included",
+          "passed": false,
+          "detail": "rolled=true but narrate user prompt did not include rules_outcome BINDING block",
           "scope": "universal"
         },
         {
           "assertion": "universal.npc_mention.extracted",
-          "passed": true,
-          "detail": "4 candidates skipped (likely locations/items, not NPCs)",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Shadowy', 'Figure', 'Inside']",
           "scope": "universal"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "6 entries",
+          "detail": "4 entries",
           "scope": "universal"
         },
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "3 NPCs",
+          "detail": "5 NPCs",
           "scope": "universal"
         },
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "4 conditions, no dupes",
+          "detail": "3 conditions, no dupes",
           "scope": "universal"
         },
         {
@@ -997,11 +1002,11 @@
         "compaction fires at T12 (second pass)",
         "npc_add for dock workers or rival courier"
       ],
-      "duration_s": 37.1803467080008,
+      "duration_s": 44.57281395800237,
       "error": null,
       "engine_turn_number": 12,
-      "outcome_summary": "Despite a knife wound to the ribs, you successfully burst from the inn and sprinted through the side alley to reach the safety of the river bend.",
-      "narrative_chars": 1460,
+      "outcome_summary": "You burst through the delivery door into the rear courtyard, desperately calling for Halden while Bald Tough pursues you in a blind rage.",
+      "narrative_chars": 1816,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -1013,7 +1018,7 @@
         {
           "assertion": "universal.recent_events_add.turn_stamped",
           "passed": true,
-          "detail": "all 1 entries stamped with turn=12",
+          "detail": "(no adds)",
           "scope": "universal"
         },
         {
@@ -1025,37 +1030,37 @@
         {
           "assertion": "universal.location_change.applied",
           "passed": true,
-          "detail": "crossed_keys_service_corridor -> river_bend_muddy_banks",
+          "detail": "merchant_road_east -> rear_courtyard",
           "scope": "universal"
         },
         {
           "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "binding directive included",
+          "passed": false,
+          "detail": "rolled=true but narrate user prompt did not include rules_outcome BINDING block",
           "scope": "universal"
         },
         {
           "assertion": "universal.npc_mention.extracted",
           "passed": true,
-          "detail": "5 candidates skipped (likely locations/items, not NPCs)",
+          "detail": "no missing NPC names detected",
           "scope": "universal"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "2 entries",
+          "detail": "3 entries",
           "scope": "universal"
         },
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "0 NPCs",
+          "detail": "1 NPCs",
           "scope": "universal"
         },
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "3 conditions, no dupes",
+          "detail": "2 conditions, no dupes",
           "scope": "universal"
         },
         {
@@ -1082,11 +1087,11 @@
         "narrator operates with compacted history (2 compaction passes)",
         "inventory_remove for shirt (used as bandage)"
       ],
-      "duration_s": 30.219455624999682,
+      "duration_s": 35.321115333004855,
       "error": null,
       "engine_turn_number": 13,
-      "outcome_summary": "You successfully tend to your wound and hire Melvin Calloway to deliver a frantic warning to Caron just as your pursuers approach.",
-      "narrative_chars": 1327,
+      "outcome_summary": "You successfully bribe Melvin Calloway to deliver a warning to Caron, but you remain cornered and injured near the river docks as Bald Tough closes in.",
+      "narrative_chars": 2036,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -1121,26 +1126,26 @@
         },
         {
           "assertion": "universal.npc_mention.extracted",
-          "passed": false,
-          "detail": "narration mentions names not in npc_add/update or known: ['Calloway', 'Nearby', 'Melvin']",
+          "passed": true,
+          "detail": "4 candidates skipped (likely locations/items, not NPCs)",
           "scope": "universal"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "3 entries",
+          "detail": "4 entries",
           "scope": "universal"
         },
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "1 NPCs",
+          "detail": "2 NPCs",
           "scope": "universal"
         },
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "3 conditions, no dupes",
+          "detail": "2 conditions, no dupes",
           "scope": "universal"
         },
         {
