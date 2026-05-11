@@ -295,6 +295,18 @@ For each NPC that appeared or left the scene:
 - Did NPC attitude updates track with narrated interactions?
 - Were NPCs in `present_npcs` but never mentioned in narration (ghost NPCs)?
 
+### 4G — Player Intent Fidelity
+Did the engine honor the player's stated action, or redirect/reinterpret it? For each turn:
+- Did the rules pipeline correctly classify the player's intent? Flag turns where the intent
+  verb or domain doesn't match the player's stated action.
+- Did the narrator process the player's input, or output stale context? Flag turns where
+  the narration ignores or contradicts the player's stated action.
+- Did the engine honor the player's stated action rather than redirecting or reinterpreting it?
+  Flag turns where the engine redirected the player's action to something different.
+
+Verdict: tight (player intent always honored), loose (occasional redirections), or broken
+(player intent consistently ignored or reinterpreted).
+
 ---
 
 ## SECTION 5 — Compaction Report
@@ -393,6 +405,22 @@ If misplaced: name the correct pipeline, name the data flow change needed.
 - Quest ID collision: new quest ID semantically duplicates an active quest → flag.
 - Premature completion: `status: completed` before all objectives done → flag.
 
+### Scope Discipline
+Verify each pipeline only processes its own domain. Flag scope violations:
+- **Scene extractor:** Should skip when no scene-relevant events (no NPC changes, no location
+  changes, no scene tags). Flag if it emits scene data when nothing scene-relevant occurred.
+- **State extractor:** Should skip when no state-relevant events (no inventory changes, no
+  condition changes, no location changes). Flag if it emits state data when nothing
+  state-relevant occurred.
+- **Progress extractor:** Should skip when no progress-relevant events (no quest updates,
+  no recent events, no pressure changes, no beats). Flag if it emits progress data when
+  nothing progress-relevant occurred.
+- **Rules pipeline:** Should only roll dice when the player's action warrants a check. Flag
+  turns where rules were invoked for actions that don't need resolution.
+
+For each pipeline, note: (a) scope violations (processing events outside its domain),
+(b) missed opportunities (failing to process events within its domain).
+
 ### Issues Bulleted List
 `- **<description>** (turns: <list>) — Failure mode: <tag>. Remediation: <what to change>.`
 
@@ -487,7 +515,22 @@ worst prompt architecture? What is the highest-priority fix? Score 1–5.
 Reference Section 5. Chronicle quality and sanitization fidelity drive this score.
 Score 1–5.
 
-### V6 — Key Findings
+### V6 — Pipeline I/O Relevance
+For each of the 5 pipelines, assess whether its inputs and outputs are focused on its task and appropriate to its role. The goal is minimal, relevant context per pipeline — no more inputs than needed, no outputs that belong to another pipeline.
+
+**Rules (Step 0):** Inputs should be limited to state.pc, state.location, state.scene.present_npcs, scene_pressure, recent_turns[-1:], and user_input. Outputs are IntentEnvelope and RulesOutcome. Flag if the rules prompt includes unnecessary context (e.g., full inventory, quest lists, compendium) or if the output includes fields that should be computed downstream.
+
+**Narrate (Step 1):** Inputs are the richest — full state, chronicle_tail, recent_turns, RulesOutcome, pack_style, npc_name_pool, etc. This is justified because the narrator produces prose. Assess: is every input contributing to narrative quality? Are there inputs that could be trimmed without affecting prose? Flag if the narrator receives data it clearly doesn't use.
+
+**Extract Scene (Step 2a):** Inputs should be narrative, state.pc/location, scene.present_npcs, conditions, known_characters, RulesOutcome, active_domains, recent_turns[-1:]. Flag if the scene extractor receives inventory data, quest data, or pressure data — those belong to other pipelines. Flag if it receives too little context (e.g., no known_characters for NPC identity resolution).
+
+**Extract State (Step 2b):** Inputs should be narrative, state.pc, state.location, state.inventory, rules_outcome, active_domains, expired_conditions, scene_result (location_change, present_npcs), stakes, band. Flag if the state extractor receives quest data, recent_events, or pressure data — those belong to progress. Flag if it receives items_gained/items_lost from progress — that's a forward dependency that may cause confusion.
+
+**Extract Progress (Step 2c):** Inputs are the most complex — narrative, state.pc, recent_events, world_state, active_quests, scene_pressure, rules_outcome, intent, active_domains, recent_turns[-2:], items_gained/items_lost from 2b, stakes, band, deescalate, quest_ages, pending_beat. This is justified because progress is the "storytelling brain." Assess: is every input enabling a specific output? Flag inputs that appear unused.
+
+For each pipeline, note: (a) inputs that seem unnecessary, (b) outputs that seem misplaced, (c) whether the input/output boundary aligns with the pipeline's responsibility. Score: 1–5.
+
+### V7 — Key Findings
 3–5 sentences. Concrete, specific, actionable. Cite section and turn numbers.
 State the single highest-priority fix the engine needs this run.
 
@@ -496,3 +539,9 @@ State the single highest-priority fix the engine needs this run.
 ## SECTION 11 — Actionable Issues
 
 Group as **Critical**, **Major**, **Minor**. Each issue:
+
+- **<description>** (turns: <list>) — Failure mode: <tag>. Remediation: <what to change in prompt or data flow>.
+
+**Critical:** Issues that break the engine or produce incorrect state. Must fix before next release.
+**Major:** Issues that degrade quality but don't break the engine. Fix in next iteration.
+**Minor:** Cosmetic issues, edge cases, or low-impact improvements. Fix when convenient.

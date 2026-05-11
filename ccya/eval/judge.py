@@ -496,21 +496,35 @@ def parse_judge_response(raw: str) -> tuple[dict[str, Any], str]:
 
 
 def _normalize_scores(fm: dict[str, Any]) -> dict[str, Any]:
-    """Coerce score values to ints clamped 1-5. Pass through other fields untouched."""
-    def _coerce(v: Any) -> int | None:
+    def _coerce_int(v: Any) -> int | None:
         try:
             n = int(round(float(v)))
         except (TypeError, ValueError):
             return None
         return max(1, min(5, n))
 
+    def _coerce_rate(v: Any) -> float | None:
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return None
+        return max(0.0, min(1.0, f))
+
     out: dict[str, Any] = {}
-    for k in ("mechanical_score", "narrative_score"):
+    for k in ("mechanical_score", "narrative_score", "system_cohesion_score",
+              "prompt_quality_score", "compaction_score"):
         if k in fm:
-            out[k] = _coerce(fm[k])
+            out[k] = _coerce_int(fm[k])
+    for k in ("state_fidelity_rate", "prompt_adherence_rate"):
+        if k in fm:
+            out[k] = _coerce_rate(fm[k])
     ps = fm.get("pipeline_scores") or {}
     if isinstance(ps, dict):
-        out["pipeline_scores"] = {k: _coerce(v) for k, v in ps.items() if k in ("rules", "narrate", "extract_scene", "extract_state", "extract_progress")}
+        out["pipeline_scores"] = {
+            k: _coerce_int(v) for k, v in ps.items()
+            if k in ("rules", "narrate", "extract_scene", "extract_state",
+                     "extract_progress")
+        }
     return out
 
 

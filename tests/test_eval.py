@@ -1058,3 +1058,218 @@ def test_engine_mirror_schema_constants_exist():
     assert "attack" in INTENT_VERBS_HINT
     assert PC_CONDITION_CAP == 5
     assert SCENE_NAMED_NPC_CAP == 8
+
+
+# ---------------------------------------------------------------------------
+# _normalize_scores — new v2 fields
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_scores_new_fields():
+    from ccya.eval.judge import _normalize_scores
+
+    fm = {
+        "mechanical_score": 4,
+        "narrative_score": 3,
+        "system_cohesion_score": 5,
+        "prompt_quality_score": 2,
+        "compaction_score": 4,
+        "state_fidelity_rate": 0.85,
+        "prompt_adherence_rate": 0.92,
+        "pipeline_scores": {
+            "rules": 4,
+            "narrate": 3,
+            "extract_scene": 5,
+            "extract_state": 4,
+            "extract_progress": 3,
+        },
+    }
+    scores = _normalize_scores(fm)
+    assert scores["mechanical_score"] == 4
+    assert scores["narrative_score"] == 3
+    assert scores["system_cohesion_score"] == 5
+    assert scores["prompt_quality_score"] == 2
+    assert scores["compaction_score"] == 4
+    assert scores["state_fidelity_rate"] == 0.85
+    assert scores["prompt_adherence_rate"] == 0.92
+    assert scores["pipeline_scores"]["rules"] == 4
+    # Verify types
+    assert isinstance(scores["state_fidelity_rate"], float)
+    assert isinstance(scores["prompt_adherence_rate"], float)
+    assert isinstance(scores["system_cohesion_score"], int)
+    assert isinstance(scores["prompt_quality_score"], int)
+    assert isinstance(scores["compaction_score"], int)
+
+
+def test_normalize_scores_new_fields_clamped():
+    from ccya.eval.judge import _normalize_scores
+
+    fm = {
+        "system_cohesion_score": 10,
+        "prompt_quality_score": -3,
+        "compaction_score": 0,
+        "state_fidelity_rate": 2.5,
+        "prompt_adherence_rate": -0.5,
+    }
+    scores = _normalize_scores(fm)
+    assert scores["system_cohesion_score"] == 5
+    assert scores["prompt_quality_score"] == 1
+    assert scores["compaction_score"] == 1
+    assert scores["state_fidelity_rate"] == 1.0
+    assert scores["prompt_adherence_rate"] == 0.0
+
+
+def test_normalize_scores_new_fields_missing():
+    from ccya.eval.judge import _normalize_scores
+
+    fm = {"mechanical_score": 3}
+    scores = _normalize_scores(fm)
+    assert scores["mechanical_score"] == 3
+    assert "system_cohesion_score" not in scores
+    assert "prompt_quality_score" not in scores
+    assert "compaction_score" not in scores
+    assert "state_fidelity_rate" not in scores
+    assert "prompt_adherence_rate" not in scores
+
+
+# ---------------------------------------------------------------------------
+# Universal asserts — quest_id_collision
+# ---------------------------------------------------------------------------
+
+
+def test_quest_id_collision_fires():
+    from ccya.eval.universal_asserts import _assert_quest_id_collision
+
+    ev = {
+        "extraction": {
+            "progress": {
+                "skipped": False,
+                "output": {
+                    "quest_updates": [
+                        {"id": "completed_quest", "title": "Old Quest", "status": "active"},
+                    ],
+                },
+            },
+        },
+        "state_snapshot": {
+            "quests": [
+                {"id": "completed_quest", "title": "Old Quest", "status": "completed"},
+                {"id": "active_quest", "title": "Active", "status": "active"},
+            ],
+        },
+    }
+    results = _assert_quest_id_collision(ev, None)
+    failures = [r for r in results if not r["passed"]]
+    assert len(failures) == 1
+    assert failures[0]["assertion"] == "progress.quest_id_collision"
+    assert "completed_quest" in failures[0]["detail"]
+
+
+def test_quest_id_collision_clean():
+    from ccya.eval.universal_asserts import _assert_quest_id_collision
+
+    ev = {
+        "extraction": {
+            "progress": {
+                "skipped": False,
+                "output": {
+                    "quest_updates": [
+                        {"id": "new_quest", "title": "New Quest", "status": "active"},
+                    ],
+                },
+            },
+        },
+        "state_snapshot": {
+            "quests": [
+                {"id": "active_quest", "title": "Active", "status": "active"},
+            ],
+        },
+    }
+    results = _assert_quest_id_collision(ev, None)
+    failures = [r for r in results if not r["passed"]]
+    assert len(failures) == 0
+
+
+def test_quest_id_collision_skipped():
+    from ccya.eval.universal_asserts import _assert_quest_id_collision
+
+    ev = {
+        "extraction": {
+            "progress": {
+                "skipped": True,
+            },
+        },
+    }
+    results = _assert_quest_id_collision(ev, None)
+    assert len(results) == 0
+
+
+# ---------------------------------------------------------------------------
+# Universal asserts — compactor_sanitization_nonzero
+# ---------------------------------------------------------------------------
+
+
+def test_compactor_sanitization_nonzero_fires():
+    from ccya.eval.universal_asserts import _assert_compactor_sanitization_nonzero
+
+    ev = {
+        "applied": {
+            "compaction": {
+                "sanitization": {
+                    "quest_close": [],
+                    "condition_remove": [],
+                    "pressure_remove": [],
+                },
+            },
+        },
+        "state_snapshot": {
+            "quests": [
+                {"id": "completed_quest", "title": "Old Quest", "status": "completed"},
+                {"id": "active_quest", "title": "Active", "status": "active"},
+            ],
+        },
+    }
+    results = _assert_compactor_sanitization_nonzero(ev, None)
+    failures = [r for r in results if not r["passed"]]
+    assert len(failures) == 1
+    assert failures[0]["assertion"] == "compactor.sanitization_nonzero"
+    assert "1 completed quest" in failures[0]["detail"]
+
+
+def test_compactor_sanitization_nonzero_clean():
+    from ccya.eval.universal_asserts import _assert_compactor_sanitization_nonzero
+
+    ev = {
+        "applied": {
+            "compaction": {
+                "sanitization": {
+                    "quest_close": [{"id": "completed_quest"}],
+                    "condition_remove": [],
+                    "pressure_remove": [],
+                },
+            },
+        },
+        "state_snapshot": {
+            "quests": [
+                {"id": "active_quest", "title": "Active", "status": "active"},
+            ],
+        },
+    }
+    results = _assert_compactor_sanitization_nonzero(ev, None)
+    failures = [r for r in results if not r["passed"]]
+    assert len(failures) == 0
+
+
+def test_compactor_sanitization_no_compaction():
+    from ccya.eval.universal_asserts import _assert_compactor_sanitization_nonzero
+
+    ev = {
+        "applied": {},
+        "state_snapshot": {
+            "quests": [
+                {"id": "completed_quest", "title": "Old Quest", "status": "completed"},
+            ],
+        },
+    }
+    results = _assert_compactor_sanitization_nonzero(ev, None)
+    assert len(results) == 0
