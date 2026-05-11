@@ -26,7 +26,7 @@ compactor sanitization misses deterministically.
 
 | File | Change type | Summary of change |
 |---|---|---|
-| `evals/rubrics/default.md` | replace | Full rewrite to rubric v2 |
+| `evals/rubrics/default.md` | replace | Full rewrite to rubric v2 (11 sections) |
 | `ccya/eval/judge.py` | modify | Parse 5 new front-matter fields + 2 rate fields |
 | `ccya/eval/report.py` | modify | Render new scores in REPORT.md score table |
 | `ccya/eval/universal_asserts.py` | modify | Add 2 new deterministic asserts |
@@ -47,58 +47,171 @@ compactor sanitization misses deterministically.
      in `completed` quests (re-creation of a closed quest).
    - `compactor.sanitization_nonzero`: FAIL if a compaction turn completes and
      sanitization result shows all empty fields but state contains completed quests.
-5. Rubric TOC with anchor links is removed. Numbered sections (SECTION 1–12) are
+5. Rubric TOC with anchor links is removed. Numbered sections (SECTION 1–11) are
    sufficient navigation. GitHub anchor links in long markdown are unreliable in
    rendered judge output.
 
 ---
 
+## Rubric v2 Structure (SSOT)
+
+The rubric (`evals/rubrics/default.md`) has 11 sections:
+
+```
+1. Mechanic Lifecycle Tables (1A-1F)
+   - 1A: Momentum Table
+   - 1B: GM Beat Table
+   - 1C: Scene Pressure Table
+   - 1D: Condition Lifecycle Table
+   - 1E: Quest Arc Table
+   - 1F: Inventory Evolution Table
+
+2. State Fidelity (2A-2D)
+   - 2A: State Coherence
+   - 2B: State Drift
+   - 2C: State Completeness
+   - 2D: State Fidelity Rate Calculation
+
+3. Prompt Quality Audit (P1-P9, 3A-3G)
+   - 9 criteria per pipeline (system/user separation, mechanical sense, redundancy,
+     schema vs guidance, contradictions, terseness, parse-friendly, adherence, few-shot)
+   - Per-pipeline audits: Rules, Narrate, Extract Scene, Extract State, Extract Progress
+   - Prompt Adherence Rate Calculation
+   - Cross-Pipeline Redundancy Summary
+
+4. Mechanic Interplay Assessment (4A-4G)
+   - 4A: Beat→Narrative Loop
+   - 4B: Momentum→Directive→Tone Chain
+   - 4C: Pressure→Stakes→Consequence Chain
+   - 4D: Condition→Narrative Callback
+   - 4E: Pacing Assessment
+   - 4F: NPC Entry/Exit Coherence
+   - 4G: Player Intent Fidelity (player action honored, intent classified correctly)
+
+5. Compaction Report (5A-5C)
+   - 5A: Chronicle Quality
+   - 5B: Sanitization Fidelity
+   - 5C: Compaction Score (1-5)
+
+6. Auto-Checker Failures
+
+7. Per-Pipeline Mechanical Critique
+   - What Went Well, What Went Poorly, Prompt Adherence Failures
+   - Mechanic Ownership Check (field→stream mapping)
+   - Extraction Quality Checks (amount accuracy, spending, ambient NPC filtering, quest dedup)
+   - Scope Discipline (each pipeline only processes its own domain)
+   - Issues Bulleted List, Pipeline Score (1-5)
+
+8. Cross-Pipeline Correlation
+   - Rules→Narrate Binding
+   - Rules→Extract State Routing
+   - Narrate→Scene Extract Consistency
+   - Narrate→State Extract Consistency
+   - Narrate→Progress Extract Consistency
+   - Progress→Narrate Feedback Loop
+
+9. Storytelling Criteria (SECONDARY)
+   - quest_arc_quality
+   - rewards_and_consequences [trace]
+   - world_consistency
+   - failure_arc [trace]
+   - Dropped (covered by Sections 1 and 4): narrative_compellingness, npc_voice,
+     npc_development, world_reactivity, player_agency, pacing_and_pressure,
+     deescalation_mechanics, scenario_quality
+
+10. Verdicts
+    - V1: Mechanical Integrity → mechanical_score
+    - V2: Narrative Quality → narrative_score
+    - V3: System Cohesion → system_cohesion_score
+    - V4: Prompt Quality → prompt_quality_score
+    - V5: Compaction → compaction_score
+    - V6: Pipeline I/O Relevance (each pipeline's inputs/outputs focused on its task)
+    - V7: Key Findings
+
+11. Actionable Issues
+    - Grouped as Critical, Major, Minor
+```
+
+### YAML Front Matter
+
+```yaml
+---
+mechanical_score: <int 1-5>
+narrative_score: <int 1-5>
+system_cohesion_score: <int 1-5>
+prompt_quality_score: <int 1-5>
+compaction_score: <int 1-5>
+pipeline_scores:
+  rules: <int 1-5>
+  narrate: <int 1-5>
+  extract_scene: <int 1-5>
+  extract_state: <int 1-5>
+  extract_progress: <int 1-5>
+compaction_score: <int 1-5>
+state_fidelity_rate: <float 0.0-1.0>
+prompt_adherence_rate: <float 0.0-1.0>
+---
+```
+
+---
+
 ## Implementation — Phase 1: Replace Rubric
 
-### Context files to load
-- `evals/rubrics/default.md` (current — read to confirm replacement)
-- `ccya/eval/judge.py` (confirm front-matter field names)
-- `evals/config.yaml` (confirm rubric_path)
+**Status:** ✅ Complete
 
-### Overview
-File replacement. No code changes.
+### What was done
 
-### Detailed steps
+Replaced `evals/rubrics/default.md` with rubric v2 (11 sections as documented above).
 
-#### Step 1.1 — Replace rubric file
+Key changes from old rubric:
+- Added Mechanic Lifecycle Tables (Section 1) — 6 compact tables covering every turn
+- Added State Fidelity (Section 2) — coherence, drift, completeness, rate calculation
+- Added Prompt Quality Audit (Section 3) — 9 criteria per pipeline
+- Added Mechanic Interplay Assessment (Section 4) — 7 subsections including Player Intent Fidelity
+- Added Cross-Pipeline Correlation (Section 8) — 6 handoff verifications
+- Reduced Storytelling Criteria (Section 9) — 4 scored + 8 dropped
+- Expanded Verdict (Section 10) — 7 subheaders including Pipeline I/O Relevance
+- Completed Actionable Issues (Section 11) — Critical/Major/Minor with format spec
+- Added Scope Discipline to Section 7 — each pipeline only processes its own domain
 
-**File:** `evals/rubrics/default.md`
+### Validation
 
-**What:** Replace entire contents with rubric v2.
-
-**Why:** Old rubric over-weighted qualitative narrative criteria, had no mechanic
-lifecycle tables, no prompt quality audit, no pacing cap recommendations, no
-interplay assessment, and a broken TOC.
-
-**Validation:** Run `make eval-fast`. Confirm `full_cycle.judge.md` YAML front matter
-contains all new fields. Confirm Section 1 contains six lifecycle tables.
-
-### Tests to write or update
-None for this phase.
-
-### REPOMAP updates required
-`docs/REPOMAP/eval.md`: note rubric version bump.
-
-### Risks
-1. If judge model doesn't follow the new section structure, the body will be
-   unstructured but scores will still parse from YAML front matter. Mitigation:
-   run eval-fast and inspect judge.md manually on first run.
+Rubric file exists at `evals/rubrics/default.md` with 11 sections.
 
 ---
 
 ## Implementation — Phase 2: Expand Front-Matter Parsing
+
+**Status:** ⏳ Pending
 
 ### Context files to load
 - `ccya/eval/judge.py`
 - `ccya/eval/report.py`
 
 ### Overview
+
 Expand `_normalize_scores()` for new fields. Update `report.py` score table rendering.
+
+### Current state
+
+`_normalize_scores()` in `judge.py:498-514` only handles:
+- `mechanical_score` (int)
+- `narrative_score` (int)
+- `pipeline_scores` (dict)
+
+Missing from rubric front matter:
+- `system_cohesion_score` (int 1-5)
+- `prompt_quality_score` (int 1-5)
+- `compaction_score` (int 1-5)
+- `state_fidelity_rate` (float 0.0-1.0)
+- `prompt_adherence_rate` (float 0.0-1.0)
+
+`report.py:_render_judge_summary()` at line 341-371 only renders:
+- `mechanical_score`
+- `narrative_score`
+- `pipeline_scores`
+
+Missing: `system_cohesion_score`, `prompt_quality_score`, `compaction_score`, `state_fidelity_rate`, `prompt_adherence_rate`
 
 ### Detailed steps
 
@@ -156,7 +269,7 @@ correct types.
 
 **File:** `ccya/eval/report.py`
 
-**What:** Extend the score table rendering to include rows for all new fields.
+**What:** Extend `_render_judge_summary()` to include rows for all new fields.
 Format rates as percentages (× 100, 1 decimal). Handle None as `—`.
 
 **Code Snippet:**
@@ -167,19 +280,18 @@ def _fmt_score(v: int | None) -> str:
 def _fmt_rate(v: float | None) -> str:
     return f"{v*100:.1f}%" if v is not None else "—"
 
-score_rows = [
-    ("Mechanical",           _fmt_score(scores.get("mechanical_score"))),
-    ("Narrative",            _fmt_score(scores.get("narrative_score"))),
-    ("System Cohesion",      _fmt_score(scores.get("system_cohesion_score"))),
-    ("Prompt Quality",       _fmt_score(scores.get("prompt_quality_score"))),
-    ("Compaction",           _fmt_score(scores.get("compaction_score"))),
-    ("State Fidelity Rate",  _fmt_rate(scores.get("state_fidelity_rate"))),
-    ("Prompt Adherence Rate",_fmt_rate(scores.get("prompt_adherence_rate"))),
-]
+scores = judge.scores or {}
+parts.append(f"**Mechanical:** {_fmt_score(scores.get('mechanical_score'))}/5  ")
+parts.append(f"**Narrative:** {_fmt_score(scores.get('narrative_score'))}/5  ")
+parts.append(f"**System Cohesion:** {_fmt_score(scores.get('system_cohesion_score'))}/5  ")
+parts.append(f"**Prompt Quality:** {_fmt_score(scores.get('prompt_quality_score'))}/5  ")
+parts.append(f"**Compaction:** {_fmt_score(scores.get('compaction_score'))}/5  ")
+parts.append(f"**State Fidelity:** {_fmt_rate(scores.get('state_fidelity_rate'))}  ")
+parts.append(f"**Prompt Adherence:** {_fmt_rate(scores.get('prompt_adherence_rate'))}")
 ```
 
 **Validation:** Run `make eval-fast`. Open `evals/runs/latest/REPORT.md`. Confirm
-score table has 7 rows. Confirm `—` appears for any unpopulated field.
+score table has 7 score rows + 2 rate rows. Confirm `—` appears for any unpopulated field.
 
 ### Tests to write or update
 - `tests/eval/test_judge.py`: `test_normalize_scores_new_fields` — feed all 7 new
@@ -197,13 +309,21 @@ score table has 7 rows. Confirm `—` appears for any unpopulated field.
 
 ## Implementation — Phase 3: New Universal Asserts
 
+**Status:** ⏳ Pending
+
 ### Context files to load
 - `ccya/eval/universal_asserts.py`
 - `ccya/eval/compaction_signals.py`
 - One sample `events.jsonl` from `evals/runs/latest/artifacts/` to verify event schema
 
 ### Overview
+
 Add two deterministic asserts targeting the most common structural failures.
+
+Current universal asserts (10): `recent_events_add.turn_stamped`, `pending_gm_beat.consumed`,
+`location_change.applied`, `narrate.binding_present`, `npc_mention.extracted`,
+`recent_events.ring_bounded`, `scene.npc_cap`, `pc.condition_no_dupes`,
+`progress.actions_quality`, `momentum.band_delta`.
 
 ### Detailed steps
 
@@ -350,4 +470,8 @@ REPORT.md shows new assertion names if triggered.
 
 ## TODO.md update
 
-Add under P2 (Eval Harness improvements):
+Add under P3 (Inference Speed and Evaluation):
+
+- [ ] **Expand front-matter parsing** — `_normalize_scores()` must handle `system_cohesion_score`, `prompt_quality_score`, `compaction_score` (int 1-5) and `state_fidelity_rate`, `prompt_adherence_rate` (float 0.0-1.0); `report.py` must render all new fields — see `[eval-update.md](eval-update.md) Phase 2`
+- [ ] **Add quest_id_collision assert** — deterministic check for re-creation of completed quests — see `[eval-update.md](eval-update.md) Phase 3`
+- [ ] **Add compactor_sanitization_nonzero assert** — deterministic check for empty sanitization on compaction turns with completed quests — see `[eval-update.md](eval-update.md) Phase 3`

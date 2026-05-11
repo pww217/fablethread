@@ -338,15 +338,26 @@ def _render_flag_block(flags: list[Flag], flag_at_top: list[str]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def _fmt_score(v: int | None) -> str:
+    return str(v) if v is not None else "—"
+
+
+def _fmt_rate(v: float | None) -> str:
+    return f"{v*100:.1f}%" if v is not None else "—"
+
+
 def _render_judge_summary(judge: JudgeResult | None) -> str:
     if judge is None:
         return ""
     parts: list[str] = []
     scores = judge.scores or {}
-    mech = scores.get("mechanical_score", "?")
-    narr = scores.get("narrative_score", "?")
-    parts.append(f"**Mechanical:** {mech}/5  ")
-    parts.append(f"**Narrative:** {narr}/5  ")
+    parts.append(f"**Mechanical:** {_fmt_score(scores.get('mechanical_score'))}/5  ")
+    parts.append(f"**Narrative:** {_fmt_score(scores.get('narrative_score'))}/5  ")
+    parts.append(f"**System Cohesion:** {_fmt_score(scores.get('system_cohesion_score'))}/5  ")
+    parts.append(f"**Prompt Quality:** {_fmt_score(scores.get('prompt_quality_score'))}/5  ")
+    parts.append(f"**Compaction:** {_fmt_score(scores.get('compaction_score'))}/5  ")
+    parts.append(f"**State Fidelity:** {_fmt_rate(scores.get('state_fidelity_rate'))}  ")
+    parts.append(f"**Prompt Adherence:** {_fmt_rate(scores.get('prompt_adherence_rate'))}")
     parts.append(f"**Rubric:** `{judge.rubric_path}`")
     parts.append(f"**Judge model:** `{judge.model}`")
     ps = scores.get("pipeline_scores") or {}

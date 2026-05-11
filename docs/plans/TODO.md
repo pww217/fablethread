@@ -147,16 +147,13 @@ See `[eval-remediation/01-extractor-grounding-and-compactor-fix.md](eval-remedia
 
 ## Eval Rubric Redesign (May 2026)
 
-- [x] **Trace artifact: inject ARCHITECTURE.md EVAL_CONTEXT into trace.md** — `_render_static_context()` now prepends Engine Design Reference section; trace.md is self-contained for debugging — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 7`
-- [x] **Rubric: add Pipeline I/O Relevance to Verdict** — assesses whether each pipeline receives minimal, relevant context; flags excess context as token waste and hallucination vector — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 8`
-- [x] **Docs: update REPOMAP/eval.md and TODO.md** — trace format, judge output format, rubric structure reflected — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 9`
-- [x] **Rubric: add Storytelling Trace section** — Momentum Trace, GM Beat Trace, Scene Pressure Trace, Condition Lifecycle Trace, Quest Arc Trace, Inventory Evolution Trace — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 1`
-- [x] **Rubric: add State Evolution Trace section** — State Coherence, State Drift, State Completeness — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 2`
-- [x] **Rubric: add Cross-Pipeline Correlation section** — Rules→Narrate, Rules→State, Narrate→Scene, Narrate→State, Narrate→Progress, State→Progress, Progress→Narrate — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 3`
-- [x] **Rubric: update Storytelling Design Critique criteria** — removed 6 criteria (momentum_arc, pressure_arc, beat_lifecycle, consequence_persistence, directive_narration_binding, stakes_routing), added 4 new (npc_voice, world_reactivity, failure_arc, scenario_quality), simplified 5 to reference traces — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 4`
-- [x] **Rubric: move and expand Verdict to end** — moved after Auto-Checker Failures, added subheaders (Mechanical Integrity, Narrative Quality, System Cohesion, Pipeline I/O Relevance, Regression & Known Issues, Key Findings) — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 5`
-- [x] **Rubric: update TOC and remove Output Format section** — TOC reflects new 11-section structure, redundant Output Format section deleted — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 6`
-- [x] **Rubric: move Actionable Issues to bottom** — moved from Section 3 to Section 10 (after Verdict, before Additional Observations) — see `[eval-rubric-redesign/01-rubric-redesign.md](eval-rubric-redesign/01-rubric-redesign.md) Phase 10`
+- [x] **Rubric v2: full rewrite** — 11 sections (Mechanic Lifecycle Tables, State Fidelity, Prompt Quality Audit, Mechanic Interplay Assessment, Compaction Report, Auto-Checker Failures, Per-Pipeline Mechanical Critique with Scope Discipline, Cross-Pipeline Correlation, Storytelling Criteria, Verdicts with Pipeline I/O Relevance, Actionable Issues) — see `[eval-update.md](eval-update.md)`
+- [x] **Trace artifact: inject ARCHITECTURE.md EVAL_CONTEXT into trace.md** — `_render_static_context()` now prepends Engine Design Reference section; trace.md is self-contained for debugging — see `[eval-update.md](eval-update.md) Phase 1`
+- [x] **Rubric: add Player Intent Fidelity (4G)** — evaluates whether engine honors player's stated action — see `[eval-update.md](eval-update.md) Phase 1`
+- [x] **Rubric: add Scope Discipline (Section 7)** — each pipeline only processes its own domain — see `[eval-update.md](eval-update.md) Phase 1`
+- [x] **Expand front-matter parsing** — `_normalize_scores()` must handle `system_cohesion_score`, `prompt_quality_score`, `compaction_score` (int 1-5) and `state_fidelity_rate`, `prompt_adherence_rate` (float 0.0-1.0); `report.py` must render all new fields — see `[eval-update.md](eval-update.md) Phase 2`
+- [x] **Add quest_id_collision assert** — deterministic check for re-creation of completed quests — see `[eval-update.md](eval-update.md) Phase 3`
+- [x] **Add compactor_sanitization_nonzero assert** — deterministic check for empty sanitization on compaction turns with completed quests — see `[eval-update.md](eval-update.md) Phase 3`
 
 ## Standalone
 

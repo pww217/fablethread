@@ -473,10 +473,69 @@ def check_momentum_band_delta(
     }
 
 
+def _assert_quest_id_collision(
+    ev: dict[str, Any], prev_ev: dict[str, Any] | None
+) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
+    ext = (ev.get("extraction") or {}).get("progress") or {}
+    if ext.get("skipped"):
+        return results
+    output = ext.get("output") or {}
+    quest_updates = output.get("quest_updates") or []
+    snap = ev.get("state_snapshot") or {}
+    quests = snap.get("quests") or []
+    completed_ids = {
+        q["id"] for q in quests
+        if isinstance(q, dict) and q.get("status") == "completed"
+    }
+    for qu in quest_updates:
+        qid = qu.get("id")
+        if not qid:
+            continue
+        if qid in completed_ids:
+            results.append({
+                "assertion": "progress.quest_id_collision",
+                "passed": False,
+                "detail": (
+                    f"quest_updates re-creates already-completed quest id={qid!r}"
+                ),
+            })
+    return results
+
+
+def _assert_compactor_sanitization_nonzero(
+    ev: dict[str, Any], prev_ev: dict[str, Any] | None
+) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
+    applied = ev.get("applied") or {}
+    compaction = applied.get("compaction") or {}
+    if not compaction:
+        return results
+    sanit = compaction.get("sanitization") or {}
+    quest_close = sanit.get("quest_close") or []
+    cond_remove = sanit.get("condition_remove") or []
+    pres_remove = sanit.get("pressure_remove") or []
+    if quest_close or cond_remove or pres_remove:
+        return results  # something was sanitized — pass
+    snap = ev.get("state_snapshot") or {}
+    quests = snap.get("quests") or []
+    completed = [q for q in quests if isinstance(q, dict) and q.get("status") == "completed"]
+    if completed:
+        results.append({
+            "assertion": "compactor.sanitization_nonzero",
+            "passed": False,
+            "detail": (
+                f"compaction fired but sanitized nothing; "
+                f"{len(completed)} completed quest(s) remain un-closed in state"
+            ),
+        })
+    return results
+
+
 def run_all_universal_asserts(
     event: dict[str, Any], prev_event: dict[str, Any] | None
 ) -> list[dict[str, Any]]:
-    return [
+    results: list[dict[str, Any]] = [
         check_recent_events_turn_stamped(event),
         check_pending_gm_beat_consumed(event, prev_event),
         check_location_change_applied(event, prev_event),
@@ -488,3 +547,6 @@ def run_all_universal_asserts(
         check_actions_count_and_distinct(event),
         check_momentum_band_delta(event, prev_event),
     ]
+    results.extend(_assert_quest_id_collision(event, prev_event))
+    results.extend(_assert_compactor_sanitization_nonzero(event, prev_event))
+    return results
