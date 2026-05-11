@@ -111,9 +111,8 @@ class TestSystemPromptByteStability:
     def test_extract_state_system_byte_stable(self):
         env = _env()
         s1, s2 = self._two_states()
-        scene = SceneExtractResult()
-        m1 = _extract_state_messages(env, "N1", s1, scene_result=scene)
-        m2 = _extract_state_messages(env, "N2", s2, scene_result=scene)
+        m1 = _extract_state_messages(env, "N1", s1)
+        m2 = _extract_state_messages(env, "N2", s2)
         sys1 = next(m for m in m1 if m["role"] == "system")["content"]
         sys2 = next(m for m in m2 if m["role"] == "system")["content"]
         assert sys1 == sys2

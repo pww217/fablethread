@@ -3,6 +3,17 @@ No prose, no markdown fences, empty arrays for fields with no changes.
 Always check against existing inventory before adding or removing an item. Duplication forbidden.
 Only items that are explicitly received by the player character are to be extracted, not every item mentioned, observed, or items belonging to NPCs or the world.
 
+## Player intent is context only
+
+The user prompt includes `player_intent` — what the player said they want to do. This is NOT
+a state change. The player's intent does not mean the action succeeded. You must ground ALL
+inventory and condition changes in the narration text, not in the player's stated intent.
+
+If the narration does not confirm the player actually acquired, lost, or changed an item or
+condition, do NOT emit a state change — even if the player's intent says they did it. The
+narration is the sole authority on what actually happened. Intent is background context to
+help you interpret ambiguous narration, not a substitute for it.
+
 An item does NOT enter the inventory simply because it is nearby, visible, or available to take. An item does NOT leave the inventory simply because it is used by an NPC, destroyed in the world, or taken by someone else. An item enters or leaves inventory only when the narration confirms the player character has it in their possession (picked it up, was given it, dropped it, used it from their stock, etc.).
 
 ## ID format rules

@@ -109,23 +109,37 @@ def _dedup_compendium_add(
 def _scene_npc_roster(known_characters: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Build a deduped NPC roster for the scene extractor user prompt.
 
-    Each row is ``{id, name, notes, tags}`` where tags = {"compendium"}.
+    Each row is ``{id, name, title, bio, last_seen, notes, tags}`` where tags = {"compendium"}.
     """
     by_id: dict[str, dict[str, Any]] = {}
 
-    def _put(nid: str, name: str, notes: str, tag: str) -> None:
+    def _put(nid: str, name: str, title: str, bio: str, last_seen: dict | None, notes: str, tag: str) -> None:
         if not nid:
             return
-        row = by_id.setdefault(nid, {"id": nid, "name": "", "notes": "", "tags": []})
+        row = by_id.setdefault(nid, {"id": nid, "name": "", "title": "", "bio": "", "last_seen": None, "notes": "", "tags": []})
         if name and not row["name"]:
             row["name"] = name
+        if title and not row["title"]:
+            row["title"] = title
+        if bio and not row["bio"]:
+            row["bio"] = bio
+        if last_seen and not row["last_seen"]:
+            row["last_seen"] = last_seen
         if notes and not row["notes"]:
             row["notes"] = notes
         if tag not in row["tags"]:
             row["tags"].append(tag)
 
     for row in known_characters or []:
-        _put(str(row.get("id") or ""), str(row.get("name") or ""), "", "compendium")
+        _put(
+            str(row.get("id") or ""),
+            str(row.get("name") or ""),
+            str(row.get("title") or ""),
+            str(row.get("bio") or ""),
+            row.get("last_seen"),
+            "",
+            "compendium",
+        )
 
     return list(by_id.values())
 
@@ -145,7 +159,22 @@ def _extract_scene_messages(
     conditions = list(pc.get("conditions") or [])
     known_characters = _known_characters_for_extract(state, compact=False)
     npc_roster = _scene_npc_roster(known_characters)
-    present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
+    _raw_present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
+    _compendium = (state.get("compendium") or {}).get("npcs") or {}
+    present_npcs = []
+    for npc in _raw_present_npcs:
+        nid = npc.get("id", "")
+        entry = _compendium.get(nid, {})
+        enriched = dict(npc)
+        if not enriched.get("name") and entry.get("name"):
+            enriched["name"] = entry["name"]
+        if not enriched.get("title") and entry.get("title"):
+            enriched["title"] = entry["title"]
+        if not enriched.get("bio") and entry.get("bio"):
+            enriched["bio"] = (entry.get("bio") or "").strip()
+        if not enriched.get("last_seen"):
+            enriched["last_seen"] = entry.get("last_seen")
+        present_npcs.append(enriched)
 
     system_text = _render(env, "extract_scene_system.j2", {})
     user_text = _render(
@@ -176,11 +205,11 @@ def _extract_state_messages(
     state: dict[str, Any],
     *,
     enable_thinking: bool = False,
+    intent: "IntentEnvelope | None" = None,
     turn_no: int = 0,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 2 (inventory + conditions)."""
     pc = state.get("pc") or {}
-    location = state.get("location") or {}
 
     system_text = _render(env, "extract_state_system.j2", {})
     user_text = _render(
@@ -191,6 +220,7 @@ def _extract_state_messages(
             "pc": pc,
             "conditions": list(pc.get("conditions") or []),
             "inventory": state.get("inventory") or [],
+            "intent": intent,
             "turn_no": turn_no,
         },
     )
@@ -246,6 +276,7 @@ def _extract_progress_messages(
     scene = state.get("scene") or {}
     location = state.get("location") or {}
     present_npcs = list(scene.get("present_npcs") or [])
+    known_npcs = _known_characters_for_extract(state, compact=True)
 
     active_quests = [
         q for q in (state.get("quests") or []) if q.get("status") == "active"
@@ -269,6 +300,7 @@ def _extract_progress_messages(
             "pc": pc,
             "pc_stats": pc.get("stats") or {},
             "present_npcs": present_npcs,
+            "known_npcs": known_npcs,
             "location": location,
             "active_quests": active_quests,
             "recent_events": recent_events,
@@ -459,6 +491,7 @@ async def _run_extraction_pipeline(
         state_msgs = _extract_state_messages(
             env, narration, state,
             enable_thinking=config.enable_extract_thinking,
+            intent=intent,
             turn_no=turn_no,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes

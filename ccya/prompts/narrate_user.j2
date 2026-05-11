@@ -62,7 +62,7 @@ Before introducing anyone new, check this list. Re-use characters when they coul
 {% endif -%}
 {% if recent_turns -%}
 {% for t in recent_turns %}
-T{{ t.turn }}: {{ t.narrative }}
+**T{{ t.turn }}:** {{ t.narrative }}
 
 {% endfor -%}
 {% endif -%}
@@ -111,12 +111,12 @@ Surface as {{ pending_gm_beat.surface_as }}. This is backstage direction — int
 
 **Combat Fatigue:** This fight has run {{ ages.combat_age }} turns. Bring it to a decisive close — one side prevails, flees, or is incapacitated.
 {% endif %}
-{% if ages and ages.get('location_age', 0) >= 6 %}
+{% if ages and ages.get('location_age', 0) > 4 %}
 
-**Location Imperative:** The party has been here {{ ages.location_age }} turns. Begin steering toward a natural exit.
-{% elif ages and ages.get('location_age', 0) >= 4 %}
+**Location Imperative:** {{ ages.location_age }} turns in this location. The story needs to move — advance the plot, force a decision, or push the party toward a new place. Stagnation is failure.
+{% elif ages and ages.get('location_age', 0) > 2 %}
 
-**Location Hint:** {{ ages.location_age }} turns here. If a natural opening to move on presents itself, take it.
+**Location Pressure:** {{ ages.location_age }} turns here. Start winding down — introduce a reason to leave (a development elsewhere, a closing window, a new lead).
 {% endif %}
 
 
