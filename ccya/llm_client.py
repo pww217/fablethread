@@ -279,6 +279,7 @@ async def chat(
             "done": True,
             "usage": {
                 "prompt_tokens": resp.usage.prompt_tokens if resp.usage else 0,
+                "completion_tokens": resp.usage.completion_tokens if resp.usage else 0,
                 "total_tokens": resp.usage.total_tokens if resp.usage else 0,
             },
         }

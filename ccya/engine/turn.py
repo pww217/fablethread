@@ -373,7 +373,7 @@ async def run_turn(
             "total_ms": round(rules_ms, 1),
             "rolled": outcome.rolled,
             "tokens_in": rules_usage.get("prompt_tokens", 0),
-            "tokens_out": rules_usage.get("total_tokens", 0),
+            "tokens_out": rules_usage.get("completion_tokens", 0),
         }
 
         yield (

@@ -55,7 +55,7 @@ async def _call_rules(
         intent_verb="act",
         check=RulesCheck(required=False),
     )
-    _no_usage: dict[str, int] = {"prompt_tokens": 0, "total_tokens": 0}
+    _no_usage: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     parse_error = ""
     for attempt in range(1 + config.max_rules_retries):
         try:
@@ -89,6 +89,7 @@ async def _call_rules(
                 raise ValueError("No JSON found in rules response")
             return IntentEnvelope(**j), {
                 "prompt_tokens": usage.get("prompt_tokens", 0),
+                "completion_tokens": usage.get("completion_tokens", 0),
                 "total_tokens": usage.get("total_tokens", 0),
             }, raw, ""
         except Exception as exc:
