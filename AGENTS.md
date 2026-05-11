@@ -7,9 +7,9 @@ This file is your **signpost**. It tells you what to do and where to find detail
 **Navigation path:**
 1. **This file** — rules, workflow, module boundaries
 2. **`docs/REPOMAP/`** — where code lives, what each file does, function signatures
-3. **`docs/plans/TODO.md`** — what needs to be done, what's done, what's deferred
-4. **`docs/plans/`** — detailed plan docs for each feature
-5. **`docs/plans/ROADMAP.md`** — priority ordering and exit criteria
+3. **`plans/TODO.md`** — what needs to be done, what's done, what's deferred
+4. **`plans/`** — detailed plan docs for each feature
+5. **`complete/plans/`** — completed plans (organized by category)
 6. **The codebase itself** — the source of truth
 
 When working on a task:
@@ -20,7 +20,7 @@ When working on a task:
 
 **When you change code, you must update docs:**
 - New files, renamed files, moved functions → update `docs/REPOMAP/`
-- New feature, completed item, deferred item → update `docs/plans/TODO.md`
+- New feature, completed item, deferred item → update `plans/TODO.md`
 - New module responsibility or boundary → update this file
 - Never leave docs stale — if the code changes, the docs must change in the same commit
 
@@ -119,9 +119,9 @@ If you find logic in the wrong layer, move it rather than pile on.
 
 ## Plan & TODO/Roadmap lifecycle
 
-- Directories are `docs/plans/` and `docs/plans/ROADMAP.md`.
-- Move completed `docs/plans/` to `docs/plans/completed/`.
-- Update `docs/plans/TODO.md` when starting work: mark items `[x]` or note status.
+- Active plans are in `plans/`, completed plans in `complete/plans/` (organized by category).
+- Move completed plans from `plans/` to `complete/plans/` (organized by category).
+- Update `plans/TODO.md` when starting work: mark items `[x]` or note status.
 - Abandoned items get struck through or moved to a `## Abandoned` section with one-line reason.
 - Fix merge conflict markers in `TODO.md` immediately — never leave them.
 
