@@ -4,7 +4,7 @@ Do not implement code. Do not run tests. Do not execute anything. Write plans on
 
 Read these files first:
 1. AGENTS.md — rules, module boundaries, dead-code policy. This is law.
-2. docs/plans/TODO.md — know what is already open.
+2. plans/TODO.md — know what is already open.
 3. The REPORT.md content below.
 
 ---
@@ -61,7 +61,7 @@ PROPOSE ENGINE FIXES WHEN THE EVIDENCE WARRANTS THEM. The report may classify an
 ---
 
 OUTPUT ONE OR MORE PLAN DOCUMENTS. If the report contains distinct concern areas that would each exceed ~50k input tokens when implemented, write separate plan files:
-- `docs/plans/eval-remediation-<date>-<suffix>.md` (e.g., -engine, -prompts, -harness, -trace)
+- `plans/eval-remediation-<date>-<suffix>.md` (e.g., -engine, -prompts, -harness, -trace)
 - Each plan is self-contained and phasable independently.
 - If a concern requires both prompt and engine changes, split into two plans: one for prompts, one for engine.
 - Phase changes by shared context (related files, related data flow, related models) into ~50k token chunks. Group related changes together rather than by file.

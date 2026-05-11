@@ -1,6 +1,6 @@
 # CCYA Roadmap
 
-Plans live in `plans/` organized by milestone. TODOs are in `docs/plans/TODO.md` organized by the same buckets.
+Plans live in `plans/` organized by milestone. TODOs are in `plans/TODO.md` organized by the same buckets.
 
 ## Priorities
 

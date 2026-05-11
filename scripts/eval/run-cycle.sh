@@ -13,7 +13,7 @@ cd "$REPO_ROOT"
 
 # ── Date stamp ──────────────────────────────────────────────────────────────
 DATE_SLUG="$(date +%b-%d | tr '[:upper:]' '[:lower:]')"   # e.g. may-10
-PLAN_PATH="docs/plans/eval-remediation-${DATE_SLUG}.md"
+PLAN_PATH="plans/eval-remediation-${DATE_SLUG}.md"
 
 # ── Step 1: Run eval or use existing report ──────────────────────────────────
 # Usage:
