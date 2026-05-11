@@ -1,4 +1,4 @@
-.PHONY: install run dev fmt lint test test-v test-x typecheck check css clean new-game vendor llama-swap eval eval-fast eval-judge-only eval-pack eval-all
+.PHONY: install run dev fmt lint test test-v test-x typecheck check css clean new-game vendor llama-swap eval eval-fast eval-judge-only eval-pack eval-all full-eval
 
 install:
 	uv sync
@@ -61,3 +61,6 @@ eval-pack:
 
 eval-all: llama-swap
 	uv run python -m ccya.eval run --all
+
+full-eval: llama-swap
+	bash scripts/eval/run-cycle.sh
