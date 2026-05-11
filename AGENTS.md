@@ -7,20 +7,16 @@ This file is your **signpost**. It tells you what to do and where to find detail
 **Navigation path:**
 1. **This file** — rules, workflow, module boundaries
 2. **`docs/REPOMAP/`** — where code lives, what each file does, function signatures
-3. **`plans/TODO.md`** — what needs to be done, what's done, what's deferred
-4. **`plans/`** — detailed plan docs for each feature
-5. **`complete/plans/`** — completed plans (organized by category)
-6. **The codebase itself** — the source of truth
+3. **`/plans/`** — plan docs for features and fixes
+4. **The codebase itself** — the source of truth
 
 When working on a task:
 - Read the relevant REPOMAP file(s) to understand the code
-- Read the TODO item to understand what's expected
 - Read the linked plan doc for implementation details
 - Then read the actual source files
 
 **When you change code, you must update docs:**
 - New files, renamed files, moved functions → update `docs/REPOMAP/`
-- New feature, completed item, deferred item → update `plans/TODO.md`
 - New module responsibility or boundary → update this file
 - Never leave docs stale — if the code changes, the docs must change in the same commit
 
@@ -71,7 +67,7 @@ If you find logic in the wrong layer, move it rather than pile on.
 ## Clean code rules
 
 - **No dead config keys.** If you remove a feature, remove its `config.yaml` key, `EngineConfig` field, and wiring in `server/app.py` in the same PR.
-- **No commented-out code.** If something is deferred, track it in `TODO.md` or the plan file; delete it from source.
+- **No commented-out code.** If something is deferred, track it in the plan file; delete it from source.
 - **No silent fallbacks that hide bugs.** Prefer an explicit `if key not in state: raise` or a visible warning over silently inventing a default mid-turn.
 - **One source of truth per concept.** `meta.turn` is the turn counter. `chronicle.md` is narrative history. `compendium.npcs` is durable NPC identity. Don't replicate these elsewhere.
 - **Minimize LLM input tokens.** Every extra token is latency. Audit prompts for: redundant schema duplication, stale context sections, examples that overlap, large narrative echoes.
@@ -117,20 +113,19 @@ If you find logic in the wrong layer, move it rather than pile on.
 
 ---
 
-## Plan & TODO/Roadmap lifecycle
+## Plan lifecycle
 
-- Active plans are in `plans/`, completed plans in `complete/plans/` (organized by category).
-- Move completed plans from `plans/` to `complete/plans/` (organized by category).
-- Update `plans/TODO.md` when starting work: mark items `[x]` or note status.
-- Abandoned items get struck through or moved to a `## Abandoned` section with one-line reason.
-- Fix merge conflict markers in `TODO.md` immediately — never leave them.
+- Active plans are in `/plans/`, completed plans in `/plans/completed/` (organized by category).
+- Plans awaiting review are in `/plans/review/` — these must NOT be executed. They need a review pass first.
+- Move completed plans from `/plans/` to `/plans/completed/` (organized by category).
+- Abandoned plans get an `## Abandoned` section with one-line reason.
 
 ---
 
 ## Planning/Reasoning
 
-- When planning or gathering information to execute a task, split large jobs into segments to preserve your context window. Aim to take in at most 3500 lines of code at time, execute as much as you can, then pause and ask user for input or compaction before the next execution.
-- Limit your reasoning to what's necessary. Plan out the process before you begin and stick to it. Keep it as terse as possible, avoid repeating yourself or going in circles.
+- Split large jobs into segments. Aim for at most 3500 lines of code per segment.
+- Limit reasoning to what's necessary. Keep it terse.
 - When instructed to make a commit, make a detailed memo of all major and key changes.
 
 ---
