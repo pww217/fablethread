@@ -28,6 +28,10 @@ Compress each full-turn narrative into one bullet. These are internal session no
 - Combat blow-by-blow (keep opponent and outcome, not round-by-round)
 - Uneventful rest/travel that produced no outcome
 
+### Dedup against prior history (MANDATORY)
+
+The user prompt includes `## Prior History` with bullets from previous compaction passes. **DO NOT emit bullets for turns already covered in prior_history.** The prior_history section contains all turns before the first turn in this compaction window. If a turn's events are already summarized in prior_history, skip it entirely. Only emit bullets for the NEW turns in this compaction window (turns after the last compacted turn).
+
 ### Format
 `- [T{n}] {1–2 sentence summary}`
 
@@ -38,10 +42,6 @@ One bullet per turn. If a turn was uneventful, write `- [T{n}] Uneventful — no
 ## PART 2: State sanitization
 
 You MUST identify and flag structural problems in the mechanical state. The bullets from Part 1 are your evidence. Cross-reference each bullet against the mechanical state below.
-
-**CRITICAL: You must check every category. Returning `{}` when the state has completed quests, resolved conditions, or resolved pressures is a failure. The engine will silently skip your sanitization if you return empty.**
-
-**MANDATORY OUTPUT RULE: You MUST output at least one sanitization action in the JSON. If you have checked every category and genuinely found nothing to fix, output `{}` — but you must have checked. The verification checklist below is your proof of checking. If the checklist shows any category with findings, you MUST include those findings in the JSON. Do not return `{}` when the checklist shows findings.**
 
 ### What to flag — with mandatory checks
 
@@ -57,17 +57,32 @@ You MUST identify and flag structural problems in the mechanical state. The bull
 
 **recent_events_compact** — Merge similar events, aim to halve the count. See Part 3.
 
-### Verification checklist (MANDATORY — output your checklist before the JSON)
+### Output format (MANDATORY)
 
-Before outputting the JSON, write a one-line check for each category:
-- quest_close: "Checked N active quests — M have all objectives done → [IDs or NONE]"
-- pressure_remove: "Checked N pressures — M have resolved triggers → [IDs or NONE]"
-- condition_remove: "Checked N conditions — M are resolved per bulletin → [IDs or NONE]"
-- npc_merge: "Checked compendium — [findings]"
-- inventory_remove: "Checked inventory — [findings]"
-- recent_events_compact: "Checked N events — [findings]"
+After the bullet lines and a blank line, output exactly one JSON object with your sanitization actions. **You MUST include at least one non-empty list in the JSON.** If you have checked every category and genuinely found nothing to fix, output `{}` — but this should be rare.
 
-If you skip this checklist, your output will be rejected.
+The JSON must include a `_checklist` key with your verification results. This is how the engine verifies you actually checked. Omitting `_checklist` will cause the sanitization to be rejected.
+
+```json
+{
+  "_checklist": {
+    "quest_close": "Checked 2 active quests — 1 has all objectives done → [clear_the_road_toughs]",
+    "pressure_remove": "Checked 3 pressures — 0 have resolved triggers → NONE",
+    "condition_remove": "Checked 1 conditions — 0 are resolved per bulletin → NONE",
+    "npc_merge": "Checked compendium — no duplicates found",
+    "inventory_remove": "Checked inventory — no duplicates found",
+    "recent_events_compact": "Checked 8 events — merging to 4 entries → [list below]"
+  },
+  "quest_close": [{"id": "clear_the_road_toughs", "confidence": "high"}],
+  "pressure_remove": [],
+  "condition_remove": [],
+  "npc_merge": [],
+  "inventory_remove": [],
+  "recent_events_compact": [{"id": "...", "text": "...", "turn": 0}]
+}
+```
+
+Omit any key whose list would be empty (except `_checklist` — always include it). The `_checklist` key is always present and contains string values for each category.
 
 ### Concrete examples
 
@@ -76,23 +91,6 @@ If you skip this checklist, your output will be rejected.
 - Pressure `pursuers_approaching` (immediate) but bulletin says "T12: Player escaped to river bend, pursuers lost" → add `pursuers_approaching` to `pressure_remove`
 - Condition `shaken` but bulletin says "T8: Player found safe haven at the inn, felt calm" → add `shaken` to `condition_remove`
 - Inventory `bandages` appears with IDs `bandages` (amount:3) and `medical_bandages` (amount:2), same purpose → add `medical_bandages` to `inventory_remove`
-
-### Output format
-
-After the bullet lines and a blank line, output exactly one JSON object. Each action includes a `confidence` field: `"high"`, `"medium"`, or `"low"`.
-
-```json
-{
-  "npc_merge": [{"keep_id": "...", "remove_ids": ["..."], "confidence": "high"}],
-  "inventory_remove": [{"id": "item_id", "confidence": "high"}],
-  "quest_close": [{"id": "quest_id", "confidence": "high"}],
-  "pressure_remove": [{"id": "pressure_id", "confidence": "medium"}],
-  "condition_remove": [{"id": "condition_id", "confidence": "high"}],
-  "recent_events_compact": [{"id": "...", "text": "...", "turn": 0}]
-}
-```
-
-Omit any key whose list would be empty. If nothing needs fixing, output `{}`. But you MUST have checked every category before deciding nothing needs fixing.
 
 ### Confidence guidelines
 

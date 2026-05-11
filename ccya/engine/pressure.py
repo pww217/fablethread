@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from ccya.engine.config import EngineConfig
 from ccya.models import StateDelta
+
+_log = logging.getLogger("ccya.engine")
 
 
 def _expire_scene_pressures(
@@ -41,11 +44,39 @@ def _expire_scene_pressures(
         if turn_added is None or turn_added == 0:
             continue
         max_turns = p.get("max_turns")
-        if max_turns is not None and (current_turn - turn_added) >= max_turns:
-            removed_ids.add(pid)
-            continue
         age = current_turn - turn_added
         urgency = p.get("urgency", "background")
+
+        # Explicit max_turns (from scene_pressure_add) takes priority.
+        if max_turns is not None and age >= max_turns:
+            removed_ids.add(pid)
+            continue
+
+        # Ambient/building pressures have a default TTL of 4 turns.
+        # Immediate pressures do not have this cap — they persist until
+        # explicitly removed by the extractor or by location/combat changes.
+        if urgency in ("background", "building") and age >= 4:
+            # Escalate building → immediate instead of removing (gives the
+            # extractor one more turn to react before forced removal).
+            if urgency == "building":
+                p["urgency"] = "immediate"
+                _log.info(
+                    "pressure: escalated %r from building to immediate (age=%d >= 4)",
+                    pid, age,
+                    extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "pressure"},
+                )
+            else:
+                # background → immediate (skip building, too long already)
+                p["urgency"] = "immediate"
+                _log.info(
+                    "pressure: escalated %r from background to immediate (age=%d >= 4)",
+                    pid, age,
+                    extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "pressure"},
+                )
+            continue
+
+        # Configurable escalation thresholds for building→immediate and background→building.
+        # These only apply to pressures that survived the TTL cap above.
         if age >= immediate_at and urgency == "building":
             p["urgency"] = "immediate"
         elif age >= building_at and urgency == "background":

@@ -179,6 +179,7 @@ def _extract_candidate_names(
         "Big", "Small", "Large", "Little", "High", "Low", "Fast", "Slow",
         "Good", "Bad", "New", "Last", "First", "Next", "Other", "Same",
         "Each", "Every", "Both", "All", "Some", "Any", "Many", "Few",
+        "Hulking", "Generous",
     }
 
     inv_lower: set[str] = set()
@@ -273,15 +274,25 @@ def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
             location_names.add(wl)
 
     candidates = _extract_candidate_names(narr, pc_name, inventory_names, location_names)
-    # Filter common false positives: dialogue tags, common nouns.
+    # Filter common false positives: dialogue tags, common nouns, and
+    # capitalized words that are clearly not NPC names (adverbs, transition
+    # words, currency terms, location-name fragments).
     stop = {
         "You", "The", "A", "An", "His", "Her", "Their",
         "He", "She", "It", "I", "We", "They",
         "But", "And", "Or", "If", "When", "Then",
         "Now", "Here", "There", "This", "That",
         "These", "Those",
+        "Instead", "Behind", "Credits", "Credit",
     }
-    missing = [c for c in candidates if c not in stop and c.lower() not in known_names]
+    # Also skip candidates that are partial matches for any known NPC name.
+    # E.g., "Matthew" matches "Matthew Estrada", "Crossing" matches "Marrow's Crossing".
+    known_name_parts: set[str] = set()
+    for name in known_names:
+        for part in name.split():
+            if len(part) >= 3:
+                known_name_parts.add(part.lower())
+    missing = [c for c in candidates if c not in stop and c.lower() not in known_names and c.lower() not in known_name_parts]
     if not missing:
         return {
             "assertion": "universal.npc_mention.extracted",
