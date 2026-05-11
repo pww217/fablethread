@@ -127,7 +127,7 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_summarize_applied(applied)` → `list[str]` — internal diff line formatter
 
 ### pressure.py
-- `_expire_scene_pressures(state, delta, config=None)` — post-extraction expiry/urgency escalation for `scene_pressure`. Removes pressures past `max_turns`, escalates background→building→immediate at config thresholds (default 6/10).
+- `_expire_scene_pressures(state, delta, config=None)` — post-extraction expiry/urgency escalation for `scene_pressure`. Removes pressures past `max_turns`, applies default 4-turn TTL cap for background/building pressures (escalates to immediate instead of removing, giving extractor one more turn to react), then applies configurable escalation thresholds (background→building at 6, building→immediate at 10). Immediate pressures bypass the TTL cap.
 - `_purge_scene_pressures(state, delta, *, location_changed=False, combat_ended=False, config=None)` — removes stale/irrelevant pressures. On location change: only auto-purges `urgency == "background"` pressures; `immediate` and `building` pressures survive location change and must be explicitly removed by the scene extractor. On combat end: removes `immediate` pressures. Age cap at 15 turns default.
 
 ### compactor.py
