@@ -449,7 +449,7 @@ class TestPromptComposition:
         s2 = _make_state(turn=5)
         s2["pc"]["conditions"] = [{"id": "wounded", "label": "wounded", "description": "hit", "added_turn": 4}]
         from ccya.models import RulesOutcome
-        roll = RulesOutcome(rolled=True, skill="strength", difficulty="hard", final_total=8, band="partial", directive="The strike succeeds with cost.")
+        RulesOutcome(rolled=True, skill="strength", difficulty="hard", final_total=8, band="partial", directive="The strike succeeds with cost.")
         m1 = _extract_state_messages(env, "N1", s1)
         m2 = _extract_state_messages(env, "N2", s2)
         sys1 = next(m for m in m1 if m["role"] == "system")["content"]

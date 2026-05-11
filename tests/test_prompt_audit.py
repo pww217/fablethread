@@ -25,7 +25,6 @@ from ccya.engine import (
 from ccya.models import (
     InventoryRemove,
     RulesOutcome,
-    SceneExtractResult,
     StateDelta,
     StateExtractResult,
 )

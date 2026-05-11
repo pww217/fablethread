@@ -113,7 +113,7 @@ def _scene_npc_roster(known_characters: list[dict[str, Any]]) -> list[dict[str, 
     """
     by_id: dict[str, dict[str, Any]] = {}
 
-    def _put(nid: str, name: str, title: str, bio: str, last_seen: dict | None, notes: str, tag: str) -> None:
+    def _put(nid: str, name: str, title: str, bio: str, last_seen: dict[str, Any] | None, notes: str, tag: str) -> None:
         if not nid:
             return
         row = by_id.setdefault(nid, {"id": nid, "name": "", "title": "", "bio": "", "last_seen": None, "notes": "", "tags": []})
