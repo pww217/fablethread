@@ -63,7 +63,7 @@
 
                     <template x-for="stage in stages" :key="t.turn + '-' + stage">
                         <div class="tv-stage-wrap">
-                            <template x-if="stage === 'scene' && t.scope && (t.scope.active_domains.length || t.scope.skipped_streams.length)">
+                            <template x-if="stage === 'scene' && t.scope && t.scope.active_domains.length">
                                 <div class="tv-scope-block">
                                     <div class="tv-scope-label">Scope</div>
                                     <div class="tv-scope-content">
@@ -72,17 +72,6 @@
                                                 <span class="tv-scope-sublabel">Active domains:</span>
                                                 <template x-for="(d, di) in t.scope.active_domains" :key="di">
                                                     <span class="tv-scope-tag" x-text="d"></span>
-                                                </template>
-                                            </div>
-                                        </template>
-                                        <template x-if="t.scope.decided_by !== '—'">
-                                            <div><span class="tv-scope-sublabel">Decided by:</span> <span x-text="t.scope.decided_by"></span></div>
-                                        </template>
-                                        <template x-if="t.scope.skipped_streams.length">
-                                            <div>
-                                                <span class="tv-scope-sublabel">Skipped streams:</span>
-                                                <template x-for="(s, si) in t.scope.skipped_streams" :key="si">
-                                                    <span class="tv-scope-tag tv-scope-tag--muted" x-text="s"></span>
                                                 </template>
                                             </div>
                                         </template>
@@ -178,7 +167,6 @@
                                                     <dt>scope</dt>
                                                     <dd>
                                                         <span x-text="t.scope.active_domains.join(', ')"></span>
-                                                        <span class="tv-scope-badge" x-text="t.scope.decided_by"></span>
                                                     </dd>
                                                 </template>
                                             </dl>

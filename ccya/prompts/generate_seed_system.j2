@@ -82,10 +82,13 @@ Rules:
 - Generate 3–6 starting items appropriate to the opening scene.
 - **At least 2 items must be directly tied to the PC's strongest skills** (the top 2 by value in the stats block above).
   Example: if the PC's top skills are `firearms` and `stealth`, starter items must include a sidearm/ammo AND a concealable tool (suppressor, dark clothing, lockpick).
-- Ranged weapons require a separate ammo stack with a believable starting `amount` (e.g. `{"id": "9mm_rounds", "name": "9mm rounds", "amount": 12}`). Ammo amount is the single source of truth — never put loaded counts in the weapon's `notes`. Melee/single-shot thrown items are exempt.
+- **Firearms ALWAYS come with ammunition.** Any firearm in starter inventory MUST be paired with an ammo stack (e.g. `{"id": "pistol", "name": "Pistol"}` must also include `{"id": "9mm_rounds", "name": "9mm rounds", "amount": 6}`). Infer a realistic starting amount. If the narration says the weapon is empty, set amount to 0.
+- **Items with finite uses MUST track remaining uses as `amount`.** Medications, charges, devices with limited uses — all must have an explicit `amount`. If you add a medkit, give it 2–4 uses. If you add a charge-cell, give it a realistic count.
+- Ammo amount is the single source of truth — never put loaded counts in the weapon's `notes`. Melee/single-shot thrown items are exempt.
 - Do not add items for skills the PC has no investment in.
 - Quantities must be realistic and not overpowered for turn 1.
 - No exotic/legendary weapons at start.
+- Inventory items start with capital letters.
 
 ## opening_narrative
 Second person, present tense. Do NOT structure this as a biography paragraph → situation paragraph → scene paragraph. Instead: start mid-scene with specific sensory detail that places the player in a moment already in progress. Weave in who the character is through what they are doing, what they are carrying, and what they are thinking — not through summary. Let the quest tension surface through what the player observes rather than what the narrator announces. NPCs should appear in action, not be introduced. The opening should feel like chapter two, not a prologue. Bold NPC names on first introduction. Bold inventory item names on first use. {{ c.prose_word_range[0] }}–{{ c.prose_word_range[1] }} words.

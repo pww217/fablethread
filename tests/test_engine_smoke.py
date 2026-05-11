@@ -44,7 +44,6 @@ from ccya.models import (
     InventoryUpdate,
     QuestObjectiveUpdate,
     QuestUpdate,
-    SceneExtractResult,
     StateExtractResult,
     StateDelta,
 )
@@ -424,15 +423,13 @@ class TestPromptComposition:
 
     def test_extract_state_has_system_user_roles(self):
         env = self._env()
-        scene = SceneExtractResult()
-        msgs = _extract_state_messages(env, "N.", _make_state(), scene_result=scene)
+        msgs = _extract_state_messages(env, "N.", _make_state())
         assert [m["role"] for m in msgs] == ["system", "user"]
 
     def test_extract_state_user_contains_inventory(self):
         env = self._env()
         state = _make_state()
-        scene = SceneExtractResult()
-        msgs = _extract_state_messages(env, "N.", state, scene_result=scene)
+        msgs = _extract_state_messages(env, "N.", state)
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "hand-terminal" in user
 
@@ -440,31 +437,28 @@ class TestPromptComposition:
         env = self._env()
         state = _make_state()
         state["pc"]["conditions"] = [{"id": "injured", "label": "injured", "description": "", "added_turn": 0}]
-        scene = SceneExtractResult()
-        msgs = _extract_state_messages(env, "N.", state, scene_result=scene)
+        msgs = _extract_state_messages(env, "N.", state)
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "injured" in user
 
     def test_extract_state_system_byte_stable_across_turns(self):
         """System prompt for extract_state must not vary turn-to-turn (cache stability)."""
         env = self._env()
-        scene = SceneExtractResult()
         # Two states with different scene/inventory/conditions/rules outcome
         s1 = _make_state(turn=0)
         s2 = _make_state(turn=5)
         s2["pc"]["conditions"] = [{"id": "wounded", "label": "wounded", "description": "hit", "added_turn": 4}]
         from ccya.models import RulesOutcome
         roll = RulesOutcome(rolled=True, skill="strength", difficulty="hard", final_total=8, band="partial", directive="The strike succeeds with cost.")
-        m1 = _extract_state_messages(env, "N1", s1, scene_result=scene)
-        m2 = _extract_state_messages(env, "N2", s2, scene_result=scene)
+        m1 = _extract_state_messages(env, "N1", s1)
+        m2 = _extract_state_messages(env, "N2", s2)
         sys1 = next(m for m in m1 if m["role"] == "system")["content"]
         sys2 = next(m for m in m2 if m["role"] == "system")["content"]
         assert sys1 == sys2
 
     def test_extract_state_user_has_quantity_discipline(self):
         env = self._env()
-        scene = SceneExtractResult()
-        msgs = _extract_state_messages(env, "N.", _make_state(), scene_result=scene)
+        msgs = _extract_state_messages(env, "N.", _make_state())
         system = next(m for m in msgs if m["role"] == "system")["content"]
         # Quantity exactness lives in the system prompt as a static rule.
         assert "Quantities are exact" in system
@@ -472,8 +466,7 @@ class TestPromptComposition:
     def test_extract_state_system_has_generic_item_mapping(self):
         """System prompt must contain explicit generic item mapping rule."""
         env = self._env()
-        scene = SceneExtractResult()
-        msgs = _extract_state_messages(env, "N.", _make_state(), scene_result=scene)
+        msgs = _extract_state_messages(env, "N.", _make_state())
         system = next(m for m in msgs if m["role"] == "system")["content"]
         assert "generic item mapping" in system.lower() or "generic denomination" in system.lower()
         assert "NEVER invent" in system

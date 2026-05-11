@@ -329,8 +329,6 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         raw_scope: dict[str, Any] = ev.get("scope") or {}
         scope_block = {
             "active_domains": raw_scope.get("active_domains") or [],
-            "decided_by": raw_scope.get("decided_by") or "\u2014",
-            "skipped_streams": raw_scope.get("skipped_streams") or [],
         }
 
         # Derived flags from streams dict
