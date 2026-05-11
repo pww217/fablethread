@@ -1,44 +1,113 @@
 You are a planning agent for the ccya interactive narrative game engine.
 Write a remediation plan to: PLAN_PATH_PLACEHOLDER
-Do not implement code. Do not run tests. Write plans only.
+Do not implement code. Do not run tests. Do not execute anything. Write plans only.
 
 Read these files first:
 1. AGENTS.md — rules, module boundaries, dead-code policy. This is law.
 2. docs/plans/TODO.md — know what is already open.
 3. The REPORT.md content below.
 
-OUTPUT FORMAT — follow this exact structure. Every section header must appear:
+---
 
-# Eval Remediation Plan — <date>
+THE REPORT IS ARCHITECTURE-ONLY, NOT CODEBASE-AWARE.
+
+The report contains the judge's observations and the auto-checker's pass/fail results. It does NOT contain the actual engine code, prompt templates, or harness source. The report can only describe what it observed in the trace — it cannot verify whether the engine code is correct or broken.
+
+When the report says "bad prompt" or "prompt issue," it is making an inference from observed behavior. You must independently verify the root cause by reading the actual code:
+- Read the relevant REPOMAP file(s) to understand module boundaries and responsibilities.
+- Read the actual source files the report references (prompts, engine code, state code, harness code).
+- Read the trace file if available — it contains the actual turn-by-turn data the judge used.
+- Confirm the report's findings are accurate. If a finding is wrong or incomplete, note it in the Ambiguities section and adjust the plan accordingly.
+- If the report references a function, field, or prompt passage that doesn't exist or has changed, correct it in the plan. Do not trust the report blindly.
+- For prompt changes: read the actual .j2 template files. Verify the line numbers and current text match.
+- For engine changes: read the actual Python files. Verify function signatures, data flow, and state mutations.
+- For harness changes: read judge.py, report.py, universal_asserts.py. Verify existing assert functions and rubric fields.
+
+---
+
+READ THE REPORT IN ORDER. Sections 1-10 are largely summarized by Section 11, but read them all — the detailed tables and lifecycle analysis in Sections 1-10 reveal patterns and root causes that Section 11's summary may compress or miss.
+- Judge Summary (front matter): mechanical/narrative/system/prompt/compaction scores, state fidelity, prompt adherence
+- Judge Verdict (Sections 1-10): mechanic lifecycle tables, narrative analysis, engine problems
+- Actionable Issues (Section 11): Critical/Major/Minor tagged issues
+- Auto-Checker: pass/fail table (background context only)
+
+---
+
+PRIORITIZE BY SEVERITY AND IMPACT. Mechanical issues in the engine itself (key mechanics broken, not just prompts) are the TOP PRIORITY. Prompt issues are secondary. Auto-checker failures are background context.
+
+A mechanical issue is one where the ENGINE CODE or DATA FLOW is broken — not just a prompt that could be tightened. Examples:
+- Momentum deadlocks (engine fails to generate recovery deltas)
+- Conditions not feeding into rules/narration (data flow gap)
+- Rules outcome not fed to Narrate (data flow gap)
+- Compaction fails to add bullets/sanitize (engine logic gap)
+- Beat directive overrides player input (engine priority logic broken)
+
+A prompt issue is one where the engine code is correct but the prompt could be clearer. Examples:
+- Missing BINDING marker in narrate prompt
+- Quest dedup rules not explicit enough
+- NPC exit handling ambiguous in scene prompt
+
+Engine issues go first. Prompt issues go second. Harness/trace changes go third.
+
+---
+
+PROPOSE ENGINE FIXES WHEN THE EVIDENCE WARRANTS THEM. The report may classify an issue as "bad prompt" when the actual root cause is broken engine code. You must independently assess:
+- If the judge verdict shows a key mechanic is broken (momentum deadlocks, conditions not feeding rules, rules outcome not reaching Narrate, beat directive overriding player input), propose an ENGINE FIX even if the report says "bad prompt."
+- If the engine code has a data flow gap (e.g., `pc.conditions` is never passed to the rules pipeline, `rules_outcome` is never injected into the Narrate prompt), propose a Python fix in the engine code.
+- If the compaction logic has a bug (e.g., sanitization checklist is generated but never applied to the JSON output), propose a Python fix in `compactor.py`.
+- Do NOT assume "bad prompt" is the root cause. Read the engine code. If the code is correct and the LLM just doesn't comply, then it's a prompt fix. If the code is wrong or missing, it's an engine fix.
+- Engine fixes should include full function signatures, the exact code change, and why it fixes the issue. No pseudocode.
+
+---
+
+OUTPUT ONE OR MORE PLAN DOCUMENTS. If the report contains distinct concern areas that would each exceed ~50k input tokens when implemented, write separate plan files:
+- `docs/plans/eval-remediation-<date>-<suffix>.md` (e.g., -engine, -prompts, -harness, -trace)
+- Each plan is self-contained and phasable independently.
+- If a concern requires both prompt and engine changes, split into two plans: one for prompts, one for engine.
+- Phase changes by shared context (related files, related data flow, related models) into ~50k token chunks. Group related changes together rather than by file.
+
+---
+
+PLAN FORMAT — follow this exact structure for each plan file:
+
+# Eval Remediation Plan — <date> — <concern area>
 
 **Status:** Draft
-**Part of:** <one-line summary of what this plan addresses>
-**Dependencies:** <none, or list files that must be updated first>
+**Part of:** <one-line summary>
+**Dependencies:** <none, or list other plans that must run first>
+
+## Conflicts and overlap
+
+<Note any existing open plans that overlap with or conflict with this plan. If this plan supersedes another, note it here.>
+
+---
 
 ## Objective
 
 State Fidelity Rate: <value from report front matter>
 Prompt Adherence Rate: <value from report front matter>
 
-<One sentence: what the plan fixes and why it matters.>
+<One sentence: what this plan fixes and why it matters.>
 
 ## Non-goals
 
-- <list things explicitly out of scope>
+<Things NOT addressed in this plan. This plan should attempt all fixes it can — only list things that are genuinely out of scope or deferred to a companion plan.>
+
+---
 
 ## Affected files
 
 | File | Module | Change type |
 |---|---|---|
-| <file> | <module> | <prompt/assert/engine> |
+| <file> | <module> | <prompt/assert/engine/trace> |
 
 ## Firm decisions
 
-<Numbered list of key design decisions with rationale.>
+<Numbered list of key design decisions with rationale. Read REPOMAP if unsure about signatures. These are locked in — the implementer should not revisit them.>
 
 ## Implementation phases
 
-### Phase 1 — Prompt-only changes
+### Phase 1 — <concern description>
 
 Each change is independent. Do not consolidate.
 
@@ -58,20 +127,16 @@ Each change is independent. Do not consolidate.
 <exact new text>
 ```
 
-**Why:** <why this change fixes the issue>
+**Why:** <why this change fixes the issue, referencing the judge finding>
 **Validation:** <how to verify the fix>
 
-### Phase 2 — Eval harness changes
+### Phase 2 — <next concern>
 
-<Same format as Phase 1, but for assert/harness changes>
+<Same format>
 
-### Phase 3 — Engine/state/extraction changes
+### Phase 3 — <next concern>
 
-**Omitted.** <reason, e.g. no Critical/Major [Engine] issues>
-
-### Phase 4 — Documentation updates
-
-<What REPOMAP/TODO.md entries need updating>
+<Same format>
 
 ## Tests
 
@@ -81,29 +146,36 @@ Each change is independent. Do not consolidate.
 
 <Numbered list of risks with mitigation>
 
-## Ambiguities
+## Ambiguities and posed design questions
 
-<Numbered list of questions that must be resolved before execution>
+<Numbered list of: (a) questions that must be resolved before execution, and (b) design questions you posed during planning but are not addressing in this plan. For posed design questions, state the question, your current thinking, and what would need to change if the answer differs.>
 
-## TODO.md update
+## Execution order summary
 
-<The exact one-line entry to append to docs/plans/TODO.md under the appropriate priority section>
+<Quick reference: phases in order, step counts, total steps.>
 
 ---
 
-PHASING RULES:
-- Phase 1: Prompt-only changes. Conservative — preserve intent, tighten language, cut redundancy. Never rewrite a prompt's purpose. Each prompt change names: pipeline, exact passage, current text, new text, why.
-- Phase 2: Eval harness changes (judge.py, report.py, universal_asserts.py). Only fields/asserts referenced in Section 6 or Section 11 of the report.
-- Phase 3: Engine/state/extraction. Only if Section 11 has Critical/Major [Engine] issues. Omit if none.
-- Phase 4: Documentation (REPOMAP, TODO.md, plan cross-references).
-
 CONTENT RULES:
-- Every Critical/Major issue in Section 11 of the report must appear in the plan with a concrete step.
+- Read the judge verdict (Sections 1-10) FIRST. These are the primary findings.
+- Read Actionable Issues (Section 11) SECOND. Map each Critical/Major issue to a judge finding.
+- Auto-checker failures are BACKGROUND CONTEXT — use them to confirm patterns, not as the primary signal.
+- ENGINE ISSUES ARE THE TOP PRIORITY. Key mechanics broken in the engine code must be addressed before prompt issues.
+- PROPOSE ENGINE FIXES WHEN THE EVIDENCE WARRANTS THEM. Do not default to prompt fixes. Read the engine code. If the code is broken, propose a Python fix. If the code is correct but the LLM doesn't comply, propose a prompt fix.
+- Every Critical/Major issue must appear in the plan with a concrete step.
 - Each step: File, What, Why, Validation.
-- Prompt changes: exact Before/After text. No pseudocode.
-- Assert changes: complete Python snippet. No pseudocode.
+- Prompt changes: exact Before/After text. No pseudocode. Verify against actual .j2 files.
+- Assert changes: complete Python snippet. Verify against actual harness files.
+- Engine changes: include the full function/method signature, the change, and why. Verify against actual source files.
+- Trace changes: specify exactly what data is missing, where it should be captured, and how it flows to the trace output.
 - Flag every ambiguity that would block execution.
-- Do not invent field names or function signatures — read REPOMAP if unsure.
+- Do not invent field names or function signatures — read REPOMAP and actual source files.
+- Phase by concern, not by file. Group related changes together.
+- Keep each plan under ~50k input tokens worth of implementation steps. Split across files if needed.
+- NEVER permanently defer a Critical/Major issue. If a change requires a companion plan, create it and list it as a dependency.
+- Address trace structure gaps: if the judge verdict references missing data (per-turn user prompts, scope tails, pending_gm_beat snapshots, etc.), include trace enrichment steps.
+- Address harness changes: if the report references a new rubric or new assert categories, include changes to judge.py, report.py, and universal_asserts.py.
+- If the report is wrong about any finding, note it in Ambiguities and adjust the plan. Do not plan fixes for problems that don't exist.
 
 Do not summarize findings. Do not restate the report. Write the plan.
 
