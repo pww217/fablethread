@@ -50,12 +50,12 @@ CAPABILITIES = [
 ]
 
 
-def _compaction_event(ev: dict[str, Any]) -> bool:
+def _compaction_event(ev: dict[str, Any], prev_last_compacted: int) -> bool:
     """Returns True if this event shows compaction having run.
 
     Heuristics (any one is enough):
       - applied.compaction.* exists (engine logs compaction outcome under this key)
-      - state_snapshot.meta.last_compacted_turn changed since prev event
+      - state_snapshot.meta.last_compacted_turn increased since prev event
       - state_snapshot.meta.prior_history grew (new bullets appended)
     """
     applied = ev.get("applied") or {}
@@ -63,7 +63,8 @@ def _compaction_event(ev: dict[str, Any]) -> bool:
         return True
     snap = ev.get("state_snapshot") or {}
     meta = (snap.get("meta") or {})
-    if isinstance(meta.get("last_compacted_turn"), int) and meta["last_compacted_turn"] > 0:
+    last_compacted = meta.get("last_compacted_turn")
+    if isinstance(last_compacted, int) and last_compacted > prev_last_compacted:
         return True
     return False
 
@@ -92,6 +93,7 @@ def compute_compaction_signals(events: list[dict[str, Any]]) -> dict[str, Any]:
     out_events: list[dict[str, Any]] = []
     prev_history_size = 0
     prev_recent_events_size = 0
+    prev_last_compacted = 0
     for ev in events:
         if ev.get("__metadata__"):
             continue
@@ -101,7 +103,7 @@ def compute_compaction_signals(events: list[dict[str, Any]]) -> dict[str, Any]:
         prior = list(meta.get("prior_history") or [])
         recent = list(scene.get("recent_events") or [])
 
-        if _compaction_event(ev):
+        if _compaction_event(ev, prev_last_compacted):
             new_bullets = prior[prev_history_size:]
             applied_san = (ev.get("applied") or {}).get("compaction") or {}
             out_events.append({
@@ -116,6 +118,9 @@ def compute_compaction_signals(events: list[dict[str, Any]]) -> dict[str, Any]:
             })
         prev_history_size = len(prior)
         prev_recent_events_size = len(recent)
+        last_compacted = meta.get("last_compacted_turn")
+        if isinstance(last_compacted, int):
+            prev_last_compacted = last_compacted
 
     return {
         "compaction_observed": bool(out_events),

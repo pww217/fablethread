@@ -536,7 +536,59 @@ State the single highest-priority fix the engine needs this run.
 
 ---
 
-## SECTION 11 — Actionable Issues
+## SECTION 11 — Trace Quality and Eval Self-Assessment
+
+This section evaluates the quality of the inputs you received. A judge can only be as good as its trace. Be honest and specific — this feeds directly into plan writing.
+
+### 11A — Input Sufficiency
+
+For each of the following data categories, rate whether the trace provided enough information to make a confident judgment. Use: `SUFFICIENT`, `PARTIAL`, `INSUFFICIENT`.
+
+| Data Category | Rating | Notes |
+|---|---|---|
+| System prompts (all 5 pipelines) | | Were they complete, readable, and correctly attributed? |
+| Per-turn user prompts (all 5 pipelines) | | Were they fully visible or truncated? |
+| Per-turn engine outputs (rules, narrate, extractors) | | Were outputs complete or truncated? |
+| State snapshots (per turn) | | Were they full snapshots or diffs? Sufficient to verify drift? |
+| Applied/rejected deltas | | Were they detailed enough to verify correctness? |
+| Context telemetry (token counts, trim status) | | Sufficient to assess prompt bloat? |
+| Static context (pack style, seed state, engine constants) | | Complete and accurate? |
+| Compaction signals | | Were compaction events correctly identified? (If you saw compaction reported on non-compaction turns, flag it here.) |
+| Auto-checker signals | | Were failures clearly attributed with enough detail to diagnose? |
+
+### 11B — Missing Data
+
+What data did you need to answer your evaluation questions but was NOT in the trace? For each item:
+
+1. **What was missing** — specific field, prompt, or data point
+2. **Why you needed it** — which evaluation question it would have answered
+3. **Where it should come from** — which pipeline or source produces it
+
+Format:
+- **<item>** — Needed for: <question>. Source: <pipeline/file>.
+
+If nothing is missing, write `None.`
+
+### 11C — Questions You Could Not Answer
+
+Which of your evaluation criteria (from Sections 1–10) could you NOT fully assess due to trace limitations? For each:
+
+- **<criterion>** — Could not assess because: <reason>. What data would have enabled it: <specific data>.
+
+If all criteria were fully assessable, write `None.`
+
+### 11D — Trace Structure Suggestions
+
+Based on your experience evaluating this run:
+
+1. **What was the most useful section of the trace?** Why?
+2. **What section was least useful or redundant?** Why?
+3. **What one piece of data, if added to the trace, would have most improved your evaluation?** Be specific (field name, pipeline, format).
+4. **Was the compaction signal section reliable?** If you observed compaction reported on turns where it should not have fired (e.g., turns 7–13 when `compact_every=6`), flag it here as a measurement bug.
+
+---
+
+## SECTION 12 — Actionable Issues
 
 Group as **Critical**, **Major**, **Minor**. Each issue:
 
