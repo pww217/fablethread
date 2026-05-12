@@ -143,6 +143,16 @@ def check_rolled_implies_binding(event: dict[str, Any]) -> dict[str, Any]:
             "scope": "universal",
             "severity": "red",
         }
+    # If a roll was required, the BINDING block should be in the narrate prompt.
+    # If required=false (no roll happened despite rules call), skip.
+    if not rules.get("required", False):
+        return {
+            "assertion": "universal.narrate.binding_present",
+            "passed": True,
+            "detail": "no roll required, binding not expected",
+            "scope": "universal",
+            "severity": "red",
+        }
     nu = (event.get("narrate_prompt") or {}).get("rendered_user") or ""
     if "rules_outcome (BINDING" in nu:
         return {
@@ -193,7 +203,7 @@ def _extract_candidate_names(
         "Big", "Small", "Large", "Little", "High", "Low", "Fast", "Slow",
         "Good", "Bad", "New", "Last", "First", "Next", "Other", "Same",
         "Each", "Every", "Both", "All", "Some", "Any", "Many", "Few",
-        "Hulking", "Generous",
+        "Hulking", "Generous", "Armed", "Two", "Three", "Several",
     }
 
     inv_lower: set[str] = set()
@@ -599,6 +609,64 @@ def check_immediate_pressure_stale(event: dict[str, Any], prev_event: dict[str, 
     return {"assertion": "universal.pressure.no_stale_immediate", "passed": True, "detail": "no stale immediates", "scope": "universal", "severity": "yellow"}
 
 
+_KEY_USE_PHRASES: tuple[str, ...] = (
+    "slid the", "turned the", "inserted the", "used the", "unlocked"
+)
+
+
+def check_key_consumed_after_use(event: dict[str, Any], prev_event: dict[str, Any] | None = None) -> dict[str, Any]:
+    narration = event.get("narration", "")
+    if not any(p in narration.lower() for p in _KEY_USE_PHRASES):
+        return {
+            "assertion": "universal.inventory.key_consumed",
+            "passed": True,
+            "detail": "no key-use language",
+            "scope": "universal",
+            "severity": "yellow",
+        }
+    applied = event.get("applied") or {}
+    removes = applied.get("inventory_remove") or []
+    removed_ids = {r.get("id") for r in removes if isinstance(r, dict) and r.get("id", "").endswith("_key")}
+    post = (event.get("state_snapshot") or {}).get("inventory", [])
+    post_keys = {i["id"]: i.get("amount", 1) for i in post if isinstance(i, dict) and i["id"].endswith("_key")}
+    for kid in removed_ids:
+        if post_keys.get(kid, 0) > 0:
+            return {
+                "assertion": "universal.inventory.key_consumed",
+                "passed": False,
+                "detail": f"{kid} removed in applied but still present in state_snapshot",
+                "scope": "universal",
+                "severity": "yellow",
+            }
+    return {
+        "assertion": "universal.inventory.key_consumed",
+        "passed": True,
+        "detail": "key consumption verified",
+        "scope": "universal",
+        "severity": "yellow",
+    }
+
+
+def check_no_negative_inventory(event: dict[str, Any]) -> dict[str, Any]:
+    inventory = (event.get("state_snapshot") or {}).get("inventory", [])
+    bad = [i["id"] for i in inventory if isinstance(i, dict) and i.get("id") and i.get("amount", 1) < 1]
+    if bad:
+        return {
+            "assertion": "universal.inventory.no_negative_amount",
+            "passed": False,
+            "detail": f"zero/negative inventory: {bad}",
+            "scope": "universal",
+            "severity": "red",
+        }
+    return {
+        "assertion": "universal.inventory.no_negative_amount",
+        "passed": True,
+        "detail": "no negative amounts",
+        "scope": "universal",
+        "severity": "red",
+    }
+
+
 def _assert_quest_id_collision(
     ev: dict[str, Any], prev_ev: dict[str, Any] | None
 ) -> list[dict[str, Any]]:
@@ -679,6 +747,8 @@ def run_all_universal_asserts(
         check_directive_rendered(event),
         check_immediate_pressure_stale(event),
         check_momentum_floor_no_relief(event, prev_event, event_window=event_window),
+        check_key_consumed_after_use(event, prev_event),
+        check_no_negative_inventory(event),
     ]
     results.extend(_assert_quest_id_collision(event, prev_event))
     results.extend(_assert_compactor_sanitization_nonzero(event, prev_event))

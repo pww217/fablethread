@@ -1,13 +1,7 @@
 # Eval Harness Remediation — Eval Run 20260512T154142Z_uufm2ojg
 
 ## Status
-`open`
-
-## Part of
-standalone
-
-## Dependencies
-- mechanical plan (for momentum telemetry in events.jsonl, which this plan's judge trace quality phase depends on)
+`completed`
 
 ## Objective
 The eval harness produced auto-checker failures that were wrong (false positives on NPC extraction and binding directives), missed real failures (key consumption, inventory zero-amount, compactor sanitization skipping), and gave the judge a trace with insufficient momentum and scope telemetry. This plan fixes those harness-level issues so that the auto-checker signal is trustworthy and the judge trace is actionable without manual log inspection.
@@ -148,7 +142,13 @@ _KEY_USE_PHRASES: tuple[str, ...] = (
 def check_key_consumed_after_use(event: dict[str, Any], prev_event: dict[str, Any] | None = None) -> dict[str, Any]:
     narration = event.get("narration", "")
     if not any(p in narration.lower() for p in _KEY_USE_PHRASES):
-        return {"severity": "yellow", "result": "skip", "reason": "no key-use language"}
+        return {
+            "assertion": "universal.inventory.key_consumed",
+            "passed": True,
+            "detail": "no key-use language",
+            "scope": "universal",
+            "severity": "yellow",
+        }
     applied = event.get("applied") or {}
     removes = applied.get("inventory_remove") or []
     removed_ids = {r.get("id") for r in removes if isinstance(r, dict) and r.get("id", "").endswith("_key")}
@@ -157,11 +157,19 @@ def check_key_consumed_after_use(event: dict[str, Any], prev_event: dict[str, An
     for kid in removed_ids:
         if post_keys.get(kid, 0) > 0:
             return {
+                "assertion": "universal.inventory.key_consumed",
+                "passed": False,
+                "detail": f"{kid} removed in applied but still present in state_snapshot",
+                "scope": "universal",
                 "severity": "yellow",
-                "result": "fail",
-                "reason": f"{kid} removed in applied but still present in state_snapshot",
             }
-    return {"severity": "yellow", "result": "pass"}
+    return {
+        "assertion": "universal.inventory.key_consumed",
+        "passed": True,
+        "detail": "key consumption verified",
+        "scope": "universal",
+        "severity": "yellow",
+    }
 ```
 
 **Validation:** Simulate a T8-like event where narration contains "slid the brass key" and `applied.inventory_remove` contains `brass_key` but `state_snapshot.inventory` still has it; assert the assert returns fail.
@@ -181,8 +189,20 @@ def check_no_negative_inventory(event: dict[str, Any]) -> dict[str, Any]:
     inventory = (event.get("state_snapshot") or {}).get("inventory", [])
     bad = [i["id"] for i in inventory if isinstance(i, dict) and i.get("id") and i.get("amount", 1) < 1]
     if bad:
-        return {"severity": "red", "result": "fail", "reason": f"zero/negative inventory: {bad}"}
-    return {"severity": "red", "result": "pass"}
+        return {
+            "assertion": "universal.inventory.no_negative_amount",
+            "passed": False,
+            "detail": f"zero/negative inventory: {bad}",
+            "scope": "universal",
+            "severity": "red",
+        }
+    return {
+        "assertion": "universal.inventory.no_negative_amount",
+        "passed": True,
+        "detail": "no negative amounts",
+        "scope": "universal",
+        "severity": "red",
+    }
 ```
 
 **Validation:** Test with state containing credits at `amount: 0`; assert fail.
@@ -245,6 +265,8 @@ def check_no_negative_inventory(event: dict[str, Any]) -> dict[str, Any]:
 
 **Why:** If the narrator scope tag fails silently on many turns, the judge cannot see it in the current trace. This rate should be visible alongside token counts.
 
+**Note:** `decided_by` field is already implemented (system-cohesion plan, committed). The plan's dependency note referencing "mechanical plan Phase 05" is inaccurate — momentum telemetry is the mechanical plan dependency, not `decided_by`.
+
 **Code Snippet** — Add to `_render_deterministic_signals` after the Metrics table header and row rendering (around line 409), before the parse details section:
 
 ```python
@@ -285,7 +307,7 @@ And in `build_trace`, pass events through. In `run_judge_streaming`, pass events
 
 **What:** If the emitted event contains a momentum block (added by **mechanical plan Phase 05**, not system-cohesion), add momentum telemetry as a column in the per-turn metrics table.
 
-**Why:** The eval REPORT currently shows no per-turn momentum telemetry. The mechanical plan adds `momentum_before/after/delta` to events.jsonl; this step surfaces it in the judge trace.
+**Why:** The eval REPORT currently shows no per-turn momentum telemetry. `momentum` is already a core engine field in `state.meta`; this step surfaces it in the judge trace.
 
 **Code Snippet** — In `_build_metrics_rows`, add `momentum_after` to the row dict:
 
@@ -394,9 +416,3 @@ This is correct. No change needed for T8.
 2. `_check_asserts` does NOT support `contains_any`, `gt`, `not_contains_id`, or dotpath resolution. All scenario asserts must use the supported `stream/field/expected` pattern.
 
 ---
-
-## Ambiguities requiring resolution before execution
-
-1. Does `runner.py:_check_asserts` support `op="contains_any"` and `op="not_contains_id"`? Answer: No. The `_check_asserts` function only supports exact string match for `expected`. Scenario asserts must use single expected values. Phase 04 has been corrected to use supported operators only.
-2. Does each emitted event include a `state_snapshot_before` (pre-delta) key as well as `state_snapshot` (post-delta)? Answer: No. The runner injects only `state_snapshot` (post-delta). `check_key_consumed_after_use` has been corrected to use `applied.inventory_remove` instead of `state_snapshot_before`.
-3. Is the T3 seed state credits balance known? Answer: T3 does not involve credits removal by the PC. T3 is contract acceptance where the PC earns credits. The T3 inventory assert was removed as unnecessary. Read `evals/scenarios/full_cycle.py` lines 64-77 to confirm.

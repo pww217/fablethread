@@ -189,7 +189,7 @@ def build_trace(
         prev_snap = ev.get("state_snapshot") or prev_snap
     if auto_checker_failures or metrics_rows or redundancy_signals or compaction_signals:
         parts.append(_render_deterministic_signals(
-            auto_checker_failures, metrics_rows, redundancy_signals, compaction_signals
+            auto_checker_failures, metrics_rows, turn_events, redundancy_signals, compaction_signals
         ))
     return "\n".join(parts)
 
@@ -381,6 +381,7 @@ def _render_context_telemetry(event: dict[str, Any]) -> str:
 def _render_deterministic_signals(
     failures: list[dict[str, Any]] | None,
     metrics: list[dict[str, Any]] | None,
+    events: list[dict[str, Any]] | None = None,
     redundancy_signals: dict[str, Any] | None = None,
     compaction_signals: dict[str, Any] | None = None,
 ) -> str:
@@ -398,14 +399,15 @@ def _render_deterministic_signals(
 
     parts.append("\n## Metrics\n")
     if metrics:
-        parts.append("| Turn | rules tok_in | narrate tok_in | scene tok_in | state tok_in | progress tok_in | parse_fail | retries |\n")
-        parts.append("|---|---:|---:|---:|---:|---:|---:|---:|\n")
+        parts.append("| Turn | rules tok_in | narrate tok_in | scene tok_in | state tok_in | progress tok_in | parse_fail | retries | momentum |\n")
+        parts.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|\n")
         for m in metrics:
             parts.append(
                 f"| {m.get('turn','?')} | {m.get('rules_tok_in',0)} | "
                 f"{m.get('narrate_tok_in',0)} | {m.get('scene_tok_in',0)} | "
                 f"{m.get('state_tok_in',0)} | {m.get('progress_tok_in',0)} | "
-                f"{m.get('parse_failures',0)} | {m.get('retries',0)} |\n"
+                f"{m.get('parse_failures',0)} | {m.get('retries',0)} | "
+                f"{m.get('momentum_after', '—')} |\n"
             )
         parse_details = [m.get("parse_error_details") for m in metrics if m.get("parse_error_details")]
         if parse_details:
@@ -418,6 +420,15 @@ def _render_deterministic_signals(
                         parts.append(f"- `{err[:500]}`\n")
     else:
         parts.append("*(no metrics)*\n")
+
+    # Scope fallback rate
+    events_for_scope = events or []
+    fallback_turns = sum(
+        1 for e in events_for_scope
+        if e.get("scope", {}).get("decided_by", "narrator") != "narrator"
+    )
+    scope_fallback_rate = fallback_turns / len(events_for_scope) if events_for_scope else 0.0
+    parts.append(f"\n**Scope fallback rate:** {scope_fallback_rate:.0%} ({fallback_turns}/{len(events_for_scope)} turns)\n")
 
     if redundancy_signals is not None:
         from ccya.eval.redundancy import render_redundancy_section
@@ -457,6 +468,7 @@ def _build_metrics_rows(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "parse_failures": len(parse_errors),
             "retries": retries,
             "parse_error_details": parse_errors,
+            "momentum_after": (ev.get("state_snapshot") or {}).get("meta", {}).get("momentum", "—"),
         })
     return rows
 
