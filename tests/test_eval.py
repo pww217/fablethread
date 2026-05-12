@@ -908,7 +908,7 @@ def test_universal_rolled_implies_binding_pass():
 
 def test_universal_rolled_implies_binding_fail():
     from ccya.eval.universal_asserts import check_rolled_implies_binding
-    ev = {"rules": {"rolled": True}, "narrate_prompt": {"rendered_user": "stuff with no binding directive"}}
+    ev = {"rules": {"rolled": True, "required": True}, "narrate_prompt": {"rendered_user": "stuff with no binding directive"}}
     r = check_rolled_implies_binding(ev)
     assert r["passed"] is False
 
@@ -973,7 +973,7 @@ def test_run_all_universal_asserts_returns_ten():
     from ccya.eval.universal_asserts import run_all_universal_asserts
     ev = {"turn": 1}
     rs = run_all_universal_asserts(ev, None)
-    assert len(rs) == 15
+    assert len(rs) == 17
 
 
 # ---------------------------------------------------------------------------

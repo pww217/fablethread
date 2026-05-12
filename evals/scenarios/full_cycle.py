@@ -99,7 +99,7 @@ scenario = Scenario(
             ],
             asserts=[
                 TurnAssert(stream="rules", field="rolled", expected="true"),
-                TurnAssert(stream="extract.scene", field="scene_tags", expected="combat"),
+                TurnAssert(stream="extract.scene", field="scene_tags", expected="standoff"),
             ],
         ),
         # --- Turn 6: Pay off toughs — Cha + credits, quest progress ---
