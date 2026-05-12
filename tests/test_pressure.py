@@ -1,8 +1,9 @@
-"""Tests for scene pressure lifecycle — _purge_scene_pressures."""
+"""Tests for scene pressure lifecycle — _purge_scene_pressures and _expire_scene_pressures."""
 
 from typing import Any
 
-from ccya.engine.pressure import _purge_scene_pressures
+from ccya.engine.config import EngineConfig
+from ccya.engine.pressure import _expire_scene_pressures, _purge_scene_pressures
 from ccya.models import StateDelta
 
 
@@ -108,3 +109,128 @@ class TestPurgeScenePressures:
         assert "b" not in delta.scene_pressure_remove
         assert "c" in delta.scene_pressure_remove
         assert "d" in delta.scene_pressure_remove
+
+
+class TestImmediateTTL:
+    """Tests for immediate pressure TTL (Phase 1)."""
+
+    def test_immediate_ttl_set_on_escalation(self) -> None:
+        """building pressure age 4 → assert max_turns set."""
+        state: dict[str, Any] = {
+            "meta": {"game_name": "test", "turn": 5},
+            "scene": {"scene_pressure": [
+                {"id": "p1", "urgency": "building", "text": "Threat", "turn_added": 1},
+            ]},
+        }
+        delta = StateDelta()
+        config = EngineConfig()
+        _expire_scene_pressures(state, delta, config)
+        assert state["scene"]["scene_pressure"][0]["urgency"] == "immediate"
+        assert state["scene"]["scene_pressure"][0].get("turn_became_immediate") == 5
+        assert state["scene"]["scene_pressure"][0].get("max_turns") is not None
+        # turn_added=1, age=4, ttl=8 → max_turns = 1 + 4 + 8 = 13
+        assert state["scene"]["scene_pressure"][0]["max_turns"] == 13
+
+    def test_immediate_expires_after_ttl(self) -> None:
+        """immediate pressure at max_turns → assert in delta.scene_pressure_remove."""
+        state: dict[str, Any] = {
+            "meta": {"game_name": "test", "turn": 13},
+            "scene": {"scene_pressure": [
+                {"id": "p1", "urgency": "immediate", "text": "Threat", "turn_added": 1, "max_turns": 12},
+            ]},
+        }
+        delta = StateDelta()
+        config = EngineConfig()
+        _expire_scene_pressures(state, delta, config)
+        assert "p1" in delta.scene_pressure_remove
+
+
+class TestAvoidanceDecay:
+    """Tests for avoidance-based pressure decay (Phase 2)."""
+
+    def test_avoidance_decay_building(self) -> None:
+        """building age 2, avoidance=True, decay=2 → effective_age 4, escalates."""
+        state: dict[str, Any] = {
+            "meta": {"game_name": "test", "turn": 3},
+            "scene": {"scene_pressure": [
+                {"id": "p1", "urgency": "building", "text": "Threat", "turn_added": 1},
+            ]},
+        }
+        delta = StateDelta()
+        config = EngineConfig(avoidance_decay_per_turn=2)
+        _expire_scene_pressures(state, delta, config, avoidance=True)
+        assert state["scene"]["scene_pressure"][0]["urgency"] == "immediate"
+
+    def test_avoidance_no_effect_on_immediate(self) -> None:
+        """immediate pressure, avoidance=True → effective_age unchanged."""
+        state: dict[str, Any] = {
+            "meta": {"game_name": "test", "turn": 6},
+            "scene": {"scene_pressure": [
+                {"id": "p1", "urgency": "immediate", "text": "Threat", "turn_added": 1, "max_turns": 20},
+            ]},
+        }
+        delta = StateDelta()
+        config = EngineConfig(avoidance_decay_per_turn=5)
+        _expire_scene_pressures(state, delta, config, avoidance=True)
+        # immediate pressure should NOT be expired (effective_age=5, max_turns=20)
+        assert "p1" not in delta.scene_pressure_remove
+        # urgency should remain immediate (no escalation needed)
+        assert state["scene"]["scene_pressure"][0]["urgency"] == "immediate"
+
+
+class TestFloorRelief:
+    """Tests for momentum floor relief injection (Phase 3)."""
+
+    def test_floor_relief_injection(self) -> None:
+        """floor momentum with non-success band → assert pending_gm_beat injected."""
+        from ccya.engine.turn import _check_floor_relief
+
+        state: dict[str, Any] = {
+            "meta": {"game_name": "test", "turn": 5},
+            "pc": {"momentum": -3},
+        }
+        config = EngineConfig(momentum_floor=-3, momentum_floor_relief_turns=2)
+
+        # First call at floor
+        _check_floor_relief(state, config, "fail")
+        assert state["meta"]["consecutive_floor_count"] == 1
+        assert state["meta"].get("pending_gm_beat") is None
+
+        # Second call at floor — should inject
+        _check_floor_relief(state, config, "fail")
+        assert state["meta"]["consecutive_floor_count"] == 2
+        assert state["meta"]["pending_gm_beat"]["type"] == "breathing_room"
+
+    def test_floor_relief_not_injected_after_success(self) -> None:
+        """floor momentum with success band → assert no injection, counter resets."""
+        from ccya.engine.turn import _check_floor_relief
+
+        state: dict[str, Any] = {
+            "meta": {"game_name": "test", "turn": 5},
+            "pc": {"momentum": -3},
+        }
+        config = EngineConfig(momentum_floor=-3, momentum_floor_relief_turns=2)
+
+        # First call at floor with fail
+        _check_floor_relief(state, config, "fail")
+        assert state["meta"]["consecutive_floor_count"] == 1
+
+        # Second call at floor with success — resets counter, no injection
+        _check_floor_relief(state, config, "success")
+        assert state["meta"]["consecutive_floor_count"] == 0
+        assert state["meta"].get("pending_gm_beat") is None
+
+    def test_floor_relief_no_injection_with_existing_beat(self) -> None:
+        """floor momentum with existing pending_gm_beat → assert no overwrite."""
+        from ccya.engine.turn import _check_floor_relief
+
+        state: dict[str, Any] = {
+            "meta": {"game_name": "test", "turn": 5, "pending_gm_beat": {"type": "boss_encounter"}},
+            "pc": {"momentum": -3},
+        }
+        config = EngineConfig(momentum_floor=-3, momentum_floor_relief_turns=2)
+
+        _check_floor_relief(state, config, "fail")
+        assert state["meta"]["consecutive_floor_count"] == 1
+        # Existing beat should not be overwritten
+        assert state["meta"]["pending_gm_beat"]["type"] == "boss_encounter"

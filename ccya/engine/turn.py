@@ -266,6 +266,16 @@ async def run_turn(
     try:
         await _inflight.acquire(str(save_dir))
 
+        # Avoidance detection: flag de-escalation intent in player input
+        _avoidance_kw = config.avoidance_keywords
+        _input_lower = (user_input or "").lower()
+        avoidance = any(kw in _input_lower for kw in _avoidance_kw)
+        if avoidance:
+            _log.debug(
+                "pacing: avoidance detected in input",
+                extra={"turn": state.get("meta", {}).get("turn", 0), "trace_id": "", "pack": "", "kind": "pacing"},
+            )
+
         # Prompt capture variables (initialized early for exception safety)
         rendered_rules_system = ""
         rendered_rules_user = ""
@@ -614,7 +624,7 @@ async def run_turn(
                 combat_ended=combat_ended,
                 config=config,
             )
-            _expire_scene_pressures(state, delta, config)
+            _expire_scene_pressures(state, delta, config, avoidance=avoidance)
 
         ext_ms = (asyncio.get_event_loop().time() - t2) * 1000
         # Roll up per-stream token counts for the metrics dict
@@ -673,6 +683,8 @@ async def run_turn(
                 state, recent_events_evicted = apply_delta(
                     state, delta, recent_events_max=config.recent_events_max
                 )
+                # Add floor relief check after momentum is updated by apply_delta
+                _check_floor_relief(state, config, outcome.band if outcome.rolled else "")
                 recent_events = list(delta.recent_events_add)
                 applied = delta.model_dump(exclude_none=True)
                 for r in rejected:
@@ -884,6 +896,46 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
     # No quest ID validation here.
 
     return rejections
+
+
+def _check_floor_relief(
+    state: dict[str, Any], config: EngineConfig, band: str
+) -> None:
+    """Check momentum floor and inject breathing_room beat if relief conditions met.
+
+    Tracks consecutive floor turns via state["meta"]["consecutive_floor_count"].
+    Resets counter on any non-floor momentum or success/crit_success band.
+    """
+    floor = config.momentum_floor
+    relief_threshold = config.momentum_floor_relief_turns
+    cur_momentum = (state.get("pc") or {}).get("momentum", 0)
+    meta = state.setdefault("meta", {})
+
+    if cur_momentum != floor:
+        meta["consecutive_floor_count"] = 0
+        return
+
+    if band in ("success", "crit_success"):
+        meta["consecutive_floor_count"] = 0
+        return
+
+    count = int(meta.get("consecutive_floor_count", 0)) + 1
+    meta["consecutive_floor_count"] = count
+
+    if (
+        count >= relief_threshold
+        and meta.get("pending_gm_beat") is None
+    ):
+        meta["pending_gm_beat"] = {
+            "type": "breathing_room",
+            "surface_as": "ambient",
+            "beat_expires_turn": (state.get("meta") or {}).get("turn", 0) + 3,
+        }
+        _log.info(
+            "pacing: injecting breathing_room beat (floor=%d, consecutive=%d)",
+            cur_momentum, count,
+            extra={"turn": (state.get("meta") or {}).get("turn", 0), "trace_id": "", "pack": "", "kind": "pacing"},
+        )
 
 
 async def run_turn_retry(

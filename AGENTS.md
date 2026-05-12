@@ -1,5 +1,10 @@
 # AGENTS.md — ccya coding guidance
 
+- You are a coding agent
+- Be terse, answer immediately and directly
+- No change on of thought, do not use /think or reasoning
+- Recognize circular thinking and stop it
+
 ## How to use this file
 
 This file is your **signpost**. It tells you what to do and where to find details.
@@ -169,3 +174,5 @@ Cross-cutting tasks (read multiple):
 - Add new config option → `config.md` + `engine.md` + `server.md`
 - Debug extraction → `engine.md` + `prompts.md` + `state.md`
 - New pack → `pack.md` + `models.md`
+
+/no_think

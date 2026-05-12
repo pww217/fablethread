@@ -1,94 +1,196 @@
-Now let me check the models and config for the compaction-related types and settings.
-Let me check for `CompactResult` and also look at the existing compactor tests.
-Now I have all the information needed. Let me compile the review.
+# Compaction Interval and Sanitization Fidelity
 
-# Plan Review: Compaction Interval and Sanitization Fidelity
+## Status
+`open`
 
-## Summary
-The plan has significant accuracy issues: template variable/field names don't match the actual codebase, several referenced symbols don't exist, and the compaction interval change is mischaracterized. The plan acknowledges some ambiguities but doesn't resolve them. **5 warnings, 0 blockers** — the plan can be fixed without changing intent.
+## Part of
+standalone
 
-## Findings
+## Dependencies
+- none
+
+## Affected Files
+| File | Change type | Summary of change |
+|---|---|---|
+| `ccya/engine/compactor.py` | modify | Change compaction trigger from `config.compact_every` (default 6) to 12; change `_extract_turns_for_compact` to use `recent_events` instead of chronicle prose; add remove-delta logging in `_apply_sanitization` |
+| `ccya/prompts/compact_system.j2` | modify | Update system instruction to synthesize from structured facts, not prose |
+| `ccya/prompts/compact_user.j2` | modify | Remove narration turns block; pass `recent_events` and state snapshot |
+| `ccya/engine/config.py` | modify | Change `compact_every` default from `6` to `12` (or update `config.yaml`) |
+| `docs/REPOMAP/engine.md` | update | Document new compaction interval and input format |
+| `docs/REPOMAP/prompts.md` | update | Note removal of narration prose block, addition of structured state sections |
+
+## Overview
+Change compaction from every 6 turns (reading full narration prose) to every 12 turns (reading `recent_events` + state snapshot), and add logging for removed pressures/conditions during sanitization.
+
+## Phases
 
 ### Phase 1: Change Interval and Input
 
-#### Step 1.1 — Change compaction interval in compactor.py
+#### Step 1.1 — Change compaction interval
 
-**Finding:** The plan suggests adding `COMPACTION_INTERVAL = 12` and changing `if turn_number % COMPACTION_INTERVAL == 0:`. The actual code at `compactor.py:41` uses `if current_turn % config.compact_every != 0:`. The compaction interval is controlled by `EngineConfig.compact_every` (default `0` = disabled), not a hardcoded constant. The plan should instruct changing the config value, not adding a module-level constant.
-**Category:** WARNING
-**Plan says:** `COMPACTION_INTERVAL = 12` / `if turn_number % COMPACTION_INTERVAL == 0:`
-**Code shows:** `if current_turn % config.compact_every != 0:` at `compactor.py:41`. `config.compact_every` is an `EngineConfig` field (default `0`, from `config.yaml` `game.compact_every`).
+**File:** `ccya/engine/config.py:74` and `config.yaml:28`
+
+**What:** The compaction interval is controlled by `config.compact_every`, which defaults to `0` (disabled) in `EngineConfig` and is set to `6` in `config.yaml`. Change the value in `config.yaml` from `6` to `12`. The trigger in `compactor.py:41` already reads `config.compact_every`, so no code change is needed there.
+
+**Current (config.yaml:28):**
+```yaml
+  compact_every: 6
+```
+
+**New:**
+```yaml
+  compact_every: 12
+```
+
+**Why:** The compaction trigger in `compactor.py:41` is `if current_turn % config.compact_every != 0: return state, False`. Changing the config value changes the interval. The plan's original code snippet (`COMPACTION_INTERVAL = 12`) was wrong — there is no such constant; the interval is a config value.
+
+**Validation:** Confirm compaction does not fire at turn 6 in a test run. Confirm it fires at turn 12.
+
+***
 
 #### Step 1.2 — Change compact_user.j2 input from narration history to recent_events + state snapshot
 
-**Finding (variable name mismatch):** The plan template uses `scene_pressure`, `active_conditions`, and `compendium` as variable names. The actual compactor.py passes `pressures`, `conditions`, and `compendium_npcs` (lines 176, 181, 179/189). The template would fail to render these sections.
-**Category:** WARNING
-**Plan says:** `{% for p in scene_pressure %}`, `{% for c in active_conditions %}`, `{% for npc in compendium %}`
-**Code shows:** `pressures=pressures,` (line 187), `conditions=conditions,` (line 191), `compendium_npcs=compendium_npcs,` (line 189)
+**File:** `ccya/prompts/compact_user.j2`
 
-**Finding (field name mismatch — event.summary):** The plan template uses `evt.summary` for recent events. The actual `recent_events` entries have `id`, `text`, and `turn` fields (compactor.py lines 114-120, compact_user.j2 line 64). The plan should use `evt.text`.
-**Category:** WARNING
-**Plan says:** `{{ evt.summary }}`
-**Code shows:** `event.text` in compact_user.j2:64 and compactor.py:117
+**What:** The current template (68 lines) has two sections: (1) `## TURNS TO COMPACT` iterating over `turns` (each with `turn`, `input`, `narrative`), and (2) `## ACTIVE CONTEXT` + `## MECHANICAL STATE` + `## RECENT EVENTS` with state sections. The plan wants to **remove** the turns section and **keep/modify** the state sections.
 
-**Finding (field name mismatch — obj.text):** The plan template uses `obj.text` for quest objectives. The actual objectives have `description` and `done` fields (compact_user.j2:16). The plan should use `obj.description`.
-**Category:** WARNING
-**Plan says:** `{{ obj.text }}`
-**Code shows:** `obj.get("description", "?")` in compact_user.j2:16
+The call site in `compactor.py:184-193` already passes `turns`, `active_quests`, `pressures`, `inventory`, `compendium_npcs`, `all_quests`, `conditions`, and `recent_events`. The plan wants to stop passing `turns` and instead pass a simplified state snapshot.
 
-**Finding (field name mismatch — p.description):** The plan template uses `p.description` for pressures. The actual pressures have `id`, `text`, `urgency`, `turn_added`, `max_turns` fields (compactor.py:176, compact_user.j2:24). The plan should use `p.text`.
-**Category:** WARNING
-**Plan says:** `{{ p.description }}`
-**Code shows:** `p.get("text", p)` in compact_user.j2:24
+**Text — new compact_user.j2 structure:**
+```
+## recent_events (last 12, most recent last)
+{% for evt in recent_events %}
+- [T{{ evt.turn }}] {{ evt.text if evt is mapping else evt }}
+{% endfor %}
 
-**Finding (field name mismatch — c.turns_remaining):** The plan template uses `c.turns_remaining` for conditions. The actual conditions have `id`, `label`, `description`, `added_turn` fields (compactor.py:181, compact_user.j2:55). There is no `turns_remaining` field. The plan would need to compute `current_turn - c.added_turn` or use `c.added_turn`.
-**Category:** WARNING
-**Plan says:** `{{ c.turns_remaining }} turns remaining`
-**Code shows:** `c.get("id")`, `c.get("label")`, `c.get("description")` in compact_user.j2:55-56. No `turns_remaining` field exists.
+## current_state
 
-**Finding (field name mismatch — item.quantity):** The plan template uses `item.quantity` for inventory. The actual inventory items have `id`, `name`, `amount`, `notes` fields (compactor.py:177, compact_user.j2:33). The plan should use `item.amount`.
-**Category:** WARNING
-**Plan says:** `{{ item.quantity if item.quantity is not none else 'unique' }}`
-**Code shows:** `item.get("amount")` in compact_user.j2:33
+### quests
+{% for q in active_quests %}
+- {{ q.get("id", "?") }}: {{ q.get("title", "?") }}
+{% for obj in (q.get("objectives") or []) %}[{{ 'x' if obj.get("done") else ' ' }}] {{ obj.get("description", "?") }}{% endfor %}
+{% endfor %}
 
-**Finding (field name mismatch — npc.bio_summary):** The plan template uses `npc.bio_summary` for NPC compendium. The actual compendium NPCs have `name`, `title`, `bio`, `aliases` fields (compactor.py:178-179, compact_user.j2:40-41). The plan should use `npc.bio`.
-**Category:** WARNING
-**Plan says:** `{{ npc.bio_summary }}`
-**Code shows:** `npc.get("name")`, `npc.get("title")`, `npc.get("bio")`, `npc.get("aliases")` in compact_user.j2:41
+### pressures
+{% for p in pressures %}
+- {{ p.get("id", "?") }} ({{ p.get("urgency", "").upper() }}): {{ p.get("text", p) }}
+{% endfor %}
+
+### conditions
+{% for c in conditions %}
+- {{ c.get("id", "?") }}: {{ c.get("label", "?") }} ({{ c.get("description", "") }})
+{% endfor %}
+
+### inventory
+{% for item in inventory %}
+- {{ item.get("id", "?") }}: {{ item.get("name", "?") }}{% if item.get("amount", 1) != 1 %} ×{{ item.get("amount") }}{% endif %}
+{% endfor %}
+
+### npcs
+{% for npc_id, npc in compendium_npcs %}
+- {{ npc_id }}: {{ npc.get("name", "?") }}{% if npc.get("title") %} ({{ npc.get("title") }}){% endif %}
+{% endfor %}
+```
+
+**In `compactor.py:63-65`, change `_extract_turns_for_compact` call to return `recent_events` instead of turns. The `maybe_compact` function already has `recent_events` available from `state["scene"]["recent_events"]`. The `_build_compact_messages` call at line 74 already receives `state` and extracts `recent_events` at line 182. The `turns` parameter passed to the template at line 184 should be removed or replaced with `None`.**
+
+**Corrected call site in `compactor.py:184`:**
+```python
+# Remove `turns=turns,` from the render call.
+# The turns variable from _extract_turns_for_compact is no longer needed.
+user_prompt = env.get_template("compact_user.j2").render(
+    active_quests=active_quests,
+    pressures=pressures,
+    inventory=inventory,
+    compendium_npcs=compendium_npcs,
+    all_quests=all_quests,
+    conditions=conditions,
+    recent_events=recent_events,
+)
+```
+
+**Also in `compactor.py:63-65`, the `_extract_turns_for_compact` call and its result can be removed or kept for backward compatibility (the function still exists and is tested).**
+
+**Validation:** Render `compact_user.j2` with a test state fixture. Confirm no narration prose appears. Confirm all five state sections render correctly.
+
+***
 
 #### Step 1.3 — Update compact_system.j2 summarization instruction
 
-**Finding:** The plan's proposed system prompt text is reasonable and fits the existing template structure. The current `compact_system.j2` has three parts (prior-history bullets, state sanitization, recent_events compaction) and the plan's new instruction replaces the PART 1 guidance. The plan says "only its input changes" for the output format, which is consistent.
-**Category:** SUGGESTION
-**Plan says:** Replace system prompt instruction
-**Code shows:** `compact_system.j2:1-155` has three parts. The plan's new instruction for PART 1 is compatible. The plan should clarify that PART 2 (sanitization) and PART 3 (recent_events) instructions remain unchanged.
+**File:** `ccya/prompts/compact_system.j2`
+
+**What:** The plan's original system prompt snippet was approximate. The actual file (155 lines) has three parts: PART 1 (prior-history bullets), PART 2 (state sanitization), PART 3 (recent_events compaction). The plan wants to update PART 1's instruction from summarizing prose turns to synthesizing from structured facts.
+
+**Current (lines 1-9):**
+```
+You are a game historian and consistency editor for a TTRPG session.
+
+Your output has two parts:
+1. One bullet per compacted turn.
+2. One JSON object with state sanitization actions (or {}).
+```
+
+**New:**
+```
+You are a game historian and consistency editor for a TTRPG session.
+
+Your output has two parts:
+1. One bullet per recent event (synthesized from structured facts, not turn prose).
+2. One JSON object with state sanitization actions (or {}).
+```
+
+**The plan's new system prompt text (for PART 1) should replace the current PART 1 instructions (lines 11-39) with guidance to synthesize from the structured `recent_events` and `current_state` sections provided in the user message, rather than from turn-by-turn narration prose.**
+
+**Validation:** Run compaction with the new prompt. Confirm output is coherent, does not reference specific turn numbers, and accurately reflects the provided state facts.
+
+***
 
 ### Phase 2: Remove-Delta Logging
 
-#### Step 2.1 — Log remove deltas during compaction application
+#### Step 2.1 — Log remove deltas during sanitization application
 
-**Finding (symbol doesn't exist — CompactResult):** The plan references `CompactResult` in non-goals and Phase 2.1. This model does not exist. The actual model is `CompactorSanitizationResult` (models.py:367). The plan has an ambiguity section that acknowledges this question.
-**Category:** WARNING
-**Plan says:** `CompactResult` (non-goals), `compact_result.deltas` (Phase 2.1)
-**Code shows:** `CompactorSanitizationResult` at `ccya/models.py:367`. No `CompactResult` exists.
+**File:** `ccya/engine/compactor.py` (NOT `turn.py`)
 
-**Finding (symbol doesn't exist — deltas field):** The plan references `compact_result.deltas` (or `san.deltas`). `CompactorSanitizationResult` has no `deltas` field. It has separate lists: `npc_merge`, `inventory_remove`, `quest_close`, `pressure_remove`, `condition_remove`, `recent_events_compact`. The plan has an ambiguity section that acknowledges this question.
-**Category:** WARNING
-**Plan says:** `for delta in compact_result.deltas:` / `delta.op in ("pressure_remove", "condition_remove")` / `delta.id`
-**Code shows:** `CompactorSanitizationResult` has `pressure_remove: list[CompactorSanitizationAction]` and `condition_remove: list[CompactorSanitizationAction]`. No `deltas` or `op` field exists. The logging should iterate over `san.pressure_remove` and `san.condition_remove` separately.
+**What:** The plan's original code snippet referenced `CompactResult` and `compact_result.deltas`, which **do not exist**. The compaction output is `CompactorSanitizationResult` (defined in `ccya/models.py:367`). The sanitization is applied in `_apply_sanitization()` (compactor.py:247-327), which already has logging for each removal type. The plan wants to add explicit `compaction_remove` events.
 
-**Finding (symbol doesn't exist — log_event):** The plan references `log_event()` which doesn't exist. The correct function is `append_event()` from `ccya.state.chronicle` (chronicle.py:15), which is already imported in `ccya/engine/turn.py:47`. The logging should be added in `_apply_sanitization()` in compactor.py, which already has logging via `_log.info()`. The plan should use `_log.info()` or `append_event()` instead.
-**Category:** WARNING
-**Plan says:** `log_event({...})`
-**Code shows:** No `log_event` function exists. `append_event()` exists at `ccya/state/chronicle.py:15`. `_apply_sanitization()` already uses `_log.info()` for logging (compactor.py:278, 295, 305, 316, 327).
+The `_apply_sanitization` function already logs removals at lines 315-316 (pressure) and 326-327 (condition) using `_log.info`. The plan wants these logged as structured events that can be audited. The logging already exists — the plan's "sanitization fidelity score is 0.25" metric likely comes from the eval harness, not from event logging. The existing `_log.info` calls already serve this purpose.
 
-**Finding (symbol doesn't exist — sanitization_fidelity):** The plan references `sanitization_fidelity` in the validation step. This metric does not exist anywhere in the codebase. The plan would need to define this metric or use an existing one.
-**Category:** WARNING
-**Plan says:** `Confirm sanitization_fidelity in the eval report is > 0.25`
-**Code shows:** No `sanitization_fidelity` found anywhere in the codebase.
+**If explicit event logging is required**, add `append_event` calls in `_apply_sanitization`. However, `_apply_sanitization` currently has no access to `save_dir` or event logging. The caller `maybe_compact` (line 109) calls `_apply_sanitization(state, sanitization)`. The `save_dir` is available in `maybe_compact`. The logging should be added in `maybe_compact` after `_apply_sanitization` returns, or `_apply_sanitization` should be extended to accept a logging callback.
 
-## Unchanged
-- **File existence:** All 5 files referenced in the plan exist: `ccya/engine/compactor.py`, `ccya/prompts/compact_system.j2`, `ccya/prompts/compact_user.j2`, `ccya/engine/turn.py`, `docs/REPOMAP/engine.md`.
-- **`_apply_sanitization` exists:** The function exists at `compactor.py:247` and already handles `pressure_remove` (line 307-316) and `condition_remove` (line 319-327) with logging. The logging hook from Phase 2 should be added here.
-- **`append_event` exists and is importable:** Already imported in `turn.py:47`. The compactor.py would need to import it from `ccya.state.chronicle`.
-- **`recent_events` already passed to template:** compactor.py:182-192 already extracts and passes `recent_events` to the template. The plan's intent to use `recent_events` is already partially supported.
-- **`compactor.py:63` — `_extract_turns_for_compact` already extracts turns from chronicle.md:** The plan's intent to switch from narration history to `recent_events` + state snapshot would require changing this function or adding a new one. The plan doesn't explicitly address this.
+**Corrected approach — add logging in `maybe_compact` after sanitization:**
+```python
+# In maybe_compact, after _apply_sanitization(state, sanitization) at line 109:
+if sanitization is not None:
+    _apply_sanitization(state, sanitization)
+    current_turn = int((state.get("meta") or {}).get("turn", 0) or 0)
+    for item in sanitization.pressure_remove:
+        _log.info(
+            "compactor: compaction_remove pressure %r", item.id,
+            extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "compaction_remove"},
+        )
+    for item in sanitization.condition_remove:
+        _log.info(
+            "compactor: compaction_remove condition %r", item.id,
+            extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "compaction_remove"},
+        )
+```
+
+**The plan's original code snippet was wrong because:**
+1. `CompactResult` does not exist — the model is `CompactorSanitizationResult`
+2. There is no `deltas` field on compaction output — sanitization fields are `pressure_remove`, `condition_remove`, etc.
+3. The logging should be in `compactor.py`, not `turn.py` — compaction is entirely contained in compactor.py
+4. The logging already exists as `_log.info` in `_apply_sanitization` — the plan just needs to add the `compaction_remove` kind tag for auditability
+
+**Validation:** Run a compaction that removes a pressure. Confirm `compaction_remove` log entry appears. The sanitization logging already exists in `_apply_sanitization` at lines 315-316 and 326-327.
+
+***
+
+### Tests to write or update
+- `tests/test_compactor.py`: trigger test — confirm compaction fires at turn 12, not turn 6 (update existing tests that use `compact_every=6`).
+- `tests/test_compactor.py`: input test — render `compact_user.j2` with fixture, confirm no narration prose, confirm all 5 state sections present.
+- `tests/test_compactor.py`: remove-delta log test — run compaction that removes a condition, confirm `compaction_remove` in log output.
+
+### Risks
+1. **`recent_events` ring may not contain 12 entries before first compaction** — at turn 12, the ring may have fewer entries if events were sparse. Mitigation: render however many exist; the template uses `{% for %}` which handles empty lists gracefully.
+2. **Compaction at turn 12 means a longer gap without summarization for very long runs** — if the ring buffer is small (< 12 entries), some early-game facts may be lost between turns 0–12. Mitigation: the 2–3 full narrations retained in context cover this gap.
+3. **`_extract_turns_for_compact` is still called but its result is no longer used** — the function and its tests should be updated or deprecated. The function is also referenced in `docs/REPOMAP/engine.md:133`.

@@ -10,7 +10,7 @@ standalone
 - none (does not depend on Plan 1, can run in parallel)
 
 ## Objective
-Two separate but related failures degrade narration quality: (1) the `Breathe`/`Overwhelm`/`Pressure`/`Tension` directives in `narrate_user.j2` are never rendered because the bare `scene_pressure` variable is not passed to `_narrate_messages()` — only `state.scene.scene_pressure` is accessible, but the Jinja block references `scene_pressure` as a standalone variable; (2) even when they do render, the momentum floor directive ("Consider offering an opportunity") is too vague to be honored consistently, and there is no mechanic-grounded instruction telling the narrator how to reward player de-escalation choices. The result is a death spiral with no exit and narration that ignores momentum state entirely.
+Two separate but related failures degrade narration quality: (1) the `Breathe`/`Overwhelm`/`Pressure`/`Tension` directives in `narrate_user.j2` are never rendered because the bare `scene_pressure` variable is not passed to `_narrate_messages()` — only `state.scene.scene_pressure` is accessible, but the Jinja block at lines 96-111 references `scene_pressure` as a standalone variable; (2) even when they do render, the momentum floor directive ("Consider offering an opportunity") is too vague to be honored consistently, and there is no mechanic-grounded instruction telling the narrator how to reward player de-escalation choices. The result is a death spiral with no exit and narration that ignores momentum state entirely.
 
 ## Non-goals
 - Does not change dice resolution or band logic.
@@ -22,7 +22,8 @@ Two separate but related failures degrade narration quality: (1) the `Breathe`/`
 ## Affected files
 | File | Change type | Summary of change |
 |---|---|---|
-| `ccya/engine/narrate.py` | modify | Pass `scene_pressure` as explicit kwarg to `_narrate_messages()` from `state.scene.scene_pressure` |
+| `ccya/engine/narrate.py` | modify | Add `scene_pressure` kwarg to `_narrate_messages()` signature; add to Jinja `user_ctx` dict |
+| `ccya/engine/turn.py` | modify | Pass `scene_pressure` kwarg at both `_narrate_messages()` call sites (`run_turn` and `run_turn_retry`) |
 | `ccya/prompts/narrate_user.j2` | modify | Strengthen momentum floor directive; add de-escalation reward instruction tied to `deescalate` flag and momentum band |
 | `ccya/prompts/narrate_system.j2` | modify | Add repeat-imagery prohibition rule; add quantified-NPC rule |
 | `docs/REPOMAP/engine.md` | update | Document `scene_pressure` kwarg addition to `_narrate_messages()` |
@@ -40,10 +41,11 @@ Two separate but related failures degrade narration quality: (1) the `Breathe`/`
 
 ### Context files to load
 - `ccya/engine/narrate.py`
+- `ccya/engine/turn.py`
 - `ccya/prompts/narrate_user.j2`
 
 ### Overview
-Pass `scene_pressure` as an explicit list to `_narrate_messages()`, sourced from `state.scene.scene_pressure`. This makes the existing Jinja directive blocks (`Breathe`, `Overwhelm`, `Pressure`, `Tension`) actually render.
+Pass `scene_pressure` as an explicit list to `_narrate_messages()`, sourced from `state.get("scene", {}).get("scene_pressure") or []`. This makes the existing Jinja directive blocks (`Breathe`, `Overwhelm`, `Pressure`, `Tension`) at lines 93-111 of `narrate_user.j2` actually render.
 
 ### Detailed steps
 
@@ -51,39 +53,43 @@ Pass `scene_pressure` as an explicit list to `_narrate_messages()`, sourced from
 
 **File:** `ccya/engine/narrate.py`
 
-**What:** Add `scene_pressure: list | None = None` to the `_narrate_messages()` function signature. Pass it through to the Jinja context dict under the key `"scene_pressure"`.
+**What:** Add `scene_pressure: list | None = None` to the `_narrate_messages()` function signature (after `pc_allegiance` at line 33). Add `"scene_pressure": scene_pressure or []` to the `user_ctx` dict (after `"pc_allegiance"` at line 53).
 
-**Why:** The template references `scene_pressure` as a bare variable. It is currently never in the Jinja context, so every `{% if scene_pressure %}` and `{% set immediate_count = scene_pressure | ... %}` block silently evaluates to false/empty.
+**Why:** The template at `narrate_user.j2:96-111` references `scene_pressure` as a bare variable in `{% elif scene_pressure %}`, `{% set immediate_count = scene_pressure | selectattr(...) %}`, and `{% set building_count = scene_pressure | selectattr(...) %}`. It is currently never in the Jinja context, so every block silently evaluates to false/empty. The `user_ctx` dict already passes `"scene": state.get("scene", {})` at line 47, but the template uses bare `scene_pressure` (not `state.scene.scene_pressure`) in the directive blocks.
 
 **Code Snippet:**
 ```python
-# In _narrate_messages() signature, add:
-scene_pressure: list | None = None,
+# In _narrate_messages() signature, add after pc_allegiance:
+    scene_pressure: list | None = None,
 
-# In the ctx dict passed to _render(), add:
-"scene_pressure": scene_pressure or [],
+# In the user_ctx dict, add after pc_allegiance:
+        "scene_pressure": scene_pressure or [],
 ```
 
-**Validation:** Render `narrate_user.j2` with a state that has one immediate pressure. Confirm `**Pressure:** Active immediate threat(s).` appears in the rendered output.
+**Validation:** Render `narrate_user.j2` with a state that has one immediate pressure and `scene_pressure=[{"urgency": "immediate", "text": "test"}]`. Confirm `**Pressure:** Active immediate threat(s).` appears in the rendered output.
 
 ***
 
-#### Step 1.2 — Pass scene_pressure at the call site in run_turn
+#### Step 1.2 — Pass scene_pressure at the call sites in run_turn and run_turn_retry
 
-**File:** `ccya/engine/narrate.py` (or `ccya/engine/turn.py` depending on where `_narrate_messages` is called)
+**File:** `ccya/engine/turn.py`
 
-**What:** At the call site of `_narrate_messages()`, pass `scene_pressure=state.scene.scene_pressure`.
+**What:** At both `_narrate_messages()` call sites, add `scene_pressure=(state.get("scene") or {}).get("scene_pressure") or []`.
 
-**Why:** The kwarg added in 1.1 has no effect unless the call site provides the value.
+**Why:** The kwarg added in 1.1 has no effect unless the call site provides the value. There are two call sites:
+- `run_turn()` at lines 460-482
+- `run_turn_retry()` at lines 1007-1031
 
 **Code Snippet:**
 ```python
-# Find the _narrate_messages() call in run_turn or narrate.py
-# Add the kwarg:
-scene_pressure=state.scene.scene_pressure,
+# In run_turn() _narrate_messages() call (around line 481), add:
+            scene_pressure=(state.get("scene") or {}).get("scene_pressure") or [],
+
+# In run_turn_retry() _narrate_messages() call (around line 1030), add:
+            scene_pressure=(state.get("scene") or {}).get("scene_pressure") or [],
 ```
 
-**Validation:** Run a full turn with an active immediate pressure. Check `events.jsonl` → `narrate.rendered_user` — confirm the `Pressure` or `Overwhelm` block is present.
+**Validation:** Run a full turn with an active immediate pressure. Check `events.jsonl` → `narrate_prompt.rendered_user` — confirm the `Pressure` or `Overwhelm` block is present.
 
 ***
 
@@ -101,18 +107,23 @@ Replace the vague momentum floor and de-escalation directives with concrete, mec
 
 **File:** `ccya/prompts/narrate_user.j2`
 
-**What:** Replace the current low-momentum block:
+**What:** Replace the current low-momentum block at lines 89-92:
 
-```
+```jinja2
+{% elif m <= -2 %}
+
 **Momentum:** LOW ({{ m }}). The player has been struggling. Consider offering an opportunity or escape path to progress the story.
+{% endif %}
 ```
 
 With a stronger, concrete version:
 
-```
-{% if m <= -3 %}
+```jinja2
+{% elif m <= -3 %}
+
 **Momentum FLOOR ({{ m }}):** The player is at the lowest possible momentum. You MUST give them a visible out this turn. If the player attempts any de-escalation action (retreat, hide, run, rest, ask for help, surrender, concede), narrate a partial success — they get some distance, some relief, some breath. Do not pile on. One pressure should feel like it eases even if not removed. The story cannot sustain another pure failure here.
 {% elif m <= -2 %}
+
 **Momentum LOW ({{ m }}):** The player is struggling. Look for the one thing going slightly in their favor and name it. If the player attempts retreat, disengagement, or rest, allow the attempt to feel like it matters narratively.
 {% endif %}
 ```
@@ -127,21 +138,21 @@ With a stronger, concrete version:
 
 **File:** `ccya/prompts/narrate_user.j2`
 
-**What:** Extend the existing `deescalate` block. Currently:
+**What:** Replace the existing Breathe block at line 95:
 
-```
+```jinja2
 **Breathe:** A pressure has resolved. Pull back. Let the scene have a moment of relief. No new hook this turn.
 ```
 
-Replace with:
+With:
 
-```
+```jinja2
 **Breathe:** A pressure has resolved — the player earned this. Pull back. Describe what quiet or relief feels like in this moment. No new hook, no new threat this turn. If the player retreated or disengaged to earn this, acknowledge it — they made a smart call and the world reflects it.
 ```
 
 **Why:** The current text pulls narration back but doesn't reward the player's choice. Making the beat feel earned closes the loop between player agency and narrative outcome.
 
-**Validation:** Render with `deescalate=True`. Confirm updated Breathe text appears.
+**Validation:** Render with `deescalate=1.0`. Confirm updated Breathe text appears.
 
 ***
 
@@ -159,7 +170,7 @@ Add two missing narrator rules: prohibition on repeating previous-turn imagery, 
 
 **File:** `ccya/prompts/narrate_system.j2`
 
-**What:** Add the following rule in the narrator output discipline section:
+**What:** Add the following rule in the "Output discipline" section (after line 88, before "Active scope tail"):
 
 ```
 **NO REPETITION RULE:** Do not reuse sensory details, metaphors, descriptive phrases, or imagery from the immediately preceding turn's narration. If the previous turn described "the rain hammering the cobblestones," this turn must find a different image. The world changes with each turn; the narration must reflect that.
@@ -175,7 +186,7 @@ Add two missing narrator rules: prohibition on repeating previous-turn imagery, 
 
 **File:** `ccya/prompts/narrate_system.j2`
 
-**What:** Add the following rule in the NPC section or narrator cast rules:
+**What:** Add the following rule in the "NPCs in scene" section (after line 46):
 
 ```
 **NPC QUANTITY RULE:** When introducing or describing a group of unnamed NPCs, always give a specific number or a tight qualifier: "four guards," "a dozen soldiers," "three dock workers." Never use vague collective nouns alone: not "guards" or "some soldiers" or "a group of men." Named individuals are exempt. Vague groups make state tracking impossible.
@@ -188,27 +199,29 @@ Add two missing narrator rules: prohibition on repeating previous-turn imagery, 
 ***
 
 ### Tests to write or update
-- `tests/test_prompts.py`: render `narrate_user.j2` with `momentum=-3` and `scene_pressure=[{urgency: "immediate", ...}]` → assert `Momentum FLOOR` and `Pressure` both appear.
-- `tests/test_prompts.py`: render `narrate_user.j2` with `deescalate=True` → assert updated `Breathe` text appears.
-- `tests/test_prompts.py`: render `narrate_system.j2` → assert `NO REPETITION RULE` appears.
-- `tests/test_narrate.py` (engine-level): call `_narrate_messages()` with `scene_pressure=[mock_pressure]` → assert rendered user prompt contains `Pressure` directive.
+- **New file `tests/test_narrate.py`:** Call `_narrate_messages()` with `scene_pressure=[{"urgency": "immediate", "text": "test"}]` → assert rendered user prompt contains `Pressure` directive.
+- **New file `tests/test_prompts.py`:** Render `narrate_user.j2` with `momentum=-3` and `scene_pressure=[{"urgency": "immediate", "text": "test"}]` → assert `Momentum FLOOR` and `Pressure` both appear.
+- **New file `tests/test_prompts.py`:** Render `narrate_user.j2` with `deescalate=1.0` → assert updated `Breathe` text appears.
+- **New file `tests/test_prompts.py`:** Render `narrate_system.j2` → assert `NO REPETITION RULE` appears.
 
 ### REPOMAP updates required
-- `docs/REPOMAP/engine.md`: in `_narrate_messages()` signature entry, add `scene_pressure: list | None = None` kwarg.
+- `docs/REPOMAP/engine.md`: in `_narrate_messages()` signature entry (line 72), add `scene_pressure: list | None = None` kwarg.
 - `docs/REPOMAP/prompts.md`: under `narrate_user.j2`, add: "scene_pressure wire fix (bare variable now passed from engine); momentum floor two-tier directive (-2 softens, -3 mandatory relief); de-escalation reward on Breathe block."
 - `docs/REPOMAP/prompts.md`: under `narrate_system.j2`, add: "NO REPETITION RULE; NPC QUANTITY RULE."
 
 ### Risks
-1. **scene_pressure kwarg name collision** — if another variable named `scene_pressure` is already in the Jinja context via `state` rendering, the explicit kwarg could shadow or conflict. Mitigation: executor must grep the existing Jinja context dict in `_narrate_messages` before adding the key.
+1. **scene_pressure kwarg name collision** — if another variable named `scene_pressure` is already in the Jinja context via `state` rendering, the explicit kwarg could shadow or conflict. Mitigation: the `user_ctx` dict already has `"scene": state.get("scene", {})` at line 47 of `narrate.py`. Adding `"scene_pressure"` as a top-level key is safe — Jinja resolves bare `scene_pressure` before `state.scene_pressure`. No conflict.
 2. **Momentum FLOOR directive conflicts with crit_fail band** — a crit_fail band says "things go badly" while the floor directive says "give them a visible out." These can coexist: the band describes the outcome of the specific action, the floor directive describes the environmental/narrative relief available. The executor should add a note in the floor directive text: "This is a narrative permission for environmental relief, not a band override — the action outcome still follows the band."
 3. **Breathe block now longer** — small token cost increase. Acceptable.
 
 ## Ambiguities requiring resolution before execution
-1. Is `_narrate_messages()` called from `narrate.py` directly, or is the call site in `turn.py`? The REPOMAP lists `_narrate_messages` as a function in `narrate.py` and `run_turn` as the orchestrator in `turn.py`. The call site is likely in `turn.py`. Executor must confirm where `_narrate_messages()` is invoked to place the `scene_pressure=` kwarg correctly. Options: A) called in `turn.py` → add kwarg there. B) called inside `narrate.py` → add there.
-2. Is `deescalate` passed as a bool or float to `_narrate_messages()`? The REPOMAP says `deescalate` is a float (0.0–1.0) in `_run_extraction_pipeline` but `_narrate_messages` signature shows `deescalate=False`. The template uses `{% if deescalate %}` which is truthy for any non-zero float. Executor should confirm the type at the call site and ensure consistency.
+1. **Call site location — resolved:** `_narrate_messages()` is called from `turn.py` at two locations: `run_turn()` (lines 460-482) and `run_turn_retry()` (lines 1007-1031). Both call sites must be updated. The function is defined in `narrate.py` but never called from within `narrate.py` itself.
+2. **deescalate type — resolved:** `deescalate` is typed as `float = 0.0` in `_narrate_messages()` signature (`narrate.py:28`). The template uses `{% if deescalate %}` which is truthy for any non-zero float. The call sites in `turn.py` pass `deescalate=deescalate` (a float) at line 475 and `deescalate=False` at line 1025 (bool, which is truthy in Jinja). This is consistent — no change needed.
 
 ## TODO.md update
 Add under **P2 — Stability / Fidelity**:
 ```
 - [ ] [Narration Directive Wiring and Pacing](plans/narration-directive-wiring.md)
 ```
+
+--- END PLAN ---
