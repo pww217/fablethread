@@ -354,7 +354,9 @@ async def run_turn(
 
         # Apply momentum deterministically from band (never from LLM)
         if outcome.rolled:
+            momentum_before = state.get("pc", {}).get("momentum", 0)
             apply_momentum(state, outcome.band)
+            momentum_after = state.get("pc", {}).get("momentum", 0)
 
         # De-escalation magnitude: success on a scene with active pressure
         deescalate: float = 0.0
@@ -736,6 +738,8 @@ async def run_turn(
                         "last_seen_state": entry.get("last_seen_state", ""),
                     }
 
+        narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
+
         # Decay recently_left counter (engine-side, not in state.py).
         scene = state.get("scene", {})
         turns = scene.get("recently_left_turns", 0)
@@ -775,6 +779,9 @@ async def run_turn(
                 "final_total": outcome.final_total,
                 "band": outcome.band,
                 "outcome_summary": outcome_summary,
+                "momentum_before": momentum_before,
+                "momentum_after": momentum_after,
+                "momentum_delta": momentum_after - momentum_before,
             })
 
         _ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -872,6 +879,21 @@ async def run_turn(
         await _inflight.release(str(save_dir))
 
 
+_FALLBACK_SENTINEL = "*That action didn't resolve as expected"
+
+
+def _strip_fallback(narration: str, *, trace_id: str, turn: int) -> str:
+    log = logging.getLogger(__name__)
+    lines = narration.splitlines()
+    clean = [ln for ln in lines if not ln.strip().startswith(_FALLBACK_SENTINEL)]
+    if len(clean) < len(lines):
+        log.warning(
+            "Fallback message stripped from narration",
+            extra={"trace_id": trace_id, "turn": turn},
+        )
+    return "\n".join(clean)
+
+
 def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
     rejections: list[dict[str, Any]] = []
 
@@ -887,6 +909,17 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
                     "field": "inventory_remove",
                     "value": rem.id,
                     "reason": f"Inventory item '{rem.id}' does not exist",
+                }
+            )
+            continue
+        item = inv_by_id.get(canonical)
+        if item and int(item.get("amount") or 0) == 0:
+            rejections.append(
+                {
+                    "field": "inventory_remove",
+                    "kind": "zero_balance",
+                    "value": canonical,
+                    "reason": f"Item '{canonical}' has zero balance",
                 }
             )
             continue
@@ -1339,6 +1372,8 @@ async def run_turn_retry(
                         "location_name": location.get("name", ""),
                         "last_seen_state": entry.get("last_seen_state", ""),
                     }
+
+        narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
 
         scene = state.get("scene", {})
         turns = scene.get("recently_left_turns", 0)

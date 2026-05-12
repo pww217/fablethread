@@ -8,7 +8,7 @@ Plans in `/plans/` should be executed in this order. Each plan's own document ha
 |---|---|---|---|
 | 1 | `world-seed-char-creation.md` | none | Standalone. Fixes seed generation prompts. Run first because broken seeds corrupt every subsequent eval run. |
 | 2 | `prompt-quality-remediation-20260512.md` | none | Standalone. Fixes prompt defects across rules, narrate, and extractors. Changes what extractors emit, which downstream plans depend on. |
-| 3 | `mechanical_remediation_eval_run_20260512t154142z_uufm2ojg.md` | prompt-quality (for full effectiveness) | Fixes engine-level mechanical failures. Its fixes are the primary implementation for momentum, quest terminal-state guard, and ghost NPC cycle detection. |
+| 3 | `mechanical_remediation_eval_run_20260512t154142z_uufm2ojg.md` | prompt-quality (for full effectiveness) | ✅ completed. Fixes engine-level mechanical failures. Primary implementation for momentum, quest terminal-state guard, and ghost NPC cycle detection. |
 | 4 | `state-fidelity-remediation-20260512t154142z_uufm2ojg.md` | mechanical, prompt-quality | Fixes state-level issues. Several steps are superseded by mechanical plan (see conflicts below). |
 | 5 | `system-cohesion-remediation-20260512t154142z-uufm2ojg.md` | mechanical, state-fidelity | Fixes integration-seam failures. Momentum phase is fully superseded by mechanical plan (see conflicts below). |
 | 6 | `eval-harness-reviewed.md` | mechanical (for momentum telemetry in events.jsonl) | Fixes eval harness auto-checkers and judge trace. Runs last — validates all other plans' work. Two steps (4.2, 4.3) are self-cancelling (no change needed). |

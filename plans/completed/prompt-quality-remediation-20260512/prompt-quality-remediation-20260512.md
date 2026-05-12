@@ -1,7 +1,7 @@
 # Prompt Quality Remediation — Eval Run 20260512T154142Z_uufm2ojg
 
 ## Status
-`open`
+`completed`
 
 ## Objective
 Several prompt defects caused spurious rules rolls, fail-band narration that read like partial successes, missing or ignored pressure directives, missing inventory and quest updates, and wasted tokens across the pipeline. These are not engine bugs; they are prompt-spec and few-shot gaps. This plan refactors the prompts and examples for rules, narrate, extract_scene, extract_state, and extract_progress to (1) eliminate known spurious decision patterns, (2) make high-severity directives (fail bands, pressure) unambiguous and binding, and (3) trim cross-prompt redundancy while keeping observability.
