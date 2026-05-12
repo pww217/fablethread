@@ -84,6 +84,11 @@ def _build_generate_seed_messages(
         "npc_count_override": overrides.npc_count
         if (overrides and overrides.npc_count > 0)
         else 0,
+        "min_named_npcs": (
+            scenario.constraints.min_named_npcs
+            if scenario and scenario.constraints
+            else 2
+        ),
         "name_pool": name_pool,
         "name_seed": name_seed,
         # Legacy fallbacks for old packs without scenario

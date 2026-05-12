@@ -1,7 +1,7 @@
 # World Seed and Character Creation Prompts
 
 ## Status
-`open`
+`completed`
 
 ## Part of
 standalone

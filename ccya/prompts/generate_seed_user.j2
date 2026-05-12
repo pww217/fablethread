@@ -49,6 +49,22 @@ name_seed: {{ name_seed }}
 - npc candidates: {{ name_pool.npc | join(", ") }}
 - place name inspiration: {{ name_pool.location | join(", ") }}
 {% endif %}
+{% if scenario and scenario.factions %}
+## npc_generation_context
+Factions (use these for NPC role assignment):
+{% for f in scenario.factions %}- {{ f.name }} ({{ f.disposition }}): {{ f.description }}
+{% endfor %}
+{% if scenario.narrator_rules %}Tone/cultural guidance:
+{% for rule in scenario.narrator_rules %}- {{ rule }}
+{% endfor %}{% endif %}
+{% if scenario.world_facts %}World facts (inform NPC roles):
+{% for fact in scenario.world_facts %}- {{ fact }}
+{% endfor %}{% endif %}
+{% endif %}
+{% if npc_count_override and npc_count_override > 0 %}
+## npc_count
+The player requested {{ npc_count_override }} NPCs for the opening scene. Generate exactly that many present_npcs entries.
+{% endif %}
 
 ## Output discipline
 

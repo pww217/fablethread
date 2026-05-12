@@ -161,3 +161,121 @@ class TestNPCEnterExit:
         assert "absence ≠ departure" in text or "absence != departure" in text
         assert "npc_add" in text
         assert "npc_remove" in text
+
+
+class TestSeedSystemNPCCount:
+    """generate_seed_system.j2 present_npcs count must be configurable."""
+
+    def _seed_system_ctx(self):
+        from ccya.pack import Constraints, ScenarioBrief
+
+        return {
+            "scenario": ScenarioBrief(
+                constraints=Constraints(min_named_npcs=2),
+            ),
+            "overrides": None,
+            "name_pool": None,
+            "name_seed": 0,
+            "world_text": "",
+            "style_text": "",
+        }
+
+    def test_seed_system_npc_count_override_3(self):
+        """npc_count_override=3 must render 'Exactly 3 NPCs'."""
+        env = _env()
+        ctx = self._seed_system_ctx()
+        ctx["npc_count_override"] = 3
+        text = env.get_template("generate_seed_system.j2").render(**ctx)
+        assert "Exactly 3 NPCs" in text
+
+    def test_seed_system_npc_count_override_0(self):
+        """npc_count_override=0 must render 'Exactly 2 NPCs'."""
+        env = _env()
+        ctx = self._seed_system_ctx()
+        ctx["npc_count_override"] = 0
+        text = env.get_template("generate_seed_system.j2").render(**ctx)
+        assert "Exactly 2 NPCs" in text
+
+
+class TestSeedUserNPCCount:
+    """generate_seed_user.j2 must render npc_count block when override > 0."""
+
+    def _seed_user_ctx(self):
+        return {
+            "scenario": None,
+            "overrides": None,
+            "name_pool": None,
+            "name_seed": 0,
+            "npc_count_override": 0,
+        }
+
+    def test_seed_user_npc_count_block_rendered(self):
+        """npc_count_override=3 must render npc_count block."""
+        env = _env()
+        ctx = self._seed_user_ctx()
+        ctx["npc_count_override"] = 3
+        text = env.get_template("generate_seed_user.j2").render(**ctx)
+        assert "## npc_count" in text
+        assert "3 NPCs" in text
+
+    def test_seed_user_npc_count_block_absent(self):
+        """npc_count_override=0 must not render npc_count block."""
+        env = _env()
+        ctx = self._seed_user_ctx()
+        ctx["npc_count_override"] = 0
+        text = env.get_template("generate_seed_user.j2").render(**ctx)
+        assert "## npc_count" not in text
+
+
+class TestSeedNPCAlignmentRule:
+    """generate_seed prompts must include NPC role alignment when factions present."""
+
+    def _seed_system_ctx_with_factions(self):
+        from ccya.pack import Constraints, Faction, ScenarioBrief
+
+        return {
+            "scenario": ScenarioBrief(
+                constraints=Constraints(min_named_npcs=2),
+                factions=[Faction(id="f1", name="Guard", description="City defenders", disposition="neutral")],
+            ),
+            "overrides": None,
+            "name_pool": None,
+            "name_seed": 0,
+            "world_text": "",
+            "style_text": "",
+            "npc_count_override": 0,
+        }
+
+    def _seed_user_ctx_with_factions(self):
+        from ccya.pack import Faction, ScenarioBrief
+
+        return {
+            "scenario": ScenarioBrief(
+                factions=[Faction(id="f1", name="Guard", description="City defenders", disposition="neutral")],
+                narrator_rules=["Keep it gritty"],
+                world_facts=["The city is under siege."],
+            ),
+            "overrides": None,
+            "name_pool": None,
+            "name_seed": 0,
+            "npc_count_override": 0,
+        }
+
+    def test_seed_system_alignment_rule_rendered(self):
+        """scenario.factions must trigger NPC ROLE ALIGNMENT RULE in system prompt."""
+        env = _env()
+        ctx = self._seed_system_ctx_with_factions()
+        text = env.get_template("generate_seed_system.j2").render(**ctx)
+        assert "NPC ROLE ALIGNMENT RULE" in text
+        assert "MANDATORY" in text
+
+    def test_seed_user_npc_generation_context_rendered(self):
+        """scenario.factions must trigger npc_generation_context block in user prompt."""
+        env = _env()
+        ctx = self._seed_user_ctx_with_factions()
+        text = env.get_template("generate_seed_user.j2").render(**ctx)
+        assert "## npc_generation_context" in text
+        assert "Guard" in text
+        assert "City defenders" in text
+        assert "Keep it gritty" in text
+        assert "The city is under siege." in text
