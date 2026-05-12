@@ -3,12 +3,6 @@
 ## Status
 `open`
 
-## Part of
-standalone
-
-## Dependencies
-- none — pure engine changes to `pressure.py` and `turn.py`; no dependency on narration directive plan (narration-pacing-fixes.md) though both address momentum floor; they can run in parallel, and this plan's engine changes make the narration plan's directives more effective
-
 ## Objective
 The pressure lifecycle has three compounding failures that produce unescapable death spirals. First, `immediate` pressures have no automatic TTL — once escalated from `building` (which happens at age 4), they persist indefinitely until the extractor explicitly removes them. The extractor routinely fails to remove them after combat, meaning a fight from T3 can still show as active at T14. Second, when momentum reaches the floor (-3), the engine applies no mechanical relief — the only response is a vague narrator directive that is frequently ignored (the directive wire bug is addressed in narration-pacing-fixes.md, but even a correctly-wired directive is advisory, not binding). Third, player de-escalation actions (retreat, rest, disengage) have no mechanical reward — avoidance does not age pressures down, and the engine does not distinguish "player choosing to flee" from "player doing nothing." Together these make recovery from a bad run nearly impossible. This plan adds: a TTL for immediate pressures, a momentum-floor relief mechanism, and an avoidance-based pressure age decay.
 
@@ -19,21 +13,12 @@ The pressure lifecycle has three compounding failures that produce unescapable d
 - Does not change how pressures are added by the extractor — only how they age and expire.
 - Does not change `_purge_scene_pressures` location-change behavior.
 
-## Affected files
-| File | Change type | Summary of change |
-|---|---|---|
-| `ccya/engine/pressure.py` | modify | Set `max_turns` on escalation; add avoidance-decay branch; add momentum-floor immediate-cap logic |
-| `ccya/engine/turn.py` | modify | Detect de-escalation intent in player input; pass `avoidance=True` flag to pressure pipeline; add momentum-floor relief injection |
-| `ccya/engine/config.py` | modify | Add three new config keys: `scene_pressure_immediate_ttl`, `momentum_floor_relief_turns`, `avoidance_decay_per_turn` |
-| `config.yaml` | modify | Add default values for the three new config keys |
-| `docs/REPOMAP/engine.md` | update | Document new config keys and modified function signatures |
-
 ## Firm decisions
 
 1. `immediate` pressures get a default TTL of **8 turns** from the turn they became immediate (not from `turn_added`). This is set as `max_turns = turn_became_immediate + 8` at escalation time. 8 is long enough to be meaningful but short enough to prevent permanent stale pressures. Configurable via `scene_pressure_immediate_ttl`.
 2. At momentum floor (-3), if the player has been at floor for ≥ 2 consecutive turns with no `crit_success` or `success` band, the engine injects a `breathing_room` GM beat into `pending_gm_beat`. This is a mechanical injection, not a narrator suggestion — the beat fires next turn regardless.
 3. De-escalation detection: if player input contains any token from a configurable keyword list (`retreat`, `run`, `flee`, `hide`, `rest`, `escape`, `back away`, `disengage`, `withdraw`, `surrender`, `concede`), the turn is flagged `avoidance=True`. On `avoidance=True`, each non-immediate pressure has its effective age incremented by 1 extra turn (simulating time passing while the player creates distance). Immediate pressures are not decayed by avoidance — you can't rest your way out of someone actively stabbing you.
-4. No new state field is needed for consecutive-floor tracking — it is computed from the last N events in `recent_events` by checking momentum values, not stored separately.
+4. Consecutive floor tracking uses a minimal counter in `state["meta"]["consecutive_floor_count"]` rather than scanning event history (events lack momentum snapshots). This is the only new state field added by this plan.
 5. All three thresholds are configurable and must have sensible defaults that make the game feel fair without trivializing threat.
 
 ## Implementation — Phase 1: Immediate Pressure TTL
@@ -69,12 +54,12 @@ scene_pressure_immediate_ttl: int = 8
 
 **File:** `config.yaml`
 
-**What:** Under the engine config section, add:
+**What:** Under the `game:` section, add:
 ```yaml
 scene_pressure_immediate_ttl: 8
 ```
 
-**Why:** Keeps config.yaml in sync with the Pydantic model default.
+**Why:** Keeps config.yaml in sync with the EngineConfig default.
 
 **Validation:** Load config from yaml, confirm field present.
 
@@ -93,13 +78,14 @@ scene_pressure_immediate_ttl: 8
 # In the building→immediate escalation branch (both the TTL=4 path and the configurable path):
 p["urgency"] = "immediate"
 p["turn_became_immediate"] = current_turn
-immediate_ttl = config.scene_pressure_immediate_ttl if config else 8
-# age for max_turns is measured from turn_added, so compute accordingly
-turn_added_val = p.get("turn_added") or current_turn
-p["max_turns"] = turn_added_val + age + immediate_ttl
+# Only set max_turns if not already set (extractor may have set one).
+if p.get("max_turns") is None:
+    immediate_ttl = config.scene_pressure_immediate_ttl if config else 8
+    turn_added_val = p.get("turn_added") or current_turn
+    p["max_turns"] = turn_added_val + age + immediate_ttl
 _log.info(
-    "pressure: escalated %r to immediate, max_turns=%d",
-    pid, p["max_turns"],
+    "pressure: escalated %r to immediate, max_turns=%s",
+    pid, p.get("max_turns"),
     extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "pressure"},
 )
 ```
@@ -188,16 +174,31 @@ After applying the state delta each turn, check if momentum is at floor (-3) and
 
 ### Detailed steps
 
-#### Step 3.1 — Add momentum floor config key
+#### Step 3.1 — Add momentum floor config keys
 
 **File:** `ccya/engine/config.py`
 
-**What:**
+**What:** Add two fields:
 ```python
+momentum_floor: int = -3
 momentum_floor_relief_turns: int = 2
 ```
 
-**Validation:** Default is 2 — floor for 2 straight turns without success triggers relief.
+**Why:** `momentum_floor` makes the floor value configurable (currently hardcoded as `-3` in `ccya/state/momentum.py`'s `MOMENTUM_MIN`). `momentum_floor_relief_turns` controls how many consecutive turns at floor trigger relief.
+
+**Validation:** `EngineConfig().momentum_floor == -3` and `EngineConfig().momentum_floor_relief_turns == 2`.
+
+**Wiring:** In `build_engine_config()`, add:
+```python
+momentum_floor=int(game.get("momentum_floor", -3)),
+momentum_floor_relief_turns=int(game.get("momentum_floor_relief_turns", 2)),
+```
+
+**config.yaml:** Add under `game:` section:
+```yaml
+momentum_floor: -3
+momentum_floor_relief_turns: 2
+```
 
 ***
 
@@ -205,48 +206,74 @@ momentum_floor_relief_turns: int = 2
 
 **File:** `ccya/engine/turn.py`
 
-**What:** Add a helper function `_consecutive_floor_turns(events: list[dict], floor: int = -3) -> int` that counts how many consecutive recent events have `state_snapshot.meta.momentum == floor`, stopping when it finds one that doesn't.
+**What:** Add a helper function `_check_floor_relief(state, config, band: str) -> None` that tracks consecutive floor turns via a counter in `state["meta"]["consecutive_floor_count"]` and injects `breathing_room` when the threshold is reached.
+
+**Why:** Events in `events.jsonl` do not contain `state_snapshot` with momentum values, so the original approach of scanning event history is not feasible. A simple integer counter in `state["meta"]` is the minimal viable approach.
 
 **Code Snippet:**
 ```python
-def _consecutive_floor_turns(events: list[dict], floor: int = -3) -> int:
-    """Count consecutive trailing events where momentum == floor."""
-    count = 0
-    for ev in reversed(events):
-        m = ((ev.get("state_snapshot") or {}).get("meta") or {}).get("momentum")
-        if m == floor:
-            count += 1
-        else:
-            break
-    return count
+def _check_floor_relief(
+    state: dict[str, Any], config: EngineConfig, band: str
+) -> None:
+    """Check momentum floor and inject breathing_room beat if relief conditions met.
+
+    Tracks consecutive floor turns via state["meta"]["consecutive_floor_count"].
+    Resets counter on any non-floor momentum or success/crit_success band.
+    """
+    floor = config.momentum_floor
+    relief_threshold = config.momentum_floor_relief_turns
+    cur_momentum = (state.get("pc") or {}).get("momentum", 0)
+    meta = state.setdefault("meta", {})
+
+    if cur_momentum != floor:
+        meta["consecutive_floor_count"] = 0
+        return
+
+    count = int(meta.get("consecutive_floor_count", 0)) + 1
+    meta["consecutive_floor_count"] = count
+
+    if (
+        count >= relief_threshold
+        and band not in ("success", "crit_success")
+        and meta.get("pending_gm_beat") is None
+    ):
+        meta["pending_gm_beat"] = {
+            "type": "breathing_room",
+            "surface_as": "ambient",
+            "beat_expires_turn": (state.get("meta") or {}).get("turn", 0) + 3,
+        }
+        _log.info(
+            "pacing: injecting breathing_room beat (floor=%d, consecutive=%d)",
+            cur_momentum, count,
+            extra={"turn": (state.get("meta") or {}).get("turn", 0), "trace_id": "", "pack": "", "kind": "pacing"},
+        )
 ```
 
-**Validation:** Unit test with 3 events all at momentum=-3 → returns 3. Mixed events → returns only trailing count.
+**Validation:** Unit test: call with momentum=-3, band="fail", count reaches threshold → assert `pending_gm_beat` is set. Call with band="success" → assert counter resets and no injection.
 
 ***
 
-#### Step 3.3 — Inject breathing_room beat at floor
+#### Step 3.3 — Call _check_floor_relief after delta application
 
 **File:** `ccya/engine/turn.py`
 
-**What:** After the state delta is applied and before `_narrate_messages()` is called, check:
+**What:** In `run_turn()`, after `apply_delta()` succeeds and before `save_state()`, call `_check_floor_relief(state, config, outcome.band)`. This is in the block after line 673 (the `apply_delta` call), within the `else` branch where delta was accepted.
+
+Also add the import at the top of `turn.py`:
 ```python
-cur_momentum = state.meta.momentum
-if cur_momentum <= config.momentum_floor:
-    consecutive = _consecutive_floor_turns(recent_events_log, floor=config.momentum_floor)
-    if consecutive >= config.momentum_floor_relief_turns:
-        if state.meta.pending_gm_beat is None:  # Only if no other beat is pending
-            state.meta.pending_gm_beat = "breathing_room"
-            log.info(
-                "pacing: injecting breathing_room beat (floor=%d, consecutive=%d)",
-                cur_momentum, consecutive,
-                extra={"turn": turn, "trace_id": trace_id, "pack": pack, "kind": "pacing"},
-            )
+from ccya.engine.pressure import _expire_scene_pressures, _purge_scene_pressures, _check_floor_relief
 ```
 
-**Why:** This is the binding mechanical guarantee. The narrator directive (narration-pacing-fixes.md) makes the narration softer; this injection makes sure `breathing_room` is the active beat regardless.
+**Code Snippet (placement in run_turn, after apply_delta):**
+```python
+# After: state, recent_events_evicted = apply_delta(...)
+# Add floor relief check
+_check_floor_relief(state, config, outcome.band if outcome.rolled else "")
+```
 
-**Validation:** Run a fixture with 3 consecutive turns at momentum=-3 with no success. Assert `state.meta.pending_gm_beat == "breathing_room"` after turn 3. Assert it does NOT inject if last turn was a `success` band.
+**Why:** This is the binding mechanical guarantee. The injection happens after momentum is updated by `apply_momentum` (which runs during `apply_delta`), and the `pending_gm_beat` is persisted via `save_state` so it is available for the next turn's narration. The beat is read at the top of the next `run_turn` call (line 413).
+
+**Validation:** Run a fixture with 3 consecutive turns at momentum=-3 with no success band. Assert `state["meta"]["pending_gm_beat"]["type"] == "breathing_room"` after turn 3. Assert it does NOT inject if last turn was a `success` band.
 
 ***
 
@@ -255,28 +282,23 @@ if cur_momentum <= config.momentum_floor:
 - `tests/test_pressure.py`: `test_immediate_expires_after_ttl` — immediate pressure at max_turns → assert in delta.scene_pressure_remove.
 - `tests/test_pressure.py`: `test_avoidance_decay_building` — building age 2, avoidance=True, decay=2 → effective_age 4, escalates.
 - `tests/test_pressure.py`: `test_avoidance_no_effect_on_immediate` — immediate pressure, avoidance=True → effective_age unchanged.
-- `tests/test_turn.py`: `test_floor_relief_injection` — 2 consecutive floor events → breathing_room injected.
-- `tests/test_turn.py`: `test_floor_relief_not_injected_after_success` — floor then success → no injection.
+- `tests/test_pressure.py`: `test_floor_relief_injection` — mock state with momentum=-3, call `_check_floor_relief` 2+ times with non-success band → assert `pending_gm_beat` injected.
+- `tests/test_pressure.py`: `test_floor_relief_not_injected_after_success` — floor momentum with success band → assert no injection, counter resets.
+- `tests/test_pressure.py`: `test_floor_relief_no_injection_with_existing_beat` — floor momentum with existing `pending_gm_beat` → assert no overwrite.
 
 ### REPOMAP updates required
 - `docs/REPOMAP/engine.md`: `_expire_scene_pressures` — add `avoidance: bool = False` param; document `turn_became_immediate` stamp and immediate TTL behavior.
 - `docs/REPOMAP/engine.md`: `_purge_scene_pressures` — no change.
-- `docs/REPOMAP/engine.md`: `turn.py` — add `_consecutive_floor_turns` helper; document momentum-floor `breathing_room` injection.
-- `docs/REPOMAP/engine.md`: `EngineConfig` — add three new keys.
+- `docs/REPOMAP/engine.md`: `pressure.py` — add `_check_floor_relief` helper; document momentum-floor `breathing_room` injection.
+- `docs/REPOMAP/engine.md`: `EngineConfig` — add three new keys: `scene_pressure_immediate_ttl`, `momentum_floor`, `momentum_floor_relief_turns`, `avoidance_keywords`, `avoidance_decay_per_turn`.
 
 ### Risks
-1. **`max_turns` field conflict** — if a pressure was added with an explicit `max_turns` by the extractor, Phase 1.3 overwrites it on escalation. Mitigation: only set `max_turns` if it is currently `None` at the point of escalation (i.e., `if p.get("max_turns") is None`).
+1. **`max_turns` field conflict** — if a pressure was added with an explicit `max_turns` by the extractor, Phase 1.3 overwrites it on escalation. Mitigation: only set `max_turns` if it is currently `None` at the point of escalation (i.e., `if p.get("max_turns") is None`). **Fixed in plan.**
 2. **Avoidance keyword false positives** — "hide" could appear in "I hide behind the pillar" (legitimate avoidance) or "I hide the coin in my pocket" (not avoidance). At decay=1 extra turn, the cost of a false positive is trivial. Acceptable.
-3. **Momentum floor injection fighting existing pending_gm_beat** — if a high-priority beat is already pending (e.g., a boss encounter), overwriting it with `breathing_room` is wrong. Mitigation: only inject if `pending_gm_beat is None` OR `pending_gm_beat == "breathing_room"` already. Add a beat priority check: `breathing_room` only injects if no other beat is pending.
-4. **recent_events_log availability** — the helper needs access to recent prior events. Executor must confirm whether this list is in scope in `turn.py` at the injection site, or whether it needs to be passed in.
+3. **Momentum floor injection fighting existing pending_gm_beat** — if a high-priority beat is already pending (e.g., a boss encounter), overwriting it with `breathing_room` is wrong. Mitigation: `_check_floor_relief` checks `meta.get("pending_gm_beat") is None` before injecting. **Fixed in plan.**
+4. **Consecutive floor tracking via events is infeasible** — events in `events.jsonl` do not contain `state_snapshot` with momentum values. Resolved by using a counter in `state["meta"]["consecutive_floor_count"]` instead. **Fixed in plan.**
 
-## Ambiguities requiring resolution before execution
-1. What is the exact variable name holding the prior-turn event log in `turn.py`? The helper `_consecutive_floor_turns` needs it. Executor must grep `turn.py` for the event replay structure before implementing Step 3.2.
-2. Does `config.momentum_floor` exist as a config field, or is -3 hardcoded in the clamp? Executor must check `EngineConfig` for a `momentum_floor` field vs hardcoded `-3` in the clamp logic.
-3. Is `state.meta` a `Pydantic` model with direct attribute assignment, or a dict? The injection `state.meta.pending_gm_beat = "breathing_room"` assumes attribute access. Executor must confirm.
-
-## TODO.md update
-Add under **P1 — Critical / Mechanics**:
-```
-- [ ] [Pressure Pacing and Death Spiral Elimination (TTL/Avoidance/Floor)](plans/pressure-pacing-death-spiral.md)
-```
+## Ambiguities resolved
+1. **Event log for floor tracking:** Events in `events.jsonl` do not contain `state_snapshot` with momentum. Resolved: use a counter in `state["meta"]["consecutive_floor_count"]` instead of scanning events. (See Step 3.2 fix.)
+2. **`config.momentum_floor`:** Did not exist. Resolved: added `momentum_floor: int = -3` to `EngineConfig` and wiring in `build_engine_config()`. (See Step 3.1 fix.)
+3. **`state.meta` access pattern:** `state` is `dict[str, Any]`, `state["meta"]` is a nested dict. Attribute access like `state.meta.momentum` would raise AttributeError. Resolved: use `state["pc"]["momentum"]` for momentum and `state.setdefault("meta", {})["pending_gm_beat"]` for beat injection. (See Step 3.2/3.3 fixes.)

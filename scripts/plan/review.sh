@@ -17,7 +17,7 @@ cd "$REPO_ROOT"
 REVIEW_DIR="plans/review"
 DEST_DIR="plans"
 PROMPT_TEMPLATE="${SCRIPT_DIR}/prompt-template.txt"
-TIMEOUT_SECS=600
+TIMEOUT_SECS=900
 
 export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.bun/bin:$HOME/.local/bin:$HOME/bin:${PATH:-}"
 
@@ -160,9 +160,19 @@ PY
 
   log "  Running review"
   REVIEW_PATH="${DEST_DIR}/${PLAN_BASENAME%.md}-reviewed.md"
-  if "$TIMEOUT_BIN" "$TIMEOUT_SECS" "$OPENCODE_BIN" run \
+  if "$TIMEOUT_BIN" --kill-after=10 "$TIMEOUT_SECS" "$OPENCODE_BIN" run \
+      --log-level DEBUG \
       -m mlx/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit \
       < "$TMP_PROMPT" > "$REVIEW_PATH"; then
+    # Strip opencode thinking/thought output (tool-use artifacts)
+    python3 -c "
+import sys, re
+content = open(sys.argv[1], encoding='utf-8').read()
+# Find the first heading line (plan title) and strip everything before it.
+m = re.search(r'^# .+', content, re.MULTILINE)
+if m:
+    open(sys.argv[1], 'w', encoding='utf-8').write(content[m.start():])
+" "$REVIEW_PATH"
     log "✓ Review written to: ${REVIEW_PATH}"
     ((PASS+=1))
   else

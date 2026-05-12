@@ -52,13 +52,14 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_SCOPE_OPEN`, `_SCOPE_CLOSE`, `_SCOPE_TAIL_RE`, `_SCOPE_TAIL_BUFFER_SIZE` — constants for scope tail parsing
 - `_split_scope_tail(text)` → `tuple[str, list[str] | None]` — extracts `<scope>...</scope>` JSON tail, returns (prose, active_domains | None)
 - `_StreamTailFilter` — filters streaming text to suppress everything from `<scope>` onward; maintains sliding tail buffer for cross-chunk sentinel detection
-- `run_turn(save_dir, user_input, config=None, *, template_dir=None, pack_style="", pack_name_locales=[], pack_narrator_rules=[])` → `AsyncIterator[tuple[str, Any]]` — 5-call turn pipeline (rules→narrate→scope-parse→scene→state→progress extract). Yields ("phase", dict), ("token", str), ("complete", TurnResult).
+- `_check_floor_relief(state, config, band)` → `None` — checks momentum floor and injects `breathing_room` beat when relief conditions met; tracks consecutive floor turns via `state["meta"]["consecutive_floor_count"]`
+- `run_turn(save_dir, user_input, config=None, *, template_dir=None, pack_style="", pack_name_locales=[], pack_narrator_rules=[])` → `AsyncIterator[tuple[str, Any]]` — 5-call turn pipeline (rules→narrate→scope-parse→scene→state→progress extract). Detects avoidance intent from player input; passes to pressure pipeline for decay. Yields ("phase", dict), ("token", str), ("complete", TurnResult).
 - `_validate(state, delta)` → `list[dict]` — validates inventory_remove IDs exist, warns on overdraw
 - `run_turn_retry(save_dir, rules_outcome, intent, config=None, *, template_dir=None, pack_style="", pack_name_locales=[], pack_narrator_rules=[])` → `AsyncIterator[tuple[str, Any]]` — skips Call 0, re-runs narrate + extraction with same rules outcome
 - `warmup(config)` → `None` (async) — silent chat call to pre-load model
 
 ### config.py
-- `EngineConfig` dataclass — all tunable params (temps, timeouts, token budget, thinking toggles, compaction settings)
+- `EngineConfig` dataclass — all tunable params (temps, timeouts, token budget, thinking toggles, compaction settings, scene pressure TTL/escalation thresholds, avoidance keywords/decay, momentum floor/relief thresholds)
 - `_EventLock` class — async lock preventing concurrent turns per save_dir
 - `is_turn_in_progress(save_dir)` → `bool` — guard against concurrent turns
 - `_build_jinja_env(template_dir)` → `Environment` — Jinja2 env with autoescape
@@ -125,8 +126,9 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_summarize_applied(applied)` → `list[str]` — internal diff line formatter
 
 ### pressure.py
-- `_expire_scene_pressures(state, delta, config=None)` — post-extraction expiry/urgency escalation for `scene_pressure`. Removes pressures past `max_turns`, applies default 4-turn TTL cap for background/building pressures (escalates to immediate instead of removing, giving extractor one more turn to react), then applies configurable escalation thresholds (background→building at 6, building→immediate at 10). Immediate pressures bypass the TTL cap.
+- `_expire_scene_pressures(state, delta, config=None, avoidance=False)` — post-extraction expiry/urgency escalation for `scene_pressure`. Removes pressures past `max_turns`, applies default 4-turn TTL cap for background/building pressures (escalates to immediate instead of removing, giving extractor one more turn to react), then applies configurable escalation thresholds (background→building at 6, building→immediate at 10). Immediate pressures get a TTL stamp (`turn_became_immediate` + `max_turns`) on escalation; TTL defaults to 8 turns from escalation turn. When `avoidance=True`, non-immediate pressures get extra age increment (configurable via `avoidance_decay_per_turn`), simulating time passing while player creates distance.
 - `_purge_scene_pressures(state, delta, *, location_changed=False, combat_ended=False, config=None)` — removes stale/irrelevant pressures. On location change: only auto-purges `urgency == "background"` pressures; `immediate` and `building` pressures survive location change and must be explicitly removed by the scene extractor. On combat end: removes `immediate` pressures. Age cap at 15 turns default.
+- `_check_floor_relief(state, config, band)` — checks momentum floor and injects `breathing_room` GM beat when momentum has been at floor (`config.momentum_floor`, default -3) for `config.momentum_floor_relief_turns` (default 2) consecutive turns without a success/crit_success band. Tracks consecutive floor count via `state["meta"]["consecutive_floor_count"]`. Does not overwrite existing `pending_gm_beat`.
 
 ### compactor.py
 - `maybe_compact(save_dir, state, config)` → `tuple[state, bool]` (async) — runs compaction if `turn % compact_every == 0`. Returns `(state, compaction_ran)` where `compaction_ran` is True only when compaction actually produced bullets or sanitization. Mutates chronicle.md and state. Compacts prior_history bullets, applies state sanitization (NPC merge, inventory remove, quest close, pressure remove, condition remove), and consolidates recent_events via LLM. Phase signals (`compact_start`, `compact_done`) are emitted by the caller only when `compaction_ran` is True.

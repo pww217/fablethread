@@ -24,6 +24,11 @@ game:
   # Scene pressure urgency escalation thresholds (turns)
   scene_pressure_building_at: 6   # background → building
   scene_pressure_immediate_at: 10 # building → immediate
+  # Scene pressure immediate TTL (turns) — how long an immediate pressure lasts
+  scene_pressure_immediate_ttl: 8
+  # Momentum floor and relief trigger
+  momentum_floor: -3
+  momentum_floor_relief_turns: 2
   # Compaction: compress narrative history every N turns (0 = disabled)
   compact_every: 6
   compact_temperature: 0.1

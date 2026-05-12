@@ -5,7 +5,8 @@
 #
 # Each plan gets a 10-minute timeout. If it times out, it's marked FAILED
 # and the next plan continues. After successful review, the reviewed plan
-# file is updated in place with the model output and then moved to plans/.
+# file is written to plans/<slug>-reviewed.md. The original plan is left
+# in plans/review/ for manual review.
 
 set -uo pipefail
 
@@ -16,7 +17,7 @@ cd "$REPO_ROOT"
 REVIEW_DIR="plans/review"
 DEST_DIR="plans"
 PROMPT_TEMPLATE="${SCRIPT_DIR}/prompt-template.txt"
-TIMEOUT_SECS=600
+TIMEOUT_SECS=900
 
 PASS=0
 FAIL=0
@@ -114,7 +115,9 @@ PY
   fi
 
   log "  Running review"
-  if "$TIMEOUT_BIN" "$TIMEOUT_SECS" "$OPENCODE_BIN" run \
+  REVIEW_PATH="${DEST_DIR}/${PLAN_BASENAME%.md}-reviewed.md"
+  if "$TIMEOUT_BIN" --kill-after=10 "$TIMEOUT_SECS" "$OPENCODE_BIN" run \
+      --log-level DEBUG \
       -m mlx/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit \
       < "$TMP_PROMPT" > "$TMP_OUTPUT" 2> "$TMP_LOG"; then
 
@@ -127,11 +130,18 @@ PY
       continue
     fi
 
-    cp "$PLAN_PATH" "${PLAN_PATH}.bak"
-    cp "$TMP_OUTPUT" "$PLAN_PATH"
-    mv "$PLAN_PATH" "${DEST_DIR}/"
-    log "✓ Updated plan and moved to: ${DEST_DIR}/${PLAN_BASENAME}"
-    [[ -s "$TMP_LOG" ]] && log "  stderr saved during run: ${TMP_LOG}"
+    # Strip opencode thinking/thought output (tool-use artifacts)
+    python3 -c "
+import sys, re
+content = open(sys.argv[1], encoding='utf-8').read()
+# Find the first heading line (plan title) and strip everything before it.
+m = re.search(r'^# .+', content, re.MULTILINE)
+if m:
+    open(sys.argv[1], 'w', encoding='utf-8').write(content[m.start():])
+" "$TMP_OUTPUT"
+
+    cp "$TMP_OUTPUT" "$REVIEW_PATH"
+    log "✓ Review written to: ${REVIEW_PATH}"
     ((PASS+=1))
   else
     EXIT_CODE=$?
