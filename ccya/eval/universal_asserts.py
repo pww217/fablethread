@@ -31,6 +31,7 @@ def check_recent_events_turn_stamped(event: dict[str, Any]) -> dict[str, Any]:
             "passed": True,
             "detail": "(no adds)",
             "scope": "universal",
+            "severity": "red",
         }
     if bad:
         return {
@@ -38,12 +39,14 @@ def check_recent_events_turn_stamped(event: dict[str, Any]) -> dict[str, Any]:
             "passed": False,
             "detail": f"{len(bad)} entries had turn=0/null instead of {cur_turn}: {bad[:3]}",
             "scope": "universal",
+            "severity": "red",
         }
     return {
         "assertion": "universal.recent_events_add.turn_stamped",
         "passed": True,
         "detail": f"all {len(adds)} entries stamped with turn={cur_turn}",
         "scope": "universal",
+        "severity": "red",
     }
 
 
@@ -68,6 +71,7 @@ def check_pending_gm_beat_consumed(
             "passed": True,
             "detail": "(no prior beat)",
             "scope": "universal",
+            "severity": "red",
         }
     if cur_beat == prev_beat:
         return {
@@ -75,12 +79,14 @@ def check_pending_gm_beat_consumed(
             "passed": False,
             "detail": f"beat persisted unchanged across turns: {prev_beat}",
             "scope": "universal",
+            "severity": "red",
         }
     return {
         "assertion": "universal.pending_gm_beat.consumed",
         "passed": True,
         "detail": "beat consumed or replaced",
         "scope": "universal",
+        "severity": "red",
     }
 
 
@@ -96,6 +102,7 @@ def check_location_change_applied(
             "passed": True,
             "detail": "(no change)",
             "scope": "universal",
+            "severity": "red",
         }
     if prev_event is None:
         return {
@@ -103,6 +110,7 @@ def check_location_change_applied(
             "passed": True,
             "detail": "(first turn)",
             "scope": "universal",
+            "severity": "red",
         }
     prev_loc = ((prev_event.get("state_snapshot") or {}).get("location") or {}).get("id")
     cur_loc = ((event.get("state_snapshot") or {}).get("location") or {}).get("id")
@@ -112,12 +120,14 @@ def check_location_change_applied(
             "passed": False,
             "detail": f"location_change emitted but state.location.id unchanged: {cur_loc}",
             "scope": "universal",
+            "severity": "red",
         }
     return {
         "assertion": "universal.location_change.applied",
         "passed": True,
         "detail": f"{prev_loc} -> {cur_loc}",
         "scope": "universal",
+        "severity": "red",
     }
 
 
@@ -130,6 +140,7 @@ def check_rolled_implies_binding(event: dict[str, Any]) -> dict[str, Any]:
             "passed": True,
             "detail": "(no roll)",
             "scope": "universal",
+            "severity": "red",
         }
     nu = (event.get("narrate_prompt") or {}).get("rendered_user") or ""
     if "rules_outcome (BINDING" in nu:
@@ -138,12 +149,14 @@ def check_rolled_implies_binding(event: dict[str, Any]) -> dict[str, Any]:
             "passed": True,
             "detail": "binding directive included",
             "scope": "universal",
+            "severity": "red",
         }
     return {
         "assertion": "universal.narrate.binding_present",
         "passed": False,
         "detail": "rolled=true but narrate user prompt did not include rules_outcome BINDING block",
         "scope": "universal",
+        "severity": "red",
     }
 
 
@@ -230,6 +243,7 @@ def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
             "passed": True,
             "detail": "(no narration)",
             "scope": "universal",
+            "severity": "red",
         }
     applied = event.get("applied") or {}
     snap = event.get("state_snapshot") or {}
@@ -299,6 +313,7 @@ def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
             "passed": True,
             "detail": "no missing NPC names detected",
             "scope": "universal",
+            "severity": "red",
         }
     # Heuristic — could be locations, items, etc. Flag only if 1-3 missing (not 10+ which is noise).
     if len(missing) > 3:
@@ -307,12 +322,14 @@ def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
             "passed": True,
             "detail": f"{len(missing)} candidates skipped (likely locations/items, not NPCs)",
             "scope": "universal",
+            "severity": "red",
         }
     return {
         "assertion": "universal.npc_mention.extracted",
         "passed": False,
         "detail": f"narration mentions names not in npc_add/update or known: {missing}",
         "scope": "universal",
+        "severity": "red",
     }
 
 
@@ -330,12 +347,14 @@ def check_recent_events_ring_size(event: dict[str, Any]) -> dict[str, Any]:
             "passed": False,
             "detail": f"recent_events has {n} entries (max should be ~15)",
             "scope": "universal",
+            "severity": "red",
         }
     return {
         "assertion": "universal.recent_events.ring_bounded",
         "passed": True,
         "detail": f"{n} entries",
         "scope": "universal",
+        "severity": "red",
     }
 
 
@@ -351,12 +370,14 @@ def check_npc_scene_cap(event: dict[str, Any]) -> dict[str, Any]:
             "passed": False,
             "detail": f"{n} NPCs in scene (cap is 8): {names[:10]}",
             "scope": "universal",
+            "severity": "red",
         }
     return {
         "assertion": "universal.scene.npc_cap",
         "passed": True,
         "detail": f"{n} NPCs",
         "scope": "universal",
+        "severity": "red",
     }
 
 
@@ -376,12 +397,14 @@ def check_condition_no_dupes(event: dict[str, Any]) -> dict[str, Any]:
             "passed": False,
             "detail": f"duplicate condition ids: {dupes}",
             "scope": "universal",
+            "severity": "red",
         }
     return {
         "assertion": "universal.pc.condition_no_dupes",
         "passed": True,
         "detail": f"{len(ids)} conditions, no dupes",
         "scope": "universal",
+        "severity": "red",
     }
 
 
@@ -394,6 +417,7 @@ def check_actions_count_and_distinct(event: dict[str, Any]) -> dict[str, Any]:
             "passed": False,
             "detail": "actions is not a list",
             "scope": "universal",
+            "severity": "red",
         }
     n = len(actions)
     distinct = len(set(actions))
@@ -403,6 +427,7 @@ def check_actions_count_and_distinct(event: dict[str, Any]) -> dict[str, Any]:
             "passed": False,
             "detail": f"actions has {n} entries (expected 4)",
             "scope": "universal",
+            "severity": "red",
         }
     if distinct != n:
         return {
@@ -410,12 +435,14 @@ def check_actions_count_and_distinct(event: dict[str, Any]) -> dict[str, Any]:
             "passed": False,
             "detail": f"actions has {n - distinct} duplicate(s): {actions}",
             "scope": "universal",
+            "severity": "red",
         }
     return {
         "assertion": "universal.progress.actions_quality",
         "passed": True,
         "detail": "4 distinct actions",
         "scope": "universal",
+        "severity": "red",
     }
 
 
@@ -431,6 +458,7 @@ def check_momentum_band_delta(
             "passed": True,
             "detail": "(no roll)",
             "scope": "universal",
+            "severity": "red",
         }
     band = rules.get("band", "")
     expected = {
@@ -447,6 +475,7 @@ def check_momentum_band_delta(
             "passed": True,
             "detail": f"(unknown band {band!r})",
             "scope": "universal",
+            "severity": "red",
         }
     cur_snap = event.get("state_snapshot") or {}
     cur_m = (cur_snap.get("meta") or {}).get("momentum")
@@ -456,6 +485,7 @@ def check_momentum_band_delta(
             "passed": True,
             "detail": "(no momentum field)",
             "scope": "universal",
+            "severity": "red",
         }
     if prev_event is None:
         return {
@@ -463,6 +493,7 @@ def check_momentum_band_delta(
             "passed": True,
             "detail": "(first turn)",
             "scope": "universal",
+            "severity": "red",
         }
     prev_snap = prev_event.get("state_snapshot") or {}
     prev_m = (prev_snap.get("meta") or {}).get("momentum") or 0
@@ -475,13 +506,96 @@ def check_momentum_band_delta(
             "passed": True,
             "detail": f"band={band} delta={actual} (expected {expected:+d}, engine may clamp)",
             "scope": "universal",
+            "severity": "red",
         }
     return {
         "assertion": "universal.momentum.band_delta",
         "passed": False,
         "detail": f"band={band} expected delta {expected:+d} but got {actual:+d} (prev={prev_m} cur={cur_m})",
         "scope": "universal",
+        "severity": "red",
     }
+
+
+def check_zero_stack_overdraw(
+    event: dict[str, Any], prev_event: dict[str, Any] | None
+) -> dict[str, Any]:
+    """inventory_remove must not remove from a zero-quantity item."""
+    if prev_event is None:
+        return {"assertion": "universal.inventory.no_overdraw", "passed": True, "detail": "(first turn)", "scope": "universal", "severity": "red"}
+    prev_inv = (prev_event.get("state_snapshot") or {}).get("inventory") or []
+    zero_items = {
+        item["id"] for item in prev_inv
+        if isinstance(item, dict) and (item.get("amount") or 0) == 0 and item.get("id")
+    }
+    removes = (event.get("applied") or {}).get("inventory_remove") or []
+    bad = [r for r in removes if isinstance(r, dict) and r.get("id") in zero_items]
+    if bad:
+        return {
+            "assertion": "universal.inventory.no_overdraw",
+            "passed": False,
+            "detail": f"removed from zero-quantity item(s): {[b.get('id') for b in bad]}",
+            "scope": "universal",
+            "severity": "red",
+        }
+    return {"assertion": "universal.inventory.no_overdraw", "passed": True, "detail": f"checked {len(removes)} removes", "scope": "universal", "severity": "red"}
+
+
+def check_immediate_pressure_cap(event: dict[str, Any], prev_event: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Immediate pressures must not exceed 3 at once."""
+    pressures = ((event.get("state_snapshot") or {}).get("scene") or {}).get("scene_pressure") or []
+    immediates = [p for p in pressures if isinstance(p, dict) and p.get("urgency") == "immediate"]
+    if len(immediates) > 3:
+        ids = [p.get("id", "?") for p in immediates]
+        return {"assertion": "universal.pressure.immediate_cap", "passed": False, "detail": f"{len(immediates)} immediate pressures (cap 3): {ids}", "scope": "universal", "severity": "red"}
+    return {"assertion": "universal.pressure.immediate_cap", "passed": True, "detail": f"{len(immediates)} immediate", "scope": "universal", "severity": "red"}
+
+
+def check_momentum_floor_no_relief(
+    event: dict[str, Any],
+    prev_event: dict[str, Any] | None,
+    event_window: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Momentum at floor for >= 3 consecutive turns without a success band is a pacing failure."""
+    window: list[dict[str, Any]] = event_window or ([prev_event, event] if prev_event else [event])
+    floor_count = 0
+    for ev in reversed(window):
+        m = ((ev.get("state_snapshot") or {}).get("meta") or {}).get("momentum")
+        if m is not None and m <= -3:
+            floor_count += 1
+        else:
+            break
+    if floor_count >= 3:
+        return {"assertion": "universal.pacing.floor_no_relief", "passed": False, "detail": f"momentum at floor for {floor_count} consecutive turns", "scope": "universal", "severity": "yellow"}
+    return {"assertion": "universal.pacing.floor_no_relief", "passed": True, "detail": f"floor_count={floor_count}", "scope": "universal", "severity": "yellow"}
+
+
+def check_directive_rendered(event: dict[str, Any], prev_event: dict[str, Any] | None = None) -> dict[str, Any]:
+    """If immediate pressures exist, the Pressure/Overwhelm directive must appear in narrate user prompt."""
+    pressures = ((event.get("state_snapshot") or {}).get("scene") or {}).get("scene_pressure") or []
+    immediates = [p for p in pressures if isinstance(p, dict) and p.get("urgency") == "immediate"]
+    if not immediates:
+        return {"assertion": "universal.narrate.pressure_directive_rendered", "passed": True, "detail": "(no immediates)", "scope": "universal", "severity": "red"}
+    rendered = (event.get("narrate_prompt") or {}).get("rendered_user") or ""
+    if "**Pressure:**" in rendered or "**Overwhelm:**" in rendered:
+        return {"assertion": "universal.narrate.pressure_directive_rendered", "passed": True, "detail": "directive present", "scope": "universal", "severity": "red"}
+    return {"assertion": "universal.narrate.pressure_directive_rendered", "passed": False, "detail": f"{len(immediates)} immediate pressures but no Pressure/Overwhelm directive in narrate user prompt", "scope": "universal", "severity": "red"}
+
+
+def check_immediate_pressure_stale(event: dict[str, Any], prev_event: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Immediate pressures older than 8 turns since becoming immediate are stale."""
+    cur_turn = int((event.get("state_snapshot") or {}).get("meta", {}).get("turn") or 0)
+    pressures = ((event.get("state_snapshot") or {}).get("scene") or {}).get("scene_pressure") or []
+    stale = []
+    for p in pressures:
+        if not isinstance(p, dict) or p.get("urgency") != "immediate":
+            continue
+        tbi = p.get("turn_became_immediate")
+        if tbi and (cur_turn - tbi) > 8:
+            stale.append(p.get("id", "?"))
+    if stale:
+        return {"assertion": "universal.pressure.no_stale_immediate", "passed": False, "detail": f"stale immediate pressure(s): {stale}", "scope": "universal", "severity": "yellow"}
+    return {"assertion": "universal.pressure.no_stale_immediate", "passed": True, "detail": "no stale immediates", "scope": "universal", "severity": "yellow"}
 
 
 def _assert_quest_id_collision(
@@ -510,6 +624,7 @@ def _assert_quest_id_collision(
                 "detail": (
                     f"quest_updates re-creates already-completed quest id={qid!r}"
                 ),
+                "severity": "red",
             })
     return results
 
@@ -539,12 +654,13 @@ def _assert_compactor_sanitization_nonzero(
                 f"compaction fired but sanitized nothing; "
                 f"{len(completed)} completed quest(s) remain un-closed in state"
             ),
+            "severity": "red",
         })
     return results
 
 
 def run_all_universal_asserts(
-    event: dict[str, Any], prev_event: dict[str, Any] | None
+    event: dict[str, Any], prev_event: dict[str, Any] | None, event_window: list[dict[str, Any]] | None = None
 ) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = [
         check_recent_events_turn_stamped(event),
@@ -557,6 +673,11 @@ def run_all_universal_asserts(
         check_condition_no_dupes(event),
         check_actions_count_and_distinct(event),
         check_momentum_band_delta(event, prev_event),
+        check_zero_stack_overdraw(event, prev_event),
+        check_immediate_pressure_cap(event),
+        check_directive_rendered(event),
+        check_immediate_pressure_stale(event),
+        check_momentum_floor_no_relief(event, prev_event, event_window=event_window),
     ]
     results.extend(_assert_quest_id_collision(event, prev_event))
     results.extend(_assert_compactor_sanitization_nonzero(event, prev_event))
