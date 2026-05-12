@@ -229,24 +229,32 @@ class TestChronicleTailSkip:
     def test_skip_last_n_drops_recent_blocks(self, tmp_path: Path):
         chron = tmp_path / "chronicle.md"
         chron.write_text(
+            "## COMPACTED\n\n"
+            "compacted summary of early events.\n\n"
             "## Turn 1 — first input\n\nFirst body.\n\n"
             "## Turn 2 — second input\n\nSecond body.\n\n"
             "## Turn 3 — third input\n\nThird body.\n",
         )
         # window_turns=2 — chronicle should only carry turn 1
         tail = load_chronicle_tail(tmp_path, max_tokens=1000, skip_last_n_turns=2)
-        assert "First body" in tail
+        assert "compacted summary of early events" in tail
+        assert "First body" not in tail
         assert "Second body" not in tail
         assert "Third body" not in tail
 
     def test_skip_zero_returns_full(self, tmp_path: Path):
         chron = tmp_path / "chronicle.md"
-        chron.write_text("## Turn 1 — x\n\nbody one.\n\n## Turn 2 — y\n\nbody two.\n")
+        chron.write_text(
+            "## COMPACTED\n\n"
+            "compacted summary text.\n\n"
+            "## Turn 1 — x\n\nbody one.\n\n"
+            "## Turn 2 — y\n\nbody two.\n"
+        )
         tail = load_chronicle_tail(tmp_path, max_tokens=1000, skip_last_n_turns=0)
-        assert "body one" in tail and "body two" in tail
+        assert "compacted summary text" in tail
 
     def test_skip_more_than_blocks_yields_empty(self, tmp_path: Path):
         chron = tmp_path / "chronicle.md"
-        chron.write_text("## Turn 1 — x\n\nonly body.\n")
+        chron.write_text("## COMPACTED\n\n## Turn 1 — x\n\nonly body.\n")
         tail = load_chronicle_tail(tmp_path, max_tokens=1000, skip_last_n_turns=5)
         assert "only body" not in tail
