@@ -1,4 +1,4 @@
-"""Tests for turn pipeline: beat expiry, deescalate float magnitude."""
+"""Tests for turn pipeline: beat expiry, deescalate float magnitude, condition lifecycle."""
 
 import json
 import tempfile
@@ -7,6 +7,13 @@ from pathlib import Path
 from ccya.engine import EngineConfig, run_turn
 
 _SAVE_DIR = Path(tempfile.mkdtemp())
+
+
+def _write_events(path: Path, events: list[dict]) -> None:
+    import jsonlines
+    with jsonlines.open(str(path), mode="w") as writer:
+        for event in events:
+            writer.write(event)
 
 
 def _write_state(path: Path, data: dict) -> None:
@@ -202,6 +209,219 @@ class TestDeescalateFloatMagnitude:
             # with beat_expires_turn.
             assert result is not None
             assert len(result.errors) == 0, f"Errors: {result.errors}"
+        finally:
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
+
+
+class TestConditionExpiry:
+    def test_condition_expiry(self):
+        """Condition with turns_remaining: 1 expires after one turn, condition_expired event emitted."""
+        state = _make_state(turn=0)
+        state["pc"]["conditions"] = [
+            {"id": "rattled", "label": "rattled", "description": "Shaken by the encounter.", "added_turn": 0, "turns_remaining": 1},
+        ]
+        _write_state(_SAVE_DIR, state)
+
+        # Clear any existing events
+        events_file = _SAVE_DIR / "events.jsonl"
+        if events_file.exists():
+            events_file.unlink()
+
+        narrative = "You steady your breathing."
+        progress_response = json.dumps({
+            "quest_updates": [],
+            "recent_events_add": [],
+            "recent_events_update": [],
+            "recent_events_remove": [],
+            "actions": [],
+            "outcome_summary": "You compose yourself.",
+        })
+
+        chat_call_count = 0
+
+        async def fake_stream(*args, **kwargs):
+            yield narrative
+
+        async def fake_chat(*args, **kwargs):
+            nonlocal chat_call_count
+            chat_call_count += 1
+            if chat_call_count == 1:
+                return {"response": json.dumps({
+                    "intent": "player action",
+                    "intent_verb": "act",
+                    "target": "",
+                    "stakes": "",
+                    "check": {"required": False},
+                }), "done": True, "usage": {}}
+            if chat_call_count == 2:
+                return {"response": progress_response, "done": True, "usage": {}}
+            return {"response": progress_response, "done": True, "usage": {}}
+
+        import ccya.engine.turn as turn_mod
+        import ccya.engine.rules as rules_mod
+        import ccya.engine.seed as seed_mod
+        import ccya.engine.extraction as extract_mod
+
+        _mods = [turn_mod, rules_mod, seed_mod, extract_mod]
+        _origs = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = fake_stream
+        try:
+            result = None
+            async def collect():
+                nonlocal result
+                async for event in run_turn(_SAVE_DIR, "steady", config=EngineConfig()):
+                    if event[0] == "complete":
+                        result = event[1]
+            import asyncio
+            asyncio.get_event_loop().run_until_complete(collect())
+
+            assert result is not None
+            assert len(result.errors) == 0, f"Errors: {result.errors}"
+
+            # Reload state to check conditions
+            from ccya.state import load_state
+            final_state = load_state(_SAVE_DIR)
+            conds = final_state.get("pc", {}).get("conditions") or []
+            assert len(conds) == 0, f"Condition should have expired, but found: {conds}"
+
+            # Check events.jsonl for condition_expired event
+            found_expired = False
+            lines = events_file.read_text().strip().split("\n")
+            for line in lines:
+                if line:
+                    event = json.loads(line)
+                    if event.get("kind") == "condition_expired" and event.get("condition_id") == "rattled":
+                        found_expired = True
+                        break
+            assert found_expired, "condition_expired event not found in events.jsonl"
+        finally:
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
+
+    def test_condition_persistence(self):
+        """Condition with turns_remaining: 3 decrements correctly over 3 turns."""
+        state = _make_state(turn=0)
+        state["pc"]["conditions"] = [
+            {"id": "wounded", "label": "wounded", "description": "Bleeding from the fight.", "added_turn": 0, "turns_remaining": 3},
+        ]
+        _write_state(_SAVE_DIR, state)
+
+        events_file = _SAVE_DIR / "events.jsonl"
+        if events_file.exists():
+            events_file.unlink()
+
+        narrative = "You fight through the pain."
+        progress_response = json.dumps({
+            "quest_updates": [],
+            "recent_events_add": [],
+            "recent_events_update": [],
+            "recent_events_remove": [],
+            "actions": [],
+            "outcome_summary": "You push forward.",
+        })
+
+        chat_call_count = 0
+
+        async def fake_stream(*args, **kwargs):
+            yield narrative
+
+        async def fake_chat(*args, **kwargs):
+            nonlocal chat_call_count
+            chat_call_count += 1
+            if chat_call_count == 1:
+                return {"response": json.dumps({
+                    "intent": "player action",
+                    "intent_verb": "act",
+                    "target": "",
+                    "stakes": "",
+                    "check": {"required": False},
+                }), "done": True, "usage": {}}
+            if chat_call_count == 2:
+                return {"response": progress_response, "done": True, "usage": {}}
+            return {"response": progress_response, "done": True, "usage": {}}
+
+        import ccya.engine.turn as turn_mod
+        import ccya.engine.rules as rules_mod
+        import ccya.engine.seed as seed_mod
+        import ccya.engine.extraction as extract_mod
+
+        _mods = [turn_mod, rules_mod, seed_mod, extract_mod]
+        _origs = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = fake_stream
+        try:
+            result = None
+            async def collect():
+                nonlocal result
+                async for event in run_turn(_SAVE_DIR, "fight", config=EngineConfig()):
+                    if event[0] == "complete":
+                        result = event[1]
+            import asyncio
+            asyncio.get_event_loop().run_until_complete(collect())
+
+            assert result is not None
+            assert len(result.errors) == 0, f"Errors: {result.errors}"
+
+            # After 1 turn: turns_remaining should be 2
+            from ccya.state import load_state
+            state_after_1 = load_state(_SAVE_DIR)
+            conds = state_after_1.get("pc", {}).get("conditions") or []
+            assert len(conds) == 1
+            assert conds[0]["turns_remaining"] == 2, f"Expected 2, got {conds[0].get('turns_remaining')}"
+
+            # Run turn 2
+            chat_call_count = 0
+            result = None
+            async def collect2():
+                nonlocal result
+                async for event in run_turn(_SAVE_DIR, "fight again", config=EngineConfig()):
+                    if event[0] == "complete":
+                        result = event[1]
+            asyncio.get_event_loop().run_until_complete(collect2())
+
+            assert result is not None
+            state_after_2 = load_state(_SAVE_DIR)
+            conds = state_after_2.get("pc", {}).get("conditions") or []
+            assert len(conds) == 1
+            assert conds[0]["turns_remaining"] == 1, f"Expected 1, got {conds[0].get('turns_remaining')}"
+
+            # Run turn 3: condition should expire
+            chat_call_count = 0
+            result = None
+            async def collect3():
+                nonlocal result
+                async for event in run_turn(_SAVE_DIR, "last push", config=EngineConfig()):
+                    if event[0] == "complete":
+                        result = event[1]
+            asyncio.get_event_loop().run_until_complete(collect3())
+
+            assert result is not None
+            state_after_3 = load_state(_SAVE_DIR)
+            conds = state_after_3.get("pc", {}).get("conditions") or []
+            assert len(conds) == 0, f"Condition should have expired, but found: {conds}"
+
+            # Check events.jsonl for condition_expired event
+            found_expired = False
+            lines = events_file.read_text().strip().split("\n")
+            for line in lines:
+                if line:
+                    event = json.loads(line)
+                    if event.get("kind") == "condition_expired" and event.get("condition_id") == "wounded":
+                        found_expired = True
+                        break
+            assert found_expired, "condition_expired event not found in events.jsonl"
         finally:
             for _m, _name, _orig in _origs:
                 setattr(_m, _name, _orig)

@@ -627,6 +627,27 @@ async def run_turn(
             )
             _expire_scene_pressures(state, delta, config, avoidance=avoidance)
 
+        # Condition age pass: decrement turns_remaining, remove expired
+        updated_conds = []
+        for c in (state.get("pc") or {}).get("conditions") or []:
+            tr = c.get("turns_remaining")
+            if tr is None:
+                # Permanent condition — do not age
+                updated_conds.append(c)
+                continue
+            new_remaining = tr - 1
+            if new_remaining <= 0:
+                append_event(save_dir, {
+                    "kind": "condition_expired",
+                    "condition_id": c.get("id"),
+                    "turn": turn_no,
+                })
+                # do not append — condition removed
+            else:
+                updated_conds.append({**c, "turns_remaining": new_remaining})
+
+        (state.setdefault("pc", {})["conditions"])[:] = updated_conds
+
         ext_ms = (asyncio.get_event_loop().time() - t2) * 1000
         # Roll up per-stream token counts for the metrics dict
         _tokens_in = sum(
@@ -1215,6 +1236,25 @@ async def run_turn_retry(
                 config=config,
             )
             _expire_scene_pressures(state, delta, config)
+
+        # Condition age pass: decrement turns_remaining, remove expired
+        updated_conds = []
+        for c in (state.get("pc") or {}).get("conditions") or []:
+            tr = c.get("turns_remaining")
+            if tr is None:
+                updated_conds.append(c)
+                continue
+            new_remaining = tr - 1
+            if new_remaining <= 0:
+                append_event(save_dir, {
+                    "kind": "condition_expired",
+                    "condition_id": c.get("id"),
+                    "turn": turn_no,
+                })
+            else:
+                updated_conds.append({**c, "turns_remaining": new_remaining})
+
+        (state.setdefault("pc", {})["conditions"])[:] = updated_conds
 
         ext_ms = (asyncio.get_event_loop().time() - t2) * 1000
         _tokens_in = sum(

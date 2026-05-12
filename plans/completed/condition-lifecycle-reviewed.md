@@ -1,7 +1,7 @@
 # Condition Lifecycle: Duration, Relevance, and NPC Enter/Exit
 
 ## Status
-`open`
+`completed`
 
 ## Part of
 standalone

@@ -4,6 +4,21 @@
 
 `Condition`, `ConditionAdd`, `ConditionRemove`, `RulesCheck`, `Scope`, `IntentEnvelope`, `RulesOutcome`, `InventoryItem`, `InventoryRemove`, `InventoryUpdate`, `LocationRef`, `QuestObjective`, `QuestObjectiveUpdate`, `QuestUpdate`, `NpcRef`, `NpcAdd`, `NpcRemove`, `NpcUpdate`, `CompendiumNpcUpdate`, `RecentEvent`, `RecentEventUpdate`, `ScenePressure`, `StateDelta`, `SceneExtractResult`, `StateExtractResult`, `GMBeat`, `ProgressExtractResult`, `CompactorNpcMerge`, `CompactorRecentEventCompact`, `CompactorSanitizationResult`.
 
+## Condition
+
+- `id: str`
+- `label: str`
+- `description: str = ""`
+- `added_turn: int = 0`
+- `turns_remaining: int | None = None` — number of turns until condition expires. `None` means permanent (no decay). Set by extractor, decremented by engine.
+
+## ConditionAdd
+
+- `id: str`
+- `label: str`
+- `description: str = ""`
+- `turns_remaining: int | None = None` — optional duration; `None` means permanent.
+
 ## Dataclasses
 
 - **`TurnResult`** — returned from `run_turn()`: turn, trace_id, narrative, state_delta, applied, rejected, actions, scene_tags, recent_events, diff, changes, metrics, errors, rules, outcome_summary, recent_events_evicted.
