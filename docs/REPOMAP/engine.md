@@ -33,7 +33,7 @@
 
 1. **Rules / Intent** (Call 0, `llm_chat`, non-streaming) — classifies intent, resolves dice via `rules.resolve_check()`, returns `IntentEnvelope` + `RulesOutcome` (band, directive, dice).
 2. **Narrate** (Call 1, streaming → SSE → `chronicle.md`) — prose narrative. Emits `<scope>{"active_domains":["..."]}</scope>` as the last line. Server-side stream filter strips the tail before SSE emission. `RulesOutcome` injected as BINDING block the narrator must not contradict.
-3. **Scope parsing** — `_split_scope_tail()` extracts `active_domains` from the narrator's scope tail. Falls back to `_DEFAULT_DOMAINS` (all 7) on missing/malformed tag.
+3. **Scope parsing** — `_split_scope_tail()` extracts `active_domains` from the narrator's scope tail, returns `decided_by` ("narrator" | "fallback_no_tag" | "fallback_malformed"). Falls back to `_DEFAULT_DOMAINS` (all 7) on missing/malformed tag.
 4. **Scene Extract** (Call 2a, `llm_chat`, JSON → `SceneExtractResult`) — scene tags, location change, location description, present NPCs, compendium NPC updates. Skipped when neither `scene` nor `location_change` is in `active_domains`.
 5. **State Extract** (Call 2b, `llm_chat`, JSON → `StateExtractResult`) — inventory deltas, condition add/remove. Skipped when neither `inventory` nor `pc_condition` is in `active_domains`.
 6. **Progress Extract** (Call 2c, `llm_chat`, JSON → `ProgressExtractResult`) — quest updates, recent events, actions, outcome_summary, gm_beat, beat_disposition, scene_pressure add/remove/update. Always runs (post-narration storytelling brain).
@@ -50,7 +50,7 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_ALL_DOMAINS` — frozenset of 7 valid domain names
 - `_DEFAULT_DOMAINS` — list of all 7 domains (fallback when no scope tag)
 - `_SCOPE_OPEN`, `_SCOPE_CLOSE`, `_SCOPE_TAIL_RE`, `_SCOPE_TAIL_BUFFER_SIZE` — constants for scope tail parsing
-- `_split_scope_tail(text)` → `tuple[str, list[str] | None]` — extracts `<scope>...</scope>` JSON tail, returns (prose, active_domains | None)
+- `_split_scope_tail(text)` → `tuple[str, list[str] | None, str]` — extracts `<scope>...</scope>` JSON tail, returns (prose, active_domains | None, decided_by). `decided_by` is `"narrator"` (scope tag present and valid), `"fallback_no_tag"` (no `<scope>` tag found), or `"fallback_malformed"` (tag present but invalid JSON/wrong shape). Filters domains against `_ALL_DOMAINS`; unknown values silently dropped.
 - `_StreamTailFilter` — filters streaming text to suppress everything from `<scope>` onward; maintains sliding tail buffer for cross-chunk sentinel detection
 - `_check_floor_relief(state, config, band)` → `None` — checks momentum floor and injects `breathing_room` beat when relief conditions met; tracks consecutive floor turns via `state["meta"]["consecutive_floor_count"]`
 - Condition age pass (inline in `run_turn` and `run_turn_retry`) — decrements `turns_remaining` on all active conditions, removes expired ones (≤0), logs `condition_expired` event via `append_event`. Runs after delta application and pressure aging. Permanent conditions (`turns_remaining=None`) are skipped. New conditions without explicit `turns_remaining` get a default TTL of 10 turns (set in `apply_delta`).
@@ -129,7 +129,7 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_summarize_applied(applied)` → `list[str]` — internal diff line formatter
 
 ### pressure.py
-- `_expire_scene_pressures(state, delta, config=None, avoidance=False)` — post-extraction expiry/urgency escalation for `scene_pressure`. Removes pressures past `max_turns`, applies default 4-turn TTL cap for background/building pressures (escalates to immediate instead of removing, giving extractor one more turn to react), then applies configurable escalation thresholds (background→building at 6, building→immediate at 10). Immediate pressures get a TTL stamp (`turn_became_immediate` + `max_turns`) on escalation; TTL defaults to 8 turns from escalation turn. When `avoidance=True`, non-immediate pressures get extra age increment (configurable via `avoidance_decay_per_turn`), simulating time passing while player creates distance.
+- `_expire_scene_pressures(state, delta, config=None, avoidance=False)` — post-extraction expiry/urgency escalation for `scene_pressure`. Removes pressures past `max_turns`, applies default 4-turn TTL cap for background/building pressures (escalates to immediate instead of removing, giving extractor one more turn to react), then applies configurable escalation thresholds (background→building at 6, building→immediate at 10). Immediate pressures get a TTL stamp (`turn_became_immediate` + `max_turns`) on escalation; TTL defaults to 8 turns from escalation turn. When `avoidance=True`, non-immediate pressures get extra age increment (configurable via `avoidance_decay_per_turn`), simulating time passing while player creates distance. Write-back guarantee: mutations to state dict items (urgency, turn_became_immediate, max_turns) survive to persisted state; removed IDs are appended to `delta.scene_pressure_remove` which `apply_delta` uses to filter state.
 - `_purge_scene_pressures(state, delta, *, location_changed=False, combat_ended=False, config=None)` — removes stale/irrelevant pressures. On location change: only auto-purges `urgency == "background"` pressures; `immediate` and `building` pressures survive location change and must be explicitly removed by the scene extractor. On combat end: removes `immediate` pressures. Age cap at 15 turns default.
 - `_check_floor_relief(state, config, band)` — checks momentum floor and injects `breathing_room` GM beat when momentum has been at floor (`config.momentum_floor`, default -3) for `config.momentum_floor_relief_turns` (default 2) consecutive turns without a success/crit_success band. Tracks consecutive floor count via `state["meta"]["consecutive_floor_count"]`. Does not overwrite existing `pending_gm_beat`.
 
@@ -139,7 +139,8 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_build_compact_messages(env, state, turns)` → `list[dict]` — renders compact_system.j2 + compact_user.j2; passes recent_events from state.scene.recent_events to template
 - `_parse_compact_response(response_text)` → `tuple[str, CompactorSanitizationResult | None]` — extracts bullet lines (matching `- [T\d+] `) + JSON sanitization from LLM output (last JSON object, validated through CompactorSanitizationResult)
 - `_write_compacted_block(save_dir, bullets_text, compact_start, compact_end)` — writes COMPACTED block to chronicle.md (prepends if none exists, appends after existing block), then removes prose sections for turns in [compact_start, compact_end]
-- `_apply_sanitization(state, san)` — applies CompactorSanitizationResult to state in-place; validates all IDs against allowlists; unknown IDs silently skipped
+- `_apply_sanitization(state, san)` — applies CompactorSanitizationResult to state in-place; validates all IDs against allowlists; unknown IDs silently skipped; logs structured event with `quests_closed`, `inventory_removed`, `npcs_merged`, `pressures_removed`, `conditions_removed`
+- `_sanitization_nonempty(san)` → `bool` — returns True when any of the five sanitization lists (npc_merge, inventory_remove, quest_close, pressure_remove, condition_remove) is non-empty
 
 ## Character creation
 
