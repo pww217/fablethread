@@ -10,50 +10,58 @@ from ccya.engine.turn import (
 class TestSplitScopeTail:
     def test_no_tag_returns_none(self) -> None:
         text = "Just prose, nothing special."
-        prose, domains = _split_scope_tail(text)
+        prose, domains, decided_by = _split_scope_tail(text)
         assert prose == text
         assert domains is None
+        assert decided_by == "fallback_no_tag"
 
     def test_valid_tag_at_end(self) -> None:
         text = 'The guard falls.\n\n<scope>{"active_domains":["scene","inventory"]}</scope>'
-        prose, domains = _split_scope_tail(text)
+        prose, domains, decided_by = _split_scope_tail(text)
         assert prose == "The guard falls."
         assert domains == ["scene", "inventory"]
+        assert decided_by == "narrator"
 
     def test_empty_domain_list_honored(self) -> None:
         text = 'Pure dialogue beat.\n<scope>{"active_domains":[]}</scope>'
-        prose, domains = _split_scope_tail(text)
+        prose, domains, decided_by = _split_scope_tail(text)
         assert prose == "Pure dialogue beat."
         assert domains == []
+        assert decided_by == "narrator"
 
     def test_unknown_domains_filtered(self) -> None:
         text = '...\n<scope>{"active_domains":["scene","fake_domain","inventory"]}</scope>'
-        prose, domains = _split_scope_tail(text)
+        prose, domains, decided_by = _split_scope_tail(text)
         assert domains == ["scene", "inventory"]
+        assert decided_by == "narrator"
 
     def test_invalid_json_returns_none(self) -> None:
         text = '...<scope>{not json}</scope>'
-        prose, domains = _split_scope_tail(text)
+        prose, domains, decided_by = _split_scope_tail(text)
         assert prose == "..."
         assert domains is None
+        assert decided_by == "fallback_malformed"
 
     def test_missing_active_domains_key(self) -> None:
         text = '...<scope>{"other":1}</scope>'
-        _, domains = _split_scope_tail(text)
+        _, domains, decided_by = _split_scope_tail(text)
         assert domains is None
+        assert decided_by == "fallback_malformed"
 
     def test_active_domains_not_list(self) -> None:
         text = '...<scope>{"active_domains":"scene"}</scope>'
-        _, domains = _split_scope_tail(text)
+        _, domains, decided_by = _split_scope_tail(text)
         assert domains is None
+        assert decided_by == "fallback_malformed"
 
     def test_tag_in_middle_of_text(self) -> None:
         # Defensive: even if the tag isn't at the end, parser should still find it.
         text = 'before <scope>{"active_domains":["scene"]}</scope> after'
-        prose, domains = _split_scope_tail(text)
+        prose, domains, decided_by = _split_scope_tail(text)
         assert "<scope>" not in prose
         assert "</scope>" not in prose
         assert domains == ["scene"]
+        assert decided_by == "narrator"
 
 
 class TestStreamTailFilter:

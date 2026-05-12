@@ -79,20 +79,14 @@ _SCOPE_TAIL_RE = re.compile(r"<scope>(.*?)</scope>", re.DOTALL)
 _SCOPE_TAIL_BUFFER_SIZE = len(_SCOPE_OPEN) - 1  # = 6
 
 
-def _split_scope_tail(text: str) -> tuple[str, list[str] | None]:
-    """Extract <scope>...</scope> tail, return (prose, active_domains | None).
+def _split_scope_tail(text: str) -> tuple[str, list[str] | None, str]:
+    """Extract <scope>...</scope> tail, return (prose, active_domains | None, decided_by).
 
-    Returns:
-        (prose, None)        — no tag found, or malformed JSON, or wrong shape.
-                                Caller should use _DEFAULT_DOMAINS.
-        (prose, [...])       — valid; list may be empty (intentional skip-everything).
-                                Empty list = "run only progress."
-
-    Filters domains against _ALL_DOMAINS; unknown values silently dropped.
+    decided_by: "narrator" | "fallback_no_tag" | "fallback_malformed"
     """
     m = _SCOPE_TAIL_RE.search(text)
     if not m:
-        return text, None
+        return text, None, "fallback_no_tag"
 
     prose = (text[:m.start()] + text[m.end():]).rstrip()
     json_str = m.group(1).strip()
@@ -100,17 +94,17 @@ def _split_scope_tail(text: str) -> tuple[str, list[str] | None]:
     try:
         parsed = json.loads(json_str)
     except (json.JSONDecodeError, ValueError):
-        return prose, None
+        return prose, None, "fallback_malformed"
 
     if not isinstance(parsed, dict):
-        return prose, None
+        return prose, None, "fallback_malformed"
 
     raw = parsed.get("active_domains")
     if not isinstance(raw, list):
-        return prose, None
+        return prose, None, "fallback_malformed"
 
     domains = [d for d in raw if isinstance(d, str) and d in _ALL_DOMAINS]
-    return prose, domains
+    return prose, domains, "narrator"
 
 
 class _StreamTailFilter:
@@ -539,7 +533,7 @@ async def run_turn(
         # Keep narrative_chunks compatible with downstream code paths (error fallback).
         narrative_chunks[:] = [scope_filter.full_text()]
         full_with_tail = strip_thinking(scope_filter.full_text())
-        narrative, parsed_domains = _split_scope_tail(full_with_tail)
+        narrative, parsed_domains, scope_decided_by = _split_scope_tail(full_with_tail)
         _active_domains = (
             list(parsed_domains) if parsed_domains is not None else list(_DEFAULT_DOMAINS)
         )
@@ -800,6 +794,7 @@ async def run_turn(
             "extraction": extraction_event,
             "scope": {
                 "active_domains": _active_domains,
+                "decided_by": scope_decided_by,
             },
             "changes": changes,
             # Prompt logging (for turn viewer)
@@ -1183,7 +1178,7 @@ async def run_turn_retry(
         # Keep narrative_chunks compatible with downstream code paths (error fallback).
         narrative_chunks[:] = [scope_filter.full_text()]
         full_with_tail = strip_thinking(scope_filter.full_text())
-        narrative, parsed_domains = _split_scope_tail(full_with_tail)
+        narrative, parsed_domains, scope_decided_by = _split_scope_tail(full_with_tail)
         _active_domains = (
             list(parsed_domains) if parsed_domains is not None else list(_DEFAULT_DOMAINS)
         )
@@ -1428,6 +1423,7 @@ async def run_turn_retry(
             "extraction": extraction_event,
             "scope": {
                 "active_domains": _active_domains,
+                "decided_by": scope_decided_by,
             },
             "changes": changes,
             "rules_prompt": {

@@ -9,6 +9,7 @@ from ccya.engine.compactor import (
     _apply_sanitization,
     _build_compact_messages,
     _parse_compact_response,
+    _sanitization_nonempty,
     maybe_compact,
 )
 from ccya.engine.config import EngineConfig, _validate_compactor_config
@@ -820,3 +821,82 @@ class TestUserPromptRendersIds:
         assert "cond_1" in user_content
         assert "e1" in user_content
         assert "Event one" in user_content
+
+
+# ---------------------------------------------------------------------------
+# Phase 1: Compactor sanitization completeness
+# ---------------------------------------------------------------------------
+
+
+class TestSanitizationNonempty:
+    def test_none_returns_false(self):
+        assert _sanitization_nonempty(None) is False
+
+    def test_empty_result_returns_false(self):
+        result = CompactorSanitizationResult.model_validate({})
+        assert _sanitization_nonempty(result) is False
+
+    def test_npc_merge_returns_true(self):
+        result = CompactorSanitizationResult.model_validate({
+            "npc_merge": [{"keep_id": "a", "remove_ids": ["b"]}],
+        })
+        assert _sanitization_nonempty(result) is True
+
+    def test_inventory_remove_returns_true(self):
+        result = CompactorSanitizationResult.model_validate({
+            "inventory_remove": [{"id": "item1", "confidence": "high"}],
+        })
+        assert _sanitization_nonempty(result) is True
+
+    def test_quest_close_returns_true(self):
+        result = CompactorSanitizationResult.model_validate({
+            "quest_close": [{"id": "q1", "confidence": "high"}],
+        })
+        assert _sanitization_nonempty(result) is True
+
+    def test_pressure_remove_returns_true(self):
+        result = CompactorSanitizationResult.model_validate({
+            "pressure_remove": [{"id": "p1", "confidence": "medium"}],
+        })
+        assert _sanitization_nonempty(result) is True
+
+    def test_condition_remove_returns_true(self):
+        result = CompactorSanitizationResult.model_validate({
+            "condition_remove": [{"id": "c1", "confidence": "high"}],
+        })
+        assert _sanitization_nonempty(result) is True
+
+    def test_recent_events_compact_not_counted(self):
+        result = CompactorSanitizationResult.model_validate({
+            "recent_events_compact": [{"id": "e1", "text": "Event", "turn": 1}],
+        })
+        assert _sanitization_nonempty(result) is False
+
+
+class TestSanitizationLogging:
+    def test_structured_log_emitted(self, caplog):
+        import logging
+        state = {
+            "meta": {"turn": 6},
+            "compendium": {"npcs": {"npc_a": {"name": "Alice", "aliases": []}}},
+            "scene": {"present_npcs": [], "scene_pressure": []},
+            "inventory": [{"id": "inv_1", "name": "Sword", "amount": 1}],
+            "quests": [{"id": "q_1", "title": "Quest", "status": "active", "objectives": []}],
+            "pc": {"conditions": [{"id": "cond_1", "label": "Wounded", "description": ""}]},
+        }
+        san = CompactorSanitizationResult.model_validate({
+            "npc_merge": [{"keep_id": "npc_a", "remove_ids": []}],
+            "inventory_remove": [{"id": "inv_1", "confidence": "high"}],
+            "quest_close": [{"id": "q_1", "confidence": "high"}],
+            "pressure_remove": [],
+            "condition_remove": [{"id": "cond_1", "confidence": "high"}],
+        })
+        with caplog.at_level(logging.INFO):
+            _apply_sanitization(state, san)
+        assert any("compactor sanitization applied" in r.getMessage() for r in caplog.records)
+        applied_log = [r for r in caplog.records if "compactor sanitization applied" in r.getMessage()][0]
+        assert applied_log.quests_closed == 1
+        assert applied_log.inventory_removed == 1
+        assert applied_log.npcs_merged == 1
+        assert applied_log.pressures_removed == 0
+        assert applied_log.conditions_removed == 1

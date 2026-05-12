@@ -198,6 +198,18 @@ def _build_compact_messages(
     ]
 
 
+def _sanitization_nonempty(san: CompactorSanitizationResult | None) -> bool:
+    if san is None:
+        return False
+    return bool(
+        san.npc_merge
+        or san.inventory_remove
+        or san.quest_close
+        or san.pressure_remove
+        or san.condition_remove
+    )
+
+
 def _parse_compact_response(
     response_text: str,
 ) -> tuple[str, CompactorSanitizationResult | None]:
@@ -325,6 +337,18 @@ def _apply_sanitization(
         pc["conditions"] = [c for c in conditions if c.get("id") not in valid_cond_remove]
         for cid in valid_cond_remove:
             _log.info("compactor: removed resolved condition %r", cid, extra=log_ctx)
+
+    _log.info(
+        "compactor sanitization applied",
+        extra={
+            **log_ctx,
+            "quests_closed": len(san.quest_close or []),
+            "inventory_removed": len(san.inventory_remove or []),
+            "npcs_merged": len(san.npc_merge or []),
+            "pressures_removed": len(san.pressure_remove or []),
+            "conditions_removed": len(san.condition_remove or []),
+        },
+    )
 
 
 def _write_compacted_block(
