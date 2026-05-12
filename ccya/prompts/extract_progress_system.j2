@@ -39,6 +39,12 @@ Extract quest updates, recent events, suggested player actions, and outcome summ
   - Active quest `settle_the_debt` has objectives: `[1. {done: true}, 2. {done: true}]`. Narration says nothing new about the debt. → DO NOT emit this quest update. All objectives are already done.
   - Active quest `deliver_the_ledger` has objectives: `[1. {done: false}, 2. {done: false}]`. Narration says "You hand the ledger to Halden." → Emit: `{"id": "deliver_the_ledger", "objectives": [{"index": 1, "done": true}]}`. Only objective 1 changed state.
 
+  - **NEVER emit a completed quest again:**
+    State says: `settle_the_debt.status = "completed"`
+    Narration: "You shake hands; the debt is settled."
+    Wrong extract: `{"id": "settle_the_debt", "status": "active", "objectives": [...]}` — This is WRONG. Do not re-activate completed quests.
+    Correct extract: (omit entirely — the quest is already completed, no update needed)
+
 - **NEVER create a new quest ID when an existing active quest covers the same objective.** Examples of what NOT to do:
   - Do NOT create `deliver_ledger_to_inn` when `deliver_the_ledger` already exists — update `deliver_the_ledger` instead.
   - Do NOT create `caron_debt` when `settle_the_debt` already exists — update `settle_the_debt` instead.

@@ -62,6 +62,14 @@ EXAMPLE — NPC not mentioned, no remove (correct):
 Narration does not mention Halden this turn.
 → Do NOT emit `npc_remove: { id: "halden" }` — absence ≠ departure.
 
+EXAMPLE — Standoff / tense confrontation:
+Narration: "Two armed toughs block the doorway, hands hovering near their weapons as you argue."
+→ Emit: `scene_tags: ["standoff", "intimidation"]`
+
+EXAMPLE — Verbal confrontation:
+Narration: "The guard captain steps into your path, hand on his baton, and demands your papers."
+→ Emit: `scene_tags: ["tense_confrontation", "intimidation"]`
+
 ## State-presence rule
 
 Sections not shown in the user prompt still exist in the live game state — absence is not removal. Only emit removals you can justify from the narration.
