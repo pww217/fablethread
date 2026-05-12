@@ -364,6 +364,30 @@ async def test_generate_seed_with_player_overrides():
     assert "nurse" in all_text.lower() or "cold" in all_text.lower()
 
 
+async def test_generate_seed_npc_count_override_in_messages():
+    """PlayerOverrides(npc_count=3) must pass npc_count_override=3 into LLM messages."""
+    pack = _minimal_dynamic_pack()
+    overrides = PlayerOverrides(npc_count=3)
+    payload = _valid_envelope_json()
+
+    captured_user_contents: list[str] = []
+
+    async def _capture_chat(*args, **kwargs):
+        msgs = kwargs.get("messages") or (args[2] if len(args) > 2 else [])
+        for m in msgs:
+            if m.get("role") == "user":
+                captured_user_contents.append(m["content"])
+        return {"response": payload, "done": True}
+
+    with patch.object(ccya.engine.seed, "llm_chat", new=AsyncMock(side_effect=_capture_chat)):
+        envelope = await generate_seed(pack, _config(), overrides=overrides, template_dir=str(PROMPTS_DIR))
+
+    assert isinstance(envelope, SeedEnvelope)
+    assert len(captured_user_contents) >= 1
+    assert "## npc_count" in captured_user_contents[0]
+    assert "3 NPCs" in captured_user_contents[0]
+
+
 # ---------------------------------------------------------------------------
 # Static pack mode guard
 # ---------------------------------------------------------------------------
