@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# scripts/plan/review.sh — review plan(s) for implementation accuracy
+# scripts/plan/review.sh — review a single plan for implementation accuracy
 # Usage:
-#   ./scripts/plan/review.sh              — review all plans in plans/review/
-#   ./scripts/plan/review.sh --plan <slug|filename> — review a specific plan
-#   ./scripts/plan/review.sh --list       — list plans in plans/review/
+#   ./scripts/plan/review.sh <plan-file>              — review a specific plan
+#   ./scripts/plan/review.sh --list                    — list plans in plans/review/
 #
-# After successful review, the review output is written to plans/review/<slug>-review.md.
-# The original plan is left untouched in plans/review/.
+# After successful review, the reviewed plan is written to plans/<slug>-reviewed.md.
+# The original plan is moved to plans/completed/<slug>.md.
 
 set -uo pipefail
 
@@ -68,6 +67,74 @@ OPENCODE_BIN="$(resolve_opencode_bin)" || die "'opencode' not found. PATH=$PATH"
 [[ -d "$REVIEW_DIR" ]] || die "Review directory not found: $REVIEW_DIR"
 [[ -d "$DEST_DIR" ]] || die "Destination directory not found: $DEST_DIR"
 [[ -f "$PROMPT_TEMPLATE" ]] || die "Prompt template not found: $PROMPT_TEMPLATE"
+
+do_review() {
+  local PLAN_PATH="$1"
+  local PLAN_BASENAME
+  PLAN_BASENAME="$(basename "$PLAN_PATH")"
+  local TMP_PROMPT TMP_OUTPUT
+  TMP_PROMPT="$(mktemp)"
+  TMP_OUTPUT="$(mktemp)"
+
+  log "→ Reviewing: ${PLAN_BASENAME}"
+
+  if ! python3 - "$PROMPT_TEMPLATE" "$PLAN_PATH" > "$TMP_PROMPT" <<'PY'
+import sys
+template = open(sys.argv[1], "r", encoding="utf-8").read()
+content = open(sys.argv[2], "r", encoding="utf-8").read()
+sys.stdout.write(template.replace("PLAN_PLACEHOLDER", content))
+PY
+  then
+    log "✗ FAILED: could not build prompt for ${PLAN_BASENAME}"
+    rm -f "$TMP_PROMPT" "$TMP_OUTPUT"
+    return 1
+  fi
+
+  log "  Running review"
+  local REVIEW_PATH="${DEST_DIR}/${PLAN_BASENAME%.md}-reviewed.md"
+  if "$TIMEOUT_BIN" --kill-after=10 "$TIMEOUT_SECS" "$OPENCODE_BIN" run \
+      --log-level DEBUG \
+      -m mlx/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit \
+      < "$TMP_PROMPT" > "$TMP_OUTPUT"; then
+
+    if [[ ! -s "$TMP_OUTPUT" ]]; then
+      log "✗ FAILED: model returned empty output"
+      rm -f "$TMP_PROMPT" "$TMP_OUTPUT"
+      return 1
+    fi
+
+    # Strip opencode thinking/thought output (tool-use artifacts)
+    python3 -c "
+import sys, re
+content = open(sys.argv[1], encoding='utf-8').read()
+# Find the first heading line (plan title) and strip everything before it.
+m = re.search(r'^# .+', content, re.MULTILINE)
+if m:
+    open(sys.argv[1], 'w', encoding='utf-8').write(content[m.start():])
+" "$TMP_OUTPUT"
+
+    cp "$TMP_OUTPUT" "$REVIEW_PATH"
+    log "✓ Review written to: ${REVIEW_PATH}"
+    rm -f "$TMP_PROMPT" "$TMP_OUTPUT"
+
+    # Move original to completed
+    COMPLETED_DIR="plans/completed"
+    mkdir -p "$COMPLETED_DIR"
+    mv "$PLAN_PATH" "${COMPLETED_DIR}/${PLAN_BASENAME}"
+    log "✓ Original moved to: ${COMPLETED_DIR}/${PLAN_BASENAME}"
+
+    return 0
+  else
+    local EXIT_CODE=$?
+    if [[ $EXIT_CODE -eq 124 ]]; then
+      log "✗ TIMED OUT after ${TIMEOUT_SECS}s"
+    else
+      log "✗ FAILED: opencode exited with code ${EXIT_CODE}"
+    fi
+    rm -f "$TMP_PROMPT" "$TMP_OUTPUT"
+    return 1
+  fi
+}
 
 MODE="all"
 TARGET=""
@@ -137,51 +204,9 @@ PASS=0
 FAIL=0
 
 for PLAN_PATH in "${PLANS[@]}"; do
-  PLAN_BASENAME="$(basename "$PLAN_PATH")"
-  TMP_PROMPT="$(mktemp)"
-  TMP_OUTPUT="$(mktemp)"
-  TMP_LOG="$(mktemp)"
-
-  log "→ Reviewing: ${PLAN_BASENAME}"
-
-  if ! python3 - "$PROMPT_TEMPLATE" "$PLAN_PATH" > "$TMP_PROMPT" <<'PY'
-import sys
-template = open(sys.argv[1], "r", encoding="utf-8").read()
-content = open(sys.argv[2], "r", encoding="utf-8").read()
-sys.stdout.write(template.replace("PLAN_PLACEHOLDER", content))
-PY
-  then
-    log "✗ FAILED: could not build prompt for ${PLAN_BASENAME}"
-    rm -f "$TMP_PROMPT" "$TMP_OUTPUT" "$TMP_LOG"
-    ((FAIL+=1))
-    echo ""
-    continue
-  fi
-
-  log "  Running review"
-  REVIEW_PATH="${DEST_DIR}/${PLAN_BASENAME%.md}-reviewed.md"
-  if "$TIMEOUT_BIN" --kill-after=10 "$TIMEOUT_SECS" "$OPENCODE_BIN" run \
-      --log-level DEBUG \
-      -m mlx/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit \
-      < "$TMP_PROMPT" > "$REVIEW_PATH"; then
-    # Strip opencode thinking/thought output (tool-use artifacts)
-    python3 -c "
-import sys, re
-content = open(sys.argv[1], encoding='utf-8').read()
-# Find the first heading line (plan title) and strip everything before it.
-m = re.search(r'^# .+', content, re.MULTILINE)
-if m:
-    open(sys.argv[1], 'w', encoding='utf-8').write(content[m.start():])
-" "$REVIEW_PATH"
-    log "✓ Review written to: ${REVIEW_PATH}"
+  if do_review "$PLAN_PATH"; then
     ((PASS+=1))
   else
-    EXIT_CODE=$?
-    if [[ $EXIT_CODE -eq 124 ]]; then
-      log "✗ TIMED OUT after ${TIMEOUT_SECS}s"
-    else
-      log "✗ FAILED: opencode exited with code ${EXIT_CODE}"
-    fi
     ((FAIL+=1))
   fi
   echo ""

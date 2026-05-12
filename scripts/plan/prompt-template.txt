@@ -3,7 +3,19 @@ Review the plan below for implementation accuracy against the codebase.
 Do NOT change the plan's intent, firm decisions, non-goals, or scope.
 Only check: file paths exist, symbols (functions/classes/vars) exist, snippets are valid and fit correctly, imports/dependencies exist, no logical errors, validation steps would actually work.
 
-This is an automated script — no human will read your output. Do not report findings, reasoning, or summaries. Just edit the plan file and output the corrected plan. Be fast.
+---
+
+CRITICAL OUTPUT RULES — READ CAREFULLY:
+
+1. Your ENTIRE output must be the corrected plan markdown only.
+2. NO preamble. NO "Now I have all the context needed." NO "Plan reviewed and corrected." NO summaries of what you changed. NO lists of fixes. NO reasoning. NO commentary.
+3. The very first character of your output must be `#` (the plan title heading).
+4. The very last character of your output must be the last character of the plan. Nothing after it.
+5. This output is piped directly into a file by an automated script. Extra text will corrupt the file.
+
+Output ONLY the corrected plan in the format below. Nothing else.
+
+---
 
 Read these files first:
 1. AGENTS.md — rules, module boundaries, code rules.
