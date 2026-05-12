@@ -16,7 +16,7 @@
 
 - **`load_state(save_dir)`** → `dict` — loads YAML, runs `_migrate_state()`.
 - **`save_state(save_dir, state)`** — atomic write (tmp + rename).
-- **`apply_delta(state, delta, recent_events_max=20)`** → `tuple[dict, bool]` — returns (deep-copied state, recent_events_evicted bool). Handles inventory merge/remove/update, location change, quest upsert (terminal-state guard: skips updates to completed/failed quests), condition add/remove (id-based dedup, FIFO cap 5, default TTL of 10 turns when `turns_remaining` is None), recent events (object form: id/text/turn, remove→update→add, FIFO cap), scene tags (combat started/ended turn tracking), scene tagline, scene_pressure (add/update/remove by ID), present NPCs (delta-based: add/remove/update with alias resolution, compendium hydration, NPC_SCENE_CAP=8), recently_left tracking, compendium NPC updates (with alias routing), auto-complete quests.
+- **`apply_delta(state, delta, recent_events_max=20)`** → `tuple[dict, bool]` — returns (deep-copied state, recent_events_evicted bool). Handles inventory merge/remove/update (duplicate add merges amount, zero-amount removal removes item), location change, quest upsert (terminal-state guard: skips updates to completed/failed quests; quest alias dedup: normalizes titles and redirects new quests to existing when titles match), condition add/remove (id-based dedup, FIFO cap 5, default TTL of 10 turns when `turns_remaining` is None), recent events (object form: id/text/turn, remove→update→add, FIFO cap), scene tags (combat started/ended turn tracking), scene tagline, scene_pressure (add/update/remove by ID), present NPCs (delta-based: add/remove/update with alias resolution, compendium hydration, NPC_SCENE_CAP=8; absence does not cause removal), recently_left tracking (populated when NPCs are removed, decay counter defaults to 2 turns), compendium NPC updates (with alias routing), auto-complete quests.
 - **`apply_momentum(state, band)`** — updates `pc.momentum` deterministically from a rules band, clamped to [-3, +3].
 - **`append_event(save_dir, event)`** — appends to events.jsonl.
 - **`append_chronicle(save_dir, text)`** — appends to chronicle.md.
@@ -57,11 +57,12 @@ pc:
     lore: int
     charisma: int
     resolve: int
-  conditions:                  # list[Condition] — id-based dedup, FIFO cap 5
+  conditions:                  # list[Condition] — id-based dedup, FIFO cap 5; TTL via turns_remaining (default 10 turns when None)
     - id: str
       label: str
       description: str
       added_turn: int
+      turns_remaining: int | None  # None = permanent (not decremented); int = decremented each turn, removed at 0
   momentum: int                # [-3, +3], engine-computed from roll bands
   allegiance: str | None
 
@@ -88,11 +89,11 @@ quests:                        # list[Quest] — upsert by id
 scene:
   tags: [str]
   tagline: str
-  present_npcs: [NpcRef]       # id, name, title, notes, bio
+  present_npcs: [NpcRef]       # id, name, title, notes, bio — sticky: absence does not cause removal; only explicit npc_remove ops remove
   world_state: [str]           # immutable after seed
   recent_events: [Event]       # object form: {id, text, turn} — FIFO cap (configurable, default 20)
-  recently_left: [dict]        # NPCs that left this turn
-  recently_left_turns: int     # decay counter
+  recently_left: [dict]        # NPCs that left this turn (id, name, title) — populated when NPCs are removed via npc_remove
+  recently_left_turns: int     # decay counter (defaults to 2 turns when NPCs are removed)
   turn_entered: int            # turn number when scene was entered (anti-stall tracking)
   location_entered_turn: int   # turn number when location was last changed
   scene_pressure: [Pressure]   # {id, text, urgency, turn_added, max_turns}
