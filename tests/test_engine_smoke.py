@@ -201,6 +201,7 @@ class _FakeLLM:
         scene_response: str = _SCENE_RESPONSE,
         state_response: str = _STATE_RESPONSE,
         progress_response: str = _PROGRESS_RESPONSE,
+        rules_response: str = _RULES_NO_ROLL,
     ):
         if text_responses is not None:
             narrative = text_responses[0] if len(text_responses) > 0 else narrative
@@ -213,6 +214,7 @@ class _FakeLLM:
         self._scene_response = scene_response
         self._state_response = state_response
         self._progress_response = progress_response
+        self._rules_response = rules_response
         self._orig_stream = None
         self._orig_chat = None
         _self = self
@@ -230,7 +232,7 @@ class _FakeLLM:
             chat_calls = [c for c in _self.call_log if c["kind"] == "chat"]
             n = len(chat_calls)
             if n == 1:
-                return {"response": _RULES_NO_ROLL, "done": True, "usage": {"prompt_tokens": 30, "total_tokens": 40}}
+                return {"response": _self._rules_response, "done": True, "usage": {"prompt_tokens": 30, "total_tokens": 40}}
             if n == 2:
                 return {"response": _self._scene_response, "done": True, "usage": {"prompt_tokens": 100, "total_tokens": 200}}
             if n == 3:
@@ -764,7 +766,7 @@ class TestRejectedDelta:
         assert "does not exist" in result.rejected[0]["reason"]
         assert len(result.errors) > 0
 
-    async def test_trace_id_in_narrative_on_rejection(self) -> None:
+    async def test_trace_id_stripped_from_narrative_on_rejection(self) -> None:
         state = _make_state()
         _write_state(_SAVE_DIR, state)
 
@@ -780,7 +782,9 @@ class TestRejectedDelta:
         with fake:
             result = await _run(_SAVE_DIR, "grab ghost", config=EngineConfig())
 
-        assert result.trace_id in result.narrative
+        assert len(result.rejected) > 0
+        assert result.rejected[0]["field"] == "inventory_remove"
+        assert "That action didn't resolve" not in result.narrative
 
     async def test_update_nonexistent_quest_creates_it(self) -> None:
         """quest_updates is create-or-update: unknown quest IDs should be created, not rejected."""

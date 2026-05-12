@@ -1,7 +1,7 @@
 # Mechanical Remediation — Eval Run 20260512T154142Z_uufm2ojg
 
 ## Status
-`open`
+`completed`
 
 ## Phase Guide
 | Phase | Name | Summary |

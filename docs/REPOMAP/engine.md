@@ -11,9 +11,9 @@
 | `ccya/engine/pack_gen.py` | `generate_pack()` — takes `WorldBrief`, generates `ScenarioBrief` via LLM, writes pack files to `packs/custom/<slug>/`, returns `Pack`. Uses `generate_pack_system.j2` + `generate_pack_user.j2` prompts. |
 | `ccya/engine/names.py` | `generate_name_pool()`, `generate_npc_names()`, `generate_npc_names_split()`, `_build_weighted_fakers()`, `_pick()`, `_ensure_ascii()` |
 | `ccya/engine/rules.py` | `_rules_messages()`, `_call_rules()`, `_avg_rules_ms()`, `_log_rules_outcome()` |
-| `ccya/engine/extraction.py` | `_run_extraction_pipeline()`, all `_extract_*_messages()`, `_call_stream()`, `_context_meta()`, `_scene_npc_roster()`, `_avg_narrate_ms()`, `_avg_extract_ms()` |
+| `ccya/engine/extraction.py` | `_run_extraction_pipeline()`, all `_extract_*_messages()`, `_call_stream()`, `_context_meta()`, `_scene_npc_roster()`, `_avg_narrate_ms()`, `_avg_extract_ms()`, `_check_npc_ghost_cycle()` |
 | `ccya/engine/seed.py` | `generate_seed()`, `_build_generate_seed_messages()`, `_soft_validate_seed()` |
-| `ccya/engine/changes.py` | `summarize_changes()`, `format_change_lines()`, `_summarize_applied()` |
+| `ccya/engine/changes.py` | `summarize_changes()`, `format_change_lines()`, `_summarize_applied()` — `summarize_changes` includes momentum diff when `pre.pc.momentum != post.pc.momentum`; `format_change_lines` renders `⚡ Momentum {before:+d} → {after:+d}`
 | `ccya/engine/pressure.py` | `_expire_scene_pressures()`, `_purge_scene_pressures()` |
 | `ccya/engine/compactor.py` | `maybe_compact()`, `_extract_turns_for_compact()`, `_build_compact_messages()`, `_parse_compact_response()`, `_write_compacted_block()` |
 | `ccya/engine/generate_pack.py` | `generate_pack_from_brief(inputs, packs_root, llm_host, llm_model, template_dir, trace_id) -> AsyncIterator[dict]` — SSE-driven ephemeral pack generation from world brief; writes `scenario.yaml` + `pack.yaml` to `packs/generated/<uuid>/`; yields `phase`, `pack_ready`, `generation_error` events |
@@ -55,7 +55,9 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_check_floor_relief(state, config, band)` → `None` — checks momentum floor and injects `breathing_room` beat when relief conditions met; tracks consecutive floor turns via `state["meta"]["consecutive_floor_count"]`
 - Condition age pass (inline in `run_turn` and `run_turn_retry`) — decrements `turns_remaining` on all active conditions, removes expired ones (≤0), logs `condition_expired` event via `append_event`. Runs after delta application and pressure aging. Permanent conditions (`turns_remaining=None`) are skipped.
 - `run_turn(save_dir, user_input, config=None, *, template_dir=None, pack_style="", pack_name_locales=[], pack_narrator_rules=[])` → `AsyncIterator[tuple[str, Any]]` — 5-call turn pipeline (rules→narrate→scope-parse→scene→state→progress extract). Detects avoidance intent from player input; passes to pressure pipeline for decay. Yields ("phase", dict), ("token", str), ("complete", TurnResult).
-- `_validate(state, delta)` → `list[dict]` — validates inventory_remove IDs exist, warns on overdraw
+- `_validate(state, delta)` → `list[dict]` — validates inventory_remove IDs exist, rejects zero-balance removes, warns on overdraw
+- `_strip_fallback(narration, *, trace_id, turn)` → `str` — strips fallback sentinel lines (`*That action didn't resolve as expected...`) from narration before chronicle persistence and extraction
+- `_check_npc_ghost_cycle(scene_result, state, *, trace_id, turn_no)` → `SceneExtractResult` — detects same-turn npc_remove+add cycles, drops both ops, logs warning
 - `run_turn_retry(save_dir, rules_outcome, intent, config=None, *, template_dir=None, pack_style="", pack_name_locales=[], pack_narrator_rules=[])` → `AsyncIterator[tuple[str, Any]]` — skips Call 0, re-runs narrate + extraction with same rules outcome
 - `warmup(config)` → `None` (async) — silent chat call to pre-load model
 

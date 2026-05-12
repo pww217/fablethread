@@ -6,7 +6,7 @@
 |---|---|
 | `ccya/state/__init__.py` | Re-exports all state symbols |
 | `ccya/state/io.py` | `load_state`, `save_state`, `init_save_dir`, `_migrate_state`, `_migrate_recent_events`, `_default_state` |
-| `ccya/state/delta.py` | `apply_delta`, `reconcile_delta`, `PC_CONDITIONS_MAX`, `_item_to_dict` |
+| `ccya/state/delta.py` | `apply_delta`, `reconcile_delta`, `PC_CONDITIONS_MAX`, `DEFAULT_CONDITION_TTL`, `_item_to_dict` |
 | `ccya/state/inventory.py` | `normalize_inventory_id`, `resolve_inventory_canonical_id`, `resolve_inventory_remove_target`, `_fuzzy_match_inventory` |
 | `ccya/state/npcs.py` | `build_npc_alias_map`, `touch_compendium_order` |
 | `ccya/state/chronicle.py` | `append_event`, `append_chronicle`, `load_chronicle_tail`, `load_recent_events`, `load_recent_chronicle_turns`, `remove_last_event`, `remove_last_chronicle_turn` |
@@ -16,7 +16,7 @@
 
 - **`load_state(save_dir)`** → `dict` — loads YAML, runs `_migrate_state()`.
 - **`save_state(save_dir, state)`** — atomic write (tmp + rename).
-- **`apply_delta(state, delta, recent_events_max=20)`** → `tuple[dict, bool]` — returns (deep-copied state, recent_events_evicted bool). Handles inventory merge/remove/update, location change, quest upsert, condition add/remove (id-based dedup, FIFO cap 5), recent events (object form: id/text/turn, remove→update→add, FIFO cap), scene tags (combat started/ended turn tracking), scene tagline, scene_pressure (add/update/remove by ID), present NPCs (delta-based: add/remove/update with alias resolution, compendium hydration, NPC_SCENE_CAP=8), recently_left tracking, compendium NPC updates (with alias routing), auto-complete quests.
+- **`apply_delta(state, delta, recent_events_max=20)`** → `tuple[dict, bool]` — returns (deep-copied state, recent_events_evicted bool). Handles inventory merge/remove/update, location change, quest upsert (terminal-state guard: skips updates to completed/failed quests), condition add/remove (id-based dedup, FIFO cap 5, default TTL of 10 turns when `turns_remaining` is None), recent events (object form: id/text/turn, remove→update→add, FIFO cap), scene tags (combat started/ended turn tracking), scene tagline, scene_pressure (add/update/remove by ID), present NPCs (delta-based: add/remove/update with alias resolution, compendium hydration, NPC_SCENE_CAP=8), recently_left tracking, compendium NPC updates (with alias routing), auto-complete quests.
 - **`apply_momentum(state, band)`** — updates `pc.momentum` deterministically from a rules band, clamped to [-3, +3].
 - **`append_event(save_dir, event)`** — appends to events.jsonl.
 - **`append_chronicle(save_dir, text)`** — appends to chronicle.md.

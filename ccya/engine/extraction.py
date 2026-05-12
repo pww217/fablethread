@@ -32,6 +32,39 @@ from ccya.models import (
 _log = logging.getLogger("ccya.engine")
 
 
+def _check_npc_ghost_cycle(
+    scene_result: SceneExtractResult,
+    state: dict[str, Any],
+    *,
+    trace_id: str,
+    turn_no: int,
+) -> SceneExtractResult:
+    remove_ids = {op.id for op in (scene_result.npc_remove or [])}
+    add_ids = {op.id for op in (scene_result.npc_add or [])}
+    cycle_ids = remove_ids & add_ids
+    recently_left = {
+        entry.get("id", "")
+        for entry in (state.get("scene") or {}).get("recently_left") or []
+        if isinstance(entry, dict)
+    }
+    if cycle_ids:
+        # Allow removes that match recently_left (legitimate departure)
+        allowed = cycle_ids & recently_left
+        dropped = cycle_ids - allowed
+        if dropped:
+            _log.warning(
+                "npc_remove/npc_add cycle detected — dropping both ops for IDs",
+                extra={"trace_id": trace_id, "turn": turn_no, "ids": list(dropped)},
+            )
+            scene_result = scene_result.model_copy(
+                update={
+                    "npc_remove": [op for op in (scene_result.npc_remove or []) if op.id not in dropped],
+                    "npc_add": [op for op in (scene_result.npc_add or []) if op.id not in dropped],
+                }
+            )
+    return scene_result
+
+
 def _context_meta(rendered_system: str, rendered_user: str, was_trimmed: bool, trimmed_chars: int) -> dict[str, Any]:
     """Compute context size signals for telemetry."""
     return {
@@ -456,6 +489,7 @@ async def _run_extraction_pipeline(
             scene_result, scene_usage, scene_attempts, scene_retry_errors = await _call_stream(
                 scene_msgs, config, trace_id, "extract_scene", SceneExtractResult
             )
+            scene_result = _check_npc_ghost_cycle(scene_result, state, trace_id=trace_id, turn_no=turn_no)
             extraction_event["scene"] = {
                 "rendered_system": rendered_scene_system,
                 "rendered_user": rendered_scene_user,
@@ -662,6 +696,12 @@ async def _run_extraction_pipeline(
                 pid,
                 extra={"turn": turn_no, "trace_id": trace_id},
             )
+
+    for op in (scene_result.npc_remove or []):
+        _log.debug(
+            "npc_remove emitted",
+            extra={"trace_id": trace_id, "turn": turn_no, "npc_id": op.id},
+        )
 
     # --- Merge into single StateDelta ---
     merged = StateDelta(

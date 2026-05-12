@@ -111,11 +111,12 @@ def summarize_changes(
     _applied: dict[str, Any],
     rejected: list[dict[str, Any]],
 ) -> dict[str, list[dict[str, Any]]]:
-    """Diff pre vs post state into four UI categories (inventory, player, facts, quests)."""
+    """Diff pre vs post state into five UI categories (inventory, player, facts, quests, momentum)."""
     inventory: list[dict[str, Any]] = []
     player: list[dict[str, Any]] = []
     facts: list[dict[str, Any]] = []
     quests: list[dict[str, Any]] = []
+    momentum: list[dict[str, Any]] = []
 
     for r in rejected or []:
         if r.get("field") == "inventory_remove":
@@ -305,7 +306,17 @@ def summarize_changes(
                     }
                 )
 
-    return {"inventory": inventory, "player": player, "facts": facts, "quests": quests}
+    pre_momentum = pre.get("pc", {}).get("momentum", 0)
+    post_momentum = post.get("pc", {}).get("momentum", 0)
+    if pre_momentum != post_momentum:
+        momentum.append({
+            "kind": "momentum_changed",
+            "before": pre_momentum,
+            "after": post_momentum,
+            "delta": post_momentum - pre_momentum,
+        })
+
+    return {"inventory": inventory, "player": player, "facts": facts, "quests": quests, "momentum": momentum}
 
 
 def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
@@ -378,4 +389,11 @@ def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
         elif k == "objective_added":
             od = str(row.get("objective") or "").strip()
             lines.append(f"🗺️ + obj “{title}”: {od}" if od else f"🗺️ + obj “{title}”")
+    for row in ch.get("momentum") or []:
+        if not isinstance(row, dict):
+            continue
+        k = row.get("kind")
+        if k == "momentum_changed":
+            b, a = row.get("before", 0), row.get("after", 0)
+            lines.append(f"⚡ Momentum {b:+d} → {a:+d}")
     return lines

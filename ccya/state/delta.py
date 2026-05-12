@@ -18,6 +18,9 @@ from ccya.state.npcs import build_npc_alias_map, touch_compendium_order
 
 _NAME_RE = re.compile(r"[^\x00-\x7F]")
 
+DEFAULT_CONDITION_TTL = 10
+"""Default TTL in turns for conditions added without an explicit turns_remaining."""
+
 
 def _strip_non_ascii(text: str) -> str:
     if not text:
@@ -221,8 +224,30 @@ def apply_delta(
         s = " ".join(text.lower().split())
         return s.rstrip(".!?")
 
+    # Quest auto-close contract (two-turn flow):
+    # Turn N (completion turn): progress extractor emits quest with all objectives done,
+    #   status="active". apply_delta's upsert loop applies the update, then
+    #   _auto_complete_quest() (line 298) sees all objectives done → sets status="completed".
+    # Turn N+1 onward: quest.status == "completed" in state. apply_delta's terminal-state
+    #   guard below will skip any further updates. The progress extractor prompt must
+    #   not re-emit completed quests; this guard is the engine-side safety net.
+
     touched_quest_ids: set[str] = set()
     for qu in delta.quest_updates:
+        existing = next(
+            (q for q in state.get("quests", []) if q["id"] == qu.id),
+            None,
+        )
+        if existing and existing.get("status") in ("completed", "failed"):
+            _log.warning(
+                "Skipping quest update: quest already in terminal state",
+                extra={
+                    "quest_id": qu.id,
+                    "existing_status": existing["status"],
+                    "proposed_status": qu.status,
+                },
+            )
+            continue
         if qu.id in existing_quests:
             q = existing_quests[qu.id]
             if qu.title:
@@ -312,12 +337,17 @@ def apply_delta(
         cid = ca.id
         if not cid or cid in existing_ids:
             continue
-        existing_conds.append({
+        cond_dict = {
             "id": cid,
             "label": ca.label,
             "description": ca.description,
             "added_turn": current_turn,
-        })
+        }
+        if ca.turns_remaining is not None:
+            cond_dict["turns_remaining"] = ca.turns_remaining
+        else:
+            cond_dict["turns_remaining"] = DEFAULT_CONDITION_TTL
+        existing_conds.append(cond_dict)
         existing_ids.add(cid)
     state["pc"]["conditions"] = existing_conds[-PC_CONDITIONS_MAX:]
 
