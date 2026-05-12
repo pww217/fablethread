@@ -1,7 +1,7 @@
 # Narration Directive Wiring and Pacing
 
 ## Status
-`open`
+`completed`
 
 ## Part of
 standalone

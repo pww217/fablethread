@@ -31,6 +31,7 @@ def _narrate_messages(
     present_npcs: list[dict[str, Any]] = [],
     compendium_bios: list[dict[str, Any]] = [],
     pc_allegiance: str | None = None,
+    scene_pressure: list[dict[str, Any]] | None = None,
     turn_no: int = 0,
 ) -> list[dict[str, str]]:
     user_ctx = {
@@ -51,6 +52,7 @@ def _narrate_messages(
         "present_npcs": present_npcs,
         "compendium_bios": compendium_bios,
         "pc_allegiance": pc_allegiance,
+        "scene_pressure": scene_pressure or [],
     }
     system_text = _render(env, "narrate_system.j2", {
         "pack_style": pack_style,
