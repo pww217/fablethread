@@ -162,7 +162,7 @@ PY
   REVIEW_PATH="${DEST_DIR}/${PLAN_BASENAME%.md}-reviewed.md"
   if "$TIMEOUT_BIN" "$TIMEOUT_SECS" "$OPENCODE_BIN" run \
       -m mlx/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit \
-      < "$TMP_PROMPT" > "$REVIEW_PATH" 2>&1; then
+      < "$TMP_PROMPT" > "$REVIEW_PATH"; then
     log "✓ Review written to: ${REVIEW_PATH}"
     ((PASS+=1))
   else
