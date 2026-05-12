@@ -60,6 +60,7 @@ def check_pending_gm_beat_consumed(
             "passed": True,
             "detail": "(first turn)",
             "scope": "universal",
+            "severity": "red",
         }
     prev_snap = prev_event.get("state_snapshot") or {}
     cur_snap = event.get("state_snapshot") or {}
