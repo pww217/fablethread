@@ -1,24 +1,80 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 # scripts/plan/review-all.sh — review every plan in plans/review/ sequentially
 # Usage:
 #   ./scripts/plan/review-all.sh
 #
 # Each plan gets a 10-minute timeout. If it times out, it's marked FAILED
-# and the next plan continues. After review, each plan is moved to plans/.
+# and the next plan continues. After successful review, the reviewed plan
+# file is updated in place with the model output and then moved to plans/.
 
-set -euo pipefail
+set -uo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
 REVIEW_DIR="plans/review"
-PROMPT_TEMPLATE="$(dirname "$0")/prompt-template.txt"
-TIMEOUT_SECS=600  # 10 minutes per plan
+DEST_DIR="plans"
+PROMPT_TEMPLATE="${SCRIPT_DIR}/prompt-template.txt"
+TIMEOUT_SECS=600
 
-# ── Find plans ────────────────────────────────────────────────────────────────
+PASS=0
+FAIL=0
+
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.bun/bin:$HOME/.local/bin:$HOME/bin:${PATH:-}"
+
+timestamp() {
+  date '+%Y-%m-%d %H:%M:%S'
+}
+
+log() {
+  printf '[%s] %s\n' "$(timestamp)" "$*"
+}
+
+die() {
+  log "FATAL: $*" >&2
+  exit 1
+}
+
+resolve_timeout_bin() {
+  if command -v timeout >/dev/null 2>&1; then
+    command -v timeout
+    return 0
+  fi
+  if command -v gtimeout >/dev/null 2>&1; then
+    command -v gtimeout
+    return 0
+  fi
+  return 1
+}
+
+resolve_opencode_bin() {
+  if [[ -n "${OPENCODE_BIN:-}" && -x "${OPENCODE_BIN}" ]]; then
+    printf '%s\n' "$OPENCODE_BIN"
+    return 0
+  fi
+  if command -v opencode >/dev/null 2>&1; then
+    command -v opencode
+    return 0
+  fi
+  [[ -x "/opt/homebrew/bin/opencode" ]] && { printf '%s\n' "/opt/homebrew/bin/opencode"; return 0; }
+  [[ -x "/usr/local/bin/opencode" ]] && { printf '%s\n' "/usr/local/bin/opencode"; return 0; }
+  [[ -x "$HOME/.bun/bin/opencode" ]] && { printf '%s\n' "$HOME/.bun/bin/opencode"; return 0; }
+  [[ -x "$HOME/.local/bin/opencode" ]] && { printf '%s\n' "$HOME/.local/bin/opencode"; return 0; }
+  return 1
+}
+
+TIMEOUT_BIN="$(resolve_timeout_bin)" || die "Neither 'timeout' nor 'gtimeout' found. Install GNU coreutils or set TIMEOUT_BIN."
+OPENCODE_BIN="$(resolve_opencode_bin)" || die "'opencode' not found. PATH=$PATH"
+
+[[ -d "$REVIEW_DIR" ]] || die "Review directory not found: $REVIEW_DIR"
+[[ -d "$DEST_DIR" ]] || die "Destination directory not found: $DEST_DIR"
+[[ -f "$PROMPT_TEMPLATE" ]] || die "Prompt template not found: $PROMPT_TEMPLATE"
+
 PLANS=()
 for f in "${REVIEW_DIR}"/*.md; do
   [[ -f "$f" ]] || continue
+  [[ "$f" == *-review.md ]] && continue
   PLANS+=("$f")
 done
 
@@ -27,38 +83,75 @@ if [[ ${#PLANS[@]} -eq 0 ]]; then
   exit 0
 fi
 
-echo "Reviewing ${#PLANS[@]} plan(s) sequentially (up to 10m each)..."
+echo "================================================"
+echo "  Reviewing ${#PLANS[@]} plan(s) sequentially"
+echo "  Timeout: $((TIMEOUT_SECS / 60))m per plan"
+echo "  opencode: ${OPENCODE_BIN}"
+echo "  timeout:  ${TIMEOUT_BIN}"
+echo "================================================"
 echo ""
 
-# ── Review each plan ──────────────────────────────────────────────────────────
 for PLAN_PATH in "${PLANS[@]}"; do
   PLAN_BASENAME="$(basename "$PLAN_PATH")"
-  PLAN_CONTENT="$(cat "$PLAN_PATH")"
-  PROMPT_FILE="$(mktemp)"
-  sed "s|PLAN_PLACEHOLDER|${PLAN_CONTENT}|g" "$PROMPT_TEMPLATE" > "$PROMPT_FILE"
-  REVIEW_PATH="${REVIEW_DIR}/${PLAN_BASENAME%.md}-review.md"
+  TMP_PROMPT="$(mktemp)"
+  TMP_OUTPUT="$(mktemp)"
+  TMP_LOG="$(mktemp)"
 
-  echo "→ Reviewing: ${PLAN_BASENAME}"
+  log "→ Reviewing: ${PLAN_BASENAME}"
 
-  if timeout "$TIMEOUT_SECS" opencode run \
+  if ! python3 - "$PROMPT_TEMPLATE" "$PLAN_PATH" > "$TMP_PROMPT" <<'PY'
+import sys
+template = open(sys.argv[1], "r", encoding="utf-8").read()
+content = open(sys.argv[2], "r", encoding="utf-8").read()
+sys.stdout.write(template.replace("PLAN_PLACEHOLDER", content))
+PY
+  then
+    log "✗ FAILED: could not build prompt for ${PLAN_BASENAME}"
+    rm -f "$TMP_PROMPT" "$TMP_OUTPUT" "$TMP_LOG"
+    ((FAIL+=1))
+    echo ""
+    continue
+  fi
+
+  log "  Running review"
+  if "$TIMEOUT_BIN" "$TIMEOUT_SECS" "$OPENCODE_BIN" run \
       -m mlx/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit \
-      < "$PROMPT_FILE" > "$REVIEW_PATH" 2>&1; then
-    echo "  → Review written to: ${REVIEW_PATH}"
-    mv "$PLAN_PATH" "plans/"
-    echo "  → Moved plan to: plans/${PLAN_BASENAME}"
+      < "$TMP_PROMPT" > "$TMP_OUTPUT" 2> "$TMP_LOG"; then
+
+    if [[ ! -s "$TMP_OUTPUT" ]]; then
+      log "✗ FAILED: model returned empty output"
+      [[ -s "$TMP_LOG" ]] && log "  stderr: $(tail -n 5 "$TMP_LOG" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g')"
+      rm -f "$TMP_PROMPT" "$TMP_OUTPUT" "$TMP_LOG"
+      ((FAIL+=1))
+      echo ""
+      continue
+    fi
+
+    cp "$PLAN_PATH" "${PLAN_PATH}.bak"
+    cp "$TMP_OUTPUT" "$PLAN_PATH"
+    mv "$PLAN_PATH" "${DEST_DIR}/"
+    log "✓ Updated plan and moved to: ${DEST_DIR}/${PLAN_BASENAME}"
+    [[ -s "$TMP_LOG" ]] && log "  stderr saved during run: ${TMP_LOG}"
+    ((PASS+=1))
   else
     EXIT_CODE=$?
     if [[ $EXIT_CODE -eq 124 ]]; then
-      echo "  → FAILED: timed out after ${TIMEOUT_SECS}s (10m)"
-      # Keep the plan in plans/review/ so it can be retried
+      log "✗ TIMED OUT after ${TIMEOUT_SECS}s — plan left in ${REVIEW_DIR}/"
     else
-      echo "  → FAILED: opencode exited with code ${EXIT_CODE}"
-      # Keep the plan in plans/review/ so it can be retried
+      log "✗ FAILED: opencode exited with code ${EXIT_CODE} — plan left in ${REVIEW_DIR}/"
     fi
+    if [[ -s "$TMP_LOG" ]]; then
+      log "  stderr tail:"
+      tail -n 20 "$TMP_LOG" | sed 's/^/    /'
+    fi
+    ((FAIL+=1))
   fi
 
-  rm -f "$PROMPT_FILE"
+  rm -f "$TMP_PROMPT" "$TMP_OUTPUT" "$TMP_LOG"
   echo ""
 done
 
-echo "Done. ${#PLANS[@]} plan(s) reviewed."
+echo "================================================"
+echo "  Done. ${#PLANS[@]} plan(s) processed."
+echo "  Passed: ${PASS}  |  Failed: ${FAIL}"
+echo "================================================"

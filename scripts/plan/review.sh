@@ -1,55 +1,123 @@
 #!/usr/bin/env bash
-# scripts/plan/review.sh — review a plan for implementation accuracy
+# scripts/plan/review.sh — review plan(s) for implementation accuracy
 # Usage:
 #   ./scripts/plan/review.sh              — review all plans in plans/review/
-#   ./scripts/plan/review.sh <slug>       — review a specific plan (slug or filename)
+#   ./scripts/plan/review.sh --plan <slug|filename> — review a specific plan
 #   ./scripts/plan/review.sh --list       — list plans in plans/review/
 #
-# Each plan gets a 10-minute timeout. If it times out, it's marked FAILED
-# and the plan stays in plans/review/ for retry. After successful review,
-# the plan is moved from plans/review/ to plans/
+# After successful review, the review output is written to plans/review/<slug>-review.md.
+# The original plan is left untouched in plans/review/.
 
-set -euo pipefail
+set -uo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
 REVIEW_DIR="plans/review"
-PROMPT_FILE="$(mktemp)"
-trap 'rm -f "$PROMPT_FILE"' EXIT
-TIMEOUT_SECS=600  # 10 minutes per plan
+DEST_DIR="plans"
+PROMPT_TEMPLATE="${SCRIPT_DIR}/prompt-template.txt"
+TIMEOUT_SECS=600
 
-PROMPT_TEMPLATE="$(dirname "$0")/prompt-template.txt"
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.bun/bin:$HOME/.local/bin:$HOME/bin:${PATH:-}"
 
-# ── List plans ────────────────────────────────────────────────────────────────
-if [[ "${1:-}" == "--list" ]]; then
+timestamp() {
+  date '+%Y-%m-%d %H:%M:%S'
+}
+
+log() {
+  printf '[%s] %s\n' "$(timestamp)" "$*"
+}
+
+die() {
+  log "FATAL: $*" >&2
+  exit 1
+}
+
+resolve_timeout_bin() {
+  if command -v timeout >/dev/null 2>&1; then
+    command -v timeout
+    return 0
+  fi
+  if command -v gtimeout >/dev/null 2>&1; then
+    command -v gtimeout
+    return 0
+  fi
+  return 1
+}
+
+resolve_opencode_bin() {
+  if [[ -n "${OPENCODE_BIN:-}" && -x "${OPENCODE_BIN}" ]]; then
+    printf '%s\n' "$OPENCODE_BIN"
+    return 0
+  fi
+  if command -v opencode >/dev/null 2>&1; then
+    command -v opencode
+    return 0
+  fi
+  [[ -x "/opt/homebrew/bin/opencode" ]] && { printf '%s\n' "/opt/homebrew/bin/opencode"; return 0; }
+  [[ -x "/usr/local/bin/opencode" ]] && { printf '%s\n' "/usr/local/bin/opencode"; return 0; }
+  [[ -x "$HOME/.bun/bin/opencode" ]] && { printf '%s\n' "$HOME/.bun/bin/opencode"; return 0; }
+  [[ -x "$HOME/.local/bin/opencode" ]] && { printf '%s\n' "$HOME/.local/bin/opencode"; return 0; }
+  return 1
+}
+
+TIMEOUT_BIN="$(resolve_timeout_bin)" || die "Neither 'timeout' nor 'gtimeout' found. Install GNU coreutils or set TIMEOUT_BIN."
+OPENCODE_BIN="$(resolve_opencode_bin)" || die "'opencode' not found. PATH=$PATH"
+
+[[ -d "$REVIEW_DIR" ]] || die "Review directory not found: $REVIEW_DIR"
+[[ -d "$DEST_DIR" ]] || die "Destination directory not found: $DEST_DIR"
+[[ -f "$PROMPT_TEMPLATE" ]] || die "Prompt template not found: $PROMPT_TEMPLATE"
+
+MODE="all"
+TARGET=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --list)
+      MODE="list"
+      shift
+      ;;
+    --plan)
+      [[ -n "${2:-}" ]] || die "--plan requires a value"
+      MODE="one"
+      TARGET="$2"
+      shift 2
+      ;;
+    *)
+      die "Unknown argument: $1"
+      ;;
+  esac
+done
+
+if [[ "$MODE" == "list" ]]; then
   echo "Plans in ${REVIEW_DIR}/:"
+  FOUND=0
   for f in "${REVIEW_DIR}"/*.md; do
     [[ -f "$f" ]] || continue
+    [[ "$f" == *-review.md ]] && continue
     echo "  $(basename "$f")"
+    FOUND=1
   done
+  [[ $FOUND -eq 1 ]] || echo "  (none)"
   exit 0
 fi
 
-# ── Find plan(s) to review ────────────────────────────────────────────────────
-TARGET="${1:-}"
 PLANS=()
-
-if [[ -z "$TARGET" ]]; then
-  for f in "${REVIEW_DIR}"/*.md; do
-    [[ -f "$f" ]] || continue
-    PLANS+=("$f")
-  done
-else
+if [[ "$MODE" == "one" ]]; then
   if [[ -f "${REVIEW_DIR}/${TARGET}" ]]; then
     PLANS+=("${REVIEW_DIR}/${TARGET}")
   elif [[ -f "${REVIEW_DIR}/${TARGET}.md" ]]; then
     PLANS+=("${REVIEW_DIR}/${TARGET}.md")
   else
-    echo "ERROR: plan not found: ${TARGET}" >&2
-    echo "Use --list to see available plans." >&2
-    exit 1
+    die "plan not found: ${TARGET}"
   fi
+else
+  for f in "${REVIEW_DIR}"/*.md; do
+    [[ -f "$f" ]] || continue
+    [[ "$f" == *-review.md ]] && continue
+    PLANS+=("$f")
+  done
 fi
 
 if [[ ${#PLANS[@]} -eq 0 ]]; then
@@ -57,32 +125,59 @@ if [[ ${#PLANS[@]} -eq 0 ]]; then
   exit 0
 fi
 
-# ── Review each plan ──────────────────────────────────────────────────────────
+echo "================================================"
+echo "  Reviewing ${#PLANS[@]} plan(s) sequentially"
+echo "  Timeout: $((TIMEOUT_SECS / 60))m per plan"
+echo "  opencode: ${OPENCODE_BIN}"
+echo "  timeout:  ${TIMEOUT_BIN}"
+echo "================================================"
+echo ""
+
+PASS=0
+FAIL=0
+
 for PLAN_PATH in "${PLANS[@]}"; do
   PLAN_BASENAME="$(basename "$PLAN_PATH")"
-  PLAN_CONTENT="$(cat "$PLAN_PATH")"
-  sed "s|PLAN_PLACEHOLDER|${PLAN_CONTENT}|g" "$PROMPT_TEMPLATE" > "$PROMPT_FILE"
-  REVIEW_PATH="${REVIEW_DIR}/${PLAN_BASENAME%.md}-review.md"
+  TMP_PROMPT="$(mktemp)"
+  TMP_OUTPUT="$(mktemp)"
+  TMP_LOG="$(mktemp)"
 
-  echo "→ Reviewing: ${PLAN_BASENAME}"
+  log "→ Reviewing: ${PLAN_BASENAME}"
 
-  if timeout "$TIMEOUT_SECS" opencode run \
+  if ! python3 - "$PROMPT_TEMPLATE" "$PLAN_PATH" > "$TMP_PROMPT" <<'PY'
+import sys
+template = open(sys.argv[1], "r", encoding="utf-8").read()
+content = open(sys.argv[2], "r", encoding="utf-8").read()
+sys.stdout.write(template.replace("PLAN_PLACEHOLDER", content))
+PY
+  then
+    log "✗ FAILED: could not build prompt for ${PLAN_BASENAME}"
+    rm -f "$TMP_PROMPT" "$TMP_OUTPUT" "$TMP_LOG"
+    ((FAIL+=1))
+    echo ""
+    continue
+  fi
+
+  log "  Running review"
+  REVIEW_PATH="${DEST_DIR}/${PLAN_BASENAME%.md}-reviewed.md"
+  if "$TIMEOUT_BIN" "$TIMEOUT_SECS" "$OPENCODE_BIN" run \
       -m mlx/mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit \
-      < "$PROMPT_FILE" > "$REVIEW_PATH" 2>&1; then
-    echo "  → Review written to: ${REVIEW_PATH}"
-    mv "$PLAN_PATH" "plans/"
-    echo "  → Moved plan to: plans/${PLAN_BASENAME}"
+      < "$TMP_PROMPT" > "$REVIEW_PATH" 2>&1; then
+    log "✓ Review written to: ${REVIEW_PATH}"
+    ((PASS+=1))
   else
     EXIT_CODE=$?
     if [[ $EXIT_CODE -eq 124 ]]; then
-      echo "  → FAILED: timed out after ${TIMEOUT_SECS}s (10m)"
+      log "✗ TIMED OUT after ${TIMEOUT_SECS}s"
     else
-      echo "  → FAILED: opencode exited with code ${EXIT_CODE}"
+      log "✗ FAILED: opencode exited with code ${EXIT_CODE}"
     fi
-    # Keep plan in plans/review/ for retry
+    ((FAIL+=1))
   fi
-
   echo ""
 done
 
-echo "Done. ${#PLANS[@]} plan(s) reviewed."
+echo "================================================"
+echo "  Done. ${#PLANS[@]} plan(s) processed."
+echo "  Passed: ${PASS}  |  Failed: ${FAIL}"
+echo "================================================"
