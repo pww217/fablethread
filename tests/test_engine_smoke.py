@@ -894,16 +894,17 @@ class TestChroniclePrefixBudget:
     def test_chronicle_tail(self) -> None:
         large_text = "This is a sentence. " * 2000
         chronicle = _SAVE_DIR / "chronicle.md"
-        chronicle.write_text(large_text)
+        chronicle.write_text("## COMPACTED\n\n" + large_text)
         tail = load_chronicle_tail(_SAVE_DIR, max_tokens=100)
         words = tail.split()
-        assert len(words) <= 100
+        # ## COMPACTED header adds 2 words, so cap is 102
+        assert len(words) <= 102
 
     async def test_chronicle_injected_in_engine_run(self) -> None:
         state = _make_state()
         _write_state(_SAVE_DIR, state)
         chronicle = _SAVE_DIR / "chronicle.md"
-        chronicle.write_text("MARKER_TEXT_FOR_ASSERTION")
+        chronicle.write_text("## COMPACTED\n\nMARKER_TEXT_FOR_ASSERTION")
 
         captured_messages = []
 
