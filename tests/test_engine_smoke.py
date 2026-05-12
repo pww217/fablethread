@@ -23,6 +23,7 @@ from ccya.engine import (
     run_turn,
     _build_jinja_env,
     _narrate_messages,
+    _rules_messages,
     _extract_scene_messages,
     _extract_state_messages,
     _extract_progress_messages,
@@ -2641,3 +2642,111 @@ class TestNarrationScopeTailFilter:
         assert result is not None
         # The narrative stored in TurnResult should have the scope tag stripped
         assert "<scope>" not in result.narrative
+
+
+# ---------------------------------------------------------------------------
+# TestRulesPromptNoRollExamples
+# ---------------------------------------------------------------------------
+
+
+class TestRulesPromptNoRollExamples:
+    """Phase 01 — verify no-roll movement and payment exception examples are rendered."""
+
+    def _env(self):
+        return _build_jinja_env(str(Path(__file__).parent.parent / "ccya" / "prompts"))
+
+    def test_rules_system_contains_no_roll_movement_section(self):
+        env = self._env()
+        msgs = _rules_messages(env, _make_state(), "I walk over to Caron's table and sit down.")
+        system = next(m for m in msgs if m["role"] == "system")["content"]
+        assert "## No-roll movement examples" in system
+        assert "Caron's table" in system
+        assert "Pure approach/sit action" in system
+
+    def test_rules_system_contains_payment_exception_section(self):
+        env = self._env()
+        msgs = _rules_messages(env, _make_state(), "Halden offers me a courier job for 500 credits.")
+        system = next(m for m in msgs if m["role"] == "system")["content"]
+        assert "## Payment exception example" in system
+        assert "willing merchant" in system
+        assert "deal not happening" in system
+
+    def test_rules_system_no_roll_example_sit_down(self):
+        env = self._env()
+        msgs = _rules_messages(env, _make_state(), "I walk over to Caron's table and sit down.")
+        system = next(m for m in msgs if m["role"] == "system")["content"]
+        assert "walk over to Caron's table and sit down" in system
+        assert "Required: false" in system
+
+    def test_rules_system_no_roll_example_pull_ledger(self):
+        env = self._env()
+        msgs = _rules_messages(env, _make_state(), "I pull the ledger from my own coat pocket.")
+        system = next(m for m in msgs if m["role"] == "system")["content"]
+        assert "pull the ledger from my own coat pocket" in system
+        assert "already in the PC's inventory" in system
+
+    def test_rules_system_no_roll_example_corridor(self):
+        env = self._env()
+        msgs = _rules_messages(env, _make_state(), "I walk through the corridor to the airlock.")
+        system = next(m for m in msgs if m["role"] == "system")["content"]
+        assert "walk through the corridor to the airlock" in system
+        assert "Unimpeded movement" in system
+
+    def test_rules_user_contains_player_input(self):
+        env = self._env()
+        user_input = "I walk over to Caron's table and sit down."
+        msgs = _rules_messages(env, _make_state(), user_input)
+        user = next(m for m in msgs if m["role"] == "user")["content"]
+        assert user_input in user
+
+
+# ---------------------------------------------------------------------------
+# TestTokenCuts
+# ---------------------------------------------------------------------------
+
+
+class TestTokenCuts:
+    """Phase 04 — verify PC stats and bio removals in extract prompts."""
+
+    def _env(self):
+        return _build_jinja_env(str(Path(__file__).parent.parent / "ccya" / "prompts"))
+
+    def test_extract_state_user_no_pc_name_or_tagline(self):
+        env = self._env()
+        msgs = _extract_state_messages(env, "N.", _make_state())
+        user = next(m for m in msgs if m["role"] == "user")["content"]
+        assert "## pc" not in user
+        assert "Vex" not in user
+        assert "salvage pilot" not in user
+
+    def test_extract_progress_user_no_pc_stats(self):
+        env = self._env()
+        state_res = StateExtractResult()
+        msgs = _extract_progress_messages(env, "N.", _make_state(), state_result=state_res, intent=None, recent_turns=[])
+        user = next(m for m in msgs if m["role"] == "user")["content"]
+        assert "## pc_stats" not in user
+        assert "strength" not in user or "## pc_stats" not in user
+
+    def test_extract_scene_user_present_npcs_no_bio(self):
+        env = self._env()
+        state = _make_state()
+        state["scene"]["present_npcs"] = [
+            {"id": "caron", "name": "Caron", "title": "Fixer", "bio": "Owes you from Tycho.", "notes": "Watching.", "last_seen": None},
+        ]
+        msgs = _extract_scene_messages(env, "N.", state)
+        user = next(m for m in msgs if m["role"] == "user")["content"]
+        assert "Owes you from Tycho" not in user
+
+    def test_extract_progress_user_last_turn_truncated(self):
+        env = self._env()
+        state_res = StateExtractResult()
+        long_narrative = "A" * 500
+        recent_turns = [{"turn": 1, "narrative": long_narrative}]
+        msgs = _extract_progress_messages(env, "N.", _make_state(), state_result=state_res, intent=None, recent_turns=recent_turns)
+        user = next(m for m in msgs if m["role"] == "user")["content"]
+        # The truncated narrative should be at most 300 chars
+        import re
+        match = re.search(r"## last_turn_narration.*?\n(.*?)(?:\n\n|\n##)", user, re.DOTALL)
+        assert match is not None
+        truncated = match.group(1)
+        assert len(truncated) <= 300

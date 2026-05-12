@@ -1,12 +1,3 @@
-## pc
-{{ pc.name }} — {{ pc.tagline }}
-
-{% if pc.stats -%}
-## pc_stats
-{% for k, v in pc.stats.items() %}- {{ k }}: {{ v }}
-{% endfor %}
-{% endif -%}
-
 {% if present_npcs -%}
 ## present_npcs (in scene right now)
 {% for n in present_npcs %}- `{{ n.id }}` | {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %} — {{ n.bio or "No bio available" }}{% if n.notes %} — {{ n.notes }}{% endif %}{% if n.last_seen %} — last seen in {{ n.last_seen.location_name }}: {{ n.last_seen.last_seen_state }}{% endif %}
@@ -106,7 +97,7 @@ Do NOT add pressure for things the narrator already described as resolved or for
 {% endif -%}
 {% if recent_turns -%}
 ## last_turn_narration (T{{ recent_turns[-1].turn }})
-{{ recent_turns[-1].narrative }}
+{% set _prev = recent_turns[-1].narrative %}{{ _prev[-300:] if _prev|length > 300 else _prev }}
 
 {% endif -%}
 ## CURRENT TURN {{ turn_no }} NARRATION

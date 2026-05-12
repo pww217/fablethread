@@ -1,6 +1,3 @@
-## pc
-{{ pc.name }} — {{ pc.tagline }}
-
 {% if conditions -%}
 ## active_conditions
 {% for c in conditions %}- {{ c.id if c is mapping else c }}{% if c is mapping and c.get('description') %} — {{ c.description }}{% endif %}

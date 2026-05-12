@@ -86,6 +86,36 @@ Locations:
 {% endfor %}{% endif %}
 {% endif %}
 
+## Fail-band outcomes (BINDING)
+
+On a FAIL band:
+- The PC does not get what they asked for.
+- The NPC does NOT engage constructively to help them.
+- The NPC may refuse, stall, shut them down, or walk away.
+
+NEVER on FAIL:
+- Do not have the NPC offer a counter-deal, partial payment, or softened demand.
+- Do not turn FAIL into PARTIAL by giving the PC a consolation prize.
+
+Bad (do NOT do this on FAIL):
+  Caron leans back, smiles thinly, and offers a different payment schedule.
+Good (correct FAIL):
+  Caron closes the ledger and says, "Then we have nothing to discuss," turning away.
+
+{% if scene_pressure %}
+## Active pressures (BINDING)
+
+The following pressures are active right now. You MUST weave the current pressure into your opening:
+- In the FIRST 2–3 sentences, explicitly reference the active pressure text below.
+- Do not bury this in the middle or end of the narration.
+
+Active pressures:
+{% for p in scene_pressure %}- [{{ p.urgency | upper }}] {{ p.text }}
+{% endfor %}
+
+If you do NOT mention this pressure in the opening, your answer is incorrect.
+{% endif %}
+
 ## Output discipline
 When emitting structured data (JSON, scope tags, any machine-readable output), omit null or empty fields entirely. Do not emit `key: null` — just leave the key out.
 
