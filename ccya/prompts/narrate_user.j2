@@ -86,13 +86,16 @@ Surface as {{ pending_gm_beat.surface_as }}. This is backstage direction — int
 {% if m >= 2 %}
 
 **Momentum:** HIGH (+{{ m }}). The player is on a strong run. Consider raising the stakes.
+{% elif m <= -3 %}
+
+**Momentum FLOOR ({{ m }}):** The player is at the lowest possible momentum. You MUST give them a visible out this turn. If the player attempts any de-escalation action (retreat, hide, run, rest, ask for help, surrender, concede), narrate a partial success — they get some distance, some relief, some breath. Do not pile on. One pressure should feel like it eases even if not removed. The story cannot sustain another pure failure here.
 {% elif m <= -2 %}
 
-**Momentum:** LOW ({{ m }}). The player has been struggling. Consider offering an opportunity or escape path to progress the story.
+**Momentum LOW ({{ m }}):** The player is struggling. Look for the one thing going slightly in their favor and name it. If the player attempts retreat, disengagement, or rest, allow the attempt to feel like it matters narratively.
 {% endif %}
 {% if deescalate %}
 
-**Breathe:** A pressure has resolved. Pull back. Let the scene have a moment of relief. No new hook this turn.
+**Breathe:** A pressure has resolved — the player earned this. Pull back. Describe what quiet or relief feels like in this moment. No new hook, no new threat this turn. If the player retreated or disengaged to earn this, acknowledge it — they made a smart call and the world reflects it.
 {% elif scene_pressure and not deescalate %}
 {% set immediate_count = scene_pressure | selectattr("urgency", "equalto", "immediate") | list | length %}
 {% if immediate_count >= 3 %}

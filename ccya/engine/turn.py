@@ -488,6 +488,7 @@ async def run_turn(
             present_npcs=_present_npcs,
             compendium_bios=_compendium_bios,
             pc_allegiance=_pc_allegiance,
+            scene_pressure=(state.get("scene") or {}).get("scene_pressure") or [],
             turn_no=turn_no,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
@@ -1080,6 +1081,7 @@ async def run_turn_retry(
             present_npcs=_present_npcs,
             compendium_bios=_compendium_bios,
             pc_allegiance=_pc_allegiance,
+            scene_pressure=(state.get("scene") or {}).get("scene_pressure") or [],
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
