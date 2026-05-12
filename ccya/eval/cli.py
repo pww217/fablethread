@@ -97,6 +97,7 @@ async def _run_one_scenario(
         scenario,
         eval_cfg=eval_cfg,
         packs_dirs=packs_dirs,
+        gate=args.gate,
     )
     _log.debug("runner done: turns=%d errors=%d output_dir=%s", len(rr.turns), rr.total_errors, rr.output_dir)
     print(f"[eval] runner done: {len(rr.turns)} turns (of {num_turns}), {rr.total_errors} errors → {rr.output_dir}", file=sys.stderr)
@@ -286,6 +287,7 @@ def main(argv: list[str] | None = None) -> int:
                      help="Run only the first N turns (default: from config, 10).")
     run.add_argument("--all", action="store_true",
                      help="Run every discovered scenario in serial (default: just default_scenario).")
+    run.add_argument("--gate", action="store_true", help="Exit 1 if any red assert fails.")
     run.set_defaults(func=_cmd_run, _is_async=True)
 
     j = sub.add_parser("judge-only", help="Re-run the judge against a prior run dir")

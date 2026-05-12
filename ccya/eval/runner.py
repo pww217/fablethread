@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import time
 from dataclasses import asdict, dataclass, field
@@ -403,6 +404,7 @@ async def run_scenario(
     packs_dirs: list[Path],
     runs_dir: Path | None = None,
     save_dir: Path | None = None,
+    gate: bool = False,
 ) -> RunResult:
     """Execute scenario end-to-end. Returns a RunResult; writes artifacts to disk.
 
@@ -561,14 +563,24 @@ async def run_scenario(
                 record.assert_results = _check_asserts(turn.asserts, turn_events[i])
 
         # Run universal asserts for every turn
+        all_assert_results: list[dict[str, Any]] = []
         prev_ev: dict[str, Any] | None = None
         for i, ev in enumerate(turn_events):
             if i >= len(turn_records):
                 break
             record = turn_records[i]
-            universal_results = run_all_universal_asserts(ev, prev_ev)
+            window = turn_events[max(0, i-2):i+1] if i >= 2 else turn_events[:i+1]
+            universal_results = run_all_universal_asserts(ev, prev_ev, event_window=window)
             record.assert_results.extend(universal_results)
+            all_assert_results.extend(universal_results)
             prev_ev = ev
+
+        if gate:
+            red_failures = [r for r in all_assert_results if not r.get("passed") and r.get("severity") == "red"]
+            if red_failures:
+                for f in red_failures:
+                    print(f"GATE FAIL [{f['assertion']}]: {f['detail']}", file=sys.stderr)
+                sys.exit(1)
 
     finished_at = datetime.now(timezone.utc).isoformat()
     output_dir.mkdir(parents=True, exist_ok=True)

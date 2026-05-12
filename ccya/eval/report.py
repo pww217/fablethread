@@ -506,6 +506,167 @@ def _render_auto_checker_block(run_result: RunResult) -> str:
     return "\n".join(parts)
 
 
+def _render_assert_summary_table(run_result: RunResult) -> str:
+    """Render a summary table of universal assert results across all turns."""
+    if not run_result.turns:
+        return ""
+
+    # Collect per-assertion stats
+    assertion_stats: dict[str, dict[str, Any]] = {}
+    for t in run_result.turns:
+        for r in t.assert_results:
+            name = r["assertion"]
+            if name not in assertion_stats:
+                assertion_stats[name] = {
+                    "total": 0,
+                    "failed": 0,
+                    "first_failure": None,
+                    "severity": r.get("severity", "red"),
+                }
+            assertion_stats[name]["total"] += 1
+            if not r["passed"]:
+                assertion_stats[name]["failed"] += 1
+                if assertion_stats[name]["first_failure"] is None:
+                    assertion_stats[name]["first_failure"] = t.engine_turn_number
+
+    if not assertion_stats:
+        return ""
+
+    lines: list[str] = ["## Universal Assert Results", ""]
+    lines.append("| Assertion | Severity | Turns Failed | Turns Checked | First Failure Turn |")
+    lines.append("|---|---|---:|---:|---:|")
+
+    for name, stats in sorted(assertion_stats.items()):
+        sev = stats["severity"]
+        sev_mark = "🔴" if sev == "red" else "🟡"
+        failed = stats["failed"]
+        total = stats["total"]
+        first_fail = f"T{stats['first_failure']}" if stats["first_failure"] is not None else "—"
+        lines.append(f"| `{name}` | {sev_mark} | {failed} | {total} | {first_fail} |")
+
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _compute_pacing_metrics(events: list[dict[str, Any]]) -> str:
+    """Compute pacing metrics from events. Returns markdown string."""
+    if not events:
+        return ""
+
+    lines: list[str] = ["## Pacing Metrics", ""]
+
+    # Pressure duration table
+    pressure_first: dict[str, int] = {}
+    pressure_last: dict[str, int] = {}
+    for ev in events:
+        pressures = ((ev.get("state_snapshot") or {}).get("scene") or {}).get("scene_pressure") or []
+        meta = (ev.get("state_snapshot") or {}).get("meta") or {}
+        cur_turn = int(meta.get("turn") or 0) if isinstance(meta, dict) else 0
+        for p in pressures:
+            if not isinstance(p, dict):
+                continue
+            pid = p.get("id", "?")
+            if pid not in pressure_first:
+                pressure_first[pid] = cur_turn
+            pressure_last[pid] = cur_turn
+
+    if pressure_first:
+        lines.append("### Pressure Duration")
+        lines.append("")
+        lines.append("| Pressure ID | First Turn | Last Turn | Duration (turns) | Flagged |")
+        lines.append("|---|---|---:|---:|---|")
+        for pid in sorted(pressure_first.keys()):
+            first = pressure_first[pid]
+            last = pressure_last[pid]
+            duration = last - first + 1
+            flagged = "⚠️ >8 turns" if duration > 8 else ""
+            lines.append(f"| `{pid}` | T{first} | T{last} | {duration} | {flagged} |")
+        lines.append("")
+
+    # Location dwell table
+    location_dwell: dict[str, dict[str, Any]] = {}
+    for ev in events:
+        meta = (ev.get("state_snapshot") or {}).get("meta") or {}
+        cur_turn = int(meta.get("turn") or 0) if isinstance(meta, dict) else 0
+        loc = ((ev.get("state_snapshot") or {}).get("location") or {}).get("id")
+        if not loc:
+            continue
+        if loc not in location_dwell:
+            location_dwell[loc] = {"first": cur_turn, "last": cur_turn, "turns": [cur_turn]}
+        else:
+            location_dwell[loc]["last"] = cur_turn
+            location_dwell[loc]["turns"].append(cur_turn)
+
+    if location_dwell:
+        lines.append("### Location Dwell")
+        lines.append("")
+        lines.append("| Location ID | Turns Active | Flagged |")
+        lines.append("|---|---:|---|")
+        for loc_id in sorted(location_dwell.keys()):
+            info = location_dwell[loc_id]
+            dwell = info["last"] - info["first"] + 1
+            flagged = "⚠️ >4 turns" if dwell > 4 else ""
+            lines.append(f"| `{loc_id}` | {dwell} | {flagged} |")
+        lines.append("")
+
+    # Momentum floor runs
+    floor_runs: list[tuple[int, int]] = []
+    current_run_start: int | None = None
+    for ev in events:
+        meta = (ev.get("state_snapshot") or {}).get("meta") or {}
+        cur_turn = int(meta.get("turn") or 0) if isinstance(meta, dict) else 0
+        m = ((ev.get("state_snapshot") or {}).get("meta") or {}).get("momentum")
+        if m is not None and m <= -3:
+            if current_run_start is None:
+                current_run_start = cur_turn
+        else:
+            if current_run_start is not None:
+                floor_runs.append((current_run_start, cur_turn - 1))
+                current_run_start = None
+    if current_run_start is not None:
+        floor_runs.append((current_run_start, events[-1].get("turn", 0) if events else 0))
+
+    if floor_runs:
+        lines.append("### Momentum Floor Runs")
+        lines.append("")
+        lines.append("| Run Start | Run End | Duration (turns) |")
+        lines.append("|---|---|---:|")
+        for start, end in floor_runs:
+            duration = end - start + 1
+            lines.append(f"| T{start} | T{end} | {duration} |")
+        lines.append("")
+
+    # Condition duration
+    condition_first: dict[str, int] = {}
+    condition_last: dict[str, int] = {}
+    for ev in events:
+        meta = (ev.get("state_snapshot") or {}).get("meta") or {}
+        cur_turn = int(meta.get("turn") or 0) if isinstance(meta, dict) else 0
+        conds = ((ev.get("state_snapshot") or {}).get("pc") or {}).get("conditions") or []
+        for c in conds:
+            if not isinstance(c, dict):
+                continue
+            cid = c.get("id", "?")
+            if cid not in condition_first:
+                condition_first[cid] = cur_turn
+            condition_last[cid] = cur_turn
+
+    if condition_first:
+        lines.append("### Condition Duration")
+        lines.append("")
+        lines.append("| Condition ID | First Turn | Last Turn | Duration (turns) | Flagged |")
+        lines.append("|---|---|---:|---:|---|")
+        for cid in sorted(condition_first.keys()):
+            first = condition_first[cid]
+            last = condition_last[cid]
+            duration = last - first + 1
+            flagged = "⚠️ >6 turns" if duration > 6 else ""
+            lines.append(f"| `{cid}` | T{first} | T{last} | {duration} | {flagged} |")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 _JUDGE_STREAM_SENTINEL_OPEN = "<!-- JUDGE_STREAM_OPEN -->\n"
 _JUDGE_STREAM_SENTINEL_CLOSE = "<!-- JUDGE_STREAM_CLOSE -->\n"
 
@@ -571,6 +732,12 @@ def write_report_skeleton(
     if auto_block:
         parts.append("## Auto-Checker\n")
         parts.append(auto_block)
+    assert_table = _render_assert_summary_table(run_result)
+    if assert_table:
+        parts.append(assert_table)
+    pacing = _compute_pacing_metrics(cur_events)
+    if pacing:
+        parts.append(pacing)
     parts.append("## Turn Metrics\n")
     parts.append(_render_combined_table(cur_metrics, prev_metrics, run_result))
     if regressions:
@@ -667,6 +834,12 @@ def finalize_report(
     if auto_block:
         parts.append("## Auto-Checker\n")
         parts.append(auto_block)
+    assert_table = _render_assert_summary_table(run_result)
+    if assert_table:
+        parts.append(assert_table)
+    pacing = _compute_pacing_metrics(cur_events)
+    if pacing:
+        parts.append(pacing)
     parts.append("## Turn Metrics\n")
     parts.append(_render_combined_table(cur_metrics, prev_metrics, run_result))
     if regressions:
