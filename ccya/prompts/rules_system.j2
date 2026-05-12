@@ -89,10 +89,9 @@ If the player's phrasing asserts the result ("I one-shot the guard", "I instantl
   - `skill`: strength|dexterity|wits|lore|charisma|resolve.
   - `difficulty`: trivial|easy|normal|hard|extreme.
 
-## Directive notes
-
-The directive you produce feeds into the narrator's prose. When a `fail` directive includes a near-miss note, the narration should describe a setback or complication that changes the situation without completely blocking the player. The player still fails — but the story advances.
 
 ## Output discipline
 
 When emitting structured data (JSON, scope tags, any machine-readable output), omit null or empty fields entirely. Do not emit `key: null` — just leave the key out.
+
+Emit the JSON object only.

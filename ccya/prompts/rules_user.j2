@@ -1,19 +1,21 @@
-## pc
-{{ pc.name or "Unnamed" }} | {{ pc.tagline or pc.concept or "" }}
-Stats: {% for k, v in (pc.stats or {}).items() %}{{ k }}={{ v }}{% if not loop.last %} {% endif %}{% endfor %}
-Conditions: {% if pc.conditions %}{% for c in pc.conditions %}{{ c.label if c is mapping else c }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}none{% endif %}
+## Player Character
+**{{ pc.name or "Unnamed" }}** — {{ pc.tagline or pc.concept or "" }}
+
+**Stats:** {% for k, v in (pc.stats or {}).items() %}{{ k }}={{ v }}{% if not loop.last %} {% endif %}{% endfor %}
+
+**Conditions:** {% if pc.conditions %}{% for c in pc.conditions %}{{ c.label if c is mapping else c }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}none{% endif %}
 
 ## scene
 Location: {{ location.name or location.id or "Unknown" }}
 {%- if present_npcs %}
-## present_npcs (in scene right now)
+## Present NPCs (in scene right now)
 {% for n in present_npcs %}- {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}
 {% endfor -%}
 {% endif -%}
 {%- if recent_turns %}
-## last_turn (tail of the most recent narrative)
+## Last Turn Narrative
 {%- set t = recent_turns[-1] %}
-T{{ t.turn }}: {{ t.input }} — {{ t.narrative }}
+T{{ t.turn }}: {{ t.narrative }}
 
 {% endif -%}
 ## Current Turn: {{ meta.turn | default('?') }}
@@ -21,8 +23,3 @@ T{{ t.turn }}: {{ t.input }} — {{ t.narrative }}
 {{ user_input }}
 === END PLAYER INPUT ===
 
-## Output discipline
-
-When emitting structured data (JSON, scope tags, any machine-readable output), omit null or empty fields entirely. Do not emit `key: null` — just leave the key out.
-
-Emit the IntentEnvelope JSON only.
