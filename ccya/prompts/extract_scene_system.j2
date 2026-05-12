@@ -42,6 +42,26 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 - If an NPC is known from the compendium, use their existing compendium ID — do NOT create a new ID.
 - When adding a new NPC, include `name`, `title`, and `bio` so the engine can populate the compendium. **Bio is mandatory for every NPC — even ambient presence like "crowd" or "bystanders" needs a bio.**
 
+**NPC ENTER/EXIT RULE (MANDATORY):**
+- Emit `npc_add` for every named NPC who appears in the narration for the first time this turn and is NOT already in `present_npcs`.
+- Emit `npc_remove` for every named NPC who narration indicates has left, fled, died, fainted, or been removed from the scene.
+- Do NOT emit `npc_add` for NPCs already in `present_npcs` — that causes duplicates.
+- Do NOT emit `npc_remove` for NPCs who are simply not mentioned — only remove if narration actively indicates departure.
+- Unnamed ambient characters ("a group of guards," "bystanders") do not require `npc_add`/`npc_remove` tracking.
+
+EXAMPLE — NPC enters (correct):
+Narration: "A red-haired man in boiled leather steps through the door and locks eyes with you."
+`present_npcs` before: [caron]
+→ Emit: `npc_add: { id: "red_haired_man", name: "Red-Haired Man", ... }`
+
+EXAMPLE — NPC exits (correct):
+Narration: "Caron spits on the floor and shoves through the crowd, disappearing into the street."
+→ Emit: `npc_remove: { id: "caron" }`
+
+EXAMPLE — NPC not mentioned, no remove (correct):
+Narration does not mention Halden this turn.
+→ Do NOT emit `npc_remove: { id: "halden" }` — absence ≠ departure.
+
 ## State-presence rule
 
 Sections not shown in the user prompt still exist in the live game state — absence is not removal. Only emit removals you can justify from the narration.

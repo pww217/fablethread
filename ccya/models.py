@@ -20,6 +20,7 @@ class Condition(BaseModel):
     label: str
     description: str = ""
     added_turn: int = 0
+    turns_remaining: int | None = None
 
 
 def _coerce_condition_str(v: Any) -> Any:
@@ -36,6 +37,7 @@ class ConditionAdd(BaseModel):
     id: str
     label: str
     description: str = ""
+    turns_remaining: int | None = None
 
     @field_validator("id", "label", mode="before")
     @classmethod

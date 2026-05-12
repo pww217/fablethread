@@ -133,3 +133,31 @@ class TestNarrateSystemRules:
         assert "NPC QUANTITY RULE" in text
         assert "four guards" in text
         assert "Named individuals are exempt" in text
+
+
+class TestConditionDurationGuide:
+    """extract_state_system.j2 must contain condition duration taxonomy and relevance rule."""
+
+    def test_extract_state_system_has_duration_guide(self):
+        """Confirm CONDITION DURATION GUIDE and CONDITION RELEVANCE RULE present in rendered prompt."""
+        env = _env()
+        text = env.get_template("extract_state_system.j2").render()
+        assert "CONDITION DURATION GUIDE" in text
+        assert "CONDITION RELEVANCE RULE" in text
+        assert "brief (1–2 turns)" in text
+        assert "short (3–4 turns)" in text
+        assert "medium (5–8 turns)" in text
+        assert "long (9+ turns)" in text
+
+
+class TestNPCEnterExit:
+    """extract_scene_system.j2 must contain NPC enter/exit rules."""
+
+    def test_extract_scene_system_has_npc_enter_exit(self):
+        """Confirm NPC ENTER/EXIT RULE with all three examples present."""
+        env = _env()
+        text = env.get_template("extract_scene_system.j2").render()
+        assert "NPC ENTER/EXIT RULE" in text
+        assert "absence ≠ departure" in text or "absence != departure" in text
+        assert "npc_add" in text
+        assert "npc_remove" in text
