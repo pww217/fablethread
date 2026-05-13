@@ -35,6 +35,10 @@ def _narrate_messages(
     turn_no: int = 0,
     world_factions: list[dict[str, str]] = [],
     world_locations: list[dict[str, str]] = [],
+    threat_ages: list[dict[str, Any]] | None = None,
+    threat_pressure_at: int = 3,
+    threat_imperative_at: int = 5,
+    building_threat_imperative_at: int = 4,
 ) -> list[dict[str, str]]:
     user_ctx = {
         "state": state,
@@ -58,6 +62,10 @@ def _narrate_messages(
         "scene_pressure": scene_pressure or [],
         "world_factions": world_factions,
         "world_locations": world_locations,
+        "threat_ages": threat_ages or [],
+        "threat_pressure_at": threat_pressure_at,
+        "threat_imperative_at": threat_imperative_at,
+        "building_threat_imperative_at": building_threat_imperative_at,
     }
     system_text = _render(env, "narrate_system.j2", {
         "pack_style": pack_style,

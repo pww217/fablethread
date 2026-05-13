@@ -234,3 +234,43 @@ class TestFloorRelief:
         assert state["meta"]["consecutive_floor_count"] == 1
         # Existing beat should not be overwritten
         assert state["meta"]["pending_gm_beat"]["type"] == "boss_encounter"
+
+
+class TestComputeThreatAges:
+    def test_basic_ages(self) -> None:
+        from ccya.engine.turn import _compute_threat_ages
+
+        state: dict[str, Any] = {
+            "meta": {"turn": 10},
+            "scene": {"scene_pressure": [
+                {"id": "old", "text": "Old threat", "urgency": "background", "turn_added": 3},
+                {"id": "new", "text": "New threat", "urgency": "building", "turn_added": 8},
+            ]},
+        }
+        ages = _compute_threat_ages(state)
+        assert len(ages) == 2
+        assert ages[0]["id"] == "old"  # oldest first
+        assert ages[0]["age"] == 7
+        assert ages[1]["id"] == "new"
+        assert ages[1]["age"] == 2
+
+    def test_excludes_invalid_turn_added(self) -> None:
+        from ccya.engine.turn import _compute_threat_ages
+
+        state: dict[str, Any] = {
+            "meta": {"turn": 10},
+            "scene": {"scene_pressure": [
+                {"id": "valid", "text": "V", "urgency": "background", "turn_added": 5},
+                {"id": "invalid", "text": "I", "urgency": "background", "turn_added": 0},
+            ]},
+        }
+        ages = _compute_threat_ages(state)
+        assert len(ages) == 1
+        assert ages[0]["id"] == "valid"
+
+    def test_empty_pressures(self) -> None:
+        from ccya.engine.turn import _compute_threat_ages
+
+        state: dict[str, Any] = {"meta": {"turn": 5}, "scene": {"scene_pressure": []}}
+        ages = _compute_threat_ages(state)
+        assert ages == []
