@@ -58,7 +58,6 @@ class RulesCheck(BaseModel):
     required: bool = False
     skill: SkillName | None = None
     difficulty: Difficulty = "normal"
-    tags: list[str] = Field(default_factory=list, max_length=4)
 
     @field_validator("skill", mode="before")
     @classmethod
