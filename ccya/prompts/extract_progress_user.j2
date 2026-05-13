@@ -97,8 +97,6 @@ Do NOT add pressure for things the narrator already described as resolved or for
 {% endif -%}
 {% if recent_turns -%}
 ## last_turn_narration (T{{ recent_turns[-1].turn }})
-{% set _prev = recent_turns[-1].narrative %}{{ _prev[-300:] if _prev|length > 300 else _prev }}
-
 {% endif -%}
 ## CURRENT TURN {{ turn_no }} NARRATION
 {{ narration }}
