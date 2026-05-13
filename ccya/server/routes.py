@@ -158,6 +158,28 @@ async def get_turn(input: str = ""):
     return EventSourceResponse(event_stream())
 
 
+@_app_mod.app.post("/turn/delete")
+async def delete_last_turn():
+    if is_turn_in_progress(str(_app_mod.SAVE_DIR)):
+        return JSONResponse(
+            {"error": "Turn already in progress"}, status_code=409
+        )
+
+    last_events = load_recent_events(_app_mod.SAVE_DIR, 1)
+    if not last_events:
+        return JSONResponse(
+            {"error": "No previous turn to delete"}, status_code=400
+        )
+
+    last_event = last_events[-1]
+    actions = last_event.get("actions", [])
+
+    remove_last_event(_app_mod.SAVE_DIR)
+    remove_last_chronicle_turn(_app_mod.SAVE_DIR)
+
+    return JSONResponse({"actions": actions, "turn": last_event.get("turn")})
+
+
 @_app_mod.app.get("/turn/retry")
 async def retry_turn():
     if is_turn_in_progress(str(_app_mod.SAVE_DIR)):
