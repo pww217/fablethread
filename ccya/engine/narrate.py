@@ -109,7 +109,7 @@ def _known_characters_for_extract(
                     "id": nid,
                     "name": e.get("name") or "",
                     "title": e.get("title") or "",
-                    "bio_preview": bio,
+                    "bio": bio,
                 },
             )
     return rows
