@@ -347,14 +347,30 @@ flowchart LR
 >
 > ### Beat lifecycle
 >
-> The progress extractor emits a `gm_beat` (or `null`). If a beat is emitted, `beat_disposition`
-> controls what happens to the `pending_gm_beat` from the previous turn: `consume` clears it,
-> `carry` preserves it unchanged, `replace` supersedes it with the new beat. The engine stores
-> the beat in `state.meta.pending_gm_beat` with `beat_expires_turn = turn_no + 2` as a hard
-> TTL ceiling. Pre-narration, the engine checks whether the carried beat has passed its TTL;
-> if so, it is nullified regardless of disposition. The narrator consumes the beat by integrating
-> its instruction into prose. If not consumed by the narrator, the beat expires at turn N and
-> is discarded.
+> The beat flows through three phases per turn:
+>
+> **Phase 1 — Pre-narration expiry check.** At the start of each turn, the engine reads
+> `state.meta.pending_gm_beat` from the previous turn. If `beat_expires_turn` is set and the
+> current turn number exceeds it, the beat is nullified. Otherwise it proceeds to narration.
+>
+> **Phase 2 — Narration consumption.** The beat is passed to the narrator via
+> `_narrate_messages(pending_gm_beat=...)`. The narrator integrates the beat's instruction into
+> prose. After narration completes, the beat is temporarily cleared from state. The beat is then
+> restored to state so the progress extractor can see it in its prompt — this is critical because
+> the progress extractor needs to know what beat was narrated to make an informed disposition
+> decision.
+>
+> **Phase 3 — Extraction disposition.** The progress extractor receives `pending_beat` in its
+> prompt and emits `beat_disposition` (`consume`/`carry`/`replace`) plus an optional new `gm_beat`.
+> The engine's beat lifecycle logic reads the disposition and applies it:
+> - `consume`: clears `state.meta.pending_gm_beat` (beat was narrated, done)
+> - `carry`: preserves `state.meta.pending_gm_beat` unchanged (beat was narrated but should
+>   continue to next turn — e.g., a multi-turn arc)
+> - `replace`: writes the new `gm_beat` to `state.meta.pending_gm_beat` with
+>   `beat_expires_turn = turn_no + 2`
+>
+> The engine stores the beat with `beat_expires_turn = turn_no + 2` as a hard TTL ceiling.
+> If not consumed by the narrator, the beat expires at turn N and is discarded.
 
 ---
 

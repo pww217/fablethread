@@ -307,6 +307,46 @@ Did the engine honor the player's stated action, or redirect/reinterpret it? For
 Verdict: tight (player intent always honored), loose (occasional redirections), or broken
 (player intent consistently ignored or reinterpreted).
 
+### 4H — GM Beat Lifecycle
+
+The GM beat is a multi-turn narrative device. It flows through three phases:
+
+**Phase 1 — Creation.** Progress extractor emits `gm_beat` + `beat_disposition: "consume"`.
+Engine stores it in `state.meta.pending_gm_beat` with `beat_expires_turn = turn_no + 2`.
+
+**Phase 2 — Narration.** Beat is injected into the narrator prompt. Narrator weaves it into
+prose. After narration, beat is temporarily cleared then restored for extraction.
+
+**Phase 3 — Disposition.** Progress extractor sees the beat in its prompt and decides:
+- `consume`: beat was narrated, clear it
+- `carry`: beat was narrated but should persist (multi-turn arc), preserve unchanged
+- `replace`: beat was narrated but a new beat supersedes it, write new beat
+
+**Evaluation checklist (per turn where a beat exists):**
+
+| Check | How to verify | Pass condition |
+|---|---|---|
+| Beat created | `extraction.progress.gm_beat` present in turn N | Beat has type + instruction |
+| Beat narrated | Narration contains content matching beat's instruction | Beat instruction reflected in prose |
+| Beat visible to progress | `extraction.progress` prompt contains `## pending_beat` block | Beat data present in user prompt |
+| Disposition honored | Compare `extraction.progress.beat_disposition` + `gm_beat` against `state_snapshot.meta.pending_gm_beat` | State matches disposition intent |
+| TTL respected | Beat expires at `beat_expires_turn` | Beat is None after expiry turn |
+| No orphaned beats | Beat is None after 2 turns if not consumed | No beat persists beyond TTL |
+
+**Disposition-specific checks:**
+
+- **consume:** `state.meta.pending_gm_beat` must be `None` after turn. If beat persists → FAIL.
+- **carry:** `state.meta.pending_gm_beat` must be identical to the beat from the previous turn. If beat changed or cleared → FAIL. This is the most common failure mode — the engine used to clear the beat before extraction, making carry impossible.
+- **replace:** `state.meta.pending_gm_beat` must contain the new beat's type. If beat is None or has wrong type → FAIL.
+
+**Common failure patterns:**
+- Beat generated every turn but consumed within 1 turn → progress LLM over-generating beats, not exercising `null`
+- Beat persists unchanged for 3+ turns → carry disposition not working, or beat never narrated
+- Beat type changes without `replace` disposition → engine ignoring disposition
+- Beat disappears after narration but progress LLM said "carry" → **engine bug** (this was the bug fixed in this session)
+
+**Verdict:** tight (disposition always honored, beats cycle correctly), loose (occasional disposition mismatches), or broken (beats cycle every turn, carry never works).
+
 ---
 
 ## SECTION 5 — Compaction Report

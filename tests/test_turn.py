@@ -425,3 +425,237 @@ class TestConditionExpiry:
         finally:
             for _m, _name, _orig in _origs:
                 setattr(_m, _name, _orig)
+
+
+class TestBeatDisposition:
+    """Tests for beat disposition logic (carry/replace/consume)."""
+
+    def _make_progress_response(self, gm_beat=None, beat_disposition="consume"):
+        base = {
+            "quest_updates": [],
+            "recent_events_add": [],
+            "recent_events_update": [],
+            "recent_events_remove": [],
+            "actions": [],
+            "outcome_summary": "Nothing notable.",
+        }
+        if gm_beat is not None:
+            base["gm_beat"] = gm_beat
+        base["beat_disposition"] = beat_disposition
+        return json.dumps(base)
+
+    def test_beat_disposition_consume_clears_beat(self):
+        """consume disposition clears pending_gm_beat after turn."""
+        state = _make_state(turn=1)
+        state["meta"]["pending_gm_beat"] = {
+            "type": "complication",
+            "instruction": "A long enough instruction string that passes the quality gate without issues",
+            "beat_expires_turn": 3,
+        }
+        _write_state(_SAVE_DIR, state)
+
+        narrative = "You step through the airlock."
+        progress_response = self._make_progress_response(beat_disposition="consume")
+
+        chat_call_count = 0
+
+        async def fake_stream(*args, **kwargs):
+            yield narrative
+
+        async def fake_chat(*args, **kwargs):
+            nonlocal chat_call_count
+            chat_call_count += 1
+            if chat_call_count == 1:
+                return {"response": json.dumps({
+                    "intent": "player action",
+                    "intent_verb": "act",
+                    "target": "",
+                    "stakes": "",
+                    "check": {"required": False},
+                }), "done": True, "usage": {}}
+            if chat_call_count == 2:
+                return {"response": progress_response, "done": True, "usage": {}}
+            return {"response": progress_response, "done": True, "usage": {}}
+
+        import ccya.engine.turn as turn_mod
+        import ccya.engine.rules as rules_mod
+        import ccya.engine.seed as seed_mod
+        import ccya.engine.extraction as extract_mod
+
+        _mods = [turn_mod, rules_mod, seed_mod, extract_mod]
+        _origs = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = fake_stream
+        try:
+            result = None
+            async def collect():
+                nonlocal result
+                async for event in run_turn(_SAVE_DIR, "look", config=EngineConfig()):
+                    if event[0] == "complete":
+                        result = event[1]
+            import asyncio
+            asyncio.get_event_loop().run_until_complete(collect())
+
+            assert result is not None
+            assert len(result.errors) == 0, f"Errors: {result.errors}"
+
+            from ccya.state import load_state
+            final_state = load_state(_SAVE_DIR)
+            beat = final_state.get("meta", {}).get("pending_gm_beat")
+            assert beat is None, f"consume disposition should clear beat, but found: {beat}"
+        finally:
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
+
+    def test_beat_disposition_carry_preserves_beat(self):
+        """carry disposition preserves pending_gm_beat unchanged."""
+        state = _make_state(turn=1)
+        state["meta"]["pending_gm_beat"] = {
+            "type": "complication",
+            "instruction": "A long enough instruction string that passes the quality gate without issues",
+            "beat_expires_turn": 3,
+        }
+        _write_state(_SAVE_DIR, state)
+
+        narrative = "You step through the airlock."
+        progress_response = self._make_progress_response(beat_disposition="carry")
+
+        chat_call_count = 0
+
+        async def fake_stream(*args, **kwargs):
+            yield narrative
+
+        async def fake_chat(*args, **kwargs):
+            nonlocal chat_call_count
+            chat_call_count += 1
+            if chat_call_count == 1:
+                return {"response": json.dumps({
+                    "intent": "player action",
+                    "intent_verb": "act",
+                    "target": "",
+                    "stakes": "",
+                    "check": {"required": False},
+                }), "done": True, "usage": {}}
+            if chat_call_count == 2:
+                return {"response": progress_response, "done": True, "usage": {}}
+            return {"response": progress_response, "done": True, "usage": {}}
+
+        import ccya.engine.turn as turn_mod
+        import ccya.engine.rules as rules_mod
+        import ccya.engine.seed as seed_mod
+        import ccya.engine.extraction as extract_mod
+
+        _mods = [turn_mod, rules_mod, seed_mod, extract_mod]
+        _origs = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = fake_stream
+        try:
+            result = None
+            async def collect():
+                nonlocal result
+                async for event in run_turn(_SAVE_DIR, "look", config=EngineConfig()):
+                    if event[0] == "complete":
+                        result = event[1]
+            import asyncio
+            asyncio.get_event_loop().run_until_complete(collect())
+
+            assert result is not None
+            assert len(result.errors) == 0, f"Errors: {result.errors}"
+
+            from ccya.state import load_state
+            final_state = load_state(_SAVE_DIR)
+            beat = final_state.get("meta", {}).get("pending_gm_beat")
+            assert beat is not None, "carry disposition should preserve beat"
+            assert beat["type"] == "complication", f"Beat type should be preserved, got: {beat.get('type')}"
+            assert beat["beat_expires_turn"] == 3, f"Beat expiry should be preserved, got: {beat.get('beat_expires_turn')}"
+        finally:
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
+
+    def test_beat_disposition_replace_updates_beat(self):
+        """replace disposition updates pending_gm_beat with new beat."""
+        state = _make_state(turn=1)
+        state["meta"]["pending_gm_beat"] = {
+            "type": "complication",
+            "instruction": "A long enough instruction string that passes the quality gate without issues",
+            "beat_expires_turn": 3,
+        }
+        _write_state(_SAVE_DIR, state)
+
+        narrative = "You step through the airlock."
+        progress_response = self._make_progress_response(
+            gm_beat={
+                "type": "revelation",
+                "surface_as": "player_discovery",
+                "instruction": "A long enough instruction string that passes the quality gate without issues",
+            },
+            beat_disposition="replace",
+        )
+
+        chat_call_count = 0
+
+        async def fake_stream(*args, **kwargs):
+            yield narrative
+
+        async def fake_chat(*args, **kwargs):
+            nonlocal chat_call_count
+            chat_call_count += 1
+            if chat_call_count == 1:
+                return {"response": json.dumps({
+                    "intent": "player action",
+                    "intent_verb": "act",
+                    "target": "",
+                    "stakes": "",
+                    "check": {"required": False},
+                }), "done": True, "usage": {}}
+            if chat_call_count == 2:
+                return {"response": progress_response, "done": True, "usage": {}}
+            return {"response": progress_response, "done": True, "usage": {}}
+
+        import ccya.engine.turn as turn_mod
+        import ccya.engine.rules as rules_mod
+        import ccya.engine.seed as seed_mod
+        import ccya.engine.extraction as extract_mod
+
+        _mods = [turn_mod, rules_mod, seed_mod, extract_mod]
+        _origs = []
+        for _m in _mods:
+            if hasattr(_m, "llm_chat"):
+                _origs.append((_m, "llm_chat", _m.llm_chat))
+                _m.llm_chat = fake_chat
+            if hasattr(_m, "llm_chat_stream"):
+                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
+                _m.llm_chat_stream = fake_stream
+        try:
+            result = None
+            async def collect():
+                nonlocal result
+                async for event in run_turn(_SAVE_DIR, "look", config=EngineConfig()):
+                    if event[0] == "complete":
+                        result = event[1]
+            import asyncio
+            asyncio.get_event_loop().run_until_complete(collect())
+
+            assert result is not None
+            assert len(result.errors) == 0, f"Errors: {result.errors}"
+
+            from ccya.state import load_state
+            final_state = load_state(_SAVE_DIR)
+            beat = final_state.get("meta", {}).get("pending_gm_beat")
+            assert beat is not None, "replace disposition should set new beat"
+            assert beat["type"] == "revelation", f"Beat type should be replaced, got: {beat.get('type')}"
+            # turn_no is incremented during the turn, so beat_expires_turn = (turn+1) + 2 = 4
+            assert beat["beat_expires_turn"] == 4, f"Beat expiry should be turn+3=4, got: {beat.get('beat_expires_turn')}"
+        finally:
+            for _m, _name, _orig in _origs:
+                setattr(_m, _name, _orig)
