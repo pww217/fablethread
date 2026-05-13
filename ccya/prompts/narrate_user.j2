@@ -120,6 +120,13 @@ Surface as {{ pending_gm_beat.surface_as }}. This is backstage direction — int
 
 **Narration Directive:** Combat Fatigue
 {% endif %}
+{% if ages and ages.get('location_age', 0) > 4 %}
+
+**Narration Directive:** Location Imperative
+{% elif ages and ages.get('location_age', 0) > 2 %}
+
+**Narration Directive:** Location Pressure
+{% endif %}
 
 === PLAYER INPUT ===
 {{ user_input }}
