@@ -33,6 +33,8 @@ def _narrate_messages(
     pc_allegiance: str | None = None,
     scene_pressure: list[dict[str, Any]] | None = None,
     turn_no: int = 0,
+    world_factions: list[dict[str, str]] = [],
+    world_locations: list[dict[str, str]] = [],
 ) -> list[dict[str, str]]:
     user_ctx = {
         "state": state,
@@ -54,6 +56,8 @@ def _narrate_messages(
         "compendium_bios": compendium_bios,
         "pc_allegiance": pc_allegiance,
         "scene_pressure": scene_pressure or [],
+        "world_factions": world_factions,
+        "world_locations": world_locations,
     }
     system_text = _render(env, "narrate_system.j2", {
         "pack_style": pack_style,

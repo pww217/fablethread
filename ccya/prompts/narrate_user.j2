@@ -25,7 +25,7 @@
 {% endif -%}
 {% if world_factions -%}
 ### Known Factions
-{% for f in world_factions %}- **{{ f.name }}** ({{ f.alignment }}){% if f.alignment == "friendly" and pc_allegiance == f.id %} — your faction{% endif %}
+{% for f in world_factions %}- **{{ f.name }}** ({{ f.disposition }}){% if f.disposition == "friendly" and pc_allegiance == f.id %} — your faction{% endif %}
 {% endfor -%}
 {% endif -%}
 {% if npc_name_pool -%}
@@ -57,7 +57,7 @@ Before introducing anyone new, check this list. Re-use characters when they coul
 {% endif -%}
 {% if world_locations and ages and ages.get('location_age', 0) >= 3 -%}
 ### Nearby Locations
-{% for loc in world_locations %}- {{ loc.name }}
+{% for loc in world_locations %}- **{{ loc.name }}** ({{ loc.type }})
 {% endfor -%}
 {% endif -%}
 

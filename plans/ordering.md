@@ -17,6 +17,11 @@ Plans in `/plans/` should be executed in this order. Each plan's own document ha
 
 These were identified and resolved by updating the plan documents themselves. Each superseded step is marked `ABANDONED` or `SUPERSEDED` in the source plan.
 
+### Factions/locations system template block (prompt-hygiene vs wire-scenario)
+- **Prompt-hygiene plan** referenced removing a `{% if world_factions or world_locations %}` block from `narrate_system.j2` in Step 1.1 and Risk #1.
+- **Wire-scenario plan** wires `world_factions`/`world_locations` through the turn pipeline to make the blocks functional.
+- **Resolution:** The block does not exist in `narrate_system.j2` — it only exists in `narrate_user.j2`. Prompt-hygiene Step 1.1 is **SUPERSEDED** for the system template portion. Wire-scenario plan is the correct implementation. Prompt-hygiene's Risk #1 and Ambiguity #3 updated to reflect this.
+
 ### Momentum telemetry (Mechanical Phase 05 vs System Cohesion Phase 04)
 - **Mechanical plan** adds `momentum_before`/`momentum_after`/`momentum_delta` to events.jsonl rules event and to `summarize_changes`/`format_change_lines`.
 - **System cohesion plan** would add a top-level `event["momentum"]` block and momentum to `summarize_changes`.
@@ -45,6 +50,8 @@ These were identified and resolved by updating the plan documents themselves. Ea
 
 All plan documents have been updated to mark superseded steps:
 
+- **`wire-scenario-factions-locations-to-narrator.md`**: Updated to reflect that factions/locations blocks only exist in `narrate_user.j2` (not `narrate_system.j2`). Added Step 1.4 to enhance location block with `type` field. Marked prompt-hygiene Step 1.1 as SUPERSEDED.
+- **`prompt-hygiene-corrected.md`**: Step 1.1 marked SUPERSEDED by wire-scenario plan. Risk #1 and Ambiguity #3 updated to reflect that the `{% if world_factions or world_locations %}` block does not exist in `narrate_system.j2`.
 - **`system-cohesion-remediation-20260512t154142z-uufm2ojg.md`**: Phase 04 (momentum) marked `SUPERSEDED` in phase guide and `ABANDONED` in implementation body. Ambiguity #3 crossed out and resolved by reference to mechanical plan.
 - **`state-fidelity-remediation-20260512t154142z_uufm2ojg.md`**: Phase 02 step 02.2 (terminal-state guard) marked `ABANDONED` with reference to mechanical plan Phase 03 Step 3.1. Phase 04 step 04.1 (pressure TTL) marked `ANALYSIS ONLY` with implementation deferred to system-cohesion plan. Ambiguities #2 and #4 crossed out and resolved.
 - **`eval-harness-reviewed.md`**: Rewritten with proper markdown formatting (was unformatted plain text). Phase 03 Step 3.2 updated to reference "mechanical plan Phase 05" instead of abandoned "system-cohesion Phase 04". Steps 4.2 and 4.3 marked `ABANDONED` (self-cancelling — no change needed).

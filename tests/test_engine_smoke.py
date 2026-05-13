@@ -603,6 +603,24 @@ class TestPromptComposition:
         sys2 = next(m for m in m2 if m["role"] == "system")["content"]
         assert sys1 == sys2
 
+    def test_narrate_messages_includes_world_factions_in_user_prompt(self):
+        env = self._env()
+        state = _make_state()
+        factions = [{"id": "guard", "name": "City Guard", "description": "City defenders", "disposition": "hostile"}]
+        msgs = _narrate_messages(env, state, "look", world_factions=factions)
+        user_msg = next(m for m in msgs if m["role"] == "user")
+        assert "City Guard" in user_msg["content"]
+        assert "hostile" in user_msg["content"]
+
+    def test_narrate_messages_includes_world_locations_in_user_prompt(self):
+        env = self._env()
+        state = _make_state()
+        locations = [{"id": "market", "name": "Marrow's Crossing", "type": "market town", "description": "A busy market."}]
+        msgs = _narrate_messages(env, state, "look", world_locations=locations, ages={"location_age": 5})
+        user_msg = next(m for m in msgs if m["role"] == "user")
+        assert "Marrow's Crossing" in user_msg["content"]
+        assert "market town" in user_msg["content"]
+
 
 # ---------------------------------------------------------------------------
 # TestHappyPath
