@@ -25,7 +25,7 @@
             <button class="new-game-btn"
                     @click="retryTurn()"
                     :disabled="starting || submitting || turnNum === 0"
-                    title="Reroll narration of last turn (same outcome)"
+                    title="Delete last turn and try again"
                     x-show="turnNum > 0">
                 ↻ Retry
             </button>
@@ -1341,203 +1341,44 @@ function game() {
             const lastBlock = blocks[blocks.length - 1];
             if (!lastBlock) return;
 
-            // Remove the last block from UI immediately
+            this.submitting = true;
             lastBlock.remove();
 
-            this.submitting = true;
+            const zone = document.getElementById('actions-zone');
+            zone.innerHTML = '<span class="empty-state">Loading…</span>';
+
             const self = this;
-            const prevActions = [];
-            document.querySelectorAll('#actions-zone .action-pill').forEach((b) => {
-                prevActions.push(b.textContent);
-            });
-            document.querySelectorAll('.action-pill').forEach((p) => { p.disabled = true; });
+            fetch('/turn/delete', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
 
-            const block = document.createElement('div');
-            block.className = 'narrative-block';
-            const echo = document.createElement('p');
-            echo.className = 'narrative-input-echo';
-            echo.textContent = '> (retry)';
-            const textDiv = document.createElement('div');
-            textDiv.className = 'narrative-text';
-            textDiv.innerHTML = '<span class="streaming-cursor"></span>';
-            textDiv.classList.add('streaming');
-            const cursor = document.createElement('span');
-            const strip = document.createElement('div');
-            strip.className = 'progress-strip';
-            strip.setAttribute('data-phase', 'narrate');
-            strip.innerHTML = _progressStripHTML();
-            _bindProgressTimer(strip);
-            block.appendChild(echo);
-            block.appendChild(textDiv);
-            block.appendChild(strip);
-            np.appendChild(block);
-
-            this._turnEs = null;
-            this._turnCancel = function () {
-                _stopDisplayDrain();
-                const t = self._turnEs;
-                if (t) {
-                    try { t.close(); } catch (err) { /* ignore */ }
-                }
-                self._turnEs = null;
-                self._turnCancel = null;
-                _clearProgressStrip(strip);
-                if (cursor.parentNode) cursor.remove();
-                if (textDiv) {
-                    textDiv.classList.remove('streaming');
-                    textDiv.innerHTML = '';
-                }
-                if (block.parentNode) block.remove();
-                const zone = document.getElementById('actions-zone');
-                if (zone && prevActions.length) {
                     zone.innerHTML = '';
-                    prevActions.forEach((action) => {
-                        const btn = document.createElement('button');
-                        btn.className = 'action-pill';
-                        btn.textContent = action;
-                        btn.addEventListener('click', () => self.fillFromChoice(action));
-                        zone.appendChild(btn);
-                    });
-                } else if (zone) {
-                    zone.innerHTML = '<span class="empty-state">Suggested actions appear after each turn.</span>';
-                }
-                self.submitting = false;
-                document.getElementById('player-input')?.focus();
-            };
+                    if (data.actions && data.actions.length > 0) {
+                        data.actions.forEach((action) => {
+                            const btn = document.createElement('button');
+                            btn.className = 'action-pill';
+                            btn.setAttribute('data-md', '');
+                            btn.textContent = action;
+                            btn.addEventListener('click', () => this.fillFromChoice(action));
+                            zone.appendChild(btn);
+                        });
+                        _applyMarkdown(zone);
+                    } else {
+                        zone.innerHTML = '<span class="empty-state">Suggested actions appear after each turn.</span>';
+                    }
 
-            const es = new EventSource('/turn/retry');
-            this._turnEs = es;
-
-            let streamBuf = '';
-            let didScrollToNarrationStart = false;
-            const drainState = { pendingQueue: '', displayBuf: '' };
-
-            const _drainRenderFn = (currentDisplayBuf) => {
-                _configureMarked();
-                const html = _renderMarkdown(currentDisplayBuf);
-                textDiv.innerHTML = html + '<span class="streaming-cursor"></span>';
-                if (!didScrollToNarrationStart && currentDisplayBuf.length > 0) {
-                    didScrollToNarrationStart = true;
-                    requestAnimationFrame(() => {
-                        _smoothScrollContainerToTop(np, block);
-                    });
-                }
-            };
-
-            es.addEventListener('narrative_token', (e) => {
-                const data = JSON.parse(e.data);
-                const chunk = data.chunk || '';
-                streamBuf               += chunk;
-                drainState.pendingQueue += chunk;
-                _startDisplayDrain(drainState, _drainRenderFn);
-            });
-
-            es.addEventListener('phase', (e) => {
-                const payload = JSON.parse(e.data);
-                if (payload && payload.phase === 'narrate_done') {
-                    _stopDisplayDrain();
-                    drainState.displayBuf   += drainState.pendingQueue;
-                    drainState.pendingQueue  = '';
-                    textDiv.classList.remove('streaming');
-                    _configureMarked();
-                    textDiv.innerHTML = _renderMarkdown(streamBuf);
-                }
-                _setProgressFromPhase(strip, payload);
-            });
-
-            es.addEventListener('turn_complete', (e) => {
-                es.close();
-                self._turnEs = null;
-                self._turnCancel = null;
-                const result = JSON.parse(e.data);
-                this.turnNum = result.turn || this.turnNum;
-                _clearProgressStrip(strip);
-
-                if (cursor.parentNode) cursor.remove();
-                textDiv.classList.remove('streaming');
-                textDiv.innerHTML = _renderMarkdown(result.narrative || '');
-
-                const met = document.createElement('div');
-                met.className = 'turn-metrics';
-                met.textContent = _formatMetricsRow(result.metrics);
-                textDiv.after(met);
-
-                let lastInserted = met;
-                if (result.rules && result.rules.rolled) {
-                    const rollBadge = _buildRollBadge(result.rules);
-                    if (rollBadge) { lastInserted.after(rollBadge); lastInserted = rollBadge; }
-                }
-                const changes = _buildTurnChanges(result.change_lines || []);
-                if (changes) { lastInserted.after(changes); lastInserted = changes; }
-                _applyMarkdown(block);
-
-                if (result.rejected && result.rejected.length > 0) {
-                    const note = document.createElement('div');
-                    note.className = 'rejection-note';
-                    note.textContent = `\u26a0 Some changes were rejected (trace\u00a0${result.trace_id})`;
-                    block.appendChild(note);
-                }
-
-                const zone = document.getElementById('actions-zone');
-                if (result.actions && result.actions.length > 0) {
-                    zone.innerHTML = '';
-                    result.actions.forEach((action) => {
-                        const btn = document.createElement('button');
-                        btn.className = 'action-pill';
-                        btn.setAttribute('data-md', '');
-                        btn.textContent = action;
-                        btn.addEventListener('click', () => this.fillFromChoice(action));
-                        zone.appendChild(btn);
-                    });
-                    _applyMarkdown(zone);
-                } else {
-                    zone.innerHTML = '<span class="empty-state">No suggested actions.</span>';
-                }
-
-                if (!result.recent_events_evicted) {
-                    _prependTurnLogTurn(result.turn, result.change_lines || [], result.rules);
-                }
-
-                htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
-                htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
-                this.submitting = false;
-
-                if (result.game_over) {
-                    _showGameOver(this);
-                } else {
+                    this.input = '';
+                    htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
+                    htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
+                    this.submitting = false;
                     setTimeout(() => document.getElementById('player-input')?.focus(), 100);
-                }
-                _bindTooltips(document);
-            });
-
-            es.addEventListener('turn_error', (e) => {
-                es.close();
-                self._turnEs = null;
-                self._turnCancel = null;
-                _clearProgressStrip(strip);
-                if (cursor.parentNode) cursor.remove();
-                const data = JSON.parse(e.data);
-                textDiv.innerHTML =
-                    `<span style="color:var(--accent-error)">${_escapeHtml(data.error || 'Unknown error')}</span>`;
-                htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
-                htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
-                document.querySelectorAll('.action-pill').forEach((p) => { p.disabled = false; });
-                this.submitting = false;
-            });
-
-            es.onerror = () => {
-                es.close();
-                self._turnEs = null;
-                self._turnCancel = null;
-                if (this.submitting) {
-                    _clearProgressStrip(strip);
-                    if (cursor.parentNode) cursor.remove();
-                    textDiv.insertAdjacentHTML('beforeend',
-                        '<span style="color:var(--accent-error)"> [connection\u00a0lost\u00a0\u2014 try again]</span>');
-                }
-                document.querySelectorAll('.action-pill').forEach((p) => { p.disabled = false; });
-                this.submitting = false;
-            };
+                })
+                .catch(e => {
+                    zone.innerHTML = '<span class="empty-state" style="color:var(--accent-error)">Delete failed: ' + _escapeHtml(e.message) + '</span>';
+                    this.submitting = false;
+                    document.getElementById('player-input')?.focus();
+                });
         },
 
         fillFromChoice(text) {

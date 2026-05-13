@@ -22,6 +22,7 @@ class TestRouteRegistration:
     EXPECTED_ROUTES = [
         "/",
         "/turn",
+        "/turn/delete",
         "/turn/retry",
         "/new-game",
         "/new-game/reroll",
@@ -96,3 +97,50 @@ class TestRouteRegistration:
 
         assert _format_ts("not-a-date") == "not-a-date"
         assert _format_ts("") == ""
+
+    def test_delete_no_events(self, client, tmp_path):
+        """DELETE with no events should return 400."""
+        save_dir = tmp_path / "test_delete_empty"
+        save_dir.mkdir()
+        (save_dir / "state.yaml").write_text("")
+
+        from ccya.server import routes
+        orig = routes._app_mod.SAVE_DIR
+        routes._app_mod.SAVE_DIR = save_dir
+        try:
+            resp = client.post("/turn/delete")
+            assert resp.status_code == 400
+            assert "error" in resp.json()
+        finally:
+            routes._app_mod.SAVE_DIR = orig
+
+    def test_delete_returns_actions(self, client, tmp_path):
+        """DELETE should remove last event and return previous actions."""
+        import json
+
+        save_dir = tmp_path / "test_delete_actions"
+        save_dir.mkdir()
+        (save_dir / "state.yaml").write_text("")
+
+        events_path = save_dir / "events.jsonl"
+        events_path.write_text(
+            json.dumps({
+                "turn": 3,
+                "actions": ["Action A", "Action B", "Action C", "Action D"],
+                "input": "test input",
+            }) + "\n"
+        )
+
+        from ccya.server import routes
+        orig = routes._app_mod.SAVE_DIR
+        routes._app_mod.SAVE_DIR = save_dir
+        try:
+            resp = client.post("/turn/delete")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["actions"] == ["Action A", "Action B", "Action C", "Action D"]
+            assert data["turn"] == 3
+            remaining = events_path.read_text().strip()
+            assert remaining == ""
+        finally:
+            routes._app_mod.SAVE_DIR = orig
