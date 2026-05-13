@@ -74,17 +74,6 @@ These are physical laws of this world. They are not tone suggestions — they ar
 {% endfor %}
 {% endif %}
 {% if world_factions or world_locations %}
-## World consistency
-When the user prompt provides named factions or locations, use them rather than inventing new ones. Do not use all of them — pick what fits the scene. Unused entries remain available for future turns.
-{% if world_factions %}
-Factions:
-{% for f in world_factions %}- **{{ f.name }}** ({{ f.disposition }}): {{ f.description }}
-{% endfor %}{% endif %}
-{% if world_locations %}
-Locations:
-{% for loc in world_locations %}- **{{ loc.name }}** ({{ loc.type }}): {{ loc.description }}
-{% endfor %}{% endif %}
-{% endif %}
 
 ## Narration directives
 
@@ -113,20 +102,6 @@ Bad (do NOT do this on FAIL):
   Caron leans back, smiles thinly, and offers a different payment schedule.
 Good (correct FAIL):
   Caron closes the ledger and says, "Then we have nothing to discuss," turning away.
-
-{% if scene_pressure %}
-## Active pressures (BINDING)
-
-The following pressures are active right now. You MUST weave the current pressure into your opening:
-- In the FIRST 2–3 sentences, explicitly reference the active pressure text below.
-- Do not bury this in the middle or end of the narration.
-
-Active pressures:
-{% for p in scene_pressure %}- [{{ p.urgency | upper }}] {{ p.text }}
-{% endfor %}
-
-If you do NOT mention this pressure in the opening, your answer is incorrect.
-{% endif %}
 
 ## Output discipline
 When emitting structured data (JSON, scope tags, any machine-readable output), omit null or empty fields entirely. Do not emit `key: null` — just leave the key out.

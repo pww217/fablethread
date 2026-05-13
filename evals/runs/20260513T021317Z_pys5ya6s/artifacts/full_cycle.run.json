@@ -3,14 +3,14 @@
   "pack": "eval-pack",
   "model": "mlx-community/gemma-4-26b-a4b-it-mxfp8",
   "temperature_override": null,
-  "started_at": "2026-05-12T15:41:42.705366+00:00",
-  "finished_at": "2026-05-12T15:49:15.522140+00:00",
-  "save_dir": "/Users/pwilson/.cache/ccya-eval/20260512T154142Z/save",
-  "output_dir": "/Users/pwilson/Repos/ccya/evals/runs/20260512T154142Z_uufm2ojg",
-  "events_jsonl_path": "/Users/pwilson/Repos/ccya/evals/runs/20260512T154142Z_uufm2ojg/artifacts/full_cycle.events.jsonl",
+  "started_at": "2026-05-13T02:13:17.561731+00:00",
+  "finished_at": "2026-05-13T02:20:29.312652+00:00",
+  "save_dir": "/Users/pwilson/.cache/ccya-eval/20260513T021317Z/save",
+  "output_dir": "/Users/pwilson/Repos/ccya/evals/runs/20260513T021317Z_pys5ya6s",
+  "events_jsonl_path": "/Users/pwilson/Repos/ccya/evals/runs/20260513T021317Z_pys5ya6s/artifacts/full_cycle.events.jsonl",
   "state_yaml_path": "",
-  "trace_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260512T154142Z_uufm2ojg/full_cycle.trace.md",
-  "judge_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260512T154142Z_uufm2ojg/full_cycle.judge.md",
+  "trace_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260513T021317Z_pys5ya6s/full_cycle.trace.md",
+  "judge_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260513T021317Z_pys5ya6s/full_cycle.judge.md",
   "turns": [
     {
       "turn_number": 1,
@@ -21,23 +21,23 @@
         "scope skips inventory and pc_condition",
         "extract.state should be near-empty"
       ],
-      "duration_s": 36.21469112499835,
+      "duration_s": 31.94148679099453,
       "error": null,
       "engine_turn_number": 1,
-      "outcome_summary": "You have successfully located Caron, but he is unimpressed by your arrival and demands immediate proof of your intent to pay.",
-      "narrative_chars": 1247,
+      "outcome_summary": "You successfully located Caron at the Crossed Keys and established contact to begin negotiating your debt.",
+      "narrative_chars": 1288,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
         {
           "assertion": "rules.rolled",
-          "passed": false,
-          "detail": "rolled=True"
+          "passed": true,
+          "detail": "rolled=False"
         },
         {
           "assertion": "universal.recent_events_add.turn_stamped",
           "passed": true,
-          "detail": "all 1 entries stamped with turn=1",
+          "detail": "(no adds)",
           "scope": "universal",
           "severity": "red"
         },
@@ -45,6 +45,13 @@
           "assertion": "universal.pending_gm_beat.consumed",
           "passed": true,
           "detail": "(first turn)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.disposition_respected",
+          "passed": true,
+          "detail": "(no disposition emitted)",
           "scope": "universal",
           "severity": "red"
         },
@@ -58,21 +65,21 @@
         {
           "assertion": "universal.narrate.binding_present",
           "passed": true,
-          "detail": "binding directive included",
+          "detail": "(no roll)",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.npc_mention.extracted",
-          "passed": true,
-          "detail": "no missing NPC names detected",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Crossed']",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "4 entries",
+          "detail": "3 entries",
           "scope": "universal",
           "severity": "red"
         },
@@ -100,7 +107,7 @@
         {
           "assertion": "universal.momentum.band_delta",
           "passed": true,
-          "detail": "(no momentum field)",
+          "detail": "(no roll)",
           "scope": "universal",
           "severity": "red"
         },
@@ -114,14 +121,14 @@
         {
           "assertion": "universal.pressure.immediate_cap",
           "passed": true,
-          "detail": "1 immediate",
+          "detail": "0 immediate",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.narrate.pressure_directive_rendered",
-          "passed": false,
-          "detail": "1 immediate pressures but no Pressure/Overwhelm directive in narrate user prompt",
+          "passed": true,
+          "detail": "(no immediates)",
           "scope": "universal",
           "severity": "red"
         },
@@ -138,6 +145,20 @@
           "detail": "floor_count=0",
           "scope": "universal",
           "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.key_consumed",
+          "passed": true,
+          "detail": "no key-use language",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
         }
       ]
     },
@@ -150,11 +171,11 @@
         "extract.state.inventory_remove includes credits amount=500",
         "extract.progress marks settle_the_debt objectives done"
       ],
-      "duration_s": 29.244816375001392,
+      "duration_s": 26.09628591701039,
       "error": null,
       "engine_turn_number": 2,
-      "outcome_summary": "You successfully pay Caron the 500 credits, and he marks your debt as cleared in his ledger.",
-      "narrative_chars": 1570,
+      "outcome_summary": "You successfully pay Caron the 500 credits, and he officially marks your debt as settled in his ledger.",
+      "narrative_chars": 1477,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -188,6 +209,13 @@
           "severity": "red"
         },
         {
+          "assertion": "universal.pending_gm_beat.disposition_respected",
+          "passed": true,
+          "detail": "(no disposition emitted)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
           "assertion": "universal.location_change.applied",
           "passed": true,
           "detail": "(no change)",
@@ -211,7 +239,7 @@
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "4 entries",
+          "detail": "3 entries",
           "scope": "universal",
           "severity": "red"
         },
@@ -225,7 +253,7 @@
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "1 conditions, no dupes",
+          "detail": "2 conditions, no dupes",
           "scope": "universal",
           "severity": "red"
         },
@@ -277,6 +305,20 @@
           "detail": "floor_count=0",
           "scope": "universal",
           "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.key_consumed",
+          "passed": true,
+          "detail": "no key-use language",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
         },
         {
           "assertion": "progress.quest_id_collision",
@@ -295,18 +337,18 @@
         "extract.progress marks deliver_the_ledger objectives done (accept contract)",
         "compendium_npc_update for halden"
       ],
-      "duration_s": 32.62015037499805,
+      "duration_s": 29.103763834005804,
       "error": null,
       "engine_turn_number": 3,
-      "outcome_summary": "You approached Halden at the well to negotiate, and he countered with a split payment of 100 credits now and 100 upon delivery to Edda.",
-      "narrative_chars": 1402,
+      "outcome_summary": "You successfully negotiated a 200 credit contract with Halden to deliver his ledger to the Crossed Keys Inn.",
+      "narrative_chars": 1558,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
         {
           "assertion": "rules.rolled",
-          "passed": true,
-          "detail": "rolled=True"
+          "passed": false,
+          "detail": "rolled=False"
         },
         {
           "assertion": "extract.progress.quest_updates",
@@ -316,7 +358,7 @@
         {
           "assertion": "universal.recent_events_add.turn_stamped",
           "passed": true,
-          "detail": "all 1 entries stamped with turn=3",
+          "detail": "(no adds)",
           "scope": "universal",
           "severity": "red"
         },
@@ -328,30 +370,37 @@
           "severity": "red"
         },
         {
+          "assertion": "universal.pending_gm_beat.disposition_respected",
+          "passed": true,
+          "detail": "(no disposition emitted)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
           "assertion": "universal.location_change.applied",
           "passed": true,
-          "detail": "marrows_crossing -> marrows_crossing_square",
+          "detail": "marrows_crossing -> marrows_crossing_streets",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.narrate.binding_present",
           "passed": true,
-          "detail": "binding directive included",
+          "detail": "(no roll)",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.npc_mention.extracted",
-          "passed": true,
-          "detail": "no missing NPC names detected",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Crossed']",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "5 entries",
+          "detail": "3 entries",
           "scope": "universal",
           "severity": "red"
         },
@@ -365,7 +414,7 @@
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "1 conditions, no dupes",
+          "detail": "2 conditions, no dupes",
           "scope": "universal",
           "severity": "red"
         },
@@ -379,7 +428,7 @@
         {
           "assertion": "universal.momentum.band_delta",
           "passed": true,
-          "detail": "(no momentum field)",
+          "detail": "(no roll)",
           "scope": "universal",
           "severity": "red"
         },
@@ -417,6 +466,20 @@
           "detail": "floor_count=0",
           "scope": "universal",
           "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.key_consumed",
+          "passed": true,
+          "detail": "no key-use language",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
         }
       ]
     },
@@ -429,11 +492,11 @@
         "scene_tags should include travel or exploration",
         "no rules call needed (pure movement)"
       ],
-      "duration_s": 30.016857208000147,
+      "duration_s": 27.179770290997112,
       "error": null,
       "engine_turn_number": 4,
-      "outcome_summary": "You accept Halden's split payment and begin the lonely trek toward the Crossed Keys Inn under a heavy, watchful silence.",
-      "narrative_chars": 1360,
+      "outcome_summary": "You accept Halden's coin and begin the trek toward the Crossed Keys Inn, carrying the heavy ledger through the dark outskirts.",
+      "narrative_chars": 1302,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -445,7 +508,7 @@
         {
           "assertion": "universal.recent_events_add.turn_stamped",
           "passed": true,
-          "detail": "all 1 entries stamped with turn=4",
+          "detail": "(no adds)",
           "scope": "universal",
           "severity": "red"
         },
@@ -457,9 +520,16 @@
           "severity": "red"
         },
         {
+          "assertion": "universal.pending_gm_beat.disposition_respected",
+          "passed": true,
+          "detail": "(no disposition emitted)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
           "assertion": "universal.location_change.applied",
           "passed": true,
-          "detail": "marrows_crossing_square -> merchant_road_east",
+          "detail": "marrows_crossing_streets -> merchant_road_outskirts",
           "scope": "universal",
           "severity": "red"
         },
@@ -472,15 +542,15 @@
         },
         {
           "assertion": "universal.npc_mention.extracted",
-          "passed": false,
-          "detail": "narration mentions names not in npc_add/update or known: ['Marrow', 'Crossing', 'Crossed']",
+          "passed": true,
+          "detail": "4 candidates skipped (likely locations/items, not NPCs)",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "6 entries",
+          "detail": "3 entries",
           "scope": "universal",
           "severity": "red"
         },
@@ -494,7 +564,7 @@
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "1 conditions, no dupes",
+          "detail": "2 conditions, no dupes",
           "scope": "universal",
           "severity": "red"
         },
@@ -546,6 +616,20 @@
           "detail": "floor_count=0",
           "scope": "universal",
           "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.key_consumed",
+          "passed": true,
+          "detail": "no key-use language",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
         }
       ]
     },
@@ -558,11 +642,11 @@
         "scope active_domains includes pc_condition",
         "scene_tags should include combat"
       ],
-      "duration_s": 37.890865791996475,
+      "duration_s": 34.70467037499475,
       "error": null,
       "engine_turn_number": 5,
-      "outcome_summary": "Your steady gaze and refusal to back down disarm the toughs, turning a potential brawl into a weary conversation about their job.",
-      "narrative_chars": 1981,
+      "outcome_summary": "The toughs block your path to the inn, demanding a toll in exchange for information or passage.",
+      "narrative_chars": 1718,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -574,7 +658,7 @@
         {
           "assertion": "extract.scene.scene_tags",
           "passed": false,
-          "detail": "scene_tags[combat] not found"
+          "detail": "scene_tags[standoff] not found"
         },
         {
           "assertion": "universal.recent_events_add.turn_stamped",
@@ -591,141 +675,9 @@
           "severity": "red"
         },
         {
-          "assertion": "universal.location_change.applied",
+          "assertion": "universal.pending_gm_beat.disposition_respected",
           "passed": true,
-          "detail": "(no change)",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "binding directive included",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.npc_mention.extracted",
-          "passed": false,
-          "detail": "narration mentions names not in npc_add/update or known: ['Crossed']",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.recent_events.ring_bounded",
-          "passed": true,
-          "detail": "7 entries",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.scene.npc_cap",
-          "passed": true,
-          "detail": "2 NPCs",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pc.condition_no_dupes",
-          "passed": true,
-          "detail": "1 conditions, no dupes",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.progress.actions_quality",
-          "passed": true,
-          "detail": "4 distinct actions",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.momentum.band_delta",
-          "passed": true,
-          "detail": "(no momentum field)",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.inventory.no_overdraw",
-          "passed": true,
-          "detail": "checked 0 removes",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pressure.immediate_cap",
-          "passed": true,
-          "detail": "0 immediate",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.narrate.pressure_directive_rendered",
-          "passed": true,
-          "detail": "(no immediates)",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pressure.no_stale_immediate",
-          "passed": true,
-          "detail": "no stale immediates",
-          "scope": "universal",
-          "severity": "yellow"
-        },
-        {
-          "assertion": "universal.pacing.floor_no_relief",
-          "passed": true,
-          "detail": "floor_count=0",
-          "scope": "universal",
-          "severity": "yellow"
-        }
-      ]
-    },
-    {
-      "turn_number": 6,
-      "input": "I drop 200 credits on the ground between the toughs and tell them Caron's coin is paid \u2014 they can go home now.",
-      "phase": "payoff",
-      "expects": [
-        "rules.required=true skill=charisma",
-        "extract.state.inventory_remove includes credits amount=200",
-        "extract.progress marks clear_the_road_toughs done"
-      ],
-      "duration_s": 47.053912791001494,
-      "error": null,
-      "engine_turn_number": 6,
-      "outcome_summary": "Your attempt to bribe the thugs backfires; instead of leaving, they feel cornered and more defensive of their employer's orders.",
-      "narrative_chars": 1432,
-      "rules_parse_failures": 0,
-      "extract_parse_failures": 0,
-      "assert_results": [
-        {
-          "assertion": "rules.rolled",
-          "passed": true,
-          "detail": "rolled=True"
-        },
-        {
-          "assertion": "extract.state.inventory_remove",
-          "passed": true,
-          "detail": "inventory_remove[credits] amount=200"
-        },
-        {
-          "assertion": "extract.progress.quest_updates",
-          "passed": true,
-          "detail": "quest_updates[clear_the_road_toughs] found"
-        },
-        {
-          "assertion": "universal.recent_events_add.turn_stamped",
-          "passed": true,
-          "detail": "all 1 entries stamped with turn=6",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pending_gm_beat.consumed",
-          "passed": true,
-          "detail": "beat consumed or replaced",
+          "detail": "(no disposition emitted)",
           "scope": "universal",
           "severity": "red"
         },
@@ -739,7 +691,7 @@
         {
           "assertion": "universal.narrate.binding_present",
           "passed": true,
-          "detail": "binding directive included",
+          "detail": "no roll required, binding not expected",
           "scope": "universal",
           "severity": "red"
         },
@@ -767,7 +719,167 @@
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "1 conditions, no dupes",
+          "detail": "2 conditions, no dupes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.progress.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no momentum field)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 1 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pressure.immediate_cap",
+          "passed": true,
+          "detail": "1 immediate",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.pressure_directive_rendered",
+          "passed": false,
+          "detail": "1 immediate pressures but no Pressure/Overwhelm directive in narrate user prompt",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pressure.no_stale_immediate",
+          "passed": true,
+          "detail": "no stale immediates",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.key_consumed",
+          "passed": true,
+          "detail": "no key-use language",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        }
+      ]
+    },
+    {
+      "turn_number": 6,
+      "input": "I drop 200 credits on the ground between the toughs and tell them Caron's coin is paid \u2014 they can go home now.",
+      "phase": "payoff",
+      "expects": [
+        "rules.required=true skill=charisma",
+        "extract.state.inventory_remove includes credits amount=200",
+        "extract.progress marks clear_the_road_toughs done"
+      ],
+      "duration_s": 40.129694084011135,
+      "error": null,
+      "engine_turn_number": 6,
+      "outcome_summary": "You successfully bribed the toughs with 200 credits, clearing the entrance to the inn.",
+      "narrative_chars": 1448,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "extract.state.inventory_remove",
+          "passed": false,
+          "detail": "inventory_remove[credits] amount=20"
+        },
+        {
+          "assertion": "extract.progress.quest_updates",
+          "passed": true,
+          "detail": "quest_updates[clear_the_road_toughs] found"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "(no adds)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.disposition_respected",
+          "passed": true,
+          "detail": "(no disposition emitted)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "no roll required, binding not expected",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Crossed']",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.recent_events.ring_bounded",
+          "passed": true,
+          "detail": "3 entries",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.scene.npc_cap",
+          "passed": true,
+          "detail": "2 NPCs",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pc.condition_no_dupes",
+          "passed": true,
+          "detail": "2 conditions, no dupes",
           "scope": "universal",
           "severity": "red"
         },
@@ -819,6 +931,20 @@
           "detail": "floor_count=0",
           "scope": "universal",
           "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.key_consumed",
+          "passed": true,
+          "detail": "no key-use language",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
         }
       ]
     },
@@ -831,11 +957,11 @@
         "auto_complete should fire \u2014 quest status becomes completed",
         "compendium_npc_update for halden"
       ],
-      "duration_s": 35.52133670799958,
+      "duration_s": 32.22936604201095,
       "error": null,
       "engine_turn_number": 7,
-      "outcome_summary": "You successfully deliver the ledger and merchant seal to Halden, completing your contract, but receive a frantic warning about unseen watchers on the road.",
-      "narrative_chars": 1700,
+      "outcome_summary": "You successfully deliver the ledger and merchant seal to Halden, earning his profound relief and respect.",
+      "narrative_chars": 1542,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -852,21 +978,28 @@
         {
           "assertion": "universal.recent_events_add.turn_stamped",
           "passed": true,
-          "detail": "all 1 entries stamped with turn=7",
+          "detail": "(no adds)",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.pending_gm_beat.consumed",
           "passed": true,
-          "detail": "beat consumed or replaced",
+          "detail": "(no prior beat)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.disposition_respected",
+          "passed": true,
+          "detail": "(no disposition emitted)",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.location_change.applied",
           "passed": true,
-          "detail": "merchant_road_east -> crossed_keys_inn",
+          "detail": "merchant_road_outskirts -> crossed_keys_inn",
           "scope": "universal",
           "severity": "red"
         },
@@ -880,28 +1013,28 @@
         {
           "assertion": "universal.npc_mention.extracted",
           "passed": false,
-          "detail": "narration mentions names not in npc_add/update or known: ['Ledger', 'Inside']",
+          "detail": "narration mentions names not in npc_add/update or known: ['Ledger']",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "5 entries",
+          "detail": "3 entries",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "1 NPCs",
+          "detail": "3 NPCs",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "1 conditions, no dupes",
+          "detail": "2 conditions, no dupes",
           "scope": "universal",
           "severity": "red"
         },
@@ -955,6 +1088,20 @@
           "severity": "yellow"
         },
         {
+          "assertion": "universal.inventory.key_consumed",
+          "passed": true,
+          "detail": "no key-use language",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
           "assertion": "progress.quest_id_collision",
           "passed": false,
           "detail": "quest_updates re-creates already-completed quest id='deliver_the_ledger'",
@@ -971,11 +1118,11 @@
         "extract.state.inventory_remove includes brass_key",
         "narration should honor the attempt even if it fails"
       ],
-      "duration_s": 28.974489207997976,
+      "duration_s": 29.11335699999472,
       "error": null,
       "engine_turn_number": 8,
-      "outcome_summary": "You successfully use the brass key to slip into a quiet storage room, finding a brief moment of sanctuary from the tension outside.",
-      "narrative_chars": 1217,
+      "outcome_summary": "The brass key failed to work on the main entrance, prompting you to scout the inn's exterior and discover a small, damp wooden door near the rear.",
+      "narrative_chars": 1372,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -999,28 +1146,496 @@
         {
           "assertion": "universal.pending_gm_beat.consumed",
           "passed": true,
-          "detail": "beat consumed or replaced",
+          "detail": "(no prior beat)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.disposition_respected",
+          "passed": true,
+          "detail": "(no disposition emitted)",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.location_change.applied",
           "passed": true,
-          "detail": "crossed_keys_inn -> inn_storage_room",
+          "detail": "(no change)",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.narrate.binding_present",
           "passed": true,
-          "detail": "binding directive included",
+          "detail": "no roll required, binding not expected",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.npc_mention.extracted",
+          "passed": true,
+          "detail": "no missing NPC names detected",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.recent_events.ring_bounded",
+          "passed": true,
+          "detail": "3 entries",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.scene.npc_cap",
+          "passed": true,
+          "detail": "0 NPCs",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pc.condition_no_dupes",
+          "passed": true,
+          "detail": "2 conditions, no dupes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.progress.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no momentum field)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pressure.immediate_cap",
+          "passed": true,
+          "detail": "0 immediate",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.pressure_directive_rendered",
+          "passed": true,
+          "detail": "(no immediates)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pressure.no_stale_immediate",
+          "passed": true,
+          "detail": "no stale immediates",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.key_consumed",
+          "passed": true,
+          "detail": "no key-use language",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        }
+      ]
+    },
+    {
+      "turn_number": 9,
+      "input": "I press my ear against the inn's stone wall and whisper 'I have credits. Open up.' Then I offer a single credit to the wall.",
+      "phase": "absurd_edge_case",
+      "expects": [
+        "rules.required=true skill=charisma (absurd social attempt)",
+        "narration should handle the absurdity without crashing",
+        "extract.state should NOT remove credits (engine should reject or narrate failure)"
+      ],
+      "duration_s": 26.56364974999451,
+      "error": null,
+      "engine_turn_number": 9,
+      "outcome_summary": "Your attempt to bribe the inn through the stone wall goes unnoticed, leaving you alone and ignored in the damp alley.",
+      "narrative_chars": 1246,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
           "passed": false,
-          "detail": "narration mentions names not in npc_add/update or known: ['Outside']",
+          "detail": "rolled=False"
+        },
+        {
+          "assertion": "extract.scene.scene_tags",
+          "passed": false,
+          "detail": "scene_tags[social] not found"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "all 1 entries stamped with turn=9",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.disposition_respected",
+          "passed": true,
+          "detail": "(no disposition emitted)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": true,
+          "detail": "no missing NPC names detected",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.recent_events.ring_bounded",
+          "passed": true,
+          "detail": "4 entries",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.scene.npc_cap",
+          "passed": true,
+          "detail": "6 NPCs",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pc.condition_no_dupes",
+          "passed": true,
+          "detail": "2 conditions, no dupes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.progress.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 1 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pressure.immediate_cap",
+          "passed": true,
+          "detail": "0 immediate",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.pressure_directive_rendered",
+          "passed": true,
+          "detail": "(no immediates)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pressure.no_stale_immediate",
+          "passed": true,
+          "detail": "no stale immediates",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.key_consumed",
+          "passed": true,
+          "detail": "no key-use language",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        }
+      ]
+    },
+    {
+      "turn_number": 10,
+      "input": "I approach Matthew Estrada at the bar, grab his wrist, and demand to know who he really is and why he's watching the room like a soldier.",
+      "phase": "npc_development",
+      "expects": [
+        "rules.required=true skill=charisma (aggressive social)",
+        "compendium_npc_update for matthew_estrada",
+        "narration should show character development or revelation"
+      ],
+      "duration_s": 30.758386958987103,
+      "error": null,
+      "engine_turn_number": 10,
+      "outcome_summary": "Your attempt to intimidate Matthew Estrada fails to rattle him, instead drawing a sharp, veiled threat from the mysterious traveler.",
+      "narrative_chars": 1717,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "(no adds)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.disposition_respected",
+          "passed": true,
+          "detail": "(no disposition emitted)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "no roll required, binding not expected",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": true,
+          "detail": "no missing NPC names detected",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.recent_events.ring_bounded",
+          "passed": true,
+          "detail": "4 entries",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.scene.npc_cap",
+          "passed": true,
+          "detail": "6 NPCs",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pc.condition_no_dupes",
+          "passed": true,
+          "detail": "2 conditions, no dupes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.progress.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no momentum field)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pressure.immediate_cap",
+          "passed": true,
+          "detail": "0 immediate",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.pressure_directive_rendered",
+          "passed": true,
+          "detail": "(no immediates)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pressure.no_stale_immediate",
+          "passed": true,
+          "detail": "no stale immediates",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.key_consumed",
+          "passed": true,
+          "detail": "no key-use language",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        }
+      ]
+    },
+    {
+      "turn_number": 11,
+      "input": "Matthew's bodyguard draws a knife! I tackle him into the bar shelves and search his coat while he's dazed.",
+      "phase": "combat",
+      "expects": [
+        "rules.required=true skill=strength (combat)",
+        "pc_condition_add for player (e.g., wounded from knife)",
+        "inventory_add for bodyguard's items (e.g., estrada_wallet)",
+        "scene_tags should include combat"
+      ],
+      "duration_s": 33.274950124992756,
+      "error": null,
+      "engine_turn_number": 11,
+      "outcome_summary": "You successfully tackle Matthew Estrada and find a mysterious heavy object, but your sudden violence has alerted the toughs, who are now closing in on you.",
+      "narrative_chars": 1348,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "extract.scene.scene_tags",
+          "passed": true,
+          "detail": "scene_tags[combat] found"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "all 1 entries stamped with turn=11",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.disposition_respected",
+          "passed": true,
+          "detail": "(no disposition emitted)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "no roll required, binding not expected",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": true,
+          "detail": "no missing NPC names detected",
           "scope": "universal",
           "severity": "red"
         },
@@ -1034,14 +1649,14 @@
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "1 NPCs",
+          "detail": "6 NPCs",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "1 conditions, no dupes",
+          "detail": "3 conditions, no dupes",
           "scope": "universal",
           "severity": "red"
         },
@@ -1093,404 +1708,20 @@
           "detail": "floor_count=0",
           "scope": "universal",
           "severity": "yellow"
-        }
-      ]
-    },
-    {
-      "turn_number": 9,
-      "input": "I press my ear against the inn's stone wall and whisper 'I have credits. Open up.' Then I offer a single credit to the wall.",
-      "phase": "absurd_edge_case",
-      "expects": [
-        "rules.required=true skill=charisma (absurd social attempt)",
-        "narration should handle the absurdity without crashing",
-        "extract.state should NOT remove credits (engine should reject or narrate failure)"
-      ],
-      "duration_s": 31.730107583000063,
-      "error": "engine_errors: [{\"trace_id\": \"8d0f3cc1\", \"message\": \"Delta validation failed (1 rejection(s)).\"}]",
-      "engine_turn_number": 9,
-      "outcome_summary": "Your attempt to bribe the wall fails, and you are immediately discovered by the toughs outside the storage room door.",
-      "narrative_chars": 1566,
-      "rules_parse_failures": 0,
-      "extract_parse_failures": 0,
-      "assert_results": [
-        {
-          "assertion": "rules.rolled",
-          "passed": false,
-          "detail": "rolled=False"
         },
         {
-          "assertion": "extract.scene.scene_tags",
-          "passed": false,
-          "detail": "scene_tags[social] not found"
-        },
-        {
-          "assertion": "universal.recent_events_add.turn_stamped",
+          "assertion": "universal.inventory.key_consumed",
           "passed": true,
-          "detail": "(no adds)",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pending_gm_beat.consumed",
-          "passed": true,
-          "detail": "(no prior beat)",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.location_change.applied",
-          "passed": true,
-          "detail": "(no change)",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "(no roll)",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.npc_mention.extracted",
-          "passed": false,
-          "detail": "narration mentions names not in npc_add/update or known: ['Beyond']",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.recent_events.ring_bounded",
-          "passed": true,
-          "detail": "5 entries",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.scene.npc_cap",
-          "passed": true,
-          "detail": "1 NPCs",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pc.condition_no_dupes",
-          "passed": true,
-          "detail": "1 conditions, no dupes",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.progress.actions_quality",
-          "passed": true,
-          "detail": "4 distinct actions",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.momentum.band_delta",
-          "passed": true,
-          "detail": "(no roll)",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.inventory.no_overdraw",
-          "passed": true,
-          "detail": "checked 0 removes",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pressure.immediate_cap",
-          "passed": true,
-          "detail": "2 immediate",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.narrate.pressure_directive_rendered",
-          "passed": true,
-          "detail": "directive present",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pressure.no_stale_immediate",
-          "passed": true,
-          "detail": "no stale immediates",
+          "detail": "no key-use language",
           "scope": "universal",
           "severity": "yellow"
         },
         {
-          "assertion": "universal.pacing.floor_no_relief",
+          "assertion": "universal.inventory.no_negative_amount",
           "passed": true,
-          "detail": "floor_count=0",
-          "scope": "universal",
-          "severity": "yellow"
-        }
-      ]
-    },
-    {
-      "turn_number": 10,
-      "input": "I approach Matthew Estrada at the bar, grab his wrist, and demand to know who he really is and why he's watching the room like a soldier.",
-      "phase": "npc_development",
-      "expects": [
-        "rules.required=true skill=charisma (aggressive social)",
-        "compendium_npc_update for matthew_estrada",
-        "narration should show character development or revelation"
-      ],
-      "duration_s": 34.85848120800074,
-      "error": null,
-      "engine_turn_number": 10,
-      "outcome_summary": "Your attempt to intimidate Matthew Estrada fails to rattle him; he remains unnervingly calm and warns you of an approaching storm.",
-      "narrative_chars": 1666,
-      "rules_parse_failures": 0,
-      "extract_parse_failures": 0,
-      "assert_results": [
-        {
-          "assertion": "rules.rolled",
-          "passed": true,
-          "detail": "rolled=True"
-        },
-        {
-          "assertion": "universal.recent_events_add.turn_stamped",
-          "passed": true,
-          "detail": "all 1 entries stamped with turn=10",
+          "detail": "no negative amounts",
           "scope": "universal",
           "severity": "red"
-        },
-        {
-          "assertion": "universal.pending_gm_beat.consumed",
-          "passed": true,
-          "detail": "beat consumed or replaced",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.location_change.applied",
-          "passed": true,
-          "detail": "inn_storage_room -> inn_common_room",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "binding directive included",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.npc_mention.extracted",
-          "passed": true,
-          "detail": "no missing NPC names detected",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.recent_events.ring_bounded",
-          "passed": true,
-          "detail": "6 entries",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.scene.npc_cap",
-          "passed": true,
-          "detail": "3 NPCs",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pc.condition_no_dupes",
-          "passed": true,
-          "detail": "1 conditions, no dupes",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.progress.actions_quality",
-          "passed": true,
-          "detail": "4 distinct actions",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.momentum.band_delta",
-          "passed": true,
-          "detail": "(no momentum field)",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.inventory.no_overdraw",
-          "passed": true,
-          "detail": "checked 0 removes",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pressure.immediate_cap",
-          "passed": true,
-          "detail": "2 immediate",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.narrate.pressure_directive_rendered",
-          "passed": false,
-          "detail": "2 immediate pressures but no Pressure/Overwhelm directive in narrate user prompt",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pressure.no_stale_immediate",
-          "passed": true,
-          "detail": "no stale immediates",
-          "scope": "universal",
-          "severity": "yellow"
-        },
-        {
-          "assertion": "universal.pacing.floor_no_relief",
-          "passed": true,
-          "detail": "floor_count=0",
-          "scope": "universal",
-          "severity": "yellow"
-        }
-      ]
-    },
-    {
-      "turn_number": 11,
-      "input": "Matthew's bodyguard draws a knife! I tackle him into the bar shelves and search his coat while he's dazed.",
-      "phase": "combat",
-      "expects": [
-        "rules.required=true skill=strength (combat)",
-        "pc_condition_add for player (e.g., wounded from knife)",
-        "inventory_add for bodyguard's items (e.g., estrada_wallet)",
-        "scene_tags should include combat"
-      ],
-      "duration_s": 33.06267679099983,
-      "error": null,
-      "engine_turn_number": 11,
-      "outcome_summary": "You successfully tackle Scarred Tough into the bar shelves, dazing him and allowing you to begin searching his coat amidst the shattering glass.",
-      "narrative_chars": 1418,
-      "rules_parse_failures": 0,
-      "extract_parse_failures": 0,
-      "assert_results": [
-        {
-          "assertion": "rules.rolled",
-          "passed": true,
-          "detail": "rolled=True"
-        },
-        {
-          "assertion": "extract.scene.scene_tags",
-          "passed": true,
-          "detail": "scene_tags[combat] found"
-        },
-        {
-          "assertion": "universal.recent_events_add.turn_stamped",
-          "passed": true,
-          "detail": "all 1 entries stamped with turn=11",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pending_gm_beat.consumed",
-          "passed": true,
-          "detail": "beat consumed or replaced",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.location_change.applied",
-          "passed": true,
-          "detail": "(no change)",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "binding directive included",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.npc_mention.extracted",
-          "passed": true,
-          "detail": "no missing NPC names detected",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.recent_events.ring_bounded",
-          "passed": true,
-          "detail": "7 entries",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.scene.npc_cap",
-          "passed": true,
-          "detail": "3 NPCs",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pc.condition_no_dupes",
-          "passed": true,
-          "detail": "1 conditions, no dupes",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.progress.actions_quality",
-          "passed": true,
-          "detail": "4 distinct actions",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.momentum.band_delta",
-          "passed": true,
-          "detail": "(no momentum field)",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.inventory.no_overdraw",
-          "passed": true,
-          "detail": "checked 0 removes",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pressure.immediate_cap",
-          "passed": true,
-          "detail": "3 immediate",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.narrate.pressure_directive_rendered",
-          "passed": true,
-          "detail": "directive present",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pressure.no_stale_immediate",
-          "passed": true,
-          "detail": "no stale immediates",
-          "scope": "universal",
-          "severity": "yellow"
-        },
-        {
-          "assertion": "universal.pacing.floor_no_relief",
-          "passed": true,
-          "detail": "floor_count=0",
-          "scope": "universal",
-          "severity": "yellow"
         }
       ]
     },
@@ -1504,11 +1735,162 @@
         "compaction fires at T12 (second pass)",
         "npc_add for dock workers or rival courier"
       ],
-      "duration_s": 44.509292624999944,
+      "duration_s": 50.57033570800559,
       "error": null,
       "engine_turn_number": 12,
-      "outcome_summary": "You successfully snatched the stolen ledger from Scarred Tough and escaped the chaotic inn, bursting out into the cool night air toward the river docks.",
-      "narrative_chars": 1212,
+      "outcome_summary": "You successfully burst through the rear exit of the inn, but the toughs are hot on your heels as you enter the damp alleyway.",
+      "narrative_chars": 1416,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "rules.rolled",
+          "passed": true,
+          "detail": "rolled=False"
+        },
+        {
+          "assertion": "universal.recent_events_add.turn_stamped",
+          "passed": true,
+          "detail": "(no adds)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.disposition_respected",
+          "passed": true,
+          "detail": "(no disposition emitted)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.npc_mention.extracted",
+          "passed": true,
+          "detail": "(no narration)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.recent_events.ring_bounded",
+          "passed": true,
+          "detail": "4 entries",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.scene.npc_cap",
+          "passed": true,
+          "detail": "2 NPCs",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pc.condition_no_dupes",
+          "passed": true,
+          "detail": "2 conditions, no dupes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.progress.actions_quality",
+          "passed": false,
+          "detail": "actions has 0 entries (expected 4)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pressure.immediate_cap",
+          "passed": true,
+          "detail": "0 immediate",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.pressure_directive_rendered",
+          "passed": true,
+          "detail": "(no immediates)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pressure.no_stale_immediate",
+          "passed": true,
+          "detail": "no stale immediates",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.key_consumed",
+          "passed": true,
+          "detail": "no key-use language",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        }
+      ]
+    },
+    {
+      "turn_number": 13,
+      "input": "I find a quiet corner at the dock and wrap my wounds with my shirt. Then I write a note to Caron about the intercepted courier and pay the dock boy to deliver it.",
+      "phase": "recovery",
+      "expects": [
+        "pc_condition_remove for wounded (self-treatment)",
+        "no rules call (social, no obstacle)",
+        "narrator operates with compacted history (2 compaction passes)",
+        "inventory_remove for shirt (used as bandage)"
+      ],
+      "duration_s": 40.01066516600258,
+      "error": null,
+      "engine_turn_number": 13,
+      "outcome_summary": "You successfully find a secluded nook to tend your wounds and dispatch a messenger to Caron with urgent news.",
+      "narrative_chars": 1499,
       "rules_parse_failures": 0,
       "extract_parse_failures": 0,
       "assert_results": [
@@ -1532,44 +1914,51 @@
           "severity": "red"
         },
         {
+          "assertion": "universal.pending_gm_beat.disposition_respected",
+          "passed": true,
+          "detail": "(no disposition emitted)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
           "assertion": "universal.location_change.applied",
           "passed": true,
-          "detail": "inn_common_room -> river_docks",
+          "detail": "alleyway_near_inn -> river_docks",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.narrate.binding_present",
           "passed": true,
-          "detail": "binding directive included",
+          "detail": "no roll required, binding not expected",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.npc_mention.extracted",
-          "passed": true,
-          "detail": "no missing NPC names detected",
+          "passed": false,
+          "detail": "narration mentions names not in npc_add/update or known: ['Ahead']",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.recent_events.ring_bounded",
           "passed": true,
-          "detail": "4 entries",
+          "detail": "5 entries",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.scene.npc_cap",
           "passed": true,
-          "detail": "0 NPCs",
+          "detail": "1 NPCs",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.pc.condition_no_dupes",
           "passed": true,
-          "detail": "1 conditions, no dupes",
+          "detail": "2 conditions, no dupes",
           "scope": "universal",
           "severity": "red"
         },
@@ -1597,163 +1986,53 @@
         {
           "assertion": "universal.pressure.immediate_cap",
           "passed": true,
-          "detail": "2 immediate",
+          "detail": "0 immediate",
           "scope": "universal",
           "severity": "red"
         },
         {
           "assertion": "universal.narrate.pressure_directive_rendered",
+          "passed": true,
+          "detail": "(no immediates)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pressure.no_stale_immediate",
+          "passed": true,
+          "detail": "no stale immediates",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.key_consumed",
+          "passed": true,
+          "detail": "no key-use language",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "progress.quest_id_collision",
           "passed": false,
-          "detail": "2 immediate pressures but no Pressure/Overwhelm directive in narrate user prompt",
-          "scope": "universal",
+          "detail": "quest_updates re-creates already-completed quest id='clear_the_road_toughs'",
           "severity": "red"
-        },
-        {
-          "assertion": "universal.pressure.no_stale_immediate",
-          "passed": true,
-          "detail": "no stale immediates",
-          "scope": "universal",
-          "severity": "yellow"
-        },
-        {
-          "assertion": "universal.pacing.floor_no_relief",
-          "passed": true,
-          "detail": "floor_count=0",
-          "scope": "universal",
-          "severity": "yellow"
-        }
-      ]
-    },
-    {
-      "turn_number": 13,
-      "input": "I find a quiet corner at the dock and wrap my wounds with my shirt. Then I write a note to Caron about the intercepted courier and pay the dock boy to deliver it.",
-      "phase": "recovery",
-      "expects": [
-        "pc_condition_remove for wounded (self-treatment)",
-        "no rules call (social, no obstacle)",
-        "narrator operates with compacted history (2 compaction passes)",
-        "inventory_remove for shirt (used as bandage)"
-      ],
-      "duration_s": 31.03055250000034,
-      "error": "engine_errors: [{\"trace_id\": \"64c9e139\", \"message\": \"Delta validation failed (1 rejection(s)).\"}]",
-      "engine_turn_number": 13,
-      "outcome_summary": "You successfully send a message to Caron via a dock boy and tend to your ribs, but the sound of approaching, coordinated footsteps breaks the silence of the docks.",
-      "narrative_chars": 1763,
-      "rules_parse_failures": 0,
-      "extract_parse_failures": 0,
-      "assert_results": [
-        {
-          "assertion": "rules.rolled",
-          "passed": true,
-          "detail": "rolled=False"
-        },
-        {
-          "assertion": "universal.recent_events_add.turn_stamped",
-          "passed": true,
-          "detail": "(no adds)",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pending_gm_beat.consumed",
-          "passed": true,
-          "detail": "beat consumed or replaced",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.location_change.applied",
-          "passed": true,
-          "detail": "(no change)",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.narrate.binding_present",
-          "passed": true,
-          "detail": "(no roll)",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.npc_mention.extracted",
-          "passed": true,
-          "detail": "no missing NPC names detected",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.recent_events.ring_bounded",
-          "passed": true,
-          "detail": "4 entries",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.scene.npc_cap",
-          "passed": true,
-          "detail": "0 NPCs",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pc.condition_no_dupes",
-          "passed": true,
-          "detail": "1 conditions, no dupes",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.progress.actions_quality",
-          "passed": true,
-          "detail": "4 distinct actions",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.momentum.band_delta",
-          "passed": true,
-          "detail": "(no roll)",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.inventory.no_overdraw",
-          "passed": true,
-          "detail": "checked 0 removes",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pressure.immediate_cap",
-          "passed": true,
-          "detail": "2 immediate",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.narrate.pressure_directive_rendered",
-          "passed": true,
-          "detail": "directive present",
-          "scope": "universal",
-          "severity": "red"
-        },
-        {
-          "assertion": "universal.pressure.no_stale_immediate",
-          "passed": true,
-          "detail": "no stale immediates",
-          "scope": "universal",
-          "severity": "yellow"
-        },
-        {
-          "assertion": "universal.pacing.floor_no_relief",
-          "passed": true,
-          "detail": "floor_count=0",
-          "scope": "universal",
-          "severity": "yellow"
         }
       ]
     }
   ],
-  "total_errors": 2
+  "total_errors": 0
 }
