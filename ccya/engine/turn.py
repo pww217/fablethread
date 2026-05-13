@@ -204,6 +204,32 @@ def _compute_quest_ages(state: dict[str, Any], current_turn: int) -> list[dict[s
     return result
 
 
+def _compute_threat_ages(state: dict[str, Any]) -> list[dict[str, Any]]:
+    """Compute age of each scene pressure for threat imperative directives.
+
+    Returns a list of dicts with keys: id, text, urgency, age.
+    Only includes pressures with a valid turn_added (> 0).
+    """
+    pressures = list((state.get("scene") or {}).get("scene_pressure") or [])
+    current_turn = (state.get("meta") or {}).get("turn", 0)
+    result: list[dict[str, Any]] = []
+    for p in pressures:
+        if not isinstance(p, dict):
+            continue
+        turn_added = p.get("turn_added")
+        if not turn_added or turn_added == 0:
+            continue
+        result.append({
+            "id": p.get("id", ""),
+            "text": p.get("text", ""),
+            "urgency": p.get("urgency", "background"),
+            "age": current_turn - turn_added,
+        })
+    # Sort by age descending so the oldest threat is first
+    result.sort(key=lambda x: x["age"], reverse=True)
+    return result
+
+
 def _compute_recent_window(
     state: dict[str, Any], config: EngineConfig,
 ) -> tuple[int, int]:
@@ -377,6 +403,7 @@ async def run_turn(
 
         # Age counters for narration directives
         ages = _compute_ages(state)
+        threat_ages = _compute_threat_ages(state)
         quest_ages = _compute_quest_ages(state, turn_no)
 
         if config.log_prompts:
@@ -498,6 +525,10 @@ async def run_turn(
             turn_no=turn_no,
             world_factions=_world_factions,
             world_locations=_world_locations,
+            threat_ages=threat_ages,
+            threat_pressure_at=config.threat_pressure_at,
+            threat_imperative_at=config.threat_imperative_at,
+            building_threat_imperative_at=config.building_threat_imperative_at,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""

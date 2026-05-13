@@ -44,6 +44,11 @@
 {% for p in state.scene.scene_pressure %}- [{{ p.urgency | upper }}] {{ p.text }}
 {% endfor -%}
 {% endif -%}
+{% if threat_ages -%}
+### Threats
+{% for t in threat_ages %}- [{{ t.urgency | upper }}] {{ t.text }} ({{ t.age }} turns old)
+{% endfor -%}
+{% endif -%}
 {% if known_npcs -%}
 ### Known Characters
 Before introducing anyone new, check this list. Re-use characters when they could plausibly be present.
@@ -126,6 +131,20 @@ Surface as {{ pending_gm_beat.surface_as }}. This is backstage direction — int
 {% elif ages and ages.get('location_age', 0) > 2 %}
 
 **Narration Directive:** Location Pressure
+{% endif %}
+{% if threat_ages %}
+{% set old_building = threat_ages | selectattr("urgency", "equalto", "building") | selectattr("age", "ge", building_threat_imperative_at) | list %}
+{% set old_background = threat_ages | selectattr("urgency", "equalto", "background") | selectattr("age", "ge", threat_imperative_at) | list %}
+{% set background_pressure = threat_ages | selectattr("urgency", "equalto", "background") | selectattr("age", "ge", threat_pressure_at) | selectattr("age", "lt", threat_imperative_at) | list %}
+{% if old_building or old_background %}
+
+**Narration Directive:** Resolve a Threat
+Resolve the oldest threat listed above. It has been active too long. Weave its resolution naturally into the narration — the threat is dealt with, neutralized, or escapes. Do NOT introduce a new threat in this narration.
+{% elif background_pressure %}
+
+**Narration Directive:** Threat Pressure
+A background threat has been lingering. Acknowledge it in the scene — show its presence affecting the environment or NPCs. No need to resolve it yet, but don't ignore it.
+{% endif %}
 {% endif %}
 
 === PLAYER INPUT ===

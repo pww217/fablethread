@@ -47,6 +47,7 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 ### turn.py
 - `_compute_ages(state)` → `dict[str, int]` — scene_age, location_age, combat_age
 - `_compute_quest_ages(state, current_turn)` → `list[dict]` — stalled quest info
+- `_compute_threat_ages(state)` → `list[dict]` — threat age for imperative directives (id, text, urgency, age), sorted oldest-first, excludes pressures with turn_added=0
 - `_ALL_DOMAINS` — frozenset of 7 valid domain names
 - `_DEFAULT_DOMAINS` — list of all 7 domains (fallback when no scope tag)
 - `_SCOPE_OPEN`, `_SCOPE_CLOSE`, `_SCOPE_TAIL_RE`, `_SCOPE_TAIL_BUFFER_SIZE` — constants for scope tail parsing
@@ -73,7 +74,7 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_log_prompts(turn, phase, messages)` — logs rendered prompts when config.log_prompts is True
 
 ### narrate.py
-- `_narrate_messages(env, state, user_input, *, chronicle_tail="", recent_turns=None, enable_narrate_thinking=False, pack_style="", narrator_rules=[], world_rules=[], rules_outcome=None, npc_name_pool=None, recently_left=None, momentum=0, pending_gm_beat=None, deescalate=False, ages=None, known_npcs=None, present_npcs=None, compendium_bios=None, pc_allegiance=None, scene_pressure=None, turn_no=0, world_factions=[], world_locations=[])` → `list[dict]` — prompt builder for narrator; accepts momentum, pending_gm_beat, deescalate, ages, known_npcs, present_npcs, compendium_bios, narrator_rules, world_rules, scene_pressure, and world faction/location context
+- `_narrate_messages(env, state, user_input, *, chronicle_tail="", recent_turns=None, enable_narrate_thinking=False, pack_style="", narrator_rules=[], world_rules=[], rules_outcome=None, npc_name_pool=None, recently_left=None, momentum=0, pending_gm_beat=None, deescalate=False, ages=None, known_npcs=None, present_npcs=None, compendium_bios=None, pc_allegiance=None, scene_pressure=None, turn_no=0, world_factions=[], world_locations=[], threat_ages=None, threat_pressure_at=3, threat_imperative_at=5, building_threat_imperative_at=4)` → `list[dict]` — prompt builder for narrator; accepts momentum, pending_gm_beat, deescalate, ages, known_npcs, present_npcs, compendium_bios, narrator_rules, world_rules, scene_pressure, world faction/location context, and threat age data with imperative thresholds
 - `_known_characters_for_extract(state, compact=True)` → `list[dict]` — deduped NPC roster from compendium
 - `build_state_slice(state)` — (used in prompts for state context)
 

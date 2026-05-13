@@ -80,6 +80,13 @@ class EngineConfig:
     momentum_floor_relief_turns: int = 2
     # Gate for de-escalation flag on successful rolls
     scene_pressure_deescalate_on_success: bool = True
+    # Threat imperative thresholds (turns since turn_added)
+    # Background threat → narration directive "Threat Pressure" at this age
+    threat_pressure_at: int = 3
+    # Background threat → narration directive "Resolve a Threat" at this age
+    threat_imperative_at: int = 5
+    # Building threat → narration directive "Resolve a Threat" at this age
+    building_threat_imperative_at: int = 4
     # Compaction: periodically compress narrative history + events
     compact_every: int = 0
     compact_temperature: float = 0.1
@@ -145,6 +152,9 @@ def build_engine_config(
         scene_pressure_deescalate_on_success=bool(
             game.get("scene_pressure_deescalate_on_success", True)
         ),
+        threat_pressure_at=int(game.get("threat_pressure_at", 3)),
+        threat_imperative_at=int(game.get("threat_imperative_at", 5)),
+        building_threat_imperative_at=int(game.get("building_threat_imperative_at", 4)),
         scene_pressure_immediate_ttl=int(game.get("scene_pressure_immediate_ttl", 8)),
         avoidance_keywords=[str(kw) for kw in game.get("avoidance_keywords", ["retreat", "run", "flee", "hide", "rest", "escape", "back away", "disengage", "withdraw", "surrender", "concede", "leave", "get out"])],
         avoidance_decay_per_turn=int(game.get("avoidance_decay_per_turn", 1)),
