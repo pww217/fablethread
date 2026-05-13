@@ -554,10 +554,17 @@ async def run_turn(
 
         yield ("phase", {"phase": "narrate_done"})
 
+        # Save beat before clearing so extraction pipeline can see it
+        _beat_before_narration = (state.get("meta") or {}).get("pending_gm_beat")
+
         # Clear pending_gm_beat after narration consumed it
         state.setdefault("meta", {})["pending_gm_beat"] = None
 
         # === Extraction pipeline (3 streams) ===
+        # Restore beat so progress extractor sees it in prompt for disposition decision
+        if _beat_before_narration is not None:
+            state.setdefault("meta", {})["pending_gm_beat"] = _beat_before_narration
+
         exp_ms = _avg_extract_ms(save_dir)
         yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
         t2 = asyncio.get_event_loop().time()
@@ -1199,9 +1206,16 @@ async def run_turn_retry(
 
         yield ("phase", {"phase": "narrate_done"})
 
+        # Save beat before clearing so extraction pipeline can see it
+        _beat_before_narration = (state.get("meta") or {}).get("pending_gm_beat")
+
         state.setdefault("meta", {})["pending_gm_beat"] = None
 
         # === Extraction pipeline (3 streams) ===
+        # Restore beat so progress extractor sees it in prompt for disposition decision
+        if _beat_before_narration is not None:
+            state.setdefault("meta", {})["pending_gm_beat"] = _beat_before_narration
+
         exp_ms = _avg_extract_ms(save_dir)
         yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
         t2 = asyncio.get_event_loop().time()
