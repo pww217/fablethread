@@ -12,11 +12,9 @@ Location: {{ location.name or location.id or "Unknown" }}
 {% for n in present_npcs %}- {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}
 {% endfor -%}
 {% endif -%}
-{%- if recent_turns %}
-## Last Turn Narrative
-{%- set t = recent_turns[-1] %}
-T{{ t.turn }}: {{ t.narrative }}
-
+{%- if last_outcome %}
+## Last Turn Outcome
+{{ last_outcome }}
 {% endif -%}
 ## Current Turn: {{ meta.turn | default('?') }}
 === PLAYER INPUT ===

@@ -20,7 +20,7 @@
 
 ## Public APIs
 
-- **`run_turn(save_dir, user_input, config, template_dir, pack_style, pack_name_locales, pack_narrator_rules)`** — Async generator yielding `("token", str)`, `("phase", dict)`, `("complete", TurnResult)`. The 5-call turn pipeline.
+- **`run_turn(save_dir, user_input, config, template_dir, pack_style, pack_name_locales, pack_narrator_rules, pack_world_rules, pack_factions, pack_locations)`** — Async generator yielding `("token", str)`, `("phase", dict)`, `("complete", TurnResult)`. The 5-call turn pipeline.
 - **`generate_seed(pack, config, overrides, template_dir)`** — LLM-generated SeedEnvelope for dynamic packs.
 - **`generate_pack(brief, config, packs_dir, template_dir, max_retries)`** — LLM-generated ScenarioBrief from WorldBrief, writes pack to `packs/custom/<slug>/`, returns loaded Pack.
 - **`generate_pack_from_brief(inputs, packs_root, llm_host, llm_model, template_dir, trace_id)`** — Async generator yielding SSE events (`phase`, `pack_ready`, `generation_error`); writes ephemeral pack to `packs/generated/<uuid>/`.
@@ -54,11 +54,11 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_StreamTailFilter` — filters streaming text to suppress everything from `<scope>` onward; maintains sliding tail buffer for cross-chunk sentinel detection
 - `_check_floor_relief(state, config, band)` → `None` — checks momentum floor and injects `breathing_room` beat when relief conditions met; tracks consecutive floor turns via `state["meta"]["consecutive_floor_count"]`
 - Condition age pass (inline in `run_turn` and `run_turn_retry`) — decrements `turns_remaining` on all active conditions, removes expired ones (≤0), logs `condition_expired` event via `append_event`. Runs after delta application and pressure aging. Permanent conditions (`turns_remaining=None`) are skipped. New conditions without explicit `turns_remaining` get a default TTL of 10 turns (set in `apply_delta`).
-- `run_turn(save_dir, user_input, config=None, *, template_dir=None, pack_style="", pack_name_locales=[], pack_narrator_rules=[])` → `AsyncIterator[tuple[str, Any]]` — 5-call turn pipeline (rules→narrate→scope-parse→scene→state→progress extract). Detects avoidance intent from player input; passes to pressure pipeline for decay. Yields ("phase", dict), ("token", str), ("complete", TurnResult).
+- `run_turn(save_dir, user_input, config=None, *, template_dir=None, pack_style="", pack_name_locales=[], pack_narrator_rules=[], pack_world_rules=[], pack_factions=[], pack_locations=[])` → `AsyncIterator[tuple[str, Any]]` — 5-call turn pipeline (rules→narrate→scope-parse→scene→state→progress extract). Detects avoidance intent from player input; passes to pressure pipeline for decay. Yields ("phase", dict), ("token", str), ("complete", TurnResult).
 - `_validate(state, delta)` → `list[dict]` — validates inventory_remove IDs exist, rejects zero-balance removes, warns on overdraw
 - `_strip_fallback(narration, *, trace_id, turn)` → `str` — strips fallback sentinel lines (`*That action didn't resolve as expected...`) from narration before chronicle persistence and extraction
 - `_check_npc_ghost_cycle(scene_result, state, *, trace_id, turn_no)` → `SceneExtractResult` — detects same-turn npc_remove+add cycles, drops both ops, logs warning
-- `run_turn_retry(save_dir, rules_outcome, intent, config=None, *, template_dir=None, pack_style="", pack_name_locales=[], pack_narrator_rules=[])` → `AsyncIterator[tuple[str, Any]]` — skips Call 0, re-runs narrate + extraction with same rules outcome
+- `run_turn_retry(save_dir, rules_outcome, intent, config=None, *, template_dir=None, pack_style="", pack_name_locales=[], pack_narrator_rules=[], pack_world_rules=[], pack_factions=[], pack_locations=[])` → `AsyncIterator[tuple[str, Any]]` — skips Call 0, re-runs narrate + extraction with same rules outcome
 - `warmup(config)` → `None` (async) — silent chat call to pre-load model
 
 ### config.py
@@ -73,12 +73,12 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_log_prompts(turn, phase, messages)` — logs rendered prompts when config.log_prompts is True
 
 ### narrate.py
-- `_narrate_messages(env, state, user_input, *, chronicle_tail="", recent_turns=None, enable_narrate_thinking=False, pack_style="", narrator_rules=[], world_rules=[], rules_outcome=None, npc_name_pool=None, recently_left=None, momentum=0, pending_gm_beat=None, deescalate=False, ages=None, known_npcs=None, present_npcs=None, compendium_bios=None, pc_allegiance=None, scene_pressure=None)` → `list[dict]` — prompt builder for narrator; accepts momentum, pending_gm_beat, deescalate, ages, known_npcs, present_npcs, compendium_bios, narrator_rules, world_rules, and scene_pressure
+- `_narrate_messages(env, state, user_input, *, chronicle_tail="", recent_turns=None, enable_narrate_thinking=False, pack_style="", narrator_rules=[], world_rules=[], rules_outcome=None, npc_name_pool=None, recently_left=None, momentum=0, pending_gm_beat=None, deescalate=False, ages=None, known_npcs=None, present_npcs=None, compendium_bios=None, pc_allegiance=None, scene_pressure=None, turn_no=0, world_factions=[], world_locations=[])` → `list[dict]` — prompt builder for narrator; accepts momentum, pending_gm_beat, deescalate, ages, known_npcs, present_npcs, compendium_bios, narrator_rules, world_rules, scene_pressure, and world faction/location context
 - `_known_characters_for_extract(state, compact=True)` → `list[dict]` — deduped NPC roster from compendium
 - `build_state_slice(state)` — (used in prompts for state context)
 
 ### rules.py (engine/rules.py — NOT ccya/rules.py)
-- `_rules_messages(env, state, user_input, recent_turns=None)` → `list[dict]` — prompt builder for rules/intent call
+- `_rules_messages(env, state, user_input, recent_turns=None, turn_no=0, present_npcs=None, last_outcome=None)` → `list[dict]` — prompt builder for rules/intent call; `last_outcome` is an optional string sourced from the previous turn's `outcome_summary`, used to replace the full last-turn narrative with a concise outcome
 - `_call_rules(messages, config, trace_id)` → `tuple[IntentEnvelope, dict, str]` (async) — LLM call wrapper with retry on parse failure; calls `apply_thinking(messages, False)` to suppress thinking tokens unconditionally
 - `_avg_rules_ms(save_dir, n=5)` → `int` — rolling average rules latency from events
 - `_log_rules_outcome(turn, intent, outcome)` — logs rules outcome for debugging

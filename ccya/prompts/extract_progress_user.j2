@@ -64,9 +64,7 @@ If a named entity was thwarted, consider a gm_beat of type `opportunity` or `esc
 {% endif -%}
 
 {% endif -%}
-## gm_beat (optional — leave null if nothing meaningful is ready)
-If `pending_beat` below is set and was not yet surfaced by the narrator, emit `beat_disposition: "carry"` and leave `gm_beat` null. If it should be replaced, emit `beat_disposition: "replace"` and a new `gm_beat`. Otherwise emit `beat_disposition: "consume"` (default).
-
+## gm_beat
 {% if pending_beat -%}
 ## pending_beat (carried from previous turn — not yet surfaced)
 Type: {{ pending_beat.type }} | Expires at turn: T{{ pending_beat.beat_expires_turn }}
@@ -82,9 +80,6 @@ Partial deescalation. Prefer low-urgency beat or no beat.
 {% endif -%}
 
 {% endif -%}
-## scene_pressure_add (generate new threats from story causality only)
-Add pressure when: a named NPC or faction acts against the player off-screen, a quest deadline triggers, a failed roll's stated consequence activates, or a world-state change creates a new threat.
-Do NOT add pressure for things the narrator already described as resolved or for vague ambient danger. Prefer 0–1 new pressures per turn.
 {% if quest_ages -%}
 ## quest_ages
 {% for q in quest_ages %}- `{{ q.id }}`: {{ q.stalled_turns }} turns stalled

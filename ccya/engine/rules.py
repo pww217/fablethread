@@ -23,6 +23,7 @@ def _rules_messages(
     recent_turns: list[dict[str, Any]] | None = None,
     turn_no: int = 0,
     present_npcs: list[dict[str, Any]] | None = None,
+    last_outcome: str | None = None,
 ) -> list[dict[str, str]]:
     pc = state.get("pc") or {}
     location = state.get("location") or {}
@@ -37,6 +38,7 @@ def _rules_messages(
             "user_input": user_input,
             "meta": {"turn": turn_no},
             "present_npcs": present_npcs or [],
+            "last_outcome": last_outcome,
         },
     )
     return [

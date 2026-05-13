@@ -235,6 +235,8 @@ async def run_turn(
     pack_name_locales: list[dict[str, Any]] = [],
     pack_narrator_rules: list[str] = [],
     pack_world_rules: list[str] = [],
+    pack_factions: list[dict[str, str]] = [],
+    pack_locations: list[dict[str, str]] = [],
 ) -> AsyncIterator[tuple[str, Any]]:
     if config is None:
         config = EngineConfig()
@@ -299,12 +301,20 @@ async def run_turn(
         t_rules = asyncio.get_event_loop().time()
         turn_no = state.get("meta", {}).get("turn", 0) + 1
 
+        # Get last turn's outcome_summary for rules context
+        _prev_outcome = ""
+        if turn_no > 1:
+            _prev_events = load_recent_events(save_dir, 1)
+            if _prev_events:
+                _prev_outcome = _prev_events[0].get("rules", {}).get("outcome_summary", "")
+
         _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
         rules_messages = _rules_messages(
             env, state, user_input,
             recent_turns=recent_turns[-1:],
             turn_no=turn_no,
             present_npcs=_present_npcs,
+            last_outcome=_prev_outcome if _prev_outcome else None,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_rules_system = rules_messages[0]["content"] if rules_messages else ""
@@ -460,8 +470,8 @@ async def run_turn(
         _pc_allegiance = (state.get("pc") or {}).get("allegiance")
         _pack_narrator_rules = pack_narrator_rules if pack_narrator_rules else []
         _pack_world_rules = pack_world_rules if pack_world_rules else []
-        _world_factions: list[dict[str, str]] = []
-        _world_locations: list[dict[str, str]] = []
+        _world_factions = pack_factions if pack_factions else []
+        _world_locations = pack_locations if pack_locations else []
 
         narr_messages = _narrate_messages(
             env,
@@ -486,6 +496,8 @@ async def run_turn(
             pc_allegiance=_pc_allegiance,
             scene_pressure=(state.get("scene") or {}).get("scene_pressure") or [],
             turn_no=turn_no,
+            world_factions=_world_factions,
+            world_locations=_world_locations,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
@@ -1006,6 +1018,8 @@ async def run_turn_retry(
     pack_name_locales: list[dict[str, Any]] = [],
     pack_narrator_rules: list[str] = [],
     pack_world_rules: list[str] = [],
+    pack_factions: list[dict[str, str]] = [],
+    pack_locations: list[dict[str, str]] = [],
 ) -> AsyncIterator[tuple[str, Any]]:
     """Re-roll narration + extraction with the same rules outcome.
 
@@ -1110,8 +1124,8 @@ async def run_turn_retry(
         _pc_allegiance = (state.get("pc") or {}).get("allegiance")
         _pack_narrator_rules = pack_narrator_rules if pack_narrator_rules else []
         _pack_world_rules = pack_world_rules if pack_world_rules else []
-        _world_factions: list[dict[str, str]] = []
-        _world_locations: list[dict[str, str]] = []
+        _world_factions = pack_factions if pack_factions else []
+        _world_locations = pack_locations if pack_locations else []
 
         narr_messages = _narrate_messages(
             env,
@@ -1138,6 +1152,8 @@ async def run_turn_retry(
             compendium_bios=_compendium_bios,
             pc_allegiance=_pc_allegiance,
             scene_pressure=(state.get("scene") or {}).get("scene_pressure") or [],
+            world_factions=_world_factions,
+            world_locations=_world_locations,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
