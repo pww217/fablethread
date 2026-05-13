@@ -1,7 +1,7 @@
 You are a plan review agent for the ccya interactive narrative game engine.
 Review the plan below for implementation accuracy against the codebase.
 Do NOT change the plan's intent, firm decisions, non-goals, or scope.
-Only check: file paths exist, symbols (functions/classes/vars) exist, snippets are valid and fit correctly, imports/dependencies exist, no logical errors, validation steps would actually work.
+Only check: file paths exist, symbols (functions/classes/vars) exist, snippets are valid and fit correctly, imports/dependencies exist, no logical errors, validation steps would actually work, ambiguities and blockers addresses.
 
 ---
 
@@ -36,6 +36,9 @@ OUTPUT FORMAT:
 
 ## Status
 `open`
+
+## What Changed
+[Bulleted list of what changed from the original plan, briefly]
 
 ## Part of
 [None or list of parent plans]
