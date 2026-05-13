@@ -14,6 +14,7 @@ def _env():
 
 def _make_narrate_user_ctx():
     return {
+        "pc": {"name": "Vex", "tagline": "pilot", "concept": "pilot", "stats": {}},
         "state": {
             "scene": {
                 "world_state": [],
@@ -98,22 +99,19 @@ class TestScenePressureInTemplate:
         ctx = _make_narrate_user_ctx()
         ctx["scene_pressure"] = [{"urgency": "immediate", "text": "test"}]
         text = env.get_template("narrate_user.j2").render(**ctx)
-        assert "Pressure" in text
-        assert "Active immediate threat" in text
+        assert "**Narration Directive:** Pressure" in text
 
 
 class TestBreatheBlock:
     """Breathe block must include de-escalation reward text."""
 
     def test_breathe_with_deescalate(self):
-        """deescalate=1.0 must render updated Breathe block with de-escalation reward."""
+        """deescalate=1.0 must render Breathe directive."""
         env = _env()
         ctx = _make_narrate_user_ctx()
         ctx["deescalate"] = 1.0
         text = env.get_template("narrate_user.j2").render(**ctx)
-        assert "Breathe:" in text
-        assert "the player earned this" in text
-        assert "retreated or disengaged" in text
+        assert "**Narration Directive:** Breathe" in text
 
 
 class TestNarrateSystemRules:
@@ -133,6 +131,33 @@ class TestNarrateSystemRules:
         assert "NPC QUANTITY RULE" in text
         assert "four guards" in text
         assert "Named individuals are exempt" in text
+
+    def test_narration_directives_present(self):
+        """narrate_system.j2 must contain Narration Directives section with all directives."""
+        env = _env()
+        text = env.get_template("narrate_system.j2").render(pack_style="")
+        assert "## Narration directives" in text
+        assert "**Breathe**" in text
+        assert "**Overwhelm**" in text
+        assert "**Pressure**" in text
+        assert "**Tension**" in text
+        assert "**Combat Fatigue**" in text
+        assert "**Location Imperative**" in text
+        assert "**Location Pressure**" in text
+
+    def test_narration_directives_not_in_user(self):
+        """narrate_user.j2 must NOT contain directive definitions — only labels."""
+        env = _env()
+        ctx = _make_narrate_user_ctx()
+        ctx["scene_pressure"] = [{"urgency": "immediate", "text": "test"}]
+        ctx["deescalate"] = 1.0
+        ctx["ages"] = {"combat_age": 5, "location_age": 6}
+        text = env.get_template("narrate_user.j2").render(**ctx)
+        assert "Pull back. Describe quiet" not in text
+        assert "Multiple immediate threats" not in text
+        assert "Danger is building" not in text
+        assert "Bring to decisive close" not in text
+        assert "Stagnation is failure" not in text
 
 
 class TestConditionDurationGuide:

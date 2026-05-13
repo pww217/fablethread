@@ -1,5 +1,10 @@
 ## Player Character
-{% include "sections/_pc.j2" %}
+**{{ pc.name or "Unnamed" }}** — {{ pc.tagline or pc.concept or "" }}
+
+**Stats:** {% for k, v in (pc.stats or {}).items() %}{{ k }}={{ v }}{% if not loop.last %} {% endif %}{% endfor %}
+
+**Conditions:** {% if pc.conditions %}{% for c in pc.conditions %}{{ c.label if c is mapping else c }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}none{% endif %}
+
 ## Location
 {% include "sections/_location.j2" %}
 {% if recently_left -%}
@@ -42,12 +47,12 @@
 {% if known_npcs -%}
 ### Known Characters
 Before introducing anyone new, check this list. Re-use characters when they could plausibly be present.
-{% for n in known_npcs %}- **{{ n.name }}** - {{ n.bio }} - {% if n.last_seen %} last seen in{{ n.last_seen.location_name }} in: {% if n.last_seen.last_seen_state %}: {{ n.last_seen.last_seen_state }}{% endif %}{% endif %}
+{% for n in known_npcs %}- **{{ n.name }}** - {{ n.bio }} - {% if n.last_seen %} last seen in: {{ n.last_seen.location_name }} {% if n.last_seen.last_seen_state %}, {{ n.last_seen.last_seen_state }}{% endif %}{% endif %}
 {% endfor -%}
 {% endif -%}
 {% if present_npcs -%}
 ### NPCs Present in Scene
-{% for n in present_npcs %}- {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}
+{% for n in present_npcs %}- **{{ n.name or n.id }}**{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}
 {% endfor -%}
 {% endif -%}
 {% if world_locations and ages and ages.get('location_age', 0) >= 3 -%}
@@ -72,7 +77,6 @@ Before introducing anyone new, check this list. Re-use characters when they coul
 
 **Band:** {{ rules_outcome.band | upper | replace('_', ' ') }} → {{ rules_outcome.directive }}
 
-**rules_outcome (BINDING):** Your narration must reflect this band and directive. A `success` band means the player achieves their goal (with possible complications). A `partial` band means they succeed at a cost. A `setback`/`fail` band means they face a complication or partial failure. A `crit_fail` band means things go badly. The directive tells you the narrative flavor — follow it. Never contradict the band outcome.
 {% elif rules_outcome and not rules_outcome.rolled %}
 
 **No roll required.** Describe what happens with appropriate weight for the moment.
@@ -95,35 +99,27 @@ Surface as {{ pending_gm_beat.surface_as }}. This is backstage direction — int
 {% endif %}
 {% if deescalate %}
 
-**Breathe:** A pressure has resolved — the player earned this. Pull back. Describe what quiet or relief feels like in this moment. No new hook, no new threat this turn. If the player retreated or disengaged to earn this, acknowledge it — they made a smart call and the world reflects it.
+**Narration Directive:** Breathe
 {% elif scene_pressure and not deescalate %}
 {% set immediate_count = scene_pressure | selectattr("urgency", "equalto", "immediate") | list | length %}
 {% if immediate_count >= 3 %}
 
-**Overwhelm:** Multiple immediate threats. Focus on the most pressing one. Don't try to address everything at once.
+**Narration Directive:** Overwhelm
 {% elif immediate_count > 0 %}
 
-**Pressure:** Active immediate threat(s). Keep them present and felt.
+**Narration Directive:** Pressure
 {% else %}
 {% set building_count = scene_pressure | selectattr("urgency", "equalto", "building") | list | length %}
 {% if building_count > 0 %}
 
-**Tension:** Danger is building — show it in the environment and character behavior, not in explicit new threats.
+**Narration Directive:** Tension
 {% endif %}
 {% endif %}
 {% endif %}
 {% if ages and ages.get('combat_age', 0) >= 3 %}
 
-**Combat Fatigue:** This fight has run {{ ages.combat_age }} turns. Bring it to a decisive close — one side prevails, flees, or is incapacitated.
+**Narration Directive:** Combat Fatigue
 {% endif %}
-{% if ages and ages.get('location_age', 0) > 4 %}
-
-**Location Imperative:** {{ ages.location_age }} turns in this location. The story needs to move — advance the plot, force a decision, or push the party toward a new place. Stagnation is failure.
-{% elif ages and ages.get('location_age', 0) > 2 %}
-
-**Location Pressure:** {{ ages.location_age }} turns here. Start winding down — introduce a reason to leave (a development elsewhere, a closing window, a new lead).
-{% endif %}
-
 
 === PLAYER INPUT ===
 {{ user_input }}

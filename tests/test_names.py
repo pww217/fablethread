@@ -151,6 +151,7 @@ class TestJinjaRender:
         """Per-turn NPC name pool now lives in the user prompt (cache stability)."""
         env = self._env()
         ctx = {
+            "pc": {"name": "Test", "tagline": "tester", "concept": ""},
             "npc_name_pool": {
                 "male": ["Yuki Tanaka", "Carlos Mendez"],
                 "female": ["Fatima Al-Rashid", "Maria Santos"],

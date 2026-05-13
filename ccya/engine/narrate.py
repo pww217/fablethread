@@ -36,6 +36,7 @@ def _narrate_messages(
 ) -> list[dict[str, str]]:
     user_ctx = {
         "state": state,
+        "pc": state.get("pc") or {},
         "chronicle_tail": chronicle_tail,
         "recent_turns": recent_turns,
         "rules_outcome": rules_outcome,

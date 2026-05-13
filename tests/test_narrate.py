@@ -61,8 +61,7 @@ class TestScenePressureWiring:
             scene_pressure=[{"urgency": "immediate", "text": "test"}],
         )
         user_msg = next(m for m in msgs if m["role"] == "user")
-        assert "Pressure" in user_msg["content"]
-        assert "Active immediate threat" in user_msg["content"]
+        assert "**Narration Directive:** Pressure" in user_msg["content"]
 
     def test_scene_pressure_building_rendered(self):
         """scene_pressure=[{urgency: building}] must produce a Tension directive."""
@@ -75,8 +74,7 @@ class TestScenePressureWiring:
             scene_pressure=[{"urgency": "building", "text": "something brewing"}],
         )
         user_msg = next(m for m in msgs if m["role"] == "user")
-        assert "Tension" in user_msg["content"]
-        assert "Danger is building" in user_msg["content"]
+        assert "**Narration Directive:** Tension" in user_msg["content"]
 
     def test_scene_pressure_overwhelm_rendered(self):
         """Three+ immediate pressures must produce an Overwhelm directive."""
@@ -93,8 +91,7 @@ class TestScenePressureWiring:
             ],
         )
         user_msg = next(m for m in msgs if m["role"] == "user")
-        assert "Overwhelm" in user_msg["content"]
-        assert "Multiple immediate threats" in user_msg["content"]
+        assert "**Narration Directive:** Overwhelm" in user_msg["content"]
 
     def test_scene_pressure_none_is_safe(self):
         """scene_pressure=None must not raise; defaults to empty list."""
