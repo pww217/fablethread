@@ -7,7 +7,7 @@
 | `ccya/engine/__init__.py` | Re-exports: `EngineConfig`, `run_turn`, `run_turn_retry`, `warmup`, `generate_seed`, `generate_pack`, `format_change_lines`, `maybe_compact`, `is_turn_in_progress`. Internal helpers for tests: `_build_jinja_env`, `_narrate_messages`, `_extract_scene_messages`, `_extract_state_messages`, `_extract_progress_messages`, `_quest_threshold_directive`, `_scene_npc_roster`, `_rules_messages`, `_expire_scene_pressures`, `_validate`. LLM client re-exports: `llm_chat`, `llm_chat_stream` |
 | `ccya/engine/config.py` | `EngineConfig` dataclass, `_EventLock`, `is_turn_in_progress`, `_build_jinja_env()`, `_render()`, `_find_json()`, `_log_llm_io()`, `_log_prompts()` |
 | `ccya/engine/turn.py` | `run_turn()` async orchestrator (thin — imports from submodules), `_validate()`, `run_turn_retry()`, `warmup()` |
-| `ccya/engine/narrate.py` | `_narrate_messages()`, `_known_characters_for_extract()`, `build_state_slice()` |
+| `ccya/engine/narrate.py` | `_narrate_messages()`, `_known_characters_for_extract()` |
 | `ccya/engine/pack_gen.py` | `generate_pack()` — takes `WorldBrief`, generates `ScenarioBrief` via LLM, writes pack files to `packs/custom/<slug>/`, returns `Pack`. Uses `generate_pack_system.j2` + `generate_pack_user.j2` prompts. |
 | `ccya/engine/names.py` | `generate_name_pool()`, `generate_npc_names()`, `generate_npc_names_split()`, `_build_weighted_fakers()`, `_pick()`, `_ensure_ascii()` |
 | `ccya/engine/rules.py` | `_rules_messages()`, `_call_rules()`, `_avg_rules_ms()`, `_log_rules_outcome()` |
@@ -32,7 +32,7 @@
 ## 5-call turn pipeline (run_turn)
 
 1. **Rules / Intent** (Call 0, `llm_chat`, non-streaming) — classifies intent, resolves dice via `rules.resolve_check()`, returns `IntentEnvelope` + `RulesOutcome` (band, directive, dice).
-2. **Narrate** (Call 1, streaming → SSE → `chronicle.md`) — prose narrative. Server yields chunks directly without scope tail filtering.
+2. **Narrate** (Call 1, streaming → SSE → `chronicle.md`) — prose narrative.
 3. **Scene Extract** (Call 2a, `llm_chat`, JSON → `SceneExtractResult`) — scene tags, location change, location description, present NPCs, compendium NPC updates. Always runs.
 4. **State Extract** (Call 2b, `llm_chat`, JSON → `StateExtractResult`) — inventory deltas, condition add/remove. Always runs.
 5. **Progress Extract** (Call 2c, `llm_chat`, JSON → `ProgressExtractResult`) — quest updates, recent events, actions, outcome_summary, gm_beat, beat_disposition, scene_pressure add/remove/update. Always runs.
@@ -47,14 +47,9 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_compute_ages(state)` → `dict[str, int]` — scene_age, location_age, combat_age
 - `_compute_quest_ages(state, current_turn)` → `list[dict]` — stalled quest info
 - `_compute_threat_ages(state)` → `list[dict]` — threat age for imperative directives (id, text, urgency, age), sorted oldest-first, excludes pressures with turn_added=0
-- `_ALL_DOMAINS` — frozenset of 7 valid domain names
-- `_DEFAULT_DOMAINS` — list of all 7 domains (fallback when no scope tag)
-- `_SCOPE_OPEN`, `_SCOPE_CLOSE`, `_SCOPE_TAIL_RE`, `_SCOPE_TAIL_BUFFER_SIZE` — constants for scope tail parsing
-- `_split_scope_tail(text)` → `tuple[str, list[str] | None, str]` — extracts `<scope>...</scope>` JSON tail, returns (prose, active_domains | None, decided_by). `decided_by` is `"narrator"` (scope tag present and valid), `"fallback_no_tag"` (no `<scope>` tag found), or `"fallback_malformed"` (tag present but invalid JSON/wrong shape). Filters domains against `_ALL_DOMAINS`; unknown values silently dropped.
-- `_StreamTailFilter` — filters streaming text to suppress everything from `<scope>` onward; maintains sliding tail buffer for cross-chunk sentinel detection
 - `_check_floor_relief(state, config, band)` → `None` — checks momentum floor and injects `breathing_room` beat when relief conditions met; tracks consecutive floor turns via `state["meta"]["consecutive_floor_count"]`
 - Condition age pass (inline in `run_turn` and `run_turn_retry`) — decrements `turns_remaining` on all active conditions, removes expired ones (≤0), logs `condition_expired` event via `append_event`. Runs after delta application and pressure aging. Permanent conditions (`turns_remaining=None`) are skipped. New conditions without explicit `turns_remaining` get a default TTL of 10 turns (set in `apply_delta`).
-- `run_turn(save_dir, user_input, config=None, *, template_dir=None, pack_style="", pack_name_locales=[], pack_narrator_rules=[], pack_world_rules=[], pack_factions=[], pack_locations=[])` → `AsyncIterator[tuple[str, Any]]` — 5-call turn pipeline (rules→narrate→scope-parse→scene→state→progress extract). Detects avoidance intent from player input; passes to pressure pipeline for decay. Yields ("phase", dict), ("token", str), ("complete", TurnResult).
+- `run_turn(save_dir, user_input, config=None, *, template_dir=None, pack_style="", pack_name_locales=[], pack_narrator_rules=[], pack_world_rules=[], pack_factions=[], pack_locations=[])` → `AsyncIterator[tuple[str, Any]]` — 5-call turn pipeline (rules→narrate→scene→state→progress extract). Detects avoidance intent from player input; passes to pressure pipeline for decay. Yields ("phase", dict), ("token", str), ("complete", TurnResult).
 - `_validate(state, delta)` → `list[dict]` — validates inventory_remove IDs exist, rejects zero-balance removes, warns on overdraw
 - `_strip_fallback(narration, *, trace_id, turn)` → `str` — strips fallback sentinel lines (`*That action didn't resolve as expected...`) from narration before chronicle persistence and extraction
 - `_check_npc_ghost_cycle(scene_result, state, *, trace_id, turn_no)` → `SceneExtractResult` — detects same-turn npc_remove+add cycles, drops both ops, logs warning
@@ -75,7 +70,6 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 ### narrate.py
 - `_narrate_messages(env, state, user_input, *, chronicle_tail="", recent_turns=None, enable_narrate_thinking=False, pack_style="", narrator_rules=[], world_rules=[], rules_outcome=None, npc_name_pool=None, recently_left=None, momentum=0, pending_gm_beat=None, deescalate=False, ages=None, known_npcs=None, present_npcs=None, compendium_bios=None, pc_allegiance=None, scene_pressure=None, turn_no=0, world_factions=[], world_locations=[], threat_ages=None, threat_pressure_at=3, threat_imperative_at=5, building_threat_imperative_at=4)` → `list[dict]` — prompt builder for narrator; accepts momentum, pending_gm_beat, deescalate, ages, known_npcs, present_npcs, compendium_bios, narrator_rules, world_rules, scene_pressure, world faction/location context, and threat age data with imperative thresholds
 - `_known_characters_for_extract(state, compact=True)` → `list[dict]` — deduped NPC roster from compendium
-- `build_state_slice(state)` — (used in prompts for state context)
 
 ### rules.py (engine/rules.py — NOT ccya/rules.py)
 - `_rules_messages(env, state, user_input, recent_turns=None, turn_no=0, present_npcs=None, last_outcome=None)` → `list[dict]` — prompt builder for rules/intent call; `last_outcome` is an optional string sourced from the previous turn's `outcome_summary`, used to replace the full last-turn narrative with a concise outcome
@@ -93,18 +87,16 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_ensure_ascii(name)` → `str` — strips non-ASCII characters
 
 ### extraction.py
-- `_run_extraction_pipeline(env, state, narration, *, active_domains, rules_outcome=None, intent=None, config, trace_id, turn_no, deescalate=0.0, quest_ages=None, recent_turns=None)` → `tuple[StateDelta, list[str], str, dict, ProgressExtractResult, SceneExtractResult]` (async) — runs 3 streams in sequence (scene gated by active_domains, state gated by active_domains, progress always runs), transfer-verb scan activates inventory domain before state stream, dedup pre-pass redirects compendium NPC IDs and npc_add entries before StateDelta merge, update-only guard drops `scene_pressure_update` entries whose id is not in existing state pressures, merges into StateDelta; returns 6-tuple including scene_result; `deescalate` is float (0.0–1.0). After state stream, `_build_extraction_context` computes `_ExtractionContext` from scene + state results, threaded into progress stream.
+- `_run_extraction_pipeline(env, state, narration, *, rules_outcome=None, intent=None, config, trace_id, turn_no, deescalate=0.0, quest_ages=None, recent_turns=None)` → `tuple[StateDelta, list[str], str, dict, ProgressExtractResult, SceneExtractResult]` (async) — runs 3 streams in sequence (scene, state, progress — all always run), dedup pre-pass redirects compendium NPC IDs and npc_add entries before StateDelta merge, update-only guard drops `scene_pressure_update` entries whose id is not in existing state pressures, merges into StateDelta; returns 6-tuple including scene_result; `deescalate` is float (0.0–1.0). After state stream, `_build_extraction_context` computes `_ExtractionContext` from scene + state results, threaded into progress stream.
 - `_ExtractionContext` dataclass — carries this-turn deltas from scene + state streams into progress stream; fields: `present_npcs_this_turn`, `location_this_turn`, `scene_tags_this_turn`, `scene_pressure_this_turn`, `inventory_this_turn`, `conditions_this_turn`
 - `_build_extraction_context(state, scene_result, state_result)` → `_ExtractionContext` — pure function that applies scene/state deltas in-memory to compute this-turn derived context; does NOT mutate `state`
-- `_extract_scene_messages(env, narration, state, *, active_domains, rules_outcome=None, enable_thinking=False, recent_turns=None)` → `list[dict]` — prompt builder for scene extractor (scoped to NPC presence, location change, scene tags/tagline, location_description only); no longer receives scene_pressure, deescalate, quest_ages, or active_quests context
-- `_extract_state_messages(env, narration, state, *, active_domains, scene_result, rules_outcome=None, enable_thinking=False)` → `list[dict]` — prompt builder for state extractor
+- `_extract_scene_messages(env, narration, state, *, rules_outcome=None, enable_thinking=False, recent_turns=None)` → `list[dict]` — prompt builder for scene extractor (scoped to NPC presence, location change, scene tags/tagline, location_description only); no longer receives scene_pressure, deescalate, quest_ages, or active_quests context
+- `_extract_state_messages(env, narration, state, *, scene_result, rules_outcome=None, enable_thinking=False)` → `list[dict]` — prompt builder for state extractor
 - `_extract_progress_messages(env, narration, state, *, state_result, extraction_ctx, enable_thinking=False, intent=None, deescalate=0.0, quest_ages=[], recent_turns=None, turn_no=0)` → `list[dict]` — prompt builder for progress extractor; receives `extraction_ctx: _ExtractionContext` (this-turn derived NPC/inventory/location/pressure/conditions), intent, recent_turns, turn_no, deescalate magnitude, quest_ages; `deescalate` is float
 - Post-processing in `_run_extraction_pipeline`: after progress extraction, `recent_events_add.turn` is overwritten engine-side with `turn_no` on every `RecentEvent` (authoritative stamp, belt-and-suspenders over prompt instruction)
 - `_call_stream(messages, config, trace_id, phase, model_cls, strip_keys=("_reasoning",))` → `tuple[result, usage, attempts, retry_errors]` (async) — LLM call with retry
 - `_parse_stream_result(raw, model_cls, strip_keys=("_reasoning",))` → model instance — JSON parsing + model validation for streams
 - `_context_meta(rendered_system, rendered_user, was_trimmed, trimmed_chars)` → `dict` — computes context size signals for telemetry
-- `_TRANSFER_VERBS` — frozenset of inventory-transfer verbs for deterministic pre-check
-- `_narration_has_transfer(narration)` → `bool` — scans narration for explicit physical transfer language (supplementary inventory domain trigger)
 - `_dedup_compendium_add(proposed, existing_npcs)` → `CompendiumNpcUpdate` — redirects proposed NPC ID to existing NPC ID if name/alias matches (engine-level dedup safety net)
 - `_scene_npc_roster(known_characters)` → `list[dict]` — deduped NPC roster for scene extractor
 - `_quest_threshold_directive(active_quests)` → `str` — guidance on when to start new quests
@@ -161,6 +153,4 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
   - `ProgressExtractResult`: quest_updates, recent_events_add/update/remove, **actions**, **outcome_summary**, **scene_pressure_add/remove/update** (all three pressure lifecycle ops), **gm_beat**, **beat_disposition**.
 - **Conditions are structured.** `pc.conditions` is `list[Condition]` (`id`, `label`, `description`, `added_turn`). `apply_delta` stamps `added_turn` and uses `id`-based dedup — no text normalization. String coercion exists for test convenience only; LLM output must use the full object.
 - **`events.jsonl`** gains an `extraction` key with per-stream `{rendered_system, rendered_user, output, tokens_in, tokens_out, ms, skipped}` for debugging.
-- **`events.jsonl`** gains a `scope` key with `{active_domains, decided_by, skipped_streams}` for telemetry.
-- **Stream skipping**: scene skips when neither `scene` nor `location_change` is in `active_domains`; state skips when neither `inventory` nor `pc_condition` is in `active_domains`; progress always runs. Check `extraction_event["scene"]["skipped"]` / `extraction_event["state"]["skipped"]` in events.
 - **Delta flow**: three extract results → `StateDelta` → `_validate()` (checks e.g. `inventory_remove` IDs exist, returns `rejections`) → `apply_delta()` (mutates state in-place) → `summarize_changes()` (diffs pre vs post → `changes{inventory, player, facts, quests}`).

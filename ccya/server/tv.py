@@ -482,10 +482,6 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         # State diff
         state_diff = _tv_state_diff(ev)
 
-        # Scope / active domains from narrator
-        scope = ev.get("scope") or {}
-        active_domains = scope.get("active_domains") or []
-
         # rules_intent for template (parsed from rules_prompt.output)
         rules_intent = _tv_parse_json_blob(prompts["rules"]["output"])
 
@@ -515,7 +511,6 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "state_diff": state_diff,
                 "failures": row_failures,
                 "prompts": prompts,
-                "active_domains": active_domains,
                 "row_kind": "turn",
             }
         )
