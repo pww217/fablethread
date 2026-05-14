@@ -59,6 +59,16 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
         except json.JSONDecodeError:
             continue
         if ev.get("kind") == "compaction":
+            compact_start = int(ev.get("compact_start") or 0)
+            compact_end = int(ev.get("compact_end") or 0)
+            range_label = f"replaces turn {compact_start}" if compact_start == compact_end else f"replaces turns {compact_start}-{compact_end}"
+            rows.append({
+                "turn": ev.get("turn", 0),
+                "is_compaction": True,
+                "pipe_label": f"Compaction ({range_label})",
+                "time": "\u2014",
+                "tok": "\u2014",
+            })
             continue
         narr = ev.get("narrate") or {}
         ext = ev.get("extract") or {}

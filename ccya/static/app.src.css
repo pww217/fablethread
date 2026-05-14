@@ -1312,6 +1312,11 @@ body {
   font-weight: 700;
   color: var(--text);
 }
+.debug-turn-compaction td {
+  color: var(--accent);
+  font-style: italic;
+  padding-top: 4px;
+}
 .debug-tokens-cell {
   white-space: pre-line;
   line-height: 1.35;
