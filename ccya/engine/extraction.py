@@ -243,28 +243,6 @@ def _context_meta(rendered_system: str, rendered_user: str, was_trimmed: bool, t
     }
 
 
-_TRANSFER_VERBS: frozenset[str] = frozenset({
-    "hand", "hands", "handed", "handing",
-    "gives", "give", "gave", "given",
-    "receives", "receive", "received", "receiving",
-    "picks up", "pick up", "picked up", "picking up",
-    "takes", "take", "took", "taken",
-    "drops", "drop", "dropped", "dropping",
-    "passes", "pass", "passed", "passing",
-    "tosses", "toss", "tossed",
-    "pockets", "pocket", "pocketed",
-    "retrieves", "retrieve", "retrieved",
-    "grabs", "grab", "grabbed",
-    "presses into", "slips into", "slides across",
-})
-
-
-def _narration_has_transfer(narration: str) -> bool:
-    """Return True if the narration contains explicit physical transfer language."""
-    lower = narration.lower()
-    return any(verb in lower for verb in _TRANSFER_VERBS)
-
-
 def _capitalize_inventory_names(items: list[Any]) -> list[Any]:
     """Capitalize the first letter of inventory item names.
 
@@ -604,7 +582,6 @@ async def _run_extraction_pipeline(
     state: dict[str, Any],
     narration: str,
     *,
-    active_domains: list[str],
     rules_outcome: "RulesOutcome | None" = None,
     intent: "IntentEnvelope | None" = None,
     config: "EngineConfig",
@@ -618,7 +595,6 @@ async def _run_extraction_pipeline(
 
     Returns: (merged_delta, actions, outcome_summary, per_stream_event_data, progress_result, scene_result)
     """
-    active = set(active_domains)
 
     _SKIPPED: dict[str, Any] = {
         "skipped": True,
@@ -636,98 +612,78 @@ async def _run_extraction_pipeline(
     extraction_event: dict[str, Any] = {}
 
     # --- Stream 1: Scene ---
-    scene_domains = {"scene", "location_change", "compendium_npc"}
-    run_scene = bool(scene_domains & active)
-    if run_scene:
-        t_scene = asyncio.get_event_loop().time()
-        scene_msgs = _extract_scene_messages(
-            env, narration, state,
-            enable_thinking=config.enable_extract_thinking,
-            recent_turns=(recent_turns or [])[-1:],
-            turn_no=turn_no,
-        )
-        # Capture pre-trim content for context_meta so the judge sees original sizes
-        rendered_scene_system = scene_msgs[0]["content"] if scene_msgs else ""
-        rendered_scene_user = scene_msgs[-1]["content"] if scene_msgs else ""
-        strip_trace_markers_in_messages(scene_msgs)
-        scene_msgs, scene_trimmed, scene_trimmed_chars = trim_messages(scene_msgs, config.prompt_token_budget)
-        if config.log_prompts:
-            _log_prompts(turn_no, "extract_scene", scene_msgs)
+    t_scene = asyncio.get_event_loop().time()
+    scene_msgs = _extract_scene_messages(
+        env, narration, state,
+        enable_thinking=config.enable_extract_thinking,
+        recent_turns=(recent_turns or [])[-1:],
+        turn_no=turn_no,
+    )
+    # Capture pre-trim content for context_meta so the judge sees original sizes
+    rendered_scene_system = scene_msgs[0]["content"] if scene_msgs else ""
+    rendered_scene_user = scene_msgs[-1]["content"] if scene_msgs else ""
+    strip_trace_markers_in_messages(scene_msgs)
+    scene_msgs, scene_trimmed, scene_trimmed_chars = trim_messages(scene_msgs, config.prompt_token_budget)
+    if config.log_prompts:
+        _log_prompts(turn_no, "extract_scene", scene_msgs)
 
-        try:
-            scene_result, scene_usage, scene_attempts, scene_retry_errors = await _call_stream(
-                scene_msgs, config, trace_id, "extract_scene", SceneExtractResult
-            )
-            scene_result = _check_npc_ghost_cycle(scene_result, state, trace_id=trace_id, turn_no=turn_no)
-            extraction_event["scene"] = {
-                "rendered_system": rendered_scene_system,
-                "rendered_user": rendered_scene_user,
-                "output": scene_result.model_dump(exclude_none=True),
-                "skipped": False,
-                "attempts": scene_attempts,
-                "retry_errors": scene_retry_errors,
-                "tokens_in": scene_usage.get("prompt_tokens", 0),
-                "tokens_out": scene_usage.get("completion_tokens", 0),
-                "ms": round((asyncio.get_event_loop().time() - t_scene) * 1000, 1),
-                "context_meta": _context_meta(rendered_scene_system, rendered_scene_user, scene_trimmed, scene_trimmed_chars),
-            }
-        except Exception as exc:
-            _log.warning("extract_scene failed: %s", exc, extra={"trace_id": trace_id})
-            extraction_event["scene"] = {**_SKIPPED, "error": str(exc)}
-    else:
-        _log.debug("Skipping scene stream — neither scene nor location_change in active_domains")
-        extraction_event["scene"] = _SKIPPED
-
-    # Transfer-verb scan: supplementary inventory domain trigger
-    if "inventory" not in active and _narration_has_transfer(narration):
-        active_domains = list(active_domains) + ["inventory"]
-        active = set(active_domains)
-        _log.debug(
-            "extraction.domains: transfer-verb scan activated inventory domain",
-            extra={"turn": turn_no, "trace_id": trace_id},
+    try:
+        scene_result, scene_usage, scene_attempts, scene_retry_errors = await _call_stream(
+            scene_msgs, config, trace_id, "extract_scene", SceneExtractResult
         )
+        scene_result = _check_npc_ghost_cycle(scene_result, state, trace_id=trace_id, turn_no=turn_no)
+        extraction_event["scene"] = {
+            "rendered_system": rendered_scene_system,
+            "rendered_user": rendered_scene_user,
+            "output": scene_result.model_dump(exclude_none=True),
+            "skipped": False,
+            "attempts": scene_attempts,
+            "retry_errors": scene_retry_errors,
+            "tokens_in": scene_usage.get("prompt_tokens", 0),
+            "tokens_out": scene_usage.get("completion_tokens", 0),
+            "ms": round((asyncio.get_event_loop().time() - t_scene) * 1000, 1),
+            "context_meta": _context_meta(rendered_scene_system, rendered_scene_user, scene_trimmed, scene_trimmed_chars),
+        }
+    except Exception as exc:
+        _log.warning("extract_scene failed: %s", exc, extra={"trace_id": trace_id})
+        extraction_event["scene"] = {**_SKIPPED, "error": str(exc)}
 
     # --- Stream 2: State ---
-    run_state = bool({"inventory", "pc_condition"} & active)
-    if run_state:
-        t_state = asyncio.get_event_loop().time()
-        state_msgs = _extract_state_messages(
-            env, narration, state,
-            enable_thinking=config.enable_extract_thinking,
-            intent=intent,
-            turn_no=turn_no,
-        )
-        # Capture pre-trim content for context_meta so the judge sees original sizes
-        rendered_state_system = state_msgs[0]["content"] if state_msgs else ""
-        rendered_state_user = state_msgs[-1]["content"] if state_msgs else ""
-        strip_trace_markers_in_messages(state_msgs)
-        state_msgs, state_trimmed, state_trimmed_chars = trim_messages(state_msgs, config.prompt_token_budget)
-        if config.log_prompts:
-            _log_prompts(turn_no, "extract_state", state_msgs)
+    t_state = asyncio.get_event_loop().time()
+    state_msgs = _extract_state_messages(
+        env, narration, state,
+        enable_thinking=config.enable_extract_thinking,
+        intent=intent,
+        turn_no=turn_no,
+    )
+    # Capture pre-trim content for context_meta so the judge sees original sizes
+    rendered_state_system = state_msgs[0]["content"] if state_msgs else ""
+    rendered_state_user = state_msgs[-1]["content"] if state_msgs else ""
+    strip_trace_markers_in_messages(state_msgs)
+    state_msgs, state_trimmed, state_trimmed_chars = trim_messages(state_msgs, config.prompt_token_budget)
+    if config.log_prompts:
+        _log_prompts(turn_no, "extract_state", state_msgs)
 
-        try:
-            state_result, state_usage, state_attempts, state_retry_errors = await _call_stream(
-                state_msgs, config, trace_id, "extract_state",
-                StateExtractResult, strip_keys=("_reasoning",),
-            )
-            extraction_event["state"] = {
-                "rendered_system": rendered_state_system,
-                "rendered_user": rendered_state_user,
-                "output": state_result.model_dump(exclude_none=True),
-                "skipped": False,
-                "attempts": state_attempts,
-                "retry_errors": state_retry_errors,
-                "tokens_in": state_usage.get("prompt_tokens", 0),
-                "tokens_out": state_usage.get("completion_tokens", 0),
-                "ms": round((asyncio.get_event_loop().time() - t_state) * 1000, 1),
-                "context_meta": _context_meta(rendered_state_system, rendered_state_user, state_trimmed, state_trimmed_chars),
-            }
-        except Exception as exc:
-            _log.warning("extract_state failed: %s", exc, extra={"trace_id": trace_id})
-            extraction_event["state"] = {**_SKIPPED, "error": str(exc)}
-    else:
-        _log.debug("Skipping state stream — neither inventory nor pc_condition in active_domains")
-        extraction_event["state"] = _SKIPPED
+    try:
+        state_result, state_usage, state_attempts, state_retry_errors = await _call_stream(
+            state_msgs, config, trace_id, "extract_state",
+            StateExtractResult, strip_keys=("_reasoning",),
+        )
+        extraction_event["state"] = {
+            "rendered_system": rendered_state_system,
+            "rendered_user": rendered_state_user,
+            "output": state_result.model_dump(exclude_none=True),
+            "skipped": False,
+            "attempts": state_attempts,
+            "retry_errors": state_retry_errors,
+            "tokens_in": state_usage.get("prompt_tokens", 0),
+            "tokens_out": state_usage.get("completion_tokens", 0),
+            "ms": round((asyncio.get_event_loop().time() - t_state) * 1000, 1),
+            "context_meta": _context_meta(rendered_state_system, rendered_state_user, state_trimmed, state_trimmed_chars),
+        }
+    except Exception as exc:
+        _log.warning("extract_state failed: %s", exc, extra={"trace_id": trace_id})
+        extraction_event["state"] = {**_SKIPPED, "error": str(exc)}
 
     # --- Stream 3: Progress (always runs — post-narration storytelling brain) ---
     t_progress = asyncio.get_event_loop().time()

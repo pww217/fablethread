@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
-import json
 import logging
-import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -55,113 +53,6 @@ from ccya.state import (
 )
 
 _log = logging.getLogger("ccya.engine")
-
-_ALL_DOMAINS: frozenset[str] = frozenset({
-    "scene",
-    "inventory",
-    "pc_condition",
-    "quest_updates",
-    "location_change",
-    "recent_events",
-    "compendium_npc",
-})
-
-_DEFAULT_DOMAINS: list[str] = [
-    "scene",
-    "inventory",
-    "pc_condition",
-    "quest_updates",
-]
-
-_SCOPE_OPEN = "<scope>"
-_SCOPE_CLOSE = "</scope>"
-_SCOPE_TAIL_RE = re.compile(r"<scope>(.*?)</scope>", re.DOTALL)
-_SCOPE_TAIL_BUFFER_SIZE = len(_SCOPE_OPEN) - 1  # = 6
-
-
-def _split_scope_tail(text: str) -> tuple[str, list[str] | None, str]:
-    """Extract <scope>...</scope> tail, return (prose, active_domains | None, decided_by).
-
-    decided_by: "narrator" | "fallback_no_tag" | "fallback_malformed"
-    """
-    m = _SCOPE_TAIL_RE.search(text)
-    if not m:
-        return text, None, "fallback_no_tag"
-
-    prose = (text[:m.start()] + text[m.end():]).rstrip()
-    json_str = m.group(1).strip()
-
-    try:
-        parsed = json.loads(json_str)
-    except (json.JSONDecodeError, ValueError):
-        return prose, None, "fallback_malformed"
-
-    if not isinstance(parsed, dict):
-        return prose, None, "fallback_malformed"
-
-    raw = parsed.get("active_domains")
-    if not isinstance(raw, list):
-        return prose, None, "fallback_malformed"
-
-    domains = [d for d in raw if isinstance(d, str) and d in _ALL_DOMAINS]
-    return prose, domains, "narrator"
-
-
-class _StreamTailFilter:
-    """Filters a streaming text feed to suppress everything from <scope> onward.
-
-    Maintains a sliding tail buffer of `_SCOPE_TAIL_BUFFER_SIZE` chars to detect
-    the opening sentinel even when it crosses chunk boundaries. After the
-    sentinel is observed, all subsequent chunks are accumulated internally
-    (still recorded in full_text) but `feed()` returns "" so the SSE consumer
-    sees no further tokens.
-
-    Usage:
-        flt = _StreamTailFilter()
-        async for chunk in llm_chat_stream(...):
-            visible = flt.feed(chunk)
-            if visible:
-                yield ("token", visible)
-        tail = flt.flush()
-        if tail:
-            yield ("token", tail)
-        full = flt.full_text()  # for post-stream parsing
-    """
-
-    __slots__ = ("_buf", "_seen_sentinel", "_chunks")
-
-    def __init__(self) -> None:
-        self._buf: str = ""
-        self._seen_sentinel: bool = False
-        self._chunks: list[str] = []
-
-    def feed(self, chunk: str) -> str:
-        self._chunks.append(chunk)
-        if self._seen_sentinel:
-            return ""
-        combined = self._buf + chunk
-        idx = combined.find(_SCOPE_OPEN)
-        if idx >= 0:
-            self._seen_sentinel = True
-            self._buf = ""
-            return combined[:idx]
-        if len(combined) > _SCOPE_TAIL_BUFFER_SIZE:
-            emit = combined[:-_SCOPE_TAIL_BUFFER_SIZE]
-            self._buf = combined[-_SCOPE_TAIL_BUFFER_SIZE:]
-            return emit
-        self._buf = combined
-        return ""
-
-    def flush(self) -> str:
-        if self._seen_sentinel:
-            return ""
-        out = self._buf
-        self._buf = ""
-        return out
-
-    def full_text(self) -> str:
-        return "".join(self._chunks)
-
 
 def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
     """Compute age/staleness counters for narration directives."""
@@ -550,7 +441,6 @@ async def run_turn(
                 messages=narr_messages,
                 max_chars=config.log_llm_io_max_chars,
             )
-        scope_filter = _StreamTailFilter()
         first_visible = True
         async for chunk in llm_chat_stream(
             config.host,
@@ -560,26 +450,14 @@ async def run_turn(
             timeout=float(config.request_timeout_s),
             stream_stats=narr_stream_stats,
         ):
-            visible = scope_filter.feed(chunk)
-            if visible:
-                if first_visible:
-                    first_ms = (asyncio.get_event_loop().time() - t0) * 1000
-                    first_visible = False
-                yield ("token", visible)
-        tail = scope_filter.flush()
-        if tail:
+            narrative_chunks.append(chunk)
             if first_visible:
                 first_ms = (asyncio.get_event_loop().time() - t0) * 1000
-            yield ("token", tail)
+                first_visible = False
+            yield ("token", chunk)
 
         narr_ms = (asyncio.get_event_loop().time() - t0) * 1000
-        # Keep narrative_chunks compatible with downstream code paths (error fallback).
-        narrative_chunks[:] = [scope_filter.full_text()]
-        full_with_tail = strip_thinking(scope_filter.full_text())
-        narrative, parsed_domains, scope_decided_by = _split_scope_tail(full_with_tail)
-        _active_domains = (
-            list(parsed_domains) if parsed_domains is not None else list(_DEFAULT_DOMAINS)
-        )
+        narrative = strip_thinking("".join(narrative_chunks))
         narr_metrics = {
             "first_token_ms": round(first_ms, 1),
             "total_ms": round(narr_ms, 1),
@@ -621,7 +499,6 @@ async def run_turn(
             delta, actions, outcome_summary, extraction_event, progress_result, scene_result = (
                 await _run_extraction_pipeline(
                     env, state, narrative,
-                    active_domains=_active_domains,
                     rules_outcome=outcome,
                     intent=intent,
                     config=config,
@@ -842,10 +719,6 @@ async def run_turn(
             "narrate": narr_metrics,
             "extract": ext_metrics,
             "extraction": extraction_event,
-            "scope": {
-                "active_domains": _active_domains,
-                "decided_by": scope_decided_by,
-            },
             "changes": changes,
             # Prompt logging (for turn viewer)
             "rules_prompt": {
@@ -1206,7 +1079,6 @@ async def run_turn_retry(
                 messages=narr_messages,
                 max_chars=config.log_llm_io_max_chars,
             )
-        scope_filter = _StreamTailFilter()
         first_visible = True
         async for chunk in llm_chat_stream(
             config.host,
@@ -1216,26 +1088,14 @@ async def run_turn_retry(
             timeout=float(config.request_timeout_s),
             stream_stats=narr_stream_stats,
         ):
-            visible = scope_filter.feed(chunk)
-            if visible:
-                if first_visible:
-                    first_ms = (asyncio.get_event_loop().time() - t0) * 1000
-                    first_visible = False
-                yield ("token", visible)
-        tail = scope_filter.flush()
-        if tail:
+            narrative_chunks.append(chunk)
             if first_visible:
                 first_ms = (asyncio.get_event_loop().time() - t0) * 1000
-            yield ("token", tail)
+                first_visible = False
+            yield ("token", chunk)
 
         narr_ms = (asyncio.get_event_loop().time() - t0) * 1000
-        # Keep narrative_chunks compatible with downstream code paths (error fallback).
-        narrative_chunks[:] = [scope_filter.full_text()]
-        full_with_tail = strip_thinking(scope_filter.full_text())
-        narrative, parsed_domains, scope_decided_by = _split_scope_tail(full_with_tail)
-        _active_domains = (
-            list(parsed_domains) if parsed_domains is not None else list(_DEFAULT_DOMAINS)
-        )
+        narrative = strip_thinking("".join(narrative_chunks))
         narr_metrics = {
             "first_token_ms": round(first_ms, 1),
             "total_ms": round(narr_ms, 1),
@@ -1276,7 +1136,6 @@ async def run_turn_retry(
             delta, actions, outcome_summary, extraction_event, progress_result, scene_result = (
                 await _run_extraction_pipeline(
                     env, state, narrative,
-                    active_domains=_active_domains,
                     rules_outcome=outcome,
                     intent=intent,
                     config=config,
@@ -1482,10 +1341,6 @@ async def run_turn_retry(
             "narrate": narr_metrics,
             "extract": ext_metrics,
             "extraction": extraction_event,
-            "scope": {
-                "active_domains": _active_domains,
-                "decided_by": scope_decided_by,
-            },
             "changes": changes,
             "rules_prompt": {
                 "rendered_system": "",
