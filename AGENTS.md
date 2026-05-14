@@ -105,10 +105,11 @@ If you find logic in the wrong layer, move it rather than pile on.
 
 ## Test & lint workflow
 
-- Write/update tests as you build features. Change tests when changing behavior.
+- Critical: Always update tests to reflect the code, never the code to reflect the tests!!
+- Write/update tests as you build features. 
 - Run `make check && make test` only as a final step when ALL work is complete.
 - Do not waste tokens on incremental check runs during implementation.
-- `make test` — quiet mode (dots + summary). Default for development.
+- `make test` — quiet mode (dots + summary). Default for development. Don't try to truncate output here, it will only return `.......`. Run make test in full.
 - `make test-v` — verbose output (full tracebacks, test names). For debugging.
 - `make test-x` — stop on first failure, verbose. CI-style run.
 - `make check` — runs `make lint` (ruff) + `make typecheck` (mypy).
