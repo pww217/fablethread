@@ -1,7 +1,7 @@
 # Extraction cross-stream context: stale-state bug
 
 ## Status
-`open`
+`completed`
 
 ## Phase Guide
 | Phase | Name | Summary |
