@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -24,6 +25,7 @@ async def maybe_compact(
     save_dir: Path,
     state: dict[str, Any],
     config: EngineConfig,
+    trace_id: str = "",
 ) -> tuple[dict[str, Any], bool]:
     """Run compaction if current turn triggers it.
 
@@ -73,6 +75,7 @@ async def maybe_compact(
 
     messages = _build_compact_messages(env, state, turns)
 
+    t_compact = asyncio.get_running_loop().time()
     try:
         resp = await llm_chat(
             config.host,
@@ -139,14 +142,20 @@ async def maybe_compact(
             "recent_events_compact_count": len(sanitization.recent_events_compact or []),
         }
 
+    compact_ms = round((asyncio.get_running_loop().time() - t_compact) * 1000, 1)
+    usage = resp.get("usage")
     compaction_record: dict[str, Any] = {
         "kind": "compaction",
         "turn": current_turn,
+        "trace_id": trace_id,
         "compact_start": compact_start,
         "compact_end": compact_end,
         "bullets_count": len(new_bullets),
         "sanitization": san_payload,
         "bullets_preview": new_bullets[:3],
+        "ms": compact_ms,
+        "tokens_in": int(usage.get("prompt_tokens", 0)) if usage else 0,
+        "tokens_out": int(usage.get("completion_tokens", 0)) if usage else 0,
     }
     events_path = save_dir / "events.jsonl"
     try:

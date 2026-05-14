@@ -752,7 +752,7 @@ async def run_turn(
         # === Compaction (after persist, before yield complete) ===
         if config.compact_every > 0:
             t_compact = asyncio.get_running_loop().time()
-            state, compaction_ran = await maybe_compact(save_dir, state, config)
+            state, compaction_ran = await maybe_compact(save_dir, state, config, trace_id=trace_id)
             if compaction_ran:
                 yield ("phase", {"phase": "compact_start", "expected_ms": 0})
                 yield ("phase", {"phase": "compact_done", "ms": round(
@@ -1379,7 +1379,7 @@ async def run_turn_retry(
         # === Compaction (after persist, before yield complete) ===
         if config.compact_every > 0:
             t_compact = asyncio.get_running_loop().time()
-            state, compaction_ran = await maybe_compact(save_dir, state, config)
+            state, compaction_ran = await maybe_compact(save_dir, state, config, trace_id=trace_id)
             if compaction_ran:
                 yield ("phase", {"phase": "compact_start", "expected_ms": 0})
                 yield ("phase", {"phase": "compact_done", "ms": round(
