@@ -7,7 +7,7 @@
         <thead>
             <tr>
                 <th style="text-align:left">pipe</th>
-                <th>ttft</th>
+                <th>narrate ttft/total</th>
                 <th>tt</th>
                 <th>tok</th>
             </tr>
@@ -25,31 +25,28 @@
             </tr>
             <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
                 <td style="text-align:left">N</td>
-                <td>{{ t.streams.N_ttft }}</td>
-                <td>{{ t.streams.N_tt }}</td>
+                <td>{{ t.streams.N_ttft }} / {{ t.streams.N_tt }}</td>
+                <td>—</td>
                 <td>{{ t.streams.N_tok }}</td>
             </tr>
             <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
                 <td style="text-align:left">Sc</td>
-                <td>{{ t.streams.Sc_ttft }}</td>
                 <td>{{ t.streams.Sc_tt }}</td>
                 <td>{{ t.streams.Sc_tok }}</td>
             </tr>
             <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
                 <td style="text-align:left">St</td>
-                <td>{{ t.streams.St_ttft }}</td>
                 <td>{{ t.streams.St_tt }}</td>
                 <td>{{ t.streams.St_tok }}</td>
             </tr>
             <tr class="{% if t.has_rejections %}debug-turn-row-warn{% endif %}">
                 <td style="text-align:left">P</td>
-                <td>{{ t.streams.P_ttft }}</td>
                 <td>{{ t.streams.P_tt }}</td>
                 <td>{{ t.streams.P_tok }}</td>
             </tr>
             <tr class="debug-turn-total">
                 <td style="text-align:left;font-weight:600">Total</td>
-                <td>{{ t.total_ttft }}</td>
+                <td>—</td>
                 <td>{{ t.total_tt }}</td>
                 <td>{{ t.total_tok }}</td>
             </tr>

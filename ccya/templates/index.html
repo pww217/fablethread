@@ -515,6 +515,21 @@ function _setProgressFromPhase(strip, payload) {
     } else if (p === 'extract_done') {
         label.textContent = 'Saving…';
         if (eta) eta.textContent = '';
+    } else if (p === 'extract_stream_start') {
+        const stream = (payload && payload.stream) || '';
+        if (stream === 'scene') {
+            label.textContent = 'Refreshing scene…';
+        } else if (stream === 'state') {
+            label.textContent = 'Updating state…';
+        } else if (stream === 'progress') {
+            label.textContent = 'Writing the next page…';
+        } else {
+            label.textContent = 'Updating game state…';
+        }
+        strip._phaseStart = Date.now();
+        if (eta) eta.textContent = '';
+    } else if (p === 'extract_stream_done') {
+        if (eta) eta.textContent = '';
     } else if (p === 'persist') {
         label.textContent = 'Saving…';
         if (eta) eta.textContent = '';
@@ -522,7 +537,7 @@ function _setProgressFromPhase(strip, payload) {
         label.textContent = 'Compacting history…';
         if (eta) eta.textContent = '';
     } else if (p === 'compact_done') {
-        label.textContent = 'Saving…';
+        label.textContent = 'Cleaning up…';
         if (eta) eta.textContent = '';
     }
 }
