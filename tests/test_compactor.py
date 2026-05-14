@@ -54,14 +54,13 @@ class TestValidateCompactorConfig:
         config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
         _validate_compactor_config(config)  # should not raise
 
-    def test_rejects_compact_every_lte_window_turns(self):
+    def test_accepts_compact_every_equal_window_turns(self):
         config = EngineConfig(window_turns=3, compact_every=3, recent_turns_min=2)
-        with pytest.raises(ValueError, match="compact_every.*must be > window_turns"):
-            _validate_compactor_config(config)
+        _validate_compactor_config(config)  # should not raise — compact_every >= recent_turns_min
 
-    def test_rejects_compact_every_less_than_window_turns(self):
-        config = EngineConfig(window_turns=5, compact_every=3, recent_turns_min=2)
-        with pytest.raises(ValueError, match="compact_every.*must be > window_turns"):
+    def test_rejects_compact_every_less_than_recent_turns_min(self):
+        config = EngineConfig(window_turns=5, compact_every=1, recent_turns_min=2)
+        with pytest.raises(ValueError, match="compact_every.*must be >= recent_turns_min"):
             _validate_compactor_config(config)
 
     def test_rejects_recent_turns_min_gt_window_turns(self):
@@ -69,27 +68,28 @@ class TestValidateCompactorConfig:
         with pytest.raises(ValueError, match="recent_turns_min.*must be <= window_turns"):
             _validate_compactor_config(config)
 
+    def test_rejects_recent_turns_min_below_1(self):
+        config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=0)
+        with pytest.raises(ValueError, match="recent_turns_min must be >= 1"):
+            _validate_compactor_config(config)
+
     def test_rejects_negative_recent_turns_min(self):
         config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=-1)
-        with pytest.raises(ValueError, match="recent_turns_min must be >= 0"):
+        with pytest.raises(ValueError, match="recent_turns_min must be >= 1"):
             _validate_compactor_config(config)
 
     def test_rejects_window_turns_below_1(self):
-        config = EngineConfig(window_turns=0, compact_every=6, recent_turns_min=0)
+        config = EngineConfig(window_turns=0, compact_every=6, recent_turns_min=1)
         with pytest.raises(ValueError, match="window_turns must be >= 1"):
             _validate_compactor_config(config)
 
     def test_rejects_negative_compact_every(self):
-        config = EngineConfig(window_turns=3, compact_every=-1, recent_turns_min=0)
+        config = EngineConfig(window_turns=3, compact_every=-1, recent_turns_min=1)
         with pytest.raises(ValueError, match="compact_every must be >= 0"):
             _validate_compactor_config(config)
 
     def test_boundary_recent_turns_min_eq_window_turns(self):
         config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=3)
-        _validate_compactor_config(config)  # should not raise
-
-    def test_boundary_recent_turns_min_zero(self):
-        config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=0)
         _validate_compactor_config(config)  # should not raise
 
     def test_accepts_compact_every_zero(self):
@@ -360,7 +360,7 @@ class TestMaybeCompactBandMath:
         }
 
     @pytest.mark.asyncio
-    async def test_turn6_compacts_1_to_3_sets_last_compacted_3(self, tmp_path: Path):
+    async def test_turn6_compacts_1_to_4_sets_last_compacted_4(self, tmp_path: Path):
         self._write_chronicle(tmp_path, [
             (1, "Attack", "Narrative 1"),
             (2, "Talk", "Narrative 2"),
@@ -373,19 +373,19 @@ class TestMaybeCompactBandMath:
         config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
         with _mock_compact_llm():
             result, _ = await maybe_compact(tmp_path, state, config)
-        assert result["meta"]["last_compacted_turn"] == 3
+        assert result["meta"]["last_compacted_turn"] == 4
         assert len(result["meta"]["prior_history"]) == 2
 
     @pytest.mark.asyncio
-    async def test_turn12_compacts_4_to_9_sets_last_compacted_9(self, tmp_path: Path):
+    async def test_turn12_compacts_5_to_10_sets_last_compacted_10(self, tmp_path: Path):
         self._write_chronicle(tmp_path, [
             (i, f"Action {i}", f"Narrative {i}") for i in range(1, 13)
         ])
-        state = self._make_state(12, last_compacted_turn=3)
+        state = self._make_state(12, last_compacted_turn=4)
         config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
         with _mock_compact_llm():
             result, _ = await maybe_compact(tmp_path, state, config)
-        assert result["meta"]["last_compacted_turn"] == 9
+        assert result["meta"]["last_compacted_turn"] == 10
         assert len(result["meta"]["prior_history"]) == 2
 
     @pytest.mark.asyncio
@@ -494,12 +494,12 @@ class TestMaybeCompactBandMath:
         config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
         with _mock_compact_llm():
             result, _ = await maybe_compact(tmp_path, state, config)
-        assert result["meta"]["last_compacted_turn"] == 3
+        assert result["meta"]["last_compacted_turn"] == 4
         chronicle_text = (tmp_path / "chronicle.md").read_text()
         assert "## Turn 1 — Attack" not in chronicle_text
         assert "## Turn 2 — Talk" not in chronicle_text
         assert "## Turn 3 — Explore" not in chronicle_text
-        assert "## Turn 4 — Rest" in chronicle_text
+        assert "## Turn 4 — Rest" not in chronicle_text
         assert "## Turn 5 — Travel" in chronicle_text
         assert "## Turn 6 — Fight" in chronicle_text
         assert "## COMPACTED" in chronicle_text
@@ -509,15 +509,15 @@ class TestMaybeCompactBandMath:
         self._write_chronicle(tmp_path, [
             (i, f"Action {i}", f"Narrative {i}") for i in range(1, 13)
         ])
-        state = self._make_state(12, last_compacted_turn=3)
+        state = self._make_state(12, last_compacted_turn=4)
         config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
         with _mock_compact_llm():
             result, _ = await maybe_compact(tmp_path, state, config)
-        assert result["meta"]["last_compacted_turn"] == 9
+        assert result["meta"]["last_compacted_turn"] == 10
         chronicle_text = (tmp_path / "chronicle.md").read_text()
-        for t in range(1, 10):
+        for t in range(1, 11):
             assert f"## Turn {t} —" not in chronicle_text
-        for t in range(10, 13):
+        for t in range(11, 13):
             assert f"## Turn {t} —" in chronicle_text
 
 
@@ -942,7 +942,7 @@ class TestCompactionEventEmission:
         assert event["kind"] == "compaction"
         assert event["turn"] == 6
         assert event["compact_start"] == 1
-        assert event["compact_end"] == 3
+        assert event["compact_end"] == 4
         assert event["bullets_count"] == 2
         assert len(event["bullets_preview"]) == 2
         assert event["sanitization"] is not None

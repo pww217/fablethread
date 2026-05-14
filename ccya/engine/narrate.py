@@ -44,6 +44,7 @@ def _narrate_messages(
         "state": state,
         "pc": state.get("pc") or {},
         "chronicle_tail": chronicle_tail,
+        "prior_history": list((state.get("meta") or {}).get("prior_history") or []),
         "recent_turns": recent_turns,
         "rules_outcome": rules_outcome,
         "npc_name_pool": npc_name_pool,

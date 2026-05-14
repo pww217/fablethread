@@ -66,10 +66,13 @@ Before introducing anyone new, check this list. Re-use characters when they coul
 {% endfor -%}
 {% endif -%}
 
-## Recent History
-{% if chronicle_tail and chronicle_tail.strip() -%}
-{{ chronicle_tail }}
+## Prior Turns (Compacted)
+{% if prior_history and prior_history | length > 0 -%}
+{% for b in prior_history %}{{ b }}
+{% endfor -%}
 {% endif -%}
+
+## Recent Turns
 {% if recent_turns -%}
 {% for t in recent_turns %}
 **T{{ t.turn }}:** {{ t.narrative }}

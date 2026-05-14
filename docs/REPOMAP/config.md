@@ -27,7 +27,7 @@
 - `character_creation_enabled` — allow character creation UI
 - `scene_pressure_building_at` — background → building urgency threshold (turns, default 6)
 - `scene_pressure_immediate_at` — building → immediate urgency threshold (turns, default 10)
-- `compact_every` — compress narrative history every N turns (0 = disabled, default 6)
+- `compact_every` — compress narrative history every N turns (0 = disabled, default 3)
 - `compact_temperature` — temperature for compaction LLM call (default 0.1)
 - `recent_turns_min` — minimum recent turns floor for narrator (default 2)
 
@@ -81,7 +81,7 @@ building_threat_imperative_at: int = 4
 
 ## Validation
 
-- `_validate_compactor_config(config: EngineConfig) -> None` — enforces `window_turns >= 1`, `compact_every > window_turns`, `0 <= recent_turns_min <= window_turns`. Called after `EngineConfig` construction in `server/app.py`.
+- `_validate_compactor_config(config: EngineConfig) -> None` — enforces `window_turns >= 1`, `recent_turns_min >= 1`, `recent_turns_min <= window_turns`, `compact_every >= recent_turns_min` (or 0 to disable). Called after `EngineConfig` construction in `server/app.py`.
 
 ## Helpers
 
