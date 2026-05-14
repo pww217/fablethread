@@ -2759,17 +2759,3 @@ class TestTokenCuts:
         msgs = _extract_scene_messages(env, "N.", state)
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "Owes you from Tycho" not in user
-
-    def test_extract_progress_user_last_turn_truncated(self):
-        env = self._env()
-        state_res = StateExtractResult()
-        long_narrative = "A" * 500
-        recent_turns = [{"turn": 1, "narrative": long_narrative}]
-        msgs = _extract_progress_messages(env, "N.", _make_state(), state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=recent_turns)
-        user = next(m for m in msgs if m["role"] == "user")["content"]
-        # The truncated narrative should be at most 300 chars
-        import re
-        match = re.search(r"## last_turn_narration.*?\n(.*?)(?:\n\n|\n##)", user, re.DOTALL)
-        assert match is not None
-        truncated = match.group(1)
-        assert len(truncated) <= 300

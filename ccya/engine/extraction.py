@@ -69,7 +69,7 @@ def _build_extraction_context(
     scene = state.get("scene") or {}
     compendium_npcs = (state.get("compendium") or {}).get("npcs") or {}
 
-    # --- present_npcs: start from state, apply add/remove ---
+    # --- present_npcs: start from state, apply add/remove/update/compendium ---
     current_npcs: dict[str, dict[str, Any]] = {
         npc["id"]: dict(npc)
         for npc in (scene.get("present_npcs") or [])
@@ -86,13 +86,47 @@ def _build_extraction_context(
         row: dict[str, Any] = {"id": nid}
         if hasattr(op, "name"):
             row["name"] = op.name or entry.get("name", "")
+        if hasattr(op, "title"):
+            row["title"] = op.title or entry.get("title", "")
+        if hasattr(op, "bio"):
+            row["bio"] = op.bio or (entry.get("bio") or "").strip()
         if hasattr(op, "notes"):
             row["notes"] = op.notes or ""
         if not row.get("name") and entry.get("name"):
             row["name"] = entry["name"]
+        if not row.get("title") and entry.get("title"):
+            row["title"] = entry["title"]
+        if not row.get("bio") and entry.get("bio"):
+            row["bio"] = entry["bio"].strip()
         current_npcs[nid] = row
 
-    # --- location: apply location_change if present ---
+    # Apply npc_update (notes/name/title/bio for existing scene NPCs)
+    for op in (scene_result.npc_update or []):
+        nid = op.id if hasattr(op, "id") else op.get("id", "")
+        if nid in current_npcs:
+            npc = current_npcs[nid]
+            if hasattr(op, "name") and op.name:
+                npc["name"] = op.name
+            if hasattr(op, "title") and op.title:
+                npc["title"] = op.title
+            if hasattr(op, "bio") and op.bio:
+                npc["bio"] = op.bio
+            if hasattr(op, "notes") and op.notes:
+                npc["notes"] = op.notes
+
+    # Apply compendium_npc_update (name/title/bio for existing NPCs)
+    for op in (scene_result.compendium_npc_update or []):
+        nid = op.id if hasattr(op, "id") else op.get("id", "")
+        if nid in current_npcs:
+            npc = current_npcs[nid]
+            if op.name:
+                npc["name"] = op.name
+            if op.title:
+                npc["title"] = op.title
+            if op.bio:
+                npc["bio"] = op.bio
+
+    # --- location: apply location_change if present, always prefer scene_result.location_description ---
     if scene_result.location_change:
         lc = scene_result.location_change
         location_this_turn = {
@@ -101,6 +135,8 @@ def _build_extraction_context(
         }
     else:
         location_this_turn = dict(state.get("location") or {})
+        if scene_result.location_description:
+            location_this_turn["description"] = scene_result.location_description
 
     # --- scene_tags: apply scene_tags from scene result ---
     tags_this_turn = list(scene_result.scene_tags or scene.get("tags") or [])
@@ -124,6 +160,7 @@ def _build_extraction_context(
             "id": nid,
             "name": getattr(op, "name", nid),
             "notes": getattr(op, "notes", ""),
+            "amount": getattr(op, "amount", 1),
         }
     for op in (state_result.inventory_update or []):
         nid = op.id if hasattr(op, "id") else op.get("id", "")
