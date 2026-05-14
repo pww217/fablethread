@@ -33,7 +33,7 @@ _RULES_WITH_ROLL = json.dumps({
         "diff_mod": 0,
         "cond_mod": 0,
         "final_total": 7,
-        "band": "partial",
+        "band": "success",
         "directive": "You get past but take a hit.",
     },
 })

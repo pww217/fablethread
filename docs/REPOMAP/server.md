@@ -75,7 +75,7 @@
 - `_load_rules_map(save_dir)` → `dict[int, dict]` — turn→rules map from events.jsonl
 
 ### server/tv.py
-- `_turn_viewer_data(save_dir)` → `tuple[list[dict], bool]` — builds turn viewer rows from events.jsonl; skips `"kind": "compaction"` lines and emits `row_kind="compaction"` rows with sanitization summary; normal turn rows get `row_kind="turn"`; per-stream metrics from `_STREAMS`; connector segments derived from `sd.inputs`; `prompts` dict keyed by stream name; `scope` block from top-level event key; no named prompt keys (`rules_prompt`, etc.) exist in the row dict
+- `_turn_viewer_data(save_dir)` → `tuple[list[dict], bool]` — builds turn viewer rows from events.jsonl; skips `"kind": "compaction"` lines and emits `row_kind="compaction"` rows with sanitization summary; normal turn rows get `row_kind="turn"`; per-stream metrics from `_STREAMS`; connector segments derived from `sd.inputs`; `prompts` dict keyed by stream name; no named prompt keys (`rules_prompt`, etc.) exist in the row dict
 - `_tv_parse_json_blob(raw)` → `dict | None` — parses JSON from string (bare or brace-scan fallback)
 - `_tv_dict_to_lines(d, skip_keys, max_str=150)` → `list[dict]` — renders dict as KV lines with smart value formatting
 - `_tv_extract_stream_status(name, skipped, error, attempts, rejected)` → `str` — "ok"/"skipped"/"retried"/"rejected"/"error"; NOTE: hardcodes `"state"` stream key for inventory rejection logic (see `_STREAMS` in `tv_mirror.py`)

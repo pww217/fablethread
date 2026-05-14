@@ -11,7 +11,7 @@
 | `ccya/engine/pack_gen.py` | `generate_pack()` — takes `WorldBrief`, generates `ScenarioBrief` via LLM, writes pack files to `packs/custom/<slug>/`, returns `Pack`. Uses `generate_pack_system.j2` + `generate_pack_user.j2` prompts. |
 | `ccya/engine/names.py` | `generate_name_pool()`, `generate_npc_names()`, `generate_npc_names_split()`, `_build_weighted_fakers()`, `_pick()`, `_ensure_ascii()` |
 | `ccya/engine/rules.py` | `_rules_messages()`, `_call_rules()`, `_avg_rules_ms()`, `_log_rules_outcome()` |
-| `ccya/engine/extraction.py` | `_run_extraction_pipeline()`, all `_extract_*_messages()`, `_call_stream()`, `_context_meta()`, `_scene_npc_roster()`, `_avg_narrate_ms()`, `_avg_extract_ms()`, `_check_npc_ghost_cycle()` |
+| `ccya/engine/extraction.py` | `_run_extraction_pipeline()`, all `_extract_*_messages()`, `_call_stream()`, `_context_meta()`, `_scene_npc_roster()`, `_avg_narrate_ms()`, `_avg_extract_ms()`, `_check_npc_ghost_cycle()` — all three streams (scene, state, progress) always run |
 | `ccya/engine/seed.py` | `generate_seed()`, `_build_generate_seed_messages()`, `_soft_validate_seed()` |
 | `ccya/engine/changes.py` | `summarize_changes()`, `format_change_lines()`, `_summarize_applied()` — `summarize_changes` includes momentum diff when `pre.pc.momentum != post.pc.momentum`; `format_change_lines` renders `⚡ Momentum {before:+d} → {after:+d}`
 | `ccya/engine/pressure.py` | `_expire_scene_pressures()`, `_purge_scene_pressures()` |
@@ -32,11 +32,10 @@
 ## 5-call turn pipeline (run_turn)
 
 1. **Rules / Intent** (Call 0, `llm_chat`, non-streaming) — classifies intent, resolves dice via `rules.resolve_check()`, returns `IntentEnvelope` + `RulesOutcome` (band, directive, dice).
-2. **Narrate** (Call 1, streaming → SSE → `chronicle.md`) — prose narrative. Emits `<scope>{"active_domains":["..."]}</scope>` as the last line. Server-side stream filter strips the tail before SSE emission. `RulesOutcome` injected as BINDING block the narrator must not contradict.
-3. **Scope parsing** — `_split_scope_tail()` extracts `active_domains` from the narrator's scope tail, returns `decided_by` ("narrator" | "fallback_no_tag" | "fallback_malformed"). Falls back to `_DEFAULT_DOMAINS` (all 7) on missing/malformed tag.
-4. **Scene Extract** (Call 2a, `llm_chat`, JSON → `SceneExtractResult`) — scene tags, location change, location description, present NPCs, compendium NPC updates. Skipped when neither `scene` nor `location_change` is in `active_domains`.
-5. **State Extract** (Call 2b, `llm_chat`, JSON → `StateExtractResult`) — inventory deltas, condition add/remove. Skipped when neither `inventory` nor `pc_condition` is in `active_domains`.
-6. **Progress Extract** (Call 2c, `llm_chat`, JSON → `ProgressExtractResult`) — quest updates, recent events, actions, outcome_summary, gm_beat, beat_disposition, scene_pressure add/remove/update. Always runs (post-narration storytelling brain).
+2. **Narrate** (Call 1, streaming → SSE → `chronicle.md`) — prose narrative. Server yields chunks directly without scope tail filtering.
+3. **Scene Extract** (Call 2a, `llm_chat`, JSON → `SceneExtractResult`) — scene tags, location change, location description, present NPCs, compendium NPC updates. Always runs.
+4. **State Extract** (Call 2b, `llm_chat`, JSON → `StateExtractResult`) — inventory deltas, condition add/remove. Always runs.
+5. **Progress Extract** (Call 2c, `llm_chat`, JSON → `ProgressExtractResult`) — quest updates, recent events, actions, outcome_summary, gm_beat, beat_disposition, scene_pressure add/remove/update. Always runs.
 
 Steps 2a–2c merge into `StateDelta` → `_validate()` → `apply_delta()` → `summarize_changes()` → persist (atomic writes: `events.jsonl`, `state.yaml`, `chronicle.md`).
 

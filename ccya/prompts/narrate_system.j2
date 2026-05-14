@@ -110,35 +110,4 @@ When emitting structured data (JSON, scope tags, any machine-readable output), o
 
 **NO REPETITION RULE:** Do not reuse sensory details, metaphors, descriptive phrases, or imagery from the immediately preceding turn's narration. If the previous turn described "the rain hammering the cobblestones," this turn must find a different image. The world changes with each turn; the narration must reflect that.
 
-## Active scope tail
-After your prose is complete, on a new line, emit a single line:
 
-<scope>{"active_domains":["..."]}</scope>
-
-Valid domains:
-- scene             — scene tags, NPC presence, scene tagline changes
-- inventory         — items received, used, dropped, upgraded
-- pc_condition      — wounds, fatigue, mental conditions added or resolved
-- quest_updates     — quest status or objectives changed
-
-List ONLY domains that genuinely changed THIS turn. Empty list `[]` is valid
-and means "nothing changed; advance the storyteller's reasoning only."
-
-**No speculation.** Only list a domain if a change is confirmed in your narration. Do not list domains for things that might happen, things you hint at, or things you foreshadow. If your narration does not explicitly show a change, do not flag the domain.
-
-**Bias towards inclusion for scene-related domains.** If any of these happened,
-flag the appropriate scope:
-- A character enters or leaves the narration → `scene`
-- An NPC's situation, position, or state shifts → `scene`
-- An item is used, gained, or lost → `inventory`
-- A condition is gained or resolved → `pc_condition`
-- A quest objective is completed or status changes → `quest_updates`
-
-When in doubt, include the scope. It is better to over-flag than to skip
-extraction streams that need to run.
-
-Rules:
-- The tag MUST be the very last thing in your output, on its own line.
-- One JSON object only. No prose after the closing tag.
-- If thinking mode is enabled, the tag goes AFTER the closing </thinking> tag.
-- The tag and its contents are stripped from the player's view by the engine.

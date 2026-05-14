@@ -422,36 +422,6 @@ class _ScopedFakeLLM(_FakeLLM):
 
 
 @pytest.mark.asyncio
-async def test_narration_scope_tail_skip_state_skips_state_extraction(save_dir):
-    """If narrator emits <scope>{"active_domains":["scene"]}</scope>, the state
-    extraction call must NOT be made AND no inventory_add from a hypothetical
-    state response can possibly leak into applied state."""
-    state = _make_state(turn=0)
-    save_state(save_dir, state)
-
-    fake = _ScopedFakeLLM(
-        scene_response=_scene_response(),
-        # If state extraction WERE called, this would add a torch. It must not be.
-        state_response=_state_response(
-            inv_add=[{"id": "torch", "name": "Torch", "amount": 1}]
-        ),
-        progress_response=_progress_response(),
-    )
-    with fake:
-        result = await _run(save_dir, "look around")
-
-    chat_count = len(fake.chat_calls())
-    assert chat_count == 3, (
-        f"expected 3 chat calls (rules + scene + progress), got {chat_count}"
-    )
-    final = load_state(save_dir)
-    assert all(i["id"] != "torch" for i in final["inventory"]), (
-        "state extraction was supposed to be skipped, but inventory got the torch"
-    )
-    assert "torch" not in (result.applied.get("inventory_add") or [])
-
-
-@pytest.mark.asyncio
 async def test_rules_no_check_does_not_add_rules_metric(save_dir):
     """When intent is trivial (intent_verb='act' default and check.required=False),
     the engine writes a minimal event without a 'rules' key in the events.jsonl
@@ -473,45 +443,6 @@ async def test_rules_no_check_does_not_add_rules_metric(save_dir):
 # ---------------------------------------------------------------------------
 # Class D: Quest and state extraction fixes (Plan D)
 # ---------------------------------------------------------------------------
-
-
-def test_transfer_verb_activates_inventory_domain():
-    from ccya.engine.extraction import _narration_has_transfer
-
-    assert _narration_has_transfer("She hands you a sealed envelope.")
-    assert _narration_has_transfer("You pick up the coin from the floor.")
-    assert _narration_has_transfer("He gave you the key without a word.")
-    assert _narration_has_transfer("She receives the package at the door.")
-    assert _narration_has_transfer("You take the document from the desk.")
-    assert _narration_has_transfer("He drops the letter on the table.")
-    assert _narration_has_transfer("She passes the note across the room.")
-    assert _narration_has_transfer("He tosses the coin to you.")
-    assert _narration_has_transfer("She pockets the ring.")
-    assert _narration_has_transfer("He retrieves the sword from the rack.")
-    assert _narration_has_transfer("She grabs the handle and pulls.")
-
-    assert not _narration_has_transfer("The guard watches you from across the room.")
-
-
-@pytest.mark.asyncio
-async def test_domain_scan_adds_inventory_when_transfer_present(save_dir):
-    """Transfer-verb scan should activate inventory domain even when no other
-    inventory signal is present, causing the state stream to run."""
-    state = _make_state(turn=0)
-    save_state(save_dir, state)
-
-    fake = _FakeLLM(
-        narrative="She hands you a sealed envelope.",
-        scene_response=_scene_response(),
-        progress_response=_progress_response(),
-    )
-    with fake:
-        await _run(save_dir, "watch her")
-
-    chat_count = len(fake.chat_calls())
-    assert chat_count == 4, (
-        f"expected 4 chat calls (rules + scene + state + progress), got {chat_count}"
-    )
 
 
 def test_dedup_redirects_name_match():

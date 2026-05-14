@@ -221,9 +221,6 @@ class TestTurnViewerDataMinimalEvent:
             event = {
                 "turn": 1,
                 "trace_id": "abc123",
-                "scope": {
-                    "active_domains": [],
-                },
             }
             path.write_text(json.dumps(event) + "\n")
             rows, has_errors = _turn_viewer_data(Path(td))
@@ -259,9 +256,6 @@ class TestTurnViewerDataRealEvent:
                 "turn": 1,
                 "trace_id": "a1b2c3d4e5f6",
                 "input": "I search the crate for useful items.",
-                "scope": {
-                    "active_domains": ["scene", "compendium_npc"],
-                },
                 "rules": {
                     "intent_verb": "search",
                     "intent": "search the crate for useful items",
