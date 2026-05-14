@@ -1,26 +1,19 @@
 {% if present_npcs -%}
 ## present_npcs (in scene right now)
-{% for n in present_npcs %}- `{{ n.id }}` | {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %} — {{ n.bio or "No bio available" }}{% if n.notes %} — {{ n.notes }}{% endif %}{% if n.last_seen %} — last seen in {{ n.last_seen.location_name }}: {{ n.last_seen.last_seen_state }}{% endif %}
+{% for n in present_npcs %}- `{{ n.id }}` | **{{ n.name or n.id }}**{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}{% if n.last_seen %} — last seen in {{ n.last_seen.location_name }}: {{ n.last_seen.last_seen_state }}{% endif %}
 {% endfor %}
 {% endif -%}
 
 {% if known_npcs -%}
 ## known_characters (not in scene — system-called, for quest/event reasoning only)
-{% for n in known_npcs %}- `{{ n.id }}` | {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %} — {{ n.bio or "No bio available" }}{% if n.last_seen %} — last seen in {{ n.last_seen.location_name }}: {{ n.last_seen.last_seen_state }}{% endif %}
+{% for n in known_npcs %}- `{{ n.id }}` | **{{ n.name or n.id }}**{% if n.title %} ({{ n.title }}){% endif %} — {{ n.bio or "No bio available" }}{% if n.last_seen %} — last seen in {{ n.last_seen.location_name }}: {{ n.last_seen.last_seen_state }}{% endif %}
 {% endfor %}
 {% endif -%}
 
 {% if location -%}
 ## location
-{{ location.name or location.id }}{% if location.description %} — {{ location.description }}{% endif %}
+**{{ location.name or location.id }}**{% if location.description %} — {{ location.description }}{% endif %}
 {% endif -%}
-
-{%- if inventory %}
-## Current inventory (this turn)
-{% for item in inventory -%}
-- {{ item.id }}: {{ item.name }}{% if item.notes %} — {{ item.notes }}{% endif %}
-{% endfor %}
-{%- endif %}
 
 {%- if conditions %}
 ## PC conditions (this turn)
@@ -28,11 +21,6 @@
 - {{ c.id }}: {{ c.label }}{% if c.description %} — {{ c.description }}{% endif %}
 {% endfor %}
 {%- endif %}
-
-{% if intent and intent.intent -%}
-## player_intent
-{{ intent.intent_verb }}: {{ intent.intent }}
-{% endif -%}
 
 ## quest_threshold
 {{ quest_threshold_directive }}
@@ -58,16 +46,11 @@
 <<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
 
-{% if state_result.items_gained -%}
-## items_gained
-{{ state_result.items_gained | join(', ') }}
+## Current inventory (this turn)
+{% for item in inventory -%}
+- `{{ item.id }}`: {{ item.name }} x{{ item.amount }}{% if item.notes %} — {{ item.notes }}{% endif %}
+{% endfor %}
 
-{% endif -%}
-{% if state_result.items_lost -%}
-## items_lost
-{{ state_result.items_lost | join(', ') }}
-
-{% endif -%}
 {% if stakes and band -%}
 ## rules_stakes
 Band: {{ band | upper }}. At-risk cost named by rules engine: {{ stakes }}
@@ -106,6 +89,11 @@ Partial deescalation. Prefer low-urgency beat or no beat.
 {% endif -%}
 {% if recent_turns -%}
 ## last_turn_narration (T{{ recent_turns[-1].turn }})
+{{ recent_turns[-1].narrative }}
+{% endif -%}
+{% if intent and intent.intent -%}
+## player_intent
+**{{ intent.intent_verb }}**: {{ intent.intent }}
 {% endif -%}
 ## CURRENT TURN {{ turn_no }} NARRATION
 {{ narration }}
