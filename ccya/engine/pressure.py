@@ -58,27 +58,8 @@ def _expire_scene_pressures(
             removed_ids.add(pid)
             continue
 
-        # Ambient/building pressures have a default TTL of 4 turns.
-        # Immediate pressures do not have this cap — they persist until
-        # explicitly removed by the extractor or by location/combat changes.
-        if urgency in ("background", "building") and effective_age >= 4:
-            # Escalate building → immediate instead of removing (gives the
-            # extractor one more turn to react before forced removal).
-            p["urgency"] = "immediate"
-            p["turn_became_immediate"] = current_turn
-            if p.get("max_turns") is None:
-                immediate_ttl = config.scene_pressure_immediate_ttl if config else 8
-                turn_added_val = p.get("turn_added") or current_turn
-                p["max_turns"] = turn_added_val + effective_age + immediate_ttl
-            _log.info(
-                "pressure: escalated %r to immediate (from %s, effective_age=%d >= 4), max_turns=%s",
-                pid, urgency, effective_age, p.get("max_turns"),
-                extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "pressure"},
-            )
-            continue
-
-        # Configurable escalation thresholds for building→immediate and background→building.
-        # These only apply to pressures that survived the TTL cap above.
+        # Configurable escalation thresholds for background→building and
+        # building→immediate.
         if effective_age >= immediate_at and urgency == "building":
             p["urgency"] = "immediate"
             p["turn_became_immediate"] = current_turn
@@ -107,7 +88,7 @@ def _purge_scene_pressures(
     """
     pressures = list((state.get("scene") or {}).get("scene_pressure") or [])
     current_turn = (state.get("meta") or {}).get("turn", 0)
-    max_age = (config.scene_pressure_max_age if config else 15)
+    max_age = (config.scene_pressure_max_age if config else 8)
 
     if location_changed:
         for p in pressures:

@@ -22,8 +22,8 @@ game:
   warmup_on_start: false
   character_creation_enabled: true
   # Scene pressure urgency escalation thresholds (turns)
-  scene_pressure_building_at: 6   # background → building
-  scene_pressure_immediate_at: 10 # building → immediate
+  scene_pressure_building_at: 3   # background → building
+  scene_pressure_immediate_at: 5  # building → immediate
   # Scene pressure immediate TTL (turns) — how long an immediate pressure lasts
   scene_pressure_immediate_ttl: 8
   # Momentum floor and relief trigger
