@@ -495,20 +495,28 @@ async def run_turn(
         outcome_summary: str = ""
         extraction_event: dict[str, Any] = {}
 
+        _extract_result = None
         try:
-            delta, actions, outcome_summary, extraction_event, progress_result, scene_result = (
-                await _run_extraction_pipeline(
-                    env, state, narrative,
-                    rules_outcome=outcome,
-                    intent=intent,
-                    config=config,
-                    trace_id=trace_id,
-                    turn_no=turn_no,
-                    deescalate=deescalate,
-                    quest_ages=quest_ages,
-                    recent_turns=recent_turns,
-                )
-            )
+            async for _evt in _run_extraction_pipeline(
+                env, state, narrative,
+                rules_outcome=outcome,
+                intent=intent,
+                config=config,
+                trace_id=trace_id,
+                turn_no=turn_no,
+                deescalate=deescalate,
+                quest_ages=quest_ages,
+                recent_turns=recent_turns,
+            ):
+                if isinstance(_evt, tuple) and len(_evt) == 2 and _evt[0] == "phase":
+                    yield _evt
+                else:
+                    _extract_result = _evt
+        except Exception as exc:
+            errors.append({"trace_id": trace_id, "message": str(exc)})
+
+        if _extract_result is not None:
+            delta, actions, outcome_summary, extraction_event, progress_result, scene_result = _extract_result  # type: ignore[misc]
             # Beat lifecycle: handle disposition from progress extractor
             _new_beat = progress_result.gm_beat if progress_result else None
             _disposition = progress_result.beat_disposition if progress_result else "consume"
@@ -525,8 +533,6 @@ async def run_turn(
             else:
                 # consume or no new beat — clear
                 state.setdefault("meta", {})["pending_gm_beat"] = None
-        except Exception as exc:
-            errors.append({"trace_id": trace_id, "message": str(exc)})
 
         yield ("phase", {"phase": "extract_done"})
 
@@ -1132,20 +1138,28 @@ async def run_turn_retry(
         outcome_summary: str = ""
         extraction_event: dict[str, Any] = {}
 
+        _extract_result = None
         try:
-            delta, actions, outcome_summary, extraction_event, progress_result, scene_result = (
-                await _run_extraction_pipeline(
-                    env, state, narrative,
-                    rules_outcome=outcome,
-                    intent=intent,
-                    config=config,
-                    trace_id=trace_id,
-                    turn_no=turn_no,
-                    deescalate=False,
-                    quest_ages=[],
-                    recent_turns=recent_turns,
-                )
-            )
+            async for _evt in _run_extraction_pipeline(
+                env, state, narrative,
+                rules_outcome=outcome,
+                intent=intent,
+                config=config,
+                trace_id=trace_id,
+                turn_no=turn_no,
+                deescalate=False,
+                quest_ages=[],
+                recent_turns=recent_turns,
+            ):
+                if isinstance(_evt, tuple) and len(_evt) == 2 and _evt[0] == "phase":
+                    yield _evt
+                else:
+                    _extract_result = _evt
+        except Exception as exc:
+            errors.append({"trace_id": trace_id, "message": str(exc)})
+
+        if _extract_result is not None:
+            delta, actions, outcome_summary, extraction_event, progress_result, scene_result = _extract_result  # type: ignore[misc]
             # Beat lifecycle: handle disposition from progress extractor
             _new_beat = progress_result.gm_beat if progress_result else None
             _disposition = progress_result.beat_disposition if progress_result else "consume"
@@ -1162,8 +1176,6 @@ async def run_turn_retry(
             else:
                 # consume or no new beat — clear
                 state.setdefault("meta", {})["pending_gm_beat"] = None
-        except Exception as exc:
-            errors.append({"trace_id": trace_id, "message": str(exc)})
 
         yield ("phase", {"phase": "extract_done"})
 

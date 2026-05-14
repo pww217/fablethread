@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from jinja2 import Environment
 from pathlib import Path
@@ -590,7 +591,8 @@ async def _run_extraction_pipeline(
     deescalate: float = 0.0,
     quest_ages: list[dict[str, Any]] | None = None,
     recent_turns: list[dict[str, Any]] | None = None,
-) -> tuple["StateDelta", list[str], str, dict[str, Any], "ProgressExtractResult", "SceneExtractResult"]:
+    yield_fn: Any = None,
+) -> "AsyncIterator[tuple[str, Any] | tuple['StateDelta', list[str], str, dict[str, Any], 'ProgressExtractResult', 'SceneExtractResult']]":
     """Run the three extraction streams in sequence.
 
     Returns: (merged_delta, actions, outcome_summary, per_stream_event_data, progress_result, scene_result)
@@ -612,6 +614,8 @@ async def _run_extraction_pipeline(
     extraction_event: dict[str, Any] = {}
 
     # --- Stream 1: Scene ---
+    if yield_fn is not None:
+        yield ("phase", {"phase": "extract_stream_start", "stream": "scene"})
     t_scene = asyncio.get_event_loop().time()
     scene_msgs = _extract_scene_messages(
         env, narration, state,
@@ -648,7 +652,12 @@ async def _run_extraction_pipeline(
         _log.warning("extract_scene failed: %s", exc, extra={"trace_id": trace_id})
         extraction_event["scene"] = {**_SKIPPED, "error": str(exc)}
 
+    if yield_fn is not None:
+        yield ("phase", {"phase": "extract_stream_done", "stream": "scene"})
+
     # --- Stream 2: State ---
+    if yield_fn is not None:
+        yield ("phase", {"phase": "extract_stream_start", "stream": "state"})
     t_state = asyncio.get_event_loop().time()
     state_msgs = _extract_state_messages(
         env, narration, state,
@@ -685,7 +694,12 @@ async def _run_extraction_pipeline(
         _log.warning("extract_state failed: %s", exc, extra={"trace_id": trace_id})
         extraction_event["state"] = {**_SKIPPED, "error": str(exc)}
 
+    if yield_fn is not None:
+        yield ("phase", {"phase": "extract_stream_done", "stream": "state"})
+
     # --- Stream 3: Progress (always runs — post-narration storytelling brain) ---
+    if yield_fn is not None:
+        yield ("phase", {"phase": "extract_stream_start", "stream": "progress"})
     t_progress = asyncio.get_event_loop().time()
     _stakes = (intent.stakes or "") if intent else ""
     _band = (rules_outcome.band if rules_outcome and rules_outcome.rolled else "")
@@ -743,6 +757,9 @@ async def _run_extraction_pipeline(
     except Exception as exc:
         _log.warning("extract_progress failed: %s", exc, extra={"trace_id": trace_id})
         extraction_event["progress"] = {**_SKIPPED, "error": str(exc)}
+
+    if yield_fn is not None:
+        yield ("phase", {"phase": "extract_stream_done", "stream": "progress"})
 
     # --- Dedup compendium updates before merging into StateDelta ---
     _comp = (state.get("compendium") or {}).get("npcs") or {}
@@ -859,7 +876,7 @@ async def _run_extraction_pipeline(
     # directly to state["meta"]["pending_gm_beat"] in turn.py Step 2.5.
     # Do NOT add gm_beat to the merge block.
 
-    return (
+    yield (
         merged,
         progress_result.actions,
         progress_result.outcome_summary,
