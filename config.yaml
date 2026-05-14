@@ -30,7 +30,7 @@ game:
   momentum_floor: -3
   momentum_floor_relief_turns: 2
   # Compaction: compress narrative history every N turns (0 = disabled)
-  compact_every: 6
+  compact_every: 3
   compact_temperature: 0.1
   recent_turns_min: 2
 

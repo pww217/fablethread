@@ -173,15 +173,16 @@ def _validate_compactor_config(config: EngineConfig) -> None:
         raise ValueError(
             f"compact_every must be >= 0, got {config.compact_every}"
         )
-    if 0 < config.compact_every <= config.window_turns:
-        raise ValueError(
-            f"compact_every ({config.compact_every}) must be > window_turns ({config.window_turns})"
-        )
-    if config.recent_turns_min < 0:
-        raise ValueError(f"recent_turns_min must be >= 0, got {config.recent_turns_min}")
+    if config.recent_turns_min < 1:
+        raise ValueError(f"recent_turns_min must be >= 1, got {config.recent_turns_min}")
     if config.recent_turns_min > config.window_turns:
         raise ValueError(
             f"recent_turns_min ({config.recent_turns_min}) must be <= window_turns ({config.window_turns})"
+        )
+    if 0 < config.compact_every < config.recent_turns_min:
+        raise ValueError(
+            f"compact_every ({config.compact_every}) must be >= recent_turns_min ({config.recent_turns_min})"
+            f" (or 0 to disable)"
         )
 
 

@@ -560,15 +560,16 @@ class TestPromptComposition:
         raw = "<think>\n- bullet\n</think>\n\nYou step through."
         assert strip_thinking(raw).strip() == "You step through."
 
-    def test_chronicle_injected_when_present(self):
+    def test_prior_history_injected_when_present(self):
         env = self._env()
         state = _make_state()
-        chronicle_tail = "Earlier, Vex found a dead comms relay."
-        msgs = _narrate_messages(env, state, "look", chronicle_tail=chronicle_tail)
+        state.setdefault("meta", {})["prior_history"] = ["- [T1] Vex found a dead comms relay."]
+        msgs = _narrate_messages(env, state, "look")
         user_text = next(m for m in msgs if m["role"] == "user")["content"]
         system_text = next(m for m in msgs if m["role"] == "system")["content"]
-        assert "Earlier, Vex found a dead comms relay." in user_text
-        assert "Earlier, Vex found a dead comms relay." not in system_text
+        assert "Vex found a dead comms relay" in user_text
+        assert "Prior Turns (Compacted)" in user_text
+        assert "Vex found a dead comms relay" not in system_text
 
     def test_recent_turns_injected_when_present(self):
         env = self._env()
@@ -924,11 +925,10 @@ class TestChroniclePrefixBudget:
         # ## COMPACTED header adds 2 words, so cap is 102
         assert len(words) <= 102
 
-    async def test_chronicle_injected_in_engine_run(self) -> None:
+    async def test_prior_history_injected_in_engine_run(self) -> None:
         state = _make_state()
+        state.setdefault("meta", {})["prior_history"] = ["- [T1] MARKER_TEXT_FOR_ASSERTION"]
         _write_state(_SAVE_DIR, state)
-        chronicle = _SAVE_DIR / "chronicle.md"
-        chronicle.write_text("## COMPACTED\n\nMARKER_TEXT_FOR_ASSERTION")
 
         captured_messages = []
 
@@ -971,6 +971,7 @@ class TestChroniclePrefixBudget:
 
         all_texts = " ".join(m.get("content", "") for m in captured_messages)
         assert "MARKER_TEXT_FOR_ASSERTION" in all_texts
+        assert "Prior Turns (Compacted)" in all_texts
 
 
 # ---------------------------------------------------------------------------
