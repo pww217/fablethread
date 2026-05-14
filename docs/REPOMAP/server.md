@@ -75,7 +75,7 @@
 - `_load_rules_map(save_dir)` → `dict[int, dict]` — turn→rules map from events.jsonl
 
 ### server/tv.py
-- `_turn_viewer_data(save_dir)` → `tuple[list[dict], bool]` — builds turn viewer rows from events.jsonl by looping `_STREAMS` (from `tv_mirror.py`); connector segments derived from `sd.inputs`; `prompts` dict keyed by stream name; `scope` block from top-level event key; no named prompt keys (`rules_prompt`, etc.) exist in the row dict
+- `_turn_viewer_data(save_dir)` → `tuple[list[dict], bool]` — builds turn viewer rows from events.jsonl; skips `"kind": "compaction"` lines and emits `row_kind="compaction"` rows with sanitization summary; normal turn rows get `row_kind="turn"`; per-stream metrics from `_STREAMS`; connector segments derived from `sd.inputs`; `prompts` dict keyed by stream name; `scope` block from top-level event key; no named prompt keys (`rules_prompt`, etc.) exist in the row dict
 - `_tv_parse_json_blob(raw)` → `dict | None` — parses JSON from string (bare or brace-scan fallback)
 - `_tv_dict_to_lines(d, skip_keys, max_str=150)` → `list[dict]` — renders dict as KV lines with smart value formatting
 - `_tv_extract_stream_status(name, skipped, error, attempts, rejected)` → `str` — "ok"/"skipped"/"retried"/"rejected"/"error"; NOTE: hardcodes `"state"` stream key for inventory rejection logic (see `_STREAMS` in `tv_mirror.py`)
@@ -91,8 +91,8 @@
 - `metrics_path` and `prompt_path` are separately tracked because `narrate` splits its metrics blob from its prompt blob
 
 ### server/metrics.py
-- `_recent_turn_metrics(save_dir, n=10)` → `list[dict]` — last n turns from events.jsonl with per-stream metrics (tt, ttft, tokens, rejections)
-- `_turn_log_entries(save_dir, limit=50)` → `list[dict]` — turn log rows with change lines and rules data
+- `_recent_turn_metrics(save_dir, n=10)` → `list[dict]` — last n turns from events.jsonl with per-stream metrics (tt, ttft, tokens, rejections); skips `"kind": "compaction"` lines
+- `_turn_log_entries(save_dir, limit=50)` → `list[dict]` — turn log rows with change lines and rules data; skips `"kind": "compaction"` lines
 - `_fmt_ms_seconds(ms)` → `str` — formats ms as "X.Xs" or "—"
 - `_fmt_tokens(n)` → `str` — formats tokens as "123" or "1.23k"
 - `_fmt_tokens_exact(n)` → `str` — formats tokens as "1,234" or "—"

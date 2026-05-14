@@ -41,3 +41,32 @@ The standalone turn viewer (`/turn_viewer`) uses semantic status colors from CSS
 | `--status-neutral` | Non-fatal / informational (e.g. rules path with no dice roll). |
 
 Status always wins for the prominent left border over stage accent stripes.
+
+## Turn Viewer CSS classes
+
+| Class | Purpose |
+|-------|---------|
+| `.tv-turn-card` | Outer turn row container; `:id` set to `tv-turn-{turn}` for keyboard nav scrollIntoView |
+| `.tv-turn-focused` | Focused turn outline (keyboard nav) |
+| `.tv-turn-columns` | Two-column layout wrapper (pipeline left, diff panel right) |
+| `.tv-pipeline` | Left column: stage pipeline with accent stripes |
+| `.tv-pipeline-stage` | Individual stage block with header and body |
+| `.tv-stage-accent` | Colored left stripe per stage (rules/narrate/scene/state/progress) |
+| `.tv-stage-header` | Clickable stage header row |
+| `.tv-stage-body` | Collapsible stage content area |
+| `.tv-inputs-row` | Horizontal row of input pills above a stage |
+| `.tv-input-pill` | Collapsible input source pill with arrow/label/count |
+| `.tv-input-pill-header` | Clickable pill header |
+| `.tv-input-pill-body` | Expanded pill content area |
+| `.tv-input-kv-item` | Key/value pair inside input pill body |
+| `.tv-diff-panel` | Right column: state changes + failures |
+| `.tv-diff-section` | Group of diff rows (state changes or failures) |
+| `.tv-diff-row` | Individual state change or failure row |
+| `.tv-diff-row--add` / `--update` / `--remove` | Semantic diff row coloring |
+| `.tv-failure-row` | Individual failure/error row in diff panel |
+| `.tv-compaction-card` | Compaction event row (blue left stripe) |
+| `.tv-compaction-header` / `.tv-compaction-body` | Expandable compaction card sections |
+| `.tv-compaction-san` / `.tv-compaction-san-row` | Sanitization summary rows |
+| `.tv-compaction-bullet` | Compacted bullet preview |
+| `.tv-timing-display` | Pipeline timing + latency waterfall display |
+| `.tv-latency-waterfall` | Visual latency bar between stages |

@@ -603,6 +603,7 @@ async def turn_viewer_stream():
 
     async def gen():
         last_mtime: float | None = None
+        yield {"event": "open", "data": "{}"}
         while True:
             await asyncio.sleep(1.0)
             if not path.exists():
