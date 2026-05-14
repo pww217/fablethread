@@ -130,6 +130,103 @@ def _tv_dict_to_lines(
     return lines
 
 
+def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
+    """Produce a flat list of state-change entries from extraction outputs.
+
+    Reads scene/state/progress extraction outputs and flattens them into
+    labelled change entries for the diff right panel.
+    """
+    rejected_set: set[str] = set()
+    for r in (ev.get("rejected") or []):
+        if isinstance(r, dict) and r.get("field"):
+            rejected_set.add(str(r["field"]))
+
+    changes: list[dict[str, Any]] = []
+    _EXTRACTION_STREAMS = [
+        ("scene", "extraction.scene"),
+        ("state", "extraction.state"),
+        ("progress", "extraction.progress"),
+    ]
+
+    for stream_key, path in _EXTRACTION_STREAMS:
+        blob = _get_nested(ev, path) or {}
+        if not isinstance(blob, dict):
+            continue
+        raw_out = blob.get("output")
+        if not raw_out:
+            continue
+        parsed: dict[str, Any] | None = None
+        if isinstance(raw_out, str):
+            parsed = _tv_parse_json_blob(raw_out)
+        elif isinstance(raw_out, dict):
+            parsed = raw_out
+        if not parsed:
+            continue
+        for field_key, val in parsed.items():
+            if val is None:
+                continue
+            if isinstance(val, list) and not val:
+                continue
+            if isinstance(val, dict) and not val:
+                continue
+            if field_key.endswith("_add") or field_key.endswith("_update"):
+                op = "add" if field_key.endswith("_add") else "update"
+            elif field_key.endswith("_remove"):
+                op = "remove"
+            else:
+                op = "set"
+            if isinstance(val, list):
+                if all(isinstance(x, dict) for x in val):
+                    def _label(x: dict[str, Any]) -> str:
+                        for k in ("id", "name", "text", "label"):
+                            v = x.get(k)
+                            if v and isinstance(v, str):
+                                return v[:60]
+                        return ""
+                    summary = ", ".join(_label(x) for x in val if _label(x))
+                    value_str = f"[{len(val)}] {summary}" if summary else f"[{len(val)}]"
+                else:
+                    value_str = ", ".join(str(x) for x in val[:4])
+                    if len(val) > 4:
+                        value_str += "\u2026"
+            elif isinstance(val, dict):
+                value_str = _json.dumps(val)[:120]
+            elif isinstance(val, str):
+                value_str = val[:120] + ("\u2026" if len(val) > 120 else "")
+            else:
+                value_str = str(val)
+            changes.append({
+                "domain": stream_key,
+                "op": op,
+                "field": field_key,
+                "value": value_str,
+                "rejected": field_key in rejected_set,
+                "from_stream": stream_key,
+            })
+    return changes
+
+
+def _tv_failures(
+    ev: dict[str, Any],
+    streams: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Collect all failure signals from a turn event into a flat list."""
+    failures: list[dict[str, Any]] = []
+    top_err = ev.get("error")
+    if top_err:
+        failures.append({"kind": "top_level_error", "stream": "", "message": str(top_err), "attempt": None})
+    for key, s in streams.items():
+        if s.get("error"):
+            failures.append({"kind": "llm_error", "stream": key, "message": str(s["error"]), "attempt": None})
+        for i, re_msg in enumerate(s.get("retry_errors") or []):
+            failures.append({"kind": "retry", "stream": key, "message": str(re_msg), "attempt": i + 1})
+    for r in (ev.get("rejected") or []):
+        if isinstance(r, dict):
+            msg = f"{r.get('field', '')}: {r.get('reason', '')}".strip(": ")
+            failures.append({"kind": "rejection", "stream": "state", "message": msg, "attempt": None})
+    return failures
+
+
 def _tv_extract_stream_status(
     name: str,
     *,
@@ -180,6 +277,25 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         except _json.JSONDecodeError:
             continue
 
+        if ev.get("kind") == "compaction":
+            san = ev.get("sanitization")
+            rows.append({
+                "row_kind": "compaction",
+                "turn": int(ev.get("turn") or 0),
+                "compact_start": int(ev.get("compact_start") or 0),
+                "compact_end": int(ev.get("compact_end") or 0),
+                "bullets_count": int(ev.get("bullets_count") or 0),
+                "bullets_preview": list(ev.get("bullets_preview") or []),
+                "sanitization": san,
+                "has_sanitization": bool(san and any(
+                    san.get(k) for k in (
+                        "npc_merge", "inventory_remove", "quest_close",
+                        "pressure_remove", "condition_remove"
+                    )
+                )),
+            })
+            continue
+
         def _fmt_ms(ms: Any) -> str:
             if ms is None:
                 return "\u2014"
@@ -226,6 +342,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "status": status,
                 "status_class": _STATUS_CSS.get(status, "tv-sts-ok"),
                 "stage_class": _STAGE_CSS.get(sd.stage_css, ""),
+                "ms_raw": int(ms_val) if ms_val is not None else 0,
             }
 
         # Step 2.2: Token bar calculation from _STREAMS
@@ -325,26 +442,48 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 })
             connectors.append({"before_stage": sd.key, "segments": segments})
 
-        # Step 2.5: Scope block
-        raw_scope: dict[str, Any] = ev.get("scope") or {}
-        scope_block = {
-            "active_domains": raw_scope.get("active_domains") or [],
-        }
+        # Per-stream inputs snapshot
+        inputs_snapshot: dict[str, dict[str, list[dict[str, Any]]]] = {}
+        for sd in _STREAMS:
+            if not sd.inputs:
+                continue
+            snap: dict[str, list[dict[str, Any]]] = {}
+            for inp_key in sd.inputs:
+                inp_sd = STREAM_BY_KEY.get(inp_key)
+                if inp_sd is None:
+                    continue
+                inp_p_path = inp_sd.prompt_path or inp_sd.metrics_path
+                inp_p_blob = _get_nested(ev, inp_p_path) or {}
+                if not isinstance(inp_p_blob, dict):
+                    inp_p_blob = {}
+                raw_out = inp_p_blob.get(inp_sd.output_subkey) if inp_sd.output_subkey else inp_p_blob
+                if inp_sd.is_text_output:
+                    seg_lines = _tv_narration_lines(str(raw_out or ""))
+                elif inp_sd.output_is_json_string and isinstance(raw_out, str):
+                    try:
+                        parsed = _json.loads(raw_out)
+                        seg_lines = _tv_dict_to_lines(parsed) if isinstance(parsed, dict) else [{"k": "_", "v": str(raw_out), "dim": False}]
+                    except Exception:
+                        seg_lines = [{"k": "_", "v": str(raw_out), "dim": False}]
+                elif isinstance(raw_out, dict):
+                    seg_lines = _tv_dict_to_lines(raw_out)
+                else:
+                    seg_lines = [{"k": "_", "v": str(raw_out), "dim": False}] if raw_out else []
+                snap[inp_key] = seg_lines
+            inputs_snapshot[sd.key] = snap
 
-        # Derived flags from streams dict
-        has_retries = any(streams[sd.key].get("attempts", 1) > 1 for sd in _STREAMS)
-        has_errors = any(bool(streams[sd.key].get("error")) for sd in _STREAMS)
+        # Derived flags from failures list
+        row_failures = _tv_failures(ev, streams)
+        has_retries = any(f["kind"] == "retry" for f in row_failures)
+        has_errors = any(f["kind"] in ("llm_error", "top_level_error") for f in row_failures)
+        has_rejections = any(f["kind"] == "rejection" for f in row_failures)
         has_skipped = any(streams[sd.key].get("skipped") for sd in _STREAMS)
+
+        # State diff
+        state_diff = _tv_state_diff(ev)
 
         # rules_intent for template (parsed from rules_prompt.output)
         rules_intent = _tv_parse_json_blob(prompts["rules"]["output"])
-
-        # state_rejections
-        state_rej = [
-            r
-            for r in (rej if isinstance(rej, list) else [])
-            if isinstance(r, dict) and r.get("field") == "inventory_remove"
-        ]
 
         tid = str(ev.get("trace_id") or "")
         tid_short = tid[:8] if len(tid) >= 8 else tid
@@ -354,22 +493,25 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "turn": ev.get("turn", 0),
                 "trace_id": tid_short,
                 "trace_id_full": tid,
-                "has_rejections": bool(rej),
+                "has_rejections": has_rejections,
                 "has_retries": has_retries,
                 "has_errors": has_errors,
                 "has_skipped": has_skipped,
                 "streams": streams,
                 "connectors": connectors,
-                "scope": scope_block,
                 "total_tt": _fmt_ms(total_tt_ms),
+                "total_tt_ms_raw": int(total_tt_ms),
                 "total_tokens_in": total_in,
                 "total_tokens_out": total_out,
                 "total_tokens_in_display": _fmt_tokens_exact(total_in),
                 "total_tokens_out_display": _fmt_tokens_exact(total_out),
                 "user_input": ev.get("input", ""),
                 "rules_intent": rules_intent,
-                "state_rejections": state_rej,
+                "inputs_snapshot": inputs_snapshot,
+                "state_diff": state_diff,
+                "failures": row_failures,
                 "prompts": prompts,
+                "row_kind": "turn",
             }
         )
     rows.reverse()

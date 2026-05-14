@@ -900,3 +900,61 @@ class TestSanitizationLogging:
         assert applied_log.npcs_merged == 1
         assert applied_log.pressures_removed == 0
         assert applied_log.conditions_removed == 1
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: Compaction event emission
+# ---------------------------------------------------------------------------
+
+
+class TestCompactionEventEmission:
+    def _write_chronicle(self, save_dir: Path, turns: list[tuple[int, str, str]]) -> None:
+        lines: list[str] = []
+        for i, (turn_num, user_input, narrative) in enumerate(turns):
+            lines.append(f"\n\n## Turn {turn_num} — {user_input}\n\n{narrative}")
+        (save_dir / "chronicle.md").write_text("".join(lines))
+
+    def _make_state(self, turn: int, last_compacted_turn: int = 0) -> dict:
+        return {
+            "meta": {"turn": turn, "last_compacted_turn": last_compacted_turn, "prior_history": []},
+            "scene": {"tags": [], "recent_events": [], "scene_pressure": [], "present_npcs": []},
+            "inventory": [],
+            "quests": [],
+            "compendium": {"npcs": {}},
+            "pc": {"conditions": []},
+        }
+
+    @pytest.mark.asyncio
+    async def test_compaction_event_written_when_compaction_runs(self, tmp_path: Path):
+        self._write_chronicle(tmp_path, [
+            (i, f"Action {i}", f"Narrative {i}") for i in range(1, 7)
+        ])
+        state = self._make_state(6)
+        config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
+        with _mock_compact_llm():
+            _, compaction_ran = await maybe_compact(tmp_path, state, config)
+        assert compaction_ran is True
+        events_path = tmp_path / "events.jsonl"
+        assert events_path.exists()
+        lines = events_path.read_text().strip().splitlines()
+        assert len(lines) == 1
+        event = __import__("json").loads(lines[0])
+        assert event["kind"] == "compaction"
+        assert event["turn"] == 6
+        assert event["compact_start"] == 1
+        assert event["compact_end"] == 3
+        assert event["bullets_count"] == 2
+        assert len(event["bullets_preview"]) == 2
+        assert event["sanitization"] is not None
+
+    @pytest.mark.asyncio
+    async def test_no_compaction_event_when_compaction_does_not_run(self, tmp_path: Path):
+        self._write_chronicle(tmp_path, [
+            (i, f"Action {i}", f"Narrative {i}") for i in range(1, 7)
+        ])
+        state = self._make_state(5)
+        config = EngineConfig(window_turns=3, compact_every=6, recent_turns_min=2)
+        _, compaction_ran = await maybe_compact(tmp_path, state, config)
+        assert compaction_ran is False
+        events_path = tmp_path / "events.jsonl"
+        assert not events_path.exists()

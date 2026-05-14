@@ -128,6 +128,33 @@ async def maybe_compact(
 
     state.setdefault("meta", {})["last_compacted_turn"] = compact_end
 
+    san_payload: dict[str, Any] | None = None
+    if sanitization is not None:
+        san_payload = {
+            "npc_merge": [m.model_dump() for m in (sanitization.npc_merge or [])],
+            "inventory_remove": [i.model_dump() for i in (sanitization.inventory_remove or [])],
+            "quest_close": [q.model_dump() for q in (sanitization.quest_close or [])],
+            "pressure_remove": [p.model_dump() for p in (sanitization.pressure_remove or [])],
+            "condition_remove": [c.model_dump() for c in (sanitization.condition_remove or [])],
+            "recent_events_compact_count": len(sanitization.recent_events_compact or []),
+        }
+
+    compaction_record: dict[str, Any] = {
+        "kind": "compaction",
+        "turn": current_turn,
+        "compact_start": compact_start,
+        "compact_end": compact_end,
+        "bullets_count": len(new_bullets),
+        "sanitization": san_payload,
+        "bullets_preview": new_bullets[:3],
+    }
+    events_path = save_dir / "events.jsonl"
+    try:
+        with events_path.open("a", encoding="utf-8") as _f:
+            _f.write(json.dumps(compaction_record) + "\n")
+    except OSError as exc:
+        _log.warning("compactor: failed to write event record: %s", exc)
+
     return state, compaction_ran
 
 

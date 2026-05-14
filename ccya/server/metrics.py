@@ -58,6 +58,8 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
             ev = json.loads(line)
         except json.JSONDecodeError:
             continue
+        if ev.get("kind") == "compaction":
+            continue
         narr = ev.get("narrate") or {}
         ext = ev.get("extract") or {}
         extraction = ev.get("extraction") or {}
@@ -178,6 +180,8 @@ def _turn_log_entries(save_dir: Path, limit: int = 50) -> list[dict[str, Any]]:
         try:
             ev = json.loads(line)
         except json.JSONDecodeError:
+            continue
+        if ev.get("kind") == "compaction":
             continue
         ch = ev.get("changes")
         if isinstance(ch, dict):
