@@ -1,7 +1,7 @@
 # Extraction stream labels, debug panel metrics, and compaction label
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 

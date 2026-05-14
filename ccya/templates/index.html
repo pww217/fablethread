@@ -499,6 +499,9 @@ function _setProgressFromPhase(strip, payload) {
         if (eta && payload && payload.expected_ms > 0) {
             eta.textContent = '~' + (payload.expected_ms / 1000).toFixed(0) + 's avg';
         } else if (eta) { eta.textContent = ''; }
+    } else if (p === 'narrate_first_token') {
+        const ft = (payload && payload.first_token_ms) || 0;
+        if (eta) eta.textContent = '~' + (ft / 1000).toFixed(1) + 's ttft';
     } else if (p === 'narrate_done') {
         label.textContent = 'Reviewing outcome…';
         if (eta) eta.textContent = '';

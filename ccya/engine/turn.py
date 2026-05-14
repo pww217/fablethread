@@ -454,6 +454,7 @@ async def run_turn(
             if first_visible:
                 first_ms = (asyncio.get_event_loop().time() - t0) * 1000
                 first_visible = False
+                yield ("phase", {"phase": "narrate_first_token", "first_token_ms": round(first_ms, 1)})
             yield ("token", chunk)
 
         narr_ms = (asyncio.get_event_loop().time() - t0) * 1000
@@ -1098,6 +1099,7 @@ async def run_turn_retry(
             if first_visible:
                 first_ms = (asyncio.get_event_loop().time() - t0) * 1000
                 first_visible = False
+                yield ("phase", {"phase": "narrate_first_token", "first_token_ms": round(first_ms, 1)})
             yield ("token", chunk)
 
         narr_ms = (asyncio.get_event_loop().time() - t0) * 1000
