@@ -43,55 +43,56 @@
             <div class="turn-viewer-empty">No turns match filter.</div>
         </template>
         <template x-for="(t, idx) in visibleTurns()" :key="t.trace_id_full || (String(t.turn) + '-' + idx)">
-            <template x-if="t.row_kind === 'compaction'">
-                <div class="tv-compaction-card">
-                    <div class="tv-compaction-header" @click="toggleTurnCollapsed('c-' + t.turn)">
-                        <span class="tv-compaction-icon">⟳</span>
-                        <span class="tv-compaction-title">Compaction</span>
-                        <span class="tv-compaction-range" x-text="'Turns ' + t.compact_start + '\u2013' + t.compact_end"></span>
-                        <span class="tv-compaction-bullets" x-text="t.bullets_count + ' bullets'"></span>
-                        <span x-show="t.has_sanitization" class="tv-compaction-san-badge">sanitized</span>
-                        <span class="tv-stage-chevron" :class="{ open: !isTurnCollapsed('c-' + t.turn) }">▶</span>
+            <div>
+                <template x-if="t.row_kind === 'compaction'">
+                    <div class="tv-compaction-card">
+                        <div class="tv-compaction-header" @click="toggleTurnCollapsed('c-' + t.turn)">
+                            <span class="tv-compaction-icon">⟳</span>
+                            <span class="tv-compaction-title">Compaction</span>
+                            <span class="tv-compaction-range" x-text="'Turns ' + t.compact_start + '\u2013' + t.compact_end"></span>
+                            <span class="tv-compaction-bullets" x-text="t.bullets_count + ' bullets'"></span>
+                            <span x-show="t.has_sanitization" class="tv-compaction-san-badge">sanitized</span>
+                            <span class="tv-stage-chevron" :class="{ open: !isTurnCollapsed('c-' + t.turn) }">▶</span>
+                        </div>
+                        <div class="tv-compaction-body" x-show="!isTurnCollapsed('c-' + t.turn)">
+                            <template x-for="(b, bi) in t.bullets_preview" :key="bi">
+                                <div class="tv-compaction-bullet" x-text="b"></div>
+                            </template>
+                            <template x-if="t.bullets_count > 3">
+                                <div class="tv-compaction-more" x-text="'\u2026 ' + (t.bullets_count - 3) + ' more bullets'"></div>
+                            </template>
+                            <template x-if="t.has_sanitization && t.sanitization">
+                                <div class="tv-compaction-san">
+                                    <div class="tv-diff-section-label">Sanitization</div>
+                                    <template x-if="t.sanitization.npc_merge && t.sanitization.npc_merge.length">
+                                        <div class="tv-compaction-san-row">NPCs merged: <span x-text="t.sanitization.npc_merge.length"></span></div>
+                                    </template>
+                                    <template x-if="t.sanitization.inventory_remove && t.sanitization.inventory_remove.length">
+                                        <div class="tv-compaction-san-row">Items removed: <span x-text="t.sanitization.inventory_remove.length"></span></div>
+                                    </template>
+                                    <template x-if="t.sanitization.quest_close && t.sanitization.quest_close.length">
+                                        <div class="tv-compaction-san-row">Quests closed: <span x-text="t.sanitization.quest_close.length"></span></div>
+                                    </template>
+                                    <template x-if="t.sanitization.pressure_remove && t.sanitization.pressure_remove.length">
+                                        <div class="tv-compaction-san-row">Pressures removed: <span x-text="t.sanitization.pressure_remove.length"></span></div>
+                                    </template>
+                                    <template x-if="t.sanitization.condition_remove && t.sanitization.condition_remove.length">
+                                        <div class="tv-compaction-san-row">Conditions removed: <span x-text="t.sanitization.condition_remove.length"></span></div>
+                                    </template>
+                                    <template x-if="t.sanitization.recent_events_compact_count">
+                                        <div class="tv-compaction-san-row">Recent events compacted to: <span x-text="t.sanitization.recent_events_compact_count"></span></div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template x-if="!t.has_sanitization">
+                                <div class="tv-compaction-no-san">No sanitization changes</div>
+                            </template>
+                        </div>
                     </div>
-                    <div class="tv-compaction-body" x-show="!isTurnCollapsed('c-' + t.turn)">
-                        <template x-for="(b, bi) in t.bullets_preview" :key="bi">
-                            <div class="tv-compaction-bullet" x-text="b"></div>
-                        </template>
-                        <template x-if="t.bullets_count > 3">
-                            <div class="tv-compaction-more" x-text="'\u2026 ' + (t.bullets_count - 3) + ' more bullets'"></div>
-                        </template>
-                        <template x-if="t.has_sanitization && t.sanitization">
-                            <div class="tv-compaction-san">
-                                <div class="tv-diff-section-label">Sanitization</div>
-                                <template x-if="t.sanitization.npc_merge && t.sanitization.npc_merge.length">
-                                    <div class="tv-compaction-san-row">NPCs merged: <span x-text="t.sanitization.npc_merge.length"></span></div>
-                                </template>
-                                <template x-if="t.sanitization.inventory_remove && t.sanitization.inventory_remove.length">
-                                    <div class="tv-compaction-san-row">Items removed: <span x-text="t.sanitization.inventory_remove.length"></span></div>
-                                </template>
-                                <template x-if="t.sanitization.quest_close && t.sanitization.quest_close.length">
-                                    <div class="tv-compaction-san-row">Quests closed: <span x-text="t.sanitization.quest_close.length"></span></div>
-                                </template>
-                                <template x-if="t.sanitization.pressure_remove && t.sanitization.pressure_remove.length">
-                                    <div class="tv-compaction-san-row">Pressures removed: <span x-text="t.sanitization.pressure_remove.length"></span></div>
-                                </template>
-                                <template x-if="t.sanitization.condition_remove && t.sanitization.condition_remove.length">
-                                    <div class="tv-compaction-san-row">Conditions removed: <span x-text="t.sanitization.condition_remove.length"></span></div>
-                                </template>
-                                <template x-if="t.sanitization.recent_events_compact_count">
-                                    <div class="tv-compaction-san-row">Recent events compacted to: <span x-text="t.sanitization.recent_events_compact_count"></span></div>
-                                </template>
-                            </div>
-                        </template>
-                        <template x-if="!t.has_sanitization">
-                            <div class="tv-compaction-no-san">No sanitization changes</div>
-                        </template>
-                    </div>
-                </div>
-            </template>
+                </template>
 
-            <template x-if="t.row_kind !== 'compaction'">
-                <div class="tv-turn-card" :id="'tv-turn-' + t.turn">
+                <template x-if="t.row_kind !== 'compaction'">
+                    <div class="tv-turn-card" :id="'tv-turn-' + t.turn">
                 <div class="tv-turn-header" @click="toggleTurnCollapsed(t.turn)">
                     <div class="tv-turn-number">Turn <span x-text="t.turn"></span></div>
                     <div class="tv-turn-input" x-text="t.user_input"></div>
@@ -129,13 +130,13 @@
                     </div>
 
                     <template x-for="stage in stages" :key="t.turn + '-' + stage">
-                        <div class="tv-stage-wrap">
+                        <div class="tv-stage-wrap" :class="{'tv-stage-wrap--no-inputs': !t.inputs_snapshot || !t.inputs_snapshot[stage] || !Object.keys(t.inputs_snapshot[stage]).length}">
                             <template x-if="t.inputs_snapshot && t.inputs_snapshot[stage] && Object.keys(t.inputs_snapshot[stage]).length">
                                 <div class="tv-inputs-row">
-                                    <template x-for="(lines, srcKey) in Object.entries(t.inputs_snapshot[stage])" :key="srcKey">
+                                    <template x-for="([srcKey, lines], idx) in Object.entries(t.inputs_snapshot[stage])" :key="srcKey">
                                         <div class="tv-input-pill" :class="'tv-stage-' + srcKey">
                                             <div class="tv-input-pill-header" @click="toggleInputPill(t.turn, stage, srcKey)">
-                                                <span class="tv-input-pill-arrow">←</span>
+                                                <span class="tv-input-pill-arrow">↓</span>
                                                 <span class="tv-input-pill-label" x-text="srcKey"></span>
                                                 <span class="tv-input-pill-count" x-text="'(' + lines.length + ')'"></span>
                                             </div>
@@ -262,6 +263,8 @@
                         </template>
                     </div>
                 </div>
+            </div>
+        </template>
             </div>
         </template>
     </template>

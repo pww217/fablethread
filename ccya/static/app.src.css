@@ -2871,6 +2871,10 @@ body {
   border-bottom: none;
 }
 
+.tv-stage-wrap.tv-stage-wrap--no-inputs {
+  border-bottom: none;
+}
+
 .tv-sts-ok { border-left-color: var(--status-ok); }
 .tv-sts-skipped { border-left-color: var(--status-skipped); opacity: 0.85; }
 .tv-sts-retried { border-left-color: var(--status-retried); }
