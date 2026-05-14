@@ -244,6 +244,15 @@
                             </div>
                         </template>
 
+                        <template x-if="t.active_domains && t.active_domains.length">
+                            <div class="tv-diff-section">
+                                <div class="tv-diff-section-label">Active domains</div>
+                                <template x-for="domain in t.active_domains" :key="domain">
+                                    <div class="tv-domain-pill" x-text="domain"></div>
+                                </template>
+                            </div>
+                        </template>
+
                         <template x-if="t.state_diff && t.state_diff.length">
                             <div class="tv-diff-section">
                                 <div class="tv-diff-section-label">State changes</div>
@@ -336,7 +345,8 @@ function tvRoot() {
         _collapseTurns() {
             var self = this;
             this.turns.forEach(function(t, i) {
-                self.turnCollapsed[t.turn] = i > 0;
+                var key = t.row_kind === 'compaction' ? 'c-' + t.turn : t.turn;
+                self.turnCollapsed[key] = i > 0;
             });
             this.$nextTick(function() { self.hlAllVisibleJson(); });
         },
