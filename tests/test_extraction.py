@@ -11,6 +11,7 @@ from ccya.engine import (
     _extract_progress_messages,
     EngineConfig,
 )
+from ccya.engine.extraction import _ExtractionContext
 from ccya.models import (
     GMBeat,
     ProgressExtractResult,
@@ -36,6 +37,7 @@ class TestProgressMessagesReceivesDeescalate:
         msgs = _extract_progress_messages(
             env, "N.", {},
             state_result=state_res,
+            extraction_ctx=_ExtractionContext(),
             intent=None,
             deescalate=0.6,
             recent_turns=[],
@@ -52,6 +54,7 @@ class TestProgressMessagesReceivesDeescalate:
         msgs = _extract_progress_messages(
             env, "N.", {},
             state_result=state_res,
+            extraction_ctx=_ExtractionContext(),
             intent=None,
             recent_turns=[],
         )
@@ -67,6 +70,7 @@ class TestProgressMessagesReceivesQuestAges:
         msgs = _extract_progress_messages(
             env, "N.", {},
             state_result=state_res,
+            extraction_ctx=_ExtractionContext(),
             intent=None,
             quest_ages=quest_ages,
             recent_turns=[],
@@ -80,6 +84,7 @@ class TestProgressMessagesReceivesQuestAges:
         msgs = _extract_progress_messages(
             env, "N.", {},
             state_result=state_res,
+            extraction_ctx=_ExtractionContext(),
             intent=None,
             recent_turns=[],
         )

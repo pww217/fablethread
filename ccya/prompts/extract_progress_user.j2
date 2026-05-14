@@ -15,6 +15,20 @@
 {{ location.name or location.id }}{% if location.description %} — {{ location.description }}{% endif %}
 {% endif -%}
 
+{%- if inventory %}
+## Current inventory (this turn)
+{% for item in inventory -%}
+- {{ item.id }}: {{ item.name }}{% if item.notes %} — {{ item.notes }}{% endif %}
+{% endfor %}
+{%- endif %}
+
+{%- if conditions %}
+## PC conditions (this turn)
+{% for c in conditions -%}
+- {{ c.id }}: {{ c.label }}{% if c.description %} — {{ c.description }}{% endif %}
+{% endfor %}
+{%- endif %}
+
 {% if intent and intent.intent -%}
 ## player_intent
 {{ intent.intent_verb }}: {{ intent.intent }}

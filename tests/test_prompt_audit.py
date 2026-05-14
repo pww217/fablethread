@@ -18,10 +18,9 @@ from ccya.engine import (
     _extract_scene_messages,
     _extract_state_messages,
     _narrate_messages,
-    _quest_threshold_directive,
-    _scene_npc_roster,
-    _validate,
 )
+from ccya.engine.extraction import _ExtractionContext, _quest_threshold_directive, _scene_npc_roster
+from ccya.engine.turn import _validate
 from ccya.models import (
     InventoryRemove,
     RulesOutcome,
@@ -124,9 +123,9 @@ class TestSystemPromptByteStability:
             for i in range(4)
         ]
         sres = StateExtractResult()
-        m1 = _extract_progress_messages(env, "N1", s1, state_result=sres, intent=None, recent_turns=[])
+        m1 = _extract_progress_messages(env, "N1", s1, state_result=sres, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
         m2 = _extract_progress_messages(
-            env, "N2", s2, state_result=sres, intent=None, recent_turns=[],
+            env, "N2", s2, state_result=sres, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[],
         )
         sys1 = next(m for m in m1 if m["role"] == "system")["content"]
         sys2 = next(m for m in m2 if m["role"] == "system")["content"]

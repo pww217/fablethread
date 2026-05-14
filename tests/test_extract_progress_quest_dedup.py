@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from ccya.engine import _build_jinja_env, _extract_progress_messages
+from ccya.engine.extraction import _ExtractionContext
 from ccya.models import StateExtractResult
 
 
@@ -16,7 +17,7 @@ class TestExtractProgressQuestDedup:
         env = self._env()
         state_res = StateExtractResult()
         msgs = _extract_progress_messages(
-            env, "N.", {}, state_result=state_res, intent=None, recent_turns=[]
+            env, "N.", {}, state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[]
         )
         system = next(m for m in msgs if m["role"] == "system")["content"]
         assert "NEVER emit a completed quest again" in system

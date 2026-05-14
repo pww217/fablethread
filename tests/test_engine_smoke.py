@@ -29,6 +29,7 @@ from ccya.engine import (
     _extract_progress_messages,
     _expire_scene_pressures,
 )
+from ccya.engine.extraction import _ExtractionContext
 from ccya.llm_client import strip_thinking
 from ccya.models import (
     CompendiumNpcUpdate,
@@ -479,13 +480,13 @@ class TestPromptComposition:
     def test_extract_progress_has_system_user_roles(self):
         env = self._env()
         state_res = StateExtractResult()
-        msgs = _extract_progress_messages(env, "N.", _make_state(), state_result=state_res, intent=None, recent_turns=[])
+        msgs = _extract_progress_messages(env, "N.", _make_state(), state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
         assert [m["role"] for m in msgs] == ["system", "user"]
 
     def test_extract_progress_user_contains_quests(self):
         env = self._env()
         state_res = StateExtractResult()
-        msgs = _extract_progress_messages(env, "N.", _make_state(), state_result=state_res, intent=None, recent_turns=[])
+        msgs = _extract_progress_messages(env, "N.", _make_state(), state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "quiet-signal" in user
         assert "The Quiet Signal" in user
@@ -498,7 +499,7 @@ class TestPromptComposition:
             _make_recent_event("beta", "Beta fact."),
         ]
         state_res = StateExtractResult()
-        msgs = _extract_progress_messages(env, "N.", state, state_result=state_res, intent=None, recent_turns=[])
+        msgs = _extract_progress_messages(env, "N.", state, state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "Alpha fact." in user
         assert "Beta fact." in user
@@ -511,13 +512,13 @@ class TestPromptComposition:
         state_res = StateExtractResult()
 
         # With active quest: world state should NOT appear
-        msgs_with_quest = _extract_progress_messages(env, "N.", state, state_result=state_res, intent=None, recent_turns=[])
+        msgs_with_quest = _extract_progress_messages(env, "N.", state, state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
         user_with_quest = next(m for m in msgs_with_quest if m["role"] == "user")["content"]
         assert "WORLD_FACT_MARKER" not in user_with_quest
 
         # Without quests: world state SHOULD appear
         state_no_quests = {**state, "quests": []}
-        msgs_no_quest = _extract_progress_messages(env, "N.", state_no_quests, state_result=state_res, intent=None, recent_turns=[])
+        msgs_no_quest = _extract_progress_messages(env, "N.", state_no_quests, state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
         user_no_quest = next(m for m in msgs_no_quest if m["role"] == "user")["content"]
         assert "WORLD_FACT_MARKER" in user_no_quest
 
@@ -527,7 +528,7 @@ class TestPromptComposition:
         state_res = StateExtractResult()
 
         state_no_q = {**_make_state(), "quests": []}
-        msgs = _extract_progress_messages(env, "N.", state_no_q, state_result=state_res, intent=None, recent_turns=[])
+        msgs = _extract_progress_messages(env, "N.", state_no_q, state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "quest_threshold" in user
         assert "LOW" in user
@@ -535,7 +536,7 @@ class TestPromptComposition:
         state_many_q = {**_make_state(), "quests": [
             {"id": f"q{i}", "title": f"Q{i}", "status": "active", "objectives": []} for i in range(3)
         ]}
-        msgs2 = _extract_progress_messages(env, "N.", state_many_q, state_result=state_res, intent=None, recent_turns=[])
+        msgs2 = _extract_progress_messages(env, "N.", state_many_q, state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
         user2 = next(m for m in msgs2 if m["role"] == "user")["content"]
         assert "HIGH" in user2
 
@@ -547,8 +548,8 @@ class TestPromptComposition:
         s_many = {**_make_state(), "quests": [
             {"id": f"q{i}", "title": f"Q{i}", "status": "active", "objectives": []} for i in range(3)
         ]}
-        m_no = _extract_progress_messages(env, "N.", s_no, state_result=state_res, intent=None, recent_turns=[])
-        m_many = _extract_progress_messages(env, "N.", s_many, state_result=state_res, intent=None, recent_turns=[])
+        m_no = _extract_progress_messages(env, "N.", s_no, state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
+        m_many = _extract_progress_messages(env, "N.", s_many, state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
         sys_no = next(m for m in m_no if m["role"] == "system")["content"]
         sys_many = next(m for m in m_many if m["role"] == "system")["content"]
         assert sys_no == sys_many
@@ -2744,7 +2745,7 @@ class TestTokenCuts:
     def test_extract_progress_user_no_pc_stats(self):
         env = self._env()
         state_res = StateExtractResult()
-        msgs = _extract_progress_messages(env, "N.", _make_state(), state_result=state_res, intent=None, recent_turns=[])
+        msgs = _extract_progress_messages(env, "N.", _make_state(), state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "## pc_stats" not in user
         assert "strength" not in user or "## pc_stats" not in user
@@ -2764,7 +2765,7 @@ class TestTokenCuts:
         state_res = StateExtractResult()
         long_narrative = "A" * 500
         recent_turns = [{"turn": 1, "narrative": long_narrative}]
-        msgs = _extract_progress_messages(env, "N.", _make_state(), state_result=state_res, intent=None, recent_turns=recent_turns)
+        msgs = _extract_progress_messages(env, "N.", _make_state(), state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=recent_turns)
         user = next(m for m in msgs if m["role"] == "user")["content"]
         # The truncated narrative should be at most 300 chars
         import re

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from dataclasses import dataclass, field
 from jinja2 import Environment
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,134 @@ from ccya.models import (
 )
 
 _log = logging.getLogger("ccya.engine")
+
+
+@dataclass
+class _ExtractionContext:
+    """Carries this-turn deltas from scene + state streams into the progress stream.
+
+    All fields are derived from extract results, NOT from `state`.  They
+    represent what happened *this turn* as determined by the prior two streams.
+    """
+    # Scene stream outputs (stream 1)
+    present_npcs_this_turn: list[dict[str, Any]] = field(default_factory=list)
+    """present_npcs list after applying npc_add/npc_remove from scene result."""
+    location_this_turn: dict[str, Any] = field(default_factory=dict)
+    """Location dict after applying location_change from scene result (or state's if no change)."""
+    scene_tags_this_turn: list[str] = field(default_factory=list)
+    """scene.tags after scene stream."""
+    scene_pressure_this_turn: list[dict[str, Any]] = field(default_factory=list)
+    """scene_pressure after applying scene stream's pressure add/remove."""
+
+    # State stream outputs (stream 2)
+    inventory_this_turn: list[dict[str, Any]] = field(default_factory=list)
+    """inventory list after applying inventory_add/remove/update from state result."""
+    conditions_this_turn: list[dict[str, Any]] = field(default_factory=list)
+    """pc.conditions after applying pc_condition_add/remove from state result."""
+
+
+def _build_extraction_context(
+    state: dict[str, Any],
+    scene_result: "SceneExtractResult",
+    state_result: "StateExtractResult",
+) -> _ExtractionContext:
+    """Compute this-turn derived context from the two upstream extraction results.
+
+    Does NOT mutate `state`.
+    """
+    scene = state.get("scene") or {}
+    compendium_npcs = (state.get("compendium") or {}).get("npcs") or {}
+
+    # --- present_npcs: start from state, apply add/remove ---
+    current_npcs: dict[str, dict[str, Any]] = {
+        npc["id"]: dict(npc)
+        for npc in (scene.get("present_npcs") or [])
+        if isinstance(npc, dict) and npc.get("id")
+    }
+    for op in (scene_result.npc_remove or []):
+        current_npcs.pop(op.id, None)
+    for op in (scene_result.npc_add or []):
+        nid = op.id if hasattr(op, "id") else op.get("id", "")
+        if not nid:
+            continue
+        # Enrich from compendium
+        entry = compendium_npcs.get(nid, {})
+        row: dict[str, Any] = {"id": nid}
+        if hasattr(op, "name"):
+            row["name"] = op.name or entry.get("name", "")
+        if hasattr(op, "notes"):
+            row["notes"] = op.notes or ""
+        if not row.get("name") and entry.get("name"):
+            row["name"] = entry["name"]
+        current_npcs[nid] = row
+
+    # --- location: apply location_change if present ---
+    if scene_result.location_change:
+        lc = scene_result.location_change
+        location_this_turn = {
+            "name": getattr(lc, "name", "") or (state.get("location") or {}).get("name", ""),
+            "description": getattr(lc, "description", "") or scene_result.location_description or "",
+        }
+    else:
+        location_this_turn = dict(state.get("location") or {})
+
+    # --- scene_tags: apply scene_tags from scene result ---
+    tags_this_turn = list(scene_result.scene_tags or scene.get("tags") or [])
+
+    # --- scene_pressure: apply add/remove from progress (not yet run) so we
+    #     use state's current pressures only — progress hasn't run yet ---
+    pressure_this_turn = list(scene.get("scene_pressure") or [])
+
+    # --- inventory: start from state, apply add/remove/update ---
+    inv_by_id: dict[str, dict[str, Any]] = {}
+    for item in (state.get("inventory") or []):
+        if isinstance(item, dict) and item.get("id"):
+            inv_by_id[item["id"]] = dict(item)
+    for op in (state_result.inventory_remove or []):
+        inv_by_id.pop(op.id, None)
+    for op in (state_result.inventory_add or []):
+        nid = op.id if hasattr(op, "id") else op.get("id", "")
+        if not nid:
+            continue
+        inv_by_id[nid] = {
+            "id": nid,
+            "name": getattr(op, "name", nid),
+            "notes": getattr(op, "notes", ""),
+        }
+    for op in (state_result.inventory_update or []):
+        nid = op.id if hasattr(op, "id") else op.get("id", "")
+        if nid in inv_by_id:
+            if hasattr(op, "name") and op.name:
+                inv_by_id[nid]["name"] = op.name
+            if hasattr(op, "notes") and op.notes:
+                inv_by_id[nid]["notes"] = op.notes
+
+    # --- conditions: apply add/remove ---
+    pc = state.get("pc") or {}
+    cond_by_id: dict[str, dict[str, Any]] = {}
+    for c in (pc.get("conditions") or []):
+        if isinstance(c, dict) and c.get("id"):
+            cond_by_id[c["id"]] = dict(c)
+    for op in (state_result.pc_condition_remove or []):
+        cond_by_id.pop(op.id if hasattr(op, "id") else op.get("id", ""), None)
+    for op in (state_result.pc_condition_add or []):
+        nid = op.id if hasattr(op, "id") else op.get("id", "")
+        if not nid:
+            continue
+        cond_by_id[nid] = {
+            "id": nid,
+            "label": getattr(op, "label", nid),
+            "description": getattr(op, "description", ""),
+        }
+
+    return _ExtractionContext(
+        present_npcs_this_turn=list(current_npcs.values()),
+        location_this_turn=location_this_turn,
+        scene_tags_this_turn=tags_this_turn,
+        scene_pressure_this_turn=pressure_this_turn,
+        inventory_this_turn=list(inv_by_id.values()),
+        conditions_this_turn=list(cond_by_id.values()),
+    )
 
 
 def _check_npc_ghost_cycle(
@@ -295,6 +424,7 @@ def _extract_progress_messages(
     state: dict[str, Any],
     *,
     state_result: "StateExtractResult",
+    extraction_ctx: "_ExtractionContext",
     enable_thinking: bool = False,
     intent: "IntentEnvelope | None" = None,
     deescalate: float = 0.0,
@@ -307,9 +437,6 @@ def _extract_progress_messages(
     """Build [system, user] messages for stream 3 (quests + facts + actions + outcome_summary)."""
     pc = state.get("pc") or {}
     scene = state.get("scene") or {}
-    location = state.get("location") or {}
-    present_npcs = list(scene.get("present_npcs") or [])
-    known_npcs = _known_characters_for_extract(state, compact=True)
 
     active_quests = [
         q for q in (state.get("quests") or []) if q.get("status") == "active"
@@ -317,7 +444,8 @@ def _extract_progress_messages(
     recent_events = list(scene.get("recent_events") or [])
     world_state = list(scene.get("world_state") or [])
 
-    # Cross-stream: minimal surfaces
+    # Cross-stream: minimal surfaces (legacy; superseded by extraction_ctx)
+    # TODO: remove state_ctx once templates are fully migrated to extraction_ctx
     state_ctx = {
         "items_gained": [it.name for it in state_result.inventory_add],
         "items_lost": [it.id for it in state_result.inventory_remove],
@@ -332,13 +460,17 @@ def _extract_progress_messages(
             "narration": narration,
             "pc": pc,
             "pc_stats": pc.get("stats") or {},
-            "present_npcs": present_npcs,
-            "known_npcs": known_npcs,
-            "location": location,
+            # This-turn derived values (from extraction_ctx) — NOT state
+            "present_npcs": extraction_ctx.present_npcs_this_turn,
+            "location": extraction_ctx.location_this_turn,
+            "scene_pressure": extraction_ctx.scene_pressure_this_turn,
+            "inventory": extraction_ctx.inventory_this_turn,
+            "conditions": extraction_ctx.conditions_this_turn,
+            # State-sourced (these don't change within a turn)
+            "known_npcs": _known_characters_for_extract(state, compact=True),
             "active_quests": active_quests,
             "recent_events": recent_events,
             "world_state": world_state,
-            "scene_pressure": list((state.get("scene") or {}).get("scene_pressure") or []),
             "state_result": state_ctx,
             "quest_threshold_directive": _quest_threshold_directive(active_quests),
             "intent": intent,
@@ -564,9 +696,12 @@ async def _run_extraction_pipeline(
     t_progress = asyncio.get_event_loop().time()
     _stakes = (intent.stakes or "") if intent else ""
     _band = (rules_outcome.band if rules_outcome and rules_outcome.rolled else "")
+    # Build this-turn context from scene + state results for the progress stream
+    extraction_ctx = _build_extraction_context(state, scene_result, state_result)
     progress_msgs = _extract_progress_messages(
         env, narration, state,
         state_result=state_result,
+        extraction_ctx=extraction_ctx,
         enable_thinking=config.enable_extract_thinking,
         intent=intent,
         deescalate=deescalate,
