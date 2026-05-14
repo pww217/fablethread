@@ -63,7 +63,7 @@ class TestPurgeScenePressures:
     def test_no_location_change_uses_age_cap(self) -> None:
         state: dict[str, Any] = {"meta": {"turn": 20}, "scene": {"scene_pressure": [
             {"id": "old_pressure", "urgency": "background", "text": "Old", "turn_added": 1},
-            {"id": "new_pressure", "urgency": "immediate", "text": "New", "turn_added": 10},
+            {"id": "new_pressure", "urgency": "immediate", "text": "New", "turn_added": 15},
         ]}}
         delta = StateDelta()
         _purge_scene_pressures(state, delta, location_changed=False)
@@ -115,9 +115,9 @@ class TestImmediateTTL:
     """Tests for immediate pressure TTL (Phase 1)."""
 
     def test_immediate_ttl_set_on_escalation(self) -> None:
-        """building pressure age 4 → assert max_turns set."""
+        """building pressure age 5 → assert max_turns set."""
         state: dict[str, Any] = {
-            "meta": {"game_name": "test", "turn": 5},
+            "meta": {"game_name": "test", "turn": 6},
             "scene": {"scene_pressure": [
                 {"id": "p1", "urgency": "building", "text": "Threat", "turn_added": 1},
             ]},
@@ -126,10 +126,10 @@ class TestImmediateTTL:
         config = EngineConfig()
         _expire_scene_pressures(state, delta, config)
         assert state["scene"]["scene_pressure"][0]["urgency"] == "immediate"
-        assert state["scene"]["scene_pressure"][0].get("turn_became_immediate") == 5
+        assert state["scene"]["scene_pressure"][0].get("turn_became_immediate") == 6
         assert state["scene"]["scene_pressure"][0].get("max_turns") is not None
-        # turn_added=1, age=4, ttl=8 → max_turns = 1 + 4 + 8 = 13
-        assert state["scene"]["scene_pressure"][0]["max_turns"] == 13
+        # turn_added=1, age=5, ttl=8 → max_turns = 1 + 5 + 8 = 14
+        assert state["scene"]["scene_pressure"][0]["max_turns"] == 14
 
     def test_immediate_expires_after_ttl(self) -> None:
         """immediate pressure at max_turns → assert in delta.scene_pressure_remove."""
@@ -149,7 +149,7 @@ class TestAvoidanceDecay:
     """Tests for avoidance-based pressure decay (Phase 2)."""
 
     def test_avoidance_decay_building(self) -> None:
-        """building age 2, avoidance=True, decay=2 → effective_age 4, escalates."""
+        """building age 2, avoidance=True, decay=3 → effective_age 5, escalates to immediate."""
         state: dict[str, Any] = {
             "meta": {"game_name": "test", "turn": 3},
             "scene": {"scene_pressure": [
@@ -157,7 +157,7 @@ class TestAvoidanceDecay:
             ]},
         }
         delta = StateDelta()
-        config = EngineConfig(avoidance_decay_per_turn=2)
+        config = EngineConfig(avoidance_decay_per_turn=3)
         _expire_scene_pressures(state, delta, config, avoidance=True)
         assert state["scene"]["scene_pressure"][0]["urgency"] == "immediate"
 

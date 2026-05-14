@@ -64,10 +64,10 @@ class EngineConfig:
     max_generate_pack_retries: int = 1
     log_prompts: bool = False
     # Scene pressure urgency escalation thresholds (turns)
-    scene_pressure_building_at: int = 6
-    scene_pressure_immediate_at: int = 10
+    scene_pressure_building_at: int = 3
+    scene_pressure_immediate_at: int = 5
     # Scene pressure hard age cap (turns) — auto-remove pressures older than this
-    scene_pressure_max_age: int = 15
+    scene_pressure_max_age: int = 8
     # Scene pressure immediate TTL (turns) — how long an immediate pressure lasts
     # from the turn it became immediate (not from turn_added).
     scene_pressure_immediate_ttl: int = 8
@@ -144,11 +144,11 @@ def build_engine_config(
         rules_temperature=rules_t,
         max_rules_retries=int(rules.get("max_retries", 1)),
         max_generate_pack_retries=int(llm.get("max_generate_pack_retries", 1)),
-        scene_pressure_building_at=int(game.get("scene_pressure_building_at", 6)),
+        scene_pressure_building_at=int(game.get("scene_pressure_building_at", 3)),
         scene_pressure_immediate_at=int(
-            game.get("scene_pressure_immediate_at", 10)
+            game.get("scene_pressure_immediate_at", 5)
         ),
-        scene_pressure_max_age=int(game.get("scene_pressure_max_age", 15)),
+        scene_pressure_max_age=int(game.get("scene_pressure_max_age", 8)),
         scene_pressure_deescalate_on_success=bool(
             game.get("scene_pressure_deescalate_on_success", True)
         ),

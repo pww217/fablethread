@@ -2498,8 +2498,8 @@ class TestExpireScenePressures:
         )
         delta = StateDelta()
         _expire_scene_pressures(state, delta)
-        # After 4 turns, background pressures escalate to immediate (TTL cap)
-        assert state["scene"]["scene_pressure"][0]["urgency"] == "immediate"
+        # Background escalates to building (one step per call)
+        assert state["scene"]["scene_pressure"][0]["urgency"] == "building"
 
     def test_escalate_building_to_immediate(self) -> None:
         state = self._make_state_with_pressures(
@@ -2513,7 +2513,7 @@ class TestExpireScenePressures:
         assert state["scene"]["scene_pressure"][0]["urgency"] == "immediate"
 
     def test_stepwise_escalation_not_jumping(self) -> None:
-        """Background at turn 11 should escalate to immediate via TTL cap (not stepwise)."""
+        """Background at turn 11 should escalate to building (one step per call)."""
         state = self._make_state_with_pressures(
             turn=11,
             pressures=[
@@ -2522,8 +2522,8 @@ class TestExpireScenePressures:
         )
         delta = StateDelta()
         _expire_scene_pressures(state, delta)
-        # At age=10 >= 4, background pressures escalate to immediate via TTL cap
-        assert state["scene"]["scene_pressure"][0]["urgency"] == "immediate"
+        # Background escalates to building (one step per call), not immediate
+        assert state["scene"]["scene_pressure"][0]["urgency"] == "building"
 
     def test_skip_pressures_without_turn_added(self) -> None:
         """Pressures without turn_added (predate tracking) should not be expired or escalated."""
