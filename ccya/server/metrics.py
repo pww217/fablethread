@@ -61,13 +61,16 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
         if ev.get("kind") == "compaction":
             compact_start = int(ev.get("compact_start") or 0)
             compact_end = int(ev.get("compact_end") or 0)
-            range_label = f"replaces turn {compact_start}" if compact_start == compact_end else f"replaces turns {compact_start}-{compact_end}"
+            range_label = f"turn {compact_start}" if compact_start == compact_end else f"turns {compact_start}-{compact_end}"
+            compact_ms = ev.get("ms")
+            c_tin = ev.get("tokens_in")
+            c_tout = ev.get("tokens_out")
             rows.append({
                 "turn": ev.get("turn", 0),
                 "is_compaction": True,
                 "pipe_label": f"Compaction ({range_label})",
-                "time": "\u2014",
-                "tok": "\u2014",
+                "time": _fmt_ms_seconds(compact_ms) if compact_ms else "\u2014",
+                "tok": f"{_fmt_tokens(c_tin)}/{_fmt_tokens(c_tout)}" if (c_tin and c_tout) else "\u2014",
             })
             continue
         narr = ev.get("narrate") or {}
