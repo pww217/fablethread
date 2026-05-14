@@ -46,7 +46,7 @@ Per-turn variability (rules outcome, scope, dynamic guidance, items_gained, ques
 
 ### 2. Skip-render — but say "absence ≠ removal"
 
-Don't render empty sections. Every extract system prompt carries the stable state-presence line (see shared sections above). User-prompt sections render only when they have content AND fall inside `scope.active_domains`.
+Don't render empty sections. Every extract system prompt carries the stable state-presence line (see shared sections above). User-prompt sections render only when they have content.
 
 ### 3. Engine owns stateful and numerated reasoning
 
@@ -112,13 +112,13 @@ If it's deferred, track it in `TODO.md` or `plans/`; don't leave it sitting in a
 
 ---
 
-### `narrate_system.j2` — Prose generation + scope tagging
+### `narrate_system.j2` — Prose generation
 
-**Unique fields:** Prose output (not JSON), `<scope>` tag at the end
+**Unique fields:** Prose output (not JSON)
 
-**Why they exist.** This is the only non-extractor prompt — it outputs fiction, not a structured JSON object. The `<scope>` tag is a lightweight domain-change signal that tells the engine which extraction streams to run next. Everything else in this prompt is style and behavior guidance.
+**Why they exist.** This is the only non-extractor prompt — it outputs fiction, not a structured JSON object. Everything else in this prompt is style and behavior guidance.
 
-**Unique sections:** Style (spatial clarity, tropes, dialogue, visceral detail), items/inventory (bolding rules, hard constraint on inventory verification), player intent is truth, pragmatic interpretation, NPCs in scene, mortal stakes + agency, gender-aware naming, NPC naming (given + family name required), quests, markdown rules, world consistency, genre tone, universe rules, active scope tail.
+**Unique sections:** Style (spatial clarity, tropes, dialogue, visceral detail), items/inventory (bolding rules, hard constraint on inventory verification), player intent is truth, pragmatic interpretation, NPCs in scene, mortal stakes + agency, gender-aware naming, NPC naming (given + family name required), quests, markdown rules, world consistency, genre tone, universe rules.
 
 ---
 
