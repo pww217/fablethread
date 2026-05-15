@@ -9,8 +9,20 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from enum import Enum
 
 _log = logging.getLogger("ccya.state")
+
+
+def _coerce_enums(obj: Any) -> Any:
+    """Recursively convert Enum values to their string values for YAML serialization."""
+    if isinstance(obj, Enum):
+        return obj.value
+    if isinstance(obj, dict):
+        return {k: _coerce_enums(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_coerce_enums(v) for v in obj]
+    return obj
 
 _STAT_RENAME: dict[str, str] = {
     "body": "strength",
@@ -164,7 +176,14 @@ def load_state(save_dir: Path) -> dict[str, Any]:
     if not path.exists():
         return _default_state()
     with open(path) as f:
-        raw = yaml.safe_load(f) or _default_state()
+        content = f.read()
+    # Fix corrupted ThreadState tags from previous yaml.dump without _coerce_enums
+    content = re.sub(
+        r"(state:\s*)!!python/object/apply:ccya\.models\.ThreadState\n(\s+)-\s+(\w+)",
+        r"\1\3",
+        content,
+    )
+    raw = yaml.safe_load(content) or _default_state()
     _migrate_state(raw)
     return raw
 
@@ -172,6 +191,7 @@ def load_state(save_dir: Path) -> dict[str, Any]:
 def save_state(save_dir: Path, state: dict[str, Any]) -> None:
     tmp_path = save_dir / "state.yaml.tmp"
     real_path = save_dir / "state.yaml"
+    state = _coerce_enums(state)
     with open(tmp_path, "w") as f:
         yaml.dump(state, f, default_flow_style=False, allow_unicode=True)
     os.replace(str(tmp_path), str(real_path))

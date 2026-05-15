@@ -11,6 +11,7 @@ import re
 from typing import Any
 
 from faker import Faker
+from pykakasi import Kakasi
 
 _FALLBACK = [{"locale": "en_US", "weight": 1.0}]
 
@@ -22,6 +23,10 @@ def _build_weighted_fakers(
 ) -> tuple[list[Faker], list[float]]:
     if not locales:
         locales = _FALLBACK
+    # ja_JP locale: use exclusively (romaji conversion handles the rest)
+    ja_locales = [e for e in locales if e.get("locale") == "ja_JP"]
+    if ja_locales:
+        locales = ja_locales
     Faker.seed(seed or rng.randint(0, 2**31))
     fakers = [Faker(entry["locale"]) for entry in locales]
     raw_weights = [float(entry.get("weight", 1.0) or 1.0) for entry in locales]  # type: ignore[arg-type]
@@ -35,11 +40,25 @@ def _pick(fakers: list[Faker], weights: list[float], rng: random.Random) -> Fake
 
 
 def _ensure_ascii(name: str) -> str:
-    """Strip non-ASCII characters from a name, keeping only Latin letters, digits, spaces, hyphens, and apostrophes."""
-    result = re.sub(r"[^\x00-\x7F]", "", name).strip()
-    if not result:
-        return "Unknown"
-    return result
+    """Keep the name as-is; Unicode names are valid."""
+    return name.strip()
+
+
+_kakasi = None
+
+
+def _to_romaji(name: str) -> str:
+    """Convert Japanese (kanji/kana) to romaji using passport-style romanization."""
+    global _kakasi
+    if _kakasi is None:
+        _kakasi = Kakasi()
+    result = _kakasi.convert(name)
+    parts = []
+    for part in result:
+        passport = part.get("passport", "")
+        if passport and passport != " ":
+            parts.append(passport)
+    return " ".join(parts) if parts else name
 
 
 def generate_name_pool(
@@ -52,11 +71,35 @@ def generate_name_pool(
 ) -> dict[str, list[str]]:
     rng = random.Random(seed)
     fakers, weights = _build_weighted_fakers(locales, rng, seed)
+    use_romaji = any(entry.get("locale") == "ja_JP" for entry in locales)
+
+    def _gen_names(count: int) -> list[str]:
+        names = []
+        for _ in range(count):
+            faker = _pick(fakers, weights, rng)
+            if use_romaji:
+                raw = faker.name()
+                names.append(_to_romaji(raw))
+            else:
+                names.append(_ensure_ascii(faker.name()))
+        return names
+
+    def _gen_locations(count: int) -> list[str]:
+        locations = []
+        for _ in range(count):
+            faker = _pick(fakers, weights, rng)
+            if use_romaji:
+                raw = faker.city()
+                locations.append(_to_romaji(raw))
+            else:
+                locations.append(_ensure_ascii(faker.city()))
+        return locations
 
     return {
-        "pc": [_ensure_ascii(_pick(fakers, weights, rng).name()) for _ in range(pc_count)],
-        "npc": [_ensure_ascii(_pick(fakers, weights, rng).name()) for _ in range(npc_count)],
-        "location": [_ensure_ascii(_pick(fakers, weights, rng).city()) for _ in range(location_count)],
+        "pc": _gen_names(pc_count),
+        "npc": _gen_names(npc_count),
+        "location": _gen_locations(location_count),
+        "inventory": _gen_locations(3),
     }
 
 
@@ -65,10 +108,25 @@ def generate_npc_names(
     *,
     count: int = 10,
     seed: int | None = None,
+    gender: str | None = None,
 ) -> list[str]:
     rng = random.Random(seed)
     fakers, weights = _build_weighted_fakers(locales, rng, seed)
-    return [_ensure_ascii(_pick(fakers, weights, rng).name()) for _ in range(count)]
+    use_romaji = any(entry.get("locale") == "ja_JP" for entry in locales)
+    names = []
+    for _ in range(count):
+        faker = _pick(fakers, weights, rng)
+        if gender == "male" and hasattr(faker, "first_name_male"):
+            raw = faker.first_name_male()
+        elif gender == "female" and hasattr(faker, "first_name_female"):
+            raw = faker.first_name_female()
+        else:
+            raw = faker.name()
+        if use_romaji:
+            names.append(_to_romaji(raw))
+        else:
+            names.append(_ensure_ascii(raw))
+    return names
 
 
 def generate_npc_names_split(

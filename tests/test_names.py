@@ -15,7 +15,7 @@ from ccya.engine.names import generate_name_pool, generate_npc_names
 class TestStructure:
     def test_name_pool_structure(self):
         pool = generate_name_pool([{"locale": "en_US", "weight": 1.0}], seed=42)
-        assert set(pool.keys()) == {"pc", "npc", "location"}
+        assert set(pool.keys()) == {"pc", "npc", "location", "inventory"}
         assert len(pool["pc"]) == 3
         assert len(pool["npc"]) == 8
         assert len(pool["location"]) == 5

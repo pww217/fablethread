@@ -502,9 +502,13 @@ class ProgressExtractResult(BaseModel):
             for item in v:
                 if isinstance(item, str):
                     continue
-                if isinstance(item, dict) and "thread_id" in item and "id" not in item:
-                    item = dict(item)
-                    item["id"] = item.pop("thread_id")
+                if isinstance(item, dict):
+                    if "thread_id" in item and "id" not in item:
+                        item = dict(item)
+                        item["id"] = item.pop("thread_id")
+                    if "status" in item and "signal" not in item:
+                        item = dict(item)
+                        item["signal"] = item.pop("status")
                 out.append(item)
             return out
         return v
