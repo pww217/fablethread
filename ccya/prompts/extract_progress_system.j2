@@ -15,7 +15,8 @@ Extract recent events, suggested player actions, outcome summary, and thread sig
   "scene_pressure_remove": [],
   "scene_pressure_update": [],
   "thread_signals": [],
-  "player_drift_signals": [],
+  "drift_analysis": [],
+  "player_drift_signals": [],  # DEPRECATED: use drift_analysis
   "candidate_opportunity": null
 }
 ```
@@ -32,11 +33,15 @@ Only emit signals for threads that were clearly relevant to this turn's narrativ
 Do not emit a signal for threads that were merely background or coincidentally present.
 Emit at most one signal per thread per turn.
 
-`player_drift_signals`: If the player's action suggests a new interest, concern, or direction not covered by active threads, emit up to 3 short phrases describing it. Examples:
-  "interested in the river docks"
-  "avoiding militia contact"
-  "focused on finding shelter"
-Leave empty if the player is engaging with active threads normally.
+`drift_analysis`: For EACH active thread, emit a DriftAnalysis entry:
+  - `match`: true if the player's action meaningfully engaged this thread (advanced, blocked, or directly affected it)
+  - `reason`: one-sentence explanation. E.g. "Player attacked pirates near mainmast, directly advancing boarding_chaos"
+  - `new_interest`: if match is false, what new direction the player seems interested in. Empty if match is true.
+
+Match against thread tags, not summaries. If narration contains keywords from a thread's tags, set match=true.
+Emit one entry per active thread. Do not emit entries for latent/completed threads.
+
+`player_drift_signals`: DEPRECATED — kept for backward compatibility. Use drift_analysis instead.
 
 `candidate_opportunity`: If the narrative introduced a new potential hook (a person, place, object, or situation that could become a future thread), describe it in one sentence. Leave null if nothing new emerged.
 

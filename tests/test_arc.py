@@ -3,6 +3,7 @@
 from ccya.engine.arc import tick_arc, update_stances
 from ccya.engine.turn import _apply_thread_signals, _candidate_to_latent_thread
 from ccya.models import ArcThread, CampaignArc, ThreadSignal, ThreadSignalType, ThreadState
+from ccya.state.delta import _merge_arc_update
 
 
 def _make_arc(
@@ -232,6 +233,48 @@ class TestEngagement:
         arc = tick_arc(arc, [])
         assert arc.arc_engagement == 1
 
+    def test_drift_analysis_match_increments_engagement(self):
+        from ccya.models import DriftAnalysis
+        arc = _make_arc(
+            active=[{"id": "t1", "state": ThreadState.ACTIVE, "tags": ["political", "trust"]}],
+            engagement=-3,
+        )
+        drift = [DriftAnalysis(thread_id="t1", match=True, reason="Player engaged political thread")]
+        arc = tick_arc(arc, drift_analysis=drift)
+        assert arc.arc_engagement == -2
+
+    def test_drift_analysis_no_match_decrements_engagement(self):
+        from ccya.models import DriftAnalysis
+        arc = _make_arc(
+            active=[{"id": "t1", "state": ThreadState.ACTIVE, "tags": ["military"]}],
+            engagement=0,
+        )
+        drift = [DriftAnalysis(thread_id="t1", match=False, reason="Player avoided military", new_interest="finding shelter")]
+        arc = tick_arc(arc, drift_analysis=drift)
+        assert arc.arc_engagement == -1
+
+    def test_drift_analysis_fallback_to_legacy_drift(self):
+        arc = _make_arc(
+            active=[{"id": "t1", "state": ThreadState.ACTIVE, "tags": ["political"]}],
+            engagement=-3,
+        )
+        drift = []
+        legacy_drift = ["interested in political maneuvering"]
+        arc = tick_arc(arc, drift=legacy_drift, drift_analysis=drift)
+        assert arc.arc_engagement == -2
+
+    def test_drift_analysis_takes_precedence_over_legacy(self):
+        from ccya.models import DriftAnalysis
+        arc = _make_arc(
+            active=[{"id": "t1", "state": ThreadState.ACTIVE, "tags": ["political"]}],
+            engagement=0,
+        )
+        drift = [DriftAnalysis(thread_id="t1", match=False, reason="No match")]
+        legacy_drift = ["interested in political maneuvering"]
+        arc = tick_arc(arc, drift=legacy_drift, drift_analysis=drift)
+        # drift_analysis says no match, so should decrement despite legacy drift having overlap
+        assert arc.arc_engagement == -1
+
 
 class TestCandidateToLatent:
     """candidate_opportunity converted to latent thread with cap enforcement."""
@@ -303,3 +346,78 @@ class TestStances:
         stances = {}
         stances = update_stances(stances, "I help and protect the wounded")
         assert stances["compassionate"] == 1  # counted once per stance
+
+
+class TestThreadCompletionState:
+    """Thread completion should not leave thread in both active and completed lists."""
+
+    def test_completed_thread_not_in_active_after_completion(self):
+        """After 3 ADVANCED signals, thread is only in completed_threads, not active_threads."""
+        arc = _make_arc(active=[{"id": "t1", "state": ThreadState.ACTIVE, "progress": 0}])
+        state = _make_state(arc)
+
+        class PR1:
+            thread_signals = [_signal("t1", "advanced")]
+        result = _apply_thread_signals(state, PR1())
+        assert result is not None
+
+        arc = result
+        state = _make_state(arc)
+
+        class PR2:
+            thread_signals = [_signal("t1", "advanced")]
+        result = _apply_thread_signals(state, PR2())
+        assert result is not None
+
+        arc = result
+        state = _make_state(arc)
+
+        class PR3:
+            thread_signals = [_signal("t1", "advanced")]
+        result = _apply_thread_signals(state, PR3())
+        assert result is not None
+        assert len(result.active_threads) == 0
+        assert len(result.completed_threads) == 1
+        assert result.completed_threads[0].state == ThreadState.COMPLETE
+
+    def test_promoted_thread_not_in_latent_after_promotion(self):
+        """After latent promoted to active, thread is only in active_threads, not latent_threads."""
+        arc = _make_arc(
+            active=[{"id": "t1", "state": ThreadState.ACTIVE}],
+            latent=[{"id": "t2", "state": ThreadState.LATENT}],
+        )
+        state = _make_state(arc)
+
+        class ProgressResult:
+            thread_signals = [_signal("t1", "failed")]
+
+        result = _apply_thread_signals(state, ProgressResult())
+        assert result is not None
+        assert len(result.active_threads) == 1
+        assert result.active_threads[0].id == "t2"
+        assert result.active_threads[0].state == ThreadState.ACTIVE
+        assert len(result.latent_threads) == 0
+
+
+class TestMergeArcUpdate:
+    """_merge_arc_update should do set-replace, not upsert, for thread lists."""
+
+    def test_merge_arc_update_replaces_active_threads(self):
+        """Verify set-replace behavior: threads moved from active to completed should not remain in active."""
+        state_arc = {"active_threads": [{"id": "t1", "summary": "old", "state": "active", "progress": 0}], "completed_threads": [{"id": "t2", "summary": "done", "state": "complete", "progress": 0}]}
+
+        # Simulate what _apply_thread_signals returns: t1 moved to completed
+        updated_arc = CampaignArc(
+            active_threads=[],
+            completed_threads=[
+                ArcThread(id="t1", summary="old", state=ThreadState.COMPLETE, progress=0),
+                ArcThread(id="t2", summary="done", state=ThreadState.COMPLETE, progress=0),
+            ],
+        )
+
+        _merge_arc_update(state_arc, updated_arc)
+        assert state_arc["active_threads"] == []
+        assert len(state_arc["completed_threads"]) == 2
+        completed_ids = {t["id"] for t in state_arc["completed_threads"]}
+        assert "t1" in completed_ids
+        assert "t2" in completed_ids

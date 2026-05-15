@@ -13,6 +13,7 @@ from ccya.engine import (
 )
 from ccya.engine.extraction import _ExtractionContext
 from ccya.models import (
+    DriftAnalysis,
     GMBeat,
     ProgressExtractResult,
     SceneExtractResult,
@@ -75,6 +76,25 @@ class TestProgressMessagesThreadContext:
             recent_turns=[],
         )
         assert len(msgs) == 2
+
+    def test_progress_messages_includes_thread_tags(self):
+        """_extract_progress_messages includes tags in each active thread entry."""
+        env = _build_jinja_env(_TEMPLATE_DIR)
+        state_res = StateExtractResult()
+        state = {"arc": {"active_threads": [{"id": "t1", "summary": "Test thread", "urgency": "normal", "tags": ["political", "trust"]}]}}
+        msgs = _extract_progress_messages(
+            env, "N.", state,
+            state_result=state_res,
+            extraction_ctx=_ExtractionContext(),
+            intent=None,
+            recent_turns=[],
+        )
+        assert len(msgs) == 2
+        # Verify tags are in the rendered user prompt
+        user_content = msgs[1]["content"]
+        assert "t1" in user_content
+        assert "political" in user_content
+        assert "trust" in user_content
 
     def test_progress_messages_empty_default(self):
         """_extract_progress_messages works with empty state."""
@@ -217,3 +237,17 @@ async def test_pressure_update_guard_empty_when_no_existing_pressures():
     assert result is not None
     pressure_updates = result.state_delta.get("scene_pressure_update", [])
     assert len(pressure_updates) == 0
+
+
+class TestDriftAnalysis:
+    def test_progress_result_includes_drift_analysis(self):
+        """ProgressExtractResult model accepts drift_analysis field."""
+        result = ProgressExtractResult(
+            drift_analysis=[
+                DriftAnalysis(thread_id="t1", match=True, reason="Player engaged thread"),
+            ]
+        )
+        assert len(result.drift_analysis) == 1
+        assert result.drift_analysis[0].thread_id == "t1"
+        assert result.drift_analysis[0].match is True
+

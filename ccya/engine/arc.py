@@ -7,6 +7,8 @@ arc engagement scoring based on player drift signals.
 
 from __future__ import annotations
 
+from typing import Any
+
 from ccya.models import CampaignArc
 
 
@@ -29,7 +31,8 @@ def update_stances(stances: dict[str, int], user_input: str) -> dict[str, int]:
 
 def tick_arc(
     arc: CampaignArc,
-    drift: list[str],
+    drift: list[str] | None = None,
+    drift_analysis: list[Any] | None = None,
 ) -> CampaignArc:
     """Score arc engagement based on drift overlap with active thread tags.
 
@@ -38,9 +41,12 @@ def tick_arc(
     """
     engagement_tags: set[str] = set()
     for t in arc.active_threads:
-        engagement_tags.update(t.tags)
+        engagement_tags.update(t.tags or [])
 
-    if drift:
+    # Prefer structured drift_analysis, fall back to legacy player_drift_signals
+    if drift_analysis:
+        has_overlap = any(da.match for da in drift_analysis)
+    elif drift:
         has_overlap = False
         for d in drift:
             d_lower = d.lower()
@@ -50,10 +56,12 @@ def tick_arc(
                     break
             if has_overlap:
                 break
+    else:
+        return arc
 
-        if has_overlap:
-            arc.arc_engagement = min(arc.arc_engagement + 1, 3)
-        else:
-            arc.arc_engagement = max(arc.arc_engagement - 1, -3)
+    if has_overlap:
+        arc.arc_engagement = min(arc.arc_engagement + 1, 3)
+    else:
+        arc.arc_engagement = max(arc.arc_engagement - 1, -3)
 
     return arc

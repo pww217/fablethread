@@ -24,7 +24,7 @@
 
 {% if active_threads -%}
 ## active_threads
-{% for t in active_threads %}- `{{ t.id }}` [{{ t.urgency | upper }}] {{ t.summary | truncate(120) }}
+{% for t in active_threads %}- `{{ t.id }}` [{{ t.urgency | upper }}] {{ t.summary | truncate(120) }}{% if t.tags %} tags: {{ t.tags | join(', ') }}{% endif %}
 {% endfor %}
 {% endif -%}
 

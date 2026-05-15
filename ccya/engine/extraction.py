@@ -441,7 +441,7 @@ def _extract_progress_messages(
     scene = state.get("scene") or {}
 
     active_threads = [
-        {"id": t["id"], "summary": t["summary"], "urgency": t.get("urgency", "normal")}
+        {"id": t["id"], "summary": t["summary"], "urgency": t.get("urgency", "normal"), "tags": t.get("tags", [])}
         for t in ((state.get("arc") or {}).get("active_threads") or [])
     ]
     recent_events = list(scene.get("recent_events") or [])

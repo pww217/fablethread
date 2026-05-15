@@ -54,22 +54,21 @@ def _merge_arc_update(arc: dict[str, Any], au: CampaignArc) -> None:
     if au.discovered_truths:
         existing_dt = set(arc.get("discovered_truths") or [])
         arc["discovered_truths"] = list(existing_dt | set(au.discovered_truths))
-    if au.active_threads:
-        arc["active_threads"] = _upsert_threads(
-            arc.get("active_threads") or [], au.active_threads
-        )
-    if au.latent_threads:
-        arc["latent_threads"] = _upsert_threads(
-            arc.get("latent_threads") or [], au.latent_threads
-        )
-    if au.completed_threads:
-        existing_comp_ids = {
-            t["id"] for t in (arc.get("completed_threads") or []) if isinstance(t, dict)
-        }
-        for t in au.completed_threads:
-            td = t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
-            if td.get("id") not in existing_comp_ids:
-                arc.setdefault("completed_threads", []).append(td)
+    if au.active_threads is not None:
+        arc["active_threads"] = [
+            t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
+            for t in au.active_threads
+        ]
+    if au.latent_threads is not None:
+        arc["latent_threads"] = [
+            t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
+            for t in au.latent_threads
+        ]
+    if au.completed_threads is not None:
+        arc["completed_threads"] = [
+            t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
+            for t in au.completed_threads
+        ]
     if au.arc_engagement and au.arc_engagement > (arc.get("arc_engagement") or 0):
         arc["arc_engagement"] = au.arc_engagement
 
