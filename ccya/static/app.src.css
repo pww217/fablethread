@@ -19,9 +19,13 @@
   --accent:         #f0a030;
   --accent-hover:   #e8b84a;
   --accent-soft:    rgba(240, 160, 48, 0.10);
-  --accent-error:   #f87171;
-  --accent-success: #4ade80;
-  --accent-blue:    #60a5fa;
+  --accent-error:     #f87171;
+  --accent-error-soft: rgba(248, 113, 113, 0.10);
+  --accent-success:   #4ade80;
+  --accent-success-soft: rgba(74, 222, 128, 0.10);
+  --accent-warning:   #fbbf24;
+  --accent-warning-soft: rgba(251, 191, 36, 0.10);
+  --accent-blue:      #60a5fa;
 
   /* Turn viewer — pipeline status (semantic) */
   --status-ok:        #3fb8af;
@@ -503,7 +507,7 @@ body {
 
 /* Scrollable card bodies — do not grow with content; player / location / scene stay natural height */
 .sidebar-card[data-card="inventory"] > .sidebar-card-body,
-.sidebar-card[data-card="quests"] > .sidebar-card-body,
+.sidebar-card[data-card="arc"] > .sidebar-card-body,
 .sidebar-card[data-card="recent-events"] > .sidebar-card-body,
 .sidebar-card[data-card="debug"] > .sidebar-card-body {
   max-height: var(--sidebar-card-body-scroll-h);
@@ -526,7 +530,7 @@ body {
 }
 
 .sidebar-card[data-card="inventory"] > .sidebar-card-body::-webkit-scrollbar,
-.sidebar-card[data-card="quests"] > .sidebar-card-body::-webkit-scrollbar,
+.sidebar-card[data-card="arc"] > .sidebar-card-body::-webkit-scrollbar,
 .sidebar-card[data-card="recent-events"] > .sidebar-card-body::-webkit-scrollbar,
 .sidebar-card[data-card="world-state"] > .sidebar-card-body::-webkit-scrollbar,
 .sidebar-card[data-card="compendium"] > .sidebar-card-body::-webkit-scrollbar,
@@ -534,7 +538,7 @@ body {
   width: 5px;
 }
 .sidebar-card[data-card="inventory"] > .sidebar-card-body::-webkit-scrollbar-thumb,
-.sidebar-card[data-card="quests"] > .sidebar-card-body::-webkit-scrollbar-thumb,
+.sidebar-card[data-card="arc"] > .sidebar-card-body::-webkit-scrollbar-thumb,
 .sidebar-card[data-card="recent-events"] > .sidebar-card-body::-webkit-scrollbar-thumb,
 .sidebar-card[data-card="world-state"] > .sidebar-card-body::-webkit-scrollbar-thumb,
 .sidebar-card[data-card="compendium"] > .sidebar-card-body::-webkit-scrollbar-thumb,
@@ -779,8 +783,7 @@ body {
 .turn-log-line.tl-inv-loss { color: #f87171cc; }
 .turn-log-line.tl-pl       { color: #facc15cc; }
 .turn-log-line.tl-loc      { color: #fb923ccc; }
-.turn-log-line.tl-fa       { color: #60a5facc; }
-.turn-log-line.tl-qu       { color: #c084fccc; }
+.turn-log-line.tl-fa     { color: #60a5facc; }
 .turn-log-empty {
   color: var(--text-muted);
   font-style: italic;
@@ -809,7 +812,6 @@ body {
 .turn-changes-line.tc-pl     { border-color: #facc15; color: #facc15cc; }
 .turn-changes-line.tc-loc    { border-color: #fb923c; color: #fb923ccc; }
 .turn-changes-line.tc-fa     { border-color: #60a5fa; color: #60a5facc; }
-.turn-changes-line.tc-qu     { border-color: #c084fc; color: #c084fccc; }
 
 .turn-metrics {
   margin: 8px 0 4px;
@@ -1002,84 +1004,6 @@ body {
   font-weight: 600;
 }
 
-/* =========================================================
-   SIDEBAR — QUESTS
-   ========================================================= */
-
-.quest-item {
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border-subtle);
-}
-.quest-item:last-child { border-bottom: none; }
-
-.quest-title {
-  font-size: 13px;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-.quest-title.active { color: var(--accent); }
-
-.quest-status-badge {
-  display: inline-block;
-  font-size: 10px;
-  font-family: var(--font-mono);
-  padding: 1px 6px;
-  border-radius: 3px;
-  background: var(--bg-elevated);
-  color: var(--text-muted);
-  border: 1px solid var(--border-subtle);
-  margin-left: 6px;
-  vertical-align: middle;
-}
-
-.objective {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--text-muted);
-  padding: 2px 0;
-  font-family: var(--font-mono);
-}
-.objective.done        { text-decoration: line-through; opacity: 0.6; }
-.objective.failed      { color: var(--accent-error); opacity: 0.95; }
-.objective-check       { flex-shrink: 0; }
-.objective-check.done  { color: var(--accent-success); }
-.objective-check.failed { color: var(--accent-error); }
-
-.quest-item-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.quest-objectives {
-  border: none;
-  padding: 0;
-  margin: 0;
-}
-.quest-objectives-summary {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-  list-style: none;
-  cursor: pointer;
-  padding: 0 0 4px 0;
-}
-.quest-objectives-summary::-webkit-details-marker {
-  display: none;
-}
-.objective-count {
-  font-size: 10px;
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-  margin-left: auto;
-}
-
 /* Compendium */
 .compendium-list {
   display: flex;
@@ -1124,76 +1048,249 @@ body {
   border-top: 1px solid var(--border);
 }
 
-.quest-card-body[data-tab="active"] .quest-list-resolved { display: none; }
-.quest-card-body[data-tab="resolved"] .quest-list-active { display: none; }
+/* =========================================================
+    SIDEBAR — ARC
+    ========================================================= */
 
-.quest-tabs {
+/* =========================================================
+    SIDEBAR — ARC
+   ========================================================= */
+
+.arc-card-body {
   display: flex;
-  gap: 6px;
-  margin-bottom: 10px;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.quest-tab {
-  flex: 1;
-  padding: 5px 8px;
-  font-size: 11px;
+/* Goal — bold label, primary text */
+.arc-goal {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+.arc-goal strong {
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+/* Section labels */
+.arc-section-label {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 2px 0;
+}
+
+/* Active threads */
+.arc-threads {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.arc-thread {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 4px 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--border-strong);
+}
+
+.arc-thread-immediate {
+  border-left-color: var(--accent-error);
+  background: var(--accent-error-soft);
+}
+
+.arc-urgency {
+  font-size: 9px;
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: 1px 4px;
+  background: var(--bg-base);
+  border-radius: 3px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 1px;
+}
+
+.arc-urgency-immediate {
+  color: var(--accent-error);
+  background: rgba(248, 113, 113, 0.15);
+}
+
+.arc-thread-summary {
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+/* Collapsible sections (truths, log) */
+.arc-section {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.arc-section-summary {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  padding: 3px 0;
+  list-style: none;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.arc-section-summary::-webkit-details-marker {
+  display: none;
+}
+
+.arc-section-count {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.arc-eye {
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* Truths section */
+.arc-truths {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.arc-truth {
+  font-size: 12px;
+  color: var(--accent);
+  line-height: 1.4;
+  padding: 4px 8px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(240, 160, 48, 0.15);
+  border-radius: var(--radius-sm);
+}
+
+/* Log section */
+.arc-log {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 0;
+}
+
+.arc-log-entry {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  padding: 3px 0;
+  border-bottom: 1px dotted var(--border-subtle);
+}
+
+.arc-log-entry:last-child {
+  border-bottom: none;
+}
+
+/* Narrative Frame (collapsible behind-the-curtain) */
+.arc-frame {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.arc-frame-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  padding: 3px 0;
+  list-style: none;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.arc-frame-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.arc-frame-icon {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.5;
+  transition: transform 150ms;
+}
+
+.arc-frame[open] .arc-frame-icon {
+  transform: rotate(180deg);
+}
+
+.arc-frame-body {
+  padding: 6px 8px;
+  margin: 4px 0 0 0;
+  background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: var(--bg-base);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: border-color 120ms, color 120ms, background 120ms;
 }
 
-.quest-tab:hover {
-  border-color: var(--border-strong);
+.arc-frame-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.arc-frame-item:not(:last-child) {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.arc-frame-key {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.arc-frame-value {
+  font-size: 12px;
   color: var(--text-secondary);
+  line-height: 1.4;
+  font-style: italic;
 }
 
-.quest-tab.active {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.quest-tab-count {
-  font-variant-numeric: tabular-nums;
-  opacity: 0.85;
-}
-
-.quest-list-panel {
-  min-height: 2rem;
-}
-
-.quest-title.completed { color: var(--accent-success); }
-.quest-title.failed { color: var(--accent-error); }
-.quest-title.abandoned { color: var(--text-muted); }
-
-.quest-status-badge.active {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.quest-status-badge.completed {
-  border-color: var(--accent-success);
-  color: var(--accent-success);
-}
-
-.quest-status-badge.failed {
-  border-color: var(--accent-error);
-  color: var(--accent-error);
-}
-
-.quest-status-badge.abandoned {
-  border-color: var(--border-strong);
+/* Empty state */
+.arc-empty {
+  font-size: 12px;
   color: var(--text-muted);
+  font-style: italic;
+  padding: 4px 0;
 }
 
 /* =========================================================
-   SIDEBAR — FACTS
+    SIDEBAR — FACTS
    ========================================================= */
 
 .fact-item {

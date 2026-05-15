@@ -105,33 +105,72 @@
         {% set _active = _arc.get('active_threads', []) %}
         {% set _discovered = _arc.get('discovered_truths', []) %}
         {% set _completed = _arc.get('completed_threads', []) %}
+        {% set _thematic = _arc.get('thematic_question', '') %}
+        {% set _drive = _arc.get('pc_drive', '') %}
 
         {% if _goal %}
-        <div class="arc-primary-text" data-md>{{ _goal }}</div>
+        <div class="arc-goal"><strong>Goal:</strong> <span data-md>{{ _goal }}</span></div>
         {% endif %}
 
         {% if _active %}
+        <div class="arc-section-label">Active Threads</div>
         <div class="arc-threads">
             {% for thread in _active %}
-            <div class="arc-thread">{{ thread.get('summary', '') | striptags }}</div>
+            {% set _urg = thread.get('urgency', 'normal') %}
+            <div class="arc-thread{% if _urg == 'immediate' %} arc-thread-immediate{% endif %}">
+                <span class="arc-urgency{% if _urg == 'immediate' %} arc-urgency-immediate{% endif %}">{{ _urg | upper }}</span>
+                <span class="arc-thread-summary" data-md>{{ thread.get('summary', '') | striptags }}</span>
+            </div>
             {% endfor %}
         </div>
         {% endif %}
 
+        {% if _thematic or _drive %}
+        <details class="arc-frame">
+            <summary class="arc-frame-toggle">
+                <span class="arc-frame-icon">◡</span>
+                <span class="arc-frame-label">Narrative Frame</span>
+            </summary>
+            <div class="arc-frame-body">
+                {% if _thematic %}
+                <div class="arc-frame-item">
+                    <span class="arc-frame-key">Thematic Question</span>
+                    <span class="arc-frame-value" data-md>{{ _thematic }}</span>
+                </div>
+                {% endif %}
+                {% if _drive %}
+                <div class="arc-frame-item">
+                    <span class="arc-frame-key">PC Drive</span>
+                    <span class="arc-frame-value" data-md>{{ _drive }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </details>
+        {% endif %}
+
         {% if _discovered %}
-        <details class="arc-section">
-            <summary class="arc-section-summary">Truths <span class="arc-section-count">{{ _discovered | length }}</span></summary>
-            <div class="arc-secrets">
+        <details class="arc-section arc-section-truths">
+            <summary class="arc-section-summary">
+                <span class="arc-eye">👁</span>
+                <span>Discovered Truths</span>
+                <span class="arc-section-count">{{ _discovered | length }}</span>
+            </summary>
+            <div class="arc-truths">
                 {% for truth in _discovered %}
                 <div class="arc-truth" data-md>{{ truth }}</div>
                 {% endfor %}
             </div>
         </details>
+        {% elif not _active and not _goal %}
+        <div class="arc-empty">No arc active.</div>
         {% endif %}
 
         {% if _completed %}
-        <details class="arc-section">
-            <summary class="arc-section-summary">Log <span class="arc-section-count">{{ _completed | length }}</span></summary>
+        <details class="arc-section arc-section-log">
+            <summary class="arc-section-summary">
+                <span>Log</span>
+                <span class="arc-section-count">{{ _completed | length }}</span>
+            </summary>
             <div class="arc-log">
                 {% for thread in _completed %}
                 <div class="arc-log-entry" data-md>{{ thread.get('summary', '') | striptags }}</div>
