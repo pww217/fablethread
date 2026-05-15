@@ -105,47 +105,21 @@
         {% set _active = _arc.get('active_threads', []) %}
         {% set _discovered = _arc.get('discovered_truths', []) %}
         {% set _completed = _arc.get('completed_threads', []) %}
-        {% set _thematic = _arc.get('thematic_question', '') %}
-        {% set _drive = _arc.get('pc_drive', '') %}
 
         {% if _goal %}
         <div class="arc-goal"><strong>Goal:</strong> <span data-md>{{ _goal }}</span></div>
         {% endif %}
 
         {% if _active %}
-        <div class="arc-section-label">Active Threads</div>
-        <div class="arc-threads">
+        <div class="arc-section-title">Active Threads</div>
+        <ol class="arc-threads">
             {% for thread in _active %}
             {% set _urg = thread.get('urgency', 'normal') %}
-            <div class="arc-thread{% if _urg == 'immediate' %} arc-thread-immediate{% endif %}">
-                <span class="arc-urgency{% if _urg == 'immediate' %} arc-urgency-immediate{% endif %}">{{ _urg | upper }}</span>
+            <li class="arc-thread{% if _urg == 'immediate' %} arc-thread-urgent{% endif %}">
                 <span class="arc-thread-summary" data-md>{{ thread.get('summary', '') | striptags }}</span>
-            </div>
+            </li>
             {% endfor %}
-        </div>
-        {% endif %}
-
-        {% if _thematic or _drive %}
-        <details class="arc-frame">
-            <summary class="arc-frame-toggle">
-                <span class="arc-frame-icon">◡</span>
-                <span class="arc-frame-label">Narrative Frame</span>
-            </summary>
-            <div class="arc-frame-body">
-                {% if _thematic %}
-                <div class="arc-frame-item">
-                    <span class="arc-frame-key">Thematic Question</span>
-                    <span class="arc-frame-value" data-md>{{ _thematic }}</span>
-                </div>
-                {% endif %}
-                {% if _drive %}
-                <div class="arc-frame-item">
-                    <span class="arc-frame-key">PC Drive</span>
-                    <span class="arc-frame-value" data-md>{{ _drive }}</span>
-                </div>
-                {% endif %}
-            </div>
-        </details>
+        </ol>
         {% endif %}
 
         {% if _discovered %}
