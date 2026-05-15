@@ -1,0 +1,371 @@
+arc:
+  active_threads:
+  - id: the_extraction_route
+    last_offered_turn: 19
+    progress: 1
+    promotes: []
+    state: active
+    summary: The path through the overgrown ruins of West Brandonfurt is becoming
+      increasingly unstable due to seasonal flooding and FEDRA patrols.
+    tags:
+    - navigation
+    - danger
+    unlock_if: null
+    urgency: normal
+  - id: marlene_s_secret
+    last_offered_turn: 8
+    progress: 0
+    promotes: []
+    state: active
+    summary: Marlene's instructions for the girl's safety may contradict her actual
+      tactical objectives.
+    tags:
+    - political
+    - trust
+    unlock_if: null
+    urgency: normal
+  arc_engagement: -3
+  completed_threads: []
+  discovered_truths: []
+  hidden_truths:
+  - The infection's biology behaves differently in specific genetic carriers.
+  - The Firefly leadership has ulterior motives for the girl's extraction.
+  latent_threads:
+  - id: fedra_encroachment
+    last_offered_turn: null
+    progress: 0
+    promotes:
+    - the_extraction_route
+    state: latent
+    summary: FEDRA patrols are expanding their perimeter into settlement-controlled
+      territory.
+    tags:
+    - military
+    unlock_if: encountering a FEDRA patrol
+    urgency: normal
+  - id: the_old_construction_yards_pose_a_new_en
+    last_offered_turn: null
+    progress: 0
+    promotes: []
+    state: latent
+    summary: The old construction yards pose a new environmental hazard involving
+      uneven terrain and spore-heavy lowlands.
+    tags: []
+    unlock_if: null
+    urgency: normal
+  - id: the_revelation_of_ellie_s_biological_sig
+    last_offered_turn: null
+    progress: 0
+    promotes: []
+    state: latent
+    summary: The revelation of Ellie's biological significance creates a massive moral
+      conflict for the mission.
+    tags: []
+    unlock_if: null
+    urgency: normal
+  - id: the_source_of_the_clicking_sound_in_the
+    last_offered_turn: null
+    progress: 0
+    promotes: []
+    state: latent
+    summary: The source of the clicking sound in the construction yards could reveal
+      a new threat or a hidden cache.
+    tags: []
+    unlock_if: null
+    urgency: normal
+  - id: a_large_uncoordinated_entity_is_emergin
+    last_offered_turn: null
+    progress: 0
+    promotes: []
+    state: latent
+    summary: A large, uncoordinated entity is emerging from the mist near the perimeter
+      wall.
+    tags: []
+    unlock_if: null
+    urgency: normal
+  - id: the_drainage_pipe_offers_a_potential_esc
+    last_offered_turn: null
+    progress: 0
+    promotes: []
+    state: latent
+    summary: The drainage pipe offers a potential escape route but may be cramped
+      and dangerous.
+    tags: []
+    unlock_if: null
+    urgency: normal
+  - id: the_drainage_pipe_offers_a_dark_narrow
+    last_offered_turn: null
+    progress: 0
+    promotes: []
+    state: latent
+    summary: The drainage pipe offers a dark, narrow escape route that could lead
+      deeper into the ruins.
+    tags: []
+    unlock_if: null
+    urgency: normal
+  - id: the_collapsed_structure_might_hide_usefu
+    last_offered_turn: null
+    progress: 0
+    promotes: []
+    state: latent
+    summary: The collapsed structure might hide useful scavenged supplies or a smaller,
+      alternative entrance.
+    tags: []
+    unlock_if: null
+    urgency: normal
+  - id: the_narrow_drainage_pipe_offers_a_claust
+    last_offered_turn: null
+    progress: 0
+    promotes: []
+    state: latent
+    summary: The narrow drainage pipe offers a claustrophobic escape route that may
+      lead to a hidden cache or a dead end.
+    tags: []
+    unlock_if: null
+    urgency: normal
+  - id: a_discarded_flashlight_lies_partially_su
+    last_offered_turn: null
+    progress: 0
+    promotes: []
+    state: latent
+    summary: A discarded flashlight lies partially submerged in the sludge just ahead
+      of the junction.
+    tags: []
+    unlock_if: null
+    urgency: normal
+  - id: the_structural_breach_in_the_pipe_offers
+    last_offered_turn: null
+    progress: 0
+    promotes: []
+    state: latent
+    summary: The structural breach in the pipe offers a potential shortcut to the
+      ruins above.
+    tags: []
+    unlock_if: null
+    urgency: normal
+  pc_drive: Protect the girl at any cost, even if it means defying the settlement's
+    laws.
+  phase: setup
+  thematic_question: Is the survival of a species worth the loss of one's humanity?
+  visible_goal: Deliver the girl to the Firefly stronghold.
+compendium:
+  npcs:
+    clicker:
+      bio: A terrifying, blind humanoid host for Cordyceps, characterized by a calcified,
+        blooming fungal growth on its head. Dying and spasming, its death rattles
+        joining a larger chorus of approaching threats. No longer present; the immediate
+        swarm has surged past the junction.
+      last_seen:
+        location_id: west_brandonfurt_outskirts
+        location_name: West Brandonfurt Perimeter
+        turn: 12
+      name: Clicker
+      title: Infected
+    ellie_williams:
+      bio: A young girl who feels like a mere 'package' being passed around by the
+        Fireflies, displaying a mix of defiance and deep-seated exhaustion.
+      last_seen:
+        location_id: west_brandonfurt_ruins
+        location_name: West Brandonfurt Ruins
+        turn: 19
+      motivation: Survival amidst being treated as a biological tool for a cause.
+      name: Ellie Williams
+      title: The Asset
+    marlene:
+      bio: A pragmatic leader who makes the hard choices to keep her faction alive.
+      last_seen:
+        location_id: west_brandonfurt_ruins
+        location_name: West Brandonfurt Ruins
+        turn: 19
+      motivation: To use Ellie's blood to secure a future for the Fireflies.
+      name: Marlene
+      title: Firefly Leader
+    stalker:
+      bio: A highly evolved, agile stage of the Cordyceps infection that hunts with
+        stealth and intelligence. Watching the player with predatory precision from
+        the periphery of the light.
+      last_seen:
+        location_id: west_brandonfurt_outskirts
+        location_name: West Brandonfurt Perimeter
+        turn: 15
+      name: Stalker
+      title: Infected
+inventory:
+- aliases: []
+  amount: 1
+  id: hammer
+  name: Heavy Claw Hammer
+  notes: vibrates from heavy impact
+- aliases: []
+  amount: 1
+  id: revolver
+  name: Revolver
+  notes: A reliable six-shooter, well-oiled.
+- aliases: []
+  amount: 6
+  id: revolver_ammo
+  name: .38 Revolver Rounds
+  notes: ''
+- aliases: []
+  amount: 3
+  id: antibiotics
+  name: Amoxicillin Pills
+  notes: Crude blister packs from a scavenged kit.
+- aliases: []
+  amount: 1
+  id: flashlight
+  name: Heavy Duty Flashlight
+  notes: Requires manual crank or batteries.
+location:
+  description: A drainage ditch cuts through dense brambles and a collapsed brick
+    wall near the ridge's edge, offering a muddy, low-visibility path.
+  id: west_brandonfurt_ruins
+  name: West Brandonfurt Ruins
+meta:
+  compendium_touch_order:
+  - marlene
+  - ellie_williams
+  - clicker
+  - stalker
+  consecutive_floor_count: 0
+  last_compacted_turn: 16
+  model: mlx-community/gemma-4-26b-a4b-it-mxfp8
+  pending_gm_beat:
+    beat_expires_turn: 21
+    instruction: The FEDRA vehicle rounds the bend, its headlights sweeping across
+      the ridge edge.
+    surface_as: environmental
+    type: escalation
+  prior_history:
+  - '- [T1] Joel confirmed his ammunition count and questioned Marlene''s true motives;
+    Marlene revealed the route through the construction yard ridge line to avoid FEDRA
+    and spores, emphasizing Ellie''s importance to the Firefly cause.'
+  - '- [T2] Ellie reveals she feels like nothing more than a "package" being passed
+    around for the Fireflies'' cause.'
+  - '- [T3] Marlene reveals that Ellie''s blood is the key to the Fireflies'' future
+    and threatens Joel''s life if he continues to question her.'
+  - '- [T4] Marlene refuses Joel''s request for additional medical supplies and explosives,
+    stating he must make do with his current gear.'
+  - '- [T5] Joel confronted Marlene regarding Ellie''s fate, resulting in a hostile
+    standoff and the first signs of approaching infected.'
+  - '- [T6] Marlene issued a lethal ultimatum to Joel, threatening him with her knife
+    if he continued to question her intentions.'
+  - '- [T7] A Clicker emerged from the mist near the group, prompting Marlene to command
+    a silent retreat through a nearby drainage pipe.'
+  - '- [T8] Ellie''s whimper alerted a Clicker, forcing a frantic retreat toward a
+    drainage pipe amidst seasonal flooding.'
+  - '- [T9] You killed the Clicker with a heavy hammer blow, but the struggle caused
+    a collapse of debris that partially blocked the drainage pipe entrance.'
+  - '- [T10] You cleared a narrow gap through the wreckage and successfully ushered
+    Ellie and Marlene into the drainage pipe just as a chorus of infected approached.'
+  - '- [T11] A massive swarm of Stalkers and Runners surged through the drainage pipe,
+    forcing the group to hide in a rusted iron junction.'
+  - '- [T12] The group narrowly avoided being crushed by the weight of the infected
+    swarm as it funneled past their hiding spot.'
+  - '- [T13] While attempting to move quietly through the pipe, a single, calculated
+    clicking sound was heard from around the bend, indicating a lone hunter remains.'
+  - '- [T14] A Stalker emerged from the shadows of the drainage pipes, watching the
+    group from the periphery of the flashlight beam.'
+  - '- [T15] The Stalker attempted to lunge but slipped on oily sludge, allowing the
+    group to escape into a structural breach.'
+  - '- [T16] The group emerged from the pipes onto a concrete ledge in the West Brandonfurt
+    ruins; Marlene directed the group north toward the Firefly stronghold via the
+    tree line to avoid FEDRA patrols and flooding.'
+  setting_pack: zombie-survival
+  turn: 19
+pc:
+  allegiance: null
+  bio: Born into the stable infrastructure of the before-world, Joel spent his prime
+    years building structures that no longer stand. He has spent the last two decades
+    learning that things are easier to tear down than to maintain. Now, he carries
+    the weight of a life lived in the shadows of ruins.
+  conditions: []
+  drive: Protect the girl at any cost, even if it means defying the settlement's laws.
+  expressed_stances:
+    cautious: 2
+    compassionate: 2
+    cynical: 3
+    protective: 4
+    ruthless: 1
+  momentum: 0
+  name: Joel Miller
+  stats:
+    charisma: 2
+    dexterity: 4
+    lore: 1
+    resolve: 3
+    strength: 3
+    wits: 3
+  tagline: Former construction Foreman, hardened survivor
+scene:
+  location_entered_turn: 15
+  present_npcs:
+  - bio: A pragmatic leader who makes the hard choices to keep her faction alive.
+    id: marlene
+    name: Marlene
+    notes: Urgent and commanding; directing the group toward cover to avoid the FEDRA
+      patrol.
+    title: Firefly Leader
+  - bio: A young girl who feels like a mere 'package' being passed around by the Fireflies,
+      displaying a mix of defiance and deep-seated exhaustion.
+    id: ellie_williams
+    name: Ellie Williams
+    notes: Tense and hyper-vigilant; gripping the player's sleeve tightly in fear
+      of the approaching patrol.
+    title: The Asset
+  recent_events:
+  - id: environmental_instability
+    text: Seasonal flooding and FEDRA patrols are making the ruins of West Brandonfurt
+      increasingly unstable.
+    turn: 3
+  - id: marlene_ultimatum
+    text: 'Marlene has made it clear: Ellie''s blood is the key to the Fireflies''
+      future, and any further questioning will be met with lethal force.'
+    turn: 4
+  - id: infected_encounters
+    text: After surviving a massive swarm and a stalking predator in the drainage
+      pipes, the group has finally reached the surface.
+    turn: 15
+  - id: exited_drainage_pipes
+    text: The group has emerged from the claustrophobic pipes into the skeletal ruins
+      of West Brandonfurt.
+    turn: 16
+  - id: fedra_checkpoint_ridge
+    text: A FEDRA observation post has been established on the northern ridge edge,
+      overlooking the sector.
+    turn: 18
+  recently_left: []
+  recently_left_turns: 0
+  scene_pressure:
+  - id: fedra_observation_post
+    max_turns: null
+    text: FEDRA checkpoint on the ridge edge monitoring the sector.
+    turn_added: 18
+    urgency: building
+  tagline: The Sound of Approaching Steel
+  tags:
+  - stealth
+  - tense_atmosphere
+  - approaching_threat
+  turn_entered: 15
+  world_state:
+  - '**Ophiocordyceps novum** spreads through airborne spores in enclosed or still-air
+    environments; outdoors, risk is wind-dependent; indoors without ventilation, a
+    sealed mask is the difference between a rough twenty minutes and full host-conversion
+    in two hours — and masks are harder to find than bullets.'
+  - 'The infected are not mindless: **Clickers** (late-stage, echolocating, skull-bloomed)
+    have no vision but track sound with surgical precision; **Stalkers** (mid-stage)
+    hide, watch, and wait; **Runners** (early-stage, still partly aware) sometimes
+    hesitate — and that hesitation is the worst thing about them; all stages are connected
+    by a slow, underground mycelial network that takes hours to signal but can make
+    a dormant nest active when another is disturbed kilometers away.'
+  - 'Twenty years in, cities are forests: root systems have cracked the foundations,
+    vines have collapsed the upper floors, rivers have re-routed through subway tunnels
+    — the infrastructure survivors built their routines around is now a living, hostile
+    landscape that changes season by season.'
+  - FEDRA maintains strict quarantine blockades around all major metropolitan zones.
+  - The black market economy relies entirely on pre-collapse scavenged hardware.
+  - Infection spreads through fungal spores that thrive in damp, low-light environments.
+world:
+  factions: []
+  locations: []

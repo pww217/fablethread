@@ -11,10 +11,6 @@ build/
 logs/
 logs/.gitkeep
 
-# Saves (player data)
-saves/
-saves/.gitkeep
-
 # Generated CSS (rebuilt by `make css`)
 ccya/static/app.css
 
