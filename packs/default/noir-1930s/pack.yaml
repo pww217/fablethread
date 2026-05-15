@@ -6,8 +6,8 @@ tone_tags: [noir, urban, procedural, moral-ambiguity]
 version: 2
 mode: dynamic
 baseline_facts:
-  - "The city runs on violence and money — gangsters control the docks, the unions, and the night. The police take their cut and look away. A detective who asks too many questions ends up with a bullet in the back or a frame-up that sends them to prison."
-  - "Women in noir are never what they seem — not because they are evil, but because survival in a man's world forces them to play roles. A femme fatale might be a victim playing the part to stay alive, a gangster's mistress with her own escape plan, or a woman who learned that the only way to win is to play the game harder than the men."
+  - "The city runs on violence and money — gangsters control the docks, the unions, and the night. The police take their cut and look away. A detective who asks too many questions ends up with a bullet in the back or a frame-up that sends him to prison."
+  - "Every man in the city has an angle — a cop taking payback, a gangster protecting his territory, a politician shielding his allies. Loyalty is bought and sold; a man will betray you for money and not think about it twice."
   - "The city at night is a character — rain on cobblestones, streetlights casting long shadows, empty alleys behind closed saloons, the sound of a distant train. Every corner holds a danger you can't see until it's too late."
 files:
   world: world.md

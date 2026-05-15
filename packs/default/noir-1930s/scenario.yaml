@@ -13,17 +13,17 @@ constraints:
   npc_distinct_first_letters: true
    # creativity guards
   forbid_cliches:
-     - "the dame was trouble"
+     - "the guy was trouble"
      - "the case was a setup from the start"
      - "the city was a beast"
      - "he had a dark past"
      - "the bottle was his only friend"
-     - "she smelled like gin and trouble"
+     - "he smelled like gin and trouble"
      - "the office was on the third floor of a building that used to be something"
      - "the money was the least of it"
      - "the real killer was dead / missing / already in jail"
      - "the answer was the person standing right in front of him"
-     - "a woman who played both sides"
+     - "a man who played both sides"
      - "the corrupt politician was behind everything"
   forbid_player_dependents: true
   forbid_legendary_items: true
@@ -31,18 +31,18 @@ constraints:
 inspiration:
   pc: |
     The PC is a detective or investigator — but not a hardened veteran with twenty
-    years on the job. They are someone who learned the work through doing: a cop who
-    got pushed onto the investigative desk, a former reporter who started their own
+    years on the job. He is someone who learned the work through doing: a cop who
+    got pushed onto the investigative desk, a former reporter who started his own
     agency, a union investigator who knows the streets, a federal agent who doesn't
-    fit the bureau. Give them a specific skill (reading documents, reading rooms,
+    fit the bureau. Give him a specific skill (reading documents, reading rooms,
     reading people) and a specific liability (a reputation, a debt, a relationship
-    that complicates things). They are not cynical by nature; they became that way
+    that complicates things). He is not cynical by nature; he became that way
     by necessity.
 
   opening_situation: |
     Drop the player into a situation that is already unfolding — a body found in a
     back room above a saloon, a kidnapping in progress with the victim still alive,
-    a gang hit that went wrong and left witnesses, a woman who bursts into your
+    a gang hit that went wrong and left witnesses, a man who bursts into your
     office bleeding and says "they're coming." The situation should involve immediate
     danger, a crime in motion, or a person in desperate need. The player should walk
     into something that demands action — pulling a gun, making a choice, running,
@@ -51,13 +51,16 @@ inspiration:
     kill to keep hidden.
 
   npcs: |
-    Each NPC is a person embedded in the city's infrastructure: a cop who knows the
-    evidence room, a reporter who knows the dock foreman, a union rep who knows the
-    mayor's chief of staff, a judge who knows the DA's weakness, a bartender who
-    knows who meets whom and when. They have a role in the system and a reason for
-    being outside it in this moment. At least one NPC should have an interest that
-    conflicts with the player's — not as a villain, but as someone with different
-    information, different jurisdiction, or different priorities.
+    All cops, detectives, gangsters, reporters, union reps, judges, and bartenders
+    are men. The initial NPCs in the opening scene MUST use male names only —
+    select from the male name pool provided. Each NPC is a man embedded in the
+    city's infrastructure: a cop who knows the evidence room, a reporter who
+    knows the dock foreman, a union rep who knows the mayor's chief of staff,
+    a judge who knows the DA's weakness, a bartender who knows who meets whom
+    and when. He has a role in the system and a reason for being outside it in
+    this moment. At least one NPC should have an interest that conflicts with
+    the player's — not as a villain, but as someone with different information,
+    different jurisdiction, or different priorities.
 
   inventory: |
     Items reflect what an investigator in the 1930s actually carried or had access to:
@@ -79,6 +82,6 @@ inspiration:
     expose the truth, survive the night. Hidden truths: the client set you up,
     the victim is alive and lying to you, the cop you trust is on the take, the
     murder was a message, not the final act. Thread ideas: a body with a
-    connection to your past, a woman who plays both sides, a gang war that
+    connection to your past, a man who plays both sides, a gang war that
     escalates beyond control, a witness who changes their story, a betrayal
     from someone you trusted.

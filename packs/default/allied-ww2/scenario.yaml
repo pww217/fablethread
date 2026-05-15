@@ -27,11 +27,11 @@ constraints:
 inspiration:
   pc: |
     The PC is a rank-and-file Allied service member — not an officer giving orders,
-    not a special operative with a dossier. They are a rifleman, a radioman, a
-    mechanic, a medic, a driver, a clerk. Their rank is real. Their training is
-    real. Their fear is normal, not dramatic. What shaped them is pre-war: a
+    not a special operative with a dossier. He is a rifleman, a radioman, a
+    mechanic, a medic, a driver, a clerk. His rank is real. His training is
+    real. His fear is normal, not dramatic. What shaped him is pre-war: a
     farming town, a Detroit assembly line, a Liverpool dock, a Saskatchewan grain
-    field, a Wellington pub. Give them a skill that matters in this moment and a
+    field, a Wellington pub. Give him a skill that matters in this moment and a
     liability that matters in the next.
 
   opening_situation: |
@@ -45,12 +45,16 @@ inspiration:
     to choose what to do in the next thirty seconds.
 
   npcs: |
-    Each NPC is a real person in the Allied structure — or a civilian whose
-    interests intersect with it. They have a rank, a specialty, a reason for being
-    where they are. They are not allies because they are good people; they are
-    allies because the war made them so. At least one NPC should have an interest
-    that conflicts with the player's — not as a traitor, but as someone with
-    different orders, different information, or different priorities.
+    All soldiers, sailors, airmen, and military police are men. Civilians may
+    be women or men, but every uniformed person is male. The initial NPCs in
+    the opening scene MUST use male names only — select from the male name
+    pool provided. Each NPC is a real person in the Allied structure — or a
+    civilian whose interests intersect with it. He has a rank, a specialty,
+    a reason for being where he is. He is not an ally because he is a good
+    man; he is an ally because the war made them so. At least one NPC should
+    have an interest that conflicts with the player's — not as a traitor, but
+    as someone with different orders, different information, or different
+    priorities.
 
   inventory: |
     Items reflect what a service member actually carried or had access to. Standard

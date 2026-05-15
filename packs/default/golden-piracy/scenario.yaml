@@ -27,12 +27,12 @@ constraints:
 inspiration:
   pc: |
     The PC is a crew member or officer on a pirate vessel — not the captain with a
-    legendary reputation, but someone who earned their share through violence and
-    competence. They could be a boatswain who knows the rigging, a gunner who can
+    legendary reputation, but someone who earned his share through violence and
+    competence. He could be a boatswain who knows the rigging, a gunner who can
     calculate a broadside, a surgeon who has amputated more limbs than he can count,
     a navigator who reads stars and currents, a landsman who joined at the first
-    port and never left. Give them a skill that keeps them alive and a reason they
-    can't go back to legitimate life. They are not romantic — they are brutal,
+    port and never left. Give him a skill that keeps him alive and a reason he
+    can't go back to legitimate life. He is not romantic — he is brutal,
     pragmatic, and capable of both terrible violence and fierce loyalty to the crew.
 
   opening_situation: |
@@ -48,14 +48,17 @@ inspiration:
     loyalty to the people who share their bread.
 
   npcs: |
-    Each NPC is a person who chose the pirate life or was forced into it. The
-    quartermaster who enforces the Articles and keeps the captain in line. The
-    surgeon who has seen every wound a cutlass can make and treats them with
+    All sailors, naval officers, and pirates are men. The initial NPCs in the
+    opening scene MUST use male names only — select from the male name pool
+    provided. Each NPC is a man who chose the pirate life or was forced into it.
+    The quartermaster who enforces the Articles and keeps the captain in line.
+    The surgeon who has seen every wound a cutlass can make and treats them with
     rough competence. The powder monkey who is twelve years old and faster than
     anyone on deck. The deserter from the Royal Navy who knows how a man-of-war
-    fights. At least one NPC should want something that conflicts with the player's
-    — not as a villain, but as someone whose survival depends on a different
-    answer. People lie, conceal, protect, miscalculate. Give them all of that.
+    fights. At least one NPC should want something that conflicts with the
+    player's — not as a villain, but as someone whose survival depends on a
+    different answer. Men lie, conceal, protect, miscalculate. Give them all of
+    that.
 
   inventory: |
     Items reflect what a pirate actually carried or had access to. A cutlass with

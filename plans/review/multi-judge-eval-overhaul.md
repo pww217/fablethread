@@ -1,7 +1,25 @@
 # Multi-Judge Eval Rubric Split
 
 ## Status
-`open`
+`open` (reviewed — corrections applied below)
+
+## Plan Review Summary
+Reviewed against actual codebase (`ccya/eval/config.py`, `judge.py`, `report.py`, `cli.py`, `universal_asserts.py`, `evals/config.yaml`, `docs/REPOMAP/eval.md`). Plan is mechanically sound with 3 warnings and 2 suggestions corrected in-place:
+
+**Corrections applied:**
+1. **Phase 01, Step 1.1** — Fixed `enabled` YAML parsing to handle `null` values (was `bool(judges_raw.get("enabled", ...))` which turns `null` into `False`; now checks `is None` first).
+2. **Phase 04, Step 4.2** — Added missing `game_config_path` parameter to the `run_judge_streaming` back-compat wrapper signature and pass-through to `run_judges()`.
+3. **Phase 05, Step 5.2** — Noted that `merge_judge_scores` import must be added to `report.py` (currently only imports `JudgeResult`).
+4. **Phase 06, Step 6.1** — Noted that config print lines in `_run_one_scenario` (lines 88-89) still reference `eval_cfg.judge.model`/`.rubric_path` which work via `_JudgeConfigBackCompat` proxy — no change needed but documented.
+5. **Phase 02, Step 2.1** — Clarified `_is_compaction_turn` risk: actual compaction delta keys may differ from what's checked (`chronicle_append`/`recent_events_compact` vs `compaction`); fallback handles this.
+6. **Phase 07, Step 7.3** — Removed phantom `_assert_thread_id_collision` reference from REPOMAP update instructions (non-goal: "does not change universal_asserts.py"; the existing REPOMAP entry is a pre-existing phantom reference outside this plan's scope).
+
+**Ambiguities resolved:**
+- Ambiguity #2 (redundancy/compaction modules): Both `ccya.eval.redundancy` and `ccya.eval.compaction_signals` exist per REPOMAP. The `try/except ImportError` pattern is correct as a safety net.
+- Ambiguity #3 (`_build_metrics_rows`): Confirmed exists at `judge.py:444`.
+- Ambiguity #4 (`run_all_universal_asserts`): Confirmed exists at `universal_asserts.py:804` with signature `(event, prev_event, event_window=None)`.
+- Ambiguity #5 (JudgeSpec mutability): Plan correctly uses `model: str = ""` with resolution in `run_judges`.
+- Ambiguity #6 (streaming sentinel): Plan correctly accepts transient skeleton.
 
 ## Phase Guide
 | Phase | Name | Summary |
@@ -71,7 +89,7 @@ class TraceConfig:
 class JudgeSpec:
     id: str
     rubric_path: str
-    model: str | None = None
+    model: str = ""
     temperature: float = 0.3
     timeout_s: float | None = None
     max_tokens: int = 64000
@@ -97,6 +115,41 @@ class LoggingConfig:
 
 
 @dataclass
+class _JudgeConfigBackCompat:
+    """Synthetic object providing backward-compat attributes for code that accesses eval_cfg.judge.*."""
+    _specs: list[JudgeSpec]
+    _trace: TraceConfig
+
+    @property
+    def enabled(self) -> bool:
+        return True  # always enabled when specs exist
+
+    @property
+    def model(self) -> str:
+        return self._specs[0].model if self._specs else ""
+
+    @property
+    def rubric_path(self) -> str:
+        return self._specs[0].rubric_path if self._specs else "evals/rubrics/default.md"
+
+    @property
+    def temperature(self) -> float:
+        return self._specs[0].temperature if self._specs else 0.3
+
+    @property
+    def timeout_s(self) -> float | None:
+        return self._specs[0].timeout_s if self._specs else None
+
+    @property
+    def max_tokens(self) -> int:
+        return self._specs[0].max_tokens if self._specs else 64000
+
+    @property
+    def trace(self) -> TraceConfig:
+        return self._trace
+
+
+@dataclass
 class EvalConfig:
     default_pack: str = "eval-pack"
     default_scenario: str = "full_cycle"
@@ -110,9 +163,12 @@ class EvalConfig:
     report: ReportConfig = field(default_factory=ReportConfig)
 
     @property
-    def judge(self) -> JudgesConfig:
-        """Back-compat alias."""
-        return self.judges
+    def judge(self) -> _JudgeConfigBackCompat:
+        """Back-compat alias for code that accesses eval_cfg.judge.model, .rubric_path, etc."""
+        return _JudgeConfigBackCompat(
+            _specs=self.judges.specs,
+            _trace=self.judges.trace,
+        )
 
 
 _DEFAULT_PATH = Path("evals/config.yaml")
@@ -158,7 +214,11 @@ def load_eval_config(path: str | Path | None = None) -> EvalConfig:
         # Legacy single-judge config: wrap as single spec with id="default"
         specs.append(_parse_judge_spec(judge_raw, "default"))
 
-    enabled = bool(judges_raw.get("enabled", judge_raw.get("enabled", True)))
+    # Handle None from YAML (null → default True)
+    _enabled = judges_raw.get("enabled")
+    if _enabled is None:
+        _enabled = judge_raw.get("enabled", True)
+    enabled = bool(_enabled)
 
     return EvalConfig(
         default_pack=str(raw.get("default_pack", "eval-pack")),
@@ -390,7 +450,7 @@ _JUDGE_EXTRACTION_STREAMS: dict[str, set[str]] = {
 }
 
 # For narrative_interplay: which state_snapshot top-level keys to keep
-_NARRATIVE_SNAPSHOT_KEYS = {"meta", "scene", "pc", "location"}
+_NARRATIVE_SNAPSHOT_KEYS = {"meta", "scene", "pc", "location", "arc"}
 
 # For compaction: only include events at or adjacent to compaction turns
 # (compaction fires when turn % compact_every == 0; we include ±1 turns)
@@ -630,7 +690,7 @@ def _yaml_dump(d: Any) -> str:
 - `tests/test_eval.py`: add `test_build_meta_judge_input` — asserts YAML block present and at least one `##` heading per judge result.
 
 ### Risks
-1. `_is_compaction_turn` may fail to detect compaction if the applied delta keys differ from what's checked. Mitigation: check actual events.jsonl from a recent run before finalizing key names; fall back to returning all events if detection fails (already handled).
+1. `_is_compaction_turn` checks for `applied.get("chronicle_append")` and `applied.get("recent_events_compact")`. The actual compaction logic in the engine may use different delta keys (e.g., `applied.get("compaction")` as seen in `_assert_compactor_sanitization_nonzero` in `universal_asserts.py`). Mitigation: inspect actual events.jsonl from a recent run to confirm key names; the fallback (return all events) handles detection failure gracefully.
 2. Filtering `narrate_prompt` to output-only for narrative_interplay may lose system prompt data the rubric needs. Mitigation: narrative_interplay rubric explicitly does not audit prompt structure — it reads narration text only. If that changes, update the filter mask.
 
 ---
@@ -725,14 +785,23 @@ Flags: `INERT` (no escalation or resolution across ≥3 turns), `OVERLONG`, `UNR
 Source: `roll` / `narrative` / `engine`.
 Flags: `SILENT_DROP`, `OVERLONG` (active >5 turns), `DUPLICATE`.
 
-### 1E — Quest Arc Table
+### 1E — Arc Thread Lifecycle Table
 
-| Quest ID | Created (Tn) | Objectives | Resolved (Tm) | Outcome | Flag |
-|----------|--------------|------------|---------------|---------|------|
+| Thread ID | Created (Tn) | State | Progress | Completed (Tm) | Flag |
+|-----------|--------------|-------|----------|----------------|------|
 
-Flags: `PREMATURE_COMPLETE`, `DUPLICATE_ID`, `ORPHANED`, `INCOMPLETE_CLOSE`.
+State: `latent` / `active` / `complete` / `failed` / `expired`.
+Flags: `STALLED` (progress stuck at 0 for ≥5 turns), `DUPLICATE_ID`, `ORPHANED` (active thread with no thread_signals across ≥3 turns), `CAP_EXCEEDED` (more than 4 active threads), `FAILED_NO_SIGNAL` (thread failed without FAILED signal).
 
-### 1F — Inventory Evolution Table
+### 1F — Arc Engagement Table
+
+| Turn | arc_engagement | Drift Match? | Δ Engagement | Flag |
+|------|----------------|--------------|--------------|------|
+
+Drift match: player_drift_signals substring matched against active_thread tags.
+Flags: `DRIFT_IGNORED` (engagement decreased but player action matched active thread tags), `STAGNANT` (engagement stuck at 0 for ≥4 turns), `MAX_REACHED` (engagement at +3 but no new threads activated).
+
+### 1G — Inventory Evolution Table
 
 | Turn | Action | Item | Qty Extracted | Rejected? | Flag |
 |------|--------|------|---------------|-----------|------|
@@ -744,7 +813,7 @@ Flags: `AMOUNT_MISMATCH` (extracted qty differs from applied delta), `SPENDING_M
 ## SECTION 2 — State Fidelity Assessment
 
 ### 2A — State Coherence
-Do inventory, conditions, quests, pressures, and NPCs agree with each other across turns?
+Do inventory, conditions, arc threads, pressures, and NPCs agree with each other across turns?
 Cite specific turns and fields where they diverge.
 
 ### 2B — Extraction Drift
@@ -804,7 +873,7 @@ Minor = edge case or cosmetic.
 
 **File:** `evals/rubrics/narrative_interplay.md`
 
-**What:** Rubric for Judge 2. Input is narration text + rules output (band/directive/stakes) + mechanic state fields (beats, pressures, conditions, quests from extractor outputs) + state diffs (mechanic fields only).
+**What:** Rubric for Judge 2. Input is narration text + rules output (band/directive/stakes) + mechanic state fields (beats, pressures, conditions, arc threads from extractor outputs) + state diffs (mechanic fields only).
 
 **Code Snippet**
 ```markdown
@@ -822,7 +891,7 @@ or extraction schema correctness — those are handled by other judges.
 Your trace contains:
 - Narration text per turn (the actual prose shown to players)
 - Rules output: roll band, directive, stakes, intent per turn
-- Mechanic state fields per turn: momentum, GM beats, scene pressures, conditions, quests, NPCs
+- Mechanic state fields per turn: momentum, GM beats, scene pressures, conditions, arc threads, NPCs
 - State diffs (mechanic-relevant fields only)
 
 Every finding must cite a specific turn and field.
@@ -841,7 +910,7 @@ Scoring philosophy:
 Per-turn blocks contain:
 - **Rules output**: `band`, `directive`, `stakes`, `intent`, `roll` (if present)
 - **Narration**: the prose output
-- **Extraction outputs**: scene (NPCs, location), state (inventory, conditions), progress (quests, pressures, beats)
+- **Extraction outputs**: scene (NPCs, location), state (inventory, conditions), progress (arc threads, pressures, beats)
 - **State diff**: changes to `meta.momentum`, `scene`, `pc.conditions`
 
 You do NOT have access to the system or user prompts — do not comment on prompt architecture.
@@ -888,6 +957,15 @@ For each active condition per turn: was it referenced in narration or did it aff
 
 Flag: `PHANTOM` (in state, never mentioned in prose, never affected anything).
 
+### 1E — Arc Thread→Narrative Chain
+
+For each active thread per turn: was the thread's summary or tags reflected in narration? Did thread state changes (latent→active, active→complete) produce observable story pivots?
+
+| Thread ID | Active Turns | Thread State | Referenced in Narration? | State Change? | Flag |
+|-----------|--------------|--------------|--------------------------|---------------|------|
+
+Flag: `PHANTOM_THREAD` (in active_threads, never mentioned in prose, never signaled), `STATE_MISMATCH` (thread state changed in state but narration shows no corresponding story event), `SILENT_COMPLETE` (thread marked complete but no narrative resolution).
+
 ***
 
 ## SECTION 2 — NPC and World Coherence
@@ -918,13 +996,11 @@ Verdict: tight / loose / broken.
 ## SECTION 4 — Scores
 
 ### Narrative Score (1–5)
-Based on Sections 1–3. Does mechanics produce good fiction? A 5 requires beats, pressures,
-and momentum all producing observable story consequence. A 1–2 means mechanics are decorative.
+Based on Sections 1–3. Does mechanics produce good fiction? A 5 requires beats, pressures, arc threads, and momentum all producing observable story consequence. A 1–2 means mechanics are decorative.
 Score 1–5.
 
 ### System Cohesion Score (1–5)
-Based on Section 1 chain analyses. Is the engine behaving as a system (mechanics→narrative→state→mechanics)
-or as isolated components? Score 1–5.
+Based on Section 1 chain analyses. Is the engine behaving as a system (mechanics→narrative→state→mechanics) or as isolated components? A 5 requires arc thread lifecycle (latent→active→complete) producing coherent story arcs across turns. Score 1–5.
 
 ***
 
@@ -932,7 +1008,7 @@ or as isolated components? Score 1–5.
 
 Group as **Critical** / **Major** / **Minor**.
 
-- **<description>** (turns: <list>) — Tag: `<tone_mismatch|directive_ignored|inert_mechanic|npc_ghost|intent_redirect>`. Fix: <what narrative or mechanic behavior to change>.
+- **<description>** (turns: <list>) — Tag: `<tone_mismatch|directive_ignored|inert_mechanic|npc_ghost|intent_redirect|phantom_thread|state_mismatch|silent_complete>`. Fix: <what narrative or mechanic behavior to change>.
 ```
 
 **Validation:** Verify score keys match `JUDGE_SCORE_KEYS["narrative_interplay"]`.
@@ -1037,7 +1113,7 @@ For each turn, verify each mechanic is emitted by the correct stream.
 | `scene_tags`, `scene_tagline` | scene |
 | `inventory_add`, `inventory_remove`, `inventory_update` | state |
 | `pc_condition_add`, `pc_condition_remove` | state |
-| `quest_updates` | progress |
+| `thread_signals`, `player_drift_signals`, `candidate_opportunity` | progress |
 | `recent_events_add`, `recent_events_update`, `recent_events_remove` | progress |
 | `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update` | progress |
 | `gm_beat`, `beat_disposition` | progress |
@@ -1055,11 +1131,11 @@ For each pipeline, assess whether its inputs are focused:
 
 **Narrate**: richest inputs are justified — assess whether every input contributes. Flag inputs the narrator clearly doesn't use (cite turn where the input was present but had no effect on output).
 
-**Extract Scene**: should receive narrative, pc/location, present_npcs, conditions, known_characters, rules_outcome. Flag if it receives inventory or quest data.
+**Extract Scene**: should receive narrative, pc/location, present_npcs, conditions, known_characters, rules_outcome. Flag if it receives inventory or arc thread data.
 
-**Extract State**: should receive narrative, pc, inventory, rules_outcome, stakes, band, scene_result. Flag if it receives quest data, recent_events, or pressure data.
+**Extract State**: should receive narrative, pc, inventory, rules_outcome, stakes, band, scene_result. Flag if it receives arc thread data, recent_events, or pressure data.
 
-**Extract Progress**: richest extractor — assess whether every input enables a specific output. Flag inputs that appear unused.
+**Extract Progress**: richest extractor — assess whether every input enables a specific output. Flag inputs that appear unused. Should receive: narrative, pc, recent_events, world_state, scene_pressure, rules_outcome, intent, recent_turns, items_gained/lost, stakes, band, deescalate, pending_beat, extraction_ctx (NPC/inventory/location/pressure/conditions from scene+state). Arc thread context (active_threads, latent_threads) is passed via state but thread lifecycle is engine-driven (not extraction-driven) — the extractor emits thread_signals, player_drift_signals, and candidate_opportunity rather than quest_updates. Flag any vestigial quest-related inputs (quest_ages, quest_threshold_directive) that remain in the prompt but no longer have corresponding output fields.
 
 ***
 
@@ -1141,7 +1217,7 @@ For each compaction pass (identify turns from the state_snapshot changes):
 ### Pass at Turn N
 - List the chronicle bullets generated and the turns they cover.
 - For each bullet:
-  - Does it accurately represent named entities (NPCs, items, locations, quest IDs) from that turn?
+  - Does it accurately represent named entities (NPCs, items, locations, thread IDs) from that turn?
   - Is it specific enough to distinguish this turn from any other?
   - Flag: `GENERIC` (could describe any turn), `INACCURATE` (wrong entity or inverted event), `MISSING_ENTITY` (named entity from turn omitted).
 
@@ -1155,7 +1231,7 @@ After each compaction pass, check:
 
 | Field | Expected | Actual | Score |
 |-------|----------|--------|-------|
-| `quest_close` | completed/failed quests closed | | `[OK]`/`[FAIL]`/`[NA]` |
+| `npc_merge` | duplicate NPCs merged per compendium | | `[OK]`/`[FAIL]`/`[NA]` |
 | `condition_remove` | resolved/expired conditions removed | | |
 | `pressure_remove` | resolved pressures removed | | |
 | `inventory_remove` | depleted items cleaned | | |
@@ -1206,10 +1282,10 @@ prompt_adherence_rate: <float 0.0-1.0>
 # ccya Eval — Meta Judge (Synthesis)
 
 You receive the scores and key findings from 4 focused domain judges:
-- **state_correctness**: mechanic lifecycle tables, state fidelity, extraction accuracy
-- **narrative_interplay**: narration tone, beat/pressure/condition story chains, system cohesion
+- **state_correctness**: mechanic lifecycle tables (momentum, beats, pressures, conditions, arc threads), state fidelity, extraction accuracy
+- **narrative_interplay**: narration tone, beat/pressure/condition/arc thread story chains, system cohesion
 - **prompt_pipeline**: prompt architecture, pipeline adherence, cross-pipeline redundancy
-- **compaction**: chronicle quality, sanitization fidelity
+- **compaction**: chronicle quality, sanitization fidelity (NPC merge, pressure/condition cleanup)
 
 Your job is synthesis, not new analysis. Do not re-examine the raw trace.
 Identify contradictions between judges. Compute final composite scores.
@@ -1241,6 +1317,7 @@ For each pair of judges that touch overlapping concerns:
 - **state_correctness vs narrative_interplay**: state_correctness says state is clean but narrative_interplay says mechanics produce no story consequence — contradiction? Why?
 - **state_correctness vs prompt_pipeline**: state_correctness says extraction is failing but prompt_pipeline rates the extraction prompts highly — contradiction? Why?
 - **narrative_interplay vs prompt_pipeline**: narrative says directives are ignored but prompt_pipeline says narrate prompt adherence is good — which is right?
+- **state_correctness vs narrative_interplay (arc threads)**: state_correctness says arc thread lifecycle is clean (no flags) but narrative_interplay says arc threads produce no story consequence — contradiction? Check if thread_signals are being emitted correctly and if the narrator receives arc context.
 
 If no contradiction: write `None.`
 
@@ -1532,7 +1609,7 @@ async def run_judges(
     engine_model = str(llm.get("model", ""))
     for spec in eval_cfg.judges.specs:
         if not spec.model:
-            object.__setattr__(spec, "model", engine_model)  # JudgeSpec is not frozen
+            spec.model = engine_model
 
     def _noop_chunk(judge_id: str, chunk: str) -> None:
         pass
@@ -1633,6 +1710,7 @@ async def run_judge_streaming(
     scenario_id: str,
     on_chunk: Callable[[str], None] | None = None,
     previous_judge_md_path: Path | None = None,
+    game_config_path: Path | None = None,
 ) -> "JudgeResult":
     """Back-compat single-judge entry point.
 
@@ -1651,6 +1729,7 @@ async def run_judge_streaming(
             eval_cfg=eval_cfg,
             output_dir=output_dir,
             scenario_id=scenario_id,
+            game_config_path=game_config_path,
         )
         # Return meta judge result if present, else last result
         meta = next((r for r in results if r.judge_id == "meta"), None)
@@ -1776,6 +1855,8 @@ def _render_judge_summary(
 **File:** `ccya/eval/report.py`
 
 **What:** Change `_collect_flags` signature: `judge: JudgeResult | list[JudgeResult] | None`. When a list is passed, find the meta judge (or last result) for the `judge_score_drop` check and use `merge_judge_scores` to get `mechanical_score`.
+
+**Note:** Add `from ccya.eval.judge import merge_judge_scores` to the imports at the top of `report.py` (currently only imports `JudgeResult`).
 
 **Why:** The flag logic currently checks `judge.scores.get("mechanical_score")` from a single judge. With multi-judge, `mechanical_score` lives in the meta judge's scores.
 
@@ -1992,6 +2073,8 @@ from ccya.eval.judge import run_judges, merge_judge_scores, JudgeResult
 ```
 
 **Validation:** `python -m ccya.eval run` completes a scenario, writes 5 `*.judge.md` files to the output dir, and REPORT.md contains all verdict sections.
+
+**Note:** The config print lines in `_run_one_scenario` (lines 88-89 of cli.py) still reference `eval_cfg.judge.model` and `eval_cfg.judge.rubric_path`. These work via the `_JudgeConfigBackCompat` proxy (returns first spec's values). No change needed, but note that the printed rubric_path will be the first spec's path, not a meaningful multi-judge indicator.
 
 ***
 
@@ -2233,7 +2316,9 @@ def test_render_judge_summary_multi():
 
 Update the existing `JudgeConfig` entry to note it is superseded by `JudgesConfig` and will be removed.
 
-Update the `run_judge_streaming` entry to note it is a back-compat shim over `run_judges`.
+Update the existing `run_judge_streaming` entry to note it is a back-compat shim over `run_judges`.
+
+**Note:** Do NOT add `_assert_thread_id_collision` to the REPOMAP — the plan's non-goals state "does not change `universal_asserts.py`". The existing REPOMAP entry for `_assert_thread_id_collision` is a phantom reference that should be removed or left as-is (it's outside this plan's scope).
 
 **Validation:** No dead entries in REPOMAP pointing to renamed functions.
 

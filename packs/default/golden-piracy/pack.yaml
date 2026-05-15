@@ -19,7 +19,7 @@ name_locales:
     weight: 0.40
   - locale: en_US
     weight: 0.30
-  - locale: es_CR
+  - locale: es_ES
     weight: 0.15
   - locale: fr_FR
     weight: 0.10
