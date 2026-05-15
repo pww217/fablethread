@@ -27,14 +27,13 @@ constraints:
 inspiration:
   pc: |
     The PC is a warrior or soldier in the Sengoku period — not a legendary daimyo
-    with a thousand vassals, but someone who fights for survival and purpose. They
+    with a thousand vassals, but someone who fights for survival and purpose. He
     could be a samurai who serves a mid-level lord, an ashigaru spearmen who rose
     through merit, a ninja (shinobi) hired for espionage and sabotage, a temple
-    warrior (sohei) who fights with religious fervor, a daimyo's daughter who
-    commands troops because there are no sons. Give them a skill that keeps them
-    alive and a reason they cannot simply lay down their arms. They are not
-    romantic — they are hardened by war, capable of violence, and bound by loyalties
-    that are as much practical as honorable.
+    warrior (sohei) who fights with religious fervor, a ronin without a master.
+    Give him a skill that keeps him alive and a reason he cannot simply lay down
+    his arms. He is not romantic — he is hardened by war, capable of violence,
+    and bound by loyalties that are as much practical as honorable.
 
   opening_situation: |
     Drop the player into a moment of immediate, visceral action — a castle under
@@ -49,14 +48,16 @@ inspiration:
     where the player has to choose between honor and survival.
 
   npcs: |
-    Each NPC is a person shaped by an age of endless war. The veteran ashigaru
-    who has served three lords and learned that loyalty means nothing compared
-    to victory. The young samurai who believes in bushido and will die for it.
-    The shinobi who knows secrets that could topple a daimyo. The temple nun
-    who tends the wounded and has seen every wound a katana can make. At least
-    one NPC should want something that conflicts with the player's — not as a
-    villain, but as someone whose survival depends on a different answer.
-    People lie, conceal, protect, miscalculate. Give them all of that.
+    All samurai, ashigaru, shinobi, and temple warriors are men. The initial
+    NPCs in the opening scene MUST use male names only — select from the male
+    name pool provided. Each NPC is a man shaped by an age of endless war. The
+    veteran ashigaru who has served three lords and learned that loyalty means
+    nothing compared to victory. The young samurai who believes in bushido and
+    will die for it. The shinobi who knows secrets that could topple a daimyo.
+    The temple monk who tends the wounded and has seen every wound a katana can
+    make. At least one NPC should want something that conflicts with the player's
+    — not as a villain, but as someone whose survival depends on a different
+    answer. Men lie, conceal, protect, miscalculate. Give them all of that.
 
   inventory: |
     Items reflect what a warrior in the Sengoku period actually carried. A katana

@@ -2,56 +2,38 @@
 
 
 ## COMPACTED
-- [T1] Joel confirmed his ammunition count and questioned Marlene's true motives; Marlene revealed the route through the construction yard ridge line to avoid FEDRA and spores, emphasizing Ellie's importance to the Firefly cause.
+- [T1] Timothy killed a boarding sailor mid-air with the Notched Cutlass; Joshua Vane ordered a push to clear the midships of pirates attacking a merchant sailor.
 
 
-- [T2] Ellie reveals she feels like nothing more than a "package" being passed around for the Fireflies' cause.
-- [T3] Marlene reveals that Ellie's blood is the key to the Fireflies' future and threatens Joel's life if he continues to question her.
-- [T4] Marlene refuses Joel's request for additional medical supplies and explosives, stating he must make do with his current gear.
+- [T2] Antonio Silva wounded the PC in the flank with a boarding pike during a heavy roll of the *Black Marlin*.
+- [T3] The PC fired a flintlock pistol, striking a burly pirate against the mainmast, while Joshua Vane sent reinforcements to break the pirate circle.
+- [T4] The PC severely wounded Antonio Silva with a cutlass strike, though more pirates are now breaching the bulwarks.
 
-- [T5] Joel confronted Marlene regarding Ellie's fate, resulting in a hostile standoff and the first signs of approaching infected.
-- [T6] Marlene issued a lethal ultimatum to Joel, threatening him with her knife if he continued to question her intentions.
-- [T7] A Clicker emerged from the mist near the group, prompting Marlene to command a silent retreat through a nearby drainage pipe.
+- [T5] Antonio Silva was killed by a cutlass thrust; player scavenged three Lead Bullets from his body.
+- [T6] The Burly Pirate was killed by a flintlock shot to the face; a massive wave of attackers breached the bulwarks.
+- [T7] The bulwark near the mainmast collapsed entirely, causing the defensive perimeter to shatter and Joshua Vane to be engulfed by attackers.
+## Turn 8 — Hack through the pirates flooding through the new bulwark breach.
 
-- [T8] Ellie's whimper alerted a Clicker, forcing a frantic retreat toward a drainage pipe amidst seasonal flooding.
-- [T9] You killed the Clicker with a heavy hammer blow, but the struggle caused a collapse of debris that partially blocked the drainage pipe entrance.
-- [T10] You cleared a narrow gap through the wreckage and successfully ushered Ellie and Marlene into the drainage pipe just as a chorus of infected approached.
+You lunge toward the widening breach in the bulwark, your **Notched Cutlass** raised to carve a path through the incoming tide. You swing with desperate force, aiming to split the first pirate in line, but your blade meets only the jarring resistance of heavy oak and the crushing weight of bodies. The deck has become a lethal obstacle course; between the jagged splinters of the collapsed rail and the sprawling, wounded men tripped up by the landslide of debris, your footing is treacherous. Instead of a clean strike, your blade skids harmlessly off a heavy splintered beam, and you find yourself stumbling amidst the wreckage, unable to find the space or the leverage needed to strike effectively.
 
-- [T11] A massive swarm of Stalkers and Runners surged through the drainage pipe, forcing the group to hide in a rusted iron junction.
-- [T12] The group narrowly avoided being crushed by the weight of the infected swarm as it funneled past their hiding spot.
-- [T13] While attempting to move quietly through the pipe, a single, calculated clicking sound was heard from around the bend, indicating a lone hunter remains.
+The attackers seize upon your lost momentum. Rather than a disciplined line of combatants, they are a frantic, shoving mass that pushes relentlessly through the gap. You are buffeted by the sheer physical force of their advance, unable to even find a clear line of sight to swing your steel. Every time you try to plant your feet to deliver a blow, a heavy piece of shattered bulwark or a flailing limb shifts beneath you, sending you reeling back into the chaos.
 
-- [T14] A Stalker emerged from the shadows of the drainage pipes, watching the group from the periphery of the flashlight beam.
-- [T15] The Stalker attempted to lunge but slipped on oily sludge, allowing the group to escape into a structural breach.
-- [T16] The group emerged from the pipes onto a concrete ledge in the West Brandonfurt ruins; Marlene directed the group north toward the Firefly stronghold via the tree line to avoid FEDRA patrols and flooding.
-## Turn 17 — Check Ellie's condition and ensure she is ready to move., Follow Marlene's lead toward the ridge line through the ruins.
-
-You reach out, your hand finding **Ellie Williams**' shoulder as you pull her closer to your side. She is trembling, her breath coming in shallow, jagged hitches that catch in her throat, but as you scan her for any more than just the obvious terror, you see only the grime and the fresh, stinging scratches from the scramble through the pipe. She looks up at you, her eyes wide and dark with a mixture of exhaustion and a burgeoning, quiet defiance, but she nods once—a sharp, determined movement that tells you she's ready to keep moving.
-
-"I'm fine," she mutters, though her voice cracks slightly. It's a lie, but it's the kind of lie survivors tell themselves to stay upright. 
-
-You turn your attention back to **Marlene**, who is already several paces ahead, her silhouette cutting a dark, purposeful shape against the grey sky. You fall into step behind her, keeping your eyes peeled for any movement in the skeletal remains of the brickwork. The ground beneath your boots is uneven, a treacherous mix of cracked pavement and thick, encroaching roots that seem to reach up from the shadows of the collapsed buildings. 
-
-As you begin the trek toward the northern ridge, the silence of the ruins feels heavy, almost expectant. The wind whistles softly through the hollowed-out windows of the tenement buildings, sounding uncomfortably like a low, collective moan. You stay close to the tree line, moving through the jagged shadows cast by the slumped brick walls, mindful of the vast, exposed spaces that could leave you vulnerable to a FEDRA patrol or something much worse lurking in the overgrown brush.
+The pressure is suffocating. To your rear, the sailors who abandoned their posts to scavenge supplies are being circled by attackers who have bypassed the main line entirely. The breach is no longer just a hole in the ship; it is a funnel of violence that is rapidly turning the midships into a slaughterhouse. You are caught in the teeth of it, unable to break their momentum or find a single soul to strike before the next wave of bloodthirsty men vaults over the broken wood and slams into your position.
 
 
-## Turn 18 — Follow Marlene's lead toward the northern ridge line
+## Turn 9 — Attempt to rally the scavenging sailors back to their posts, push the enemy off our deck
 
-You fall into line behind **Marlene**, matching her predatory stride as you navigate the labyrinth of brick and bone. The trek toward the northern ridge becomes a slow, methodical crawl through the skeletal remains of the city. You move between the shadows of slumped tenement walls, using the massive, vine-strangled ruins as a shield against the vast, exposed stretches of the broken streets. Every few dozen yards, you pause, your eyes scanning the dark hollows of collapsed storefronts and the dense, encroaching brush for any sign of movement.
+You roar a command through the din of clashing steel, your voice cracking against the roar of the gale and the screams of the dying. You try to hack through the press of bodies to reach the sailors who have abandoned their stations for the loot, desperate to force them back into the fight. But your words are swallowed by the cacophony; the frantic greed of the men has replaced their sense of duty, and they turn their backs on the battle to scramble over the hatch, their eyes hollow with a desperate, selfish hunger. Even as you shout, a pirate lunges from the chaos of the broken rail, his blade whistling toward your exposed ribs.
 
-The ground remains your greatest silent enemy. Thick, corded roots snake across the cracked pavement like petrified serpents, forcing you to lift your feet high and careful to avoid a stumble that might echo through the quiet ruins. Beside you, **Ellie Williams** maintains a grim, silent pace, her small hand occasionally brushing against your leg as she navigates the uneven terrain. She hasn't spoken since the encounter in the pipe, her jaw set in a hard line that mirrors your own exhaustion.
+The situation de-escalates into pure, unmitigated carnage. As you struggle to find your footing among the shifting piles of splintered oak and the twitching forms of the fallen, the sheer weight of the enemy's advance crushes your attempt at leadership. You are not just fighting men; you are fighting a landslide of human malice. Three attackers, their faces splattered with salt and gore, descend upon you simultaneously from the direction of the hatch. One swings a heavy boarding axe that crushes a nearby crate into toothpicks, while the other two use the uneven terrain of the debris to flank you, their movements aided by the very wreckage that trips your own feet.
 
-As the incline of the ridge begins to rise, the wind shifts, carrying the scent of wet stone and something more metallic—the unmistakable tang of heavy machinery. Far off to the east, the low, rhythmic thrum of a FEDRA patrol vehicle vibrates through the soles of your boots, a distant but persistent reminder of the soldiers patrolling the main thoroughfares below. It is a heavy, mechanical pulse that seems to beat in time with the uneasy stillness of the ruins.
-
-**Marlene** suddenly halts, her hand snapping up in a silent command to freeze. She crouches low behind a pile of shattered masonry, her eyes fixed on a bend in the ridge path ahead. "Wait," she breathes, her voice barely a ripple in the air. "There's a checkpoint up ahead. They've set up a temporary observation post on the ridge's edge. It's small, but they'll have eyes on this entire sector."
+To your flank, the chaos intensifies into a frantic melee. **Joshua Vane**'s desperate shouts are cut short as he is driven back toward the mainmast by a relentless surge of boarders. The sailors you tried to rally are no longer even a threat to the enemy; they are being hunted. Two pirates have cornered one of the scavenging men against the hatch, their blades working in a rhythmic, sickening unison that turns his frantic pleas into a wet, gurgling silence. The midships are no longer a battlefield; they are a collapsing deathtrap of wood, blood, and overwhelming numbers.
 
 
-## Turn 19 — what do you think? how can we get around it unseen?
+## Turn 10 — Draw your flintlock and fire into the approaching boarding axe attacker.
 
-"Keep your head down and stay low," **Marlene** whispers, her eyes never leaving the bend in the ridge. She gestures toward a dense cluster of overgrown brambles and a collapsed brick wall that skirts the edge of the incline. "There's a drainage ditch cutting through the brush about fifty yards to our left. It's muddy and slow, but it'll keep us below their line of sight if we can reach it before they crest the hill."
+You wrench the **Flintlock Pistol** from your belt, the wood slick with sweat and sea spray, and level the barrel at the man descending upon you. As the **Boarding Axe Attacker** brings his heavy tool down in a murderous arc, you squeeze the trigger. The roar of the shot is a sudden, deafening punctuation to the chaos, a singular crack of thunder that momentarily clears the air of screams. The lead ball catches the pirate square in the throat; his eyes bulge, his head snaps back with a sickening jerk, and he collapses into the splintered wood, his axe clattering uselessly into the debris.
 
-The low, rhythmic thrum of the FEDRA vehicle, which had felt like a distant heartbeat moments ago, begins to sharpen into a growl. It's no longer just a vibration in your soles; the mechanical drone is steadily climbing in volume, cutting through the whistling wind. The sound of heavy tires grinding over loose gravel and broken concrete echoes up the ridge, growing more distinct with every second. It sounds close—dangerously close.
+For a heartbeat, the relentless roar of the battle seems to recede into a hollow, ringing silence. The immediate threat of the axe-wielder is gone, replaced by the stillness of his cooling corpse. Even the frantic shoving of the crowd feels momentarily distant, as if the world has pulled back to let you catch a ragged breath. You stand amidst the wreckage, chest heaving, the acrid scent of black powder stinging your nostrils and momentarily masking the metallic stench of blood.
 
-Beside you, **Ellie Williams** freezes, her eyes darting toward the source of the noise. She doesn't say a word, but her grip on your sleeve tightens until her knuckles are white. The air feels thinner, charged with the sudden, predatory reality of the patrol. The ridge, which had felt like a potential path to safety, now feels like a narrow corridor with the walls closing in. 
-
-"Move," **Marlene** commands, her voice a serrated edge of urgency. She begins to crawl toward the brambles, her movements silent and practiced. The mechanical growl of the patrol is now loud enough to mask the sound of snapping twigs, but the sheer proximity of the vehicle means any sudden movement or a slip on the slick, root-choked ground could draw their attention instantly.
+Yet the stillness is an illusion. Around you, the terrain has become a nightmare of shifting obstacles; the landslide of broken bulwarks and the tangled, twitching limbs of the fallen create a treacherous landscape of uneven footing and hidden hazards. Even as you lower the smoking pistol, the weight of the situation settles heavily upon you. The breach remains open, a gaping wound in the ship's side through which the enemy continues to pour, and the distance between you and the overwhelmed **Joshua Vane** feels wider than ever through the thickening mire of wood and gore.

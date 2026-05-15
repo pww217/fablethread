@@ -1,371 +1,357 @@
 arc:
   active_threads:
-  - id: the_extraction_route
-    last_offered_turn: 19
-    progress: 1
+  - id: boarding_chaos
+    last_offered_turn: null
+    progress: 2
     promotes: []
     state: active
-    summary: The path through the overgrown ruins of West Brandonfurt is becoming
-      increasingly unstable due to seasonal flooding and FEDRA patrols.
+    summary: The boarding action is messy and disorganized. Some sailors are fighting
+      for loot rather than the ship's safety, creating openings for the enemy.
     tags:
-    - navigation
-    - danger
+    - combat
+    - chaos
     unlock_if: null
     urgency: normal
-  - id: marlene_s_secret
-    last_offered_turn: 8
-    progress: 0
-    promotes: []
-    state: active
-    summary: Marlene's instructions for the girl's safety may contradict her actual
-      tactical objectives.
-    tags:
-    - political
-    - trust
-    unlock_if: null
-    urgency: normal
-  arc_engagement: -3
-  completed_threads: []
-  discovered_truths: []
-  hidden_truths:
-  - The infection's biology behaves differently in specific genetic carriers.
-  - The Firefly leadership has ulterior motives for the girl's extraction.
-  latent_threads:
-  - id: fedra_encroachment
+  - id: the_hidden_passenger
     last_offered_turn: null
     progress: 0
     promotes:
-    - the_extraction_route
-    state: latent
-    summary: FEDRA patrols are expanding their perimeter into settlement-controlled
-      territory.
+    - boarding_chaos
+    state: active
+    summary: A high-value target is being moved secretly within the hold of the prize
+      vessel.
     tags:
-    - military
-    unlock_if: encountering a FEDRA patrol
+    - mystery
+    - political
+    unlock_if: The player enters the hold of the prize vessel.
     urgency: normal
-  - id: the_old_construction_yards_pose_a_new_en
+  - id: a_cluster_of_three_pirates
+    last_offered_turn: 1
+    progress: 0
+    promotes: []
+    state: active
+    summary: A cluster of three pirates are currently overwhelming a merchant sailor
+      near the mainmast.
+    tags:
+    - tactical
+    unlock_if: null
+    urgency: background
+  arc_engagement: -3
+  completed_threads:
+  - id: boarding_chaos
     last_offered_turn: null
+    progress: 3
+    promotes: []
+    state: complete
+    summary: The boarding action is messy and disorganized. Some sailors are fighting
+      for loot rather than the ship's safety, creating openings for the enemy.
+    tags:
+    - combat
+    - chaos
+    unlock_if: null
+    urgency: normal
+  discovered_truths: []
+  hidden_truths:
+  - The merchant vessel is carrying a passenger that the Captain secretly intends
+    to kidnap.
+  - A faction of the crew is planning to turn informant for the Royal Navy.
+  latent_threads:
+  - id: the_hidden_passenger
+    last_offered_turn: null
+    progress: 0
+    promotes:
+    - boarding_chaos
+    state: latent
+    summary: A high-value target is being moved secretly within the hold of the prize
+      vessel.
+    tags:
+    - mystery
+    - political
+    unlock_if: The player enters the hold of the prize vessel.
+    urgency: normal
+  - id: a_cluster_of_three_pirates
+    last_offered_turn: 1
     progress: 0
     promotes: []
     state: latent
-    summary: The old construction yards pose a new environmental hazard involving
-      uneven terrain and spore-heavy lowlands.
-    tags: []
+    summary: A cluster of three pirates are currently overwhelming a merchant sailor
+      near the mainmast.
+    tags:
+    - tactical
     unlock_if: null
-    urgency: normal
-  - id: the_revelation_of_ellie_s_biological_sig
-    last_offered_turn: null
+    urgency: background
+  - id: the_looting_sailors_near_the
+    last_offered_turn: 6
     progress: 0
     promotes: []
     state: latent
-    summary: The revelation of Ellie's biological significance creates a massive moral
-      conflict for the mission.
-    tags: []
+    summary: The looting sailors near the hatch have left valuable supplies momentarily
+      unguarded.
+    tags:
+    - tactical
     unlock_if: null
-    urgency: normal
-  - id: the_source_of_the_clicking_sound_in_the
-    last_offered_turn: null
+    urgency: background
+  - id: the_chaos_near_the_hatch
+    last_offered_turn: 7
     progress: 0
     promotes: []
     state: latent
-    summary: The source of the clicking sound in the construction yards could reveal
-      a new threat or a hidden cache.
-    tags: []
+    summary: The chaos near the hatch offers a chance to intercept sailors looting
+      supplies or confront the pirates entering through the breach.
+    tags:
+    - tactical
     unlock_if: null
-    urgency: normal
-  - id: a_large_uncoordinated_entity_is_emergin
-    last_offered_turn: null
-    progress: 0
-    promotes: []
-    state: latent
-    summary: A large, uncoordinated entity is emerging from the mist near the perimeter
-      wall.
-    tags: []
-    unlock_if: null
-    urgency: normal
-  - id: the_drainage_pipe_offers_a_potential_esc
-    last_offered_turn: null
-    progress: 0
-    promotes: []
-    state: latent
-    summary: The drainage pipe offers a potential escape route but may be cramped
-      and dangerous.
-    tags: []
-    unlock_if: null
-    urgency: normal
-  - id: the_drainage_pipe_offers_a_dark_narrow
-    last_offered_turn: null
-    progress: 0
-    promotes: []
-    state: latent
-    summary: The drainage pipe offers a dark, narrow escape route that could lead
-      deeper into the ruins.
-    tags: []
-    unlock_if: null
-    urgency: normal
-  - id: the_collapsed_structure_might_hide_usefu
-    last_offered_turn: null
-    progress: 0
-    promotes: []
-    state: latent
-    summary: The collapsed structure might hide useful scavenged supplies or a smaller,
-      alternative entrance.
-    tags: []
-    unlock_if: null
-    urgency: normal
-  - id: the_narrow_drainage_pipe_offers_a_claust
-    last_offered_turn: null
-    progress: 0
-    promotes: []
-    state: latent
-    summary: The narrow drainage pipe offers a claustrophobic escape route that may
-      lead to a hidden cache or a dead end.
-    tags: []
-    unlock_if: null
-    urgency: normal
-  - id: a_discarded_flashlight_lies_partially_su
-    last_offered_turn: null
-    progress: 0
-    promotes: []
-    state: latent
-    summary: A discarded flashlight lies partially submerged in the sludge just ahead
-      of the junction.
-    tags: []
-    unlock_if: null
-    urgency: normal
-  - id: the_structural_breach_in_the_pipe_offers
-    last_offered_turn: null
-    progress: 0
-    promotes: []
-    state: latent
-    summary: The structural breach in the pipe offers a potential shortcut to the
-      ruins above.
-    tags: []
-    unlock_if: null
-    urgency: normal
-  pc_drive: Protect the girl at any cost, even if it means defying the settlement's
-    laws.
+    urgency: background
+  pc_drive: Ensure the crew maintains discipline so the prize can be successfully
+    taken.
   phase: setup
-  thematic_question: Is the survival of a species worth the loss of one's humanity?
-  visible_goal: Deliver the girl to the Firefly stronghold.
+  thematic_question: Is a sailor's loyalty to his crew worth the price of his soul?
+  visible_goal: Secure the merchant vessel and repel the counter-boarding party.
 compendium:
   npcs:
-    clicker:
-      bio: A terrifying, blind humanoid host for Cordyceps, characterized by a calcified,
-        blooming fungal growth on its head. Dying and spasming, its death rattles
-        joining a larger chorus of approaching threats. No longer present; the immediate
-        swarm has surged past the junction.
+    antonio_silva:
+      allegiance: Pirate boarding party
+      bio: A wiry pirate with a jagged scar across his nose, known for his opportunistic
+        combat style during boarding actions. Collapses to one knee, clutching a catastrophic
+        shoulder wound and reeling from shock.
       last_seen:
-        location_id: west_brandonfurt_outskirts
-        location_name: West Brandonfurt Perimeter
-        turn: 12
-      name: Clicker
-      title: Infected
-    ellie_williams:
-      bio: A young girl who feels like a mere 'package' being passed around by the
-        Fireflies, displaying a mix of defiance and deep-seated exhaustion.
+        location_id: the_black_marlin_deck
+        location_name: The Black Marlin Deck
+        turn: 4
+      name: Antonio Silva
+      title: Pirate Attacker
+    barry_stone:
+      bio: A fast-moving boy tasked with bringing powder to the cannons.
       last_seen:
-        location_id: west_brandonfurt_ruins
-        location_name: West Brandonfurt Ruins
-        turn: 19
-      motivation: Survival amidst being treated as a biological tool for a cause.
-      name: Ellie Williams
-      title: The Asset
-    marlene:
-      bio: A pragmatic leader who makes the hard choices to keep her faction alive.
+        location_id: the_black_marlin_deck
+        location_name: The Black Marlin Deck
+        turn: 8
+      name: Barry Stone
+      title: Powder Monkey
+    boarding_axe_attacker:
+      bio: A blood-splattered pirate attacking the player amidst the wreckage of the
+        deck. Attacking the player with a heavy boarding axe, using the wreckage to
+        flank.
       last_seen:
-        location_id: west_brandonfurt_ruins
-        location_name: West Brandonfurt Ruins
-        turn: 19
-      motivation: To use Ellie's blood to secure a future for the Fireflies.
-      name: Marlene
-      title: Firefly Leader
-    stalker:
-      bio: A highly evolved, agile stage of the Cordyceps infection that hunts with
-        stealth and intelligence. Watching the player with predatory precision from
-        the periphery of the light.
+        location_id: the_black_marlin_deck
+        location_name: The Black Marlin Deck
+        turn: 9
+      name: Boarding Axe Attacker
+      title: Pirate
+    boarding_sailor:
+      bio: A sailor from the merchant vessel attempting to board the ship. Just killed
+        by the player; currently a twitching heap on the deck.
       last_seen:
-        location_id: west_brandonfurt_outskirts
-        location_name: West Brandonfurt Perimeter
-        turn: 15
-      name: Stalker
-      title: Infected
+        location_id: the_black_marlin_deck
+        location_name: The Black Marlin Deck
+        turn: 1
+      name: Boarding Sailor
+      title: Merchant Sailor
+    burly_pirate:
+      bio: A heavy-set attacker wearing a stained headband, recently struck by a lead
+        bullet. Stunned against the mainmast amidst the renewed boarding action.
+      last_seen:
+        location_id: the_black_marlin_deck
+        location_name: The Black Marlin Deck
+        turn: 5
+      name: Burly Pirate
+      title: Pirate Attacker
+    flanking_pirates:
+      bio: A pair of attackers working in tandem to surround the player using the
+        battlefield's wreckage.
+      last_seen:
+        location_id: the_black_marlin_deck
+        location_name: The Black Marlin Deck
+        turn: 9
+      name: Flanking Pirates
+      title: Pirates
+    joshua_vane:
+      bio: The enforcer of the Articles and the pragmatic voice of the crew.
+      last_seen:
+        location_id: the_black_marlin_deck
+        location_name: The Black Marlin Deck
+        turn: 10
+      name: Joshua Vane
+      title: Quartermaster
 inventory:
 - aliases: []
   amount: 1
-  id: hammer
-  name: Heavy Claw Hammer
-  notes: vibrates from heavy impact
+  id: notched_cutlass
+  name: Notched Cutlass
+  notes: skidded off a splintered beam during a failed strike
 - aliases: []
   amount: 1
-  id: revolver
-  name: Revolver
-  notes: A reliable six-shooter, well-oiled.
-- aliases: []
-  amount: 6
-  id: revolver_ammo
-  name: .38 Revolver Rounds
+  id: flintlock_pistol
+  name: Flintlock Pistol
   notes: ''
 - aliases: []
-  amount: 3
-  id: antibiotics
-  name: Amoxicillin Pills
-  notes: Crude blister packs from a scavenged kit.
+  amount: 1
+  id: hemp_rope
+  name: Coil of Hemp Rope
+  notes: ''
 - aliases: []
   amount: 1
-  id: flashlight
-  name: Heavy Duty Flashlight
-  notes: Requires manual crank or batteries.
+  id: sharpening_stone
+  name: Sharpening Stone
+  notes: ''
+- amount: 1
+  id: lead_bullets
+  name: Lead Bullets
+  notes: ''
 location:
-  description: A drainage ditch cuts through dense brambles and a collapsed brick
-    wall near the ridge's edge, offering a muddy, low-visibility path.
-  id: west_brandonfurt_ruins
-  name: West Brandonfurt Ruins
+  description: The deck is a treacherous landscape of shifting bulwarks, tangled limbs,
+    and a thickening mire of wood and gore.
+  id: the_black_marlin_deck
+  name: The Black Marlin Deck
 meta:
   compendium_touch_order:
-  - marlene
-  - ellie_williams
-  - clicker
-  - stalker
+  - boarding_sailor
+  - antonio_silva
+  - burly_pirate
+  - boarding_axe_attacker
+  - flanking_pirates
   consecutive_floor_count: 0
-  last_compacted_turn: 16
+  last_compacted_turn: 7
   model: mlx-community/gemma-4-26b-a4b-it-mxfp8
   pending_gm_beat:
-    beat_expires_turn: 21
-    instruction: The FEDRA vehicle rounds the bend, its headlights sweeping across
-      the ridge edge.
+    beat_expires_turn: 11
+    instruction: The landslide of wood and bodies near the mainmast creates a treacherous
+      terrain of debris and wounded men.
     surface_as: environmental
-    type: escalation
+    type: pressure
   prior_history:
-  - '- [T1] Joel confirmed his ammunition count and questioned Marlene''s true motives;
-    Marlene revealed the route through the construction yard ridge line to avoid FEDRA
-    and spores, emphasizing Ellie''s importance to the Firefly cause.'
-  - '- [T2] Ellie reveals she feels like nothing more than a "package" being passed
-    around for the Fireflies'' cause.'
-  - '- [T3] Marlene reveals that Ellie''s blood is the key to the Fireflies'' future
-    and threatens Joel''s life if he continues to question her.'
-  - '- [T4] Marlene refuses Joel''s request for additional medical supplies and explosives,
-    stating he must make do with his current gear.'
-  - '- [T5] Joel confronted Marlene regarding Ellie''s fate, resulting in a hostile
-    standoff and the first signs of approaching infected.'
-  - '- [T6] Marlene issued a lethal ultimatum to Joel, threatening him with her knife
-    if he continued to question her intentions.'
-  - '- [T7] A Clicker emerged from the mist near the group, prompting Marlene to command
-    a silent retreat through a nearby drainage pipe.'
-  - '- [T8] Ellie''s whimper alerted a Clicker, forcing a frantic retreat toward a
-    drainage pipe amidst seasonal flooding.'
-  - '- [T9] You killed the Clicker with a heavy hammer blow, but the struggle caused
-    a collapse of debris that partially blocked the drainage pipe entrance.'
-  - '- [T10] You cleared a narrow gap through the wreckage and successfully ushered
-    Ellie and Marlene into the drainage pipe just as a chorus of infected approached.'
-  - '- [T11] A massive swarm of Stalkers and Runners surged through the drainage pipe,
-    forcing the group to hide in a rusted iron junction.'
-  - '- [T12] The group narrowly avoided being crushed by the weight of the infected
-    swarm as it funneled past their hiding spot.'
-  - '- [T13] While attempting to move quietly through the pipe, a single, calculated
-    clicking sound was heard from around the bend, indicating a lone hunter remains.'
-  - '- [T14] A Stalker emerged from the shadows of the drainage pipes, watching the
-    group from the periphery of the flashlight beam.'
-  - '- [T15] The Stalker attempted to lunge but slipped on oily sludge, allowing the
-    group to escape into a structural breach.'
-  - '- [T16] The group emerged from the pipes onto a concrete ledge in the West Brandonfurt
-    ruins; Marlene directed the group north toward the Firefly stronghold via the
-    tree line to avoid FEDRA patrols and flooding.'
-  setting_pack: zombie-survival
-  turn: 19
+  - '- [T1] Timothy killed a boarding sailor mid-air with the Notched Cutlass; Joshua
+    Vane ordered a push to clear the midships of pirates attacking a merchant sailor.'
+  - '- [T2] Antonio Silva wounded the PC in the flank with a boarding pike during
+    a heavy roll of the *Black Marlin*.'
+  - '- [T3] The PC fired a flintlock pistol, striking a burly pirate against the mainmast,
+    while Joshua Vane sent reinforcements to break the pirate circle.'
+  - '- [T4] The PC severely wounded Antonio Silva with a cutlass strike, though more
+    pirates are now breaching the bulwarks.'
+  - '- [T5] Antonio Silva was killed by a cutlass thrust; player scavenged three Lead
+    Bullets from his body.'
+  - '- [T6] The Burly Pirate was killed by a flintlock shot to the face; a massive
+    wave of attackers breached the bulwarks.'
+  - '- [T7] The bulwark near the mainmast collapsed entirely, causing the defensive
+    perimeter to shatter and Joshua Vane to be engulfed by attackers.'
+  setting_pack: golden-piracy
+  turn: 10
 pc:
   allegiance: null
-  bio: Born into the stable infrastructure of the before-world, Joel spent his prime
-    years building structures that no longer stand. He has spent the last two decades
-    learning that things are easier to tear down than to maintain. Now, he carries
-    the weight of a life lived in the shadows of ruins.
-  conditions: []
-  drive: Protect the girl at any cost, even if it means defying the settlement's laws.
+  bio: Formerly a sailor for the Royal Navy, Timothy deserted after a botched engagement
+    left his unit decimated. He traded a life of rigid discipline for the chaotic
+    freedom of the privateer life, using his knowledge of rigging and knots to keep
+    crews alive and ships moving.
+  conditions:
+  - added_turn: 7
+    description: Stumbling amidst wreckage and debris makes it difficult to maintain
+      balance and leverage.
+    id: unsteady_footing
+    label: unsteady footing
+    turns_remaining: 8
+  drive: Ensure the crew maintains discipline so the prize can be successfully taken.
   expressed_stances:
-    cautious: 2
-    compassionate: 2
-    cynical: 3
-    protective: 4
-    ruthless: 1
-  momentum: 0
-  name: Joel Miller
+    aggressive: 2
+    alert: 3
+    compassionate: 1
+    protective: 2
+  momentum: 1
+  name: Timothy Calloway
   stats:
     charisma: 2
     dexterity: 4
-    lore: 1
+    lore: 2
     resolve: 3
-    strength: 3
+    strength: 2
     wits: 3
-  tagline: Former construction Foreman, hardened survivor
+  tagline: Ship's boatswain, survivor of the King's lash
 scene:
-  location_entered_turn: 15
   present_npcs:
-  - bio: A pragmatic leader who makes the hard choices to keep her faction alive.
-    id: marlene
-    name: Marlene
-    notes: Urgent and commanding; directing the group toward cover to avoid the FEDRA
-      patrol.
-    title: Firefly Leader
-  - bio: A young girl who feels like a mere 'package' being passed around by the Fireflies,
-      displaying a mix of defiance and deep-seated exhaustion.
-    id: ellie_williams
-    name: Ellie Williams
-    notes: Tense and hyper-vigilant; gripping the player's sleeve tightly in fear
-      of the approaching patrol.
-    title: The Asset
+  - bio: A pragmatic man who enforces the Articles with a heavy hand and a cold eye.
+    id: joshua_vane
+    name: Joshua Vane
+    notes: Being overwhelmed and pushed further away by the influx of enemies through
+      the breach.
+    title: Quartermaster
+  - bio: A boy of twelve who has learned that speed is the only thing that keeps him
+      from being stepped on.
+    id: barry_stone
+    name: Barry Stone
+    notes: Sprinting through the chaos toward the guns.
+    title: Powder Monkey
+  - bio: A pair of attackers working in tandem to surround the player using the battlefield's
+      wreckage.
+    id: flanking_pirates
+    name: Flanking Pirates
+    notes: Two pirates flanking the player, using the uneven terrain of the debris
+      to gain an advantage.
+    title: Pirates
   recent_events:
-  - id: environmental_instability
-    text: Seasonal flooding and FEDRA patrols are making the ruins of West Brandonfurt
-      increasingly unstable.
+  - id: boarding_chaos
+    text: The boarding action has devolved into a bloody scramble near the mainmast.
+    turn: 1
+  - id: vane_reinforcements
+    text: Joshua Vane has rallied his men to hold the line against the pirate onslaught.
     turn: 3
-  - id: marlene_ultimatum
-    text: 'Marlene has made it clear: Ellie''s blood is the key to the Fireflies''
-      future, and any further questioning will be met with lethal force.'
+  - id: antonio_silva_wounded
+    text: Antonio Silva has been severely wounded by your cutlass and lies reeling
+      on the deck.
     turn: 4
-  - id: infected_encounters
-    text: After surviving a massive swarm and a stalking predator in the drainage
-      pipes, the group has finally reached the surface.
-    turn: 15
-  - id: exited_drainage_pipes
-    text: The group has emerged from the claustrophobic pipes into the skeletal ruins
-      of West Brandonfurt.
-    turn: 16
-  - id: fedra_checkpoint_ridge
-    text: A FEDRA observation post has been established on the northern ridge edge,
-      overlooking the sector.
-    turn: 18
+  - id: new_wave_breaching
+    text: The enemy is pouring onto the deck in greater numbers as the bulwarks are
+      breached.
+    turn: 4
+  - id: bulwark_collapse
+    text: The shattered bulwark near the mainmast has collapsed entirely, creating
+      a massive breach and a landslide of attackers.
+    turn: 7
+  - id: perimeter_shattered
+    text: The defensive perimeter has broken as sailors abandon their posts to scavenge
+      supplies amidst the chaos.
+    turn: 7
+  - id: midships_slaughterhouse
+    text: The midships have become a funnel of violence as attackers use the bulwark
+      breach to overwhelm the disorganized crew.
+    turn: 8
+  - id: scavenging_sailors_slaughtered
+    text: The scavenging sailors have been cornered and killed near the hatch.
+    turn: 9
+  - id: axe_attacker_neutralized
+    text: The boarding axe attacker was shot in the throat and killed.
+    turn: 10
   recently_left: []
-  recently_left_turns: 0
+  recently_left_turns: 1
   scene_pressure:
-  - id: fedra_observation_post
+  - id: new_boarding_wave
     max_turns: null
-    text: FEDRA checkpoint on the ridge edge monitoring the sector.
-    turn_added: 18
-    urgency: building
-  tagline: The Sound of Approaching Steel
+    text: A fresh wave of pirates is breaching the bulwarks.
+    turn_added: 4
+    urgency: immediate
+  - id: perimeter_broken
+    max_turns: null
+    text: The defensive line has shattered, leaving midships wide open to the enemy.
+    turn_added: 7
+    urgency: immediate
+  tagline: A Shot Amidst the Carnage
   tags:
-  - stealth
-  - tense_atmosphere
-  - approaching_threat
-  turn_entered: 15
+  - combat
+  - chaos
+  - visceral
   world_state:
-  - '**Ophiocordyceps novum** spreads through airborne spores in enclosed or still-air
-    environments; outdoors, risk is wind-dependent; indoors without ventilation, a
-    sealed mask is the difference between a rough twenty minutes and full host-conversion
-    in two hours — and masks are harder to find than bullets.'
-  - 'The infected are not mindless: **Clickers** (late-stage, echolocating, skull-bloomed)
-    have no vision but track sound with surgical precision; **Stalkers** (mid-stage)
-    hide, watch, and wait; **Runners** (early-stage, still partly aware) sometimes
-    hesitate — and that hesitation is the worst thing about them; all stages are connected
-    by a slow, underground mycelial network that takes hours to signal but can make
-    a dormant nest active when another is disturbed kilometers away.'
-  - 'Twenty years in, cities are forests: root systems have cracked the foundations,
-    vines have collapsed the upper floors, rivers have re-routed through subway tunnels
-    — the infrastructure survivors built their routines around is now a living, hostile
-    landscape that changes season by season.'
-  - FEDRA maintains strict quarantine blockades around all major metropolitan zones.
-  - The black market economy relies entirely on pre-collapse scavenged hardware.
-  - Infection spreads through fungal spores that thrive in damp, low-light environments.
+  - A pirate ship is a democracy with a knife at its throat — the crew votes on everything
+    from course to cargo distribution, and the captain is elected and can be deposed
+    if he fails. But the moment you board an enemy ship, democracy ends and violence
+    begins.
+  - Scurvy, dysentery, and infection kill more pirates than naval guns or hanging.
+    A ship without fresh meat and clean water becomes a death trap in weeks. Every
+    port stop is a race against rot.
+  - The Caribbean is a maze of hidden coves, shallow reefs, and coral harbors where
+    a shallow-draft sloop can hide from a deep-draft man-of-war. The best pirates
+    don't fight — they ambush, strike fast, and vanish into waters the navy cannot
+    follow.
+  - Naval blockades restrict all merchant movement through the Eastern Straits.
+  - Privateer commissions are currently being issued by the rogue governor of Edwardsland.
+  - The price of black powder has tripled due to recent shortages in the colonies.
 world:
   factions: []
   locations: []
