@@ -10,7 +10,7 @@ from pathlib import Path
 import re
 
 from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json, _log_llm_io, _log_prompts, _render
-from ccya.engine.names import generate_name_pool
+from ccya.engine.names import generate_name_pool, generate_npc_names
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
 from ccya.pack import Pack, PlayerOverrides, SeedEnvelope, parse_world_facts
 
@@ -54,9 +54,9 @@ def _validate_seed_envelope(envelope: SeedEnvelope) -> None:
     """Raise ValueError if seed envelope violates hard constraints."""
     name_parts = envelope.seed_state.pc.name.strip().split()
     if len(name_parts) < 2:
-        raise ValueError(
-            f"PC name '{envelope.seed_state.pc.name}' must include a given name and family name. "
-            "Re-generate or provide a full name."
+        _log.warning(
+            "PC name '%s' has only one part; seed will be used as-is",
+            envelope.seed_state.pc.name,
         )
 
 
@@ -72,6 +72,18 @@ def _build_generate_seed_messages(
     scenario = pack.scenario
     locales = scenario.name_locales if scenario else pack.manifest.name_locales
     name_pool = generate_name_pool(locales)
+    # Historical combat genres: male-only name pool for initial NPCs
+    _HISTORICAL_COMBAT = {"ww2", "noir", "pirate", "sengoku japan"}
+    genre = (pack.manifest.genre or "").lower()
+    male_npc_pool = generate_npc_names(locales, count=10, gender="male") if genre in _HISTORICAL_COMBAT else None
+    if male_npc_pool:
+        # Replace the mixed npc and pc pools with male-only names
+        name_pool = {
+            "pc": male_npc_pool,
+            "npc": male_npc_pool,
+            "location": name_pool["location"],
+            "inventory": name_pool["inventory"],
+        }
     # Randomize name_seed if not set
     name_seed = (scenario.name_seed if scenario and scenario.name_seed else 0) or random.randint(10_000_000, 99_999_999)
     ctx = {
@@ -86,6 +98,7 @@ def _build_generate_seed_messages(
             else 2
         ),
         "name_pool": name_pool,
+        "male_npc_pool": male_npc_pool,
         "name_seed": name_seed,
         # Legacy fallbacks for old packs without scenario
         "world_text": pack.world_text,

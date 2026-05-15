@@ -521,8 +521,8 @@ async def test_generate_seed_scenario_world_facts_in_user_prompt():
 # ---------------------------------------------------------------------------
 
 
-def test_validate_seed_envelope_rejects_single_token_name():
-    """A single-word PC name should raise ValueError."""
+def test_validate_seed_envelope_warns_on_single_token_name(caplog):
+    """A single-word PC name should log a warning but not raise."""
     from ccya.engine.seed import _validate_seed_envelope
 
     envelope = SeedEnvelope(
@@ -536,8 +536,8 @@ def test_validate_seed_envelope_rejects_single_token_name():
         opening_narrative="You stand in a ruined building. The wind howls through broken windows. Dust coats your throat. You check your pockets for anything useful. A faded photograph catches the light. Somewhere in the distance, a dog barks.",
         actions=["Search the building.", "Call out for survivors.", "Hide and wait.", "Move toward the shelter."],
     )
-    with pytest.raises(ValueError, match="given name and family name"):
-        _validate_seed_envelope(envelope)
+    _validate_seed_envelope(envelope)
+    assert "has only one part" in caplog.text
 
 
 def test_validate_seed_envelope_accepts_full_name():

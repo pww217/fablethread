@@ -14,6 +14,7 @@ dependencies = [
     "python-multipart",
     "openai",
     "faker",
+    "pykakasi",
 ]
 
 [project.scripts]

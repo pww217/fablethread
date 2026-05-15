@@ -17,7 +17,7 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
 {% if scenario and scenario.factions %}
 **NPC ROLE ALIGNMENT RULE (MANDATORY):** All generated NPCs must have roles, occupations, titles, and implied demographics consistent with the world pack's cultural and historical context provided below. Specifically:
 - Do not assign occupations that are anachronistic or culturally inconsistent with the world pack period.
-- Use the name_locales provided in the user prompt to select culturally appropriate names. If the name pool provides separate male and female lists, select names appropriate to the role and setting — historical combat genres: use male names from provided names ONLY for combat roles; modern and speculative settings: use any gender freely.
+- Use the name pool provided in the user prompt. For historical combat genres (ww2, noir, pirate, sengoku japan), both the pc and npc candidates lists contain male names only — use these names for all characters including the player character. Do not invent names outside the provided pools.
 - Cross-reference the factions provided below: NPCs affiliated with a faction must have a role consistent with that faction's description.
 - If the narrator_rules include tone or cultural guidance, apply it to NPC role assignment.
 {% endif %}

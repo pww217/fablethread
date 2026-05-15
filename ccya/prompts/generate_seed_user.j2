@@ -44,8 +44,8 @@
 {% if name_pool %}
 ## name_pool (sampled from this setting's locales — use at least one per category)
 name_seed: {{ name_seed }}
-- pc candidates: {{ name_pool.pc | join(", ") }}
-- npc candidates: {{ name_pool.npc | join(", ") }}
+- pc candidates (male names only for this genre): {{ name_pool.pc | join(", ") }}
+- npc candidates (male names only for this genre): {{ name_pool.npc | join(", ") }}
 - place name inspiration: {{ name_pool.location | join(", ") }}
 {% endif %}
 {% if scenario and scenario.factions %}
