@@ -69,6 +69,17 @@ class ThreadSignal(BaseModel):
     signal: ThreadSignalType
 
 
+class DriftAnalysis(BaseModel):
+    """Structured drift analysis for a single thread."""
+    thread_id: str
+    match: bool = False
+    """Whether the player's action meaningfully engaged this thread."""
+    reason: str = ""
+    """One-sentence explanation of why this thread was or wasn't matched."""
+    new_interest: str = ""
+    """If match is False, what new direction the player seems interested in."""
+
+
 class Condition(BaseModel):
     id: str
     label: str
@@ -482,6 +493,8 @@ class ProgressExtractResult(BaseModel):
     scene_pressure_remove: list[str] = Field(default_factory=list)       # migrated from SceneExtractResult
     scene_pressure_update: list[ScenePressure] = Field(default_factory=list)  # migrated from SceneExtractResult
     thread_signals: list[ThreadSignal] = Field(default_factory=list)
+    drift_analysis: list[DriftAnalysis] = Field(default_factory=list)
+    """Structured drift analysis per active thread. Supersedes player_drift_signals."""
     player_drift_signals: list[str] = Field(default_factory=list)
     candidate_opportunity: str | None = None
 

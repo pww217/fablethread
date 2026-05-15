@@ -802,6 +802,7 @@ async def run_turn(
                         arc = tick_arc(
                             arc=CampaignArc(**state["arc"]),
                             drift=progress_result.player_drift_signals,
+                            drift_analysis=progress_result.drift_analysis,
                         )
                         state["arc"] = arc.model_dump(mode="json")
                     # Update PC expressed stances from player input
@@ -1537,6 +1538,7 @@ async def run_turn_retry(
                         arc = tick_arc(
                             arc=CampaignArc(**state["arc"]),
                             drift=progress_result.player_drift_signals,
+                            drift_analysis=progress_result.drift_analysis,
                         )
                         state["arc"] = arc.model_dump(mode="json")
                     if intent.intent:

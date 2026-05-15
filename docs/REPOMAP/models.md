@@ -45,6 +45,8 @@
 - `gm_beat: GMBeat | None = None` — validated by `_nullify_invalid_gm_beat` (model_validator, mode="after") which sets `gm_beat = None` if the beat has no instruction or no type.
 - `scene_pressure_remove: list[str]` — migrated from `SceneExtractResult` in scene-progress-fixes plan.
 - `scene_pressure_update: list[ScenePressure]` — migrated from `SceneExtractResult` in scene-progress-fixes plan.
+- `drift_analysis: list[DriftAnalysis] = Field(default_factory=list)` — structured drift analysis per active thread. Supersedes `player_drift_signals`.
+- `player_drift_signals: list[str] = Field(default_factory=list)` — DEPRECATED: use drift_analysis instead.
 - Fields: `quest_updates`, `recent_events_add`, `recent_events_update`, `recent_events_remove`, `actions`, `outcome_summary`, `gm_beat`, `beat_disposition`, `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update`.
 
 ## CompactorRecentEventCompact
@@ -107,6 +109,13 @@
 
 - `id: str` — thread ID
 - `signal: ThreadSignalType` — advanced/blocked/failed/ignored
+
+## DriftAnalysis
+
+- `thread_id: str` — thread being analyzed
+- `match: bool = False` — whether the player's action meaningfully engaged this thread
+- `reason: str = ""` — one-sentence explanation of why this thread was or wasn't matched
+- `new_interest: str = ""` — if match is False, what new direction the player seems interested in
 
 ## ThreadSignalType (Enum)
 
