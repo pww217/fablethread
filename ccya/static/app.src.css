@@ -1059,78 +1059,58 @@ body {
 .arc-card-body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
-/* Goal — bold label, primary text */
+/* Goal */
 .arc-goal {
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 11px;
+  line-height: 1.5;
   color: var(--text-primary);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 .arc-goal strong {
   color: var(--text-muted);
-  font-weight: 500;
-  margin-right: 4px;
-}
-
-/* Section labels */
-.arc-section-label {
-  font-size: 10px;
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
   font-weight: 600;
-  padding: 2px 0;
+  margin-right: 3px;
 }
 
-/* Active threads */
-.arc-threads {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+/* Section titles */
+.arc-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
-.arc-thread {
-  display: flex;
-  gap: 6px;
-  font-size: 12px;
-  line-height: 1.4;
-  padding: 4px 6px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+/* Active threads — numbered list */
+ol.arc-threads {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  padding-left: 18px;
+  margin: 0;
+}
+
+ol.arc-threads > li {
+  padding: 3px 0 3px 6px;
   border-left: 2px solid var(--border-strong);
+  transition: border-color 150ms;
 }
 
-.arc-thread-immediate {
+ol.arc-threads > li:last-child {
+  padding-bottom: 0;
+}
+
+ol.arc-threads > li.arc-thread-urgent {
   border-left-color: var(--accent-error);
-  background: var(--accent-error-soft);
-}
-
-.arc-urgency {
-  font-size: 9px;
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  padding: 1px 4px;
-  background: var(--bg-base);
-  border-radius: 3px;
-  flex-shrink: 0;
-  align-self: flex-start;
-  margin-top: 1px;
-}
-
-.arc-urgency-immediate {
-  color: var(--accent-error);
-  background: rgba(248, 113, 113, 0.15);
 }
 
 .arc-thread-summary {
-  color: var(--text-secondary);
-  flex: 1;
+  line-height: 1.5;
 }
 
 /* Collapsible sections (truths, log) */
@@ -1150,7 +1130,7 @@ body {
   font-size: 10px;
   font-family: var(--font-mono);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   color: var(--text-muted);
   font-weight: 600;
 }
@@ -1180,12 +1160,12 @@ body {
 }
 
 .arc-truth {
-  font-size: 12px;
+  font-size: 10.5px;
   color: var(--accent);
-  line-height: 1.4;
+  line-height: 1.45;
   padding: 4px 8px;
   background: var(--accent-soft);
-  border: 1px solid rgba(240, 160, 48, 0.15);
+  border: 1px solid rgba(240, 160, 48, 0.12);
   border-radius: var(--radius-sm);
 }
 
@@ -1198,10 +1178,10 @@ body {
 }
 
 .arc-log-entry {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
-  line-height: 1.4;
-  padding: 3px 0;
+  line-height: 1.45;
+  padding: 2px 0;
   border-bottom: 1px dotted var(--border-subtle);
 }
 
@@ -1209,81 +1189,9 @@ body {
   border-bottom: none;
 }
 
-/* Narrative Frame (collapsible behind-the-curtain) */
-.arc-frame {
-  border: none;
-  padding: 0;
-  margin: 0;
-}
-
-.arc-frame-toggle {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  padding: 3px 0;
-  list-style: none;
-  font-size: 10px;
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-.arc-frame-toggle::-webkit-details-marker {
-  display: none;
-}
-
-.arc-frame-icon {
-  font-size: 10px;
-  color: var(--text-muted);
-  opacity: 0.5;
-  transition: transform 150ms;
-}
-
-.arc-frame[open] .arc-frame-icon {
-  transform: rotate(180deg);
-}
-
-.arc-frame-body {
-  padding: 6px 8px;
-  margin: 4px 0 0 0;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-}
-
-.arc-frame-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 4px 0;
-}
-
-.arc-frame-item:not(:last-child) {
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.arc-frame-key {
-  font-size: 9px;
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
-.arc-frame-value {
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.4;
-  font-style: italic;
-}
-
 /* Empty state */
 .arc-empty {
-  font-size: 12px;
+  font-size: 10.5px;
   color: var(--text-muted);
   font-style: italic;
   padding: 4px 0;
