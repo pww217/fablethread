@@ -1,11 +1,11 @@
-{% if state.arc and state.arc.visible_goal -%}
+{% if state.arc and state.arc.get('visible_goal') -%}
 ### Campaign Arc
 **Goal:** {{ state.arc.visible_goal }}
 **Phase:** {{ state.arc.phase }}
-{% if state.arc.active_threads -%}
+{% if state.arc.get('active_threads') -%}
 **Active threads:**
-{% for t in state.arc.active_threads -%}
-- [{{ t.urgency | upper }}] {{ t.summary }}
+{% for t in state.arc.get('active_threads') -%}
+- [{{ t.get('urgency', 'normal') | upper }}] {{ t.get('summary', '') }}
 {% endfor -%}
 {% endif -%}
 {%- else -%}
