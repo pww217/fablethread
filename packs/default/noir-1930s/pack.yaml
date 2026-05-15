@@ -6,9 +6,9 @@ tone_tags: [noir, urban, procedural, moral-ambiguity]
 version: 2
 mode: dynamic
 baseline_facts:
-  - "**J. Edgar Hoover's** Bureau of Investigation became the FBI in 1935 with new federal jurisdiction over bank robbery, kidnapping, and interstate flight; the Bureau still has no authority over local rackets, and most cities are policed by a force that reports to the mayor's political machine, not the federal government."
-  - "The **Volstead Act** ended in 1933, but the rackets that grew under Prohibition — Lansky's gambling syndicate, the Five Families' truce of 1931, the **Outfit** in Chicago — are intact and have moved into labor unions, garment districts, the docks, and the construction trades; the names on the front pages have not changed."
-  - "A working private detective makes **$25 a week** salary plus expenses; a single phone call to the right precinct desk costs $5, a friendly homicide cop costs $50, and the going rate for a name out of the morgue is a bottle of decent rye — every case ledger is half receipts, half graft."
+  - "The city runs on violence and money — gangsters control the docks, the unions, and the night. The police take their cut and look away. A detective who asks too many questions ends up with a bullet in the back or a frame-up that sends them to prison."
+  - "Women in noir are never what they seem — not because they are evil, but because survival in a man's world forces them to play roles. A femme fatale might be a victim playing the part to stay alive, a gangster's mistress with her own escape plan, or a woman who learned that the only way to win is to play the game harder than the men."
+  - "The city at night is a character — rain on cobblestones, streetlights casting long shadows, empty alleys behind closed saloons, the sound of a distant train. Every corner holds a danger you can't see until it's too late."
 files:
   world: world.md
   scenario: scenario.yaml

@@ -1,5 +1,7 @@
-"""Tests for engine/arc.py — thread lifecycle and engagement."""
+"""Tests for engine/arc.py — engagement scoring and thread lifecycle."""
 
+from ccya.engine.arc import tick_arc, update_stances
+from ccya.engine.turn import _apply_thread_signals, _candidate_to_latent_thread
 from ccya.models import ArcThread, CampaignArc, ThreadSignal, ThreadSignalType, ThreadState
 
 
@@ -32,89 +34,160 @@ def _make_arc(
     )
 
 
+def _make_state(arc: CampaignArc) -> dict:
+    return {"arc": arc.model_dump(mode="json")}
+
+
 def _signal(thread_id: str, signal: str) -> ThreadSignal:
     return ThreadSignal(id=thread_id, signal=ThreadSignalType(signal))
 
 
 class TestThreadAdvancement:
-    """Thread completion requires 2 ADVANCED signals across turns."""
+    """Thread completion requires 3 ADVANCED signals across turns."""
 
-    def test_two_advanced_across_turns_completes_thread(self):
+    def test_two_advanced_same_turn_only_increments_once(self):
+        """Two ADVANCED for same thread in one call → progress +1 (dict dedup)."""
         arc = _make_arc(active=[{"id": "t1", "state": ThreadState.ACTIVE, "progress": 0}])
-        from ccya.engine.arc import tick_arc
+        state = _make_state(arc)
 
-        # Turn 1: first ADVANCED
-        arc = tick_arc(arc, [_signal("t1", "advanced")], [], 0, 1)
-        t = arc.active_threads[0]
-        assert t.progress == 1
-        assert t.state == ThreadState.ACTIVE
+        class ProgressResult:
+            thread_signals = [_signal("t1", "advanced"), _signal("t1", "advanced")]
 
-        # Turn 2: second ADVANCED → completes
-        arc = tick_arc(arc, [_signal("t1", "advanced")], [], 0, 2)
-        assert len(arc.active_threads) == 0
-        assert len(arc.completed_threads) == 1
-        assert arc.completed_threads[0].state == ThreadState.COMPLETE
+        result = _apply_thread_signals(state, ProgressResult())
+        assert result is not None
+        assert result.active_threads[0].progress == 1
 
-    def test_advanced_then_blocked_resets_progress(self):
-        arc = _make_arc(active=[{"id": "t1", "state": ThreadState.ACTIVE, "progress": 1}])
-        from ccya.engine.arc import tick_arc
+    def test_three_advanced_across_turns_completes_thread(self):
+        arc = _make_arc(active=[{"id": "t1", "state": ThreadState.ACTIVE, "progress": 0}])
+        state = _make_state(arc)
 
-        # BLOCKED resets progress to 0
-        arc = tick_arc(arc, [_signal("t1", "blocked")], [], 0, 5)
-        assert arc.active_threads[0].progress == 0
+        class PR1:
+            thread_signals = [_signal("t1", "advanced")]
+        result = _apply_thread_signals(state, PR1())
+        assert result is not None
+        assert result.active_threads[0].progress == 1
+
+        arc = result
+        state = _make_state(arc)
+
+        class PR2:
+            thread_signals = [_signal("t1", "advanced")]
+        result = _apply_thread_signals(state, PR2())
+        assert result is not None
+        assert result.active_threads[0].progress == 2
+
+        arc = result
+        state = _make_state(arc)
+
+        class PR3:
+            thread_signals = [_signal("t1", "advanced")]
+        result = _apply_thread_signals(state, PR3())
+        assert result is not None
+        assert len(result.active_threads) == 0
+        assert len(result.completed_threads) == 1
+        assert result.completed_threads[0].state == ThreadState.COMPLETE
 
     def test_failed_marks_thread_failed(self):
         arc = _make_arc(active=[{"id": "t1", "state": ThreadState.ACTIVE}])
-        from ccya.engine.arc import tick_arc
+        state = _make_state(arc)
 
-        arc = tick_arc(arc, [_signal("t1", "failed")], [], 0, 5)
-        assert arc.active_threads[0].state == ThreadState.FAILED
+        class ProgressResult:
+            thread_signals = [_signal("t1", "failed")]
 
-    def test_two_advanced_same_turn_completes(self):
-        arc = _make_arc(active=[{"id": "t1", "state": ThreadState.ACTIVE, "progress": 0}])
-        from ccya.engine.arc import tick_arc
-
-        # Two ADVANCED in same turn
-        arc = tick_arc(arc, [_signal("t1", "advanced"), _signal("t1", "advanced")], [], 0, 1)
-        assert len(arc.active_threads) == 0
-        assert len(arc.completed_threads) == 1
+        result = _apply_thread_signals(state, ProgressResult())
+        assert result is not None
+        assert len(result.completed_threads) == 1
+        assert result.completed_threads[0].state == ThreadState.FAILED
 
     def test_progress_persists_across_turns(self):
         arc = _make_arc(active=[{"id": "t1", "state": ThreadState.ACTIVE, "progress": 0}])
-        from ccya.engine.arc import tick_arc
+        state = _make_state(arc)
 
-        # Turn 1: ADVANCED
-        arc = tick_arc(arc, [_signal("t1", "advanced")], [], 0, 1)
-        assert arc.active_threads[0].progress == 1
+        class PR1:
+            thread_signals = [_signal("t1", "advanced")]
 
-        # Turn 2: IGNORED — progress should persist
-        arc = tick_arc(arc, [_signal("t1", "ignored")], [], 0, 2)
-        assert arc.active_threads[0].progress == 1
+        result1 = _apply_thread_signals(state, PR1())
+        assert result1 is not None
+        assert result1.active_threads[0].progress == 1
 
-        # Turn 3: ADVANCED — should complete (1+1=2)
-        arc = tick_arc(arc, [_signal("t1", "advanced")], [], 0, 3)
-        assert len(arc.completed_threads) == 1
+        arc = result1
+        state = _make_state(arc)
+
+        class PR2:
+            thread_signals = [_signal("t1", "ignored")]
+
+        result2 = _apply_thread_signals(state, PR2())
+        assert result2 is None  # no mutation
+
+        arc = _make_arc(active=[{"id": "t1", "state": ThreadState.ACTIVE, "progress": 1}])
+        state = _make_state(arc)
+
+        class PR3:
+            thread_signals = [_signal("t1", "advanced")]
+
+        result3 = _apply_thread_signals(state, PR3())
+        assert result3 is not None
+        assert result3.active_threads[0].progress == 2
 
 
 class TestThreadPromotion:
-    """Completed threads promote their listed latent threads."""
+    """Latent threads promoted when active slots open."""
 
-    def test_promote_on_completion(self):
+    def test_latent_promoted_when_slot_available(self):
         arc = _make_arc(
-            active=[{"id": "t1", "state": ThreadState.ACTIVE, "progress": 0}],
-            latent=[{"id": "t2", "state": ThreadState.LATENT, "promotes": ["t3"]}],
+            active=[{"id": "t1", "state": ThreadState.ACTIVE}],
+            latent=[{"id": "t2", "state": ThreadState.LATENT}],
         )
-        # Add t3 as latent that t1 promotes
-        arc.active_threads[0].promotes = ["t3"]
-        arc.latent_threads.append(ArcThread(id="t3", summary="promoted thread", tags=[]))
+        state = _make_state(arc)
 
-        from ccya.engine.arc import tick_arc
+        class ProgressResult:
+            thread_signals = [_signal("t1", "failed")]
 
-        # Two ADVANCED to complete t1
-        arc = tick_arc(arc, [_signal("t1", "advanced"), _signal("t1", "advanced")], [], 0, 1)
-        t3 = [t for t in arc.active_threads if t.id == "t3"]
-        assert len(t3) == 1
-        assert t3[0].state == ThreadState.ACTIVE
+        result = _apply_thread_signals(state, ProgressResult())
+        assert result is not None
+        assert len(result.active_threads) == 1
+        assert result.active_threads[0].id == "t2"
+        assert result.active_threads[0].state == ThreadState.ACTIVE
+        assert len(result.latent_threads) == 0
+
+    def test_active_cap_prevents_excess_promotion(self):
+        arc = _make_arc(
+            active=[{"id": "t1", "state": ThreadState.ACTIVE}],
+            latent=[
+                {"id": "t2", "state": ThreadState.LATENT},
+                {"id": "t3", "state": ThreadState.LATENT},
+                {"id": "t4", "state": ThreadState.LATENT},
+                {"id": "t5", "state": ThreadState.LATENT},
+            ],
+        )
+        state = _make_state(arc)
+
+        class ProgressResult:
+            thread_signals = [_signal("t1", "failed")]
+
+        result = _apply_thread_signals(state, ProgressResult())
+        assert result is not None
+        # t1 fails → 0 active, 4 latent → promote all 4 to reach cap of 4
+        assert len(result.active_threads) == 4
+        assert len(result.latent_threads) == 0
+
+    def test_no_promotion_when_at_cap(self):
+        arc = _make_arc(
+            active=[
+                {"id": "t1", "state": ThreadState.ACTIVE},
+                {"id": "t2", "state": ThreadState.ACTIVE},
+                {"id": "t3", "state": ThreadState.ACTIVE},
+                {"id": "t4", "state": ThreadState.ACTIVE},
+            ],
+            latent=[{"id": "t5", "state": ThreadState.LATENT}],
+        )
+        state = _make_state(arc)
+
+        class ProgressResult:
+            thread_signals = []
+
+        result = _apply_thread_signals(state, ProgressResult())
+        assert result is None
 
 
 class TestEngagement:
@@ -125,10 +198,7 @@ class TestEngagement:
             active=[{"id": "t1", "state": ThreadState.ACTIVE, "tags": ["political", "trust"]}],
             engagement=-3,
         )
-        from ccya.engine.arc import tick_arc
-
-        # Drift phrase contains "political"
-        arc = tick_arc(arc, [], ["interested in political maneuvering"], 0, 1)
+        arc = tick_arc(arc, ["interested in political maneuvering"])
         assert arc.arc_engagement == -2
 
     def test_drift_no_overlap_decrements_engagement(self):
@@ -136,10 +206,7 @@ class TestEngagement:
             active=[{"id": "t1", "state": ThreadState.ACTIVE, "tags": ["military"]}],
             engagement=0,
         )
-        from ccya.engine.arc import tick_arc
-
-        # Drift phrase has no overlap with "military"
-        arc = tick_arc(arc, [], ["focused on finding shelter"], 0, 1)
+        arc = tick_arc(arc, ["focused on finding shelter"])
         assert arc.arc_engagement == -1
 
     def test_engagement_clamps_at_3_and_minus_3(self):
@@ -147,17 +214,14 @@ class TestEngagement:
             active=[{"id": "t1", "state": ThreadState.ACTIVE, "tags": ["aid"]}],
             engagement=3,
         )
-        from ccya.engine.arc import tick_arc
-
-        # Already at max — should not exceed
-        arc = tick_arc(arc, [], ["looking for aid"], 0, 1)
+        arc = tick_arc(arc, ["looking for aid"])
         assert arc.arc_engagement == 3
 
         arc = _make_arc(
             active=[{"id": "t1", "state": ThreadState.ACTIVE, "tags": ["military"]}],
             engagement=-3,
         )
-        arc = tick_arc(arc, [], ["avoiding military contact"], 0, 1)
+        arc = tick_arc(arc, ["avoiding military contact"])
         assert arc.arc_engagement == -2
 
     def test_empty_drift_does_not_change_engagement(self):
@@ -165,19 +229,77 @@ class TestEngagement:
             active=[{"id": "t1", "state": ThreadState.ACTIVE, "tags": ["political"]}],
             engagement=1,
         )
-        from ccya.engine.arc import tick_arc
-
-        arc = tick_arc(arc, [], [], 0, 1)
+        arc = tick_arc(arc, [])
         assert arc.arc_engagement == 1
 
 
-class TestInitialPromotion:
-    """Threads seeded as active should start with state=active."""
+class TestCandidateToLatent:
+    """candidate_opportunity converted to latent thread with cap enforcement."""
 
-    def test_active_threads_start_active(self):
+    def test_candidate_becomes_latent_thread(self):
+        arc = _make_arc()
+        result = _candidate_to_latent_thread(arc, "A mysterious stranger offers a deal", 1)
+        assert result is not None
+        assert len(result.latent_threads) == 1
+        t = result.latent_threads[0]
+        assert t.id == "a_mysterious_stranger_offers_a"
+        assert t.summary == "A mysterious stranger offers a deal"
+        assert t.state == ThreadState.LATENT
+        assert t.tags == ["tactical"]
+
+    def test_candidate_dedup_by_id(self):
+        arc = _make_arc(latent=[{"id": "a_mysterious_stranger_offers_a", "state": ThreadState.LATENT}])
+        result = _candidate_to_latent_thread(arc, "A mysterious stranger offers a deal", 1)
+        assert result is not None
+        assert len(result.latent_threads) == 2
+        # Original stays, new one gets _t1 suffix
+        ids = {t.id for t in result.latent_threads}
+        assert "a_mysterious_stranger_offers_a" in ids
+        assert "a_mysterious_stranger_offers_a_t1" in ids
+
+    def test_latent_cap_evicts_tactical_first(self):
         arc = _make_arc(
-            active=[{"id": "t1", "state": ThreadState.ACTIVE}],
-            latent=[],
+            latent=[
+                {"id": "t1", "state": ThreadState.LATENT, "tags": ["tactical"], "last_offered_turn": 1},
+                {"id": "t2", "state": ThreadState.LATENT, "tags": ["tactical"], "last_offered_turn": 2},
+                {"id": "t3", "state": ThreadState.LATENT, "tags": ["tactical"], "last_offered_turn": 3},
+                {"id": "t4", "state": ThreadState.LATENT, "tags": ["tactical"], "last_offered_turn": 4},
+            ]
         )
-        # No promotion needed — already active
-        assert arc.active_threads[0].state == ThreadState.ACTIVE
+        result = _candidate_to_latent_thread(arc, "New opportunity", 5)
+        assert result is not None
+        assert len(result.latent_threads) == 4
+        ids = {t.id for t in result.latent_threads}
+        assert "t1" not in ids  # oldest tactical evicted
+        assert "new_opportunity" in ids
+
+    def test_latent_cap_never_evicts_non_tactical(self):
+        arc = _make_arc(
+            latent=[
+                {"id": "t1", "state": ThreadState.LATENT, "tags": ["pack_seeded"]},
+                {"id": "t2", "state": ThreadState.LATENT, "tags": ["pack_seeded"]},
+                {"id": "t3", "state": ThreadState.LATENT, "tags": ["pack_seeded"]},
+                {"id": "t4", "state": ThreadState.LATENT, "tags": ["pack_seeded"]},
+            ]
+        )
+        result = _candidate_to_latent_thread(arc, "New opportunity", 5)
+        assert result is None  # cap full, no tactical to evict
+
+
+class TestStances:
+    """Player input stances tracked by keyword matching."""
+
+    def test_compassionate_keywords(self):
+        stances = {}
+        stances = update_stances(stances, "I help the wounded guard")
+        assert stances["compassionate"] == 1
+
+    def test_ruthless_keywords(self):
+        stances = {}
+        stances = update_stances(stances, "I kill the guard")
+        assert stances["ruthless"] == 1
+
+    def test_multiple_keywords(self):
+        stances = {}
+        stances = update_stances(stances, "I help and protect the wounded")
+        assert stances["compassionate"] == 1  # counted once per stance

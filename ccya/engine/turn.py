@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import json
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,11 +34,14 @@ from ccya.llm_client import (
     trim_messages,
 )
 from ccya.models import (
+    ArcThread,
     CampaignArc,
     IntentEnvelope,
     RulesCheck,
     RulesOutcome,
     StateDelta,
+    ThreadState,
+    ThreadSignalType,
     TurnResult,
 )
 from ccya.rules import resolve_check
@@ -53,8 +58,138 @@ from ccya.state import (
     resolve_inventory_remove_target,
     save_state,
 )
+from ccya.state.delta import _merge_arc_update
 
 _log = logging.getLogger("ccya.engine")
+
+_ACTIVE_THREAD_CAP = 4
+"""Maximum number of threads in the active state."""
+
+_THREAD_COMPLETION_THRESHOLD = 3
+"""Progress value at which an active thread is marked complete."""
+
+_LATENT_CAP = 4
+"""Maximum number of threads in the latent state."""
+
+_TACTICAL_TAG = "tactical"
+"""Tag applied to engine-generated latent threads from candidate_opportunity."""
+
+
+def _apply_thread_signals(
+    state: dict[str, Any],
+    progress_result: Any,
+) -> CampaignArc | None:
+    """Process thread signals and update arc thread states.
+
+    Returns a CampaignArc if any mutation occurred, None otherwise.
+    """
+    arc_raw = state.get("arc")
+    if not arc_raw:
+        return None
+    try:
+        arc = CampaignArc.model_validate(arc_raw)
+    except Exception:
+        return None
+
+    signal_map: dict[str, str] = {
+        s.id: s.signal.value for s in (progress_result.thread_signals or [])
+    }
+    if not signal_map and len(arc.active_threads) >= _ACTIVE_THREAD_CAP:
+        return None
+
+    mutated = False
+    active_by_id: dict[str, ArcThread] = {t.id: t for t in arc.active_threads}
+
+    for tid, sig in signal_map.items():
+        if sig == ThreadSignalType.ADVANCED.value and tid in active_by_id:
+            t = active_by_id[tid]
+            active_by_id[tid] = t.model_copy(update={"progress": t.progress + 1})
+            mutated = True
+
+    newly_completed: list[ArcThread] = []
+    still_active: list[ArcThread] = []
+    for tid, t in active_by_id.items():
+        sig = signal_map.get(tid, "")
+        if sig == ThreadSignalType.FAILED.value:
+            newly_completed.append(t.model_copy(update={"state": ThreadState.FAILED}))
+            mutated = True
+        elif t.progress >= _THREAD_COMPLETION_THRESHOLD:
+            newly_completed.append(t.model_copy(update={"state": ThreadState.COMPLETE}))
+            mutated = True
+        else:
+            still_active.append(t)
+
+    arc = arc.model_copy(update={
+        "active_threads": still_active,
+        "completed_threads": arc.completed_threads + newly_completed,
+    })
+
+    completed_ids = {t.id for t in arc.completed_threads}
+    available = [
+        t for t in arc.latent_threads
+        if t.id not in completed_ids
+    ]
+    slots = _ACTIVE_THREAD_CAP - len(arc.active_threads)
+    to_promote = available[:slots]
+    if to_promote:
+        promoted = [
+            t.model_copy(update={"state": ThreadState.ACTIVE}) for t in to_promote
+        ]
+        remaining_latent = [
+            t for t in arc.latent_threads if t.id not in {p.id for p in to_promote}
+        ]
+        arc = arc.model_copy(update={
+            "active_threads": arc.active_threads + promoted,
+            "latent_threads": remaining_latent,
+        })
+        mutated = True
+
+    return arc if mutated else None
+
+
+def _candidate_to_latent_thread(
+    arc: CampaignArc,
+    candidate: str,
+    turn_no: int,
+) -> CampaignArc | None:
+    """Convert a candidate_opportunity string into a latent thread with cap enforcement."""
+    if not candidate or not candidate.strip():
+        return None
+
+    words = candidate.strip().split()[:5]
+    base_id = "_".join(
+        w.lower().strip(".,;:!?\"'") for w in words
+    )
+    existing_ids = {
+        t.id for t in arc.active_threads + arc.latent_threads + arc.completed_threads
+    }
+    tid = base_id if base_id not in existing_ids else f"{base_id}_t{turn_no}"
+    if tid in existing_ids:
+        return None
+
+    new_thread = ArcThread(
+        id=tid,
+        summary=candidate.strip(),
+        state=ThreadState.LATENT,
+        urgency="background",
+        tags=[_TACTICAL_TAG],
+        last_offered_turn=turn_no,
+    )
+
+    latent = list(arc.latent_threads)
+    if len(latent) >= _LATENT_CAP:
+        tactical = [
+            (i, t) for i, t in enumerate(latent)
+            if _TACTICAL_TAG in (t.tags or [])
+        ]
+        if not tactical:
+            return None
+        tactical.sort(key=lambda x: (x[1].last_offered_turn or 0))
+        evict_idx = tactical[0][0]
+        latent.pop(evict_idx)
+
+    return arc.model_copy(update={"latent_threads": latent + [new_thread]})  # type: ignore[no-any-return]
+
 
 def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
     """Compute age/staleness counters for narration directives."""
@@ -652,15 +787,23 @@ async def run_turn(
 
                 # Arc director: process thread signals and update arc state
                 if state.get("arc") and progress_result:
-                    arc = tick_arc(
-                        arc=CampaignArc(**state["arc"]),
-                        signals=progress_result.thread_signals,
-                        drift=progress_result.player_drift_signals,
-                        momentum=(state.get("pc") or {}).get("momentum", 0),
-                        turn_no=turn_no,
-                        candidate=progress_result.candidate_opportunity,
-                    )
-                    state["arc"] = arc.model_dump(mode="json")
+                    arc_delta = _apply_thread_signals(state, progress_result)
+                    if arc_delta is not None:
+                        _merge_arc_update(
+                            state.setdefault("arc", {}), arc_delta
+                        )
+                        if delta is not None:
+                            delta = delta.model_copy(
+                                update={"arc_update": arc_delta}
+                            )
+                    # Engagement scoring stays in tick_arc() — it reads drift
+                    # from player_drift_signals and updates arc_engagement.
+                    if state.get("arc"):
+                        arc = tick_arc(
+                            arc=CampaignArc(**state["arc"]),
+                            drift=progress_result.player_drift_signals,
+                        )
+                        state["arc"] = arc.model_dump(mode="json")
                     # Update PC expressed stances from player input
                     if user_input:
                         pc = state.get("pc", {})
@@ -668,7 +811,62 @@ async def run_turn(
                             pc.get("expressed_stances", {}), user_input
                         )
 
+                    # Handle candidate_opportunity as latent thread
+                    if progress_result.candidate_opportunity:
+                        arc_raw = state.get("arc")
+                        if arc_raw:
+                            try:
+                                arc = CampaignArc.model_validate(arc_raw)
+                                updated_arc = _candidate_to_latent_thread(
+                                    arc,
+                                    progress_result.candidate_opportunity,
+                                    turn_no,
+                                )
+                                if updated_arc is not None:
+                                    _merge_arc_update(
+                                        state.setdefault("arc", {}), updated_arc
+                                    )
+                                    if delta is not None:
+                                        merged = updated_arc.model_copy(
+                                            update={
+                                                "active_threads": (delta.arc_update.active_threads if delta.arc_update else None),
+                                                "completed_threads": (delta.arc_update.completed_threads if delta.arc_update else None),
+                                            }
+                                        )
+                                        delta = delta.model_copy(
+                                            update={"arc_update": merged}
+                                        )
+                            except Exception:
+                                _log.warning(
+                                    "candidate_opportunity: failed to validate arc",
+                                    extra={"turn": turn_no, "trace_id": trace_id},
+                                )
+
         narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
+
+        # Extract narrator arc_update block if present
+        narrative, narrator_arc_dict = _extract_narrator_arc_update(narrative)
+        if narrator_arc_dict:
+            try:
+                narrator_arc_update = CampaignArc.model_validate(narrator_arc_dict)
+                if delta is not None:
+                    _merge_arc_update(
+                        state.setdefault("arc", {}), narrator_arc_update
+                    )
+                    merged = narrator_arc_update.model_copy(
+                        update={
+                            "active_threads": (delta.arc_update.active_threads if delta.arc_update else None),
+                            "completed_threads": (delta.arc_update.completed_threads if delta.arc_update else None),
+                        }
+                    )
+                    delta = delta.model_copy(
+                        update={"arc_update": merged}
+                    )
+            except Exception:
+                _log.warning(
+                    "narrator emitted invalid arc_update JSON — discarded",
+                    extra={"turn": turn_no, "trace_id": trace_id},
+                )
 
         # Decay recently_left counter (engine-side, not in state.py).
         scene = state.get("scene", {})
@@ -819,6 +1017,29 @@ def _strip_fallback(narration: str, *, trace_id: str, turn: int) -> str:
             extra={"trace_id": trace_id, "turn": turn},
         )
     return "\n".join(clean)
+
+
+_ARC_UPDATE_RE = re.compile(
+    r"<<<ARC_UPDATE_START>>>\s*(.*?)\s*<<<ARC_UPDATE_END>>>",
+    re.DOTALL,
+)
+
+
+def _extract_narrator_arc_update(raw: str) -> tuple[str, dict[str, Any] | None]:
+    """Strip arc_update block from narrator output.
+
+    Returns (clean_text, arc_dict|None). If no block found, returns (raw, None).
+    If block found but JSON is malformed, returns (clean_text, None).
+    """
+    match = _ARC_UPDATE_RE.search(raw)
+    if not match:
+        return raw, None
+    clean = _ARC_UPDATE_RE.sub("", raw).rstrip()
+    try:
+        arc_dict = json.loads(match.group(1))
+    except Exception:
+        arc_dict = None
+    return clean, arc_dict
 
 
 def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
@@ -1301,22 +1522,85 @@ async def run_turn_retry(
 
                 # Arc director: process thread signals and update arc state
                 if state.get("arc") and progress_result:
-                    arc = tick_arc(
-                        arc=CampaignArc(**state["arc"]),
-                        signals=progress_result.thread_signals,
-                        drift=progress_result.player_drift_signals,
-                        momentum=(state.get("pc") or {}).get("momentum", 0),
-                        turn_no=turn_no,
-                        candidate=progress_result.candidate_opportunity,
-                    )
-                    state["arc"] = arc.model_dump(mode="json")
+                    arc_delta = _apply_thread_signals(state, progress_result)
+                    if arc_delta is not None:
+                        _merge_arc_update(
+                            state.setdefault("arc", {}), arc_delta
+                        )
+                        if delta is not None:
+                            delta = delta.model_copy(
+                                update={"arc_update": arc_delta}
+                            )
+                    # Engagement scoring stays in tick_arc() — it reads drift
+                    # from player_drift_signals and updates arc_engagement.
+                    if state.get("arc"):
+                        arc = tick_arc(
+                            arc=CampaignArc(**state["arc"]),
+                            drift=progress_result.player_drift_signals,
+                        )
+                        state["arc"] = arc.model_dump(mode="json")
                     if intent.intent:
                         pc = state.get("pc", {})
                         pc["expressed_stances"] = update_stances(
                             pc.get("expressed_stances", {}), intent.intent
                         )
 
+                    # Handle candidate_opportunity as latent thread
+                    if progress_result.candidate_opportunity:
+                        arc_raw = state.get("arc")
+                        if arc_raw:
+                            try:
+                                arc = CampaignArc.model_validate(arc_raw)
+                                updated_arc = _candidate_to_latent_thread(
+                                    arc,
+                                    progress_result.candidate_opportunity,
+                                    turn_no,
+                                )
+                                if updated_arc is not None:
+                                    _merge_arc_update(
+                                        state.setdefault("arc", {}), updated_arc
+                                    )
+                                    if delta is not None:
+                                        merged = updated_arc.model_copy(
+                                            update={
+                                                "active_threads": (delta.arc_update.active_threads if delta.arc_update else None),
+                                                "completed_threads": (delta.arc_update.completed_threads if delta.arc_update else None),
+                                            }
+                                        )
+                                        delta = delta.model_copy(
+                                            update={"arc_update": merged}
+                                        )
+                            except Exception:
+                                _log.warning(
+                                    "candidate_opportunity: failed to validate arc",
+                                    extra={"turn": turn_no, "trace_id": trace_id},
+                                )
+
         narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
+
+        # Extract narrator arc_update block if present
+        narrative, narrator_arc_dict = _extract_narrator_arc_update(narrative)
+        if narrator_arc_dict:
+            try:
+                narrator_arc_update = CampaignArc.model_validate(narrator_arc_dict)
+                if delta is not None:
+                    _merge_arc_update(
+                        state.setdefault("arc", {}), narrator_arc_update
+                    )
+                    merged = narrator_arc_update.model_copy(
+                        update={
+                            "active_threads": (delta.arc_update.active_threads if delta.arc_update else None),
+                            "completed_threads": (delta.arc_update.completed_threads if delta.arc_update else None),
+                        }
+                    )
+                    delta = delta.model_copy(
+                        update={"arc_update": merged}
+                    )
+            except Exception:
+                _log.warning(
+                    "narrator emitted invalid arc_update JSON — discarded",
+                    extra={"turn": turn_no, "trace_id": trace_id},
+                )
 
         scene = state.get("scene", {})
         turns = scene.get("recently_left_turns", 0)

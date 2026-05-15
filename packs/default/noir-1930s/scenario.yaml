@@ -40,13 +40,15 @@ inspiration:
     by necessity.
 
   opening_situation: |
-    Drop the player into a situation that is already unfolding — not a client walking
-    into an office, not a body in an alley. The situation should involve a piece of
-    the city's machinery: a court proceeding, a union meeting, a police evidence room,
-    a newspaper editorial deadline, a harbor inspection, a city council session. The
-    player should walk into something that requires understanding the system, not just
-    pushing a gun. The most interesting situations involve paperwork, jurisdiction,
-    or a piece of information that matters to someone who doesn't know it yet.
+    Drop the player into a situation that is already unfolding — a body found in a
+    back room above a saloon, a kidnapping in progress with the victim still alive,
+    a gang hit that went wrong and left witnesses, a woman who bursts into your
+    office bleeding and says "they're coming." The situation should involve immediate
+    danger, a crime in motion, or a person in desperate need. The player should walk
+    into something that demands action — pulling a gun, making a choice, running,
+    or confronting someone who does not want to be confronted. The most interesting
+    situations involve violence, betrayal, or a truth that someone is willing to
+    kill to keep hidden.
 
   npcs: |
     Each NPC is a person embedded in the city's infrastructure: a cop who knows the
@@ -65,11 +67,18 @@ inspiration:
     else — a letter, a photograph, a document. Show the gap between what the job
     requires and what the player actually has.
 
-  quests: |
-    The starting quest should involve a piece of information that matters — not a
-    "smoking gun" but a detail that changes how someone sees the situation. It
-    should require action within a specific timeframe: a court date, a publication
-    deadline, a witness who might leave town, evidence that might be destroyed. The
-    objectives should reveal something about the city's machinery: a jurisdictional
-    conflict, a paper trail, a conversation that should not have happened, a witness
-    who saw something that changes the frame.
+  arcs: |
+    Arc seeds should center on crime, corruption, and moral compromise.
+    Visible goals: find a missing person before they are killed, expose a gangster
+    without becoming a target, protect a witness who everyone wants silenced, get
+    proof of a murder before the killer covers their tracks, survive a night in
+    the wrong part of town. Thematic questions: how corrupt does the system have
+    to be before you fight back? What line won't you cross — and what line will
+    you cross anyway? Can you do the right thing and survive it? PC drives: get
+    revenge, clear your name, protect someone you care about, get rich fast,
+    expose the truth, survive the night. Hidden truths: the client set you up,
+    the victim is alive and lying to you, the cop you trust is on the take, the
+    murder was a message, not the final act. Thread ideas: a body with a
+    connection to your past, a woman who plays both sides, a gang war that
+    escalates beyond control, a witness who changes their story, a betrayal
+    from someone you trusted.

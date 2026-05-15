@@ -40,15 +40,15 @@ inspiration:
     than its smugglers.
 
   opening_situation: |
-    Drop the player into a moment grounded in the Rim's reality — a town meeting
-    where a company sheriff has just claimed jurisdiction, a freighter dock where
-    the pulse-fold catalysts have gone missing, a homestead where a Coalition tax
-    assessor has finally arrived three years late, a saloon where a wanted Browncoat
-    has just walked in, a herd-doctor's cabin where someone has been brought in with
-    a wound that is going to attract attention. The opening should feel like a small
-    specific place — wood porches, dust on boots, a steam kettle next to a
-    holographic ledger — where a single decision will set off consequences that
-    cannot be taken back.
+    Drop the player into a moment of immediate action — a freighter under attack
+    by pirates, a settlement under siege by a rival crew, a chase through a
+    dust storm with someone hot on your trail, a firefight in a mining town over
+    something valuable, a crash landing on an uncharted moon with limited supplies.
+    The situation should demand physical response and quick thinking. What the
+    player walks into should involve danger, movement, and people who need them
+    right now. The stakes are survival, their ship, or someone they care about.
+    The most interesting moments are the ones where the player has to choose
+    between self-preservation and doing what's right.
 
   npcs: |
     Each NPC is a person carrying their own version of the Rim's tensions. The town
@@ -72,13 +72,19 @@ inspiration:
     they haven't read yet. Show the mismatch: high tech beside hand tools, plasma
     beside black-powder, neural-link patches beside paper ledgers.
 
-  quests: |
-    The starting quest should be local and material — something that affects this
-    town, this freight route, this homestead, this herd. The objectives should force
-    the player into the Rim's politics: a Coalition warrant being served on a
-    neighbour, a debt owed to a company sheriff, a buried weapons cache from the
-    war that someone has just found, a shipment of medicine that won't pass customs,
-    a stalled terraforming relay that the inner worlds want shut down. There should
-    be at least one objective that creates tension with another NPC or faction. The
-    quest should cost something — fuel, trust, a friendship that survived the war
-    until now, a name that will end up on a list.
+  arcs: |
+    Arc seeds should center on survival, rebellion, and frontier justice.
+    Visible goals: protect a settlement from a raiding party, make a desperate
+    run to deliver supplies before a colony starves, escape a Coalition blockade,
+    avenge a killed crewmate, find a lost ship with survivors aboard, hold a
+    position against overwhelming odds. Thematic questions: what does freedom
+    cost on the Rim? Can you build something lasting in a place designed to
+    tear you down? When do you fight and when do you run? PC drives: protect
+    your ship, build a new life, escape your past, prove yourself to the Rim,
+    fight the Coalition, find a place to call home. Hidden truths: the settlement
+    you're protecting is hiding something dark, your ally is playing both sides,
+    the Coalition patrol you're running from has orders to kill, the ship you're
+    looking for was sabotaged from within. Thread ideas: a rival crew that
+    becomes an uneasy alliance, a settlement torn by internal conflict, a
+    Browncoat veteran who won't stay buried, a ship that's more than metal
+    and wire, a betrayal that costs someone everything.

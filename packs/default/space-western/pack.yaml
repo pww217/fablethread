@@ -6,9 +6,9 @@ tone_tags: [frontier, gritty, scrap-tech, rebellion]
 version: 2
 mode: dynamic
 baseline_facts:
-  - "The Coalition (formal name: the Coalition of Inner Worlds, called 'the Alliance' on the Rim) won the Unification War twelve years ago at the Battle of **Saint-Albans**; the surrender was negotiated, not absolute, and Browncoat veterans are scattered across the outer worlds — some farming, some running cargo, some still waiting on an order that will never come."
-  - "Pulse-fold drives that bridge interstellar distances need rare-earth catalysts refined only on three Coalition-held inner worlds; every Rim ship runs on forged fuel certificates, recycled cores, or a backroom deal with a quartermaster, and a clean cert is worth more than the ship it flies in."
-  - "Tech across the Rim is mismatched by a century or more — a colony might have plasma rifles in the sheriff's office and oxen pulling the plough, neural-link surgeons next door to a midwife with a kettle; what you have depends entirely on what the last drop ship offloaded before the Coalition rerouted its lanes."
+  - "The Rim is a frontier of dust, debt, and old loyalties — twelve years after the war ended and the Coalition took the inner worlds, the outer systems are left to survive on what they can scavenge, grow, and fight for. The people here are stubborn, resourceful, and deeply suspicious of anyone who comes from the inner worlds."
+  - "A ship on the Rim is everything — your home, your livelihood, your only way out. Every pilot has a vessel they love and a set of modifications that keep it flying despite parts that are older than the pilot. A broken ship on the Rim is a death sentence."
+  - "The frontier is dangerous not because of aliens or monsters, but because of people — rival crews, hostile settlements, Coalition patrols looking for Browncoat holdouts, and the harsh environment itself. A storm can kill you as fast as a plasma bolt."
 files:
   world: world.md
   scenario: scenario.yaml
