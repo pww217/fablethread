@@ -10,6 +10,7 @@ of the response for scores.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -20,7 +21,7 @@ from typing import Any, Callable
 
 import yaml
 
-from ccya.eval.config import EvalConfig
+from ccya.eval.config import EvalConfig, JudgeSpec
 from ccya.eval.engine_mirror import constants_block
 from ccya.eval.universal_asserts import run_all_universal_asserts
 from ccya.llm_client import strip_thinking
@@ -38,6 +39,25 @@ class TraceOptions:
     state_as_diff: bool = True
 
 
+JUDGE_SCORE_KEYS: dict[str, list[str]] = {
+    "state_correctness": ["state_fidelity_rate", "extraction_accuracy_score", "mechanic_lifecycle_score"],
+    "narrative_interplay": ["narrative_score", "system_cohesion_score"],
+    "prompt_pipeline": [
+        "prompt_quality_score", "prompt_adherence_rate",
+        "pipeline_scores",  # nested dict
+    ],
+    "compaction": ["compaction_score", "sanitization_fidelity_rate"],
+    "meta": ["mechanical_score", "narrative_score", "system_cohesion_score",
+             "prompt_quality_score", "compaction_score",
+             "state_fidelity_rate", "prompt_adherence_rate"],
+    "default": [  # legacy single-judge
+        "mechanical_score", "narrative_score", "system_cohesion_score",
+        "prompt_quality_score", "compaction_score",
+        "state_fidelity_rate", "prompt_adherence_rate", "pipeline_scores",
+    ],
+}
+
+
 @dataclass
 class JudgeResult:
     """Structured result of one judge invocation.
@@ -50,9 +70,278 @@ class JudgeResult:
     scores: dict[str, Any]
     rubric_path: str
     model: str
+    judge_id: str = "default"
     trace_md_path: str = ""
     judge_md_path: str = ""
     previous_scores: dict[str, Any] | None = None
+
+
+# ---- Per-judge trace field masks ----------------------------------------
+
+# Fields kept in each per-turn event dict for each judge.
+# Keys reference top-level event keys. "extraction.*" means sub-keys of event["extraction"].
+_JUDGE_EVENT_FIELDS: dict[str, set[str]] = {
+    "state_correctness": {
+        # needs: state diffs, applied/rejected deltas, rules output (parsed only), extractor outputs
+        "turn", "input",
+        "rules",                    # parsed rules output (band, stakes, etc.)
+        "applied", "rejected",
+        "extraction",               # all 3 streams, outputs only
+        "state_snapshot",
+        # no narrate_prompt, no rules_prompt text, no user prompts
+    },
+    "narrative_interplay": {
+        "turn", "input",
+        "rules",                    # band, directive, stakes
+        "narrate_prompt",           # output (narration text) only — not rendered_user/system
+        "extraction",               # scene/state/progress outputs only (for NPC/beat/pressure fields)
+        "state_snapshot",           # mechanic fields only (meta, scene, pc.conditions)
+        "applied",
+    },
+    "prompt_pipeline": {
+        "turn", "input",
+        "rules_prompt",             # full: rendered_system, rendered_user, output, parse_error
+        "narrate_prompt",           # full: rendered_system, rendered_user, output
+        "extraction",               # full: rendered_system, rendered_user, output per stream
+        "rejected",
+        # no state_snapshot, no narrate text (it's in narrate_prompt.output)
+    },
+    "compaction": {
+        "turn", "input",
+        "extraction",               # progress stream only (compaction fires here)
+        "applied", "rejected",
+        "state_snapshot",           # full — compaction judge needs complete pre/post state
+    },
+    # meta judge receives no events.jsonl trace at all — it receives prior judge summaries
+}
+
+# Which extraction sub-streams each judge needs
+_JUDGE_EXTRACTION_STREAMS: dict[str, set[str]] = {
+    "state_correctness": {"scene", "state", "progress"},
+    "narrative_interplay": {"scene", "state", "progress"},
+    "prompt_pipeline": {"scene", "state", "progress"},
+    "compaction": {"progress"},
+}
+
+# For narrative_interplay: which state_snapshot top-level keys to keep
+_NARRATIVE_SNAPSHOT_KEYS = {"meta", "scene", "pc", "location", "arc"}
+
+# For compaction: only include events at or adjacent to compaction turns
+# (compaction fires when turn % compact_every == 0; we include ±1 turns)
+_COMPACTION_WINDOW = 1
+
+
+def _filter_event_for_judge(judge_id: str, ev: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy of ev with only the fields relevant to judge_id."""
+    if judge_id not in _JUDGE_EVENT_FIELDS:
+        return ev  # unknown judge gets full event
+
+    keep = _JUDGE_EVENT_FIELDS[judge_id]
+    out: dict[str, Any] = {}
+
+    for key in keep:
+        if key not in ev:
+            continue
+        if key == "narrate_prompt" and judge_id == "narrative_interplay":
+            # narrative judge only needs the output text, not the full prompt structure
+            np = ev["narrate_prompt"] or {}
+            out["narrate_prompt"] = {"output": np.get("output", "")}
+        elif key == "extraction":
+            streams_needed = _JUDGE_EXTRACTION_STREAMS.get(judge_id, set())
+            ext = ev.get("extraction") or {}
+            filtered_ext: dict[str, Any] = {}
+            for stream in streams_needed:
+                if stream not in ext:
+                    continue
+                s = ext[stream]
+                if judge_id == "prompt_pipeline":
+                    # full stream data
+                    filtered_ext[stream] = s
+                else:
+                    # output + skipped only
+                    filtered_ext[stream] = {
+                        "output": s.get("output"),
+                        "skipped": s.get("skipped", False),
+                        "attempts": s.get("attempts", 1),
+                    }
+            out["extraction"] = filtered_ext
+        elif key == "state_snapshot" and judge_id == "narrative_interplay":
+            snap = ev.get("state_snapshot") or {}
+            out["state_snapshot"] = {k: snap[k] for k in _NARRATIVE_SNAPSHOT_KEYS if k in snap}
+        else:
+            out[key] = ev[key]
+
+    return out
+
+
+def _is_compaction_turn(ev: dict[str, Any], all_events: list[dict[str, Any]]) -> bool:
+    """Detect if a turn had compaction activity by checking applied deltas for compaction markers."""
+    applied = ev.get("applied") or {}
+    # Compaction produces chronicle entries and recent_events pruning
+    if applied.get("chronicle_append") or applied.get("recent_events_compact"):
+        return True
+    # Also check progress extraction output for compaction_fired signal if present
+    ext_progress = ((ev.get("extraction") or {}).get("progress") or {}).get("output") or {}
+    return bool(ext_progress.get("compaction_fired"))
+
+
+def _select_compaction_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """For compaction judge: return only turns at/around compaction events."""
+    compaction_turns: set[int] = set()
+    for ev in events:
+        if _is_compaction_turn(ev, events):
+            t = int(ev.get("turn", 0))
+            for offset in range(-_COMPACTION_WINDOW, _COMPACTION_WINDOW + 1):
+                compaction_turns.add(t + offset)
+
+    if not compaction_turns:
+        # No compaction detected — return all events so judge can report absence
+        return events
+
+    return [ev for ev in events if int(ev.get("turn", 0)) in compaction_turns]
+
+
+def build_trace_for_judge(
+    judge_id: str,
+    events: list[dict[str, Any]],
+    *,
+    options: TraceOptions | None = None,
+    auto_checker_failures: list[dict[str, Any]] | None = None,
+    metrics_rows: list[dict[str, Any]] | None = None,
+    redundancy_signals: dict[str, Any] | None = None,
+    compaction_signals: dict[str, Any] | None = None,
+    arch_context: str = "",
+) -> str:
+    """Build a filtered trace for a specific judge id.
+
+    Filters event fields and (for compaction judge) event selection before
+    delegating to build_trace(). The meta judge receives an empty string —
+    its input is assembled separately from prior judge outputs.
+    """
+    if judge_id == "meta":
+        return ""  # meta judge input is assembled in run_judges(), not here
+
+    options = options or TraceOptions()
+    metadata, turn_events = _split_metadata(events)
+
+    if judge_id == "compaction":
+        turn_events = _select_compaction_events(turn_events)
+        # Compaction judge gets deterministic signals focused on compaction only
+        return build_trace(
+            [metadata] + turn_events if metadata else turn_events,
+            options=options,
+            auto_checker_failures=None,   # not relevant
+            metrics_rows=None,
+            redundancy_signals=None,
+            compaction_signals=compaction_signals,
+            arch_context="",              # no arch context needed
+        )
+
+    filtered_events = [_filter_event_for_judge(judge_id, ev) for ev in turn_events]
+    all_filtered = ([metadata] + filtered_events) if metadata else filtered_events
+
+    # state_correctness gets deterministic signals (auto-checker + metrics), no redundancy
+    if judge_id == "state_correctness":
+        return build_trace(
+            all_filtered,
+            options=options,
+            auto_checker_failures=auto_checker_failures,
+            metrics_rows=metrics_rows,
+            redundancy_signals=None,
+            compaction_signals=None,
+            arch_context=arch_context,
+        )
+
+    # prompt_pipeline gets redundancy signals
+    if judge_id == "prompt_pipeline":
+        return build_trace(
+            all_filtered,
+            options=options,
+            auto_checker_failures=None,
+            metrics_rows=metrics_rows,   # token counts relevant to prompt audit
+            redundancy_signals=redundancy_signals,
+            compaction_signals=None,
+            arch_context=arch_context,
+        )
+
+    # narrative_interplay: narration + mechanic state, no signals
+    return build_trace(
+        all_filtered,
+        options=options,
+        auto_checker_failures=None,
+        metrics_rows=None,
+        redundancy_signals=None,
+        compaction_signals=None,
+        arch_context="",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Meta judge input builder
+# ---------------------------------------------------------------------------
+
+_SECTION_HEADING_RE = re.compile(r"^#{1,3} .+", re.MULTILINE)
+
+
+def _extract_section(body_md: str, heading_fragment: str) -> str:
+    """Extract the content of the first section whose heading contains heading_fragment.
+
+    Returns empty string if not found. Strips the heading line itself.
+    Content ends at the next same-or-higher-level heading or end of string.
+    """
+    lines = body_md.splitlines()
+    capture = False
+    heading_level = 0
+    out: list[str] = []
+    for line in lines:
+        m = _SECTION_HEADING_RE.match(line)
+        if m:
+            level = len(line) - len(line.lstrip("#"))
+            if heading_fragment.lower() in line.lower():
+                capture = True
+                heading_level = level
+                continue
+            elif capture and level <= heading_level:
+                break
+        if capture:
+            out.append(line)
+    return "\n".join(out).strip()
+
+
+def _build_meta_judge_input(judge_results: list["JudgeResult"]) -> str:
+    """Assemble meta-judge user message from domain judge outputs.
+
+    Structure:
+      # Domain Judge Scores
+      (YAML block with all scores merged)
+
+      # Judge Summaries
+      ## [judge_id]
+      (Key Findings + Actionable Issues sections from body_md)
+    """
+    parts: list[str] = ["# Domain Judge Scores\n\n```yaml"]
+    merged: dict[str, Any] = {}
+    for jr in judge_results:
+        if jr.scores:
+            merged[jr.judge_id] = jr.scores
+    parts.append(_yaml_dump(merged))
+    parts.append("```\n")
+
+    parts.append("# Judge Summaries\n")
+    for jr in judge_results:
+        parts.append(f"## {jr.judge_id}\n")
+        for fragment in ("Key Findings", "Actionable Issues", "Verdict", "Issues"):
+            section = _extract_section(jr.body_md, fragment)
+            if section:
+                parts.append(f"### {fragment}\n\n{section}\n")
+        parts.append("")
+
+    return "\n".join(parts)
+
+
+def _yaml_dump(d: Any) -> str:
+    """Safe YAML dump without external deps beyond already-imported yaml."""
+    return yaml.dump(d, default_flow_style=False, allow_unicode=True)
 
 
 # ---------------------------------------------------------------------------
@@ -524,10 +813,11 @@ def _normalize_scores(fm: dict[str, Any]) -> dict[str, Any]:
 
     out: dict[str, Any] = {}
     for k in ("mechanical_score", "narrative_score", "system_cohesion_score",
-              "prompt_quality_score", "compaction_score"):
+              "prompt_quality_score", "compaction_score",
+              "extraction_accuracy_score", "mechanic_lifecycle_score"):
         if k in fm:
             out[k] = _coerce_int(fm[k])
-    for k in ("state_fidelity_rate", "prompt_adherence_rate"):
+    for k in ("state_fidelity_rate", "prompt_adherence_rate", "sanitization_fidelity_rate"):
         if k in fm:
             out[k] = _coerce_rate(fm[k])
     ps = fm.get("pipeline_scores") or {}
@@ -550,6 +840,259 @@ def parse_previous_judge_md(path: Path) -> dict[str, Any] | None:
 
 
 # ---------------------------------------------------------------------------
+# Parallel judge runner
+# ---------------------------------------------------------------------------
+
+
+async def _run_single_judge(
+    spec: "JudgeSpec",
+    trace: str,
+    *,
+    host: str,
+    arch_context: str,
+    output_dir: Path,
+    scenario_id: str,
+    on_chunk: Callable[[str, str], None],
+    previous_scores: dict[str, Any] | None,
+) -> "JudgeResult":
+    """Run one judge spec against a pre-built trace string."""
+    from ccya.llm_client import chat_stream
+
+    rubric_path = Path(spec.rubric_path)
+    if not rubric_path.is_absolute():
+        rubric_path = REPO_ROOT / rubric_path
+    if not rubric_path.exists():
+        raise FileNotFoundError(f"rubric not found: {rubric_path}")
+    rubric_text = rubric_path.read_text()
+    system_text = (rubric_text + "\n\n" + arch_context) if arch_context and spec.id != "meta" else rubric_text
+
+    messages = [
+        {"role": "system", "content": system_text},
+        {"role": "user", "content": trace},
+    ]
+
+    judge_model = spec.model
+    if not judge_model:
+        raise ValueError(f"judge model not set for spec {spec.id!r}")
+
+    _log.info("judge[%s]: model=%s trace_chars=%d", spec.id, judge_model, len(trace))
+    t0 = time.monotonic()
+    chunks: list[str] = []
+    try:
+        async for chunk in chat_stream(
+            host=host,
+            model=judge_model,
+            messages=messages,
+            temperature=spec.temperature,
+            timeout=spec.timeout_s or 180.0,
+            max_tokens=spec.max_tokens,  # type: ignore[call-arg]
+        ):
+            chunks.append(chunk)
+            on_chunk(spec.id, chunk)
+    except TypeError:
+        async for chunk in chat_stream(
+            host=host,
+            model=judge_model,
+            messages=messages,
+            temperature=spec.temperature,
+            timeout=spec.timeout_s or 180.0,
+        ):
+            chunks.append(chunk)
+            on_chunk(spec.id, chunk)
+    elapsed = time.monotonic() - t0
+    _log.info("judge[%s]: complete in %.1fs", spec.id, elapsed)
+
+    raw = "".join(chunks)
+    judge_md_path = output_dir / f"{scenario_id}.{spec.id}.judge.md"
+    judge_md_path.write_text(raw)
+
+    trace_md_path = output_dir / f"{scenario_id}.{spec.id}.trace.md"
+    # trace was already written by caller before this function was invoked
+
+    scores, body = parse_judge_response(raw)
+    return JudgeResult(
+        raw_response=raw,
+        body_md=body,
+        scores=scores,
+        rubric_path=str(rubric_path),
+        model=judge_model,
+        judge_id=spec.id,
+        trace_md_path=str(trace_md_path),
+        judge_md_path=str(judge_md_path),
+        previous_scores=previous_scores,
+    )
+
+
+async def run_judges(
+    events_path: Path,
+    *,
+    eval_cfg: "EvalConfig",
+    output_dir: Path,
+    scenario_id: str,
+    on_judge_complete: Callable[[str, "JudgeResult"], None] | None = None,
+    previous_run_dir: Path | None = None,
+    game_config_path: Path | None = None,
+) -> list["JudgeResult"]:
+    """Fan-out to N domain judges in parallel, then run meta judge sequentially.
+
+    Returns list of JudgeResult, one per spec in eval_cfg.judges.specs.
+    Meta judge is always last in the returned list if present.
+    on_judge_complete(judge_id, result) is called after each judge finishes.
+    """
+    if not eval_cfg.judges.specs:
+        return []
+
+    cfg_path = game_config_path or (REPO_ROOT / "config.yaml")
+    game_cfg = load_config(cfg_path)
+    llm = game_cfg.get("llm", {})
+    host = str(llm.get("host", "http://localhost:8080/v1"))
+
+    events_lines = events_path.read_text().splitlines() if events_path.exists() else []
+    events = [json.loads(line) for line in events_lines if line.strip()]
+
+    options = TraceOptions(
+        dedup_immutable_sections=eval_cfg.judges.trace.dedup_immutable_sections,
+        state_as_diff=eval_cfg.judges.trace.state_as_diff,
+    )
+
+    # Build shared signals once
+    metrics_rows = _build_metrics_rows(events)
+    turn_events_for_check = [e for e in events if not e.get("__metadata__")]
+    failures: list[dict[str, Any]] = []
+    prev_ev: dict[str, Any] | None = None
+    for ev in turn_events_for_check:
+        for r in run_all_universal_asserts(ev, prev_ev):
+            if not r.get("passed"):
+                failures.append({
+                    "turn": ev.get("turn", "?"),
+                    "assertion": r["assertion"],
+                    "detail": r.get("detail", ""),
+                })
+        prev_ev = ev
+
+    try:
+        from ccya.eval.redundancy import compute_redundancy_signals
+        redundancy = compute_redundancy_signals(events)
+    except ImportError:
+        redundancy = None
+
+    try:
+        from ccya.eval.compaction_signals import compute_compaction_signals
+        compaction = compute_compaction_signals(events)
+    except ImportError:
+        compaction = None
+
+    try:
+        from ccya.eval.architecture_context import load_architecture_context
+        arch_context = load_architecture_context()
+    except ImportError:
+        arch_context = ""
+
+    # Load previous scores per judge_id if previous run exists
+    prev_scores_by_id: dict[str, dict[str, Any]] = {}
+    if previous_run_dir is not None:
+        for spec in eval_cfg.judges.specs:
+            candidate = previous_run_dir / f"{scenario_id}.{spec.id}.judge.md"
+            if candidate.exists():
+                s, _ = parse_judge_response(candidate.read_text())
+                if s:
+                    prev_scores_by_id[spec.id] = s
+
+    # Determine which specs are domain judges vs meta
+    domain_specs = [s for s in eval_cfg.judges.specs if s.id != "meta"]
+    meta_spec = next((s for s in eval_cfg.judges.specs if s.id == "meta"), None)
+
+    # Build and write traces for domain judges
+    domain_traces: dict[str, str] = {}
+    for spec in domain_specs:
+        trace = build_trace_for_judge(
+            spec.id, events,
+            options=options,
+            auto_checker_failures=failures,
+            metrics_rows=metrics_rows,
+            redundancy_signals=redundancy,
+            compaction_signals=compaction,
+            arch_context=arch_context,
+        )
+        trace_md_path = output_dir / f"{scenario_id}.{spec.id}.trace.md"
+        trace_md_path.write_text(trace)
+        domain_traces[spec.id] = trace
+
+    # Resolve model for each spec (fall back to engine model if not set)
+    engine_model = str(llm.get("model", ""))
+    for spec in eval_cfg.judges.specs:
+        if not spec.model:
+            spec.model = engine_model
+
+    def _noop_chunk(judge_id: str, chunk: str) -> None:
+        pass
+
+    # Run domain judges in parallel
+    async def _run_domain(spec: "JudgeSpec") -> "JudgeResult":
+        result = await _run_single_judge(
+            spec,
+            domain_traces[spec.id],
+            host=host,
+            arch_context=arch_context,
+            output_dir=output_dir,
+            scenario_id=scenario_id,
+            on_chunk=_noop_chunk,
+            previous_scores=prev_scores_by_id.get(spec.id),
+        )
+        if on_judge_complete:
+            on_judge_complete(spec.id, result)
+        return result
+
+    domain_results: list["JudgeResult"] = list(
+        await asyncio.gather(*[_run_domain(spec) for spec in domain_specs])
+    )
+
+    all_results = list(domain_results)
+
+    # Run meta judge sequentially after domain judges
+    if meta_spec is not None:
+        meta_input = _build_meta_judge_input(domain_results)
+        meta_trace_path = output_dir / f"{scenario_id}.meta.trace.md"
+        meta_trace_path.write_text(meta_input)
+        meta_result = await _run_single_judge(
+            meta_spec,
+            meta_input,
+            host=host,
+            arch_context="",
+            output_dir=output_dir,
+            scenario_id=scenario_id,
+            on_chunk=_noop_chunk,
+            previous_scores=prev_scores_by_id.get("meta"),
+        )
+        if on_judge_complete:
+            on_judge_complete("meta", meta_result)
+        all_results.append(meta_result)
+
+    return all_results
+
+
+def merge_judge_scores(results: list["JudgeResult"]) -> dict[str, Any]:
+    """Merge scores from multiple JudgeResults into one flat dict for report rendering.
+
+    Meta judge scores take precedence. Domain judge scores fill in any gaps.
+    pipeline_scores dict is taken from the prompt_pipeline judge.
+    """
+    merged: dict[str, Any] = {}
+    # First pass: domain judges
+    for jr in results:
+        if jr.judge_id != "meta":
+            for k, v in (jr.scores or {}).items():
+                if k not in merged:
+                    merged[k] = v
+    # Second pass: meta judge overwrites
+    meta = next((jr for jr in results if jr.judge_id == "meta"), None)
+    if meta:
+        for k, v in (meta.scores or {}).items():
+            merged[k] = v
+    return merged
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -557,19 +1100,42 @@ def parse_previous_judge_md(path: Path) -> dict[str, Any] | None:
 async def run_judge_streaming(
     events_path: Path,
     *,
-    eval_cfg: EvalConfig,
+    eval_cfg: "EvalConfig",
     output_dir: Path,
     scenario_id: str,
-    on_chunk: Callable[[str], None],
+    on_chunk: Callable[[str], None] | None = None,
     previous_judge_md_path: Path | None = None,
     game_config_path: Path | None = None,
-) -> JudgeResult:
-    """Same contract as run_judge() but uses chat_stream() and forwards each
-    chunk to on_chunk() so callers can append to REPORT.md in flight.
+) -> "JudgeResult":
+    """Back-compat single-judge entry point.
+
+    If eval_cfg.judges.specs has >1 spec or contains non-default ids,
+    delegates to run_judges() and returns the meta judge result (or the
+    last result if no meta spec is configured).
+
+    If only a single 'default' spec is present, runs original single-judge path.
     """
+    specs = eval_cfg.judges.specs
+    is_multi = len(specs) > 1 or (len(specs) == 1 and specs[0].id != "default")
+
+    if is_multi:
+        results = await run_judges(
+            events_path,
+            eval_cfg=eval_cfg,
+            output_dir=output_dir,
+            scenario_id=scenario_id,
+            game_config_path=game_config_path,
+        )
+        # Return meta judge result if present, else last result
+        meta = next((r for r in results if r.judge_id == "meta"), None)
+        return meta or results[-1]
+
+    # Legacy single-judge path — original implementation unchanged below
+    spec = specs[0] if specs else JudgeSpec(id="default", rubric_path="evals/rubrics/default.md")
+
     from ccya.llm_client import chat_stream
 
-    rubric_path = Path(eval_cfg.judge.rubric_path)
+    rubric_path = Path(spec.rubric_path)
     if not rubric_path.is_absolute():
         rubric_path = REPO_ROOT / rubric_path
     if not rubric_path.exists():
@@ -582,21 +1148,21 @@ async def run_judge_streaming(
         arch_context = load_architecture_context()
     except ImportError:
         arch_context = ""
-    system_text = (rubric_text + "\n\n" + arch_context) if arch_context else rubric_text
+    system_text = (rubric_text + "\n\n" + arch_context) if arch_context and spec.id != "meta" else rubric_text
 
     cfg_path = game_config_path or (REPO_ROOT / "config.yaml")
     game_cfg = load_config(cfg_path)
     llm = game_cfg.get("llm", {})
     host = str(llm.get("host", "http://localhost:8080/v1"))
-    judge_model = eval_cfg.judge.model or str(llm.get("model", ""))
+    judge_model = spec.model or str(llm.get("model", ""))
     if not judge_model:
         raise ValueError("judge model not set")
 
     events_lines = events_path.read_text().splitlines() if events_path.exists() else []
     events = [json.loads(line) for line in events_lines if line.strip()]
     options = TraceOptions(
-        dedup_immutable_sections=eval_cfg.judge.trace.dedup_immutable_sections,
-        state_as_diff=eval_cfg.judge.trace.state_as_diff,
+        dedup_immutable_sections=eval_cfg.judges.trace.dedup_immutable_sections,
+        state_as_diff=eval_cfg.judges.trace.state_as_diff,
     )
 
     # Build per-turn metrics
@@ -656,12 +1222,13 @@ async def run_judge_streaming(
             host=host,
             model=judge_model,
             messages=messages,
-            temperature=eval_cfg.judge.temperature,
-            timeout=eval_cfg.judge.timeout_s or 180.0,
-            max_tokens=eval_cfg.judge.max_tokens,  # type: ignore[call-arg]
+            temperature=spec.temperature,
+            timeout=spec.timeout_s or 180.0,
+            max_tokens=spec.max_tokens,  # type: ignore[call-arg]
         ):
             chunks.append(chunk)
-            on_chunk(chunk)
+            if on_chunk:
+                on_chunk(chunk)
         elapsed = time.monotonic() - t0
         _log.info("judge: streaming complete in %.1fs", elapsed)
     except TypeError:
@@ -671,11 +1238,12 @@ async def run_judge_streaming(
             host=host,
             model=judge_model,
             messages=messages,
-            temperature=eval_cfg.judge.temperature,
-            timeout=eval_cfg.judge.timeout_s or 180.0,
+            temperature=spec.temperature,
+            timeout=spec.timeout_s or 180.0,
         ):
             chunks.append(chunk)
-            on_chunk(chunk)
+            if on_chunk:
+                on_chunk(chunk)
         elapsed = time.monotonic() - t0
         _log.info("judge: streaming complete (fallback) in %.1fs", elapsed)
     except Exception as exc:

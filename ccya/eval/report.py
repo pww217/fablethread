@@ -15,7 +15,7 @@ from typing import Any
 import logging
 
 from ccya.eval.config import EvalConfig
-from ccya.eval.judge import JudgeResult
+from ccya.eval.judge import JudgeResult, merge_judge_scores
 from ccya.eval.runner import RunResult, find_previous_run, load_run_result
 
 _log = logging.getLogger("ccya.eval")
@@ -192,7 +192,7 @@ def _collect_flags(
     cur: list[TurnMetrics],
     regressions: list[StreamRegression],
     run_result: RunResult,
-    judge: JudgeResult | None,
+    judge: JudgeResult | list[JudgeResult] | None,
 ) -> list[Flag]:
     flags: list[Flag] = []
 
@@ -294,14 +294,22 @@ def _collect_flags(
         )
 
     if judge is not None:
-        prev_score = (judge.previous_scores or {}).get("mechanical_score") if judge.previous_scores else None
-        cur_score = (judge.scores or {}).get("mechanical_score")
+        if isinstance(judge, list):
+            merged = merge_judge_scores(judge)
+            representative = next((j for j in judge if j.judge_id == "meta"), judge[-1])
+            prev_scores = representative.previous_scores or {}
+        else:
+            merged = judge.scores or {}
+            prev_scores = judge.previous_scores or {}
+
+        prev_score = prev_scores.get("mechanical_score")
+        cur_score = merged.get("mechanical_score")
         if prev_score is not None and cur_score is not None and (prev_score - cur_score) >= 1:
             flags.append(
                 Flag(
                     kind="judge_score_drop",
                     summary=f"judge mechanical {prev_score} → {cur_score} (-{prev_score - cur_score})",
-                    detail="See judge.md for verdict.",
+                    detail="See judge verdict files for analysis.",
                 ),
             )
 
@@ -346,38 +354,74 @@ def _fmt_rate(v: float | None) -> str:
     return f"{v*100:.1f}%" if v is not None else "—"
 
 
-def _render_judge_summary(judge: JudgeResult | None) -> str:
-    if judge is None:
+def _render_judge_summary(
+    judges: list[JudgeResult] | JudgeResult | None,
+) -> str:
+    if judges is None:
         return ""
+    if isinstance(judges, JudgeResult):
+        judges = [judges]
+    if not judges:
+        return ""
+
+    merged = merge_judge_scores(judges)
+    meta = next((j for j in judges if j.judge_id == "meta"), judges[-1])
+
     parts: list[str] = []
-    scores = judge.scores or {}
-    parts.append(f"**Mechanical:** {_fmt_score(scores.get('mechanical_score'))}/5  ")
-    parts.append(f"**Narrative:** {_fmt_score(scores.get('narrative_score'))}/5  ")
-    parts.append(f"**System Cohesion:** {_fmt_score(scores.get('system_cohesion_score'))}/5  ")
-    parts.append(f"**Prompt Quality:** {_fmt_score(scores.get('prompt_quality_score'))}/5  ")
-    parts.append(f"**Compaction:** {_fmt_score(scores.get('compaction_score'))}/5  ")
-    parts.append(f"**State Fidelity:** {_fmt_rate(scores.get('state_fidelity_rate'))}  ")
-    parts.append(f"**Prompt Adherence:** {_fmt_rate(scores.get('prompt_adherence_rate'))}")
-    parts.append(f"**Rubric:** `{judge.rubric_path}`")
-    parts.append(f"**Judge model:** `{judge.model}`")
-    ps = scores.get("pipeline_scores") or {}
+
+    # Merged scores block
+    parts.append(f"**Mechanical:** {_fmt_score(merged.get('mechanical_score'))}/5  ")
+    parts.append(f"**Narrative:** {_fmt_score(merged.get('narrative_score'))}/5  ")
+    parts.append(f"**System Cohesion:** {_fmt_score(merged.get('system_cohesion_score'))}/5  ")
+    parts.append(f"**Prompt Quality:** {_fmt_score(merged.get('prompt_quality_score'))}/5  ")
+    parts.append(f"**Compaction:** {_fmt_score(merged.get('compaction_score'))}/5  ")
+    parts.append(f"**State Fidelity:** {_fmt_rate(merged.get('state_fidelity_rate'))}  ")
+    parts.append(f"**Prompt Adherence:** {_fmt_rate(merged.get('prompt_adherence_rate'))}")
+    parts.append(f"**Judge model:** `{meta.model}`")
+    ps = merged.get("pipeline_scores") or {}
     if ps:
         parts.append("")
         parts.append("**Pipeline scores:**")
         for k in ("rules", "narrate", "extract_scene", "extract_state", "extract_progress"):
-            v = ps.get(k, "?")
-            parts.append(f"- {k}: {v}/5")
+            parts.append(f"- {k}: {_fmt_score(ps.get(k))}/5")
     parts.append("")
-    if judge.previous_scores:
-        prev_mech = judge.previous_scores.get("mechanical_score")
-        prev_narr = judge.previous_scores.get("narrative_score")
+
+    # Domain judge breakdown table
+    domain_judges = [j for j in judges if j.judge_id != "meta"]
+    if len(domain_judges) > 1:
+        parts.append("**Domain judge breakdown:**")
+        parts.append("")
+        parts.append("| Judge | Scores |")
+        parts.append("|---|---|")
+        for jr in domain_judges:
+            score_items = []
+            for k, v in (jr.scores or {}).items():
+                if k == "pipeline_scores":
+                    continue
+                if isinstance(v, float):
+                    score_items.append(f"{k}={_fmt_rate(v)}")
+                else:
+                    score_items.append(f"{k}={_fmt_score(v)}")
+            parts.append(f"| `{jr.judge_id}` | {', '.join(score_items)} |")
+        parts.append("")
+
+    # Previous scores comparison (use meta or last judge)
+    if meta.previous_scores:
+        prev_mech = meta.previous_scores.get("mechanical_score")
+        prev_narr = meta.previous_scores.get("narrative_score")
         if prev_mech is not None:
             parts.append(f"**Previous mechanical:** {prev_mech}/5")
         if prev_narr is not None:
             parts.append(f"**Previous narrative:** {prev_narr}/5")
         parts.append("")
-    parts.append(f"**Trace:** [`{Path(judge.trace_md_path).name}`]({Path(judge.trace_md_path).name})")
-    parts.append(f"**Judge response:** [`{Path(judge.judge_md_path).name}`]({Path(judge.judge_md_path).name})")
+
+    # Artifact links for all judges
+    for jr in judges:
+        label = jr.judge_id
+        parts.append(
+            f"**[{label} trace]({Path(jr.trace_md_path).name})** · "
+            f"**[{label} verdict]({Path(jr.judge_md_path).name})**  "
+        )
     parts.append("")
     return "\n".join(parts)
 
@@ -780,7 +824,7 @@ def finalize_report(
     run_result: RunResult,
     *,
     eval_cfg: EvalConfig,
-    judge_result: JudgeResult,
+    judge_result: JudgeResult | list[JudgeResult],
     runs_dir: Path | None = None,
 ) -> None:
     """Rewrite REPORT.md with the judge summary hoisted to the top.
@@ -789,6 +833,8 @@ def finalize_report(
     inserted after the metadata header; the parsed scores update the flag
     computation (judge_score_drop) so the flag block reflects them.
     """
+    judges = judge_result if isinstance(judge_result, list) else [judge_result]
+
     output_dir = Path(run_result.output_dir)
     runs_dir = runs_dir or output_dir.parent
     cur_events = _read_events(Path(run_result.events_jsonl_path))
@@ -806,7 +852,7 @@ def finalize_report(
         warn_pct=eval_cfg.report.token_warn_pct,
         fail_pct=eval_cfg.report.token_fail_pct,
     )
-    flags = _collect_flags(cur_metrics, regressions, run_result, judge_result)
+    flags = _collect_flags(cur_metrics, regressions, run_result, judges)
 
     parts: list[str] = []
     parts.append(f"# Eval Report — `{run_result.scenario_id}`\n")
@@ -824,12 +870,22 @@ def finalize_report(
     )
     parts.append("")
     parts.append("## Judge Summary\n")
-    parts.append(_render_judge_summary(judge_result))
+    parts.append(_render_judge_summary(judges))
     parts.append(_render_flag_block(flags, eval_cfg.report.flag_at_top))
     parts.append("")
-    parts.append("## Judge Verdict (full)\n")
-    parts.append(judge_result.body_md)
-    parts.append("")
+
+    # One verdict section per judge, meta last
+    domain_judges = [j for j in judges if j.judge_id != "meta"]
+    meta_judge = next((j for j in judges if j.judge_id == "meta"), None)
+    for jr in domain_judges:
+        parts.append(f"## Judge Verdict — `{jr.judge_id}`\n")
+        parts.append(jr.body_md)
+        parts.append("")
+    if meta_judge:
+        parts.append("## Meta Judge Verdict\n")
+        parts.append(meta_judge.body_md)
+        parts.append("")
+
     auto_block = _render_auto_checker_block(run_result)
     if auto_block:
         parts.append("## Auto-Checker\n")
@@ -861,7 +917,7 @@ def generate_report(
     run_result: RunResult,
     *,
     eval_cfg: EvalConfig,
-    judge_result: JudgeResult | None = None,
+    judge_result: JudgeResult | list[JudgeResult] | None = None,
     runs_dir: Path | None = None,
 ) -> Path:
     """Back-compat entry point. New code should call write_report_skeleton/finalize_report directly."""

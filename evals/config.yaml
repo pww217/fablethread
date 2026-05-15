@@ -1,48 +1,62 @@
 # Eval harness configuration. Loaded by ccya.eval.config.load_eval_config().
-# Anything that varies per machine, per developer, or per experiment goes here —
-# NOT in ccya/config.yaml (that file is for the game itself).
 
 default_pack: eval-pack
-default_scenario: full_cycle           # Phase 03 — see below
-pack_dirs:                             # Phase 02 — search order; first match wins
+default_scenario: full_cycle
+pack_dirs:
   - evals/packs
   - packs/default
   - packs/custom
-default_save_root: ~/.cache/ccya-eval   # per-run subdir created under this
-runs_dir: evals/runs                   # where REPORT.md and trace files land
-num_turns: 13                          # run only first N turns (default/max 13, override with --turns)
+default_save_root: ~/.cache/ccya-eval
+runs_dir: evals/runs
+num_turns: 13
 
 logging:
-  # Logging level for eval harness: DEBUG, INFO, WARNING, ERROR.
-  # DEBUG emits per-turn details, prompt summaries, and state diffs.
   level: DEBUG
 
 inference:
-  # null = use prod temps from the engine config (game's config.yaml).
-  # Set to 0 (or any float) to override every LLM call uniformly. Useful for
-  # `make eval-fast` which runs at temp=0 for deterministic structural diffs.
   temperature_override: null
-
-  # v1: caching is disabled. Cascade invalidation in chained scenarios defeats
-  # the speedup for prompt iteration. Re-enable in v2 if needed.
   cache: false
 
-judge:
+judges:
   enabled: true
-  # null = use the engine's model (config.yaml -> llm.model).
-  model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit # mlx-community/Qwen3.6-27B-4bit
-  rubric_path: evals/rubrics/default.md
-  temperature: 0.3
   trace:
     dedup_immutable_sections: true
     state_as_diff: true
 
-report:
-  # Per-stream tokens_in growth vs evals/runs/latest:
-  token_warn_pct: 10           # >= 10% → ⚠️ warn
-  token_fail_pct: 25           # >= 25% → flagged at top of REPORT.md
+  specs:
+    - id: state_correctness
+      rubric_path: evals/rubrics/state_correctness.md
+      model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
+      temperature: 0.3
+      max_tokens: 32000
 
-  # Items always surfaced in the "⚠️ Flagged" section at top of REPORT.md.
+    - id: narrative_interplay
+      rubric_path: evals/rubrics/narrative_interplay.md
+      model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
+      temperature: 0.3
+      max_tokens: 32000
+
+    - id: prompt_pipeline
+      rubric_path: evals/rubrics/prompt_pipeline.md
+      model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
+      temperature: 0.3
+      max_tokens: 48000
+
+    - id: compaction
+      rubric_path: evals/rubrics/compaction.md
+      model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
+      temperature: 0.3
+      max_tokens: 16000
+
+    - id: meta
+      rubric_path: evals/rubrics/meta.md
+      model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
+      temperature: 0.2
+      max_tokens: 8000
+
+report:
+  token_warn_pct: 10
+  token_fail_pct: 25
   flag_at_top:
     - tokens_regression
     - extraction_retries
