@@ -14,8 +14,8 @@
 {% endif -%}
 ## inventory (cross-reference before describing item use)
 {% include "sections/_inventory.j2" %}
-## Quests
-{% include "sections/_quests.j2" %}
+## Campaign Arc
+{% include "sections/_arc.j2" %}
 
 <<<TRACE_IMMUTABLE_START>>>
 ## Immutable Reference
@@ -52,12 +52,12 @@
 {% if known_npcs -%}
 ### Known Characters
 Before introducing anyone new, check this list. Re-use characters when they could plausibly be present.
-{% for n in known_npcs %}- **{{ n.name }}** - {{ n.bio }} - {% if n.last_seen %} last seen in: {{ n.last_seen.location_name }} {% if n.last_seen.last_seen_state %}, {{ n.last_seen.last_seen_state }}{% endif %}{% endif %}
+{% for n in known_npcs %}- **{{ n.name }}** - {{ n.bio }}{% if n.get('motivation') %} | wants: {{ n.motivation }}{% endif %}{% if n.get('fear') %} | fears: {{ n.fear }}{% endif %}{% if n.get('leverage') %} | leverage: {{ n.leverage }}{% endif %}{% if n.last_seen %} | last seen: {{ n.last_seen.location_name }}{% if n.last_seen.last_seen_state %}, {{ n.last_seen.last_seen_state }}{% endif %}{% endif %}
 {% endfor -%}
 {% endif -%}
 {% if present_npcs -%}
 ### NPCs Present in Scene
-{% for n in present_npcs %}- **{{ n.name or n.id }}**{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}
+{% for n in present_npcs %}- **{{ n.name or n.id }}**{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}{% if n.get('motivation') %} | wants: {{ n.motivation }}{% endif %}{% if n.get('fear') %} | fears: {{ n.fear }}{% endif %}{% if n.get('leverage') %} | leverage: {{ n.leverage }}{% endif %}
 {% endfor -%}
 {% endif -%}
 {% if world_locations and ages and ages.get('location_age', 0) >= 3 -%}

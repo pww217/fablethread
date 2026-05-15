@@ -18,16 +18,14 @@ def _render(env: Environment, **ctx) -> str:
     base = {
         "narration": "test prose",
         "pc": {"name": "PC", "tagline": "x"},
-        "active_quests": [],
+        "active_threads": [],
         "recent_events": [],
         "world_state": [],
         "scene_pressure": [],
         "known_characters": [],
         "scene_result": {},
         "state_result": {"items_gained": [], "items_lost": []},
-        "quest_threshold_directive": "test",
         "deescalate": False,
-        "quest_ages": [],
         "intent": None,
         "recent_turns": [],
         "turn_no": 1,
@@ -39,11 +37,10 @@ def _render(env: Environment, **ctx) -> str:
     return tmpl.render(**base)
 
 
-def test_quest_section_always_present(env: Environment) -> None:
-    """Quest sections are always rendered (no active_domains gating)."""
-    out = _render(env, active_quests=[{"id": "q1", "title": "T", "objectives": []}])
-    assert "## active_quests" in out
-    assert "## quest_threshold" in out
+def test_thread_section_always_present(env: Environment) -> None:
+    """Thread sections are always rendered."""
+    out = _render(env, active_threads=[{"id": "t1", "summary": "T", "urgency": "normal"}])
+    assert "## active_threads" in out
 
 
 def test_recent_events_always_present(env: Environment) -> None:

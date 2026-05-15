@@ -289,7 +289,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "sanitization": san,
                 "has_sanitization": bool(san and any(
                     san.get(k) for k in (
-                        "npc_merge", "inventory_remove", "quest_close",
+                        "npc_merge", "inventory_remove",
                         "pressure_remove", "condition_remove"
                     )
                 )),

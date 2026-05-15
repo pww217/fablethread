@@ -5,7 +5,7 @@
 {% endif -%}
 
 {% if known_npcs -%}
-## known_characters (not in scene — system-called, for quest/event reasoning only)
+## known_characters (not in scene — system-called, for reasoning only)
 {% for n in known_npcs %}- `{{ n.id }}` | **{{ n.name or n.id }}**{% if n.title %} ({{ n.title }}){% endif %} — {{ n.bio or "No bio available" }}{% if n.last_seen %} — last seen in {{ n.last_seen.location_name }}: {{ n.last_seen.last_seen_state }}{% endif %}
 {% endfor %}
 {% endif -%}
@@ -22,15 +22,10 @@
 {% endfor %}
 {%- endif %}
 
-## quest_threshold
-{{ quest_threshold_directive }}
-
-{% if active_quests -%}
-## active_quests
-{% for q in active_quests %}- `{{ q.id }}` | {{ q.title }}
-  objectives:
-{% for o in (q.objectives or []) %}    {{ loop.index }}. [{% if o.done %}x{% elif o.failed %}f{% else %} {% endif %}] {{ o.description }}
-{% endfor %}{% endfor %}
+{% if active_threads -%}
+## active_threads
+{% for t in active_threads %}- `{{ t.id }}` [{{ t.urgency | upper }}] {{ t.summary | truncate(120) }}
+{% endfor %}
 {% endif -%}
 
 {% if recent_events -%}
@@ -38,9 +33,9 @@
 {% for event in recent_events %}- {{ event.text if event is mapping else event }}
 {% endfor %}
 {% endif -%}
-{% if not active_quests and world_state -%}
+{% if not active_threads and world_state -%}
 <<<TRACE_IMMUTABLE_START>>>
-## world_state (read-only — use to reason about new quests only)
+## world_state (read-only context)
 {% for f in world_state %}- {{ f if f is string else f.values() | join(': ') }}
 {% endfor %}
 <<<TRACE_IMMUTABLE_END>>>
@@ -77,11 +72,6 @@ Partial deescalation. Prefer low-urgency beat or no beat.
 {% endif -%}
 
 {% endif -%}
-{% if quest_ages -%}
-## quest_ages
-{% for q in quest_ages %}- `{{ q.id }}`: {{ q.stalled_turns }} turns stalled
-{% endfor %}
-{%- endif %}
 {% if scene_pressure -%}
 ## Current Pressures
 {% for p in scene_pressure %}- [{{ p.id }}] ({{ p.urgency }}) {{ p.text }}

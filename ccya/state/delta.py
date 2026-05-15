@@ -7,7 +7,7 @@ import logging
 import re
 from typing import Any
 
-from ccya.models import QuestUpdate, StateDelta
+from ccya.models import StateDelta
 from ccya.state.inventory import (
     _fuzzy_match_inventory,
     normalize_inventory_id,
@@ -18,12 +18,8 @@ from ccya.state.npcs import build_npc_alias_map, touch_compendium_order
 
 _NAME_RE = re.compile(r"[^\x00-\x7F]")
 
-DEFAULT_CONDITION_TTL = 10
+_DEFAULT_CONDITION_TTL = 10
 """Default TTL in turns for conditions added without an explicit turns_remaining."""
-
-
-def _normalize_quest_title(title: str) -> str:
-    return re.sub(r"\s+", " ", title.strip().lower())
 
 
 def _strip_non_ascii(text: str) -> str:
@@ -199,206 +195,6 @@ def apply_delta(
 
     current_turn = (state.get("meta") or {}).get("turn", 0)
 
-    existing_quests: dict[str, dict[str, Any]] = {
-        q["id"]: q for q in state.get("quests", [])
-    }
-
-    def _apply_quest_status_side_effects(q: dict[str, Any]) -> None:
-        st = q.get("status") or "active"
-        if st == "completed":
-            for o in q.get("objectives", []):
-                o["done"] = True
-                o["failed"] = False
-        elif st == "failed":
-            for o in q.get("objectives", []):
-                if not o.get("done"):
-                    o["failed"] = True
-
-    def _auto_complete_quest(q: dict[str, Any]) -> None:
-        if q.get("status") != "active":
-            return
-        objs = q.get("objectives", [])
-        if objs and all(o.get("done") for o in objs):
-            q["status"] = "completed"
-            _apply_quest_status_side_effects(q)
-
-    def _normalize_obj_desc(text: Any) -> str:
-        if not isinstance(text, str):
-            text = str(text or "")
-        s = " ".join(text.lower().split())
-        return s.rstrip(".!?")
-
-    # Quest auto-close contract (two-turn flow):
-    # Turn N (completion turn): progress extractor emits quest with all objectives done,
-    #   status="active". apply_delta's upsert loop applies the update, then
-    #   _auto_complete_quest() (line 298) sees all objectives done → sets status="completed".
-    # Turn N+1 onward: quest.status == "completed" in state. apply_delta's terminal-state
-    #   guard below will skip any further updates. The progress extractor prompt must
-    #   not re-emit completed quests; this guard is the engine-side safety net.
-
-    touched_quest_ids: set[str] = set()
-    for qu in delta.quest_updates:
-        existing = next(
-            (q for q in state.get("quests", []) if q["id"] == qu.id),
-            None,
-        )
-        if existing and existing.get("status") in ("completed", "failed"):
-            _log.warning(
-                "Skipping quest update: quest already in terminal state",
-                extra={
-                    "quest_id": qu.id,
-                    "existing_status": existing["status"],
-                    "proposed_status": qu.status,
-                },
-            )
-            continue
-        if qu.id in existing_quests:
-            q = existing_quests[qu.id]
-            if qu.title:
-                q["title"] = _strip_non_ascii(qu.title)
-            if qu.status:
-                q["status"] = qu.status
-            if qu.objectives:
-                objs = q.setdefault("objectives", [])
-                for obj in qu.objectives:
-                    matched = False
-                    if obj.index is not None:
-                        idx = int(obj.index) - 1
-                        if 0 <= idx < len(objs):
-                            o = objs[idx]
-                            if obj.done is not None:
-                                o["done"] = obj.done
-                            if obj.failed is not None:
-                                o["failed"] = bool(obj.failed)
-                            matched = True
-                    if not matched:
-                        want = (
-                            _normalize_obj_desc(obj.description)
-                            if obj.description is not None
-                            else ""
-                        )
-                        for o in objs:
-                            if (
-                                want
-                                and _normalize_obj_desc(o.get("description")) == want
-                            ):
-                                if obj.done is not None:
-                                    o["done"] = obj.done
-                                if obj.failed is not None:
-                                    o["failed"] = bool(obj.failed)
-                                matched = True
-                                break
-                    if not matched and obj.description:
-                        objs.append(
-                            {
-                                "description": obj.description,
-                                "done": obj.done if obj.done is not None else False,
-                                "failed": bool(obj.failed)
-                                if obj.failed is not None
-                                else False,
-                            },
-                        )
-            _apply_quest_status_side_effects(q)
-            touched_quest_ids.add(qu.id)
-        else:
-            # Quest alias dedup: check if a quest with the same normalized title exists
-            collision_found = False
-            new_title_norm = _normalize_quest_title(qu.title) if qu.title else ""
-            for existing_q in state.get("quests", []):
-                existing_title_norm = _normalize_quest_title(existing_q.get("title", ""))
-                if new_title_norm and existing_title_norm and new_title_norm == existing_title_norm:
-                    _log.warning(
-                        "Quest alias collision; redirecting new quest id to existing",
-                        extra={
-                            "existing_id": existing_q["id"],
-                            "proposed_id": qu.id,
-                        },
-                    )
-                    qu = QuestUpdate(
-                        id=existing_q["id"],
-                        title=qu.title,
-                        status=qu.status,
-                        objectives=qu.objectives,
-                    )
-                    collision_found = True
-                    break
-            else:
-                # No collision found — proceed with new quest creation
-                new_q: dict[str, Any] = {
-                    "id": qu.id,
-                    "title": _strip_non_ascii(qu.title) if qu.title else "",
-                    "status": qu.status or "active",
-                    "objectives": [
-                        {
-                            "description": _strip_non_ascii(o.description) if o.description else "",
-                            "done": o.done if o.done is not None else False,
-                            "failed": bool(o.failed) if o.failed is not None else False,
-                        }
-                        for o in qu.objectives
-                        if o.description
-                    ],
-                }
-                state.setdefault("quests", []).append(new_q)
-                existing_quests[qu.id] = new_q
-                _apply_quest_status_side_effects(new_q)
-                touched_quest_ids.add(qu.id)
-
-            # If collision found, fall through to existing quest handling
-            if collision_found and qu.id in existing_quests:
-                q = existing_quests[qu.id]
-                if qu.title:
-                    q["title"] = _strip_non_ascii(qu.title)
-                if qu.status:
-                    q["status"] = qu.status
-                if qu.objectives:
-                    objs = q.setdefault("objectives", [])
-                    for obj in qu.objectives:
-                        matched = False
-                        if obj.index is not None:
-                            idx = int(obj.index) - 1
-                            if 0 <= idx < len(objs):
-                                o = objs[idx]
-                                if obj.done is not None:
-                                    o["done"] = obj.done
-                                if obj.failed is not None:
-                                    o["failed"] = bool(obj.failed)
-                                matched = True
-                        if not matched:
-                            want = (
-                                _normalize_obj_desc(obj.description)
-                                if obj.description is not None
-                                else ""
-                            )
-                            for o in objs:
-                                if (
-                                    want
-                                    and _normalize_obj_desc(o.get("description")) == want
-                                ):
-                                    if obj.done is not None:
-                                        o["done"] = obj.done
-                                    if obj.failed is not None:
-                                        o["failed"] = bool(obj.failed)
-                                    matched = True
-                                    break
-                        if not matched and obj.description:
-                            objs.append(
-                                {
-                                    "description": obj.description,
-                                    "done": obj.done if obj.done is not None else False,
-                                    "failed": bool(obj.failed)
-                                    if obj.failed is not None
-                                    else False,
-                                },
-                            )
-                _apply_quest_status_side_effects(q)
-                touched_quest_ids.add(qu.id)
-
-    for q in existing_quests.values():
-        if q.get("status") == "active":
-            if q["id"] in touched_quest_ids:
-                q["last_advanced_turn"] = current_turn
-        _auto_complete_quest(q)
-
     state.setdefault("pc", {}).setdefault("conditions", [])
     existing_conds: list[dict[str, Any]] = []
     for c in state["pc"]["conditions"]:
@@ -423,7 +219,7 @@ def apply_delta(
         if ca.turns_remaining is not None:
             cond_dict["turns_remaining"] = ca.turns_remaining
         else:
-            cond_dict["turns_remaining"] = DEFAULT_CONDITION_TTL
+            cond_dict["turns_remaining"] = _DEFAULT_CONDITION_TTL
         existing_conds.append(cond_dict)
         existing_ids.add(cid)
     state["pc"]["conditions"] = existing_conds[-PC_CONDITIONS_MAX:]
@@ -704,6 +500,12 @@ def apply_delta(
             entry["aliases"] = list(existing_aliases)
         if u.allegiance is not None:
             entry["allegiance"] = u.allegiance
+        if u.motivation is not None:
+            entry["motivation"] = u.motivation
+        if u.fear is not None:
+            entry["fear"] = u.fear
+        if u.leverage is not None:
+            entry["leverage"] = u.leverage
         touch_compendium_order(state, resolved_id)
 
     return state, recent_events_evicted

@@ -785,37 +785,6 @@ def check_no_negative_inventory(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _assert_quest_id_collision(
-    ev: dict[str, Any], prev_ev: dict[str, Any] | None
-) -> list[dict[str, Any]]:
-    results: list[dict[str, Any]] = []
-    ext = (ev.get("extraction") or {}).get("progress") or {}
-    if ext.get("skipped"):
-        return results
-    output = ext.get("output") or {}
-    quest_updates = output.get("quest_updates") or []
-    snap = ev.get("state_snapshot") or {}
-    quests = snap.get("quests") or []
-    completed_ids = {
-        q["id"] for q in quests
-        if isinstance(q, dict) and q.get("status") == "completed"
-    }
-    for qu in quest_updates:
-        qid = qu.get("id")
-        if not qid:
-            continue
-        if qid in completed_ids:
-            results.append({
-                "assertion": "progress.quest_id_collision",
-                "passed": False,
-                "detail": (
-                    f"quest_updates re-creates already-completed quest id={qid!r}"
-                ),
-                "severity": "red",
-            })
-    return results
-
-
 def _assert_compactor_sanitization_nonzero(
     ev: dict[str, Any], prev_ev: dict[str, Any] | None
 ) -> list[dict[str, Any]]:
@@ -825,24 +794,10 @@ def _assert_compactor_sanitization_nonzero(
     if not compaction:
         return results
     sanit = compaction.get("sanitization") or {}
-    quest_close = sanit.get("quest_close") or []
     cond_remove = sanit.get("condition_remove") or []
     pres_remove = sanit.get("pressure_remove") or []
-    if quest_close or cond_remove or pres_remove:
+    if sanit.get("npc_merge") or sanit.get("inventory_remove") or cond_remove or pres_remove:
         return results  # something was sanitized — pass
-    snap = ev.get("state_snapshot") or {}
-    quests = snap.get("quests") or []
-    completed = [q for q in quests if isinstance(q, dict) and q.get("status") == "completed"]
-    if completed:
-        results.append({
-            "assertion": "compactor.sanitization_nonzero",
-            "passed": False,
-            "detail": (
-                f"compaction fired but sanitized nothing; "
-                f"{len(completed)} completed quest(s) remain un-closed in state"
-            ),
-            "severity": "red",
-        })
     return results
 
 
@@ -869,6 +824,5 @@ def run_all_universal_asserts(
         check_key_consumed_after_use(event, prev_event),
         check_no_negative_inventory(event),
     ]
-    results.extend(_assert_quest_id_collision(event, prev_event))
     results.extend(_assert_compactor_sanitization_nonzero(event, prev_event))
     return results

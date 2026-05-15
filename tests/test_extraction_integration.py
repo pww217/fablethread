@@ -20,7 +20,6 @@ def test_progress_prompt_contains_this_turn_npc():
         "pc": {"conditions": [], "stats": {}},
         "location": {"name": "Town"},
         "compendium": {"npcs": {}},
-        "quests": [],
         "meta": {},
     }
     scene_result = SceneExtractResult(npc_add=[NpcAdd(id="captain_01", notes="", name="Captain Aldric")])

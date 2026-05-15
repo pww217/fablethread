@@ -1,12 +1,12 @@
 """Compaction observability — does compaction fire, and does it perform each of
-its 11 documented capabilities?
+its documented capabilities?
 
 Compaction is documented in ccya/prompts/compact_system.j2 to:
 
 PART 1 — bullet generation:
   1. preserve named NPCs (first mention, role, title)
   2. preserve location of the turn
-  3. preserve quest outcomes (resolved, failed, leads)
+  3. preserve arc outcomes (advanced, blocked, failed threads)
   4. preserve key items (gained, lost, consumed)
   5. preserve condition changes
   6. preserve irreversible player choices
@@ -16,7 +16,7 @@ PART 1 — bullet generation:
      uneventful travel
 
 PART 2 — state sanitization:
-  10. npc_merge / inventory_remove / quest_close / pressure_remove / condition_remove
+  10. npc_merge / inventory_remove / pressure_remove / condition_remove
 
 This module deterministically detects whether compaction RAN, and surfaces
 signals the judge can use to evaluate each capability. The judge then writes
@@ -35,7 +35,7 @@ from typing import Any
 CAPABILITIES = [
     ("bullet_named_npcs",      "Preserve named NPCs (first mention, role, title)"),
     ("bullet_location",        "Preserve location of the turn"),
-    ("bullet_quest_outcomes",  "Preserve quest outcomes (resolved/failed/leads)"),
+    ("bullet_arc_outcomes",    "Preserve arc outcomes (advanced/blocked/failed threads)"),
     ("bullet_key_items",       "Preserve key items (gained/lost/consumed)"),
     ("bullet_conditions",      "Preserve condition changes"),
     ("bullet_irreversible",    "Preserve irreversible player choices"),
@@ -44,7 +44,6 @@ CAPABILITIES = [
     ("bullet_culling",         "Cull atmospherics, dialogue without consequence, blow-by-blow combat, uneventful travel"),
     ("sanitize_npc_merge",     "Sanitize: npc_merge for duplicate compendium NPCs"),
     ("sanitize_inventory",     "Sanitize: inventory_remove for duplicate items"),
-    ("sanitize_quest_close",   "Sanitize: quest_close for quests with all objectives done"),
     ("sanitize_pressure",      "Sanitize: pressure_remove for resolved scene pressures"),
     ("sanitize_condition",     "Sanitize: condition_remove for cured conditions"),
 ]
@@ -143,7 +142,7 @@ def render_compaction_section(signals: dict[str, Any]) -> str:
         parts.append("*(compaction did not fire during this run — likely because the run was shorter than `compact_every`. Judge: do not score compaction capabilities for this run; note this in your verdict.)*\n")
         return "".join(parts)
 
-    parts.append(f"**{signals['summary']}.** For each event below, the judge must evaluate every capability and write `[OK] / [FAIL] / [NA]` with a one-line justification per capability. The 14 capabilities the compactor system prompt promises:\n\n")
+    parts.append(f"**{signals['summary']}.** For each event below, the judge must evaluate every capability and write `[OK] / [FAIL] / [NA]` with a one-line justification per capability. The 13 capabilities the compactor system prompt promises:\n\n")
     for cap_id, cap_label in CAPABILITIES:
         parts.append(f"- `{cap_id}` — {cap_label}\n")
     parts.append("\n")

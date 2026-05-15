@@ -57,7 +57,7 @@ def _default_state() -> dict[str, Any]:
         },
         "location": {"id": "", "name": "", "description": ""},
         "inventory": [],
-        "quests": [],
+        "arc": {},
         "scene": {
             "tags": [],
             "world_state": [],
@@ -107,11 +107,6 @@ def _migrate_state(state: dict[str, Any]) -> None:
 
     # Migrate string recent_events to object form
     _migrate_recent_events(state)
-
-    # Migrate quests missing status field
-    for q in state.get("quests") or []:
-        if isinstance(q, dict) and "status" not in q:
-            q["status"] = "active"
 
     # Migrate world key (Phase 5)
     if "world" not in state:

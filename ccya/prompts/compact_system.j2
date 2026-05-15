@@ -15,7 +15,7 @@ Compress each full-turn narrative into one bullet. These are internal session no
 ### Preserve
 - Named NPCs: first mention, role, and any title
 - Location the turn took place in
-- Quest outcomes: resolved, failed, new leads uncovered
+- Thread outcomes: resolved, failed, new leads uncovered
 - Key items: gained, lost, consumed
 - Condition changes: gained or cleared
 - Irreversible player choices
@@ -45,13 +45,13 @@ You MUST identify and flag structural problems in the mechanical state. The bull
 
 ### What to flag — with mandatory checks
 
-**quest_close (MANDATORY CHECK):** Look at every quest in the "All Quests" section. If a quest has status `active` and ALL its objectives are marked `[x]` (done), you MUST add its ID to `quest_close`. This is the most common sanitization need — check it first. Example: if `deliver_the_ledger` shows `[x] Objective 1` and `[x] Objective 2` but status is `active`, add `deliver_the_ledger` to `quest_close`.
+**thread_cleanup (MANDATORY CHECK):** Look at every thread in the "Campaign Arc" section. If a thread has been active for many turns with no advancement signals, consider marking it expired. Check the bulletin for evidence of thread resolution or abandonment.
 
 **pressure_remove (MANDATORY CHECK):** Look at every pressure in the "Active Scene Pressures" section. For each, check the bulletin bullets: if the triggering situation is resolved (the threat is gone, the person is dealt with, the location changed), you MUST add its ID to `pressure_remove`. Example: if `thug_escalation` says "toughs are chasing" but the bulletin shows "T9: Player escaped to the courtyard," add `thug_escalation` to `pressure_remove`.
 
 **condition_remove (MANDATORY CHECK):** Look at every condition in the "PC Conditions" section. For each, check the bulletin: if the bulletin shows the PC recovered, rested, or the situation resolved, you MUST add its ID to `condition_remove`. Example: if `shaken` exists but the bulletin shows "T8: Player found safe haven," add `shaken` to `condition_remove`.
 
-**npc_merge** — Two compendium NPC entries that are clearly the same person under different IDs (same name, same role, consistent bios). Provide `keep_id` (canonical) and `remove_ids` (duplicates).
+**npc_merge** — Two compendium NPC entries that are clearly the same person under different IDs (same name, same role, consistent bios). Provide `keep_id` (canonical) and `remove_ids` (duplicates). When merging, preserve `motivation`, `fear`, and `leverage` from the removed NPC into the canonical entry if the canonical entry lacks those fields.
 
 **inventory_remove** — An inventory item that appears twice with different IDs but identical name and purpose. Provide the ID of the copy to remove (keep the one with higher amount or richer notes).
 
@@ -66,14 +66,13 @@ The JSON must include a `_checklist` key with your verification results. This is
 ```json
 {
   "_checklist": {
-    "quest_close": "Checked 2 active quests — 1 has all objectives done → [clear_the_road_toughs]",
+    "thread_cleanup": "Checked 3 active threads — 0 need expiration → NONE",
     "pressure_remove": "Checked 3 pressures — 0 have resolved triggers → NONE",
     "condition_remove": "Checked 1 conditions — 0 are resolved per bulletin → NONE",
     "npc_merge": "Checked compendium — no duplicates found",
     "inventory_remove": "Checked inventory — no duplicates found",
     "recent_events_compact": "Checked 8 events — merging to 4 entries → [list below]"
   },
-  "quest_close": [{"id": "clear_the_road_toughs", "confidence": "high"}],
   "pressure_remove": [],
   "condition_remove": [],
   "npc_merge": [],
@@ -86,8 +85,6 @@ Omit any key whose list would be empty (except `_checklist` — always include i
 
 ### Concrete examples
 
-- Quest `deliver_the_ledger` has objectives: `[1. {done: true}, 2. {done: true}]` but status is `active` → add `deliver_the_ledger` to `quest_close`
-- Bulletin says "T7: Player delivered ledger to Halden" and `deliver_the_ledger` has all objectives done → add to `quest_close`
 - Pressure `pursuers_approaching` (immediate) but bulletin says "T12: Player escaped to river bend, pursuers lost" → add `pursuers_approaching` to `pressure_remove`
 - Condition `shaken` but bulletin says "T8: Player found safe haven at the inn, felt calm" → add `shaken` to `condition_remove`
 - Inventory `bandages` appears with IDs `bandages` (amount:3) and `medical_bandages` (amount:2), same purpose → add `medical_bandages` to `inventory_remove`
@@ -108,7 +105,7 @@ to the player in the UI. This list has grown across turns and needs consolidatio
 ### What to do
 
 - **Consolidate:** Merge similar or related events into single entries. If two events
-  describe the same NPC, the same location change, or the same quest thread, combine
+  describe the same NPC, the same location change, or the same arc thread, combine
   them into one coherent narrative sentence.
 - **Trim:** Aim to reduce the total count by about half. Keep the most narratively
   significant events. Drop events that are now stale, irrelevant, or fully superseded
@@ -116,7 +113,7 @@ to the player in the UI. This list has grown across turns and needs consolidatio
 - **Preserve:** Keep key facts about:
   - PC status changes (conditions, injuries, morale)
   - NPC introductions and their roles
-  - Quest-relevant developments and leads
+  - Arc-relevant developments and leads
   - Major world/state changes (location shifts, new alliances, conflicts)
   - Durable facts that will matter for future turns
 - **Phase narratively:** Write each consolidated event as an in-universe narrative

@@ -25,7 +25,6 @@ def _make_narrate_user_ctx():
             "pc": {"name": "Vex", "tagline": "pilot", "bio": "", "stats": {}},
             "location": {"id": "loc", "name": "Location", "description": "desc"},
             "inventory": [],
-            "quests": [],
             "compendium": {"npcs": {}},
         },
         "recently_left": [],

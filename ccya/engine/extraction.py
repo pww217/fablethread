@@ -115,7 +115,7 @@ def _build_extraction_context(
             if hasattr(op, "notes") and op.notes:
                 npc["notes"] = op.notes
 
-    # Apply compendium_npc_update (name/title/bio for existing NPCs)
+    # Apply compendium_npc_update (name/title/bio/motivation/fear/leverage for existing NPCs)
     for op in (scene_result.compendium_npc_update or []):
         nid = op.id if hasattr(op, "id") else op.get("id", "")
         if nid in current_npcs:
@@ -126,6 +126,12 @@ def _build_extraction_context(
                 npc["title"] = op.title
             if op.bio:
                 npc["bio"] = op.bio
+            if hasattr(op, "motivation") and op.motivation:
+                npc["motivation"] = op.motivation
+            if hasattr(op, "fear") and op.fear:
+                npc["fear"] = op.fear
+            if hasattr(op, "leverage") and op.leverage:
+                npc["leverage"] = op.leverage
 
     # --- location: apply location_change if present, always prefer scene_result.location_description ---
     if scene_result.location_change:
@@ -287,14 +293,15 @@ def _dedup_compendium_add(
 def _scene_npc_roster(known_characters: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Build a deduped NPC roster for the scene extractor user prompt.
 
-    Each row is ``{id, name, title, bio, last_seen, notes, tags}`` where tags = {"compendium"}.
+    Each row is ``{id, name, title, bio, last_seen, notes, tags, motivation, fear, leverage}``
+    where tags = {"compendium"}.
     """
     by_id: dict[str, dict[str, Any]] = {}
 
-    def _put(nid: str, name: str, title: str, bio: str, last_seen: dict[str, Any] | None, notes: str, tag: str) -> None:
+    def _put(nid: str, name: str, title: str, bio: str, last_seen: dict[str, Any] | None, notes: str, tag: str, motivation: str = "", fear: str = "", leverage: str = "") -> None:
         if not nid:
             return
-        row = by_id.setdefault(nid, {"id": nid, "name": "", "title": "", "bio": "", "last_seen": None, "notes": "", "tags": []})
+        row = by_id.setdefault(nid, {"id": nid, "name": "", "title": "", "bio": "", "last_seen": None, "notes": "", "tags": [], "motivation": "", "fear": "", "leverage": ""})
         if name and not row["name"]:
             row["name"] = name
         if title and not row["title"]:
@@ -307,6 +314,12 @@ def _scene_npc_roster(known_characters: list[dict[str, Any]]) -> list[dict[str, 
             row["notes"] = notes
         if tag not in row["tags"]:
             row["tags"].append(tag)
+        if motivation and not row["motivation"]:
+            row["motivation"] = motivation
+        if fear and not row["fear"]:
+            row["fear"] = fear
+        if leverage and not row["leverage"]:
+            row["leverage"] = leverage
 
     for row in known_characters or []:
         _put(
@@ -317,6 +330,9 @@ def _scene_npc_roster(known_characters: list[dict[str, Any]]) -> list[dict[str, 
             row.get("last_seen"),
             "",
             "compendium",
+            row.get("motivation") or "",
+            row.get("fear") or "",
+            row.get("leverage") or "",
         )
 
     return list(by_id.values())
@@ -410,30 +426,6 @@ def _extract_state_messages(
     return msgs
 
 
-def _quest_threshold_directive(active_quests: list[dict[str, Any]]) -> str:
-    """One-line guidance for the progress extractor on whether to start a new quest.
-
-    Computed in Python to keep the system prompt byte-stable; the resulting
-    sentence is injected into the user prompt only.
-    """
-    n = len(active_quests)
-    if n == 0:
-        return (
-            "No active quests. Bar for starting a new quest is LOW — any goal that takes "
-            "more than one turn (a journey, errand, finding someone, resolving a conflict, "
-            "delivering something) qualifies."
-        )
-    if n >= 3:
-        return (
-            f"{n} active quests already. Bar is HIGH — only start a new quest for a major "
-            "new obligation clearly distinct from all existing quests."
-        )
-    return (
-        "Start a new quest only if the narration introduces a clear multi-turn goal "
-        "distinct from existing quests."
-    )
-
-
 def _extract_progress_messages(
     env: Environment,
     narration: str,
@@ -444,18 +436,18 @@ def _extract_progress_messages(
     enable_thinking: bool = False,
     intent: "IntentEnvelope | None" = None,
     deescalate: float = 0.0,
-    quest_ages: list[dict[str, Any]] = [],
     recent_turns: list[dict[str, Any]] | None = None,
     turn_no: int = 0,
     stakes: str = "",
     band: str = "",
 ) -> list[dict[str, str]]:
-    """Build [system, user] messages for stream 3 (quests + facts + actions + outcome_summary)."""
+    """Build [system, user] messages for stream 3 (thread signals + facts + actions + outcome_summary)."""
     pc = state.get("pc") or {}
     scene = state.get("scene") or {}
 
-    active_quests = [
-        q for q in (state.get("quests") or []) if q.get("status") == "active"
+    active_threads = [
+        {"id": t["id"], "summary": t["summary"], "urgency": t.get("urgency", "normal")}
+        for t in ((state.get("arc") or {}).get("active_threads") or [])
     ]
     recent_events = list(scene.get("recent_events") or [])
     world_state = list(scene.get("world_state") or [])
@@ -484,14 +476,12 @@ def _extract_progress_messages(
             "conditions": extraction_ctx.conditions_this_turn,
             # State-sourced (these don't change within a turn)
             "known_npcs": _known_characters_for_extract(state, compact=True),
-            "active_quests": active_quests,
+            "active_threads": active_threads,
             "recent_events": recent_events,
             "world_state": world_state,
             "state_result": state_ctx,
-            "quest_threshold_directive": _quest_threshold_directive(active_quests),
             "intent": intent,
             "deescalate": deescalate,
-            "quest_ages": quest_ages,
             "recent_turns": recent_turns or [],
             "turn_no": turn_no,
             "stakes": stakes,
@@ -589,7 +579,6 @@ async def _run_extraction_pipeline(
     trace_id: str,
     turn_no: int,
     deescalate: float = 0.0,
-    quest_ages: list[dict[str, Any]] | None = None,
     recent_turns: list[dict[str, Any]] | None = None,
 ) -> "AsyncIterator[tuple[str, Any] | tuple['StateDelta', list[str], str, dict[str, Any], 'ProgressExtractResult', 'SceneExtractResult']]":
     """Run the three extraction streams in sequence.
@@ -706,7 +695,6 @@ async def _run_extraction_pipeline(
         enable_thinking=config.enable_extract_thinking,
         intent=intent,
         deescalate=deescalate,
-        quest_ages=quest_ages or [],
         recent_turns=(recent_turns or [])[-2:],
         turn_no=turn_no,
         stakes=_stakes,
@@ -859,7 +847,6 @@ async def _run_extraction_pipeline(
         inventory_update=state_result.inventory_update,
         pc_condition_add=state_result.pc_condition_add,
         pc_condition_remove=state_result.pc_condition_remove,
-        quest_updates=progress_result.quest_updates,
         recent_events_add=progress_result.recent_events_add,
         recent_events_update=progress_result.recent_events_update,
         recent_events_remove=progress_result.recent_events_remove,

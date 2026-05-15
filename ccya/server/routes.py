@@ -336,7 +336,7 @@ async def new_game(request: Request):
 
     if _app_mod._active_pack.mode == "static":
         assert _app_mod._active_pack.seed is not None
-        seed = _app_mod._active_pack.seed.model_dump()
+        seed = _app_mod._active_pack.seed.model_dump(mode="json")
         if pc_name:
             seed["pc"]["name"] = pc_name
         if pc_tagline:
@@ -360,7 +360,7 @@ async def new_game(request: Request):
                 template_dir=str(_app_mod.PROMPTS_DIR),
                 overrides=overrides if not overrides.is_empty() else None,
             )
-            seed = envelope.seed_state.model_dump()
+            seed = envelope.seed_state.model_dump(mode="json")
             seed.setdefault("meta", {})["model"] = _app_mod.config["llm"]["model"]
             seed["meta"]["setting_pack"] = _app_mod._pack_id
             init_save_dir(_app_mod.SAVE_DIR, seed)
@@ -388,7 +388,7 @@ async def new_game_reroll(request: Request):
             _app_mod.engine_config,
             template_dir=str(_app_mod.PROMPTS_DIR),
         )
-        seed = envelope.seed_state.model_dump()
+        seed = envelope.seed_state.model_dump(mode="json")
         seed.setdefault("meta", {})["model"] = _app_mod.config["llm"]["model"]
         seed["meta"]["setting_pack"] = _app_mod._pack_id
         init_save_dir(_app_mod.SAVE_DIR, seed)
