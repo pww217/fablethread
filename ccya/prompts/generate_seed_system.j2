@@ -6,7 +6,7 @@ Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON.
 - Inspiration prose is quality guidance, not a menu. Don't borrow phrasing or pick the first idea it suggests.
 - Avoid the obvious scenario; avoid clichés. Specific and mundane beats generic and dramatic.
 - Names: pick from the name pool the user prompt provides; favor names that fit the genre, role, and culture, mixing linguistic origins.
-- ALL names (PC name, NPC names, location names, inventory item names, quest titles) must use ONLY ASCII/Latin characters (a-z, A-Z, 0-9, spaces, hyphens, apostrophes). No Cyrillic, no CJK, no Arabic, no non-Latin scripts. This is non-negotiable.
+- ALL names (PC name, NPC names, location names, inventory item names) must use ONLY ASCII/Latin characters (a-z, A-Z, 0-9, spaces, hyphens, apostrophes). No Cyrillic, no CJK, no Arabic, no non-Latin scripts. This is non-negotiable.
 - Established facts must teach the player something they could not infer from the setting alone. World state, factions, recent events — not character traits.
 - `meta.compendium_touch_order` absent or `[]`. Engine manages both.
 
@@ -25,7 +25,6 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
 ## Hard constraints
 {% if scenario and scenario.constraints %}
 {% set c = scenario.constraints %}
-- quests: exactly {{ c.starting_quest_count }}, each with ≥{{ c.min_objectives_per_quest }} objectives
 - inventory: {{ c.inventory_size_range[0] }}–{{ c.inventory_size_range[1] }} items
 - pc.stats values: {{ c.pc_stat_range[0] }}–{{ c.pc_stat_range[1] }}; total: {{ c.pc_stat_total_range[0] }}–{{ c.pc_stat_total_range[1] }}
 - opening_narrative: {{ c.prose_word_range[0] }}–{{ c.prose_word_range[1] }} words
@@ -41,10 +40,9 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
 {
   seed_state: {
     meta: {turn: 0, model: string, setting_pack: string},
-    pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, lore: int, charisma: int, resolve: int}, conditions: []},
+    pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, lore: int, charisma: int, resolve: int}, conditions: [], drive: string, expressed_stances: {string: int}},
     location: {id: snake_case, name: string, description: string},
     inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
-    quests: Array<{id: snake_case, title: string, status: string, objectives: Array<{description: string, done: boolean, failed: boolean}>}>,
     scene: {
       tagline: string,
       tags: string[],
@@ -52,10 +50,13 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
       recent_events: string[],
       present_npcs: Array<{id: string, name: string, title: string, notes: string, bio: string}>
     },
-    compendium: {npcs: {snake_case: {name: string, title: string, bio: string}}}
+    compendium: {npcs: {snake_case: {name: string, title: string, bio: string}}},
+    arc: {visible_goal: string, thematic_question: string, phase: string, hidden_truths: string[], discovered_truths: string[], active_threads: ArcThread[], latent_threads: ArcThread[], pc_drive: string} | null
   },
   opening_narrative: string,
-  actions: string[]
+  actions: string[],
+  arc: {visible_goal: string, thematic_question: string, phase: string, hidden_truths: string[], discovered_truths: string[], active_threads: ArcThread[], latent_threads: ArcThread[], pc_drive: string} | null,
+  pc_drive: string
 }
 ```
 
@@ -100,10 +101,10 @@ Rules:
 - Inventory items start with capital letters.
 
 ## opening_narrative
-Second person, present tense. Do NOT structure this as a biography paragraph → situation paragraph → scene paragraph. Instead: start mid-scene with specific sensory detail that places the player in a moment already in progress. Weave in who the character is through what they are doing, what they are carrying, and what they are thinking — not through summary. Let the quest tension surface through what the player observes rather than what the narrator announces. NPCs should appear in action, not be introduced. The opening should feel like chapter two, not a prologue. Bold NPC names on first introduction. Bold inventory item names on first use. {{ c.prose_word_range[0] }}–{{ c.prose_word_range[1] }} words.
+Second person, present tense. Do NOT structure this as a biography paragraph → situation paragraph → scene paragraph. Instead: start mid-scene with specific sensory detail that places the player in a moment already in progress. Weave in who the character is through what they are doing, what they are carrying, and what they are thinking — not through summary. Let the campaign arc tension surface through what the player observes rather than what the narrator announces. NPCs should appear in action, not be introduced. The opening should feel like chapter two, not a prologue. Bold NPC names on first introduction. Bold inventory item names on first use. {{ c.prose_word_range[0] }}–{{ c.prose_word_range[1] }} words.
 
 ## actions
-4 distinct meaningful choices (7-10 words each), valid given the opening situation, each leading in a different direction, 2 related to quest, one to an NPC.
+4 distinct meaningful choices (7-10 words each), valid given the opening situation, each leading in a different direction, at least one related to the campaign arc.
 
 ## present_npcs
 {% if npc_count_override and npc_count_override > 0 %}
@@ -112,12 +113,24 @@ Exactly {{ npc_count_override }} NPCs that appear in the opening scene — {id: 
 Exactly 2 NPCs that appear in the opening scene — {id: snake_case, name, title, notes: current attitude/situation, bio: durable identity}. These are the characters the player meets immediately.
 {% endif %}
 
-## Quest Design Constraint
-The initial quest must be **completable within 10 player turns** under competent play.
-- Objectives must be concrete and local: find X, reach Y, deliver Z, kill or confront W.
-- No objective should require world travel, large-scale faction politics, or information chains longer than 2 steps.
-- Sub-objectives (if any) should each be resolvable in 1–2 turns.
-- Longer story arcs belong in gm_beats, not the initial quest.
+## Campaign Arc Generation
+Generate a `CampaignArc` with:
+- `visible_goal`: one sentence, affirmative, player-visible (e.g. "Find the cure before the quarantine collapses")
+- `thematic_question`: one sentence that shapes tone (e.g. "How much of yourself do you spend to save one life?")
+- `phase`: always "setup"
+- `hidden_truths`: list of 2–4 strings, never shown to the player until promoted
+- `discovered_truths`: list of strings — leave empty at seed time. Truths are discovered through play, not seeded.
+- `active_threads`: 2–3 threads with `id`, `summary` (2–4 sentences), `tags`, `urgency=normal`, `unlock_if=null`, `promotes=[]`
+- `latent_threads`: 4–8 threads with `id`, `summary`, `tags`, `unlock_if` (plain-language condition), `promotes` (thread IDs)
+- `pc_drive`: a single sentence about the PC's personal reason for being in this situation. More narrow than the visible_goal — it is about the PC's motivation, not the objective.
+
+Thread summaries should be **seeds for the narrator, not dictated plot**. They should describe a situation, not specify exact events. The narrator should always have creative latitude in how a thread manifests.
+
+Example thread summary (good):
+"A hospital records clerk may know where the convoy was rerouted before the quarantine collapse. The archive floor is accessible but the building has been increasingly dangerous. Time is working against this lead."
+
+Example thread summary (bad):
+"Go to Saint Mercy Hospital. Find Mara. She will give you Ledger B-7. Return to the checkpoint."
 
 ## Output discipline
 

@@ -6,6 +6,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from enum import Enum
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 SkillName = Literal["strength", "dexterity", "wits", "lore", "charisma", "resolve"]
@@ -13,6 +14,59 @@ Difficulty = Literal["trivial", "easy", "normal", "hard", "extreme"]
 Band = Literal[
     "crit_fail", "fail", "setback", "partial", "success", "crit_success"
 ]
+
+
+class ArcPhase(str, Enum):
+    SETUP = "setup"
+    PURSUIT = "pursuit"
+    REVERSAL = "reversal"
+    CRISIS = "crisis"
+    RESOLUTION = "resolution"
+
+
+class ThreadState(str, Enum):
+    LATENT = "latent"
+    ACTIVE = "active"
+    COMPLETE = "complete"
+    FAILED = "failed"
+    EXPIRED = "expired"
+
+
+class ThreadSignalType(str, Enum):
+    ADVANCED = "advanced"
+    BLOCKED = "blocked"
+    FAILED = "failed"
+    IGNORED = "ignored"
+
+
+class ArcThread(BaseModel):
+    id: str
+    summary: str
+    tags: list[str] = Field(default_factory=list)
+    state: ThreadState = ThreadState.LATENT
+    urgency: str = "normal"
+    progress: int = 0
+    unlock_if: str | None = None
+    promotes: list[str] = Field(default_factory=list)
+    last_offered_turn: int | None = None
+
+
+class CampaignArc(BaseModel):
+    visible_goal: str
+    thematic_question: str
+    phase: ArcPhase = ArcPhase.SETUP
+    hidden_truths: list[str] = Field(default_factory=list)
+    discovered_truths: list[str] = Field(default_factory=list)
+    active_threads: list[ArcThread] = Field(default_factory=list)
+    latent_threads: list[ArcThread] = Field(default_factory=list)
+    completed_threads: list[ArcThread] = Field(default_factory=list)
+    arc_engagement: int = 0
+    pc_drive: str = ""
+
+
+class ThreadSignal(BaseModel):
+    id: str
+    signal: ThreadSignalType
 
 
 class Condition(BaseModel):
@@ -120,28 +174,6 @@ class LocationRef(BaseModel):
     description: str = ""
 
 
-class QuestObjective(BaseModel):
-    description: str
-    done: bool = False
-    failed: bool = False
-
-
-class QuestObjectiveUpdate(BaseModel):
-    index: int | None = None  # 1-based into existing objectives list
-    description: str | None = (
-        None  # fallback match; required when adding a new objective
-    )
-    done: bool | None = None
-    failed: bool | None = None
-
-
-class QuestUpdate(BaseModel):
-    id: str
-    title: str = ""
-    status: str = "active"
-    objectives: list[QuestObjectiveUpdate] = Field(default_factory=list)
-
-
 class NpcRef(BaseModel):
     id: str
     name: str | None = None  # omit when known from compendium; engine hydrates
@@ -157,6 +189,9 @@ class CompendiumNpcUpdate(BaseModel):
     bio: str | None = None
     aliases: list[str] = Field(default_factory=list)
     allegiance: str | None = None
+    motivation: str | None = None
+    fear: str | None = None
+    leverage: str | None = None
 
 
 class NpcAdd(BaseModel):
@@ -219,7 +254,6 @@ class StateDelta(BaseModel):
 
     location_change: LocationRef | None = None
     location_description: str | None = None
-    quest_updates: list[QuestUpdate] = Field(default_factory=list)
     pc_condition_add: list[ConditionAdd] = Field(default_factory=list, max_length=6)
     pc_condition_remove: list[ConditionRemove] = Field(default_factory=list)
     scene_tags: list[str] = Field(default_factory=list)
@@ -238,6 +272,7 @@ class StateDelta(BaseModel):
     scene_pressure_add: list[ScenePressure] = Field(default_factory=list)
     scene_pressure_remove: list[str] = Field(default_factory=list)
     scene_pressure_update: list[ScenePressure] = Field(default_factory=list)
+    arc_update: CampaignArc | None = None
 
     @field_validator("pc_condition_add", mode="before")
     @classmethod
@@ -368,7 +403,6 @@ class CompactorSanitizationAction(BaseModel):
 class CompactorSanitizationResult(BaseModel):
     npc_merge: list[CompactorNpcMerge] = Field(default_factory=list)
     inventory_remove: list[CompactorSanitizationAction] = Field(default_factory=list)
-    quest_close: list[CompactorSanitizationAction] = Field(default_factory=list)
     pressure_remove: list[CompactorSanitizationAction] = Field(default_factory=list)
     condition_remove: list[CompactorSanitizationAction] = Field(default_factory=list)
     recent_events_compact: list[CompactorRecentEventCompact] = Field(default_factory=list)
@@ -438,7 +472,6 @@ class GMBeat(BaseModel):
 
 
 class ProgressExtractResult(BaseModel):
-    quest_updates: list[QuestUpdate] = Field(default_factory=list)
     recent_events_add: list[RecentEvent] = Field(default_factory=list)
     recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
     recent_events_remove: list[str] = Field(default_factory=list)
@@ -449,6 +482,9 @@ class ProgressExtractResult(BaseModel):
     scene_pressure_add: list[ScenePressure] = Field(default_factory=list)
     scene_pressure_remove: list[str] = Field(default_factory=list)       # migrated from SceneExtractResult
     scene_pressure_update: list[ScenePressure] = Field(default_factory=list)  # migrated from SceneExtractResult
+    thread_signals: list[ThreadSignal] = Field(default_factory=list)
+    player_drift_signals: list[str] = Field(default_factory=list)
+    candidate_opportunity: str | None = None
 
     @model_validator(mode="after")
     def _nullify_invalid_gm_beat(self) -> "ProgressExtractResult":

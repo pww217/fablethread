@@ -16,6 +16,7 @@
 | `ccya/engine/changes.py` | `summarize_changes()`, `format_change_lines()`, `_summarize_applied()` — `summarize_changes` includes momentum diff when `pre.pc.momentum != post.pc.momentum`; `format_change_lines` renders `⚡ Momentum {before:+d} → {after:+d}`
 | `ccya/engine/pressure.py` | `_expire_scene_pressures()`, `_purge_scene_pressures()` |
 | `ccya/engine/compactor.py` | `maybe_compact()`, `_extract_turns_for_compact()`, `_build_compact_messages()`, `_parse_compact_response()`, `_write_compacted_block()` |
+| `ccya/engine/arc.py` | `tick_arc()`, `update_stances()`, `_salience_score()`, `_tag_overlap()` — campaign arc director: processes thread signals, manages thread lifecycle (latent→active→complete/failed/expired), handles candidate_opportunity from extraction, momentum bias for salience scoring |
 | `ccya/engine/generate_pack.py` | `generate_pack_from_brief(inputs, packs_root, llm_host, llm_model, template_dir, trace_id) -> AsyncIterator[dict]` — SSE-driven ephemeral pack generation from world brief; writes `scenario.yaml` + `pack.yaml` to `packs/generated/<uuid>/`; yields `phase`, `pack_ready`, `generation_error` events |
 
 ## Public APIs
@@ -68,7 +69,7 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_log_prompts(turn, phase, messages)` — logs rendered prompts when config.log_prompts is True
 
 ### narrate.py
-- `_narrate_messages(env, state, user_input, *, chronicle_tail="", recent_turns=None, enable_narrate_thinking=False, pack_style="", narrator_rules=[], world_rules=[], rules_outcome=None, npc_name_pool=None, recently_left=None, momentum=0, pending_gm_beat=None, deescalate=False, ages=None, known_npcs=None, present_npcs=None, compendium_bios=None, pc_allegiance=None, scene_pressure=None, turn_no=0, world_factions=[], world_locations=[], threat_ages=None, threat_pressure_at=3, threat_imperative_at=5, building_threat_imperative_at=4)` → `list[dict]` — prompt builder for narrator; accepts momentum, pending_gm_beat, deescalate, ages, known_npcs, present_npcs, compendium_bios, narrator_rules, world_rules, scene_pressure, world faction/location context, and threat age data with imperative thresholds
+- `_narrate_messages(env, state, user_input, *, chronicle_tail="", recent_turns=None, enable_narrate_thinking=False, pack_style="", narrator_rules=[], world_rules=[], rules_outcome=None, npc_name_pool=None, recently_left=None, momentum=0, pending_gm_beat=None, deescalate=False, ages=None, known_npcs=None, present_npcs=None, compendium_bios=None, pc_allegiance=None, scene_pressure=None, turn_no=0, world_factions=[], world_locations=[], threat_ages=None, threat_pressure_at=3, threat_imperative_at=5, building_threat_imperative_at=4)` → `list[dict]` — prompt builder for narrator; builds `current_arc_ctx` dict (visible_goal, thematic_question, phase, active_threads, pc_drive) from state.arc and passes to system prompt; accepts momentum, pending_gm_beat, deescalate, ages, known_npcs, present_npcs, compendium_bios, narrator_rules, world_rules, scene_pressure, world faction/location context, and threat age data with imperative thresholds
 - `_known_characters_for_extract(state, compact=True)` → `list[dict]` — deduped NPC roster from compendium
 
 ### rules.py (engine/rules.py — NOT ccya/rules.py)
@@ -135,6 +136,12 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_write_compacted_block(save_dir, bullets_text, compact_start, compact_end)` — writes COMPACTED block to chronicle.md (prepends if none exists, appends after existing block), then removes prose sections for turns in [compact_start, compact_end]
 - `_apply_sanitization(state, san)` — applies CompactorSanitizationResult to state in-place; validates all IDs against allowlists; unknown IDs silently skipped; logs structured event with `quests_closed`, `inventory_removed`, `npcs_merged`, `pressures_removed`, `conditions_removed`
 - `_sanitization_nonempty(san)` → `bool` — returns True when any of the five sanitization lists (npc_merge, inventory_remove, quest_close, pressure_remove, condition_remove) is non-empty
+
+### arc.py
+- `tick_arc(arc, signals, drift, momentum, turn_no, candidate=None)` → `CampaignArc` — processes thread signals and updates arc state. Responsibilities: thread advancement (2 advanced signals → complete + promote), thread failure (failed → mark failed), thread expiry (8+ turns of only ignored → expire + promote next), active thread cap (keep 2-3 active), arc engagement (increment/decrement based on drift overlap), candidate_opportunity storage (latent thread from extraction).
+- `_salience_score(thread, drift, active_tags, turn_no, momentum)` → `float` — scores a latent thread for promotion priority. Higher = more likely. Tag overlap with drift (+2 per match), tag overlap with active threads (+1.5 per match), momentum bias (+2 if momentum <= -1 and aid/ally/resource tags, or momentum >= 2 and cost/deadline tags), recency (+1 if not recently offered, threshold > 5 turns).
+- `update_stances(stances, user_input)` → `dict` — updates expressed stances based on player input keywords (compassionate/ruthless/defiant/cautious).
+- `_tag_overlap(a, b)` → `int` — count of tags present in both lists.
 
 ## Character creation
 

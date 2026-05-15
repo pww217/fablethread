@@ -62,6 +62,59 @@
 - `condition_remove: list[str]` — resolved PC condition IDs to remove
 - `recent_events_compact: list[CompactorRecentEventCompact]` — consolidated recent_events from compactor
 
+## CampaignArc
+
+- `visible_goal: str` — player-facing objective
+- `thematic_question: str` — emotional register question
+- `phase: ArcPhase = ArcPhase.SETUP` — arc phase enum
+- `hidden_truths: list[str] = Field(default_factory=list)` — designer-only structural spine, never shown to player
+- `discovered_truths: list[str] = Field(default_factory=list)` — truths the player has learned through play; starts empty, populated by future truth-promotion mechanism
+- `active_threads: list[ArcThread] = Field(default_factory=list)` — situations currently in play
+- `latent_threads: list[ArcThread] = Field(default_factory=list)` — threads not yet active
+- `completed_threads: list[ArcThread] = Field(default_factory=list)` — finished/expired threads
+- `arc_engagement: int = 0` — engagement metric (±1 per turn based on drift overlap)
+- `pc_drive: str = ""` — PC's personal motivation for being in this situation
+
+## ArcThread
+
+- `id: str` — slugified unique identifier
+- `summary: str` — 2–4 sentence situation description
+- `tags: list[str] = Field(default_factory=list)` — semantic tags for salience scoring
+- `state: ThreadState = ThreadState.LATENT` — latent/active/complete/failed/expired
+- `urgency: str = "normal"` — normal/immediate
+- `progress: int = 0` — advancement counter
+- `unlock_if: str | None = None` — plain-language condition for activation
+- `promotes: list[str] = Field(default_factory=list)` — thread IDs to activate on completion
+- `last_offered_turn: int | None = None` — turn when last promoted to active
+
+## ArcPhase (Enum)
+
+- `SETUP = "setup"`
+- `PURSUIT = "pursuit"`
+- `REVERSAL = "reversal"`
+- `CRISIS = "crisis"`
+- `RESOLUTION = "resolution"`
+
+## ThreadState (Enum)
+
+- `LATENT = "latent"`
+- `ACTIVE = "active"`
+- `COMPLETE = "complete"`
+- `FAILED = "failed"`
+- `EXPIRED = "expired"`
+
+## ThreadSignal
+
+- `id: str` — thread ID
+- `signal: ThreadSignalType` — advanced/blocked/failed/ignored
+
+## ThreadSignalType (Enum)
+
+- `ADVANCED = "advanced"`
+- `BLOCKED = "blocked"`
+- `FAILED = "failed"`
+- `IGNORED = "ignored"`
+
 ## Type aliases
 
 - `SkillName` (6 skills)

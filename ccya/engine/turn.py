@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncIterator
 
+from ccya.engine.arc import tick_arc, update_stances
 from ccya.engine.changes import _summarize_applied, summarize_changes
 from ccya.engine.compactor import maybe_compact
 from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, _log_llm_io, _log_prompts
@@ -78,21 +79,6 @@ def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
         "location_age": location_age,
         "combat_age": combat_age,
     }
-
-
-def _compute_quest_ages(state: dict[str, Any], current_turn: int) -> list[dict[str, Any]]:
-    result = []
-    for q in (state.get("quests") or []):
-        if q.get("status") != "active":
-            continue
-        last_advanced = q.get("last_advanced_turn", 0)
-        stalled = current_turn - last_advanced if last_advanced > 0 else 0
-        result.append({
-            "id": q["id"],
-            "title": q.get("title", ""),
-            "stalled_turns": stalled,
-        })
-    return result
 
 
 def _compute_threat_ages(state: dict[str, Any]) -> list[dict[str, Any]]:
@@ -295,7 +281,6 @@ async def run_turn(
         # Age counters for narration directives
         ages = _compute_ages(state)
         threat_ages = _compute_threat_ages(state)
-        quest_ages = _compute_quest_ages(state, turn_no)
 
         if config.log_prompts:
             _log_rules_outcome(
@@ -506,7 +491,6 @@ async def run_turn(
                 trace_id=trace_id,
                 turn_no=turn_no,
                 deescalate=deescalate,
-                quest_ages=quest_ages,
                 recent_turns=recent_turns,
             ):
                 if isinstance(_evt, tuple) and len(_evt) == 2 and _evt[0] == "phase":
@@ -665,6 +649,24 @@ async def run_turn(
                         "location_name": location.get("name", ""),
                         "last_seen_state": entry.get("last_seen_state", ""),
                     }
+
+                # Arc director: process thread signals and update arc state
+                if state.get("arc") and progress_result:
+                    arc = tick_arc(
+                        arc=state["arc"],
+                        signals=progress_result.thread_signals,
+                        drift=progress_result.player_drift_signals,
+                        momentum=(state.get("pc") or {}).get("momentum", 0),
+                        turn_no=turn_no,
+                        candidate=progress_result.candidate_opportunity,
+                    )
+                    state["arc"] = arc.model_dump(mode="json")
+                    # Update PC expressed stances from player input
+                    if user_input:
+                        pc = state.get("pc", {})
+                        pc["expressed_stances"] = update_stances(
+                            pc.get("expressed_stances", {}), user_input
+                        )
 
         narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
 
@@ -871,9 +873,6 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
                     ),
                 }
             )
-
-    # quest_updates is create-or-update: new quest IDs are allowed (apply_delta creates them).
-    # No quest ID validation here.
 
     return rejections
 
@@ -1150,7 +1149,6 @@ async def run_turn_retry(
                 trace_id=trace_id,
                 turn_no=turn_no,
                 deescalate=False,
-                quest_ages=[],
                 recent_turns=recent_turns,
             ):
                 if isinstance(_evt, tuple) and len(_evt) == 2 and _evt[0] == "phase":
@@ -1301,6 +1299,23 @@ async def run_turn_retry(
                         "location_name": location.get("name", ""),
                         "last_seen_state": entry.get("last_seen_state", ""),
                     }
+
+                # Arc director: process thread signals and update arc state
+                if state.get("arc") and progress_result:
+                    arc = tick_arc(
+                        arc=state["arc"],
+                        signals=progress_result.thread_signals,
+                        drift=progress_result.player_drift_signals,
+                        momentum=(state.get("pc") or {}).get("momentum", 0),
+                        turn_no=turn_no,
+                        candidate=progress_result.candidate_opportunity,
+                    )
+                    state["arc"] = arc.model_dump(mode="json")
+                    if intent.intent:
+                        pc = state.get("pc", {})
+                        pc["expressed_stances"] = update_stances(
+                            pc.get("expressed_stances", {}), intent.intent
+                        )
 
         narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
 

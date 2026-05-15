@@ -1,4 +1,4 @@
-{# Left sidebar: Player, Scene, Location, Quests, Compendium #}
+{# Left sidebar: Player, Scene, Location, Arc, Compendium #}
 {% set pc_tag = state.pc.tagline or state.pc.concept %}
 <details class="sidebar-card" id="card-player" data-card="player" open>
     <summary>Player</summary>
@@ -54,14 +54,26 @@
             {% set npc_title = npc.get('title', '') if npc is mapping else '' %}
             {% set npc_notes = npc.get('notes', '') if npc is mapping else '' %}
             {% set npc_bio = npc.get('bio', '') if npc is mapping else '' %}
-            <div class="npc-item{% if npc_bio %} has-tooltip{% endif %}">
+            {% set npc_motivation = npc.get('motivation', '') if npc is mapping else '' %}
+            {% set npc_fear = npc.get('fear', '') if npc is mapping else '' %}
+            {% set npc_leverage = npc.get('leverage', '') if npc is mapping else '' %}
+            <div class="npc-item{% if npc_bio or npc_motivation or npc_fear or npc_leverage %} has-tooltip{% endif %}">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
                 {% if npc_notes %}
                 <span class="npc-notes-inline">{{ npc_notes }}</span>
                 {% endif %}
-                {% if npc_bio %}
+                {% if npc_bio or npc_motivation or npc_fear or npc_leverage %}
                 <div class="tooltip-body">
+                    {% if npc_bio %}
                     <div class="npc-bio" data-md>{{ npc_bio }}</div>
+                    {% endif %}
+                    {% if npc_motivation or npc_fear or npc_leverage %}
+                    <div class="npc-traits" data-md>
+                        {% if npc_motivation %}<strong>Motivation:</strong> {{ npc_motivation }}<br>{% endif %}
+                        {% if npc_fear %}<strong>Fear:</strong> {{ npc_fear }}<br>{% endif %}
+                        {% if npc_leverage %}<strong>Leverage:</strong> {{ npc_leverage }}{% endif %}
+                    </div>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -84,81 +96,52 @@
     </div>
 </details>
 
-{% set _quests_all = state.quests or [] %}
-{% set _quests_active = _quests_all | selectattr('status', 'equalto', 'active') | list %}
-{% set _quests_resolved = _quests_all | rejectattr('status', 'equalto', 'active') | list %}
-<details class="sidebar-card" id="card-quests" data-card="quests" open>
-    <summary>Quests</summary>
-    <div class="sidebar-card-body quest-card-body" id="quest-card-body" data-tab="active">
-        {% if _quests_all %}
-        <div class="quest-tabs" role="tablist">
-            <button type="button" class="quest-tab active" data-quest-tab="active" role="tab">
-                Active <span class="quest-tab-count">{{ _quests_active | length }}</span>
-            </button>
-            <button type="button" class="quest-tab" data-quest-tab="resolved" role="tab">
-                Resolved <span class="quest-tab-count">{{ _quests_resolved | length }}</span>
-            </button>
-        </div>
-        <div class="quest-list-active quest-list-panel">
-            {% if _quests_active %}
-            {% for quest in _quests_active %}
-            {% set objs = quest.get('objectives') or [] %}
-            {% set ndone = objs | selectattr('done') | list | length %}
-            <div class="quest-item">
-                <details class="quest-objectives" data-quest-id="{{ quest.get('id', '') }}" open>
-                    <summary class="quest-objectives-summary">
-                        <span class="quest-title active">{{ quest.get("title", quest.get("id", "?")) }}</span>
-                        <span class="quest-status-badge active">{{ quest.get("status", "active") }}</span>
-                        <span class="objective-count">{{ ndone }}/{{ objs | length }}</span>
-                    </summary>
-                    {% for obj in objs %}
-                    <div class="objective{% if obj.get('done') %} done{% elif obj.get('failed') %} failed{% endif %}">
-                        <span class="objective-check{% if obj.get('done') %} done{% elif obj.get('failed') %} failed{% endif %}">
-                            {% if obj.get('done') %}&#x2611;{% elif obj.get('failed') %}&#x2718;{% else %}&#x2610;{% endif %}
-                        </span>
-                        <span data-md>{{ obj.description }}</span>
-                    </div>
-                    {% endfor %}
-                </details>
-            </div>
+{% set _arc = state.get('arc') %}
+{% if _arc %}
+<details class="sidebar-card" id="card-arc" data-card="arc" open>
+    <summary>Arc</summary>
+    <div class="sidebar-card-body arc-card-body">
+        {% set _goal = _arc.get('visible_goal', '') %}
+        {% set _active = _arc.get('active_threads', []) %}
+        {% set _discovered = _arc.get('discovered_truths', []) %}
+        {% set _completed = _arc.get('completed_threads', []) %}
+
+        {% if _goal %}
+        <div class="arc-primary-text" data-md>{{ _goal }}</div>
+        {% endif %}
+
+        {% if _active %}
+        <div class="arc-threads">
+            {% for thread in _active %}
+            <div class="arc-thread">{{ thread.get('summary', '') | striptags }}</div>
             {% endfor %}
-            {% else %}
-            <span class="empty-state">No active quests.</span>
-            {% endif %}
         </div>
-        <div class="quest-list-resolved quest-list-panel">
-            {% if _quests_resolved %}
-            {% for quest in _quests_resolved %}
-            {% set st = quest.get('status', '') %}
-            {% set objs = quest.get('objectives') or [] %}
-            {% set ndone = objs | selectattr('done') | list | length %}
-            <div class="quest-item">
-                <details class="quest-objectives" data-quest-id="{{ quest.get('id', '') }}" open>
-                    <summary class="quest-objectives-summary">
-                        <span class="quest-title {{ st }}">{{ quest.get("title", quest.get("id", "?")) }}</span>
-                        <span class="quest-status-badge {{ st }}">{{ st }}</span>
-                        <span class="objective-count">{{ ndone }}/{{ objs | length }}</span>
-                    </summary>
-                    {% for obj in objs %}
-                    <div class="objective{% if obj.get('done') %} done{% elif obj.get('failed') %} failed{% endif %}">
-                        <span class="objective-check{% if obj.get('done') %} done{% elif obj.get('failed') %} failed{% endif %}">
-                            {% if obj.get('done') %}&#x2611;{% elif obj.get('failed') %}&#x2718;{% else %}&#x2610;{% endif %}
-                        </span>
-                        <span data-md>{{ obj.description }}</span>
-                    </div>
-                    {% endfor %}
-                </details>
+        {% endif %}
+
+        {% if _discovered %}
+        <details class="arc-section">
+            <summary class="arc-section-summary">Truths <span class="arc-section-count">{{ _discovered | length }}</span></summary>
+            <div class="arc-secrets">
+                {% for truth in _discovered %}
+                <div class="arc-truth" data-md>{{ truth }}</div>
+                {% endfor %}
             </div>
-            {% endfor %}
-            {% else %}
-            <span class="empty-state">No resolved quests yet.</span>
-            {% endif %}
-        </div>
-        {% else %}
-        <span class="empty-state">No quests yet.</span>
+        </details>
+        {% endif %}
+
+        {% if _completed %}
+        <details class="arc-section">
+            <summary class="arc-section-summary">Log <span class="arc-section-count">{{ _completed | length }}</span></summary>
+            <div class="arc-log">
+                {% for thread in _completed %}
+                <div class="arc-log-entry" data-md>{{ thread.get('summary', '') | striptags }}</div>
+                {% endfor %}
+            </div>
+        </details>
         {% endif %}
     </div>
 </details>
+{% endif %}
 
 {% set comp = (state.compendium.npcs if state.compendium and state.compendium.npcs else {}) %}
 <details class="sidebar-card" id="card-compendium" data-card="compendium">
@@ -172,6 +155,9 @@
             {% set bio = entry.bio if entry is mapping else '' %}
             {% set ls = entry.last_seen if entry is mapping and entry.last_seen else None %}
             {% set ls_state = ls.last_seen_state if ls else None %}
+            {% set motivation = entry.motivation if entry is mapping else '' %}
+            {% set fear = entry.fear if entry is mapping else '' %}
+            {% set leverage = entry.leverage if entry is mapping else '' %}
             <div class="compendium-item has-tooltip">
                 <span class="compendium-line">{{ nm or nid }}{% if ttl %}<span class="compendium-title"> — {{ ttl }}</span>{% endif %}</span>
                 {% if ls_state %}
@@ -179,6 +165,12 @@
                 {% endif %}
                 <div class="tooltip-body" data-md>
                     {{ bio or '—' }}
+                    {% if motivation or fear or leverage %}
+                    <br>
+                    {% if motivation %}<strong>Motivation:</strong> {{ motivation }}<br>{% endif %}
+                    {% if fear %}<strong>Fear:</strong> {{ fear }}<br>{% endif %}
+                    {% if leverage %}<strong>Leverage:</strong> {{ leverage }}{% endif %}
+                    {% endif %}
                     {% if ls %}
                     <br>
                     <div class="compendium-tooltip-location">Last seen: {{ ls.location_name }}</div>

@@ -1,0 +1,13 @@
+{% if state.arc and state.arc.visible_goal -%}
+### Campaign Arc
+**Goal:** {{ state.arc.visible_goal }}
+**Phase:** {{ state.arc.phase }}
+{% if state.arc.active_threads -%}
+**Active threads:**
+{% for t in state.arc.active_threads -%}
+- [{{ t.urgency | upper }}] {{ t.summary }}
+{% endfor -%}
+{% endif -%}
+{%- else -%}
+No active campaign arc.
+{% endif -%}

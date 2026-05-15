@@ -68,10 +68,31 @@ def _narrate_messages(
         "threat_imperative_at": threat_imperative_at,
         "building_threat_imperative_at": building_threat_imperative_at,
     }
+    # Build arc context for narrator
+    arc = state.get("arc") or {}
+    if arc:
+        current_arc_ctx = {
+            "visible_goal": arc.get("visible_goal", ""),
+            "thematic_question": arc.get("thematic_question", ""),
+            "phase": arc.get("phase", "setup"),
+            "active_threads": [
+                {
+                    "summary": t.get("summary", ""),
+                    "urgency": t.get("urgency", "normal"),
+                    "tags": t.get("tags", []),
+                }
+                for t in (arc.get("active_threads") or [])
+            ],
+            "pc_drive": arc.get("pc_drive", ""),
+        }
+    else:
+        current_arc_ctx = None
+
     system_text = _render(env, "narrate_system.j2", {
         "pack_style": pack_style,
         "narrator_rules": narrator_rules,
         "world_rules": world_rules,
+        "current_arc": current_arc_ctx,
     })
     user_text = _render(env, "narrate_user.j2", user_ctx)
     msgs = [
@@ -112,17 +133,24 @@ def _known_characters_for_extract(
             ls = e.get("last_seen")
             if ls:
                 row["last_seen"] = ls
+            for field in ("motivation", "fear", "leverage"):
+                val = e.get(field)
+                if val:
+                    row[field] = val
             rows.append(row)
         else:
             bio = (e.get("bio") or "").strip()
             if len(bio) > 120:
                 bio = bio[:117].rstrip() + "..."
-            rows.append(
-                {
-                    "id": nid,
-                    "name": e.get("name") or "",
-                    "title": e.get("title") or "",
-                    "bio": bio,
-                },
-            )
+            r: dict[str, Any] = {
+                "id": nid,
+                "name": e.get("name") or "",
+                "title": e.get("title") or "",
+                "bio": bio,
+            }
+            for field in ("motivation", "fear", "leverage"):
+                val = e.get(field)
+                if val:
+                    r[field] = val
+            rows.append(r)
     return rows
