@@ -493,6 +493,21 @@ class ProgressExtractResult(BaseModel):
                 self.gm_beat = None
         return self
 
+    @field_validator("thread_signals", mode="before")
+    @classmethod
+    def _map_thread_id_to_id(cls, v: Any) -> Any:
+        if not v:
+            return v
+        if isinstance(v, list):
+            out = []
+            for item in v:
+                if isinstance(item, dict) and "thread_id" in item and "id" not in item:
+                    item = dict(item)
+                    item["id"] = item.pop("thread_id")
+                out.append(item)
+            return out
+        return v
+
     @field_validator("actions", mode="before")
     @classmethod
     def _coerce_actions(cls, v: Any) -> Any:

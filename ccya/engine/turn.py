@@ -32,6 +32,7 @@ from ccya.llm_client import (
     trim_messages,
 )
 from ccya.models import (
+    CampaignArc,
     IntentEnvelope,
     RulesCheck,
     RulesOutcome,
@@ -653,7 +654,7 @@ async def run_turn(
                 # Arc director: process thread signals and update arc state
                 if state.get("arc") and progress_result:
                     arc = tick_arc(
-                        arc=state["arc"],
+                        arc=CampaignArc(**state["arc"]),
                         signals=progress_result.thread_signals,
                         drift=progress_result.player_drift_signals,
                         momentum=(state.get("pc") or {}).get("momentum", 0),
@@ -1303,7 +1304,7 @@ async def run_turn_retry(
                 # Arc director: process thread signals and update arc state
                 if state.get("arc") and progress_result:
                     arc = tick_arc(
-                        arc=state["arc"],
+                        arc=CampaignArc(**state["arc"]),
                         signals=progress_result.thread_signals,
                         drift=progress_result.player_drift_signals,
                         momentum=(state.get("pc") or {}).get("momentum", 0),
