@@ -133,8 +133,8 @@ def _tv_dict_to_lines(
 def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
     """Produce a flat list of state-change entries from extraction outputs.
 
-    Reads scene/state/progress extraction outputs and flattens them into
-    labelled change entries for the diff right panel.
+    Reads rules (intent), scene/state/progress extraction outputs and flattens
+    them into labelled change entries for the diff right panel.
     """
     rejected_set: set[str] = set()
     for r in (ev.get("rejected") or []):
@@ -142,6 +142,21 @@ def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
             rejected_set.add(str(r["field"]))
 
     changes: list[dict[str, Any]] = []
+
+    # Player intent from rules stream — shown at top
+    rules_intent = _tv_parse_json_blob(ev.get("rules_prompt", {}).get("output") or "")
+    if rules_intent:
+        val = rules_intent.get("intent")
+        if val and isinstance(val, str) and val.strip():
+            changes.append({
+                "domain": "intent",
+                "op": "set",
+                "field": "intent",
+                "value": val[:120] + ("\u2026" if len(val) > 120 else ""),
+                "rejected": False,
+                "from_stream": "rules",
+            })
+
     _EXTRACTION_STREAMS = [
         ("scene", "extraction.scene"),
         ("state", "extraction.state"),
@@ -162,7 +177,10 @@ def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
             parsed = raw_out
         if not parsed:
             continue
+        _SKIP_FIELDS = {"actions", "location_description", "scene_tags", "scene_tagline"}
         for field_key, val in parsed.items():
+            if field_key in _SKIP_FIELDS:
+                continue
             if val is None:
                 continue
             if isinstance(val, list) and not val:
