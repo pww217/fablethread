@@ -26,8 +26,8 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 from ccya.eval.config import EvalConfig, InferenceConfig, load_eval_config
-from ccya.eval.judge import run_judge, run_judge_streaming
-from ccya.eval.report import generate_report, write_report_skeleton, finalize_report, append_judge_chunk
+from ccya.eval.judge import JudgeResult, merge_judge_scores, run_judges
+from ccya.eval.report import generate_report, write_report_skeleton, finalize_report
 from ccya.eval.runner import (
     REPO_ROOT,
     RunResult,
@@ -105,37 +105,45 @@ async def _run_one_scenario(
     report_path = write_report_skeleton(rr, eval_cfg=eval_cfg)
     print(f"[eval] skeleton written: {report_path}", file=sys.stderr)
 
-    judge_result = None
-    if not args.no_judge and eval_cfg.judge.enabled:
+    judge_results: list[JudgeResult] = []
+    if not args.no_judge and eval_cfg.judges.enabled:
         prev_json = find_previous_run(
             (REPO_ROOT / eval_cfg.runs_dir).resolve(),
             scenario.id,
             exclude=Path(rr.output_dir),
         )
-        prev_judge_md = None
+        prev_run_dir: Path | None = None
         if prev_json is not None:
-            candidate = prev_json.parent / f"{scenario.id}.judge.md"
-            if candidate.exists():
-                prev_judge_md = candidate
-        print("[eval] judge streaming…", file=sys.stderr)
-        judge_result = await run_judge_streaming(
+            prev_run_dir = prev_json.parent
+
+        print("[eval] judges running (parallel domain + sequential meta)…", file=sys.stderr)
+
+        def _on_judge_complete(judge_id: str, result: JudgeResult) -> None:
+            print(f"[eval] judge[{judge_id}] complete: scores={result.scores}", file=sys.stderr)
+
+        judge_results = await run_judges(
             Path(rr.events_jsonl_path),
             eval_cfg=eval_cfg,
             output_dir=Path(rr.output_dir),
             scenario_id=scenario.id,
-            on_chunk=lambda c: append_judge_chunk(report_path, c),
-            previous_judge_md_path=prev_judge_md,
+            on_judge_complete=_on_judge_complete,
+            previous_run_dir=prev_run_dir,
         )
-        _log.debug("judge scores=%s", judge_result.scores)
-        mech = judge_result.scores.get("mechanical_score", "?")
-        print(f"[eval] judge mechanical_score={mech}", file=sys.stderr)
-        rr.trace_md_path = judge_result.trace_md_path
-        rr.judge_md_path = judge_result.judge_md_path
+
+        merged = merge_judge_scores(judge_results)
+        mech = merged.get("mechanical_score", "?")
+        print(f"[eval] judges done: mechanical_score={mech}", file=sys.stderr)
+
+        # Update run result artifact paths (use meta or last judge)
+        representative = next((r for r in judge_results if r.judge_id == "meta"), judge_results[-1])
+        rr.trace_md_path = representative.trace_md_path
+        rr.judge_md_path = representative.judge_md_path
+
         artifacts_dir = Path(rr.output_dir) / "artifacts"
         (artifacts_dir / f"{scenario.id}.run.json").write_text(
             json.dumps(asdict(rr), indent=2, default=str)
         )
-        finalize_report(report_path, rr, eval_cfg=eval_cfg, judge_result=judge_result)
+        finalize_report(report_path, rr, eval_cfg=eval_cfg, judge_result=judge_results)
         print(f"[eval] report finalized: {report_path}", file=sys.stderr)
 
     return report_path
@@ -207,21 +215,19 @@ async def _cmd_judge_only(args: argparse.Namespace) -> int:
 
     runs_dir = run_dir.parent
     prev_json = find_previous_run(runs_dir, rr.scenario_id, exclude=run_dir)
-    prev_judge_md = None
-    if prev_json is not None:
-        candidate = prev_json.parent / f"{rr.scenario_id}.judge.md"
-        if candidate.exists():
-            prev_judge_md = candidate
+    prev_run_dir: Path | None = prev_json.parent if prev_json is not None else None
 
-    judge_result = await run_judge(
+    judge_results = await run_judges(
         Path(rr.events_jsonl_path),
         eval_cfg=eval_cfg,
         output_dir=Path(rr.output_dir),
         scenario_id=rr.scenario_id,
-        previous_judge_md_path=prev_judge_md,
+        previous_run_dir=prev_run_dir,
     )
-    report_path = generate_report(rr, eval_cfg=eval_cfg, judge_result=judge_result)
-    mech = judge_result.scores.get("mechanical_score", "?")
+
+    merged = merge_judge_scores(judge_results)
+    mech = merged.get("mechanical_score", "?")
+    report_path = generate_report(rr, eval_cfg=eval_cfg, judge_result=judge_results)
     print(f"[eval] re-judged: mechanical_score={mech}", file=sys.stderr)
     print(str(report_path))
     return 0
@@ -230,22 +236,17 @@ async def _cmd_judge_only(args: argparse.Namespace) -> int:
 def _cmd_pack(args: argparse.Namespace) -> int:
     cfg = load_eval_config()
     print("Eval config:")
-    for k in (
-        "default_pack",
-        "default_scenario",
-        "pack_dirs",
-        "default_save_root",
-        "runs_dir",
-        "num_turns",
-    ):
+    for k in ("default_pack", "default_scenario", "pack_dirs", "default_save_root", "runs_dir", "num_turns"):
         print(f"  {k}: {getattr(cfg, k)}")
     print(f"  logging.level: {cfg.logging.level}")
     print(f"  inference.temperature_override: {cfg.inference.temperature_override}")
     print(f"  inference.cache: {cfg.inference.cache}")
-    print(f"  judge.enabled: {cfg.judge.enabled}")
-    print(f"  judge.model: {cfg.judge.model}")
-    print(f"  judge.rubric_path: {cfg.judge.rubric_path}")
-    print(f"  judge.temperature: {cfg.judge.temperature}")
+    print(f"  judges.enabled: {cfg.judges.enabled}")
+    for spec in cfg.judges.specs:
+        print(
+            f"  judges.specs[{spec.id}]: rubric={spec.rubric_path} "
+            f"model={spec.model} temp={spec.temperature} max_tokens={spec.max_tokens}"
+        )
     print(f"  report.token_warn_pct: {cfg.report.token_warn_pct}")
     print(f"  report.token_fail_pct: {cfg.report.token_fail_pct}")
     print(f"  report.flag_at_top: {cfg.report.flag_at_top}")

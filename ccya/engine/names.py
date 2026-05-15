@@ -7,7 +7,6 @@ Owned entirely by this module. Do not import faker elsewhere.
 from __future__ import annotations
 
 import random
-import re
 from typing import Any
 
 from faker import Faker
