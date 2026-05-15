@@ -56,7 +56,7 @@ Each pack in `packs/{namespace}/{pack_id}/` (namespace = `default` or `custom`):
 
 ## Engine integration (seed.py)
 
-- `generate_seed()` sources `world_facts` from `scenario.world_facts` (new) → `manifest.baseline_facts` → `parse_world_facts(world.md)` (legacy). Raises `ValueError` on static packs.
+- `generate_seed()` sources `world_facts` from `scenario.world_facts` (new) → `manifest.baseline_facts` → `parse_world_facts(world.md)` (legacy). Raises `ValueError` on static packs. Normalizes `active_threads[*].state` to `active` after copying arc from envelope.
 - `_build_generate_seed_messages()` passes `name_seed` (randomized if `scenario.name_seed` is 0) to `generate_seed_user.j2`.
 - `generate_seed_user.j2` renders `scenario.world_facts`, `scenario.narrator_rules`, `scenario.world_rules`, `scenario.factions`, `scenario.locations`, `name_seed`, `scenario.inspiration`, `player_overrides`, and `name_pool`.
 - **`generate_npc_names(locales, count, seed)`** → `list[str]` — NPC name candidates for mid-game injection.

@@ -446,3 +446,94 @@ class TestNewGameDynamicOverrides:
             assert resp.status_code == 200
             assert len(captured_overrides) == 1
             assert captured_overrides[0] is None
+
+
+class TestArcActiveThreadState:
+    """Active threads from seed should have state=active, not latent."""
+
+    async def test_arc_active_threads_start_active(self):
+        """Active threads from seed should have state=active after generate_seed."""
+        import json
+        from pathlib import Path
+        from unittest.mock import AsyncMock, patch
+
+        import ccya.engine.seed
+        from ccya.engine import EngineConfig
+        from ccya.pack import (
+            Constraints,
+            Inspiration,
+            Pack,
+            PackManifest,
+            ScenarioBrief,
+        )
+
+        PROMPTS_DIR = Path(__file__).parent.parent / "ccya" / "prompts"
+
+        constraints = Constraints(
+            min_named_npcs=2,
+            inventory_size_range=(4, 8),
+            prose_word_range=(50, 1000),
+            forbid_cliches=[],
+        )
+        inspiration = Inspiration(
+            pc="A person.",
+            opening_situation="A situation.",
+            npcs="Some people.",
+            inventory="Some items.",
+        )
+        pack = Pack(
+            manifest=PackManifest(id="test-dynamic", name="Test Dynamic"),
+            world_text="The world is dangerous.",
+            scenario=ScenarioBrief(constraints=constraints, inspiration=inspiration),
+        )
+
+        # Build envelope JSON with arc.active_threads having state=latent (the bug)
+        envelope_raw = {
+            "seed_state": {
+                "meta": {"game_name": "test", "turn": 0, "setting_pack": "test-dynamic", "model": ""},
+                "pc": {
+                    "name": "Tester Player",
+                    "tagline": "quiet and careful",
+                    "bio": "A history.",
+                    "stats": {"strength": 2, "dexterity": 2, "wits": 2, "lore": 2, "charisma": 2, "resolve": 2},
+                    "conditions": [],
+                },
+                "location": {"id": "test-loc", "name": "Test Location", "description": "A ruined building."},
+                "inventory": [{"id": "knife", "name": "Knife", "notes": "Sharp.", "amount": 1}],
+                "scene": {"tagline": "Ruins at dusk", "tags": ["arrival"], "recent_events": []},
+                "compendium": {"npcs": {}},
+            },
+            "arc": {
+                "visible_goal": "Survive",
+                "thematic_question": "Can we survive?",
+                "active_threads": [
+                    {"id": "t1", "summary": "Thread 1", "tags": ["political"], "state": "latent"},
+                ],
+                "latent_threads": [],
+                "completed_threads": [],
+                "arc_engagement": 0,
+            },
+            "pc_drive": "Survive",
+            "opening_narrative": "You stand in a ruined building. The wind howls through broken windows. Dust coats your throat. You check your pockets for anything useful. A faded photograph catches the light. Somewhere in the distance, a dog barks.",
+            "actions": ["Search the building.", "Call out for survivors.", "Hide and wait.", "Move toward the shelter."],
+        }
+
+        config = EngineConfig(
+            host="http://localhost:8080/v1",
+            model="test-model",
+            generate_seed_temperature=0.9,
+            generate_seed_max_retries=1,
+        )
+
+        with patch.object(
+            ccya.engine.seed,
+            "llm_chat",
+            new=AsyncMock(return_value={"response": json.dumps(envelope_raw), "done": True}),
+        ):
+            envelope = await ccya.engine.seed.generate_seed(pack, config, template_dir=str(PROMPTS_DIR))
+
+        # Verify that active_threads have state=active after generate_seed
+        arc = envelope.seed_state.arc
+        assert arc is not None
+        for t in arc.active_threads:
+            assert t.state.value == "active", f"Expected active, got {t.state.value} for thread {t.id}"
