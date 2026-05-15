@@ -98,8 +98,11 @@
 
 {% set _arc = state.get('arc') %}
 {% if _arc %}
+{% set _arc_phase = _arc.get('phase', 'setup') %}
 <details class="sidebar-card" id="card-arc" data-card="arc" open>
-    <summary>Arc</summary>
+    <summary>
+        <span>Arc: Phase {{ _arc_phase | upper }}</span>
+    </summary>
     <div class="sidebar-card-body arc-card-body">
         {% set _goal = _arc.get('visible_goal', '') %}
         {% set _active = _arc.get('active_threads', []) %}
@@ -107,19 +110,16 @@
         {% set _completed = _arc.get('completed_threads', []) %}
 
         {% if _goal %}
-        <div class="arc-goal"><strong>Goal:</strong> <span data-md>{{ _goal }}</span></div>
+        <div class="arc-goal" data-md>{{ _goal }}</div>
         {% endif %}
 
         {% if _active %}
-        <div class="arc-section-title">Active Threads</div>
-        <ol class="arc-threads">
-            {% for thread in _active %}
-            {% set _urg = thread.get('urgency', 'normal') %}
-            <li class="arc-thread{% if _urg == 'immediate' %} arc-thread-urgent{% endif %}">
-                <span class="arc-thread-summary" data-md>{{ thread.get('summary', '') | striptags }}</span>
-            </li>
-            {% endfor %}
-        </ol>
+        {% for thread in _active %}
+        {% set _urg = thread.get('urgency', 'normal') %}
+        <div class="arc-thread{% if _urg == 'immediate' %} arc-thread-urgent{% elif _urg == 'building' %} arc-thread-building{% endif %}">
+            <span class="arc-thread-summary" data-md>{{ thread.get('summary', '') | striptags }}</span>
+        </div>
+        {% endfor %}
         {% endif %}
 
         {% if _discovered %}

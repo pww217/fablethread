@@ -1059,60 +1059,42 @@ body {
 .arc-card-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 2px;
 }
 
-/* Goal */
-.arc-goal {
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--text-primary);
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-.arc-goal strong {
-  color: var(--text-muted);
-  font-weight: 600;
-  margin-right: 3px;
-}
-
-/* Section titles */
-.arc-section-title {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  letter-spacing: 0.02em;
-  margin-top: 4px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-/* Active threads — numbered list, no indent */
-ol.arc-threads {
+/* Phase badge in summary bar */
+.arc-phase-badge {
+  font-family: var(--font-mono);
   font-size: 10px;
-  line-height: 1.5;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+/* Goal — prose, no label */
+.arc-goal {
+  font-size: 13px;
   color: var(--text-secondary);
-  margin: 0;
-  padding: 0;
-}
-
-ol.arc-threads > li {
+  line-height: 1.6;
   padding: 2px 0;
-  border-left: 2px solid var(--border-strong);
-  transition: border-color 150ms;
-  font-style: italic;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
-ol.arc-threads > li:last-child {
-  padding-bottom: 0;
+/* Active threads — prose rows */
+.arc-thread {
+  padding: 2px 0;
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.55;
 }
-
-ol.arc-threads > li.arc-thread-urgent {
-  border-left-color: var(--accent-error);
+.arc-thread.arc-thread-urgent {
+  color: var(--text-secondary);
 }
-
-.arc-thread-summary {
-  line-height: 1.5;
+.arc-thread.arc-thread-building {
+  color: var(--text-secondary);
+  opacity: 0.75;
 }
 
 /* Collapsible sections (truths, log) */
