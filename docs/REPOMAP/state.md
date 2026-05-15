@@ -103,14 +103,13 @@ scene:
   scene_pressure: [Pressure]   # {id, text, urgency, turn_added, max_turns}
 
 compendium:
-  npcs:                        # dict[id] → {name, title, bio, aliases, allegiance, last_seen_state} — durable NPC identity
+  npcs:                        # dict[id] → {name, title, bio, aliases, allegiance} — durable NPC identity
     {id}:
       name: str
       title: str
       bio: str
       aliases: [str]
       allegiance: str | None
-      last_seen_state: str | None
 
 world:
   factions: [str]

@@ -648,7 +648,6 @@ async def run_turn(
                         "turn": turn_no,
                         "location_id": location.get("id", ""),
                         "location_name": location.get("name", ""),
-                        "last_seen_state": entry.get("last_seen_state", ""),
                     }
 
                 # Arc director: process thread signals and update arc state
@@ -1298,7 +1297,6 @@ async def run_turn_retry(
                         "turn": turn_no,
                         "location_id": location.get("id", ""),
                         "location_name": location.get("name", ""),
-                        "last_seen_state": entry.get("last_seen_state", ""),
                     }
 
                 # Arc director: process thread signals and update arc state

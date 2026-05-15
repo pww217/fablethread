@@ -370,11 +370,21 @@ def apply_delta(
         removed_ids: set[str] = set()
         for rem in delta.npc_remove:
             rid = _resolve_npc_id(rem.id, comp, alias_map)
+            # Find the NPC's notes from present before removing
+            npc_notes = ""
+            for p in present:
+                if p.get("id") == rid:
+                    npc_notes = p.get("notes", "") or ""
+                    break
             present = [p for p in present if p.get("id") != rid]
             removed_ids.add(rid)
-            # Store last_seen_state on compendium entry
-            if rid in comp and rem.last_seen_state:
-                comp[rid]["last_seen_state"] = rem.last_seen_state
+            # Append NPC's last notes to compendium bio
+            if rid in comp and npc_notes:
+                existing_bio = (comp[rid].get("bio") or "").strip()
+                if existing_bio:
+                    comp[rid]["bio"] = f"{existing_bio} {npc_notes}"
+                else:
+                    comp[rid]["bio"] = npc_notes
 
         for upd in delta.npc_update:
             _apply_npc_to_present(

@@ -130,9 +130,6 @@ def _known_characters_for_extract(
                 if len(bio) > 120:
                     bio = bio[:117].rstrip() + "..."
                 row["bio"] = bio
-            ls = e.get("last_seen")
-            if ls:
-                row["last_seen"] = ls
             for field in ("motivation", "fear", "leverage"):
                 val = e.get(field)
                 if val:

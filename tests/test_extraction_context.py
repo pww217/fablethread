@@ -33,7 +33,7 @@ def test_npc_remove_absent_from_context():
         "compendium": {"npcs": {}},
     }
     scene_result = SceneExtractResult(
-        npc_remove=[NpcRemove(id="guard_01", last_seen_state="")],
+        npc_remove=[NpcRemove(id="guard_01")],
     )
     state_result = StateExtractResult()
     ctx = _build_extraction_context(state, scene_result, state_result)

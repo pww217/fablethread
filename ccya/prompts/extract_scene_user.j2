@@ -4,13 +4,13 @@
 
 {% if present_npcs -%}
 ## present_npcs (currently in scene — emit npc_update for these if narration mentions them)
-{% for n in present_npcs %}- `{{ n.id }}` | **{{ n.name or n.id }}**{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}{% if n.last_seen %} — last seen in {{ n.last_seen.location_name }}: {{ n.last_seen.last_seen_state }}{% endif %}
+{% for n in present_npcs %}- `{{ n.id }}` | **{{ n.name or n.id }}**{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}{% if n.last_seen %} — last seen in {{ n.last_seen.location_name }}{% endif %}
 {% endfor %}
 {% endif -%}
 {% if npc_roster -%}
 <<<TRACE_IMMUTABLE_START>>>
 ## known_characters (compendium — reuse `id` for npc_add/npc_update/compendium_npc_update)
-{% for n in npc_roster %}- `{{ n.id }}` | {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %} — {{ n.bio or "No bio available" }}{% if n.last_seen %} last seen in: {{ n.last_seen.location_name }} {% if n.last_seen.last_seen_state %}, {{ n.last_seen.last_seen_state }}{% endif %}{% endif %}
+{% for n in npc_roster %}- `{{ n.id }}` | {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %} — {{ n.bio or "No bio available" }}{% if n.last_seen %} last seen in: {{ n.last_seen.location_name }}{% endif %}
 {% endfor %}
 <<<TRACE_IMMUTABLE_END>>>
 {% endif -%}

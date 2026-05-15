@@ -52,8 +52,8 @@ class ArcThread(BaseModel):
 
 
 class CampaignArc(BaseModel):
-    visible_goal: str
-    thematic_question: str
+    visible_goal: str = ""
+    thematic_question: str = ""
     phase: ArcPhase = ArcPhase.SETUP
     hidden_truths: list[str] = Field(default_factory=list)
     discovered_truths: list[str] = Field(default_factory=list)
@@ -206,7 +206,6 @@ class NpcAdd(BaseModel):
 class NpcRemove(BaseModel):
     """Remove an NPC from the scene."""
     id: str
-    last_seen_state: str = ""  # 1-sentence description of what NPC was last seen doing
 
     @field_validator("id", mode="before")
     @classmethod
@@ -501,6 +500,8 @@ class ProgressExtractResult(BaseModel):
         if isinstance(v, list):
             out = []
             for item in v:
+                if isinstance(item, str):
+                    continue
                 if isinstance(item, dict) and "thread_id" in item and "id" not in item:
                     item = dict(item)
                     item["id"] = item.pop("thread_id")
