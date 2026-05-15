@@ -18,7 +18,6 @@ from ccya.engine.extraction import (
     _extract_scene_messages,
     _extract_state_messages,
     _extract_progress_messages,
-    _quest_threshold_directive,
     _scene_npc_roster,
 )
 from ccya.engine.rules import _rules_messages
@@ -39,7 +38,6 @@ __all__ = [
     "_extract_scene_messages",
     "_extract_state_messages",
     "_narrate_messages",
-    "_quest_threshold_directive",
     "_rules_messages",
     "_scene_npc_roster",
     "_validate",

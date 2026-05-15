@@ -3,9 +3,8 @@
 Covers the four guarantees the audit promised:
 1. Every system prompt is byte-stable across two distinct turn states.
 2. Inventory over-draw is recorded as a non-blocking warn_overdraw rejection.
-3. quest_threshold_directive grows from LOW → HIGH with active-quest count.
-4. Scene NPC roster deduplicates present + compendium overlap.
-5. load_chronicle_tail honors skip_last_n_turns.
+3. Scene NPC roster deduplicates present + compendium overlap.
+4. load_chronicle_tail honors skip_last_n_turns.
 """
 
 from __future__ import annotations
@@ -19,7 +18,7 @@ from ccya.engine import (
     _extract_state_messages,
     _narrate_messages,
 )
-from ccya.engine.extraction import _ExtractionContext, _quest_threshold_directive, _scene_npc_roster
+from ccya.engine.extraction import _ExtractionContext, _scene_npc_roster
 from ccya.engine.turn import _validate
 from ccya.models import (
     InventoryRemove,
@@ -48,9 +47,6 @@ def _state(turn: int = 0) -> dict:
         "inventory": [
             {"id": "9mm_rounds", "name": "9mm rounds", "amount": 12},
             {"id": "vac-jacket", "name": "Vac jacket", "amount": 1},
-        ],
-        "quests": [
-            {"id": "q1", "title": "Q1", "status": "active", "objectives": [{"description": "x", "done": False}]},
         ],
         "scene": {"tags": [], "present_npcs": [], "recent_events": [], "tagline": ""},
         "compendium": {"npcs": {}},
@@ -118,10 +114,6 @@ class TestSystemPromptByteStability:
     def test_extract_progress_system_byte_stable(self):
         env = _env()
         s1, s2 = self._two_states()
-        s2["quests"] = [
-            {"id": f"q{i}", "title": f"Q{i}", "status": "active", "objectives": []}
-            for i in range(4)
-        ]
         sres = StateExtractResult()
         m1 = _extract_progress_messages(env, "N1", s1, state_result=sres, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
         m2 = _extract_progress_messages(
@@ -168,34 +160,7 @@ class TestInventoryOverDrawValidator:
 
 
 # ---------------------------------------------------------------------------
-# 3. quest_threshold_directive ladder
-# ---------------------------------------------------------------------------
-
-
-class TestQuestThresholdDirective:
-    def test_zero_quests_low(self):
-        s = _quest_threshold_directive([])
-        assert "LOW" in s
-
-    def test_one_quest_neutral(self):
-        s = _quest_threshold_directive([{"id": "q1"}])
-        assert "LOW" not in s and "HIGH" not in s
-
-    def test_two_quests_neutral(self):
-        s = _quest_threshold_directive([{"id": "q1"}, {"id": "q2"}])
-        assert "LOW" not in s and "HIGH" not in s
-
-    def test_three_quests_high(self):
-        s = _quest_threshold_directive([{"id": f"q{i}"} for i in range(3)])
-        assert "HIGH" in s
-
-    def test_many_quests_high(self):
-        s = _quest_threshold_directive([{"id": f"q{i}"} for i in range(7)])
-        assert "HIGH" in s
-
-
-# ---------------------------------------------------------------------------
-# 4. Scene NPC roster dedup
+# 3. Scene NPC roster dedup
 # ---------------------------------------------------------------------------
 
 

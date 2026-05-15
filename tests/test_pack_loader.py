@@ -61,14 +61,6 @@ def _minimal_static_pack_files(
                 "description": "A room.",
             },
             "inventory": [{"id": "item-a", "name": "Item A", "notes": "", "amount": 1}],
-            "quests": [
-                {
-                    "id": "q1",
-                    "title": "Test Quest",
-                    "status": "active",
-                    "objectives": [{"description": "Do a thing", "done": False}],
-                }
-            ],
             "scene": {
                 "tagline": "",
                 "tags": [],
@@ -563,7 +555,7 @@ def test_pack_with_only_scenario_validates():
 
 
 def test_pack_with_only_seed_validates():
-    from ccya.pack import Pack, PackManifest, SeedState, SeedPC, SeedLocation, SeedScene, SeedQuest
+    from ccya.pack import Pack, PackManifest, SeedState, SeedPC, SeedLocation, SeedScene
 
     pack = Pack(
         manifest=PackManifest(id="test", name="Test"),
@@ -572,7 +564,6 @@ def test_pack_with_only_seed_validates():
             pc=SeedPC(name="Tester"),
             location=SeedLocation(id="loc", name="Loc"),
             inventory=[{"id": "item", "name": "Item", "notes": "", "amount": 1}],
-            quests=[SeedQuest(id="q1", title="Quest", objectives=[])],
             scene=SeedScene(),
         ),
     )

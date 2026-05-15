@@ -46,19 +46,6 @@ def _summarize_applied(applied: dict[str, Any]) -> list[str]:
     for c in applied.get("pc_condition_remove") or []:
         cid = c.get("id") or str(c) if isinstance(c, dict) else str(c)
         lines.append(f"- {cid}")
-    for qu in applied.get("quest_updates") or []:
-        if not isinstance(qu, dict):
-            continue
-        qid = qu.get("id", "?")
-        if qu.get("status"):
-            lines.append(f"! Quest {qid}: {qu['status']}")
-        for o in qu.get("objectives") or []:
-            if not isinstance(o, dict):
-                continue
-            if o.get("done"):
-                lines.append(f"✓ {qid} obj {o.get('index', '?')}")
-            if o.get("failed"):
-                lines.append(f"✗ {qid} obj {o.get('index', '?')}")
     for u in applied.get("compendium_npc_update") or []:
         if isinstance(u, dict) and u.get("id"):
             lines.append(f"~ Dossier: {u['id']}")
@@ -97,25 +84,16 @@ def _inv_amount_map(st: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return m
 
 
-def _quests_by_id(st: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    out: dict[str, dict[str, Any]] = {}
-    for q in st.get("quests") or []:
-        if isinstance(q, dict) and q.get("id"):
-            out[str(q["id"])] = q
-    return out
-
-
 def summarize_changes(
     pre: dict[str, Any],
     post: dict[str, Any],
     _applied: dict[str, Any],
     rejected: list[dict[str, Any]],
 ) -> dict[str, list[dict[str, Any]]]:
-    """Diff pre vs post state into five UI categories (inventory, player, facts, quests, momentum)."""
+    """Diff pre vs post state into four UI categories (inventory, player, facts, momentum)."""
     inventory: list[dict[str, Any]] = []
     player: list[dict[str, Any]] = []
     facts: list[dict[str, Any]] = []
-    quests: list[dict[str, Any]] = []
     momentum: list[dict[str, Any]] = []
 
     for r in rejected or []:
@@ -246,66 +224,6 @@ def summarize_changes(
         if pre_text != post_text:
             facts.append({"kind": "updated", "old": pre_text, "new": post_text})
 
-    pre_q = _quests_by_id(pre)
-    post_q = _quests_by_id(post)
-    for qid, pq in post_q.items():
-        title = str(pq.get("title") or pq.get("id") or qid)
-        prq = pre_q.get(qid)
-        if prq is None:
-            quests.append({"kind": "created", "id": qid, "title": title})
-            continue
-        st_pre, st_post = (
-            str(prq.get("status") or "active"),
-            str(pq.get("status") or "active"),
-        )
-        if st_pre != st_post:
-            quests.append(
-                {
-                    "kind": "status_changed",
-                    "id": qid,
-                    "title": title,
-                    "from": st_pre,
-                    "to": st_post,
-                }
-            )
-        po: list[Any] = list(prq.get("objectives") or [])
-        qo: list[Any] = list(pq.get("objectives") or [])
-        for i in range(max(len(po), len(qo))):
-            if i >= len(qo):
-                break
-            qod = qo[i] if isinstance(qo[i], dict) else {}
-            if i >= len(po):
-                desc = str(qod.get("description") or "").strip()
-                if desc:
-                    quests.append(
-                        {
-                            "kind": "objective_added",
-                            "id": qid,
-                            "title": title,
-                            "objective": desc,
-                        }
-                    )
-                continue
-            pod = po[i] if isinstance(po[i], dict) else {}
-            if not bool(pod.get("done")) and bool(qod.get("done")):
-                quests.append(
-                    {
-                        "kind": "objective_done",
-                        "id": qid,
-                        "title": title,
-                        "objective": str(qod.get("description") or "").strip(),
-                    }
-                )
-            if not bool(pod.get("failed")) and bool(qod.get("failed")):
-                quests.append(
-                    {
-                        "kind": "objective_failed",
-                        "id": qid,
-                        "title": title,
-                        "objective": str(qod.get("description") or "").strip(),
-                    }
-                )
-
     pre_momentum = pre.get("pc", {}).get("momentum", 0)
     post_momentum = post.get("pc", {}).get("momentum", 0)
     if pre_momentum != post_momentum:
@@ -316,7 +234,7 @@ def summarize_changes(
             "delta": post_momentum - pre_momentum,
         })
 
-    return {"inventory": inventory, "player": player, "facts": facts, "quests": quests, "momentum": momentum}
+    return {"inventory": inventory, "player": player, "facts": facts, "momentum": momentum}
 
 
 def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
@@ -371,24 +289,6 @@ def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
             old = str(row.get("old") or "")
             new = str(row.get("new") or "")
             lines.append(f"📜 ↻ {old} → {new}")
-    for row in ch.get("quests") or []:
-        if not isinstance(row, dict):
-            continue
-        k = row.get("kind")
-        title = str(row.get("title") or row.get("id") or "?")
-        if k == "created":
-            lines.append(f"🗺️ + “{title}”")
-        elif k == "status_changed":
-            lines.append(f"🗺️ ! “{title}” → {row.get('to')}")
-        elif k == "objective_done":
-            od = str(row.get("objective") or "").strip()
-            lines.append(f"🗺️ ✓ “{title}” — {od}" if od else f"🗺️ ✓ “{title}”")
-        elif k == "objective_failed":
-            od = str(row.get("objective") or "").strip()
-            lines.append(f"🗺️ ✗ “{title}” — {od}" if od else f"🗺️ ✗ “{title}”")
-        elif k == "objective_added":
-            od = str(row.get("objective") or "").strip()
-            lines.append(f"🗺️ + obj “{title}”: {od}" if od else f"🗺️ + obj “{title}”")
     for row in ch.get("momentum") or []:
         if not isinstance(row, dict):
             continue

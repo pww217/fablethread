@@ -10,7 +10,6 @@ def _make_state(turn=0, conditions=None):
         "pc": {"name": "V", "tagline": "pilot", "bio": "", "stats": {"strength": 2, "dexterity": 2, "wits": 3, "lore": 2, "charisma": 2, "resolve": 2}, "conditions": conditions or []},
         "location": {"id": "ring-7", "name": "Ring 7", "description": "Low-grav berth."},
         "inventory": [],
-        "quests": [],
         "scene": {"tags": [], "present_npcs": [], "recent_events": [], "tagline": ""},
         "compendium": {"npcs": {}},
     }

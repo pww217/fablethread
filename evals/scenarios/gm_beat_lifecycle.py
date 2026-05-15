@@ -26,7 +26,6 @@ scenario = Scenario(
             phase="setup_2",
             asserts=[
                 TurnAssert(stream="rules", field="rolled", expected="true"),
-                TurnAssert(stream="extract.progress", field="quest_updates", expected="settle_the_debt"),
             ],
         ),
         Turn(

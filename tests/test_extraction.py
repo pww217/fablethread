@@ -1,4 +1,4 @@
-"""Tests for extraction pipeline: deescalate/quest_ages context, gm_beat source, pressure update guard."""
+"""Tests for extraction pipeline: thread context, gm_beat source, pressure update guard."""
 
 import json
 import tempfile
@@ -61,24 +61,23 @@ class TestProgressMessagesReceivesDeescalate:
         assert len(msgs) == 2
 
 
-class TestProgressMessagesReceivesQuestAges:
-    def test_quest_ages_in_context(self):
-        """_extract_progress_messages includes quest_ages in user_ctx."""
+class TestProgressMessagesThreadContext:
+    def test_thread_signals_in_context(self):
+        """_extract_progress_messages includes active_threads in user_ctx."""
         env = _build_jinja_env(_TEMPLATE_DIR)
         state_res = StateExtractResult()
-        quest_ages = [{"id": "q1", "title": "Test Quest", "age": 3}]
+        state = {"arc": {"active_threads": [{"id": "t1", "summary": "Test thread", "urgency": "normal"}]}}
         msgs = _extract_progress_messages(
-            env, "N.", {},
+            env, "N.", state,
             state_result=state_res,
             extraction_ctx=_ExtractionContext(),
             intent=None,
-            quest_ages=quest_ages,
             recent_turns=[],
         )
         assert len(msgs) == 2
 
-    def test_quest_ages_empty_default(self):
-        """_extract_progress_messages defaults quest_ages to empty list."""
+    def test_progress_messages_empty_default(self):
+        """_extract_progress_messages works with empty state."""
         env = _build_jinja_env(_TEMPLATE_DIR)
         state_res = StateExtractResult()
         msgs = _extract_progress_messages(
@@ -126,7 +125,6 @@ def _progress_response_with_pressure_update(
     pressure_update: list[dict] | None = None,
 ) -> str:
     return json.dumps({
-        "quest_updates": [],
         "recent_events_add": [],
         "recent_events_update": [],
         "recent_events_remove": [],

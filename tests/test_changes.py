@@ -9,7 +9,6 @@ def _pre_state(momentum=0):
         "inventory": [],
         "location": {"id": "ring-7", "name": "Ring 7"},
         "scene": {"recent_events": []},
-        "quests": [],
     }
 
 
@@ -19,7 +18,6 @@ def _post_state(momentum=0):
         "inventory": [],
         "location": {"id": "ring-7", "name": "Ring 7"},
         "scene": {"recent_events": []},
-        "quests": [],
     }
 
 

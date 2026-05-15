@@ -44,8 +44,6 @@ from ccya.models import (
     InventoryItem,
     InventoryRemove,
     InventoryUpdate,
-    QuestObjectiveUpdate,
-    QuestUpdate,
     StateExtractResult,
     StateDelta,
 )
@@ -117,14 +115,6 @@ def _make_state(turn: int = 0) -> dict:
             },
             {"id": "vac-jacket", "name": "Vac jacket", "notes": "Thermal-lined."},
         ],
-        "quests": [
-            {
-                "id": "quiet-signal",
-                "title": "The Quiet Signal",
-                "status": "active",
-                "objectives": [{"description": "Find the payer", "done": False}],
-            }
-        ],
         "scene": {"tags": [], "recent_events": [], "tagline": ""},
         "compendium": {"npcs": {}},
     }
@@ -149,7 +139,6 @@ _SCENE_RESPONSE = json.dumps({
     "npc_add": [],
     "npc_remove": [],
     "npc_update": [],
-    "compendium_npc_update": [],
 })
 
 _STATE_RESPONSE = json.dumps({
@@ -161,7 +150,6 @@ _STATE_RESPONSE = json.dumps({
 })
 
 _PROGRESS_RESPONSE = json.dumps({
-    "quest_updates": [],
     "recent_events_add": [],
     "recent_events_update": [],
     "recent_events_remove": [],
@@ -483,14 +471,6 @@ class TestPromptComposition:
         msgs = _extract_progress_messages(env, "N.", _make_state(), state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
         assert [m["role"] for m in msgs] == ["system", "user"]
 
-    def test_extract_progress_user_contains_quests(self):
-        env = self._env()
-        state_res = StateExtractResult()
-        msgs = _extract_progress_messages(env, "N.", _make_state(), state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
-        user = next(m for m in msgs if m["role"] == "user")["content"]
-        assert "quiet-signal" in user
-        assert "The Quiet Signal" in user
-
     def test_extract_progress_user_contains_recent_events(self):
         env = self._env()
         state = _make_state()
@@ -503,56 +483,6 @@ class TestPromptComposition:
         user = next(m for m in msgs if m["role"] == "user")["content"]
         assert "Alpha fact." in user
         assert "Beta fact." in user
-
-    def test_extract_progress_world_state_only_when_no_quests(self):
-        """World state block appears in progress user only when there are no active quests."""
-        env = self._env()
-        state = _make_state()
-        state["scene"]["world_state"] = ["WORLD_FACT_MARKER"]
-        state_res = StateExtractResult()
-
-        # With active quest: world state should NOT appear
-        msgs_with_quest = _extract_progress_messages(env, "N.", state, state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
-        user_with_quest = next(m for m in msgs_with_quest if m["role"] == "user")["content"]
-        assert "WORLD_FACT_MARKER" not in user_with_quest
-
-        # Without quests: world state SHOULD appear
-        state_no_quests = {**state, "quests": []}
-        msgs_no_quest = _extract_progress_messages(env, "N.", state_no_quests, state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
-        user_no_quest = next(m for m in msgs_no_quest if m["role"] == "user")["content"]
-        assert "WORLD_FACT_MARKER" in user_no_quest
-
-    def test_extract_progress_user_has_quest_threshold_directive(self):
-        """quest_threshold_directive is computed in engine and lives in user prompt."""
-        env = self._env()
-        state_res = StateExtractResult()
-
-        state_no_q = {**_make_state(), "quests": []}
-        msgs = _extract_progress_messages(env, "N.", state_no_q, state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
-        user = next(m for m in msgs if m["role"] == "user")["content"]
-        assert "quest_threshold" in user
-        assert "LOW" in user
-
-        state_many_q = {**_make_state(), "quests": [
-            {"id": f"q{i}", "title": f"Q{i}", "status": "active", "objectives": []} for i in range(3)
-        ]}
-        msgs2 = _extract_progress_messages(env, "N.", state_many_q, state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
-        user2 = next(m for m in msgs2 if m["role"] == "user")["content"]
-        assert "HIGH" in user2
-
-    def test_extract_progress_system_byte_stable_across_quest_count(self):
-        """The progress system prompt must not vary with active_quests count."""
-        env = self._env()
-        state_res = StateExtractResult()
-        s_no = {**_make_state(), "quests": []}
-        s_many = {**_make_state(), "quests": [
-            {"id": f"q{i}", "title": f"Q{i}", "status": "active", "objectives": []} for i in range(3)
-        ]}
-        m_no = _extract_progress_messages(env, "N.", s_no, state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
-        m_many = _extract_progress_messages(env, "N.", s_many, state_result=state_res, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
-        sys_no = next(m for m in m_no if m["role"] == "system")["content"]
-        sys_many = next(m for m in m_many if m["role"] == "system")["content"]
-        assert sys_no == sys_many
 
     # --- Narrate-specific ---
 
@@ -636,11 +566,11 @@ class TestHappyPath:
 
         narrative = "You step through the airlock. The corridor stretches ahead, dim and humming."
         progress_response = json.dumps({
-            "quest_updates": [],
             "recent_events_add": [{"id": "airlock_found", "text": "You found an airlock at Docking Ring 7.", "turn": 0}],
             "recent_events_update": [],
             "recent_events_remove": [],
-            "compendium_npc_update": [],
+            "actions": [],
+            "outcome_summary": "",
         })
 
         fake = _FakeLLM(narrative=narrative, progress_response=progress_response)
@@ -669,10 +599,8 @@ class TestHappyPath:
             "npc_add": [],
             "npc_remove": [],
             "npc_update": [],
-            "compendium_npc_update": [],
         })
         progress_response = json.dumps({
-            "quest_updates": [],
             "recent_events_add": [],
             "recent_events_update": [],
             "recent_events_remove": [],
@@ -697,10 +625,8 @@ class TestHappyPath:
             "npc_add": [],
             "npc_remove": [],
             "npc_update": [],
-            "compendium_npc_update": [],
         })
         progress_response = json.dumps({
-            "quest_updates": [],
             "recent_events_add": [],
             "recent_events_update": [],
             "recent_events_remove": [],
@@ -806,27 +732,6 @@ class TestRejectedDelta:
         assert result.rejected[0]["field"] == "inventory_remove"
         assert "That action didn't resolve" not in result.narrative
 
-    async def test_update_nonexistent_quest_creates_it(self) -> None:
-        """quest_updates is create-or-update: unknown quest IDs should be created, not rejected."""
-        state = _make_state()
-        _write_state(_SAVE_DIR, state)
-
-        progress_response = json.dumps({
-            "quest_updates": [{"id": "new-quest", "title": "New Quest", "status": "active", "objectives": []}],
-            "recent_events_add": [],
-            "recent_events_update": [],
-            "recent_events_remove": [],
-            "compendium_npc_update": [],
-        })
-        fake = _FakeLLM(progress_response=progress_response)
-        with fake:
-            result = await _run(_SAVE_DIR, "Start a new quest.", config=EngineConfig())
-
-        assert not any(r.get("field") == "quest_updates" for r in result.rejected)
-        saved = load_state(_SAVE_DIR)
-        quest_ids = {q.get("id") for q in saved.get("quests", [])}
-        assert "new-quest" in quest_ids
-
 
 # ---------------------------------------------------------------------------
 # TestSchemaFailureRetry
@@ -894,11 +799,9 @@ class TestFactCanonization:
         _write_state(_SAVE_DIR, state)
 
         progress_response = json.dumps({
-            "quest_updates": [],
             "recent_events_add": [{"id": "airlock_hums", "text": "The airlock hums with residual charge.", "turn": 0}],
             "recent_events_update": [],
             "recent_events_remove": [],
-            "compendium_npc_update": [],
         })
         fake = _FakeLLM(progress_response=progress_response)
         with fake:
@@ -1392,107 +1295,6 @@ class TestEstablishedFactsCap25:
         assert not any(f["id"] == "f0" for f in facts)
 
 
-class TestQuestStatusSideEffects:
-    def test_completed_marks_all_objectives_done(self) -> None:
-        state = _make_state()
-        state["quests"][0]["objectives"] = [
-            {"description": "A", "done": False},
-            {"description": "B", "done": False, "failed": True},
-        ]
-        delta = StateDelta(
-            quest_updates=[
-                QuestUpdate(id="quiet-signal", status="completed", objectives=[])
-            ],
-        )
-        updated, _ = apply_delta(state, delta)
-        q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
-        assert q["status"] == "completed"
-        for o in q["objectives"]:
-            assert o["done"] is True
-            assert o.get("failed") is False
-
-    def test_failed_marks_open_objectives_failed(self) -> None:
-        state = _make_state()
-        state["quests"][0]["objectives"] = [
-            {"description": "A", "done": True},
-            {"description": "B", "done": False},
-        ]
-        delta = StateDelta(
-            quest_updates=[
-                QuestUpdate(id="quiet-signal", status="failed", objectives=[])
-            ]
-        )
-        updated, _ = apply_delta(state, delta)
-        q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
-        assert q["status"] == "failed"
-        objs = {o["description"]: o for o in q["objectives"]}
-        assert objs["A"]["done"] is True
-        assert objs["B"].get("failed") is True
-
-    def test_abandoned_does_not_auto_fail_objectives(self) -> None:
-        state = _make_state()
-        state["quests"][0]["objectives"] = [
-            {"description": "Find the payer", "done": False}
-        ]
-        delta = StateDelta(
-            quest_updates=[
-                QuestUpdate(id="quiet-signal", status="abandoned", objectives=[])
-            ]
-        )
-        updated, _ = apply_delta(state, delta)
-        q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
-        assert q["status"] == "abandoned"
-        assert q["objectives"][0]["done"] is False
-        assert not q["objectives"][0].get("failed")
-
-    def test_objective_failed_merged_on_update(self) -> None:
-        state = _make_state()
-        delta = StateDelta(
-            quest_updates=[
-                QuestUpdate(
-                    id="quiet-signal",
-                    objectives=[QuestObjectiveUpdate(index=1, failed=True)],
-                ),
-            ],
-        )
-        updated, _ = apply_delta(state, delta)
-        q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
-        assert q["status"] == "active"
-        assert q["objectives"][0].get("failed") is True
-
-    def test_objective_by_index_marks_done(self) -> None:
-        state = _make_state()
-        delta = StateDelta(
-            quest_updates=[
-                QuestUpdate(
-                    id="quiet-signal",
-                    objectives=[QuestObjectiveUpdate(index=1, done=True)],
-                )
-            ],
-        )
-        updated, _ = apply_delta(state, delta)
-        q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
-        assert q["objectives"][0]["done"] is True
-
-    def test_objective_index_out_of_range_falls_back_to_description(self) -> None:
-        state = _make_state()
-        delta = StateDelta(
-            quest_updates=[
-                QuestUpdate(
-                    id="quiet-signal",
-                    objectives=[
-                        QuestObjectiveUpdate(
-                            index=99, description="Find the payer", done=True
-                        )
-                    ],
-                ),
-            ],
-        )
-        updated, _ = apply_delta(state, delta)
-        q = next(x for x in updated["quests"] if x["id"] == "quiet-signal")
-        assert q["objectives"][0]["done"] is True
-
-
 class TestApplyDeltaEstablishedFactsMax:
     def test_custom_max_wired(self) -> None:
         state = _make_state()
@@ -1699,7 +1501,6 @@ class TestInventoryCompendiumTagline:
             },
             "location": {"id": "", "name": "", "description": ""},
             "inventory": [],
-            "quests": [],
             "scene": {
                 "tags": [],
                 "recent_events": [],
@@ -1728,7 +1529,6 @@ class TestInventoryCompendiumTagline:
             "pc": {"name": "A", "concept": "old pitch", "stats": {}, "conditions": []},
             "location": {"id": "", "name": "", "description": ""},
             "inventory": [],
-            "quests": [],
             "scene": {"tags": [], "recent_events": []},
         }
         ls_save(tmp_path, raw)
@@ -1740,11 +1540,9 @@ class TestInventoryCompendiumTagline:
         state = _make_state()
         _write_state(_SAVE_DIR, state)
         progress_response = json.dumps({
-            "quest_updates": [],
             "recent_events_add": [{"id": "a-fact", "text": "A fact.", "turn": 0}],
             "recent_events_update": [],
             "recent_events_remove": [],
-            "compendium_npc_update": [],
         })
         fake = _FakeLLM(narrative="short narrative.", progress_response=progress_response)
         with fake:
@@ -1799,11 +1597,9 @@ class TestEstablishedFactsInEvent:
         _write_state(_SAVE_DIR, state)
 
         progress_response = json.dumps({
-            "quest_updates": [],
             "recent_events_add": [{"id": "fact-matters", "text": "This fact matters.", "turn": 0}],
             "recent_events_update": [],
             "recent_events_remove": [],
-            "compendium_npc_update": [],
         })
         fake = _FakeLLM(progress_response=progress_response)
         with fake:

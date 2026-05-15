@@ -109,36 +109,6 @@ def _rich_state(turn: int = 12) -> dict:
                 "aliases": ["cloak", "travel cloak"],
             },
         ],
-        "quests": [
-            {
-                "id": "deliver_the_ledger",
-                "title": "Deliver Halden's Ledger",
-                "status": "active",
-                "objectives": [
-                    {"description": "Carry the ledger to Halden.", "done": False, "failed": False},
-                    {"description": "Confirm the contract.", "done": False, "failed": False},
-                ],
-            },
-            {
-                "id": "clear_the_road_toughs",
-                "title": "Clear the Road Toughs",
-                "status": "active",
-                "objectives": [
-                    {"description": "Find out who hired them.", "done": True, "failed": False},
-                    {"description": "Convince, pay, or remove them.", "done": False, "failed": False},
-                ],
-            },
-            {
-                "id": "settle_the_debt",
-                "title": "Settle the Old Debt",
-                "status": "active",
-                "objectives": [
-                    {"description": "Earn 1000 credits.", "done": True, "failed": False},
-                    {"description": "Find Caron.", "done": True, "failed": False},
-                    {"description": "Pay Caron in person.", "done": False, "failed": False},
-                ],
-            },
-        ],
         "scene": {
             "tagline": "Stew, ledger, watching eyes",
             "tags": ["dialogue", "mid-game"],
@@ -231,13 +201,11 @@ def _state_response(
 def _progress_response(
     *,
     rec_add: list[dict] | None = None,
-    quest_updates: list[dict] | None = None,
     actions: list[str] | None = None,
     outcome_summary: str = "",
 ) -> str:
     return json.dumps(
         {
-            "quest_updates": quest_updates or [],
             "recent_events_add": rec_add or [],
             "recent_events_update": [],
             "recent_events_remove": [],
@@ -400,7 +368,7 @@ class _ScopedFakeLLM(_FakeLLM):
         rules_response: str = _RULES_SKIP_STATE,
         **kwargs,
     ) -> None:
-        narrative_with_scope = kwargs.get("narrative", "narrative text") + '\n\n<scope>{"active_domains":["scene","quest_updates","recent_events","compendium_npc"]}</scope>'
+        narrative_with_scope = kwargs.get("narrative", "narrative text") + '\n\n<scope>{"active_domains":["scene","thread_signals","recent_events","compendium_npc"]}</scope>'
         kwargs["narrative"] = narrative_with_scope
         super().__init__(**kwargs)
         self._rules_response = rules_response
@@ -541,81 +509,35 @@ async def test_generic_currency_term_does_not_invent_inventory_id(save_dir):
     )
 
 
-def test_progress_prompt_contains_quest_dedup_rule():
-    """Verify the progress extractor system prompt includes the quest
-    deduplication rule added in eval-remediation-2 Phase 07.
+def test_progress_prompt_contains_thread_signals():
+    """Verify the progress extractor system prompt includes thread_signals instructions.
 
-    The dedup rule is a prompt-only instruction — behavioral verification
-    requires a real eval run. This test asserts the rule text is present
-    in the template so it cannot be accidentally removed.
+    Thread signals replace quest_updates as the primary mechanism for tracking
+    narrative progress through the campaign arc.
     """
     prompt_text = (Path(PROMPTS_DIR) / "extract_progress_system.j2").read_text()
-    assert "Quest deduplication" in prompt_text, (
-        "extract_progress_system.j2 must contain the quest deduplication rule"
+    assert "thread_signals" in prompt_text, (
+        "extract_progress_system.j2 must contain thread_signals instructions"
     )
-    assert "deliver_stained_ledger" in prompt_text, (
-        "dedup rule must reference the deliver_stained_ledger example"
+    assert "player_drift_signals" in prompt_text, (
+        "extract_progress_system.j2 must contain player_drift_signals instructions"
     )
-    assert "deliver_the_ledger" in prompt_text, (
-        "dedup rule must reference the deliver_the_ledger example"
+    assert "candidate_opportunity" in prompt_text, (
+        "extract_progress_system.j2 must contain candidate_opportunity instructions"
     )
 
 
 def test_progress_prompt_contains_contact_rule_override():
-    """Verify the progress extractor system prompt includes the contact
-    objective override added in eval-remediation-2 Phase 08.
+    """Verify the progress extractor system prompt includes rules-outcome guidance
+    for thread signals.
 
-    The override makes the contact/meet rule explicit precedence over the
-    general no-dice-roll rule. This test asserts the override text is
-    present in the template so it cannot be accidentally removed.
+    Thread signals use the same rules-outcome guidance pattern that quest_updates
+    used — success/crit_success advances, failure does not.
     """
     prompt_text = (Path(PROMPTS_DIR) / "extract_progress_system.j2").read_text()
-    assert "This rule overrides the general rules-outcome guidance above" in prompt_text, (
-        "extract_progress_system.j2 must contain the contact rule override declaration"
+    assert "Rules-outcome guidance" in prompt_text, (
+        "extract_progress_system.j2 must contain rules-outcome guidance"
     )
-    assert "Exception: see Contact and meet objective rule below" in prompt_text, (
-        "general rules-outcome guidance must reference the contact rule exception"
-    )
-    assert "resolve on narrative presence, not roll outcome" in prompt_text, (
-        "contact rule must state it resolves on narrative presence"
-    )
-
-
-@pytest.mark.asyncio
-async def test_contact_objective_completes_without_dice_roll(save_dir):
-    """When a quest has a contact-type objective (e.g. 'Find Caron') and the
-    narration confirms the NPC is present and communication is established,
-    the progress extractor should mark the objective done even when
-    rules_outcome.rolled is false.
-
-    This is a behavioral test: the _FakeLLM returns a progress response
-    with the objective marked done despite no dice roll, and the engine
-    must apply it to state.
-    """
-    state = _rich_state(turn=1)
-    save_state(save_dir, state)
-
-    fake = _FakeLLM(
-        narrative="You sit across from Caron at the inn. He listens as you explain the debt situation and nods, reaching for his purse.",
-        scene_response=_scene_response(),
-        state_response=_state_response(),
-        progress_response=_progress_response(
-            quest_updates=[
-                {
-                    "id": "settle_the_debt",
-                    "status": "active",
-                    "objectives": [{"index": 3, "done": True}],
-                },
-            ],
-        ),
-    )
-    with fake:
-        await _run(save_dir, "talk to Caron about the debt")
-
-    final = load_state(save_dir)
-    debt_quest = next((q for q in final["quests"] if q["id"] == "settle_the_debt"), None)
-    assert debt_quest is not None, "settle_the_debt quest should exist in final state"
-    objective_3 = debt_quest["objectives"][2]
-    assert objective_3["done"] is True, (
-        f"contact objective 'Pay Caron in person' should be done after confirmed conversation, got: {objective_3}"
+    assert "advanced" in prompt_text, (
+        "thread signals guidance must reference 'advanced' signal"
     )

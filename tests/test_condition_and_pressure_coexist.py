@@ -14,7 +14,6 @@ def _make_state(conditions=None, scene_pressure=None):
         },
         "location": {"id": "ring-7", "name": "Ring 7", "description": "Low-grav berth."},
         "inventory": [],
-        "quests": [],
         "scene": {
             "tags": [], "present_npcs": [], "recent_events": [], "tagline": "",
             "scene_pressure": scene_pressure or [],

@@ -18,7 +18,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field, model_validator
 
-from ccya.models import InventoryItem
+from ccya.models import CampaignArc, InventoryItem
 
 
 class SeedPC(BaseModel):
@@ -28,6 +28,8 @@ class SeedPC(BaseModel):
     stats: dict[str, int] = Field(default_factory=dict)
     conditions: list[str] = Field(default_factory=list)
     momentum: int = 0
+    drive: str = ""
+    expressed_stances: dict[str, int] = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod
@@ -42,19 +44,6 @@ class SeedLocation(BaseModel):
     id: str
     name: str
     description: str = ""
-
-
-class SeedQuestObjective(BaseModel):
-    description: str
-    done: bool = False
-    failed: bool = False
-
-
-class SeedQuest(BaseModel):
-    id: str
-    title: str
-    status: str = "active"
-    objectives: list[SeedQuestObjective] = Field(default_factory=list)
 
 
 class CompendiumEntry(BaseModel):
@@ -88,9 +77,9 @@ class SeedState(BaseModel):
     pc: SeedPC
     location: SeedLocation
     inventory: list[InventoryItem] = Field(min_length=1, max_length=12)
-    quests: list[SeedQuest] = Field(min_length=1)
     scene: SeedScene
     compendium: SeedCompendium = Field(default_factory=SeedCompendium)
+    arc: CampaignArc | None = None
 
 
 class SeedEnvelope(BaseModel):
@@ -103,6 +92,8 @@ class SeedEnvelope(BaseModel):
     seed_state: SeedState
     opening_narrative: str = Field(min_length=50)
     actions: list[str] = Field(min_length=4, max_length=4)
+    arc: CampaignArc | None = None
+    pc_drive: str = ""
 
 
 class Faction(BaseModel):
@@ -121,8 +112,6 @@ class NamedLocation(BaseModel):
 
 class Constraints(BaseModel):
     min_named_npcs: int = 2
-    min_objectives_per_quest: int = 2
-    starting_quest_count: int = 1
     inventory_size_range: tuple[int, int] = (4, 8)
     pc_stat_range: tuple[int, int] = (1, 4)
     pc_stat_total_range: tuple[int, int] = (12, 18)
@@ -137,9 +126,8 @@ class Constraints(BaseModel):
 class Inspiration(BaseModel):
     pc: str = ""
     opening_situation: str = ""
-    npcs: str = ""
     inventory: str = ""
-    quests: str = ""
+    npcs: str = ""
 
 
 class ScenarioBrief(BaseModel):
@@ -202,9 +190,10 @@ class PlayerOverrides(BaseModel):
     pc_hints: str = ""
     npc_hints: str = ""
     location_hints: str = ""
-    quest_hints: str = ""
     free_form: str = ""
     npc_count: int = 0  # 0 = use pack default (scenario.constraints.min_named_npcs)
+    arc_hints: str = ""
+    drive_hint: str = ""
 
     def is_empty(self) -> bool:
         return not any(
@@ -212,9 +201,10 @@ class PlayerOverrides(BaseModel):
                 self.pc_hints,
                 self.npc_hints,
                 self.location_hints,
-                self.quest_hints,
                 self.free_form,
                 self.npc_count,
+                self.arc_hints,
+                self.drive_hint,
             ]
         )
 

@@ -217,7 +217,6 @@ class TestCompactorSanitizationResult:
         result = CompactorSanitizationResult.model_validate({})
         assert result.npc_merge == []
         assert result.inventory_remove == []
-        assert result.quest_close == []
         assert result.pressure_remove == []
         assert result.condition_remove == []
         assert result.recent_events_compact == []
@@ -226,7 +225,6 @@ class TestCompactorSanitizationResult:
         result = CompactorSanitizationResult.model_validate({
             "npc_merge": [{"keep_id": "a", "remove_ids": ["b"]}],
             "inventory_remove": [{"id": "item1", "confidence": "high"}],
-            "quest_close": [{"id": "q1", "confidence": "high"}],
             "pressure_remove": [{"id": "p1", "confidence": "medium"}],
             "condition_remove": [{"id": "c1", "confidence": "high"}],
             "recent_events_compact": [{"id": "e1", "text": "Event one", "turn": 1}],
@@ -237,8 +235,6 @@ class TestCompactorSanitizationResult:
         assert len(result.inventory_remove) == 1
         assert result.inventory_remove[0].id == "item1"
         assert result.inventory_remove[0].confidence == "high"
-        assert len(result.quest_close) == 1
-        assert result.quest_close[0].id == "q1"
         assert len(result.pressure_remove) == 1
         assert result.pressure_remove[0].id == "p1"
         assert result.pressure_remove[0].confidence == "medium"
@@ -354,7 +350,6 @@ class TestMaybeCompactBandMath:
             "meta": {"turn": turn, "last_compacted_turn": last_compacted_turn, "prior_history": []},
             "scene": {"tags": [], "recent_events": [], "scene_pressure": [], "present_npcs": []},
             "inventory": [],
-            "quests": [],
             "compendium": {"npcs": {}},
             "pc": {"conditions": []},
         }
@@ -585,10 +580,6 @@ class TestApplySanitization:
                 {"id": "inv_1", "name": "Sword", "notes": "Sharp", "amount": 1},
                 {"id": "inv_2", "name": "Shield", "notes": "Sturdy", "amount": 1},
             ],
-            "quests": [
-                {"id": "q_1", "title": "Find the artifact", "status": "active", "objectives": [{"description": "Locate", "done": False}]},
-                {"id": "q_2", "title": "Defeat the dragon", "status": "active", "objectives": [{"description": "Kill", "done": True}]},
-            ],
             "pc": {
                 "conditions": [
                     {"id": "cond_1", "label": "Wounded", "description": "Hurts", "added_turn": 1},
@@ -628,16 +619,6 @@ class TestApplySanitization:
         inv_ids = {it.get("id") for it in state["inventory"]}
         assert "inv_1" not in inv_ids
         assert "inv_2" in inv_ids
-
-    def test_closes_only_active_quests(self):
-        state = self._make_state_with_data()
-        san = CompactorSanitizationResult.model_validate({
-            "quest_close": [{"id": "q_1", "confidence": "high"}, {"id": "q_2", "confidence": "high"}],
-        })
-        _apply_sanitization(state, san)
-        quest_status = {q["id"]: q["status"] for q in state["quests"]}
-        assert quest_status["q_1"] == "completed"
-        assert quest_status["q_2"] == "completed"
 
     def test_skips_unknown_pressure_id(self):
         state = self._make_state_with_data()
@@ -757,20 +738,18 @@ class TestUserPromptRendersIds:
         env = Environment(loader=FileSystemLoader(str(Path(__file__).parent.parent / "ccya" / "prompts")))
         user_prompt = env.get_template("compact_user.j2").render(
             turns=[{"turn": 1, "input": "Attack", "narrative": "You swing your sword."}],
-            active_quests=[{"id": "q_1", "title": "Find artifact", "objectives": [{"description": "Locate", "done": False}]}],
+            arc={"visible_goal": "Find the artifact", "phase": "setup", "active_threads": [{"summary": "Locate the artifact", "urgency": "normal"}]},
             npc_names=["Alice", "Bob"],
             pressures=[{"id": "press_1", "text": "Chase", "urgency": "immediate"}],
             inventory=[{"id": "inv_1", "name": "Sword", "amount": 1, "notes": "Sharp"}],
             compendium_npcs=[("npc_a", {"name": "Alice", "title": "Wizard", "aliases": []})],
-            all_quests=[{"id": "q_1", "title": "Find artifact", "status": "active"}],
             conditions=[{"id": "cond_1", "label": "Wounded", "description": "Hurts"}],
             recent_events=[{"id": "e1", "text": "Event one", "turn": 1}],
         )
 
         assert "TURN 1" in user_prompt or "Turn 1" in user_prompt
         assert "Attack" in user_prompt
-        assert "q_1" in user_prompt
-        assert "Find artifact" in user_prompt
+        assert "Find the artifact" in user_prompt
         assert "Alice" in user_prompt
         assert "press_1" in user_prompt
         assert "Chase" in user_prompt
@@ -789,10 +768,11 @@ class TestUserPromptRendersIds:
                 "recent_events": [{"id": "e1", "text": "Event one", "turn": 1}],
             },
             "inventory": [{"id": "inv_1", "name": "Sword", "amount": 1, "notes": "Sharp"}],
-            "quests": [
-                {"id": "q_1", "title": "Find artifact", "status": "active", "objectives": [{"description": "Locate", "done": False}]},
-                {"id": "q_2", "title": "Defeat dragon", "status": "completed", "objectives": []},
-            ],
+            "arc": {
+                "visible_goal": "Find the artifact",
+                "phase": "setup",
+                "active_threads": [{"id": "t_1", "summary": "Locate the artifact", "urgency": "normal"}],
+            },
             "compendium": {"npcs": {
                 "npc_a": {"name": "Alice", "title": "Wizard", "aliases": []},
                 "npc_b": {"name": "Bob", "title": "Thief", "aliases": []},
@@ -815,8 +795,7 @@ class TestUserPromptRendersIds:
         assert "inv_1" in user_content
         assert "npc_a" in user_content
         assert "npc_b" in user_content
-        assert "q_1" in user_content
-        assert "q_2" in user_content
+        assert "Find the artifact" in user_content
         assert "press_1" in user_content
         assert "cond_1" in user_content
         assert "e1" in user_content
@@ -848,12 +827,6 @@ class TestSanitizationNonempty:
         })
         assert _sanitization_nonempty(result) is True
 
-    def test_quest_close_returns_true(self):
-        result = CompactorSanitizationResult.model_validate({
-            "quest_close": [{"id": "q1", "confidence": "high"}],
-        })
-        assert _sanitization_nonempty(result) is True
-
     def test_pressure_remove_returns_true(self):
         result = CompactorSanitizationResult.model_validate({
             "pressure_remove": [{"id": "p1", "confidence": "medium"}],
@@ -881,13 +854,11 @@ class TestSanitizationLogging:
             "compendium": {"npcs": {"npc_a": {"name": "Alice", "aliases": []}}},
             "scene": {"present_npcs": [], "scene_pressure": []},
             "inventory": [{"id": "inv_1", "name": "Sword", "amount": 1}],
-            "quests": [{"id": "q_1", "title": "Quest", "status": "active", "objectives": []}],
             "pc": {"conditions": [{"id": "cond_1", "label": "Wounded", "description": ""}]},
         }
         san = CompactorSanitizationResult.model_validate({
             "npc_merge": [{"keep_id": "npc_a", "remove_ids": []}],
             "inventory_remove": [{"id": "inv_1", "confidence": "high"}],
-            "quest_close": [{"id": "q_1", "confidence": "high"}],
             "pressure_remove": [],
             "condition_remove": [{"id": "cond_1", "confidence": "high"}],
         })
@@ -895,7 +866,6 @@ class TestSanitizationLogging:
             _apply_sanitization(state, san)
         assert any("compactor sanitization applied" in r.getMessage() for r in caplog.records)
         applied_log = [r for r in caplog.records if "compactor sanitization applied" in r.getMessage()][0]
-        assert applied_log.quests_closed == 1
         assert applied_log.inventory_removed == 1
         assert applied_log.npcs_merged == 1
         assert applied_log.pressures_removed == 0
@@ -919,7 +889,6 @@ class TestCompactionEventEmission:
             "meta": {"turn": turn, "last_compacted_turn": last_compacted_turn, "prior_history": []},
             "scene": {"tags": [], "recent_events": [], "scene_pressure": [], "present_npcs": []},
             "inventory": [],
-            "quests": [],
             "compendium": {"npcs": {}},
             "pc": {"conditions": []},
         }

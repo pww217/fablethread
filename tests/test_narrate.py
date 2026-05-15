@@ -41,7 +41,6 @@ def _make_state():
             "description": "Low-grav berth.",
         },
         "inventory": [],
-        "quests": [],
         "scene": {"tags": [], "recent_events": [], "tagline": ""},
         "compendium": {"npcs": {}},
     }

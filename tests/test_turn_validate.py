@@ -19,7 +19,6 @@ def _zero_balance_state() -> dict:
             {"id": "credits", "name": "Credits", "amount": 0},
             {"id": "9mm_rounds", "name": "9mm rounds", "amount": 12},
         ],
-        "quests": [],
         "scene": {"tags": [], "present_npcs": [], "recent_events": [], "tagline": ""},
         "compendium": {"npcs": {}},
     }
@@ -56,7 +55,6 @@ class TestZeroBalanceRemove:
             "inventory": [
                 {"id": "credits", "name": "Credits", "amount": 0, "aliases": ["cred", "cash"]},
             ],
-            "quests": [],
             "scene": {"tags": [], "present_npcs": [], "recent_events": [], "tagline": ""},
             "compendium": {"npcs": {}},
         }

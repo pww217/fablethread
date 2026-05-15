@@ -160,7 +160,6 @@ class TestJinjaRender:
                 "pc": {"name": "Test", "tagline": "tester", "concept": ""},
                 "location": {},
                 "inventory": [],
-                "quests": [],
                 "scene": {"present_npcs": []},
                 "meta": {},
             },

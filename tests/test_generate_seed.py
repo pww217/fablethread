@@ -41,8 +41,6 @@ def _minimal_dynamic_pack(
     """Return a minimal in-memory dynamic Pack object without touching disk."""
     constraints = Constraints(
         min_named_npcs=min_named_npcs,
-        starting_quest_count=1,
-        min_objectives_per_quest=2,
         inventory_size_range=(4, 8),
         prose_word_range=(50, 1000),
         forbid_cliches=forbid_cliches or [],
@@ -52,7 +50,6 @@ def _minimal_dynamic_pack(
         opening_situation="A situation.",
         npcs="Some people.",
         inventory="Some items.",
-        quests="A task.",
     )
     return Pack(
         manifest=PackManifest(
@@ -103,17 +100,6 @@ def _valid_envelope_json(
                 },
                 {"id": "map", "name": "Map", "notes": "Marked.", "amount": 1},
                 {"id": "backpack", "name": "Backpack", "notes": "Heavy.", "amount": 1},
-            ],
-            "quests": [
-                {
-                    "id": "q1",
-                    "title": "Find safety",
-                    "status": "active",
-                    "objectives": [
-                        {"description": "Locate the shelter.", "done": False},
-                        {"description": "Reach it before nightfall.", "done": False},
-                    ],
-                }
             ],
             "scene": {
                 "tagline": "Ruins at dusk",
@@ -439,12 +425,10 @@ async def test_generate_seed_sources_world_facts_from_scenario():
     """World facts from scenario.world_facts should take precedence over baseline_facts/world.md."""
     constraints = Constraints(
         min_named_npcs=2,
-        starting_quest_count=1,
-        min_objectives_per_quest=2,
         inventory_size_range=(4, 8),
         prose_word_range=(50, 1000),
     )
-    inspiration = Inspiration(pc="A person.", opening_situation="A situation.", npcs="People.", inventory="Items.", quests="A task.")
+    inspiration = Inspiration(pc="A person.", opening_situation="A situation.", npcs="Some people.", inventory="Some items.")
     pack = Pack(
         manifest=PackManifest(id="test-scenario-facts", name="Test Scenario Facts"),
         world_text="Old world fact.",
@@ -503,12 +487,10 @@ async def test_generate_seed_scenario_world_facts_in_user_prompt():
     """scenario.world_facts should appear in the rendered user prompt."""
     constraints = Constraints(
         min_named_npcs=2,
-        starting_quest_count=1,
-        min_objectives_per_quest=2,
         inventory_size_range=(4, 8),
         prose_word_range=(50, 1000),
     )
-    inspiration = Inspiration(pc="A person.", opening_situation="A situation.", npcs="People.", inventory="Items.", quests="A task.")
+    inspiration = Inspiration(pc="A person.", opening_situation="A situation.", npcs="Some people.", inventory="Some items.")
     pack = Pack(
         manifest=PackManifest(id="test-prompt-facts", name="Test Prompt Facts"),
         scenario=ScenarioBrief(
@@ -549,7 +531,6 @@ def test_validate_seed_envelope_rejects_single_token_name():
             pc=SeedPC(name="Kovak", tagline="tough", bio="history", stats={"strength": 2, "dexterity": 2, "wits": 2, "lore": 2, "charisma": 2, "resolve": 2}),
             location=SeedLocation(id="loc", name="Location", description="desc"),
             inventory=[{"id": "knife", "name": "Knife", "amount": 1}],
-            quests=[{"id": "q1", "title": "Quest", "objectives": [{"description": "Do it", "done": False}]}],
             scene=SeedScene(tagline="tag", tags=[], recent_events=[]),
         ),
         opening_narrative="You stand in a ruined building. The wind howls through broken windows. Dust coats your throat. You check your pockets for anything useful. A faded photograph catches the light. Somewhere in the distance, a dog barks.",
@@ -569,7 +550,6 @@ def test_validate_seed_envelope_accepts_full_name():
             pc=SeedPC(name="Kovak Strand", tagline="tough", bio="history", stats={"strength": 2, "dexterity": 2, "wits": 2, "lore": 2, "charisma": 2, "resolve": 2}),
             location=SeedLocation(id="loc", name="Location", description="desc"),
             inventory=[{"id": "knife", "name": "Knife", "amount": 1}],
-            quests=[{"id": "q1", "title": "Quest", "objectives": [{"description": "Do it", "done": False}]}],
             scene=SeedScene(tagline="tag", tags=[], recent_events=[]),
         ),
         opening_narrative="You stand in a ruined building. The wind howls through broken windows. Dust coats your throat. You check your pockets for anything useful. A faded photograph catches the light. Somewhere in the distance, a dog barks.",

@@ -282,29 +282,12 @@ def _check_asserts(
 
         elif a.stream == "extract.progress":
             applied = event.get("applied") or {}
-            if a.field == "quest_updates":
-                updates = applied.get("quest_updates") or []
-                found = None
-                for u in updates:
-                    if isinstance(u, dict) and u.get("id") == a.expected:
-                        found = u
-                        break
-                passed = found is not None
-                detail = f"quest_updates[{a.expected}] {'found' if found else 'not found'}"
-            elif a.field == "quest_status":
-                updates = applied.get("quest_updates") or []
-                found = None
-                for u in updates:
-                    if isinstance(u, dict) and u.get("id") == a.stream_id:
-                        found = u
-                        break
-                if found:
-                    status = found.get("status", "")
-                    passed = status == a.expected
-                    detail = f"quest[{a.stream_id}].status={status!r} (expected {a.expected!r})"
-                else:
-                    passed = False
-                    detail = f"quest[{a.stream_id}] not found in quest_updates"
+            if a.field == "thread_signals":
+                output = ((event.get("extraction") or {}).get("progress") or {}).get("output") or {}
+                signals = output.get("thread_signals") or []
+                ids = [s.get("id") for s in signals if isinstance(s, dict)]
+                passed = a.expected in ids
+                detail = f"thread_signals[{a.expected}] {'found' if passed else 'not found'}"
             elif a.field == "scene_pressure_add":
                 adds = applied.get("scene_pressure_add") or []
                 ids = [p.get("id") for p in adds if isinstance(p, dict)]
@@ -446,7 +429,7 @@ async def run_scenario(
         shutil.rmtree(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    seed = pack.seed.model_dump()
+    seed = pack.seed.model_dump(mode="json")
     init_save_dir(save_dir, seed)
     _patch_eval_pack_starting_state(save_dir, pack.manifest.id, scenario.seed_overrides)
 

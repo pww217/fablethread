@@ -30,8 +30,6 @@
 {{ ins.npcs }}
 {% endif %}{% if ins.inventory %}### inventory
 {{ ins.inventory }}
-{% endif %}{% if ins.quests %}### quest
-{{ ins.quests }}
 {% endif %}{% endif %}
 {% endif %}
 {% if overrides %}
@@ -39,7 +37,8 @@
 {% if overrides.pc_hints %}- pc: {{ overrides.pc_hints }}
 {% endif %}{% if overrides.npc_hints %}- npcs: {{ overrides.npc_hints }}
 {% endif %}{% if overrides.location_hints %}- location: {{ overrides.location_hints }}
-{% endif %}{% if overrides.quest_hints %}- quest: {{ overrides.quest_hints }}
+{% endif %}{% if overrides.arc_hints %}- arc: {{ overrides.arc_hints }}
+{% endif %}{% if overrides.drive_hint %}- pc_drive: {{ overrides.drive_hint }}
 {% endif %}{% if overrides.free_form %}- other: {{ overrides.free_form }}
 {% endif %}{% endif %}
 {% if name_pool %}

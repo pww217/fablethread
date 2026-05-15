@@ -562,7 +562,6 @@ class TestCompactionRowParsing:
                 "sanitization": {
                     "npc_merge": [{"keep_id": "a", "remove_ids": ["b"]}],
                     "inventory_remove": [],
-                    "quest_close": [],
                     "pressure_remove": [],
                     "condition_remove": [],
                     "recent_events_compact_count": 1,

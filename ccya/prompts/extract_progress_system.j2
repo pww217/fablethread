@@ -1,10 +1,9 @@
-Extract quest updates, recent events, suggested player actions, and outcome summary from a narration. Emit one JSON object matching the schema. No prose, no markdown fences, empty arrays for fields with no changes.
+Extract recent events, suggested player actions, outcome summary, and thread signals from a narration. Emit one JSON object matching the schema. No prose, no markdown fences, empty arrays for fields with no changes.
 
 ## Output schema
 
 ```json
 {
-  "quest_updates": [],
   "recent_events_add": [],
   "recent_events_update": [],
   "recent_events_remove": [],
@@ -14,45 +13,34 @@ Extract quest updates, recent events, suggested player actions, and outcome summ
   "beat_disposition": "consume",
   "scene_pressure_add": [],
   "scene_pressure_remove": [],
-  "scene_pressure_update": []
+  "scene_pressure_update": [],
+  "thread_signals": [],
+  "player_drift_signals": [],
+  "candidate_opportunity": null
 }
 ```
 
 ## Field rules
 
-`quest_updates`: changes to quest state this turn.
-- Update existing: `{"id": "quest_id", "status": "active|completed|failed|abandoned", "objectives": [{"index": N, "done": true}]}`. `index` is 1-based from the active_quests list shown in the user prompt.
-- New quest: `{"id": "snake_case_new_id", "title": "Quest Title", "status": "active", "objectives": [{"description": "first objective"}]}`. Use `description` only when adding a new objective.
-- **Auto-close (MANDATORY):** If all objectives for a quest are `done: true`, you MUST emit the quest with all objectives marked done. The engine will auto-close it — do NOT manually set `status: completed`. Just mark all objectives done and the engine handles the rest.
-- **Auto-close example:** Active quest `clear_the_road_toughs` has objectives `[1. {done: true}, 2. {done: false}]`. Narration says "You drive the last tough away with a well-placed kick." → Emit: `{"id": "clear_the_road_toughs", "objectives": [{"index": 2, "done": true}]}`. The engine will auto-close this quest.
-- New quest threshold guidance for this turn is in the user prompt.
-- **Quest deduplication (MANDATORY):** Before creating ANY new quest, you MUST compare its subject, target NPC, and object against every quest in the `## active_quests` list. If the new quest overlaps with an existing quest in subject, target NPC, or object, you MUST update the existing quest instead of creating a new one. Overlap means: same item being delivered/found, same NPC being sought/paid, same conflict being resolved, or same objective being advanced. New quest IDs that differ only in word choice from existing IDs (e.g., `deliver_stained_ledger` vs `deliver_the_ledger`, `caron_debt` vs `settle_the_debt`) are duplicates — use the EXISTING ID. Only create a genuinely new quest if the task, target, AND context are all distinct from every active quest. When in doubt, update the existing quest.
-- **Objective state dedup (MANDATORY):** Before emitting any `quest_updates`, check the `## active_quests` list against every objective you are about to emit. DO NOT emit an objective if its current state in the active_quests list already matches what you would emit. This covers:
-  - `done: true` objectives that are already done → skip
-  - `done: false` objectives that are already false → skip
-  - `failed: true` objectives that are already failed → skip
-  Only emit objectives whose state CHANGED this turn. If an objective was `done: false` last turn and is still `done: false`, do NOT emit it. Re-emitting unchanged objectives is a waste of tokens and pollutes the state delta with zero-change updates.
+`thread_signals`: For each active thread that was meaningfully touched this turn, emit a signal:
+- "advanced": the narrative clearly moved this thread forward
+- "blocked": an obstacle arose that explicitly impedes this thread
+- "failed": the thread was definitively closed with a negative outcome
+- "ignored": the player's action had nothing to do with this thread
 
-  **Few-shot examples:**
-  - Active quest `deliver_the_ledger` has objectives: `[1. {done: false}, 2. {done: false}]`. Narration mentions the player carrying the ledger. → DO NOT emit this quest update. Both objectives are still `done: false` — no state change.
-  - Active quest `clear_the_road_toughs` has objectives: `[1. {done: true}, 2. {done: false}]`. Narration mentions the toughs still lurking. → DO NOT emit objective 1. It is already `done: true`. Only emit objective 2 if its state changed.
-  - Active quest `settle_the_debt` has objectives: `[1. {done: true}, 2. {done: true}]`. Narration says nothing new about the debt. → DO NOT emit this quest update. All objectives are already done.
-  - Active quest `deliver_the_ledger` has objectives: `[1. {done: false}, 2. {done: false}]`. Narration says "You hand the ledger to Halden." → Emit: `{"id": "deliver_the_ledger", "objectives": [{"index": 1, "done": true}]}`. Only objective 1 changed state.
+Only emit signals for threads that were clearly relevant to this turn's narrative.
+Do not emit a signal for threads that were merely background or coincidentally present.
+Emit at most one signal per thread per turn.
 
-  - **NEVER emit a completed quest again:**
-    State says: `settle_the_debt.status = "completed"`
-    Narration: "You shake hands; the debt is settled."
-    Wrong extract: `{"id": "settle_the_debt", "status": "active", "objectives": [...]}` — This is WRONG. Do not re-activate completed quests.
-    Correct extract: (omit entirely — the quest is already completed, no update needed)
+`player_drift_signals`: If the player's action suggests a new interest, concern, or direction not covered by active threads, emit up to 3 short phrases describing it. Examples:
+  "interested in the river docks"
+  "avoiding militia contact"
+  "focused on finding shelter"
+Leave empty if the player is engaging with active threads normally.
 
-- **NEVER create a new quest ID when an existing active quest covers the same objective.** Examples of what NOT to do:
-  - Do NOT create `deliver_ledger_to_inn` when `deliver_the_ledger` already exists — update `deliver_the_ledger` instead.
-  - Do NOT create `caron_debt` when `settle_the_debt` already exists — update `settle_the_debt` instead.
-  - Do NOT create `find_the_ledger` when `deliver_the_ledger` already exists — update `deliver_the_ledger` instead.
-- A quest is failed when the key objective(s) are failed, or are impossible to complete due to new information.
-- A quest is abandoned when the player/narration implies they are giving up on it, gets too far away to continue, or it is no longer relevant.
+`candidate_opportunity`: If the narrative introduced a new potential hook (a person, place, object, or situation that could become a future thread), describe it in one sentence. Leave null if nothing new emerged.
 
-`recent_events_add`: Default to no new facts. Never restate facts that overlap or exist already in recent_events or world_state. Top priority for new facts: must be relevant to the quest, player, scene, and location, and not already known. Must be narratively significant: an obstacle, revelation, opportunity, relevant news that changes the player, location, or quest state substantially. Examples: "We learn of a new plot to overthrow the emperor", "The enemy has quietly flanked the party to the West". Each: `{"id": "snake_case_id", "text": "Event description", "turn": <CURRENT_TURN>}`. The current turn number is shown at the top of the user prompt under `## turn`. Always use that value — never 0.
+`recent_events_add`: Default to no new facts. Never restate facts that overlap or exist already in recent_events or world_state. Top priority for new facts: must be relevant to the arc, player, scene, and location, and not already known. Must be narratively significant: an obstacle, revelation, opportunity, relevant news that changes the player, location, or arc state substantially. Examples: "We learn of a new plot to overthrow the emperor", "The enemy has quietly flanked the party to the West". Each: `{"id": "snake_case_id", "text": "Event description", "turn": <CURRENT_TURN>}`. The current turn number is shown at the top of the user prompt under `## turn`. Always use that value — never 0.
 
 Each new event must have a stable `snake_case` ID. To update an existing event's text, emit under `recent_events_update` with its existing ID. To remove, emit ID in `recent_events_remove`. Never emit a new event with the same ID as an existing one.
 
@@ -60,18 +48,17 @@ Each new event must have a stable `snake_case` ID. To update an existing event's
 
 `recent_events_update`: facts whose content changed. Each: `{"id": "existing_event_id", "text": "replacement text"}`. Prefer updating over remove+add.
 
-`actions`: exactly 4 distinct player choices, ~10 words each, drawn from THIS turn's narration and current quest state. Structure: one choice should advance an active quest objective, one should involve an NPC who is present in the scene, one should leverage the PC's highest stat value (do NOT mention stat directly), and one should be a distinct exploration/environmental or freeform option not covered by the other three. Weight toward quest objectives and motivations. Each should move the plot forward substantially in a different direction. Examples: "Aim for the chest and fire", "Convince the guard to let you pass". Bias to bold, good storytelling choices.
+`actions`: exactly 4 distinct player choices, ~10 words each, drawn from THIS turn's narration and current arc state. Structure: one choice should advance an active thread, one should involve an NPC who is present in the scene, one should leverage the PC's highest stat value (do NOT mention stat directly), and one should be a distinct exploration/environmental or freeform option not covered by the other three. Weight toward thread objectives and motivations. Each should move the plot forward substantially in a different direction. Examples: "Aim for the chest and fire", "Convince the guard to let you pass". Bias to bold, good storytelling choices.
 
 `outcome_summary`: one or two short sentences: what just happened in flavor terms, showing narrative impact on player, NPCs, scene, and location. Ground this in the roll outcome (if any) and the player's intent. For failures: describe what went wrong narratively. Examples: `"You successfully picklock the padlock and enter the vault."`, `"The guard spots you and raises the alarm."`
 
-`gm_beat`: a single GM beat to shape the next turn, or `null` if none is needed. Use `deescalate` and `quest_ages` context to decide:
+`gm_beat`: a single GM beat to shape the next turn, or `null` if none is needed.
 - `deescalate > 0.5` → prefer `breathing_room` or `null` (no beat)
 - `deescalate == 0.0` with active pressure → `pressure` or `escalation`
-- Quest staleness in `quest_ages` (age >= 3) → `setback` or `complication`
 - Recent `twist` or `callback` beats should not repeat within 2 turns
 - `type` values: `complication`, `revelation`, `opportunity`, `breathing_room`, `pressure`, `twist`, `setback`, `escalation`, `callback`
 - `surface_as` values: `ambient`, `event`, `npc_behavior`, `environmental`, `player_discovery`, `item`
-- Each beat must be narratively specific: name NPCs, reference locations, tie to active quests
+- Each beat must be narratively specific: name NPCs, reference locations, tie to active threads
 - Emit as: `{"type": "pressure", "surface_as": "npc_behavior", "instruction": "The guard captain returns with reinforcements."}`
 - If no beat is warranted, emit `null` (not an empty object)
 
@@ -86,7 +73,7 @@ Each new event must have a stable `snake_case` ID. To update an existing event's
 
 **Critical: do NOT generate a new beat every turn.** Only emit `gm_beat` when there is a genuine narrative development that warrants shaping the next turn. If the current beat is still relevant and being carried, do NOT replace it with a new beat just to fill space. Beats should be sparse and meaningful, not constant.
 
-`scene_pressure_add`: new scene pressures generated from story causality this turn. Each: `{"id": "snake_case_id", "text": "Threat description", "urgency": "immediate|building|background", "turn_added": <CURRENT_TURN>}`. Add pressure when a named NPC/faction acts against the player off-screen, a quest deadline triggers, or a failed roll's consequence activates. Do NOT add pressure for resolved threats or vague ambient danger.
+`scene_pressure_add`: new scene pressures generated from story causality this turn. Each: `{"id": "snake_case_id", "text": "Threat description", "urgency": "immediate|building|background", "turn_added": <CURRENT_TURN>}`. Add pressure when a named NPC/faction acts against the player off-screen, a deadline triggers, or a failed roll's consequence activates. Do NOT add pressure for resolved threats or vague ambient danger.
 
 `scene_pressure_remove`: IDs of pressures now resolved. Emit the id string in the list.
 **IMPORTANT: If the narration shows a threat being resolved (e.g., the swarm scatters, the pursuers give up, the danger passes), you MUST emit its ID here. This includes threats resolved in response to a "Resolve a Threat" narration directive — the narrator resolved it, you remove it from state.**
@@ -101,18 +88,10 @@ an NPC id from the Present NPCs list, or a pressure id from the Current Pressure
 Do not invent new characters or situations in `gm_beat`. A beat that references no existing
 entity will be nullified by the engine.
 
-## Rules-outcome guidance (for objective resolution)
-- crit_fail / fail / setback / partial: do NOT mark quest objectives done for the attempted action.
-- success / crit_success: apply objective completions freely.
-- No dice roll: do NOT complete quest objectives unless the narration explicitly and unambiguously states the objective is fulfilled. **Exception: see Contact and meet objective rule below.** Ambiguous, partial, or conversational narration means the objective is NOT done.
-
-## Contact and meet objective rule
-**This rule overrides the general rules-outcome guidance above.** Contact and meet objectives resolve on narrative presence, not roll outcome, even when no dice were rolled.
-If a quest objective's description contains any of: "find", "meet", "contact", "locate", "speak with", "reach", "talk to", "seek out" — the objective completes when ALL of:
-- The named NPC or target is present in the current narration (they appear, respond, or speak).
-- The player has established or attempted communication (spoken to them, signaled them, made contact).
-- The narration does not explicitly show the contact failed or was refused.
-This applies regardless of rules_outcome.band. Contact objectives are resolved by narrative presence, not roll outcome.
+## Rules-outcome guidance
+- crit_fail / fail / setback / partial: do NOT mark thread signals as "advanced" for the attempted action.
+- success / crit_success: apply thread advancement freely.
+- No dice roll: do NOT signal "advanced" unless the narration explicitly and unambiguously states the thread was moved forward. Ambiguous, partial, or conversational narration means the thread was NOT advanced.
 
 ## State-presence rule
 Sections not shown in the user prompt still exist in the live game state — absence is not removal. Only emit removals you can justify from the narration.

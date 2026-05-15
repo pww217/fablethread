@@ -55,7 +55,6 @@ def _make_state(turn: int = 0) -> dict:
             {"id": "hand-terminal", "name": "Hand terminal", "notes": "Cracked screen."},
             {"id": "vac-jacket", "name": "Vac jacket", "notes": "Thermal-lined."},
         ],
-        "quests": [],
         "scene": {"tags": [], "recent_events": [], "tagline": ""},
         "compendium": {"npcs": {}},
     }
@@ -74,7 +73,6 @@ class TestBeatExpiry:
 
         narrative = "You step through the airlock."
         progress_response = json.dumps({
-            "quest_updates": [],
             "recent_events_add": [],
             "recent_events_update": [],
             "recent_events_remove": [],
@@ -147,7 +145,6 @@ class TestDeescalateFloatMagnitude:
 
         narrative = "You fight the guards."
         progress_response = json.dumps({
-            "quest_updates": [],
             "recent_events_add": [],
             "recent_events_update": [],
             "recent_events_remove": [],
@@ -230,7 +227,6 @@ class TestConditionExpiry:
 
         narrative = "You steady your breathing."
         progress_response = json.dumps({
-            "quest_updates": [],
             "recent_events_add": [],
             "recent_events_update": [],
             "recent_events_remove": [],
@@ -319,7 +315,6 @@ class TestConditionExpiry:
 
         narrative = "You fight through the pain."
         progress_response = json.dumps({
-            "quest_updates": [],
             "recent_events_add": [],
             "recent_events_update": [],
             "recent_events_remove": [],
@@ -432,7 +427,6 @@ class TestBeatDisposition:
 
     def _make_progress_response(self, gm_beat=None, beat_disposition="consume"):
         base = {
-            "quest_updates": [],
             "recent_events_add": [],
             "recent_events_update": [],
             "recent_events_remove": [],

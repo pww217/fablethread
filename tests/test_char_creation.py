@@ -165,14 +165,6 @@ class TestNewGameStaticOverrides:
                 "description": "A test place.",
             },
             "inventory": [{"id": "item1", "name": "Item One", "notes": ""}],
-            "quests": [
-                {
-                    "id": "q1",
-                    "title": "Quest One",
-                    "status": "active",
-                    "objectives": [{"description": "Do it", "done": False}],
-                }
-            ],
             "scene": {
                 "tags": [],
                 
@@ -349,14 +341,6 @@ class TestNewGameDynamicOverrides:
                 "description": "Generated.",
             },
             "inventory": [{"id": "sword", "name": "Sword", "notes": ""}],
-            "quests": [
-                {
-                    "id": "q1",
-                    "title": "Quest",
-                    "status": "active",
-                    "objectives": [{"description": "Do it", "done": False}],
-                }
-            ],
             "scene": {
                 "tags": [],
                 
@@ -431,14 +415,6 @@ class TestNewGameDynamicOverrides:
                 "description": "Generated.",
             },
             "inventory": [{"id": "sword", "name": "Sword", "notes": ""}],
-            "quests": [
-                {
-                    "id": "q1",
-                    "title": "Quest",
-                    "status": "active",
-                    "objectives": [{"description": "Do it", "done": False}],
-                }
-            ],
             "scene": {
                 "tags": [],
                 

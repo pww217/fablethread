@@ -1,9 +1,0 @@
-{% if state.quests -%}
-{% for quest in (state.quests | selectattr("status", "equalto", "active")) -%}
-- **{{ quest.get("title", quest.get("id", "?")) }}** [{{ quest.get("status", "active") }}]
-{% for obj in (quest.get("objectives") or []) %}  - [{{ "x" if obj.get("done") else " " }}] {{ obj.get("description", "?") }}
-{% endfor -%}
-{% endfor -%}
-{%- else -%}
-No active quests.
-{% endif -%}

@@ -195,8 +195,6 @@
 
 <script>
 const CCYA_CARD_KEY = (name) => 'ccya_card_' + name;
-const CCYA_QUESTS_TAB = 'ccya_quests_tab';
-const CCYA_QUEST_OBJ_KEY = (qid) => 'ccya_quest_obj_' + qid;
 
 function _configureMarked() {
     if (typeof marked === 'undefined' || !marked.use) return;
@@ -217,7 +215,7 @@ function _headerTaglineFromState(st) {
 }
 
 function _groupChangeLines(lines) {
-    const invGain = [], invLoss = [], pl = [], loc = [], fa = [], qu = [];
+    const invGain = [], invLoss = [], pl = [], loc = [], fa = [];
     (lines || []).forEach((ln) => {
         const s = String(ln);
         if (s.startsWith('🎒')) {
@@ -229,10 +227,9 @@ function _groupChangeLines(lines) {
         else if (s.startsWith('🩺')) pl.push(s);
         else if (s.startsWith('📍')) loc.push(s);
         else if (s.startsWith('📜')) fa.push(s);
-        else if (s.startsWith('🗺️')) qu.push(s);
         else invGain.push(s);
     });
-    return { invGain, invLoss, pl, loc, fa, qu };
+    return { invGain, invLoss, pl, loc, fa };
 }
 
 function _buildTurnChanges(changeLines) {
@@ -244,7 +241,6 @@ function _buildTurnChanges(changeLines) {
         ['tc-pl',       g.pl],
         ['tc-loc',      g.loc],
         ['tc-fa',       g.fa],
-        ['tc-qu',       g.qu],
     ];
     const hasAny = sections.some(([, rows]) => rows.length > 0);
     if (!hasAny) return null;
@@ -285,7 +281,6 @@ function _prependTurnLogTurn(turn, changeLines, rules) {
         else if (s.startsWith('🩺')) cls += ' tl-pl';
         else if (s.startsWith('📍')) cls += ' tl-loc';
         else if (s.startsWith('📜')) cls += ' tl-fa';
-        else if (s.startsWith('🗺️')) cls += ' tl-qu';
         row.className = cls;
         row.setAttribute('data-md', '');
         row.textContent = ln;
@@ -571,34 +566,12 @@ function applyCardOpenStateFromStorage() {
     });
 }
 
-function applyQuestObjectiveOpenFromStorage(root) {
-    (root || document).querySelectorAll('details.quest-objectives[data-quest-id]').forEach((d) => {
-        const qid = d.dataset.questId;
-        if (!qid) return;
-        const v = localStorage.getItem(CCYA_QUEST_OBJ_KEY(qid));
-        if (v === '0') d.removeAttribute('open');
-        else if (v === '1') d.setAttribute('open', '');
-    });
-}
-
-function _applyQuestTabsFromStorage(root) {
-    const body = (root || document).querySelector('#quest-card-body');
-    if (!body) return;
-    const saved = localStorage.getItem(CCYA_QUESTS_TAB);
-    const tab = saved === 'resolved' ? 'resolved' : 'active';
-    body.dataset.tab = tab;
-    body.querySelectorAll('.quest-tab').forEach((btn) => {
-        const on = btn.dataset.questTab === tab;
-        btn.classList.toggle('active', on);
-    });
-}
-
 function charCreation() {
     return {
         pc_name: '',
         pc_hints: '',
         npc_hints: '',
-        quest_hints: '',
+        arc_hints: '',
         free_form: '',
         npc_count: 2,
         selectedPackId: '',
@@ -960,7 +933,7 @@ function game() {
                 const nameInput = bodyEl?.querySelector('#cc-name');
                 const pcHintsInput = bodyEl?.querySelector('#cc-pc-hints');
                 const npcHintsInput = bodyEl?.querySelector('#cc-npc-hints');
-                const questHintsInput = bodyEl?.querySelector('#cc-quest-hints');
+                const arcHintsInput = bodyEl?.querySelector('#cc-arc-hints');
                 const freeFormInput = bodyEl?.querySelector('#cc-free-form');
                 const statsInput = bodyEl?.querySelector('input[name="pc_stats"]');
 
@@ -969,7 +942,7 @@ function game() {
                 const npcCountInput = bodyEl?.querySelector('input[name="npc_count"]');
                 if (npcHintsInput?.value) body.append('npc_hints', npcHintsInput.value.trim());
                 if (npcCountInput?.value) body.append('npc_count', npcCountInput.value);
-                if (questHintsInput?.value) body.append('quest_hints', questHintsInput.value.trim());
+                if (arcHintsInput?.value) body.append('arc_hints', arcHintsInput.value.trim());
                 if (freeFormInput?.value) body.append('free_form', freeFormInput.value.trim());
                 if (statsInput?.value) body.append('pc_stats', statsInput.value);
 
@@ -1612,23 +1585,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Collapsed/open state for sidebar <details> cards.
     // `toggle` does NOT bubble — must use capture phase for delegation.
     applyCardOpenStateFromStorage();
-    _applyQuestTabsFromStorage();
-    applyQuestObjectiveOpenFromStorage();
     document.addEventListener('toggle', (e) => {
         const t = e.target;
         if (t.matches && t.matches('details.sidebar-card[data-card]')) {
             localStorage.setItem(CCYA_CARD_KEY(t.dataset.card), t.open ? '1' : '0');
-        }
-        if (t.matches && t.matches('details.quest-objectives[data-quest-id]')) {
-            localStorage.setItem(CCYA_QUEST_OBJ_KEY(t.dataset.questId), t.open ? '1' : '0');
         }
     }, true);  // capture=true required: toggle doesn't bubble
     document.body.addEventListener('htmx:afterSwap', (e) => {
         const id = e.target && e.target.id;
         if (id === 'state-panel-left' || id === 'state-panel-right') {
             applyCardOpenStateFromStorage();
-            _applyQuestTabsFromStorage(e.target);
-            applyQuestObjectiveOpenFromStorage(e.target);
             _applyMarkdown(e.target);
             _bindTooltips(e.target);
         }
@@ -1638,20 +1604,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (id === 'turn-log-body') {
             _applyMarkdown(e.target);
         }
-    });
-
-    document.body.addEventListener('click', (e) => {
-        const btn = e.target.closest && e.target.closest('.quest-tab');
-        if (!btn || !btn.closest('#quest-card-body')) return;
-        const tab = btn.dataset.questTab;
-        if (tab !== 'active' && tab !== 'resolved') return;
-        const body = document.getElementById('quest-card-body');
-        if (!body) return;
-        body.dataset.tab = tab;
-        localStorage.setItem(CCYA_QUESTS_TAB, tab);
-        body.querySelectorAll('.quest-tab').forEach((b) => {
-            b.classList.toggle('active', b.dataset.questTab === tab);
-        });
     });
 
     // Auto-scroll narrative to bottom (shows most recent history entry)

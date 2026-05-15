@@ -205,7 +205,6 @@ def test_patch_eval_pack_starting_state(tmp_path: Path):
             "pc": {"name": "Test", "tagline": "", "bio": "", "stats": {}, "conditions": [], "momentum": 0},
             "location": {"id": "", "name": "", "description": ""},
             "inventory": [],
-            "quests": [],
             "scene": {"tags": [],  "world_state": [], "recent_events": [], "tagline": ""},
             "compendium": {"npcs": {}},
         })
@@ -229,7 +228,6 @@ def test_patch_eval_pack_starting_state_noop():
                 "pc": {"name": "Test", "tagline": "", "bio": "", "stats": {}, "conditions": [], "momentum": 0},
                 "location": {"id": "", "name": "", "description": ""},
                 "inventory": [],
-                "quests": [],
                 "scene": {"tags": [],  "world_state": [], "recent_events": [], "tagline": ""},
                 "compendium": {"npcs": {}},
             })
@@ -497,12 +495,12 @@ def test_check_asserts_inventory_remove_not_found():
     assert results[0]["detail"] == "inventory_remove[credits] not found"
 
 
-def test_check_asserts_quest_updates_found():
+def test_check_asserts_thread_signals_found():
     from ccya.eval.runner import _check_asserts
     from ccya.eval.scenario import TurnAssert
 
-    event = {"applied": {"quest_updates": [{"id": "deliver_the_ledger", "status": "active"}]}}
-    asserts = [TurnAssert(stream="extract.progress", field="quest_updates", expected="deliver_the_ledger")]
+    event = {"extraction": {"progress": {"output": {"thread_signals": [{"id": "t_1", "signal": "advanced"}]}}}}
+    asserts = [TurnAssert(stream="extract.progress", field="thread_signals", expected="t_1")]
     results = _check_asserts(asserts, event)
     assert len(results) == 1
     assert results[0]["passed"] is True
@@ -534,7 +532,6 @@ def _make_metadata(**kwargs) -> dict[str, Any]:
             "pc": {"name": "Test", "tagline": "", "bio": "", "stats": {}, "conditions": [], "momentum": 0},
             "location": {"id": "", "name": "", "description": ""},
             "inventory": [],
-            "quests": [],
             "scene": {"tags": [], "world_state": [], "recent_events": [], "tagline": ""},
             "compendium": {"npcs": {}},
         },
@@ -1132,108 +1129,6 @@ def test_normalize_scores_new_fields_missing():
     assert "prompt_adherence_rate" not in scores
 
 
-# ---------------------------------------------------------------------------
-# Universal asserts — quest_id_collision
-# ---------------------------------------------------------------------------
-
-
-def test_quest_id_collision_fires():
-    from ccya.eval.universal_asserts import _assert_quest_id_collision
-
-    ev = {
-        "extraction": {
-            "progress": {
-                "skipped": False,
-                "output": {
-                    "quest_updates": [
-                        {"id": "completed_quest", "title": "Old Quest", "status": "active"},
-                    ],
-                },
-            },
-        },
-        "state_snapshot": {
-            "quests": [
-                {"id": "completed_quest", "title": "Old Quest", "status": "completed"},
-                {"id": "active_quest", "title": "Active", "status": "active"},
-            ],
-        },
-    }
-    results = _assert_quest_id_collision(ev, None)
-    failures = [r for r in results if not r["passed"]]
-    assert len(failures) == 1
-    assert failures[0]["assertion"] == "progress.quest_id_collision"
-    assert "completed_quest" in failures[0]["detail"]
-
-
-def test_quest_id_collision_clean():
-    from ccya.eval.universal_asserts import _assert_quest_id_collision
-
-    ev = {
-        "extraction": {
-            "progress": {
-                "skipped": False,
-                "output": {
-                    "quest_updates": [
-                        {"id": "new_quest", "title": "New Quest", "status": "active"},
-                    ],
-                },
-            },
-        },
-        "state_snapshot": {
-            "quests": [
-                {"id": "active_quest", "title": "Active", "status": "active"},
-            ],
-        },
-    }
-    results = _assert_quest_id_collision(ev, None)
-    failures = [r for r in results if not r["passed"]]
-    assert len(failures) == 0
-
-
-def test_quest_id_collision_skipped():
-    from ccya.eval.universal_asserts import _assert_quest_id_collision
-
-    ev = {
-        "extraction": {
-            "progress": {
-                "skipped": True,
-            },
-        },
-    }
-    results = _assert_quest_id_collision(ev, None)
-    assert len(results) == 0
-
-
-# ---------------------------------------------------------------------------
-# Universal asserts — compactor_sanitization_nonzero
-# ---------------------------------------------------------------------------
-
-
-def test_compactor_sanitization_nonzero_fires():
-    from ccya.eval.universal_asserts import _assert_compactor_sanitization_nonzero
-
-    ev = {
-        "applied": {
-            "compaction": {
-                "sanitization": {
-                    "quest_close": [],
-                    "condition_remove": [],
-                    "pressure_remove": [],
-                },
-            },
-        },
-        "state_snapshot": {
-            "quests": [
-                {"id": "completed_quest", "title": "Old Quest", "status": "completed"},
-                {"id": "active_quest", "title": "Active", "status": "active"},
-            ],
-        },
-    }
-    results = _assert_compactor_sanitization_nonzero(ev, None)
-    failures = [r for r in results if not r["passed"]]
-    assert len(failures) == 1
-    assert failures[0]["assertion"] == "compactor.sanitization_nonzero"
-    assert "1 completed quest" in failures[0]["detail"]
 
 
 def test_compactor_sanitization_nonzero_clean():
@@ -1243,17 +1138,12 @@ def test_compactor_sanitization_nonzero_clean():
         "applied": {
             "compaction": {
                 "sanitization": {
-                    "quest_close": [{"id": "completed_quest"}],
                     "condition_remove": [],
                     "pressure_remove": [],
                 },
             },
         },
-        "state_snapshot": {
-            "quests": [
-                {"id": "active_quest", "title": "Active", "status": "active"},
-            ],
-        },
+        "state_snapshot": {},
     }
     results = _assert_compactor_sanitization_nonzero(ev, None)
     failures = [r for r in results if not r["passed"]]
@@ -1265,11 +1155,7 @@ def test_compactor_sanitization_no_compaction():
 
     ev = {
         "applied": {},
-        "state_snapshot": {
-            "quests": [
-                {"id": "completed_quest", "title": "Old Quest", "status": "completed"},
-            ],
-        },
+        "state_snapshot": {},
     }
     results = _assert_compactor_sanitization_nonzero(ev, None)
     assert len(results) == 0

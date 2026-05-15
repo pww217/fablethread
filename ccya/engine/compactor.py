@@ -136,7 +136,6 @@ async def maybe_compact(
         san_payload = {
             "npc_merge": [m.model_dump() for m in (sanitization.npc_merge or [])],
             "inventory_remove": [i.model_dump() for i in (sanitization.inventory_remove or [])],
-            "quest_close": [q.model_dump() for q in (sanitization.quest_close or [])],
             "pressure_remove": [p.model_dump() for p in (sanitization.pressure_remove or [])],
             "condition_remove": [c.model_dump() for c in (sanitization.condition_remove or [])],
             "recent_events_compact_count": len(sanitization.recent_events_compact or []),
@@ -206,24 +205,20 @@ def _build_compact_messages(
     """Build system + user messages for the compaction LLM call."""
     system_prompt = env.get_template("compact_system.j2").render()
 
-    active_quests = [
-        q for q in (state.get("quests") or []) if q.get("status") == "active"
-    ]
+    arc = state.get("arc")
     pressures = state.get("scene", {}).get("scene_pressure") or []
     inventory = list(state.get("inventory") or [])
     _npcs_raw = (state.get("compendium") or {}).get("npcs") or {}
     compendium_npcs: list[tuple[str, Any]] = list(_npcs_raw.items())
-    all_quests = list(state.get("quests") or [])
     conditions = list((state.get("pc") or {}).get("conditions") or [])
     recent_events = list((state.get("scene") or {}).get("recent_events") or [])
 
     user_prompt = env.get_template("compact_user.j2").render(
         turns=turns,
-        active_quests=active_quests,
+        arc=arc,
         pressures=pressures,
         inventory=inventory,
         compendium_npcs=compendium_npcs,
-        all_quests=all_quests,
         conditions=conditions,
         recent_events=recent_events,
     )
@@ -240,7 +235,6 @@ def _sanitization_nonempty(san: CompactorSanitizationResult | None) -> bool:
     return bool(
         san.npc_merge
         or san.inventory_remove
-        or san.quest_close
         or san.pressure_remove
         or san.condition_remove
     )
@@ -305,13 +299,11 @@ def _apply_sanitization(
 
     compendium_npcs: dict[str, Any] = (state.get("compendium") or {}).get("npcs") or {}
     inventory: list[dict[str, Any]] = list(state.get("inventory") or [])
-    quests: list[dict[str, Any]] = list(state.get("quests") or [])
     pressures: list[dict[str, Any]] = list((state.get("scene") or {}).get("scene_pressure") or [])
     conditions: list[dict[str, Any]] = list((state.get("pc") or {}).get("conditions") or [])
 
     known_npc_ids = set(compendium_npcs.keys())
     known_inventory_ids = {it.get("id") for it in inventory if it.get("id")}
-    known_quest_ids = {q.get("id") for q in quests if q.get("id")}
     known_pressure_ids = {p.get("id") for p in pressures if p.get("id")}
     known_condition_ids = {c.get("id") for c in conditions if c.get("id")}
 
@@ -322,6 +314,12 @@ def _apply_sanitization(
             continue
         valid_remove = [rid for rid in merge.remove_ids if rid in known_npc_ids and rid != merge.keep_id]
         for rid in valid_remove:
+            # Preserve motivation/fear/leverage from the removed NPC if the canonical one lacks them
+            removed = compendium_npcs.get(rid, {})
+            kept = compendium_npcs[merge.keep_id]
+            for field in ("motivation", "fear", "leverage"):
+                if removed.get(field) and not kept.get(field):
+                    kept[field] = removed[field]
             compendium_npcs.pop(rid, None)
             _log.info("compactor: merged duplicate NPC %r into %r", rid, merge.keep_id, extra=log_ctx)
         # Remove from present_npcs
@@ -341,16 +339,6 @@ def _apply_sanitization(
         state["inventory"] = [it for it in inventory if it.get("id") not in valid_inv_remove]
         for iid in valid_inv_remove:
             _log.info("compactor: removed duplicate inventory item %r", iid, extra=log_ctx)
-
-    # quest_close (only active quests)
-    valid_quest_close = {
-        item.id for item in san.quest_close
-        if item.id in known_quest_ids
-    }
-    for q in quests:
-        if q.get("id") in valid_quest_close and q.get("status") == "active":
-            q["status"] = "completed"
-            _log.info("compactor: closed orphaned quest %r", q.get("id"), extra=log_ctx)
 
     # pressure_remove
     valid_pressure_remove = {
@@ -378,7 +366,6 @@ def _apply_sanitization(
         "compactor sanitization applied",
         extra={
             **log_ctx,
-            "quests_closed": len(san.quest_close or []),
             "inventory_removed": len(san.inventory_remove or []),
             "npcs_merged": len(san.npc_merge or []),
             "pressures_removed": len(san.pressure_remove or []),
