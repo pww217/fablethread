@@ -88,20 +88,28 @@ def tick_arc(
     - Active thread cap: keep 2-3 active threads
     - Arc engagement: increment/decrement based on drift overlap
     """
-    # Track cumulative advanced counts per thread
-    advanced_counts: dict[str, int] = {}
-    ignored_counts: dict[str, int] = {}
-    ignored_start_turn: dict[str, int] = {}
-
+    # Track cumulative progress on thread objects themselves.
+    # progress is incremented on ADVANCED, reset on BLOCKED.
     for sig in signals:
         if sig.signal == ThreadSignalType.ADVANCED:
-            advanced_counts[sig.id] = advanced_counts.get(sig.id, 0) + 1
-            ignored_counts.pop(sig.id, None)
-            ignored_start_turn.pop(sig.id, None)
-        elif sig.signal == ThreadSignalType.IGNORED:
-            ignored_counts[sig.id] = ignored_counts.get(sig.id, 0) + 1
-            if sig.id not in ignored_start_turn:
-                ignored_start_turn[sig.id] = turn_no
+            for t in arc.active_threads:
+                if t.id == sig.id:
+                    t.progress = t.progress + 1
+                    break
+            for t in arc.latent_threads:
+                if t.id == sig.id:
+                    t.progress = t.progress + 1
+                    break
+        elif sig.signal == ThreadSignalType.BLOCKED:
+            # Reset progress on block — must rebuild momentum
+            for t in arc.active_threads:
+                if t.id == sig.id:
+                    t.progress = 0
+                    break
+            for t in arc.latent_threads:
+                if t.id == sig.id:
+                    t.progress = 0
+                    break
         elif sig.signal == ThreadSignalType.FAILED:
             # Mark thread as failed
             for t in arc.active_threads:
@@ -112,10 +120,26 @@ def tick_arc(
                 if t.id == sig.id:
                     t.state = ThreadState.FAILED
                     break
-        # BLOCKED: just note it, no special action
+        # IGNORED: do not change progress — thread sits
 
-    # Process completed threads (2 advanced signals)
-    threads_to_complete = [tid for tid, count in advanced_counts.items() if count >= 2]
+    # Track ignored streaks for expiry detection
+    ignored_counts: dict[str, int] = {}
+    ignored_start_turn: dict[str, int] = {}
+    for sig in signals:
+        if sig.signal == ThreadSignalType.IGNORED:
+            ignored_counts[sig.id] = ignored_counts.get(sig.id, 0) + 1
+            if sig.id not in ignored_start_turn:
+                ignored_start_turn[sig.id] = turn_no
+
+    # Process completed threads (progress >= 2)
+    threads_to_complete = []
+    for t in arc.active_threads:
+        if t.progress >= 2:
+            threads_to_complete.append(t.id)
+    for t in arc.latent_threads:
+        if t.progress >= 2:
+            threads_to_complete.append(t.id)
+
     for tid in threads_to_complete:
         for t in arc.active_threads:
             if t.id == tid:
@@ -225,8 +249,18 @@ def tick_arc(
         engagement_tags.update(t.tags)
 
     if drift:
-        drift_lower = {d.lower() for d in drift}
-        if engagement_tags & drift_lower:
+        # Substring matching: does any thread tag appear inside any drift phrase?
+        has_overlap = False
+        for d in drift:
+            d_lower = d.lower()
+            for tag in engagement_tags:
+                if tag in d_lower:
+                    has_overlap = True
+                    break
+            if has_overlap:
+                break
+
+        if has_overlap:
             arc.arc_engagement = min(arc.arc_engagement + 1, 3)
         else:
             arc.arc_engagement = max(arc.arc_engagement - 1, -3)

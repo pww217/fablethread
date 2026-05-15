@@ -243,6 +243,13 @@ async def generate_seed(
             envelope.seed_state.arc = envelope.arc
             if envelope.pc_drive:
                 envelope.seed_state.arc.pc_drive = envelope.pc_drive
+            # Ensure seeded active threads start with correct state
+            from ccya.models import ThreadState
+
+            arc = envelope.seed_state.arc
+            if arc:
+                for t in arc.active_threads or []:
+                    t.state = ThreadState.ACTIVE
         if envelope.pc_drive:
             envelope.seed_state.pc.drive = envelope.pc_drive
         if not envelope.seed_state.pc.expressed_stances:

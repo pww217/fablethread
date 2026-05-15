@@ -125,6 +125,18 @@ def _migrate_state(state: dict[str, Any]) -> None:
     if not isinstance(meta.get("last_compacted_turn"), int) or meta["last_compacted_turn"] < 0:
         meta["last_compacted_turn"] = 0
 
+    # Fix arc thread states — active list should have ACTIVE, latent list should have LATENT
+    from ccya.models import ThreadState
+
+    arc = state.get("arc")
+    if arc:
+        for t in arc.get("active_threads", []):
+            if isinstance(t, dict) and t.get("state") != ThreadState.ACTIVE.value:
+                t["state"] = ThreadState.ACTIVE.value
+        for t in arc.get("latent_threads", []):
+            if isinstance(t, dict) and t.get("state") != ThreadState.LATENT.value:
+                t["state"] = ThreadState.LATENT.value
+
 
 def _migrate_recent_events(state: dict[str, Any]) -> None:
     """Upgrade string recent_events to object form in-place."""
