@@ -167,15 +167,11 @@
             {% set ttl = entry.title if entry is mapping else '' %}
             {% set bio = entry.bio if entry is mapping else '' %}
             {% set ls = entry.last_seen if entry is mapping and entry.last_seen else None %}
-            {% set ls_state = ls.last_seen_state if ls else None %}
             {% set motivation = entry.motivation if entry is mapping else '' %}
             {% set fear = entry.fear if entry is mapping else '' %}
             {% set leverage = entry.leverage if entry is mapping else '' %}
             <div class="compendium-item has-tooltip">
                 <span class="compendium-line">{{ nm or nid }}{% if ttl %}<span class="compendium-title"> — {{ ttl }}</span>{% endif %}</span>
-                {% if ls_state %}
-                <span class="compendium-last-seen">{{ ls_state | capitalize }}</span>
-                {% endif %}
                 <div class="tooltip-body" data-md>
                     {{ bio or '—' }}
                     {% if motivation or fear or leverage %}

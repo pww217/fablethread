@@ -52,7 +52,7 @@
 {% if known_npcs -%}
 ### Known Characters
 Before introducing anyone new, check this list. Re-use characters when they could plausibly be present.
-{% for n in known_npcs %}- **{{ n.name }}** - {{ n.bio }}{% if n.get('motivation') %} | wants: {{ n.motivation }}{% endif %}{% if n.get('fear') %} | fears: {{ n.fear }}{% endif %}{% if n.get('leverage') %} | leverage: {{ n.leverage }}{% endif %}{% if n.last_seen %} | last seen: {{ n.last_seen.location_name }}{% if n.last_seen.last_seen_state %}, {{ n.last_seen.last_seen_state }}{% endif %}{% endif %}
+{% for n in known_npcs %}- **{{ n.name }}** - {{ n.bio }}{% if n.get('motivation') %} | wants: {{ n.motivation }}{% endif %}{% if n.get('fear') %} | fears: {{ n.fear }}{% endif %}{% if n.get('leverage') %} | leverage: {{ n.leverage }}{% endif %}{% if n.last_seen %} | last seen: {{ n.last_seen.location_name }}{% endif %}
 {% endfor -%}
 {% endif -%}
 {% if present_npcs -%}

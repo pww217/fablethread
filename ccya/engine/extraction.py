@@ -293,23 +293,21 @@ def _dedup_compendium_add(
 def _scene_npc_roster(known_characters: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Build a deduped NPC roster for the scene extractor user prompt.
 
-    Each row is ``{id, name, title, bio, last_seen, notes, tags, motivation, fear, leverage}``
+    Each row is ``{id, name, title, bio, notes, tags, motivation, fear, leverage}``
     where tags = {"compendium"}.
     """
     by_id: dict[str, dict[str, Any]] = {}
 
-    def _put(nid: str, name: str, title: str, bio: str, last_seen: dict[str, Any] | None, notes: str, tag: str, motivation: str = "", fear: str = "", leverage: str = "") -> None:
+    def _put(nid: str, name: str, title: str, bio: str, notes: str, tag: str, motivation: str = "", fear: str = "", leverage: str = "") -> None:
         if not nid:
             return
-        row = by_id.setdefault(nid, {"id": nid, "name": "", "title": "", "bio": "", "last_seen": None, "notes": "", "tags": [], "motivation": "", "fear": "", "leverage": ""})
+        row = by_id.setdefault(nid, {"id": nid, "name": "", "title": "", "bio": "", "notes": "", "tags": [], "motivation": "", "fear": "", "leverage": ""})
         if name and not row["name"]:
             row["name"] = name
         if title and not row["title"]:
             row["title"] = title
         if bio and not row["bio"]:
             row["bio"] = bio
-        if last_seen and not row["last_seen"]:
-            row["last_seen"] = last_seen
         if notes and not row["notes"]:
             row["notes"] = notes
         if tag not in row["tags"]:
@@ -327,7 +325,6 @@ def _scene_npc_roster(known_characters: list[dict[str, Any]]) -> list[dict[str, 
             str(row.get("name") or ""),
             str(row.get("title") or ""),
             str(row.get("bio") or ""),
-            row.get("last_seen"),
             "",
             "compendium",
             row.get("motivation") or "",
@@ -366,8 +363,6 @@ def _extract_scene_messages(
             enriched["title"] = entry["title"]
         if not enriched.get("bio") and entry.get("bio"):
             enriched["bio"] = (entry.get("bio") or "").strip()
-        if not enriched.get("last_seen"):
-            enriched["last_seen"] = entry.get("last_seen")
         present_npcs.append(enriched)
 
     system_text = _render(env, "extract_scene_system.j2", {})
