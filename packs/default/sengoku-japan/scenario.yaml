@@ -1,0 +1,85 @@
+constraints:
+  # required-presence
+  min_named_npcs: 2
+  min_objectives_per_quest: 2
+  starting_quest_count: 1
+  # ranges
+  inventory_size_range: [4, 8]
+  pc_stat_range: [1, 4]
+  pc_stat_total_range: [12, 18]
+  prose_word_range: [275, 550]
+  # composition
+  required_inventory_kinds: [weapon, tool]
+  npc_distinct_first_letters: true
+  # creativity guards
+  forbid_cliches:
+    - "the last surviving samurai"
+    - "a cursed blade that drinks blood"
+    - "a mysterious ronin with a tragic past"
+    - "the emperor's secret weapon"
+    - "a ninja who can walk on water"
+    - "a honor-bound duel to the death"
+    - "the cherry blossoms fall on fresh graves"
+    - "a warrior who has lost everything and finds redemption"
+  forbid_player_dependents: true
+  forbid_legendary_items: true
+
+inspiration:
+  pc: |
+    The PC is a warrior or soldier in the Sengoku period — not a legendary daimyo
+    with a thousand vassals, but someone who fights for survival and purpose. They
+    could be a samurai who serves a mid-level lord, an ashigaru spearmen who rose
+    through merit, a ninja (shinobi) hired for espionage and sabotage, a temple
+    warrior (sohei) who fights with religious fervor, a daimyo's daughter who
+    commands troops because there are no sons. Give them a skill that keeps them
+    alive and a reason they cannot simply lay down their arms. They are not
+    romantic — they are hardened by war, capable of violence, and bound by loyalties
+    that are as much practical as honorable.
+
+  opening_situation: |
+    Drop the player into a moment of immediate, visceral action — a castle under
+    siege with arrows flying and ladders being raised, a battlefield ambush where
+    enemy ashigaru are closing in, a night raid on a rival camp with torches and
+    swords, a duel in a burning village between two warriors who know each other's
+    styles, a escape through mountain passes with pursuing cavalry. The situation
+    should demand physical response — drawing a blade, loosing a bow, climbing,
+    running, fighting. What the player walks into should involve danger, movement,
+    and people who need them right now. The stakes are survival, their lord's
+    cause, or the people beside them. The most interesting moments are the ones
+    where the player has to choose between honor and survival.
+
+  npcs: |
+    Each NPC is a person shaped by an age of endless war. The veteran ashigaru
+    who has served three lords and learned that loyalty means nothing compared
+    to victory. The young samurai who believes in bushido and will die for it.
+    The shinobi who knows secrets that could topple a daimyo. The temple nun
+    who tends the wounded and has seen every wound a katana can make. At least
+    one NPC should want something that conflicts with the player's — not as a
+    villain, but as someone whose survival depends on a different answer.
+    People lie, conceal, protect, miscalculate. Give them all of that.
+
+  inventory: |
+    Items reflect what a warrior in the Sengoku period actually carried. A katana
+    with a chipped edge, a yari spear with a iron tip, a bow with a quiver of
+    arrows, a suit of lacquered armor that has saved a life, a pouch of silver
+    coins from a daimyo's pay, a scroll with secret instructions, a waterskin
+    and rice cakes. Show what the character uses and what they won't put down.
+    Show the numbers — not "some arrows" but twelve. Not "food" but three days
+    of rice.
+
+  arcs: |
+    Arc seeds should center on loyalty, survival, and the cost of war. Visible
+    goals: hold a castle against siege, deliver a message through enemy territory,
+    survive a battlefield ambush, protect a daimyo's heir, sabotage an enemy
+    supply line, escape a collapsing alliance. Thematic questions: what does
+    honor mean when the world rewards betrayal? Can you survive an age of
+    endless war without losing your humanity? When do you serve and when do
+    you rebel? PC drives: serve your lord faithfully, find a lord worth
+    serving, survive and disappear, avenge a killed master, unite the warring
+    factions, protect your family. Hidden truths: your lord is planning to
+    betray you, the enemy you fight knows your tactics, your ally is negotiating
+    with your enemy, the castle you defend is doomed, the war you fight for
+    is already over and you don't know it. Thread ideas: a rival warrior who
+    becomes an uneasy ally, a castle that falls from within, a betrayal that
+    costs a clan everything, a battle that changes the balance of power, a
+    promise that haunts you long after the fighting stops.

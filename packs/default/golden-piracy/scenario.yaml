@@ -1,0 +1,84 @@
+constraints:
+  # required-presence
+  min_named_npcs: 2
+  min_objectives_per_quest: 2
+  starting_quest_count: 1
+  # ranges
+  inventory_size_range: [4, 8]
+  pc_stat_range: [1, 4]
+  pc_stat_total_range: [12, 18]
+  prose_word_range: [275, 550]
+  # composition
+  required_inventory_kinds: [weapon, tool]
+  npc_distinct_first_letters: true
+  # creativity guards
+  forbid_cliches:
+    - "treasure map with an X marks the spot"
+    - "a parrot on the shoulder"
+    - "peg leg and eye patch"
+    - "walk the plank"
+    - "one eye on the horizon, the other on the gold"
+    - "the most feared pirate captain in the Caribbean"
+    - "a cursed artifact that brings bad luck"
+    - "a treasure that can't be spent"
+  forbid_player_dependents: true
+  forbid_legendary_items: true
+
+inspiration:
+  pc: |
+    The PC is a crew member or officer on a pirate vessel — not the captain with a
+    legendary reputation, but someone who earned their share through violence and
+    competence. They could be a boatswain who knows the rigging, a gunner who can
+    calculate a broadside, a surgeon who has amputated more limbs than he can count,
+    a navigator who reads stars and currents, a landsman who joined at the first
+    port and never left. Give them a skill that keeps them alive and a reason they
+    can't go back to legitimate life. They are not romantic — they are brutal,
+    pragmatic, and capable of both terrible violence and fierce loyalty to the crew.
+
+  opening_situation: |
+    Drop the player into a moment of immediate, visceral action — a boarding action
+    in progress with enemy sailors swinging across on ropes, a mutiny erupting in
+    the mess deck with cutlasses drawn, a chase through a coral reef with a naval
+    warship gaining, a port-side brawl that escalates into a knife fight, a ship
+    taking on water after a hidden reef. The situation should demand physical
+    response — swinging, shooting, cutting, climbing, fighting. What the player
+    walks into should involve danger, movement, and people who need them right now.
+    The stakes are survival, the ship, or the crew. The most interesting moments
+    are the ones where the player has to choose between self-preservation and
+    loyalty to the people who share their bread.
+
+  npcs: |
+    Each NPC is a person who chose the pirate life or was forced into it. The
+    quartermaster who enforces the Articles and keeps the captain in line. The
+    surgeon who has seen every wound a cutlass can make and treats them with
+    rough competence. The powder monkey who is twelve years old and faster than
+    anyone on deck. The deserter from the Royal Navy who knows how a man-of-war
+    fights. At least one NPC should want something that conflicts with the player's
+    — not as a villain, but as someone whose survival depends on a different
+    answer. People lie, conceal, protect, miscalculate. Give them all of that.
+
+  inventory: |
+    Items reflect what a pirate actually carried or had access to. A cutlass with
+    notches from use, a flintlock pistol with one shot, a knife worn smooth by
+    grip, a share of Spanish silver coins, a journal of port coordinates, a
+    length of hemp rope, a waterskin with questionable contents. Show what the
+    character uses and what they won't put down. Show the numbers — not "some
+    powder" but a measured pouch. Not "food" but hardtack and salted pork.
+
+  arcs: |
+    Arc seeds should center on survival, mutiny, and the tension between freedom
+    and violence. Visible goals: survive a naval engagement, lead a successful
+    boarding action, escape a blockade, suppress a mutiny, reach a hidden cove
+    before the navy finds you, defend the ship against disease and decay.
+    Thematic questions: what does freedom cost when everyone around you is
+    willing to kill you? Can a crew that votes on everything survive a battle
+    where seconds matter? When do you follow orders and when do you rebel?
+    PC drives: protect the crew, get your share and disappear, overthrow the
+    captain, survive the navy, find a place to settle, avenge a killed
+    shipmate. Hidden truths: the crew is planning to turn on you, the navy
+    knows your hiding place, your first mate is negotiating with the governor,
+    the ship is beyond repair, the treasure you want is cursed by something
+    worse than superstition. Thread ideas: a mutiny that splits the crew
+    down the middle, a naval officer who was once an ally, a hidden island
+    that becomes a sanctuary or a trap, a ship that fights like it's alive,
+    a betrayal that costs someone everything.

@@ -1,0 +1,27 @@
+id: sengoku-japan
+name: "Sengoku — Warring States"
+description: "Samurai and soldiers in an age of endless war. Every battle, every alliance, every betrayal is different."
+genre: sengoku japan
+tone_tags: [warrior, feudal, brutal, honor-and-blood]
+version: 1
+mode: dynamic
+baseline_facts:
+  - "The battlefield is decided by massed infantry, not duels. Ashigaru foot soldiers with yari (spears) and teppō (matchlock arquebuses) form formations that can break a samurai charge. A single daimyo's army can number thirty thousand — most of them peasants who have never held a sword before the conscription drum sounded."
+  - "Castle siege is the dominant form of warfare. Castles control territory, collect taxes, and project power. A well-defended castle can hold out for months. Siege tactics include starvation, tunneling, betrayal by defectors inside, and direct assault with ladders and fire arrows."
+  - "Loyalty is fluid and survival-dependent. Daimyo switch alliances constantly. A vassal who serves the winning side keeps his land; a loyalist who serves the losing side loses everything — or his head. The concept of bushido as honorable suicide is a later idealization; in the Sengoku period, survival and pragmatism rule."
+files:
+  world: world.md
+  scenario: scenario.yaml
+  style: style.md
+  extract_examples: extract_examples.yaml
+name_locales:
+  - locale: ja_JP
+    weight: 0.50
+  - locale: en_US
+    weight: 0.30
+  - locale: en_GB
+    weight: 0.10
+  - locale: fr_FR
+    weight: 0.05
+  - locale: de_DE
+    weight: 0.05

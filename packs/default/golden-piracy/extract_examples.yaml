@@ -1,0 +1,39 @@
+examples:
+  - title: "Boarding action — combat and NPC introduction"
+    thinking: |
+      - Cutlass used in boarding action.
+      - Enemy ship's captain surrendered after broadside.
+      - Smoke and shouting on the deck; enemy sailors scattering.
+    json: |-
+      {"state_delta": {"scene_tags": ["combat", "boarding"], "scene_tagline": "Boarding action in progress", "location_description": "The enemy deck is chaos — smoke, shouting, bodies. Enemy sailors are scattering toward the stern.", "present_npcs": [{"id": "captain-vance", "name": "Captain Vance", "title": "Enemy captain", "notes": "Dropping his sword; hands raised. Terrified but trying to look brave.", "bio": "Commanding a merchant brigantine; crew of forty, mostly inexperienced."}]}, "actions: ["Secure the prize crew", "Search the captain's quarters for papers and charts", "Tend to the wounded on both sides", "Prepare the ship for possible naval pursuit"]}
+
+  - title: "Mutiny — arc thread and NPC conflict"
+    thinking: |
+      - Crew vote initiated — mutiny brewing.
+      - First mate challenging the captain's authority.
+      - Mess deck tense; men whispering in corners.
+    json: |-
+      {"state_delta": {"recent_events_add": ["First Mate Calloway is gathering support against the captain's latest course.", "The crew is divided — half want to strike a Spanish galleon, half want to disperse and take their shares."], "present_npcs": [{"id": "mate-calloway", "name": "First Mate Calloway", "title": "First Mate", "notes": "Publicly supports the captain; privately organizing opposition. Wants the captain's share.", "bio": "Served with the player for three years; knows their weaknesses."}]}, "actions: ["Side with the captain and suppress the mutiny", "Side with Calloway and demand a new course", "Stay neutral and see which way the vote goes", "Confront Calloway privately before it escalates"]}
+
+  - title: "Port stop — inventory change and new information"
+    thinking: |
+      - Fresh water and salted pork acquired.
+      - New intel: Royal Navy frigate spotted in the harbor.
+      - Port smells of tar, rum, and rotting fish.
+    json: |-
+      {"state_delta": {"inventory_add": [{"id": "fresh-water", "name": "Fresh water casks", "notes": "Three casks, filled at the dock.", "amount": 3}, {"id": "salted-pork", "name": "Salted pork", "notes": "Enough for two weeks.", "amount": 1}], "recent_events_add": ["A Royal Navy frigate — HMS Perseverance — arrived two days ago. Patrols are tight.", "A dockworker overheard officers discussing a patrol route through the reef channel."]}, "actions": ["Leave port immediately before the navy spots you", "Sell the plunder tonight and slip away at dawn", "Send a boat ashore to gather more intelligence", "Hide the ship in a cove and wait for the patrol to pass"]}
+
+  - title: "Scurvy — condition change and inventory shift"
+    thinking: |
+      - Lime juice used (-2) to treat scurvy symptoms.
+      - Crewman loses mobility — condition added.
+      - Ship's surgeon working by lantern light.
+    json: |-
+      {"state_delta": {"inventory_remove": [{"id": "lime-juice", "amount": 2}], "pc_condition_add": ["scurvy — crewman's legs swelling, gums bleeding", "low morale — men are frightened of the sickness"], "recent_events_add": ["Three men are showing signs of scurvy — swollen legs, bleeding gums.", "The surgeon says without fresh citrus, half the crew could be incapacitated within a month."]}, "actions": ["Make for the nearest port with citrus", "Send a landing party to forage for wild greens", "Ration the remaining lime juice strictly", "Press on — the Spanish galleon route is worth the risk"]}
+
+  - title: "Minimal — dialogue only, no state change"
+    thinking: |
+      - Pure dialogue; no state changes this turn.
+      - Watch below deck; the sea is calm.
+    json: |-
+      {"state_delta": {"scene_tags": ["dialogue"], "scene_tagline": "Watch below", "location_description": "The hold is dim. Lantern light flickers on barrels and cargo. The ship rolls gently.", "present_npcs": [{"id": "old-sam", "name": "Old Sam", "title": "Gunner", "notes": "Cleaning the powder locks; humming a shanty.", "bio": "Pirate for fifteen years; survived three ships and two hangings that missed."}]}, "actions": ["Ask Old Sam about the Spanish galleon route", "Check the powder stores yourself", "Stand watch on deck", "Try to sleep before the night watch"]}

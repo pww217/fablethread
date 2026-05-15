@@ -437,7 +437,231 @@ flowchart TD
     DELTA -- "narrative" --> CHRONICLE
     STEP2C -- "scene_pressure_add<br>gm_beat, beat_disposition" --> STATE
 ```
-<!-- EVAL_CONTEXT_END -->
+
+---
+
+## Campaign Arc System
+
+The campaign arc system tracks story threads, phase progression, and player engagement across turns. It has two execution paths: **engine-driven** (thread lifecycle, engagement scoring) and **narrator-driven** (phase shifts, truth discovery, goal updates).
+
+### Arc Data Model
+
+```
+CampaignArc
+  visible_goal: str          — What the PC is trying to achieve
+  thematic_question: str     — The moral/thematic tension of the arc
+  phase: ArcPhase            — SETUP → PURSUIT → REVERSAL → CRISIS → RESOLUTION
+  hidden_truths: list[str]   — Story secrets the narrator knows but must not reveal in prose
+  discovered_truths: list[str] — Truths the player has uncovered (subset of hidden_truths)
+  active_threads: list[ArcThread]  — Currently advancing story threads (cap: 4)
+  latent_threads: list[ArcThread]  — Unactivated or waiting threads (cap: 4)
+  completed_threads: list[ArcThread] — Finished threads (complete or failed)
+  arc_engagement: int        — Engagement score: -3 (disengaged) to +3 (highly engaged)
+  pc_drive: str              — Player's expressed motivation/direction
+
+ArcThread
+  id: str                    — Unique identifier (derived from summary text)
+  summary: str               — What this thread is about
+  tags: list[str]            — Keywords for engagement matching
+  state: ThreadState         — latent | active | complete | failed | expired
+  urgency: str               — normal | background | immediate
+  progress: int              — 0..3 (3 = completion threshold)
+  unlock_if: str | None      — Condition to promote from latent to active
+  promotes: list[str]        — Tags this thread unlocks when completed
+  last_offered_turn: int     — Turn this thread was last offered to player
+
+ArcPhase: SETUP → PURSUIT → REVERSAL → CRISIS → RESOLUTION
+ThreadState: LATENT → ACTIVE → COMPLETE / FAILED
+ThreadSignalType: ADVANCED | BLOCKED | FAILED | IGNORED
+```
+
+### Engine-Driven Arc: Thread Lifecycle
+
+Thread lifecycle runs in `engine/turn.py` during the extraction phase, after `apply_delta()` but before narration arc_update merge. Three functions handle the lifecycle:
+
+```mermaid
+flowchart TD
+    classDef pyNode fill:#1f2937,color:#9ca3af,stroke:#4b5563
+    classDef arcNode fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
+    classDef capNode fill:#172554,color:#bfdbfe,stroke:#1d4ed8
+
+    PR["ProgressExtractResult<br>thread_signals[]"]:::pyNode
+
+    subgraph SIGNALS["_apply_thread_signals()"]
+        S1["Deduplicate signals by thread ID<br>dict[id → signal_type]"]
+        S2["ADVANCED: progress +1 for<br>each active thread signaled"]
+        S3["FAILED: mark thread as FAILED"]
+        S4["Auto-complete: progress ≥ 3 → COMPLETE"]
+        S5["Promotion: completed threads open slots<br>promote latent threads up to ACTIVE_CAP=4"]
+    end
+
+    subgraph CANDIDATE["_candidate_to_latent_thread()"]
+        C1["candidate_opportunity string →<br>base_id from first 5 words"]
+        C2["Dedup: skip if id already exists<br>in active/latent/completed"]
+        C3["Cap check: latent cap = 4<br>evict oldest TACTICAL thread if full"]
+        C4["Create latent thread:<br>urgency=background, tags=[tactical]"]
+    end
+
+    subgraph ENGAGEMENT["tick_arc() — engagement scoring"]
+        E1["Collect all tags from active_threads"]
+        E2["Match player_drift_signals<br>substring against engagement_tags"]
+        E3["Match → engagement +1 (max 3)<br>No match → engagement −1"]
+    end
+
+    PR --> S1 --> S2 --> S3 --> S4 --> S5
+    CANDIDATE -. "candidate_opportunity" .-> C1 --> C2 --> C3 --> C4
+    PR -. "player_drift_signals" .-> E1 --> E2 --> E3
+
+    S5 -- "CampaignArc" --> ARC[arc state in<br>state.yaml]:::arcNode
+    C4 --> ARC
+    E3 --> ARC
+
+    capNode
+```
+
+**Key rules:**
+- **Active cap:** 4 threads. When a thread completes/fails, latent threads are promoted to fill slots.
+- **Latent cap:** 4 threads. When full and a new candidate arrives, the oldest tactical-tagged thread is evicted. Pack-seeded threads (no tactical tag) are never evicted.
+- **Completion threshold:** progress reaches 3 → thread marked COMPLETE.
+- **Signal dedup:** multiple ADVANCED signals for the same thread in one call count as +1 (dict dedup).
+
+### Narrator-Driven Arc: Phase & Truth Updates
+
+The narrator can update arc metadata through a sentinel-delimited JSON block in its output. The engine parses and merges these updates after narration.
+
+```mermaid
+flowchart LR
+    classDef llmNode fill:#0f172a,color:#94a3b8,stroke:#334155
+    classDef sentinel fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
+    classDef mergeNode fill:#172554,color:#bfdbfe,stroke:#1d4ed8
+    classDef arcNode fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
+
+    subgraph NARRATOR["Narrator prompt context"]
+        NC1["visible_goal"]
+        NC2["thematic_question"]
+        NC3["phase"]
+        NC4["active_threads[] (summary, urgency, tags)"]
+        NC5["pc_drive"]
+        NC6["hidden_truths[] — internal only<br>NARRATOR MUST NOT reveal in prose"]
+        NC7["discovered_truths[]"]
+    end
+
+    subgraph EMISSION["Narrator output"]
+        PROSE["narration prose<br>(player sees this)"]:::llmNode
+        SENTINEL["<<<ARC_UPDATE_START>>>
+{discovered_truths, phase, visible_goal}
+<<<ARC_UPDATE_END>>>"]:::sentinel
+    end
+
+    subgraph PARSING["_extract_narrator_arc_update()"]
+        P1["Regex: <<<ARC_UPDATE_START>>>(.*?)<<<ARC_UPDATE_END>>>"]
+        P2["json.loads() → arc_dict"]
+        P3["Strip block from narrative"]
+    end
+
+    subgraph MERGE["_merge_arc_update()"]
+        M1["visible_goal: overwrite if present"]
+        M2["thematic_question: overwrite if present"]
+        M3["phase: overwrite only if value differs<br>(avoids Pydantic default SETUP overwrite)"]
+        M4["pc_drive: overwrite if present"]
+        M5["hidden_truths: overwrite if present"]
+        M6["discovered_truths: union with existing"]
+        M7["active_threads: upsert by id"]
+        M8["arc_engagement: max(current, new)"]
+    end
+
+    NC1 & NC2 & NC3 & NC4 & NC5 & NC6 & NC7 --> PROSE
+    PROSE --> SENTINEL
+    SENTINEL --> P1 --> P2 --> P3
+    P3 -- "clean narrative" --> CLIENT["client"]
+    P2 -- "arc_dict" --> MERGE
+
+    MERGE --> ARC[merge into state["arc"]]:::arcNode
+
+    mergeNode
+```
+
+**Merge rules:**
+- **Engine owns threads** (active/latent/completed). Narrator arc_update omits thread fields — they are ignored by `_merge_arc_update()`.
+- **Narrator owns phase/visible_goal/thematic_question/discovered_truths/hidden_truths.** Engine does not modify these.
+- **Phase protection:** `_merge_arc_update()` checks `au.phase.value != current_phase` to prevent Pydantic's default `ArcPhase.SETUP` from overwriting the live phase when the narrator omits the field.
+- **Discovered truths:** merged as set union (dedup).
+- **Merge order:** engine thread signals run first (setting `delta.arc_update`), then narrator arc_update is parsed after narration and merged on top via a second `_merge_arc_update()` call in `run_turn()`.
+
+### Arc Context in Narration
+
+The arc state is passed to the narrator via `current_arc` in the system prompt. The narrator sees all arc metadata including `hidden_truths` but is explicitly instructed not to reveal them in prose.
+
+```mermaid
+flowchart LR
+    classDef stateNode fill:#0f172a,color:#7dd3fc,stroke:#1e40af
+    classDef ctxNode fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
+    classDef llmNode fill:#0f172a,color:#94a3b8,stroke:#334155
+
+    STATE["state.yaml arc section"]:::stateNode
+
+    subgraph CONTEXT["_narrate_messages() → current_arc_ctx"]
+        C1["visible_goal"]
+        C2["thematic_question"]
+        C3["phase"]
+        C4["active_threads[]<br>(summary, urgency, tags)"]
+        C5["pc_drive"]
+        C6["hidden_truths[]"]
+    end
+
+    subgraph PROMPT["narrate_system.j2"]
+        P1["## Campaign Arc context<br>phase, goal, threads, truths"]:::llmNode
+        P2["## ARC UPDATE section<br>instructions + sentinel format<br>+ hidden_truths non-reveal directive"]:::llmNode
+    end
+
+    STATE --> CONTEXT
+    CONTEXT --> P1 & P2
+```
+
+### Arc System Integration Points
+
+```mermaid
+flowchart TD
+    classDef stageRules fill:#4c1d95,color:#ddd6fe,stroke:#7c3aed
+    classDef stageNarrate fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
+    classDef stageProgress fill:#500724,color:#fbcfe8,stroke:#ec4899
+    classDef pyNode fill:#1f2937,color:#9ca3af,stroke:#4b5563
+    classDef arcNode fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
+    classDef storageNode fill:#0f172a,color:#7dd3fc,stroke:#1e40af
+
+    STATE["state.yaml<br>arc section"]:::storageNode
+
+    subgraph NARRATE["Step 1 — Narrate"]
+        N1["_narrate_messages() reads state['arc']<br>→ current_arc_ctx in system prompt"]:::pyNode
+        N2["Narrator outputs prose +<br>optional <<<ARC_UPDATE_START>>> block"]:::llmNode
+    end
+
+    subgraph EXTRACT["Step 2c — Progress Extract"]
+        E1["Progress extractor emits<br>thread_signals[], candidate_opportunity,<br>player_drift_signals"]:::pyNode
+    end
+
+    subgraph ARC_ENGINE["Arc Engine (turn.py)"]
+        A1["_apply_thread_signals()<br>process signals → update threads"]:::pyNode
+        A2["_candidate_to_latent_thread()<br>candidate_opportunity → latent"]:::pyNode
+        A3["tick_arc()<br>engagement scoring"]:::pyNode
+        A4["_merge_arc_update()<br>engine arc_delta → state['arc']"]:::pyNode
+    end
+
+    subgraph NARRATOR_MERGE["Narrator Arc Merge"]
+        N3["_extract_narrator_arc_update()<br>parse sentinel block"]:::pyNode
+        N4["_merge_arc_update()<br>narrator arc_update → state['arc']"]:::pyNode
+    end
+
+    STATE --> N1
+    N1 --> N2
+    N2 --> N3
+    E1 --> A1 --> A4
+    E1 -. candidate .-> A2 --> A4
+    E1 -. drift .-> A3 --> STATE
+
+    A4 --> N3 --> N4 --> STATE
+```
+
 ---
 
 ## Out-of-band Pipelines (not part of the per-turn loop — for human reference)

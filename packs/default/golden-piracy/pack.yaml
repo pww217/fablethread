@@ -1,0 +1,27 @@
+id: golden-piracy
+name: "The Golden Age — 1715–1725"
+description: "Pirate life on the edge of the world. Every port, every ship, every mutiny is different."
+genre: pirate
+tone_tags: [naval, brutal, democratic, salt-and-blood]
+version: 1
+mode: dynamic
+baseline_facts:
+  - "A pirate ship is a democracy with a knife at its throat — the crew votes on everything from course to cargo distribution, and the captain is elected and can be deposed if he fails. But the moment you board an enemy ship, democracy ends and violence begins."
+  - "Scurvy, dysentery, and infection kill more pirates than naval guns or hanging. A ship without fresh meat and clean water becomes a death trap in weeks. Every port stop is a race against rot."
+  - "The Caribbean is a maze of hidden coves, shallow reefs, and coral harbors where a shallow-draft sloop can hide from a deep-draft man-of-war. The best pirates don't fight — they ambush, strike fast, and vanish into waters the navy cannot follow."
+files:
+  world: world.md
+  scenario: scenario.yaml
+  style: style.md
+  extract_examples: extract_examples.yaml
+name_locales:
+  - locale: en_GB
+    weight: 0.40
+  - locale: en_US
+    weight: 0.30
+  - locale: es_CR
+    weight: 0.15
+  - locale: fr_FR
+    weight: 0.10
+  - locale: pt_BR
+    weight: 0.05

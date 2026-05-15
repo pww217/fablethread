@@ -7,7 +7,7 @@ import logging
 import re
 from typing import Any
 
-from ccya.models import StateDelta
+from ccya.models import CampaignArc, StateDelta
 from ccya.state.inventory import (
     _fuzzy_match_inventory,
     normalize_inventory_id,
@@ -20,6 +20,58 @@ _NAME_RE = re.compile(r"[^\x00-\x7F]")
 
 _DEFAULT_CONDITION_TTL = 10
 """Default TTL in turns for conditions added without an explicit turns_remaining."""
+
+
+def _merge_arc_update(arc: dict[str, Any], au: CampaignArc) -> None:
+    """Surgically merge arc_update into the live arc dict. Never wholesale replaces."""
+
+    def _upsert_threads(
+        existing: list[dict[str, Any]], updates: list[Any]
+    ) -> list[dict[str, Any]]:
+        by_id = {t["id"]: t for t in existing if isinstance(t, dict) and t.get("id")}
+        for t in updates:
+            td = t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
+            tid = td.get("id")
+            if not tid:
+                continue
+            if tid in by_id:
+                by_id[tid].update({k: v for k, v in td.items() if v is not None})
+            else:
+                by_id[tid] = td
+        return list(by_id.values())
+
+    if au.visible_goal:
+        arc["visible_goal"] = au.visible_goal
+    if au.thematic_question:
+        arc["thematic_question"] = au.thematic_question
+    current_phase = arc.get("phase")
+    if au.phase and au.phase.value != current_phase:
+        arc["phase"] = au.phase.value if hasattr(au.phase, "value") else str(au.phase)
+    if au.pc_drive:
+        arc["pc_drive"] = au.pc_drive
+    if au.hidden_truths:
+        arc["hidden_truths"] = au.hidden_truths
+    if au.discovered_truths:
+        existing_dt = set(arc.get("discovered_truths") or [])
+        arc["discovered_truths"] = list(existing_dt | set(au.discovered_truths))
+    if au.active_threads:
+        arc["active_threads"] = _upsert_threads(
+            arc.get("active_threads") or [], au.active_threads
+        )
+    if au.latent_threads:
+        arc["latent_threads"] = _upsert_threads(
+            arc.get("latent_threads") or [], au.latent_threads
+        )
+    if au.completed_threads:
+        existing_comp_ids = {
+            t["id"] for t in (arc.get("completed_threads") or []) if isinstance(t, dict)
+        }
+        for t in au.completed_threads:
+            td = t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
+            if td.get("id") not in existing_comp_ids:
+                arc.setdefault("completed_threads", []).append(td)
+    if au.arc_engagement and au.arc_engagement > (arc.get("arc_engagement") or 0):
+        arc["arc_engagement"] = au.arc_engagement
 
 
 def _strip_non_ascii(text: str) -> str:
@@ -517,5 +569,9 @@ def apply_delta(
         if u.leverage is not None:
             entry["leverage"] = u.leverage
         touch_compendium_order(state, resolved_id)
+
+    # --- Arc update: merge arc_update into state arc ---
+    if delta.arc_update is not None:
+        _merge_arc_update(state.setdefault("arc", {}), delta.arc_update)
 
     return state, recent_events_evicted

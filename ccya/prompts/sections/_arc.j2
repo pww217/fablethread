@@ -1,11 +1,21 @@
 {% if state.arc and state.arc.get('visible_goal') -%}
 ### Campaign Arc
 **Goal:** {{ state.arc.get('visible_goal', '') }}
-**Phase:** {{ state.arc.get('phase', '') }}
+**Phase:** {{ state.arc.get('phase', 'setup') }}
+**Thematic question:** {{ state.arc.get('thematic_question', '') }}
+{% if state.arc.get('pc_drive') -%}
+**PC drive:** {{ state.arc.get('pc_drive', '') }}
+{% endif -%}
 {% if state.arc.get('active_threads') -%}
 **Active threads:**
 {% for t in state.arc.get('active_threads') -%}
-- [{{ t.get('urgency', 'normal') | upper }}] {{ t.get('summary', '') }}
+- [{{ t.get('urgency', 'normal') | upper }}] {{ t.get('summary', '') }}{% if t.get('progress', 0) > 0 %} (progress: {{ t.get('progress') }}/3){% endif %}
+{% endfor -%}
+{% endif -%}
+{% if state.arc.get('discovered_truths') -%}
+**Revealed truths:**
+{% for truth in state.arc.get('discovered_truths') -%}
+- {{ truth }}
 {% endfor -%}
 {% endif -%}
 {%- else -%}

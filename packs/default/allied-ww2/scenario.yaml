@@ -35,14 +35,14 @@ inspiration:
     liability that matters in the next.
 
   opening_situation: |
-    Drop the player into a moment that is already in motion — not a briefing room,
-    not a parade-ground assembly. The situation should feel like a Tuesday in a war
-    that has been going on for years. What the player walks into should involve
-    logistics or communication or a decision that nobody prepared them for. The
-    stakes are real but not cinematic: a convoy that needs to move, a message that
-    needs to get through, a position that needs holding until reinforcements arrive,
-    a supply dump that needs securing. The most interesting moments are the ones
-    where the war is happening around the player, not because they ordered it.
+    Drop the player into a moment of immediate, visceral action — a firefight that
+    started without warning, a retreat through a burning village, a trench being
+    overrun, a beachhead under fire, a night ambush in a forest. The situation
+    should demand physical response first and thinking second. What the player
+    walks into should involve danger, movement, and people who need them right now.
+    The stakes are survival and the people beside them. The most interesting
+    moments are the ones where instinct and training collide and the player has
+    to choose what to do in the next thirty seconds.
 
   npcs: |
     Each NPC is a real person in the Allied structure — or a civilian whose
@@ -59,11 +59,18 @@ inspiration:
     gap between what the supply catalogue promised and what the player actually has.
     Include one thing that was important to someone else before it became a tool.
 
-  quests: |
-    The starting quest should be something that requires action within a specific
-    timeframe and has real consequences for failing. It should involve movement or
-    communication or a decision — not a set piece. The objectives should reveal
-    something about the war's machinery: the logistics, the communication gaps, the
-    human cost of orders. Avoid "destroy the X" framing. Instead: "get the message
-    through," "secure the route," "find the supplies," "keep the position until
-    relief arrives."
+  arcs: |
+    Arc seeds should center on survival, loyalty, and the moral weight of war.
+    Visible goals: keep your squad alive through the night, reach the extraction
+    point, hold a position until the enemy breaks, protect a wounded comrade,
+    make it back to your unit after being separated. Thematic questions: what
+    does it cost to survive when others don't? When do you follow orders and
+    when do you do what's right? Can you stay human in an inhuman situation?
+    PC drives: protect your squad, get home, survive the war, make amends for
+    something you did, prove yourself to your unit, escape the front. Hidden
+    truths: the mission you're fighting for is already over, your commanding
+    officer is compromised, the enemy unit you're facing has been decimated and
+    is fighting out of desperation. Thread ideas: a squadmate's death that
+    changes everything, a civilian caught in crossfire, a prisoner who knows
+    something critical, a position that becomes a trap, a retreat that turns
+    into a rout.
