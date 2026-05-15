@@ -1078,27 +1078,29 @@ body {
 
 /* Section titles */
 .arc-section-title {
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--text-secondary);
   letter-spacing: 0.02em;
+  margin-top: 4px;
   padding-bottom: 4px;
   border-bottom: 1px solid var(--border-subtle);
 }
 
-/* Active threads — numbered list */
+/* Active threads — numbered list, no indent */
 ol.arc-threads {
-  font-size: 10.5px;
+  font-size: 10px;
   line-height: 1.5;
   color: var(--text-secondary);
-  padding-left: 18px;
   margin: 0;
+  padding: 0;
 }
 
 ol.arc-threads > li {
-  padding: 3px 0 3px 6px;
+  padding: 2px 0;
   border-left: 2px solid var(--border-strong);
   transition: border-color 150ms;
+  font-style: italic;
 }
 
 ol.arc-threads > li:last-child {
