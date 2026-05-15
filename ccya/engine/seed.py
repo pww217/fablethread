@@ -30,10 +30,6 @@ def _sanitize_envelope(envelope: SeedEnvelope) -> SeedEnvelope:
     envelope.seed_state.location.name = _strip_non_ascii(envelope.seed_state.location.name)
     for item in envelope.seed_state.inventory:
         item.name = _strip_non_ascii(item.name)
-    for quest in envelope.seed_state.quests:
-        quest.title = _strip_non_ascii(quest.title)
-        for obj in quest.objectives:
-            obj.description = _strip_non_ascii(obj.description)
     envelope.seed_state.scene.tagline = _strip_non_ascii(envelope.seed_state.scene.tagline)
     for evt in envelope.seed_state.scene.world_state:
         envelope.seed_state.scene.world_state[envelope.seed_state.scene.world_state.index(evt)] = _strip_non_ascii(evt)
@@ -241,6 +237,16 @@ async def generate_seed(
                 )
                 messages.append({"role": "user", "content": fb})
             continue
+
+        # Copy arc from envelope top-level into seed_state; wire pc_drive into arc
+        if envelope.arc:
+            envelope.seed_state.arc = envelope.arc
+            if envelope.pc_drive:
+                envelope.seed_state.arc.pc_drive = envelope.pc_drive
+        if envelope.pc_drive:
+            envelope.seed_state.pc.drive = envelope.pc_drive
+        if not envelope.seed_state.pc.expressed_stances:
+            envelope.seed_state.pc.expressed_stances = {}
 
         # Inject baseline_facts (hardcoded genre canon) into world_state
         # LLM generates 3 global facts into world_state; prepend baseline_facts

@@ -16,7 +16,7 @@
 
 - **`load_state(save_dir)`** → `dict` — loads YAML, runs `_migrate_state()`.
 - **`save_state(save_dir, state)`** — atomic write (tmp + rename).
-- **`apply_delta(state, delta, recent_events_max=20)`** → `tuple[dict, bool]` — returns (deep-copied state, recent_events_evicted bool). Handles inventory merge/remove/update (duplicate add merges amount, zero-amount removal removes item), location change, quest upsert (terminal-state guard: skips updates to completed/failed quests; quest alias dedup: normalizes titles and redirects new quests to existing when titles match), condition add/remove (id-based dedup, FIFO cap 5, default TTL of 10 turns when `turns_remaining` is None), recent events (object form: id/text/turn, remove→update→add, FIFO cap), scene tags (combat started/ended turn tracking), scene tagline, scene_pressure (add/update/remove by ID), present NPCs (delta-based: add/remove/update with alias resolution, compendium hydration, NPC_SCENE_CAP=8; absence does not cause removal), recently_left tracking (populated when NPCs are removed, decay counter defaults to 2 turns), compendium NPC updates (with alias routing), auto-complete quests.
+- **`apply_delta(state, delta, recent_events_max=20)`** → `tuple[dict, bool]` — returns (deep-copied state, recent_events_evicted bool). Handles inventory merge/remove/update (duplicate add merges amount, zero-amount removal removes item), location change, condition add/remove (id-based dedup, FIFO cap 5, default TTL of 10 turns when `turns_remaining` is None), recent events (object form: id/text/turn, remove→update→add, FIFO cap), scene tags (combat started/ended turn tracking), scene tagline, scene_pressure (add/update/remove by ID), present NPCs (delta-based: add/remove/update with alias resolution, compendium hydration, NPC_SCENE_CAP=8; absence does not cause removal), recently_left tracking (populated when NPCs are removed, decay counter defaults to 2 turns), compendium NPC updates (with alias routing), arc thread signals (active/latent/completed thread management, hidden truth discovery).
 - **`apply_momentum(state, band)`** — updates `pc.momentum` deterministically from a rules band, clamped to [-3, +3].
 - **`append_event(save_dir, event)`** — appends to events.jsonl.
 - **`append_chronicle(save_dir, text)`** — appends to chronicle.md.
@@ -77,14 +77,18 @@ inventory:                     # list[InventoryItem] — credits pinned to top
     notes: str
     amount: int (≥1)
 
-quests:                        # list[Quest] — upsert by id
-  - id: str
-    title: str
-    status: active|completed|failed|abandoned
-    objectives:
-      - description: str
-        done: bool
-        failed: bool
+arc:                           # Campaign arc state — managed by engine/arc.py
+  phase: str                   # setup|pursuit|reversal|crisis|resolution
+  visible_goal: str
+  thematic_question: str
+  phase: ArcPhase              # setup | pursuit | reversal | crisis | resolution
+  hidden_truths: [str]         # designer-only structural spine, never shown to player
+  discovered_truths: [str]     # truths the player has learned through play (starts empty)
+  active_threads: [Thread]     # {id, summary, urgency, progress, state}
+  latent_threads: [Thread]     # {id, tags, ...} — hidden from player
+  completed_threads: [Thread]  # {id, summary, ...}
+  arc_engagement: int          # [-3, +3]
+  pc_drive: str                # PC's personal motivation for being in this situation
 
 scene:
   tags: [str]
