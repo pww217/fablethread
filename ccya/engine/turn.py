@@ -749,102 +749,102 @@ async def run_turn(
                     }
                 )
                 narrative += f"\n\n*That action didn't resolve as expected. Trace `{trace_id}` — try rephrasing.*"
-            else:
-                reconcile_warnings = reconcile_delta(state, delta)
-                for w in reconcile_warnings:
-                    _log.warning("[reconcile] turn %s: %s", state.get("meta", {}).get("turn", "?"), w, extra={"trace_id": trace_id})
-                state, recent_events_evicted = apply_delta(
-                    state, delta,
-                    recent_events_max=config.recent_events_max,
-                    current_turn_no=turn_no,
-                )
-                # Add floor relief check after momentum is updated by apply_delta
-                _check_floor_relief(state, config, outcome.band if outcome.rolled else "")
-                recent_events = list(delta.recent_events_add)
-                applied = delta.model_dump(exclude_none=True)
-                for r in rejected:
-                    if r.get("kind") == "warn_overdraw":
-                        _log.warning(
-                            "inventory over-draw clamped: %s",
-                            r.get("reason"),
-                            extra={"trace_id": trace_id},
-                        )
 
-                # Stamp last_seen on touched NPCs (Phase 4C)
-                comp = state.get("compendium", {}).get("npcs", {})
-                location = state.get("location", {})
-                touched_ids: set[str] = set()
-                for na in (delta.npc_add or []):
-                    touched_ids.add(na.id)
-                for nu in (delta.npc_update or []):
-                    touched_ids.add(nu.id)
-                for cu in (delta.compendium_npc_update or []):
-                    touched_ids.add(cu.id)
-                for nid in touched_ids:
-                    entry = comp.setdefault(nid, {})
-                    entry["last_seen"] = {
-                        "turn": turn_no,
-                        "location_id": location.get("id", ""),
-                        "location_name": location.get("name", ""),
-                    }
+            reconcile_warnings = reconcile_delta(state, delta)
+            for w in reconcile_warnings:
+                _log.warning("[reconcile] turn %s: %s", state.get("meta", {}).get("turn", "?"), w, extra={"trace_id": trace_id})
+            state, recent_events_evicted = apply_delta(
+                state, delta,
+                recent_events_max=config.recent_events_max,
+                current_turn_no=turn_no,
+            )
+            # Add floor relief check after momentum is updated by apply_delta
+            _check_floor_relief(state, config, outcome.band if outcome.rolled else "")
+            recent_events = list(delta.recent_events_add)
+            applied = delta.model_dump(exclude_none=True)
+            for r in rejected:
+                if r.get("kind") == "warn_overdraw":
+                    _log.warning(
+                        "inventory over-draw clamped: %s",
+                        r.get("reason"),
+                        extra={"trace_id": trace_id},
+                    )
 
-                # Arc director: process thread signals and update arc state
-                if state.get("arc") and progress_result:
-                    arc_delta = _apply_thread_signals(state, progress_result)
-                    if arc_delta is not None:
-                        _merge_arc_update(
-                            state.setdefault("arc", {}), arc_delta
+            # Stamp last_seen on touched NPCs (Phase 4C)
+            comp = state.get("compendium", {}).get("npcs", {})
+            location = state.get("location", {})
+            touched_ids: set[str] = set()
+            for na in (delta.npc_add or []):
+                touched_ids.add(na.id)
+            for nu in (delta.npc_update or []):
+                touched_ids.add(nu.id)
+            for cu in (delta.compendium_npc_update or []):
+                touched_ids.add(cu.id)
+            for nid in touched_ids:
+                entry = comp.setdefault(nid, {})
+                entry["last_seen"] = {
+                    "turn": turn_no,
+                    "location_id": location.get("id", ""),
+                    "location_name": location.get("name", ""),
+                }
+
+            # Arc director: process thread signals and update arc state
+            if state.get("arc") and progress_result:
+                arc_delta = _apply_thread_signals(state, progress_result)
+                if arc_delta is not None:
+                    _merge_arc_update(
+                        state.setdefault("arc", {}), arc_delta
+                    )
+                    if delta is not None:
+                        delta = delta.model_copy(
+                            update={"arc_update": arc_delta}
                         )
-                        if delta is not None:
-                            delta = delta.model_copy(
-                                update={"arc_update": arc_delta}
+                # Engagement scoring stays in tick_arc() — it reads drift
+                # from player_drift_signals and updates arc_engagement.
+                if state.get("arc"):
+                    arc = tick_arc(
+                        arc=CampaignArc(**state["arc"]),
+                        drift=progress_result.player_drift_signals,
+                        drift_analysis=progress_result.drift_analysis,
+                    )
+                    state["arc"] = arc.model_dump(mode="json")
+                # Update PC expressed stances from player input
+                if user_input:
+                    pc = state.get("pc", {})
+                    pc["expressed_stances"] = update_stances(
+                        pc.get("expressed_stances", {}), user_input
+                    )
+
+                # Handle candidate_opportunity as latent thread
+                if progress_result.candidate_opportunity:
+                    arc_raw = state.get("arc")
+                    if arc_raw:
+                        try:
+                            arc = CampaignArc.model_validate(arc_raw)
+                            updated_arc = _candidate_to_latent_thread(
+                                arc,
+                                progress_result.candidate_opportunity,
+                                turn_no,
                             )
-                    # Engagement scoring stays in tick_arc() — it reads drift
-                    # from player_drift_signals and updates arc_engagement.
-                    if state.get("arc"):
-                        arc = tick_arc(
-                            arc=CampaignArc(**state["arc"]),
-                            drift=progress_result.player_drift_signals,
-                            drift_analysis=progress_result.drift_analysis,
-                        )
-                        state["arc"] = arc.model_dump(mode="json")
-                    # Update PC expressed stances from player input
-                    if user_input:
-                        pc = state.get("pc", {})
-                        pc["expressed_stances"] = update_stances(
-                            pc.get("expressed_stances", {}), user_input
-                        )
-
-                    # Handle candidate_opportunity as latent thread
-                    if progress_result.candidate_opportunity:
-                        arc_raw = state.get("arc")
-                        if arc_raw:
-                            try:
-                                arc = CampaignArc.model_validate(arc_raw)
-                                updated_arc = _candidate_to_latent_thread(
-                                    arc,
-                                    progress_result.candidate_opportunity,
-                                    turn_no,
+                            if updated_arc is not None:
+                                _merge_arc_update(
+                                    state.setdefault("arc", {}), updated_arc
                                 )
-                                if updated_arc is not None:
-                                    _merge_arc_update(
-                                        state.setdefault("arc", {}), updated_arc
+                                if delta is not None:
+                                    merged = updated_arc.model_copy(
+                                        update={
+                                            "active_threads": (delta.arc_update.active_threads if delta.arc_update else None),
+                                            "completed_threads": (delta.arc_update.completed_threads if delta.arc_update else None),
+                                        }
                                     )
-                                    if delta is not None:
-                                        merged = updated_arc.model_copy(
-                                            update={
-                                                "active_threads": (delta.arc_update.active_threads if delta.arc_update else None),
-                                                "completed_threads": (delta.arc_update.completed_threads if delta.arc_update else None),
-                                            }
-                                        )
-                                        delta = delta.model_copy(
-                                            update={"arc_update": merged}
-                                        )
-                            except Exception:
-                                _log.warning(
-                                    "candidate_opportunity: failed to validate arc",
-                                    extra={"turn": turn_no, "trace_id": trace_id},
-                                )
+                                    delta = delta.model_copy(
+                                        update={"arc_update": merged}
+                                    )
+                        except Exception:
+                            _log.warning(
+                                "candidate_opportunity: failed to validate arc",
+                                extra={"turn": turn_no, "trace_id": trace_id},
+                            )
 
         narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
 

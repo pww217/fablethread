@@ -132,6 +132,17 @@ def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> list[str]:
         delta.pc_condition_add = [c for c in delta.pc_condition_add if c.id not in existing_conds and c.id not in remove_ids]
         warnings.append(f"duplicate condition add ignored: {[c.id for c in dupes]}")
 
+    # 2b. Within-delta dedup: drop duplicate condition adds within the same delta
+    seen_adds: set[str] = set()
+    deduped_adds = []
+    for c in delta.pc_condition_add:
+        if c.id not in seen_adds:
+            deduped_adds.append(c)
+            seen_adds.add(c.id)
+        else:
+            warnings.append(f"duplicate condition add within delta: {c.id}")
+    delta.pc_condition_add = deduped_adds
+
     return warnings
 
 
