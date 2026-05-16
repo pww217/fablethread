@@ -128,6 +128,7 @@ def _apply_thread_signals(
     available = [
         t for t in arc.latent_threads
         if t.id not in completed_ids
+        and not (t.unlock_if and t.unlock_if.strip())
     ]
     slots = _ACTIVE_THREAD_CAP - len(arc.active_threads)
     to_promote = available[:slots]

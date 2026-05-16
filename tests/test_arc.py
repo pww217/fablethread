@@ -421,3 +421,43 @@ class TestMergeArcUpdate:
         completed_ids = {t["id"] for t in state_arc["completed_threads"]}
         assert "t1" in completed_ids
         assert "t2" in completed_ids
+
+    def test_merge_arc_update_engagement_decreases(self) -> None:
+        """arc_engagement decrease must survive _merge_arc_update."""
+        arc_dict: dict = {"arc_engagement": 2, "active_threads": [], "latent_threads": [], "completed_threads": []}
+        update = CampaignArc(arc_engagement=-1)
+        _merge_arc_update(arc_dict, update)
+        assert arc_dict["arc_engagement"] == -1
+
+    def test_merge_arc_update_engagement_zero_written(self) -> None:
+        """arc_engagement of 0 (falsy) must be written, not skipped."""
+        arc_dict: dict = {"arc_engagement": 3, "active_threads": [], "latent_threads": [], "completed_threads": []}
+        update = CampaignArc(arc_engagement=0)
+        _merge_arc_update(arc_dict, update)
+        assert arc_dict["arc_engagement"] == 0
+
+
+class TestThreadPromotionUnlockIf:
+    """Latent threads with unlock_if must not be auto-promoted."""
+
+    def test_apply_thread_signals_respects_unlock_if(self) -> None:
+        """Latent threads with unlock_if must not be auto-promoted."""
+        locked = ArcThread(id="locked", summary="locked thread", state=ThreadState.LATENT, unlock_if="Player has spoken to the senator")
+        unlocked = ArcThread(id="unlocked", summary="free thread", state=ThreadState.LATENT)
+        active = ArcThread(id="active", summary="active thread", state=ThreadState.ACTIVE, progress=3)
+
+        arc = CampaignArc(
+            active_threads=[active],
+            latent_threads=[locked, unlocked],
+            completed_threads=[],
+        )
+        state = {"arc": arc.model_dump(mode="json")}
+
+        class ProgressResult:
+            thread_signals = [ThreadSignal(id="active", signal=ThreadSignalType.FAILED)]
+
+        result = _apply_thread_signals(state, ProgressResult())
+        assert result is not None
+        active_ids = {t.id for t in result.active_threads}
+        assert "unlocked" in active_ids
+        assert "locked" not in active_ids
