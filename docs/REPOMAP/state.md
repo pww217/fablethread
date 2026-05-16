@@ -6,7 +6,7 @@
 |---|---|
 | `ccya/state/__init__.py` | Re-exports all state symbols |
 | `ccya/state/io.py` | `load_state`, `save_state`, `init_save_dir`, `_migrate_state`, `_migrate_recent_events`, `_default_state` |
-| `ccya/state/delta.py` | `apply_delta`, `reconcile_delta`, `PC_CONDITIONS_MAX`, `DEFAULT_CONDITION_TTL`, `_item_to_dict`, `_merge_arc_update` (set-replace for active/latent/completed thread lists — not upsert) |
+| `ccya/state/delta.py` | `apply_delta`, `reconcile_delta`, `PC_CONDITIONS_MAX`, `DEFAULT_CONDITION_TTL`, `_item_to_dict`, `_merge_arc_update` (set-replace for active/latent/completed thread lists — not upsert). `reconcile_delta` performs within-delta condition dedup (drops duplicate pc_condition_add entries with same id) and cross-turn dedup (skips add if condition already in state). |
 | `ccya/state/inventory.py` | `normalize_inventory_id`, `resolve_inventory_canonical_id`, `resolve_inventory_remove_target`, `_fuzzy_match_inventory` |
 | `ccya/state/npcs.py` | `build_npc_alias_map`, `touch_compendium_order` |
 | `ccya/state/chronicle.py` | `append_event`, `append_chronicle`, `load_chronicle_tail`, `load_recent_events`, `load_recent_chronicle_turns`, `remove_last_event`, `remove_last_chronicle_turn` |
