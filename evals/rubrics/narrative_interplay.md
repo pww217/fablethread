@@ -40,16 +40,30 @@ You do NOT have access to the system or user prompts — do not comment on promp
 
 ## SECTION 1 — Mechanic→Narrative Chain Analysis
 
-### 1A — Momentum→Directive→Tone
+### 1A — Rules Directive + Narration Directive → Tone
 
 For each turn with a roll:
 
-| Turn | Band | Directive | Tone Match? | Evidence (quote ≤15 words) | Flag |
-|------|------|-----------|-------------|---------------------------|------|
+| Turn | Band | Rules Directive | Narration Directive | Tone Match? | Evidence (quote ≤15 words) | Flag |
+|------|------|-----------------|---------------------|-------------|---------------------------|------|
 
-Flag: `TONE_MISMATCH` (narration tone contradicts band), `DIRECTIVE_IGNORED` (directive issued but prose ignores it).
+Flag: `TONE_MISMATCH` (narration tone contradicts band), `DIRECTIVE_IGNORED` (rules directive issued but prose ignores it), `NARRATION_DIRECTIVE_IGNORED` (narration_directive present but prose contradicts it).
 
 After the table: Does band progression feel too fast, too slow, or appropriate? Was there a coherent momentum arc across the run (low→build→peak or similar)?
+
+### 1A.5 — Narration Directive Analysis
+
+For each turn where narration_directive is non-empty:
+- Was the directive honored in narration? (e.g., Breathe → low-urgency prose, Overwhelm → chaotic/overlapping events)
+- Was the directive available to the progress extractor? (Check if it appears in extract_progress_user prompt)
+- Did the progress extractor use it for beats/pressure decisions?
+
+| Turn | Narration Directive | Honored? | Available to Extractor? | Used for Beat/Pressure? | Flag |
+|------|---------------------|----------|------------------------|------------------------|------|
+
+Flag: `DIRECTIVE_NOT_RENDERED` (computed but not in narrate prompt), `DIRECTIVE_IGNORED_BY_NARRATOR`, `DIRECTIVE_NOT_IN_PROGRESS_PROMPT`, `DIRECTIVE_AVAILABLE_BUT_UNUSED`.
+
+Evaluate all 9 directive types: Breathe, Pressure, Overwhelm, Tension, Combat Fatigue, Location Imperative, Location Pressure, Threat Pressure, Resolve a Threat.
 
 ### 1B — GM Beat→Narrative Effect
 
@@ -60,6 +74,21 @@ Flag: `NO_EFFECT` (beat present in state but narration unchanged), `WRONG_EFFECT
 
 After the table: Are beats creating meaningful story pivots or are they mechanical noise?
 
+### 1B.5 — Beat Generation Quality with Directive Context
+
+For each turn where a beat was generated:
+- Was the beat type appropriate given the narration_directive? (e.g., Breathe → breathing_room beat, Pressure → complication beat)
+- Was the beat generation informed by the directive context available in the progress prompt?
+
+Assessment method:
+- **Rule-based**: Breathe→breathing_room, Pressure/Overwhelm→complication, Tension→complication or revelation, Combat Fatigue→complication, Location Imperative→complication, Location Pressure→complication, Threat Pressure→complication, Resolve a Threat→revelation or complication.
+- **LLM judge**: Let the judge read the beat type + directive and decide if they align. More flexible but subjective.
+
+| Turn Beat Created | Beat Type | Narration Directive | Type Matches Directive? | Flag |
+|-------------------|-----------|---------------------|------------------------|------|
+
+Flag: `TYPE_MISMATCH` (beat type contradicts directive), `DIRECTIVE_INFORMED` (beat type aligns with directive).
+
 ### 1C — Pressure→Stakes→Consequence Chain
 
 For each `scene_pressure_add` event:
@@ -68,6 +97,18 @@ For each `scene_pressure_add` event:
 |-------------|------------|---------------|------------------------|-----------------|------|
 
 Flag: `INERT_PRESSURE` (pressure exists in state, never feeds stakes), `STAKES_WITHOUT_CONSEQUENCE` (stakes named, roll setback, no consequence extracted).
+
+### 1C.5 — Pressure Removal Evaluation
+
+For each `scene_pressure_remove` event:
+- Was the removal justified by narration? (narration showed the threat being addressed/resolved)
+- Was the removal timely? (removed within 2-3 turns of narration showing resolution — pacing should not lock a player into a threat for more than a few turns)
+- Was the removal correct? (no false removals — pressure removed when it shouldn't have been)
+
+| Pressure ID | Added (Tn) | Resolved (Tm) | Turns to Remove | Narration Justified? | Correct? | Flag |
+|-------------|------------|---------------|-----------------|---------------------|----------|------|
+
+Flag: `EARLY_REMOVAL` (removed before narration showed resolution), `LATE_REMOVAL` (persisted >3 turns after narration showed resolution), `FALSE_REMOVAL` (removed when threat was still active), `MISSING_REMOVAL` (threat resolved in narration but pressure not removed).
 
 ### 1D — Condition→Narrative Callback
 

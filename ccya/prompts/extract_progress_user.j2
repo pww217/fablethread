@@ -65,6 +65,11 @@ Partial deescalation. Prefer low-urgency beat or no beat.
 {% endif -%}
 
 {% endif -%}
+{% if narration_directive -%}
+## narration_directive
+{{ narration_directive }}
+
+{% endif -%}
 {% if scene_pressure -%}
 ## Current Pressures
 {% for p in scene_pressure %}- [{{ p.id }}] ({{ p.urgency }}) {{ p.text }}

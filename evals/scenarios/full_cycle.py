@@ -94,6 +94,8 @@ scenario = Scenario(
                 "rules.required=true skill=strength|charisma (social combat)",
                 "scope active_domains includes pc_condition",
                 "scene_tags should include combat",
+                "narration_directive should include Pressure or Overwhelm (immediate pressures from confrontation)",
+                "beat type should align with directive (complication for Pressure)",
             ],
             asserts=[
                 TurnAssert(stream="rules", field="rolled", expected="true"),

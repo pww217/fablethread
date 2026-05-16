@@ -53,6 +53,8 @@ scenario = Scenario(
             expects=[
                 f"urgency should be building or immediate by now (building_at={PRESSURE_BUILDING_AT}, immediate_at={PRESSURE_IMMEDIATE_AT})",
                 "scope should include pc_condition if physical",
+                f"narration_directive should include Tension (building pressure at age {PRESSURE_BUILDING_AT})",
+                "narration_directive should NOT include Breathe (no deescalation)",
             ],
             asserts=[
                 TurnAssert(
