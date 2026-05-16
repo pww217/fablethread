@@ -190,3 +190,39 @@ class TestProgressExtractResultHasPressureLifecycle:
         ])
         assert len(r.scene_pressure_update) == 1
         assert r.scene_pressure_update[0].id == "p1"
+
+
+class TestProgressExtractResultActionsValidator:
+    def test_empty_actions_warns(self, caplog):
+        import logging
+        with caplog.at_level(logging.WARNING):
+            r = ProgressExtractResult(actions=[])
+        assert r.actions == []
+        assert any("progress.actions is empty" in record.message for record in caplog.records)
+
+    def test_missing_actions_warns(self, caplog):
+        import logging
+        with caplog.at_level(logging.WARNING):
+            r = ProgressExtractResult()
+        assert r.actions == []
+        assert any("progress.actions is empty" in record.message for record in caplog.records)
+
+    def test_nonempty_actions_no_warning(self, caplog):
+        import logging
+        with caplog.at_level(logging.WARNING):
+            r = ProgressExtractResult(actions=["go left", "go right", "attack", "speak"])
+        assert len(r.actions) == 4
+        assert not any("progress.actions is empty" in record.message for record in caplog.records)
+
+    def test_actions_coerced_from_dicts(self):
+        r = ProgressExtractResult(actions=[
+            {"action": "fire at the chest"},
+            {"description": "convince the guard"},
+            {"text": "climb the wall"},
+            "jump over the fence",
+        ])
+        assert len(r.actions) == 4
+        assert r.actions[0] == "fire at the chest"
+        assert r.actions[1] == "convince the guard"
+        assert r.actions[2] == "climb the wall"
+        assert r.actions[3] == "jump over the fence"

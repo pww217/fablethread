@@ -43,6 +43,7 @@
 ## ProgressExtractResult
 
 - `gm_beat: GMBeat | None = None` — validated by `_nullify_invalid_gm_beat` (model_validator, mode="after") which sets `gm_beat = None` if the beat has no instruction or no type.
+- `actions: list[str] = Field(default_factory=list)` — coerced by `_coerce_actions` (handles dicts/strings). Warns via `_warn_empty_actions` (model_validator, mode="after") when empty to surface silent-fallback issues in logs.
 - `scene_pressure_remove: list[str]` — migrated from `SceneExtractResult` in scene-progress-fixes plan.
 - `scene_pressure_update: list[ScenePressure]` — migrated from `SceneExtractResult` in scene-progress-fixes plan.
 - `drift_analysis: list[DriftAnalysis] = Field(default_factory=list)` — structured drift analysis per active thread. Supersedes `player_drift_signals`.

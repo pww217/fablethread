@@ -1,7 +1,7 @@
 # Fix arc_engagement merge always-up-only bug
 
 ## Status
-`open`
+`completed`
 
 ## Phase Guide
 | Phase | Name | Summary |

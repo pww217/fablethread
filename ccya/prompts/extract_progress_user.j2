@@ -2,6 +2,9 @@
 ## present_npcs (in scene right now)
 {% for n in present_npcs %}- `{{ n.id }}` | **{{ n.name or n.id }}**{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}{% if n.last_seen %} — last seen in {{ n.last_seen.location_name }}{% endif %}
 {% endfor %}
+{% else -%}
+## present_npcs (in scene right now)
+None currently tracked. Generate actions that could involve any NPC mentioned in the narration.
 {% endif -%}
 
 {% if known_npcs -%}
@@ -26,6 +29,9 @@
 ## active_threads
 {% for t in active_threads %}- `{{ t.id }}` [{{ t.urgency | upper }}] {{ t.summary | truncate(120) }}{% if t.tags %} tags: {{ t.tags | join(', ') }}{% endif %}
 {% endfor %}
+{% else -%}
+## active_threads
+None currently active. Generate actions that could introduce new story directions or explore the environment.
 {% endif -%}
 
 {% if recent_events -%}
