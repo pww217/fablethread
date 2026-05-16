@@ -116,7 +116,7 @@ async def _run_one_scenario(
         if prev_json is not None:
             prev_run_dir = prev_json.parent
 
-        print("[eval] judges running (parallel domain + sequential meta)…", file=sys.stderr)
+        print("[eval] judges running (sequential domain + sequential meta)…", file=sys.stderr)
 
         def _on_judge_complete(judge_id: str, result: JudgeResult) -> None:
             print(f"[eval] judge[{judge_id}] complete: scores={result.scores}", file=sys.stderr)
@@ -128,6 +128,7 @@ async def _run_one_scenario(
             scenario_id=scenario.id,
             on_judge_complete=_on_judge_complete,
             previous_run_dir=prev_run_dir,
+            resume=args.resume,
         )
 
         merged = merge_judge_scores(judge_results)
@@ -223,6 +224,7 @@ async def _cmd_judge_only(args: argparse.Namespace) -> int:
         output_dir=Path(rr.output_dir),
         scenario_id=rr.scenario_id,
         previous_run_dir=prev_run_dir,
+        resume=args.resume,
     )
 
     merged = merge_judge_scores(judge_results)
@@ -287,12 +289,16 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--turns", type=int, default=None,
                      help="Run only the first N turns (default: from config, 10).")
     run.add_argument("--all", action="store_true",
-                     help="Run every discovered scenario in serial (default: just default_scenario).")
+                      help="Run every discovered scenario in serial (default: just default_scenario).")
     run.add_argument("--gate", action="store_true", help="Exit 1 if any red assert fails.")
+    run.add_argument("--resume", action="store_true",
+                      help="Skip judges that already have a judge.md in the output dir.")
     run.set_defaults(func=_cmd_run, _is_async=True)
 
     j = sub.add_parser("judge-only", help="Re-run the judge against a prior run dir")
     j.add_argument("run_dir", help="Path to a prior evals/runs/<ts>/ directory")
+    j.add_argument("--resume", action="store_true",
+                    help="Skip judges that already have a judge.md in the output dir.")
     j.set_defaults(func=_cmd_judge_only, _is_async=True)
 
     sub.add_parser("pack", help="Print effective eval config").set_defaults(

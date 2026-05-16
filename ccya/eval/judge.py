@@ -932,8 +932,11 @@ async def run_judges(
     on_judge_complete: Callable[[str, "JudgeResult"], None] | None = None,
     previous_run_dir: Path | None = None,
     game_config_path: Path | None = None,
+    resume: bool = False,
 ) -> list["JudgeResult"]:
-    """Fan-out to N domain judges in parallel, then run meta judge sequentially.
+    """Run domain judges sequentially, then meta judge.
+
+    If resume=True, skips judges whose judge.md already exists in output_dir.
 
     Returns list of JudgeResult, one per spec in eval_cfg.judges.specs.
     Meta judge is always last in the returned list if present.
@@ -1027,8 +1030,30 @@ async def run_judges(
     def _noop_chunk(judge_id: str, chunk: str) -> None:
         pass
 
-    # Run domain judges in parallel
-    async def _run_domain(spec: "JudgeSpec") -> "JudgeResult":
+    # Run domain judges sequentially
+    domain_results: list["JudgeResult"] = []
+    for spec in domain_specs:
+        judge_md_path = output_dir / f"{scenario_id}.{spec.id}.judge.md"
+        if resume and judge_md_path.exists():
+            _log.info("judge[%s]: skipping (already complete)", spec.id)
+            scores, _ = parse_judge_response(judge_md_path.read_text())
+            result = JudgeResult(
+                raw_response=judge_md_path.read_text(),
+                body_md="",
+                scores=scores,
+                rubric_path=str(REPO_ROOT / spec.rubric_path if not Path(spec.rubric_path).is_absolute() else spec.rubric_path),
+                model=spec.model or engine_model,
+                judge_id=spec.id,
+                trace_md_path=str(output_dir / f"{scenario_id}.{spec.id}.trace.md"),
+                judge_md_path=str(judge_md_path),
+                previous_scores=prev_scores_by_id.get(spec.id),
+            )
+            domain_results.append(result)
+            if on_judge_complete:
+                on_judge_complete(spec.id, result)
+            continue
+
+        _log.info("judge[%s]: running", spec.id)
         result = await _run_single_judge(
             spec,
             domain_traces[spec.id],
@@ -1039,34 +1064,49 @@ async def run_judges(
             on_chunk=_noop_chunk,
             previous_scores=prev_scores_by_id.get(spec.id),
         )
+        domain_results.append(result)
         if on_judge_complete:
             on_judge_complete(spec.id, result)
-        return result
-
-    domain_results: list["JudgeResult"] = list(
-        await asyncio.gather(*[_run_domain(spec) for spec in domain_specs])
-    )
 
     all_results = list(domain_results)
 
     # Run meta judge sequentially after domain judges
     if meta_spec is not None:
-        meta_input = _build_meta_judge_input(domain_results)
-        meta_trace_path = output_dir / f"{scenario_id}.meta.trace.md"
-        meta_trace_path.write_text(meta_input)
-        meta_result = await _run_single_judge(
-            meta_spec,
-            meta_input,
-            host=host,
-            arch_context="",
-            output_dir=output_dir,
-            scenario_id=scenario_id,
-            on_chunk=_noop_chunk,
-            previous_scores=prev_scores_by_id.get("meta"),
-        )
-        if on_judge_complete:
-            on_judge_complete("meta", meta_result)
-        all_results.append(meta_result)
+        meta_judge_md_path = output_dir / f"{scenario_id}.meta.judge.md"
+        if resume and meta_judge_md_path.exists():
+            _log.info("judge[meta]: skipping (already complete)")
+            scores, _ = parse_judge_response(meta_judge_md_path.read_text())
+            meta_result = JudgeResult(
+                raw_response=meta_judge_md_path.read_text(),
+                body_md="",
+                scores=scores,
+                rubric_path=str(REPO_ROOT / meta_spec.rubric_path if not Path(meta_spec.rubric_path).is_absolute() else meta_spec.rubric_path),
+                model=meta_spec.model or engine_model,
+                judge_id="meta",
+                trace_md_path=str(output_dir / f"{scenario_id}.meta.trace.md"),
+                judge_md_path=str(meta_judge_md_path),
+                previous_scores=prev_scores_by_id.get("meta"),
+            )
+            all_results.append(meta_result)
+            if on_judge_complete:
+                on_judge_complete("meta", meta_result)
+        else:
+            meta_input = _build_meta_judge_input(domain_results)
+            meta_trace_path = output_dir / f"{scenario_id}.meta.trace.md"
+            meta_trace_path.write_text(meta_input)
+            meta_result = await _run_single_judge(
+                meta_spec,
+                meta_input,
+                host=host,
+                arch_context="",
+                output_dir=output_dir,
+                scenario_id=scenario_id,
+                on_chunk=_noop_chunk,
+                previous_scores=prev_scores_by_id.get("meta"),
+            )
+            if on_judge_complete:
+                on_judge_complete("meta", meta_result)
+            all_results.append(meta_result)
 
     return all_results
 

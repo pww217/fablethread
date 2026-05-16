@@ -113,6 +113,42 @@ scene:
     - You heard rumors of road-toughs extorting travelers near the Crossed Keys Inn.
     - You found Caron in the tavern — he's been waiting for you.
 
+arc:
+  visible_goal: Clear your debts and deliver the ledger — two obligations binding you to Marrow's Crossing.
+  thematic_question: What does it cost to settle old debts when new ones keep forming?
+  phase: setup
+  hidden_truths:
+    - Matthew Estrada is not a traveler — he's a courier for a rival merchant house, and the toughs were hired to intercept his competition.
+    - The brass key Halden gave you opens a back room at the inn where intercepted couriers' messages are stored.
+    - Caron's debt was not a failed venture — it was a deliberate investment in your skills, and he's been waiting for you to prove yourself.
+  discovered_truths: []
+  active_threads:
+    - id: settle_the_debt
+      summary: Settle the 500-credit debt with Caron.
+      tags: [debt, caron, obligation]
+      state: latent
+      urgency: normal
+      progress: 0
+      last_offered_turn: 0
+    - id: deliver_the_ledger
+      summary: Deliver Halden's ledger to the merchant at the Crossed Keys Inn.
+      tags: [courier, halden, contract]
+      state: latent
+      urgency: normal
+      progress: 0
+      last_offered_turn: 0
+    - id: clear_the_road_toughs
+      summary: Deal with the toughs blocking the inn entrance.
+      tags: [toughs, road, confrontation]
+      state: latent
+      urgency: low
+      progress: 0
+      last_offered_turn: 0
+  latent_threads: []
+  completed_threads: []
+  arc_engagement: 0
+  pc_drive: Prove you can handle the road — clear your name and earn enough to start over.
+
 compendium:
   npcs:
     caron:
