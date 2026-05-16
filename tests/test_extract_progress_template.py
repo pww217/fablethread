@@ -24,7 +24,6 @@ def _render(env: Environment, **ctx) -> str:
         "scene_pressure": [],
         "known_characters": [],
         "scene_result": {},
-        "state_result": {"items_gained": [], "items_lost": []},
         "deescalate": False,
         "intent": None,
         "recent_turns": [],
