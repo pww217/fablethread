@@ -69,6 +69,7 @@ Minimal but complete. Includes at least:
 - **Quests:** 2 active quests — one recently advanced (turn 1), one stalled at turn -5 (to exercise HIGH aggression immediately)
 - **Compendium:** Both NPCs with bio, motivation, fear, leverage
 - **Meta:** turn=1, no pending_gm_beat, no scene_pressure
+- **Arc threads:** 1 active thread with engagement tags matching `gather_information` (so turn 1 exercises engagement scoring)
 - **World:** 2 factions, 3 nearby locations, cultural name pool
 
 ---
@@ -93,7 +94,7 @@ Each turn has five response fixtures. They are intentionally designed to exercis
 ```
 *(No dice roll. `rules_outcome.rolled = False`.)*
 
-**`narrate_turn1.txt`** — Narrative prose referencing the barkeep giving partial information and mentioning a contact in the market district.
+**`narrate_turn1.txt`** — Narrative prose referencing the barkeep giving partial information and mentioning a contact in the market district. Must reference the active scene pressure (from `state_base.yaml` if pre-seeded) so `test_narration_directive_injected` has something to assert on; alternatively the pressure is added this turn and asserted in turn 2.
 
 **`scene_turn1.json`** — `SceneExtractResult`
 - No location change
@@ -110,7 +111,7 @@ Each turn has five response fixtures. They are intentionally designed to exercis
 - `recent_events_add`: 1 new event
 - `gm_beat`: type `opportunity`, target `npc_contact`, instruction `"Contact approaches at the market next turn"`
 - `scene_pressure_add`: 1 new pressure `"Rival agents watching the tavern"`, urgency `medium`
-- 4 `actions` suggestions
+- `actions`: exactly 4 entries (hard requirement — see `test_progress_actions_count`)
 
 ---
 
@@ -130,7 +131,7 @@ Each turn has five response fixtures. They are intentionally designed to exercis
 ```
 *(Dice roll fires. Python dice resolution runs. Fixture does not control the roll — the test asserts on band boundaries, not exact outcomes. See "Dice assertions" below.)*
 
-**`narrate_turn2.txt`** — Narrative prose set in the alley behind the tavern. References the pending GM beat being consumed (contact spotted across the square).
+**`narrate_turn2.txt`** — Narrative prose set in the alley behind the tavern. References the pending GM beat being consumed (contact spotted across the square). Must also reference the active scene pressure from turn 1 — this is what `test_narration_directive_injected` verifies: that the rendered narrate_user.j2 prompt contained `scene_pressure` and `narration_directive` before the mock was called.
 
 **`scene_turn2.json`** — `SceneExtractResult`
 - `location_change`: `loc_market_district`
@@ -148,6 +149,7 @@ Each turn has five response fixtures. They are intentionally designed to exercis
 - `quest_updates`: partial advance on information quest
 - `gm_beat`: None (beat consumed this turn)
 - `beat_disposition`: `consumed`
+- `actions`: exactly 4 entries
 
 ---
 
@@ -175,12 +177,14 @@ Each turn has five response fixtures. They are intentionally designed to exercis
 **`state_turn3.json`** — `StateExtractResult`
 - `inventory_add`: `{name: "Folded Note", description: "Unsigned, in a merchant's hand", tags: ["document", "clue"]}`
 - No condition changes
+- **No `inventory_remove` for items not in inventory** — fixture must be clean; this is the zero-balance guard (see `test_inventory_remove_validation`)
 
 **`progress_turn3.json`** — `ProgressExtractResult`
 - Quest objective marked `blocked` (contact won't fully cooperate)
 - `scene_pressure_update`: nervousness pressure intensity upgraded to `critical`
 - New `gm_beat`: `threat`, target `npc_contact`, instruction `"Contact bolts next turn unless PC reassures them"`
 - `recent_events_add`: 2 events
+- `actions`: exactly 4 entries
 
 ---
 
@@ -226,7 +230,7 @@ async def test_gm_beat_lifecycle(mock_state, mock_llm):
 
 ### `test_scene_pressure_lifecycle`
 
-**What it tests:** Scene pressure added in turn 1 is present in state. Pressure removed in turn 2 is gone. Pressure updated in turn 3 has the correct new urgency.
+**What it tests:** Scene pressure added in turn 1 is present in state. Pressure removed in turn 2 is gone. Pressure updated in turn 3 has the correct new urgency. This test directly covers Plan 01 (urgency directive consolidation).
 
 ```python
 async def test_scene_pressure_lifecycle(mock_state, mock_llm):
@@ -244,6 +248,42 @@ async def test_scene_pressure_lifecycle(mock_state, mock_llm):
     r3 = await run_turn(s2, input_t3, mock_llm)
     s3 = apply_delta(s2, r3.delta)
     assert s3.scene.scene_pressure[0].urgency == "critical"
+```
+
+---
+
+### `test_narration_directive_injected`
+
+**What it tests:** When scene pressure is active, the narrate pipeline step receives a rendered `narrate_user.j2` context that includes non-empty `scene_pressure` and a non-empty `narration_directive`. This is the highest-priority gap identified by the eval run (20260516T202305Z): the narrator was generating prose without awareness of active pressure state.
+
+The mock LLM must capture the rendered prompt it receives. The conftest `TurnAwareMockLLM` is extended with a `last_narrate_context` attribute that stores the kwargs passed to the narrate call site.
+
+```python
+async def test_narration_directive_injected(state_after_turn1, mock_llm):
+    # state_after_turn1 has one active scene pressure (urgency=medium)
+    assert state_after_turn1.scene.scene_pressure  # precondition
+
+    await run_turn(state_after_turn1, input_t2, mock_llm)
+
+    ctx = mock_llm.last_narrate_context
+    assert ctx is not None, "Narrate call site never fired"
+    assert "scene_pressure" in ctx and ctx["scene_pressure"], \
+        "scene_pressure missing or empty in narrate context"
+    assert "narration_directive" in ctx and ctx["narration_directive"], \
+        "narration_directive missing or empty in narrate context — narrator is flying blind"
+```
+
+---
+
+### `test_rolled_true_on_check`
+
+**What it tests:** When `rules_result.check.required == True` (turn 2, skill check), `rules_outcome.rolled` is `True` after the rules pipeline step. Guards against the live bug where the rules pipeline underrolls — present turns show `rolled=False` when the intent called for a check.
+
+```python
+async def test_rolled_true_on_check(state_after_turn1, mock_llm):
+    result = await run_turn(state_after_turn1, input_t2, mock_llm)
+    assert result.rules_outcome.rolled is True
+    assert result.rules_outcome.band is not None
 ```
 
 ---
@@ -327,6 +367,45 @@ def test_inventory_add_then_reference(state_after_turn3):
 
 ---
 
+### `test_inventory_remove_validation`
+
+**What it tests:** The validator rejects `inventory_remove` deltas that target items with zero balance. Guards against the live bug in eval run 20260516T202305Z where credits were removed at T6 and T13 despite already being at 0. The fixture must attempt a removal of an item not in state; the validator must reject it and log to `rejected_deltas`; `apply_delta()` must not raise.
+
+```python
+async def test_inventory_remove_validation(mock_state, mock_llm):
+    # Manually inject a state_extract result with an invalid removal
+    from ccya.engine.changes import validate_delta, apply_delta
+    from ccya.models import StateExtractResult
+
+    bad_extract = StateExtractResult(
+        inventory_remove=[{"id": "credits", "qty": 200}],  # not in state
+        # ... other fields empty
+    )
+    result = validate_delta(mock_state, bad_extract)
+    assert len(result.rejected) == 1
+    assert "credits" in result.rejected[0]["item"]
+    # apply_delta with the cleaned delta does not raise
+    cleaned = apply_delta(mock_state, result.clean_delta)
+    assert cleaned  # state returned intact
+```
+
+---
+
+### `test_progress_actions_count`
+
+**What it tests:** The progress extractor fixture returns exactly 4 `actions` entries. Guards against the live behavior where turns 4, 8, and 12 produced 0 actions. This is a hard assertion — 4 actions is the contract.
+
+```python
+async def test_progress_actions_count(mock_state, mock_llm):
+    for turn_input in [input_t1, input_t2, input_t3]:
+        result = await run_turn(mock_state, turn_input, mock_llm)
+        mock_state = apply_delta(mock_state, result.delta)
+        assert len(result.progress_result.actions) == 4, \
+            f"Expected 4 actions, got {len(result.progress_result.actions)}"
+```
+
+---
+
 ### `test_dice_band_boundaries`
 
 **What it tests:** Pure Python — `resolve_check()` maps raw totals to the correct Band. Does not use the mock LLM. Covers all five bands at their edges.
@@ -358,14 +437,72 @@ def test_dice_band_boundaries(total, expected_band, mock_pc):
 
 ### `test_location_change_propagates`
 
-**What it tests:** When `scene_result.location_change` is non-null (turn 2), the new location is present in `state.location` after `apply_delta()` and matches the ID returned by the scene extractor.
+**What it tests:** When `scene_result.location_change` is non-null (turn 2), `state.location.id` actually changes after `apply_delta()`. This is a code-path test — the eval run confirmed that `_apply_delta` was emitting the location change but not applying it to state (`schema_drift` flag on T10 and T12). The assertion must be on `state.location.id`, not just on `scene_result.location_change`.
 
 ```python
 async def test_location_change_propagates(state_after_turn1, mock_llm):
+    assert state_after_turn1.location.id == "loc_tavern"  # precondition
+
     r2 = await run_turn(state_after_turn1, input_t2, mock_llm)
-    assert r2.scene_result.location_change is not None
+    assert r2.scene_result.location_change is not None  # fixture emitted the change
     s2 = apply_delta(state_after_turn1, r2.delta)
-    assert s2.location.id == "loc_market_district"
+
+    # This is the assertion that was failing in the live system
+    assert s2.location.id == "loc_market_district", \
+        f"Location not applied: still {s2.location.id}"
+    assert s2.location.id != state_after_turn1.location.id
+```
+
+---
+
+### `test_arc_engagement_not_stuck`
+
+**What it tests:** Arc engagement must change in response to player actions whose intent matches active thread tags. If the player performs matching actions across 3 turns, engagement must not remain at the same floor value. Guards against the live stagnation (T11–T13 stuck at -1) identified in eval run 20260516T202305Z.
+
+The base state fixture includes an active arc thread tagged with `gather_information`. Turn 1's intent is `gather_information`. Engagement should increase.
+
+```python
+async def test_arc_engagement_not_stuck(mock_state, mock_llm):
+    # Precondition: at least one active arc thread with matching engagement tags
+    assert any(t.state == "active" for t in mock_state.arcs.threads)
+
+    r1 = await run_turn(mock_state, input_t1, mock_llm)
+    s1 = apply_delta(mock_state, r1.delta)
+
+    # Engagement must have moved — it was 0 at start, intent matched tags
+    assert s1.arcs.engagement != mock_state.arcs.engagement, \
+        "Arc engagement did not change after a matching player action"
+
+    # Run two more turns with different intents; engagement must not stagnate at floor
+    r2 = await run_turn(s1, input_t2, mock_llm)
+    s2 = apply_delta(s1, r2.delta)
+    r3 = await run_turn(s2, input_t3, mock_llm)
+    s3 = apply_delta(s2, r3.delta)
+
+    # The invariant: engagement must not end at the same value for 3 consecutive turns
+    # (exact value depends on dice and intent matching — we only assert non-stagnation)
+    engagement_values = [s1.arcs.engagement, s2.arcs.engagement, s3.arcs.engagement]
+    assert len(set(engagement_values)) > 1, \
+        f"Arc engagement stagnant across all 3 turns: {engagement_values}"
+```
+
+---
+
+### `test_compaction_no_future_bleed`
+
+**What it tests:** After a compaction at turn N, no entry in `prior_history` contains a turn number greater than N. Guards against the confirmed data leakage bug in eval run 20260516T202305Z where T9 compaction output included T10 data.
+
+```python
+def test_compaction_no_future_bleed(state_after_turn3):
+    from ccya.engine.compaction import compact_history
+
+    compacted = compact_history(state_after_turn3, up_to_turn=3)
+    # The compaction boundary is turn 3
+    for entry in compacted.prior_history:
+        turn_ref = entry.get("turn") or entry.get("t")
+        if turn_ref is not None:
+            assert int(turn_ref) <= 3, \
+                f"Compaction leaked future turn {turn_ref} into prior_history"
 ```
 
 ---
@@ -398,7 +535,7 @@ async def test_three_turn_state_integrity(mock_state, mock_llm, tmp_path):
 
 ## `conftest.py` — Mock LLM Dispatcher
 
-The dispatcher intercepts `LLMClient.complete()` and `LLMClient.stream()`. It routes by template name + current turn counter to return the correct fixture.
+The dispatcher intercepts `LLMClient.complete()` and `LLMClient.stream()`. It routes by template name + current turn counter to return the correct fixture. The `last_narrate_context` attribute is added to support `test_narration_directive_injected`.
 
 ```python
 # tests/integration/conftest.py
@@ -418,10 +555,14 @@ class TurnAwareMockLLM:
     Stateful mock that tracks which turn it's on and returns the correct
     fixture for each pipeline step. Turn advances when rules_* is called
     (first call per turn).
+
+    last_narrate_context: stores the full kwargs dict passed to the narrate
+    call site so tests can assert on template context injection.
     """
     def __init__(self):
         self._turn = 1
         self._rules_called_this_turn = False
+        self.last_narrate_context: dict | None = None
 
     async def complete(self, system_template: str, user_template: str, **kwargs) -> str:
         if "rules" in system_template:
@@ -430,6 +571,7 @@ class TurnAwareMockLLM:
             return _load(f"rules_turn{self._turn}.json")
 
         if "narrate" in system_template:
+            self.last_narrate_context = kwargs  # capture for assertion
             return _load(f"narrate_turn{self._turn}.txt")
 
         if "extract_scene" in system_template:
@@ -495,11 +637,17 @@ async def state_after_turn3(state_after_turn2, mock_llm):
 
 | Consolidation Plan | Test that covers it | What it verifies |
 |---|---|---|
-| Plan 01: Urgency Directive (scene_pressure + location_imperative) | `test_scene_pressure_lifecycle` | Pressure add/update/remove round-trips correctly through the merged system |
+| Plan 01: Urgency Directive (scene_pressure + location_imperative) | `test_scene_pressure_lifecycle`, `test_narration_directive_injected` | Pressure add/update/remove round-trips correctly; directive reaches narrator template |
 | Plan 02: narrative_velocity scalar | `test_three_turn_state_integrity` | No crash if field is missing or zero; pipeline still produces valid delta |
 | Plan 03: `quest_health` block | `test_quest_health_computation` | Aggression level computed correctly; stalled list is accurate |
 | Plan 04: Tiered NPC list | `test_npc_roster_assembly` | Presence tags correct; no duplicate entries; ordering is PRESENT-first |
 | Plan 05: band_examples → template | `test_dice_band_boundaries` | Band mapping correct; no regression from removing runtime payload key |
+
+---
+
+## Known Checker Noise (Not Tested)
+
+The eval auto-checker flags common nouns as missing NPCs (e.g., "Crossed", "Leather", "However"). This is a false-positive issue in the checker's NPC mention extraction, not a bug in the engine. The integration test does not assert on NPC mention extraction precision — that is an eval concern.
 
 ---
 
@@ -535,9 +683,12 @@ Expected runtime with mocked LLM: **< 2 seconds** for the full suite.
 
 ## Implementation Order
 
-1. Write `fixtures/state_base.yaml` — start from a real save file and strip it down
-2. Write `fixtures/llm_responses/*.json` and `*.txt` — use real LLM outputs from a test session as seeds, then hand-edit to hit the specific scenarios
-3. Write `conftest.py`
-4. Write `test_turn_pipeline.py` — start with `test_single_turn_completes` and `test_three_turn_state_integrity`, then add lifecycle tests
-5. Dice boundary test has no fixture dependency — write it first as a warmup
-6. Add to CI: `pytest tests/integration/` as a required check
+1. Write `fixtures/state_base.yaml` — start from a real save file, strip down, add arc thread with `gather_information` tag
+2. Write `fixtures/llm_responses/*.json` and `*.txt` — use real LLM outputs from a test session as seeds, hand-edit to hit specific scenarios; ensure `progress_turnN.json` always has exactly 4 actions
+3. Write `conftest.py` with `last_narrate_context` capture
+4. Start with `test_dice_band_boundaries` (no fixture dependency) and `test_single_turn_completes`
+5. Add `test_narration_directive_injected` — this test will fail until the narrate template injection bug is fixed; that's intentional, it's a regression gate
+6. Add `test_location_change_propagates` — will fail until `_apply_delta` location bug is fixed
+7. Add `test_inventory_remove_validation` — will fail until zero-balance guard is in place
+8. Add remaining lifecycle tests
+9. Add to CI: `pytest tests/integration/` as a required check
