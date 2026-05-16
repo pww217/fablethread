@@ -25,6 +25,7 @@ from ccya.engine.extraction import (
 )
 from ccya.engine.names import generate_npc_names_split
 from ccya.engine.narrate import _known_characters_for_extract, _narrate_messages
+from ccya.engine.npc_roster import build_npc_roster
 from ccya.engine.pressure import _expire_scene_pressures, _purge_scene_pressures
 from ccya.engine.rules import _avg_rules_ms, _call_rules, _log_rules_outcome, _rules_messages
 from ccya.llm_client import (
@@ -542,6 +543,11 @@ async def run_turn(
             threat_pressure_at=config.threat_pressure_at,
             threat_imperative_at=config.threat_imperative_at,
             building_threat_imperative_at=config.building_threat_imperative_at,
+            npc_roster=build_npc_roster(
+                present_npcs=_present_npcs,
+                known_npcs=_known_npcs,
+                recently_left=(state.get("scene") or {}).get("recently_left", []),
+            ),
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
@@ -1295,6 +1301,11 @@ async def run_turn_retry(
             threat_pressure_at=config.threat_pressure_at,
             threat_imperative_at=config.threat_imperative_at,
             building_threat_imperative_at=config.building_threat_imperative_at,
+            npc_roster=build_npc_roster(
+                present_npcs=_present_npcs,
+                known_npcs=_known_npcs,
+                recently_left=(state.get("scene") or {}).get("recently_left", []),
+            ),
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""

@@ -125,6 +125,26 @@
 - `FAILED = "failed"`
 - `IGNORED = "ignored"`
 
+## NpcPresence (Enum)
+
+- `PRESENT = "present"`
+- `JUST_LEFT = "just_left"`
+- `NEARBY = "nearby"`
+- `KNOWN = "known"`
+
+## RosterEntry (dataclass)
+
+- `id: str`
+- `name: str`
+- `title: str | None`
+- `bio: str | None`
+- `presence: NpcPresence`
+- `motivation: str | None`
+- `fear: str | None`
+- `leverage: str | None`
+- `notes: str | None`
+- `last_seen: str | None`
+
 ## Type aliases
 
 - `SkillName` (6 skills)

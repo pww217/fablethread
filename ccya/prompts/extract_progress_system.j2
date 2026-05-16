@@ -113,7 +113,7 @@ Each new event must have a stable `snake_case` ID. To update an existing event's
 ## GM Beat Grounding Rule
 
 `gm_beat.instruction` must reference a specific named entity already present in state:
-an NPC id from the Present NPCs list, or a pressure id from the Current Pressures list.
+an NPC id from the `## characters` roster where `presence == PRESENT`, or a pressure id from the Current Pressures list.
 Do not invent new characters or situations in `gm_beat`. A beat that references no existing
 entity will be nullified by the engine.
 

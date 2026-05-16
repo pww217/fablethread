@@ -42,6 +42,27 @@ class ThreadSignalType(str, Enum):
     IGNORED = "ignored"
 
 
+class NpcPresence(str, Enum):
+    PRESENT = "present"
+    JUST_LEFT = "just_left"
+    NEARBY = "nearby"
+    KNOWN = "known"
+
+
+@dataclass
+class RosterEntry:
+    id: str
+    name: str
+    title: str | None = None
+    bio: str | None = None
+    presence: NpcPresence = NpcPresence.KNOWN
+    motivation: str | None = None
+    fear: str | None = None
+    leverage: str | None = None
+    notes: str | None = None
+    last_seen: str | None = None
+
+
 class ArcThread(BaseModel):
     id: str
     summary: str
