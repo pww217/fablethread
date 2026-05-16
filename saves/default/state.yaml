@@ -1,127 +1,120 @@
 arc:
   active_threads:
-  - id: the_sabotage_trail
-    progress: 0
-    promotes: []
-    state: active
-    summary: Discrepancies in the pump's maintenance logs suggest the failure wasn't
-      accidental. Someone in the settlement may be intentionally draining resources.
-    tags:
-    - mystery
-    - political
-    urgency: normal
-  - id: the_encroaching_spores
+  - id: the_metallic_wreckage_wedged_between
+    last_offered_turn: 1
     progress: 2
     promotes: []
     state: active
-    summary: The humidity spike is bringing more than just rain; spore-drifts are
-      becoming more erratic and dangerous near the ruins.
+    summary: The metallic wreckage wedged between the transit hub pillars may contain
+      the specific circuitry needed for repairs.
     tags:
-    - environmental
-    - danger
-    urgency: normal
-  - id: the_grey_dust_from_the
-    last_offered_turn: 2
+    - tactical
+    unlock_if: null
+    urgency: background
+  - id: the_valuable_find_could_attract
+    last_offered_turn: 3
+    progress: 0
+    promotes: []
+    state: active
+    summary: The valuable find could attract nearby scavengers or hostile entities
+      if the noise of the recovery is too loud.
+    tags:
+    - tactical
+    unlock_if: null
+    urgency: background
+  - id: joe_salazar_might_offer_a
+    last_offered_turn: 4
     progress: 1
     promotes: []
     state: active
-    summary: The grey dust from the cracked insulator might contain clues about the
-      capacitor's sudden failure.
+    summary: Joe Salazar might offer a more significant scavenging contract now that
+      your competence is proven.
     tags:
     - tactical
+    unlock_if: null
     urgency: background
-  - id: the_rhythmic_pulsing_in_the
-    last_offered_turn: 3
-    progress: 2
-    promotes: []
-    state: active
-    summary: The rhythmic pulsing in the north suggests a sentient or coordinated
-      biological threat.
-    tags:
-    - tactical
-    urgency: background
-  arc_engagement: 2
-  completed_threads: []
-  discovered_truths: []
-  hidden_truths:
-  - The water pump failure was actually caused by deliberate sabotage from within
-    the militia.
-  - The capacitor parts are located inside a FEDRA-monitored sector.
-  latent_threads:
-  - id: fedra_encroachment
-    progress: 0
-    promotes:
-    - the_sabotage_trail
-    state: latent
-    summary: Rumors suggest FEDRA patrols are moving closer to the Billytown border
-      than ever before.
-    tags:
-    - political
-    unlock_if: player encounters a FEDRA patrol
-    urgency: normal
-  - id: the_rhythmic_pulse_suggests_a
+  - id: the_failing_cooling_pumps_present
     last_offered_turn: 5
     progress: 0
     promotes: []
-    state: latent
-    summary: The rhythmic pulse suggests a sentient or coordinated biological entity
-      is actively responding to the settlement's presence.
+    state: active
+    summary: The failing cooling pumps present a new opportunity to secure more influence
+      by preventing a settlement-wide catastrophe.
     tags:
     - tactical
+    unlock_if: null
     urgency: background
-  - id: the_synchronized_movement_of_the
-    last_offered_turn: 6
+  arc_engagement: 2
+  completed_threads:
+  - id: the_flickering_grid
+    last_offered_turn: null
+    progress: 1
+    promotes:
+    - the_fedra_connection
+    state: failed
+    summary: The settlement's power grid is failing faster than repairs can keep up.
+      Local scavengers might have found a way to stabilize it, but the cost is high.
+    tags:
+    - infrastructure
+    - mystery
+    unlock_if: null
+    urgency: normal
+  discovered_truths: []
+  hidden_truths:
+  - The settlement leadership is secretly trading settlement resources for FEDRA protection.
+  - The filtration system failure was partially sabotaged to justify higher taxes.
+  latent_threads:
+  - id: the_fedra_connection
+    last_offered_turn: null
     progress: 0
     promotes: []
     state: latent
-    summary: The synchronized movement of the shadows suggests a hive-mind or external
-      controller driving the threat.
+    summary: Rumors circulate about settlement leadership making secret deals with
+      FEDRA remnants for supplies.
     tags:
-    - tactical
-    urgency: background
-  pc_drive: To ensure the settlement survives the dry season by any means necessary.
+    - politics
+    - conspiracy
+    unlock_if: Player investigates settlement leadership records
+    urgency: normal
+  pc_drive: Providing reliable power to keep his community from thirsting.
   phase: setup
-  thematic_question: How much of the past is worth preserving for a future that refuses
-    to grow?
-  visible_goal: Secure the capacitor parts needed for the water pump.
+  thematic_question: What is the cost of maintaining a dying civilization?
+  visible_goal: Secure functional electrical components for the settlement filtration
+    system.
 compendium:
   npcs:
-    andrew_cline:
-      bio: A fast-moving scout who specializes in navigating the overgrown ruins of
-        the suburbs.
+    jo_salazar:
+      bio: An after-world native who prioritizes settlement survival above all else.
       last_seen:
-        location_id: billytown_outskirts
-        location_name: The Rust Belt Perimeter
+        location_id: christinafort_water_works
+        location_name: Christinafort Water Works
         turn: 6
-      motivation: To warn others of the awakening mycelium and the rhythmic movement
-        in the ruins.
-      name: Andrew Cline
-      title: Scavenger Scout
-    daniel_schneider:
-      bio: A pragmatic leader focused entirely on the survival of Billytown through
-        rigid resource management.
-      last_seen:
-        location_id: billytown_outskirts
-        location_name: The Rust Belt Perimeter
-        turn: 6
-      name: Daniel Schneider
+      name: Joe Salazar
       title: Settlement Foreman
+    richard_white:
+      bio: A veteran runner who prioritizes finding rare tech over settlement politics.
+      last_seen:
+        location_id: christinafort_water_works
+        location_name: Christinafort Water Works
+        turn: 4
+      name: Richard White
+      title: Scavenger Runner
 inventory:
 - aliases: []
   amount: 1
-  id: multitool
-  name: Heavy-duty Multitool
-  notes: knuckles aching from repetitive scraping
+  id: insulated_pliers
+  name: Insulated Pliers
+  notes: Professionally grade, heavily worn.
 - aliases: []
   amount: 1
-  id: wire_strippers
-  name: Precision Wire Strippers
-  notes: Used for delicate salvage operations.
+  id: multimeter
+  name: Digital Multimeter
+  notes: battery level low
 - aliases: []
   amount: 1
   id: revolver
-  name: Service Revolver
-  notes: Frequent repairs have left it looking patchwork.
+  name: Revolver
+  notes: Six-shot, heavy frame.
 - aliases: []
   amount: 6
   id: revolver_ammo
@@ -130,58 +123,54 @@ inventory:
 - aliases: []
   amount: 3
   id: antibiotics
-  name: Broad-spectrum Antibiotics
-  notes: Doses for infection prevention.
-- aliases: []
-  amount: 2
-  id: dried_meat
-  name: Dried Jerky
+  name: Amoxicillin
+  notes: Expiration date uncertain.
+- amount: 1
+  id: coiled_copper_wire
+  name: Coiled Copper Wire
   notes: ''
 - amount: 1
-  id: grey_dust
-  name: Grey Dust
-  notes: gathered remaining flecks
+  id: heavy_duty_capacitors
+  name: Heavy-duty Capacitors
+  notes: ''
 location:
-  description: The ground undergoes violent, rhythmic heaves that feel like a giant
-    lung expanding beneath the settlement, causing equipment to topple.
-  id: billytown_outskirts
-  name: The Rust Belt Perimeter
+  description: The rhythmic thrum of the filtration system has shifted into an uneven,
+    stuttering shudder, and the industrial lights have dimmed to a sickly amber glow.
+  id: christinafort_water_works
+  name: Christinafort Water Works
 meta:
-  compendium_touch_order:
-  - andrew_cline
+  compendium_touch_order: []
   consecutive_floor_count: 0
   last_compacted_turn: 4
   model: mlx-community/gemma-4-26b-a4b-it-mxfp8
   pending_gm_beat:
     beat_expires_turn: 8
-    instruction: The rhythmic heaving of the ground intensifies, making it difficult
-      for anyone to stand or aim effectively.
+    instruction: The stuttering shudder in the floorboards intensifies, signaling
+      the cooling pumps are struggling.
     surface_as: environmental
-    type: escalation
+    type: complication
   prior_history:
-  - '- [T1] Ramirez salvaged the capacitor components in the Rust Belt Perimeter and
-    delivered them to Daniel Schneider, the settlement foreman.'
-  - '- [T1] Andrew Cline, a scavenger scout, reported unusual activity and rhythmic
-    pulsing in the north sector ruins.'
-  - '- [T2] Successfully salvaged the capacitor components, but the unit''s ceramic
-    casing cracked, releasing grey dust and leaving the pump housing unstable.'
-  - '- [T3] Uneventful — no mechanical changes.'
+  - '- [T1] Richard White accompanies the player into the Christinafort outskirts
+    to scavenge for electrical components near a vine-choked transit hub.'
+  - '- [T2] Scouring the transit hub wreckage yielded no usable high-grade circuitry.'
+  - '- [T3] Found a pristine bundle of Coiled Copper Wire and Heavy-duty Capacitors
+    in a maintenance alcove within the transit hub.'
+  - '- [T4] Successfully installed the salvaged components into the Christinafort
+    filtration system, restoring water pressure and stabilizing the unit.'
   setting_pack: zombie-survival
   turn: 6
 pc:
   allegiance: null
-  bio: Born just before the Great Descent, Edward remembers the hum of steady electricity.
-    He now spends his days stripping copper and wiring from the skeletal remains of
-    the old suburbs to keep the Billytown settlement powered. He is currently trying
-    to secure enough parts to fix the settlement's water filtration pump before the
-    dry season peaks.
+  bio: Born in the final years of the old grid, Michael remembers the hum of a functional
+    city. He now maintains the jury-rigged power lines for the Christinafort settlement.
+    He is currently trying to secure enough copper and spare parts to keep the settlement's
+    water filtration system from seizing up.
   conditions: []
-  drive: To ensure the settlement survives the dry season by any means necessary.
+  drive: Providing reliable power to keep his community from thirsting.
   expressed_stances:
-    cautious_observation: 2
-    mechanical_focus: 3
-  momentum: 0
-  name: Edward Ramirez
+    ruthless: 1
+  momentum: 3
+  name: Michael Ellison
   stats:
     charisma: 2
     dexterity: 4
@@ -189,65 +178,43 @@ pc:
     resolve: 3
     strength: 2
     wits: 3
-  tagline: Salvage technician, veteran of the dry-seasons
+  tagline: Former electrical technician, veteran scavenger
 scene:
+  location_entered_turn: 4
   present_npcs:
-  - bio: An after-worlder who rose through the militia ranks. He views the settlement's
-      resources as absolute and has no patience for the sentimentalities of the before-world
-      survivors.
-    id: daniel_schneider
-    name: Daniel Schneider
-    notes: Struggling to stay upright, snarls in alarm about the approaching threat
-      and the failing equipment.
+  - bio: A veteran runner who prioritizes finding rare tech over settlement politics.
+    id: richard_white
+    name: Richard White
+    notes: Jittery and restless with adrenaline-fueled excitement over the find.
+    title: Scavenger Runner
+  - bio: An after-world native who prioritizes settlement survival above all else.
+    id: jo_salazar
+    name: Joe Salazar
+    notes: Pauses momentarily in relief at the machine's steady heartbeat, but is
+      immediately alerted by the sudden electrical pop and flickering lights.
     title: Settlement Foreman
-  - bio: A young scout who has never seen a functioning city. He is highly agile but
-      lacks the technical knowledge to understand why the ruins are dangerous beyond
-      the infected.
-    id: andrew_cline
-    name: Andrew Cline
-    notes: Paralyzed with fear, staring frantically at the treeline and pointing out
-      the synchronized movement of the shadows.
-    title: Scavenger Scout
   recent_events:
-  - id: capacitor_compromised
-    text: The salvaged capacitor is cracked and unstable; the water pump will require
-      manual pressure cycling to prevent a blowout.
-    turn: 2
-  - id: north_sector_anomaly
-    text: Andrew Cline reports rhythmic pulsing and strange activity within the northern
-      ruins.
+  - id: substation_overgrowth
+    text: Pulsating vines have heavily overgrown the old substation and the surrounding
+      transit hub.
     turn: 1
-  - id: environmental_hazards
-    text: Rising humidity and erratic spore-drifts are making the ruins increasingly
-      dangerous.
-    turn: 3
-  - id: shadow_surge_threat
-    text: Synchronized silhouettes are surging from the treeline, moving in rhythm
-      with the ground pulses.
-    turn: 6
-  scene_pressure:
-  - id: unstable_pump_housing
-    max_turns: null
-    text: The compromised capacitor requires manual pressure cycling every few hours
-      to prevent a blowout.
-    turn_added: 2
-    urgency: building
-  - id: pulsing_mycelium_threat
-    max_turns: null
-    text: The mycelium pulse is accelerating and reacting to your presence.
-    turn_added: 3
-    urgency: immediate
-  - id: approaching_shadow_surge
-    max_turns: null
-    text: Synchronized silhouettes are surging from the treeline toward the settlement.
-    turn_added: 6
-    urgency: immediate
-  tagline: The Pulse Draws Them Closer
+  - id: filtration_restored
+    text: The filtration system is back online, providing steady water pressure to
+      the settlement thanks to your salvaged components.
+    turn: 4
+  - id: grid_instability
+    text: The sudden surge from the repair has caused instability in the secondary
+      grid, affecting the infirmary and well-head pumps.
+    turn: 5
+  recently_left: []
+  recently_left_turns: 0
+  scene_pressure: []
+  tagline: A Brittle Peace
   tags:
   - tension
-  - impending_threat
-  - environmental_hazard
-  - suspense
+  - mechanical_failure
+  - unstable_power
+  turn_entered: 4
   world_state:
   - '**Ophiocordyceps novum** spreads through airborne spores in enclosed or still-air
     environments; outdoors, risk is wind-dependent; indoors without ventilation, a
@@ -263,9 +230,11 @@ scene:
     vines have collapsed the upper floors, rivers have re-routed through subway tunnels
     — the infrastructure survivors built their routines around is now a living, hostile
     landscape that changes season by season.'
-  - The Billytown settlement controls all water filtration within a ten-mile radius.
-  - Movement through the North Daniel ruins is restricted to daylight hours.
-  - Trade with FEDRA-adjacent zones is strictly prohibited by local militia law.
+  - Movement between Christinafort and South Jacksonbury is strictly controlled by
+    settlement patrols.
+  - Scavenged electrical components are the primary currency for settlement leadership.
+  - The regional water supply is heavily contaminated and relies on aging filtration
+    tech.
 world:
   factions: []
   locations: []

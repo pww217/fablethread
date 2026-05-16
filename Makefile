@@ -27,6 +27,11 @@ test-v:
 test-x:
 	uv run pytest -x -v
 
+test-integration:
+	uv run pytest tests/integration -q
+
+test-all: test test-integration
+
 typecheck:
 	uv run mypy ccya
 
