@@ -60,7 +60,7 @@ Flags: `ORPHANED` (generated, never consumed/expired), `CARRY_FAIL` (carry dispo
 | ID | Added (Tn) | Urgency | Escalated? | Resolved (Tm) | Lifespan | Flag |
 |----|------------|---------|------------|---------------|----------|------|
 
-Flags: `INERT` (no escalation or resolution across ≥3 turns), `OVERLONG`, `UNRESOLVED_AT_END`.
+Flags: `INERT` (no escalation or resolution across ≥3 turns), `OVERLONG`, `UNRESOLVED_AT_END`, `EARLY_REMOVAL` (removed before narration showed resolution), `LATE_REMOVAL` (persisted >3 turns after narration showed resolution), `FALSE_REMOVAL` (removed when threat was still active).
 
 ### 1D — Condition Lifecycle Table
 

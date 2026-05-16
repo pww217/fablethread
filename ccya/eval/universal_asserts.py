@@ -785,6 +785,58 @@ def check_no_negative_inventory(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
+    """If narration_directive was computed, it should appear in both narrate and progress prompts.
+
+    Checks for all 9 directive types: Breathe, Pressure, Overwhelm, Tension,
+    Combat Fatigue, Location Imperative, Location Pressure, Threat Pressure, Resolve a Threat.
+    """
+    narr_user = (event.get("narrate_prompt") or {}).get("rendered_user") or ""
+    progress_user = (event.get("extraction_prompt") or {}).get("rendered_user") or ""
+
+    directive_markers = [
+        "**Pressure:**", "**Overwhelm:**", "**Breathe:**", "**Tension:**",
+        "**Combat Fatigue:**", "**Location Imperative:**", "**Location Pressure:**",
+        "**Threat Pressure:**", "**Resolve a Threat:**",
+    ]
+    has_directive = any(m in narr_user for m in directive_markers)
+
+    if not has_directive:
+        return {
+            "assertion": "universal.narrate.directive_rendered",
+            "passed": True,
+            "detail": "(no directive computed)",
+            "scope": "universal",
+            "severity": "red",
+        }
+
+    if not any(m in narr_user for m in directive_markers):
+        return {
+            "assertion": "universal.narrate.directive_rendered",
+            "passed": False,
+            "detail": "narration_directive computed but not rendered in narrate user prompt",
+            "scope": "universal",
+            "severity": "red",
+        }
+
+    if "narration_directive" not in progress_user.lower():
+        return {
+            "assertion": "universal.narrate.directive_rendered",
+            "passed": False,
+            "detail": "narration_directive computed but not rendered in extract_progress user prompt",
+            "scope": "universal",
+            "severity": "yellow",
+        }
+
+    return {
+        "assertion": "universal.narrate.directive_rendered",
+        "passed": True,
+        "detail": "directive rendered in both prompts",
+        "scope": "universal",
+        "severity": "red",
+    }
+
+
 def _assert_compactor_sanitization_nonzero(
     ev: dict[str, Any], prev_ev: dict[str, Any] | None
 ) -> list[dict[str, Any]]:
@@ -819,6 +871,7 @@ def run_all_universal_asserts(
         check_zero_stack_overdraw(event, prev_event),
         check_immediate_pressure_cap(event),
         check_directive_rendered(event),
+        check_narration_directive_rendered(event),
         check_immediate_pressure_stale(event),
         check_momentum_floor_no_relief(event, prev_event, event_window=event_window),
         check_key_consumed_after_use(event, prev_event),

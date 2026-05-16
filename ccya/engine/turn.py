@@ -193,6 +193,55 @@ def _candidate_to_latent_thread(
     return arc.model_copy(update={"latent_threads": latent + [new_thread]})  # type: ignore[no-any-return]
 
 
+def _compute_narration_directive(
+    deescalate: float,
+    scene_pressure: list[dict[str, Any]],
+    ages: dict[str, int],
+    threat_ages: list[dict[str, Any]],
+    threat_pressure_at: int = 3,
+    threat_imperative_at: int = 5,
+    building_threat_imperative_at: int = 4,
+) -> str:
+    """Compute the narration directive string from pacing state.
+
+    Mirrors the logic in narrate_user.j2 so the progress extractor
+    can use the same directive for beats/pressure decisions.
+    """
+    directives: list[str] = []
+
+    if deescalate > 0:
+        directives.append("Breathe")
+    elif scene_pressure:
+        immediate_count = sum(1 for p in scene_pressure if p.get("urgency") == "immediate")
+        if immediate_count >= 3:
+            directives.append("Overwhelm")
+        elif immediate_count > 0:
+            directives.append("Pressure")
+        else:
+            building_count = sum(1 for p in scene_pressure if p.get("urgency") == "building")
+            if building_count > 0:
+                directives.append("Tension")
+
+    if ages.get("combat_age", 0) >= 3:
+        directives.append("Combat Fatigue")
+    if ages.get("location_age", 0) > 4:
+        directives.append("Location Imperative")
+    elif ages.get("location_age", 0) > 2:
+        directives.append("Location Pressure")
+
+    if threat_ages:
+        old_building = [t for t in threat_ages if t.get("urgency") == "building" and t.get("age", 0) >= building_threat_imperative_at]
+        old_background = [t for t in threat_ages if t.get("urgency") == "background" and t.get("age", 0) >= threat_imperative_at]
+        old_immediate = [t for t in threat_ages if t.get("urgency") == "immediate" and t.get("age", 0) >= 3]
+        background_pressure = [t for t in threat_ages if t.get("urgency") == "background" and t.get("age", 0) >= threat_pressure_at and t.get("age", 0) < threat_imperative_at]
+        if old_building or old_background or old_immediate:
+            directives.append("Resolve a Threat")
+        elif background_pressure:
+            directives.append("Threat Pressure")
+
+    return "; ".join(directives) if directives else ""
+
+
 def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
     """Compute age/staleness counters for narration directives."""
     meta = state.get("meta") or {}
@@ -514,6 +563,16 @@ async def run_turn(
         _world_factions = pack_factions if pack_factions else []
         _world_locations = pack_locations if pack_locations else []
 
+        narration_directive = _compute_narration_directive(
+            deescalate=deescalate,
+            scene_pressure=(state.get("scene") or {}).get("scene_pressure") or [],
+            ages=ages,
+            threat_ages=threat_ages,
+            threat_pressure_at=config.threat_pressure_at,
+            threat_imperative_at=config.threat_imperative_at,
+            building_threat_imperative_at=config.building_threat_imperative_at,
+        )
+
         narr_messages = _narrate_messages(
             env,
             state,
@@ -635,6 +694,7 @@ async def run_turn(
                 turn_no=turn_no,
                 deescalate=deescalate,
                 recent_turns=recent_turns,
+                narration_directive=narration_directive,
             ):
                 if isinstance(_evt, tuple) and len(_evt) == 2 and _evt[0] == "phase":
                     yield _evt
@@ -1229,6 +1289,16 @@ async def run_turn_retry(
         ages = _compute_ages(state)
         threat_ages = _compute_threat_ages(state)
 
+        narration_directive = _compute_narration_directive(
+            deescalate=0.0,
+            scene_pressure=(state.get("scene") or {}).get("scene_pressure") or [],
+            ages=ages,
+            threat_ages=threat_ages,
+            threat_pressure_at=config.threat_pressure_at,
+            threat_imperative_at=config.threat_imperative_at,
+            building_threat_imperative_at=config.building_threat_imperative_at,
+        )
+
         # Known NPCs for narrator context (Phase 4A)
         _known_npcs = _known_characters_for_extract(state, compact=True)
 
@@ -1392,6 +1462,7 @@ async def run_turn_retry(
                 turn_no=turn_no,
                 deescalate=0.0,
                 recent_turns=recent_turns,
+                narration_directive=narration_directive,
             ):
                 if isinstance(_evt, tuple) and len(_evt) == 2 and _evt[0] == "phase":
                     yield _evt

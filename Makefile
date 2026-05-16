@@ -10,7 +10,7 @@ run: llama-swap
 	uv run ccya --host 0.0.0.0
 
 dev: llama-swap
-	uv run python -m ccya.cli
+	uv run python -m ccya.cli --host 0.0.0.0
 
 fmt:
 	uv run ruff format .

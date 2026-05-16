@@ -47,8 +47,9 @@ Meta adjustment: if domain judges contradict each other on a shared concern, adj
 For each pair of judges that touch overlapping concerns:
 - **state_correctness vs narrative_interplay**: state_correctness says state is clean but narrative_interplay says mechanics produce no story consequence — contradiction? Why?
 - **state_correctness vs prompt_pipeline**: state_correctness says extraction is failing but prompt_pipeline rates the extraction prompts highly — contradiction? Why?
-- **narrative_interplay vs prompt_pipeline**: narrative says directives are ignored but prompt_pipeline says narrate prompt adherence is good — which is right?
+- **narrative_interplay vs prompt_pipeline**: narrative says directives are ignored but prompt_pipeline says narrate prompt adherence is good — check if narration_directive is being rendered in prompts. Is the issue with prompt architecture or narrator behavior?
 - **state_correctness vs narrative_interplay (arc threads)**: state_correctness says arc thread lifecycle is clean (no flags) but narrative_interplay says arc threads produce no story consequence — contradiction? Check if thread_signals are being emitted correctly and if the narrator receives arc context.
+- **narrative_interplay vs state_correctness (pressures)**: state_correctness says pressure lifecycle is clean (no removal flags) but narrative_interplay says pressures are removed too early/late — check if removal timing is being evaluated correctly.
 
 If no contradiction: write `None.`
 

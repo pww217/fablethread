@@ -30,10 +30,19 @@ def print_banner(host: str, port: int, extra: list[str] | None = None) -> None:
 
 def dev() -> None:
     """Run the server with hot-reload for development."""
+    import argparse
+
     from ccya.server import config
 
-    host = config["server"]["bind_host"]
-    port = config["server"]["bind_port"]
+    parser = argparse.ArgumentParser(description="ccya — LLM text adventure (dev)")
+    parser.add_argument("--host", default=None, help="Bind host (overrides config)")
+    parser.add_argument(
+        "--port", type=int, default=None, help="Bind port (overrides config)"
+    )
+    args = parser.parse_args()
+
+    host = args.host or config["server"]["bind_host"]
+    port = args.port or config["server"]["bind_port"]
     print_banner(host, port, ["  hot-reload enabled"])
     uvicorn.run(
         "ccya.server:app",

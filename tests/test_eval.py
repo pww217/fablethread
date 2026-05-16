@@ -970,7 +970,7 @@ def test_run_all_universal_asserts_returns_ten():
     from ccya.eval.universal_asserts import run_all_universal_asserts
     ev = {"turn": 1}
     rs = run_all_universal_asserts(ev, None)
-    assert len(rs) == 18
+    assert len(rs) == 19
 
 
 # ---------------------------------------------------------------------------
