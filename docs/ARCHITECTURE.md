@@ -14,10 +14,10 @@ Every player turn drives this 5-step pipeline, executed strictly in order. Step 
 | Pipeline | When it runs | Key inputs | Key outputs | Mechanics it owns | Hand-off to next turn |
 |---|---|---|---|---|---|
 | **Step 0 — Rules / Intent** | Every turn (always) | `state.pc`, `state.location`, `recent_turns[-1:]`, `user_input` | `IntentEnvelope` (intent, verb, target, stakes, check.required, check.skill, check.difficulty); `RulesOutcome` (rolled, dice, mods, band, directive) | Intent classification, dice roll resolution (2d6 + stat + cond − diff → band), difficulty selection, anti-declare-outcome enforcement | `rules_outcome.directive` shapes narrator latitude |
-| **Step 1 — Narrate** | Every turn (always, streamed) | Full `state` (pc, location, scene, inventory, quests, compendium), `chronicle_tail`, `recent_turns`, `rules_outcome` (when rolled), `pack_style`, `narrator_rules`, `pending_gm_beat`, `momentum`, `ages`, `recently_left`, `known_npcs`, `present_npcs`, `world_factions`, `world_locations`, `npc_name_pool`, `deescalate`, `scene_pressure`, `user_input` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption (clears `state.meta.pending_gm_beat`), de-escalation directives, age-based stalling fixes | `narrative` feeds all 3 extractors |
-| **Step 2a — Scene Extract** | Every turn (always) | `narrative`, `state.pc/location`, `state.scene.present_npcs`, `state.pc.conditions`, `known_characters` (LRU compendium), `RulesOutcome`, `recent_turns[-1:]` | `SceneExtractResult`: `scene_tags`, `scene_tagline`, `location_change`, `location_description`, `npc_add/remove/update`, `compendium_npc_update` | NPC presence, location changes, scene tags, scene classification (tags/tagline), durable NPC compendium identity | `location_change` and `present_npcs` passed to Steps 2b and 2c |
-| **Step 2b — State Extract** | Every turn (always) | `narrative`, `state.pc`, `state.location`, `state.inventory`, `rules_outcome`, `engine_expired_conditions`, `scene_result.location_change`, `scene_result.present_npcs`, `stakes`, `band`, `band_examples` (few-shot extraction examples keyed to dice band) | `StateExtractResult`: `inventory_add/remove/update`, `pc_condition_add/remove` | Inventory delta accuracy, condition lifecycle (with `added_turn`), engine-side TTL pre-removal, ID normalization | `items_gained` (names) + `items_lost` (ids) feed Step 2c |
-| **Step 2c — Progress Extract** | Every turn (always) | `narrative`, `state.pc`, `state.scene.recent_events`, `state.scene.world_state`, `active_quests`, `scene_pressure`, `RulesOutcome`, `intent`, `recent_turns[-2:]`, `items_gained`/`items_lost` from 2b, `stakes`, `band`, `deescalate`, `quest_ages`, `pending_beat`, `quest_threshold_directive` | `ProgressExtractResult`: `quest_updates`, `recent_events_add/update/remove`, `actions` (4 suggested choices), `outcome_summary`, `gm_beat`, `beat_disposition`, `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update` | Quest objectives, recent_events ring buffer, action suggestions, narrative recap, GM beat generation + disposition, scene pressure lifecycle (all three operations) | `recent_events_add` becomes durable history; `quest_updates` advance arcs; `scene_pressure_add` feeds next turn's rules call; `gm_beat` stored in `state.meta.pending_gm_beat` |
+| **Step 1 — Narrate** | Every turn (always, streamed) | Full `state` (pc, location, scene, inventory, quests, compendium), `chronicle_tail`, `recent_turns`, `rules_outcome` (when rolled), `pack_style`, `narrator_rules`, `pending_gm_beat`, `momentum`, `ages`, `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN), `world_factions`, `world_locations`, `npc_name_pool`, `deescalate`, `scene_pressure`, `narrative_velocity`, `user_input` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption (clears `state.meta.pending_gm_beat`), de-escalation directives, age-based stalling fixes, narrative velocity pacing | `narrative` feeds all 3 extractors |
+| **Step 2a — Scene Extract** | Every turn (always) | `narrative`, `state.pc/location`, `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN), `state.pc.conditions`, `known_characters` (LRU compendium), `RulesOutcome`, `recent_turns[-1:]` | `SceneExtractResult`: `scene_tags`, `scene_tagline`, `location_change`, `location_description`, `npc_add/remove/update`, `compendium_npc_update` | NPC presence, location changes, scene tags, scene classification (tags/tagline), durable NPC compendium identity | `location_change` and `npc_roster` passed to Steps 2b and 2c |
+| **Step 2b — State Extract** | Every turn (always) | `narrative`, `state.pc`, `state.location`, `state.inventory`, `rules_outcome`, `engine_expired_conditions`, `scene_result.location_change`, `scene_result.npc_roster`, `stakes`, `band`, `band_examples` (few-shot extraction examples keyed to dice band) | `StateExtractResult`: `inventory_add/remove/update`, `pc_condition_add/remove` | Inventory delta accuracy, condition lifecycle (with `added_turn`), engine-side TTL pre-removal, ID normalization | (none — cross-stream items_gained/lost removed; extraction_ctx covers this) |
+| **Step 2c — Progress Extract** | Every turn (always) | `narrative`, `state.pc`, `state.scene.recent_events`, `state.scene.world_state`, `active_quests`, `scene_pressure`, `RulesOutcome`, `intent`, `recent_turns[-2:]`, `stakes`, `band`, `deescalate`, `quest_ages`, `pending_beat`, `quest_threshold_directive`, `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN) | `ProgressExtractResult`: `quest_updates`, `recent_events_add/update/remove`, `actions` (4 suggested choices), `outcome_summary`, `gm_beat`, `beat_disposition`, `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update` | Quest objectives, recent_events ring buffer, action suggestions, narrative recap, GM beat generation + disposition, scene pressure lifecycle (all three operations) | `recent_events_add` becomes durable history; `quest_updates` advance arcs; `scene_pressure_add` feeds next turn's rules call; `gm_beat` stored in `state.meta.pending_gm_beat` |
 
 After Step 2c, results merge into a `StateDelta`, the validator checks (e.g. `inventory_remove` IDs exist), `apply_delta()` mutates state in-place, and the turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `events.jsonl`.
 
@@ -191,8 +191,10 @@ flowchart LR
     LLM2A --> OUT
 ```
 
-> **Key forward dependency:** `location_change` and `present_npcs` are passed into
-> Steps 2b and 2c. No forward-facing mechanics (scene_pressure, gm_beat) are emitted by this stream.
+> **Key forward dependency:** `location_change` and `present_npcs` flow into
+> `extraction_ctx` (built by `_build_extraction_context`). Step 2c also receives
+> `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN) built from extraction_ctx.
+> No forward-facing mechanics (scene_pressure, gm_beat) are emitted by this stream.
 
 ---
 
@@ -212,12 +214,8 @@ flowchart LR
         S3["state.location"]
         S4["state.inventory"]
         S5["rules_outcome"]:::xstream
-        S6["engine_expired_conditions<br>(TTL-expired, engine pre-removed)"]
-        S7["scene_result.location_change<br>(from Step 2a)"]:::xstream
-        S8["scene_result.present_npcs<br>(from Step 2a)"]:::xstream
-        S9["stakes: str<br>(mechanical cost from rules)"]:::xstream
-        S10["band: str<br>(dice resolution band)"]:::xstream
-        S11["band_examples<br>(few-shot examples for current band)"]
+        S6["intent: str<br>(from Step 0)"]
+        S7["band_examples<br>(few-shot examples for current band)"]
     end
 
     subgraph LLM2B["LLM — extract_state_system.j2 + extract_state_user.j2"]
@@ -236,10 +234,9 @@ flowchart LR
     LLM2B --> OUT
 ```
 
-> **Key forward dependency:** Step 2c receives a **minimal cross-stream surface** from
-> Step 2b: `items_gained` (item **names** from `inventory_add`) and `items_lost` (item
-> **ids** from `inventory_remove`) — see `_extract_progress_messages` in `engine.py`.
-> This is narrower than the full `StateExtractResult` objects.
+> **Key forward dependency:** Step 2c receives `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN)
+> and `location_change` from Step 2a. Cross-stream items_gained/lost were removed —
+> extraction_ctx now covers all this-turn derived data.
 
 ---
 
@@ -259,11 +256,11 @@ flowchart LR
         S3["state.scene.recent_events"]
         S4["state.scene.world_state"]
         S5["active_quests (status=active only)"]
-        S6["scene_pressure (active threats)"]
-        S7["rules_outcome"]:::xstream
-        S8["intent (from Step 0)"]:::xstream
-        S9["recent_turns[-2:]<br>(T-1 + T-2 prior narration<br>for outcome_summary context)"]
-        S10["items_gained: list[str] (names)<br>items_lost: list[str] (ids)<br>(from Step 2b — minimal cross-stream)"]:::xstream
+        S6["npc_roster<br>(tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN)<br>built by build_npc_roster()"]:::xstream
+        S7["scene_pressure (active threats)"]
+        S8["rules_outcome"]:::xstream
+        S9["intent (from Step 0)"]:::xstream
+        S10["recent_turns[-2:]<br>(T-1 + T-2 prior narration<br>for outcome_summary context)"]
         S11["stakes: str<br>(mechanical cost from rules)"]:::xstream
         S12["band: str<br>(dice resolution band)"]:::xstream
         S13["deescalate: float<br>(pressure resolution magnitude)"]:::xstream
@@ -427,9 +424,9 @@ flowchart TD
     STATE -- "pc, inventory,<br>quests, compendium" --> STEP1
     STEP0 -- "IntentEnvelope<br>RulesOutcome" --> STEP1
     STEP1 -- "narrative: str" --> STEP2A["Step 2a<br>Scene"]:::stageScene
-    STEP2A -- "location_change<br>present_npcs" --> STEP2B["Step 2b<br>State"]:::stageState
+    STEP2A -- "location_change<br>npc_roster" --> STEP2B["Step 2b<br>State"]:::stageState
     STEP1 -- "narrative" --> STEP2B
-    STEP2B -- "items_gained, items_lost" --> STEP2C["Step 2c<br>Progress"]:::stageProgress
+    STEP2A -- "location_change<br>npc_roster" --> STEP2C["Step 2c<br>Progress"]:::stageProgress
     STEP1 -- "narrative" --> STEP2C
     STEP2A & STEP2B & STEP2C -- "merge" --> DELTA["StateDelta"]:::mergeNode
     DELTA -- "validate + apply" --> STATE
