@@ -87,10 +87,10 @@ Surface as {{ pending_gm_beat.surface_as }}. This is backstage direction — int
 
 **Momentum LOW ({{ m }}):** The player is struggling. Look for the one thing going slightly in their favor and name it. If the player attempts retreat, disengagement, or rest, allow the attempt to feel like it matters narratively.
 {% endif %}
-{% if deescalate %}
+{% if narrative_velocity < -0.3 %}
 
 **Narration Directive:** Breathe
-{% elif scene_pressure and not deescalate %}
+{% elif scene_pressure and not narrative_velocity < -0.3 %}
 {% set immediate_count = scene_pressure | selectattr("urgency", "equalto", "immediate") | list | length %}
 {% if immediate_count >= 3 %}
 
@@ -109,13 +109,6 @@ Surface as {{ pending_gm_beat.surface_as }}. This is backstage direction — int
 {% if ages and ages.get('combat_age', 0) >= 3 %}
 
 **Narration Directive:** Combat Fatigue
-{% endif %}
-{% if ages and ages.get('location_age', 0) > 4 %}
-
-**Narration Directive:** Location Imperative
-{% elif ages and ages.get('location_age', 0) > 2 %}
-
-**Narration Directive:** Location Pressure
 {% endif %}
 {% if threat_ages %}
 {% set old_building = threat_ages | selectattr("urgency", "equalto", "building") | selectattr("age", "ge", building_threat_imperative_at) | list %}

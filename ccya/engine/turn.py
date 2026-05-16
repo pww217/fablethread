@@ -193,8 +193,42 @@ def _candidate_to_latent_thread(
     return arc.model_copy(update={"latent_threads": latent + [new_thread]})  # type: ignore[no-any-return]
 
 
-def _compute_narration_directive(
+def _compute_narrative_velocity(
     deescalate: float,
+    momentum: int,
+    avoidance: bool,
+    momentum_floor: int = -3,
+    momentum_ceiling: int = 3,
+) -> float:
+    """Compute a signed pacing scalar in [-1.0, 1.0].
+
+    Negative values signal de-escalation (breathe, slow down).
+    Positive values signal escalation (pressure, urgency).
+    Zero is neutral.
+
+    Priority:
+      1. Explicit de-escalation from a successful check beats everything.
+      2. Avoidance keyword in player input nudges negative.
+      3. Momentum outside floor/ceiling normalizes toward +/-0.5.
+      4. Default: 0.0 (neutral, let pressure/beat directives govern).
+    """
+    if deescalate > 0:
+        return -deescalate
+
+    if avoidance:
+        return -0.4
+
+    span = momentum_ceiling - momentum_floor
+    if span <= 0:
+        return 0.0
+    midpoint = (momentum_ceiling + momentum_floor) / 2.0
+    normalized = (momentum - midpoint) / (span / 2.0)
+    # Scale down -- momentum alone shouldn't dominate; caps at +/-0.5
+    return max(-0.5, min(0.5, normalized * 0.5))
+
+
+def _compute_narration_directive(
+    narrative_velocity: float,
     scene_pressure: list[dict[str, Any]],
     ages: dict[str, int],
     threat_ages: list[dict[str, Any]],
@@ -202,44 +236,79 @@ def _compute_narration_directive(
     threat_imperative_at: int = 5,
     building_threat_imperative_at: int = 4,
 ) -> str:
-    """Compute the narration directive string from pacing state.
+    """Compute the narration directive string using a priority stack.
 
-    Mirrors the logic in narrate_user.j2 so the progress extractor
-    can use the same directive for beats/pressure decisions.
+    Returns the highest-priority directive. Secondary directives are appended
+    only when they do not contradict the primary (i.e., no escalation labels
+    when velocity is negative).
+
+    Priority order (highest to lowest):
+      1. Breathe       -- explicit de-escalation (velocity < -0.3)
+      2. Overwhelm     -- 3+ immediate pressures
+      3. Resolve a Threat -- aged-out threat pressure
+      4. Pressure      -- 1-2 immediate pressures
+      5. Tension       -- building pressures only
+      6. Threat Pressure -- background threat aging toward imperative
+      Secondary (non-contradicting append):
+      7. Combat Fatigue -- combat_age >= 3
     """
-    directives: list[str] = []
+    # Priority 1: breathe (de-escalation wins unconditionally)
+    if narrative_velocity < -0.3:
+        return "Breathe"
 
-    if deescalate > 0:
-        directives.append("Breathe")
-    elif scene_pressure:
-        immediate_count = sum(1 for p in scene_pressure if p.get("urgency") == "immediate")
-        if immediate_count >= 3:
-            directives.append("Overwhelm")
-        elif immediate_count > 0:
-            directives.append("Pressure")
-        else:
-            building_count = sum(1 for p in scene_pressure if p.get("urgency") == "building")
-            if building_count > 0:
-                directives.append("Tension")
+    secondary: list[str] = []
 
-    if ages.get("combat_age", 0) >= 3:
-        directives.append("Combat Fatigue")
-    if ages.get("location_age", 0) > 4:
-        directives.append("Location Imperative")
-    elif ages.get("location_age", 0) > 2:
-        directives.append("Location Pressure")
+    # Priority 2: overwhelm (3+ immediate pressures)
+    immediate_count = sum(1 for p in scene_pressure if p.get("urgency") == "immediate")
+    if immediate_count >= 3:
+        primary = "Overwhelm"
+    else:
+        primary = ""
 
-    if threat_ages:
-        old_building = [t for t in threat_ages if t.get("urgency") == "building" and t.get("age", 0) >= building_threat_imperative_at]
-        old_background = [t for t in threat_ages if t.get("urgency") == "background" and t.get("age", 0) >= threat_imperative_at]
-        old_immediate = [t for t in threat_ages if t.get("urgency") == "immediate" and t.get("age", 0) >= 3]
-        background_pressure = [t for t in threat_ages if t.get("urgency") == "background" and t.get("age", 0) >= threat_pressure_at and t.get("age", 0) < threat_imperative_at]
+    # Priority 3: aged-out threat (resolve a threat)
+    if not primary and threat_ages:
+        old_building = [
+            t for t in threat_ages
+            if t.get("urgency") == "building" and t.get("age", 0) >= building_threat_imperative_at
+        ]
+        old_background = [
+            t for t in threat_ages
+            if t.get("urgency") == "background" and t.get("age", 0) >= threat_imperative_at
+        ]
+        old_immediate = [
+            t for t in threat_ages
+            if t.get("urgency") == "immediate" and t.get("age", 0) >= 3
+        ]
         if old_building or old_background or old_immediate:
-            directives.append("Resolve a Threat")
-        elif background_pressure:
-            directives.append("Threat Pressure")
+            primary = "Resolve a Threat"
 
-    return "; ".join(directives) if directives else ""
+    # Priority 4: pressure (1-2 immediate)
+    if not primary and immediate_count > 0:
+        primary = "Pressure"
+
+    # Priority 5: tension (building only)
+    if not primary:
+        building_count = sum(1 for p in scene_pressure if p.get("urgency") == "building")
+        if building_count > 0:
+            primary = "Tension"
+
+    # Priority 6: threat pressure (background aging toward imperative)
+    if not primary and threat_ages:
+        background_pressure = [
+            t for t in threat_ages
+            if t.get("urgency") == "background"
+            and threat_pressure_at <= t.get("age", 0) < threat_imperative_at
+        ]
+        if background_pressure:
+            primary = "Threat Pressure"
+
+    # Secondary: combat fatigue (non-contradicting append)
+    if ages.get("combat_age", 0) >= 3:
+        secondary.append("Combat Fatigue")
+
+    parts = [primary] if primary else []
+    parts.extend(secondary)
+    return "; ".join(parts)
 
 
 def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
@@ -292,6 +361,35 @@ def _compute_threat_ages(state: dict[str, Any]) -> list[dict[str, Any]]:
     # Sort by age descending so the oldest threat is first
     result.sort(key=lambda x: x["age"], reverse=True)
     return result
+
+
+_LOCATION_PRESSURE_ID = "_engine_location_stale"
+
+
+def _inject_location_pressure(
+    ages: dict[str, int],
+    existing_pressure: list[dict[str, Any]],
+    location_pressure_at: int = 3,
+    location_imperative_at: int = 5,
+) -> list[dict[str, Any]]:
+    """Return a new pressure list with a synthetic location staleness entry if warranted.
+
+    Does not mutate the input list. Returns a new list.
+    The synthetic entry is never persisted to state (turn_added=0 signals engine-generated).
+    """
+    location_age = ages.get("location_age", 0)
+    filtered = [p for p in existing_pressure if p.get("id") != _LOCATION_PRESSURE_ID]
+    if location_age <= location_pressure_at:
+        return filtered
+
+    urgency = "immediate" if location_age > location_imperative_at else "building"
+    synthetic = {
+        "id": _LOCATION_PRESSURE_ID,
+        "text": "The scene has lingered here too long — move it along.",
+        "urgency": urgency,
+        "turn_added": 0,
+    }
+    return filtered + [synthetic]
 
 
 def _compute_recent_window(
@@ -563,9 +661,26 @@ async def run_turn(
         _world_factions = pack_factions if pack_factions else []
         _world_locations = pack_locations if pack_locations else []
 
-        narration_directive = _compute_narration_directive(
+        # Compute unified pacing scalar
+        narrative_velocity = _compute_narrative_velocity(
             deescalate=deescalate,
-            scene_pressure=(state.get("scene") or {}).get("scene_pressure") or [],
+            momentum=(state.get("pc") or {}).get("momentum", 0),
+            avoidance=avoidance,
+            momentum_floor=config.momentum_floor,
+            momentum_ceiling=config.momentum_ceiling,
+        )
+
+        _raw_scene_pressure = (state.get("scene") or {}).get("scene_pressure") or []
+        _effective_pressure = _inject_location_pressure(
+            ages=ages,
+            existing_pressure=_raw_scene_pressure,
+            location_pressure_at=config.location_pressure_at,
+            location_imperative_at=config.location_imperative_at,
+        )
+
+        narration_directive = _compute_narration_directive(
+            narrative_velocity=narrative_velocity,
+            scene_pressure=_effective_pressure,
             ages=ages,
             threat_ages=threat_ages,
             threat_pressure_at=config.threat_pressure_at,
@@ -589,12 +704,13 @@ async def run_turn(
             momentum=(state.get("pc") or {}).get("momentum", 0),
             pending_gm_beat=_pending_gm_beat,
             deescalate=deescalate,
+            narrative_velocity=narrative_velocity,
             ages=ages,
             known_npcs=_known_npcs,
             present_npcs=_present_npcs,
             compendium_bios=_compendium_bios,
             pc_allegiance=_pc_allegiance,
-            scene_pressure=(state.get("scene") or {}).get("scene_pressure") or [],
+            scene_pressure=_effective_pressure,
             turn_no=turn_no,
             world_factions=_world_factions,
             world_locations=_world_locations,
@@ -693,6 +809,7 @@ async def run_turn(
                 trace_id=trace_id,
                 turn_no=turn_no,
                 deescalate=deescalate,
+                narrative_velocity=narrative_velocity,
                 recent_turns=recent_turns,
                 narration_directive=narration_directive,
             ):
@@ -1289,9 +1406,26 @@ async def run_turn_retry(
         ages = _compute_ages(state)
         threat_ages = _compute_threat_ages(state)
 
-        narration_directive = _compute_narration_directive(
+        # Compute unified pacing scalar (retry: deescalate=0.0, avoidance=False)
+        narrative_velocity = _compute_narrative_velocity(
             deescalate=0.0,
-            scene_pressure=(state.get("scene") or {}).get("scene_pressure") or [],
+            momentum=(state.get("pc") or {}).get("momentum", 0),
+            avoidance=False,
+            momentum_floor=config.momentum_floor,
+            momentum_ceiling=config.momentum_ceiling,
+        )
+
+        _raw_scene_pressure = (state.get("scene") or {}).get("scene_pressure") or []
+        _effective_pressure = _inject_location_pressure(
+            ages=ages,
+            existing_pressure=_raw_scene_pressure,
+            location_pressure_at=config.location_pressure_at,
+            location_imperative_at=config.location_imperative_at,
+        )
+
+        narration_directive = _compute_narration_directive(
+            narrative_velocity=narrative_velocity,
+            scene_pressure=_effective_pressure,
             ages=ages,
             threat_ages=threat_ages,
             threat_pressure_at=config.threat_pressure_at,
@@ -1358,12 +1492,13 @@ async def run_turn_retry(
             # outcome is already fixed — re-rolling narration shouldn't
             # change the pacing directive.
             deescalate=0.0,
+            narrative_velocity=narrative_velocity,
             ages=ages,
             known_npcs=_known_npcs,
             present_npcs=_present_npcs,
             compendium_bios=_compendium_bios,
             pc_allegiance=_pc_allegiance,
-            scene_pressure=(state.get("scene") or {}).get("scene_pressure") or [],
+            scene_pressure=_effective_pressure,
             world_factions=_world_factions,
             world_locations=_world_locations,
             threat_ages=threat_ages,
@@ -1461,6 +1596,7 @@ async def run_turn_retry(
                 trace_id=trace_id,
                 turn_no=turn_no,
                 deescalate=0.0,
+                narrative_velocity=narrative_velocity,
                 recent_turns=recent_turns,
                 narration_directive=narration_directive,
             ):

@@ -25,6 +25,7 @@ def _render(env: Environment, **ctx) -> str:
         "known_characters": [],
         "scene_result": {},
         "deescalate": False,
+        "narrative_velocity": 0.0,
         "intent": None,
         "recent_turns": [],
         "turn_no": 1,
