@@ -2,7 +2,7 @@
 
 import pytest
 
-from ccya.models import GMBeat, ProgressExtractResult, SceneExtractResult, ScenePressure
+from ccya.models import CompactorSanitizationResult, GMBeat, ProgressExtractResult, SceneExtractResult, ScenePressure
 from ccya.pack import ScenarioBrief
 
 
@@ -226,3 +226,47 @@ class TestProgressExtractResultActionsValidator:
         assert r.actions[1] == "convince the guard"
         assert r.actions[2] == "climb the wall"
         assert r.actions[3] == "jump over the fence"
+
+
+class TestDriftAnalysisCoercion:
+    def test_coerces_id_to_thread_id(self):
+        raw = [
+            {"id": "thread_a", "match": True, "reason": "matched"},
+            {"id": "thread_b", "match": False},
+        ]
+        r = ProgressExtractResult(drift_analysis=raw)
+        assert len(r.drift_analysis) == 2
+        assert r.drift_analysis[0].thread_id == "thread_a"
+        assert r.drift_analysis[1].thread_id == "thread_b"
+
+    def test_drops_items_with_no_id(self):
+        raw = [{"match": True, "reason": "no id here"}]
+        r = ProgressExtractResult(drift_analysis=raw)
+        assert r.drift_analysis == []
+
+    def test_passthrough_when_thread_id_present(self):
+        raw = [{"thread_id": "thread_a", "match": True}]
+        r = ProgressExtractResult(drift_analysis=raw)
+        assert len(r.drift_analysis) == 1
+        assert r.drift_analysis[0].thread_id == "thread_a"
+
+
+class TestCompactorSanitizationCoercion:
+    def test_coerces_string_pressure_remove(self):
+        r = CompactorSanitizationResult(pressure_remove=["tough_a", "tough_b"])
+        assert len(r.pressure_remove) == 2
+        assert r.pressure_remove[0].id == "tough_a"
+        assert r.pressure_remove[0].confidence == "high"
+        assert r.pressure_remove[1].id == "tough_b"
+
+    def test_coerces_string_inventory_remove(self):
+        r = CompactorSanitizationResult(inventory_remove=["old_sword"])
+        assert len(r.inventory_remove) == 1
+        assert r.inventory_remove[0].id == "old_sword"
+        assert r.inventory_remove[0].confidence == "high"
+
+    def test_passthrough_dict(self):
+        r = CompactorSanitizationResult(pressure_remove=[{"id": "tough_a", "confidence": "medium"}])
+        assert len(r.pressure_remove) == 1
+        assert r.pressure_remove[0].id == "tough_a"
+        assert r.pressure_remove[0].confidence == "medium"

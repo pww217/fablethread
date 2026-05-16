@@ -666,6 +666,8 @@ flowchart TD
 
 ## Out-of-band Pipelines (not part of the per-turn loop — for human reference)
 
+<!-- EVAL_CONTEXT_END -->
+
 These run only at new-game time or are non-engine concerns. They are excluded from the eval-context region above.
 
 ---
