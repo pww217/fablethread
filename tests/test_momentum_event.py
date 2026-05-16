@@ -3,6 +3,7 @@
 import json
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 from ccya.engine import EngineConfig
 from ccya.state import save_state
@@ -56,7 +57,10 @@ class TestMomentumEventEmission:
         save_state(save_dir, state)
 
         fake = _FakeLLM(rules_response=_RULES_WITH_ROLL)
-        with fake:
+        # Patch random.randint to produce a deterministic success band.
+        # strength=2, difficulty=hard: stat_mod=0, diff_mod=-1.
+        # dice (5,6) → raw=11, final=10 → "success" → delta=1.
+        with fake, patch("ccya.rules.random.randint", side_effect=[5, 6]):
             await _run(save_dir, "attack the guard", config=EngineConfig())
 
         events = (save_dir / "events.jsonl").read_text().strip().split("\n")
