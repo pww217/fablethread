@@ -1,26 +1,34 @@
 # AGENTS.md — ccya coding guidance
 
-- You are a coding agent
-- Be terse, answer immediately and directly
-- No change on of thought, do not use /think or reasoning
-- Recognize circular thinking and stop it
+++**CRITICAL:**++
+
+- Be as terse as possible in your thinking and token use, answer immediately and directly
+- **🛑 Critical Anti-Looping & Overthinking Directives**
+  You are an efficient problem solver. Avoid infinite reasoning loops and overthinking. Follow these strict rules:
+  1. **Time/Token Cap:** If your internal reasoning reaches \([2,000]\) tokens or becomes circular, immediately halt internal refining and output the best current solution.
+  2. **Anti-Looping:** If you find yourself re-evaluating the same variables or returning to the same tool/method, stop, acknowledge the impasse, and present a fallback option.
+  3. **Action Over Theory:** For coding or agentic tasks, lean on external tool execution (if available) rather than endless internal simulations. Do not repeatedly "re-verify" the same code without making changes.
+  4. **Hard Stop:** Once a clear, actionable conclusion is reached, finalize the output immediately. Avoid unnecessary summarizing or meta-commentary about your thought process.
 
 ## How to use this file
 
 This file is your **signpost**. It tells you what to do and where to find details.
 
 **Navigation path:**
+
 1. **This file** — rules, workflow, module boundaries
-2. **`docs/REPOMAP/`** — where code lives, what each file does, function signatures
-3. **`/plans/`** — plan docs for features and fixes
+2. `**docs/REPOMAP/`** — where code lives, what each file does, function signatures
+3. `**/plans/**` — plan docs for features and fixes
 4. **The codebase itself** — the source of truth
 
 When working on a task:
+
 - Read the relevant REPOMAP file(s) to understand the code
 - Read the linked plan doc for implementation details
 - Then read the actual source files
 
 **When you change code, you must update docs:**
+
 - New files, renamed files, moved functions → update `docs/REPOMAP/`
 - New module responsibility or boundary → update this file
 - Never leave docs stale — if the code changes, the docs must change in the same commit
@@ -29,35 +37,37 @@ When working on a task:
 
 ## Module responsibilities — don't cross them
 
-| Module | Owns | Does NOT own |
-|---|---|---|
-| `engine/` | Turn pipeline: `run_turn()`, extraction, narration, retry logic | State file I/O, HTTP |
-| `engine/turn.py` | `run_turn()` orchestrator (thin — imports from submodules) | Helper logic |
-| `engine/config.py` | `EngineConfig`, `_EventLock`, `is_turn_in_progress` | Game logic |
-| `engine/narrate.py` | Narration prompt building, NPC name generation | State mutation |
-| `engine/rules.py` | Rules LLM call wrappers, retry logic | Deterministic dice/bands |
-| `engine/extraction.py` | Three-stream extraction pipeline | State mutation |
-| `engine/seed.py` | Dynamic seed generation | Game logic |
-| `engine/changes.py` | Change summary formatters | LLM calls |
-| `engine/pressure.py` | Scene pressure expiry logic | State mutation |
-| `engine/compactor.py` | Chronicle compaction + recent_events pruning | State mutation |
-| `state/` | State persistence: load, save, apply_delta, append_event, append_chronicle | LLM calls, HTTP |
-| `state/io.py` | `load_state`, `save_state`, `init_save_dir`, migration | State mutation logic |
-| `state/delta.py` | `apply_delta`, `reconcile_delta`, `PC_CONDITIONS_MAX` | I/O |
-| `state/inventory.py` | Inventory ID normalization, fuzzy matching | State mutation |
-| `state/npcs.py` | NPC alias map, compendium ordering | State mutation |
-| `state/chronicle.py` | Chronicle/events file I/O, `load_recent_chronicle_turns` | State mutation |
-| `state/momentum.py` | Momentum tracking | Deterministic dice/bands |
-| `models.py` | All Pydantic models, `TurnResult`, `load_config()` | Business logic |
-| `server/app.py` | FastAPI app, config bootstrap, Jinja env, startup | Route handlers |
-| `server/routes.py` | All `@app.get` / `@app.post` handlers | App bootstrap |
-| `server/panels.py` | Debug panel helpers, `_load_*` functions | Route handlers |
-| `server/tv.py` | Turn viewer data preparation | Route handlers |
-| `server/metrics.py` | Turn metrics, formatting helpers | Route handlers |
-| `pack.py` | Pack loading, `PackManifest`, `SeedEnvelope` | State mutation |
-| `rules.py` | Deterministic dice: `resolve_check()`, bands, momentum | LLM calls, state |
-| `llm_client.py` | LLM HTTP client, chat, streaming, thinking helpers | Prompt construction |
-| `eval/` | Eval harness: in-process driver, judge, REPORT.md | State mutation, LLM calls |
+
+| Module                 | Owns                                                                       | Does NOT own              |
+| ---------------------- | -------------------------------------------------------------------------- | ------------------------- |
+| `engine/`              | Turn pipeline: `run_turn()`, extraction, narration, retry logic            | State file I/O, HTTP      |
+| `engine/turn.py`       | `run_turn()` orchestrator (thin — imports from submodules)                 | Helper logic              |
+| `engine/config.py`     | `EngineConfig`, `_EventLock`, `is_turn_in_progress`                        | Game logic                |
+| `engine/narrate.py`    | Narration prompt building, NPC name generation                             | State mutation            |
+| `engine/rules.py`      | Rules LLM call wrappers, retry logic                                       | Deterministic dice/bands  |
+| `engine/extraction.py` | Three-stream extraction pipeline                                           | State mutation            |
+| `engine/seed.py`       | Dynamic seed generation                                                    | Game logic                |
+| `engine/changes.py`    | Change summary formatters                                                  | LLM calls                 |
+| `engine/pressure.py`   | Scene pressure expiry logic                                                | State mutation            |
+| `engine/compactor.py`  | Chronicle compaction + recent_events pruning                               | State mutation            |
+| `state/`               | State persistence: load, save, apply_delta, append_event, append_chronicle | LLM calls, HTTP           |
+| `state/io.py`          | `load_state`, `save_state`, `init_save_dir`, migration                     | State mutation logic      |
+| `state/delta.py`       | `apply_delta`, `reconcile_delta`, `PC_CONDITIONS_MAX`                      | I/O                       |
+| `state/inventory.py`   | Inventory ID normalization, fuzzy matching                                 | State mutation            |
+| `state/npcs.py`        | NPC alias map, compendium ordering                                         | State mutation            |
+| `state/chronicle.py`   | Chronicle/events file I/O, `load_recent_chronicle_turns`                   | State mutation            |
+| `state/momentum.py`    | Momentum tracking                                                          | Deterministic dice/bands  |
+| `models.py`            | All Pydantic models, `TurnResult`, `load_config()`                         | Business logic            |
+| `server/app.py`        | FastAPI app, config bootstrap, Jinja env, startup                          | Route handlers            |
+| `server/routes.py`     | All `@app.get` / `@app.post` handlers                                      | App bootstrap             |
+| `server/panels.py`     | Debug panel helpers, `_load_`* functions                                   | Route handlers            |
+| `server/tv.py`         | Turn viewer data preparation                                               | Route handlers            |
+| `server/metrics.py`    | Turn metrics, formatting helpers                                           | Route handlers            |
+| `pack.py`              | Pack loading, `PackManifest`, `SeedEnvelope`                               | State mutation            |
+| `rules.py`             | Deterministic dice: `resolve_check()`, bands, momentum                     | LLM calls, state          |
+| `llm_client.py`        | LLM HTTP client, chat, streaming, thinking helpers                         | Prompt construction       |
+| `eval/`                | Eval harness: in-process driver, judge, REPORT.md                          | State mutation, LLM calls |
+
 
 If you find logic in the wrong layer, move it rather than pile on.
 
@@ -115,7 +125,6 @@ If you find logic in the wrong layer, move it rather than pile on.
 - `make check` — runs `make lint` (ruff) + `make typecheck` (mypy).
 - `make typecheck` — runs mypy on `ccya/`.
 - Tests mock the LLM client — never call a real model server.
-- When running tests, use a killswitch of 15 seconds. If it fails, it sometimes hangs indefinitely.
 
 ---
 
@@ -125,20 +134,15 @@ If you find logic in the wrong layer, move it rather than pile on.
 - Plans awaiting review are in `/plans/review/` — these must NOT be executed. They need a review pass first.
 - Move completed plans from `/plans/` to `/plans/completed/` (organized by category).
 - Abandoned plans get an `## Abandoned` section with one-line reason.
-
----
-
-## Planning/Reasoning
-
 - Split large jobs into segments. Aim for at most 3500 lines of code per segment.
-- Limit reasoning to what's necessary. Keep it terse.
-- When instructed to make a commit, make a detailed memo of all major and key changes.
 
 ---
 
 ## Execution Rules
 
 - Feel free to curl against a running server (assume it's running) to pull information or rendered templates live to examine.
+- When stumped by a bug, create a hypothesis and test it in isolation; don't go in circles. Use the scientific method.
+- When instructed to make a commit, make a detailed memo of all major and key changes.
 
 ---
 
@@ -147,6 +151,7 @@ If you find logic in the wrong layer, move it rather than pile on.
 - `pyproject.toml` has `follow_imports = "skip"` in mypy config — prevents pydantic plugin from resolving `BaseModel`. Workaround: `disallow_subclassing_any = false` + per-module `disable_error_code` overrides for `ccya.models`, `ccya.pack`, `ccya.server`.
 - Server route handlers use untyped FastAPI decorators (`@app.get`, `@app.post`). Mypy overrides disable `no-untyped-def`, `no-untyped-call`, `untyped-decorator` for `ccya.server`.
 - FastAPI `on_event` is deprecated (see `server/app.py`). Migrate to lifespan event handlers when convenient — not blocking.
+- When running tests, use a killswitch of 15 seconds. If it fails, it sometimes hangs indefinitely.
 
 ---
 
@@ -154,26 +159,29 @@ If you find logic in the wrong layer, move it rather than pile on.
 
 Detailed file/function/directory info lives in `docs/REPOMAP/`. Read the relevant files using your Read tool when the task requires it:
 
-| Working on... | Read |
-|---|---|
-| Turn pipeline, extractors, retry | `@docs/REPOMAP/engine.md` |
-| State persistence, apply_delta | `@docs/REPOMAP/state.md` |
-| FastAPI routes, SSE, HTMX | `@docs/REPOMAP/server.md` |
-| Pydantic models, TurnResult | `@docs/REPOMAP/models.md` |
-| Pack loading, pack modes, name gen | `@docs/REPOMAP/pack.md` |
-| Dice, 2d6, bands | `@docs/REPOMAP/rules.md` |
-| LLM client, streaming, mock | `@docs/REPOMAP/llm_client.md` |
-| Prompt templates | `@docs/REPOMAP/prompts.md` |
-| Frontend, CSS, JS, templates | `@docs/REPOMAP/frontend.md` |
-| Testing, FakeLLM, commands | `@docs/REPOMAP/testing.md` |
-| Config.yaml, EngineConfig | `@docs/REPOMAP/config.md` |
-| Directory layout | `@docs/REPOMAP/directory.md` |
-| Eval harness | `@docs/REPOMAP/eval.md` |
+
+| Working on...                      | Read                          |
+| ---------------------------------- | ----------------------------- |
+| Turn pipeline, extractors, retry   | `@docs/REPOMAP/engine.md`     |
+| State persistence, apply_delta     | `@docs/REPOMAP/state.md`      |
+| FastAPI routes, SSE, HTMX          | `@docs/REPOMAP/server.md`     |
+| Pydantic models, TurnResult        | `@docs/REPOMAP/models.md`     |
+| Pack loading, pack modes, name gen | `@docs/REPOMAP/pack.md`       |
+| Dice, 2d6, bands                   | `@docs/REPOMAP/rules.md`      |
+| LLM client, streaming, mock        | `@docs/REPOMAP/llm_client.md` |
+| Prompt templates                   | `@docs/REPOMAP/prompts.md`    |
+| Frontend, CSS, JS, templates       | `@docs/REPOMAP/frontend.md`   |
+| Testing, FakeLLM, commands         | `@docs/REPOMAP/testing.md`    |
+| Config.yaml, EngineConfig          | `@docs/REPOMAP/config.md`     |
+| Directory layout                   | `@docs/REPOMAP/directory.md`  |
+| Eval harness                       | `@docs/REPOMAP/eval.md`       |
+
 
 Cross-cutting tasks (read multiple):
+
 - Modify turn pipeline → `engine.md` + `state.md` + `models.md`
 - Add new config option → `config.md` + `engine.md` + `server.md`
 - Debug extraction → `engine.md` + `prompts.md` + `state.md`
 - New pack → `pack.md` + `models.md`
 
-/no_think
+Any observed inaccuracies in the repomap or documentation should be updated immediately.
