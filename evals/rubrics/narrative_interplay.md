@@ -1,7 +1,7 @@
-***
-narrative_score: <int 1-5>
-system_cohesion_score: <int 1-5>
-***
+---
+# narrative_score: int 1-5
+# system_cohesion_score: int 1-5
+---
 
 # ccya Eval — Narrative & Mechanic Interplay Judge
 
@@ -24,7 +24,7 @@ Scoring philosophy:
 - 1–2/5: Directives routinely ignored, tone disconnected from momentum band, mechanics
   create no story consequence.
 
-***
+---
 
 ## HOW TO READ YOUR TRACE
 
@@ -36,7 +36,7 @@ Per-turn blocks contain:
 
 You do NOT have access to the system or user prompts — do not comment on prompt architecture.
 
-***
+---
 
 ## SECTION 1 — Mechanic→Narrative Chain Analysis
 
@@ -128,7 +128,7 @@ For each active thread per turn: was the thread's summary or tags reflected in n
 
 Flag: `PHANTOM_THREAD` (in active_threads, never mentioned in prose, never signaled), `STATE_MISMATCH` (thread state changed in state but narration shows no corresponding story event), `SILENT_COMPLETE` (thread marked complete but no narrative resolution).
 
-***
+---
 
 ## SECTION 2 — NPC and World Coherence
 
@@ -143,7 +143,7 @@ Flag turns where the narration output ignores or contradicts the player's stated
 
 Verdict: tight / loose / broken.
 
-***
+---
 
 ## SECTION 3 — Pacing Assessment
 
@@ -153,7 +153,7 @@ Verdict: tight / loose / broken.
 - **Escape paths**: when player was in a bad situation (negative momentum, immediate pressure),
   were there viable choices to improve it? Assess from narration content.
 
-***
+---
 
 ## SECTION 4 — Scores
 
@@ -164,7 +164,7 @@ Score 1–5.
 ### System Cohesion Score (1–5)
 Based on Section 1 chain analyses. Is the engine behaving as a system (mechanics→narrative→state→mechanics) or as isolated components? A 5 requires arc thread lifecycle (latent→active→complete) producing coherent story arcs across turns. Score 1–5.
 
-***
+---
 
 ## SECTION 5 — Actionable Issues
 

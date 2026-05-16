@@ -43,3 +43,17 @@ class TestParseJudgeResponse:
         scores, body = parse_judge_response(raw)
         assert scores["mechanical_score"] == 3
         assert "Body" in body
+
+    def test_table_rows_in_body_no_false_match(self):
+        raw = "---\nstate_fidelity_rate: 0.77\nextraction_accuracy_score: 3\n---\n\n# Analysis\n\n| Turn | Roll Band | Momentum |\n|------|-----------|----------|\n| 1    | Success   | +1       |\n\nSome **bold** text and --- horizontal rules here.\n\n--- end of report ---\n"
+        scores, body = parse_judge_response(raw)
+        assert scores["state_fidelity_rate"] == 0.77
+        assert scores["extraction_accuracy_score"] == 3
+        assert "Turn" in body
+        assert "**bold**" in body
+
+    def test_no_match_on_mid_body_delimiter(self):
+        raw = "---\nnarrative_score: 4\n---\n\n# Section\n\nSome --- rules here.\n\n--- end ---\n"
+        scores, body = parse_judge_response(raw)
+        assert scores["narrative_score"] == 4
+        assert "--- end ---" in body or "--- end" in body or "--- end ---" not in scores

@@ -766,8 +766,8 @@ def _build_metrics_rows(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 _FM_RE = re.compile(
-    r"(?:---|\*{2,})\s*\n(.*?)\n(?:---|\*{2,})\s*\n(.*)",
-    re.DOTALL,
+    r"^---\s*\n(.*?)\n^---\s*\n(.*)",
+    re.DOTALL | re.MULTILINE,
 )
 
 
@@ -777,9 +777,9 @@ def parse_judge_response(raw: str) -> tuple[dict[str, Any], str]:
     Returns (scores, body_md). If no front matter present, scores is empty dict
     and body_md is the entire (think-stripped) response.
 
-    Tries three formats in order:
+    Tries two formats in order:
     1. ```yaml code fence
-    2. `---` or `***` delimiter front matter
+    2. `---` delimiter front matter (must be at start of response)
     3. Fallback: no scores, full text as body
     """
     s = strip_thinking(raw or "").strip()

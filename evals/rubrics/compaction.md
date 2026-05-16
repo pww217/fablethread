@@ -1,7 +1,7 @@
-***
-compaction_score: <int 1-5>
-sanitization_fidelity_rate: <float 0.0-1.0>
-***
+---
+# compaction_score: int 1-5
+# sanitization_fidelity_rate: float 0.0-1.0
+---
 
 # ccya Eval — Compaction Judge
 
@@ -15,7 +15,7 @@ You receive:
 
 If no compaction occurred in this run, state that and score 3/5 (neutral — cannot assess).
 
-***
+---
 
 ## SECTION 1 — Chronicle Quality
 
@@ -30,7 +30,7 @@ For each compaction pass (identify turns from the state_snapshot changes):
 
 Score each pass: `[OK]` / `[PARTIAL]` / `[FAIL]`.
 
-***
+---
 
 ## SECTION 2 — Sanitization Fidelity
 
@@ -47,7 +47,7 @@ After each compaction pass, check:
 **Sanitization Fidelity Rate:** (fields scored OK) / (fields scored OK + FAIL). Show arithmetic.
 This value goes in YAML front matter.
 
-***
+---
 
 ## SECTION 3 — Compaction Score (1–5)
 
@@ -57,7 +57,7 @@ This value goes in YAML front matter.
 - 2: Bullets inaccurate on ≥1 pass OR sanitization has ≥2 FAILs.
 - 1: Bullets entirely inaccurate OR sanitization entirely absent.
 
-***
+---
 
 ## SECTION 4 — Actionable Issues
 

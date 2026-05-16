@@ -1,13 +1,13 @@
-***
-prompt_quality_score: <int 1-5>
-prompt_adherence_rate: <float 0.0-1.0>
-pipeline_scores:
-  rules: <int 1-5>
-  narrate: <int 1-5>
-  extract_scene: <int 1-5>
-  extract_state: <int 1-5>
-  extract_progress: <int 1-5>
-***
+---
+# prompt_quality_score: int 1-5
+# prompt_adherence_rate: float 0.0-1.0
+# pipeline_scores:
+#   rules: int 1-5
+#   narrate: int 1-5
+#   extract_scene: int 1-5
+#   extract_state: int 1-5
+#   extract_progress: int 1-5
+---
 
 # ccya Eval — Prompt Architecture & Pipeline Judge
 
@@ -24,7 +24,7 @@ Your question: are the prompts well-structured, and did each pipeline obey its o
 
 Every finding must cite a specific turn and pipeline.
 
-***
+---
 
 ## HOW TO READ YOUR TRACE
 
@@ -36,7 +36,7 @@ Every finding must cite a specific turn and pipeline.
 - Prompt Redundancy table: cross-stream block duplication detected by the harness
 - Metrics table: per-turn token counts per pipeline
 
-***
+---
 
 ## SECTION 1 — Per-Pipeline Prompt Audit
 
@@ -75,7 +75,7 @@ For each pipeline, evaluate criteria below. Score each: `Y` / `N` / `PARTIAL`.
 ### 1E — Extract Progress Pipeline
 (same format)
 
-***
+---
 
 ## SECTION 2 — Mechanic Ownership Check
 
@@ -96,7 +96,7 @@ For each turn, verify each mechanic is emitted by the correct stream.
 
 List any misplaced mechanics: turn, field, actual stream, correct stream.
 
-***
+---
 
 ## SECTION 3 — Cross-Pipeline I/O Relevance
 
@@ -114,7 +114,7 @@ For each pipeline, assess whether its inputs are focused:
 
 Assess: is narration_directive being used by the progress extractor? Flag if it appears in the prompt but the extractor's output shows no evidence of using it for beats/pressure decisions.
 
-***
+---
 
 ## SECTION 4 — Prompt Redundancy Analysis
 
@@ -127,7 +127,7 @@ For each confirmed duplicate block:
 
 **Top 3 dedup opportunities** — concrete remediations only.
 
-***
+---
 
 ## SECTION 5 — Prompt Adherence Rate
 
@@ -135,7 +135,7 @@ For each pipeline per turn: PASS (followed all system prompt rules) or FAIL (vio
 Show: `(total PASS instances) / (5 pipelines × N turns)`.
 This value goes in YAML front matter as `prompt_adherence_rate`.
 
-***
+---
 
 ## SECTION 6 — Scores
 
@@ -147,7 +147,7 @@ Major adherence failures cap at 2. State cap reason explicitly.
 Synthesis of Section 1 audit results and Section 4 redundancy findings.
 Which pipeline has the worst prompt architecture? What is the highest-priority fix?
 
-***
+---
 
 ## SECTION 7 — Actionable Issues
 
