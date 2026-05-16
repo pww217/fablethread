@@ -37,7 +37,7 @@ def _make_narrate_user_ctx():
         "pending_gm_beat": None,
         "meta": {"turn": 1},
         "scene": {"scene_pressure": [], "present_npcs": []},
-        "deescalate": 0.0,
+        "narrative_velocity": 0.0,
         "ages": {},
         "known_npcs": [],
         "present_npcs": [],
@@ -105,10 +105,10 @@ class TestBreatheBlock:
     """Breathe block must include de-escalation reward text."""
 
     def test_breathe_with_deescalate(self):
-        """deescalate=1.0 must render Breathe directive."""
+        """narrative_velocity < -0.3 must render Breathe directive."""
         env = _env()
         ctx = _make_narrate_user_ctx()
-        ctx["deescalate"] = 1.0
+        ctx["narrative_velocity"] = -0.6
         text = env.get_template("narrate_user.j2").render(**ctx)
         assert "**Narration Directive:** Breathe" in text
 
@@ -149,7 +149,7 @@ class TestNarrateSystemRules:
         env = _env()
         ctx = _make_narrate_user_ctx()
         ctx["scene_pressure"] = [{"urgency": "immediate", "text": "test"}]
-        ctx["deescalate"] = 1.0
+        ctx["narrative_velocity"] = -0.6
         ctx["ages"] = {"combat_age": 5, "location_age": 6}
         text = env.get_template("narrate_user.j2").render(**ctx)
         assert "Pull back. Describe quiet" not in text

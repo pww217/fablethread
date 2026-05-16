@@ -30,9 +30,9 @@ from tests.test_engine_smoke import (
 _TEMPLATE_DIR = str(Path(__file__).parent.parent / "ccya" / "prompts")
 
 
-class TestProgressMessagesReceivesDeescalate:
-    def test_deescalate_in_context(self):
-        """_extract_progress_messages includes deescalate in user_ctx."""
+class TestProgressMessagesReceivesNarrativeVelocity:
+    def test_narrative_velocity_in_context(self):
+        """_extract_progress_messages includes narrative_velocity in user_ctx."""
         env = _build_jinja_env(_TEMPLATE_DIR)
         state_res = StateExtractResult()
         msgs = _extract_progress_messages(
@@ -40,7 +40,7 @@ class TestProgressMessagesReceivesDeescalate:
             state_result=state_res,
             extraction_ctx=_ExtractionContext(),
             intent=None,
-            deescalate=0.6,
+            narrative_velocity=0.6,
             recent_turns=[],
         )
         # Verify the function accepts the parameter without error
@@ -48,8 +48,8 @@ class TestProgressMessagesReceivesDeescalate:
         assert msgs[0]["role"] == "system"
         assert msgs[1]["role"] == "user"
 
-    def test_deescalate_default_zero(self):
-        """_extract_progress_messages defaults deescalate to 0.0."""
+    def test_narrative_velocity_default_zero(self):
+        """_extract_progress_messages defaults narrative_velocity to 0.0."""
         env = _build_jinja_env(_TEMPLATE_DIR)
         state_res = StateExtractResult()
         msgs = _extract_progress_messages(

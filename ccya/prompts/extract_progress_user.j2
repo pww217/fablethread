@@ -55,10 +55,10 @@ If a named entity was thwarted, consider a gm_beat of type `opportunity` or `esc
 Type: {{ pending_beat.type }} | Expires at turn: T{{ pending_beat.beat_expires_turn }}
 Instruction: {{ pending_beat.instruction }}
 {% endif -%}
-{% if deescalate > 0 -%}
-## deescalate
-A pressure resolved this turn (magnitude: {{ "%.1f"|format(deescalate) }}).
-{% if deescalate >= 0.8 -%}
+{% if narrative_velocity < -0.3 -%}
+## deescalation
+Narrative velocity indicates de-escalation ({{ "%.2f"|format(narrative_velocity) }}).
+{% if narrative_velocity < -0.5 -%}
 Strong deescalation. Prefer `breathing_room` beat type or no beat. Do not add new immediate pressures.
 {% else -%}
 Partial deescalation. Prefer low-urgency beat or no beat.

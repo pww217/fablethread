@@ -1,7 +1,7 @@
 # narrative_velocity: Priority-Keyed Pacing Directive Consolidation
 
 ## Status
-`open`
+`completed` (all phases 01–05 implemented; 730 tests pass including 17 new pacing tests)
 
 ## Phase Guide
 | Phase | Name | Summary |
