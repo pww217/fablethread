@@ -1,0 +1,7 @@
+{# sections/_scene_pressure.j2 #}
+{% if state.scene.scene_pressure -%}
+## Active Threats
+{% for p in state.scene.scene_pressure -%}
+- [{{ p.urgency | upper }}] {{ p.text }}
+{% endfor -%}
+{% endif %}
