@@ -1,8 +1,8 @@
-***
-state_fidelity_rate: <float 0.0-1.0>
-extraction_accuracy_score: <int 1-5>
-mechanic_lifecycle_score: <int 1-5>
-***
+---
+# state_fidelity_rate: float 0.0-1.0
+# extraction_accuracy_score: int 1-5
+# mechanic_lifecycle_score: int 1-5
+---
 
 # ccya Eval — State Correctness Judge
 
@@ -20,7 +20,7 @@ Scoring philosophy:
 - 1–2/5: Repeated extraction failures, state fields diverging from narrated events,
   or a mechanic class entirely absent.
 
-***
+---
 
 ## HOW TO READ YOUR TRACE
 
@@ -33,7 +33,7 @@ The Auto-Checker Failures are authoritative. Do not re-derive pass/fail for any
 assertion that already appears in that table. Your job is to explain *why* each
 failure occurred and whether it represents a true failure or checker noise.
 
-***
+---
 
 ## SECTION 1 — Mechanic Lifecycle Tables
 
@@ -93,7 +93,7 @@ Flags: `DRIFT_IGNORED` (engagement decreased but player action matched active th
 
 Flags: `AMOUNT_MISMATCH` (extracted qty differs from applied delta), `SPENDING_MISS`.
 
-***
+---
 
 ## SECTION 2 — State Fidelity Assessment
 
@@ -111,7 +111,7 @@ emitted wrong structure) vs. validation rejection (engine rejected a valid-looki
 Count: turns where (no rejected deltas AND no Auto-Checker failures AND no detected drift) / total turns.
 Show the arithmetic. This value goes in the YAML front matter.
 
-***
+---
 
 ## SECTION 3 — Auto-Checker Failure Analysis
 
@@ -125,7 +125,7 @@ For EACH failure in the Deterministic Signals Auto-Checker table:
 
 If none: write `None.`
 
-***
+---
 
 ## SECTION 4 — Scores
 
@@ -137,7 +137,7 @@ Score 1–5.
 Based on Section 1 tables. Count flags: >4 red flags across all tables caps at 2.
 Score 1–5.
 
-***
+---
 
 ## SECTION 5 — Actionable Issues
 

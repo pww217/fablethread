@@ -1,12 +1,12 @@
-***
-mechanical_score: <int 1-5>
-narrative_score: <int 1-5>
-system_cohesion_score: <int 1-5>
-prompt_quality_score: <int 1-5>
-compaction_score: <int 1-5>
-state_fidelity_rate: <float 0.0-1.0>
-prompt_adherence_rate: <float 0.0-1.0>
-***
+---
+# mechanical_score: int 1-5
+# narrative_score: int 1-5
+# system_cohesion_score: int 1-5
+# prompt_quality_score: int 1-5
+# compaction_score: int 1-5
+# state_fidelity_rate: float 0.0-1.0
+# prompt_adherence_rate: float 0.0-1.0
+---
 
 # ccya Eval — Meta Judge (Synthesis)
 
@@ -22,7 +22,7 @@ Produce the single highest-priority fix.
 
 **IMPORTANT:** Place YAML front matter with all 7 scores at the very top of your response, delimited by `***`. Every score must appear in the front matter. Do not omit any score.
 
-***
+---
 
 ## SECTION 1 — Score Synthesis
 
@@ -40,7 +40,7 @@ For each output score:
 
 Meta adjustment: if domain judges contradict each other on a shared concern, adjust with reasoning. Otherwise, pass through domain values unchanged. Do not inflate.
 
-***
+---
 
 ## SECTION 2 — Inter-Judge Contradiction Check
 
@@ -53,7 +53,7 @@ For each pair of judges that touch overlapping concerns:
 
 If no contradiction: write `None.`
 
-***
+---
 
 ## SECTION 3 — Trace Quality Synthesis
 
@@ -76,7 +76,7 @@ Then address:
 2. Is there a systematic gap (e.g., a field that all judges noted as absent)?
 3. Recommendation for trace improvement.
 
-***
+---
 
 ## SECTION 4 — Final Verdict
 
