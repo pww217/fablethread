@@ -107,3 +107,23 @@ class TestScenePressureWiring:
         assert "Pressure:" not in user_msg["content"]
         assert "Overwhelm:" not in user_msg["content"]
         assert "Tension:" not in user_msg["content"]
+
+
+class TestThreatAgesWiring:
+    """threat_ages passed to _narrate_messages must appear in rendered user prompt."""
+
+    def test_threat_ages_wired(self):
+        """threat_ages must flow through _narrate_messages into the rendered prompt."""
+        env = _env()
+        state = _make_state()
+        threat_ages = [{"id": "p1", "text": "Guards closing in", "urgency": "immediate", "age": 4}]
+        msgs = _narrate_messages(
+            env,
+            state,
+            "I wait",
+            threat_ages=threat_ages,
+            turn_no=5,
+            threat_imperative_at=3,
+        )
+        combined = " ".join(m["content"] for m in msgs)
+        assert "Resolve a Threat" in combined

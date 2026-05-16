@@ -753,7 +753,9 @@ async def run_turn(
                 for w in reconcile_warnings:
                     _log.warning("[reconcile] turn %s: %s", state.get("meta", {}).get("turn", "?"), w, extra={"trace_id": trace_id})
                 state, recent_events_evicted = apply_delta(
-                    state, delta, recent_events_max=config.recent_events_max
+                    state, delta,
+                    recent_events_max=config.recent_events_max,
+                    current_turn_no=turn_no,
                 )
                 # Add floor relief check after momentum is updated by apply_delta
                 _check_floor_relief(state, config, outcome.band if outcome.rolled else "")
@@ -1218,6 +1220,7 @@ async def run_turn_retry(
                 state.setdefault("meta", {})["pending_gm_beat"] = None
 
         ages = _compute_ages(state)
+        threat_ages = _compute_threat_ages(state)
 
         # Known NPCs for narrator context (Phase 4A)
         _known_npcs = _known_characters_for_extract(state, compact=True)
@@ -1277,7 +1280,7 @@ async def run_turn_retry(
             # Retry: skip deescalation/quest-age awareness since the rules
             # outcome is already fixed — re-rolling narration shouldn't
             # change the pacing directive.
-            deescalate=False,
+            deescalate=0.0,
             ages=ages,
             known_npcs=_known_npcs,
             present_npcs=_present_npcs,
@@ -1286,6 +1289,11 @@ async def run_turn_retry(
             scene_pressure=(state.get("scene") or {}).get("scene_pressure") or [],
             world_factions=_world_factions,
             world_locations=_world_locations,
+            threat_ages=threat_ages,
+            turn_no=turn_no,
+            threat_pressure_at=config.threat_pressure_at,
+            threat_imperative_at=config.threat_imperative_at,
+            building_threat_imperative_at=config.building_threat_imperative_at,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
         rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
@@ -1370,7 +1378,7 @@ async def run_turn_retry(
                 config=config,
                 trace_id=trace_id,
                 turn_no=turn_no,
-                deescalate=False,
+                deescalate=0.0,
                 recent_turns=recent_turns,
             ):
                 if isinstance(_evt, tuple) and len(_evt) == 2 and _evt[0] == "phase":
@@ -1491,7 +1499,9 @@ async def run_turn_retry(
                 for w in reconcile_warnings:
                     _log.warning("[reconcile] turn %s: %s", state.get("meta", {}).get("turn", "?"), w, extra={"trace_id": trace_id})
                 state, recent_events_evicted = apply_delta(
-                    state, delta, recent_events_max=config.recent_events_max
+                    state, delta,
+                    recent_events_max=config.recent_events_max,
+                    current_turn_no=turn_no,
                 )
                 recent_events = list(delta.recent_events_add)
                 applied = delta.model_dump(exclude_none=True)

@@ -136,7 +136,7 @@ def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> list[str]:
 
 
 def apply_delta(
-    state: dict[str, Any], delta: StateDelta, *, recent_events_max: int = 20
+    state: dict[str, Any], delta: StateDelta, *, recent_events_max: int = 20, current_turn_no: int | None = None,
 ) -> tuple[dict[str, Any], bool]:
     state = copy.deepcopy(state)
 
@@ -239,8 +239,9 @@ def apply_delta(
         state.setdefault("scene", {})["present_npcs"] = []
         state.setdefault("scene", {})["recently_left"] = []
         state.setdefault("scene", {})["recently_left_turns"] = 0
-        state["scene"]["turn_entered"] = state.get("meta", {}).get("turn", 0)
-        state["scene"]["location_entered_turn"] = state.get("meta", {}).get("turn", 0)
+        _stamp_turn = current_turn_no if current_turn_no is not None else state.get("meta", {}).get("turn", 0)
+        state["scene"]["turn_entered"] = _stamp_turn
+        state["scene"]["location_entered_turn"] = _stamp_turn
     elif delta.location_description:
         state.setdefault("location", {})["description"] = delta.location_description
 

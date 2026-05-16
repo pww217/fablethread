@@ -54,7 +54,7 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_validate(state, delta)` → `list[dict]` — validates inventory_remove IDs exist, rejects zero-balance removes, warns on overdraw
 - `_strip_fallback(narration, *, trace_id, turn)` → `str` — strips fallback sentinel lines (`*That action didn't resolve as expected...`) from narration before chronicle persistence and extraction
 - `_check_npc_ghost_cycle(scene_result, state, *, trace_id, turn_no)` → `SceneExtractResult` — detects same-turn npc_remove+add cycles, drops both ops, logs warning
-- `run_turn_retry(save_dir, rules_outcome, intent, config=None, *, template_dir=None, pack_style="", pack_name_locales=[], pack_narrator_rules=[], pack_world_rules=[], pack_factions=[], pack_locations=[])` → `AsyncIterator[tuple[str, Any]]` — skips Call 0, re-runs narrate + extraction with same rules outcome
+- `run_turn_retry(save_dir, rules_outcome, intent, config=None, *, template_dir=None, pack_style="", pack_name_locales=[], pack_narrator_rules=[], pack_world_rules=[], pack_factions=[], pack_locations=[])` → `AsyncIterator[tuple[str, Any]]` — skips Call 0, re-runs narrate + extraction with same rules outcome; computes `threat_ages` and passes all narrator threat-directive arguments (`threat_ages`, `turn_no`, `threat_pressure_at`, `threat_imperative_at`, `building_threat_imperative_at`) matching `run_turn`
 - `warmup(config)` → `None` (async) — silent chat call to pre-load model
 
 ### config.py
