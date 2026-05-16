@@ -766,7 +766,7 @@ def _build_metrics_rows(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 _FM_RE = re.compile(
-    r"---\s*\n(.*?)\n---\s*\n(.*)",
+    r"(?:---|\*{2,})\s*\n(.*?)\n(?:---|\*{2,})\s*\n(.*)",
     re.DOTALL,
 )
 
@@ -776,9 +776,31 @@ def parse_judge_response(raw: str) -> tuple[dict[str, Any], str]:
 
     Returns (scores, body_md). If no front matter present, scores is empty dict
     and body_md is the entire (think-stripped) response.
+
+    Tries three formats in order:
+    1. ```yaml code fence
+    2. `---` or `***` delimiter front matter
+    3. Fallback: no scores, full text as body
     """
     s = strip_thinking(raw or "").strip()
-    # Tolerate optional leading code fence
+
+    # Try extracting from ```yaml code fence first
+    yaml_fence_re = re.compile(r"```yaml\s*\n(.*?)\n```", re.DOTALL)
+    fence_match = yaml_fence_re.search(s)
+    if fence_match:
+        fm_text = fence_match.group(1).strip()
+        try:
+            fm = yaml.safe_load(fm_text) or {}
+        except yaml.YAMLError:
+            fm = {}
+        if isinstance(fm, dict):
+            scores = _normalize_scores(fm)
+            # Body is everything after the code fence
+            body = s[fence_match.end():].strip()
+            if scores:
+                return scores, body
+
+    # Tolerate optional leading code fence (generic ```)
     if s.startswith("```"):
         s = "\n".join(s.splitlines()[1:])
         if s.endswith("```"):

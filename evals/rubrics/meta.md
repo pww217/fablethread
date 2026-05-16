@@ -20,6 +20,8 @@ Your job is synthesis, not new analysis. Do not re-examine the raw trace.
 Identify contradictions between judges. Compute final composite scores.
 Produce the single highest-priority fix.
 
+**IMPORTANT:** Place YAML front matter with all 7 scores at the very top of your response, delimited by `***`. Every score must appear in the front matter. Do not omit any score.
+
 ***
 
 ## SECTION 1 — Score Synthesis
@@ -54,7 +56,21 @@ If no contradiction: write `None.`
 
 ## SECTION 3 — Trace Quality Synthesis
 
-Based on domain judge findings (Section 11 or equivalent in their outputs):
+Based on domain judge findings, provide explicit top-level assessments for EACH of these mechanics and failure patterns:
+
+1. **Momentum lifecycle** — Does momentum track correctly? Is it stuck at floor? Does it recover?
+2. **GM beat narration** — Do beats produce observable prose or are they silent state drivers?
+3. **Scene pressure chains** — Do pressures escalate, produce stakes, and create consequences?
+4. **Condition deduplication** — Are conditions properly deduplicated and resolved?
+5. **Arc thread progression** — Do threads advance from latent→active→complete? Or stall/orphan?
+6. **Inventory extraction accuracy** — Are inventory deltas accurate? Any hallucinations or overdraw?
+7. **Location change application** — Do location deltas correctly update state?
+8. **NPC mention extraction** — Are NPC mentions in narration captured by scene extractor?
+9. **Progress actions pipeline** — Does the progress extractor emit actionable next steps?
+
+For each: state whether it is working, degraded, or broken, citing specific turns and domain judge sources.
+
+Then address:
 1. What data was missing from the trace that would have improved assessment quality?
 2. Is there a systematic gap (e.g., a field that all judges noted as absent)?
 3. Recommendation for trace improvement.
