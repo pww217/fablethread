@@ -1,7 +1,7 @@
 # Fix run_turn_retry missing narrator arguments
 
 ## Status
-`open`
+`completed`
 
 ## Phase Guide
 | Phase | Name | Summary |

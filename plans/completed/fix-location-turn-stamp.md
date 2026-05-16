@@ -1,7 +1,7 @@
 # Fix location turn stamp off-by-one
 
 ## Status
-`open`
+`completed`
 
 ## Phase Guide
 | Phase | Name | Summary |
