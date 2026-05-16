@@ -14,6 +14,7 @@ from typing import Any
 from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _log_prompts, _render
 from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.engine.narrate import _known_characters_for_extract
+from ccya.engine.npc_roster import build_npc_roster
 from ccya.llm_client import (
     apply_thinking,
     chat as llm_chat,
@@ -456,6 +457,11 @@ def _extract_progress_messages(
 
     system_text = _render(env, "extract_progress_system.j2", {})
     pending_beat = (state.get("meta") or {}).get("pending_gm_beat") or None
+    npc_roster = build_npc_roster(
+        present_npcs=extraction_ctx.present_npcs_this_turn,
+        known_npcs=_known_characters_for_extract(state, compact=True),
+        recently_left=[],
+    )
     user_text = _render(
         env,
         "extract_progress_user.j2",
@@ -464,13 +470,12 @@ def _extract_progress_messages(
             "pc": pc,
             "pc_stats": pc.get("stats") or {},
             # This-turn derived values (from extraction_ctx) — NOT state
-            "present_npcs": extraction_ctx.present_npcs_this_turn,
+            "npc_roster": npc_roster,
             "location": extraction_ctx.location_this_turn,
             "scene_pressure": extraction_ctx.scene_pressure_this_turn,
             "inventory": extraction_ctx.inventory_this_turn,
             "conditions": extraction_ctx.conditions_this_turn,
             # State-sourced (these don't change within a turn)
-            "known_npcs": _known_characters_for_extract(state, compact=True),
             "active_threads": active_threads,
             "recent_events": recent_events,
             "world_state": world_state,

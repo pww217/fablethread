@@ -29,3 +29,5 @@ Located in `ccya/prompts/sections/`:
 - `_world_state` — immutable world facts
 - `_scene_pressure` — active threats rendering for narrator user prompt (urgency + text)
 - `_scene_pressure_extract` — current pressures rendering for extract progress user prompt (id + urgency + text)
+- `_npc_roster.j2` — unified NPC roster for narrator (full fields: name, title, bio, presence tag, notes, motivation, fear, leverage, last_seen, just_left caveat)
+- `_npc_roster_extract.j2` — unified NPC roster for extractors (minimal: id, name, title, presence tag, bio, last_seen)

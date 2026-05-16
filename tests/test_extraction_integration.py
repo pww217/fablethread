@@ -9,8 +9,8 @@ from ccya.models import SceneExtractResult, StateExtractResult, NpcAdd
 
 def _fake_render(env, template, ctx):
     """Stub renderer: returns the context vars as a string."""
-    npcs = ctx.get("present_npcs", [])
-    return " ".join(n.get("name", "") for n in npcs)
+    roster = ctx.get("npc_roster", [])
+    return " ".join(n.get("name", "") for n in roster)
 
 
 def test_progress_prompt_contains_this_turn_npc():

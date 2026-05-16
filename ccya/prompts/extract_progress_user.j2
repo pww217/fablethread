@@ -1,17 +1,4 @@
-{% if present_npcs -%}
-## present_npcs (in scene right now)
-{% for n in present_npcs %}- `{{ n.id }}` | **{{ n.name or n.id }}**{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}{% if n.last_seen %} — last seen in {{ n.last_seen.location_name }}{% endif %}
-{% endfor %}
-{% else -%}
-## present_npcs (in scene right now)
-None currently tracked. Generate actions that could involve any NPC mentioned in the narration.
-{% endif -%}
-
-{% if known_npcs -%}
-## known_characters (not in scene — system-called, for reasoning only)
-{% for n in known_npcs %}- `{{ n.id }}` | **{{ n.name or n.id }}**{% if n.title %} ({{ n.title }}){% endif %} — {{ n.bio or "No bio available" }}{% if n.last_seen %} — last seen in {{ n.last_seen.location_name }}{% endif %}
-{% endfor %}
-{% endif -%}
+{% include "sections/_npc_roster_extract.j2" %}
 
 {% if location -%}
 ## location

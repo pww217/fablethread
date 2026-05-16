@@ -1,0 +1,17 @@
+{# sections/_npc_roster.j2 #}
+{# npc_roster: list[dict], ordered PRESENT → JUST_LEFT → KNOWN #}
+{% if npc_roster -%}
+## Characters
+Before introducing a new named NPC, check this list first.
+
+{% for n in npc_roster -%}
+- **{{ n.name }}**{% if n.title %} ({{ n.title }}){% endif %} [{{ n.presence | upper }}]{% if n.bio %} — {{ n.bio }}{% endif %}
+{%- if n.notes %} | {{ n.notes }}{% endif %}
+{%- if n.motivation %} | wants: {{ n.motivation }}{% endif %}
+{%- if n.fear %} | fears: {{ n.fear }}{% endif %}
+{%- if n.leverage %} | leverage: {{ n.leverage }}{% endif %}
+{%- if n.last_seen %} | last seen: {{ n.last_seen }}{% endif %}
+{%- if n.presence == 'just_left' %} — Do not write dialogue or new action for this character this turn.{% endif %}
+
+{% endfor -%}
+{% endif %}

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from ccya.engine.config import _render
+from ccya.engine.npc_roster import build_npc_roster
 from ccya.llm_client import apply_thinking
 from ccya.models import RulesOutcome
 
@@ -39,6 +40,7 @@ def _narrate_messages(
     threat_pressure_at: int = 3,
     threat_imperative_at: int = 5,
     building_threat_imperative_at: int = 4,
+    npc_roster: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
     user_ctx = {
         "state": state,
@@ -67,6 +69,11 @@ def _narrate_messages(
         "threat_pressure_at": threat_pressure_at,
         "threat_imperative_at": threat_imperative_at,
         "building_threat_imperative_at": building_threat_imperative_at,
+        "npc_roster": npc_roster or build_npc_roster(
+            present_npcs=present_npcs,
+            known_npcs=known_npcs,
+            recently_left=recently_left,
+        ),
     }
     # Build arc context for narrator
     arc = state.get("arc") or {}

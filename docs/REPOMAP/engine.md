@@ -17,6 +17,7 @@
 | `ccya/engine/pressure.py` | `_expire_scene_pressures()`, `_purge_scene_pressures()` |
 | `ccya/engine/compactor.py` | `maybe_compact()`, `_extract_turns_for_compact()`, `_build_compact_messages()`, `_parse_compact_response()`, `_write_compacted_block()` |
 | `ccya/engine/arc.py` | `tick_arc()`, `update_stances()`, `_salience_score()`, `_tag_overlap()` — campaign arc director: processes thread signals, manages thread lifecycle (latent→active→complete/failed/expired), handles candidate_opportunity from extraction, momentum bias for salience scoring |
+| `ccya/engine/npc_roster.py` | `build_npc_roster()` — merges present/known/recently_left NPCs into a single ordered list with presence tags (PRESENT > JUST_LEFT > KNOWN) |
 | `ccya/engine/generate_pack.py` | `generate_pack_from_brief(inputs, packs_root, llm_host, llm_model, template_dir, trace_id) -> AsyncIterator[dict]` — SSE-driven ephemeral pack generation from world brief; writes `scenario.yaml` + `pack.yaml` to `packs/generated/<uuid>/`; yields `phase`, `pack_ready`, `generation_error` events |
 
 ## Public APIs
