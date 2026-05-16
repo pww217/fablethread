@@ -14,32 +14,56 @@ Extract recent events, suggested player actions, outcome summary, and thread sig
   "scene_pressure_add": [],
   "scene_pressure_remove": [],
   "scene_pressure_update": [],
-  "thread_signals": [],
-  "drift_analysis": [],
-  "player_drift_signals": [],  # DEPRECATED: use drift_analysis
+  "thread_signals": [
+    {"id": "thread_id", "signal": "advanced"}
+  ],
+  "drift_analysis": [
+    {"thread_id": "thread_id", "match": true, "reason": "Player engaged this thread.", "new_interest": ""}
+  ],
+  "player_drift_signals": [],
   "candidate_opportunity": null
 }
 ```
 
 ## Field rules
 
-`thread_signals`: For each active thread that was meaningfully touched this turn, emit a signal:
+`thread_signals`: For each active thread that was meaningfully touched this turn, emit a signal.
+Each entry is exactly: `{"id": "thread_id", "signal": "advanced|blocked|failed|ignored"}`.
 - "advanced": the narrative clearly moved this thread forward
 - "blocked": an obstacle arose that explicitly impedes this thread
 - "failed": the thread was definitively closed with a negative outcome
 - "ignored": the player's action had nothing to do with this thread
 
+Example:
+```json
+"thread_signals": [
+  {"id": "deliver_the_ledger", "signal": "advanced"},
+  {"id": "clear_the_road_toughs", "signal": "ignored"}
+]
+```
+
 Only emit signals for threads that were clearly relevant to this turn's narrative.
 Do not emit a signal for threads that were merely background or coincidentally present.
 Emit at most one signal per thread per turn.
+**CRITICAL: Each entry must have exactly two fields: `id` (string) and `signal` (string). Do NOT include `match`, `reason`, `new_interest`, or any other fields — those belong to `drift_analysis`, not `thread_signals`.**
 
-`drift_analysis`: For EACH active thread, emit a DriftAnalysis entry:
-  - `match`: true if the player's action meaningfully engaged this thread (advanced, blocked, or directly affected it)
-  - `reason`: one-sentence explanation. E.g. "Player attacked pirates near mainmast, directly advancing boarding_chaos"
-  - `new_interest`: if match is false, what new direction the player seems interested in. Empty if match is true.
+`drift_analysis`: For EACH active thread, emit a DriftAnalysis entry.
+Each entry is exactly: `{"thread_id": "thread_id", "match": true|false, "reason": "string", "new_interest": "string"}`.
+- `match`: true if the player's action meaningfully engaged this thread (advanced, blocked, or directly affected it)
+- `reason`: one-sentence explanation. E.g. "Player attacked pirates near mainmast, directly advancing boarding_chaos"
+- `new_interest`: if match is false, what new direction the player seems interested in. Empty if match is true.
+
+Example:
+```json
+"drift_analysis": [
+  {"thread_id": "deliver_the_ledger", "match": true, "reason": "Player negotiated a contract to deliver the ledger.", "new_interest": ""},
+  {"thread_id": "clear_the_road_toughs", "match": false, "reason": "The player focused on negotiation rather than the threat.", "new_interest": "investigating the inn"}
+]
+```
 
 Match against thread tags, not summaries. If narration contains keywords from a thread's tags, set match=true.
 Emit one entry per active thread. Do not emit entries for latent/completed threads.
+**CRITICAL: `thread_signals` and `drift_analysis` are SEPARATE fields with DIFFERENT schemas. Do NOT mix their fields. `thread_signals` uses `id`+`signal`. `drift_analysis` uses `thread_id`+`match`+`reason`+`new_interest`.**
 
 `player_drift_signals`: DEPRECATED — kept for backward compatibility. Use drift_analysis instead.
 
