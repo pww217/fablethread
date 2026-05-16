@@ -17,7 +17,7 @@ Every player turn drives this 5-step pipeline, executed strictly in order. Step 
 | **Step 1 — Narrate** | Every turn (always, streamed) | Full `state` (pc, location, scene, inventory, quests, compendium), `chronicle_tail`, `recent_turns`, `rules_outcome` (when rolled), `pack_style`, `narrator_rules`, `pending_gm_beat`, `momentum`, `ages`, `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN), `world_factions`, `world_locations`, `npc_name_pool`, `deescalate`, `scene_pressure`, `narrative_velocity`, `user_input` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption (clears `state.meta.pending_gm_beat`), de-escalation directives, age-based stalling fixes, narrative velocity pacing | `narrative` feeds all 3 extractors |
 | **Step 2a — Scene Extract** | Every turn (always) | `narrative`, `state.pc/location`, `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN), `state.pc.conditions`, `known_characters` (LRU compendium), `RulesOutcome`, `recent_turns[-1:]` | `SceneExtractResult`: `scene_tags`, `scene_tagline`, `location_change`, `location_description`, `npc_add/remove/update`, `compendium_npc_update` | NPC presence, location changes, scene tags, scene classification (tags/tagline), durable NPC compendium identity | `location_change` and `npc_roster` passed to Steps 2b and 2c |
 | **Step 2b — State Extract** | Every turn (always) | `narrative`, `state.pc`, `state.location`, `state.inventory`, `rules_outcome`, `engine_expired_conditions`, `scene_result.location_change`, `scene_result.npc_roster`, `stakes`, `band`, `band_examples` (few-shot extraction examples keyed to dice band) | `StateExtractResult`: `inventory_add/remove/update`, `pc_condition_add/remove` | Inventory delta accuracy, condition lifecycle (with `added_turn`), engine-side TTL pre-removal, ID normalization | (none — cross-stream items_gained/lost removed; extraction_ctx covers this) |
-| **Step 2c — Progress Extract** | Every turn (always) | `narrative`, `state.pc`, `state.scene.recent_events`, `state.scene.world_state`, `active_quests`, `scene_pressure`, `RulesOutcome`, `intent`, `recent_turns[-2:]`, `stakes`, `band`, `deescalate`, `quest_ages`, `pending_beat`, `quest_threshold_directive`, `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN) | `ProgressExtractResult`: `quest_updates`, `recent_events_add/update/remove`, `actions` (4 suggested choices), `outcome_summary`, `gm_beat`, `beat_disposition`, `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update` | Quest objectives, recent_events ring buffer, action suggestions, narrative recap, GM beat generation + disposition, scene pressure lifecycle (all three operations) | `recent_events_add` becomes durable history; `quest_updates` advance arcs; `scene_pressure_add` feeds next turn's rules call; `gm_beat` stored in `state.meta.pending_gm_beat` |
+| **Step 2c — Progress Extract** | Every turn (always) | `narrative`, `state.pc`, `state.scene.recent_events`, `state.scene.world_state`, `active_quests`, `scene_pressure`, `RulesOutcome`, `intent`, `recent_turns[-2:]`, `stakes`, `band`, `deescalate`, `narrative_velocity`, `narration_directive`, `quest_ages`, `pending_beat`, `quest_threshold_directive`, `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN) | `ProgressExtractResult`: `quest_updates`, `recent_events_add/update/remove`, `actions` (4 suggested choices), `outcome_summary`, `gm_beat`, `beat_disposition`, `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update` | Quest objectives, recent_events ring buffer, action suggestions, narrative recap, GM beat generation + disposition (guided by `narration_directive`), scene pressure lifecycle (all three operations) | `recent_events_add` becomes durable history; `quest_updates` advance arcs; `scene_pressure_add` feeds next turn's rules call; `gm_beat` stored in `state.meta.pending_gm_beat` |
 
 After Step 2c, results merge into a `StateDelta`, the validator checks (e.g. `inventory_remove` IDs exist), `apply_delta()` mutates state in-place, and the turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `events.jsonl`.
 
@@ -264,9 +264,11 @@ flowchart LR
         S11["stakes: str<br>(mechanical cost from rules)"]:::xstream
         S12["band: str<br>(dice resolution band)"]:::xstream
         S13["deescalate: float<br>(pressure resolution magnitude)"]:::xstream
-        S14["quest_ages: list[dict]<br>(stalled-quest signal)"]
-        S15["pending_beat: dict | None<br>(carried beat from prev turn)"]
-        S16["quest_threshold_directive<br>(guidance on new-quest aggressiveness)"]
+        S14["narrative_velocity: float<br>(unified pacing scalar<br>from narrative_velocity engine)"]:::xstream
+        S15["narration_directive: str<br>(priority-stack directive<br>computed from velocity + pressures)"]:::xstream
+        S16["quest_ages: list[dict]<br>(stalled-quest signal)"]
+        S17["pending_beat: dict | None<br>(carried beat from prev turn)"]
+        S18["quest_threshold_directive<br>(guidance on new-quest aggressiveness)"]
     end
 
     subgraph LLM2C["LLM — extract_progress_system.j2 + extract_progress_user.j2"]
@@ -332,6 +334,109 @@ flowchart LR
 >
 > The engine stores the beat with `beat_expires_turn = turn_no + 2` as a hard TTL ceiling.
 > If not consumed by the narrator, the beat expires at turn N and is discarded.
+
+---
+
+## Narration Directive
+
+The narration directive is a priority-stack label computed from `narrative_velocity` (a unified pacing scalar), active scene pressures, and age thresholds. It tells the progress extractor how the narrator is shaping tone this turn, so the extractor can align `gm_beat` and `scene_pressure` decisions with the narrator's intent.
+
+### Computation
+
+`_compute_narration_directive()` in `engine/turn.py` applies a strict priority stack:
+
+```mermaid
+flowchart TD
+    classDef pyNode fill:#1f2937,color:#9ca3af,stroke:#4b5563
+    classDef decision fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
+    classDef output fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
+
+    V["narrative_velocity scalar"]:::pyNode
+    P["scene_pressure list<br>(urgency counts)"]:::pyNode
+    A["ages dict<br>(combat_age, etc.)"]:::pyNode
+
+    V --> D1{"velocity < -0.3<br>(deescalation)"}:::decision
+    D1 -- yes --> B1["Breathe<br>(primary)"]:::output
+    D1 -- no --> D2{"≥ 3 immediate<br>pressures?"}:::decision
+    D2 -- yes --> B2["Overwhelm<br>(primary)"]:::output
+    D2 -- no --> D3{"combat_age ≥ 4<br>(combat stalling)"}:::decision
+    D3 -- yes --> B3["Pressure; Combat Fatigue<br>(primary + secondary)"]:::output
+    D3 -- no --> D4{"≥ 1 non-immediate<br>pressure?"}:::decision
+    D4 -- yes --> B4["Pressure<br>(primary)"]:::output
+    D4 -- no --> D5{"threat_age ≥ threat_pressure_at"}:::decision
+    D5 -- yes --> B5["Threat Pressure<br>(primary)"]:::output
+    D5 -- no --> D6{"threat_age ≥ threat_imperative_at"}:::decision
+    D6 -- yes --> B6["Tension<br>(primary)"]:::output
+    D6 -- no --> B7["''<br>(no directive)"]:::output
+
+    B1 --> SEC1{"velocity < -0.5"}:::decision
+    SEC1 -- yes --> S1["Combat Fatigue<br>(secondary append)"]:::output
+    SEC1 -- no --> FINAL
+
+    B2 --> SEC2{"combat_age ≥ 4"}:::decision
+    SEC2 -- yes --> S2["Combat Fatigue<br>(secondary append)"]:::output
+    SEC2 -- no --> FINAL
+
+    B3 --> SEC3{"≥ 1 building pressure"}:::decision
+    SEC3 -- yes --> S3["Location Imperative<br>(secondary append)"]:::output
+    SEC3 -- no --> FINAL
+
+    B4 --> SEC4{"combat_age ≥ 4"}:::decision
+    SEC4 -- yes --> S4["Combat Fatigue<br>(secondary append)"]:::output
+    SEC4 -- no --> FINAL
+
+    B5 --> SEC5{"combat_age ≥ 4"}:::decision
+    SEC5 -- yes --> S5["Combat Fatigue<br>(secondary append)"]:::output
+    SEC5 -- no --> FINAL
+
+    B6 --> SEC6{"combat_age ≥ 4"}:::decision
+    SEC6 -- yes --> S6["Combat Fatigue<br>(secondary append)"]:::output
+    SEC6 -- no --> FINAL
+
+    FINAL["narration_directive: str<br>(primary; optional ; secondary)"]:::output
+```
+
+Priority order (highest to lowest): **Breathe > Overwhelm > Pressure > Threat Pressure > Tension > (empty)**. The highest-priority label always wins. Secondary labels (Combat Fatigue, Location Imperative) are appended with a semicolon when their conditions are met independently of the primary stack.
+
+### Wiring: how it reaches the progress extractor
+
+```mermaid
+flowchart LR
+    classDef pyNode fill:#1f2937,color:#9ca3af,stroke:#4b5563
+    classDef prompt fill:#0f172a,color:#7dd3fc,stroke:#1e40af
+    classDef extractor fill:#500724,color:#fbcfe8,stroke:#ec4899
+
+    TURN["engine/turn.py<br>_compute_narration_directive()"]:::pyNode
+    PIPELINE["_run_extraction_pipeline()<br>pass narration_directive arg"]:::pyNode
+    EXTRACT_FN["_extract_progress_messages()<br>extraction.py:440"]:::pyNode
+    USER_TMPL["extract_progress_user.j2<br>## narration_directive section"]:::prompt
+    SYS_TMPL["extract_progress_system.j2<br>## Narration directive guidance"]:::prompt
+    EXTRACTOR["Progress Extractor LLM<br>uses directive for beats/pressures"]:::extractor
+
+    TURN --> PIPELINE --> EXTRACT_FN --> USER_TMPL
+    TURN -. "also passed to" .-> NARRATE_TMPL["narrate_user.j2<br>(narrator sees directive)"]:::prompt
+    USER_TMPL --> SYS_TMPL --> EXTRACTOR
+```
+
+1. **Computed** in `run_turn()` at `turn.py:681` from `narrative_velocity`, `_effective_pressure`, `ages`, and config thresholds.
+2. **Passed** through `_run_extraction_pipeline()` → `_extract_progress_messages()` as a function argument.
+3. **Rendered** into `extract_progress_user.j2` as a `## narration_directive` section (only when non-empty).
+4. **Guides** the extractor via `extract_progress_system.j2` which maps each directive to appropriate `gm_beat` types and `scene_pressure` actions.
+
+### Extractor guidance
+
+The system prompt (`extract_progress_system.j2`) instructs the progress extractor to use the directive as follows:
+
+| Directive | `gm_beat` guidance | `scene_pressure` guidance |
+|-----------|-------------------|--------------------------|
+| **Breathe** | Prefer `breathing_room` or `null`. Do NOT add new immediate pressures. | Allow existing pressures to persist without escalation. |
+| **Overwhelm** | Emit `pressure` or `escalation` beat. | Be proactive: add `scene_pressure_add` at `immediate` urgency. Do NOT remove existing pressures. |
+| **Pressure** | Emit `pressure` or `complication` beat. | Add `scene_pressure_add` at `building` or `immediate` urgency for advancing threats. |
+| **Tension** | Emit `complication` or `setback` beat. | Do NOT add pressures unless a concrete threat emerges. |
+| **Resolve a Threat** | Do NOT add beats for resolved threats. | Remove resolved pressures from `scene_pressure_remove`. |
+| **Combat Fatigue** (secondary) | Layer `setback` or `complication` theme reflecting exhaustion. | No direct pressure guidance; applies as thematic modifier. |
+
+When multiple directives are joined (e.g. `"Pressure; Combat Fatigue"`), prioritize the primary directive and layer the secondary as a thematic modifier on the beat type.
 
 ---
 
