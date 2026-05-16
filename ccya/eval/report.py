@@ -874,16 +874,18 @@ def finalize_report(
     parts.append(_render_flag_block(flags, eval_cfg.report.flag_at_top))
     parts.append("")
 
-    # One verdict section per judge, meta last
-    domain_judges = [j for j in judges if j.judge_id != "meta"]
+    # Meta judge verdict first (runs last but placed at top)
     meta_judge = next((j for j in judges if j.judge_id == "meta"), None)
-    for jr in domain_judges:
-        parts.append(f"## Judge Verdict — `{jr.judge_id}`\n")
-        parts.append(jr.body_md)
-        parts.append("")
     if meta_judge:
         parts.append("## Meta Judge Verdict\n")
         parts.append(meta_judge.body_md)
+        parts.append("")
+
+    # Domain judge verdicts
+    domain_judges = [j for j in judges if j.judge_id != "meta"]
+    for jr in domain_judges:
+        parts.append(f"## Judge Verdict — `{jr.judge_id}`\n")
+        parts.append(jr.body_md)
         parts.append("")
 
     auto_block = _render_auto_checker_block(run_result)
