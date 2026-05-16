@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from enum import Enum
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+_log = logging.getLogger(__name__)
 
 SkillName = Literal["strength", "dexterity", "wits", "lore", "charisma", "resolve"]
 Difficulty = Literal["trivial", "easy", "normal", "hard", "extreme"]
@@ -544,6 +547,15 @@ class ProgressExtractResult(BaseModel):
             else:
                 out.append(str(x))
         return out
+
+    @model_validator(mode="after")
+    def _warn_empty_actions(self) -> "ProgressExtractResult":
+        if not self.actions:
+            _log.warning(
+                "progress.actions is empty — LLM omitted field or returned []",
+                extra={"turn": 0, "trace_id": "", "pack": "", "kind": "extraction"},
+            )
+        return self
 
 
 @dataclass
