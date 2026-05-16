@@ -139,6 +139,7 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 
 ### arc.py
 - `tick_arc(arc, drift=None, drift_analysis=None)` → `CampaignArc` — scores arc engagement based on drift overlap with active thread tags. Accepts structured `drift_analysis` (list[DriftAnalysis]) with per-thread match/no-match, falls back to legacy `drift` (list[str]) substring matching. Thread lifecycle (signals, completion, promotion, latent hygiene) is handled by `_apply_thread_signals` / `_candidate_to_latent_thread` in engine/turn.py. This function only updates arc_engagement.
+- `_apply_thread_signals(state, progress_result)` → `CampaignArc | None` — processes thread signals (ADVANCED/FAILED/IGNORED), advances progress, completes threads at threshold 3, promotes latent→active when slots open. Latent threads with a non-empty `unlock_if` field are excluded from automatic slot-fill promotion.
 - `update_stances(stances, user_input)` → `dict` — updates expressed stances based on player input keywords (compassionate/ruthless/defiant/cautious).
 - `_tag_overlap(a, b)` → `int` — count of tags present in both lists.
 
