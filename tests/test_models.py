@@ -251,6 +251,33 @@ class TestDriftAnalysisCoercion:
         assert r.drift_analysis[0].thread_id == "thread_a"
 
 
+class TestThreadSignalMatchCoercion:
+    def test_coerces_match_true_to_advanced(self):
+        raw = [{"id": "t1", "match": True, "reason": "player engaged"}]
+        r = ProgressExtractResult(thread_signals=raw)
+        assert len(r.thread_signals) == 1
+        assert r.thread_signals[0].id == "t1"
+        assert r.thread_signals[0].signal.value == "advanced"
+
+    def test_coerces_match_false_to_ignored(self):
+        raw = [{"id": "t1", "match": False, "reason": "not relevant"}]
+        r = ProgressExtractResult(thread_signals=raw)
+        assert len(r.thread_signals) == 1
+        assert r.thread_signals[0].id == "t1"
+        assert r.thread_signals[0].signal.value == "ignored"
+
+    def test_strips_drift_analysis_fields_from_thread_signal(self):
+        raw = [{"id": "t1", "match": True, "reason": "engaged", "new_interest": "something else"}]
+        r = ProgressExtractResult(thread_signals=raw)
+        assert len(r.thread_signals) == 1
+        assert r.thread_signals[0].signal.value == "advanced"
+
+    def test_status_still_coerced(self):
+        raw = [{"id": "t1", "status": "advanced"}]
+        r = ProgressExtractResult(thread_signals=raw)
+        assert r.thread_signals[0].signal.value == "advanced"
+
+
 class TestCompactorSanitizationCoercion:
     def test_coerces_string_pressure_remove(self):
         r = CompactorSanitizationResult(pressure_remove=["tough_a", "tough_b"])

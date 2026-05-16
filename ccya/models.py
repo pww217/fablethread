@@ -536,16 +536,39 @@ class ProgressExtractResult(BaseModel):
                 if isinstance(item, str):
                     continue
                 if isinstance(item, dict):
+                    item = dict(item)
+                    # Extract signal from various LLM output patterns
+                    if "signal" not in item:
+                        # match: true/false → signal
+                        if "match" in item:
+                            item["signal"] = "advanced" if item.pop("match") else "ignored"
+                        # advanced: true/false → signal
+                        elif "advanced" in item and isinstance(item["advanced"], bool):
+                            item["signal"] = "advanced" if item.pop("advanced") else "ignored"
+                        # ignored: string (thread id) → signal=ignored, id=that string
+                        elif "ignored" in item and isinstance(item["ignored"], str):
+                            item["signal"] = "ignored"
+                            item["id"] = item.pop("ignored")
+                        # advanced: string (thread id) → signal=advanced, id=that string
+                        elif "advanced" in item and isinstance(item["advanced"], str):
+                            item["signal"] = "advanced"
+                            item["id"] = item.pop("advanced")
+                        # status → signal
+                        elif "status" in item:
+                            item["signal"] = item.pop("status")
+                    # Extract id from various LLM output patterns
                     if "id" not in item:
                         if "thread_id" in item:
-                            item = dict(item)
                             item["id"] = item.pop("thread_id")
                         elif "thread" in item:
-                            item = dict(item)
                             item["id"] = item.pop("thread")
-                    if "status" in item and "signal" not in item:
-                        item = dict(item)
-                        item["signal"] = item.pop("status")
+                    # Strip drift_analysis fields that leaked into thread_signals
+                    item.pop("match", None)
+                    item.pop("reason", None)
+                    item.pop("new_interest", None)
+                    # Skip entries that still have no id after coercion
+                    if "id" not in item:
+                        continue
                 out.append(item)
             return out
         return v
