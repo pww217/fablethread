@@ -46,7 +46,7 @@
 - `actions: list[str] = Field(default_factory=list)` — coerced by `_coerce_actions` (handles dicts/strings). Warns via `_warn_empty_actions` (model_validator, mode="after") when empty to surface silent-fallback issues in logs.
 - `scene_pressure_remove: list[str]` — migrated from `SceneExtractResult` in scene-progress-fixes plan.
 - `scene_pressure_update: list[ScenePressure]` — migrated from `SceneExtractResult` in scene-progress-fixes plan.
-- `drift_analysis: list[DriftAnalysis] = Field(default_factory=list)` — structured drift analysis per active thread. Supersedes `player_drift_signals`.
+- `drift_analysis: list[DriftAnalysis] = Field(default_factory=list)` — coerced by `_coerce_drift_analysis` (field_validator, mode="before") which remaps `id` → `thread_id` and drops items with no identity key. Supersedes `player_drift_signals`.
 - `player_drift_signals: list[str] = Field(default_factory=list)` — DEPRECATED: use drift_analysis instead.
 - Fields: `quest_updates`, `recent_events_add`, `recent_events_update`, `recent_events_remove`, `actions`, `outcome_summary`, `gm_beat`, `beat_disposition`, `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update`.
 
@@ -59,11 +59,11 @@
 ## CompactorSanitizationResult
 
 - `npc_merge: list[CompactorNpcMerge]` — NPC dedup merges
-- `inventory_remove: list[str]` — duplicate inventory item IDs to remove
-- `quest_close: list[str]` — active quest IDs to mark completed
-- `pressure_remove: list[str]` — stale scene_pressure IDs to remove
-- `condition_remove: list[str]` — resolved PC condition IDs to remove
+- `inventory_remove: list[CompactorSanitizationAction]` — coerced by `_coerce_actions` (field_validator, mode="before") which converts bare strings to `{"id": str, "confidence": "high"}` dicts
+- `pressure_remove: list[CompactorSanitizationAction]` — coerced by `_coerce_actions` (same as above)
+- `condition_remove: list[CompactorSanitizationAction]` — coerced by `_coerce_actions` (same as above)
 - `recent_events_compact: list[CompactorRecentEventCompact]` — consolidated recent_events from compactor
+- `_coerce_sanitization_actions` (module-level helper) — converts bare strings to `{"id": str, "confidence": "high"}` dicts for the three action lists above
 
 ## CampaignArc
 

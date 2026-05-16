@@ -765,7 +765,10 @@ def _build_metrics_rows(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
 # Front matter parsing
 # ---------------------------------------------------------------------------
 
-_FM_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n(.*)\Z", re.DOTALL | re.MULTILINE)
+_FM_RE = re.compile(
+    r"---\s*\n(.*?)\n---\s*\n(.*)",
+    re.DOTALL,
+)
 
 
 def parse_judge_response(raw: str) -> tuple[dict[str, Any], str]:
@@ -780,11 +783,11 @@ def parse_judge_response(raw: str) -> tuple[dict[str, Any], str]:
         s = "\n".join(s.splitlines()[1:])
         if s.endswith("```"):
             s = "\n".join(s.splitlines()[:-1])
-    m = _FM_RE.match(s)
+    m = _FM_RE.search(s)
     if not m:
         return {}, s
     fm_text = m.group(1)
-    body = m.group(2)
+    body = m.group(2).strip()
     try:
         fm = yaml.safe_load(fm_text) or {}
     except yaml.YAMLError as exc:
