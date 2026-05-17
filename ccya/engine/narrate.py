@@ -42,6 +42,7 @@ def _narrate_messages(
     threat_imperative_at: int = 5,
     building_threat_imperative_at: int = 4,
     npc_roster: list[dict[str, Any]] | None = None,
+    resolved_pressures: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
     # Build arc context for narrator (needed by both system and user prompts)
     arc = state.get("arc") or {}
@@ -98,6 +99,7 @@ def _narrate_messages(
             recently_left=recently_left,
         ),
         "current_arc": current_arc_ctx,
+        "resolved_pressures": resolved_pressures or [],
     }
 
     system_text = _render(env, "narrate_system.j2", {

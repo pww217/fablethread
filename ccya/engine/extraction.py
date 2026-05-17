@@ -340,6 +340,7 @@ def _extract_progress_messages(
         stakes: str = "",
     band: str = "",
     narration_directive: str = "",
+    resolved_pressures: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 3 (thread signals + facts + actions + outcome_summary)."""
     pc = state.get("pc") or {}
@@ -390,6 +391,7 @@ def _extract_progress_messages(
             "band": band,
             "pending_beat": pending_beat,
             "narration_directive": narration_directive,
+            "resolved_pressures": resolved_pressures or [],
         },
     )
     msgs = [
@@ -485,6 +487,7 @@ async def _run_extraction_pipeline(
     narrative_velocity: float = 0.0,
     recent_turns: list[dict[str, Any]] | None = None,
     narration_directive: str = "",
+    resolved_pressures: list[dict[str, Any]] | None = None,
 ) -> "AsyncIterator[tuple[str, Any] | tuple['StateDelta', list[str], str, dict[str, Any], 'ProgressExtractResult', 'SceneExtractResult']]":
     """Run the three extraction streams in sequence.
 
@@ -606,6 +609,7 @@ async def _run_extraction_pipeline(
         stakes=_stakes,
         band=_band,
         narration_directive=narration_directive,
+        resolved_pressures=resolved_pressures,
     )
     # Capture pre-trim content for context_meta so the judge sees original sizes
     rendered_prog_system = progress_msgs[0]["content"] if progress_msgs else ""
