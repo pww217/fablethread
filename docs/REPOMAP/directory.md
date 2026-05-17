@@ -5,7 +5,7 @@ ccya/                          # Python package
   __main__.py                  # CLI entry: argparse + uvicorn.run
   cli.py                       # CLI commands
   engine/                      # Turn pipeline package
-    __init__.py                # Re-exports: EngineConfig, run_turn, run_turn_retry, warmup, generate_seed, maybe_compact, format_change_lines, is_turn_in_progress + internal helpers for tests + LLM client re-exports
+    __init__.py                # Re-exports: EngineConfig, run_turn, warmup, generate_seed, maybe_compact, format_change_lines, is_turn_in_progress + internal helpers for tests + LLM client re-exports
     config.py                  # EngineConfig dataclass, _EventLock, is_turn_in_progress, Jinja env setup
     turn.py                    # run_turn() async orchestrator (thin — imports from submodules)
     narrate.py                 # _narrate_messages(), NPC name helpers

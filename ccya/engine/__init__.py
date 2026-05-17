@@ -9,7 +9,7 @@ from ccya.engine.config import (
 from ccya.engine.seed import generate_seed
 from ccya.engine.pack_gen import generate_pack
 from ccya.engine.changes import format_change_lines
-from ccya.engine.turn import run_turn, run_turn_retry, warmup
+from ccya.engine.turn import run_turn, warmup
 
 # Internal helpers re-exported for tests
 from ccya.engine.config import _build_jinja_env
@@ -49,6 +49,5 @@ __all__ = [
     "llm_chat_stream",
     "maybe_compact",
     "run_turn",
-    "run_turn_retry",
     "warmup",
 ]
