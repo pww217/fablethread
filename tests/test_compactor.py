@@ -738,7 +738,7 @@ class TestUserPromptRendersIds:
         env = Environment(loader=FileSystemLoader(str(Path(__file__).parent.parent / "ccya" / "prompts")))
         user_prompt = env.get_template("compact_user.j2").render(
             turns=[{"turn": 1, "input": "Attack", "narrative": "You swing your sword."}],
-            arc={"visible_goal": "Find the artifact", "phase": "setup", "active_threads": [{"summary": "Locate the artifact", "urgency": "normal"}]},
+            arc={"visible_goal": "Find the artifact", "active_threads": [{"summary": "Locate the artifact", "urgency": "normal"}]},
             npc_names=["Alice", "Bob"],
             pressures=[{"id": "press_1", "text": "Chase", "urgency": "immediate"}],
             inventory=[{"id": "inv_1", "name": "Sword", "amount": 1, "notes": "Sharp"}],
@@ -770,7 +770,6 @@ class TestUserPromptRendersIds:
             "inventory": [{"id": "inv_1", "name": "Sword", "amount": 1, "notes": "Sharp"}],
             "arc": {
                 "visible_goal": "Find the artifact",
-                "phase": "setup",
                 "active_threads": [{"id": "t_1", "summary": "Locate the artifact", "urgency": "normal"}],
             },
             "compendium": {"npcs": {

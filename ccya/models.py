@@ -19,14 +19,6 @@ Band = Literal[
 ]
 
 
-class ArcPhase(str, Enum):
-    SETUP = "setup"
-    PURSUIT = "pursuit"
-    REVERSAL = "reversal"
-    CRISIS = "crisis"
-    RESOLUTION = "resolution"
-
-
 class ThreadState(str, Enum):
     LATENT = "latent"
     ACTIVE = "active"
@@ -78,7 +70,6 @@ class ArcThread(BaseModel):
 class CampaignArc(BaseModel):
     visible_goal: str = ""
     thematic_question: str = ""
-    phase: ArcPhase = ArcPhase.SETUP
     hidden_truths: list[str] = Field(default_factory=list)
     discovered_truths: list[str] = Field(default_factory=list)
     active_threads: list[ArcThread] = Field(default_factory=list)

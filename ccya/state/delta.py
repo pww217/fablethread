@@ -44,9 +44,6 @@ def _merge_arc_update(arc: dict[str, Any], au: CampaignArc) -> None:
         arc["visible_goal"] = au.visible_goal
     if au.thematic_question:
         arc["thematic_question"] = au.thematic_question
-    current_phase = arc.get("phase")
-    if au.phase and au.phase.value != current_phase:
-        arc["phase"] = au.phase.value if hasattr(au.phase, "value") else str(au.phase)
     if au.pc_drive:
         arc["pc_drive"] = au.pc_drive
     if au.hidden_truths:

@@ -69,7 +69,6 @@
 
 - `visible_goal: str` — player-facing objective
 - `thematic_question: str` — emotional register question
-- `phase: ArcPhase = ArcPhase.SETUP` — arc phase enum
 - `hidden_truths: list[str] = Field(default_factory=list)` — designer-only structural spine, never shown to player
 - `discovered_truths: list[str] = Field(default_factory=list)` — truths the player has learned through play; starts empty, populated by future truth-promotion mechanism
 - `active_threads: list[ArcThread] = Field(default_factory=list)` — situations currently in play
@@ -89,14 +88,6 @@
 - `unlock_if: str | None = None` — plain-language condition for activation
 - `promotes: list[str] = Field(default_factory=list)` — thread IDs to activate on completion
 - `last_offered_turn: int | None = None` — turn when last promoted to active
-
-## ArcPhase (Enum)
-
-- `SETUP = "setup"`
-- `PURSUIT = "pursuit"`
-- `REVERSAL = "reversal"`
-- `CRISIS = "crisis"`
-- `RESOLUTION = "resolution"`
 
 ## ThreadState (Enum)
 

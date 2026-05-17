@@ -23,7 +23,6 @@ class TestArcThreadSignals:
         s = state_with_arc(0, {
             "visible_goal": "Find the lost freighter",
             "thematic_question": "How far will you go for a paycheck?",
-            "phase": "setup",
             "active_threads": [
                 {
                     "id": "find-freighter",
@@ -58,7 +57,6 @@ class TestArcThreadSignals:
         s = state_with_arc(0, {
             "visible_goal": "Find the lost freighter",
             "thematic_question": "How far will you go for a paycheck?",
-            "phase": "setup",
             "active_threads": [
                 {
                     "id": "find-freighter",
@@ -94,7 +92,6 @@ class TestArcThreadSignals:
         s = state_with_arc(0, {
             "visible_goal": "Find the lost freighter",
             "thematic_question": "How far will you go for a paycheck?",
-            "phase": "setup",
             "active_threads": [
                 {
                     "id": "find-freighter",
@@ -135,7 +132,6 @@ class TestArcLatentThreads:
         s = state_with_arc(0, {
             "visible_goal": "Find the lost freighter",
             "thematic_question": "How far will you go for a paycheck?",
-            "phase": "setup",
             "active_threads": [
                 {
                     "id": "find-freighter",
@@ -180,7 +176,6 @@ class TestArcLatentThreads:
         s = state_with_arc(0, {
             "visible_goal": "Find the lost freighter",
             "thematic_question": "How far will you go for a paycheck?",
-            "phase": "setup",
             "active_threads": [
                 {
                     "id": "find-freighter",
@@ -230,7 +225,6 @@ class TestArcCandidateOpportunity:
         s = state_with_arc(0, {
             "visible_goal": "Find the lost freighter",
             "thematic_question": "How far will you go for a paycheck?",
-            "phase": "setup",
             "active_threads": [],
             "latent_threads": [],
             "completed_threads": [],
@@ -257,7 +251,6 @@ class TestArcEngagement:
         s = state_with_arc(0, {
             "visible_goal": "Find the lost freighter",
             "thematic_question": "How far will you go for a paycheck?",
-            "phase": "setup",
             "active_threads": [
                 {
                     "id": "find-freighter",
@@ -294,7 +287,6 @@ class TestArcActiveThreadCap:
         s = state_with_arc(0, {
             "visible_goal": "Find the lost freighter",
             "thematic_question": "How far will you go for a paycheck?",
-            "phase": "setup",
             "active_threads": [
                 {"id": "t1", "summary": "Thread 1", "state": "active", "progress": 3, "tags": []},
                 {"id": "t2", "summary": "Thread 2", "state": "active", "progress": 3, "tags": []},
@@ -336,7 +328,6 @@ class TestArcLatentCap:
         s = state_with_arc(0, {
             "visible_goal": "Find the lost freighter",
             "thematic_question": "How far will you go for a paycheck?",
-            "phase": "setup",
             "active_threads": [
                 {"id": "a1", "summary": "Active 1", "state": "active", "progress": 1, "tags": [], "last_offered_turn": 1, "promotes": [], "urgency": "normal"},
                 {"id": "a2", "summary": "Active 2", "state": "active", "progress": 1, "tags": [], "last_offered_turn": 2, "promotes": [], "urgency": "normal"},
@@ -393,7 +384,6 @@ class TestArcNarratorArcUpdate:
         s = state_with_arc(0, {
             "visible_goal": "Find the lost freighter",
             "thematic_question": "How far will you go for a paycheck?",
-            "phase": "setup",
             "active_threads": [
                 {"id": "find-freighter", "summary": "Find the lost freighter", "state": "active", "progress": 0, "tags": []},
             ],

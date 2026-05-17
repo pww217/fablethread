@@ -264,7 +264,6 @@ def state_with_arc(turn: int = 0, arc_data: dict[str, Any] | None = None) -> dic
     s["arc"] = arc_data or {
         "visible_goal": "Find the lost freighter",
         "thematic_question": "How far will you go for a paycheck?",
-        "phase": "setup",
         "active_threads": [],
         "latent_threads": [],
         "completed_threads": [],
