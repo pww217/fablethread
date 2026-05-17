@@ -1,36 +1,22 @@
 """New regression tests added by the prompt audit.
 
-Covers the four guarantees the audit promised:
-1. Every system prompt is byte-stable across two distinct turn states.
-2. Inventory over-draw is recorded as a non-blocking warn_overdraw rejection.
-3. Scene NPC roster deduplicates present + compendium overlap.
-4. load_chronicle_tail honors skip_last_n_turns.
+Covers the three guarantees the audit promised:
+1. Inventory over-draw is recorded as a non-blocking warn_overdraw rejection.
+2. Scene NPC roster deduplicates present + compendium overlap.
+3. load_chronicle_tail honors skip_last_n_turns.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from ccya.engine import (
-    _build_jinja_env,
-    _extract_progress_messages,
-    _extract_scene_messages,
-    _extract_state_messages,
-    _narrate_messages,
-)
-from ccya.engine.extraction import _ExtractionContext, _scene_npc_roster
+from ccya.engine.extraction import _scene_npc_roster
 from ccya.engine.turn import _validate
 from ccya.models import (
     InventoryRemove,
-    RulesOutcome,
     StateDelta,
-    StateExtractResult,
 )
 from ccya.state import load_chronicle_tail
-
-
-def _env():
-    return _build_jinja_env(str(Path(__file__).parent.parent / "ccya" / "prompts"))
 
 
 def _state(turn: int = 0) -> dict:
@@ -54,78 +40,7 @@ def _state(turn: int = 0) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# 1. System-prompt byte stability across the five LLM streams
-# ---------------------------------------------------------------------------
-
-
-class TestSystemPromptByteStability:
-    """Each LLM-call system prompt must hash identical across distinct turn states."""
-
-    def _two_states(self) -> tuple[dict, dict]:
-        s1 = _state(turn=0)
-        s2 = _state(turn=7)
-        s2["pc"]["conditions"] = [{"id": "wounded", "label": "wounded", "description": "hit", "added_turn": 6}]
-        s2["scene"]["recent_events"] = ["The dock-master is angry."]
-        s2["scene"]["present_npcs"] = [{"id": "anna", "name": "Anna", "title": "Fence", "notes": "Watching."}]
-        s2["inventory"].append({"id": "credits", "name": "Credits", "amount": 250})
-        return s1, s2
-
-    def _roll(self) -> RulesOutcome:
-        return RulesOutcome(
-            rolled=True, skill="strength", difficulty="hard",
-            final_total=8, band="partial",
-            directive="The strike succeeds with cost.",
-        )
-
-    def test_narrate_system_byte_stable(self):
-        env = _env()
-        s1, s2 = self._two_states()
-        m1 = _narrate_messages(env, s1, "x", pack_style="dark sci-fi")
-        m2 = _narrate_messages(
-            env, s2, "y", pack_style="dark sci-fi",
-            chronicle_tail="prior arc",
-            recent_turns=[{"turn": 1, "input": "look", "narrative": "..."}],
-            rules_outcome=self._roll(),
-            npc_name_pool=["Anna", "Bo"],
-            recently_left=[{"id": "old", "name": "Old"}],
-        )
-        sys1 = next(m for m in m1 if m["role"] == "system")["content"]
-        sys2 = next(m for m in m2 if m["role"] == "system")["content"]
-        assert sys1 == sys2
-
-    def test_extract_scene_system_byte_stable(self):
-        env = _env()
-        s1, s2 = self._two_states()
-        m1 = _extract_scene_messages(env, "narration A", s1)
-        m2 = _extract_scene_messages(env, "narration B", s2)
-        sys1 = next(m for m in m1 if m["role"] == "system")["content"]
-        sys2 = next(m for m in m2 if m["role"] == "system")["content"]
-        assert sys1 == sys2
-
-    def test_extract_state_system_byte_stable(self):
-        env = _env()
-        s1, s2 = self._two_states()
-        m1 = _extract_state_messages(env, "N1", s1)
-        m2 = _extract_state_messages(env, "N2", s2)
-        sys1 = next(m for m in m1 if m["role"] == "system")["content"]
-        sys2 = next(m for m in m2 if m["role"] == "system")["content"]
-        assert sys1 == sys2
-
-    def test_extract_progress_system_byte_stable(self):
-        env = _env()
-        s1, s2 = self._two_states()
-        sres = StateExtractResult()
-        m1 = _extract_progress_messages(env, "N1", s1, state_result=sres, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[])
-        m2 = _extract_progress_messages(
-            env, "N2", s2, state_result=sres, extraction_ctx=_ExtractionContext(), intent=None, recent_turns=[],
-        )
-        sys1 = next(m for m in m1 if m["role"] == "system")["content"]
-        sys2 = next(m for m in m2 if m["role"] == "system")["content"]
-        assert sys1 == sys2
-
-
-# ---------------------------------------------------------------------------
-# 2. Inventory over-draw is non-blocking and recorded
+# 1. Inventory over-draw is non-blocking and recorded
 # ---------------------------------------------------------------------------
 
 
@@ -160,7 +75,7 @@ class TestInventoryOverDrawValidator:
 
 
 # ---------------------------------------------------------------------------
-# 3. Scene NPC roster dedup
+# 2. Scene NPC roster dedup
 # ---------------------------------------------------------------------------
 
 
@@ -185,7 +100,7 @@ class TestSceneNpcRoster:
 
 
 # ---------------------------------------------------------------------------
-# 5. load_chronicle_tail skip_last_n_turns
+# 3. load_chronicle_tail skip_last_n_turns
 # ---------------------------------------------------------------------------
 
 

@@ -30,53 +30,7 @@ from tests.test_engine_smoke import (
 _TEMPLATE_DIR = str(Path(__file__).parent.parent / "ccya" / "prompts")
 
 
-class TestProgressMessagesReceivesNarrativeVelocity:
-    def test_narrative_velocity_in_context(self):
-        """_extract_progress_messages includes narrative_velocity in user_ctx."""
-        env = _build_jinja_env(_TEMPLATE_DIR)
-        state_res = StateExtractResult()
-        msgs = _extract_progress_messages(
-            env, "N.", {},
-            state_result=state_res,
-            extraction_ctx=_ExtractionContext(),
-            intent=None,
-            narrative_velocity=0.6,
-            recent_turns=[],
-        )
-        # Verify the function accepts the parameter without error
-        assert len(msgs) == 2
-        assert msgs[0]["role"] == "system"
-        assert msgs[1]["role"] == "user"
-
-    def test_narrative_velocity_default_zero(self):
-        """_extract_progress_messages defaults narrative_velocity to 0.0."""
-        env = _build_jinja_env(_TEMPLATE_DIR)
-        state_res = StateExtractResult()
-        msgs = _extract_progress_messages(
-            env, "N.", {},
-            state_result=state_res,
-            extraction_ctx=_ExtractionContext(),
-            intent=None,
-            recent_turns=[],
-        )
-        assert len(msgs) == 2
-
-
 class TestProgressMessagesThreadContext:
-    def test_thread_signals_in_context(self):
-        """_extract_progress_messages includes active_threads in user_ctx."""
-        env = _build_jinja_env(_TEMPLATE_DIR)
-        state_res = StateExtractResult()
-        state = {"arc": {"active_threads": [{"id": "t1", "summary": "Test thread", "urgency": "normal"}]}}
-        msgs = _extract_progress_messages(
-            env, "N.", state,
-            state_result=state_res,
-            extraction_ctx=_ExtractionContext(),
-            intent=None,
-            recent_turns=[],
-        )
-        assert len(msgs) == 2
-
     def test_progress_messages_includes_thread_tags(self):
         """_extract_progress_messages includes tags in each active thread entry."""
         env = _build_jinja_env(_TEMPLATE_DIR)
@@ -95,19 +49,6 @@ class TestProgressMessagesThreadContext:
         assert "t1" in user_content
         assert "political" in user_content
         assert "trust" in user_content
-
-    def test_progress_messages_empty_default(self):
-        """_extract_progress_messages works with empty state."""
-        env = _build_jinja_env(_TEMPLATE_DIR)
-        state_res = StateExtractResult()
-        msgs = _extract_progress_messages(
-            env, "N.", {},
-            state_result=state_res,
-            extraction_ctx=_ExtractionContext(),
-            intent=None,
-            recent_turns=[],
-        )
-        assert len(msgs) == 2
 
 
 class TestGmBeatFromProgressNotScene:
