@@ -4,6 +4,7 @@
 
 - Be as terse as possible in your thinking and token use, answer immediately and directly
 - If unsure about anything or making a major decision that's hard to reverse, ask the user for guidance always.
+- You **never** deviate from a plan without informing the user about what, why, and how your solution is better.
 - **🛑 Critical Anti-Looping & Overthinking Directives**
 You are an efficient problem solver. Avoid infinite reasoning loops and overthinking. Follow these strict rules:
   1. **Time/Token Cap:** If your internal reasoning reaches [2,000] tokens or becomes circular, immediately halt internal refining and output the best current solution.
@@ -33,67 +34,6 @@ When working on a task:
 - New files, renamed files, moved functions → update `docs/REPOMAP/`
 - New module responsibility or boundary → update this file
 - Never leave docs stale — if the code changes, the docs must change in the same commit
-
----
-
-## Module responsibilities — don't cross them
-
-
-| Module                              | Ownes                                                                       | Does NOT own              |
-| ----------------------------------- | --------------------------------------------------------------------------- | ------------------------- |
-| `ccya/engine/`                      | Turn pipeline: `run_turn()`, extraction, narration                          | State file I/O, HTTP      |
-| `ccya/engine/turn.py`               | `run_turn()` orchestrator (thin — imports from submodules)                  | Helper logic              |
-| `ccya/engine/config.py`             | `EngineConfig`, `_EventLock`, `is_turn_in_progress`                         | Game logic                |
-| `ccya/engine/narrate.py`            | Narration prompt building                                                   | State mutation            |
-| `ccya/engine/names.py`              | NPC name generation                                                         | State mutation            |
-| `ccya/engine/npc_roster.py`         | NPC roster management                                                       | State mutation            |
-| `ccya/engine/rules.py`              | Rules LLM call wrappers, retry logic                                        | Deterministic dice/bands  |
-| `ccya/engine/extraction.py`         | Three-stream extraction pipeline                                            | State mutation            |
-| `ccya/engine/seed.py`               | Dynamic seed generation                                                     | Game logic                |
-| `ccya/engine/changes.py`            | Change summary formatters                                                   | LLM calls                 |
-| `ccya/engine/pressure.py`           | Scene pressure expiry logic                                                 | State mutation            |
-| `ccya/engine/compactor.py`          | Chronicle compaction + recent_events pruning                                | State mutation            |
-| `ccya/engine/arc.py`                | Arc tracking                                                                | State mutation            |
-| `ccya/engine/markers.py`            | Scene marker management                                                     | State mutation            |
-| `ccya/engine/pack_gen.py`           | Pack generation helpers                                                     | Pack loading              |
-| `ccya/engine/generate_pack.py`      | Pack generation CLI/wrapper                                                 | Pack loading              |
-| `ccya/state/`                       | State persistence: load, save, apply_delta, append_event, append_chronicle  | LLM calls, HTTP           |
-| `ccya/state/io.py`                  | `load_state`, `save_state`, `init_save_dir`, migration                      | State mutation logic      |
-| `ccya/state/delta.py`               | `apply_delta`, `reconcile_delta`, `PC_CONDITIONS_MAX`                       | I/O                       |
-| `ccya/state/inventory.py`           | Inventory ID normalization, fuzzy matching                                  | State mutation            |
-| `ccya/state/npcs.py`                | NPC alias map, compendium ordering                                          | State mutation            |
-| `ccya/state/chronicle.py`           | Chronicle/events file I/O, `load_recent_chronicle_turns`                    | State mutation            |
-| `ccya/state/momentum.py`            | Momentum tracking                                                           | Deterministic dice/bands  |
-| `ccya/models.py`                    | All Pydantic models, `TurnResult`, `load_config()`                          | Business logic            |
-| `ccya/server/app.py`                | FastAPI app, config bootstrap, Jinja env, startup                           | Route handlers            |
-| `ccya/server/routes.py`             | All `@app.get` / `@app.post` handlers                                       | App bootstrap             |
-| `ccya/server/panels.py`             | Debug panel helpers, `_load`_* functions                                    | Route handlers            |
-| `ccya/server/tv.py`                 | Turn viewer data preparation                                                | Route handlers            |
-| `ccya/server/tv_mirror.py`          | Turn viewer mirror data preparation                                         | Route handlers            |
-| `ccya/server/metrics.py`            | Turn metrics, formatting helpers                                            | Route handlers            |
-| `ccya/pack.py`                      | Pack loading, `PackManifest`, `SeedEnvelope`                                | State mutation            |
-| `ccya/rules.py`                     | Deterministic dice: `resolve_check()`, bands, momentum                      | LLM calls, state          |
-| `ccya/llm_client.py`                | LLM HTTP client, chat, streaming, thinking helpers                          | Prompt construction       |
-| `ccya/cli.py`                       | CLI entry point                                                             | —                         |
-| `ccya/logging_setup.py`             | JSONL file handler + console handler                                        | —                         |
-| `scripts/debug/ev.py`               | Debug CLI: reads events.jsonl directly (summary, timing, turn, props, etc.) | Server, LLM calls         |
-| `scripts/debug/`                    | Thin bash wrappers → ev.py (get-*.sh)                                       | —                         |
-| `ccya/eval/`                        | Eval harness: driver, judge, report, CLI, utils                             | State mutation, LLM calls |
-| `ccya/eval/runner.py`               | In-process eval runner                                                      | LLM calls                 |
-| `ccya/eval/judge.py`                | Eval judge logic                                                            | —                         |
-| `ccya/eval/report.py`               | Eval report generation                                                      | —                         |
-| `ccya/eval/cli.py`                  | Eval CLI                                                                    | —                         |
-| `ccya/eval/config.py`               | Eval config                                                                 | —                         |
-| `ccya/eval/universal_asserts.py`    | Universal assertion helpers                                                 | —                         |
-| `ccya/eval/compaction_signals.py`   | Compaction signal detection                                                 | —                         |
-| `ccya/eval/engine_mirror.py`        | Engine mirror for eval                                                      | —                         |
-| `ccya/eval/pack_utils.py`           | Eval pack utilities                                                         | —                         |
-| `ccya/eval/redundancy.py`           | Redundancy detection                                                        | —                         |
-| `ccya/eval/architecture_context.py` | Architecture context for eval                                               | —                         |
-| `ccya/eval/scenario.py`             | Eval scenario definitions                                                   | —                         |
-
-
-If you find logic in the wrong layer, move it rather than pile on.
 
 ---
 

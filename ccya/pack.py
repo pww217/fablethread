@@ -29,7 +29,6 @@ class SeedPC(BaseModel):
     conditions: list[str] = Field(default_factory=list)
     momentum: int = 0
     drive: str = ""
-    expressed_stances: dict[str, int] = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod

@@ -544,7 +544,7 @@ flowchart TD
 
 ## Campaign Arc System
 
-The campaign arc system tracks story threads, phase progression, and player engagement across turns. It has two execution paths: **engine-driven** (thread lifecycle, engagement scoring) and **narrator-driven** (phase shifts, truth discovery, goal updates).
+The campaign arc system tracks story threads, phase progression, and truth discovery across turns. It has two execution paths: **engine-driven** (thread lifecycle with 5-turn expiry for silent threads) and **narrator-driven** (phase shifts, truth discovery, goal updates).
 
 ### Arc Data Model
 
@@ -554,10 +554,9 @@ CampaignArc
   thematic_question: str     — The moral/thematic tension of the arc
   hidden_truths: list[str]   — Story secrets the narrator knows but must not reveal in prose
   discovered_truths: list[str] — Truths the player has uncovered (subset of hidden_truths)
-  active_threads: list[ArcThread]  — Currently advancing story threads (cap: 4)
+  active_threads: list[ArcThread]  — Currently advancing story threads (cap: 3)
   latent_threads: list[ArcThread]  — Unactivated or waiting threads (cap: 4)
-  completed_threads: list[ArcThread] — Finished threads (complete or failed)
-  arc_engagement: int        — Engagement score: -3 (disengaged) to +3 (highly engaged)
+  completed_threads: list[ArcThread] — Finished threads (complete, failed, or expired)
   pc_drive: str              — Player's expressed motivation/direction
 
 ArcThread
@@ -571,8 +570,7 @@ ArcThread
   promotes: list[str]        — Tags this thread unlocks when completed
   last_offered_turn: int     — Turn this thread was last offered to player
 
-ThreadState: LATENT → ACTIVE → COMPLETE / FAILED
-ThreadSignalType: ADVANCED | BLOCKED | FAILED | IGNORED
+ThreadState: LATENT → ACTIVE → COMPLETE / FAILED / EXPIRED
 ```
 
 ### Engine-Driven Arc: Thread Lifecycle
@@ -585,14 +583,14 @@ flowchart TD
     classDef arcNode fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
     classDef capNode fill:#172554,color:#bfdbfe,stroke:#1d4ed8
 
-    PR["ProgressExtractResult<br>thread_signals[]"]:::pyNode
+    PR["ProgressExtractResult<br>advanced_threads: list[str]"]:::pyNode
 
     subgraph SIGNALS["_apply_thread_signals()"]
-        S1["Deduplicate signals by thread ID<br>dict[id → signal_type]"]
-        S2["ADVANCED: progress +1 for<br>each active thread signaled"]
-        S3["FAILED: mark thread as FAILED"]
-        S4["Auto-complete: progress ≥ 3 → COMPLETE"]
-        S5["Promotion: completed threads open slots<br>promote latent threads up to ACTIVE_CAP=4"]
+        S1["For each ID in advanced_threads:<br>If active thread exists → progress +1,<br>last_seen_turn = turn_no"]
+        S2["Check silent threads (not in<br>advanced_threads):<br>If last_seen_turn < turn_no - 5 → demote to latent"]
+        S3["Auto-complete: progress ≥ 3 → COMPLETE"]
+        S4["Promotion cooldown:<br>skip if turn_no - arc_last_promotion_turn < 3"]
+        S5["Promotion: completed threads open slots<br>promote latent threads up to ACTIVE_CAP=3"]
     end
 
     subgraph CANDIDATE["_candidate_to_latent_thread()"]
@@ -602,28 +600,21 @@ flowchart TD
         C4["Create latent thread:<br>urgency=background, tags=[tactical]"]
     end
 
-    subgraph ENGAGEMENT["tick_arc() — engagement scoring"]
-        E1["Collect all tags from active_threads"]
-        E2["Match player_drift_signals<br>substring against engagement_tags"]
-        E3["Match → engagement +1 (max 3)<br>No match → engagement −1"]
-    end
-
     PR --> S1 --> S2 --> S3 --> S4 --> S5
     CANDIDATE -. "candidate_opportunity" .-> C1 --> C2 --> C3 --> C4
-    PR -. "player_drift_signals" .-> E1 --> E2 --> E3
 
     S5 -- "CampaignArc" --> ARC[arc state in<br>state.yaml]:::arcNode
     C4 --> ARC
-    E3 --> ARC
 
     capNode
 ```
 
 **Key rules:**
-- **Active cap:** 4 threads. When a thread completes/fails, latent threads are promoted to fill slots.
+- **Active cap:** 3 threads (down from 4). When a thread completes/fails, latent threads are promoted to fill slots.
 - **Latent cap:** 4 threads. When full and a new candidate arrives, the oldest tactical-tagged thread is evicted. Pack-seeded threads (no tactical tag) are never evicted.
 - **Completion threshold:** progress reaches 3 → thread marked COMPLETE.
-- **Signal dedup:** multiple ADVANCED signals for the same thread in one call count as +1 (dict dedup).
+- **5-turn expiry:** Threads not listed in `advanced_threads` for 5+ turns get demoted to latent (state=latent), preserving them for potential re-engagement if narration later picks up old tags.
+- **Promotion cooldown:** New candidate threads promoted only every ~3 turns via check on `arc_last_promotion_turn`. Prevents rapid thread churn during fast-paced play.
 
 ### Narrator-Driven Arc: Phase & Truth Updates
 
@@ -667,7 +658,6 @@ flowchart LR
         M5["hidden_truths: overwrite if present"]
         M6["discovered_truths: union with existing"]
         M7["active_threads: upsert by id"]
-        M8["arc_engagement: max(current, new)"]
     end
 
     NC1 & NC2 & NC3 & NC4 & NC5 & NC6 & NC7 --> PROSE
@@ -682,7 +672,7 @@ flowchart LR
 ```
 
 **Merge rules:**
-- **Engine owns threads** (active/latent/completed). Narrator arc_update omits thread fields — they are ignored by `_merge_arc_update()`.
+- **Engine owns threads** (active/latent/completed/expired). Narrator arc_update omits thread fields — they are ignored by `_merge_arc_update()`.
 - **Narrator owns visible_goal/thematic_question/discovered_truths/hidden_truths.** Engine does not modify these.
 - **Discovered truths:** merged as set union (dedup).
 - **Merge order:** engine thread signals run first (setting `delta.arc_update`), then narrator arc_update is parsed after narration and merged on top via a second `_merge_arc_update()` call in `run_turn()`.
@@ -736,14 +726,13 @@ flowchart TD
     end
 
     subgraph EXTRACT["Step 2c — Progress Extract"]
-        E1["Progress extractor emits<br>thread_signals[], candidate_opportunity,<br>player_drift_signals"]:::pyNode
+        E1["Progress extractor emits<br>advanced_threads: list[str],<br>candidate_opportunity, latent_threads[]"]:::pyNode
     end
 
     subgraph ARC_ENGINE["Arc Engine (turn.py)"]
-        A1["_apply_thread_signals()<br>process signals → update threads"]:::pyNode
+        A1["_apply_thread_signals()<br>process advanced_threads → update threads,<br>5-turn expiry for silent threads"]:::pyNode
         A2["_candidate_to_latent_thread()<br>candidate_opportunity → latent"]:::pyNode
-        A3["tick_arc()<br>engagement scoring"]:::pyNode
-        A4["_merge_arc_update()<br>engine arc_delta → state['arc']"]:::pyNode
+        A3["_merge_arc_update()<br>engine arc_delta → state['arc']"]:::pyNode
     end
 
     subgraph NARRATOR_MERGE["Narrator Arc Merge"]
@@ -754,11 +743,10 @@ flowchart TD
     STATE --> N1
     N1 --> N2
     N2 --> N3
-    E1 --> A1 --> A4
-    E1 -. candidate .-> A2 --> A4
-    E1 -. drift .-> A3 --> STATE
+    E1 --> A1 --> A3
+    E1 -. candidate .-> A2 --> A3
 
-    A4 --> N3 --> N4 --> STATE
+    A3 --> N3 --> N4 --> STATE
 ```
 
 ---

@@ -509,21 +509,11 @@ async def test_generic_currency_term_does_not_invent_inventory_id(save_dir):
     )
 
 
-def test_progress_prompt_contains_thread_signals():
-    """Verify the progress extractor system prompt includes thread_signals instructions.
-
-    Thread signals replace quest_updates as the primary mechanism for tracking
-    narrative progress through the campaign arc.
-    """
+def test_progress_prompt_contains_advanced_threads():
+    """Verify the progress extractor system prompt includes advanced_threads instructions."""
     prompt_text = (Path(PROMPTS_DIR) / "extract_progress_system.j2").read_text()
-    assert "thread_signals" in prompt_text, (
-        "extract_progress_system.j2 must contain thread_signals instructions"
-    )
-    assert "player_drift_signals" in prompt_text, (
-        "extract_progress_system.j2 must contain player_drift_signals instructions"
-    )
-    assert "candidate_opportunity" in prompt_text, (
-        "extract_progress_system.j2 must contain candidate_opportunity instructions"
+    assert "advanced_threads" in prompt_text, (
+        "extract_progress_system.j2 must contain advanced_threads instructions"
     )
 
 

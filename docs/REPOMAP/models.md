@@ -46,9 +46,7 @@
 - `actions: list[str] = Field(default_factory=list)` — coerced by `_coerce_actions` (handles dicts/strings). Warns via `_warn_empty_actions` (model_validator, mode="after") when empty to surface silent-fallback issues in logs.
 - `scene_pressure_remove: list[str]` — migrated from `SceneExtractResult` in scene-progress-fixes plan.
 - `scene_pressure_update: list[ScenePressure]` — migrated from `SceneExtractResult` in scene-progress-fixes plan.
-- `drift_analysis: list[DriftAnalysis] = Field(default_factory=list)` — coerced by `_coerce_drift_analysis` (field_validator, mode="before") which remaps `id` → `thread_id` and drops items with no identity key. Supersedes `player_drift_signals`.
-- `player_drift_signals: list[str] = Field(default_factory=list)` — DEPRECATED: use drift_analysis instead.
-- Fields: `quest_updates`, `recent_events_add`, `recent_events_update`, `recent_events_remove`, `actions`, `outcome_summary`, `gm_beat`, `beat_disposition`, `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update`.
+- `advanced_threads: list[str] = Field(default_factory=list)` — thread IDs that were meaningfully advanced this turn (any active or latent thread). Empty list = none touched.
 
 ## CompactorRecentEventCompact
 
@@ -74,7 +72,6 @@
 - `active_threads: list[ArcThread] = Field(default_factory=list)` — situations currently in play
 - `latent_threads: list[ArcThread] = Field(default_factory=list)` — threads not yet active
 - `completed_threads: list[ArcThread] = Field(default_factory=list)` — finished/expired threads
-- `arc_engagement: int = 0` — engagement metric (±1 per turn based on drift overlap)
 - `pc_drive: str = ""` — PC's personal motivation for being in this situation
 
 ## ArcThread
@@ -83,11 +80,12 @@
 - `summary: str` — 2–4 sentence situation description
 - `tags: list[str] = Field(default_factory=list)` — semantic tags for salience scoring
 - `state: ThreadState = ThreadState.LATENT` — latent/active/complete/failed/expired
-- `urgency: str = "normal"` — normal/immediate
-- `progress: int = 0` — advancement counter
+- `urgency: str = "normal"` — normal/immediate/background
+- `progress: int = 0` — advancement counter (completion threshold at 3)
 - `unlock_if: str | None = None` — plain-language condition for activation
 - `promotes: list[str] = Field(default_factory=list)` — thread IDs to activate on completion
 - `last_offered_turn: int | None = None` — turn when last promoted to active
+- `last_seen_turn: int | None = None` — engine tracks this; 5+ silent turns → demote to latent
 
 ## ThreadState (Enum)
 
@@ -96,25 +94,6 @@
 - `COMPLETE = "complete"`
 - `FAILED = "failed"`
 - `EXPIRED = "expired"`
-
-## ThreadSignal
-
-- `id: str` — thread ID
-- `signal: ThreadSignalType` — advanced/blocked/failed/ignored
-
-## DriftAnalysis
-
-- `thread_id: str` — thread being analyzed
-- `match: bool = False` — whether the player's action meaningfully engaged this thread
-- `reason: str = ""` — one-sentence explanation of why this thread was or wasn't matched
-- `new_interest: str = ""` — if match is False, what new direction the player seems interested in
-
-## ThreadSignalType (Enum)
-
-- `ADVANCED = "advanced"`
-- `BLOCKED = "blocked"`
-- `FAILED = "failed"`
-- `IGNORED = "ignored"`
 
 ## NpcPresence (Enum)
 
