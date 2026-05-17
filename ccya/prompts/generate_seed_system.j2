@@ -40,7 +40,7 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
 {
   seed_state: {
     meta: {turn: 0, model: string, setting_pack: string},
-    pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, lore: int, charisma: int, resolve: int}, conditions: [], drive: string, expressed_stances: {string: int}},
+    pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, lore: int, charisma: int, resolve: int}, conditions: [], drive: string},
     location: {id: snake_case, name: string, description: string},
     inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
     scene: {
@@ -124,6 +124,13 @@ Generate a `CampaignArc` with:
 - `pc_drive`: a single sentence about the PC's personal reason for being in this situation. More narrow than the visible_goal — it is about the PC's motivation, not the objective.
 
 Thread summaries should be **seeds for the narrator, not dictated plot**. They should describe a situation, not specify exact events. The narrator should always have creative latitude in how a thread manifests.
+
+Thread quality rules:
+- Threads must be substantial medium-term goals capable of sustaining 5–10 turns. They represent ongoing narrative arcs, not single events or observations.
+- Each thread should describe a situation with inherent tension and stakes — something that naturally escalates over time. Not a static fact.
+- Do NOT generate threads from incidental narration details (a character's cough, dust in the air, passing weather). These are atmospheric, not narrative.
+- DO generate threads from plot-relevant developments: threats emerging, alliances forming, discoveries made, consequences of player actions.
+- Threads must have clear advancement criteria — what would make progress on this thread? If you can't describe what "advancing" looks like for a thread, it's not ready to be one.
 
 Example thread summary (good):
 "A hospital records clerk may know where the convoy was rerouted before the quarantine collapse. The archive floor is accessible but the building has been increasingly dangerous. Time is working against this lead."

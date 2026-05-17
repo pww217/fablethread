@@ -66,8 +66,6 @@ def _merge_arc_update(arc: dict[str, Any], au: CampaignArc) -> None:
             t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
             for t in au.completed_threads
         ]
-    if au.arc_engagement is not None:
-        arc["arc_engagement"] = au.arc_engagement
 
 
 def _strip_non_ascii(text: str) -> str:

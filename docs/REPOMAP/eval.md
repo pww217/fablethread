@@ -113,7 +113,7 @@ pipeline_scores:
 ## Rules→Narrate, Rules→State, Narrate→Scene, Narrate→State, Narrate→Progress, State→Progress, Progress→Narrate
 
 # Storytelling Design Critique
-## quest_arc_quality, rewards_and_consequences [trace], narrative_compellingness, npc_development, npc_voice, world_consistency, world_reactivity, player_agency, failure_arc [trace], pacing_and_pressure, deescalation_mechanics, scenario_quality, arc_thread_lifecycle, arc_engagement_tracking
+## quest_arc_quality, rewards_and_consequences [trace], narrative_compellingness, npc_development, npc_voice, world_consistency, world_reactivity, player_agency, failure_arc [trace], pacing_and_pressure, deescalation_mechanics, scenario_quality, arc_thread_lifecycle
 
 # Prompt Redundancy Analysis
 ...

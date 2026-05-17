@@ -27,12 +27,6 @@ class ThreadState(str, Enum):
     EXPIRED = "expired"
 
 
-class ThreadSignalType(str, Enum):
-    ADVANCED = "advanced"
-    BLOCKED = "blocked"
-    FAILED = "failed"
-    IGNORED = "ignored"
-
 
 class NpcPresence(str, Enum):
     PRESENT = "present"
@@ -65,6 +59,7 @@ class ArcThread(BaseModel):
     unlock_if: str | None = None
     promotes: list[str] = Field(default_factory=list)
     last_offered_turn: int | None = None
+    last_seen_turn: int | None = None
 
 
 class CampaignArc(BaseModel):
@@ -75,25 +70,7 @@ class CampaignArc(BaseModel):
     active_threads: list[ArcThread] = Field(default_factory=list)
     latent_threads: list[ArcThread] = Field(default_factory=list)
     completed_threads: list[ArcThread] = Field(default_factory=list)
-    arc_engagement: int = 0
     pc_drive: str = ""
-
-
-class ThreadSignal(BaseModel):
-    id: str
-    signal: ThreadSignalType
-
-
-class DriftAnalysis(BaseModel):
-    """Structured drift analysis for a single thread."""
-    thread_id: str
-    match: bool = False
-    """Whether the player's action meaningfully engaged this thread."""
-    reason: str = ""
-    """One-sentence explanation of why this thread was or wasn't matched."""
-    new_interest: str = ""
-    """If match is False, what new direction the player seems interested in."""
-
 
 class Condition(BaseModel):
     id: str
@@ -524,10 +501,7 @@ class ProgressExtractResult(BaseModel):
     scene_pressure_add: list[ScenePressure] = Field(default_factory=list)
     scene_pressure_remove: list[str] = Field(default_factory=list)       # migrated from SceneExtractResult
     scene_pressure_update: list[ScenePressure] = Field(default_factory=list)  # migrated from SceneExtractResult
-    thread_signals: list[ThreadSignal] = Field(default_factory=list)
-    drift_analysis: list[DriftAnalysis] = Field(default_factory=list)
-    """Structured drift analysis per active thread. Supersedes player_drift_signals."""
-    player_drift_signals: list[str] = Field(default_factory=list)
+    advanced_threads: list[str] = Field(default_factory=list)
     candidate_opportunity: str | None = None
 
     @model_validator(mode="after")
@@ -536,75 +510,6 @@ class ProgressExtractResult(BaseModel):
             if not self.gm_beat.instruction or not self.gm_beat.type:
                 self.gm_beat = None
         return self
-
-    @field_validator("thread_signals", mode="before")
-    @classmethod
-    def _map_thread_id_to_id(cls, v: Any) -> Any:
-        if not v:
-            return v
-        if isinstance(v, list):
-            out = []
-            for item in v:
-                if isinstance(item, str):
-                    continue
-                if isinstance(item, dict):
-                    item = dict(item)
-                    # Extract signal from various LLM output patterns
-                    if "signal" not in item:
-                        # match: true/false → signal
-                        if "match" in item:
-                            item["signal"] = "advanced" if item.pop("match") else "ignored"
-                        # advanced: true/false → signal
-                        elif "advanced" in item and isinstance(item["advanced"], bool):
-                            item["signal"] = "advanced" if item.pop("advanced") else "ignored"
-                        # ignored: string (thread id) → signal=ignored, id=that string
-                        elif "ignored" in item and isinstance(item["ignored"], str):
-                            item["signal"] = "ignored"
-                            item["id"] = item.pop("ignored")
-                        # advanced: string (thread id) → signal=advanced, id=that string
-                        elif "advanced" in item and isinstance(item["advanced"], str):
-                            item["signal"] = "advanced"
-                            item["id"] = item.pop("advanced")
-                        # status → signal
-                        elif "status" in item:
-                            item["signal"] = item.pop("status")
-                    # Extract id from various LLM output patterns
-                    if "id" not in item:
-                        if "thread_id" in item:
-                            item["id"] = item.pop("thread_id")
-                        elif "thread" in item:
-                            item["id"] = item.pop("thread")
-                    # Strip drift_analysis fields that leaked into thread_signals
-                    item.pop("match", None)
-                    item.pop("reason", None)
-                    item.pop("new_interest", None)
-                    # Skip entries that still have no id after coercion
-                    if "id" not in item:
-                        continue
-                out.append(item)
-            return out
-        return v
-
-    @field_validator("drift_analysis", mode="before")
-    @classmethod
-    def _coerce_drift_analysis(cls, v: Any) -> Any:
-        if not v:
-            return v
-        if not isinstance(v, list):
-            return v
-        out = []
-        for item in v:
-            if isinstance(item, dict):
-                if "thread_id" not in item:
-                    if "id" in item:
-                        item = dict(item)
-                        item["thread_id"] = item.pop("id")
-                    else:
-                        continue
-                out.append(item)
-            elif isinstance(item, DriftAnalysis):
-                out.append(item)
-        return out
 
     @field_validator("actions", mode="before")
     @classmethod

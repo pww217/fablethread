@@ -13,7 +13,6 @@ from ccya.engine import (
 )
 from ccya.engine.extraction import _ExtractionContext
 from ccya.models import (
-    DriftAnalysis,
     GMBeat,
     ProgressExtractResult,
     SceneExtractResult,
@@ -180,15 +179,14 @@ async def test_pressure_update_guard_empty_when_no_existing_pressures():
     assert len(pressure_updates) == 0
 
 
-class TestDriftAnalysis:
-    def test_progress_result_includes_drift_analysis(self):
-        """ProgressExtractResult model accepts drift_analysis field."""
-        result = ProgressExtractResult(
-            drift_analysis=[
-                DriftAnalysis(thread_id="t1", match=True, reason="Player engaged thread"),
-            ]
-        )
-        assert len(result.drift_analysis) == 1
-        assert result.drift_analysis[0].thread_id == "t1"
-        assert result.drift_analysis[0].match is True
+# Thread context tests moved to integration suite.
 
+
+def test_progress_extract_result_ignores_extra_fields():
+    """ProgressExtractResult ignores extra fields like old thread_signals."""
+    result = ProgressExtractResult(
+        advanced_threads=["t1"],
+        # These are ignored (extra: "ignore" in model config)
+        thread_signals=[],  # type: ignore[call-arg]
+    )
+    assert result.advanced_threads == ["t1"]

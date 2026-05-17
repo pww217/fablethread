@@ -282,12 +282,11 @@ def _check_asserts(
 
         elif a.stream == "extract.progress":
             applied = event.get("applied") or {}
-            if a.field == "thread_signals":
+            if a.field == "advanced_threads":
                 output = ((event.get("extraction") or {}).get("progress") or {}).get("output") or {}
-                signals = output.get("thread_signals") or []
-                ids = [s.get("id") for s in signals if isinstance(s, dict)]
-                passed = a.expected in ids
-                detail = f"thread_signals[{a.expected}] {'found' if passed else 'not found'}"
+                threads = output.get("advanced_threads") or []
+                passed = a.expected in threads
+                detail = f"advanced_threads[{a.expected}] {'found' if passed else 'not found'}"
             elif a.field == "scene_pressure_add":
                 adds = applied.get("scene_pressure_add") or []
                 ids = [p.get("id") for p in adds if isinstance(p, dict)]

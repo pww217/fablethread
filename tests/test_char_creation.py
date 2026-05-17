@@ -511,7 +511,6 @@ class TestArcActiveThreadState:
                 ],
                 "latent_threads": [],
                 "completed_threads": [],
-                "arc_engagement": 0,
             },
             "pc_drive": "Survive",
             "opening_narrative": "You stand in a ruined building. The wind howls through broken windows. Dust coats your throat. You check your pockets for anything useful. A faded photograph catches the light. Somewhere in the distance, a dog barks.",

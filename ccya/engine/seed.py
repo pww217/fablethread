@@ -265,8 +265,6 @@ async def generate_seed(
                     t.state = ThreadState.ACTIVE
         if envelope.pc_drive:
             envelope.seed_state.pc.drive = envelope.pc_drive
-        if not envelope.seed_state.pc.expressed_stances:
-            envelope.seed_state.pc.expressed_stances = {}
 
         # Inject baseline_facts (hardcoded genre canon) into world_state
         # LLM generates 3 global facts into world_state; prepend baseline_facts

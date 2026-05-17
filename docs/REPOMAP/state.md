@@ -78,15 +78,14 @@ inventory:                     # list[InventoryItem] — credits pinned to top
     notes: str
     amount: int (≥1)
 
-arc:                           # Campaign arc state — managed by engine/arc.py
+arc:                           # Campaign arc state — managed by engine/turn.py (_apply_thread_signals, _candidate_to_latent_thread)
   visible_goal: str
   thematic_question: str
   hidden_truths: [str]         # designer-only structural spine, never shown to player
   discovered_truths: [str]     # truths the player has learned through play (starts empty)
-  active_threads: [Thread]     # {id, summary, urgency, progress, state}
+  active_threads: [Thread]     # {id, summary, urgency, progress}
   latent_threads: [Thread]     # {id, tags, ...} — hidden from player
   completed_threads: [Thread]  # {id, summary, ...}
-  arc_engagement: int          # [-3, +3]
   pc_drive: str                # PC's personal motivation for being in this situation
 
 scene:

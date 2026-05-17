@@ -349,6 +349,10 @@ def _extract_progress_messages(
         {"id": t["id"], "summary": t["summary"], "urgency": t.get("urgency", "normal"), "tags": t.get("tags", [])}
         for t in ((state.get("arc") or {}).get("active_threads") or [])
     ]
+    latent_threads = [
+        {"id": t["id"], "summary": t["summary"], "urgency": t.get("urgency", "normal"), "tags": t.get("tags", []), "last_seen_turn": t.get("last_seen_turn")}
+        for t in ((state.get("arc") or {}).get("latent_threads") or [])
+    ]
     recent_events = list(scene.get("recent_events") or [])
     world_state = list(scene.get("world_state") or [])
 
@@ -374,6 +378,7 @@ def _extract_progress_messages(
             "conditions": extraction_ctx.conditions_this_turn,
             # State-sourced (these don't change within a turn)
             "active_threads": active_threads,
+            "latent_threads": latent_threads,
             "recent_events": recent_events,
             "world_state": world_state,
             "intent": intent,

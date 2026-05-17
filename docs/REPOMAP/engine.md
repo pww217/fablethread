@@ -16,7 +16,6 @@
 | `ccya/engine/changes.py` | `summarize_changes()`, `format_change_lines()`, `_summarize_applied()` — `summarize_changes` includes momentum diff when `pre.pc.momentum != post.pc.momentum`; `format_change_lines` renders `⚡ Momentum {before:+d} → {after:+d}`
 | `ccya/engine/pressure.py` | `_expire_scene_pressures()`, `_purge_scene_pressures()` |
 | `ccya/engine/compactor.py` | `maybe_compact()`, `_extract_turns_for_compact()`, `_build_compact_messages()`, `_parse_compact_response()`, `_write_compacted_block()` |
-| `ccya/engine/arc.py` | `tick_arc()`, `update_stances()`, `_salience_score()`, `_tag_overlap()` — campaign arc director: processes thread signals, manages thread lifecycle (latent→active→complete/failed/expired), handles candidate_opportunity from extraction, momentum bias for salience scoring |
 | `ccya/engine/npc_roster.py` | `build_npc_roster()` — merges present/known/recently_left NPCs into a single ordered list with presence tags (PRESENT > JUST_LEFT > KNOWN) |
 | `ccya/engine/generate_pack.py` | `generate_pack_from_brief(inputs, packs_root, llm_host, llm_model, template_dir, trace_id) -> AsyncIterator[dict]` — SSE-driven ephemeral pack generation from world brief; writes `scenario.yaml` + `pack.yaml` to `packs/generated/<uuid>/`; yields `phase`, `pack_ready`, `generation_error` events |
 
@@ -139,12 +138,6 @@ After persist, `maybe_compact()` runs if `turn % compact_every == 0`.
 - `_write_compacted_block(save_dir, bullets_text, compact_start, compact_end)` — writes COMPACTED block to chronicle.md using a temp file + `os.replace()` atomic rename for crash safety (same pattern as `state.yaml`). Prepends if none exists, appends after existing block, then removes prose sections for turns in [compact_start, compact_end].
 - `_apply_sanitization(state, san)` — applies CompactorSanitizationResult to state in-place; validates all IDs against allowlists; unknown IDs silently skipped; logs structured event with `quests_closed`, `inventory_removed`, `npcs_merged`, `pressures_removed`, `conditions_removed`
 - `_sanitization_nonempty(san)` → `bool` — returns True when any of the five sanitization lists (npc_merge, inventory_remove, quest_close, pressure_remove, condition_remove) is non-empty
-
-### arc.py
-- `tick_arc(arc, drift=None, drift_analysis=None)` → `CampaignArc` — scores arc engagement based on drift overlap with active thread tags. Accepts structured `drift_analysis` (list[DriftAnalysis]) with per-thread match/no-match, falls back to legacy `drift` (list[str]) substring matching. Thread lifecycle (signals, completion, promotion, latent hygiene) is handled by `_apply_thread_signals` / `_candidate_to_latent_thread` in engine/turn.py. This function only updates arc_engagement.
-- `_apply_thread_signals(state, progress_result)` → `CampaignArc | None` — processes thread signals (ADVANCED/FAILED/IGNORED), advances progress, completes threads at threshold 3, promotes latent→active when slots open. Latent threads with a non-empty `unlock_if` field are excluded from automatic slot-fill promotion.
-- `update_stances(stances, user_input)` → `dict` — updates expressed stances based on player input keywords (compassionate/ruthless/defiant/cautious).
-- `_tag_overlap(a, b)` → `int` — count of tags present in both lists.
 
 ## Character creation
 

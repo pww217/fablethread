@@ -55,7 +55,7 @@ _PROGRESS_RESPONSE = json.dumps({
     "recent_events_add": [],
     "recent_events_update": [],
     "recent_events_remove": [],
-    "actions": [],
+    "actions": ["A", "B", "C", "D"],
     "outcome_summary": "",
 })
 
@@ -136,10 +136,8 @@ def progress_response(
     scene_pressure_add: list[dict[str, Any]] | None = None,
     scene_pressure_remove: list[str] | None = None,
     scene_pressure_update: list[dict[str, Any]] | None = None,
-    thread_signals: list[dict[str, Any]] | None = None,
-    player_drift_signals: list[str] | None = None,
+    advanced_threads: list[str] | None = None,
     candidate_opportunity: str | None = None,
-    drift_analysis: list[dict[str, Any]] | None = None,
 ) -> str:
     return json.dumps({
         "recent_events_add": rec_add or [],
@@ -152,10 +150,8 @@ def progress_response(
         "scene_pressure_add": scene_pressure_add or [],
         "scene_pressure_remove": scene_pressure_remove or [],
         "scene_pressure_update": scene_pressure_update or [],
-        "thread_signals": thread_signals or [],
-        "player_drift_signals": player_drift_signals or [],
+        "advanced_threads": advanced_threads or [],
         "candidate_opportunity": candidate_opportunity,
-        "drift_analysis": drift_analysis or [],
     })
 
 
@@ -191,7 +187,6 @@ def base_state(turn: int = 0) -> dict[str, Any]:
             "conditions": [],
             "momentum": 0,
             "allegiance": None,
-            "expressed_stances": {},
         },
         "location": {
             "id": "docking-ring-7",
@@ -267,7 +262,6 @@ def state_with_arc(turn: int = 0, arc_data: dict[str, Any] | None = None) -> dic
         "active_threads": [],
         "latent_threads": [],
         "completed_threads": [],
-        "arc_engagement": 0,
     }
     return s
 

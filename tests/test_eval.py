@@ -495,12 +495,12 @@ def test_check_asserts_inventory_remove_not_found():
     assert results[0]["detail"] == "inventory_remove[credits] not found"
 
 
-def test_check_asserts_thread_signals_found():
+def test_check_asserts_advanced_threads_found():
     from ccya.eval.runner import _check_asserts
     from ccya.eval.scenario import TurnAssert
 
-    event = {"extraction": {"progress": {"output": {"thread_signals": [{"id": "t_1", "signal": "advanced"}]}}}}
-    asserts = [TurnAssert(stream="extract.progress", field="thread_signals", expected="t_1")]
+    event = {"extraction": {"progress": {"output": {"advanced_threads": ["t_1", "t_2"]}}}}
+    asserts = [TurnAssert(stream="extract.progress", field="advanced_threads", expected="t_1")]
     results = _check_asserts(asserts, event)
     assert len(results) == 1
     assert results[0]["passed"] is True
