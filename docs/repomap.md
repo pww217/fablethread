@@ -96,7 +96,7 @@ LLM failure in extraction → `_call_stream` returns retry_errors tuple → `Sta
 
 ### Scene pressure lifecycle
 1. **Add**: progress extractor emits `scene_pressure_add` with urgency (immediate/building/background/pacing), text, id
-2. **Mutate**: `pressure.py:_expire_scene_pressures()` — post-extraction expiry/urgency escalation; background→building at 6 turns, building→immediate at 10; immediate pressures get TTL stamp on escalation (8-turn default)
+2. **Mutate**: `pressure.py:_expire_scene_pressures()` — post-extraction expiry/urgency escalation; background→building at 3 turns (configurable via EngineConfig.scene_pressure_building_at), building→immediate at 5 turns (configurable via EngineConfig.scene_pressure_immediate_at); immediate pressures get TTL stamp on escalation (8-turn default from scene_pressure_immediate_ttl)
 3. **Purge**: `_purge_scene_pressures()` — location change auto-purges only `background`; combat end removes `immediate`
 4. **Remove**: progress extractor emits `scene_pressure_remove` when threat resolved (including via "Resolve a Threat" directive); update-only guard on `scene_pressure_update`: every id must match existing pressure
 
