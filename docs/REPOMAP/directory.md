@@ -84,6 +84,19 @@ saves/default/                 # Active game save
   events.jsonl                 # Turn event log (JSONL, source of truth for turn viewer)
   chronicle.md                 # Narrative history (Markdown, "## Turn N — input" blocks)
 
+scripts/debug/                 # Debug CLI tools — read events.jsonl directly (no server)
+  ev.py                        # Main CLI: summary, timing, turn, props, compact, prompt, outputs, deltas, mechanics, connectors
+  get-summary.sh               # Thin wrapper → ev.py summary
+  get-timing.sh                # Thin wrapper → ev.py timing
+  get-turn.sh                  # Thin wrapper → ev.py turn
+  get-props.sh                 # Thin wrapper → ev.py props
+  get-props-compact.sh         # Thin wrapper → ev.py compact
+  get-props-connector.sh       # Thin wrapper → ev.py connectors
+  get-prompt.sh                # Thin wrapper → ev.py prompt
+  get-outputs.sh               # Thin wrapper → ev.py outputs
+  get-deltas.sh                # Thin wrapper → ev.py deltas
+  get-mechanics.sh             # Thin wrapper → ev.py mechanics
+
 config.yaml                    # Server/engine config (LLM host, temps, timeouts, logging)
 pyproject.toml                 # uv project: fastapi, uvicorn, jinja2, pydantic, sse-starlette, openai, faker
 Makefile                       # install, run, dev, test, lint, fmt, css, new-game
@@ -123,4 +136,5 @@ docs/                          # Plans, roadmap, repo map
     state.md
     testing.md
     eval.md
+    seed.md
 

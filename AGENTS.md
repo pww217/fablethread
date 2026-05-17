@@ -39,35 +39,58 @@ When working on a task:
 ## Module responsibilities — don't cross them
 
 
-| Module                 | Owns                                                                       | Does NOT own              |
-| ---------------------- | -------------------------------------------------------------------------- | ------------------------- |
-| `engine/`              | Turn pipeline: `run_turn()`, extraction, narration                         | State file I/O, HTTP      |
-| `engine/turn.py`       | `run_turn()` orchestrator (thin — imports from submodules)                 | Helper logic              |
-| `engine/config.py`     | `EngineConfig`, `_EventLock`, `is_turn_in_progress`                        | Game logic                |
-| `engine/narrate.py`    | Narration prompt building, NPC name generation                             | State mutation            |
-| `engine/rules.py`      | Rules LLM call wrappers, retry logic                                       | Deterministic dice/bands  |
-| `engine/extraction.py` | Three-stream extraction pipeline                                           | State mutation            |
-| `engine/seed.py`       | Dynamic seed generation                                                    | Game logic                |
-| `engine/changes.py`    | Change summary formatters                                                  | LLM calls                 |
-| `engine/pressure.py`   | Scene pressure expiry logic                                                | State mutation            |
-| `engine/compactor.py`  | Chronicle compaction + recent_events pruning                               | State mutation            |
-| `state/`               | State persistence: load, save, apply_delta, append_event, append_chronicle | LLM calls, HTTP           |
-| `state/io.py`          | `load_state`, `save_state`, `init_save_dir`, migration                     | State mutation logic      |
-| `state/delta.py`       | `apply_delta`, `reconcile_delta`, `PC_CONDITIONS_MAX`                      | I/O                       |
-| `state/inventory.py`   | Inventory ID normalization, fuzzy matching                                 | State mutation            |
-| `state/npcs.py`        | NPC alias map, compendium ordering                                         | State mutation            |
-| `state/chronicle.py`   | Chronicle/events file I/O, `load_recent_chronicle_turns`                   | State mutation            |
-| `state/momentum.py`    | Momentum tracking                                                          | Deterministic dice/bands  |
-| `models.py`            | All Pydantic models, `TurnResult`, `load_config()`                         | Business logic            |
-| `server/app.py`        | FastAPI app, config bootstrap, Jinja env, startup                          | Route handlers            |
-| `server/routes.py`     | All `@app.get` / `@app.post` handlers                                      | App bootstrap             |
-| `server/panels.py`     | Debug panel helpers, `_load`_* functions                                   | Route handlers            |
-| `server/tv.py`         | Turn viewer data preparation                                               | Route handlers            |
-| `server/metrics.py`    | Turn metrics, formatting helpers                                           | Route handlers            |
-| `pack.py`              | Pack loading, `PackManifest`, `SeedEnvelope`                               | State mutation            |
-| `rules.py`             | Deterministic dice: `resolve_check()`, bands, momentum                     | LLM calls, state          |
-| `llm_client.py`        | LLM HTTP client, chat, streaming, thinking helpers                         | Prompt construction       |
-| `eval/`                | Eval harness: in-process driver, judge, REPORT.md                          | State mutation, LLM calls |
+| Module                          | Ownes                                                                       | Does NOT own              |
+| ------------------------------- | --------------------------------------------------------------------------- | ------------------------- |
+| `ccya/engine/`                  | Turn pipeline: `run_turn()`, extraction, narration                          | State file I/O, HTTP      |
+| `ccya/engine/turn.py`           | `run_turn()` orchestrator (thin — imports from submodules)                  | Helper logic              |
+| `ccya/engine/config.py`         | `EngineConfig`, `_EventLock`, `is_turn_in_progress`                         | Game logic                |
+| `ccya/engine/narrate.py`        | Narration prompt building                                                   | State mutation            |
+| `ccya/engine/names.py`          | NPC name generation                                                         | State mutation            |
+| `ccya/engine/npc_roster.py`     | NPC roster management                                                       | State mutation            |
+| `ccya/engine/rules.py`          | Rules LLM call wrappers, retry logic                                        | Deterministic dice/bands  |
+| `ccya/engine/extraction.py`     | Three-stream extraction pipeline                                            | State mutation            |
+| `ccya/engine/seed.py`           | Dynamic seed generation                                                     | Game logic                |
+| `ccya/engine/changes.py`        | Change summary formatters                                                   | LLM calls                 |
+| `ccya/engine/pressure.py`       | Scene pressure expiry logic                                                 | State mutation            |
+| `ccya/engine/compactor.py`      | Chronicle compaction + recent_events pruning                                | State mutation            |
+| `ccya/engine/arc.py`            | Arc tracking                                                                | State mutation            |
+| `ccya/engine/markers.py`        | Scene marker management                                                     | State mutation            |
+| `ccya/engine/pack_gen.py`       | Pack generation helpers                                                     | Pack loading              |
+| `ccya/engine/generate_pack.py`  | Pack generation CLI/wrapper                                                 | Pack loading              |
+| `ccya/state/`                   | State persistence: load, save, apply_delta, append_event, append_chronicle  | LLM calls, HTTP           |
+| `ccya/state/io.py`              | `load_state`, `save_state`, `init_save_dir`, migration                      | State mutation logic      |
+| `ccya/state/delta.py`           | `apply_delta`, `reconcile_delta`, `PC_CONDITIONS_MAX`                       | I/O                       |
+| `ccya/state/inventory.py`       | Inventory ID normalization, fuzzy matching                                  | State mutation            |
+| `ccya/state/npcs.py`            | NPC alias map, compendium ordering                                          | State mutation            |
+| `ccya/state/chronicle.py`       | Chronicle/events file I/O, `load_recent_chronicle_turns`                    | State mutation            |
+| `ccya/state/momentum.py`        | Momentum tracking                                                           | Deterministic dice/bands  |
+| `ccya/models.py`                | All Pydantic models, `TurnResult`, `load_config()`                          | Business logic            |
+| `ccya/server/app.py`            | FastAPI app, config bootstrap, Jinja env, startup                           | Route handlers            |
+| `ccya/server/routes.py`         | All `@app.get` / `@app.post` handlers                                       | App bootstrap             |
+| `ccya/server/panels.py`         | Debug panel helpers, `_load`_* functions                                    | Route handlers            |
+| `ccya/server/tv.py`             | Turn viewer data preparation                                                | Route handlers            |
+| `ccya/server/tv_mirror.py`      | Turn viewer mirror data preparation                                         | Route handlers            |
+| `ccya/server/metrics.py`        | Turn metrics, formatting helpers                                            | Route handlers            |
+| `ccya/pack.py`                  | Pack loading, `PackManifest`, `SeedEnvelope`                                | State mutation            |
+| `ccya/rules.py`                 | Deterministic dice: `resolve_check()`, bands, momentum                      | LLM calls, state          |
+| `ccya/llm_client.py`            | LLM HTTP client, chat, streaming, thinking helpers                          | Prompt construction       |
+| `ccya/cli.py`                   | CLI entry point                                                             | —                         |
+| `ccya/logging_setup.py`         | JSONL file handler + console handler                                        | —                         |
+| `scripts/debug/ev.py`           | Debug CLI: reads events.jsonl directly (summary, timing, turn, props, etc.) | Server, LLM calls         |
+| `scripts/debug/`                | Thin bash wrappers → ev.py (get-*.sh)                                       | —                         |
+| `ccya/eval/`                    | Eval harness: driver, judge, report, CLI, utils                             | State mutation, LLM calls |
+| `ccya/eval/runner.py`           | In-process eval runner                                                      | LLM calls                 |
+| `ccya/eval/judge.py`            | Eval judge logic                                                            | —                         |
+| `ccya/eval/report.py`           | Eval report generation                                                      | —                         |
+| `ccya/eval/cli.py`              | Eval CLI                                                                    | —                         |
+| `ccya/eval/config.py`           | Eval config                                                                 | —                         |
+| `ccya/eval/universal_asserts.py`| Universal assertion helpers                                                 | —                         |
+| `ccya/eval/compaction_signals.py`| Compaction signal detection                                                | —                         |
+| `ccya/eval/engine_mirror.py`    | Engine mirror for eval                                                      | —                         |
+| `ccya/eval/pack_utils.py`       | Eval pack utilities                                                         | —                         |
+| `ccya/eval/redundancy.py`       | Redundancy detection                                                        | —                         |
+| `ccya/eval/architecture_context.py`| Architecture context for eval                                             | —                         |
+| `ccya/eval/scenario.py`         | Eval scenario definitions                                                   | —                         |
 
 
 If you find logic in the wrong layer, move it rather than pile on.
@@ -131,7 +154,8 @@ If you find logic in the wrong layer, move it rather than pile on.
 
 ## Plan lifecycle
 
-- Active plans are in `/plans/`, completed plans in `/plans/completed/` (organized by category).
+- Active plans are in `/plans/` (may be empty if all plans are completed/reviewed).
+- Completed plans are in `/plans/completed/` (organized by category).
 - Plans awaiting review are in `/plans/review/` — these must NOT be executed. They need a review pass first.
 - Move completed plans from `/plans/` to `/plans/completed/` (organized by category).
 - Abandoned plans get an `## Abandoned` section with one-line reason.
@@ -175,7 +199,9 @@ Detailed file/function/directory info lives in `docs/REPOMAP/`. Read the relevan
 | Testing, FakeLLM, commands         | `@docs/REPOMAP/testing.md`    |
 | Config.yaml, EngineConfig          | `@docs/REPOMAP/config.md`     |
 | Directory layout                   | `@docs/REPOMAP/directory.md`  |
+| Debug scripts, events.jsonl CLI    | `@scripts/debug/README.md`    |
 | Eval harness                       | `@docs/REPOMAP/eval.md`       |
+| Seed generation                      | `@docs/REPOMAP/seed.md`       |
 
 
 Cross-cutting tasks (read multiple):

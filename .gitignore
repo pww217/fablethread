@@ -11,6 +11,9 @@ build/
 logs/
 logs/.gitkeep
 
+# Save data
+saves/
+
 # Generated CSS (rebuilt by `make css`)
 ccya/static/app.css
 

@@ -1,91 +1,112 @@
 # Debug Scripts
 
-Quick CLI tools for inspecting turn viewer data from a running server (`127.0.0.1:8765`).
+Quick CLI tools for inspecting turn data from `saves/default/events.jsonl`.
+
+All scripts are thin wrappers around `ev.py` which reads events.jsonl directly — no server required.
 
 ## Quick reference
 
 | Script | Purpose |
 |--------|---------|
-| `get-summary.sh` | One-line overview of all turns |
-| `get-timing.sh` | Token counts and timing per stream |
-| `get-turn.sh` | Full prompts + outputs for all streams on a turn |
-| `get-props.sh` | Prompts + outputs for one stream on a turn |
-| `get-props-compact.sh` | Same, but skips system prompts |
-| `get-props-connector.sh` | Prompts + outputs + inter-stream connectors |
-| `get-prompt.sh` | Single field: system, user, or output |
-| `get-outputs.sh` | JSON outputs from all streams |
-| `get-deltas.sh` | State diffs and rejections |
-| `get-mechanics.sh` | Rules intent + beats + pressures + arcs + connectors |
+| `ev.py summary` | One-line overview of all turns |
+| `ev.py timing` | Token counts and timing per stream |
+| `ev.py turn` | Full prompts + outputs for all streams on a turn |
+| `ev.py props` | Prompts + outputs for one stream on a turn |
+| `ev.py compact` | Same, but skips system prompts |
+| `ev.py prompt` | Single field: system, user, or output |
+| `ev.py outputs` | JSON outputs from all streams |
+| `ev.py deltas` | State diffs and rejections |
+| `ev.py mechanics` | Rules intent + beats + pressures + arcs + connectors |
+| `ev.py connectors` | Inter-stream connectors only |
 
 ## Usage
 
-All scripts require a running server. Every script takes a turn number as the first argument.
+Every script (and `ev.py`) takes a turn number as the first argument.
+Optionally pass a path to events.jsonl as the last argument to use a different save directory.
 
 ```bash
 # Summary of all turns
-./get-summary.sh
+./ev.py summary
 
 # Timing breakdown
-./get-timing.sh
+./ev.py timing
 
 # Full pipeline for turn 5
-./get-turn.sh 5
+./ev.py turn 5
 
 # Just the progress stream on turn 5
-./get-props.sh 5 progress
+./ev.py props 5 progress
 
 # Progress stream, user + output only
-./get-props-compact.sh 5 progress
+./ev.py compact 5 progress
 
 # Single field
-./get-prompt.sh 5 progress user
+./ev.py prompt 5 progress user
 
 # JSON outputs from all streams
-./get-outputs.sh 5
+./ev.py outputs 5
 
 # State mutations
-./get-deltas.sh 5
+./ev.py deltas 5
 
 # Rules + beats + pressures + arcs + connectors
-./get-mechanics.sh 5
+./ev.py mechanics 5
 
-# Prompts + outputs + connectors
-./get-props-connector.sh 5
+# Using a different save directory
+./ev.py turn 5 saves/another-game/events.jsonl
+
+# Legacy script names still work (forward to ev.py)
+./get-turn.sh 5
+./get-deltas.sh 5
 ```
 
 ## When to use which
 
-- **Debugging beats/pressures/arcs**: `get-mechanics.sh <turn>` — beats, deescalate, pressures, arc, threads
-- **Debugging a bad output**: `get-props-connector.sh <turn>` to see prompts + outputs + how streams fed each other
-- **Checking state mutations**: `get-deltas.sh <turn>` to see what changed
-- **Reviewing prompt quality**: `get-props.sh <turn> <stream>` to see system + user prompts
-- **Token budget analysis**: `get-timing.sh`
-- **Rules + state interaction**: `get-mechanics.sh <turn>`
-- **Quick check**: `get-props-compact.sh <turn> <stream>` (no system prompts, faster to read)
+- **Debugging beats/pressures/arcs**: `ev.py mechanics <turn>` — beats, deescalate, pressures, arc, threads
+- **Debugging a bad output**: `ev.py props <turn> <stream>` to see prompts + outputs
+- **Checking state mutations**: `ev.py deltas <turn>` to see what changed
+- **Reviewing prompt quality**: `ev.py props <turn> <stream>` to see system + user prompts
+- **Token budget analysis**: `ev.py timing`
+- **Quick check**: `ev.py compact <turn> <stream>` (no system prompts, faster to read)
 
 ## Data structure reference
 
-The turn viewer API returns `{ "turns": [...] }` where each turn has:
+Events are stored as one JSON line per turn in `saves/default/events.jsonl`.
 
-### Top-level keys
+### Raw event keys (events.jsonl)
+
 - `.turn` — turn number
-- `.prompts` — dict with keys: `rules`, `narrate`, `scene`, `state`, `progress`
-  - Each stream has `.system`, `.user`, `.output` (all strings)
-  - **NOT** `.rules_prompt.system` — that field is null
-- `.streams` — dict with keys: `rules`, `narrate`, `scene`, `state`, `progress`
-  - Each stream has timing/status metadata (`.tt`, `.tokens_in`, `.status`, etc.)
-  - **NOT** an array — access via `.streams.rules` not `.streams[0]`
-- `.rules_intent` — rules engine output (intent, intent_verb, check, stakes)
-- `.state_diff` — array of state mutations
-- `.connectors` — inter-stream data flow
-- `.user_input` — player's text input
-- `.total_tokens_in_display`, `.total_tokens_out_display` — token counts
-- `.total_tt` — total turn time
-- `.row_kind` — `"turn"` or `"compaction"` (compaction entries have no prompts)
+- `.input` — player's text input
+- `.rules_prompt` — rules stream prompts
+  - `.rendered_system`, `.rendered_user`, `.output` (JSON string)
+- `.narrate_prompt` — narrate stream prompts
+  - `.rendered_system`, `.rendered_user`, `.output` (prose string)
+- `.extraction.scene` — scene extractor
+  - `.rendered_system`, `.rendered_user`, `.output` (JSON string)
+- `.extraction.state` — state extractor
+  - `.rendered_system`, `.rendered_user`, `.output` (JSON string)
+- `.extraction.progress` — progress extractor
+  - `.rendered_system`, `.rendered_user`, `.output` (JSON string)
+- `.rules` — rules metrics (total_ms, tokens_in, tokens_out, etc.)
+- `.narrate` — narrate metrics
+- `.extract` — extraction metrics with per-stream breakdown
+- `.applied` — state deltas that were applied
+- `.rejected` — state deltas that were rejected with reasons
+- `.actions` — actions taken during the turn
+- `.changes` — change summary lines
+- `.state_diff` — flat list of state mutations (added by turn viewer)
+- `.connectors` — inter-stream data flow (added by turn viewer)
 
-### Mechanics in progress user prompt
+### Compaction entries
 
-The following sections are embedded in `.prompts.progress.user` as text headers:
+Compaction events have `.kind == "compaction"` and no prompts. Filter them out with:
+```bash
+ev.py turn 5   # automatically skips compaction entries
+```
+
+### Mechanics sections in prompts
+
+The following sections are embedded in `.extraction.progress.rendered_user` as text headers:
 
 - `## gm_beat` — beats generated by rules engine (may be empty)
 - `## deescalate` — pressure resolution info (only when a pressure resolves)
@@ -93,15 +114,6 @@ The following sections are embedded in `.prompts.progress.user` as text headers:
 - `## rules_stakes` — band result and at-risk costs
 - `## pending_beat` — beats carried forward from previous turns
 
-### Mechanics in narrate user prompt
+In `.extraction.progress.rendered_user`:
 
 - `### Campaign Arc` — goal, phase, thematic question, PC drive, active threads
-
-### Common jq pitfalls
-
-- **Compaction entries**: Turn 3 (and compaction turns) have two entries — one with `row_kind: "compaction"` and no prompts, one with `row_kind: "turn"` and full prompts. Filter with `.streams | length > 0` not `.streams.rules.status != "compaction"`.
-- **`streams` is a dict, not an array**: Use `.streams | keys` to list, `.streams.rules` to access. `.streams[]` fails with "string and object cannot be added".
-- **String concatenation with `+` fails for nested interpolations**: Don't chain `+` with nested string interpolation. Use multiple `-r` expressions or `if` guards.
-- **`jq` shell quoting**: Use single quotes for jq filters. Double quotes inside jq require escaping. Complex filters with nested strings often need to be broken into multiple jq calls.
-- **`split()` requires string inputs**: If a prompt field is null, `.prompts.X.user | split("Y")` fails. Check type first or handle null.
-- **`capture()` with regex**: The `(?s)` flag for dot-matches-newline doesn't work reliably in all jq versions. Use `split()` instead.
