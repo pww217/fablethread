@@ -88,7 +88,7 @@ For each turn, verify each mechanic is emitted by the correct stream.
 | `scene_tags`, `scene_tagline` | scene |
 | `inventory_add`, `inventory_remove`, `inventory_update` | state |
 | `pc_condition_add`, `pc_condition_remove` | state |
-| `thread_signals`, `player_drift_signals`, `candidate_opportunity` | progress |
+| `advanced_threads`, `candidate_opportunity` | progress |
 | `recent_events_add`, `recent_events_update`, `recent_events_remove` | progress |
 | `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update` | progress |
 | `gm_beat`, `beat_disposition` | progress |
@@ -110,7 +110,7 @@ For each pipeline, assess whether its inputs are focused:
 
 **Extract State**: should receive narrative, pc, inventory, rules_outcome, stakes, band, scene_result. Flag if it receives arc thread data, recent_events, or pressure data.
 
-**Extract Progress**: richest extractor — assess whether every input enables a specific output. Flag inputs that appear unused. Should receive: narrative, pc, recent_events, world_state, scene_pressure, rules_outcome, intent, recent_turns, stakes, band, deescalate, pending_beat, narration_directive, extraction_ctx (NPC/inventory/location/pressure/conditions from scene+state). Arc thread context (active_threads, latent_threads) is passed via state but thread lifecycle is engine-driven (not extraction-driven) — the extractor emits thread_signals, player_drift_signals, and candidate_opportunity rather than quest_updates. Flag any vestigial quest-related inputs (quest_ages, quest_threshold_directive) that remain in the prompt but no longer have corresponding output fields. Flag items_gained/lost — the legacy cross-stream state_ctx was removed once extraction_ctx covered this.
+**Extract Progress**: richest extractor — assess whether every input enables a specific output. Flag inputs that appear unused. Should receive: narrative, pc, recent_events, world_state, scene_pressure, rules_outcome, intent, recent_turns, stakes, band, deescalate, pending_beat, narration_directive, extraction_ctx (NPC/inventory/location/pressure/conditions from scene+state). Arc thread context (active_threads, latent_threads) is passed via state but thread lifecycle is engine-driven (not extraction-driven) — the extractor emits advanced_threads and candidate_opportunity rather than quest_updates. The legacy cross-stream items_gained/lost from state_ctx was removed once extraction_ctx covered this-turn derived data. Flag items_gained/lost — the legacy cross-stream state_ctx was removed once extraction_ctx covered this.
 
 Assess: is narration_directive being used by the progress extractor? Flag if it appears in the prompt but the extractor's output shows no evidence of using it for beats/pressure decisions.
 

@@ -76,15 +76,7 @@ Flags: `SILENT_DROP`, `OVERLONG` (active >5 turns), `DUPLICATE`.
 |-----------|--------------|-------|----------|----------------|------|
 
 State: `latent` / `active` / `complete` / `failed` / `expired`.
-Flags: `STALLED` (progress stuck at 0 for ≥5 turns), `DUPLICATE_ID`, `ORPHANED` (active thread with no thread_signals across ≥3 turns), `CAP_EXCEEDED` (more than 4 active threads), `FAILED_NO_SIGNAL` (thread failed without FAILED signal).
-
-### 1F — Arc Engagement Table
-
-| Turn | arc_engagement | Drift Match? | Δ Engagement | Flag |
-|------|----------------|--------------|--------------|------|
-
-Drift match: player_drift_signals substring matched against active_thread tags.
-Flags: `DRIFT_IGNORED` (engagement decreased but player action matched active thread tags), `STAGNANT` (engagement stuck at 0 for ≥4 turns), `MAX_REACHED` (engagement at +3 but no new threads activated).
+Flags: `STALLED` (progress stuck at 0 for ≥5 turns), `DUPLICATE_ID`, `ORPHANED` (active thread with no advanced_threads across ≥3 turns), `CAP_EXCEEDED` (more than 3 active threads), `FAILED_NO_SIGNAL` (thread failed without FAILED signal).
 
 ### 1G — Inventory Evolution Table
 
