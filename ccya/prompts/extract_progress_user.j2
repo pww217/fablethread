@@ -67,7 +67,14 @@ Instruction: {{ pending_beat.instruction }}
 {% if narrative_velocity < -0.3 -%}
 ## deescalation
 Narrative velocity indicates de-escalation ({{ "%.2f"|format(narrative_velocity) }}).
-{% if narrative_velocity < -0.5 -%}
+{% if resolved_pressures %}
+The following pressures were resolved last turn:
+{% for p in resolved_pressures -%}
+- [{{ p.urgency | upper }}] {{ p.text }} (`{{ p.id }}`)
+{% endfor -%}
+Prefer `breathing_room` beat type or no beat. Do not add new immediate pressures.
+Allow existing pressures to persist without escalation.
+{% elif narrative_velocity < -0.5 -%}
 Strong deescalation. Prefer `breathing_room` beat type or no beat. Do not add new immediate pressures.
 {% else -%}
 Partial deescalation. Prefer low-urgency beat or no beat.

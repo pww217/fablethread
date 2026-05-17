@@ -662,6 +662,9 @@ async def run_turn(
                 _pending_gm_beat = None
                 state.setdefault("meta", {})["pending_gm_beat"] = None
 
+        # Read resolved pressures from previous turn's purge/expire
+        _resolved_pressures = (state.get("meta") or {}).get("resolved_pressures_last_turn")
+
         # Known NPCs for narrator context (Phase 4A)
         _known_npcs = _known_characters_for_extract(state, compact=True)
 
@@ -759,6 +762,7 @@ async def run_turn(
             threat_pressure_at=config.threat_pressure_at,
             threat_imperative_at=config.threat_imperative_at,
             building_threat_imperative_at=config.building_threat_imperative_at,
+            resolved_pressures=_resolved_pressures,
             npc_roster=build_npc_roster(
                 present_npcs=_present_npcs,
                 known_npcs=_known_npcs,
@@ -853,6 +857,7 @@ async def run_turn(
                 narrative_velocity=narrative_velocity,
                 recent_turns=recent_turns,
                 narration_directive=narration_directive,
+                resolved_pressures=_resolved_pressures,
             ):
                 if isinstance(_evt, tuple) and len(_evt) == 2 and _evt[0] == "phase":
                     yield _evt
@@ -901,6 +906,23 @@ async def run_turn(
                 config=config,
             )
             _expire_scene_pressures(state, delta, config, avoidance=avoidance)
+
+        # Capture resolved pressure data for next turn's narration/extraction context
+        if delta is not None and delta.scene_pressure_remove:
+            _resolved = []
+            for rid in delta.scene_pressure_remove:
+                for p in (state.get("scene") or {}).get("scene_pressure") or []:
+                    if isinstance(p, dict) and p.get("id") == rid:
+                        _resolved.append({
+                            "id": p.get("id", ""),
+                            "urgency": p.get("urgency", "background"),
+                            "text": p.get("text", ""),
+                        })
+                        break
+            if _resolved:
+                state.setdefault("meta", {})["resolved_pressures_last_turn"] = _resolved
+            else:
+                (state.get("meta") or {}).pop("resolved_pressures_last_turn", None)
 
         # Condition age pass: decrement turns_remaining, remove expired
         updated_conds = []

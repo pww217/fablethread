@@ -87,6 +87,13 @@ Surface as {{ pending_beat.surface_as }}. This is backstage direction — integr
 
 **Momentum LOW ({{ m }}):** The player is struggling. Look for the one thing going slightly in their favor and name it. If the player attempts retreat, disengagement, or rest, allow the attempt to feel like it matters narratively.
 {% endif %}
+{% if resolved_pressures %}
+
+### Resolved Pressures (from last turn)
+{% for p in resolved_pressures -%}
+- [{{ p.urgency | upper }}] {{ p.text }} (`{{ p.id }}`)
+{% endfor -%}
+{% endif %}
 {% if narrative_velocity < -0.3 %}
 
 **Narration Directive:** Breathe
