@@ -23,7 +23,7 @@ class TestRouteRegistration:
         "/",
         "/turn",
         "/turn/delete",
-        "/turn/retry",
+
         "/new-game",
         "/new-game/reroll",
         "/panels/state",

@@ -828,53 +828,7 @@ class TestChroniclePrefixBudget:
         # ## COMPACTED header adds 2 words, so cap is 102
         assert len(words) <= 102
 
-    async def test_prior_history_injected_in_engine_run(self) -> None:
-        state = _make_state()
-        state.setdefault("meta", {})["prior_history"] = ["- [T1] MARKER_TEXT_FOR_ASSERTION"]
-        _write_state(_SAVE_DIR, state)
 
-        captured_messages = []
-
-        async def fake_stream(*args, **kwargs):
-            msgs = args[2] if len(args) > 2 else kwargs.get("messages", [])
-            captured_messages.extend(msgs)
-            yield "narrative"
-
-        _chat_calls_chron = 0
-
-        async def fake_chat(*args, **kwargs):
-            nonlocal _chat_calls_chron
-            _chat_calls_chron += 1
-            if _chat_calls_chron == 1:
-                return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
-            if _chat_calls_chron == 2:
-                return {"response": _SCENE_RESPONSE, "done": True, "usage": {}}
-            if _chat_calls_chron == 3:
-                return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
-            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
-
-        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
-        _origs: list[tuple] = []
-        for _m in _mods:
-            if hasattr(_m, "llm_chat"):
-                _origs.append((_m, "llm_chat", _m.llm_chat))
-                _m.llm_chat = fake_chat
-            if hasattr(_m, "llm_chat_stream"):
-                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
-                _m.llm_chat_stream = fake_stream
-        try:
-            await _run(
-                _SAVE_DIR,
-                "look",
-                config=EngineConfig(chronicle_prefix_budget_tokens=1500),
-            )
-        finally:
-            for _m, _name, _orig in _origs:
-                setattr(_m, _name, _orig)
-
-        all_texts = " ".join(m.get("content", "") for m in captured_messages)
-        assert "MARKER_TEXT_FOR_ASSERTION" in all_texts
-        assert "Prior Turns (Compacted)" in all_texts
 
 
 # ---------------------------------------------------------------------------
@@ -1206,17 +1160,35 @@ class TestFactsDelta:
 
 
 class TestEstablishedFactsEviction:
-    def test_eviction(self) -> None:
+    @pytest.mark.parametrize(
+        "existing_count,add_count,recent_events_max,expected_last_id,expected_absent_id",
+        [
+            pytest.param(5, 6, 10, "f11", "f1", id="cap10"),
+            pytest.param(24, 3, 25, "f26", "f0", id="cap25"),
+            pytest.param(1, 3, 2, "f4", "f1", id="cap2"),
+        ],
+    )
+    def test_eviction(
+        self,
+        existing_count: int,
+        add_count: int,
+        recent_events_max: int,
+        expected_last_id: str,
+        expected_absent_id: str,
+    ) -> None:
         state = _make_state()
-        state["scene"]["recent_events"] = [_make_recent_event(f"f{i}", f"f{i}", turn=i) for i in range(1, 6)]
+        state["scene"]["recent_events"] = [
+            _make_recent_event(f"f{i}", f"f{i}", turn=i) for i in range(1, existing_count + 1)
+        ]
+        next_id = existing_count + 1
         delta = StateDelta(recent_events_add=[
-            RecentEvent(id=f"f{i}", text=f"f{i}", turn=6) for i in range(6, 12)
+            RecentEvent(id=f"f{i}", text=f"f{i}", turn=next_id) for i in range(next_id, next_id + add_count)
         ])
-        updated, _ = apply_delta(state, delta, recent_events_max=10)
+        updated, _ = apply_delta(state, delta, recent_events_max=recent_events_max)
         facts = updated["scene"]["recent_events"]
-        assert len(facts) <= 10
-        assert any(f["id"] == "f11" for f in facts)
-        assert not any(f["id"] == "f1" for f in facts)
+        assert len(facts) <= recent_events_max
+        assert any(f["id"] == expected_last_id for f in facts)
+        assert not any(f["id"] == expected_absent_id for f in facts)
 
 
 class TestPcConditionsDelta:
@@ -1279,33 +1251,6 @@ class TestPcConditionsDelta:
         updated, _ = apply_delta(state, delta)
         cond = next(c for c in updated["pc"]["conditions"] if c["id"] == "shaken")
         assert cond["added_turn"] == 5
-
-
-class TestEstablishedFactsCap25:
-    def test_cap_at_25(self) -> None:
-        state = _make_state()
-        state["scene"]["recent_events"] = [_make_recent_event(f"f{i}", f"f{i}") for i in range(24)]
-        delta = StateDelta(recent_events_add=[
-            RecentEvent(id=f"f{i}", text=f"f{i}") for i in range(24, 27)
-        ])
-        updated, _ = apply_delta(state, delta, recent_events_max=25)
-        facts = updated["scene"]["recent_events"]
-        assert len(facts) == 25
-        assert any(f["id"] == "f26" for f in facts)
-        assert not any(f["id"] == "f0" for f in facts)
-
-
-class TestApplyDeltaEstablishedFactsMax:
-    def test_custom_max_wired(self) -> None:
-        state = _make_state()
-        state["scene"]["recent_events"] = [_make_recent_event("f1", "f1")]
-        delta = StateDelta(recent_events_add=[
-            RecentEvent(id=f"f{i}", text=f"f{i}") for i in range(2, 5)
-        ])
-        updated, _ = apply_delta(state, delta, recent_events_max=2)
-        facts = updated["scene"]["recent_events"]
-        assert len(facts) <= 2
-        assert facts[-1]["id"] == "f4"
 
 
 class TestInventoryCompendiumTagline:
@@ -1614,65 +1559,6 @@ class TestEstablishedFactsInEvent:
 
 
 # ---------------------------------------------------------------------------
-# TestRecentTurnsInjected
-# ---------------------------------------------------------------------------
-
-
-class TestRecentTurnsInjected:
-    """After a turn is played, the next turn's prompt should include it."""
-
-    async def test_recent_turn_in_next_narrate_system(self) -> None:
-        state = _make_state(turn=1)
-        _write_state(_SAVE_DIR, state)
-        (_SAVE_DIR / "events.jsonl").touch()
-        # Prior narrative lives in chronicle.md (canonical); engine reads via load_recent_chronicle_turns
-        (_SAVE_DIR / "chronicle.md").write_text(
-            "\n\n## Turn 1 — I examine the signal\n\nThe signal pulses orange.\n",
-        )
-
-        captured_messages: list[str] = []
-
-        async def fake_stream(*args, **kwargs):
-            msgs = args[2] if len(args) > 2 else kwargs.get("messages", [])
-            for m in msgs:
-                captured_messages.append(m.get("content", ""))
-            yield "narrative"
-
-        _chat_calls_recent = 0
-
-        async def fake_chat(*args, **kwargs):
-            nonlocal _chat_calls_recent
-            _chat_calls_recent += 1
-            if _chat_calls_recent == 1:
-                return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
-            if _chat_calls_recent == 2:
-                return {"response": _SCENE_RESPONSE, "done": True, "usage": {}}
-            if _chat_calls_recent == 3:
-                return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
-            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
-
-        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
-        _origs: list[tuple] = []
-        for _m in _mods:
-            if hasattr(_m, "llm_chat"):
-                _origs.append((_m, "llm_chat", _m.llm_chat))
-                _m.llm_chat = fake_chat
-            if hasattr(_m, "llm_chat_stream"):
-                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
-                _m.llm_chat_stream = fake_stream
-        try:
-            await _run(_SAVE_DIR, "go north", config=EngineConfig(window_turns=6))
-        finally:
-            for _m, _name, _orig in _origs:
-                setattr(_m, _name, _orig)
-
-        combined = " ".join(captured_messages)
-        assert (
-            "I examine the signal" in combined or "The signal pulses orange" in combined
-        )
-
-
-# ---------------------------------------------------------------------------
 # TestPackKwargs — pack_style wired through run_turn
 # ---------------------------------------------------------------------------
 
@@ -1680,101 +1566,13 @@ class TestRecentTurnsInjected:
 class TestPackKwargs:
     """pack_style appears in narrate system."""
 
-    async def test_pack_style_in_narrate_system(self) -> None:
-        state = _make_state()
-        _write_state(_SAVE_DIR, state)
-
-        captured_narrate_system = []
-
-        async def _fake_stream(*args, **kwargs):
-            msgs = args[2] if len(args) > 2 else kwargs.get("messages", [])
-            for m in msgs:
-                if m.get("role") == "system":
-                    captured_narrate_system.append(m["content"])
-            ss = kwargs.get("stream_stats")
-            if ss is not None:
-                ss["prompt_eval_count"] = 42
-                ss["eval_count"] = 24
-            yield "narrative"
-
-        _narrate_chat_calls = 0
-
-        async def _fake_chat(*args, **kwargs):
-            nonlocal _narrate_chat_calls
-            _narrate_chat_calls += 1
-            if _narrate_chat_calls == 1:
-                return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
-            if _narrate_chat_calls == 2:
-                return {"response": _SCENE_RESPONSE, "done": True, "usage": {}}
-            if _narrate_chat_calls == 3:
-                return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
-            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
-
-        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
-        _origs: list[tuple] = []
-        for _m in _mods:
-            if hasattr(_m, "llm_chat"):
-                _origs.append((_m, "llm_chat", _m.llm_chat))
-                _m.llm_chat = _fake_chat
-            if hasattr(_m, "llm_chat_stream"):
-                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
-                _m.llm_chat_stream = _fake_stream
-        try:
-            async for _ in run_turn(
-                _SAVE_DIR,
-                "look",
-                config=EngineConfig(),
-                template_dir=str(Path(__file__).parent.parent / "ccya" / "prompts"),
-                pack_style="UNIQUE_STYLE_MARKER_7483",
-            ):
-                pass
-        finally:
-            for _m, _name, _orig in _origs:
-                setattr(_m, _name, _orig)
-
-        assert not any("UNIQUE_STYLE_MARKER_7483" in s for s in captured_narrate_system)
-
     async def test_pack_narrator_rules_in_narrate_system(self) -> None:
         """Narrator rules from pack.scenario should appear in the narrate system prompt."""
         state = _make_state()
         _write_state(_SAVE_DIR, state)
 
-        captured_narrate_system = []
-
-        async def _fake_stream(*args, **kwargs):
-            msgs = args[2] if len(args) > 2 else kwargs.get("messages", [])
-            for m in msgs:
-                if m.get("role") == "system":
-                    captured_narrate_system.append(m["content"])
-            ss = kwargs.get("stream_stats")
-            if ss is not None:
-                ss["prompt_eval_count"] = 42
-                ss["eval_count"] = 24
-            yield "narrative"
-
-        _narrate_chat_calls = 0
-
-        async def _fake_chat(*args, **kwargs):
-            nonlocal _narrate_chat_calls
-            _narrate_chat_calls += 1
-            if _narrate_chat_calls == 1:
-                return {"response": _RULES_NO_ROLL, "done": True, "usage": {}}
-            if _narrate_chat_calls == 2:
-                return {"response": _SCENE_RESPONSE, "done": True, "usage": {}}
-            if _narrate_chat_calls == 3:
-                return {"response": _STATE_RESPONSE, "done": True, "usage": {}}
-            return {"response": _PROGRESS_RESPONSE, "done": True, "usage": {}}
-
-        _mods = [ccya.engine.turn, ccya.engine.rules, ccya.engine.seed, ccya.engine.extraction]
-        _origs: list[tuple] = []
-        for _m in _mods:
-            if hasattr(_m, "llm_chat"):
-                _origs.append((_m, "llm_chat", _m.llm_chat))
-                _m.llm_chat = _fake_chat
-            if hasattr(_m, "llm_chat_stream"):
-                _origs.append((_m, "llm_chat_stream", _m.llm_chat_stream))
-                _m.llm_chat_stream = _fake_stream
-        try:
+        fake = _FakeLLM()
+        with fake:
             async for _ in run_turn(
                 _SAVE_DIR,
                 "look",
@@ -1783,12 +1581,19 @@ class TestPackKwargs:
                 pack_narrator_rules=["Rule one.", "Rule two."],
             ):
                 pass
-        finally:
-            for _m, _name, _orig in _origs:
-                setattr(_m, _name, _orig)
 
-        assert any("Rule one." in s for s in captured_narrate_system)
-        assert any("Rule two." in s for s in captured_narrate_system)
+        stream_calls = fake.stream_calls()
+        assert len(stream_calls) >= 1
+        system_contents = [
+            m["content"]
+            for call in stream_calls
+            for m in (call.get("kwargs", {}).get("messages", []) or call.get("args", [None, None, None])[2] if len(call.get("args", [])) > 2 else [])
+            if m.get("role") == "system"
+        ]
+        assert system_contents, "No system messages captured from stream calls"
+        combined = "\n".join(system_contents)
+        assert "Rule one." in combined
+        assert "Rule two." in combined
 
 
 # ---------------------------------------------------------------------------

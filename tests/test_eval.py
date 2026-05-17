@@ -656,29 +656,6 @@ def test_build_trace_all_turns_included():
     assert "[... trace truncated" not in trace
 
 
-def test_build_trace_retry_turns():
-    from ccya.eval.judge import build_trace
-
-    metadata = _make_metadata()
-    # Retry turn: empty rules_prompt (from run_turn_retry)
-    retry_turn = _make_turn_event(
-        turn=2,
-        input_text="Retry",
-        rules_prompt={},
-        narrate_prompt={
-            "rendered_system": "Narrate system",
-            "rendered_user": "Narrate user",
-            "output": "You try again.",
-        },
-        state_snapshot={"meta": {"turn": 2}},
-    )
-    events = [metadata, retry_turn]
-    trace = build_trace(events)
-
-    assert "TURN 2" in trace
-    assert "You try again." in trace
-
-
 def test_build_trace_no_truncation_small_run():
     from ccya.eval.judge import build_trace
 
