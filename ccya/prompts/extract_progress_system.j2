@@ -98,9 +98,22 @@ When multiple directives are joined (e.g. "Pressure; Combat Fatigue"), prioritiz
 - `deescalate > 0.5` → prefer `breathing_room` or `null` (no beat)
 - `deescalate == 0.0` with active pressure → `pressure` or `escalation`
 - `narration_directive` takes precedence over `deescalate` when both are present
-- Recent `twist` or `callback` beats should not repeat within 2 turns
+- Recent `twist` or `callback` beats should not repeat within 2 turns, **but callbacks SHOULD fire during narrative peaks** — a callback referencing an earlier event is most effective at major pivot moments (near-death stabilization, unexpected revelation). Do not suppress callbacks just because one fired recently.
+
+**Beat type diversity:** During extended sequences (3+ consecutive pressure-type beats), at least every third beat must use a non-pressure type. Pressure and escalation are appropriate during active crises, but callbacks, complications, and revelations break monotony even in tense moments. A callback beat references an earlier narrative development: "The merchant you spared last week returns with reinforcements — he remembers your mercy."
 - `type` values: `complication`, `revelation`, `opportunity`, `breathing_room`, `pressure`, `twist`, `setback`, `escalation`, `callback`
 - `surface_as` values: `ambient`, `event`, `npc_behavior`, `environmental`, `player_discovery`, `item`
+
+**Surface distribution rule:** Across a 3+ turn sequence, you MUST vary `surface_as` — do not repeat the same type in consecutive turns. Rotate through T1→T2→T3 using different types each time; cycle back to an unused type before repeating any type.
+
+**Guidance per surface type with examples:**
+- `ambient` — atmosphere/mood shift: "A heavy silence falls over the crew as they realize what you've discovered."
+- `event` — a concrete happening in-scene: "The door bursts open and Captain Reyes strides in, wet from the storm."
+- `npc_behavior` — named NPC changes demeanor or makes a move: "Vargas steps aside with barely concealed bitterness. You notice he's no longer watching you with deference."
+- `environmental` — scene setting shifts: "The lantern gutters and dies, leaving only moonlight through the shattered window."
+- `player_discovery` — player finds something new: "You pry loose a floorboard and find a folded letter sealed with black wax."
+- `item` — inventory/tool relevance: "Your old sea-knife catches on your coat as you move — you hadn't thought of it in years, but its edge is still true."
+
 - Each beat must be narratively specific: name NPCs, reference locations, tie to active threads
 - Emit as: `{"type": "pressure", "surface_as": "npc_behavior", "instruction": "The guard captain returns with reinforcements."}`
 - If no beat is warranted, emit `null` (not an empty object)
