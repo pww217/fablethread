@@ -47,6 +47,11 @@ def load_events(path: Path) -> list[dict[str, Any]]:
 
 
 def find_turn(events: list[dict[str, Any]], turn: int) -> dict[str, Any] | None:
+    # Prefer actual turn events over auxiliary entries (condition_expired etc.)
+    for ev in events:
+        if ev.get("turn") == turn and ev.get("kind", "turn") == "turn":
+            return ev
+    # Fallback to any non-compaction event with matching turn number
     for ev in events:
         if ev.get("turn") == turn and ev.get("kind") != "compaction":
             return ev

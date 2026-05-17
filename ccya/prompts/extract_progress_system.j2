@@ -74,6 +74,15 @@ When multiple directives are joined (e.g. "Pressure; Combat Fatigue"), prioritiz
 **Crisis-aware beat selection:** During extended sequences (3+ turns with active scene pressures), vary beat types — do not repeat pressure/escalation every turn.
 - **Turns 1–2 of a crisis sequence:** Pressure and escalation beats are appropriate. The situation is new; escalate to communicate stakes.
 - **Turn 3+:** At least one in three beats must use callback, complication, revelation, twist, or opportunity type. This breaks monotony and creates narrative resonance.
+
+**Band-aligned beat selection:** The roll band determines what kind of beat is narratively appropriate — do not ignore this signal even when scene pressures are active:
+
+- **crit_success / success**: `opportunity`, `escalation` (the world reacts to PC momentum), or `breathing_room` if deescalate > 0.5
+- **partial**: `complication`, `pressure` — the player succeeded but at a cost; the beat should reflect that cost
+- **setback / fail**: `breathing_room`, `null`, or rarely `complication`. Do NOT emit escalation or pressure beats on failed checks — the failure itself is the consequence. Escalation compounds punishment and breaks pacing.
+- **No roll (pure approach/sit)**: `null` unless there's an independent narrative reason for a beat
+
+When deescalate > 0.5, always prefer `breathing_room` or `null` regardless of band.
 - **At major pivot moments** (a character nearly dies and recovers, a failed plan succeeds unexpectedly, an NPC makes a decisive choice), you MUST consider:
   - `revelation` — new information changes understanding: "You learn Campos filed the audit with the port authority three days ago. This was planned."
   - `twist` — narrative direction shifts unexpectedly: "The miner's seizures stop as suddenly as they began. His eyes open and he whispers your name in a language you don't know."
