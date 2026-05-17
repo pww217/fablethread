@@ -702,7 +702,7 @@ async def run_turn(
             npc_name_pool=_npc_name_pool,
             recently_left=(state.get("scene") or {}).get("recently_left", []),
             momentum=(state.get("pc") or {}).get("momentum", 0),
-            pending_gm_beat=_pending_gm_beat,
+            pending_beat=_pending_gm_beat,
             deescalate=deescalate,
             narrative_velocity=narrative_velocity,
             ages=ages,

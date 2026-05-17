@@ -1,20 +1,20 @@
-{% if state.arc and state.arc.get('visible_goal') -%}
+{% if current_arc and current_arc.visible_goal -%}
 ### Campaign Arc
-**Goal:** {{ state.arc.get('visible_goal', '') }}
-**Phase:** {{ state.arc.get('phase', 'setup') }}
-**Thematic question:** {{ state.arc.get('thematic_question', '') }}
-{% if state.arc.get('pc_drive') -%}
-**PC drive:** {{ state.arc.get('pc_drive', '') }}
+**Goal:** {{ current_arc.visible_goal }}
+**Phase:** {{ current_arc.phase or 'setup' }}
+**Thematic question:** {{ current_arc.thematic_question or '' }}
+{% if current_arc.pc_drive -%}
+**PC drive:** {{ current_arc.pc_drive }}
 {% endif -%}
-{% if state.arc.get('active_threads') -%}
+{% if current_arc.active_threads -%}
 **Active threads:**
-{% for t in state.arc.get('active_threads') -%}
-- [{{ t.get('urgency', 'normal') | upper }}] {{ t.get('summary', '') }}{% if t.get('progress', 0) > 0 %} (progress: {{ t.get('progress') }}/3){% endif %}
+{% for t in current_arc.active_threads -%}
+- [{{ t.urgency | upper }}] {{ t.summary }}
 {% endfor -%}
 {% endif -%}
-{% if state.arc.get('discovered_truths') -%}
+{% if current_arc.discovered_truths -%}
 **Revealed truths:**
-{% for truth in state.arc.get('discovered_truths') -%}
+{% for truth in current_arc.discovered_truths -%}
 - {{ truth }}
 {% endfor -%}
 {% endif -%}

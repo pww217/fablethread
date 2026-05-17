@@ -34,7 +34,7 @@ def _make_narrate_user_ctx():
         "npc_name_pool": {},
         "user_input": "test",
         "momentum": 0,
-        "pending_gm_beat": None,
+        "pending_beat": None,
         "meta": {"turn": 1},
         "scene": {"scene_pressure": [], "present_npcs": []},
         "narrative_velocity": 0.0,

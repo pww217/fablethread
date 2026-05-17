@@ -11,6 +11,7 @@ Flags applicable to `run`:
   --temp <float>      Set temperature override on every LLM call.
   --no-judge          Skip the judge call.
   --packs-dir <dir>   Where packs live; defaults to evals/packs.
+  --judge <id>        Run only the specified judge(s) by id. Can be repeated.
 
 Always exits 0 unless the runner itself crashes with an unhandled exception.
 """
@@ -38,6 +39,19 @@ from ccya.eval.runner import (
 from ccya.eval.scenario import discover_scenarios, load_scenario
 
 _log = logging.getLogger("ccya.eval")
+
+
+def _filter_judges(eval_cfg: EvalConfig, judge_ids: list[str]) -> EvalConfig:
+    """Return a copy of eval_cfg with judges.specs filtered to only the requested ids."""
+    if not judge_ids:
+        return eval_cfg
+    allowed = set(judge_ids)
+    filtered_specs = [s for s in eval_cfg.judges.specs if s.id in allowed]
+    if not filtered_specs:
+        available = ", ".join(s.id for s in eval_cfg.judges.specs)
+        print(f"[eval] no matching judges found for {judge_ids!r}. Available: {available}", file=sys.stderr)
+        sys.exit(1)
+    return replace(eval_cfg, judges=replace(eval_cfg.judges, specs=filtered_specs))
 
 
 def _resolve_packs_dirs(arg: str | None, eval_cfg: EvalConfig) -> list[Path]:
@@ -166,6 +180,7 @@ async def _cmd_run(args: argparse.Namespace) -> int:
             cache=eval_cfg.inference.cache,
         ))
 
+    eval_cfg = _filter_judges(eval_cfg, args.judge)
     packs_dirs = _resolve_packs_dirs(args.packs_dir, eval_cfg)
 
     if args.all:
@@ -213,6 +228,8 @@ async def _cmd_judge_only(args: argparse.Namespace) -> int:
     if not events_path.exists():
         print(f"[eval] events not found: {events_path}", file=sys.stderr)
         return 1
+
+    eval_cfg = _filter_judges(eval_cfg, args.judge)
 
     runs_dir = run_dir.parent
     prev_json = find_previous_run(runs_dir, rr.scenario_id, exclude=run_dir)
@@ -292,13 +309,17 @@ def main(argv: list[str] | None = None) -> int:
                       help="Run every discovered scenario in serial (default: just default_scenario).")
     run.add_argument("--gate", action="store_true", help="Exit 1 if any red assert fails.")
     run.add_argument("--resume", action="store_true",
-                      help="Skip judges that already have a judge.md in the output dir.")
+                     help="Skip judges that already have a judge.md in the output dir.")
+    run.add_argument("--judge", action="append", default=[],
+                     help="Run only the specified judge(s) by id. Can be specified multiple times. Defaults to all judges.")
     run.set_defaults(func=_cmd_run, _is_async=True)
 
     j = sub.add_parser("judge-only", help="Re-run the judge against a prior run dir")
     j.add_argument("run_dir", help="Path to a prior evals/runs/<ts>/ directory")
     j.add_argument("--resume", action="store_true",
-                    help="Skip judges that already have a judge.md in the output dir.")
+                   help="Skip judges that already have a judge.md in the output dir.")
+    j.add_argument("--judge", action="append", default=[],
+                   help="Run only the specified judge(s) by id. Can be specified multiple times. Defaults to all judges.")
     j.set_defaults(func=_cmd_judge_only, _is_async=True)
 
     sub.add_parser("pack", help="Print effective eval config").set_defaults(
