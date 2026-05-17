@@ -52,14 +52,32 @@ clean:
 	rm -rf .venv dist build *.egg-info __pycache__ .pytest_cache
 
 eval: llama-swap
-	uv run python -m ccya.eval run
+	@if [ -n "$(JUDGE)" ]; then \
+		JUDGE_ARGS=""; \
+		for j in $(JUDGE); do JUDGE_ARGS="$$JUDGE_ARGS --judge $$j"; done; \
+		uv run python -m ccya.eval run $$JUDGE_ARGS; \
+	else \
+		uv run python -m ccya.eval run; \
+	fi
 
 eval-fast: llama-swap
-	uv run python -m ccya.eval run --temp 0
+	@if [ -n "$(JUDGE)" ]; then \
+		JUDGE_ARGS=""; \
+		for j in $(JUDGE); do JUDGE_ARGS="$$JUDGE_ARGS --judge $$j"; done; \
+		uv run python -m ccya.eval run --temp 0 $$JUDGE_ARGS; \
+	else \
+		uv run python -m ccya.eval run --temp 0; \
+	fi
 
 eval-judge-only:
 	@if [ -z "$(RUN)" ]; then echo 'Usage: make eval-judge-only RUN=evals/runs/<ts>'; exit 2; fi
-	uv run python -m ccya.eval judge-only $(RUN)
+	@if [ -n "$(JUDGE)" ]; then \
+		JUDGE_ARGS=""; \
+		for j in $(JUDGE); do JUDGE_ARGS="$$JUDGE_ARGS --judge $$j"; done; \
+		uv run python -m ccya.eval judge-only $(RUN) $$JUDGE_ARGS; \
+	else \
+		uv run python -m ccya.eval judge-only $(RUN); \
+	fi
 
 eval-pack:
 	uv run python -m ccya.eval pack

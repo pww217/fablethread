@@ -25,7 +25,7 @@ def _narrate_messages(
     npc_name_pool: dict[str, list[str]] = {},
     recently_left: list[dict[str, Any]] = [],
     momentum: int = 0,
-    pending_gm_beat: dict[str, Any] | None = None,
+    pending_beat: dict[str, Any] | None = None,
     deescalate: float = 0.0,
     narrative_velocity: float = 0.0,
     ages: dict[str, int] | None = None,
@@ -43,6 +43,27 @@ def _narrate_messages(
     building_threat_imperative_at: int = 4,
     npc_roster: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
+    # Build arc context for narrator (needed by both system and user prompts)
+    arc = state.get("arc") or {}
+    if arc:
+        current_arc_ctx = {
+            "visible_goal": arc.get("visible_goal", ""),
+            "thematic_question": arc.get("thematic_question", ""),
+            "phase": arc.get("phase", "setup"),
+            "active_threads": [
+                {
+                    "summary": t.get("summary", ""),
+                    "urgency": t.get("urgency", "normal"),
+                    "tags": t.get("tags", []),
+                }
+                for t in (arc.get("active_threads") or [])
+            ],
+            "pc_drive": arc.get("pc_drive", ""),
+            "hidden_truths": arc.get("hidden_truths") or [],
+        }
+    else:
+        current_arc_ctx = None
+
     user_ctx = {
         "state": state,
         "pc": state.get("pc") or {},
@@ -54,7 +75,7 @@ def _narrate_messages(
         "recently_left": recently_left,
         "user_input": user_input,
         "momentum": momentum,
-        "pending_gm_beat": pending_gm_beat,
+        "pending_beat": pending_beat,
         "meta": {"turn": turn_no},
         "scene": state.get("scene", {}),
         "deescalate": deescalate,
@@ -76,27 +97,8 @@ def _narrate_messages(
             known_npcs=known_npcs,
             recently_left=recently_left,
         ),
+        "current_arc": current_arc_ctx,
     }
-    # Build arc context for narrator
-    arc = state.get("arc") or {}
-    if arc:
-        current_arc_ctx = {
-            "visible_goal": arc.get("visible_goal", ""),
-            "thematic_question": arc.get("thematic_question", ""),
-            "phase": arc.get("phase", "setup"),
-            "active_threads": [
-                {
-                    "summary": t.get("summary", ""),
-                    "urgency": t.get("urgency", "normal"),
-                    "tags": t.get("tags", []),
-                }
-                for t in (arc.get("active_threads") or [])
-            ],
-            "pc_drive": arc.get("pc_drive", ""),
-            "hidden_truths": arc.get("hidden_truths") or [],
-        }
-    else:
-        current_arc_ctx = None
 
     system_text = _render(env, "narrate_system.j2", {
         "pack_style": pack_style,

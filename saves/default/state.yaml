@@ -9,7 +9,6 @@ arc:
       the specific circuitry needed for repairs.
     tags:
     - tactical
-    unlock_if: null
     urgency: background
   - id: the_valuable_find_could_attract
     last_offered_turn: 3
@@ -20,34 +19,29 @@ arc:
       if the noise of the recovery is too loud.
     tags:
     - tactical
-    unlock_if: null
-    urgency: background
-  - id: joe_salazar_might_offer_a
-    last_offered_turn: 4
-    progress: 1
-    promotes: []
-    state: active
-    summary: Joe Salazar might offer a more significant scavenging contract now that
-      your competence is proven.
-    tags:
-    - tactical
-    unlock_if: null
     urgency: background
   - id: the_failing_cooling_pumps_present
     last_offered_turn: 5
-    progress: 0
+    progress: 2
     promotes: []
     state: active
     summary: The failing cooling pumps present a new opportunity to secure more influence
       by preventing a settlement-wide catastrophe.
     tags:
     - tactical
-    unlock_if: null
     urgency: background
-  arc_engagement: 2
+  - id: the_central_armory_is_now
+    last_offered_turn: 7
+    progress: 0
+    promotes: []
+    state: active
+    summary: The central armory is now accessible for Tier-Two scavenging sweeps.
+    tags:
+    - tactical
+    urgency: background
+  arc_engagement: 3
   completed_threads:
   - id: the_flickering_grid
-    last_offered_turn: null
     progress: 1
     promotes:
     - the_fedra_connection
@@ -57,15 +51,23 @@ arc:
     tags:
     - infrastructure
     - mystery
-    unlock_if: null
     urgency: normal
+  - id: joe_salazar_might_offer_a
+    last_offered_turn: 4
+    progress: 3
+    promotes: []
+    state: complete
+    summary: Joe Salazar might offer a more significant scavenging contract now that
+      your competence is proven.
+    tags:
+    - tactical
+    urgency: background
   discovered_truths: []
   hidden_truths:
   - The settlement leadership is secretly trading settlement resources for FEDRA protection.
   - The filtration system failure was partially sabotaged to justify higher taxes.
   latent_threads:
   - id: the_fedra_connection
-    last_offered_turn: null
     progress: 0
     promotes: []
     state: latent
@@ -76,6 +78,15 @@ arc:
     - conspiracy
     unlock_if: Player investigates settlement leadership records
     urgency: normal
+  - id: richard_white_may_arrive_soon
+    last_offered_turn: 8
+    progress: 0
+    promotes: []
+    state: latent
+    summary: Richard White may arrive soon with the clearance token and gear expertise.
+    tags:
+    - tactical
+    urgency: background
   pc_drive: Providing reliable power to keep his community from thirsting.
   phase: setup
   thematic_question: What is the cost of maintaining a dying civilization?
@@ -88,7 +99,9 @@ compendium:
       last_seen:
         location_id: christinafort_water_works
         location_name: Christinafort Water Works
-        turn: 6
+        turn: 8
+      leverage: Can authorize Tier-Two scavenging sweeps and grant access to the central
+        armory.
       name: Joe Salazar
       title: Settlement Foreman
     richard_white:
@@ -96,10 +109,14 @@ compendium:
       last_seen:
         location_id: christinafort_water_works
         location_name: Christinafort Water Works
-        turn: 4
+        turn: 8
       name: Richard White
       title: Scavenger Runner
 inventory:
+- amount: 1
+  id: credits
+  name: Credits
+  notes: Found in a weathered pouch tossed by Joe Salazar
 - aliases: []
   amount: 1
   id: insulated_pliers
@@ -133,22 +150,28 @@ inventory:
   id: heavy_duty_capacitors
   name: Heavy-duty Capacitors
   notes: ''
+- amount: 1
+  id: clearance_token
+  name: Clearance Token
+  notes: Provided by Joe Salazar for armory access
 location:
-  description: The rhythmic thrum of the filtration system has shifted into an uneven,
-    stuttering shudder, and the industrial lights have dimmed to a sickly amber glow.
+  description: A high-pressure steam line overhead shrieks and a copper pipe fractures,
+    spraying scalding condensation across the concrete floor as the room vibrates
+    violently.
   id: christinafort_water_works
   name: Christinafort Water Works
 meta:
-  compendium_touch_order: []
+  compendium_touch_order:
+  - jo_salazar
   consecutive_floor_count: 0
   last_compacted_turn: 4
   model: mlx-community/gemma-4-26b-a4b-it-mxfp8
   pending_gm_beat:
-    beat_expires_turn: 8
-    instruction: The stuttering shudder in the floorboards intensifies, signaling
-      the cooling pumps are struggling.
+    beat_expires_turn: 10
+    instruction: The high-pressure steam line fracture worsens, threatening to scald
+      anyone near the manifold.
     surface_as: environmental
-    type: complication
+    type: escalation
   prior_history:
   - '- [T1] Richard White accompanies the player into the Christinafort outskirts
     to scavenge for electrical components near a vine-choked transit hub.'
@@ -158,7 +181,7 @@ meta:
   - '- [T4] Successfully installed the salvaged components into the Christinafort
     filtration system, restoring water pressure and stabilizing the unit.'
   setting_pack: zombie-survival
-  turn: 6
+  turn: 8
 pc:
   allegiance: null
   bio: Born in the final years of the old grid, Michael remembers the hum of a functional
@@ -185,13 +208,14 @@ scene:
   - bio: A veteran runner who prioritizes finding rare tech over settlement politics.
     id: richard_white
     name: Richard White
-    notes: Jittery and restless with adrenaline-fueled excitement over the find.
+    notes: Mentioned as the person responsible for delivering the armory clearance
+      token once the situation stabilizes.
     title: Scavenger Runner
   - bio: An after-world native who prioritizes settlement survival above all else.
     id: jo_salazar
     name: Joe Salazar
-    notes: Pauses momentarily in relief at the machine's steady heartbeat, but is
-      immediately alerted by the sudden electrical pop and flickering lights.
+    notes: Businesslike and curt; focused on the immediate mechanical crisis after
+      agreeing to the contract.
     title: Settlement Foreman
   recent_events:
   - id: substation_overgrowth
@@ -206,14 +230,32 @@ scene:
     text: The sudden surge from the repair has caused instability in the secondary
       grid, affecting the infirmary and well-head pumps.
     turn: 5
+  - id: joe_salazar_tier_two_authorization
+    text: Joe Salazar has authorized a Tier-Two scavenging sweep and promised a permanent
+      retainer for high-grade tech recovery.
+    turn: 7
+  - id: armory_access_granted
+    text: Joe Salazar has authorized Tier-Two scavenging access and promised a clearance
+      token via Richard White.
+    turn: 8
   recently_left: []
   recently_left_turns: 0
-  scene_pressure: []
-  tagline: A Brittle Peace
+  scene_pressure:
+  - id: cooling_pump_instability
+    max_turns: null
+    text: The cooling pumps are screaming in a frantic, dying metal grind.
+    turn_added: 7
+    urgency: immediate
+  - id: steam_line_rupture
+    max_turns: null
+    text: A high-pressure steam line is fracturing and spraying scalding condensation.
+    turn_added: 8
+    urgency: immediate
+  tagline: The Lifeline Tears Apart
   tags:
-  - tension
+  - tense_atmosphere
   - mechanical_failure
-  - unstable_power
+  - emergency
   turn_entered: 4
   world_state:
   - '**Ophiocordyceps novum** spreads through airborne spores in enclosed or still-air

@@ -71,10 +71,10 @@
 
 **No roll required.** Describe what happens with appropriate weight for the moment.
 {% endif %}
-{% if pending_gm_beat and pending_gm_beat.type %}
+{% if pending_beat and pending_beat.type %}
 
-**GM Beat:** {{ pending_gm_beat.instruction }}
-Surface as {{ pending_gm_beat.surface_as }}. This is backstage direction — integrate it naturally, not as player-visible narration.
+**GM Beat:** {{ pending_beat.instruction }}
+Surface as {{ pending_beat.surface_as }}. This is backstage direction — integrate it naturally, not as player-visible narration.
 {% endif %}
 {% set m = momentum | default(0) %}
 {% if m >= 2 %}
