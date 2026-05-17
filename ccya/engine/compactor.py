@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -382,6 +383,9 @@ def _write_compacted_block(
 ) -> None:
     """Write COMPACTED block to chronicle.md and remove compacted turn sections.
 
+    Uses a temp file + atomic rename so a crash mid-write cannot corrupt
+    the existing chronicle.
+
     If a COMPACTED block already exists, appends new bullets after it.
     Otherwise, prepends a new COMPACTED block before the first turn.
     After writing, removes the prose sections for turns in [compact_start, compact_end].
@@ -390,7 +394,7 @@ def _write_compacted_block(
     if not path.exists():
         return
 
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     existing = _COMPACTED_HEADER.search(text)
 
     if existing:
@@ -434,4 +438,6 @@ def _write_compacted_block(
             prev_end = section_end
         text = "".join(new_text_parts)
 
-    path.write_text(text)
+    tmp_path = path.with_suffix(".md.tmp")
+    tmp_path.write_text(text, encoding="utf-8")
+    os.replace(tmp_path, path)

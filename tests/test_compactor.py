@@ -927,3 +927,43 @@ class TestCompactionEventEmission:
         assert compaction_ran is False
         events_path = tmp_path / "events.jsonl"
         assert not events_path.exists()
+
+
+# ---------------------------------------------------------------------------
+# Phase 0: Compactor atomic write (_write_compacted_block)
+# ---------------------------------------------------------------------------
+
+
+class TestWriteCompactedBlockAtomic:
+    def _write_chronicle(self, save_dir: Path, content: str) -> None:
+        (save_dir / "chronicle.md").write_text(content)
+
+    def test_write_compacted_block_no_tmp_left_on_success(self, tmp_path: Path):
+        self._write_chronicle(tmp_path, "## Turn 1 — First\n\nNarrative 1\n\n")
+        from ccya.engine.compactor import _write_compacted_block
+        _write_compacted_block(tmp_path, "- [T1] Compacted bullet", 1, 1)
+        assert not (tmp_path / "chronicle.md.tmp").exists()
+        chronicle_text = (tmp_path / "chronicle.md").read_text()
+        assert "## COMPACTED" in chronicle_text
+        assert "Compacted bullet" in chronicle_text
+
+    def test_write_compacted_block_atomic_on_crash(self, tmp_path: Path):
+        self._write_chronicle(tmp_path, "## Turn 1 — First\n\nNarrative 1\n\n")
+        from ccya.engine.compactor import _write_compacted_block
+        original_text = (tmp_path / "chronicle.md").read_text()
+        with mock.patch("os.replace", side_effect=OSError("simulated crash")):
+            with pytest.raises(OSError, match="simulated crash"):
+                _write_compacted_block(tmp_path, "- [T1] Compacted bullet", 1, 1)
+        # Original file should be unchanged
+        assert (tmp_path / "chronicle.md").read_text() == original_text
+        # .tmp file should exist (write happened, rename did not)
+        assert (tmp_path / "chronicle.md.tmp").exists()
+        # Cleanup
+        (tmp_path / "chronicle.md.tmp").unlink()
+
+    def test_write_compacted_block_uses_utf8_encoding(self, tmp_path: Path):
+        self._write_chronicle(tmp_path, "## Turn 1 — First\n\nNarrative 1\n\n")
+        from ccya.engine.compactor import _write_compacted_block
+        _write_compacted_block(tmp_path, "- [T1] Compacted bullet — café\n", 1, 1)
+        chronicle_text = (tmp_path / "chronicle.md").read_text()
+        assert "café" in chronicle_text

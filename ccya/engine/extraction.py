@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 from collections.abc import AsyncIterator
@@ -66,143 +67,44 @@ def _build_extraction_context(
 ) -> _ExtractionContext:
     """Compute this-turn derived context from the two upstream extraction results.
 
-    Does NOT mutate `state`.
+    Calls apply_delta() on a deep copy of state so the progress extractor's
+    view of NPCs, inventory, and conditions is guaranteed to match what
+    apply_delta() will actually write — including any validation rejections.
+    Does NOT mutate ``state``.
     """
-    scene = state.get("scene") or {}
-    compendium_npcs = (state.get("compendium") or {}).get("npcs") or {}
+    from ccya.state.delta import apply_delta  # local import to avoid circular deps
 
-    # --- present_npcs: start from state, apply add/remove/update/compendium ---
-    current_npcs: dict[str, dict[str, Any]] = {
-        npc["id"]: dict(npc)
-        for npc in (scene.get("present_npcs") or [])
-        if isinstance(npc, dict) and npc.get("id")
-    }
-    for op in (scene_result.npc_remove or []):
-        current_npcs.pop(op.id, None)
-    for op in (scene_result.npc_add or []):
-        nid = op.id if hasattr(op, "id") else op.get("id", "")
-        if not nid:
-            continue
-        # Enrich from compendium
-        entry = compendium_npcs.get(nid, {})
-        row: dict[str, Any] = {"id": nid}
-        if hasattr(op, "name"):
-            row["name"] = op.name or entry.get("name", "")
-        if hasattr(op, "title"):
-            row["title"] = op.title or entry.get("title", "")
-        if hasattr(op, "bio"):
-            row["bio"] = op.bio or (entry.get("bio") or "").strip()
-        if hasattr(op, "notes"):
-            row["notes"] = op.notes or ""
-        if not row.get("name") and entry.get("name"):
-            row["name"] = entry["name"]
-        if not row.get("title") and entry.get("title"):
-            row["title"] = entry["title"]
-        if not row.get("bio") and entry.get("bio"):
-            row["bio"] = entry["bio"].strip()
-        current_npcs[nid] = row
+    combined_delta = StateDelta(
+        npc_add=list(scene_result.npc_add or []),
+        npc_remove=list(scene_result.npc_remove or []),
+        npc_update=list(scene_result.npc_update or []),
+        compendium_npc_update=list(scene_result.compendium_npc_update or []),
+        location_change=scene_result.location_change,
+        scene_tags=list(scene_result.scene_tags or []),
+        inventory_add=list(state_result.inventory_add or []),
+        inventory_remove=list(state_result.inventory_remove or []),
+        inventory_update=list(state_result.inventory_update or []),
+        pc_condition_add=list(state_result.pc_condition_add or []),
+        pc_condition_remove=list(state_result.pc_condition_remove or []),
+    )
 
-    # Apply npc_update (notes/name/title/bio for existing scene NPCs)
-    for op in (scene_result.npc_update or []):
-        nid = op.id if hasattr(op, "id") else op.get("id", "")
-        if nid in current_npcs:
-            npc = current_npcs[nid]
-            if hasattr(op, "name") and op.name:
-                npc["name"] = op.name
-            if hasattr(op, "title") and op.title:
-                npc["title"] = op.title
-            if hasattr(op, "bio") and op.bio:
-                npc["bio"] = op.bio
-            if hasattr(op, "notes") and op.notes:
-                npc["notes"] = op.notes
+    state_copy = copy.deepcopy(state)
+    post_state, _evicted = apply_delta(state_copy, combined_delta)
 
-    # Apply compendium_npc_update (name/title/bio/motivation/fear/leverage for existing NPCs)
-    for op in (scene_result.compendium_npc_update or []):
-        nid = op.id if hasattr(op, "id") else op.get("id", "")
-        if nid in current_npcs:
-            npc = current_npcs[nid]
-            if op.name:
-                npc["name"] = op.name
-            if op.title:
-                npc["title"] = op.title
-            if op.bio:
-                npc["bio"] = op.bio
-            if hasattr(op, "motivation") and op.motivation:
-                npc["motivation"] = op.motivation
-            if hasattr(op, "fear") and op.fear:
-                npc["fear"] = op.fear
-            if hasattr(op, "leverage") and op.leverage:
-                npc["leverage"] = op.leverage
+    post_scene = post_state.get("scene") or {}
+    post_pc = post_state.get("pc") or {}
 
-    # --- location: apply location_change if present, always prefer scene_result.location_description ---
-    if scene_result.location_change:
-        lc = scene_result.location_change
-        location_this_turn = {
-            "name": getattr(lc, "name", "") or (state.get("location") or {}).get("name", ""),
-            "description": getattr(lc, "description", "") or scene_result.location_description or "",
-        }
-    else:
-        location_this_turn = dict(state.get("location") or {})
-        if scene_result.location_description:
-            location_this_turn["description"] = scene_result.location_description
-
-    # --- scene_tags: apply scene_tags from scene result ---
-    tags_this_turn = list(scene_result.scene_tags or scene.get("tags") or [])
-
-    # --- scene_pressure: apply add/remove from progress (not yet run) so we
-    #     use state's current pressures only — progress hasn't run yet ---
-    pressure_this_turn = list(scene.get("scene_pressure") or [])
-
-    # --- inventory: start from state, apply add/remove/update ---
-    inv_by_id: dict[str, dict[str, Any]] = {}
-    for item in (state.get("inventory") or []):
-        if isinstance(item, dict) and item.get("id"):
-            inv_by_id[item["id"]] = dict(item)
-    for op in (state_result.inventory_remove or []):
-        inv_by_id.pop(op.id, None)
-    for op in (state_result.inventory_add or []):
-        nid = op.id if hasattr(op, "id") else op.get("id", "")
-        if not nid:
-            continue
-        inv_by_id[nid] = {
-            "id": nid,
-            "name": getattr(op, "name", nid),
-            "notes": getattr(op, "notes", ""),
-            "amount": getattr(op, "amount", 1),
-        }
-    for op in (state_result.inventory_update or []):
-        nid = op.id if hasattr(op, "id") else op.get("id", "")
-        if nid in inv_by_id:
-            if hasattr(op, "name") and op.name:
-                inv_by_id[nid]["name"] = op.name
-            if hasattr(op, "notes") and op.notes:
-                inv_by_id[nid]["notes"] = op.notes
-
-    # --- conditions: apply add/remove ---
-    pc = state.get("pc") or {}
-    cond_by_id: dict[str, dict[str, Any]] = {}
-    for c in (pc.get("conditions") or []):
-        if isinstance(c, dict) and c.get("id"):
-            cond_by_id[c["id"]] = dict(c)
-    for op in (state_result.pc_condition_remove or []):
-        cond_by_id.pop(op.id if hasattr(op, "id") else op.get("id", ""), None)
-    for op in (state_result.pc_condition_add or []):
-        nid = op.id if hasattr(op, "id") else op.get("id", "")
-        if not nid:
-            continue
-        cond_by_id[nid] = {
-            "id": nid,
-            "label": getattr(op, "label", nid),
-            "description": getattr(op, "description", ""),
-        }
+    location_this_turn = dict(post_state.get("location") or {})
+    if scene_result.location_description:
+        location_this_turn["description"] = scene_result.location_description
 
     return _ExtractionContext(
-        present_npcs_this_turn=list(current_npcs.values()),
+        present_npcs_this_turn=list(post_scene.get("present_npcs") or []),
         location_this_turn=location_this_turn,
-        scene_tags_this_turn=tags_this_turn,
-        scene_pressure_this_turn=pressure_this_turn,
-        inventory_this_turn=list(inv_by_id.values()),
-        conditions_this_turn=list(cond_by_id.values()),
+        scene_tags_this_turn=list(post_scene.get("tags") or []),
+        scene_pressure_this_turn=list(post_scene.get("scene_pressure") or []),
+        inventory_this_turn=list(post_state.get("inventory") or []),
+        conditions_this_turn=list(post_pc.get("conditions") or []),
     )
 
 
