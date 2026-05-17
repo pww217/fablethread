@@ -63,7 +63,6 @@ All NPC names must include a given name and family name (e.g. "Mira Sovak", "Dre
 {% if current_arc %}The player's visible goal: {{ current_arc.get('visible_goal', '') }}
 Thematic question (shapes the emotional register of this scene — never state it directly):
   {{ current_arc.get('thematic_question', '') }}
-Arc phase: {{ current_arc.get('phase', 'setup') }}
 
 {% if current_arc.get('active_threads') %}
 ## Active narrative threads (situations in play)
@@ -93,13 +92,12 @@ No active campaign arc.
 If this turn's narration has materially advanced, shifted, or revealed something about the campaign arc, append a JSON block AFTER your narration using this exact format:
 
 <<<ARC_UPDATE_START>>>
-{"discovered_truths": ["exact text of revealed hidden truth"], "phase": "pursuit", "visible_goal": "updated goal if changed"}
+{"discovered_truths": ["exact text of revealed hidden truth"], "visible_goal": "updated goal if changed"}
 <<<ARC_UPDATE_END>>>
 
 Rules:
 - Only emit this block if something genuinely changed. Omit entirely if the arc is unchanged.
 - `discovered_truths`: only include if you narrated information this turn that explicitly surfaces a hidden truth. Copy the exact text from the hidden_truths list shown in your arc context above. Do not infer or paraphrase.
-- `phase`: only include if the arc phase has visibly shifted this turn (e.g. the inciting incident has concluded and pursuit has begun).
 - `visible_goal`: only include if the stated goal has materially changed.
 - Do NOT include `active_threads`, `latent_threads`, `completed_threads`, or `hidden_truths` — thread management and hidden secrets are handled by the engine.
 - The block must be valid JSON. The narration text before the block is what the player sees.

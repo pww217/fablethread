@@ -79,10 +79,8 @@ inventory:                     # list[InventoryItem] — credits pinned to top
     amount: int (≥1)
 
 arc:                           # Campaign arc state — managed by engine/arc.py
-  phase: str                   # setup|pursuit|reversal|crisis|resolution
   visible_goal: str
   thematic_question: str
-  phase: ArcPhase              # setup | pursuit | reversal | crisis | resolution
   hidden_truths: [str]         # designer-only structural spine, never shown to player
   discovered_truths: [str]     # truths the player has learned through play (starts empty)
   active_threads: [Thread]     # {id, summary, urgency, progress, state}

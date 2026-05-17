@@ -552,7 +552,6 @@ The campaign arc system tracks story threads, phase progression, and player enga
 CampaignArc
   visible_goal: str          — What the PC is trying to achieve
   thematic_question: str     — The moral/thematic tension of the arc
-  phase: ArcPhase            — SETUP → PURSUIT → REVERSAL → CRISIS → RESOLUTION
   hidden_truths: list[str]   — Story secrets the narrator knows but must not reveal in prose
   discovered_truths: list[str] — Truths the player has uncovered (subset of hidden_truths)
   active_threads: list[ArcThread]  — Currently advancing story threads (cap: 4)
@@ -572,7 +571,6 @@ ArcThread
   promotes: list[str]        — Tags this thread unlocks when completed
   last_offered_turn: int     — Turn this thread was last offered to player
 
-ArcPhase: SETUP → PURSUIT → REVERSAL → CRISIS → RESOLUTION
 ThreadState: LATENT → ACTIVE → COMPLETE / FAILED
 ThreadSignalType: ADVANCED | BLOCKED | FAILED | IGNORED
 ```
@@ -685,8 +683,7 @@ flowchart LR
 
 **Merge rules:**
 - **Engine owns threads** (active/latent/completed). Narrator arc_update omits thread fields — they are ignored by `_merge_arc_update()`.
-- **Narrator owns phase/visible_goal/thematic_question/discovered_truths/hidden_truths.** Engine does not modify these.
-- **Phase protection:** `_merge_arc_update()` checks `au.phase.value != current_phase` to prevent Pydantic's default `ArcPhase.SETUP` from overwriting the live phase when the narrator omits the field.
+- **Narrator owns visible_goal/thematic_question/discovered_truths/hidden_truths.** Engine does not modify these.
 - **Discovered truths:** merged as set union (dedup).
 - **Merge order:** engine thread signals run first (setting `delta.arc_update`), then narrator arc_update is parsed after narration and merged on top via a second `_merge_arc_update()` call in `run_turn()`.
 

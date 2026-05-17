@@ -96,13 +96,9 @@
     </div>
 </details>
 
-{% set _arc = state.get('arc') %}
 {% if _arc %}
-{% set _arc_phase = _arc.get('phase', 'setup') %}
 <details class="sidebar-card" id="card-arc" data-card="arc" open>
-    <summary>
-        <span>Arc: Phase {{ _arc_phase | upper }}</span>
-    </summary>
+    <summary><span>Arc</span></summary>
     <div class="sidebar-card-body arc-card-body">
         {% set _goal = _arc.get('visible_goal', '') %}
         {% set _active = _arc.get('active_threads', []) %}

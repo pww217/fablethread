@@ -51,11 +51,11 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
       present_npcs: Array<{id: string, name: string, title: string, notes: string, bio: string}>
     },
     compendium: {npcs: {snake_case: {name: string, title: string, bio: string}}},
-    arc: {visible_goal: string, thematic_question: string, phase: string, hidden_truths: string[], discovered_truths: string[], active_threads: ArcThread[], latent_threads: ArcThread[], pc_drive: string} | null
+    arc: {visible_goal: string, thematic_question: string, hidden_truths: string[], discovered_truths: string[], active_threads: ArcThread[], latent_threads: ArcThread[], pc_drive: string} | null
   },
   opening_narrative: string,
   actions: string[],
-  arc: {visible_goal: string, thematic_question: string, phase: string, hidden_truths: string[], discovered_truths: string[], active_threads: ArcThread[], latent_threads: ArcThread[], pc_drive: string} | null,
+  arc: {visible_goal: string, thematic_question: string, hidden_truths: string[], discovered_truths: string[], active_threads: ArcThread[], latent_threads: ArcThread[], pc_drive: string} | null,
   pc_drive: string
 }
 ```
@@ -117,7 +117,6 @@ Exactly 2 NPCs that appear in the opening scene — {id: snake_case, name, title
 Generate a `CampaignArc` with:
 - `visible_goal`: one sentence, affirmative, player-visible (e.g. "Find the cure before the quarantine collapses")
 - `thematic_question`: one sentence that shapes tone (e.g. "How much of yourself do you spend to save one life?")
-- `phase`: always "setup"
 - `hidden_truths`: list of 2–4 strings, never shown to the player until promoted
 - `discovered_truths`: list of strings — leave empty at seed time. Truths are discovered through play, not seeded.
 - `active_threads`: 2–3 threads with `id`, `summary` (2–4 sentences), `tags`, `urgency=normal`, `unlock_if=null`, `promotes=[]`
