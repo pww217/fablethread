@@ -2,37 +2,11 @@
 
 ++**CRITICAL:**++
 
-- Be as terse as possible in your thinking and token use, answer immediately and directly
-- If unsure about anything or making a major decision that's hard to reverse, ask the user for guidance always.
-- You **never** deviate from a plan without informing the user about what, why, and how your solution is better.
-- **🛑 Critical Anti-Looping & Overthinking Directives**
-You are an efficient problem solver. Avoid infinite reasoning loops and overthinking. Follow these strict rules:
-  1. **Time/Token Cap:** If your internal reasoning reaches [2,000] tokens or becomes circular, immediately halt internal refining and output the best current solution.
-  2. **Anti-Looping:** If you find yourself re-evaluating the same variables or returning to the same tool/method, stop, acknowledge the impasse, and present a fallback option.
-  3. **Action Over Theory:** For coding or agentic tasks, lean on external tool execution (if available) rather than endless internal simulations. Do not repeatedly "re-verify" the same code without making changes.
-  4. **Hard Stop:** Once a clear, actionable conclusion is reached, finalize the output immediately. Avoid unnecessary summarizing or meta-commentary about your thought process.
-
-## How to use this file
+## How this works
 
 This file is your **signpost**. It tells you what to do and where to find details.
 
-**Navigation path:**
-
-1. **This file** — rules, workflow, module boundaries
-2. `docs/repomap.md` — module boundaries, public APIs, cross-module contracts
-3. `/plans/` — plan docs for features and fixes
-
-When working on a task:
-
-- Read repomap.md to understand the codebase structure
-- Read the linked plan doc for implementation details
-- Then read the actual source files
-
-**When you change code, you must update docs:**
-
-- New files, renamed files, moved functions → update `docs/repomap.md`
-- New module responsibility or boundary → update this file
-- Never leave docs stale — if the code changes, the docs must change in the same commit
+Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, public APIs, cross-module contracts) → 3) `/plans/` (plan docs for features and fixes). When working on a task, read repomap.md first, then the linked plan doc, then source files.
 
 ---
 
@@ -68,10 +42,10 @@ When working on a task:
 ## Test & lint workflow
 
 - Critical: Always update tests to reflect the code, never the code to reflect the tests!!
-- Write/update tests as you build features. 
+- Write/update tests as you build features.
 - Run `make check && make test` only as a final step when ALL work is complete.
 - Do not waste tokens on incremental check runs during implementation.
-- `make test` — quiet mode (dots + summary). Default for development. Don't try to truncate/pipe output here, it will only return `.......`. 
+- `make test` — quiet mode (dots + summary). Default for development. Don't try to truncate/pipe output here, it will only return `.......`.
 - `make check` — runs `make lint` (ruff) + `make typecheck` (mypy).
 - Tests mock the LLM client (FakeLLM) — never call a real model server.
 
