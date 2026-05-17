@@ -1,7 +1,0 @@
-## RECENT TURNS
-{% for t in recent_turns -%}
-**Turn {{ t.turn }}** — {{ t.input }}
-{{ t.narrative }}
-{% if not loop.last %}
-{% endif -%}
-{% endfor -%}

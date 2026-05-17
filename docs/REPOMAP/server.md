@@ -11,7 +11,7 @@
 | `/` | GET | `index()` | Index page with state, history, actions, opening |
 | `/turn` | GET | `get_turn()` | SSE stream for turn pipeline (narrative tokens, phases, complete) |
 | `/turn/delete` | POST | `delete_last_turn()` | Remove last turn from state, return previous turn's action choices |
-| `/turn/retry` | GET | `retry_turn()` | SSE stream for retrying last turn's roll |
+
 | `/new-game` | POST | `new_game()` | Start new game (static seed or dynamic LLM generation) |
 | `/new-game/reroll` | POST | `new_game_reroll()` | Re-roll dynamic pack seed |
 | `/panels/state` | GET | `panel_state()` | State panel fragment |

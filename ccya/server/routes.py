@@ -19,10 +19,8 @@ from ccya.engine import (
     generate_seed,
     is_turn_in_progress,
     run_turn,
-    run_turn_retry,
 )
 
-from ccya.models import IntentEnvelope, RulesOutcome
 from ccya.pack import PlayerOverrides, load_pack, list_packs
 from ccya.state import (
     init_save_dir,
@@ -179,105 +177,6 @@ async def delete_last_turn():
 
     return JSONResponse({"actions": actions, "turn": last_event.get("turn")})
 
-
-@_app_mod.app.get("/turn/retry")
-async def retry_turn():
-    if is_turn_in_progress(str(_app_mod.SAVE_DIR)):
-        return JSONResponse(
-            {"error": "Turn already in progress"}, status_code=409
-        )
-
-    last_events = load_recent_events(_app_mod.SAVE_DIR, 1)
-    if not last_events:
-        return JSONResponse(
-            {"error": "No previous turn to retry"}, status_code=400
-        )
-
-    last_event = last_events[-1]
-    rules_data = last_event.get("rules", {}) or {}
-
-    rules_outcome = RulesOutcome(
-        rolled=rules_data.get("rolled", False),
-        skill=rules_data.get("skill", ""),
-        stat_value=0,
-        difficulty=rules_data.get("difficulty", "normal"),
-        stat_mod=rules_data.get("stat_mod", 0),
-        diff_mod=rules_data.get("diff_mod", 0),
-        cond_mod=rules_data.get("cond_mod", 0),
-        dice=rules_data.get("dice", []),
-        raw_total=rules_data.get("raw_total", 0),
-        final_total=rules_data.get("final_total", 0),
-        band=rules_data.get("band", "success"),
-        directive=rules_data.get("directive", ""),
-        intent_verb=rules_data.get("intent_verb", "act"),
-        intent=rules_data.get("intent", ""),
-    )
-
-    intent = IntentEnvelope(
-        intent=rules_outcome.intent,
-        intent_verb=rules_outcome.intent_verb,
-    )
-
-    remove_last_event(_app_mod.SAVE_DIR)
-    remove_last_chronicle_turn(_app_mod.SAVE_DIR)
-
-    async def event_stream():
-        try:
-            async for kind, payload in run_turn_retry(
-                _app_mod.SAVE_DIR,
-                rules_outcome,
-                intent,
-                config=_app_mod.engine_config,
-                template_dir=str(_app_mod.PROMPTS_DIR),
-                pack_style=_app_mod._active_pack.style_text,
-                pack_name_locales=_app_mod._active_pack.manifest.name_locales,
-                pack_narrator_rules=_app_mod._active_pack.scenario.narrator_rules if _app_mod._active_pack.scenario else [],
-                pack_world_rules=_app_mod._active_pack.scenario.world_rules if _app_mod._active_pack.scenario else [],
-                pack_factions=[f.model_dump() for f in (_app_mod._active_pack.scenario.factions if _app_mod._active_pack.scenario else [])],
-                pack_locations=[loc.model_dump() for loc in (_app_mod._active_pack.scenario.locations if _app_mod._active_pack.scenario else [])],
-            ):
-                if kind == "token":
-                    yield {
-                        "event": "narrative_token",
-                        "data": json.dumps({"chunk": payload}),
-                    }
-                elif kind == "phase":
-                    yield {"event": "phase", "data": json.dumps(payload)}
-                elif kind == "complete":
-                    result = payload
-                    for err in result.errors:
-                        _app_mod._ERRORS_LOG.appendleft(err)
-                    ch = result.changes if isinstance(result.changes, dict) else {}
-                    _ts_display = _format_ts(result.ts)
-                    yield {
-                        "event": "turn_complete",
-                        "data": json.dumps(
-                            {
-                                "turn": result.turn,
-                                "trace_id": result.trace_id,
-                                "narrative": result.narrative,
-                                "actions": result.actions,
-                                "scene_tags": result.scene_tags,
-                                "game_over": "game_over" in (result.scene_tags or []),
-                                "rejected": result.rejected,
-                                "errors": result.errors,
-                                "diff": result.diff,
-                                "changes": ch,
-                                "change_lines": format_change_lines(ch),
-                                "state": _load_current_state(),
-                                "metrics": result.metrics,
-                                "rules": result.rules,
-                                "retry": True,
-                                "recent_events_evicted": result.recent_events_evicted,
-                                "ts": _ts_display,
-                            }
-                        ),
-                    }
-        except Exception as e:
-            _app_mod.logger.exception("Retry failed")
-            yield {"event": "turn_error", "data": json.dumps({"error": str(e)})}
-
-    return EventSourceResponse(event_stream())
 
 
 @_app_mod.app.post("/new-game")

@@ -3,9 +3,10 @@
 ++**CRITICAL:**++
 
 - Be as terse as possible in your thinking and token use, answer immediately and directly
+- If unsure about anything or making a major decision that's hard to reverse, ask the user for guidance always.
 - **🛑 Critical Anti-Looping & Overthinking Directives**
-  You are an efficient problem solver. Avoid infinite reasoning loops and overthinking. Follow these strict rules:
-  1. **Time/Token Cap:** If your internal reasoning reaches \([2,000]\) tokens or becomes circular, immediately halt internal refining and output the best current solution.
+You are an efficient problem solver. Avoid infinite reasoning loops and overthinking. Follow these strict rules:
+  1. **Time/Token Cap:** If your internal reasoning reaches [2,000] tokens or becomes circular, immediately halt internal refining and output the best current solution.
   2. **Anti-Looping:** If you find yourself re-evaluating the same variables or returning to the same tool/method, stop, acknowledge the impasse, and present a fallback option.
   3. **Action Over Theory:** For coding or agentic tasks, lean on external tool execution (if available) rather than endless internal simulations. Do not repeatedly "re-verify" the same code without making changes.
   4. **Hard Stop:** Once a clear, actionable conclusion is reached, finalize the output immediately. Avoid unnecessary summarizing or meta-commentary about your thought process.
@@ -18,7 +19,7 @@ This file is your **signpost**. It tells you what to do and where to find detail
 
 1. **This file** — rules, workflow, module boundaries
 2. `**docs/REPOMAP/`** — where code lives, what each file does, function signatures
-3. `**/plans/**` — plan docs for features and fixes
+3. `**/plans/`** — plan docs for features and fixes
 4. **The codebase itself** — the source of truth
 
 When working on a task:
@@ -40,7 +41,7 @@ When working on a task:
 
 | Module                 | Owns                                                                       | Does NOT own              |
 | ---------------------- | -------------------------------------------------------------------------- | ------------------------- |
-| `engine/`              | Turn pipeline: `run_turn()`, extraction, narration, retry logic            | State file I/O, HTTP      |
+| `engine/`              | Turn pipeline: `run_turn()`, extraction, narration                         | State file I/O, HTTP      |
 | `engine/turn.py`       | `run_turn()` orchestrator (thin — imports from submodules)                 | Helper logic              |
 | `engine/config.py`     | `EngineConfig`, `_EventLock`, `is_turn_in_progress`                        | Game logic                |
 | `engine/narrate.py`    | Narration prompt building, NPC name generation                             | State mutation            |
@@ -60,7 +61,7 @@ When working on a task:
 | `models.py`            | All Pydantic models, `TurnResult`, `load_config()`                         | Business logic            |
 | `server/app.py`        | FastAPI app, config bootstrap, Jinja env, startup                          | Route handlers            |
 | `server/routes.py`     | All `@app.get` / `@app.post` handlers                                      | App bootstrap             |
-| `server/panels.py`     | Debug panel helpers, `_load_`* functions                                   | Route handlers            |
+| `server/panels.py`     | Debug panel helpers, `_load`_* functions                                   | Route handlers            |
 | `server/tv.py`         | Turn viewer data preparation                                               | Route handlers            |
 | `server/metrics.py`    | Turn metrics, formatting helpers                                           | Route handlers            |
 | `pack.py`              | Pack loading, `PackManifest`, `SeedEnvelope`                               | State mutation            |
