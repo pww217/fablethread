@@ -19,19 +19,18 @@ This file is your **signpost**. It tells you what to do and where to find detail
 **Navigation path:**
 
 1. **This file** — rules, workflow, module boundaries
-2. `**docs/REPOMAP/`** — where code lives, what each file does, function signatures
-3. `**/plans/`** — plan docs for features and fixes
-4. **The codebase itself** — the source of truth
+2. `docs/repomap.md` — module boundaries, public APIs, cross-module contracts
+3. `/plans/` — plan docs for features and fixes
 
 When working on a task:
 
-- Read the relevant REPOMAP file(s) to understand the code
+- Read repomap.md to understand the codebase structure
 - Read the linked plan doc for implementation details
 - Then read the actual source files
 
 **When you change code, you must update docs:**
 
-- New files, renamed files, moved functions → update `docs/REPOMAP/`
+- New files, renamed files, moved functions → update `docs/repomap.md`
 - New module responsibility or boundary → update this file
 - Never leave docs stale — if the code changes, the docs must change in the same commit
 
@@ -106,33 +105,13 @@ When working on a task:
 
 ## Repo map
 
-Detailed file/function/directory info lives in `docs/REPOMAP/`. Read the relevant files using your Read tool when the task requires it:
+Read `docs/repomap.md` for module boundaries, public APIs, and cross-module contracts.
 
 
-| Working on...                      | Read                          |
-| ---------------------------------- | ----------------------------- |
-| Turn pipeline, extractors, retry   | `@docs/REPOMAP/engine.md`     |
-| State persistence, apply_delta     | `@docs/REPOMAP/state.md`      |
-| FastAPI routes, SSE, HTMX          | `@docs/REPOMAP/server.md`     |
-| Pydantic models, TurnResult        | `@docs/REPOMAP/models.md`     |
-| Pack loading, pack modes, name gen | `@docs/REPOMAP/pack.md`       |
-| Dice, 2d6, bands                   | `@docs/REPOMAP/rules.md`      |
-| LLM client, streaming, mock        | `@docs/REPOMAP/llm_client.md` |
-| Prompt templates                   | `@docs/REPOMAP/prompts.md`    |
-| Frontend, CSS, JS, templates       | `@docs/REPOMAP/frontend.md`   |
-| Testing, FakeLLM, commands         | `@docs/REPOMAP/testing.md`    |
-| Config.yaml, EngineConfig          | `@docs/REPOMAP/config.md`     |
-| Directory layout                   | `@docs/REPOMAP/directory.md`  |
-| Debug scripts, events.jsonl CLI    | `@scripts/debug/README.md`    |
-| Eval harness                       | `@docs/REPOMAP/eval.md`       |
-| Seed generation                    | `@docs/REPOMAP/seed.md`       |
+Cross-cutting tasks:
 
-
-Cross-cutting tasks (read multiple):
-
-- Modify turn pipeline → `engine.md` + `state.md` + `models.md`
-- Add new config option → `config.md` + `engine.md` + `server.md`
-- Debug extraction → `engine.md` + `prompts.md` + `state.md`
-- New pack → `pack.md` + `models.md`
+- Modify turn pipeline → read docs/repomap.md (5-call pipeline section)
+- Add new config option → read docs/repomap.md (EngineConfig + constants sections)
+- Debug extraction → read docs/repomap.md (extraction field routing section)
 
 Any observed inaccuracies in the repomap or documentation should be updated immediately.
