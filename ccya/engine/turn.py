@@ -62,7 +62,7 @@ from ccya.state.delta import _merge_arc_update
 
 _log = logging.getLogger("ccya.engine")
 
-_ACTIVE_THREAD_CAP = 4
+_ACTIVE_THREAD_CAP = 3
 """Maximum number of threads in the active state."""
 
 _THREAD_COMPLETION_THRESHOLD = 3
@@ -92,44 +92,66 @@ def _apply_thread_signals(
     Threads with progress >= _THREAD_COMPLETION_THRESHOLD (3) → complete.
     Promote latent threads if slots available and 3-turn cooldown met.
 
-    Returns a CampaignArc if any mutation occurred, None otherwise.
+    Unknown advanced_ids that match a latent thread promote it immediately
+    (bypassing the cooldown), per ARCHITECTURE.md "Engine-Driven Arc: Thread Lifecycle".
+
+    Returns a CampaignArc if any mutation occurred, None otherwise. Logs at WARNING
+    level when arc validation fails so silent returns can be diagnosed.
     """
     arc_raw = state.get("arc")
+    turn_no = state.get("meta", {}).get("turn", 0) + 1
+
     if not arc_raw:
+        _log.debug(
+            "thread_signals: no arc in state at T%d, skipping",
+            turn_no, extra={"turn": turn_no},
+        )
         return None
+
     try:
         arc = CampaignArc.model_validate(arc_raw)
-    except Exception:
+    except Exception as exc:
+        _log.warning(
+            "thread_signals: failed to validate arc at T%d: %s",
+            turn_no, exc, extra={"turn": turn_no},
+        )
         return None
 
-    # Parse advanced_threads as list of string IDs
     advanced_ids = set(progress_result.advanced_threads or [])
-    turn_no = state.get("meta", {}).get("turn", 0) + 1
-    
-    mutated = False
     active_by_id: dict[str, ArcThread] = {t.id: t for t in arc.active_threads}
+    latent_by_id: dict[str, ArcThread] = {t.id: t for t in arc.latent_threads}
 
-    # Process each active thread
+    _log.debug(
+        "thread_signals: T%d advanced_ids=%s active_count=%d latent_count=%d",
+        turn_no, sorted(advanced_ids), len(arc.active_threads), len(arc.latent_threads),
+    )
+
+    mutated = False
     newly_completed: list[ArcThread] = []
     still_active: list[ArcThread] = []
-    
+
+    # Process each active thread — advance or silently expire
     for tid, t in active_by_id.items():
         if tid in advanced_ids:
-            # Thread was advanced — increment progress and reset expiry timer
             new_progress = t.progress + 1
             updated_t = t.model_copy(update={
                 "progress": new_progress,
                 "last_seen_turn": turn_no,
             })
-            
+
             # Check completion threshold
             if new_progress >= _THREAD_COMPLETION_THRESHOLD:
                 newly_completed.append(updated_t.model_copy(
                     update={"state": ThreadState.COMPLETE}
                 ))
                 mutated = True
+                _log.debug(
+                    "thread_signals: T%d thread %s completed at progress=%d",
+                    turn_no, tid, new_progress,
+                )
             else:
                 still_active.append(updated_t)
+                mutated = True  # Advancing a thread is also a mutation
         elif t.last_seen_turn is None or (turn_no - t.last_seen_turn >= _EXPIRE_SILENT_TURNS):
             # Expired — demote to latent, reset timer
             expired_t = t.model_copy(update={
@@ -138,42 +160,67 @@ def _apply_thread_signals(
             })
             still_active.append(expired_t)  # will be moved below
             mutated = True
-    
+            _log.debug(
+                "thread_signals: T%d thread %s silently demoted (turn_no=%d last_seen=%s)",
+                turn_no, tid, turn_no, t.last_seen_turn,
+            )
+
     # Separate actually-still-active from demoted threads
     really_still_active = [t for t in still_active if t.state == ThreadState.ACTIVE]
     demoted_to_latent = [t for t in still_active if t.state != ThreadState.ACTIVE]
-    
+
     arc = arc.model_copy(update={
         "active_threads": really_still_active,
         "completed_threads": arc.completed_threads + newly_completed,
         "latent_threads": list(arc.latent_threads) + demoted_to_latent,
     })
 
+    # Promote latent threads matching unknown advanced_ids (first-time advancement).
+    # These IDs were emitted by the progress extractor but don't exist in active_threads.
+    # Per ARCHITECTURE.md: "advanced_threads" should drive thread progression including
+    # promotion from latent when a match exists. Bypasses cooldown since this is an
+    # explicit action by the progress extractor.
+    for tid in advanced_ids - set(active_by_id.keys()):
+        if tid in latent_by_id:
+            promoted = latent_by_id[tid].model_copy(update={
+                "state": ThreadState.ACTIVE,
+                "progress": 0,
+                "last_seen_turn": turn_no,
+                "urgency": "normal",
+            })
+            arc.latent_threads = [t for t in arc.latent_threads if t.id != tid]
+            really_still_active.append(promoted)
+            mutated = True
+            _log.debug(
+                "thread_signals: T%d latent thread %s promoted to active (unknown advanced_id)",
+                turn_no, tid,
+            )
+
     # Promotion check: only if 3-turn cooldown met and slots available
     last_promotion = arc_raw.get("arc_last_promotion_turn") or 0
     can_promote = (turn_no - last_promotion >= _PROMOTION_COOLDOWN_TURNS) or len(arc.active_threads) == 0
-    
+
     if can_promote:
         available_slots = _ACTIVE_THREAD_CAP - len(arc.active_threads)
-        
+
         # Find eligible latent threads (no unlock_if or satisfied, excluding recently demoted)
         completed_ids = {t.id for t in arc.completed_threads}
         already_active_ids = {t.id for t in really_still_active}
         available = [
             t for t in arc.latent_threads
-            if t.id not in completed_ids 
+            if t.id not in completed_ids
             and t.id not in already_active_ids
             and not (t.unlock_if and t.unlock_if.strip())
         ]
-        
+
         # Sort by last_offered_turn (oldest first) — skip recently demoted ones
         available.sort(key=lambda t: t.last_offered_turn or 0)
-        
+
         to_promote = available[:available_slots]
         if to_promote:
             promoted = [
                 t.model_copy(update={
-                    "state": ThreadState.ACTIVE, 
+                    "state": ThreadState.ACTIVE,
                     "last_seen_turn": turn_no
                 }) for t in to_promote
             ]
@@ -1071,10 +1118,19 @@ async def run_turn(
                                     delta = delta.model_copy(
                                         update={"arc_update": merged}
                                     )
-                        except Exception:
+                                _log.debug(
+                                    "thread_signals: T%d candidate opportunity created latent thread",
+                                    turn_no, extra={"turn": turn_no},
+                                )
+                            else:
+                                _log.debug(
+                                    "thread_signals: T%d candidate opportunity rejected (cap/dedup): %s",
+                                    turn_no, progress_result.candidate_opportunity[:80], extra={"turn": turn_no},
+                                )
+                        except Exception as exc:
                             _log.warning(
-                                "candidate_opportunity: failed to validate arc",
-                                extra={"turn": turn_no, "trace_id": trace_id},
+                                "candidate_opportunity: failed to validate arc at T%d: %s",
+                                turn_no, exc, extra={"turn": turn_no, "trace_id": trace_id},
                             )
 
         narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
