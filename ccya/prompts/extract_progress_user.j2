@@ -53,6 +53,11 @@ None.
 Band: {{ band | upper }}. At-risk cost named by rules engine: {{ stakes }}
 {% if band in ("crit_fail", "fail") -%}
 If a narrative consequence is named above (e.g. an NPC acting, alarm raised, escape cut off), emit it as a scene_pressure_add entry at `immediate` urgency.
+{% elif band == "setback" -%}
+On a setback, prefer `breathing_room`, `null`, or `complication` beats. Do NOT emit escalation — the resource loss IS the consequence.
+{% elif band == "partial" -%}
+A partial means success at a cost. Emit `complication` or `pressure` beats that name what was lost or compromised.
+
 {% elif band == "crit_success" -%}
 If a named entity was thwarted, consider a gm_beat of type `opportunity` or `escalation` naming that entity's reaction.
 {% endif -%}
