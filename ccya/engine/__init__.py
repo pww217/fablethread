@@ -21,7 +21,7 @@ from ccya.engine.extraction import (
     _scene_npc_roster,
 )
 from ccya.engine.rules import _rules_messages
-from ccya.engine.pressure import _expire_scene_pressures
+
 from ccya.engine.turn import _validate
 
 # LLM client functions re-exported for test patching (tests do
@@ -33,7 +33,7 @@ __all__ = [
     "EngineConfig",
     "build_engine_config",
     "_build_jinja_env",
-    "_expire_scene_pressures",
+
     "_extract_progress_messages",
     "_extract_scene_messages",
     "_extract_state_messages",

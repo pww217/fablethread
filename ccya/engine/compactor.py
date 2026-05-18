@@ -207,7 +207,7 @@ def _build_compact_messages(
     system_prompt = env.get_template("compact_system.j2").render()
 
     arc = state.get("arc")
-    pressures = state.get("scene", {}).get("scene_pressure") or []
+    pressures = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict) and t.get("scope") == "scene"]
     inventory = list(state.get("inventory") or [])
     _npcs_raw = (state.get("compendium") or {}).get("npcs") or {}
     compendium_npcs: list[tuple[str, Any]] = list(_npcs_raw.items())
@@ -300,12 +300,12 @@ def _apply_sanitization(
 
     compendium_npcs: dict[str, Any] = (state.get("compendium") or {}).get("npcs") or {}
     inventory: list[dict[str, Any]] = list(state.get("inventory") or [])
-    pressures: list[dict[str, Any]] = list((state.get("scene") or {}).get("scene_pressure") or [])
+    threads: list[dict[str, Any]] = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict) and t.get("scope") == "scene"]
     conditions: list[dict[str, Any]] = list((state.get("pc") or {}).get("conditions") or [])
 
     known_npc_ids = set(compendium_npcs.keys())
     known_inventory_ids = {it.get("id") for it in inventory if it.get("id")}
-    known_pressure_ids = {p.get("id") for p in pressures if p.get("id")}
+    known_thread_ids = {t.get("id") for t in threads if t.get("id")}
     known_condition_ids = {c.get("id") for c in conditions if c.get("id")}
 
     # npc_merge
@@ -341,16 +341,17 @@ def _apply_sanitization(
         for iid in valid_inv_remove:
             _log.info("compactor: removed duplicate inventory item %r", iid, extra=log_ctx)
 
-    # pressure_remove
-    valid_pressure_remove = {
+    # thread_remove (pressure_remove semantics now apply to arc.threads[] scope=scene)
+    valid_thread_remove = {
         item.id for item in san.pressure_remove
-        if item.id in known_pressure_ids
+        if item.id in known_thread_ids
     }
-    if valid_pressure_remove:
-        scene = state.setdefault("scene", {})
-        scene["scene_pressure"] = [p for p in pressures if p.get("id") not in valid_pressure_remove]
-        for pid in valid_pressure_remove:
-            _log.info("compactor: removed stale pressure %r", pid, extra=log_ctx)
+    if valid_thread_remove:
+        arc = state.setdefault("arc", {})
+        existing_threads = list(arc.get("threads") or [])
+        arc["threads"] = [t for t in existing_threads if isinstance(t, dict) and (t.get("id") not in valid_thread_remove or t.get("scope") != "scene")]
+        for tid in valid_thread_remove:
+            _log.info("compactor: removed stale thread %r", tid, extra=log_ctx)
 
     # condition_remove
     valid_cond_remove = {
