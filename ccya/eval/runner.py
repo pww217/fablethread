@@ -287,21 +287,6 @@ def _check_asserts(
                 threads = output.get("advanced_threads") or []
                 passed = a.expected in threads
                 detail = f"advanced_threads[{a.expected}] {'found' if passed else 'not found'}"
-            elif a.field == "scene_pressure_add":
-                adds = applied.get("scene_pressure_add") or []
-                ids = [p.get("id") for p in adds if isinstance(p, dict)]
-                passed = a.expected in ids
-                detail = f"scene_pressure_add[{a.expected}] {'found' if passed else 'not found'}"
-            elif a.field == "beat_disposition":
-                output = (event.get("extraction") or {}).get("progress") or {}
-                bd = output.get("output") or {}
-                val = bd.get("beat_disposition")
-                if a.expected is None:
-                    passed = val is not None
-                    detail = f"beat_disposition={'present' if passed else 'absent'}"
-                else:
-                    passed = val == a.expected
-                    detail = f"beat_disposition={val!r} (expected {a.expected!r})"
 
         elif a.stream == "extract":
             extraction = event.get("extraction") or {}

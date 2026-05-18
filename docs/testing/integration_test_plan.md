@@ -3,7 +3,7 @@
 **Location:** `tests/integration/test_turn_pipeline.py`  
 **Runner:** `pytest` with `pytest-asyncio`  
 **LLM calls:** Zero — all five pipeline steps are mocked at the `llm_client` boundary  
-**Status:** Planned
+**Status:** Deferred — tests temporarily removed during refactor. Do not reference or implement until this phase is complete.
 
 ---
 
