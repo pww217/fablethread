@@ -12,30 +12,21 @@
 {% endfor %}
 {%- endif %}
 
-{% if active_threads -%}
-## active_threads
-{% for t in active_threads %}- `{{ t.id }}` [{{ t.urgency | upper }}] {{ t.summary | truncate(120) }}{% if t.tags %} tags: {{ t.tags | join(', ') }}{% endif %}
-{% endfor %}
+{% if all_threads -%}
+## threads (all — unified list, scope handled by Python)
+{% for t in all_threads -%}{% set scope_tag = "[SCENE]" if t.scope == "scene" else "[ARC]" %}- `{{ t.id }}` {{ scope_tag }} {% if not t.active %}(dormant){% endif %} [{{ t.urgency | upper }}] {{ t.summary | truncate(120) }}{% if t.tags %} tags: {{ t.tags | join(', ') }}{% endif %}{% if t.last_seen_turn %} (last seen T{{ t.last_seen_turn }}){% endif %}
+{% endfor -%}
 {% else -%}
-## active_threads
-None currently active. Generate actions that could introduce new story directions or explore the environment.
+## threads
+None currently. Generate actions that could introduce new story directions or explore the environment.
 {% endif -%}
-
-{%- if latent_threads %}
-## latent_threads (dormant — re-engage only if narration picks them up)
-{% for t in latent_threads %}- `{{ t.id }}` {{ t.summary | truncate(120) }}{% if t.tags %} tags: {{ t.tags | join(', ') }}{% endif %}{% if t.last_seen_turn %} (last seen T{{ t.last_seen_turn }}){% endif %}
-{% endfor %}
-{%- else -%}
-## latent_threads
-None.
-{%- endif -%}
 
 {% if recent_events -%}
 ## recent_events (don't duplicate; emit recent_events_add/update/remove for changes)
 {% for event in recent_events %}- {{ event.text if event is mapping else event }}
 {% endfor %}
 {% endif -%}
-{% if not active_threads and world_state -%}
+{% if not all_threads and world_state -%}
 <<<TRACE_IMMUTABLE_START>>>
 ## world_state (read-only context)
 {% for f in world_state %}- {{ f if f is string else f.values() | join(': ') }}
@@ -48,54 +39,24 @@ None.
 - `{{ item.id }}`: {{ item.name }} x{{ item.amount }}{% if item.notes %} — {{ item.notes }}{% endif %}
 {% endfor %}
 
-{% if stakes and band -%}
-## rules_stakes
-Band: {{ band | upper }}. At-risk cost named by rules engine: {{ stakes }}
-{% if band in ("crit_fail", "fail") -%}
-If a narrative consequence is named above (e.g. an NPC acting, alarm raised, escape cut off), emit it as a scene_pressure_add entry at `immediate` urgency.
-{% elif band == "setback" -%}
-On a setback, prefer `breathing_room`, `null`, or `complication` beats. Do NOT emit escalation — the resource loss IS the consequence.
-{% elif band == "partial" -%}
-A partial means success at a cost. Emit `complication` or `pressure` beats that name what was lost or compromised.
-
-{% elif band == "crit_success" -%}
-If a named entity was thwarted, consider a gm_beat of type `opportunity` or `escalation` naming that entity's reaction.
+{% if band -%}
+## rules_outcome
+Band: {{ band | upper }}. Apply thread advancement freely on success/crit_success. On fail/setback/partial, do NOT mark threads as advanced for the attempted action; prefer breathing_room/null beats on fail.
 {% endif -%}
 
-{% endif -%}
 ## gm_beat
 {% if pending_beat -%}
 ## pending_beat (carried from previous turn — not yet surfaced)
 Type: {{ pending_beat.type }} | Expires at turn: T{{ pending_beat.beat_expires_turn }}
 Instruction: {{ pending_beat.instruction }}
 {% endif -%}
-{% if narrative_velocity < -0.3 -%}
-## deescalation
-Narrative velocity indicates de-escalation ({{ "%.2f"|format(narrative_velocity) }}).
-{% if resolved_pressures %}
-The following pressures were resolved last turn:
-{% for p in resolved_pressures -%}
-- [{{ p.urgency | upper }}] {{ p.text }} (`{{ p.id }}`)
-{% endfor -%}
-Prefer `breathing_room` beat type or no beat. Do not add new immediate pressures.
-Allow existing pressures to persist without escalation.
-{% elif narrative_velocity < -0.5 -%}
-Strong deescalation. Prefer `breathing_room` beat type or no beat. Do not add new immediate pressures.
-{% else -%}
-Partial deescalation. Prefer low-urgency beat or no beat.
+
+{% if pacing_context and (pacing_context.directive or pacing_context.gate) -%}
+## pacing_context
+Directive: {{ pacing_context.directive or "none" }}
+Gate: {{ pacing_context.gate }}
 {% endif -%}
 
-{% endif -%}
-{% if narration_directive -%}
-## narration_directive
-{{ narration_directive }}
-
-{% endif -%}
-{% if scene_pressure -%}
-## Current Pressures
-{% for p in scene_pressure %}- [{{ p.id }}] ({{ p.urgency }}) {{ p.text }}
-{% endfor %}
-{% endif -%}
 {% if recent_turns -%}
 ## last_turn_narration (T{{ recent_turns[-1].turn }})
 {{ recent_turns[-1].narrative }}

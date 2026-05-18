@@ -435,6 +435,12 @@ class ScenePressure(BaseModel):
     max_turns: int | None = None
 
 
+class ThreadResolution(BaseModel):
+    """Structured resolution for a thread — replaces scene_pressure_remove semantics."""
+    id: str
+    resolution_state: Literal["resolved", "failed", "abandoned"]
+
+
 _GM_BEAT_FILLER_PREFIXES: tuple[str, ...] = (
     "something happens",
     "give the player",
@@ -495,11 +501,9 @@ class ProgressExtractResult(BaseModel):
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = ""
     gm_beat: GMBeat | None = None
-    scene_pressure_add: list[ScenePressure] = Field(default_factory=list)
-    scene_pressure_remove: list[str] = Field(default_factory=list)       # migrated from SceneExtractResult
-    scene_pressure_update: list[ScenePressure] = Field(default_factory=list)  # migrated from SceneExtractResult
-    advanced_threads: list[str] = Field(default_factory=list)
-    candidate_opportunity: str | None = None
+    thread_advance: list[str] = Field(default_factory=list)
+    thread_resolve: list[ThreadResolution] = Field(default_factory=list)
+    thread_add: ArcThread | None = None
 
     @model_validator(mode="after")
     def _nullify_invalid_gm_beat(self) -> "ProgressExtractResult":
