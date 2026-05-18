@@ -98,9 +98,18 @@ LLM failure in extraction → `_call_stream` returns retry_errors tuple → `Sta
 - Thread age-based rules handle urgency escalation via Python logic, not LLM labels
 
 ### Arc thread state machine
-- States: LATENT → ACTIVE (via unlock_if condition met) → COMPLETE/FAILED (via advanced_threads progress counter at 3) / EXPIRED (5+ silent turns via last_seen_turn tracking)
+- States: LATENT → ACTIVE (via unlock_if condition met) → COMPLETE/FAILED (via advanced_threads progress counter at 3 or _apply_thread_resolutions from ProgressExtractResult.thread_resolve) / EXPIRED (5+ silent turns via last_seen_turn tracking)
 - Engine owns threads; narrator owns visible_goal/thematic_question/discovered_truths
 - Active cap = 3, latent cap = 4, promotion cooldown of 3 turns
+- ArcThread.resolution_state: str | None — set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads for narrative context and eval rubrics (Phase 05c)
+
+### EngineConfig field naming (Phase 06b)
+- Config fields renamed from `scene_pressure_*` to `thread_urgency_*` / `thread_deescalate_on_success`: thread_urgency_building_at, thread_urgency_immediate_at, thread_urgency_max_age, thread_urgency_immediate_ttl, thread_deescalate_on_success
+- game.yaml keys remain as-is for backward compatibility; build_engine_config() maps old keys to new field names
+
+### Computation functions (Phase 06b)
+- `_compute_narration_directive()` derives urgency counts from unified ArcThread objects with scope=scene instead of raw scene_pressure dicts
+- `_compute_pacing_context()` passes derived `arc.threads[] scope=scene` list to `_compute_narration_directive()`
 
 ### Token budget cascade
 `config.prompt_token_budget` (default 32768): `llm_client.trim_messages()` drops/truncates oldest non-system messages when budget exceeded. Priority: system prompts retained first, then most recent user/context blocks. This affects all pipeline stages — if budget is tight, older turns in chronicle tail get truncated before narration/extraction contexts.
@@ -108,7 +117,7 @@ LLM failure in extraction → `_call_stream` returns retry_errors tuple → `Sta
 ### Extraction field routing
 - **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, npc_add/remove/update, compendium_npc_update (no pressure fields)
 - **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
-- **ProgressExtractResult**: thread_advance, thread_resolve (list[ThreadResolution]), thread_add (ArcThread | None), recent_events_add/update/remove, actions, outcome_summary, gm_beat (no quest_updates)
+- **ProgressExtractResult**: thread_advance, thread_resolve (list[ThreadResolution]), thread_add (ArcThread | None), recent_events_add/update/remove, actions, outcome_summary, gm_beat (no quest_updates); thread_resolve processed by _apply_thread_resolutions() in turn.py to move threads from arc.threads[] to arc.completed_threads[]
 
 ### Cross-stream data flow (minimal by design)
 - Scene → State: location_change (id,name,description) + present_npcs (id,name,title,notes,bio)

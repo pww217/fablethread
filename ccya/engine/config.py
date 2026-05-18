@@ -63,14 +63,14 @@ class EngineConfig:
     max_rules_retries: int = 1
     max_generate_pack_retries: int = 1
     log_prompts: bool = False
-    # Scene pressure urgency escalation thresholds (turns)
-    scene_pressure_building_at: int = 3
-    scene_pressure_immediate_at: int = 5
-    # Scene pressure hard age cap (turns) — auto-remove pressures older than this
-    scene_pressure_max_age: int = 8
-    # Scene pressure immediate TTL (turns) — how long an immediate pressure lasts
-    # from the turn it became immediate (not from turn_added).
-    scene_pressure_immediate_ttl: int = 8
+    # Thread urgency escalation thresholds (turns)
+    thread_urgency_building_at: int = 3
+    thread_urgency_immediate_at: int = 5
+    # Thread urgency hard age cap (turns) — auto-remove threads older than this
+    thread_urgency_max_age: int = 8
+    # Thread urgency immediate TTL (turns) — how long an urgent thread lasts
+    # from the turn it became urgent (not from added_turn).
+    thread_urgency_immediate_ttl: int = 8
     # Avoidance-based pressure decay: keywords that trigger de-escalation detection
     avoidance_keywords: list[str] = field(default_factory=lambda: ["retreat", "run", "flee", "hide", "rest", "escape", "back away", "disengage", "withdraw", "surrender", "concede", "leave", "get out"])
     # Avoidance decay: extra age increment per turn for non-immediate pressures
@@ -80,7 +80,7 @@ class EngineConfig:
     momentum_ceiling: int = 3
     momentum_floor_relief_turns: int = 2
     # Gate for de-escalation flag on successful rolls
-    scene_pressure_deescalate_on_success: bool = True
+    thread_deescalate_on_success: bool = True
     # Threat imperative thresholds (turns since turn_added)
     # Background threat -> narration directive "Threat Pressure" at this age
     threat_pressure_at: int = 3
@@ -148,12 +148,12 @@ def build_engine_config(
         rules_temperature=rules_t,
         max_rules_retries=int(rules.get("max_retries", 1)),
         max_generate_pack_retries=int(llm.get("max_generate_pack_retries", 1)),
-        scene_pressure_building_at=int(game.get("scene_pressure_building_at", 3)),
-        scene_pressure_immediate_at=int(
+        thread_urgency_building_at=int(game.get("scene_pressure_building_at", 3)),
+        thread_urgency_immediate_at=int(
             game.get("scene_pressure_immediate_at", 5)
         ),
-        scene_pressure_max_age=int(game.get("scene_pressure_max_age", 8)),
-        scene_pressure_deescalate_on_success=bool(
+        thread_urgency_max_age=int(game.get("scene_pressure_max_age", 8)),
+        thread_deescalate_on_success=bool(
             game.get("scene_pressure_deescalate_on_success", True)
         ),
         threat_pressure_at=int(game.get("threat_pressure_at", 3)),
@@ -161,7 +161,7 @@ def build_engine_config(
         building_threat_imperative_at=int(game.get("building_threat_imperative_at", 4)),
         location_pressure_at=int(game.get("location_pressure_at", 3)),
         location_imperative_at=int(game.get("location_imperative_at", 5)),
-        scene_pressure_immediate_ttl=int(game.get("scene_pressure_immediate_ttl", 8)),
+        thread_urgency_immediate_ttl=int(game.get("scene_pressure_immediate_ttl", 8)),
         avoidance_keywords=[str(kw) for kw in game.get("avoidance_keywords", ["retreat", "run", "flee", "hide", "rest", "escape", "back away", "disengage", "withdraw", "surrender", "concede", "leave", "get out"])],
         avoidance_decay_per_turn=int(game.get("avoidance_decay_per_turn", 1)),
         momentum_floor=int(game.get("momentum_floor", -3)),

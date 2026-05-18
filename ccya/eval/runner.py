@@ -25,9 +25,7 @@ from ccya.eval.engine_mirror import (
     MOMENTUM_DELTA,
     MOMENTUM_MAX,
     MOMENTUM_MIN,
-    PRESSURE_BUILDING_AT,
-    PRESSURE_IMMEDIATE_AT,
-    PRESSURE_MAX_AGE,
+    THREAD_ARC_DEMOTE_AGE,
     URGENCY_LEVELS,
 )
 from ccya.eval.scenario import Scenario, TurnAssert
@@ -427,9 +425,7 @@ async def run_scenario(
         "world_locations": [loc.model_dump() for loc in (pack.scenario.locations if pack.scenario else [])],
         "seed_state": seed,
         "engine_constants": {
-            "pressure_building_at": PRESSURE_BUILDING_AT,
-            "pressure_immediate_at": PRESSURE_IMMEDIATE_AT,
-            "pressure_max_age": PRESSURE_MAX_AGE,
+            "thread_arc_demote_age": THREAD_ARC_DEMOTE_AGE,
             "urgency_levels": list(URGENCY_LEVELS),
             "momentum_min": MOMENTUM_MIN,
             "momentum_max": MOMENTUM_MAX,

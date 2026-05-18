@@ -39,6 +39,7 @@ from ccya.models import (
     ArcThread,
     CampaignArc,
     IntentEnvelope,
+    ProgressExtractResult,
     RulesCheck,
     RulesOutcome,
     StateDelta,
@@ -328,6 +329,113 @@ def _candidate_to_latent_thread(
     return arc.model_copy(update={"threads": list(arc.threads) + [new_thread]})  # type: ignore[no-any-return]
 
 
+def _apply_thread_resolutions(
+    state: dict[str, Any],
+    progress_result: ProgressExtractResult,
+) -> CampaignArc | None:
+    """Process thread_resolve from ProgressExtractResult.
+
+    Moves resolved/failed/abandoned threads from arc.threads[] to
+    arc.completed_threads[], setting resolution_state on each.
+    Handles missing IDs gracefully (warning + skip). Deduplicates
+    completed_threads entries by updating existing entry instead of
+    creating a duplicate.
+    """
+    if not progress_result.thread_resolve:
+        return None
+
+    arc_raw = state.get("arc")
+    turn_no = state.get("meta", {}).get("turn", 0) + 1
+
+    if not arc_raw:
+        _log.debug(
+            "thread_resolutions: no arc in state at T%d, skipping",
+            turn_no, extra={"turn": turn_no},
+        )
+        return None
+
+    try:
+        arc = CampaignArc.model_validate(arc_raw)
+    except Exception as exc:
+        _log.warning(
+            "thread_resolutions: failed to validate arc at T%d: %s",
+            turn_no, exc, extra={"turn": turn_no},
+        )
+        return None
+
+    # Build a map of existing completed threads by id for dedup
+    completed_by_id: dict[str, ArcThread] = {}
+    for ct in arc.completed_threads:
+        if ct.id not in completed_by_id:
+            completed_by_id[ct.id] = ct
+
+    new_completed: list[ArcThread] = []
+    any_found = False
+
+    for res in progress_result.thread_resolve:
+        # Find matching thread in arc.threads[]
+        found_idx = None
+        for i, t in enumerate(arc.threads):
+            if getattr(t, "id", "") == res.id:
+                found_idx = i
+                break
+
+        if found_idx is None:
+            _log.warning(
+                "thread_resolutions: T%d thread_resolve references unknown id=%s — skipping",
+                turn_no, res.id, extra={"turn": turn_no},
+            )
+            continue
+
+        any_found = True
+        thread = arc.threads[found_idx]
+        updated_thread = thread.model_copy(update={
+            "resolution_state": res.resolution_state,
+        })
+
+        # Remove from threads[]
+        remaining_threads = [t for i2, t in enumerate(arc.threads) if i2 != found_idx]
+
+        # Dedup: update existing completed entry or collect new ones
+        if thread.id in completed_by_id:
+            updated_existing = thread.model_copy(update={
+                "resolution_state": res.resolution_state,
+            })
+            remaining_completed = [
+                t if t.id != thread.id else updated_existing
+                for t in arc.completed_threads
+            ]
+        else:
+            new_completed.append(updated_thread)
+            remaining_completed = list(arc.threads)  # placeholder
+
+    # Finalize completed threads with dedup
+    final_completed_map: dict[str, ArcThread] = {}
+    if any_found and 'remaining_completed' in dir():
+        for ct in (remaining_completed or []):
+            cid = getattr(ct, "id", "")
+            if cid not in final_completed_map:
+                final_completed_map[cid] = ct
+
+    # Add new completions (deduped)
+    for nc in new_completed:
+        if nc.id not in final_completed_map:
+            final_completed_map[nc.id] = nc
+
+    # If no resolutions were found, keep original completed list
+    if not any_found and 'remaining_completed' not in dir():
+        final_completed_list = list(arc.completed_threads)
+    else:
+        final_completed_list = list(final_completed_map.values())
+
+    mutated = any_found or bool(new_completed)
+
+    return arc.model_copy(update={
+        "threads": remaining_threads if any_found else list(arc.threads),
+        "completed_threads": final_completed_list,
+    }) if mutated else None
+
+
 def _compute_narrative_velocity(
     deescalate: float,
     momentum: int,
@@ -364,7 +472,7 @@ def _compute_narrative_velocity(
 
 def _compute_narration_directive(
     narrative_velocity: float,
-    scene_pressure: list[dict[str, Any]],
+    scope_scene_threads: list["ArcThread"],
     ages: dict[str, int],
     threat_ages: list[dict[str, Any]],
     threat_pressure_at: int = 3,
@@ -373,17 +481,21 @@ def _compute_narration_directive(
 ) -> str:
     """Compute the narration directive string using a priority stack.
 
+    Derives urgency counts from unified arc.threads[] with scope=scene.
+    ArcThread.urgency values map to directives: urgent→Pressure/Overwhelm,
+    background→Tension, normal→Threat Pressure (when aging).
+
     Returns the highest-priority directive. Secondary directives are appended
     only when they do not contradict the primary (i.e., no escalation labels
     when velocity is negative).
 
     Priority order (highest to lowest):
       1. Breathe       -- explicit de-escalation (velocity < -0.3)
-      2. Overwhelm     -- 3+ immediate pressures
+      2. Overwhelm     -- 3+ urgent threads
       3. Resolve a Threat -- aged-out threat pressure
-      4. Pressure      -- 1-2 immediate pressures
-      5. Tension       -- building pressures only
-      6. Threat Pressure -- background threat aging toward imperative
+      4. Pressure      -- 1-2 urgent threads
+      5. Tension       -- background urgency threads only
+      6. Threat Pressure -- normal urgency aging toward imperative
       Secondary (non-contradicting append):
       7. Combat Fatigue -- combat_age >= 3
     """
@@ -393,8 +505,8 @@ def _compute_narration_directive(
 
     secondary: list[str] = []
 
-    # Priority 2: overwhelm (3+ immediate pressures)
-    immediate_count = sum(1 for p in scene_pressure if p.get("urgency") == "immediate")
+    # Priority 2: overwhelm (3+ urgent threads)
+    immediate_count = sum(1 for t in scope_scene_threads if getattr(t, "urgency", "") == "urgent")
     if immediate_count >= 3:
         primary = "Overwhelm"
     else:
@@ -404,7 +516,7 @@ def _compute_narration_directive(
     if not primary and threat_ages:
         old_building = [
             t for t in threat_ages
-            if t.get("urgency") == "building" and t.get("age", 0) >= building_threat_imperative_at
+            if t.get("urgency") == "normal" and t.get("age", 0) >= building_threat_imperative_at
         ]
         old_background = [
             t for t in threat_ages
@@ -412,26 +524,26 @@ def _compute_narration_directive(
         ]
         old_immediate = [
             t for t in threat_ages
-            if t.get("urgency") == "immediate" and t.get("age", 0) >= 3
+            if t.get("urgency") == "urgent" and t.get("age", 0) >= 3
         ]
         if old_building or old_background or old_immediate:
             primary = "Resolve a Threat"
 
-    # Priority 4: pressure (1-2 immediate)
+    # Priority 4: pressure (1-2 urgent)
     if not primary and immediate_count > 0:
         primary = "Pressure"
 
-    # Priority 5: tension (building only)
+    # Priority 5: tension (background only)
     if not primary:
-        building_count = sum(1 for p in scene_pressure if p.get("urgency") == "building")
+        building_count = sum(1 for t in scope_scene_threads if getattr(t, "urgency", "") == "background")
         if building_count > 0:
             primary = "Tension"
 
-    # Priority 6: threat pressure (background aging toward imperative)
+    # Priority 6: threat pressure (normal urgency aging toward imperative)
     if not primary and threat_ages:
         background_pressure = [
             t for t in threat_ages
-            if t.get("urgency") == "background"
+            if t.get("urgency") == "normal"
             and threat_pressure_at <= t.get("age", 0) < threat_imperative_at
         ]
         if background_pressure:
@@ -449,7 +561,7 @@ def _compute_narration_directive(
 def _compute_pacing_context(
     deescalate: float,
     narrative_velocity: float,
-    scene_pressure: list[dict[str, Any]],
+    scope_scene_threads: list["ArcThread"],
     ages: dict[str, int],
     threat_ages: list[dict[str, Any]] | None,
     pending_beat: dict[str, Any] | None,
@@ -458,13 +570,15 @@ def _compute_pacing_context(
 ) -> PacingContext:
     """Compute unified pacing context for Narrate and Progress steps.
 
-    Replaces separate deescalate/narrative_velocity signals with a single
-    authoritative struct containing directive, beat_hint, beat_locked, gate, summary.
+    Derives urgency from unified arc.threads[] with scope=scene instead of
+    raw scene_pressure dicts. Replaces separate deescalate/narrative_velocity
+    signals with a single authoritative struct containing directive, beat_hint,
+    beat_locked, gate, summary.
     """
     # Compute directive using existing logic
     directive = _compute_narration_directive(
         narrative_velocity=narrative_velocity,
-        scene_pressure=scene_pressure,
+        scope_scene_threads=scope_scene_threads,
         ages=ages,
         threat_ages=threat_ages or [],
         threat_pressure_at=config.threat_pressure_at,
@@ -749,7 +863,7 @@ async def run_turn(
 
         # De-escalation magnitude: success on a scene with active pressure
         deescalate: float = 0.0
-        if config and config.scene_pressure_deescalate_on_success:
+        if config and config.thread_deescalate_on_success:
             if (
                 outcome.rolled
                 and outcome.band in ("success", "crit_success")
@@ -871,10 +985,19 @@ async def run_turn(
             momentum_ceiling=config.momentum_ceiling,
         )
 
-        _raw_threads = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict) and t.get("scope") == "scene"]
+        _raw_thread_dicts = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict) and t.get("scope") == "scene"]
+
+        # Convert raw thread dicts to ArcThread objects for computation functions
+        _scope_scene_threads: list[ArcThread] = []
+        for td in _raw_thread_dicts:
+            try:
+                _scope_scene_threads.append(ArcThread.model_validate(td))
+            except Exception:
+                pass  # skip malformed entries
+
         _effective_pressure = _inject_location_pressure(
             ages=ages,
-            existing_pressure=_raw_threads,
+            existing_pressure=_raw_thread_dicts,
             location_pressure_at=config.location_pressure_at,
             location_imperative_at=config.location_imperative_at,
         )
@@ -883,7 +1006,7 @@ async def run_turn(
         _pc = _compute_pacing_context(
             deescalate=deescalate,
             narrative_velocity=narrative_velocity,
-            scene_pressure=_effective_pressure,
+            scope_scene_threads=_scope_scene_threads,
             ages=ages,
             threat_ages=threat_ages,
             pending_beat=_pending_gm_beat,
@@ -1158,6 +1281,17 @@ async def run_turn(
                     if delta is not None:
                         delta = delta.model_copy(
                             update={"arc_update": arc_delta}
+                        )
+
+                # Process thread resolutions (resolved/failed/abandoned -> completed)
+                resolved_arc = _apply_thread_resolutions(state, progress_result)
+                if resolved_arc is not None:
+                    _merge_arc_update(
+                        state.setdefault("arc", {}), resolved_arc
+                    )
+                    if delta is not None:
+                        delta = delta.model_copy(
+                            update={"arc_update": resolved_arc}
                         )
 
                 # Handle thread_add as new arc thread (only when gate == "allow")

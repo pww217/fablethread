@@ -14,12 +14,12 @@ from ccya.rules import MOMENTUM_DELTA as _RULES_MOMENTUM_DELTA, VALID_SKILLS
 
 _defaults = EngineConfig()
 
-# Scene pressure urgency escalation thresholds (turns since pressure was added)
-PRESSURE_BUILDING_AT: int = _defaults.scene_pressure_building_at   # background → building
-PRESSURE_IMMEDIATE_AT: int = _defaults.scene_pressure_immediate_at  # building → immediate
-PRESSURE_MAX_AGE: int = _defaults.scene_pressure_max_age
+# Unified thread lifecycle rules (scope-aware, replaces urgency escalation thresholds)
+THREAD_SCENE_EXPIRE_ON_LOCATION_CHANGE: bool = True        # scene-scoped threads expire when location changes
+THREAD_ARC_DEMOTE_AGE: int = _defaults.thread_urgency_max_age  # arc-scoped threads demote active:True→False after this many turns without last_seen_turn update
 
-URGENCY_LEVELS: tuple[str, ...] = ("background", "building", "immediate")
+# For trace injection into judge prompts — maps from ArcThread.urgency values (background/normal/urgent)
+URGENCY_LEVELS: tuple[str, ...] = ("background", "normal", "urgent")
 
 # Momentum
 MOMENTUM_MIN: int = _MOMENTUM_MIN
@@ -68,9 +68,7 @@ def constants_block() -> str:
     """
     return (
         "## Engine Constants (live — do not override with rubric prose)\n\n"
-        f"- Scene pressure: background→building at turn age {PRESSURE_BUILDING_AT}, "
-        f"building→immediate at turn age {PRESSURE_IMMEDIATE_AT}, "
-        f"max age {PRESSURE_MAX_AGE}\n"
+        f"- Thread lifecycle: scene-scoped threads expire on location change; arc-scoped threads demote active→False after {THREAD_ARC_DEMOTE_AGE} turns idle\n"
         f"- Urgency levels (ordered): {' → '.join(URGENCY_LEVELS)}\n"
         f"- Momentum range: [{MOMENTUM_MIN}, {MOMENTUM_MAX}]\n"
         f"- Momentum delta per band: {MOMENTUM_DELTA}\n"
@@ -87,7 +85,7 @@ def constants_block() -> str:
 # scenario seed_overrides before running a full eval.
 KNOWN_SEED_PATHS: frozenset[str] = frozenset((
     "meta.momentum",
-    "scene.scene_pressure",
+    "arc.threads",
     "pc.conditions",
     "pc.credits",
 ))
