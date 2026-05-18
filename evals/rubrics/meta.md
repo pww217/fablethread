@@ -47,9 +47,9 @@ Meta adjustment: if domain judges contradict each other on a shared concern, adj
 For each pair of judges that touch overlapping concerns:
 - **state_correctness vs narrative_interplay**: state_correctness says state is clean but narrative_interplay says mechanics produce no story consequence — contradiction? Why?
 - **state_correctness vs prompt_pipeline**: state_correctness says extraction is failing but prompt_pipeline rates the extraction prompts highly — contradiction? Why?
-- **narrative_interplay vs prompt_pipeline**: narrative says directives are ignored but prompt_pipeline says narrate prompt adherence is good — check if narration_directive is being rendered in prompts. Is the issue with prompt architecture or narrator behavior?
-- **state_correctness vs narrative_interplay (arc threads)**: state_correctness says arc thread lifecycle is clean (no flags) but narrative_interplay says arc threads produce no story consequence — contradiction? Check if advanced_threads is being emitted in the progress extraction output and if the narrator receives arc context.
-- **narrative_interplay vs state_correctness (pressures)**: state_correctness says pressure lifecycle is clean (no removal flags) but narrative_interplay says pressures are removed too early/late — check if removal timing is being evaluated correctly.
+- **narrative_interplay vs prompt_pipeline**: narrative says directives are ignored but prompt_pipeline says narrate prompt adherence is good — check if PacingContext struct is being passed correctly. Is the issue with data flow or narrator behavior?
+- **state_correctness vs narrative_interplay (unified threads)**: state_correctness says unified thread lifecycle is clean (no flags) but narrative_interplay says threads produce no story consequence — contradiction? Check if arc.threads[] scope-aware rules are being evaluated correctly.
+- **narrative_interplay vs state_correctness (PacingContext)**: state_correctness says PacingContext inputs are correct but narrative_interplay says tone doesn't match directive — check if the 5 PacingContext.directive values (`"" | "Breathe" | "Pressure" | "MoveOn" | "Escalate"`) are being evaluated correctly.
 
 If no contradiction: write `None.`
 
@@ -61,11 +61,11 @@ Based on domain judge findings, provide explicit top-level assessments for EACH 
 
 1. **Momentum lifecycle** — Does momentum track correctly? Is it stuck at floor? Does it recover?
 2. **GM beat narration** — Do beats produce observable prose or are they silent state drivers?
-3. **Scene pressure chains** — Do pressures escalate, produce stakes, and create consequences?
+3. **Unified thread chains** — Do threads (scene-scoped expire on location change, arc-scoped age-based demotion) create consequences and resolve properly?
 4. **Condition deduplication** — Are conditions properly deduplicated and resolved?
-5. **Arc thread progression** — Do threads advance from latent→active→complete? Or stall/orphan?
+5. **Arc thread progression** — Do unified threads advance via scope-aware rules? Or stall/orphan?
 6. **Inventory extraction accuracy** — Are inventory deltas accurate? Any hallucinations or overdraw?
-7. **Location change application** — Do location deltas correctly update state?
+7. **Location change application** — Do location deltas correctly update state, triggering scene-scoped thread expiration?
 8. **NPC mention extraction** — Are NPC mentions in narration captured by scene extractor?
 9. **Progress actions pipeline** — Does the progress extractor emit actionable next steps?
 

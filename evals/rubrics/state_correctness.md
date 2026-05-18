@@ -25,7 +25,7 @@ Scoring philosophy:
 ## HOW TO READ YOUR TRACE
 
 You receive:
-- **Static Context**: Seed State, Engine Constants (momentum range, pressure urgency levels, beat types).
+- **Static Context**: Seed State, Engine Constants (momentum range, thread urgency levels, beat types).
 - **Per-turn blocks**: Input, Engine Outputs (rules parsed JSON + extractor outputs), Applied Deltas, Rejected Deltas, State After Turn (diff or full snapshot).
 - **Deterministic Signals**: Auto-Checker Failures table, Metrics table (token counts, parse failures, retries).
 
@@ -50,17 +50,17 @@ After the table: Is momentum responding correctly to dice rolls across the run?
 
 ### 1B — GM Beat Lifecycle Table
 
-| Generated (Tn) | Beat Type | Disposition Emitted | State After | TTL Respected? | Flag |
+| Generated (Tn) | Beat Type | Inferred Disposition | State After | TTL Respected? | Flag |
 |----------------|-----------|---------------------|-------------|----------------|------|
 
-Flags: `ORPHANED` (generated, never consumed/expired), `CARRY_FAIL` (carry disposition but beat cleared), `REPLACE_FAIL` (replace disposition but beat unchanged), `TTL_EXCEEDED`.
+Flags: `ORPHANED` (generated, never consumed/expired), `TTL_EXCEEDED`. Python infers disposition from gm_beat presence in delta and expiry logic on state.meta.pending_gm_beat.
 
-### 1C — Scene Pressure Lifecycle Table
+### 1C — Unified Thread Lifecycle Table
 
-| ID | Added (Tn) | Urgency | Escalated? | Resolved (Tm) | Lifespan | Flag |
-|----|------------|---------|------------|---------------|----------|------|
+| ID | Added (Tn) | Scope | Urgency | Location Changed? | Resolved/TTL (Tm) | Lifespan | Flag |
+|----|------------|-------|---------|-------------------|-------------------|----------|------|
 
-Flags: `INERT` (no escalation or resolution across ≥3 turns), `OVERLONG`, `UNRESOLVED_AT_END`, `EARLY_REMOVAL` (removed before narration showed resolution), `LATE_REMOVAL` (persisted >3 turns after narration showed resolution), `FALSE_REMOVAL` (removed when threat was still active).
+Flags: `INERT` (no advancement across ≥3 turns), `OVERLONG`, `UNRESOLVED_AT_END`. For scope=scene threads, add `EARLY_EXPIRATION` and `LATE_EXPIRATION` — scene-scoped threads expire on location change. For scope=arc threads, track age-based demotion via last_seen_turn (demote active→False after idle turns). CAP_EXCEEDED: more than 3 active threads.
 
 ### 1D — Condition Lifecycle Table
 
@@ -70,15 +70,7 @@ Flags: `INERT` (no escalation or resolution across ≥3 turns), `OVERLONG`, `UNR
 Source: `roll` / `narrative` / `engine`.
 Flags: `SILENT_DROP`, `OVERLONG` (active >5 turns), `DUPLICATE`.
 
-### 1E — Arc Thread Lifecycle Table
-
-| Thread ID | Created (Tn) | State | Progress | Completed (Tm) | Flag |
-|-----------|--------------|-------|----------|----------------|------|
-
-State: `latent` / `active` / `complete` / `failed` / `expired`.
-Flags: `STALLED` (progress stuck at 0 for ≥5 turns), `DUPLICATE_ID`, `ORPHANED` (active thread with no advanced_threads across ≥3 turns), `CAP_EXCEEDED` (more than 3 active threads), `FAILED_NO_SIGNAL` (thread failed without FAILED signal).
-
-### 1G — Inventory Evolution Table
+### 1E — Inventory Evolution Table
 
 | Turn | Action | Item | Qty Extracted | Rejected? | Flag |
 |------|--------|------|---------------|-----------|------|
@@ -90,7 +82,7 @@ Flags: `AMOUNT_MISMATCH` (extracted qty differs from applied delta), `SPENDING_M
 ## SECTION 2 — State Fidelity Assessment
 
 ### 2A — State Coherence
-Do inventory, conditions, arc threads, pressures, and NPCs agree with each other across turns?
+Do inventory, conditions, unified threads, and NPCs agree with each other across turns?
 Cite specific turns and fields where they diverge.
 
 ### 2B — Extraction Drift

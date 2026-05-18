@@ -34,10 +34,9 @@ scenario = Scenario(
             expects=[
                 "extract.progress should generate a pending_gm_beat here",
                 "state_yaml.pending_gm_beat should be present after this turn",
-                "beat_disposition should be present in progress extraction output",
+                "beat_disposition no longer exists — Python infers disposition from gm_beat presence in delta plus turn expiry logic on state.meta.pending_gm_beat",
             ],
             asserts=[
-                TurnAssert(stream="extract.progress", field="beat_disposition"),
                 TurnAssert(stream="state_yaml", field="pending_gm_beat.present"),
             ],
         ),
@@ -46,7 +45,7 @@ scenario = Scenario(
             phase="gm_beat_surface",
             expects=[
                 "narrate should reflect the gm_beat instruction",
-                "pending_gm_beat should be consumed after this turn (beat_disposition defaults to 'consume')",
+                "pending_gm_beat should be None after narration consumes it — Python infers disposition from delta state changes, not LLM emission",
             ],
             asserts=[
                 TurnAssert(stream="state_yaml", field="pending_gm_beat.absent"),

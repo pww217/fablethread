@@ -11,8 +11,8 @@ or extraction schema correctness — those are handled by other judges.
 
 Your trace contains:
 - Narration text per turn (the actual prose shown to players)
-- Rules output: roll band, directive, stakes, intent per turn
-- Mechanic state fields per turn: momentum, GM beats, scene pressures, conditions, arc threads, NPCs
+- Rules output: roll band, directive, intent per turn
+- Mechanic state fields per turn: momentum, GM beats, unified threads, conditions, NPCs
 - State diffs (mechanic-relevant fields only)
 
 Every finding must cite a specific turn and field.
@@ -29,9 +29,9 @@ Scoring philosophy:
 ## HOW TO READ YOUR TRACE
 
 Per-turn blocks contain:
-- **Rules output**: `band`, `directive`, `stakes`, `intent`, `roll` (if present)
+- **Rules output**: `band`, `directive`, `intent`, `roll` (if present)
 - **Narration**: the prose output
-- **Extraction outputs**: scene (NPCs, location), state (inventory, conditions), progress (arc threads, pressures, beats)
+- **Extraction outputs**: scene (NPCs, location), state (inventory, conditions), progress (unified threads, beats)
 - **State diff**: changes to `meta.momentum`, `scene`, `pc.conditions`
 
 You do NOT have access to the system or user prompts — do not comment on prompt architecture.
@@ -40,30 +40,28 @@ You do NOT have access to the system or user prompts — do not comment on promp
 
 ## SECTION 1 — Mechanic→Narrative Chain Analysis
 
-### 1A — Rules Directive + Narration Directive → Tone
+### 1A — Rules Directive + PacingContext → Tone
 
 For each turn with a roll:
 
-| Turn | Band | Rules Directive | Narration Directive | Tone Match? | Evidence (quote ≤15 words) | Flag |
-|------|------|-----------------|---------------------|-------------|---------------------------|------|
+| Turn | Band | Rules Directive | PacingContext.directive | Tone Match? | Evidence (quote ≤15 words) | Flag |
+|------|------|-----------------|-------------------------|-------------|---------------------------|------|
 
-Flag: `TONE_MISMATCH` (narration tone contradicts band), `DIRECTIVE_IGNORED` (rules directive issued but prose ignores it), `NARRATION_DIRECTIVE_IGNORED` (narration_directive present but prose contradicts it).
+Flag: `TONE_MISMATCH` (narration tone contradicts band), `DIRECTIVE_IGNORED` (rules directive issued but prose ignores it).
 
 After the table: Does band progression feel too fast, too slow, or appropriate? Was there a coherent momentum arc across the run (low→build→peak or similar)?
 
-### 1A.5 — Narration Directive Analysis
+### 1A.5 — PacingContext.directive Analysis
 
-For each turn where narration_directive is non-empty:
-- Was the directive honored in narration? (e.g., Breathe → low-urgency prose, Overwhelm → chaotic/overlapping events)
-- Was the directive available to the progress extractor? (Check if it appears in extract_progress_user prompt)
-- Did the progress extractor use it for beats/pressure decisions?
+For each turn where pacing_context.directive is non-empty:
+- Was the directive honored in narration? (e.g., "Breathe" → low-urgency prose, "Pressure"/"Escalate" → tension-building)
 
-| Turn | Narration Directive | Honored? | Available to Extractor? | Used for Beat/Pressure? | Flag |
-|------|---------------------|----------|------------------------|------------------------|------|
+| Turn | PacingContext.directive | Honored? | Flag |
+|------|-------------------------|----------|------|
 
-Flag: `DIRECTIVE_NOT_RENDERED` (computed but not in narrate prompt), `DIRECTIVE_IGNORED_BY_NARRATOR`, `DIRECTIVE_NOT_IN_PROGRESS_PROMPT`, `DIRECTIVE_AVAILABLE_BUT_UNUSED`.
+Flag: `DIRECTIVE_IGNORED_BY_NARRATOR`.
 
-Evaluate all 9 directive types: Breathe, Pressure, Overwhelm, Tension, Combat Fatigue, Location Imperative, Location Pressure, Threat Pressure, Resolve a Threat.
+Evaluate actual directive values: `""`, `"Breathe"`, `"Pressure"`, `"MoveOn"`, `"Escalate"`.
 
 ### 1B — GM Beat→Narrative Effect
 
@@ -77,41 +75,39 @@ After the table: Are beats creating meaningful story pivots or are they mechanic
 ### 1B.5 — Beat Generation Quality with Directive Context
 
 For each turn where a beat was generated:
-- Was the beat type appropriate given the narration_directive? (e.g., Breathe → breathing_room beat, Pressure → complication beat)
-- Was the beat generation informed by the directive context available in the progress prompt?
+- Was the beat type appropriate given PacingContext.directive? (e.g., "Breathe" → breathing_room, "Pressure"/"Escalate" → complication)
 
 Assessment method:
-- **Rule-based**: Breathe→breathing_room, Pressure/Overwhelm→complication, Tension→complication or revelation, Combat Fatigue→complication, Location Imperative→complication, Location Pressure→complication, Threat Pressure→complication, Resolve a Threat→revelation or complication.
+- **Rule-based**: `""`→none/no beat expected, `"Breathe"`→breathing_room, `"Pressure"/"Escalate"`→complication, `"MoveOn"`→revelation or none.
 - **LLM judge**: Let the judge read the beat type + directive and decide if they align. More flexible but subjective.
 
-| Turn Beat Created | Beat Type | Narration Directive | Type Matches Directive? | Flag |
-|-------------------|-----------|---------------------|------------------------|------|
+| Turn Beat Created | Beat Type | PacingContext.directive | Type Matches Directive? | Flag |
+|-------------------|-----------|-------------------------|------------------------|------|
 
-Flag: `TYPE_MISMATCH` (beat type contradicts directive), `DIRECTIVE_INFORMED` (beat type aligns with directive).
+Flag: `TYPE_MISMATCH` (beat type contradicts directive).
 
-### 1C — Pressure→Stakes→Consequence Chain
+### 1C — Thread Tension Chain
 
-For each `scene_pressure_add` event:
+For each `thread_add` event:
 
-| Pressure ID | Added (Tn) | Stakes Named? | Consequence Extracted? | Chain Complete? | Flag |
-|-------------|------------|---------------|------------------------|-----------------|------|
+| Thread ID | Added (Tn) | Scope | Consequence Extracted? | Chain Complete? | Flag |
+|-----------|------------|-------|------------------------|-----------------|------|
 
-Flag: `INERT_PRESSURE` (pressure exists in state, never feeds stakes), `STAKES_WITHOUT_CONSEQUENCE` (stakes named, roll setback, no consequence extracted).
+Flag: `INERT_THREAD` (thread exists in state, never feeds into story consequence).
 
-### 1C.5 — Pressure Removal Evaluation
+### 1C.5 — Thread Expiration Evaluation
 
-For each `scene_pressure_remove` event:
-- Was the removal justified by narration? (narration showed the threat being addressed/resolved)
-- Was the removal timely? (removed within 2-3 turns of narration showing resolution — pacing should not lock a player into a threat for more than a few turns)
-- Was the removal correct? (no false removals — pressure removed when it shouldn't have been)
+For each resolved/expired thread:
+- Was the expiration justified by narration? (narration showed the tension being addressed/resolved)
+- For scope=scene threads: was it expired on location change per engine rules?
+- For scope=arc threads: was age-based demotion applied correctly via last_seen_turn?
 
-| Pressure ID | Added (Tn) | Resolved (Tm) | Turns to Remove | Narration Justified? | Correct? | Flag |
-|-------------|------------|---------------|-----------------|---------------------|----------|------|
+| Thread ID | Added (Tn) | Resolved/TTL (Tm) | Scope | Location Changed? | Narration Justified? | Flag |
+|-----------|------------|-------------------|-------|-------------------|---------------------|------|
 
-Flag: `EARLY_REMOVAL` (removed before narration showed resolution), `LATE_REMOVAL` (persisted >3 turns after narration showed resolution), `FALSE_REMOVAL` (removed when threat was still active), `MISSING_REMOVAL` (threat resolved in narration but pressure not removed).
+Flag: `EARLY_EXPIRATION` (expired before narration showed resolution), `LATE_EXPIRATION` (>3 turns after location change when narration showed resolution for scope=scene, or >8 idle turns for scope=arc), `FALSE_EXPIRATION` (removed when tension was still active in narration), `MISSING_EXPIRATION` (tension resolved but thread not expired).
 
 ### 1D — Condition→Narrative Callback
-
 For each active condition per turn: was it referenced in narration or did it affect a roll directive?
 
 | Condition ID | Active Turns | Referenced in Narration? | Affected Roll? | Flag |
@@ -119,14 +115,14 @@ For each active condition per turn: was it referenced in narration or did it aff
 
 Flag: `PHANTOM` (in state, never mentioned in prose, never affected anything).
 
-### 1E — Arc Thread→Narrative Chain
+### 1E — Unified Thread→Narrative Chain
 
-For each active thread per turn: was the thread's summary or tags reflected in narration? Did thread state changes (latent→active, active→complete) produce observable story pivots?
+For each thread per turn: was the thread's summary or tags reflected in narration? Did thread state changes produce observable story pivots?
 
-| Thread ID | Active Turns | Thread State | Referenced in Narration? | State Change? | Flag |
-|-----------|--------------|--------------|--------------------------|---------------|------|
+| Thread ID | Active Turns | Scope | Referenced in Narration? | State Change? | Flag |
+|-----------|--------------|-------|--------------------------|---------------|------|
 
-Flag: `PHANTOM_THREAD` (in active_threads, never mentioned in prose, never signaled), `STATE_MISMATCH` (thread state changed in state but narration shows no corresponding story event), `SILENT_COMPLETE` (thread marked complete but no narrative resolution).
+Flag: `PHANTOM_THREAD` (in arc.threads, never mentioned in prose, never signaled), `STATE_MISMATCH` (thread state changed in state but narration shows no corresponding story event), `SILENT_COMPLETE` (thread marked complete but no narrative resolution).
 
 ---
 
@@ -147,10 +143,10 @@ Verdict: tight / loose / broken.
 
 ## SECTION 3 — Pacing Assessment
 
-- **High-tension vs breathing turns**: count each. Flag if >4 consecutive immediate-pressure turns.
+- **High-tension vs breathing turns**: count each. Flag if >4 consecutive high-pressure turns.
 - **Momentum arc**: did the run have a discernible arc? Or random oscillation?
 - **Beat type variety**: count beat types. Flag if >60% are the same type.
-- **Escape paths**: when player was in a bad situation (negative momentum, immediate pressure),
+- **Escape paths**: when player was in a bad situation (negative momentum, urgent threads),
   were there viable choices to improve it? Assess from narration content.
 
 ---
@@ -162,7 +158,7 @@ Based on Sections 1–3. Does mechanics produce good fiction? A 5 requires beats
 Score 1–5.
 
 ### System Cohesion Score (1–5)
-Based on Section 1 chain analyses. Is the engine behaving as a system (mechanics→narrative→state→mechanics) or as isolated components? A 5 requires arc thread lifecycle (latent→active→complete) producing coherent story arcs across turns. Score 1–5.
+Based on Section 1 chain analyses. Is the engine behaving as a system (mechanics→narrative→state→mechanics) or as isolated components? A 5 requires unified thread lifecycle producing coherent story arcs across turns. Score 1–5.
 
 ---
 

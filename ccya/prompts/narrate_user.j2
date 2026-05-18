@@ -36,9 +36,10 @@
 <<<TRACE_IMMUTABLE_END>>>
 
 ## Scene Context
-{% if (arc.threads | selectattr('scope', 'equalto', 'scene') | list) -%}
+{% set scene_arc = state.get("arc") or {} %}
+{% if (scene_arc.get('threads') | selectattr('scope', 'equalto', 'scene') | list) -%}
 ### Active Threads
-{% for t in arc.threads %}{% if t.scope == 'scene' %}- [{{ t.urgency | upper }}] {{ t.summary }}
+{% for t in scene_arc.get('threads', []) %}{% if t.scope == 'scene' %}- [{{ t.urgency | upper }}] {{ t.summary }}
 {% endif %}{% endfor -%}
 {% endif -%}
 

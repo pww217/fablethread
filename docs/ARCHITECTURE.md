@@ -13,11 +13,11 @@ Every player turn drives this 5-step pipeline, executed strictly in order. Step 
 
 | Pipeline | When it runs | Key inputs | Key outputs | Mechanics it owns | Hand-off to next turn |
 |---|---|---|---|---|---|
-| **Step 0 — Rules / Intent** | Every turn (always) | `state.pc`, `state.location`, `recent_turns[-1:]`, `user_input` | `IntentEnvelope` (intent, verb, target, stakes, check.required, check.skill, check.difficulty); `RulesOutcome` (rolled, dice, mods, band, directive) | Intent classification, dice roll resolution (2d6 + stat + cond − diff → band), difficulty selection, anti-declare-outcome enforcement | `rules_outcome.directive` shapes narrator latitude |
-| **Step 1 — Narrate** | Every turn (always, streamed) | Full `state` (pc, location, scene, inventory, quests, compendium), `chronicle_tail`, `recent_turns`, `rules_outcome` (when rolled), `pack_style`, `narrator_rules`, `pending_gm_beat`, `momentum`, `ages`, `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN), `world_factions`, `world_locations`, `npc_name_pool`, `deescalate`, `scene_pressure`, `narrative_velocity`, `user_input` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption (clears `state.meta.pending_gm_beat`), de-escalation directives, age-based stalling fixes, narrative velocity pacing | `narrative` feeds all 3 extractors |
-| **Step 2a — Scene Extract** | Every turn (always) | `narrative`, `state.pc/location`, `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN), `state.pc.conditions`, `known_characters` (LRU compendium), `RulesOutcome`, `recent_turns[-1:]` | `SceneExtractResult`: `scene_tags`, `scene_tagline`, `location_change`, `location_description`, `npc_add/remove/update`, `compendium_npc_update` | NPC presence, location changes, scene tags, scene classification (tags/tagline), durable NPC compendium identity | `location_change` and `npc_roster` passed to Steps 2b and 2c |
-| **Step 2b — State Extract** | Every turn (always) | `narrative`, `state.pc`, `state.location`, `state.inventory`, `rules_outcome`, `engine_expired_conditions`, `scene_result.location_change`, `scene_result.npc_roster`, `stakes`, `band`, `band_examples` (few-shot extraction examples keyed to dice band) | `StateExtractResult`: `inventory_add/remove/update`, `pc_condition_add/remove` | Inventory delta accuracy, condition lifecycle (with `added_turn`), engine-side TTL pre-removal, ID normalization | (none — cross-stream items_gained/lost removed; extraction_ctx covers this) |
-| **Step 2c — Progress Extract** | Every turn (always) | `narrative`, `state.pc`, `state.scene.recent_events`, `state.scene.world_state`, `active_quests`, `scene_pressure`, `RulesOutcome`, `intent`, `recent_turns[-2:]`, `stakes`, `band`, `deescalate`, `narrative_velocity`, `narration_directive`, `quest_ages`, `pending_beat`, `quest_threshold_directive`, `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN) | `ProgressExtractResult`: `quest_updates`, `recent_events_add/update/remove`, `actions` (4 suggested choices), `outcome_summary`, `gm_beat`, `beat_disposition`, `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update` | Quest objectives, recent_events ring buffer, action suggestions, narrative recap, GM beat generation + disposition (guided by `narration_directive`), scene pressure lifecycle (all three operations) | `recent_events_add` becomes durable history; `quest_updates` advance arcs; `scene_pressure_add` feeds next turn's rules call; `gm_beat` stored in `state.meta.pending_gm_beat` |
+| **Step 0 — Rules / Intent** | Every turn (always) | `state.pc`, `state.location`, `recent_turns[-1:]`, `user_input` | `IntentEnvelope` (intent, verb, target, check.required, check.skill, check.difficulty); `RulesOutcome` (rolled, dice, mods, band, directive) | Intent classification, dice roll resolution (2d6 + stat + cond − diff → band), difficulty selection, anti-declare-outcome enforcement. `stakes` field removed — failure cost encoded in prose via band. | `rules_outcome.directive` feeds into `_compute_pacing_context()` |
+| **Step 1 — Narrate** | Every turn (always, streamed) | Full `state` (pc, location, arc.threads[], inventory, quests, compendium), `chronicle_tail`, `recent_turns`, `pacing_context` (`directive`, `beat_hint`), `pending_gm_beat`, `pack_style`, `narrator_rules`, `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN), `world_factions`, `world_locations`, `npc_name_pool`, `user_input` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption (clears `state.meta.pending_gm_beat`), tone shaped by `PacingContext.directive`. Individual pacing signals (`deescalate`, `narrative_velocity`) collapsed into single struct. | `narrative` feeds all 3 extractors |
+| **Step 2a — Scene Extract** | Every turn (always) | `narrative`, `state.pc/location`, `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN), `state.pc.conditions`, `known_characters` (LRU compendium), `RulesOutcome`, `recent_turns[-1:]` | `SceneExtractResult`: `scene_tags`, `scene_tagline`, `location_change`, `location_description`, `npc_add/remove/update`, `compendium_npc_update` | NPC presence, location changes, scene tags, scene classification (tags/tagline), durable NPC compendium identity. Unchanged from previous architecture. | `location_change` and `npc_roster` passed to Steps 2b and 2c |
+| **Step 2b — State Extract** | Every turn (always) | `narrative`, `state.pc`, `state.location`, `state.inventory`, `rules_outcome`, `engine_expired_conditions`, `scene_result.location_change`, `scene_result.npc_roster`, `band_examples` (few-shot extraction examples keyed to dice band) | `StateExtractResult`: `inventory_add/remove/update`, `pc_condition_add/remove` | Inventory delta accuracy, condition lifecycle (with `added_turn`), engine-side TTL pre-removal, ID normalization. `stakes` removed from inputs. | (none — cross-stream items_gained/lost removed; extraction_ctx covers this) |
+| **Step 2c — Progress Extract** | Every turn (always) | `narrative`, `_ExtractionContext` (present_npcs, location, inventory, conditions), `pacing_context` (`directive`, `gate`, `beat_hint`, `beat_locked`), `arc.threads[]`, `recent_turns[-2:]`, `band`, `pending_beat`, `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN) | `ProgressExtractResult`: `thread_advance`, `thread_resolve`, `thread_add` (gated), `gm_beat`, `recent_events_add/update/remove`, `actions` (4 choices), `outcome_summary` | Unified thread lifecycle (`thread_advance` / `thread_resolve` / gated `thread_add`) replaces separate scene_pressure and arc thread operations. Single authoritative `PacingContext` replaces six competing signals. `beat_disposition` removed — inferred from gm_beat presence + turn expiry. | `recent_events_add` becomes durable history; `thread_*` signals processed by `_apply_thread_signals()` with age-based demotion; `gm_beat` stored in `state.meta.pending_gm_beat` |
 
 After Step 2c, results merge into a `StateDelta`, the validator checks (e.g. `inventory_remove` IDs exist), `apply_delta()` mutates state in-place, and the turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `events.jsonl`.
 
@@ -54,7 +54,8 @@ flowchart TD
     end
 
     USER --> STEP0
-    STEP0 --> DICE --> STEP1
+    STEP0 -- "IntentEnvelope + RulesOutcome" --> DICE
+    DICE -- "PacingContext" --> STEP1
     STEP1 --> STEP2A & STEP2B & STEP2C
     STEP2A & STEP2B & STEP2C --> VALIDATE
     VALIDATE --> PERSISTENCE
@@ -91,7 +92,7 @@ flowchart LR
     end
 
     subgraph OUT["Outputs"]
-        O1["IntentEnvelope<br>  intent: str<br>  intent_verb: str<br>  target: str<br>  stakes: str<br>  check.required: bool<br>  check.skill: SkillName<br>  check.difficulty: Difficulty"]:::outNode
+        O1["IntentEnvelope<br>  intent: str<br>  intent_verb: str<br>  target: str<br>  check.required: bool<br>  check.skill: SkillName<br>  check.difficulty: Difficulty"]:::outNode
         O2["RulesOutcome<br>  rolled: bool<br>  skill, difficulty, stat_value, stat_mod<br>  diff_mod, cond_mod<br>  dice: list[int]<br>  raw_total, final_total: int<br>  band: Band<br>  directive: str<br>  intent, intent_verb: str"]:::outNode
     end
 
@@ -100,8 +101,7 @@ flowchart LR
     PYRES --> OUT
 ```
 
-> **Key forward dependency:** `rules_outcome.directive` shapes the narrator's creative
-> latitude.
+> **Key forward dependency:** `rules_outcome` feeds into `_compute_pacing_context()` which produces the single authoritative `PacingContext` struct passed to both Narrator and Progress.
 
 ---
 
@@ -128,11 +128,8 @@ flowchart LR
         N10["world_factions<br>(immutable trace)"]
         N11["world_locations<br>(nearby, immutable)"]
         N12["pending_gm_beat"]
-        N13["momentum"]
-        N14["ages<br>(combat/location)"]
-        N15["deescalate"]
-        N16["scene_pressure<br>(active threats)"]
-        N17["user_input"]
+        N13["pacing_context<br>(directive · beat_hint)<br>from _compute_pacing_context()"]:::xstream
+        N14["user_input"]
     end
 
     subgraph LLM1["LLM — narrate_system.j2 + narrate_user.j2"]
@@ -194,7 +191,7 @@ flowchart LR
 > **Key forward dependency:** `location_change` and `present_npcs` flow into
 > `extraction_ctx` (built by `_build_extraction_context`). Step 2c also receives
 > `npc_roster` (tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN) built from extraction_ctx.
-> No forward-facing mechanics (scene_pressure, gm_beat) are emitted by this stream.
+> No forward-facing mechanics (`thread_add`, `gm_beat`) are emitted by this stream — they go through the unified thread pipeline via Progress Extract.
 
 ---
 
@@ -252,23 +249,13 @@ flowchart LR
 
     subgraph IN["Inputs"]
         S1["narrative (from Step 1)"]:::xstream
-        S2["state.pc (name, bio, stats)"]
-        S3["state.scene.recent_events"]
-        S4["state.scene.world_state"]
-        S5["active_quests (status=active only)"]
-        S6["npc_roster<br>(tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN)<br>built by build_npc_roster()"]:::xstream
-        S7["scene_pressure (active threats)"]
-        S8["rules_outcome"]:::xstream
-        S9["intent (from Step 0)"]:::xstream
-        S10["recent_turns[-2:]<br>(T-1 + T-2 prior narration<br>for outcome_summary context)"]
-        S11["stakes: str<br>(mechanical cost from rules)"]:::xstream
-        S12["band: str<br>(dice resolution band)"]:::xstream
-        S13["deescalate: float<br>(pressure resolution magnitude)"]:::xstream
-        S14["narrative_velocity: float<br>(unified pacing scalar<br>from narrative_velocity engine)"]:::xstream
-        S15["narration_directive: str<br>(priority-stack directive<br>computed from velocity + pressures)"]:::xstream
-        S16["quest_ages: list[dict]<br>(stalled-quest signal)"]
-        S17["pending_beat: dict | None<br>(carried beat from prev turn)"]
-        S18["quest_threshold_directive<br>(guidance on new-quest aggressiveness)"]
+        S2["_ExtractionContext<br>(present_npcs, location,<br>inventory, conditions)<br>built by _build_extraction_context()"]:::xstream
+        S3["npc_roster<br>(tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN)"]:::xstream
+        S4["pacing_context<br>(directive · gate · beat_hint · beat_locked)"]:::xstream
+        S5["arc.threads[]<br>(unified scope=scene + scope=arc)"]:::xstream
+        S6["rules_outcome"]:::xstream
+        S7["intent (from Step 0)"]:::xstream
+        S8["recent_turns[-2:]<br>(T-1 + T-2 prior narration<br>for outcome_summary context)"]
     end
 
     subgraph LLM2C["LLM — extract_progress_system.j2 + extract_progress_user.j2"]
@@ -276,27 +263,22 @@ flowchart LR
     end
 
     subgraph OUT["Outputs — ProgressExtractResult"]
-        O1["quest_updates: list[QuestUpdate]<br>  id, title, status,<br>  objectives[]: index, description,<br>  done, failed"]:::outNode
-        O2["recent_events_add: list[RecentEvent]<br>  id, text, turn"]:::outNode
-        O3["recent_events_update: list[RecentEventUpdate]<br>  id, text"]:::outNode
-        O4["recent_events_remove: list[str]"]:::outNode
-        O5["actions: list[str]<br>  exactly 4 suggested player choices"]:::outNode
-        O6["outcome_summary: str<br>  1–2 sentence narrative recap"]:::outNode
-        O7["gm_beat: GMBeat | None<br>  forward-facing storytelling beat"]:::outNode
-        O8["beat_disposition: consume|carry|replace"]:::outNode
-        O9["scene_pressure_add: list[ScenePressure]"]:::outNode
-        O10["scene_pressure_remove: list[str]"]:::outNode
-        O11["scene_pressure_update: list[ScenePressure]"]:::outNode
+        O1["thread_advance: list[str]<br>  ids of threads to increment progress"]:::outNode
+        O2["thread_resolve: list[ThreadResolution]<br>  id + resolution_state<br>(resolved/failed/abandoned)"]:::outNode
+        O3["thread_add: ArcThread | None<br>  new thread, gated by PacingContext.gate"]:::outNode
+        O4["recent_events_add: list[RecentEvent]<br>  id, text, turn"]:::outNode
+        O5["recent_events_update: list[RecentEventUpdate]<br>  id, text"]:::outNode
+        O6["recent_events_remove: list[str]"]:::outNode
+        O7["actions: list[str]<br>  exactly 4 suggested player choices"]:::outNode
+        O8["outcome_summary: str<br>  1–2 sentence narrative recap"]:::outNode
+        O9["gm_beat: GMBeat | None<br>  forward-facing storytelling beat"]:::outNode
     end
 
     IN --> LLM2C
     LLM2C --> OUT
 ```
 
-> **Always runs:** Progress is the post-narration storytelling brain. It always executes
-> every turn (never skipped) and feeds next turn's rules call via `recent_events_add`
-> (durable narrative facts), `quest_updates` (advancing or closing arcs), `scene_pressure_add`
-> (new threats), and `gm_beat` (forward-facing beats stored in `state.meta.pending_gm_beat`).
+> **Always runs:** Progress is the post-narration storytelling brain. It always executes every turn (never skipped) and feeds next turn's rules call via `recent_events_add` (durable narrative facts), `thread_advance/resolve/add` (unified thread lifecycle with scope-aware age demotion), and `gm_beat` (forward-facing beats stored in `state.meta.pending_gm_beat`).
 >
 > ### GMBeat schema
 >
@@ -323,27 +305,31 @@ flowchart LR
 > the progress extractor needs to know what beat was narrated to make an informed disposition
 > decision.
 >
-> **Phase 3 — Extraction disposition.** The progress extractor receives `pending_beat` in its
-> prompt and emits `beat_disposition` (`consume`/`carry`/`replace`) plus an optional new `gm_beat`.
-> The engine's beat lifecycle logic reads the disposition and applies it:
-> - `consume`: clears `state.meta.pending_gm_beat` (beat was narrated, done)
-> - `carry`: preserves `state.meta.pending_gm_beat` unchanged (beat was narrated but should
->   continue to next turn — e.g., a multi-turn arc)
-> - `replace`: writes the new `gm_beat` to `state.meta.pending_gm_beat` with
->   `beat_expires_turn = turn_no + 2`
->
-> The engine stores the beat with `beat_expires_turn = turn_no + 2` as a hard TTL ceiling.
-> If not consumed by the narrator, the beat expires at turn N and is discarded.
+> **Phase 3 — Extraction disposition (inferred).** The progress extractor receives the pending beat context and emits an optional new `gm_beat`. Unlike the previous architecture, there is no explicit `beat_disposition` field. Instead:
+> - If Progress emits a new `gm_beat`, it replaces the old one (`state.meta.pending_gm_beat = gm_beat` with `beat_expires_turn = turn_no + 2`)
+> - If Progress emits nothing and the beat's `expires_at` hasn't passed, the engine preserves the existing beat unchanged (carry)
+> - The engine stores beats with `beat_expires_turn = turn_no + 2` as a hard TTL ceiling. Beats past their expiry are discarded automatically on load.
 
 ---
 
-## Narration Directive
+## PacingContext
 
-The narration directive is a priority-stack label computed from `narrative_velocity` (a unified pacing scalar), active scene pressures, and age thresholds. It tells the progress extractor how the narrator is shaping tone this turn, so the extractor can align `gm_beat` and `scene_pressure` decisions with the narrator's intent.
+All pacing signals are collapsed into one Python-computed struct (`PacingContext`) passed to both the Narrator and Progress Extractor. This replaces six independent fields (`narration_directive`, `deescalate`, `narrative_velocity`, `pending_beat`, `beat_disposition` output, `quest_threshold_directive`). The narrator receives only `directive` and `beat_hint`; Progress receives the full struct.
+
+```
+PacingContext:
+  directive: str           # "" | "Breathe" | "Pressure" | "MoveOn" | "Escalate"
+  beat_hint: str | None    # suggested gm_beat type, or None
+  beat_locked: bool        # True: floor relief fired — Progress MUST emit breathing_room beat and gate is force-closed
+  gate: str                # "block_add" | "block_escalate" | "allow" (controls thread_add)
+  summary: str             # human-readable log string, never sent to LLM
+```
+
+`beat_locked: True` subsumes the old `_check_floor_relief()` side-channel — floor relief logic is computed inside `_compute_pacing_context()`. The `gate` field prevents Progress from adding new threads during de-escalation windows.
 
 ### Computation
 
-`_compute_narration_directive()` in `engine/turn.py` applies a strict priority stack:
+`_compute_pacing_context()` in `engine/turn.py` consolidates all pacing computation (replacing the former scattered functions: `_compute_narration_directive`, `_compute_narrative_velocity`, `_check_floor_relief`). It takes inputs (`momentum`, `consecutive_floor_turns`, `arc.threads[] scope=scene urgency counts`, combat age, location age) and returns a single struct with directive derived from the same priority stack:
 
 ```mermaid
 flowchart TD
@@ -351,54 +337,34 @@ flowchart TD
     classDef decision fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
     classDef output fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
 
-    V["narrative_velocity scalar"]:::pyNode
-    P["scene_pressure list<br>(urgency counts)"]:::pyNode
-    A["ages dict<br>(combat_age, etc.)"]:::pyNode
+    M["momentum scalar"]:::pyNode
+    T["arc.threads[] scope=scene<br>(urgency counts)"]:::pyNode
+    CA["combat_age"]:::pyNode
 
-    V --> D1{"velocity < -0.3<br>(deescalation)"}:::decision
-    D1 -- yes --> B1["Breathe<br>(primary)"]:::output
-    D1 -- no --> D2{"≥ 3 immediate<br>pressures?"}:::decision
-    D2 -- yes --> B2["Overwhelm<br>(primary)"]:::output
-    D2 -- no --> D3{"combat_age ≥ 4<br>(combat stalling)"}:::decision
-    D3 -- yes --> B3["Pressure; Combat Fatigue<br>(primary + secondary)"]:::output
-    D3 -- no --> D4{"≥ 1 non-immediate<br>pressure?"}:::decision
-    D4 -- yes --> B4["Pressure<br>(primary)"]:::output
-    D4 -- no --> D5{"threat_age ≥ threat_pressure_at"}:::decision
-    D5 -- yes --> B5["Threat Pressure<br>(primary)"]:::output
-    D5 -- no --> D6{"threat_age ≥ threat_imperative_at"}:::decision
-    D6 -- yes --> B6["Tension<br>(primary)"]:::output
-    D6 -- no --> B7["''<br>(no directive)"]:::output
+    M --> D1{"momentum at floor<br>(consecutive_floor_turns threshold)"}:::decision
+    D1 -- yes --> BL["beat_locked = True<br>→ directive='Breathe'"]:::output
+    D1 -- no --> D2{"velocity < -0.3<br>(deescalation)"}:::decision
+    D2 -- yes --> B1["directive='Breathe'"]:::output
+    D2 -- no --> D3{"≥ 3 immediate<br>threads?"}:::decision
+    D3 -- yes --> B2["directive='Escalate'"]:::output
+    D3 -- no --> D4{"combat_age ≥ 4<br>(combat stalling)"}:::decision
+    D4 -- yes --> B3["directive='Pressure'"]:::output
+    D4 -- no --> D5{"≥ 1 non-immediate<br>thread?"}:::decision
+    D5 -- yes --> B4["directive='Pressure'"]:::output
+    D5 -- no --> D6{"threat_age ≥ pressure_at"}:::decision
+    D6 -- yes --> B5["directive='Pressure'"]:::output
+    D6 -- no --> B7["directive='' (empty)"]:::output
 
-    B1 --> SEC1{"velocity < -0.5"}:::decision
-    SEC1 -- yes --> S1["Combat Fatigue<br>(secondary append)"]:::output
-    SEC1 -- no --> FINAL
+    BL --> G1["gate = 'block_add'<br>beat_hint = 'breathing_room'"]:::pyNode
+    B3 --> S3{"≥ 1 building thread"}:::decision
+    S3 -- yes --> SEC3["secondary append<br>(location imperative)"]:::output
 
-    B2 --> SEC2{"combat_age ≥ 4"}:::decision
-    SEC2 -- yes --> S2["Combat Fatigue<br>(secondary append)"]:::output
-    SEC2 -- no --> FINAL
-
-    B3 --> SEC3{"≥ 1 building pressure"}:::decision
-    SEC3 -- yes --> S3["Location Imperative<br>(secondary append)"]:::output
-    SEC3 -- no --> FINAL
-
-    B4 --> SEC4{"combat_age ≥ 4"}:::decision
-    SEC4 -- yes --> S4["Combat Fatigue<br>(secondary append)"]:::output
-    SEC4 -- no --> FINAL
-
-    B5 --> SEC5{"combat_age ≥ 4"}:::decision
-    SEC5 -- yes --> S5["Combat Fatigue<br>(secondary append)"]:::output
-    SEC5 -- no --> FINAL
-
-    B6 --> SEC6{"combat_age ≥ 4"}:::decision
-    SEC6 -- yes --> S6["Combat Fatigue<br>(secondary append)"]:::output
-    SEC6 -- no --> FINAL
-
-    FINAL["narration_directive: str<br>(primary; optional ; secondary)"]:::output
+    FINAL["PacingContext<br>directive · beat_hint · beat_locked · gate"]:::output
 ```
 
-Priority order (highest to lowest): **Breathe > Overwhelm > Pressure > Threat Pressure > Tension > (empty)**. The highest-priority label always wins. Secondary labels (Combat Fatigue, Location Imperative) are appended with a semicolon when their conditions are met independently of the primary stack.
+Priority order (highest to lowest): **Breathe > Escalate > Pressure > (empty)**. The `beat_locked` flag takes precedence — when floor relief fires, directive is forced to "Breathe" and gate is force-closed.
 
-### Wiring: how it reaches the progress extractor
+### Wiring: how PacingContext reaches the pipelines
 
 ```mermaid
 flowchart LR
@@ -406,37 +372,29 @@ flowchart LR
     classDef prompt fill:#0f172a,color:#7dd3fc,stroke:#1e40af
     classDef extractor fill:#500724,color:#fbcfe8,stroke:#ec4899
 
-    TURN["engine/turn.py<br>_compute_narration_directive()"]:::pyNode
-    PIPELINE["_run_extraction_pipeline()<br>pass narration_directive arg"]:::pyNode
-    EXTRACT_FN["_extract_progress_messages()<br>extraction.py:440"]:::pyNode
-    USER_TMPL["extract_progress_user.j2<br>## narration_directive section"]:::prompt
-    SYS_TMPL["extract_progress_system.j2<br>## Narration directive guidance"]:::prompt
-    EXTRACTOR["Progress Extractor LLM<br>uses directive for beats/pressures"]:::extractor
+    TURN["engine/turn.py<br>_compute_pacing_context()"]:::pyNode
+    PIPELINE["_run_extraction_pipeline()<br>pass PacingContext struct"]:::pyNode
+    EXTRACT_FN["_extract_progress_messages()<br>extraction.py"]:::pyNode
+    USER_TMPL["extract_progress_user.j2<br>pacing_context.directive + gate"]:::prompt
+    SYS_TMPL["extract_progress_system.j2<br>PacingContext guidance"]:::prompt
+    NARRATE_TMPL["narrate_user.j2<br>pacing_context.directive + beat_hint"]:::prompt
 
     TURN --> PIPELINE --> EXTRACT_FN --> USER_TMPL
-    TURN -. "also passed to" .-> NARRATE_TMPL["narrate_user.j2<br>(narrator sees directive)"]:::prompt
-    USER_TMPL --> SYS_TMPL --> EXTRACTOR
+    USER_TMPL --> SYS_TMPL --> EXTRACTOR["Progress Extractor LLM"]:::extractor
+    TURN -. "also passed to" .-> NARRATE_TMPL
 ```
 
-1. **Computed** in `run_turn()` at `turn.py:681` from `narrative_velocity`, `_effective_pressure`, `ages`, and config thresholds.
-2. **Passed** through `_run_extraction_pipeline()` → `_extract_progress_messages()` as a function argument.
-3. **Rendered** into `extract_progress_user.j2` as a `## narration_directive` section (only when non-empty).
-4. **Guides** the extractor via `extract_progress_system.j2` which maps each directive to appropriate `gm_beat` types and `scene_pressure` actions.
+1. **Computed** once in `run_turn()` via `_compute_pacing_context()`.
+2. **Passed through** `_run_extraction_pipeline()` → both `_narrate_messages()` and `_extract_progress_messages()`.
+3. **Narrator template** (`narrate_user.j2`) renders only `directive` (tone/direction) and `beat_hint` when present. No Jinja2 directive computation remains — all directives computed by Python.
+4. **Progress template** (`extract_progress_system.j2` + `user.j2`) receives the full struct; guidance maps each directive to appropriate thread/beat actions:
 
-### Extractor guidance
-
-The system prompt (`extract_progress_system.j2`) instructs the progress extractor to use the directive as follows:
-
-| Directive | `gm_beat` guidance | `scene_pressure` guidance |
-|-----------|-------------------|--------------------------|
-| **Breathe** | Prefer `breathing_room` or `null`. Do NOT add new immediate pressures. | Allow existing pressures to persist without escalation. |
-| **Overwhelm** | Emit `pressure` or `escalation` beat. | Be proactive: add `scene_pressure_add` at `immediate` urgency. Do NOT remove existing pressures. |
-| **Pressure** | Emit `pressure` or `complication` beat. | Add `scene_pressure_add` at `building` or `immediate` urgency for advancing threats. |
-| **Tension** | Emit `complication` or `setback` beat. | Do NOT add pressures unless a concrete threat emerges. |
-| **Resolve a Threat** | Do NOT add beats for resolved threats. | Remove resolved pressures from `scene_pressure_remove`. |
-| **Combat Fatigue** (secondary) | Layer `setback` or `complication` theme reflecting exhaustion. | No direct pressure guidance; applies as thematic modifier. |
-
-When multiple directives are joined (e.g. `"Pressure; Combat Fatigue"`), prioritize the primary directive and layer the secondary as a thematic modifier on the beat type.
+| Directive | Thread action | Beat hint | Gate |
+|-----------|--------------|-----------|------|
+| **"Breathe"** (floor relief) | Do NOT add new threads. Allow existing scene threads to persist without escalation. | `breathing_room` | `block_add` + force-closed |
+| **"Escalate"** | Add thread if gate allows; advance active threads proactively. | `pressure` / `escalation` | Depends on momentum |
+| **"Pressure"** | Advance relevant scene/arc threads. Add new thread only if gate permits. | `complication` / `pressure` | Varies by context |
+| **"" (empty)** | No action required beyond normal aging of silent threads. | None | Allow |
 
 ---
 
@@ -456,11 +414,11 @@ flowchart TD
     SR2["StateExtractResult<br>(Step 2b)"]:::stageState
     SR3["ProgressExtractResult<br>(Step 2c)"]:::stageProgress
 
-    MERGE["StateDelta<br>──────────────────<br>scene_tags, scene_tagline<br>location_change, location_description<br>npc_add / npc_remove / npc_update<br>compendium_npc_update<br>scene_pressure_add / remove / update<br>inventory_add / remove / update<br>pc_condition_add / remove<br>arc_update<br>recent_events_add / update / remove<br><br>(gm_beat NOT in StateDelta —<br>written directly to state.meta.pending_gm_beat)"]:::mergeNode
+    MERGE["StateDelta<br>──────────────────<br>scene_tags, scene_tagline<br>location_change, location_description<br>npc_add / npc_remove / npc_update<br>compendium_npc_update<br>thread_advance / thread_resolve / thread_add (gated)<br>inventory_add / remove / update<br>pc_condition_add / remove<br>arc_update<br>recent_events_add / update / remove<br><br>(gm_beat NOT in StateDelta —<br>written directly to state.meta.pending_gm_beat)"]:::mergeNode
 
     VALIDATE["_validate()<br>Check inventory_remove IDs exist<br>→ rejections: list[dict]"]:::pyNode
 
-    APPLY["apply_delta() — mutates state in-place<br>──────────────────────────────<br>inventory add / remove / update<br>pc.conditions add / remove (+ added_turn)<br>location (id, name, description)<br>scene.present_npcs<br>scene.tagline<br>scene.recent_events (ring buffer, max 15)<br>scene.world_state<br>scene_pressure_add / remove / update<br>  (scene: add/update; progress: remove)<br>quests (create-or-update)<br>compendium.npcs (upsert)<br>meta.compendium_touch_order (LRU)<br>meta.turn += 1"]:::pyNode
+    APPLY["apply_delta() — mutates state in-place<br>──────────────────────────────<br>inventory add / remove / update<br>pc.conditions add / remove (+ added_turn)<br>location (id, name, description)<br>scene.present_npcs<br>scene.tagline<br>scene.recent_events (ring buffer, max 15)<br>scene.world_state<br><br>_apply_thread_signals()<br>──────────────────────<br>thread_advance: progress +1 on matched ArcThread<br>thread_resolve: move to completed_threads with resolution_state<br>thread_add: create new ArcThread if gate == 'allow'<br>age-based demotion: active=True → False when last_seen_turn < turn_no - 5<br><br>quests (create-or-update)<br>compendium.npcs (upsert)<br>meta.compendium_touch_order (LRU)<br>meta.turn += 1"]:::pyNode
 
     DIFF["summarize_changes()<br>diffs pre vs post state<br>→ changes{inventory, player, facts, quests}"]:::pyNode
 
@@ -537,7 +495,7 @@ flowchart TD
     DELTA -- "validate + apply" --> STATE
     DELTA -- "event record" --> EVENTS
     DELTA -- "narrative" --> CHRONICLE
-    STEP2C -- "scene_pressure_add<br>gm_beat, beat_disposition" --> STATE
+    STEP2C -- "thread_advance/resolve/add<br>gm_beat (inferred disposition)" --> STATE
 ```
 
 ---
@@ -554,67 +512,56 @@ CampaignArc
   thematic_question: str     — The moral/thematic tension of the arc
   hidden_truths: list[str]   — Story secrets the narrator knows but must not reveal in prose
   discovered_truths: list[str] — Truths the player has uncovered (subset of hidden_truths)
-  active_threads: list[ArcThread]  — Currently advancing story threads (cap: 3)
-  latent_threads: list[ArcThread]  — Unactivated or waiting threads (cap: 4)
-  completed_threads: list[ArcThread] — Finished threads (complete, failed, or expired)
+  threads: list[ArcThread]   — Unified collection replacing active_threads + latent_threads split. Each thread has scope ("scene" or "arc") and active flag set by Python age rules, not LLM.
+  completed_threads: list[ArcThread] — Resolved/failed/abandoned threads; resolution_state preserved for narrative context
   pc_drive: str              — Player's expressed motivation/direction
 
-ArcThread
-  id: str                    — Unique identifier (derived from summary text)
+ArcThread (unified)
+  id: str                    — Unique identifier
   summary: str               — What this thread is about
+  scope: Literal["scene", "arc"]  # scene = short-lived tied to current location; arc = persistent story tension
+  active: bool = True        # False = dormant/latent; set by Python age rules (not LLM)
+  urgency: Literal["background", "normal", "urgent"] = "normal"
   tags: list[str]            — Keywords for engagement matching
-  state: ThreadState         — latent | active | complete | failed | expired
-  urgency: str               — normal | background | immediate
-  progress: int              — 0..3 (3 = completion threshold)
-  unlock_if: str | None      — Condition to promote from latent to active
-  promotes: list[str]        — Tags this thread unlocks when completed
-  last_offered_turn: int     — Turn this thread was last offered to player
-
-ThreadState: LATENT → ACTIVE → COMPLETE / FAILED / EXPIRED
+  progress: int              — 0..3 (incremented by thread_advance)
+  resolution_state: str | None # Set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads
+  last_seen_turn: int | None # For age-based active/dormant demotion in Python
+  added_turn: int | None     # Python-managed lifecycle tracking
 ```
 
-### Engine-Driven Arc: Thread Lifecycle
+**Key change from previous architecture:** `scene_pressure[]` and the split between `active_threads` / `latent_threads` are merged into a single `arc.threads[]`. The engine manages thread lifecycle via `_apply_thread_signals()`: age-based demotion (`active: True → False`) replaces the old active/latent migration logic, with silent threads (not listed in `thread_advance` for 5+ turns) being demoted to dormant state.
 
-Thread lifecycle runs in `engine/turn.py` during the extraction phase, after `apply_delta()` but before narration arc_update merge. Three functions handle the lifecycle:
+### Engine-Driven Arc: Unified Thread Lifecycle
+
+Thread lifecycle runs in `engine/turn.py` during the extraction phase, after `apply_delta()` but before narration arc_update merge. Two functions handle the unified thread operations:
 
 ```mermaid
 flowchart TD
     classDef pyNode fill:#1f2937,color:#9ca3af,stroke:#4b5563
     classDef arcNode fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
-    classDef capNode fill:#172554,color:#bfdbfe,stroke:#1d4ed8
 
-    PR["ProgressExtractResult<br>advanced_threads: list[str]"]:::pyNode
+    PR["ProgressExtractResult<br>thread_advance: list[str]<br>thread_resolve: list[ThreadResolution]"]:::pyNode
 
-    subgraph SIGNALS["_apply_thread_signals()"]
-        S1["For each ID in advanced_threads:<br>If active thread exists → progress +1,<br>last_seen_turn = turn_no"]
-        S2["Check silent threads (not in<br>advanced_threads):<br>If last_seen_turn < turn_no - 5 → demote to latent"]
-        S3["Auto-complete: progress ≥ 3 → COMPLETE"]
-        S4["Promotion cooldown:<br>skip if turn_no - arc_last_promotion_turn < 3"]
-        S5["Promotion: completed threads open slots<br>promote latent threads up to ACTIVE_CAP=3"]
+    subgraph SIGNALS["_apply_thread_signals() + _apply_thread_resolutions()"]
+        S1["For each ID in thread_advance:<br>If ArcThread exists → progress +1,<br>last_seen_turn = turn_no"]
+        S2["Check silent threads (not in<br>thread_advance):<br>If last_seen_turn < turn_no - 5 → demote active=False"]
+        S3["Auto-complete: progress ≥ 3 → move to completed_threads"]
     end
 
-    subgraph CANDIDATE["_candidate_to_latent_thread()"]
-        C1["candidate_opportunity string →<br>base_id from first 5 words"]
-        C2["Dedup: skip if id already exists<br>in active/latent/completed"]
-        C3["Cap check: latent cap = 4<br>evict oldest TACTICAL thread if full"]
-        C4["Create latent thread:<br>urgency=background, tags=[tactical]"]
+    subgraph RESOLVE["_apply_thread_resolutions()"]
+        R1["For each ThreadResolution in thread_resolve:<br>Move ArcThread to completed_threads<br>Persist resolution_state field"]
     end
 
-    PR --> S1 --> S2 --> S3 --> S4 --> S5
-    CANDIDATE -. "candidate_opportunity" .-> C1 --> C2 --> C3 --> C4
+    PR --> S1 --> S2 --> S3
+    PR -. "thread_resolve" .-> R1 --> S3
 
-    S5 -- "CampaignArc" --> ARC[arc state in<br>state.yaml]:::arcNode
-    C4 --> ARC
-
-    capNode
+    S3 -- "CampaignArc" --> ARC[arc state in<br>state.yaml]:::arcNode
 ```
 
 **Key rules:**
-- **Active cap:** 3 threads (down from 4). When a thread completes/fails, latent threads are promoted to fill slots.
-- **Latent cap:** 4 threads. When full and a new candidate arrives, the oldest tactical-tagged thread is evicted. Pack-seeded threads (no tactical tag) are never evicted.
-- **Completion threshold:** progress reaches 3 → thread marked COMPLETE.
-- **5-turn expiry:** Threads not listed in `advanced_threads` for 5+ turns get demoted to latent (state=latent), preserving them for potential re-engagement if narration later picks up old tags.
-- **Promotion cooldown:** New candidate threads promoted only every ~3 turns via check on `arc_last_promotion_turn`. Prevents rapid thread churn during fast-paced play.
+- **Unified collection:** `arc.threads[]` replaces the old active_threads/latent_threads split. The engine manages thread lifecycle via age-based demotion (`active: True → False`) instead of LLM-labeled urgency states.
+- **Completion threshold:** progress reaches 3 → thread moved to `completed_threads`. Resolution state is preserved on completed threads for narrative context and eval rubrics.
+- **5-turn expiry (age-based):** Threads not listed in `thread_advance` for 5+ turns get demoted (`active=False`). This replaces the old active→latent migration with a simpler boolean flag that Python manages directly from thread age, not LLM judgment.
 
 ### Narrator-Driven Arc: Phase & Truth Updates
 
@@ -631,7 +578,7 @@ flowchart LR
         NC1["visible_goal"]
         NC2["thematic_question"]
         NC3["phase"]
-        NC4["active_threads[] (summary, urgency, tags)"]
+        NC4["arc.threads[] (summary, scope,<br>urgency, tags)"]
         NC5["pc_drive"]
         NC6["hidden_truths[] — internal only<br>NARRATOR MUST NOT reveal in prose"]
         NC7["discovered_truths[]"]
@@ -657,7 +604,6 @@ flowchart LR
         M4["pc_drive: overwrite if present"]
         M5["hidden_truths: overwrite if present"]
         M6["discovered_truths: union with existing"]
-        M7["active_threads: upsert by id"]
     end
 
     NC1 & NC2 & NC3 & NC4 & NC5 & NC6 & NC7 --> PROSE
@@ -672,7 +618,7 @@ flowchart LR
 ```
 
 **Merge rules:**
-- **Engine owns threads** (active/latent/completed/expired). Narrator arc_update omits thread fields — they are ignored by `_merge_arc_update()`.
+- **Engine owns thread lifecycle** (active/dormant/completed via age-based demotion). Narrator arc_update omits thread fields — they are ignored by `_merge_arc_update()`.
 - **Narrator owns visible_goal/thematic_question/discovered_truths/hidden_truths.** Engine does not modify these.
 - **Discovered truths:** merged as set union (dedup).
 - **Merge order:** engine thread signals run first (setting `delta.arc_update`), then narrator arc_update is parsed after narration and merged on top via a second `_merge_arc_update()` call in `run_turn()`.
@@ -693,7 +639,7 @@ flowchart LR
         C1["visible_goal"]
         C2["thematic_question"]
         C3["phase"]
-        C4["active_threads[]<br>(summary, urgency, tags)"]
+        C4["arc.threads[]<br>(summary, scope, urgency)"]
         C5["pc_drive"]
         C6["hidden_truths[]"]
     end
@@ -726,13 +672,12 @@ flowchart TD
     end
 
     subgraph EXTRACT["Step 2c — Progress Extract"]
-        E1["Progress extractor emits<br>advanced_threads: list[str],<br>candidate_opportunity, latent_threads[]"]:::pyNode
+        E1["Progress extractor emits<br>thread_advance: list[str],<br>thread_resolve: list[ThreadResolution],<br>thread_add (gated by PacingContext.gate)"]:::pyNode
     end
 
     subgraph ARC_ENGINE["Arc Engine (turn.py)"]
-        A1["_apply_thread_signals()<br>process advanced_threads → update threads,<br>5-turn expiry for silent threads"]:::pyNode
-        A2["_candidate_to_latent_thread()<br>candidate_opportunity → latent"]:::pyNode
-        A3["_merge_arc_update()<br>engine arc_delta → state['arc']"]:::pyNode
+        A1["_apply_thread_signals() + _apply_thread_resolutions()<br>process thread_advance → update threads,<br>age-based demotion for silent threads<br>thread_resolve → completed_threads with resolution_state"]:::pyNode
+        A2["_merge_arc_update()<br>engine arc_delta → state['arc']"]:::pyNode
     end
 
     subgraph NARRATOR_MERGE["Narrator Arc Merge"]
@@ -743,10 +688,9 @@ flowchart TD
     STATE --> N1
     N1 --> N2
     N2 --> N3
-    E1 --> A1 --> A3
-    E1 -. candidate .-> A2 --> A3
+    E1 --> A1 --> A2
 
-    A3 --> N3 --> N4 --> STATE
+    A2 --> N3 --> N4 --> STATE
 ```
 
 ---

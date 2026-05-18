@@ -48,7 +48,7 @@ Scoring philosophy:
 Appears once. Contains:
 - World Pack Style
 - Seed State (full JSON)
-- Engine Constants (momentum range/deltas, pressure urgency levels, beat types)
+- Engine Constants (momentum range, thread urgency levels, beat types)
 - **5 System Prompts** — one per pipeline. These are the standing instructions.
   Every pipeline's outputs must be evaluated against its own system prompt.
 
@@ -92,22 +92,17 @@ mismatches actual narrative effect).
 After the table: Are beats generating at the right frequency? Are types varied or stuck
 on one type (e.g., all `complication`)?
 
-### 1C — Scene Pressure Table
+### 1C — Unified Thread Lifecycle Table
 
-| ID | Added (Tn) | Urgency | Escalated? | Resolved (Tm) | Lifespan (turns) | Flag |
-|----|------------|---------|------------|---------------|-----------------|------|
+| ID | Added (Tn) | Scope | Urgency | Location Changed? | Resolved/TTL (Tm) | Lifespan (turns) | Flag |
+|----|------------|-------|---------|-------------------|-------------------|-----------------|------|
 
-Flags: `INERT` (no escalation or resolution across ≥3 turns), `CAPPED` (resolved without
-player agency), `IMMEDIATE_NO_STAKES` (urgency=immediate but stakes not raised in
-narration), `OVERLONG` (lifespan > engine's configured max), `UNRESOLVED_AT_END`.
+Flags: `INERT` (no advancement across ≥3 turns), `CAPPED` (resolved without player agency), `OVERLONG` (lifespan > engine's configured max for scope), `UNRESOLVED_AT_END`. For scope=scene threads, add `EARLY_EXPIRATION` and `LATE_EXPIRATION` — scene-scoped threads expire on location change. CAP_EXCEEDED: more than 3 active threads.
 
 After the table:
-- Which pressures lasted too long? Too short?
-- Were there turns with zero active pressure that felt pacing-flat?
-- For any `INERT` pressure: recommend a cap (e.g., "cap `road_toughs_presence` at 4
-  turns then force escalation or resolve").
-- Were immediate pressures survivable through good player choices? Did failure create
-  interesting options or dead ends?
+- Which threads lasted too long? Too short?
+- Were there turns with zero active threads that felt pacing-flat?
+- For any `INERT` thread: recommend a cap or escalation path.
 
 ### 1D — Condition Lifecycle Table
 
@@ -253,21 +248,19 @@ For each turn with a `gm_beat` in T-N and narration in T-(N+1):
 Verdict: tight (beat always shapes narration), loose (beat present but narration
 wanders), or broken (beat ignored).
 
-### 4B — Momentum→Directive→Tone Chain
-For each roll turn: `roll band → directive issued → narration tone observed`.
-- Did directive language directly shape narrator prose register?
+### 4B — Momentum→PacingContext→Tone Chain
+For each roll turn: `roll band → PacingContext.directive issued → narration tone observed`.
+- Did directive language directly shape narrator prose register? (directive values: `""`, `"Breathe"`, `"Pressure"`, `"MoveOn"`, `"Escalate"`)
 - At momentum extremes (±2+), did narration feel correspondingly elevated or desperate?
 - Flag any turn where the chain broke — directive issued but tone ignored.
 
-### 4C — Pressure→Stakes→Consequence Chain
-For each `scene_pressure_add`:
-- Did the pressure feed into the next turn's rules `stakes` field?
-- Did `stakes` correctly name the mechanical consequence?
-- Did a roll setback/fail against that stake produce the named consequence?
-- Was the consequence extracted by state or progress?
+### 4C — Thread Tension Chain
+For each `thread_add` event:
+- Did the thread scope (scene/arc) align with its expected lifecycle?
+- Was a consequence extracted when band was setback/fail/crit_fail against that tension?
+- Was the consequence reflected in state or narration?
 
-Flag any break. A pressure that never feeds stakes is mechanically inert even if it
-exists in state.
+Flag any break. A thread that never feeds into story consequence is mechanically inert even if it exists in state.
 
 ### 4D — Condition→Narrative Callback
 For each active condition in state:
@@ -276,15 +269,11 @@ For each active condition in state:
 - Flag conditions that existed purely in state with no narrative or mechanical footprint.
 
 ### 4E — Pacing Assessment
-- **High-tension vs breathing turns:** Count each. Too many consecutive
-  immediate-pressure turns = player burnout. Too many breathing turns = stagnation.
-- **Pressure timer alignment:** Did any pressure sit inert long enough a player would
-  forget it? Suggest a cap in turns.
-- **Momentum arc:** Did the run have a momentum arc (low → build → peak → resolution)?
-  Or random oscillation with no story direction?
+- **High-tension vs breathing turns:** Count each. Too many consecutive high-pressure turns = player burnout. Too many breathing turns = stagnation.
+- **Thread timer alignment:** Did any thread sit inert long enough a player would forget it? Suggest a cap in turns. For scope=scene threads, verify location-change expiry is working.
+- **Momentum arc:** Did the run have a momentum arc (low → build → peak → resolution)? Or random oscillation with no story direction?
 - **Beat type variety:** Count beat types. Flag if >60% are the same type.
-- **Escape paths:** When player was in a bad situation (negative momentum, immediate
-  pressure), were there viable choices to improve it? Or a death spiral?
+- **Escape paths:** When player was in a bad situation (negative momentum, urgent threads), were there viable choices to improve it? Or a death spiral?
 
 ### 4F — NPC Entry/Exit Coherence
 For each NPC that appeared or left the scene:
@@ -311,16 +300,14 @@ Verdict: tight (player intent always honored), loose (occasional redirections), 
 
 The GM beat is a multi-turn narrative device. It flows through three phases:
 
-**Phase 1 — Creation.** Progress extractor emits `gm_beat` + `beat_disposition: "consume"`.
-Engine stores it in `state.meta.pending_gm_beat` with `beat_expires_turn = turn_no + 2`.
+**Phase 1 — Creation.** Progress extractor emits `gm_beat`. Engine stores it in `state.meta.pending_gm_beat` with `beat_expires_turn = turn_no + 2`. Disposition is inferred by Python, not emitted by LLM.
 
-**Phase 2 — Narration.** Beat is injected into the narrator prompt. Narrator weaves it into
-prose. After narration, beat is temporarily cleared then restored for extraction.
+**Phase 2 — Narration.** Beat is injected into the narrator prompt. Narrator weaves it into prose. After narration, beat is temporarily cleared then restored for extraction.
 
-**Phase 3 — Disposition.** Progress extractor sees the beat in its prompt and decides:
-- `consume`: beat was narrated, clear it
-- `carry`: beat was narrated but should persist (multi-turn arc), preserve unchanged
-- `replace`: beat was narrated but a new beat supersedes it, write new beat
+**Phase 3 — Inferred Disposition.** Python infers what happened to the beat:
+- If Progress emits a new `gm_beat` in this turn → old beat was replaced
+- If no `gm_beat` emitted and beat still present → beat aged (not consumed)
+- If beat's `expires_at` turn has passed → engine discards it
 
 **Evaluation checklist (per turn where a beat exists):**
 
@@ -328,24 +315,16 @@ prose. After narration, beat is temporarily cleared then restored for extraction
 |---|---|---|
 | Beat created | `extraction.progress.gm_beat` present in turn N | Beat has type + instruction |
 | Beat narrated | Narration contains content matching beat's instruction | Beat instruction reflected in prose |
-| Beat visible to progress | `extraction.progress` prompt contains `## pending_beat` block | Beat data present in user prompt |
-| Disposition honored | Compare `extraction.progress.beat_disposition` + `gm_beat` against `state_snapshot.meta.pending_gm_beat` | State matches disposition intent |
+| Beat visible to progress | `extraction.progress` prompt contains `## pending_gm_beat` block | Beat data present in user prompt |
 | TTL respected | Beat expires at `beat_expires_turn` | Beat is None after expiry turn |
-| No orphaned beats | Beat is None after 2 turns if not consumed | No beat persists beyond TTL |
-
-**Disposition-specific checks:**
-
-- **consume:** `state.meta.pending_gm_beat` must be `None` after turn. If beat persists → FAIL.
-- **carry:** `state.meta.pending_gm_beat` must be identical to the beat from the previous turn. If beat changed or cleared → FAIL. This is the most common failure mode — the engine used to clear the beat before extraction, making carry impossible.
-- **replace:** `state.meta.pending_gm_beat` must contain the new beat's type. If beat is None or has wrong type → FAIL.
+| No orphaned beats | Beat is consumed or expired within expected turns | No beat persists beyond TTL |
 
 **Common failure patterns:**
 - Beat generated every turn but consumed within 1 turn → progress LLM over-generating beats, not exercising `null`
-- Beat persists unchanged for 3+ turns → carry disposition not working, or beat never narrated
-- Beat type changes without `replace` disposition → engine ignoring disposition
-- Beat disappears after narration but progress LLM said "carry" → **engine bug** (this was the bug fixed in this session)
+- Beat persists unchanged for 3+ turns → beat never narrated or TTL exceeded without cleanup
+- Beat disappears after narration but should have persisted → **engine bug**
 
-**Verdict:** tight (disposition always honored, beats cycle correctly), loose (occasional disposition mismatches), or broken (beats cycle every turn, carry never works).
+**Verdict:** tight (beats cycle correctly), loose (occasional disposition mismatches), or broken (beats cycle every turn).
 
 ---
 
@@ -422,10 +401,9 @@ Verify every mechanic emitted is correctly owned. Flag any mechanic in the wrong
 | `scene_tags`, `scene_tagline` | scene |
 | `inventory_add`, `inventory_remove`, `inventory_update` | state |
 | `pc_condition_add`, `pc_condition_remove` | state |
-| `quest_updates` | progress |
+| `thread_advance`, `thread_resolve`, `thread_add` (gated) | progress |
 | `recent_events_add`, `recent_events_update`, `recent_events_remove` | progress |
-| `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update` | progress |
-| `gm_beat`, `beat_disposition` | progress |
+| `gm_beat` | progress |
 | `actions`, `outcome_summary` | progress |
 
 If misplaced: name the correct pipeline, name the data flow change needed.
@@ -477,8 +455,8 @@ Major failures cap score at 2. State the cap reason explicitly.
 Verify: roll band → directive → narration outcome. Flag inversions, ignored directives.
 
 ### Rules → Extract State Routing
-Verify: stakes → consequence extracted when band = setback/fail/crit_fail.
-Flag stakes named but no mechanical consequence extracted.
+Verify: band + verb/target encode failure cost. Flag turns where consequences were not extracted for setback/fail bands.
+Flag turns where consequences were not extracted for setback/fail bands.
 
 ### Narrate → Scene Extract Consistency
 NPC enter/exit narrated → scene extract captures it.
@@ -489,13 +467,12 @@ Inventory change narrated → state extract captures it.
 Condition change narrated → state extract captures it.
 
 ### Narrate → Progress Extract Consistency
-Quest objective narrated → progress extract captures it.
-Pressure change narrated → progress extract captures it.
+Thread objective narrated → progress extract captures via thread_advance/thread_resolve.
 
 ### Progress → Narrate Feedback Loop
 `gm_beat` from T-N surfaces in narration T-(N+1).
 `recent_events_add` from T-N appears in T-(N+1) context.
-`scene_pressure_add` from T-N appears in rules context T-(N+1).
+Unified threads (arc.threads[]) appear in rules/narrate context T-(N+1).
 
 ---
 
@@ -521,7 +498,7 @@ Flag unsanctioned introductions.
 
 ### failure_arc [trace]
 Did failures create interesting options rather than dead ends? Score based on 1C
-(pressures) and 1D (conditions) — did failures produce mechanics that affected future
+(unified threads with scope-aware lifecycle) and 1D (conditions) — did failures produce mechanics that affected future
 turns?
 
 **Dropped criteria (no longer scored):** `narrative_compellingness`, `npc_voice`,
@@ -564,9 +541,9 @@ For each of the 5 pipelines, assess whether its inputs and outputs are focused o
 
 **Extract Scene (Step 2a):** Inputs should be narrative, state.pc/location, scene.present_npcs, conditions, known_characters, RulesOutcome, active_domains, recent_turns[-1:]. Flag if the scene extractor receives inventory data, quest data, or pressure data — those belong to other pipelines. Flag if it receives too little context (e.g., no known_characters for NPC identity resolution).
 
-**Extract State (Step 2b):** Inputs should be narrative, state.pc, state.location, state.inventory, rules_outcome, active_domains, expired_conditions, scene_result (location_change, present_npcs), stakes, band. Flag if the state extractor receives quest data, recent_events, or pressure data — those belong to progress.
+**Extract State (Step 2b):** Inputs should be narrative, state.pc, state.location, state.inventory, rules_outcome, active_domains, expired_conditions. Flag if the state extractor receives quest data, recent_events, or thread/pressure data — those belong to other pipelines.
 
-**Extract Progress (Step 2c):** Inputs are the most complex — narrative, state.pc, recent_events, world_state, active_quests, scene_pressure, rules_outcome, intent, active_domains, recent_turns[-2:], stakes, band, deescalate, quest_ages, pending_beat. This is justified because progress is the "storytelling brain." Assess: is every input enabling a specific output? Flag inputs that appear unused. Note: items_gained/items_lost cross-stream was removed (state_ctx eliminated — extraction_ctx now covers all this-turn derived data).
+**Extract Progress (Step 2c):** Inputs are narrative, state.pc, recent_events, world_state, rules_outcome, intent, active_domains, PacingContext (full struct), arc.threads[] (unified), recent_turns[-2:]. This is justified because progress is the "storytelling brain." Assess: is every input enabling a specific output? Flag inputs that appear unused.
 
 For each pipeline, note: (a) inputs that seem unnecessary, (b) outputs that seem misplaced, (c) whether the input/output boundary aligns with the pipeline's responsibility. Score: 1–5.
 

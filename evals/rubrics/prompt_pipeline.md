@@ -88,10 +88,9 @@ For each turn, verify each mechanic is emitted by the correct stream.
 | `scene_tags`, `scene_tagline` | scene |
 | `inventory_add`, `inventory_remove`, `inventory_update` | state |
 | `pc_condition_add`, `pc_condition_remove` | state |
-| `advanced_threads`, `candidate_opportunity` | progress |
+| `thread_advance`, `thread_resolve`, `thread_add` (gated) | progress |
 | `recent_events_add`, `recent_events_update`, `recent_events_remove` | progress |
-| `scene_pressure_add`, `scene_pressure_remove`, `scene_pressure_update` | progress |
-| `gm_beat`, `beat_disposition` | progress |
+| `gm_beat` | progress |
 | `actions`, `outcome_summary` | progress |
 
 List any misplaced mechanics: turn, field, actual stream, correct stream.
@@ -108,11 +107,11 @@ For each pipeline, assess whether its inputs are focused:
 
 **Extract Scene**: should receive narrative, pc/location, present_npcs, conditions, known_characters, rules_outcome. Flag if it receives inventory or arc thread data.
 
-**Extract State**: should receive narrative, pc, inventory, rules_outcome, stakes, band, scene_result. Flag if it receives arc thread data, recent_events, or pressure data.
+**Extract State**: should receive narrative, pc, inventory, rules_outcome, band. Flag if it receives arc thread data, recent_events, or pressure data.
 
-**Extract Progress**: richest extractor — assess whether every input enables a specific output. Flag inputs that appear unused. Should receive: narrative, pc, recent_events, world_state, scene_pressure, rules_outcome, intent, recent_turns, stakes, band, deescalate, pending_beat, narration_directive, extraction_ctx (NPC/inventory/location/pressure/conditions from scene+state). Arc thread context (active_threads, latent_threads) is passed via state but thread lifecycle is engine-driven (not extraction-driven) — the extractor emits advanced_threads and candidate_opportunity rather than quest_updates. The legacy cross-stream items_gained/lost from state_ctx was removed once extraction_ctx covered this-turn derived data. Flag items_gained/lost — the legacy cross-stream state_ctx was removed once extraction_ctx covered this.
+**Extract Progress**: richest extractor — assess whether every input enables a specific output. Flag inputs that appear unused. Should receive: narrative, band, PacingContext (full struct), arc.threads[] (unified), recent_turns.
 
-Assess: is narration_directive being used by the progress extractor? Flag if it appears in the prompt but the extractor's output shows no evidence of using it for beats/pressure decisions.
+Assess: is pacing_context being used by the progress extractor? Flag if it appears in the prompt but the extractor's output shows no evidence of using directive/gate for thread/beat decisions.
 
 ---
 
