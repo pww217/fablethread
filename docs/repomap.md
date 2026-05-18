@@ -17,7 +17,6 @@
 | `ccya/engine/extraction.py` | _run_extraction_pipeline(): 3 streams (scene/state/progress), _call_stream() with retry |
 | `ccya/engine/seed.py` | generate_seed() for dynamic packs, soft validation |
 | `ccya/engine/changes.py` | summarize_changes(), format_change_lines() — diff pre vs post state → emoji display lines |
-| `ccya/engine/pressure.py` | _expire_scene_pressures(), _purge_scene_pressures() |
 | `ccya/engine/compactor.py` | maybe_compact(): chronicle compaction + state sanitization (NPC merge, inventory remove, etc.) |
 | `ccya/engine/npc_roster.py` | build_npc_roster() — merges present/known/recently_left NPCs with presence tags |
 | `ccya/engine/generate_pack.py` | generate_pack_from_brief(): SSE-driven ephemeral pack generation from world brief |
@@ -94,9 +93,9 @@ Steps 3–5 merge into StateDelta → _validate() → apply_delta() → summariz
 ### Error propagation path
 LLM failure in extraction → `_call_stream` returns retry_errors tuple → `StateDelta.rejected` populated by _validate() (inventory_remove IDs must exist, rejects zero-balance removes) → errors collected as list[dict] on TurnResult.errors → server stores in `_ERRORS_LOG` (deque last 50) → SSE error event pushed to frontend via logging_setup.py
 
-### Scene pressure lifecycle (migrated to unified threads)
-- `scene_pressure` was migrated to `arc.threads[]` with `scope: scene` in phase 01 — the old separate scene_pressure model no longer exists on state.scene
-- Thread age-based rules handle urgency escalation (background→building at 3 turns, building→immediate at 5 turns) via Python logic, not LLM labels
+### Scene thread lifecycle (unified arc.threads[])
+- All scene_pressure functionality migrated to `arc.threads[]` with `scope: scene` — ccya/engine/pressure.py module deleted in phase 06 validation sweep
+- Thread age-based rules handle urgency escalation via Python logic, not LLM labels
 
 ### Arc thread state machine
 - States: LATENT → ACTIVE (via unlock_if condition met) → COMPLETE/FAILED (via advanced_threads progress counter at 3) / EXPIRED (5+ silent turns via last_seen_turn tracking)

@@ -54,7 +54,7 @@ If the player describes multiple actions in one turn:
 - The other actions are narrative texture; the narrator resolves them in prose.
 - If individually-trivial sub-actions compound into something risky ("sneak past three guards then lift the badge"), classify as ONE harder check rather than rolling for each step.
 - `intent` should summarise the full sequence; `intent_verb` and `check` apply to the gating action only.
-- If the gating action would fail, the chain does not continue — note this in `stakes`.
+- If the gating action would fail, the chain does not continue.
 
 ## Anti-declare-outcome rule
 If the player's phrasing asserts the result ("I one-shot the guard", "I instantly convince her", "I hack through in seconds") — classify the underlying attempt at hard or extreme difficulty. Never let the player's prose dictate success.
@@ -63,9 +63,8 @@ If the player's phrasing asserts the result ("I one-shot the guard", "I instantl
 {
   "intent": "", 
   "intent_verb": "",
-  "target": "",
-  "stakes": "",
-  "check": {
+   "target": "",
+   "check": {
     "required": boolean,
     "skill": "",
     "difficulty": ""
@@ -82,7 +81,6 @@ If the player's phrasing asserts the result ("I one-shot the guard", "I instantl
   - `pick lock/safes` → `sneak` (not `hack`)
   - `climb scale/ledge` → `climb` (not `sneak`)
 - `target`: who or what the action is directed at, or empty string if a general action.
-- `stakes`: what is at risk if this fails. Use this template: `[Mechanical cost: difficulty increase/condition/harm] + [Narrative consequence: what the antagonist/world does next]`. If nothing meaningful is at risk, emit empty string.
 - `check`: an object with the following fields:
   - `required`: true or false.
   - `skill`: strength|dexterity|wits|lore|charisma|resolve.

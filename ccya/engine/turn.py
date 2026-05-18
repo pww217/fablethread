@@ -27,7 +27,7 @@ from ccya.engine.extraction import (
 from ccya.engine.names import generate_npc_names_split
 from ccya.engine.narrate import _known_characters_for_extract, _narrate_messages
 from ccya.engine.npc_roster import build_npc_roster
-from ccya.engine.pressure import _expire_scene_pressures, _purge_scene_pressures
+
 from ccya.engine.rules import _avg_rules_ms, _call_rules, _log_rules_outcome, _rules_messages
 from ccya.llm_client import (
     chat as llm_chat,
@@ -537,25 +537,23 @@ def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
 
 
 def _compute_threat_ages(state: dict[str, Any]) -> list[dict[str, Any]]:
-    """Compute age of each scene pressure for threat imperative directives.
+    """Compute age of each scene-scoped arc thread for threat imperative directives.
 
     Returns a list of dicts with keys: id, text, urgency, age.
-    Only includes pressures with a valid turn_added (> 0).
+    Only includes threads with a valid added_turn (> 0).
     """
-    pressures = list((state.get("scene") or {}).get("scene_pressure") or [])
+    threads = [t for t in ((state.get("arc") or {}).get("threads") or []) if isinstance(t, dict) and t.get("scope") == "scene"]
     current_turn = (state.get("meta") or {}).get("turn", 0)
     result: list[dict[str, Any]] = []
-    for p in pressures:
-        if not isinstance(p, dict):
-            continue
-        turn_added = p.get("turn_added")
-        if not turn_added or turn_added == 0:
+    for t in threads:
+        added_turn = t.get("added_turn") or t.get("last_seen_turn")
+        if not added_turn or added_turn == 0:
             continue
         result.append({
-            "id": p.get("id", ""),
-            "text": p.get("text", ""),
-            "urgency": p.get("urgency", "background"),
-            "age": current_turn - turn_added,
+            "id": t.get("id", ""),
+            "text": t.get("summary", ""),
+            "urgency": t.get("urgency", "background"),
+            "age": current_turn - added_turn,
         })
     # Sort by age descending so the oldest threat is first
     result.sort(key=lambda x: x["age"], reverse=True)
@@ -756,8 +754,9 @@ async def run_turn(
                 outcome.rolled
                 and outcome.band in ("success", "crit_success")
                 and any(
-                    p.get("urgency") in ("immediate", "building")
-                    for p in (state.get("scene") or {}).get("scene_pressure") or []
+                    t.get("urgency") in ("immediate", "building")
+                    for t in ((state.get("arc") or {}).get("threads") or [])
+                    if isinstance(t, dict) and t.get("scope") == "scene"
                 )
             ):
                 deescalate = 1.0 if outcome.band == "crit_success" else 0.6
@@ -872,10 +871,10 @@ async def run_turn(
             momentum_ceiling=config.momentum_ceiling,
         )
 
-        _raw_scene_pressure = (state.get("scene") or {}).get("scene_pressure") or []
+        _raw_threads = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict) and t.get("scope") == "scene"]
         _effective_pressure = _inject_location_pressure(
             ages=ages,
-            existing_pressure=_raw_scene_pressure,
+            existing_pressure=_raw_threads,
             location_pressure_at=config.location_pressure_at,
             location_imperative_at=config.location_imperative_at,
         )
@@ -1038,26 +1037,6 @@ async def run_turn(
                 state.setdefault("meta", {})["pending_gm_beat"] = None
 
         yield ("phase", {"phase": "extract_done"})
-
-        # --- Scene pressure: purge stale pressures, then expire/escalate ---
-        if delta is not None:
-            location_changed = bool(delta.location_change)
-            # Combat ended: combat was in last turn's tags but not in current
-            combat_ended = False
-            if not location_changed and delta.scene_tags is not None:
-                current_tags = set(delta.scene_tags)
-                prev_events = load_recent_events(save_dir, 1)
-                if prev_events:
-                    prev_tags = set(prev_events[0].get("scene_tags") or [])
-                    if "combat" in prev_tags and "combat" not in current_tags:
-                        combat_ended = True
-            _purge_scene_pressures(
-                state, delta,
-                location_changed=location_changed,
-                combat_ended=combat_ended,
-                config=config,
-            )
-            _expire_scene_pressures(state, delta, config, avoidance=avoidance)
 
         # Condition age pass: decrement turns_remaining, remove expired
         updated_conds = []

@@ -54,7 +54,7 @@ def _narrate_messages(
             "visible_goal": arc.get("visible_goal", ""),
             "thematic_question": arc.get("thematic_question", ""),
             "phase": arc.get("phase", "setup"),
-            "active_threads": [
+            "threads": [
                 {
                     "summary": t.get("summary", "") if isinstance(t, dict) else getattr(t, "summary", ""),
                     "urgency": t.get("urgency", "normal") if isinstance(t, dict) else getattr(t, "urgency", "normal"),
