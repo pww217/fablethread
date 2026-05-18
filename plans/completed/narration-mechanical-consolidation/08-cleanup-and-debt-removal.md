@@ -1,7 +1,7 @@
 # Cleanup: Remove Stale Code from Narration Simplification Migration
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 

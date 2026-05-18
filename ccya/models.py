@@ -429,14 +429,6 @@ class CompactorSanitizationResult(BaseModel):
         return _coerce_sanitization_actions(v)
 
 
-class ScenePressure(BaseModel):
-    id: str
-    text: str
-    urgency: Literal["immediate", "building", "background"] = "background"
-    turn_added: int = 0
-    max_turns: int | None = None
-
-
 class ThreadResolution(BaseModel):
     """Structured resolution for a thread — replaces scene_pressure_remove semantics."""
     id: str

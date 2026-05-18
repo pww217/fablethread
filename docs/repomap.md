@@ -104,8 +104,7 @@ LLM failure in extraction → `_call_stream` returns retry_errors tuple → `Sta
 - ArcThread.resolution_state: str | None — set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads for narrative context and eval rubrics (Phase 05c)
 
 ### EngineConfig field naming (Phase 06b)
-- Config fields renamed from `scene_pressure_*` to `thread_urgency_*` / `thread_deescalate_on_success`: thread_urgency_building_at, thread_urgency_immediate_at, thread_urgency_max_age, thread_urgency_immediate_ttl, thread_deescalate_on_success
-- game.yaml keys remain as-is for backward compatibility; build_engine_config() maps old keys to new field names
+- Config fields: thread_urgency_building_at, thread_urgency_immediate_at, thread_urgency_max_age, thread_urgency_immediate_ttl, thread_deescalate_on_success — YAML keys match Python field names directly.
 
 ### Computation functions (Phase 06b)
 - `_compute_narration_directive()` derives urgency counts from unified ArcThread objects with scope=scene instead of raw scene_pressure dicts

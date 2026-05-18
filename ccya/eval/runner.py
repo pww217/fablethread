@@ -280,11 +280,11 @@ def _check_asserts(
 
         elif a.stream == "extract.progress":
             applied = event.get("applied") or {}
-            if a.field == "advanced_threads":
+            if a.field == "thread_advance":
                 output = ((event.get("extraction") or {}).get("progress") or {}).get("output") or {}
-                threads = output.get("advanced_threads") or []
+                threads = output.get("thread_advance") or []
                 passed = a.expected in threads
-                detail = f"advanced_threads[{a.expected}] {'found' if passed else 'not found'}"
+                detail = f"thread_advance[{a.expected}] {'found' if passed else 'not found'}"
 
         elif a.stream == "extract":
             extraction = event.get("extraction") or {}
