@@ -76,7 +76,7 @@ def _default_state() -> dict[str, Any]:
             "discovered_truths": [],
             "threads": [],  # unified arc.threads[] replaces scene_pressure[], active_threads[], and latent_threads[] — scope-aware lifecycle management via ArcThread.active bool flag
             "completed_threads": [],
-        },  # scene_pressure removed from state.yaml schema, models.py StateDelta, apply_delta(), delta.py — migrated to arc.threads[] with scope: scene for backward compatibility during transition period 
+        },
         "scene": {
             "tags": [],
             "world_state": [],

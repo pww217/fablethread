@@ -1035,7 +1035,6 @@ async def run_turn(
             present_npcs=_present_npcs,
             compendium_bios=_compendium_bios,
             pc_allegiance=_pc_allegiance,
-            scene_pressure=_effective_pressure,
             turn_no=turn_no,
             world_factions=_world_factions,
             world_locations=_world_locations,
@@ -1241,8 +1240,14 @@ async def run_turn(
                 recent_events_max=config.recent_events_max,
                 current_turn_no=turn_no,
             )
-            # Add floor relief check after momentum is updated by apply_delta
-            _check_floor_relief(state, config, outcome.band if outcome.rolled else "")
+            # Inject floor relief beat via PacingContext.beat_locked
+            if _pc.beat_locked and not state.get("meta", {}).get("pending_gm_beat"):
+                meta = state.setdefault("meta", {})
+                meta["pending_gm_beat"] = {
+                    "type": "breathing_room",
+                    "surface_as": "ambient",
+                    "beat_expires_turn": (state.get("meta") or {}).get("turn", 0) + 3,
+                }
             recent_events = list(delta.recent_events_add)
             applied = delta.model_dump(exclude_none=True)
             for r in rejected:
@@ -1556,46 +1561,6 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
             )
 
     return rejections
-
-
-def _check_floor_relief(
-    state: dict[str, Any], config: EngineConfig, band: str
-) -> None:
-    """Check momentum floor and inject breathing_room beat if relief conditions met.
-
-    Tracks consecutive floor turns via state["meta"]["consecutive_floor_count"].
-    Resets counter on any non-floor momentum or success/crit_success band.
-    """
-    floor = config.momentum_floor
-    relief_threshold = config.momentum_floor_relief_turns
-    cur_momentum = (state.get("pc") or {}).get("momentum", 0)
-    meta = state.setdefault("meta", {})
-
-    if cur_momentum != floor:
-        meta["consecutive_floor_count"] = 0
-        return
-
-    if band in ("success", "crit_success"):
-        meta["consecutive_floor_count"] = 0
-        return
-
-    count = int(meta.get("consecutive_floor_count", 0)) + 1
-    meta["consecutive_floor_count"] = count
-
-    if (
-        count >= relief_threshold
-        and meta.get("pending_gm_beat") is None
-    ):
-        meta["pending_gm_beat"] = {
-            "type": "breathing_room",
-            "surface_as": "ambient",
-            "beat_expires_turn": (state.get("meta") or {}).get("turn", 0) + 3,
-        }
-        _log.info(
-            "pacing: injecting breathing_room beat (floor=%d, consecutive=%d)",
-            cur_momentum, count,
-            extra={"turn": (state.get("meta") or {}).get("turn", 0), "trace_id": "", "pack": "", "kind": "pacing"},
-        )
 
 
 async def warmup(config: EngineConfig) -> None:
