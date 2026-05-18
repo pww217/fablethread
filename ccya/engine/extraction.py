@@ -49,8 +49,6 @@ class _ExtractionContext:
     """Location dict after applying location_change from scene result (or state's if no change)."""
     scene_tags_this_turn: list[str] = field(default_factory=list)
     """scene.tags after scene stream."""
-    scene_pressure_this_turn: list[dict[str, Any]] = field(default_factory=list)
-    """scene_pressure after applying scene stream's pressure add/remove."""
 
     # State stream outputs (stream 2)
     inventory_this_turn: list[dict[str, Any]] = field(default_factory=list)
@@ -101,7 +99,6 @@ def _build_extraction_context(
         present_npcs_this_turn=list(post_scene.get("present_npcs") or []),
         location_this_turn=location_this_turn,
         scene_tags_this_turn=list(post_scene.get("tags") or []),
-        scene_pressure_this_turn=list(post_scene.get("scene_pressure") or []),
         inventory_this_turn=list(post_state.get("inventory") or []),
         conditions_this_turn=list(post_pc.get("conditions") or []),
     )
@@ -332,14 +329,10 @@ def _extract_progress_messages(
     extraction_ctx: "_ExtractionContext",
     enable_thinking: bool = False,
         intent: "IntentEnvelope | None" = None,
-        deescalate: float = 0.0,
-        narrative_velocity: float = 0.0,
+        pacing_context: Any | None = None,
         recent_turns: list[dict[str, Any]] | None = None,
         turn_no: int = 0,
-        stakes: str = "",
     band: str = "",
-    narration_directive: str = "",
-    resolved_pressures: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 3 (thread signals + facts + actions + outcome_summary)."""
     pc = state.get("pc") or {}
@@ -347,14 +340,6 @@ def _extract_progress_messages(
 
     arc = state.get("arc") or {}
     all_threads = [t for t in (arc.get("threads") or []) if isinstance(t, dict)]
-    active_threads = [
-        {"id": t["id"], "summary": t["summary"], "urgency": t.get("urgency", "normal"), "tags": t.get("tags", []), "scope": t.get("scope", "arc")}
-        for t in all_threads if getattr(t, "active", True) or (isinstance(t, dict) and t.get("active") is not False)
-    ]
-    latent_threads = [
-        {"id": t["id"], "summary": t["summary"], "urgency": t.get("urgency", "normal"), "tags": t.get("tags", []), "last_seen_turn": t.get("last_seen_turn"), "scope": t.get("scope", "arc")}
-        for t in all_threads if not getattr(t, "active", True) and (not isinstance(t, dict) or t.get("active") is False)
-    ]
     recent_events = list(scene.get("recent_events") or [])
     world_state = list(scene.get("world_state") or [])
 
@@ -375,24 +360,18 @@ def _extract_progress_messages(
             # This-turn derived values (from extraction_ctx) — NOT state
             "npc_roster": npc_roster,
             "location": extraction_ctx.location_this_turn,
-            "scene_pressure": extraction_ctx.scene_pressure_this_turn,
             "inventory": extraction_ctx.inventory_this_turn,
             "conditions": extraction_ctx.conditions_this_turn,
             # State-sourced (these don't change within a turn)
-            "active_threads": active_threads,
-            "latent_threads": latent_threads,
+            "all_threads": all_threads,
             "recent_events": recent_events,
             "world_state": world_state,
             "intent": intent,
-            "deescalate": deescalate,
-            "narrative_velocity": narrative_velocity,
+            "pacing_context": pacing_context,
             "recent_turns": recent_turns or [],
             "turn_no": turn_no,
-            "stakes": stakes,
             "band": band,
             "pending_beat": pending_beat,
-            "narration_directive": narration_directive,
-            "resolved_pressures": resolved_pressures or [],
         },
     )
     msgs = [
@@ -484,11 +463,8 @@ async def _run_extraction_pipeline(
     config: "EngineConfig",
     trace_id: str,
     turn_no: int,
-    deescalate: float = 0.0,
-    narrative_velocity: float = 0.0,
+    pacing_context: Any | None = None,
     recent_turns: list[dict[str, Any]] | None = None,
-    narration_directive: str = "",
-    resolved_pressures: list[dict[str, Any]] | None = None,
 ) -> "AsyncIterator[tuple[str, Any] | tuple['StateDelta', list[str], str, dict[str, Any], 'ProgressExtractResult', 'SceneExtractResult']]":
     """Run the three extraction streams in sequence.
 
@@ -602,14 +578,10 @@ async def _run_extraction_pipeline(
         extraction_ctx=extraction_ctx,
         enable_thinking=config.enable_extract_thinking,
         intent=intent,
-        deescalate=deescalate,
-        narrative_velocity=narrative_velocity,
+        pacing_context=pacing_context,
         recent_turns=(recent_turns or [])[-2:],
         turn_no=turn_no,
-        stakes="",
         band=_band,
-        narration_directive=narration_directive,
-        resolved_pressures=resolved_pressures,
     )
     # Capture pre-trim content for context_meta so the judge sees original sizes
     rendered_prog_system = progress_msgs[0]["content"] if progress_msgs else ""

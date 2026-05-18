@@ -10,33 +10,34 @@ Extract recent events, suggested player actions, outcome summary, and thread adv
   "actions": [],
   "outcome_summary": "",
   "gm_beat": null,
-  "beat_disposition": "consume",
-  "scene_pressure_add": [],
-  "scene_pressure_remove": [],
-  "scene_pressure_update": [],
-  "advanced_threads": ["thread_id_1", "thread_id_2"],
-  "candidate_opportunity": null
+  "thread_advance": ["thread_id_1", "thread_id_2"],
+  "thread_resolve": [{"id": "thread_id", "resolution_state": "resolved"}],
+  "thread_add": null
 }
 ```
 
-## Field rules
+## Thread operations — unified for all scopes
 
-`advanced_threads`: A list of snake_case thread IDs that were meaningfully advanced this turn. If no threads (active or latent) were touched, emit an empty array []. Each ID must match exactly the id from either the active_threads or latent_threads lists in context.
+All thread operations work regardless of scope. You do NOT need to decide if a tension is "scene" or "arc". Python handles scoping via the ArcThread.scope field. Emit only what actually happened this turn.
 
-CONTEXT NOTE for LLM: You will see two sections — ACTIVE THREADS and LATENT THREADS.
-- Active threads are currently pressing storylines. Advancing them keeps momentum.
-- Latent threads are dormant but still relevant. Re-engaging one signals it should be promoted back to active.
-- Include a thread ID if this turn's events DIRECTLY advanced that specific thread, whether from either section.
+`thread_advance`: List of snake_case thread IDs meaningfully advanced this turn. Include ONLY if events directly advanced that specific thread (same rules as old advanced_threads: meaningful action, not just mention/background presence). Example output: `["the_missing_ore", "fraying_rigging_and_broken"]`.
 
-Example output: `["the_missing_ore", "fraying_rigging_and_broken"]`
-
-CRITICAL RULES for including a thread ID:
+CRITICAL RULES for including a thread ID in thread_advance:
 - Include ONLY if this turn's events DIRECTLY advanced that specific thread. The player took meaningful action toward it. A check was rolled on it, or its narrative arc clearly progressed.
 - Do NOT include threads merely mentioned in narration. Mentioning ≠ advancing.
 - Do NOT include threads present as background. Presence ≠ advancement.  
 - If uncertain whether a thread was advanced — do not include it. Under-inclusion is better than false positives. The 5-turn expiry timer will handle dormant threads.
 
-`candidate_opportunity`: If the narrative introduced a new potential hook (a person, place, object, or situation that could become a future thread), describe it in one sentence. Leave null if nothing new emerged.
+`thread_resolve`: Threads fully resolved this turn (the tension ends, rather than just progressing). Each entry has an `id` and a `resolution_state`:
+- `"resolved"` = tension addressed successfully
+- `"failed"` = tension escalated negatively  
+- `"abandoned"` = player moved on without addressing it
+
+Use thread_advance if you're advancing progress toward completion; use thread_resolve if the turn ends the tension entirely.
+
+`thread_add`: A new ArcThread object when a genuinely new story tension emerges this turn. CRITICAL: Only emit thread_add when `pacing_context.gate` shows `"allow"` — if gate is `"block_add"` or `"block_escalate"`, do NOT add threads regardless of narrative context. The engine already decided the pacing doesn't support escalation. Thread must have: id (snake_case), summary, scope ("scene" for short-lived tension tied to current location/NPCs, "arc" for persistent story tension), urgency, tags (list).
+
+## Recent events rules
 
 `recent_events_add`: Default to no new facts. Never restate facts that overlap or exist already in recent_events or world_state. Top priority for new facts: must be relevant to the arc, player, scene, and location, and not already known. Must be narratively significant: an obstacle, revelation, opportunity, relevant news that changes the player, location, or arc state substantially. Examples: "We learn of a new plot to overthrow the emperor", "The enemy has quietly flanked the party to the West". Each: `{"id": "snake_case_id", "text": "Event description", "turn": <CURRENT_TURN>}`. The current turn number is shown at the top of the user prompt under `## turn`. Always use that value — never 0.
 
@@ -50,23 +51,22 @@ Each new event must have a stable `snake_case` ID. To update an existing event's
 
 `outcome_summary`: one or two short sentences: what just happened in flavor terms, showing narrative impact on player, NPCs, scene, and location. Ground this in the roll outcome (if any) and the player's intent. For failures: describe what went wrong narratively. Examples: `"You successfully picklock the padlock and enter the vault."`, `"The guard spots you and raises the alarm."`
 
-## Narration directive guidance
+## PacingContext guidance
 
-The `narration_directive` section (when present) tells you how the narrator is shaping tone for this turn. Use it to inform `gm_beat` and `scene_pressure` decisions:
+The `pacing_context` section tells you how Python shaped tone for this turn. Use it to inform `gm_beat` and thread decisions:
 
-- **Breathe** → prefer `breathing_room` beat or `null`. Do NOT add new immediate pressures. Allow existing pressures to persist without escalation.
-- **Overwhelm** → emit `gm_beat` of type `pressure` or `escalation`. Add `scene_pressure_add` at `immediate` urgency when a named NPC/faction escalates. Do NOT remove existing pressures.
-- **Pressure** → emit `gm_beat` of type `pressure` or `complication`. Add `scene_pressure_add` at `building` or `immediate` urgency when a deadline or off-screen threat advances.
-- **Tension** → emit `gm_beat` of type `complication` or `setback`. Do NOT add pressures unless a concrete threat emerges.
-- **Resolve a Threat** → remove resolved pressures from `scene_pressure_remove`. Do NOT add new beats for resolved threats.
-- **Combat Fatigue** (secondary directive) → when paired with another directive, consider `gm_beat` of type `setback` or `complication` reflecting exhaustion or attrition.
+- **Breathe** → prefer `breathing_room` beat, do NOT add threads even if gate allows, resolve tensions where possible
+- **Overwhelm** → emit `gm_beat` of type `pressure`/`escalation`, may add scene-scoped threads if gate == "allow" 
+- **Pressure** → emit `gm_beat` of type `complication`/`pressure`, advance existing threads rather than adding new ones
+- **Tension** → do NOT add pressures unless concrete threat emerges; prefer advancing existing threads
+- **Resolve a Threat** → resolve resolved threads via thread_resolve with resolution_state="resolved"; do NOT add new threads
+- **Combat Fatigue** (secondary) → layer as thematic modifier on beat type, not a separate operation
 
 When multiple directives are joined (e.g. "Pressure; Combat Fatigue"), prioritize the primary directive and layer the secondary as a thematic modifier on the beat type.
 
+## GM Beat guidance
+
 `gm_beat`: a single GM beat to shape the next turn, or `null` if none is needed.
-- `deescalate > 0.5` → prefer `breathing_room` or `null` (no beat)
-- `deescalate == 0.0` with active pressure → `pressure` or `escalation`
-- `narration_directive` takes precedence over `deescalate` when both are present
 - Recent `twist` or `callback` beats should not repeat within 2 turns, **but callbacks SHOULD fire during narrative peaks** — a callback referencing an earlier event is most effective at major pivot moments (near-death stabilization, unexpected revelation). Do not suppress callbacks just because one fired recently.
 
 **Beat type diversity:** During extended sequences (3+ consecutive pressure-type beats), at least every third beat must use a non-pressure type. Pressure and escalation are appropriate during active crises, but callbacks, complications, and revelations break monotony even in tense moments. A callback beat references an earlier narrative development: "The merchant you spared last week returns with reinforcements — he remembers your mercy."
@@ -90,12 +90,12 @@ When multiple directives are joined (e.g. "Pressure; Combat Fatigue"), prioritiz
 
 **Band-aligned beat selection:** The roll band determines what kind of beat is narratively appropriate — do not ignore this signal even when scene pressures are active:
 
-- **crit_success / success**: `opportunity`, `escalation` (the world reacts to PC momentum), or `breathing_room` if deescalate > 0.5
+- **crit_success / success**: `opportunity`, `escalation` (the world reacts to PC momentum), or `breathing_room` if deescalating
 - **partial**: `complication`, `pressure` — the player succeeded but at a cost; the beat should reflect that cost
 - **setback / fail**: `breathing_room`, `null`, or rarely `complication`. Do NOT emit escalation or pressure beats on failed checks — the failure itself is the consequence. Escalation compounds punishment and breaks pacing.
 - **No roll (pure approach/sit)**: `null` unless there's an independent narrative reason for a beat
 
-When deescalate > 0.5, always prefer `breathing_room` or `null` regardless of band.
+When deescalating, always prefer `breathing_room` or `null` regardless of band.
 - `type` values: `complication`, `revelation`, `opportunity`, `breathing_room`, `pressure`, `twist`, `setback`, `escalation`, `callback`
 - `surface_as` values: `ambient`, `event`, `npc_behavior`, `environmental`, `player_discovery`, `item`
 
@@ -112,25 +112,6 @@ When deescalate > 0.5, always prefer `breathing_room` or `null` regardless of ba
 - Each beat must be narratively specific: name NPCs, reference locations, tie to active threads
 - Emit as: `{"type": "pressure", "surface_as": "npc_behavior", "instruction": "The guard captain returns with reinforcements."}`
 - If no beat is warranted, emit `null` (not an empty object)
-
-`beat_disposition`: controls what happens to the pending_gm_beat from the previous turn. Values: `"consume"` (default) — beat is cleared after narration; `"carry"` — beat stays in meta.pending_gm_beat unchanged for the next turn; `"replace"` — the new gm_beat above supersedes the carried one. If you emit a new gm_beat, use `"replace"`. If you want to preserve an unsurfaced beat (it has not appeared in narration yet), emit `"carry"` and leave gm_beat null.
-
-**Disposition decision tree:**
-1. Is there a `pending_beat` from the previous turn? If no → emit `"consume"` (default), omit beat_disposition if you prefer.
-2. Was the pending beat NOT surfaced by the narrator (it was not woven into narration)? → emit `"carry"` and leave `gm_beat` null. The beat persists to the next turn.
-3. Was the pending beat narrated AND no new beat is needed? → emit `"consume"` (default). Beat is cleared.
-4. Was the pending beat narrated AND you want to generate a new beat? → emit `"replace"` with the new `gm_beat`. The new beat supersedes the old one.
-5. Was the pending beat narrated AND you want to preserve it for another turn (multi-turn arc)? → emit `"carry"` and leave `gm_beat` null. Do NOT generate a new beat — the existing one continues.
-
-**Critical: do NOT generate a new beat every turn.** Only emit `gm_beat` when there is a genuine narrative development that warrants shaping the next turn. If the current beat is still relevant and being carried, do NOT replace it with a new beat just to fill space. Beats should be sparse and meaningful, not constant.
-
-`scene_pressure_add`: new scene pressures generated from story causality this turn. Each: `{"id": "snake_case_id", "text": "Threat description", "urgency": "immediate|building|background", "turn_added": <CURRENT_TURN>}`. Add pressure when a named NPC/faction acts against the player off-screen, a deadline triggers, or a failed roll's consequence activates. Do NOT add pressure for resolved threats or vague ambient danger. When `narration_directive` is `Overwhelm` or `Pressure`, be proactive about adding pressures — this is the narrator's signal that tension should escalate.
-
-`scene_pressure_remove`: IDs of pressures now resolved. Emit the id string in the list.
-**IMPORTANT: If the narration shows a threat being resolved (e.g., the swarm scatters, the pursuers give up, the danger passes), you MUST emit its ID here. This includes threats resolved in response to a "Resolve a Threat" narration directive — the narrator resolved it, you remove it from state.**
-
-`scene_pressure_update`: Change the text or urgency of an EXISTING pressure. Each: `{"id": "existing_pressure_id", "text": "updated text", "urgency": "immediate|building|background"}`.
-**RULE: update-only.** Every `id` you emit MUST match an id in the `## Current Pressures` list provided in the user prompt. Do not invent new pressure ids here. If you need a new pressure, use `scene_pressure_add` instead.
 
 ## GM Beat Grounding Rule
 
