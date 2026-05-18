@@ -446,6 +446,70 @@ def _compute_narration_directive(
     return "; ".join(parts)
 
 
+def _compute_pacing_context(
+    deescalate: float,
+    narrative_velocity: float,
+    scene_pressure: list[dict[str, Any]],
+    ages: dict[str, int],
+    threat_ages: list[dict[str, Any]] | None,
+    pending_beat: dict[str, Any] | None,
+    momentum: int,
+    config: "EngineConfig",
+) -> PacingContext:
+    """Compute unified pacing context for Narrate and Progress steps.
+
+    Replaces separate deescalate/narrative_velocity signals with a single
+    authoritative struct containing directive, beat_hint, beat_locked, gate, summary.
+    """
+    # Compute directive using existing logic
+    directive = _compute_narration_directive(
+        narrative_velocity=narrative_velocity,
+        scene_pressure=scene_pressure,
+        ages=ages,
+        threat_ages=threat_ages or [],
+        threat_pressure_at=config.threat_pressure_at,
+        threat_imperative_at=config.threat_imperative_at,
+        building_threat_imperative_at=config.building_threat_imperative_at,
+    )
+
+    # Determine beat_hint: suggest a type when there's a pending beat
+    beat_hint = None
+    if pending_beat and isinstance(pending_beat, dict) and pending_beat.get("type"):
+        beat_type = pending_beat.get("type") or "pressure"
+        surface_as = pending_beat.get("surface_as", "ambient")
+        beat_hint = f"{beat_type} ({surface_as})"
+
+    # Determine beat_locked: floor relief fired when momentum is at minimum
+    beat_locked = False
+    if momentum <= config.momentum_floor:
+        beat_locked = True
+        directive_parts = [directive] if directive else []
+        if "Combat Fatigue" not in (directive or ""):
+            directive_parts.append("Resolve a Threat")
+        directive = "; ".join(directive_parts) or ""
+
+    # Determine gate: block_add when deescalation is strong (pressure just resolved)
+    gate: Literal["block_add", "block_escalate", "allow"] = "allow"
+    if deescalate >= 0.5:
+        gate = "block_escalate"
+
+    # Build summary for logging
+    parts = [directive] if directive else []
+    if beat_hint:
+        parts.append(f"beat_hint={beat_hint}")
+    if beat_locked:
+        parts.append("locked")
+    summary = ", ".join(parts) or "neutral"
+
+    return PacingContext(
+        directive=directive or "",
+        beat_hint=beat_hint,
+        beat_locked=beat_locked,
+        gate=gate,
+        summary=summary,
+    )
+
+
 def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
     """Compute age/staleness counters for narration directives."""
     meta = state.get("meta") or {}
@@ -816,15 +880,20 @@ async def run_turn(
             location_imperative_at=config.location_imperative_at,
         )
 
-        narration_directive = _compute_narration_directive(
+        # Compute unified pacing context (replaces separate directive computation)
+        _pc = _compute_pacing_context(
+            deescalate=deescalate,
             narrative_velocity=narrative_velocity,
             scene_pressure=_effective_pressure,
             ages=ages,
             threat_ages=threat_ages,
-            threat_pressure_at=config.threat_pressure_at,
-            threat_imperative_at=config.threat_imperative_at,
-            building_threat_imperative_at=config.building_threat_imperative_at,
+            pending_beat=_pending_gm_beat,
+            momentum=(state.get("pc") or {}).get("momentum", 0),
+            config=config,
         )
+
+        # narration_directive kept for extraction context (not passed to Narrate template)
+        narration_directive = _pc.directive
 
         narr_messages = _narrate_messages(
             env,
@@ -841,8 +910,7 @@ async def run_turn(
             recently_left=(state.get("scene") or {}).get("recently_left", []),
             momentum=(state.get("pc") or {}).get("momentum", 0),
             pending_beat=_pending_gm_beat,
-            deescalate=deescalate,
-            narrative_velocity=narrative_velocity,
+            pacing_context=_pc,
             ages=ages,
             known_npcs=_known_npcs,
             present_npcs=_present_npcs,

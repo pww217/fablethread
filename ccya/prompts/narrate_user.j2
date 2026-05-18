@@ -76,61 +76,17 @@
 **GM Beat:** {{ pending_beat.instruction }}
 Surface as {{ pending_beat.surface_as }}. This is backstage direction — integrate it naturally, not as player-visible narration.
 {% endif %}
-{% set m = momentum | default(0) %}
-{% if m >= 2 %}
+{% if pacing_context and pacing_context.directive %}
 
-**Momentum:** HIGH (+{{ m }}). The player is on a strong run. Consider raising the stakes.
-{% elif m <= -3 %}
-
-**Momentum FLOOR ({{ m }}):** The player is at the lowest possible momentum. You MUST give them a visible out this turn. If the player attempts any de-escalation action (retreat, hide, run, rest, ask for help, surrender, concede), narrate a partial success — they get some distance, some relief, some breath. Do not pile on. One pressure should feel like it eases even if not removed. The story cannot sustain another pure failure here.
-{% elif m <= -2 %}
-
-**Momentum LOW ({{ m }}):** The player is struggling. Look for the one thing going slightly in their favor and name it. If the player attempts retreat, disengagement, or rest, allow the attempt to feel like it matters narratively.
+**Narration Directive:** {{ pacing_context.directive }}
 {% endif %}
-{% if resolved_pressures %}
+{% if pending_beat and pending_beat.type %}
 
-### Resolved Pressures (from last turn)
-{% for p in resolved_pressures -%}
-- [{{ p.urgency | upper }}] {{ p.text }} (`{{ p.id }}`)
-{% endfor -%}
-{% endif %}
-{% if narrative_velocity < -0.3 %}
+**GM Beat:** {{ pending_beat.instruction }}
+Surface as {{ pending_beat.surface_as }}. This is backstage direction — integrate it naturally, not as player-visible narration.
+{% elif pacing_context and pacing_context.beat_hint %}
 
-**Narration Directive:** Breathe
-{% elif scene_pressure and not narrative_velocity < -0.3 %}
-{% set immediate_count = scene_pressure | selectattr("urgency", "equalto", "immediate") | list | length %}
-{% if immediate_count >= 3 %}
-
-**Narration Directive:** Overwhelm
-{% elif immediate_count > 0 %}
-
-**Narration Directive:** Pressure
-{% else %}
-{% set building_count = scene_pressure | selectattr("urgency", "equalto", "building") | list | length %}
-{% if building_count > 0 %}
-
-**Narration Directive:** Tension
-{% endif %}
-{% endif %}
-{% endif %}
-{% if ages and ages.get('combat_age', 0) >= 3 %}
-
-**Narration Directive:** Combat Fatigue
-{% endif %}
-{% if threat_ages %}
-{% set old_building = threat_ages | selectattr("urgency", "equalto", "building") | selectattr("age", "ge", building_threat_imperative_at) | list %}
-{% set old_background = threat_ages | selectattr("urgency", "equalto", "background") | selectattr("age", "ge", threat_imperative_at) | list %}
-{% set old_immediate = threat_ages | selectattr("urgency", "equalto", "immediate") | selectattr("age", "ge", 3) | list %}
-{% set background_pressure = threat_ages | selectattr("urgency", "equalto", "background") | selectattr("age", "ge", threat_pressure_at) | selectattr("age", "lt", threat_imperative_at) | list %}
-{% if old_building or old_background or old_immediate %}
-
-**Narration Directive:** Resolve a Threat
-Resolve the oldest threat listed above. It has been active too long. Weave its resolution naturally into the narration — the threat is dealt with, neutralized, or escapes. Do NOT introduce a new threat in this narration.
-{% elif background_pressure %}
-
-**Narration Directive:** Threat Pressure
-A background threat has been lingering. Acknowledge it in the scene — show its presence affecting the environment or NPCs. No need to resolve it yet, but don't ignore it.
-{% endif %}
+**Beat Hint:** The narrator should surface a `{{ pacing_context.beat_hint }}` beat this turn if narrative context supports it.
 {% endif %}
 
 === PLAYER INPUT ===

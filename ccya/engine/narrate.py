@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ccya.engine.config import _render
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.llm_client import apply_thinking
 from ccya.models import RulesOutcome
+
+if TYPE_CHECKING:
+    from ccya.engine.turn import PacingContext
 
 
 def _narrate_messages(
@@ -26,8 +29,7 @@ def _narrate_messages(
     recently_left: list[dict[str, Any]] = [],
     momentum: int = 0,
     pending_beat: dict[str, Any] | None = None,
-    deescalate: float = 0.0,
-    narrative_velocity: float = 0.0,
+    pacing_context: "PacingContext | None" = None,
     ages: dict[str, int] | None = None,
     known_npcs: list[dict[str, Any]] = [],
     present_npcs: list[dict[str, Any]] = [],
@@ -78,10 +80,9 @@ def _narrate_messages(
         "user_input": user_input,
         "momentum": momentum,
         "pending_beat": pending_beat,
+        "pacing_context": pacing_context,
         "meta": {"turn": turn_no},
         "scene": state.get("scene", {}),
-        "deescalate": deescalate,
-        "narrative_velocity": narrative_velocity,
         "ages": ages or {},
         "known_npcs": known_npcs,
         "present_npcs": present_npcs,
