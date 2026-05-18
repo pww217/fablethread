@@ -1,7 +1,7 @@
 # Narrator Prompt and Integration Changes
 
 ## Status
-`open`
+`completed — all code changes done: Jinja2 directive computation replaced with PacingContext field access, _narrate_messages() signature updated, _compute_pacing_context() created and wired up at call site in turn.py`
 
 ## Phases
 
