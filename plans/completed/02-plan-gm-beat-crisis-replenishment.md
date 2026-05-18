@@ -1,7 +1,7 @@
 # 02-plan-gm-beat-crisis-replenishment.md — GM Beat Replenishment During Crises
 
 ## Status
-`open`
+`completed — all code changes done, prompt reorganized crisis-aware beat selection block with major pivot moments guidance properly grouped under its parent section`
 
 ## Phase Guide
 | Phase | Name | Summary |

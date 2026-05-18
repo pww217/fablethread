@@ -75,15 +75,7 @@ When multiple directives are joined (e.g. "Pressure; Combat Fatigue"), prioritiz
 - **Turns 1–2 of a crisis sequence:** Pressure and escalation beats are appropriate. The situation is new; escalate to communicate stakes.
 - **Turn 3+:** At least one in three beats must use callback, complication, revelation, twist, or opportunity type. This breaks monotony and creates narrative resonance.
 
-**Band-aligned beat selection:** The roll band determines what kind of beat is narratively appropriate — do not ignore this signal even when scene pressures are active:
-
-- **crit_success / success**: `opportunity`, `escalation` (the world reacts to PC momentum), or `breathing_room` if deescalate > 0.5
-- **partial**: `complication`, `pressure` — the player succeeded but at a cost; the beat should reflect that cost
-- **setback / fail**: `breathing_room`, `null`, or rarely `complication`. Do NOT emit escalation or pressure beats on failed checks — the failure itself is the consequence. Escalation compounds punishment and breaks pacing.
-- **No roll (pure approach/sit)**: `null` unless there's an independent narrative reason for a beat
-
-When deescalate > 0.5, always prefer `breathing_room` or `null` regardless of band.
-- **At major pivot moments** (a character nearly dies and recovers, a failed plan succeeds unexpectedly, an NPC makes a decisive choice), you MUST consider:
+**At major pivot moments** (a character nearly dies and recovers, a failed plan succeeds unexpectedly, an NPC makes a decisive choice), you MUST consider:
   - `revelation` — new information changes understanding: "You learn Campos filed the audit with the port authority three days ago. This was planned."
   - `twist` — narrative direction shifts unexpectedly: "The miner's seizures stop as suddenly as they began. His eyes open and he whispers your name in a language you don't know."
   - `callback` — references an earlier beat or event with new resonance: "The ventilation fan you repaired last week seizes with a grinding shriek — the metal fatigue you warned about has caught up to it."
@@ -95,6 +87,15 @@ When deescalate > 0.5, always prefer `breathing_room` or `null` regardless of ba
 - `twist` — narrative direction shifts in an unexpected way. Most appropriate at major pivot moments, not during steady-state pressure cascades.
 - `callback` — references a beat, NPC action, or environmental detail from 3+ turns ago with new resonance. Most effective when the earlier instance was subtle.
 - `opportunity` — path forward opens unexpectedly. Best used after failure/setback to maintain player agency.
+
+**Band-aligned beat selection:** The roll band determines what kind of beat is narratively appropriate — do not ignore this signal even when scene pressures are active:
+
+- **crit_success / success**: `opportunity`, `escalation` (the world reacts to PC momentum), or `breathing_room` if deescalate > 0.5
+- **partial**: `complication`, `pressure` — the player succeeded but at a cost; the beat should reflect that cost
+- **setback / fail**: `breathing_room`, `null`, or rarely `complication`. Do NOT emit escalation or pressure beats on failed checks — the failure itself is the consequence. Escalation compounds punishment and breaks pacing.
+- **No roll (pure approach/sit)**: `null` unless there's an independent narrative reason for a beat
+
+When deescalate > 0.5, always prefer `breathing_room` or `null` regardless of band.
 - `type` values: `complication`, `revelation`, `opportunity`, `breathing_room`, `pressure`, `twist`, `setback`, `escalation`, `callback`
 - `surface_as` values: `ambient`, `event`, `npc_behavior`, `environmental`, `player_discovery`, `item`
 
