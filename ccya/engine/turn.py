@@ -137,7 +137,7 @@ def _apply_thread_signals(
         )
         return None
 
-    advanced_ids = set(progress_result.advanced_threads or [])
+    advanced_ids = set(progress_result.thread_advance or [])
     # Unified threads[] with scope-aware active bool
     all_arc_threads = [t for t in arc.threads if getattr(t, "scope", "arc") == "arc"]
     active_by_id: dict[str, ArcThread] = {t.id: t for t in all_arc_threads if getattr(t, "active", True)}
@@ -892,9 +892,6 @@ async def run_turn(
             config=config,
         )
 
-        # narration_directive kept for extraction context (not passed to Narrate template)
-        narration_directive = _pc.directive
-
         narr_messages = _narrate_messages(
             env,
             state,
@@ -1015,11 +1012,8 @@ async def run_turn(
                 config=config,
                 trace_id=trace_id,
                 turn_no=turn_no,
-                deescalate=deescalate,
-                narrative_velocity=narrative_velocity,
+                pacing_context=_pc,
                 recent_turns=recent_turns,
-                narration_directive=narration_directive,
-                resolved_pressures=_resolved_pressures,
             ):
                 if isinstance(_evt, tuple) and len(_evt) == 2 and _evt[0] == "phase":
                     yield _evt
@@ -1187,45 +1181,13 @@ async def run_turn(
                             update={"arc_update": arc_delta}
                         )
 
-                # Handle candidate_opportunity as latent thread
-                if progress_result.candidate_opportunity:
-                    arc_raw = state.get("arc")
-                    if arc_raw:
-                        try:
-                            arc = CampaignArc.model_validate(arc_raw)
-                            updated_arc = _candidate_to_latent_thread(
-                                arc,
-                                progress_result.candidate_opportunity,
-                                turn_no,
-                            )
-                            if updated_arc is not None:
-                                _merge_arc_update(
-                                    state.setdefault("arc", {}), updated_arc
-                                )
-                                if delta is not None:
-                                    merged = updated_arc.model_copy(
-                                        update={
-                                            "threads": (delta.arc_update.threads if delta.arc_update else None),
-                                            "completed_threads": (delta.arc_update.completed_threads if delta.arc_update else None),
-                                        }
-                                    )
-                                    delta = delta.model_copy(
-                                        update={"arc_update": merged}
-                                    )
-                                _log.debug(
-                                    "thread_signals: T%d candidate opportunity created latent thread",
-                                    turn_no, extra={"turn": turn_no},
-                                )
-                            else:
-                                _log.debug(
-                                    "thread_signals: T%d candidate opportunity rejected (cap/dedup): %s",
-                                    turn_no, progress_result.candidate_opportunity[:80], extra={"turn": turn_no},
-                                )
-                        except Exception as exc:
-                            _log.warning(
-                                "candidate_opportunity: failed to validate arc at T%d: %s",
-                                turn_no, exc, extra={"turn": turn_no, "trace_id": trace_id},
-                            )
+                # Handle thread_add as new arc thread (only when gate == "allow")
+                if progress_result.thread_add:
+                    _new_thread = progress_result.thread_add
+                    _scope = getattr(_new_thread, "scope", "arc")
+                    if _scope == "scene":
+                        # Scene-scoped threads are handled by age rules in Python, not here
+                        pass
 
         narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
 

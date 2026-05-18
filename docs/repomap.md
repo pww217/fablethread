@@ -85,7 +85,7 @@
 2. **Narrate** (streaming→SSE→chronicle.md) — prose narrative with narration directive from velocity/pressures
 3. **Scene Extract** (JSON→SceneExtractResult) — scene tags, location change, present NPCs, compendium updates
 4. **State Extract** (JSON→StateExtractResult) — inventory deltas, condition add/remove
-5. **Progress Extract** (JSON→ProgressExtractResult) — advanced_threads, candidate_opportunity, recent_events, actions, gm_beat, scene_pressure
+5. **Progress Extract** (JSON→ProgressExtractResult) — thread_advance, thread_resolve, thread_add (gated by PacingContext.gate), recent_events, actions, gm_beat
 
 Steps 3–5 merge into StateDelta → _validate() → apply_delta() → summarize_changes() → persist (atomic writes). After persist: maybe_compact().
 
@@ -94,11 +94,9 @@ Steps 3–5 merge into StateDelta → _validate() → apply_delta() → summariz
 ### Error propagation path
 LLM failure in extraction → `_call_stream` returns retry_errors tuple → `StateDelta.rejected` populated by _validate() (inventory_remove IDs must exist, rejects zero-balance removes) → errors collected as list[dict] on TurnResult.errors → server stores in `_ERRORS_LOG` (deque last 50) → SSE error event pushed to frontend via logging_setup.py
 
-### Scene pressure lifecycle
-1. **Add**: progress extractor emits `scene_pressure_add` with urgency (immediate/building/background/pacing), text, id
-2. **Mutate**: `pressure.py:_expire_scene_pressures()` — post-extraction expiry/urgency escalation; background→building at 3 turns (configurable via EngineConfig.scene_pressure_building_at), building→immediate at 5 turns (configurable via EngineConfig.scene_pressure_immediate_at); immediate pressures get TTL stamp on escalation (8-turn default from scene_pressure_immediate_ttl)
-3. **Purge**: `_purge_scene_pressures()` — location change auto-purges only `background`; combat end removes `immediate`
-4. **Remove**: progress extractor emits `scene_pressure_remove` when threat resolved (including via "Resolve a Threat" directive); update-only guard on `scene_pressure_update`: every id must match existing pressure
+### Scene pressure lifecycle (migrated to unified threads)
+- `scene_pressure` was migrated to `arc.threads[]` with `scope: scene` in phase 01 — the old separate scene_pressure model no longer exists on state.scene
+- Thread age-based rules handle urgency escalation (background→building at 3 turns, building→immediate at 5 turns) via Python logic, not LLM labels
 
 ### Arc thread state machine
 - States: LATENT → ACTIVE (via unlock_if condition met) → COMPLETE/FAILED (via advanced_threads progress counter at 3) / EXPIRED (5+ silent turns via last_seen_turn tracking)
@@ -111,7 +109,7 @@ LLM failure in extraction → `_call_stream` returns retry_errors tuple → `Sta
 ### Extraction field routing
 - **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, npc_add/remove/update, compendium_npc_update (no pressure fields)
 - **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
-- **ProgressExtractResult**: advanced_threads, candidate_opportunity, recent_events_add/update/remove, actions, outcome_summary, scene_pressure_add/remove/update, gm_beat, beat_disposition (no quest_updates)
+- **ProgressExtractResult**: thread_advance, thread_resolve (list[ThreadResolution]), thread_add (ArcThread | None), recent_events_add/update/remove, actions, outcome_summary, gm_beat (no quest_updates)
 
 ### Cross-stream data flow (minimal by design)
 - Scene → State: location_change (id,name,description) + present_npcs (id,name,title,notes,bio)
