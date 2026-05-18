@@ -2,19 +2,19 @@
 
 ## Purpose
 
-This document sets the north star for three related quality concerns that must be resolved before the narration simplification work lands safely: prompt render coverage, schema boundary discipline, and development workflow. It is a design reference, not an implementation plan. Implementing LLMs should derive specific steps from the vision here, the constraints in AGENTS.md, and the narration simplification design doc.
+This document sets the north star for three related quality concerns that must be resolved **after the narration simplification work lands**: prompt render coverage, schema boundary discipline, and development workflow. It is a design reference, not an implementation plan.
+
+> **Scope change:** The existing test suite (`tests/`) has been deleted. This document now describes how to rebuild it correctly against the simplified architecture, not how to patch the old suite. Do not attempt to restore deleted tests. Build the new suite from scratch using the layer model in Section 4 and the contracts defined in `plans/narration-simplification-design.md`.
+
+Implementing LLMs should derive specific steps from the vision here, the constraints in AGENTS.md, and the narration simplification design doc.
 
 ---
 
-## Section 1 — What We Have and Why It Is Not Enough
+## Section 1 — What Was There and Why It Was Removed
 
-The repo has meaningful test coverage at the smoke and integration level (`test_engine_smoke.py`, `test_engine_pipeline.py`, `test_turn.py`) and some narrow prompt-level coverage (`test_prompts.py`, `test_extract_progress_template.py`, `test_prompt_audit.py`). The smoke suite proves the engine does not crash and produces plausible output. The existing prompt tests assert a small handful of inclusion and omission properties on one or two templates.
+The repo had meaningful test coverage at the smoke and integration level (`test_engine_smoke.py`, `test_engine_pipeline.py`, `test_turn.py`) and some narrow prompt-level coverage (`test_prompts.py`, `test_extract_progress_template.py`, `test_prompt_audit.py`). That suite was deleted because it encoded the pre-simplification architecture as invariants. Agents spending time patching those tests during simplification work were doing negative work — cementing behavior under removal.
 
-What is missing is a deliberate contract between the engine's Python context-assembly layer and its Jinja templates. Right now, a prompt builder can add or remove a context variable, a template can silently ignore a field, and no test will catch the mismatch until the engine produces wrong narration at runtime. The narration simplification work removes six prompt variables and adds a single `PacingContext` struct — that is exactly the kind of change that the current test surface cannot validate.
-
-Schema boundaries have the same problem. Prompt context is assembled through dict mutation and ad hoc conditional shaping in several places across `turn.py` and `extraction.py`. There is no single moment where the payload crossing into a prompt is validated as a typed object. This means field drift accumulates silently.
-
-The vision here is not exhaustive prompt golden-output testing. It is a thin, stable contract layer that makes the simplification work auditable.
+The replacement suite should be built once the simplified architecture is stable. It should be smaller, better organized, and test contracts rather than implementation details.
 
 ---
 
@@ -24,7 +24,7 @@ The vision here is not exhaustive prompt golden-output testing. It is a thin, st
 
 Every prompt template that touches the narration/extraction pipeline should have direct render tests that assert the presence and omission of the sections that drive story mechanics. These tests are not golden snapshots of full prompt text — they assert structural contracts: specific labeled blocks appear when their context data is populated, and are absent when it is not.
 
-The tests should be organized around the boundary contracts described in `narration-simplification-design.md`: `PacingContext` renders as a single directive block; active threads appear as the canonical thread list; `pending_gm_beat` appears only when populated; and removed fields (`stakes`, `beat_disposition`, `narrative_velocity`, `deescalate`) must not appear anywhere in any prompt after the simplification lands.
+Tests should be organized around the boundary contracts in `narration-simplification-design.md`: `PacingContext` renders as a single directive block; active threads appear as the canonical thread list; `pending_gm_beat` appears only when populated; and removed fields (`stakes`, `beat_disposition`, `narrative_velocity`, `deescalate`) must not appear anywhere in any prompt.
 
 ### What This Looks Like in Practice
 
@@ -52,7 +52,7 @@ One additional integrated render test is appropriate: a realistic turn-7-style c
 
 ### Vision
 
-The data that crosses from Python into a prompt, and the data that comes back from an extraction LLM into Python, should be typed and validated at the boundary — not buried inside dict construction. A future developer reading `turn.py` should be able to find one place where the prompt context is assembled, typed, and handed off to the template renderer. They should not have to trace through multiple conditional dict mutations to understand what variables a template receives.
+The data that crosses from Python into a prompt, and the data that comes back from an extraction LLM into Python, should be typed and validated at the boundary — not buried inside dict construction. A future developer reading `turn.py` should be able to find one place where the prompt context is assembled, typed, and handed off to the template renderer.
 
 This does not mean over-engineering typed models for every internal helper. It means the public boundary — the object handed to `template.render()` — is always a validated, typed model. Pydantic models already used throughout the codebase are the right tool.
 
@@ -62,7 +62,7 @@ Two boundaries matter most:
 
 **Prompt-in:** The context dict passed to `template.render()` for Narrator and Progress Extract. This should be the `model_dump()` of a typed model, not an ad hoc dict assembled inline. The model for Progress should match the fields described in `narration-simplification-design.md` — no more, no less.
 
-**Prompt-out:** The Pydantic models already used for extraction results (`ProgressExtractResult`, etc.) are the right shape. The simplification will remove several fields from these models. Once removed, they must be removed completely — no optional shim fields left for backward compatibility.
+**Prompt-out:** The Pydantic models already used for extraction results (`ProgressExtractResult`, etc.) are the right shape. The simplification removes several fields from these models. Once removed, they must be removed completely — no optional shim fields left for backward compatibility.
 
 ### What Boundary Discipline Rules Out
 
@@ -71,41 +71,38 @@ Two boundaries matter most:
 - Fields that exist in the typed model but are never rendered in the template
 - Free-form string fields whose semantics are not validated
 
-### Relationship to the Simplification
-
-The narration simplification removes six variables and adds `PacingContext`. Schema boundary discipline ensures that when `PacingContext` is added, it is the only path by which those signals reach the LLM — the old variables cannot silently re-enter through a dict mutation that no test covers.
-
 ---
 
 ## Section 4 — Test Coverage Strategy
 
-### Vision
+### Layer Model
 
-Test coverage for the engine should be thought of as three layers with distinct purposes:
+Test coverage for the engine should be three layers with distinct purposes:
 
-**Layer 1 — Schema tests**: Validate that typed boundary models accept valid inputs, reject invalid inputs, and default optional fields correctly. Fast, no I/O, no templates. Purpose: catch schema drift at definition time.
+**Layer 1 — Schema tests**: Validate that typed boundary models accept valid inputs, reject invalid inputs, and default optional fields correctly. Fast, no I/O, no templates. Purpose: catch schema drift at definition time. One file: `tests/test_schema.py`.
 
-**Layer 2 — Render tests**: Render Jinja templates with synthetic context and assert structural properties of the output. No LLM, no engine. Purpose: catch prompt contract drift at template time.
+**Layer 2 — Render tests**: Render Jinja templates with synthetic context and assert structural properties of the output. No LLM, no engine. Purpose: catch prompt contract drift at template time. One file: `tests/test_render.py`.
 
-**Layer 3 — Smoke tests**: Run the full engine pipeline with `FakeLLM` and assert high-level pipeline properties. Slow relative to layers 1 and 2, but exercises integration paths. Purpose: catch wiring mistakes and regression at the pipeline level.
+**Layer 3 — Smoke tests**: Run the full engine pipeline with `FakeLLM` and assert high-level pipeline properties. Purpose: catch wiring mistakes and regression at the pipeline level. One file: `tests/test_smoke.py`.
 
-The existing test suite is strong at Layer 3 and weak at Layers 1 and 2. The simplification work needs Layer 1 and 2 coverage added *before* the simplification lands, so changes can be validated at the right layer.
+Build in this order. Do not write Layer 3 until Layers 1 and 2 exist — the smoke tests are the most expensive to write and maintain and provide the least signal per line.
 
 ### What Should Not Happen
 
-- Golden-output tests that snapshot the full text of a rendered prompt. These break on any copy change and provide no signal about structural correctness.
-- Tests that use `FakeLLM` to validate prompt rendering. Render tests should not require the LLM stub — they should render templates directly.
-- Test files that mix schema tests, render tests, and smoke tests. Each layer should be a distinct file or clearly separated class.
+- Golden-output tests that snapshot the full text of a rendered prompt
+- Tests that use `FakeLLM` to validate prompt rendering — render tests render templates directly
+- Test files that mix schema tests, render tests, and smoke tests
 
-### Coverage Debt After Simplification
+### Key Invariants Worth Preserving From the Old Suite
 
-When the simplification lands, the following existing tests will require review:
-- `test_extract_progress_template.py` — passes variables that will be removed; must be updated to match new contract
-- `test_prompts.py` — may contain assertions about fields being removed
-- `test_pressure.py` — scene pressure model changes; tests must migrate to unified thread model
-- `test_engine_smoke.py` — pacing signal assertions may reference removed fields
+These behavioral contracts were in the deleted tests and are worth encoding in the new suite:
 
-These should be updated *as part of* the simplification PR, not after.
+- `_validate_instruction_quality` nullifies a GMBeat under 40 chars or starting with a filler prefix
+- Momentum is clamped to `[-3, +3]`
+- PC conditions cap at 5, FIFO eviction
+- `inventory_remove` rejects IDs not present in state
+- Cross-turn dedup on `recent_events`
+- NPC scene cap at 8
 
 ---
 
@@ -113,51 +110,48 @@ These should be updated *as part of* the simplification PR, not after.
 
 ### Vision
 
-Engine changes should land through PRs even in a solo project. The reasons are concrete, not ceremonial: PRs create a diff that is reviewable by an LLM planning agent in a future session, they force commit discipline that makes `git bisect` useful, and they create a record of what was intended alongside what was changed.
+Engine changes should land through PRs even in a solo project: PRs create a diff reviewable by a planning agent in a future session, force commit discipline that makes `git bisect` useful, and record intent alongside change.
 
-The branch naming convention already implied by the repo (`plan/`, `feat/`, `fix/`) should be formalized. Design documents land on `design/` branches. Plans land on `plan/` branches. Implementation work lands on `feat/` or `fix/` branches. Each concern gets its own branch and PR — not because of process overhead, but because mixing design, plan, and implementation in one branch makes future LLM context reconstruction unreliable.
+### Branch Naming
+
+- `design/` — design documents
+- `plan/` — plan documents
+- `feat/` — feature implementation
+- `fix/` — bug fixes
+- `chore/` — tooling, docs, cleanup
 
 ### PR Size
 
-A PR should represent one coherent, reviewable concern. For engine work, that means one of: a schema change, a prompt change, a Python logic change, or a test addition. A PR that changes a model, its template, its builder, and its tests is acceptable. A PR that simultaneously changes the pacing model *and* rewrites scene extraction is too large.
+A PR should represent one coherent, reviewable concern. The narration simplification work should be broken into at minimum:
 
-The narration simplification work should be broken into at minimum:
 1. Schema changes (`StoryThread`, `PacingContext`, `ProgressExtractResult` model changes)
-2. Python logic changes (pacing context builder, thread signal application, migration function)
+2. Python logic changes (pacing context builder, thread signal application)
 3. Template changes (Progress and Narrate templates)
-4. Test updates
-
-These may be separate PRs or separate commits on one PR, but they should be reviewable as distinct units.
-
-### The PR Template
-
-A PR template should prompt for: what changed, why, which prompt or schema contracts were touched, which tests were added or updated, and what the rollback risk is. It should be short enough that it gets filled out, not skipped.
+4. Test additions (Layers 1–3 in order)
 
 ### Merge Discipline
 
-`make check && make test` passes before merge. No exceptions. The design documents, plans, and implementation PRs should all go through this gate even when the changes are documentation-only, to keep the habit clean.
+`make check` passes before merge. `make test` passes before merge once the new test suite exists. Until then, `make check` alone is the gate.
 
 ---
 
-## Section 6 — Relationship Between These Concerns
+## Section 6 — Sequencing
 
-These three concerns are sequenced, not parallel:
+These concerns are sequenced, not parallel:
 
-1. **Schema boundary discipline first**: Typed prompt context models must exist before render tests can be written against them in a stable way. If the boundary is still a dict, render tests are asserting against an unstable surface.
+1. **Narration simplification lands first** — schema and template changes per `narration-simplification-design.md`
+2. **Schema boundary discipline second** — typed prompt context models replace ad hoc dicts
+3. **Render coverage third** — once boundary is typed, render tests are stable
+4. **Smoke tests last** — rebuild `tests/test_smoke.py` once schema and render layers exist
 
-2. **Render coverage second**: Once the boundary is typed, render tests can be written that will survive the simplification and catch future drift.
-
-3. **Workflow last**: The PR template and branch conventions codify the habits that schema discipline and render coverage require. They are the lowest-stakes change and can land independently.
-
-In practice, the narration simplification and these quality concerns should be interleaved rather than strictly sequential — the simplification is the first real test of whether the discipline holds.
+Do not attempt to write tests against the old architecture or against an in-progress simplification. Wait for the simplified architecture to stabilize, then build the suite once against the clean target.
 
 ---
 
 ## Context for Implementing LLMs
 
-- The narration simplification design doc at `plans/narration-simplification-design.md` defines the exact fields being added and removed. All schema and render test work must be consistent with that document.
-- AGENTS.md defines the code rules (type hints, structured logging, input validation at boundaries, make check && make test). All implementation derived from this document must comply.
-- Existing render tests in `tests/test_extract_progress_template.py` show the established pattern for Jinja template testing in this repo — use that pattern, do not invent a new one.
-- Existing schema tests in `tests/test_models.py` and `tests/test_eval_schema.py` show the established pattern for model validation testing.
-- Do not add new test infrastructure (new fixtures, conftest entries, pytest plugins) unless AGENTS.md or `docs/REPOMAP/testing.md` already permits it.
-- The REPOMAP files for engine modules should be read before touching `turn.py`, `extraction.py`, or `models.py`.
+- The `tests/` directory has been deleted. Do not attempt to restore old test files.
+- `narration-simplification-design.md` defines the exact fields being added and removed. All schema and render test work must be consistent with that document.
+- AGENTS.md defines the code rules. All implementation derived from this document must comply.
+- Do not add new test infrastructure (fixtures, conftest entries, pytest plugins) beyond what is described here.
+- Read `docs/repomap.md` before touching `turn.py`, `extraction.py`, or `models.py`.
