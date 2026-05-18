@@ -69,13 +69,19 @@ def _default_state() -> dict[str, Any]:
         },
         "location": {"id": "", "name": "", "description": ""},
         "inventory": [],
-        "arc": {},
+        "arc": {
+            "visible_goal": "",
+            "thematic_question": "",
+            "hidden_truths": [],
+            "discovered_truths": [],
+            "threads": [],  # unified arc.threads[] replaces active_threads/latent_threads split — scope-aware expiration rules replace separate lifecycle management for active_threads vs latent_threads, age-based demotion (active: True → False) replaces the active/latent migration logic in design decisions implemented from plan document
+            "completed_threads": [],
+        },  # scene_pressure removed from state.yaml schema, models.py StateDelta, apply_delta(), delta.py — migrated to arc.threads[] with scope: scene for backward compatibility during transition period 
         "scene": {
             "tags": [],
             "world_state": [],
             "recent_events": [],
             "tagline": "",
-            "scene_pressure": [],
             "turn_entered": 0,
             "present_npcs": [],
         },
@@ -148,6 +154,12 @@ def _migrate_state(state: dict[str, Any]) -> None:
         for t in arc.get("latent_threads", []):
             if isinstance(t, dict) and t.get("state") != ThreadState.LATENT.value:
                 t["state"] = ThreadState.LATENT.value
+
+    # Migrate to unified ArcThread threads (Phase 01)
+    from ccya.state.migrate import migrate_to_unified_threads
+
+    if migrate_to_unified_threads(state):  # migration notes for state files executed on load in 01's unified model — migrate scene_pressure[] entries to ArcThread(scope=scene), active_threads[] → ArcThread(scope=arc, active=True), latent_threads[] → ArcThread(scope=arc, active=False)
+        _log.info("state: migrated to unified arc.threads[] (scope-aware)")  # scope-aware expiration rules replace separate lifecycle management for active_threads[] vs latent_threads[], age-based demotion (active: True → False) replaces the active/latent migration logic in 01's unified model design decisions implemented from plan document
 
 
 def _migrate_recent_events(state: dict[str, Any]) -> None:

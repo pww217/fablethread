@@ -49,15 +49,6 @@ def _summarize_applied(applied: dict[str, Any]) -> list[str]:
     for u in applied.get("compendium_npc_update") or []:
         if isinstance(u, dict) and u.get("id"):
             lines.append(f"~ Dossier: {u['id']}")
-    for p in applied.get("scene_pressure_add") or []:
-        if isinstance(p, dict):
-            lines.append(f"+ [{p.get('urgency', '?')}] {p.get('text', '?')}")
-    for p in applied.get("scene_pressure_update") or []:
-        if isinstance(p, dict) and p.get("id"):
-            lines.append(f"~ Pressure: {p['id']} updated")
-    for rid in applied.get("scene_pressure_remove") or []:
-        if isinstance(rid, str):
-            lines.append(f"- Pressure: {rid}")
     loc = applied.get("location_change")
     if isinstance(loc, dict) and (loc.get("name") or loc.get("id")):
         lines.append(f"→ {loc.get('name') or loc.get('id')}")

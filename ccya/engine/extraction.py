@@ -28,7 +28,6 @@ from ccya.models import (
     ProgressExtractResult,
     RulesOutcome,
     SceneExtractResult,
-    ScenePressure,
     StateExtractResult,
     StateDelta,
 )
@@ -592,7 +591,6 @@ async def _run_extraction_pipeline(
     # --- Stream 3: Progress (always runs — post-narration storytelling brain) ---
     yield ("phase", {"phase": "extract_stream_start", "stream": "progress"})
     t_progress = asyncio.get_event_loop().time()
-    _stakes = (intent.stakes or "") if intent else ""
     _band = (rules_outcome.band if rules_outcome and rules_outcome.rolled else "")
     # Build this-turn context from scene + state results for the progress stream
     extraction_ctx = _build_extraction_context(state, scene_result, state_result)
@@ -606,7 +604,7 @@ async def _run_extraction_pipeline(
         narrative_velocity=narrative_velocity,
         recent_turns=(recent_turns or [])[-2:],
         turn_no=turn_no,
-        stakes=_stakes,
+        stakes="",
         band=_band,
         narration_directive=narration_directive,
         resolved_pressures=resolved_pressures,
@@ -716,24 +714,6 @@ async def _run_extraction_pipeline(
     _capitalize_inventory_names(state_result.inventory_add)
     _capitalize_inventory_names(state_result.inventory_update)
 
-    # --- Update-only guard: drop any scene_pressure_update whose id is not in current state ---
-    existing_pressure_ids: set[str] = {
-        p.get("id", "") for p in (state.get("scene") or {}).get("scene_pressure") or []
-        if isinstance(p, dict)
-    }
-
-    validated_pressure_update: list[ScenePressure] = []
-    for pu in (progress_result.scene_pressure_update or []):
-        pid = pu.id if hasattr(pu, "id") else (pu.get("id") if isinstance(pu, dict) else None)
-        if pid and pid in existing_pressure_ids:
-            validated_pressure_update.append(pu)
-        else:
-            _log.debug(
-                "extraction.pressure_update: dropped id=%r — not in existing pressures",
-                pid,
-                extra={"turn": turn_no, "trace_id": trace_id},
-            )
-
     for op in (scene_result.npc_remove or []):
         _log.debug(
             "npc_remove emitted",
@@ -750,9 +730,6 @@ async def _run_extraction_pipeline(
         npc_remove=scene_result.npc_remove,
         npc_update=scene_result.npc_update,
         compendium_npc_update=scene_result.compendium_npc_update,
-        scene_pressure_add=progress_result.scene_pressure_add,
-        scene_pressure_remove=progress_result.scene_pressure_remove,
-        scene_pressure_update=validated_pressure_update,
         inventory_add=state_result.inventory_add,
         inventory_remove=state_result.inventory_remove,
         inventory_update=state_result.inventory_update,

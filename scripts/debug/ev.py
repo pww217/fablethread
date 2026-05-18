@@ -100,7 +100,7 @@ def extract_section(text: str | None, *headers: str) -> str:
                 break
             if stripped and not stripped.startswith("#"):
                 result.append(line)
-            elif stripped.startswith("##") and not stripped in stop_set:
+            elif stripped.startswith("##") and stripped not in stop_set:
                 break
         if stripped == headers[0]:
             found = True
@@ -589,7 +589,7 @@ def _dict_to_lines(d: dict, max_str: int = 150) -> list[dict]:
                         if val and isinstance(val, str):
                             labels.append(val[:60])
                             break
-                summary = ", ".join(l for l in labels if l)
+                summary = ", ".join(lbl for lbl in labels if lbl)
                 display = f"[{len(v)}] {summary}" if summary else f"[{len(v)}]"
                 lines.append({"k": k, "v": display[:max_str]})
             else:

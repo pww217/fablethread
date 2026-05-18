@@ -52,14 +52,17 @@ class RosterEntry:
 class ArcThread(BaseModel):
     id: str
     summary: str
+    scope: Literal["scene", "arc"]  # replaces scene_pressure + arc threads split
+    active: bool = True  # False = dormant/latent; set by Python, not LLM
+    urgency: Literal["background", "normal", "urgent"] = "normal"  # maps from ThreadState urgency
     tags: list[str] = Field(default_factory=list)
-    state: ThreadState = ThreadState.LATENT
-    urgency: str = "normal"
-    progress: int = 0
+    progress: int = 0  # incremented by thread_advance (LLM writes this on advance)
+    last_seen_turn: int | None = None  # for age-based active/latent demotion in Python
+    added_turn: int | None = None  # Python-managed lifecycle tracking
+
+    # Fields from old ArcThread that are preserved — engine handles these directly on resolve/advance:
     unlock_if: str | None = None
     promotes: list[str] = Field(default_factory=list)
-    last_offered_turn: int | None = None
-    last_seen_turn: int | None = None
 
 
 class CampaignArc(BaseModel):
@@ -67,9 +70,8 @@ class CampaignArc(BaseModel):
     thematic_question: str = ""
     hidden_truths: list[str] = Field(default_factory=list)
     discovered_truths: list[str] = Field(default_factory=list)
-    active_threads: list[ArcThread] = Field(default_factory=list)
-    latent_threads: list[ArcThread] = Field(default_factory=list)
-    completed_threads: list[ArcThread] = Field(default_factory=list)
+    threads: list[ArcThread] = Field(default_factory=list)  # unified arc.threads[] replaces active_threads/latent_threads split — scope-aware expiration rules replace separate lifecycle management for active_threads vs latent_threads, age-based demotion (active: True → False) replaces the active/latent migration logic in design decisions implemented from plan document
+    completed_threads: list[ArcThread] = Field(default_factory=list)  # scene_pressure removed from state.yaml schema, models.py StateDelta, apply_delta(), delta.py — migrated to arc.threads[] with scope: scene for backward compatibility during transition period 
     pc_drive: str = ""
 
 class Condition(BaseModel):
@@ -131,7 +133,6 @@ class IntentEnvelope(BaseModel):
     intent: str = Field(default="", max_length=200)
     intent_verb: str = Field(default="act", max_length=24)
     target: str = ""
-    stakes: str = ""
     check: RulesCheck = Field(default_factory=RulesCheck)
 
 
@@ -271,9 +272,6 @@ class StateDelta(BaseModel):
     recent_events_add: list[RecentEvent] = Field(default_factory=list)
     recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
     recent_events_remove: list[str] = Field(default_factory=list)
-    scene_pressure_add: list[ScenePressure] = Field(default_factory=list)
-    scene_pressure_remove: list[str] = Field(default_factory=list)
-    scene_pressure_update: list[ScenePressure] = Field(default_factory=list)
     arc_update: CampaignArc | None = None
 
     @field_validator("pc_condition_add", mode="before")
@@ -497,7 +495,6 @@ class ProgressExtractResult(BaseModel):
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = ""
     gm_beat: GMBeat | None = None
-    beat_disposition: Literal["consume", "carry", "replace"] = "consume"
     scene_pressure_add: list[ScenePressure] = Field(default_factory=list)
     scene_pressure_remove: list[str] = Field(default_factory=list)       # migrated from SceneExtractResult
     scene_pressure_update: list[ScenePressure] = Field(default_factory=list)  # migrated from SceneExtractResult
