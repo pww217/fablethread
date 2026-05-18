@@ -149,10 +149,6 @@ def _log_rules_outcome(
     lines.append(f"intent:        {intent.intent}")
     lines.append(f"intent_verb:   {intent.intent_verb}")
     lines.append(f"target:        {intent.target}")
-    lines.append(f"stakes:        {intent.stakes}")
-    lines.append(f"check.required: {intent.check.required}")
-    lines.append(f"check.skill:    {intent.check.skill}")
-    lines.append(f"check.difficulty: {intent.check.difficulty}")
     lines.append("")
     lines.append("--- [Dice Roll] ---")
     if outcome.rolled:
