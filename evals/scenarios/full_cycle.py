@@ -18,7 +18,7 @@ Expected emergent observations:
   - extract.progress marks quest objectives done on turns 2, 3, 7, 12
   - extract.scene shows location_change on turns 4, 6, 9, 12
   - context_economy: recent_events shouldn't balloon by turn 13
-  - scene_pressure should escalate across turns 7-10
+   - unified arc threads should escalate across turns 7-10 (urgency: urgent on scene-scope threads)
   - momentum should swing based on band outcomes
   - compendium NPC bio should update on turns 3, 7, 10
   - compaction fires at T6 (3 bullets for T1-3, visible at T7) and T12 (3 bullets for T7-9, visible at T13)

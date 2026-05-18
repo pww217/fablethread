@@ -19,15 +19,6 @@ Band = Literal[
 ]
 
 
-class ThreadState(str, Enum):
-    LATENT = "latent"
-    ACTIVE = "active"
-    COMPLETE = "complete"
-    FAILED = "failed"
-    EXPIRED = "expired"
-
-
-
 class NpcPresence(str, Enum):
     PRESENT = "present"
     JUST_LEFT = "just_left"
@@ -52,9 +43,9 @@ class RosterEntry:
 class ArcThread(BaseModel):
     id: str
     summary: str
-    scope: Literal["scene", "arc"]  # replaces scene_pressure + arc threads split
+    scope: Literal["scene", "arc"]  # unified collection replacing scene_pressure[] and active/latent thread split
     active: bool = True  # False = dormant/latent; set by Python, not LLM
-    urgency: Literal["background", "normal", "urgent"] = "normal"  # maps from ThreadState urgency
+    urgency: Literal["background", "normal", "urgent"] = "normal"
     tags: list[str] = Field(default_factory=list)
     progress: int = 0  # incremented by thread_advance (LLM writes this on advance)
     last_seen_turn: int | None = None  # for age-based active/latent demotion in Python
@@ -430,7 +421,7 @@ class CompactorSanitizationResult(BaseModel):
 
 
 class ThreadResolution(BaseModel):
-    """Structured resolution for a thread — replaces scene_pressure_remove semantics."""
+    """Structured resolution for a thread — replaces scene_pressure_add/remove/update semantics."""
     id: str
     resolution_state: Literal["resolved", "failed", "abandoned"]
 

@@ -145,7 +145,7 @@ def _patch_eval_pack_starting_state(
     No-op for any other pack.
 
     If `seed_overrides` is provided, applies dotpath overrides on top of the
-    pack seed state (e.g. {"meta.momentum": 3, "scene.scene_pressure": [...]}).
+    pack seed state (e.g. {"meta.momentum": 3, "arc.threads": [...]}).
     """
     if pack_id == "eval-pack" or seed_overrides:
         state = load_state(save_dir)

@@ -599,32 +599,32 @@ def _compute_pacing_metrics(events: list[dict[str, Any]]) -> str:
 
     lines: list[str] = ["## Pacing Metrics", ""]
 
-    # Pressure duration table
-    pressure_first: dict[str, int] = {}
-    pressure_last: dict[str, int] = {}
+    # Thread duration table (replaces old pressure_duration)
+    thread_first: dict[str, int] = {}
+    thread_last: dict[str, int] = {}
     for ev in events:
-        pressures = ((ev.get("state_snapshot") or {}).get("scene") or {}).get("scene_pressure") or []
+        threads = ((ev.get("state_snapshot") or {}).get("arc") or {}).get("threads") or []
         meta = (ev.get("state_snapshot") or {}).get("meta") or {}
         cur_turn = int(meta.get("turn") or 0) if isinstance(meta, dict) else 0
-        for p in pressures:
-            if not isinstance(p, dict):
+        for t in threads:
+            if not isinstance(t, dict):
                 continue
-            pid = p.get("id", "?")
-            if pid not in pressure_first:
-                pressure_first[pid] = cur_turn
-            pressure_last[pid] = cur_turn
+            tid = t.get("id", "?")
+            if tid not in thread_first:
+                thread_first[tid] = cur_turn
+            thread_last[tid] = cur_turn
 
-    if pressure_first:
-        lines.append("### Pressure Duration")
+    if thread_first:
+        lines.append("### Thread Duration")
         lines.append("")
-        lines.append("| Pressure ID | First Turn | Last Turn | Duration (turns) | Flagged |")
+        lines.append("| Thread ID | First Turn | Last Turn | Duration (turns) | Flagged |")
         lines.append("|---|---|---:|---:|---|")
-        for pid in sorted(pressure_first.keys()):
-            first = pressure_first[pid]
-            last = pressure_last[pid]
+        for tid in sorted(thread_first.keys()):
+            first = thread_first[tid]
+            last = thread_last[tid]
             duration = last - first + 1
             flagged = "⚠️ >8 turns" if duration > 8 else ""
-            lines.append(f"| `{pid}` | T{first} | T{last} | {duration} | {flagged} |")
+            lines.append(f"| `{tid}` | T{first} | T{last} | {duration} | {flagged} |")
         lines.append("")
 
     # Location dwell table
