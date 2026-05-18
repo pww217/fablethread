@@ -60,6 +60,8 @@ class ArcThread(BaseModel):
     last_seen_turn: int | None = None  # for age-based active/latent demotion in Python
     added_turn: int | None = None  # Python-managed lifecycle tracking
 
+    resolution_state: str | None = None  # set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads
+
     # Fields from old ArcThread that are preserved — engine handles these directly on resolve/advance:
     unlock_if: str | None = None
     promotes: list[str] = Field(default_factory=list)
@@ -70,8 +72,9 @@ class CampaignArc(BaseModel):
     thematic_question: str = ""
     hidden_truths: list[str] = Field(default_factory=list)
     discovered_truths: list[str] = Field(default_factory=list)
-    threads: list[ArcThread] = Field(default_factory=list)  # unified arc.threads[] replaces active_threads/latent_threads split — scope-aware expiration rules replace separate lifecycle management for active_threads vs latent_threads, age-based demotion (active: True → False) replaces the active/latent migration logic in design decisions implemented from plan document
-    completed_threads: list[ArcThread] = Field(default_factory=list)  # scene_pressure removed from state.yaml schema, models.py StateDelta, apply_delta(), delta.py — migrated to arc.threads[] with scope: scene for backward compatibility during transition period 
+    threads: list[ArcThread] = Field(default_factory=list)  # unified arc.threads[] replaces active_threads/latent_threads split — scope-aware expiration rules with age-based demotion (active: True → False)
+
+    completed_threads: list[ArcThread] = Field(default_factory=list)  # resolved/failed/abandoned threads moved here by _apply_thread_resolutions; resolution_state preserved for narrative context and eval rubrics
     pc_drive: str = ""
 
 class Condition(BaseModel):
@@ -309,7 +312,6 @@ class SceneExtractResult(BaseModel):
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
-    # scene_pressure_remove and scene_pressure_update REMOVED — now on ProgressExtractResult
 
     @field_validator("npc_remove", mode="before")
     @classmethod
