@@ -718,13 +718,14 @@ async def _run_extraction_pipeline(
     # directly to state["meta"]["pending_gm_beat"] in turn.py Step 2.5.
     # Do NOT add gm_beat to the merge block.
 
-    yield (
+    yield (  # type: ignore[misc]
         merged,
         progress_result.actions,
         progress_result.outcome_summary,
         extraction_event,
         progress_result,
         scene_result,
+        extraction_ctx,
     )
 
 

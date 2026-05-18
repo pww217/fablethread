@@ -104,7 +104,7 @@ def _apply_thread_signals(
 
     Any arc thread NOT in advanced_ids is implicitly ignored.
     After 5 consecutive turns without being listed -> demote to latent (frees slot).
-    Threads with progress >= _THREAD_COMPLETION_THRESHOLD (3) -> complete.
+    Threads with progress >= 3 -> complete.
     Promote latent threads if slots available and 3-turn cooldown met.
 
     Unknown advanced_ids that match a latent thread promote it immediately
@@ -157,7 +157,7 @@ def _apply_thread_signals(
             })
 
             # Check completion threshold
-            if new_progress >= _THREAD_COMPLETION_THRESHOLD:
+            if new_progress >= 3:
                 newly_completed.append(updated_t)
                 mutated = True
                 _log.debug(
@@ -306,7 +306,7 @@ def _candidate_to_latent_thread(
     )
 
     latent_threads = [t for t in arc.threads if not getattr(t, "active", True) and getattr(t, "scope", "arc") == "arc"]
-    if len(latent_threads) >= _LATENT_CAP:
+    if len(latent_threads) >= 4:
         tactical = [
             (i, t) for i, t in enumerate(latent_threads)
             if _TACTICAL_TAG in (t.tags or [])
@@ -1134,7 +1134,7 @@ async def run_turn(
             errors.append({"trace_id": trace_id, "message": str(exc)})
 
         if _extract_result is not None:
-            delta, actions, outcome_summary, extraction_event, progress_result, scene_result = _extract_result  # type: ignore[misc]
+            delta, actions, outcome_summary, extraction_event, progress_result, scene_result, _extraction_ctx = _extract_result  # type: ignore[misc]
             # Beat lifecycle: beat_disposition removed — Python infers from state mutations (gm_beat presence in delta)
             _new_beat = progress_result.gm_beat if progress_result else None
 
@@ -1378,6 +1378,20 @@ async def run_turn(
             "actions": actions,
             "scene_tags": list(getattr(delta, "scene_tags", [])),
             "rules": rules_event,
+            "pacing_context": {
+                "directive": _pc.directive if _pc else "",
+                "beat_hint": _pc.beat_hint if _pc else None,
+                "beat_locked": bool(_pc.beat_locked) if _pc else False,
+                "gate": _pc.gate if _pc else "allow",
+                "summary": _pc.summary if _pc else "",
+            },
+            "extraction_context": {
+                "present_npcs_this_turn": list(_extraction_ctx.present_npcs_this_turn) if _extraction_ctx else [],
+                "location_this_turn": dict(_extraction_ctx.location_this_turn) if _extraction_ctx else {},
+                "scene_tags_this_turn": list(_extraction_ctx.scene_tags_this_turn) if _extraction_ctx else [],
+                "inventory_this_turn": list(_extraction_ctx.inventory_this_turn) if _extraction_ctx else [],
+                "conditions_this_turn": list(_extraction_ctx.conditions_this_turn) if _extraction_ctx else [],
+            },
             "narrate": narr_metrics,
             "extract": ext_metrics,
             "extraction": extraction_event,
