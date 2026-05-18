@@ -8,7 +8,7 @@
 
 Primary development model is **Qwen3 ~25B-4bit on Apple Silicon (MLX backend)**. Treat **8k tokens as your effective working context per session.** Do not load more than you need.
 
-Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, public APIs, cross-module contracts) → 3) the relevant plan doc in `/plans/review/` or `/plans/` → 4) source files only for the specific functions you are changing.
+Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, public APIs, cross-module contracts) + `docs/architecture/OVERVIEW.md` (pipeline mechanics, data models, flowcharts) → 3) the relevant plan doc in `/plans/review/` or `/plans/` → 4) source files only for the specific functions you are changing.
 
 **Context budget per session:** Load AGENTS.md + the relevant `docs/repomap.md` section(s) + one plan doc. Do not read entire source files unless a step requires it. Use `grep` or `curl` against the running server to confirm specific lines rather than reading whole files.
 
@@ -90,8 +90,8 @@ Read `docs/repomap.md` for module boundaries, public APIs, and cross-module cont
 
 Cross-cutting tasks:
 
-- Modify turn pipeline → read `docs/repomap.md` (5-call pipeline section)
+- Modify turn pipeline → read `docs/architecture/OVERVIEW.md` (pipeline overview) + subdocs (`step0-rules.md`, `step1-narrate.md`, etc.) for design details; `docs/repomap.md` (5-call pipeline section) for code-level mapping
 - Add new config option → read `docs/repomap.md` (EngineConfig + constants sections)
-- Debug extraction → read `docs/repomap.md` (extraction field routing section)
+- Debug extraction → read `docs/architecture/OVERVIEW.md` (quick reference table) + relevant step subdoc (`step2a-scene.md`, etc.); `docs/repomap.md` (extraction field routing section) for code-level mapping
 
 Any observed inaccuracies in the repomap or documentation should be corrected immediately in the same commit.
