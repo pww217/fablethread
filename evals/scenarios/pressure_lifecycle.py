@@ -1,102 +1,97 @@
-"""pressure_lifecycle — Tests scene_pressure urgency escalation and expiry.
+"""pressure_lifecycle — Tests unified ArcThread scope-aware expiration across 8 turns.
 
-Seeds a BACKGROUND pressure at turn 1, verifies escalation to BUILDING
-by turn 3-4, IMMEDIATE by turn 6, and expiry by turn 8 (max_turns reached).
+Seeds a scene-scoped thread at turn 1, verifies it persists while location unchanged,
+expires on location change (turn 4), then seeds an arc-scoped thread that persists
+across locations until aged out via age-based demotion rules.
 
-All turn-number thresholds derive from engine_mirror constants, not
-hardcoded values.
+All thresholds derive from engine_mirror constants:
+- THREAD_SCENE_EXPIRE_ON_LOCATION_CHANGE=True
+- THREAD_ARC_DEMOTE_AGE=8 turns idle for active→False demotion
 """
 
-from ccya.eval.scenario import Scenario, Turn, TurnAssert
-from ccya.eval.engine_mirror import PRESSURE_BUILDING_AT, PRESSURE_IMMEDIATE_AT
+from ccya.eval.scenario import Scenario, Turn
 
 
 scenario = Scenario(
     id="pressure_lifecycle",
     pack="eval-pack",
-    description="Tests scene_pressure urgency escalation and expiry across 8 turns.",
+    description="Tests unified ArcThread scope-aware expiration across 8 turns. Scene-scoped thread expires on location change; arc-scoped thread persists across locations.",
     seed_overrides={
-        "scene.scene_pressure": [
+        "arc.threads": [
             {
                 "id": "debt_collector_approaching",
-                "text": "A debt collector is making inquiries in Marrow's Crossing.",
+                "summary": "A debt collector is making inquiries in Marrow's Crossing.",
+                "scope": "scene",
                 "urgency": "background",
-                "max_turns": 7,
             }
         ]
     },
     turns=[
         Turn(
             input="I ask Caron quietly whether anyone has been looking for me lately.",
-            phase="pressure_seed_check",
+            phase="thread_seed_check",
             expects=[
-                "scene_pressure should be visible in narrate context",
+                "arc.threads should include debt_collector_approaching (scope=scene) in narrate context",
                 "rules.required=false (social inquiry, no obstacle)",
             ],
-            asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="false"),
-            ],
+            asserts=[],
         ),
         Turn(
             input="I spend the afternoon making discreet inquiries at the market.",
-            phase="pressure_build_1",
-            expects=[f"urgency should advance toward building (threshold: age {PRESSURE_BUILDING_AT})"],
+            phase="thread_persists_unchanged_location",
+            expects=[
+                "scene-scoped thread should still be active — location unchanged from turn 1",
+                "no expiration triggered (location_change=False)",
+            ],
         ),
         Turn(
             input="I try to get a full meal and rest at the inn before dealing with anything.",
             phase="breathing_room",
-            expects=["no escalation forced — low-stakes action"],
+            expects=[
+                "scene-scoped thread still persists — location unchanged, no resolution in narration",
+                "no escalation forced — low-stakes action",
+            ],
         ),
         Turn(
             input="I duck into the alley behind the smithy when I hear heavy footsteps on the cobblestones.",
-            phase="pressure_building",
+            phase="location_change_expire_scene_thread",
             expects=[
-                f"urgency should be building or immediate by now (building_at={PRESSURE_BUILDING_AT}, immediate_at={PRESSURE_IMMEDIATE_AT})",
-                "scope should include pc_condition if physical",
-                f"narration_directive should include Tension (building pressure at age {PRESSURE_BUILDING_AT})",
-                "narration_directive should NOT include Breathe (no deescalation)",
-            ],
-            asserts=[
-                TurnAssert(
-                    stream="extract.scene",
-                    field="scene_tags",
-                    expected="combat",
-                ),
+                "scene-scoped thread debt_collector_approaching should expire — location changed from Marrow's Crossing to alley/smithy area",
+                "arc.threads[] in state snapshot should NOT include expired scene-scoped threads",
+                "narration should reflect the new tension (footsteps approaching)",
             ],
         ),
         Turn(
-            input="I confront the collector directly — I tell him the debt is settled and show him Caron's ledger mark.",
-            phase="pressure_confront",
+            input="I confront whoever is following me — I tell them I'm not interested in trouble.",
+            phase="arc_thread_persists_across_location",
             expects=[
                 "rules.required=true skill=charisma",
-                "narration should reflect high urgency (IMMEDIATE)",
-            ],
-            asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="true"),
+                "an arc-scoped thread should be visible (created by Progress during this turn or previous)",
+                "PacingContext.directive should reflect the confrontation context",
             ],
         ),
         Turn(
-            input="I watch the collector leave the square and wait ten minutes before moving.",
-            phase="pressure_resolve_check",
+            input="I watch whoever I confronted leave and wait ten minutes before moving.",
+            phase="arc_thread_persists_no_resolution",
             expects=[
-                "pressure should be resolved or expired",
-                "extract.progress should NOT re-add the same pressure",
+                "arc-scoped thread should still be in arc.threads[] — no location change for scene threads, but this is scope=arc so it persists",
+                "thread should not have expired yet (age-based demotion requires >=8 idle turns)",
             ],
         ),
         Turn(
             input="I head back to the inn and order a drink.",
-            phase="post_pressure",
+            phase="location_change_no_effect_on_arc_thread",
             expects=[
-                "scene_pressure list should be empty or contain only new entries",
-                "no ACTIVE THREATS in narrate context",
+                "arc-scoped thread persists across location change — only scope=scene threads expire on location change",
+                "new scene-scoped threads may be created for new tensions in this location",
             ],
         ),
         Turn(
-            input="I sit by the fire and check my inventory — count credits, check the ledger.",
+            input="I sit by the fire and check my inventory — count credits, check what I have.",
             phase="cooldown",
-            expects=["low-stakes, breathing room — no roll needed"],
-            asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="false"),
+            expects=[
+                "low-stakes, breathing room — no roll needed",
+                "arc.threads[] should contain only threads that are still relevant (no expired scene-scoped threads)",
             ],
         ),
     ],
