@@ -10,12 +10,12 @@
 
 **PC drive:** {{ current_arc.pc_drive }}
 {% endif -%}
-{% if current_arc.active_threads -%}
+{%- set scene_threads = (current_arc.threads | selectattr('scope', 'equalto', 'scene') | list) %}
+{% if scene_threads -%}
 
 
 **Active threads:**
-{% for t in current_arc.active_threads -%}
-- [{{ t.urgency | upper }}] {{ t.summary }}
+{% for t in scene_threads -%}{% if t.active %}- [{{ t.urgency | upper }}] {{ t.summary }} (last seen T{{ t.last_seen_turn or '?' }}){% endif %}
 {% endfor -%}
 {% endif -%}
 {% if current_arc.discovered_truths -%}

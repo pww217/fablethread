@@ -187,7 +187,31 @@ def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
                 continue
             if isinstance(val, dict) and not val:
                 continue
-            if field_key.endswith("_add") or field_key.endswith("_update"):
+
+            # Special display for unified thread operations (not covered by _add/_update/_remove suffixes)
+            if field_key == "thread_advance":
+                value_str = ", ".join(str(x) for x in val[:6]) + ("\u2026" if len(val) > 6 else "")
+                op = "set"
+            elif field_key == "thread_resolve" and isinstance(val, list):
+                parts = []
+                for entry in (val or [])[:4]:
+                    if isinstance(entry, dict):
+                        rid = entry.get("id", "?")
+                        rstate = entry.get("resolution_state", "")
+                        parts.append(f"{rid}: {rstate}")
+                value_str = "; ".join(parts) if parts else "\u2014"
+                op = "set"
+            elif field_key == "thread_add":
+                # thread_add is a single ArcThread object or null — show summary
+                if isinstance(val, dict):
+                    tid = val.get("id", "?")
+                    tsummary = val.get("summary", "")[:80]
+                    scope_tag = f"[{val.get('scope', '?')}]"
+                    value_str = f"{tid} {scope_tag}: {tsummary}"
+                else:
+                    value_str = "null (gate blocked)"
+                op = "add"
+            elif field_key.endswith("_add") or field_key.endswith("_update"):
                 op = "add" if field_key.endswith("_add") else "update"
             elif field_key.endswith("_remove"):
                 op = "remove"
@@ -308,7 +332,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "has_sanitization": bool(san and any(
                     san.get(k) for k in (
                         "npc_merge", "inventory_remove",
-                        "pressure_remove", "condition_remove"
+                        "condition_remove"
                     )
                 )),
             })

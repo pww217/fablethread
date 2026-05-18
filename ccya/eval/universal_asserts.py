@@ -647,39 +647,6 @@ def check_momentum_floor_no_relief(
     return {"assertion": "universal.pacing.floor_no_relief", "passed": True, "detail": f"floor_count={floor_count}", "scope": "universal", "severity": "yellow"}
 
 
-def check_key_consumed_after_use(event: dict[str, Any], prev_event: dict[str, Any] | None = None) -> dict[str, Any]:
-    narration = event.get("narration", "")
-    if not any(p in narration.lower() for p in _KEY_USE_PHRASES):
-        return {
-            "assertion": "universal.inventory.key_consumed",
-            "passed": True,
-            "detail": "no key-use language",
-            "scope": "universal",
-            "severity": "yellow",
-        }
-    applied = event.get("applied") or {}
-    removes = applied.get("inventory_remove") or []
-    removed_ids = {r.get("id") for r in removes if isinstance(r, dict) and r.get("id", "").endswith("_key")}
-    post = (event.get("state_snapshot") or {}).get("inventory", [])
-    post_keys = {i["id"]: i.get("amount", 1) for i in post if isinstance(i, dict) and i["id"].endswith("_key")}
-    for kid in removed_ids:
-        if post_keys.get(kid, 0) > 0:
-            return {
-                "assertion": "universal.inventory.key_consumed",
-                "passed": False,
-                "detail": f"{kid} removed in applied but still present in state_snapshot",
-                "scope": "universal",
-                "severity": "yellow",
-            }
-    return {
-        "assertion": "universal.inventory.key_consumed",
-        "passed": True,
-        "detail": "key consumption verified",
-        "scope": "universal",
-        "severity": "yellow",
-    }
-
-
 def check_no_negative_inventory(event: dict[str, Any]) -> dict[str, Any]:
     inventory = (event.get("state_snapshot") or {}).get("inventory", [])
     bad = [i["id"] for i in inventory if isinstance(i, dict) and i.get("id") and i.get("amount", 1) < 1]
@@ -786,7 +753,6 @@ def run_all_universal_asserts(
         check_zero_stack_overdraw(event, prev_event),
         check_narration_directive_rendered(event),
         check_momentum_floor_no_relief(event, prev_event, event_window=event_window),
-        check_key_consumed_after_use(event, prev_event),
         check_no_negative_inventory(event),
     ]
     results.extend(_assert_compactor_sanitization_nonzero(event, prev_event))

@@ -71,9 +71,6 @@
                                     <template x-if="t.sanitization.inventory_remove && t.sanitization.inventory_remove.length">
                                         <div class="tv-compaction-san-row">Items removed: <span x-text="t.sanitization.inventory_remove.length"></span></div>
                                     </template>
-                                    <template x-if="t.sanitization.pressure_remove && t.sanitization.pressure_remove.length">
-                                        <div class="tv-compaction-san-row">Pressures removed: <span x-text="t.sanitization.pressure_remove.length"></span></div>
-                                    </template>
                                     <template x-if="t.sanitization.condition_remove && t.sanitization.condition_remove.length">
                                         <div class="tv-compaction-san-row">Conditions removed: <span x-text="t.sanitization.condition_remove.length"></span></div>
                                     </template>
@@ -177,7 +174,7 @@
                                                 <template x-if="t.rules_intent.intent"><dt>intent</dt><dd x-text="t.rules_intent.intent"></dd></template>
                                                 <template x-if="t.rules_intent.intent_verb"><dt>intent_verb</dt><dd x-text="t.rules_intent.intent_verb"></dd></template>
                                                 <template x-if="t.rules_intent.target"><dt>target</dt><dd x-text="t.rules_intent.target"></dd></template>
-                                                <template x-if="t.rules_intent.stakes"><dt>stakes</dt><dd x-text="t.rules_intent.stakes"></dd></template>
+                                                <template x-if="t.rules_intent.target"><dt>target</dt><dd x-text="t.rules_intent.target"></dd></template>
                                                 <template x-if="t.rules_intent.check">
                                                     <dt>check</dt>
                                                     <dd><pre class="tv-inline-json" x-text="JSON.stringify(t.rules_intent.check, null, 2)"></pre></dd>
@@ -237,6 +234,36 @@
                                         <span class="tv-failure-stream" x-text="f.stream || '—'"></span>
                                         <span class="tv-failure-kind" x-text="f.kind + (f.attempt != null ? ' #' + f.attempt : '')"></span>
                                         <span class="tv-failure-msg" x-text="f.message"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <template x-if="t.pacing_context && (t.pacing_context.directive || t.pacing_context.gate !== 'allow' || t.pacing_context.beat_hint)">
+                            <div class="tv-diff-section">
+                                <div class="tv-diff-section-label">Pacing Context</div>
+                                <template x-if="t.pacing_context.directive">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-field">directive</span>
+                                        <span class="tv-diff-value" x-text="t.pacing_context.directive"></span>
+                                    </div>
+                                </template>
+                                <template x-if="t.pacing_context.gate && t.pacing_context.gate !== 'allow'">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-field">gate</span>
+                                        <span class="tv-diff-value" :class="'tv-sts-' + (t.pacing_context.gate === 'block_add' ? 'rejected' : 'retried')" x-text="t.pacing_context.gate"></span>
+                                    </div>
+                                </template>
+                                <template x-if="t.pacing_context.beat_hint">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-field">beat_hint</span>
+                                        <span class="tv-diff-value" x-text="t.pacing_context.beat_hint"></span>
+                                    </div>
+                                </template>
+                                <template x-if="t.pacing_context.beat_locked">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-field">beat_locked</span>
+                                        <span class="tv-diff-value" style="color: var(--status-error)">true — floor relief fired</span>
                                     </div>
                                 </template>
                             </div>
