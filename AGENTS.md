@@ -49,14 +49,11 @@ Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, publi
 
 ## Test & lint workflow
 
-- **Always update tests to reflect the code, never the code to reflect the tests.**
-- Write/update tests as you build features.
-- Run `make check && make test` only as a final step when ALL work is complete. Do not run incremental checks during implementation.
-- **`make test` runs in quiet mode — output is dots and a summary line. Run it plainly: `make test`. Do not pipe, paginate, truncate, or redirect its output. The dots-only output is correct and expected.**
-- **`make test` can hang indefinitely on certain failures. Apply a 15-second timeout: `timeout 15 make test`. If it times out, treat it as a test failure and investigate.**
-- `make check` runs `make lint` (ruff) + `make typecheck` (mypy).
-- Tests mock the LLM client (FakeLLM) — never call a real model server.
-- When debugging a hypothesis, write a minimal failing script in `/tmp/`, run it with `python`, confirm the hypothesis, then delete the file. Do not modify tests to explore hypotheses.
+**Tests are temporarily removed during refactor.** Do not write or reference tests until this phase is complete. All test mentions in docs and code can be ignored for now.
+
+- Run `make check` (lint + typecheck) as a final step when ALL work is complete.
+- Do not waste tokens on incremental check runs during implementation.
+- `make check` — runs `make lint` (ruff) + `make typecheck` (mypy).
 
 ---
 
@@ -83,6 +80,7 @@ Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, publi
 - `pyproject.toml` has `follow_imports = "skip"` in mypy config — prevents pydantic plugin from resolving `BaseModel`. Workaround: `disallow_subclassing_any = false` + per-module `disable_error_code` overrides for `ccya.models`, `ccya.pack`, `ccya.server`.
 - Server route handlers use untyped FastAPI decorators (`@app.get`, `@app.post`). Mypy overrides disable `no-untyped-def`, `no-untyped-call`, `untyped-decorator` for `ccya.server`.
 - FastAPI `on_event` is deprecated (see `server/app.py`). Migrate to lifespan event handlers when convenient — not blocking.
+- Tests are temporarily removed during refactor; this note is deferred until they return.
 
 ---
 
