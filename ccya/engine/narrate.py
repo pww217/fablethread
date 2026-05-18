@@ -47,17 +47,18 @@ def _narrate_messages(
     # Build arc context for narrator (needed by both system and user prompts)
     arc = state.get("arc") or {}
     if arc:
+        all_threads = [t for t in (arc.get("threads") or [])]
         current_arc_ctx = {
             "visible_goal": arc.get("visible_goal", ""),
             "thematic_question": arc.get("thematic_question", ""),
             "phase": arc.get("phase", "setup"),
             "active_threads": [
                 {
-                    "summary": t.get("summary", ""),
-                    "urgency": t.get("urgency", "normal"),
-                    "tags": t.get("tags", []),
+                    "summary": t.get("summary", "") if isinstance(t, dict) else getattr(t, "summary", ""),
+                    "urgency": t.get("urgency", "normal") if isinstance(t, dict) else getattr(t, "urgency", "normal"),
+                    "tags": t.get("tags", []) if isinstance(t, dict) else getattr(t, "tags", []),
                 }
-                for t in (arc.get("active_threads") or [])
+                for t in all_threads if not (isinstance(t, dict) and t.get("active") is False) or not hasattr(t, "active") or getattr(t, "active", True)
             ],
             "pc_drive": arc.get("pc_drive", ""),
             "hidden_truths": arc.get("hidden_truths") or [],

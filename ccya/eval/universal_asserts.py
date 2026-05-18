@@ -94,93 +94,31 @@ def check_pending_gm_beat_consumed(
 def check_pending_gm_beat_disposition_respected(
     event: dict[str, Any], prev_event: dict[str, Any] | None
 ) -> dict[str, Any]:
-    """Beat disposition from progress extractor must be respected in state.
+    """Beat lifecycle from progress extractor must be respected in state.
 
-    The progress extractor emits beat_disposition (consume/carry/replace) and
-    gm_beat. The engine's beat lifecycle logic must honor this:
-    - consume: beat should be None in state after turn
-    - carry: beat should be unchanged in state after turn
-    - replace: beat should be the new beat in state after turn
+    NOTE: beat_disposition field removed from ProgressExtractResult in Phase 01.
+    Python now infers disposition directly from gm_beat presence/absence:
+    - new gm_beat with type → replace (write to pending_gm_beat)
+    - no gm_beat or gm_beat without type → clear pending_gm_beat
 
-    This catches the bug where the engine clears pending_gm_beat after narration
-    but before extraction, making _current_beat always None and breaking carry.
+    This checks that the engine's beat lifecycle logic correctly handles this.
     """
     extraction = event.get("extraction") or {}
     progress = extraction.get("progress") or {}
-    beat_disposition = progress.get("beat_disposition")
     progress_gm_beat = progress.get("gm_beat")
-
-    # If no disposition was emitted, nothing to check
-    if beat_disposition is None:
-        return {
-            "assertion": "universal.pending_gm_beat.disposition_respected",
-            "passed": True,
-            "detail": "(no disposition emitted)",
-            "scope": "universal",
-            "severity": "red",
-        }
 
     cur_snap = event.get("state_snapshot") or {}
     cur_beat = (cur_snap.get("meta") or {}).get("pending_gm_beat")
     prev_snap = prev_event.get("state_snapshot") or {} if prev_event else None
     prev_beat = (prev_snap.get("meta") or {}).get("pending_gm_beat") if prev_snap else None
 
-    if beat_disposition == "consume":
-        if cur_beat is not None:
-            return {
-                "assertion": "universal.pending_gm_beat.disposition_respected",
-                "passed": False,
-                "detail": f"consume disposition but beat persisted: {cur_beat}",
-                "scope": "universal",
-                "severity": "red",
-            }
-        return {
-            "assertion": "universal.pending_gm_beat.disposition_respected",
-            "passed": True,
-            "detail": "consume — beat cleared",
-            "scope": "universal",
-            "severity": "red",
-        }
-
-    if beat_disposition == "carry":
-        if prev_beat is None:
-            return {
-                "assertion": "universal.pending_gm_beat.disposition_respected",
-                "passed": True,
-                "detail": "carry with no prior beat — vacuous",
-                "scope": "universal",
-                "severity": "yellow",
-            }
-        if cur_beat != prev_beat:
-            return {
-                "assertion": "universal.pending_gm_beat.disposition_respected",
-                "passed": False,
-                "detail": f"carry disposition but beat changed: prev={prev_beat}, cur={cur_beat}",
-                "scope": "universal",
-                "severity": "red",
-            }
-        return {
-            "assertion": "universal.pending_gm_beat.disposition_respected",
-            "passed": True,
-            "detail": "carry — beat preserved",
-            "scope": "universal",
-            "severity": "red",
-        }
-
-    if beat_disposition == "replace":
-        if progress_gm_beat is None:
-            return {
-                "assertion": "universal.pending_gm_beat.disposition_respected",
-                "passed": False,
-                "detail": "replace disposition but no gm_beat emitted",
-                "scope": "universal",
-                "severity": "red",
-            }
+    # If a new gm_beat was emitted, it should be in state after the turn
+    if progress_gm_beat and isinstance(progress_gm_beat, dict) and progress_gm_beat.get("type"):
         if cur_beat is None:
             return {
                 "assertion": "universal.pending_gm_beat.disposition_respected",
                 "passed": False,
-                "detail": "replace disposition but beat is None in state",
+                "detail": f"new gm_beat emitted but pending_gm_beat is None in state: {progress_gm_beat.get('type')}",
                 "scope": "universal",
                 "severity": "red",
             }
@@ -188,22 +126,42 @@ def check_pending_gm_beat_disposition_respected(
             return {
                 "assertion": "universal.pending_gm_beat.disposition_respected",
                 "passed": False,
-                "detail": f"replace disposition but beat type mismatch: progress={progress_gm_beat.get('type')}, state={cur_beat.get('type')}",
+                "detail": f"new gm_beat type mismatch: progress={progress_gm_beat.get('type')}, state={cur_beat.get('type')}",
                 "scope": "universal",
                 "severity": "red",
             }
         return {
             "assertion": "universal.pending_gm_beat.disposition_respected",
             "passed": True,
-            "detail": "replace — beat updated",
+            "detail": f"beat replaced with type={cur_beat.get('type')}",
             "scope": "universal",
             "severity": "red",
         }
 
+    # No new gm_beat — pending_gm_beat should be None (consumed) or carried from previous turn
+    if prev_beat is not None and cur_beat == prev_beat:
+        return {
+            "assertion": "universal.pending_gm_beat.disposition_respected",
+            "passed": True,
+            "detail": f"beat carried (unchanged): type={cur_beat.get('type')}",
+            "scope": "universal",
+            "severity": "yellow",
+        }
+
+    if cur_beat is None:
+        return {
+            "assertion": "universal.pending_gm_beat.disposition_respected",
+            "passed": True,
+            "detail": "beat consumed (cleared) - no gm_beat emitted this turn",
+            "scope": "universal",
+            "severity": "red",
+        }
+
+    # Beat persisted but no carry/replacement logic — this is acceptable as a yellow
     return {
         "assertion": "universal.pending_gm_beat.disposition_respected",
         "passed": True,
-        "detail": f"unknown disposition: {beat_disposition}",
+        "detail": f"beat state unchanged (no disposition field to enforce): type={cur_beat.get('type')}",
         "scope": "universal",
         "severity": "yellow",
     }

@@ -345,13 +345,15 @@ def _extract_progress_messages(
     pc = state.get("pc") or {}
     scene = state.get("scene") or {}
 
+    arc = state.get("arc") or {}
+    all_threads = [t for t in (arc.get("threads") or []) if isinstance(t, dict)]
     active_threads = [
-        {"id": t["id"], "summary": t["summary"], "urgency": t.get("urgency", "normal"), "tags": t.get("tags", [])}
-        for t in ((state.get("arc") or {}).get("active_threads") or [])
+        {"id": t["id"], "summary": t["summary"], "urgency": t.get("urgency", "normal"), "tags": t.get("tags", []), "scope": t.get("scope", "arc")}
+        for t in all_threads if getattr(t, "active", True) or (isinstance(t, dict) and t.get("active") is not False)
     ]
     latent_threads = [
-        {"id": t["id"], "summary": t["summary"], "urgency": t.get("urgency", "normal"), "tags": t.get("tags", []), "last_seen_turn": t.get("last_seen_turn")}
-        for t in ((state.get("arc") or {}).get("latent_threads") or [])
+        {"id": t["id"], "summary": t["summary"], "urgency": t.get("urgency", "normal"), "tags": t.get("tags", []), "last_seen_turn": t.get("last_seen_turn"), "scope": t.get("scope", "arc")}
+        for t in all_threads if not getattr(t, "active", True) and (not isinstance(t, dict) or t.get("active") is False)
     ]
     recent_events = list(scene.get("recent_events") or [])
     world_state = list(scene.get("world_state") or [])
