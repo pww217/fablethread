@@ -1,6 +1,6 @@
 # PacingContext
 
-All pacing signals are collapsed into one Python-computed struct (`PacingContext`) passed to both the Narrator and Progress Extractor. This replaces six independent fields (`narration_directive`, `deescalate`, `narrative_velocity`, `pending_beat`, `beat_disposition` output, `quest_threshold_directive`). The narrator receives only `directive` and `beat_hint`; Progress receives the full struct.
+All pacing signals are collapsed into one Python-computed struct (`PacingContext`) passed to both the Narrator and Progress Extractor. This replaces six independent fields (`narration_directive`, `deescalate`, `narrative_velocity`, `beat_disposition` output, `quest_threshold_directive`, and stale momentum-derived signals). The narrator receives only `directive` and `beat_hint`; Progress receives the full struct.
 
 ## Struct definition
 
@@ -17,7 +17,7 @@ PacingContext:
 
 ## Computation
 
-`_compute_pacing_context()` in `engine/turn.py` consolidates all pacing computation (replacing the former scattered functions: `_compute_narration_directive`, `_compute_narrative_velocity`, `_check_floor_relief`). It takes inputs (`momentum`, `consecutive_floor_turns`, `arc.threads[] scope=scene urgency counts`, combat age, location age) and returns a single struct with directive derived from the same priority stack:
+`_compute_pacing_context()` in `engine/turn.py` consolidates pacing computation (replacing the former scattered functions: `_compute_narration_directive`, `_compute_narrative_velocity`, `_check_floor_relief`). It takes inputs (`momentum`, `consecutive_floor_turns`, `arc.threads[] scope=scene urgency counts`, combat age, location age) and returns a single struct with directive derived from the same priority stack:
 
 ```mermaid
 flowchart TD
@@ -80,6 +80,9 @@ flowchart LR
 | Directive | Thread action | Beat hint | Gate |
 |-----------|--------------|-----------|------|
 | **"Breathe"** (floor relief) | Do NOT add new threads. Allow existing scene threads to persist without escalation. | `breathing_room` | `block_add` + force-closed |
-| **"Escalate"** | Add thread if gate allows; advance active threads proactively. | `pressure` / `escalation` | Depends on momentum |
-| **"Pressure"** | Advance relevant scene/arc threads. Add new thread only if gate permits. | `complication` / `pressure` | Varies by context |
+| **"Overwhelm"** (3+ urgent threads) | May add scene-scoped threads if gate allows; emit pressure/escalation beat | `pressure` / `escalation` | Depends on momentum |
+| **"Pressure"** (1-2 urgent or aging threats) | Advance relevant scene/arc threads. Add new thread only if gate permits. | `complication` / `pressure` | Varies by context |
+| **"Tension"** (background urgency only) | Do NOT add pressures unless concrete threat emerges; prefer advancing existing threads | None | Allow |
 | **"" (empty)** | No action required beyond normal aging of silent threads. | None | Allow |
+
+**Note:** Directives may include secondary modifiers joined by semicolons (e.g., "Pressure; Combat Fatigue"). The primary directive drives thread/beat logic; the secondary acts as a thematic modifier on beat type.

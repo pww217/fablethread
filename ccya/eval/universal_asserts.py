@@ -628,16 +628,6 @@ def check_zero_stack_overdraw(
     return {"assertion": "universal.inventory.no_overdraw", "passed": True, "detail": f"checked {len(removes)} removes", "scope": "universal", "severity": "red"}
 
 
-def check_immediate_pressure_cap(event: dict[str, Any], prev_event: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Immediate pressures must not exceed 3 at once."""
-    pressures = ((event.get("state_snapshot") or {}).get("scene") or {}).get("scene_pressure") or []
-    immediates = [p for p in pressures if isinstance(p, dict) and p.get("urgency") == "immediate"]
-    if len(immediates) > 3:
-        ids = [p.get("id", "?") for p in immediates]
-        return {"assertion": "universal.pressure.immediate_cap", "passed": False, "detail": f"{len(immediates)} immediate pressures (cap 3): {ids}", "scope": "universal", "severity": "red"}
-    return {"assertion": "universal.pressure.immediate_cap", "passed": True, "detail": f"{len(immediates)} immediate", "scope": "universal", "severity": "red"}
-
-
 def check_momentum_floor_no_relief(
     event: dict[str, Any],
     prev_event: dict[str, Any] | None,
@@ -655,39 +645,6 @@ def check_momentum_floor_no_relief(
     if floor_count >= 3:
         return {"assertion": "universal.pacing.floor_no_relief", "passed": False, "detail": f"momentum at floor for {floor_count} consecutive turns", "scope": "universal", "severity": "yellow"}
     return {"assertion": "universal.pacing.floor_no_relief", "passed": True, "detail": f"floor_count={floor_count}", "scope": "universal", "severity": "yellow"}
-
-
-def check_directive_rendered(event: dict[str, Any], prev_event: dict[str, Any] | None = None) -> dict[str, Any]:
-    """If immediate pressures exist, the Pressure/Overwhelm directive must appear in narrate user prompt."""
-    pressures = ((event.get("state_snapshot") or {}).get("scene") or {}).get("scene_pressure") or []
-    immediates = [p for p in pressures if isinstance(p, dict) and p.get("urgency") == "immediate"]
-    if not immediates:
-        return {"assertion": "universal.narrate.pressure_directive_rendered", "passed": True, "detail": "(no immediates)", "scope": "universal", "severity": "red"}
-    rendered = (event.get("narrate_prompt") or {}).get("rendered_user") or ""
-    if "**Pressure:**" in rendered or "**Overwhelm:**" in rendered:
-        return {"assertion": "universal.narrate.pressure_directive_rendered", "passed": True, "detail": "directive present", "scope": "universal", "severity": "red"}
-    return {"assertion": "universal.narrate.pressure_directive_rendered", "passed": False, "detail": f"{len(immediates)} immediate pressures but no Pressure/Overwhelm directive in narrate user prompt", "scope": "universal", "severity": "red"}
-
-
-def check_immediate_pressure_stale(event: dict[str, Any], prev_event: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Immediate pressures older than 8 turns since becoming immediate are stale."""
-    cur_turn = int((event.get("state_snapshot") or {}).get("meta", {}).get("turn") or 0)
-    pressures = ((event.get("state_snapshot") or {}).get("scene") or {}).get("scene_pressure") or []
-    stale = []
-    for p in pressures:
-        if not isinstance(p, dict) or p.get("urgency") != "immediate":
-            continue
-        tbi = p.get("turn_became_immediate")
-        if tbi and (cur_turn - tbi) > 8:
-            stale.append(p.get("id", "?"))
-    if stale:
-        return {"assertion": "universal.pressure.no_stale_immediate", "passed": False, "detail": f"stale immediate pressure(s): {stale}", "scope": "universal", "severity": "yellow"}
-    return {"assertion": "universal.pressure.no_stale_immediate", "passed": True, "detail": "no stale immediates", "scope": "universal", "severity": "yellow"}
-
-
-_KEY_USE_PHRASES: tuple[str, ...] = (
-    "slid the", "turned the", "inserted the", "used the", "unlocked"
-)
 
 
 def check_key_consumed_after_use(event: dict[str, Any], prev_event: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -827,10 +784,7 @@ def run_all_universal_asserts(
         check_actions_count_and_distinct(event),
         check_momentum_band_delta(event, prev_event),
         check_zero_stack_overdraw(event, prev_event),
-        check_immediate_pressure_cap(event),
-        check_directive_rendered(event),
         check_narration_directive_rendered(event),
-        check_immediate_pressure_stale(event),
         check_momentum_floor_no_relief(event, prev_event, event_window=event_window),
         check_key_consumed_after_use(event, prev_event),
         check_no_negative_inventory(event),

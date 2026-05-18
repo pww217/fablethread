@@ -101,7 +101,7 @@ flowchart TD
 
 ## Target State — What It Becomes
 
-### Core Change: Unified `StoryThread`
+### Core Change: Unified ArcThread (scope-aware)
 
 `scene_pressure[]` and `arc.threads` (active + latent) are merged into a single
 `state.arc.threads[]` list. Every thread has a `scope` field:
@@ -117,7 +117,7 @@ an `active: bool` flag driven by Python age rules — it is not stored by the LL
 Progress Extract emits three unified operations regardless of scope:
 - `thread_advance: list[id]`
 - `thread_resolve: list[id, resolution_state]`
-- `thread_add: StoryThread | null` (gated by `PacingContext.gate`)
+- `thread_add: ArcThread | null` (gated by `PacingContext.gate`)
 
 ### Core Change: Single `PacingContext` Struct
 
@@ -126,12 +126,14 @@ and Progress:
 
 ```
 PacingContext:
-  directive: "Breathe" | "Pressure" | "MoveOn" | "Escalate" | ""
-  beat_hint: str | None        # type suggestion for the next gm_beat
-  beat_locked: bool            # True when floor relief forces breathing_room
-  gate: "block_add" | "block_escalate" | "allow"
-  summary: str                 # log/debug only, never sent to LLM
+  directive: str           # "Breathe" | "Overwhelm" | "Pressure" | "Tension" | "" (may include secondary via "; ")
+  beat_hint: str | None    # suggested gm_beat type, or None
+  beat_locked: bool        # True: floor relief fired — Progress MUST emit breathing_room beat and gate is force-closed
+  gate: str                # "block_add" | "block_escalate" | "allow" (controls thread_add)
+  summary: str             # human-readable log string, never sent to LLM
 ```
+
+Directive values are richer than the original design spec ("Breathe"/"Pressure"/"MoveOn"/"Escalate") — `_compute_narration_directive()` produces granular signals (`Overwhelm`, `Resolve a Threat`, `Tension`, `Threat Pressure`) plus secondary modifiers (e.g. "Combat Fatigue"). This gives the LLM more specific behavioral guidance while remaining deterministic and Python-computed.
 
 `beat_locked: True` subsumes `_check_floor_relief()` — the floor relief logic moves
 inside `_compute_pacing_context()` and sets this flag rather than running as a separate
@@ -207,7 +209,7 @@ flowchart TD
 |---|---|---|
 | `IntentEnvelope.stakes` | `models.py`, `extract_rules_*.j2`, `extract_progress_user.j2`, `turn.py` | Drop field definition, Jinja rendering, and passage into Progress |
 | `ProgressExtractResult.beat_disposition` | `models.py`, `extract_progress_system.j2`, `turn.py` | Python infers from `gm_beat` presence + turn expiry |
-| `state.scene.scene_pressure[]` | `state.yaml` schema, `models.py` `StateDelta`, `apply_delta()`, `delta.py` | Migrated to `arc.threads[]` with `scope: scene` |
+| `state.scene.scene_pressure[]` | `state.yaml` schema, `models.py` `StateDelta`, `apply_delta()`, `delta.py` | Replaced by `arc.threads[]` with `scope: scene` |
 | `ProgressExtractResult.scene_pressure_add/remove/update` | `models.py`, `extract_progress_system.j2`, `extract_progress_user.j2` | Replaced by `thread_advance / thread_resolve / thread_add` |
 | `arc.active_threads[]` / `arc.latent_threads[]` split | `state.yaml` schema, `models.py`, `extraction.py` | Replaced by unified `arc.threads[]` with `active: bool` |
 | `narrative_velocity` prompt variable | `extract_progress_user.j2`, `extract_narrate_user.j2` (if present) | Computation stays in Python; value folds into `PacingContext` |
@@ -223,8 +225,7 @@ flowchart TD
 - **Step 2a (Scene Extract)** — inputs, outputs, and system prompt unchanged.
 - **Step 2b (State Extract)** — inputs, outputs, and system prompt unchanged.
 - **`_build_extraction_context()`** — logic unchanged except `scene_pressure_this_turn`
-  field is removed from `_ExtractionContext` (since `scene_pressure` no longer exists on
-  `state.scene`).
+  field is removed from `_ExtractionContext` (since scene pressure no longer exists as a separate concept on `state.scene`).
 - **`_ExtractionContext` structure** — minus the pressure field, the struct is the same.
 - **Dice resolution math** — `resolve_check()` formula unchanged.
 - **Momentum scalar** — computation and application unchanged; it remains in state and
@@ -232,53 +233,34 @@ flowchart TD
 - **`pending_gm_beat`** — still stored at `state.meta.pending_gm_beat`, still passed to
   Narrator unchanged, still written by `turn.py` after Progress emits `gm_beat`.
 - **Turn expiry on beats** — Python still discards beats past their `expires_at` turn.
-- **`_apply_thread_signals()`** — function remains but handles unified threads instead of
-  the split lists. Age-based demotion (`active: True → False`) replaces the
-  active/latent migration logic.
+- **`_apply_thread_signals()`** — function remains but handles unified threads instead of the split lists. Age-based demotion (`active: True → False`) replaces the old active-to-latent migration logic based on thread age.
 - **`recent_events` ring buffer** — unchanged.
 - **`compendium`** — unchanged.
 - **Chronicle / events.jsonl persistence** — unchanged.
 
 ---
 
-## Migration Notes for State Files
-
-Existing save files will have `state.scene.scene_pressure[]` and
-`state.arc.active_threads[]` / `state.arc.latent_threads[]`. A migration function is
-needed:
-
-1. For each entry in `scene_pressure[]`: create a `StoryThread` with
-   `scope: scene`, `active: true`, mapping `description → summary`,
-   `urgency → urgency`, `tags → tags`, `id → id`.
-2. For each entry in `active_threads[]`: create a `StoryThread` with
-   `scope: arc`, `active: true`.
-3. For each entry in `latent_threads[]`: create a `StoryThread` with
-   `scope: arc`, `active: false`.
-4. Write the merged list to `state.arc.threads[]`.
-5. Remove `state.scene.scene_pressure`, `state.arc.active_threads`,
-   `state.arc.latent_threads`.
-
-This migration should be a standalone Python function in `ccya/state/migrate.py` and
-called on load if the old keys are detected.
-
----
-
-## New `StoryThread` Model Shape
+## New `ArcThread` Model Shape (Unified)
 
 ```python
-class StoryThread(BaseModel):
+class ArcThread(BaseModel):
     id: str
     summary: str
     scope: Literal["scene", "arc"]   # replaces the two collections
     active: bool = True              # False = dormant/latent; set by Python, not LLM
     urgency: Literal["background", "normal", "urgent"] = "normal"
-    tags: list[str] = []
-    progress: int = 0                # incremented by thread_advance
-    last_seen_turn: int | None = None
-    added_turn: int | None = None
+    tags: list[str] = Field(default_factory=list)
+    progress: int = 0                # incremented by thread_advance (LLM writes this on advance)
+    last_seen_turn: int | None = None  # for age-based active/latent demotion in Python
+    added_turn: int | None = None      # Python-managed lifecycle tracking
+    resolution_state: str | None = None  # set when thread_resolve processes resolved/failed/abandoned
+
+    # Preserved from old ArcThread — engine handles these directly on resolve/advance:
+    unlock_if: str | None = None
+    promotes: list[str] = Field(default_factory=list)
 ```
 
-The LLM does not write `active`, `progress`, or `added_turn` — these are Python-managed.
+The LLM does not write `active`, `progress`, or `added_turn` — these are Python-managed. The LLM also does NOT write `resolution_state`; it is set by `_apply_thread_resolutions()` in turn.py when processing thread_resolve deltas.
 
 ---
 
@@ -320,7 +302,7 @@ Fields added:
 ```
 thread_advance: list[str]                   # ids of threads to increment progress
 thread_resolve: list[ThreadResolution]      # id + resolution_state
-thread_add: StoryThread | None              # new thread, null if gate != "allow"
+thread_add: ArcThread | None              # new thread, null if gate != "allow"
 ```
 
 Fields unchanged:

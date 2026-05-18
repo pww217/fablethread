@@ -80,16 +80,10 @@ class PacingContext:
 
 
 _ACTIVE_THREAD_CAP = 3
-"""Maximum number of threads in the active state."""
-
-_THREAD_COMPLETION_THRESHOLD = 3
-"""Progress value at which an active thread is marked complete."""
-
-_LATENT_CAP = 4
-"""Maximum number of threads in the latent state."""
+"""Maximum number of threads that can be active simultaneously."""
 
 _TACTICAL_TAG = "tactical"
-"""Tag applied to engine-generated latent threads from candidate_opportunity."""
+"""Tag applied to engine-generated latent threads from location pressure checks."""
 
 _EXPIRE_SILENT_TURNS = 5
 """Consecutive turns without being advanced before a thread is demoted to latent."""
@@ -102,10 +96,10 @@ def _apply_thread_signals(
     state: dict[str, Any],
     progress_result: Any,
 ) -> CampaignArc | None:
-    """Process simplified advanced_threads list.
+    """Process thread_advance signals for unified threads[].
 
     Unified threads[] with scope-aware active bool managed by Python.
-    Arc-scoped threads follow the same lifecycle as before but use active: bool instead of ThreadState enum.
+    Arc-scoped threads follow the same lifecycle as before but use active: bool instead of a state enum.
     Scene-scoped threads are not processed here (they expire via age rules).
 
     Any arc thread NOT in advanced_ids is implicitly ignored.
@@ -286,7 +280,7 @@ def _candidate_to_latent_thread(
     candidate: str,
     turn_no: int,
 ) -> CampaignArc | None:
-    """Convert a candidate_opportunity string into a latent thread with cap enforcement."""
+    """Convert a location pressure candidate string into a latent thread with cap enforcement."""
     if not candidate or not candidate.strip():
         return None
 
@@ -933,9 +927,6 @@ async def run_turn(
                 _pending_gm_beat = None
                 state.setdefault("meta", {})["pending_gm_beat"] = None
 
-        # Read resolved pressures from previous turn's purge/expire
-        _resolved_pressures = (state.get("meta") or {}).get("resolved_pressures_last_turn")
-
         # Known NPCs for narrator context (Phase 4A)
         _known_npcs = _known_characters_for_extract(state, compact=True)
 
@@ -1042,7 +1033,6 @@ async def run_turn(
             threat_pressure_at=config.threat_pressure_at,
             threat_imperative_at=config.threat_imperative_at,
             building_threat_imperative_at=config.building_threat_imperative_at,
-            resolved_pressures=_resolved_pressures,
             npc_roster=build_npc_roster(
                 present_npcs=_present_npcs,
                 known_npcs=_known_npcs,
