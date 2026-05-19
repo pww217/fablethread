@@ -91,7 +91,7 @@ def check_pending_gm_beat_consumed(
     }
 
 
-def check_pending_gm_beat_disposition_respected(
+def check_pending_gm_beat_lifecycle_respected(
     event: dict[str, Any], prev_event: dict[str, Any] | None
 ) -> dict[str, Any]:
     """Beat lifecycle from progress extractor must be respected in state.
@@ -116,7 +116,7 @@ def check_pending_gm_beat_disposition_respected(
     if progress_gm_beat and isinstance(progress_gm_beat, dict) and progress_gm_beat.get("type"):
         if cur_beat is None:
             return {
-                "assertion": "universal.pending_gm_beat.disposition_respected",
+                "assertion": "universal.pending_gm_beat.lifecycle_respected",
                 "passed": False,
                 "detail": f"new gm_beat emitted but pending_gm_beat is None in state: {progress_gm_beat.get('type')}",
                 "scope": "universal",
@@ -124,14 +124,14 @@ def check_pending_gm_beat_disposition_respected(
             }
         if cur_beat.get("type") != progress_gm_beat.get("type"):
             return {
-                "assertion": "universal.pending_gm_beat.disposition_respected",
+                "assertion": "universal.pending_gm_beat.lifecycle_respected",
                 "passed": False,
                 "detail": f"new gm_beat type mismatch: progress={progress_gm_beat.get('type')}, state={cur_beat.get('type')}",
                 "scope": "universal",
                 "severity": "red",
             }
         return {
-            "assertion": "universal.pending_gm_beat.disposition_respected",
+            "assertion": "universal.pending_gm_beat.lifecycle_respected",
             "passed": True,
             "detail": f"beat replaced with type={cur_beat.get('type')}",
             "scope": "universal",
@@ -141,7 +141,7 @@ def check_pending_gm_beat_disposition_respected(
     # No new gm_beat — pending_gm_beat should be None (consumed) or carried from previous turn
     if prev_beat is not None and cur_beat == prev_beat:
         return {
-            "assertion": "universal.pending_gm_beat.disposition_respected",
+            "assertion": "universal.pending_gm_beat.lifecycle_respected",
             "passed": True,
             "detail": f"beat carried (unchanged): type={cur_beat.get('type')}",
             "scope": "universal",
@@ -150,7 +150,7 @@ def check_pending_gm_beat_disposition_respected(
 
     if cur_beat is None:
         return {
-            "assertion": "universal.pending_gm_beat.disposition_respected",
+            "assertion": "universal.pending_gm_beat.lifecycle_respected",
             "passed": True,
             "detail": "beat consumed (cleared) - no gm_beat emitted this turn",
             "scope": "universal",
@@ -159,7 +159,7 @@ def check_pending_gm_beat_disposition_respected(
 
     # Beat persisted but no carry/replacement logic — this is acceptable as a yellow
     return {
-        "assertion": "universal.pending_gm_beat.disposition_respected",
+        "assertion": "universal.pending_gm_beat.lifecycle_respected",
         "passed": True,
         "detail": f"beat state unchanged (no disposition field to enforce): type={cur_beat.get('type')}",
         "scope": "universal",
@@ -741,7 +741,7 @@ def run_all_universal_asserts(
     results: list[dict[str, Any]] = [
         check_recent_events_turn_stamped(event),
         check_pending_gm_beat_consumed(event, prev_event),
-        check_pending_gm_beat_disposition_respected(event, prev_event),
+        check_pending_gm_beat_lifecycle_respected(event, prev_event),
         check_location_change_applied(event, prev_event),
         check_rolled_implies_binding(event),
         check_npc_mention_extracted(event),
