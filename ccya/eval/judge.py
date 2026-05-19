@@ -849,6 +849,55 @@ def _extract_scores_by_regex(fm_text: str) -> dict[str, Any] | None:
     return out if out else None
 
 
+def _extract_scores_from_raw_yaml(text: str) -> dict[str, Any] | None:
+    """Extract structured score fields from raw YAML at the top of judge response.
+
+    Handles formats where LLM outputs scores without delimiters (e.g., state_correctness):
+        state_fidelity_rate: 0.769
+        extraction_accuracy_score: 3
+        mechanic_lifecycle_score: 2
+    
+    Also handles *** ... *** delimited format (meta judge).
+    """
+    # All recognized score/rate field names from _normalize_scores()
+    _score_fields = [
+        "mechanical_score", "narrative_score", "system_cohesion_score",
+        "prompt_quality_score", "compaction_score",
+        "extraction_accuracy_score", "mechanic_lifecycle_score",
+    ]
+    _rate_fields = ["state_fidelity_rate", "prompt_adherence_rate", "sanitization_fidelity_rate"]
+
+    # Try *** ... *** delimited format (meta judge) first
+    triple_star_re = re.compile(r"\*\*\*([\s\S]*?)\*\*\*", re.MULTILINE)
+    m = triple_star_re.search(text)
+    if m:
+        fm_text = m.group(1).strip()
+        return _extract_scores_by_regex(fm_text)
+
+    # Try raw YAML at top of response (before any markdown heading, table, or --- separator)
+    lines = text.splitlines()
+    yaml_lines: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue  # skip empty lines within potential YAML block
+        # Stop at first non-YAML content (markdown heading, table, --- separator)
+        if re.match(r"^#{1,6}\s+", stripped):  # Markdown heading
+            break
+        if re.match(r"^\|", stripped):  # Table row
+            break
+        if stripped == "---":  # Standalone --- separator
+            break
+        yaml_lines.append(line)
+
+    if not yaml_lines:
+        return None
+
+    fm_text = "\n".join(yaml_lines).strip()
+    result = _extract_scores_by_regex(fm_text)
+    return result
+
+
 def parse_judge_response(raw: str) -> tuple[dict[str, Any], str]:
     """Strip thinking tags, then split YAML front matter from markdown body.
 
@@ -883,25 +932,35 @@ def parse_judge_response(raw: str) -> tuple[dict[str, Any], str]:
         s = "\n".join(s.splitlines()[1:])
         if s.endswith("```"):
             s = "\n".join(s.splitlines()[:-1])
+
+    # Extract raw YAML fields from top of response BEFORE trying _FM_RE.
+    # Handles formats where score fields appear at the very start without leading ---:
+    #   state_fidelity_rate: 0.769\nextraction_accuracy_score: 3\n---\n# Judge body...
+    fm = _extract_scores_from_raw_yaml(s)
+    if fm and isinstance(fm, dict):
+        return _normalize_scores(fm), s
+
     m = _FM_RE.search(s)
-    if not m:
-        return {}, s
-    fm_text = m.group(1)
-    body = m.group(2).strip()
-    # Sanitize LLM response before YAML parsing. LLMs often inject markdown formatting
-    # (bold **text**, tables with |, prose paragraphs) into front matter blocks which
-    # breaks PyYAML's block scalar handling or produces invalid mapping syntax.
-    fm_text_sanitized = _sanitize_fm_for_yaml(fm_text)
-    try:
-        fm = yaml.safe_load(fm_text_sanitized) or {}
-    except yaml.YAMLError as exc:
-        _log.warning("judge front matter YAML parse failed, falling back to regex extraction: %s", exc)
-        # Fallback: extract structured key-value pairs from LLM response using known score field patterns.
-        # Search both fm_text and body since LLMs may put scores in either location when prose is injected.
-        fm = _extract_scores_by_regex(fm_text_sanitized + "\n" + body) or {}
-    if not isinstance(fm, dict):
-        return {}, s
-    return _normalize_scores(fm), body
+    fm_text_delim: str | None = None
+    body_delim: str | None = None
+    if m:
+        fm_text_delim = m.group(1)
+        body_delim = m.group(2).strip()
+        # Sanitize LLM response before YAML parsing. LLMs often inject markdown formatting
+        # (bold **text**, tables with |, prose paragraphs) into front matter blocks which
+        # breaks PyYAML's block scalar handling or produces invalid mapping syntax.
+        fm_text_sanitized = _sanitize_fm_for_yaml(fm_text_delim)
+        try:
+            fm = yaml.safe_load(fm_text_sanitized) or {}
+        except yaml.YAMLError as exc:
+            _log.warning("judge front matter YAML parse failed, falling back to regex extraction: %s", exc)
+            # Fallback: extract structured key-value pairs from LLM response using known score field patterns.
+            # Search both fm_text and body since LLMs may put scores in either location when prose is injected.
+            fm = _extract_scores_by_regex(fm_text_sanitized + "\n" + (body_delim or "")) or {}
+        if isinstance(fm, dict):
+            return _normalize_scores(fm), body_delim or s
+    
+    return {}, s
 
 
 def _normalize_scores(fm: dict[str, Any]) -> dict[str, Any]:
