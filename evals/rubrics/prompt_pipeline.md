@@ -101,7 +101,7 @@ List any misplaced mechanics: turn, field, actual stream, correct stream.
 
 For each pipeline, assess whether its inputs are focused:
 
-**Rules**: inputs should be limited to pc, location, present_npcs, scene_pressure, recent_turns[-1:], user_input. Flag unnecessary context.
+**Rules**: inputs should be limited to pc, location, present_npcs, conditions, last_outcome, meta.turn, user_input. Flag unnecessary context.
 
 **Narrate**: richest inputs are justified — assess whether every input contributes. Flag inputs the narrator clearly doesn't use (cite turn where the input was present but had no effect on output).
 

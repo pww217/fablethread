@@ -535,7 +535,7 @@ Score 1–5.
 ### V6 — Pipeline I/O Relevance
 For each of the 5 pipelines, assess whether its inputs and outputs are focused on its task and appropriate to its role. The goal is minimal, relevant context per pipeline — no more inputs than needed, no outputs that belong to another pipeline.
 
-**Rules (Step 0):** Inputs should be limited to state.pc, state.location, state.scene.present_npcs, scene_pressure, recent_turns[-1:], and user_input. Outputs are IntentEnvelope and RulesOutcome. Flag if the rules prompt includes unnecessary context (e.g., full inventory, quest lists, compendium) or if the output includes fields that should be computed downstream.
+**Rules (Step 0):** Inputs should be limited to state.pc, state.location, state.scene.present_npcs, pc.conditions, last_outcome, meta.turn, and user_input. Outputs are IntentEnvelope and RulesOutcome. Flag if the rules prompt includes unnecessary context (e.g., full inventory, quest lists, compendium) or if the output includes fields that should be computed downstream.
 
 **Narrate (Step 1):** Inputs are the richest — full state, chronicle_tail, recent_turns, RulesOutcome, pack_style, npc_name_pool, etc. This is justified because the narrator produces prose. Assess: is every input contributing to narrative quality? Are there inputs that could be trimmed without affecting prose? Flag if the narrator receives data it clearly doesn't use.
 
