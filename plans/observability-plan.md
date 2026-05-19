@@ -2,7 +2,7 @@
 
 **Status:** Draft  
 **Created:** 2025-05-18  
-**Design doc:** `/docs/designs/observability-design.md`  
+**Design doc:** `docs/design/observability-design.md`  
 
 ---
 
@@ -117,36 +117,37 @@ class ErrorKind:
 class LlmcError(Exception):
     """Typed exception hierarchy for LLM client failures.
 
+    Each subclass carries its kind as a class attribute, following Python's standard pattern
+    where error classification is fixed per type (e.g., StopIteration, ValueError).
     Callers can distinguish retryable vs non-retryable failures:
-    - Retryable: LLM_TIMEOUT, LLM_RATE_LIMIT
-    - Non-retryable: LLM_API_ERROR (e.g., 400/500 from provider)
+    - Retryable: LlmcTimeout, LlmcRateLimit
+    - Non-retryable: LlmcApiError (e.g., 400/500 from provider)
     """
 
-    def __init__(self, kind: str, message: str, *, retryable: bool = False, status_code: int | None = None):
-        super().__init__(message)
-        self.kind = kind
-        self.retryable = retryable
-        self.status_code = status_code
+    kind: str = "LLM_ERROR"
+    retryable: bool = False
+    status_code: int | None = None
 
 
 class LlmcTimeout(LlmcError):
-    def __init__(self, message: str):
-        super().__init__(ErrorKind.LLM_TIMEOUT, message, retryable=True)
+    kind = ErrorKind.LLM_TIMEOUT
+    retryable = True
 
 
 class LlmcRateLimit(LlmcError):
-    def __init__(self, message: str, *, status_code: int = 429):
-        super().__init__(ErrorKind.LLM_RATE_LIMIT, message, retryable=True, status_code=status_code)
+    kind = ErrorKind.LLM_RATE_LIMIT
+    retryable = True
+    status_code = 429
 
 
 class LlmcApiError(LlmcError):
-    def __init__(self, message: str, *, status_code: int | None = None):
-        super().__init__(ErrorKind.LLM_API_ERROR, message, retryable=False, status_code=status_code)
-```
+    """API error with dynamic HTTP status code from the provider response."""
+    kind = ErrorKind.LLM_API_ERROR
+    retryable = False
 
-#### Step 1.2: Update `_JsonFormatter` to include all extra dict entries as flat JSON keys
-**File:** `ccya/logging_setup.py` lines 26-41  
-**What:** Modify `_JsonFormatter.to_json()` method to flatten all `extra` dict fields into the output JSON object alongside timestamp, level, message, and logger name
+    def __init__(self, message: str, *, status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
 
 ```python
 # In _JsonFormatter.to_json(), add extra fields as top-level keys:
@@ -157,16 +158,17 @@ def to_json(self, record):
         "msg": self.getMessage(record),
         "logger": record.name,
     }
-    # Flatten all extra dict entries as flat JSON keys for programmatic querying
-    if hasattr(record, "__dict__"):
-        for key in ("error_kind", "phase", "turn_id", "trace_id", "pack"):
-            val = getattr(record, key, None)
-            if val is not None:
-                base[key] = val
+    # Include any JSON-serializable primitive attributes as top-level keys for programmatic querying.
+    # No hardcoded key list — every caller can add structured fields via extra={} without touching the formatter.
+    for attr in dir(record):
+        if not attr.startswith("_"):
+            val = getattr(record, attr)
+            if isinstance(val, (str, int, float, bool)):
+                base[attr] = val
     return json.dumps(base, default=str)
 ```
 
-**Why:** Enables querying log files by structured fields like `error_kind` and `phase` without parsing message strings; matches the design doc requirement for programmatic log analysis.
+**Why:** Enables querying log files by structured fields like `error_kind` and `phase` without parsing message strings. The opt-in extra dict pattern scales without code changes — every caller can pass additional keys in `extra={}` and they automatically appear as JSON keys in the output. Matches design doc's extensible approach over a hardcoded key list.
 
 #### Step 1.3: Remove dead `_SseErrorHandler` class entirely
 **File:** `ccya/logging_setup.py` lines 60-81  
@@ -191,7 +193,7 @@ root_logger.addHandler(stream_handler)
 
 ### Tests to write/update
 - Unit test for ErrorKind constants: verify all expected string values exist and are unique
-- Unit test for LlmcError hierarchy: verify kind, retryable flag, and status_code propagate correctly through subclass constructors
+- Unit test for LlmcError hierarchy: verify kind, retryable flag, and status_code are correct class attributes on each subclass (LlmcTimeout, LlmcRateLimit, LlmcApiError)
 - Verify `_JsonFormatter.to_json()` output includes extra fields as top-level JSON keys when present in log record
 
 ### REPOMAP updates required
@@ -315,7 +317,7 @@ except TimeoutError as exc:
     raise LlmcTimeout(f"LLM request timed out after {timeout}s") from exc
 except httpx.HTTPStatusError as exc:
     if exc.response.status_code == 429:
-        raise LlmcRateLimit(f"Rate limited by LLM provider", status_code=429) from exc
+        raise LlmcRateLimit(f"Rate limited by LLM provider") from exc
     else:
         raise LlmcApiError(
             f"LLM API error {exc.response.status_code}: {exc.response.text}",
@@ -325,6 +327,7 @@ except httpx.RequestError as exc:
     raise LlmcTimeout(f"Network error connecting to LLM: {exc}") from exc
 ```
 
+Note: `LlmcRateLimit` has fixed `status_code = 429` as a class attribute. `LlmcApiError` accepts an optional `status_code=` constructor parameter for dynamic HTTP status codes, since API errors can vary by response code while rate limits are always 429.
 **Why:** Callers can now distinguish retryable vs non-retryable failures; structured logging in upstream modules will have access to ErrorKind via `exc.kind` attribute.
 
 #### Step 3.2: Update pipeline try/except blocks in turn.py with ErrorKind fields
@@ -480,7 +483,7 @@ class TurnResult(BaseModel):
 **Why:** ErrorKind uses string constants (not Enum class), so `{"kind": "LLM_TIMEOUT", "message": "..."} serializes correctly to JSON without any serialization issues. Matches the design doc decision for string-based error taxonomy.
 
 ### Tests to write/update
-- Unit test LlmcTimeout/LlmcRateLimit/LlmcApiError constructors verify kind, retryable flag, and status_code values match ErrorKind constants
+- Unit test LlmcTimeout/LlmcRateLimit/LlmcApiError instances verify kind, retryable flag, and status_code class attributes match ErrorKind constants
 - Verify extract_scene() retry loop correctly distinguishes LlmcTimeout (continue), LlmcRateLimit (break), and parse errors (feedback + continue) in mock scenarios
 - Verify generate_seed() and generate_pack() log calls include error_kind field when LLM timeout occurs
 
@@ -647,7 +650,7 @@ Update "server app.py section" in repomap.md showing new `_persist_server_error(
 
 #### Step 5.1: Read server_errors.jsonl in turn viewer failure extraction
 **File:** `ccya/server/tv.py`  
-**What:** Modify the existing failure extraction logic (around lines 263/251) to also read and merge errors from server_errors.jsonl alongside events.jsonl parsing
+**What:** Modify `_turn_viewer_data()` to read both events.jsonl and server_errors.jsonl, merging them into a unified timeline with explicit row type discrimination via `"row_kind"` field
 
 ```python
 # In tv.py — add import at top:
@@ -655,39 +658,35 @@ import json
 from pathlib import Path
 
 
-def _extract_failures(events_path: str, turn_number: int):
-    """Extract failure information for a specific turn from events.jsonl and server_errors.jsonl."""
-    failures = []
+def _turn_viewer_data(events_path: str):
+    """Build turn viewer data from events.jsonl and server_errors.jsonl."""
+    turns = []
     
-    # Existing logic: parse events.jsonl for turn-level errors
+    # Existing logic: parse events.jsonl for turn-level events
     with open(events_path) as f:
         for line in f:
             event = json.loads(line)
-            if event.get("turn") == turn_number and "error" in event:
-                failures.append({
-                    "source": "event",
-                    **event["error"],  # Contains kind + message from structured logging
-                })
+            entry = dict(event)  # copy to avoid mutation
+            entry["row_kind"] = "turn"  # explicit row type discrimination
+            turns.append(entry)
     
-    # New logic: read server_errors.jsonl for server-level errors around this turn
+    # New logic: read server_errors.jsonl and merge with explicit row_kind
     data_dir = Path(events_path).parent
     server_errors_file = data_dir / "server_errors.jsonl"
     if server_errors_file.exists():
         with open(server_errors_file) as f:
             for line in f:
                 entry = json.loads(line)
-                # Include server errors that occurred during this turn's processing window
-                # (Heuristic: same timestamp range or matching trace_id/turn_id from event data)
-                if "error_kind" in entry and ("turn_id" not in entry):  # Server-level, not turn-specific
-                    failures.append({
-                        "source": "server",
-                        **entry,  # Contains error_kind + message + timestamp from middleware persistence
-                    })
+                # Explicit row_kind — robust, self-documenting, no fragile heuristics
+                entry["row_kind"] = "server_error"
+                turns.append(entry)
     
-    return failures
+    # Sort by timestamp for unified timeline display
+    turns.sort(key=lambda e: e.get("ts", ""))
+    return turns
 ```
 
-**Why:** Turn viewer currently only shows errors from events.jsonl (game pipeline). Adding server_errors.jsonl reading enriches the failure display with server-level issues like LLM timeouts, rate limits, and unhandled exceptions that occurred during turn processing but weren't captured in game event data.
+**Why:** Uses explicit `"row_kind"` field (`"turn"` vs `"server_error"`) instead of fragile heuristic filtering on presence/absence of fields like `turn_id`. A game event could legitimately lack a `turn_id`, or a server error could coincidentally have one — the heuristic would misclassify either way. The design doc's explicit row_kind approach is robust, self-documenting, and gives the turn viewer a single source of truth for building its timeline.
 
 #### Step 5.2: Add health telemetry logging for pack load failures
 **File:** `ccya/server/app.py`  
@@ -806,7 +805,7 @@ async def create_game(brief: WorldBrief):
 **Why:** Consistent schema across both JSONL files enables unified querying (e.g., `grep 'LLM_TIMEOUT' server_errors.jsonl events.jsonl`). Both share ErrorKind constants from Phase 1 and structured formatter fields from Phase 1.
 
 ### Tests to write/update
-- Unit test `_extract_failures()` merges errors from both events.jsonl and server_errors.jsonl correctly, filtering by turn number where applicable
+- Unit test `_turn_viewer_data()` merges events.jsonl and server_errors.jsonl with explicit `"row_kind"` discrimination, sorted by timestamp for unified timeline display
 - Integration test: verify game generation lifecycle logs include trace_id at each stage (pack → seed → turn) for end-to-end correlation
 - Verify server_errors.jsonl entries have compatible schema with events.jsonl entries (same ts/level/error_kind/message structure)
 
