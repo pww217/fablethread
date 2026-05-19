@@ -1566,8 +1566,9 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
             rejections.append(
                 {
                     "field": "inventory_remove",
+                    "kind": "warn_missing_item",
                     "value": rem.id,
-                    "reason": f"Inventory item '{rem.id}' does not exist",
+                    "reason": f"Inventory item '{rem.id}' does not exist — ignoring removal request",
                 }
             )
             continue
