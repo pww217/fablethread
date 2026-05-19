@@ -14,6 +14,8 @@ from ccya.engine.names import generate_name_pool, generate_npc_names
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
 from ccya.pack import Pack, PlayerOverrides, SeedEnvelope, parse_world_facts
 
+from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
+
 _NAME_RE = re.compile(r"[^\x00-\x7F]")
 
 
@@ -60,7 +62,7 @@ def _validate_seed_envelope(envelope: SeedEnvelope) -> None:
         )
 
 
-_log = logging.getLogger("ccya.engine")
+_log = logging.getLogger(__name__)
 
 
 def _build_generate_seed_messages(
@@ -194,12 +196,19 @@ async def generate_seed(
                 temperature=config.generate_seed_temperature,
                 timeout=float(config.request_timeout_s),
             )
-        except Exception as exc:
+        except LlmcTimeout:
+            _log.error(
+                "generate_seed: LLM timeout",
+                extra={"error_kind": ErrorKind.LLM_TIMEOUT, "trace_id": trace_id},
+            )
+            raise
+        except LlmcError as exc:
             _log.error(
                 "generate_seed: LLM error: %s",
                 exc,
-                extra={"trace_id": trace_id},
+                extra={"error_kind": exc.kind, "trace_id": trace_id},
             )
+            raise
             raise
         raw = result.get("response", "") if isinstance(result, dict) else ""
         if config.log_llm_io:

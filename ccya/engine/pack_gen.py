@@ -17,7 +17,9 @@ from ccya.engine.names import generate_name_pool
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
 from ccya.pack import Pack, PackManifest, ScenarioBrief, WorldBrief, GeneratedPackMeta, load_pack
 
-_log = logging.getLogger("ccya.engine")
+from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
+
+_log = logging.getLogger(__name__)
 
 
 def _slugify(text: str) -> str:
@@ -104,8 +106,14 @@ async def generate_pack(
                 temperature=config.generate_seed_temperature,
                 timeout=float(config.request_timeout_s),
             )
-        except Exception as exc:
-            _log.error("generate_pack: LLM error: %s", exc, extra={"trace_id": trace_id})
+        except LlmcTimeout:
+            _log.error(
+                "generate_pack: LLM timeout",
+                extra={"error_kind": ErrorKind.LLM_TIMEOUT, "trace_id": trace_id},
+            )
+            raise
+        except LlmcError as exc:
+            _log.error("generate_pack: LLM error: %s", exc, extra={"error_kind": exc.kind, "trace_id": trace_id})
             raise
 
         raw = result.get("response", "") if isinstance(result, dict) else ""

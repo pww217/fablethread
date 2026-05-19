@@ -14,6 +14,7 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
+from ccya.errors import ErrorKind
 from ccya.engine import (
     format_change_lines,
     generate_seed,
@@ -42,6 +43,7 @@ from .tv import _turn_viewer_data
 # Import the app module to reference its globals (enables test patching)
 _app_mod = sys.modules["ccya.server.app"]
 
+_log = logging.getLogger(__name__)
 
 def _format_ts(ts_str: str) -> str:
     """Convert UTC ISO string to a human-readable display string."""
@@ -122,7 +124,9 @@ async def get_turn(input: str = ""):
                 elif kind == "complete":
                     result = payload
                     for err in result.errors:
-                        _app_mod._ERRORS_LOG.appendleft(err)
+                        _log.error(
+                            "turn error", extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "message": str(err)},
+                        )
                     ch = result.changes if isinstance(result.changes, dict) else {}
                     # Format ts field for display (engine stores UTC ISO, UI gets human-readable)
                     _ts_display = _format_ts(result.ts)
@@ -181,8 +185,6 @@ async def delete_last_turn():
 
 @_app_mod.app.post("/new-game")
 async def new_game(request: Request):
-    _app_mod._ERRORS_LOG.clear()
-
     form = await request.form()
     requested_pack = str(form.get("pack_id", "")).strip()
     if requested_pack and requested_pack != _app_mod._pack_id:
@@ -194,7 +196,10 @@ async def new_game(request: Request):
             )
         except Exception as exc:
             _app_mod.logger.error("Failed to switch pack %r: %s", requested_pack, exc)
-            _app_mod._ERRORS_LOG.appendleft({"message": f"Unknown pack: {requested_pack}"})
+            _log.error(
+                "Unknown pack: %s", requested_pack,
+                extra={"error_kind": ErrorKind.PACK_LOAD_FAILED},
+            )
 
     pc_name = str(form.get("pc_name", "")).strip()
     pc_tagline = str(form.get("pc_tagline", "")).strip()
@@ -265,9 +270,8 @@ async def new_game(request: Request):
             init_save_dir(_app_mod.SAVE_DIR, seed)
             _app_mod._dynamic_opening = envelope.opening_narrative
             _app_mod._dynamic_opening_actions = envelope.actions
-        except Exception as exc:
+        except Exception:
             _app_mod.logger.exception("generate_seed failed")
-            _app_mod._ERRORS_LOG.appendleft({"message": f"New game generation failed: {exc}"})
 
     ctx = _debug_context()
     ctx["pack_mode"] = _app_mod._active_pack.mode
@@ -295,7 +299,6 @@ async def new_game_reroll(request: Request):
         _app_mod._dynamic_opening_actions = envelope.actions
     except Exception as exc:
         _app_mod.logger.exception("generate_seed reroll failed")
-        _app_mod._ERRORS_LOG.appendleft({"message": f"Re-roll failed: {exc}"})
         return HTMLResponse(f"<p class='text-red-400'>Re-roll failed: {exc}</p>")
 
     actions_html = "".join(
@@ -330,7 +333,6 @@ def panel_actions(request: Request):
 
 @_app_mod.app.post("/panels/debug/clear-errors")
 def debug_clear_errors():
-    _app_mod._ERRORS_LOG.clear()
     return _app_mod._render("_debug.html", _debug_context())
 
 
@@ -341,7 +343,6 @@ def panel_debug():
 
 @_app_mod.app.delete("/packs/{pack_id:path}")
 async def delete_pack(pack_id: str):
-    log = logging.getLogger(__name__)
     # Only allow deleting custom/ or generated/ packs
     if not (pack_id.startswith("custom/") or pack_id.startswith("generated/")):
         return JSONResponse({"error": "Cannot delete built-in packs"}, status_code=403)
@@ -354,7 +355,7 @@ async def delete_pack(pack_id: str):
         return JSONResponse({"error": "Cannot delete the currently active pack"}, status_code=409)
     import shutil
     shutil.rmtree(pack_dir)
-    log.info("Deleted pack: %s", pack_id)
+    _log.info("Deleted pack: %s", pack_id)
     return JSONResponse({"ok": True})
 
 
@@ -409,8 +410,7 @@ async def new_game_generate_pack(request: Request):
 
     trace_id = os.urandom(4).hex()
 
-    log = logging.getLogger(__name__)
-    log.info(
+    _log.info(
         "new_game_generate_pack",
         extra={"trace_id": trace_id, "concept_len": len(concept)},
     )

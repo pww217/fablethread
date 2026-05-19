@@ -15,7 +15,7 @@ from ccya.llm_client import chat as llm_chat
 from ccya.models import CompactorSanitizationResult
 from pydantic import ValidationError
 
-_log = logging.getLogger("ccya.engine")
+_log = logging.getLogger(__name__)
 
 _COMPACTED_HEADER = re.compile(r"^## COMPACTED$", re.MULTILINE)
 _TURN_HEADER = re.compile(r"^## Turn (\d+) — (.+)$", re.MULTILINE)

@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import logging
 import logging.handlers
+import os
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from ccya.models import load_config
 
@@ -34,7 +35,7 @@ def setup_logging(config: dict[str, Any] | None = None) -> logging.Logger:
     logger.addHandler(fh)
 
     ch = logging.StreamHandler()
-    ch.setLevel(level)
+    ch.setLevel(os.getenv("CCYA_LOG_LEVEL", "INFO"))
     ch.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
     logger.addHandler(ch)
 
@@ -50,32 +51,12 @@ class _JsonFormatter(logging.Formatter):
             "message": record.getMessage(),
             "logger": record.name,
         }
-        if hasattr(record, "trace_id"):
-            log_data["trace_id"] = record.trace_id
+        for attr in dir(record):
+            if not attr.startswith("_"):
+                val = getattr(record, attr)
+                if isinstance(val, (str, int, float, bool)):
+                    log_data[attr] = val
         if record.exc_info and record.exc_info[0] is not None:
             log_data["exception"] = self.formatException(record.exc_info)
         return json.dumps(log_data, default=str)
 
-
-class _SseErrorHandler:
-
-    def __init__(self) -> None:
-        self._events: list[dict[str, Any]] = []
-        self._callbacks: list[Callable[[dict[str, Any]], None]] = []
-
-    def register(self, callback: Callable[[dict[str, Any]], None]) -> None:
-        self._callbacks.append(callback)
-
-    def push(self, error: dict[str, Any]) -> None:
-        self._events.append(error)
-        for cb in self._callbacks:
-            try:
-                cb(error)
-            except Exception:
-                pass
-
-    def get_events(self) -> list[dict[str, Any]]:
-        return self._events
-
-    def clear(self) -> None:
-        self._events.clear()

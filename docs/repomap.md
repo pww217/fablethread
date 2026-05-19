@@ -7,6 +7,7 @@
 | `ccya/__main__.py` | CLI entry: argparse + uvicorn.run |
 | `ccya/cli.py` | CLI commands |
 | `ccya/models.py` | All Pydantic models, TurnResult dataclass, load_config() |
+| `ccya/errors.py` | ErrorKind string constants (LLM_TIMEOUT, LLM_RATE_LIMIT, etc.) + LlmcError exception hierarchy (LlmcTimeout, LlmcRateLimit, LlmcApiError) |
 | `ccya/engine/__init__.py` | Re-exports public APIs; internal helpers for tests; LLM client re-exports (llm_chat, llm_chat_stream) |
 | `ccya/engine/config.py` | EngineConfig dataclass, _EventLock, is_turn_in_progress(), Jinja env setup |
 | `ccya/engine/turn.py` | run_turn() async orchestrator (thin — imports from submodules), _validate(), warmup() |
@@ -28,10 +29,10 @@
 | `ccya/state/chronicle.py` | append_event (events.jsonl), append_chronicle (chronicle.md), load_chronicle_tail() |
 | `ccya/state/momentum.py` | apply_momentum() — deterministic from rules band, clamped to [-3,+3] |
 | `ccya/server/__init__.py` | Re-exports: app, main, config, SAVE_DIR, _validate_stats |
-| `ccya/server/app.py` | FastAPI app bootstrap, Jinja env, pack loading, startup event, _render(), _ERRORS_LOG (deque last 50) |
+| `ccya/server/app.py` | FastAPI app bootstrap, Jinja env, pack loading, startup event; server error persistence + exception middleware → server_errors.jsonl |
 | `ccya/server/routes.py` | All @app.get / @app.post route handlers |
 | `ccya/server/panels.py` | Panel context builders: _debug_context(), _load_* helpers, _get_opening() |
-| `ccya/server/tv.py` | Turn viewer data from events.jsonl (per-stream metrics, status colors) |
+| `ccya/server/tv.py` | Turn viewer data from events.jsonl + server_errors.jsonl — unified timeline with row_kind discrimination, per-stream metrics, status colors |
 | `ccya/server/metrics.py` | _recent_turn_metrics(), _turn_log_entries() — latency/token formatting |
 | `ccya/eval/__init__.py` | Re-exports: EvalConfig, JudgeResult, RunResult, Scenario, build_trace, run_scenario, etc. |
 | `ccya/eval/config.py` | EvalConfig, JudgesSpec (per-judge rubric/model/temp), load_eval_config() |
@@ -43,7 +44,7 @@
 | `ccya/pack.py` | load_pack(), list_packs() — validates pack has seed (static) or scenario (generated) |
 | `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (2d6+stat+cond−diff→Band), build_directive() near-miss logic |
 | `ccya/llm_client.py` | chat(), chat_stream() — OpenAI-compatible → mlx_lm.server; trim_messages() token-budget trimming |
-| `ccya/logging_setup.py` | JSONL RotatingFileHandler + SSE error push |
+| `ccya/logging_setup.py` | JSONL RotatingFileHandler + _JsonFormatter (extra fields → flat JSON keys); StreamHandler defaults to WARNING via CCYA_LOG_LEVEL env var |
 
 ## Public APIs (function names + 1-liner purpose)
 
@@ -90,8 +91,8 @@ Steps 3–5 merge into StateDelta → _validate() → apply_delta() → summariz
 
 ## Cross-module contracts
 
-### Error propagation path
-LLM failure in extraction → `_call_stream` returns retry_errors tuple → `StateDelta.rejected` populated by _validate() (inventory_remove IDs must exist, rejects zero-balance removes) → errors collected as list[dict] on TurnResult.errors → server stores in `_ERRORS_LOG` (deque last 50) → SSE error event pushed to frontend via logging_setup.py
+### Error propagation path (structured observability)
+LLM failure in extraction → typed LlmcError raised with ErrorKind classification → caught by server middleware → persisted to `server_errors.jsonl` + SSE error event pushed via logging_setup.py. Engine modules use `_log = logging.getLogger(__name__)`; all log calls pass structured fields via `extra={}` (error_kind, trace_id). TurnResult.errors collected as list[dict] with ErrorKind constants. Server middleware catches unhandled exceptions and returns JSON responses instead of raw HTML error pages.
 
 ### Scene thread lifecycle (unified arc.threads[])
 - All scene_pressure functionality migrated to `arc.threads[]` with `scope: scene` — ccya/engine/pressure.py module deleted in phase 06 validation sweep
@@ -195,3 +196,13 @@ world.factions: [str], world.locations: [str]
 - `PC_CONDITIONS_MAX = 5`, `MOMENTUM_MIN = -3`, `MOMENTUM_MAX = 3`
 - `NPC_SCENE_CAP = 8` (max present NPCs in scene)
 - `DEFAULT_CONDITION_TTL = 10` turns when `turns_remaining` is None
+
+### ErrorKind constants + LlmcError hierarchy (`ccya/errors.py`)
+**ErrorKind string constants:** LLM_TIMEOUT, LLM_RATE_LIMIT, LLM_API_ERROR, TURN_PROCESSING_FAILED, PACK_LOAD_FAILED, PACK_GENERATION_FAILED, SEED_GENERATION_FAILED, SERVER_ERROR. All modules use these instead of magic strings for error classification.
+
+**LlmcError exception hierarchy (base → subclasses):**
+- `LlmcTimeout` — network/LLM timeout; retryable=True; status_code=None
+- `LlmcRateLimit` — HTTP 429 from provider; retryable=True; status_code=429
+- `LlmcApiError` — other API errors (5xx); retryable=False; dynamic status_code
+
+**Structured logging pipeline:** All modules use `_log = logging.getLogger(__name__)`. Error calls pass structured fields via `extra={error_kind: ..., trace_id: ...}`. _JsonFormatter flattens extra dict entries as top-level JSON keys in log output. Server middleware persists unhandled exceptions to server_errors.jsonl with ErrorKind classification. Turn viewer merges events.jsonl + server_errors.jsonl into unified timeline sorted by timestamp, discriminated via `row_kind` field ("turn" vs "server_error").

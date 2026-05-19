@@ -71,7 +71,7 @@ def _strip_non_ascii(text: str) -> str:
     return result
 
 
-_log = logging.getLogger("ccya.state")
+_log = logging.getLogger(__name__)
 
 PC_CONDITIONS_MAX: int = 5
 """Hard cap on simultaneous pc.conditions; oldest is evicted FIFO when exceeded."""

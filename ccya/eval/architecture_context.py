@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-_log = logging.getLogger("ccya.eval")
+_log = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _ARCH_PATH = REPO_ROOT / "docs" / "ARCHITECTURE.md"
