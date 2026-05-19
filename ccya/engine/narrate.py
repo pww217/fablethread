@@ -57,6 +57,9 @@ def _narrate_messages(
                     "summary": t.get("summary", "") if isinstance(t, dict) else getattr(t, "summary", ""),
                     "urgency": t.get("urgency", "normal") if isinstance(t, dict) else getattr(t, "urgency", "normal"),
                     "tags": t.get("tags", []) if isinstance(t, dict) else getattr(t, "tags", []),
+                    "scope": t.get("scope", "arc") if isinstance(t, dict) else getattr(t, "scope", "arc"),
+                    "id": t.get("id", "") if isinstance(t, dict) else getattr(t, "id", ""),
+                    "active": t.get("active", True) if isinstance(t, dict) else getattr(t, "active", True),
                 }
                 for t in all_threads if not (isinstance(t, dict) and t.get("active") is False) or not hasattr(t, "active") or getattr(t, "active", True)
             ],

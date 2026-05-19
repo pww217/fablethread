@@ -58,34 +58,8 @@ Resolve cruel, selfish, or evil player choices straight: narrate consequences wi
 ## NPC naming
 All NPC names must include a given name and family name (e.g. "Mira Sovak", "Dren Calloway"). Single-word names are not permitted. When introducing a new NPC, pick from the name pool provided in the user prompt. If the name pool provides separate male and female lists, select names appropriate to the role and setting — historical combat genres: use male names from provided names ONLY for combat roles; modern and speculative settings: use any gender freely. If the NPC is anonymous or unnamed in-scene, use a descriptive placeholder like "the guard" or "a stranger" — but once their true name is revealed, it must supersede the placeholder and the placeholder becomes an alias (handled by the scene extractor).
 
-## Campaign Arc
-
-{% if current_arc %}The player's visible goal: {{ current_arc.get('visible_goal', '') }}
-Thematic question (shapes the emotional register of this scene — never state it directly):
-  {{ current_arc.get('thematic_question', '') }}
-
-{% if current_arc.get('active_threads') %}
-## Active narrative threads (situations in play)
-
-These are situations alive in the world right now. You do not announce them as objectives
-or missions. You weave them into the scene through environment, NPC behavior, overheard
-dialogue, atmosphere, or timing. The player may interact with a thread or ignore it. If
-they deviate from all threads, let the scene breathe — but keep at least one thread subtly
-present as a background pressure or detail.
-
-{% for thread in current_arc.get('active_threads') %}[{{ thread.get('urgency', 'normal') | upper }}] {{ thread.get('summary', '') }}
-
-{% endfor %}
-{% endif %}
-
-{% if current_arc.get('pc_drive') %}
-The player character's personal drive: {{ current_arc.get('pc_drive', '') }}
-This shapes their emotional interior — grief, determination, guilt — not their stated
-actions. Use it to color inner narration, dialogue subtext, or reactive detail.
-{% endif %}
-{% else %}
-No active campaign arc.
-{% endif %}
+## Campaign Arc context (see user prompt for current values)
+Your visible goal, thematic question, active threads, and pc_drive are in the user prompt below. Use them as narrative context — never state the thematic question directly or reveal hidden_truths in prose.
 
 ## ARC UPDATE (optional, after narration)
 
