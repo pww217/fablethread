@@ -46,8 +46,9 @@ def _merge_arc_update(arc: dict[str, Any], au: CampaignArc) -> None:
         arc["thematic_question"] = au.thematic_question
     if au.pc_drive:
         arc["pc_drive"] = au.pc_drive
-    if au.hidden_truths:
-        arc["hidden_truths"] = au.hidden_truths
+    if au.hidden_truths is not None:
+        existing_ht = set(arc.get("hidden_truths") or [])
+        arc["hidden_truths"] = list(existing_ht | set(au.hidden_truths))
     if au.discovered_truths:
         existing_dt = set(arc.get("discovered_truths") or [])
         arc["discovered_truths"] = list(existing_dt | set(au.discovered_truths))

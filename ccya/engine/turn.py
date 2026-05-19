@@ -167,7 +167,7 @@ def _apply_thread_signals(
             else:
                 still_active.append(updated_t)
                 mutated = True  # Advancing a thread is also a mutation
-        elif t.last_seen_turn is None or (turn_no - t.last_seen_turn >= _EXPIRE_SILENT_TURNS):
+        elif t.last_seen_turn is not None and (turn_no - t.last_seen_turn >= _EXPIRE_SILENT_TURNS):
             # Expired -> demote to latent, reset timer
             expired_t = t.model_copy(update={
                 "active": False,
@@ -1296,6 +1296,30 @@ async def run_turn(
                     if _scope == "scene":
                         # Scene-scoped threads are handled by age rules in Python, not here
                         pass
+                    else:
+                        arc_raw = state.get("arc")
+                        turn_no_for_add = state.get("meta", {}).get("turn", 0) + 1
+                        if arc_raw and delta is not None:
+                            try:
+                                _existing_arc = CampaignArc.model_validate(arc_raw)
+                                existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
+                                if _new_thread.id not in existing_ids:
+                                    _updated_t = _new_thread.model_copy(update={
+                                        "active": True,
+                                        "last_seen_turn": turn_no_for_add,
+                                    })
+                                    if not getattr(_updated_t, 'added_turn', None):
+                                        _updated_t = _updated_t.model_copy(update={"added_turn": turn_no_for_add})
+                                    arc_with_new_thread = _existing_arc.model_copy(
+                                        update={"threads": list(_existing_arc.threads) + [_updated_t]}
+                                    )
+                                    _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
+                                    delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
+                            except Exception as exc:
+                                _log.warning(
+                                    "thread_add: failed to validate arc at T%d for thread %s: %s",
+                                    turn_no_for_add, getattr(_new_thread, 'id', '?'), exc, extra={"turn": turn_no_for_add},
+                                )
 
         narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
 

@@ -122,29 +122,31 @@ arc:
     - The brass key Halden gave you opens a back room at the inn where intercepted couriers' messages are stored.
     - Caron's debt was not a failed venture — it was a deliberate investment in your skills, and he's been waiting for you to prove yourself.
   discovered_truths: []
-  active_threads:
+  threads:
     - id: settle_the_debt
       summary: Settle the 500-credit debt with Caron.
-      tags: [debt, caron, obligation]
-      state: latent
+      scope: arc
+      active: false
       urgency: normal
+      tags: [debt, caron, obligation]
       progress: 0
-      last_offered_turn: 0
+      last_seen_turn: null
     - id: deliver_the_ledger
       summary: Deliver Halden's ledger to the merchant at the Crossed Keys Inn.
-      tags: [courier, halden, contract]
-      state: latent
+      scope: arc
+      active: false
       urgency: normal
+      tags: [courier, halden, contract]
       progress: 0
-      last_offered_turn: 0
+      last_seen_turn: null
     - id: clear_the_road_toughs
       summary: Deal with the toughs blocking the inn entrance.
+      scope: arc
+      active: false
+      urgency: background
       tags: [toughs, road, confrontation]
-      state: latent
-      urgency: low
       progress: 0
-      last_offered_turn: 0
-  latent_threads: []
+      last_seen_turn: null
   completed_threads: []
   arc_engagement: 0
   pc_drive: Prove you can handle the road — clear your name and earn enough to start over.
