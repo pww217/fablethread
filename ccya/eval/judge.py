@@ -771,6 +771,84 @@ _FM_RE = re.compile(
 )
 
 
+def _sanitize_fm_for_yaml(fm_text: str) -> str:
+    """Strip non-YAML content from LLM-generated front matter before yaml.safe_load.
+
+    LLMs often inject markdown formatting (bold **text**, tables with |, prose paragraphs)
+    into YAML front matter blocks which breaks PyYAML's block scalar handling or produces
+    invalid mapping syntax. This function strips those patterns while preserving valid
+    key-value pairs and nested structures.
+    """
+    lines = fm_text.splitlines()
+    sanitized: list[str] = []
+
+    # Patterns that indicate non-YAML LLM prose injected into front matter
+    _prose_patterns = [
+        re.compile(r"^\s*\*{2,}.*:\s*$"),           # **Heading:** or __Heading__
+        re.compile(r"^\s*_+[^:]+_+\s*$"),            # __underline__ (no colon)
+        re.compile(r"^#{1,6}\s+"),                    # Markdown heading (# Heading)
+    ]
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Skip empty lines that break block scalar context
+        if not stripped:
+            continue
+
+        # Skip markdown table rows (| Criterion | Score | Evidence |)
+        if re.match(r"^\s*\|.+\|\s*$", line):
+            continue
+
+        # Skip column separators like |-|-|- or --- with pipes
+        if "---" in stripped and all(c in "-| " for c in stripped.replace(" ", "")):
+            continue
+
+        # Skip LLM prose patterns (headings, bold text acting as section headers)
+        is_prose = False
+        for pat in _prose_patterns:
+            if pat.match(stripped):
+                sanitized.append(f"# {stripped}")  # Convert to YAML comment
+                is_prose = True
+                break
+
+        if not is_prose:
+            sanitized.append(line)
+
+    return "\n".join(sanitized)
+
+
+def _extract_scores_by_regex(fm_text: str) -> dict[str, Any] | None:
+    """Fallback score extraction when YAML parsing fails.
+
+    Extracts structured key-value pairs from LLM-generated front matter using regex patterns
+    that match known judge output fields (scores and rates). This handles cases where LLMs
+    inject markdown prose into YAML blocks causing PyYAML to fail.
+    """
+    # All recognized score/rate field names from _normalize_scores()
+    _score_fields = [
+        "mechanical_score", "narrative_score", "system_cohesion_score",
+        "prompt_quality_score", "compaction_score",
+        "extraction_accuracy_score", "mechanic_lifecycle_score",
+    ]
+    _rate_fields = ["state_fidelity_rate", "prompt_adherence_rate", "sanitization_fidelity_rate"]
+
+    out: dict[str, Any] = {}
+
+    # Extract simple key-value pairs (e.g., "score: 8" or "mechanical_score: 4")
+    for field in _score_fields + _rate_fields:
+        pattern = re.compile(rf"(?:^|\n)\s*{re.escape(field)}\s*:\s*(.+)", re.MULTILINE)
+        match = pattern.search(fm_text)
+        if match:
+            val_str = match.group(1).strip().rstrip(".")  # Remove trailing period from LLM output
+            try:
+                out[field] = int(round(float(val_str)))
+            except (ValueError, TypeError):
+                pass
+
+    return out if out else None
+
+
 def parse_judge_response(raw: str) -> tuple[dict[str, Any], str]:
     """Strip thinking tags, then split YAML front matter from markdown body.
 
@@ -810,31 +888,17 @@ def parse_judge_response(raw: str) -> tuple[dict[str, Any], str]:
         return {}, s
     fm_text = m.group(1)
     body = m.group(2).strip()
-    # Strip markdown table rows (lines with |- separators or multiple | chars forming tables)
-    # before YAML parsing. PyYAML treats leading '|' as a literal block scalar indicator.
-    _table_row_re = re.compile(r"^\s*\|(.*)\|\s*$")
-    fm_lines: list[str] = []
-    in_table = False
-    for line in fm_text.splitlines():
-        if _table_row_re.match(line):
-            # Detect table separator (---) or data row with multiple | chars
-            stripped = line.strip()
-            if "---" in stripped and all(c in "-| " for c in stripped.replace(" ", "")):
-                continue  # skip column separators like |-|-|-
-            elif stripped.count("|") >= 2:
-                if not in_table:
-                    in_table = True
-                fm_lines.append("# [table row omitted]")
-                continue
-        else:
-            in_table = False
-        fm_lines.append(line)
-    fm_text_sanitized = "\n".join(fm_lines)
+    # Sanitize LLM response before YAML parsing. LLMs often inject markdown formatting
+    # (bold **text**, tables with |, prose paragraphs) into front matter blocks which
+    # breaks PyYAML's block scalar handling or produces invalid mapping syntax.
+    fm_text_sanitized = _sanitize_fm_for_yaml(fm_text)
     try:
         fm = yaml.safe_load(fm_text_sanitized) or {}
     except yaml.YAMLError as exc:
-        _log.warning("judge front matter YAML parse failed: %s", exc)
-        return {}, s
+        _log.warning("judge front matter YAML parse failed, falling back to regex extraction: %s", exc)
+        # Fallback: extract structured key-value pairs from LLM response using known score field patterns.
+        # Search both fm_text and body since LLMs may put scores in either location when prose is injected.
+        fm = _extract_scores_by_regex(fm_text_sanitized + "\n" + body) or {}
     if not isinstance(fm, dict):
         return {}, s
     return _normalize_scores(fm), body
