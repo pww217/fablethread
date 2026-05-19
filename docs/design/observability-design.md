@@ -108,28 +108,28 @@ New module defining all error types as a string-based enum for JSON serializatio
 ```
 ErrorKind (str constant type):
     # LLM pipeline errors
-    "llm_timeout"           — request exceeded timeout
-    "llm_http_error"        — non-200 response from LLM server  
-    "llm_parse_failed"      — JSON parse failure after all retries
-    "llm_connection_refused"— connection refused by LLM server
+    "LLM_TIMEOUT"           — request exceeded timeout
+    "LLM_HTTP_ERROR"        — non-200 response from LLM server  
+    "LLM_PARSE_FAILED"      — JSON parse failure after all retries
+    "LLM_CONNECTION_REFUSED"— connection refused by LLM server
     
     # Extraction errors
-    "extraction_scene_fail"  — scene extraction pipeline exception
-    "extraction_state_fail"  — state extraction pipeline exception
-    "extraction_progress_fail" — progress extraction pipeline exception
+    "EXTRACTION_SCENE_FAIL"  — scene extraction pipeline exception
+    "EXTRACTION_STATE_FAIL"  — state extraction pipeline exception
+    "EXTRACTION_PROGRESS_FAIL" — progress extraction pipeline exception
     
     # Validation errors  
-    "validation_rejection"   — delta validation rejected operations
-    "validation_zero_balance"— inventory item has zero balance on remove
+    "VALIDATION_REJECTION"   — delta validation rejected operations
+    "VALIDATION_ZERO_BALANCE"— inventory item has zero balance on remove
     
     # Server-level errors
-    "pack_load_failed"       — pack not found or invalid
-    "new_game_failed"        — seed generation failed
-    "config_validation"      — config.yaml validation error
+    "PACK_LOAD_FAILED"       — pack not found or invalid
+    "NEW_GAME_FAILED"        — seed generation failed
+    "CONFIG_VALIDATION"      — config.yaml validation error
     
     # Operational signals (not errors, but observable)
-    "compaction_ran"         — chronicle compaction completed
-    "condition_expired"      — PC condition TTL expired
+    "COMPACTION_RAN"         — chronicle compaction completed
+    "CONDITION_EXPIRED"      — PC condition TTL expired
 ```
 
 Each ErrorKind maps to a default log level and visibility rule:
@@ -143,18 +143,18 @@ Each ErrorKind maps to a default log level and visibility rule:
 ```json
 {
     "ts": "...",
-    "level": "WARNING",
+    "level": "WARNING", 
     "message": "...",
     "logger": "ccya.engine.extraction",
     "trace_id": "a1b2c3d4",
-    "error_kind": "llm_parse_failed",       // NEW: when present in extra
+    "error_kind": "LLM_PARSE_FAILED",       // NEW: when present in extra
     "phase": "extract_scene",               // NEW: pipeline stage
     "turn": 47,                              // NEW: turn number
     "retry_count": 3                         // NEW: attempts used
 }
 ```
 
-All new fields are opt-in via `extra` dict — existing log calls without these keys produce identical output.
+All new fields are opt-in via `extra` dict — existing log calls without these keys produce identical output. The formatter iterates over all attributes on the log record and includes any that are JSON-serializable primitives (str, int, float, bool). No hardcoded key list — every caller can add structured fields by passing them in `extra={}` without touching the formatter code.
 
 #### 3. Logger Naming Standardization
 
@@ -176,7 +176,7 @@ New middleware `ExceptionCaptureMiddleware` that:
 ```python
 {
     "ts": "...",                    # ISO timestamp  
-    "kind": "pack_load_failed",     # ErrorKind string
+    "kind": "PACK_LOAD_FAILED",     # ErrorKind string constant
     "message": "Pack 'foobar' not found",
     "trace_id": "",                 # empty for server-level errors
 }
@@ -190,23 +190,24 @@ New exception hierarchy:
 ```python
 class LlmcError(Exception):
     """Base for all llm_client exceptions."""
-    kind: str = "llm_error"
+    kind: str = "LLM_ERROR"
 
 class LlmcTimeout(LlmcError):
-    kind = "llm_timeout"
+    kind = "LLM_TIMEOUT"
 
-class LlmcHttpError(LlmcError):  
-    kind = "llm_http_error"
+class LlmcApiError(LlmcError):  
+    kind = "LLM_API_ERROR"
     status_code: int
     
 class LlmcConnectionRefused(LlmcError):
-    kind = "llm_connection_refused"
+    kind = "LLM_CONNECTION_REFUSED"
 
 class LlmcParseFailed(LlmcError):
-    kind = "llm_parse_failed"
+    kind = "LLM_PARSE_FAILED"
 ```
 
-Each exception type carries its `kind` for structured logging. Catch sites in engine modules use these types to log with appropriate error_kind field.
+Each exception type carries its `kind` for structured logging. Catch sites in engine modules use these types to log with appropriate error_kind field. This follows Python's standard pattern where error classification is fixed per subclass, not configurable at instantiation time.
+
 
 #### 7. Visibility Convention (stdout/stderr vs file-only)
 
@@ -222,8 +223,8 @@ This replaces the current all-INFO-on-console pattern. The StreamHandler level s
 #### 8. Health Telemetry Logging (`ccya/server/app.py`)
 
 On `/healthz` check result:
-- If LLM becomes available after being unavailable → log at INFO with `"error_kind": "llm_restored"`  
-- If LLM becomes unavailable → log at ERROR with `"error_kind": "llm_unavailable"`
+- If LLM becomes available after being unavailable → log at INFO with `"error_kind": "LLM_RESTORED"`  
+- If LLM becomes unavailable → log at ERROR with `"error_kind": "LLM_UNAVAILABLE"`
 - Track last health state in server app module global to detect transitions
 
 ### Data Flow Diagram
@@ -270,7 +271,7 @@ flowchart TD
 
 | Decision | What | Why |
 |---|---|---|
-| ErrorKind as string constants (not Enum) | Use `"llm_timeout"` strings instead of Python `Enum` class | TurnResult.errors is `list[dict]`, JSON serializable, and pydantic models use these kinds. String avoids serialization issues with Enum in mixed dict/list contexts. |
+| ErrorKind as string constants (not Enum) | Use `"LLM_TIMEOUT"` strings instead of Python `Enum` class | TurnResult.errors is `list[dict]`, JSON serializable, and pydantic models use these kinds. String avoids serialization issues with Enum in mixed dict/list contexts. |
 | `_log = logging.getLogger(__name__)` everywhere | Standardize all modules to use `__name__` pattern | Python logger hierarchy gives automatic parent-child relationship; `"ccya"` root config propagates to all children naturally. No need for manual prefix strings. |
 | StreamHandler defaults to WARNING level | Change default from INFO → WARNING in setup_logging() | Reduces console noise during normal play. Errors and warnings are what operators need on the server console; info/debug belongs in JSONL log file only. |
 | `_SseErrorHandler` replaced by direct `_ERRORS_LOG` access | Remove dead `_SseErrorHandler` class entirely | It was never instantiated or used. Frontend reads `_ERRORS_LOG` via panel debug context builders directly — no SSE push mechanism needed for server errors since they're rendered on page load and refreshed via HTMX. |
@@ -292,7 +293,7 @@ flowchart TD
 
 - **`_JsonFormatter` base schema** (`ts`, `level`, `message`, `logger`, trace_id, exception) — all existing fields preserved exactly as-is
 - **RotatingFileHandler configuration** (5MB × 3 rotations, JSONL format) — unchanged
-- **TurnResult.errors structure** in models.py — remains `list[dict[str, Any]]` with `"trace_id"` and `"message"` keys; the new error_kind field is additive via structured logging only, not part of TurnResult schema
+- **TurnResult.errors structure** in models.py — now includes `"kind"` (ErrorKind constant) alongside `"message"` keys; classification moves from logs-only into the data model for programmatic querying by turn viewer, SSE events, and API consumers
 - **`_ERRORS_LOG` deque type and maxlen=50** in app.py — structure enriched but container unchanged
 - **Turn viewer `_tv_failures()` function** — existing failure extraction from events.jsonl preserved; server_errors.jsonl read is additive via separate row kind, not a modification of the existing function
 - **LLM client `chat()` and `chat_stream()` public API signatures** — exception types change but call sites catch broadly anyway (bare except or generic Exception)
@@ -330,32 +331,32 @@ flowchart TD
 ```
 ErrorKind = Literal[
     # LLM pipeline errors
-    "llm_timeout",
-    "llm_http_error", 
-    "llm_parse_failed",
-    "llm_connection_refused",
+    "LLM_TIMEOUT",
+    "LLM_HTTP_ERROR", 
+    "LLM_PARSE_FAILED",
+    "LLM_CONNECTION_REFUSED",
     
     # Extraction errors
-    "extraction_scene_fail",
-    "extraction_state_fail",  
-    "extraction_progress_fail",
+    "EXTRACTION_SCENE_FAIL",
+    "EXTRACTION_STATE_FAIL",  
+    "EXTRACTION_PROGRESS_FAIL",
     
     # Validation errors
-    "validation_rejection",
-    "validation_zero_balance",
+    "VALIDATION_REJECTION",
+    "VALIDATION_ZERO_BALANCE",
     
     # Server-level errors
-    "pack_load_failed",
-    "new_game_failed",
-    "config_validation",
+    "PACK_LOAD_FAILED",
+    "NEW_GAME_FAILED",
+    "CONFIG_VALIDATION",
 ]
 
 # Operational signals (not errors, but observable)  
 OperationalKind = Literal[
-    "compaction_ran",
-    "condition_expired", 
-    "llm_restored",
-    "llm_unavailable",
+    "COMPACTION_RAN",
+    "CONDITION_EXPIRED", 
+    "LLM_RESTORED",
+    "LLM_UNAVAILABLE",
 ]
 ```
 
@@ -363,23 +364,35 @@ OperationalKind = Literal[
 
 ```python
 class LlmcError(Exception):
-    kind: str = "llm_error"
+    """Base for all llm_client exceptions."""
+    kind: str = "LLM_ERROR"
     
 class LlmcTimeout(LlmcError):
-    kind = "llm_timeout"
-    timeout_s: float
-    
-class LlmcHttpError(LlmcError):
-    kind = "llm_http_error"  
+    kind = "LLM_TIMEOUT"
+
+class LlmcApiError(LlmcError):
+    kind = "LLM_HTTP_ERROR"  
     status_code: int
     detail: str | None
 
 class LlmcConnectionRefused(LlmcError):
-    kind = "llm_connection_refused"
+    kind = "LLM_CONNECTION_REFUSED"
 
 class LlmcParseFailed(LlmcError):
-    kind = "llm_parse_failed"
+    kind = "LLM_PARSE_FAILED"
 ```
+
+Each exception type carries its `kind` as a class attribute for structured logging. Catch sites in engine modules use these types to log with appropriate error_kind field. This follows Python's standard pattern where error classification is fixed per subclass, not configurable at instantiation time.
+
+### TurnResult Errors (`ccya/models.py`)
+
+```python
+class TurnResult(BaseModel):
+    # ... existing fields ...
+    errors: list[dict[str, str]] = []  # Each dict has "kind" (ErrorKind constant) + "message"
+```
+
+Errors now carry their `kind` field alongside the message. This enables programmatic filtering by error type in the turn viewer, SSE events, and API consumers — structured logging alone is insufficient when you need to query turn result data after processing completes.
 
 ### Server Error Log Entry (`server_errors.jsonl`)
 
@@ -387,7 +400,7 @@ Each line is a JSON object:
 ```json
 {
     "ts": "2025-01-15T14:30:00Z",
-    "kind": "pack_load_failed", 
+    "kind": "PACK_LOAD_FAILED", 
     "message": "Pack 'foobar' not found in /path/to/packs",
     "trace_id": ""
 }
@@ -403,7 +416,7 @@ When structured fields are present via `extra`:
     "message": "extract_scene failed after 3 attempts: No JSON found in response",
     "logger": "ccya.engine.extraction",
     "trace_id": "a1b2c3d4",
-    "error_kind": "llm_parse_failed",
+    "error_kind": "LLM_PARSE_FAILED",
     "phase": "extract_scene",
     "turn": 47,
     "retry_count": 3
@@ -432,4 +445,4 @@ Files to read before starting any plan phase. One line per file: what it contain
 - **`ccya/server/app.py`** — FastAPI app bootstrap, `_ERRORS_LOG`, startup event. Needs middleware and health telemetry in Phase 4+5. Uses global logger reference from setup_logging().
 - **`ccya/server/routes.py`** — All HTMX route handlers; `/turn` SSE endpoint at line 81 catches exceptions at line 152. Has inline loggers at lines 344, 412 (Phase 2).
 - **`ccya/server/tv.py`** — Turn viewer data preparation with `_tv_failures()` and `_turn_viewer_data()`. Needs server_errors.jsonl reading in Phase 5.
-- **`ccya/models.py:13`** — Pydantic models + TurnResult; `TurnResult.errors` is `list[dict]` (unchanged but relevant for understanding error flow). Logger uses `getLogger(__name__)`.
+- **`ccya/models.py:13`** — Pydantic models + TurnResult; `TurnResult.errors` is `list[dict]` with `"kind"` + `"message"` keys (updated in Phase 4 to include ErrorKind classification). Logger uses `getLogger(__name__)`.
