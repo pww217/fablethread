@@ -18,7 +18,7 @@ from ccya.eval.config import EvalConfig
 from ccya.eval.judge import JudgeResult, merge_judge_scores
 from ccya.eval.runner import RunResult, find_previous_run, load_run_result
 
-_log = logging.getLogger("ccya.eval")
+_log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------

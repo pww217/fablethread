@@ -26,7 +26,7 @@ from ccya.eval.universal_asserts import run_all_universal_asserts
 from ccya.llm_client import strip_thinking
 from ccya.models import load_config
 
-_log = logging.getLogger("ccya.eval")
+_log = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 

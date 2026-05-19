@@ -11,7 +11,7 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
 
-_log = logging.getLogger("ccya.engine")
+_log = logging.getLogger(__name__)
 
 
 class _EventLock:

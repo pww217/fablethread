@@ -3,17 +3,19 @@
 from __future__ import annotations
 
 import asyncio
-from collections import deque
+import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, pass_context
 
 from ccya.engine import build_engine_config, warmup
 from ccya.engine.config import _validate_compactor_config
+from ccya.errors import ErrorKind, LlmcApiError, LlmcRateLimit, LlmcTimeout
 from ccya.logging_setup import setup_logging
 from ccya.models import load_config as _load_config
 from ccya.pack import Pack, load_pack
@@ -44,6 +46,59 @@ _dynamic_opening_actions: list[str] = []
 
 app = FastAPI(title="ccya")
 
+# Server error persistence
+_errors_file_path: Path | None = None
+
+
+def _ensure_errors_file(data_dir: str) -> Path:
+    global _errors_file_path
+    if _errors_file_path is None:
+        path = Path(data_dir) / "server_errors.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        _errors_file_path = path
+    return _errors_file_path
+
+
+def _persist_server_error(exc: Exception, *, kind: str | None = ErrorKind.SERVER_ERROR, **extra_fields):
+    """Persist a server-level error to server_errors.jsonl for turn viewer enrichment."""
+    data_dir = config.get("server", {}).get("data_dir", "saves")
+    errors_file = _ensure_errors_file(data_dir)
+
+    entry: dict[str, Any] = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "level": "ERROR",
+        "error_kind": kind,
+        "message": str(exc),
+        **extra_fields,
+    }
+
+    with open(errors_file, "a") as f:
+        f.write(json.dumps(entry, default=str) + "\n")
+
+
+@app.middleware("http")
+async def server_exception_middleware(request: Request, call_next):
+    """Catch any unhandled exception in route handlers and persist to server_errors.jsonl."""
+    try:
+        response = await call_next(request)
+        return response
+    except LlmcTimeout as exc:
+        _persist_server_error(exc, kind=ErrorKind.LLM_TIMEOUT, path=str(request.url.path))
+        return JSONResponse(status_code=504, content={"error": "LLM timeout"})
+    except LlmcRateLimit as exc:
+        _persist_server_error(exc, kind=ErrorKind.LLM_RATE_LIMIT, path=str(request.url.path))
+        return JSONResponse(status_code=429, content={"error": "Rate limited by LLM provider"})
+    except LlmcApiError as exc:
+        status = 502 if exc.status_code else 500
+        _persist_server_error(exc, kind=ErrorKind.LLM_API_ERROR, path=str(request.url.path), status_code=exc.status_code)
+        return JSONResponse(status_code=status, content={"error": str(exc)})
+    except Exception as exc:
+        _persist_server_error(
+            exc, kind=ErrorKind.SERVER_ERROR, path=str(request.url.path), exception_type=type(exc).__name__,
+        )
+        return JSONResponse(status_code=500, content={"error": "Internal server error"})
+
+
 # Import routes so @app.get/@app.post decorators register handlers.
 # Must be after `app` is created to avoid circular import.
 import ccya.server.routes  # noqa: F401, E402
@@ -52,9 +107,6 @@ _jinja_env = Environment(
     autoescape=True,
 )
 _jinja_env.filters["tojson"] = pass_context(lambda ctx, obj: __import__("json").dumps(obj))
-
-# In-process errors store — last 50 entries, survives turn boundaries.
-_ERRORS_LOG: deque[dict[str, Any]] = deque(maxlen=50)
 
 
 def _render(template_name: str, context: dict[str, Any]) -> HTMLResponse:

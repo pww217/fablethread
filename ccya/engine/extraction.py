@@ -32,7 +32,9 @@ from ccya.models import (
     StateDelta,
 )
 
-_log = logging.getLogger("ccya.engine")
+from ccya.errors import ErrorKind, LlmcTimeout
+
+_log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -432,6 +434,7 @@ async def _call_stream(
         try:
             return _parse_stream_result(raw, model_cls, strip_keys), usage, attempt + 1, retry_errors
         except Exception as exc:
+
             parse_error = str(exc)
             retry_errors.append(parse_error)
             _log.warning(
@@ -520,8 +523,13 @@ async def _run_extraction_pipeline(
             "ms": round((asyncio.get_event_loop().time() - t_scene) * 1000, 1),
             "context_meta": _context_meta(rendered_scene_system, rendered_scene_user, scene_trimmed, scene_trimmed_chars),
         }
+    except LlmcTimeout as exc:
+        _log.warning("extract_scene LLM timeout", extra={"error_kind": ErrorKind.LLM_TIMEOUT, "trace_id": trace_id})
+        extraction_event["scene"] = {**_SKIPPED, "error": str(exc)}
     except Exception as exc:
-        _log.warning("extract_scene failed: %s", exc, extra={"trace_id": trace_id})
+        _log.warning(
+            "extract_scene failed: %s", exc, extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id},
+        )
         extraction_event["scene"] = {**_SKIPPED, "error": str(exc)}
 
     yield ("phase", {"phase": "extract_stream_done", "stream": "scene"})
@@ -560,8 +568,13 @@ async def _run_extraction_pipeline(
             "ms": round((asyncio.get_event_loop().time() - t_state) * 1000, 1),
             "context_meta": _context_meta(rendered_state_system, rendered_state_user, state_trimmed, state_trimmed_chars),
         }
+    except LlmcTimeout as exc:
+        _log.warning("extract_state LLM timeout", extra={"error_kind": ErrorKind.LLM_TIMEOUT, "trace_id": trace_id})
+        extraction_event["state"] = {**_SKIPPED, "error": str(exc)}
     except Exception as exc:
-        _log.warning("extract_state failed: %s", exc, extra={"trace_id": trace_id})
+        _log.warning(
+            "extract_state failed: %s", exc, extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id},
+        )
         extraction_event["state"] = {**_SKIPPED, "error": str(exc)}
 
     yield ("phase", {"phase": "extract_stream_done", "stream": "state"})
@@ -619,8 +632,13 @@ async def _run_extraction_pipeline(
             "ms": round((asyncio.get_event_loop().time() - t_progress) * 1000, 1),
             "context_meta": _context_meta(rendered_prog_system, rendered_prog_user, prog_trimmed, prog_trimmed_chars),
         }
+    except LlmcTimeout as exc:
+        _log.warning("extract_progress LLM timeout", extra={"error_kind": ErrorKind.LLM_TIMEOUT, "trace_id": trace_id})
+        extraction_event["progress"] = {**_SKIPPED, "error": str(exc)}
     except Exception as exc:
-        _log.warning("extract_progress failed: %s", exc, extra={"trace_id": trace_id})
+        _log.warning(
+            "extract_progress failed: %s", exc, extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id},
+        )
         extraction_event["progress"] = {**_SKIPPED, "error": str(exc)}
 
     yield ("phase", {"phase": "extract_stream_done", "stream": "progress"})

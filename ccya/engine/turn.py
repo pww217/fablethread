@@ -45,6 +45,9 @@ from ccya.models import (
     StateDelta,
     TurnResult,
 )
+
+from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
+
 from ccya.rules import resolve_check
 from ccya.state import (
     apply_delta,
@@ -61,7 +64,7 @@ from ccya.state import (
 )
 from ccya.state.delta import _merge_arc_update
 
-_log = logging.getLogger("ccya.engine")
+_log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -1131,11 +1134,11 @@ async def run_turn(
                 else:
                     _extract_result = _evt
         except Exception as exc:
-            errors.append({"trace_id": trace_id, "message": str(exc)})
+            errors.append({"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id, "message": str(exc)})
 
         if _extract_result is not None:
             delta, actions, outcome_summary, extraction_event, progress_result, scene_result, _extraction_ctx = _extract_result  # type: ignore[misc]
-            # Beat lifecycle: beat_disposition removed — Python infers from state mutations (gm_beat presence in delta)
+        # Beat lifecycle: beat_disposition removed — Python infers from state mutations (gm_beat presence in delta)
             _new_beat = progress_result.gm_beat if progress_result else None
 
             if _new_beat and _new_beat.type:
@@ -1474,8 +1477,23 @@ async def run_turn(
         )
         yield ("complete", result_obj)
 
+    except LlmcTimeout as exc:
+        _log.error(
+            "LLM timeout in run_turn", extra={"error_kind": ErrorKind.LLM_TIMEOUT, "trace_id": trace_id},
+        )
+        errors.append({"kind": ErrorKind.LLM_TIMEOUT, "message": str(exc)})
+        raise
+    except LlmcError as exc:
+        _log.error(
+            "LLM error in run_turn", extra={"error_kind": exc.kind, "trace_id": trace_id},
+        )
+        errors.append({"kind": exc.kind, "message": str(exc)})
+        raise
     except Exception as exc:
-        errors.append({"trace_id": trace_id, "message": str(exc)})
+        _log.error(
+            "run_turn failed: %s", type(exc).__name__, extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id},
+        )
+        errors.append({"kind": ErrorKind.TURN_PROCESSING_FAILED, "message": str(exc)})
         fallback = narrative_chunks and "".join(narrative_chunks) or ""
         if not fallback:
             fallback = f"*An error occurred. Trace `{trace_id}` — try rephrasing.*"

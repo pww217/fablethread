@@ -306,12 +306,28 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
     path = save_dir / "events.jsonl"
     if not path.exists():
         return [], True
+
+    # Read server_errors.jsonl for unified timeline
+    server_rows: list[dict[str, Any]] = []
+    errors_file = save_dir / "server_errors.jsonl"
+    if errors_file.exists():
+        raw_errs = errors_file.read_text().strip()
+        if raw_errs:
+            for line in (ln for ln in raw_errs.splitlines() if ln.strip()):
+                try:
+                    ev = _json.loads(line)
+                except _json.JSONDecodeError:
+                    continue
+                entry = dict(ev)
+                entry["row_kind"] = "server_error"
+                server_rows.append(entry)
+
+    # Existing logic: parse events.jsonl for turn-level events
     raw = path.read_text().strip()
     if not raw:
-        return [], True
+        return server_rows or [], bool(server_rows)
+
     lines = [ln for ln in raw.splitlines() if ln.strip()]
-    if not lines:
-        return [], True
     rows: list[dict[str, Any]] = []
     for line in lines:
         try:
@@ -557,4 +573,11 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
             }
         )
     rows.reverse()
+
+    # Merge server errors into unified timeline sorted by timestamp
+    if server_rows:
+        all_rows = rows + server_rows
+        all_rows.sort(key=lambda e: e.get("ts", ""))
+        return all_rows, False
+
     return rows, False

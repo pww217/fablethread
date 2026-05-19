@@ -12,7 +12,7 @@ from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _PROMPTS_L
 from ccya.llm_client import apply_thinking, chat as llm_chat, strip_thinking
 from ccya.models import IntentEnvelope, RulesCheck, RulesOutcome
 
-_log = logging.getLogger("ccya.engine")
+_log = logging.getLogger(__name__)
 
 
 def _rules_messages(

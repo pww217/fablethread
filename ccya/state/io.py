@@ -11,7 +11,7 @@ from typing import Any
 import yaml
 from enum import Enum
 
-_log = logging.getLogger("ccya.state")
+_log = logging.getLogger(__name__)
 
 
 def _coerce_enums(obj: Any) -> Any:

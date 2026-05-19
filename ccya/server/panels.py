@@ -94,8 +94,7 @@ def _get_opening_actions() -> list[str]:
 def _debug_context() -> dict[str, Any]:
     mock_mode = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
     return {
-        "errors": list(_app._ERRORS_LOG),
-        "turns": _recent_turn_metrics(_app.SAVE_DIR, 10),
+        "errors": [],        "turns": _recent_turn_metrics(_app.SAVE_DIR, 10),
         "mock_mode": mock_mode,
         "state": _load_current_state(),
         "log_llm_io": _app.engine_config.log_llm_io,

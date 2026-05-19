@@ -35,7 +35,7 @@ from ccya.state import init_save_dir, load_state, save_state
 from ccya.state.chronicle import append_event
 from ccya.eval.universal_asserts import run_all_universal_asserts
 
-_log = logging.getLogger("ccya.eval")
+_log = logging.getLogger(__name__)
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent

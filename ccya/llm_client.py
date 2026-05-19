@@ -16,7 +16,11 @@ from typing import Any, AsyncIterator, MutableMapping
 
 from openai import AsyncOpenAI
 
-_log = logging.getLogger("ccya.llm_client")
+import httpx
+
+from ccya.errors import LlmcApiError, LlmcRateLimit, LlmcTimeout
+
+_log = logging.getLogger(__name__)
 
 _MOCK_MODE = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
 
@@ -283,6 +287,20 @@ async def chat(
                 "total_tokens": resp.usage.total_tokens if resp.usage else 0,
             },
         }
+    except TimeoutError as exc:
+        elapsed = time.monotonic() - t0
+        raise LlmcTimeout(f"LLM request timed out after {timeout:.1f}s") from exc
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 429:
+            raise LlmcRateLimit("Rate limited by LLM provider") from exc
+        else:
+            raise LlmcApiError(
+                f"LLM API error {exc.response.status_code}: {exc.response.text}",
+                status_code=exc.response.status_code,
+            ) from exc
+    except httpx.RequestError as exc:
+        elapsed = time.monotonic() - t0
+        raise LlmcTimeout(f"Network error connecting to LLM: {exc}") from exc
     except Exception as exc:
         elapsed = time.monotonic() - t0
         retry_count = getattr(exc, "retry_count", None)
