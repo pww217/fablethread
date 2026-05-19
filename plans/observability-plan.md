@@ -2,7 +2,7 @@
 
 **Status:** Draft  
 **Created:** 2025-05-18  
-**Design doc:** `/plans/observability-design.md`  
+**Design doc:** `/docs/designs/observability-design.md`  
 
 ---
 
