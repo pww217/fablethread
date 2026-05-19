@@ -384,6 +384,43 @@ def _extract_progress_messages(
     return msgs
 
 
+def _coerce_scene_json(j: dict[str, Any]) -> dict[str, Any]:
+    """Coerce LLM output to match Pydantic model expectations.
+
+    Handles cases where the LLM returns strings instead of dicts for list fields:
+    - npc_add: ["bystanders"] → [{"id": "bystanders", "notes": "", "bio": ""}]
+    - compendium_npc_update: similar coercion needed
+    """
+    # Coerce npc_add entries that are strings to NpcAdd objects
+    if isinstance(j.get("npc_add"), list):
+        coerced = []
+        for item in j["npc_add"]:
+            if isinstance(item, str):
+                coerced.append({"id": item.lower().replace(" ", "_").strip(), "notes": "", "bio": ""})
+            elif isinstance(item, dict) and "id" not in item:
+                # Dict without id — extract name/title to create id
+                name = item.get("name", "") or str(item).lower()
+                coerced.append({"id": name.replace(" ", "_").strip(), **item})
+            else:
+                coerced.append(item)
+        j["npc_add"] = coerced
+
+    # Coerce compendium_npc_update entries that are strings to dicts
+    if isinstance(j.get("compendium_npc_update"), list):
+        coerced = []
+        for item in j["compendium_npc_update"]:
+            if isinstance(item, str):
+                coerced.append({"id": item.lower().replace(" ", "_").strip()})
+            elif isinstance(item, dict) and "id" not in item:
+                name = item.get("name", "") or str(item).lower()
+                coerced.append({"id": name.replace(" ", "_").strip(), **item})
+            else:
+                coerced.append(item)
+        j["compendium_npc_update"] = coerced
+
+    return j
+
+
 def _parse_stream_result(raw: str, model_cls: type, strip_keys: tuple[str, ...] = ("_reasoning",)) -> Any:
     """Parse JSON from LLM output, strip internal keys, validate with model_cls."""
     cleaned = strip_thinking(raw)
@@ -392,7 +429,8 @@ def _parse_stream_result(raw: str, model_cls: type, strip_keys: tuple[str, ...] 
         raise ValueError("No JSON found in response")
     for k in strip_keys:
         j.pop(k, None)
-    return model_cls(**j)
+    # Coerce LLM output to match Pydantic model expectations (e.g., string → dict for npc_add)
+    return model_cls(**_coerce_scene_json(j))
 
 
 async def _call_stream(
