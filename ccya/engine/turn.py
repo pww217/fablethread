@@ -187,7 +187,7 @@ def _apply_thread_signals(
     demoted_to_latent = [t for t in still_active if not getattr(t, "active", False)]
 
     # Rebuild threads list with updated active/latent split
-    other_threads = [t for t in arc.threads if t.id not in {tid for tid in all_arc_threads}]  # scene-scoped and completed threads
+    other_threads = [t for t in arc.threads if t.id not in {t2.id for t2 in all_arc_threads}]  # scene-scoped and completed threads
     new_complete_ids = {t.id for t in newly_completed}
 
     updated_threads: list[ArcThread] = []

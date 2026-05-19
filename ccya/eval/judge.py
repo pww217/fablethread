@@ -810,8 +810,28 @@ def parse_judge_response(raw: str) -> tuple[dict[str, Any], str]:
         return {}, s
     fm_text = m.group(1)
     body = m.group(2).strip()
+    # Strip markdown table rows (lines with |- separators or multiple | chars forming tables)
+    # before YAML parsing. PyYAML treats leading '|' as a literal block scalar indicator.
+    _table_row_re = re.compile(r"^\s*\|(.*)\|\s*$")
+    fm_lines: list[str] = []
+    in_table = False
+    for line in fm_text.splitlines():
+        if _table_row_re.match(line):
+            # Detect table separator (---) or data row with multiple | chars
+            stripped = line.strip()
+            if "---" in stripped and all(c in "-| " for c in stripped.replace(" ", "")):
+                continue  # skip column separators like |-|-|-
+            elif stripped.count("|") >= 2:
+                if not in_table:
+                    in_table = True
+                fm_lines.append("# [table row omitted]")
+                continue
+        else:
+            in_table = False
+        fm_lines.append(line)
+    fm_text_sanitized = "\n".join(fm_lines)
     try:
-        fm = yaml.safe_load(fm_text) or {}
+        fm = yaml.safe_load(fm_text_sanitized) or {}
     except yaml.YAMLError as exc:
         _log.warning("judge front matter YAML parse failed: %s", exc)
         return {}, s
