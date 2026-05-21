@@ -1,6 +1,6 @@
 # Observability & Logging Standardization
 
-**Status:** Draft  
+**Status:** Complete  
 **Created:** 2025-05-18  
 **Design doc:** `docs/design/observability-design.md`  
 
