@@ -124,9 +124,16 @@ class Constraints(BaseModel):
 
 class Inspiration(BaseModel):
     pc: str = ""
-    opening_situation: str = ""
     inventory: str = ""
     npcs: str = ""
+
+
+class PoolEntry(BaseModel):
+    """Base entry for archetype pools (situation, arc, character, moral)."""
+
+    id: str
+    tags: list[str] = Field(default_factory=list)
+    incompatible_with: list[str] = Field(default_factory=list)
 
 
 class ScenarioBrief(BaseModel):
@@ -154,6 +161,10 @@ class ScenarioBrief(BaseModel):
     name_locales: list[dict[str, Any]] = Field(default_factory=list)
     name_seed: int = 0
     inspiration: Inspiration = Field(default_factory=Inspiration)
+    situation_archetypes: list[PoolEntry] = Field(default_factory=list, max_length=16)
+    arc_categories: list[PoolEntry] = Field(default_factory=list, max_length=20)
+    character_dynamics: list[PoolEntry] = Field(default_factory=list, max_length=12)
+    moral_pressures: list[PoolEntry] = Field(default_factory=list, max_length=10)
 
 
 class WorldBrief(BaseModel):

@@ -9,7 +9,7 @@ constraints:
   pc_stat_total_range: [12, 18]
   prose_word_range: [275, 550]
    # composition
-  required_inventory_kinds: [weapon, tool]
+  required_inventory_kinds: ['weapon', 'tool']
   npc_distinct_first_letters: true
    # creativity guards
   forbid_cliches:
@@ -39,17 +39,6 @@ inspiration:
     that complicates things). He is not cynical by nature; he became that way
     by necessity.
 
-  opening_situation: |
-    Drop the player into a situation that is already unfolding — a body found in a
-    back room above a saloon, a kidnapping in progress with the victim still alive,
-    a gang hit that went wrong and left witnesses, a man who bursts into your
-    office bleeding and says "they're coming." The situation should involve immediate
-    danger, a crime in motion, or a person in desperate need. The player should walk
-    into something that demands action — pulling a gun, making a choice, running,
-    or confronting someone who does not want to be confronted. The most interesting
-    situations involve violence, betrayal, or a truth that someone is willing to
-    kill to keep hidden.
-
   npcs: |
     All cops, detectives, gangsters, reporters, union reps, judges, and bartenders
     are men. The initial NPCs in the opening scene MUST use male names only —
@@ -65,23 +54,128 @@ inspiration:
   inventory: |
     Items reflect what an investigator in the 1930s actually carried or had access to:
     a service weapon (or a concealed piece), a notebook, a flashlight, a lockpick set,
-    a badge (real or fake), a camera, a revolver with limited ammunition, a .38
-    snub-nose, a .45 government issue. Include one thing that was important to someone
-    else — a letter, a photograph, a document. Show the gap between what the job
-    requires and what the player actually has.
+    a badge (real or fake), a camera, a revolver with limited ammunition. Include one
+    thing that was important to someone else — a letter, a photograph, a document. Show
+    the gap between what the job requires and what the player actually has.
 
-  arcs: |
-    Arc seeds should center on crime, corruption, and moral compromise.
-    Visible goals: find a missing person before they are killed, expose a gangster
-    without becoming a target, protect a witness who everyone wants silenced, get
-    proof of a murder before the killer covers their tracks, survive a night in
-    the wrong part of town. Thematic questions: how corrupt does the system have
-    to be before you fight back? What line won't you cross — and what line will
-    you cross anyway? Can you do the right thing and survive it? PC drives: get
-    revenge, clear your name, protect someone you care about, get rich fast,
-    expose the truth, survive the night. Hidden truths: the client set you up,
-    the victim is alive and lying to you, the cop you trust is on the take, the
-    murder was a message, not the final act. Thread ideas: a body with a
-    connection to your past, a man who plays both sides, a gang war that
-    escalates beyond control, a witness who changes their story, a betrayal
-    from someone you trusted.
+situation_archetypes:
+  - id: murder_investigation
+    tags: [murder, investigation, crime_scene]
+    incompatible_with: []
+  - id: kidnapping
+    tags: [kidnapping, abduction, time_pressure]
+    incompatible_with: []
+  - id: gang_war
+    tags: [gang, war, territorial_conflict]
+    incompatible_with: []
+  - id: corruption_discovery
+    tags: [corruption, discovery, hidden_truth]
+    incompatible_with: []
+  - id: witness_protection
+    tags: [witness, protection, vulnerability]
+    incompatible_with: []
+  - id: heist_aftermath
+    tags: [heist, aftermath, crime_consequences]
+    incompatible_with: []
+  - id: blackmail
+    tags: [blackmail, leverage, coercion]
+    incompatible_with: []
+  - id: political_scandal
+    tags: [political, scandal, public_exposure]
+    incompatible_with: []
+  - id: media_manipulation
+    tags: [media, manipulation, information_control]
+    incompatible_with: []
+  - id: judicial_rigging
+    tags: [judicial, rigging, system_abuse]
+    incompatible_with: []
+arc_categories:
+  - id: organized_crime_power_struggle
+    tags: [organized_crime, power_struggle, gang_conflict]
+    incompatible_with: []
+  - id: institutional_corruption
+    tags: [institutional, corruption, systemic_rot]
+    incompatible_with: []
+  - id: gang_territory_dispute
+    tags: [gang, territory, dispute_boundary]
+    incompatible_with: []
+  - id: political_conspiracy
+    tags: [political, conspiracy, hidden_agenda]
+    incompatible_with: []
+  - id: underworld_betrayal
+    tags: [underworld, betrayal, loyalty_breakdown]
+    incompatible_with: []
+  - id: media_manipulation
+    tags: [media, manipulation, public_opinion_control]
+    incompatible_with: []
+  - id: judicial_rigging
+    tags: [judicial, rigging, system_abuse]
+    incompatible_with: []
+  - id: witness_intimidation
+    tags: [witness, intimidation, silence_threat]
+    incompatible_with: []
+  - id: evidence_tampering
+    tags: [evidence, tampering, cover_up]
+    incompatible_with: []
+  - id: political_shakedown
+    tags: [political, shakedown, extortion]
+    incompatible_with: []
+  - id: union_infiltration
+    tags: [union, infiltration, labor_manipulation]
+    incompatible_with: []
+  - id: police_compromise
+    tags: [police, compromise, ethical_erosion]
+    incompatible_with: []
+  - id: media_shakedown
+    tags: [media, shakedown, press_leverage]
+    incompatible_with: []
+  - id: racketeering_conspiracy
+    tags: [racketeering, conspiracy, organized_crime]
+    incompatible_with: []
+  - id: witness_suppression
+    tags: [witness, suppression, intimidation_campaign]
+    incompatible_with: []
+character_dynamics:
+  - id: embedded_investigator
+    tags: [institutional_access, insider_knowledge, system_participant]
+    incompatible_with: [outsider_with_access, free_agent]
+  - id: outsider_with_access
+    tags: [external_perspective, limited_resources, outside_looking_in]
+    incompatible_with: [embedded_investigator, compromised_professional]
+  - id: compromised_professional
+    tags: [ethical_corruption, system_participant, moral_erosion]
+    incompatible_with: [outsider_with_access, free_agent]
+  - id: free_agent
+    tags: [independent, unaligned, self_reliant]
+    incompatible_with: [embedded_investigator, established_authority]
+  - id: established_authority
+    tags: [police_rank, political_power, institutional_control]
+    incompatible_with: [outsider_with_access, free_agent]
+  - id: information_broker
+    tags: [connected, secretive, leverage_holding]
+    incompatible_with: []
+  - id: displaced_elite
+    tags: [former_status, loss_of_power, adaptation_needed]
+    incompatible_with: []
+  - id: compromised_witness
+    tags: [trauma, cooperation, vulnerability]
+    incompatible_with: []
+moral_pressures:
+  - id: truth_vs_self_preservation
+    tags: [truth, self_preservation, risk_assessment]
+    incompatible_with: []
+  - id: institutional_corruption
+    tags: [institutional, corruption, system_failure]
+    incompatible_with: []
+  - id: collateral_damage
+    tags: [collateral, damage, innocent_suffering]
+    incompatible_with: []
+  - id: evidence_vs_justice
+    tags: [evidence, justice, procedural_morality]
+    incompatible_with: []
+  - id: professional_ethics
+    tags: [professional, ethics, code_of_conduct]
+    incompatible_with: []
+  - id: ends_vs_means
+    tags: [ends, means, moral_compromise]
+    incompatible_with: []

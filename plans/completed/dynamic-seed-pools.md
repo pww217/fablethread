@@ -1,7 +1,7 @@
 # Dynamic Seed Generation — Pool-Based Pre-Selection
 
 ## Status
-`open`
+`completed` — all 4 phases done. Follow-on: convert remaining packs (space-western, allied-ww2, sengoku-japan) to pool format.
 
 ## Phases
 

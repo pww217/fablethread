@@ -28,24 +28,9 @@ inspiration:
   pc: |
     The PC is a crew member or officer on a pirate vessel — not the captain with a
     legendary reputation, but someone who earned his share through violence and
-    competence. He could be a boatswain who knows the rigging, a gunner who can
-    calculate a broadside, a surgeon who has amputated more limbs than he can count,
-    a navigator who reads stars and currents, a landsman who joined at the first
-    port and never left. Give him a skill that keeps him alive and a reason he
-    can't go back to legitimate life. He is not romantic — he is brutal,
-    pragmatic, and capable of both terrible violence and fierce loyalty to the crew.
-
-  opening_situation: |
-    Drop the player into a moment of immediate, visceral action — a boarding action
-    in progress with enemy sailors swinging across on ropes, a mutiny erupting in
-    the mess deck with cutlasses drawn, a chase through a coral reef with a naval
-    warship gaining, a port-side brawl that escalates into a knife fight, a ship
-    taking on water after a hidden reef. The situation should demand physical
-    response — swinging, shooting, cutting, climbing, fighting. What the player
-    walks into should involve danger, movement, and people who need them right now.
-    The stakes are survival, the ship, or the crew. The most interesting moments
-    are the ones where the player has to choose between self-preservation and
-    loyalty to the people who share their bread.
+    competence. Give him a skill that keeps him alive and a reason he can't go back
+    to legitimate life. He is not romantic — he is brutal, pragmatic, and capable of
+    both terrible violence and fierce loyalty to the crew.
 
   npcs: |
     All sailors, naval officers, and pirates are men. The initial NPCs in the
@@ -68,20 +53,133 @@ inspiration:
     character uses and what they won't put down. Show the numbers — not "some
     powder" but a measured pouch. Not "food" but hardtack and salted pork.
 
-  arcs: |
-    Arc seeds should center on survival, mutiny, and the tension between freedom
-    and violence. Visible goals: survive a naval engagement, lead a successful
-    boarding action, escape a blockade, suppress a mutiny, reach a hidden cove
-    before the navy finds you, defend the ship against disease and decay.
-    Thematic questions: what does freedom cost when everyone around you is
-    willing to kill you? Can a crew that votes on everything survive a battle
-    where seconds matter? When do you follow orders and when do you rebel?
-    PC drives: protect the crew, get your share and disappear, overthrow the
-    captain, survive the navy, find a place to settle, avenge a killed
-    shipmate. Hidden truths: the crew is planning to turn on you, the navy
-    knows your hiding place, your first mate is negotiating with the governor,
-    the ship is beyond repair, the treasure you want is cursed by something
-    worse than superstition. Thread ideas: a mutiny that splits the crew
-    down the middle, a naval officer who was once an ally, a hidden island
-    that becomes a sanctuary or a trap, a ship that fights like it's alive,
-    a betrayal that costs someone everything.
+situation_archetypes:
+  - id: mutiny_in_progress
+    tags: [mutiny, in_progress, crew_rebellion]
+    incompatible_with: []
+  - id: naval_engagement
+    tags: [naval, engagement, combat]
+    incompatible_with: []
+  - id: port_intrigue
+    tags: [port, intrigue, political_manipulation]
+    incompatible_with: []
+  - id: cargo_heist
+    tags: [cargo, heist, theft]
+    incompatible_with: []
+  - id: disease_onboard
+    tags: [disease, onboard, health_crisis]
+    incompatible_with: []
+  - id: storm_disaster
+    tags: [storm, disaster, natural_force]
+    incompatible_with: []
+  - id: treasure_discovery
+    tags: [treasure, discovery, opportunity]
+    incompatible_with: []
+  - id: crew_conflict
+    tags: [crew, conflict, internal_tension]
+    incompatible_with: []
+  - id: naval_blockade
+    tags: [naval, blockade, isolation]
+    incompatible_with: []
+  - id: mutiny_suppression
+    tags: [mutiny, suppression, authority_enforcement]
+    incompatible_with: []
+  - id: port_strike
+    tags: [port, strike, labor_dispute]
+    incompatible_with: []
+  - id: cargo_sabotage
+    tags: [cargo, sabotage, deliberate_damage]
+    incompatible_with: []
+
+arc_categories:
+  - id: leadership_legitimacy
+    tags: [leadership, legitimacy, authority_questioned]
+    incompatible_with: []
+  - id: faction_power_struggle
+    tags: [faction, power_struggle, competing_interests]
+    incompatible_with: []
+  - id: territorial_control
+    tags: [territory, control, geographic_dominance]
+    incompatible_with: []
+  - id: mutiny_escalation
+    tags: [mutiny, escalation, rebellion_growth]
+    incompatible_with: []
+  - id: outside_betrayal
+    tags: [outside, betrayal, external_threat]
+    incompatible_with: []
+  - id: colonial_conspiracy
+    tags: [colonial, conspiracy, imperial_manipulation]
+    incompatible_with: []
+  - id: ship_rivalry
+    tags: [ship, rivalry, competitive_conflict]
+    incompatible_with: []
+  - id: pardon_scheme
+    tags: [pardon, scheme, political_opportunity]
+    incompatible_with: []
+  - id: naval_blockade
+    tags: [naval, blockade, isolation_pressure]
+    incompatible_with: []
+  - id: cargo_sabotage
+    tags: [cargo, sabotage, supply_disruption]
+    incompatible_with: []
+  - id: disease_quarantine
+    tags: [disease, quarantine, health_crisis]
+    incompatible_with: []
+  - id: storm_wreckage
+    tags: [storm, wreckage, disaster_aftermath]
+    incompatible_with: []
+  - id: treasure_hunt
+    tags: [treasure, hunt, pursuit_goal]
+    incompatible_with: []
+  - id: crew_defection
+    tags: [crew, defection, loyalty_loss]
+    incompatible_with: []
+  - id: slave_trade
+    tags: [slave, trade, moral_horror]
+    incompatible_with: []
+
+character_dynamics:
+  - id: loyal_crewman
+    tags: [crew_loyalty, working_class, ship_identity]
+    incompatible_with: [mutinous_officer, free_agent]
+  - id: mutinous_officer
+    tags: [ambitious, dissident, leadership_challenge]
+    incompatible_with: [loyal_crewman, established_authority]
+  - id: reluctant_recruit
+    tags: [forced_into_pirate_life, conflicted, inexperienced]
+    incompatible_with: [seasoned_veteran, free_agent]
+  - id: seasoned_veteran
+    tags: [experienced, hardened, respected_by_crew]
+    incompatible_with: []
+  - id: free_agent
+    tags: [independent, unaligned, self_reliant]
+    incompatible_with: [loyal_crewman, established_authority]
+  - id: established_authority
+    tags: [captaincy, command_structure, institutional_power]
+    incompatible_with: [mutinous_officer, free_agent]
+  - id: information_broker
+    tags: [connected, secretive, leverage_holding]
+    incompatible_with: []
+  - id: displaced_elite
+    tags: [former_status, loss_of_power, adaptation_needed]
+    incompatible_with: []
+
+moral_pressures:
+  - id: crew_loyalty_vs_self_preservation
+    tags: [crew_loyalty, self_preservation, conflict_of_interest]
+    incompatible_with: []
+  - id: mutiny_consequences
+    tags: [mutiny, consequences, rebellion_risk]
+    incompatible_with: []
+  - id: code_of_honor
+    tags: [code, honor, pirate_ethics]
+    incompatible_with: []
+  - id: power_concentration
+    tags: [power, concentration, authority_abuse]
+    incompatible_with: []
+  - id: freedom_vs_discipline
+    tags: [freedom, discipline, autonomy_conflict]
+    incompatible_with: []
+  - id: legitimate_governance
+    tags: [legitimate, governance, political_order]
+    incompatible_with: []

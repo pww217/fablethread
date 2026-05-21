@@ -29,25 +29,13 @@ inspiration:
   pc: |
     The PC is a specific person twenty years in. They were born into the before-world
     or born after the collapse — make that choice and let it shape everything else.
-    Before-world survivors carry specific losses and specific before-skills (carpenter,
-    nurse, teacher, electrician, long-haul trucker) that have adapted into survival
-    tools. After-world people have never known anything different — they can read
-    infection signs the way their parents read traffic lights. Give the PC a concrete
-    role in whatever community or arrangement they belong to, and give them something
-    they are actively trying to protect or reach. Avoid defining them by tragedy alone
-    — they are also good at something, care about something, find something funny
-    under impossible circumstances.
-
-  opening_situation: |
-    Drop the player into a moment with immediate weight in a world that has had
-    twenty years to change. Not a fresh crisis — a complicated one. A settlement
-    facing a decision it cannot avoid. A route through nature-reclaimed city blocks
-    where something has changed since the last run. A delivery that reveals
-    something about a person the PC thought they knew. An infected that behaved
-    in a way that contradicts everything that was thought to be known. The setting
-    should feel like the world it is — overgrown, lived-in, layered with twenty
-    years of adaptation. A place with its own culture and history and a specific
-    problem that cannot wait.
+    Before-world survivors carry specific losses and skills from their former life
+    that have adapted into survival tools. After-world people have never known anything
+    different — they can read infection signs the way their parents read traffic lights.
+    Give the PC a concrete role in whatever community or arrangement they belong to,
+    and give them something they are actively trying to protect or reach. Avoid defining
+    them by tragedy alone — they are also good at something, care about something, find
+    something funny under impossible circumstances.
 
   npcs: |
     Each NPC is a whole person. Before-world or after-world — make that call and
@@ -72,12 +60,127 @@ inspiration:
     not "some ammo" but 9 shells. Not "medicine" but three doses of a specific
     antibiotic they can't resupply.
 
-  quests: |
-    The starting quest should be personal and situated — not saving the world, but
-    keeping a specific piece of it together. A person to reach before the route
-    closes for winter. A cache to recover before a rival settlement gets there.
-    A truth to learn about something that happened in the settlement before things
-    come apart. A debt to pay before it gets called in. The objectives should cost
-    something real — time, trust, resources, a relationship — and at least one
-    should put the player in direct tension with an NPC whose motives are
-    legitimate. No clean wins.
+situation_archetypes:
+  - id: infrastructure_failure
+    tags: [infrastructure, collapse, repair]
+    incompatible_with: []
+  - id: social_betrayal
+    tags: [community, betrayal, trust_breakdown]
+    incompatible_with: []
+  - id: supply_crisis
+    tags: [supply, scarcity, desperation]
+    incompatible_with: []
+  - id: faction_conflict
+    tags: [faction, conflict, power_struggle]
+    incompatible_with: []
+  - id: discovery
+    tags: [discovery, revelation, hidden_truth]
+    incompatible_with: []
+  - id: moral_compromise
+    tags: [moral, compromise, ethical_dilemma]
+    incompatible_with: []
+  - id: survival_dilemma
+    tags: [survival, dilemma, impossible_choice]
+    incompatible_with: []
+  - id: community_fracture
+    tags: [community, fracture, division]
+    incompatible_with: []
+  - id: infrastructure_sabotage
+    tags: [infrastructure, sabotage, deliberate_damage]
+    incompatible_with: []
+  - id: resource_rationing
+    tags: [resource, rationing, scarcity_management]
+    incompatible_with: []
+
+arc_categories:
+  - id: power_struggle
+    tags: [power, struggle, leadership_conflict]
+    incompatible_with: []
+  - id: resource_scarcity
+    tags: [resource, scarcity, survival_pressure]
+    incompatible_with: []
+  - id: collapse_conspiracy
+    tags: [collapse, conspiracy, hidden_agenda]
+    incompatible_with: []
+  - id: leadership_challenge
+    tags: [leadership, challenge, authority_questioned]
+    incompatible_with: []
+  - id: quarantine_breakdown
+    tags: [quarantine, breakdown, infection_threat]
+    incompatible_with: []
+  - id: territory_dispute
+    tags: [territory, dispute, boundary_conflict]
+    incompatible_with: []
+  - id: outside_threat_escalation
+    tags: [outside, threat, escalation]
+    incompatible_with: []
+  - id: cult_emergence
+    tags: [cult, emergence, radical_belief]
+    incompatible_with: []
+  - id: information_warfare
+    tags: [information, warfare, intelligence_manipulation]
+    incompatible_with: []
+  - id: infrastructure_rebuilding
+    tags: [infrastructure, rebuilding, reconstruction]
+    incompatible_with: []
+  - id: faction_defection
+    tags: [faction, defection, loyalty_shift]
+    incompatible_with: []
+  - id: infection_evolution
+    tags: [infection, evolution, new_threat]
+    incompatible_with: []
+  - id: settlement_politics
+    tags: [settlement, politics, governance]
+    incompatible_with: []
+  - id: supply_route_control
+    tags: [supply, route, control]
+    incompatible_with: []
+  - id: moral_decay
+    tags: [moral, decay, ethical_erosion]
+    incompatible_with: []
+
+character_dynamics:
+  - id: trusted_insider
+    tags: [community, leadership, responsibility]
+    incompatible_with: [pariah, free_agent]
+  - id: reluctant_outsider
+    tags: [marginalized, independent, distrustful]
+    incompatible_with: [trusted_insider, disgraced_leader]
+  - id: rising_challenger
+    tags: [ambitious, disruptive, emerging_power]
+    incompatible_with: [established_authority, free_agent]
+  - id: disgraced_leader
+    tags: [fallen_status, redemption_needed, community_ties]
+    incompatible_with: [trusted_insider, free_agent]
+  - id: free_agent
+    tags: [independent, unaligned, self_reliant]
+    incompatible_with: [trusted_insider, loyal_soldier, established_authority]
+  - id: pariah
+    tags: [outcast, hunted, isolated]
+    incompatible_with: [trusted_insider, reluctant_outsider]
+  - id: information_broker
+    tags: [connected, secretive, leverage_holding]
+    incompatible_with: []
+  - id: displaced_elite
+    tags: [former_status, loss_of_power, adaptation_needed]
+    incompatible_with: []
+
+moral_pressures:
+  - id: survival_vs_humanity
+    tags: [survival, humanity, moral_cost]
+    incompatible_with: []
+  - id: protect_the_vulnerable
+    tags: [protection, vulnerability, sacrifice]
+    incompatible_with: []
+  - id: resource_allocation
+    tags: [resource, allocation, fairness]
+    incompatible_with: []
+  - id: truth_control
+    tags: [truth, control, information_power]
+    incompatible_with: []
+  - id: leadership_burden
+    tags: [leadership, burden, responsibility_weight]
+    incompatible_with: []
+  - id: trust_dynamics
+    tags: [trust, dynamics, relationship_risk]
+    incompatible_with: []
