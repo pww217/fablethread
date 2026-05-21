@@ -280,6 +280,7 @@ def _extract_candidate_names(
         "Good", "Bad", "New", "Last", "First", "Next", "Other", "Same",
         "Each", "Every", "Both", "All", "Some", "Any", "Many", "Few",
         "Hulking", "Generous", "Armed", "Two", "Three", "Several",
+        "Crossed", "Careful", "Narrowing",
     }
 
     inv_lower: set[str] = set()

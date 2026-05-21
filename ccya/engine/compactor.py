@@ -74,7 +74,7 @@ async def maybe_compact(
         template_dir = str(Path(__file__).parent.parent / "prompts")
         env = _build_jinja_env(template_dir)
 
-    messages = _build_compact_messages(env, state, turns)
+    messages = _build_compact_messages(env, state, turns, compact_end)
 
     t_compact = asyncio.get_running_loop().time()
     try:
@@ -202,6 +202,7 @@ def _build_compact_messages(
     env: Any,
     state: dict[str, Any],
     turns: list[dict[str, Any]],
+    compact_end: int,
 ) -> list[dict[str, str]]:
     """Build system + user messages for the compaction LLM call."""
     system_prompt = env.get_template("compact_system.j2").render()
@@ -209,8 +210,14 @@ def _build_compact_messages(
     arc = state.get("arc")
     pressures = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict) and t.get("scope") == "scene"]
     inventory = list(state.get("inventory") or [])
+    conditions = [c for c in (state.get("pc") or {}).get("conditions") or [] if c.get("added_turn", 0) <= compact_end]
     _npcs_raw = (state.get("compendium") or {}).get("npcs") or {}
-    compendium_npcs: list[tuple[str, Any]] = list(_npcs_raw.items())
+    compendium_npcs: list[tuple[str, Any]] = []
+    present_from_map: dict[str, int] = {n.get("id"): n.get("turn_entered", 0) for n in (state.get("scene") or {}).get("present_npcs") or []}
+    for npc_id, npc_data in _npcs_raw.items():
+        enriched = dict(npc_data) if isinstance(npc_data, dict) else {}
+        enriched.setdefault("present_from_turn", present_from_map.get(npc_id, 0))
+        compendium_npcs.append((npc_id, enriched))
     conditions = list((state.get("pc") or {}).get("conditions") or [])
     recent_events = list((state.get("scene") or {}).get("recent_events") or [])
 
