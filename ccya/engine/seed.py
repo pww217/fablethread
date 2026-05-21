@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import Any
+from hashlib import sha256
 from jinja2 import Environment
 from pathlib import Path
 
@@ -12,7 +14,7 @@ import re
 from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json, _log_llm_io, _log_prompts, _render
 from ccya.engine.names import generate_name_pool, generate_npc_names
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
-from ccya.pack import Pack, PlayerOverrides, SeedEnvelope, parse_world_facts
+from ccya.pack import Pack, PlayerOverrides, PoolEntry, SeedEnvelope, parse_world_facts
 
 from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
 
@@ -62,6 +64,146 @@ def _validate_seed_envelope(envelope: SeedEnvelope) -> None:
         )
 
 
+
+
+# Genre tag whitelists for sanity validation. Each key maps to a set of allowed
+# substrings; an entry passes if ANY of its tags contains at least one substring.
+_GENRE_TAG_WHITELIST: dict[str, list[str]] = {
+    "zombie": ["community", "leadership", "responsibility", "marginalized", "independent",
+               "distrustful", "ambitious", "disruptive", "emerging_power", "fallen_status",
+               "redemption_needed", "outcast", "hunted", "isolated", "connected", "secretive",
+               "leverage_holding", "former_status", "loss_of_power", "adaptation_needed",
+               "infrastructure", "social", "supply", "faction", "discovery", "moral",
+               "survival", "community_fracture", "sabotage", "rationing", "power_struggle",
+               "resource_scarcity", "collapse_conspiracy", "quarantine", "territory",
+               "outside_threat", "cult", "information_warfare", "infection_evolution",
+               "settlement_politics", "supply_route", "moral_decay", "defection",
+               "survival_vs_humanity", "protect_the_vulnerable", "resource_allocation",
+               "truth_control", "leadership_burden", "trust_dynamics"],
+    "pirate": ["crew_loyalty", "working_class", "ship_identity", "ambitious", "dissident",
+               "leadership_challenge", "forced_into_pirate_life", "conflicted", "inexperienced",
+               "experienced", "hardened", "respected_by_crew", "independent", "unaligned",
+               "self_reliant", "mutiny", "naval", "port", "cargo", "disease", "storm",
+               "treasure", "crew_conflict", "blockade", "strike", "sabotage", "heist",
+               "leadership_legitimacy", "faction_power_struggle", "territorial_control",
+               "mutiny_escalation", "outside_betrayal", "colonial_conspiracy", "ship_rivalry",
+               "pardon_scheme", "disease_quarantine", "storm_wreckage", "crew_defection",
+               "slave_trade", "loyalty_vs_self_preservation", "code_of_honor",
+               "power_concentration", "freedom_vs_discipline", "legitimate_governance"],
+    "noir": ["institutional_access", "insider_knowledge", "system_participant",
+             "external_perspective", "limited_resources", "outside_looking_in",
+             "ethical_corruption", "moral_erosion", "murder", "kidnapping", "gang_war",
+             "corruption", "witness_protection", "heist", "blackmail", "political_scandal",
+             "media_manipulation", "judicial_rigging", "organized_crime", "institutional_corruption",
+             "gang_territory_dispute", "underworld_betrayal", "evidence_tampering",
+             "political_shakedown", "union_infiltration", "police_compromise",
+             "witness_intimidation", "truth_vs_self_preservation", "collateral_damage",
+             "evidence_vs_justice", "professional_ethics", "ends_vs_means",
+             "trauma", "cooperation", "vulnerability"],
+}
+
+
+def _select_from_pool(pool_items: list[PoolEntry], seed: int, field_name: str) -> dict[str, Any]:
+    """Select ONE entry from a pool using hash-based deterministic selection."""
+    if not pool_items:
+        raise ValueError(
+            f"{field_name} pool is empty — pack must define at least one {field_name} "
+            "entry for this genre"
+        )
+
+    idx = int(sha256(f"{seed}:{field_name}".encode()).hexdigest(), 16) % len(pool_items)
+    selected = pool_items[idx]
+
+    return selected.model_dump()
+
+
+def _validate_genre_sanity(selected: dict[str, Any], genre: str) -> bool:
+    """Validate that no selected entry has tags outside expected genre vocabulary."""
+    allowed = _GENRE_TAG_WHITELIST.get(genre, [])
+    if not allowed:
+        return True
+
+    tag = selected.get("id", "") + " " + " ".join(selected.get("tags", []))
+    for substring in allowed:
+        if substring.lower() in tag.lower():
+            return True
+
+    _log.warning(
+        "Genre sanity check failed — entry has no matching genre tags. id=%s tags=%s genre=%s",
+        selected.get("id"),
+        selected.get("tags"),
+        genre,
+    )
+    return False
+
+
+def _build_synthesis_context(
+    situation: dict[str, Any],
+    arc: dict[str, Any],
+    character_dynamic: dict[str, Any],
+    moral_pressure: dict[str, Any],
+) -> dict[str, Any]:
+    """Build a context dictionary with the four selected entries' ids and tags."""
+    return {
+        "situation": situation,
+        "arc": arc,
+        "character_dynamic": character_dynamic,
+        "moral_pressure": moral_pressure,
+    }
+
+
+def _normalize_genre_key(genre: str) -> str:
+    """Map pack genre strings to whitelist keys."""
+    if "zombie" in genre or "post-apocalyptic" in genre or "apocalypse" in genre:
+        return "zombie"
+    if "pirate" in genre or "naval" in genre:
+        return "pirate"
+    if "noir" in genre or "detective" in genre or "1930s" in genre:
+        return "noir"
+    return genre
+
+
+def _preselect_pools(scenario: Any, name_seed: int, genre_str: str) -> dict[str, Any]:
+    """Pre-select from archetype pools deterministically per name_seed."""
+    raw_genre = (genre_str or "").lower()
+    genre = _normalize_genre_key(raw_genre)
+
+    situation = _select_from_pool(
+        scenario.situation_archetypes, name_seed, "situation_archetype"
+    )
+    arc = _select_from_pool(scenario.arc_categories, name_seed, "arc_category")
+    character_dynamic = _select_from_pool(
+        scenario.character_dynamics, name_seed, "character_dynamic"
+    )
+    moral_pressure = _select_from_pool(
+        scenario.moral_pressures, name_seed, "moral_pressure"
+    )
+
+    all_selected = [situation, arc, character_dynamic, moral_pressure]
+    field_names = ["situation", "arc", "character_dynamic", "moral_pressure"]
+
+    for selected, fname in zip(all_selected, field_names):
+        if not _validate_genre_sanity(selected, genre):
+            pool_map = {
+                "situation": scenario.situation_archetypes,
+                "arc": scenario.arc_categories,
+                "character_dynamic": scenario.character_dynamics,
+                "moral_pressure": scenario.moral_pressures,
+            }
+            pool_items = pool_map[fname]
+            for salt in (1, 2, 3):
+                alt_idx = int(sha256(f"{name_seed + salt}:{fname}".encode()).hexdigest(), 16) % len(pool_items) if pool_items else -1
+                if alt_idx < 0:
+                    break
+                alt_selected = pool_items[alt_idx].model_dump()
+                if _validate_genre_sanity(alt_selected, genre):
+                    all_selected[field_names.index(fname)] = alt_selected
+                    selected = alt_selected
+                    break
+
+    return _build_synthesis_context(*all_selected)
+
+
 _log = logging.getLogger(__name__)
 
 
@@ -88,6 +230,14 @@ def _build_generate_seed_messages(
         }
     # Randomize name_seed if not set
     name_seed = (scenario.name_seed if scenario and scenario.name_seed else 0) or random.randint(10_000_000, 99_999_999)
+
+    pool_selection: dict[str, Any] | None = None
+    if scenario is not None:
+        try:
+            pool_selection = _preselect_pools(scenario, name_seed, genre)
+        except Exception as exc:
+            _log.warning("pool pre-selection failed (continuing without pools): %s", exc)
+
     ctx = {
         "scenario": scenario,
         "overrides": overrides if (overrides and not overrides.is_empty()) else None,
@@ -102,6 +252,8 @@ def _build_generate_seed_messages(
         "name_pool": name_pool,
         "male_npc_pool": male_npc_pool,
         "name_seed": name_seed,
+        # Pool selection (pre-selected archetype entries for synthesis guidance)
+        "pool_selection": pool_selection,
         # Legacy fallbacks for old packs without scenario
         "world_text": pack.world_text,
         "style_text": pack.style_text,

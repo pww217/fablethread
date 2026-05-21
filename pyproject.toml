@@ -67,6 +67,10 @@ disable_error_code = ["name-defined"]
 module = ["ccya.eval"]
 disable_error_code = ["no-any-return", "type-arg"]
 
+[[tool.mypy.overrides]]
+module = ["ccya.engine.seed"]
+disable_error_code = ["no-any-return"]
+
 [dependency-groups]
 dev = [
     "mypy>=1.20.2",

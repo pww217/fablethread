@@ -24,8 +24,6 @@
 ## creative_direction (guidance only — do not borrow phrasing or pick the obvious answer)
 {% if ins.pc %}### pc
 {{ ins.pc }}
-{% endif %}{% if ins.opening_situation %}### opening_situation
-{{ ins.opening_situation }}
 {% endif %}{% if ins.npcs %}### npcs
 {{ ins.npcs }}
 {% endif %}{% if ins.inventory %}### inventory
@@ -63,6 +61,19 @@ Factions (use these for NPC role assignment):
 {% if npc_count_override and npc_count_override > 0 %}
 ## npc_count
 The player requested {{ npc_count_override }} NPCs for the opening scene. Generate exactly that many present_npcs entries.
+{% endif %}
+
+{% if pool_selection %}
+## Pool selection (independently chosen — weave them together)
+
+SITUATION ARCHETYPE: {{ pool_selection.situation.id }} (tags: {{ pool_selection.situation.tags | join(", ") }})
+ARC CATEGORY: {{ pool_selection.arc.id }} (tags: {{ pool_selection.arc.tags | join(", ") }})
+CHARACTER DYNAMIC: {{ pool_selection.character_dynamic.id }} (tags: {{ pool_selection.character_dynamic.tags | join(", ") }})
+MORAL PRESSURE: {{ pool_selection.moral_pressure.id }} (tags: {{ pool_selection.moral_pressure.tags | join(", ") }})
+
+These four elements shape your generation. The situation archetype defines the opening moment's pressure type; arc category shapes longer-term narrative direction with escalation potential; character dynamic places the PC within power structures and relationships; moral pressure creates immediate ethical tension that DIRECTLY GENERATES thematic_question (write as a one-sentence question capturing core moral dilemma).
+
+Recent events should naturally lead into the situation archetype — they are days/weeks before the opening, showing what just shifted in this world. World state must establish permanent pressures relevant to arc category (not nebulous lore; each fact should affect gameplay choices like border closures, banned technologies, faction blockades).
 {% endif %}
 
 ## Output discipline
