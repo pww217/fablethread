@@ -1,6 +1,0 @@
-3. De-escalate Sections Empty (Finding #3)
-Root cause: Pressure removals (scene_pressure_remove) mutate state in turn.py but never flow back into narration context. The Breathe directive appears without any data about what resolved, why, or at what magnitude. There's a disconnect between mechanical pressure tracking and narrative de-escalation prompting.
-Potential solutions:
-- Feed resolved pressures into narrate prompt (recommended): Add a resolved_pressures section to narrate_user.j2 context showing which IDs were removed this turn, their previous urgency level, and what extraction said about resolution. This gives the LLM concrete data to write meaningful de-escalation prose instead of generic "pull back" instructions.
-- Bridge via narrative_velocity: The engine already computes deescalate float (0.6 for success, 1.0 for crit_success). Extend this to include which specific pressures were removed and their urgency — render in the user prompt alongside Breathe directive.
-- Minimal approach: Just strengthen prompting under Breathe — "Describe what resolved and how." No data changes but relies on LLM noticing it should elaborate.
