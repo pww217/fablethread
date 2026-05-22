@@ -1,4 +1,4 @@
-"""State I/O: load/save YAML state, init save directories, migration."""
+"""State I/O: load/save YAML state, init save directories."""
 
 from __future__ import annotations
 
@@ -23,21 +23,6 @@ def _coerce_enums(obj: Any) -> Any:
     if isinstance(obj, (list, tuple)):
         return [_coerce_enums(v) for v in obj]
     return obj
-
-_STAT_RENAME: dict[str, str] = {
-    "body": "strength",
-    "mind": "wits",
-    "tech": "lore",
-    "social": "charisma",
-}
-_STAT_DEFAULTS: dict[str, int] = {
-    "strength": 2,
-    "dexterity": 2,
-    "wits": 2,
-    "lore": 2,
-    "charisma": 2,
-    "resolve": 2,
-}
 
 
 def _default_state() -> dict[str, Any]:
@@ -74,7 +59,7 @@ def _default_state() -> dict[str, Any]:
             "thematic_question": "",
             "hidden_truths": [],
             "discovered_truths": [],
-            "threads": [],  # unified arc.threads[] replaces scene_pressure[], active_threads[], and latent_threads[] — scope-aware lifecycle management via ArcThread.active bool flag
+            "threads": [],
             "completed_threads": [],
         },
         "scene": {
@@ -93,80 +78,6 @@ def _default_state() -> dict[str, Any]:
     }
 
 
-def _migrate_state(state: dict[str, Any]) -> None:
-    pc = state.setdefault("pc", {})
-    if pc.get("concept") and not pc.get("tagline"):
-        pc["tagline"] = (pc.get("concept") or "").strip()
-    if "concept" in pc:
-        del pc["concept"]
-    if "tagline" not in pc:
-        pc["tagline"] = ""
-    if "bio" not in pc:
-        pc["bio"] = ""
-    if "momentum" not in pc:
-        pc["momentum"] = 0
-    if "allegiance" not in pc:
-        pc["allegiance"] = None
-
-    stats = pc.setdefault("stats", {})
-    for old, new in _STAT_RENAME.items():
-        if old in stats and new not in stats:
-            stats[new] = stats.pop(old)
-        elif old in stats:
-            del stats[old]
-    for stat, default in _STAT_DEFAULTS.items():
-        if stat not in stats:
-            stats[stat] = default
-
-    state.setdefault("scene", {})
-    if "tagline" not in state["scene"]:
-        state["scene"]["tagline"] = ""
-    state.setdefault("meta", {}).setdefault("compendium_touch_order", [])
-
-    # Migrate string recent_events to object form
-    _migrate_recent_events(state)
-
-    # Migrate world key (Phase 5)
-    if "world" not in state:
-        state["world"] = {"factions": [], "locations": []}
-    else:
-        w = state.setdefault("world", {})
-        if "factions" not in w:
-            w["factions"] = []
-        if "locations" not in w:
-            w["locations"] = []
-
-    # Migrate prior_history and last_compacted_turn
-    meta = state.setdefault("meta", {})
-    if not isinstance(meta.get("prior_history"), list):
-        meta["prior_history"] = []
-    if not isinstance(meta.get("last_compacted_turn"), int) or meta["last_compacted_turn"] < 0:
-        meta["last_compacted_turn"] = 0
-
-
-
-
-def _migrate_recent_events(state: dict[str, Any]) -> None:
-    """Upgrade string recent_events to object form in-place."""
-    events = (state.get("scene") or {}).get("recent_events") or []
-    if events and isinstance(events[0], str):
-        def _slugify(s: str) -> str:
-            words = re.sub(r"[^a-z0-9 ]", "", s.lower()).split()[:6]
-            return "_".join(words) or "event"
-        seen: set[str] = set()
-        migrated: list[dict[str, Any]] = []
-        for e in events:
-            base_id = _slugify(e)
-            slug = base_id
-            counter = 1
-            while slug in seen:
-                slug = f"{base_id}_{counter}"
-                counter += 1
-            seen.add(slug)
-            migrated.append({"id": slug, "text": e, "turn": 0})
-        state["scene"]["recent_events"] = migrated
-
-
 def load_state(save_dir: Path) -> dict[str, Any]:
     path = save_dir / "state.yaml"
     if not path.exists():
@@ -180,7 +91,6 @@ def load_state(save_dir: Path) -> dict[str, Any]:
         content,
     )
     raw = yaml.safe_load(content) or _default_state()
-    _migrate_state(raw)
     return raw
 
 
