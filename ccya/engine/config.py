@@ -224,10 +224,12 @@ def _find_json(text: str) -> dict[str, Any] | None:
         except (json.JSONDecodeError, ValueError):
             return None
 
+    # 1. Try parsing the entire text as JSON first
     j = _try(text)
     if j is not None:
         return j
 
+    # 2. Extract from code blocks — most reliable when LLM uses markdown fences
     if "```" in text:
         for part in text.split("```"):
             p = part.strip()
@@ -237,6 +239,25 @@ def _find_json(text: str) -> dict[str, Any] | None:
             if r is not None:
                 return r
 
+    # 3. Brace fallback — try multiple closing positions to handle thinking content
+    # that may contain braces or malformed fragments between first { and last }
+    b = text.find("{")
+    if b >= 0:
+        # Try from opening brace, find the matching close by counting nesting depth
+        depth = 0
+        for i in range(b, len(text)):
+            c = text[i]
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    candidate = text[b : i + 1]
+                    r = _try(candidate)
+                    if r is not None:
+                        return r
+
+    # 4. Last resort: try from first { to last } (original behavior, least reliable)
     b = text.find("{")
     if b >= 0:
         r_idx = text.rfind("}")
@@ -244,6 +265,7 @@ def _find_json(text: str) -> dict[str, Any] | None:
             r = _try(text[b : r_idx + 1])
             if r is not None:
                 return r
+
     return None
 
 

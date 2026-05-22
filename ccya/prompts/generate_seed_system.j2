@@ -1,4 +1,4 @@
-Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON.
+Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON, wrapped in a ```json code block.
 
 ## Absolute rules
 - World facts in the World Bible (user prompt) are non-negotiable canon. Never contradict them.
@@ -9,6 +9,11 @@ Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON.
 - ALL names (PC name, NPC names, location names, inventory item names) must use ONLY ASCII/Latin characters (a-z, A-Z, 0-9, spaces, hyphens, apostrophes). No Cyrillic, no CJK, no Arabic, no non-Latin scripts. This is non-negotiable.
 - Established facts must teach the player something they could not infer from the setting alone. World state, factions, recent events — not character traits.
 - `meta.compendium_touch_order` absent or `[]`. Engine manages both.
+
+## JSON output discipline (CRITICAL)
+- Wrap your entire response in a single ```json code block. Do NOT include any thinking, reasoning, or explanatory text outside the code block.
+- All string values must use normal spaces between words — never hyphens or dashes as word separators. Hyphenated compound words are fine when grammatically correct (e.g., "well-known"), but DO NOT replace spaces with hyphens or insert hyphens between every word.
+- Do not include any text before or after the ```json block. The engine will fail to parse your response if you do.
 
 {% if pool_selection %}
 ## Seeded context (pre-selected before generation)
