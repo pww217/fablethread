@@ -85,9 +85,6 @@ class PacingContext:
 _ACTIVE_THREAD_CAP = 3
 """Maximum number of threads that can be active simultaneously."""
 
-_TACTICAL_TAG = "tactical"
-"""Tag applied to engine-generated latent threads from location pressure checks."""
-
 _EXPIRE_SILENT_TURNS = 5
 """Consecutive turns without being advanced before a thread is demoted to latent."""
 
@@ -276,55 +273,6 @@ def _apply_thread_signals(
             mutated = True
 
     return arc if mutated else None
-
-
-def _candidate_to_latent_thread(
-    arc: CampaignArc,
-    candidate: str,
-    turn_no: int,
-) -> CampaignArc | None:
-    """Convert a location pressure candidate string into a latent thread with cap enforcement."""
-    if not candidate or not candidate.strip():
-        return None
-
-    words = candidate.strip().split()[:5]
-    base_id = "_".join(
-        w.lower().strip(".,;:!?\"'") for w in words
-    )
-    existing_ids = {
-        t.id for t in arc.threads + arc.completed_threads
-    }
-    tid = base_id if base_id not in existing_ids else f"{base_id}_t{turn_no}"
-    if tid in existing_ids:
-        return None
-
-    new_thread = ArcThread(
-        id=tid,
-        summary=candidate.strip(),
-        scope="arc",
-        active=False,  # latent -> inactive
-        urgency="background",
-        tags=[_TACTICAL_TAG],
-        added_turn=turn_no,
-    )
-
-    latent_threads = [t for t in arc.threads if not getattr(t, "active", True) and getattr(t, "scope", "arc") == "arc"]
-    if len(latent_threads) >= 4:
-        tactical = [
-            (i, t) for i, t in enumerate(latent_threads)
-            if _TACTICAL_TAG in (t.tags or [])
-        ]
-        if not tactical:
-            return None
-        tactical.sort(key=lambda x: (x[1].added_turn or 0))
-        evict_idx = tactical[0][0]
-        latent_thread_obj = latent_threads[evict_idx]
-        arc = arc.model_copy(update={
-            "threads": [t for t in arc.threads if t.id != latent_thread_obj.id],
-        })
-
-    return arc.model_copy(update={"threads": list(arc.threads) + [new_thread]})  # type: ignore[no-any-return]
-
 
 def _apply_thread_resolutions(
     state: dict[str, Any],
