@@ -5,7 +5,6 @@ from .app import (
     main,
     config,
     SAVE_DIR,
-    _validate_stats,
 )
 
-__all__ = ["app", "main", "config", "SAVE_DIR", "_validate_stats"]
+__all__ = ["app", "main", "config", "SAVE_DIR"]

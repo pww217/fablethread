@@ -28,7 +28,7 @@ from pathlib import Path
 
 from ccya.eval.config import EvalConfig, InferenceConfig, load_eval_config
 from ccya.eval.judge import JudgeResult, merge_judge_scores, run_judges
-from ccya.eval.report import generate_report, write_report_skeleton, finalize_report
+from ccya.eval.report import write_report_skeleton, finalize_report
 from ccya.eval.runner import (
     REPO_ROOT,
     RunResult,
@@ -244,7 +244,8 @@ async def _cmd_judge_only(args: argparse.Namespace) -> int:
 
     merged = merge_judge_scores(judge_results)
     mech = merged.get("mechanical_score", "?")
-    report_path = generate_report(rr, eval_cfg=eval_cfg, judge_result=judge_results)
+    report_path = write_report_skeleton(rr, eval_cfg=eval_cfg, runs_dir=runs_dir)
+    finalize_report(report_path, rr, eval_cfg=eval_cfg, judge_result=judge_results, runs_dir=runs_dir)
     print(f"[eval] re-judged: mechanical_score={mech}", file=sys.stderr)
     print(str(report_path))
     return 0

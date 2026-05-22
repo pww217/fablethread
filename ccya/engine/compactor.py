@@ -37,14 +37,15 @@ async def maybe_compact(
     if config.compact_every <= 0:
         return state, False
 
-    current_turn = int((state.get("meta") or {}).get("turn", 0) or 0)
+    meta = state.get("meta") if isinstance(state, dict) else {}
+    current_turn = int(meta.get("turn", 0)) if isinstance(meta, dict) else 0
     if current_turn == 0:
         return state, False
 
     if current_turn % config.compact_every != 0:
         return state, False
 
-    last_compacted_turn = int((state.get("meta") or {}).get("last_compacted_turn", 0) or 0)
+    last_compacted_turn = int(meta.get("last_compacted_turn", 0)) if isinstance(meta, dict) else 0
     retain_from = max(1, current_turn - config.recent_turns_min + 1)
     compact_end = retain_from - 1
     compact_start = last_compacted_turn + 1
