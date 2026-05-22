@@ -83,15 +83,15 @@ _JUDGE_EVENT_FIELDS: dict[str, set[str]] = {
     "state_correctness": {
         # needs: state diffs, applied/rejected deltas, rules output (parsed only), extractor outputs
         "turn", "input",
-        "rules",                    # parsed rules output (band, stakes, etc.)
+        "ruling",                    # parsed rules output (band, stakes, etc.)
         "applied", "rejected",
         "extraction",               # all 3 streams, outputs only
         "state_snapshot",
-        # no narrate_prompt, no rules_prompt text, no user prompts
+        # no narrate_prompt, no ruling_prompt text, no user prompts
     },
     "narrative_interplay": {
         "turn", "input",
-        "rules",                    # band, directive, stakes
+        "ruling",                    # band, directive, stakes
         "narrate_prompt",           # output (narration text) only — not rendered_user/system
         "extraction",               # scene/state/progress outputs only (for NPC/beat/pressure fields)
         "state_snapshot",           # mechanic fields only (meta, scene, pc.conditions)
@@ -99,7 +99,7 @@ _JUDGE_EVENT_FIELDS: dict[str, set[str]] = {
     },
     "prompt_pipeline": {
         "turn", "input",
-        "rules_prompt",             # full: rendered_system, rendered_user, output, parse_error
+        "ruling_prompt",              # full: rendered_system, rendered_user, output, parse_error
         "narrate_prompt",           # full: rendered_system, rendered_user, output
         "extraction",               # full: rendered_system, rendered_user, output per stream
         "rejected",
@@ -116,10 +116,10 @@ _JUDGE_EVENT_FIELDS: dict[str, set[str]] = {
 
 # Which extraction sub-streams each judge needs
 _JUDGE_EXTRACTION_STREAMS: dict[str, set[str]] = {
-    "state_correctness": {"scene", "state", "progress"},
-    "narrative_interplay": {"scene", "state", "progress"},
-    "prompt_pipeline": {"scene", "state", "progress"},
-    "compaction": {"progress"},
+    "state_correctness": {"scene", "state", "storytell"},
+    "narrative_interplay": {"scene", "state", "storytell"},
+    "prompt_pipeline": {"scene", "state", "storytell"},
+    "compaction": {"storytell"},
 }
 
 # For narrative_interplay: which state_snapshot top-level keys to keep
@@ -179,9 +179,9 @@ def _is_compaction_turn(ev: dict[str, Any], all_events: list[dict[str, Any]]) ->
     # Compaction produces chronicle entries and recent_events pruning
     if applied.get("chronicle_append") or applied.get("recent_events_compact"):
         return True
-    # Also check progress extraction output for compaction_fired signal if present
-    ext_progress = ((ev.get("extraction") or {}).get("progress") or {}).get("output") or {}
-    return bool(ext_progress.get("compaction_fired"))
+    # Also check storytell extraction output for compaction_fired signal if present
+    ext_storytell = ((ev.get("extraction") or {}).get("storytell") or {}).get("output") or {}
+    return bool(ext_storytell.get("compaction_fired"))
 
 
 def _select_compaction_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -456,8 +456,8 @@ def build_trace(
 
     auto_checker_failures: optional list of dicts with keys turn, assertion, detail.
                            Pass-through; render at the end of the trace.
-    metrics_rows: optional list of per-turn dicts with keys turn, rules_tok_in,
-                  narrate_tok_in, scene_tok_in, state_tok_in, progress_tok_in,
+    metrics_rows: optional list of per-turn dicts with keys turn, ruling_tok_in,
+                  narrate_tok_in, scene_tok_in, state_tok_in, storytell_tok_in,
                   parse_failures, retries.
     """
     options = options or TraceOptions()
@@ -493,7 +493,7 @@ def _render_static_context(metadata: dict[str, Any] | None, turn_events: list[di
 
     If metadata is None: render only constants_block().
     System prompts come from turn_events[0]'s rendered_system fields. If turn 1
-    is a retry-only turn (rules_prompt empty), pull from the first turn that
+    is a retry-only turn (ruling_prompt empty), pull from the first turn that
     has the field populated.
     """
     sections: list[str] = []
@@ -527,11 +527,11 @@ def _render_static_context(metadata: dict[str, Any] | None, turn_events: list[di
     sections.append("## System Prompts (identical every turn)\n")
     sys_prompts = _collect_system_prompts(turn_events)
     for label, key in [
-        ("Rules System Prompt", "rules"),
+        ("Ruling System Prompt", "ruling"),
         ("Narrate System Prompt", "narrate"),
         ("Extract Scene System Prompt", "extract_scene"),
         ("Extract State System Prompt", "extract_state"),
-        ("Extract Progress System Prompt", "extract_progress"),
+        ("Storyteller System Prompt", "storytell"),
     ]:
         sections.append(f"### {label}\n")
         sections.append("```\n" + (sys_prompts.get(key) or "(not captured this run)") + "\n```\n")
@@ -542,25 +542,25 @@ def _render_static_context(metadata: dict[str, Any] | None, turn_events: list[di
 def _collect_system_prompts(turn_events: list[dict[str, Any]]) -> dict[str, str]:
     """Find the first event with each rendered_system populated.
 
-    Returns dict with keys: rules, narrate, extract_scene, extract_state, extract_progress.
+    Returns dict with keys: ruling, narrate, extract_scene, extract_state, storytell.
     """
     out: dict[str, str] = {}
     for ev in turn_events:
-        if "rules" not in out:
-            v = (ev.get("rules_prompt") or {}).get("rendered_system")
+        if "ruling" not in out:
+            v = (ev.get("ruling_prompt") or {}).get("rendered_system")
             if v:
-                out["rules"] = v
+                out["ruling"] = v
         if "narrate" not in out:
             v = (ev.get("narrate_prompt") or {}).get("rendered_system")
             if v:
                 out["narrate"] = v
         ext = ev.get("extraction") or {}
-        for stream_key, out_key in [("scene", "extract_scene"), ("state", "extract_state"), ("progress", "extract_progress")]:
+        for stream_key, out_key in [("scene", "extract_scene"), ("state", "extract_state"), ("storytell", "storytell")]:
             if out_key not in out:
                 v = (ext.get(stream_key) or {}).get("rendered_system")
                 if v:
                     out[out_key] = v
-        if all(k in out for k in ("rules", "narrate", "extract_scene", "extract_state", "extract_progress")):
+        if all(k in out for k in ("ruling", "narrate", "extract_scene", "extract_state", "storytell")):
             break
     return out
 
@@ -580,12 +580,12 @@ def _render_turn_context(
     parts.append(f"**Input:** `{inp}`\n")
 
     parts.append("## User Prompts\n")
-    rules_user = (event.get("rules_prompt") or {}).get("rendered_user") or "(no rules call this turn)"
+    ruling_user = (event.get("ruling_prompt") or {}).get("rendered_user") or "(no ruling call this turn)"
     narrate_user = (event.get("narrate_prompt") or {}).get("rendered_user") or "(no narrate call)"
     ext = event.get("extraction") or {}
-    parts.append("### Rules User Prompt\n```\n" + _maybe_dedup_user_prompt(rules_user, options) + "\n```\n")
+    parts.append("### Ruling User Prompt\n```\n" + _maybe_dedup_user_prompt(ruling_user, options) + "\n```\n")
     parts.append("### Narrate User Prompt\n```\n" + _maybe_dedup_user_prompt(narrate_user, options) + "\n```\n")
-    for stream_key, label in [("scene", "Extract Scene User Prompt"), ("state", "Extract State User Prompt"), ("progress", "Extract Progress User Prompt")]:
+    for stream_key, label in [("scene", "Extract Scene User Prompt"), ("state", "Extract State User Prompt"), ("storytell", "Storyteller User Prompt")]:
         s = ext.get(stream_key) or {}
         if s.get("skipped"):
             parts.append(f"### {label}\n*(skipped)*\n")
@@ -594,8 +594,8 @@ def _render_turn_context(
             parts.append(f"### {label}\n```\n" + _maybe_dedup_user_prompt(v, options) + "\n```\n")
 
     parts.append("## Engine Outputs\n")
-    rules = event.get("rules") or {}
-    rules_raw = (event.get("rules_prompt") or {}).get("output") or ""
+    rules = event.get("ruling") or {}
+    rules_raw = (event.get("ruling_prompt") or {}).get("output") or ""
     parts.append("### Rules\n")
     parts.append("**Parsed (engine):**\n```json\n" + json.dumps(rules, indent=2, default=str) + "\n```\n")
     parts.append("**Raw LLM output:**\n```\n" + rules_raw + "\n```\n")
@@ -604,7 +604,7 @@ def _render_turn_context(
     parts.append("### Narration\n")
     parts.append(narrate_out + "\n")
 
-    for stream_key, label in [("scene", "Extract Scene"), ("state", "Extract State"), ("progress", "Extract Progress")]:
+    for stream_key, label in [("scene", "Extract Scene"), ("state", "Extract State"), ("storytell", "Storyteller")]:
         s = ext.get(stream_key) or {}
         parts.append(f"### {label}\n")
         if s.get("skipped"):
@@ -648,14 +648,14 @@ def _render_turn_context(
 def _render_context_telemetry(event: dict[str, Any]) -> str:
     """One-line per-stream token estimate + trim status, for the judge."""
     rows: list[str] = []
-    rules_meta = (event.get("rules_prompt") or {}).get("context_meta") or {}
-    if rules_meta:
-        rows.append(f"- rules: est={rules_meta.get('est_tokens', '?')}t trimmed={bool(rules_meta.get('trimmed'))}")
+    ruling_meta = (event.get("ruling_prompt") or {}).get("context_meta") or {}
+    if ruling_meta:
+        rows.append(f"- ruling: est={ruling_meta.get('est_tokens', '?')}t trimmed={bool(ruling_meta.get('trimmed'))}")
     narr_meta = (event.get("narrate_prompt") or {}).get("context_meta") or {}
     if narr_meta:
         rows.append(f"- narrate: est={narr_meta.get('est_tokens', '?')}t trimmed={bool(narr_meta.get('trimmed'))}")
     ext = event.get("extraction") or {}
-    for stream in ("scene", "state", "progress"):
+    for stream in ("scene", "state", "storytell"):
         s = ext.get(stream) or {}
         if s.get("skipped"):
             rows.append(f"- extract.{stream}: skipped")
@@ -691,9 +691,9 @@ def _render_deterministic_signals(
         parts.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|\n")
         for m in metrics:
             parts.append(
-                f"| {m.get('turn','?')} | {m.get('rules_tok_in',0)} | "
+                f"| {m.get('turn','?')} | {m.get('ruling_tok_in',0)} | "
                 f"{m.get('narrate_tok_in',0)} | {m.get('scene_tok_in',0)} | "
-                f"{m.get('state_tok_in',0)} | {m.get('progress_tok_in',0)} | "
+                f"{m.get('state_tok_in',0)} | {m.get('storytell_tok_in',0)} | "
                 f"{m.get('parse_failures',0)} | {m.get('retries',0)} | "
                 f"{m.get('momentum_after', '—')} |\n"
             )
@@ -734,25 +734,25 @@ def _build_metrics_rows(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for ev in events:
         if ev.get("__metadata__"):
             continue
-        rules_meta = (ev.get("rules_prompt") or {}).get("context_meta") or {}
+        ruling_meta = (ev.get("ruling_prompt") or {}).get("context_meta") or {}
         narr_meta = (ev.get("narrate_prompt") or {}).get("context_meta") or {}
         ext = ev.get("extraction") or {}
         retries = 0
         parse_errors: list[str] = []
-        rules_error = (ev.get("rules_prompt") or {}).get("parse_error") or ""
-        if rules_error:
-            parse_errors.append(f"[rules] {rules_error}")
-        for s in ("scene", "state", "progress"):
+        ruling_error = (ev.get("ruling_prompt") or {}).get("parse_error") or ""
+        if ruling_error:
+            parse_errors.append(f"[ruling] {ruling_error}")
+        for s in ("scene", "state", "storytell"):
             sub = ext.get(s) or {}
             retries += max(0, int(sub.get("attempts") or 1) - 1)
             parse_errors.extend(sub.get("retry_errors") or [])
         rows.append({
             "turn": ev.get("turn", "?"),
-            "rules_tok_in": int(rules_meta.get("est_tokens", 0) or 0),
+            "ruling_tok_in": int(ruling_meta.get("est_tokens", 0) or 0),
             "narrate_tok_in": int(narr_meta.get("est_tokens", 0) or 0),
             "scene_tok_in": int((ext.get("scene") or {}).get("context_meta", {}).get("est_tokens", 0) or 0),
             "state_tok_in": int((ext.get("state") or {}).get("context_meta", {}).get("est_tokens", 0) or 0),
-            "progress_tok_in": int((ext.get("progress") or {}).get("context_meta", {}).get("est_tokens", 0) or 0),
+            "storytell_tok_in": int((ext.get("storytell") or {}).get("context_meta", {}).get("est_tokens", 0) or 0),
             "parse_failures": len(parse_errors),
             "retries": retries,
             "parse_error_details": parse_errors,
@@ -991,8 +991,8 @@ def _normalize_scores(fm: dict[str, Any]) -> dict[str, Any]:
     if isinstance(ps, dict):
         out["pipeline_scores"] = {
             k: _coerce_int(v) for k, v in ps.items()
-            if k in ("rules", "narrate", "extract_scene", "extract_state",
-                     "extract_progress")
+            if k in ("ruling", "narrate", "extract_scene", "extract_state",
+                     "storytell")
         }
     return out
 

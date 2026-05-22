@@ -37,7 +37,7 @@ flowchart TD
     classDef pyNode fill:#1f2937,color:#9ca3af,stroke:#4b5563
     classDef arcNode fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
 
-    PR["ProgressExtractResult<br>thread_advance: list[str]<br>thread_resolve: list[ThreadResolution]"]:::pyNode
+    PR["StorytellerResult<br>thread_advance: list[str]<br>thread_resolve: list[ThreadResolution]"]:::pyNode
 
     subgraph SIGNALS["_apply_thread_signals() + _apply_thread_resolutions()"]
         S1["For each ID in thread_advance:<br>If ArcThread exists → progress +1,<br>last_seen_turn = turn_no"]

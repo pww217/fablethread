@@ -25,7 +25,7 @@ _log = logging.getLogger(__name__)
 # Stream extraction from events.jsonl
 # ---------------------------------------------------------------------------
 
-_STREAM_KEYS = ("rules", "narrate", "extraction.scene", "extraction.state", "extraction.progress")
+_STREAM_KEYS = ("ruling", "narrate", "extraction.scene", "extraction.state", "extraction.storytell")
 
 
 @dataclass
@@ -69,9 +69,9 @@ def _read_events(events_path: Path) -> list[dict[str, Any]]:
 def _extract_stream_metrics(event: dict[str, Any]) -> dict[str, StreamMetrics]:
     streams: dict[str, StreamMetrics] = {}
 
-    rules = event.get("rules") or {}
+    rules = event.get("ruling") or {}
     if rules:
-        streams["rules"] = StreamMetrics(
+        streams["ruling"] = StreamMetrics(
             tokens_in=int(rules.get("tokens_in") or 0),
             tokens_out=int(rules.get("tokens_out") or 0),
             ms=int(rules.get("total_ms") or 0),
@@ -79,7 +79,7 @@ def _extract_stream_metrics(event: dict[str, Any]) -> dict[str, StreamMetrics]:
             skipped=False,
         )
     else:
-        streams["rules"] = StreamMetrics(skipped=True)
+        streams["ruling"] = StreamMetrics(skipped=True)
 
     narrate = event.get("narrate") or {}
     streams["narrate"] = StreamMetrics(
@@ -91,7 +91,7 @@ def _extract_stream_metrics(event: dict[str, Any]) -> dict[str, StreamMetrics]:
     )
 
     extraction = event.get("extraction") or {}
-    for sub in ("scene", "state", "progress"):
+    for sub in ("scene", "state", "storytell"):
         ex = extraction.get(sub) or {}
         streams[f"extraction.{sub}"] = StreamMetrics(
             tokens_in=int(ex.get("tokens_in") or 0),
@@ -382,7 +382,7 @@ def _render_judge_summary(
     if ps:
         parts.append("")
         parts.append("**Pipeline scores:**")
-        for k in ("rules", "narrate", "extract_scene", "extract_state", "extract_progress"):
+        for k in ("ruling", "narrate", "extract_scene", "extract_state", "storytell"):
             parts.append(f"- {k}: {_fmt_score(ps.get(k))}/5")
     parts.append("")
 

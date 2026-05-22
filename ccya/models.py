@@ -479,7 +479,7 @@ class GMBeat(BaseModel):
         return stripped
 
 
-class ProgressExtractResult(BaseModel):
+class StorytellerResult(BaseModel):
     recent_events_add: list[RecentEvent] = Field(default_factory=list)
     recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
     recent_events_remove: list[str] = Field(default_factory=list)
@@ -491,7 +491,7 @@ class ProgressExtractResult(BaseModel):
     thread_add: ArcThread | None = None
 
     @model_validator(mode="after")
-    def _nullify_invalid_gm_beat(self) -> "ProgressExtractResult":
+    def _nullify_invalid_gm_beat(self) -> "StorytellerResult":
         if self.gm_beat is not None:
             if not self.gm_beat.instruction or not self.gm_beat.type:
                 self.gm_beat = None
@@ -513,10 +513,10 @@ class ProgressExtractResult(BaseModel):
         return out
 
     @model_validator(mode="after")
-    def _warn_empty_actions(self) -> "ProgressExtractResult":
+    def _warn_empty_actions(self) -> "StorytellerResult":
         if not self.actions:
             _log.warning(
-                "progress.actions is empty — LLM omitted field or returned []",
+                "storytell.actions is empty — LLM omitted field or returned []",
                 extra={"turn": 0, "trace_id": "", "pack": "", "kind": "extraction"},
             )
         return self
@@ -541,7 +541,7 @@ class TurnResult:
     )  # structured pre/post diff for modal + log
     metrics: dict[str, Any] = field(default_factory=dict)
     errors: list[dict[str, Any]] = field(default_factory=list)
-    rules: dict[str, Any] = field(
+    ruling: dict[str, Any] = field(
         default_factory=dict
     )  # serialized RulesOutcome + intent for logging/UI
     outcome_summary: str = field(default="")

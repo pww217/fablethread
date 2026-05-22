@@ -21,7 +21,7 @@ scenario = Scenario(
                 f"Narrate should reflect LOW MOMENTUM advisory (momentum={MOMENTUM_MIN})",
                 "Small break or partial success expected — not piling on",
             ],
-            asserts=[TurnAssert(stream="rules", field="rolled", expected="true")],
+            asserts=[TurnAssert(stream="ruling", field="rolled", expected="true")],
         ),
         Turn(
             input="I accept whatever Caron says and leave the tavern quietly.",
@@ -35,7 +35,7 @@ scenario = Scenario(
                 "rules.required=false (reflection, no obstacle)",
                 "momentum should not drop further on no-roll turn",
             ],
-            asserts=[TurnAssert(stream="rules", field="rolled", expected="false")],
+            asserts=[TurnAssert(stream="ruling", field="rolled", expected="false")],
         ),
     ],
 )

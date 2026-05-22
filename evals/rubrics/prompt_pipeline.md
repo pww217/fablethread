@@ -111,7 +111,7 @@ For each pipeline, assess whether its inputs are focused:
 
 **Extract Progress**: richest extractor — assess whether every input enables a specific output. Flag inputs that appear unused. Should receive: narrative, band, PacingContext (full struct), arc.threads[] (unified), recent_turns.
 
-Assess: is pacing_context being used by the progress extractor? Flag if it appears in the prompt but the extractor's output shows no evidence of using directive/gate for thread/beat decisions.
+Assess: is pacing_context being used by the storyteller? Flag if it appears in the prompt but the extractor's output shows no evidence of using directive/gate for thread/beat decisions.
 
 ---
 

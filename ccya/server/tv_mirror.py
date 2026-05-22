@@ -36,14 +36,14 @@ class StreamDescriptor:
 
 _STREAMS: list[StreamDescriptor] = [
     StreamDescriptor(
-        key="rules",
-        label="rules",
-        stage_css="rules",
-        metrics_path="rules",
-        prompt_path="rules_prompt",
+        key="ruling",
+        label="Ruling",
+        stage_css="ruling",
+        metrics_path="ruling",
+        prompt_path="ruling_prompt",
         output_subkey="output",
         is_text_output=False,
-        output_is_json_string=True,  # rules_prompt.output is a serialized JSON string
+        output_is_json_string=True,  # ruling_prompt.output is a serialized JSON string
         ms_key="total_ms",
         inputs=[],
     ),
@@ -56,7 +56,7 @@ _STREAMS: list[StreamDescriptor] = [
         output_subkey="output",
         is_text_output=True,             # narrate_prompt.output is prose
         ms_key="total_ms",
-        inputs=["rules"],
+        inputs=["ruling"],
     ),
     StreamDescriptor(
         key="scene",
@@ -67,7 +67,7 @@ _STREAMS: list[StreamDescriptor] = [
         output_subkey="output",
         is_text_output=False,
         ms_key="ms",
-        inputs=["rules", "narrate"],
+        inputs=["ruling", "narrate"],
         skip_token_display=True,
     ),
     StreamDescriptor(
@@ -79,19 +79,19 @@ _STREAMS: list[StreamDescriptor] = [
         output_subkey="output",
         is_text_output=False,
         ms_key="ms",
-        inputs=["rules", "narrate", "scene"],
+        inputs=["ruling", "narrate", "scene"],
         skip_token_display=True,
     ),
     StreamDescriptor(
-        key="progress",
-        label="progress",
-        stage_css="progress",
-        metrics_path="extraction.progress",
-        prompt_path="extraction.progress",
+        key="storytell",
+        label="Storytell",
+        stage_css="storytell",
+        metrics_path="extraction.storytell",
+        prompt_path="extraction.storytell",
         output_subkey="output",
         is_text_output=False,
         ms_key="ms",
-        inputs=["rules", "narrate", "scene", "state"],
+        inputs=["ruling", "narrate", "scene", "state"],
         skip_token_display=True,
     ),
 ]

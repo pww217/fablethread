@@ -9,7 +9,7 @@ pipeline_scores:
   narrate: <int 1-5>
   extract_scene: <int 1-5>
   extract_state: <int 1-5>
-  extract_progress: <int 1-5>
+  storytell: <int 1-5>
 compaction_score: <int 1-5>
 state_fidelity_rate: <float 0.0-1.0>
 prompt_adherence_rate: <float 0.0-1.0>
@@ -418,7 +418,7 @@ If misplaced: name the correct pipeline, name the data flow change needed.
 - Ambient NPC filtering: `npc_add` for ambient crowds when named NPCs present → flag.
 - NPC attitude tracking: attitude shift narrated → `npc_update` emitted. Flag misses.
 
-**extract_progress:**
+**storytell:**
 - Quest deduplication: existing `done: true` objective re-emitted → flag.
 - Quest ID collision: new quest ID semantically duplicates an active quest → flag.
 - Premature completion: `status: completed` before all objectives done → flag.

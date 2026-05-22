@@ -28,7 +28,7 @@ from ccya.engine.names import generate_npc_names_split
 from ccya.engine.narrate import _known_characters_for_extract, _narrate_messages
 from ccya.engine.npc_roster import build_npc_roster
 
-from ccya.engine.rules import _avg_rules_ms, _call_rules, _log_rules_outcome, _rules_messages
+from ccya.engine.ruling import _avg_ruling_ms, _call_ruling, _log_ruling_outcome, _ruling_messages
 from ccya.llm_client import (
     chat as llm_chat,
     chat_stream as llm_chat_stream,
@@ -39,7 +39,7 @@ from ccya.models import (
     ArcThread,
     CampaignArc,
     IntentEnvelope,
-    ProgressExtractResult,
+    StorytellerResult,
     RulesCheck,
     RulesOutcome,
     StateDelta,
@@ -94,7 +94,7 @@ _PROMOTION_COOLDOWN_TURNS = 3
 
 def _apply_thread_signals(
     state: dict[str, Any],
-    progress_result: Any,
+    storyteller_result: Any,
 ) -> CampaignArc | None:
     """Process thread_advance signals for unified threads[].
 
@@ -132,7 +132,7 @@ def _apply_thread_signals(
         )
         return None
 
-    advanced_ids = set(progress_result.thread_advance or [])
+    advanced_ids = set(storyteller_result.thread_advance or [])
     # Unified threads[] with scope-aware active bool
     all_arc_threads = [t for t in arc.threads if getattr(t, "scope", "arc") == "arc"]
     active_by_id: dict[str, ArcThread] = {t.id: t for t in all_arc_threads if getattr(t, "active", True)}
@@ -276,9 +276,9 @@ def _apply_thread_signals(
 
 def _apply_thread_resolutions(
     state: dict[str, Any],
-    progress_result: ProgressExtractResult,
+    storyteller_result: StorytellerResult,
 ) -> CampaignArc | None:
-    """Process thread_resolve from ProgressExtractResult.
+    """Process thread_resolve from StorytellerResult.
 
     Moves resolved/failed/abandoned threads from arc.threads[] to
     arc.completed_threads[], setting resolution_state on each.
@@ -286,7 +286,7 @@ def _apply_thread_resolutions(
     completed_threads entries by updating existing entry instead of
     creating a duplicate.
     """
-    if not progress_result.thread_resolve:
+    if not storyteller_result.thread_resolve:
         return None
 
     arc_raw = state.get("arc")
@@ -317,7 +317,7 @@ def _apply_thread_resolutions(
     new_completed: list[ArcThread] = []
     any_found = False
 
-    for res in progress_result.thread_resolve:
+    for res in storyteller_result.thread_resolve:
         # Find matching thread in arc.threads[]
         found_idx = None
         for i, t in enumerate(arc.threads):
@@ -701,7 +701,7 @@ async def run_turn(
         intent="", intent_verb="act", check=RulesCheck(required=False)
     )
     outcome = RulesOutcome(rolled=False)
-    rules_metrics: dict[str, Any] = {"total_ms": 0, "rolled": False}
+    ruling_metrics: dict[str, Any] = {"total_ms": 0, "rolled": False}
 
     try:
         await _inflight.acquire(str(save_dir))
@@ -717,11 +717,11 @@ async def run_turn(
             )
 
         # Prompt capture variables (initialized early for exception safety)
-        rendered_rules_system = ""
-        rendered_rules_user = ""
+        rendered_ruling_system = ""
+        rendered_ruling_user = ""
         rendered_narr_system = ""
         rendered_narr_user = ""
-        rules_raw_response = ""
+        ruling_raw_response = ""
         narrative = ""
 
         # --- Memory: load chronicle tail + recent turns ---
@@ -740,8 +740,8 @@ async def run_turn(
         )
 
         # === Call 0: Rules / intent classification ===
-        exp_rules_ms = _avg_rules_ms(save_dir)
-        yield ("phase", {"phase": "rules_start", "expected_ms": exp_rules_ms})
+        exp_ruling_ms = _avg_ruling_ms(save_dir)
+        yield ("phase", {"phase": "ruling_start", "expected_ms": exp_ruling_ms})
         t_rules = asyncio.get_event_loop().time()
         turn_no = state.get("meta", {}).get("turn", 0) + 1
 
@@ -750,10 +750,10 @@ async def run_turn(
         if turn_no > 1:
             _prev_events = load_recent_events(save_dir, 1)
             if _prev_events:
-                _prev_outcome = _prev_events[0].get("rules", {}).get("outcome_summary", "")
+                _prev_outcome = _prev_events[0].get("ruling", {}).get("outcome_summary", "")
 
         _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
-        rules_messages = _rules_messages(
+        ruling_messages = _ruling_messages(
             env, state, user_input,
             recent_turns=recent_turns[-1:],
             turn_no=turn_no,
@@ -761,17 +761,17 @@ async def run_turn(
             last_outcome=_prev_outcome if _prev_outcome else None,
         )
         # Capture pre-trim content for context_meta so the judge sees original sizes
-        rendered_rules_system = rules_messages[0]["content"] if rules_messages else ""
-        rendered_rules_user = rules_messages[-1]["content"] if rules_messages else ""
-        strip_trace_markers_in_messages(rules_messages)
-        rules_messages, rules_trimmed, rules_trimmed_chars = trim_messages(rules_messages, config.prompt_token_budget)
+        rendered_ruling_system = ruling_messages[0]["content"] if ruling_messages else ""
+        rendered_ruling_user = ruling_messages[-1]["content"] if ruling_messages else ""
+        strip_trace_markers_in_messages(ruling_messages)
+        ruling_messages, ruling_trimmed, ruling_trimmed_chars = trim_messages(ruling_messages, config.prompt_token_budget)
         if config.log_prompts:
             _log_prompts(
-                state.get("meta", {}).get("turn", 0) + 1, "rules", rules_messages
+                state.get("meta", {}).get("turn", 0) + 1, "ruling", ruling_messages
             )
-        intent, rules_usage, rules_raw_response, rules_parse_error = await _call_rules(rules_messages, config, trace_id)
+        intent, ruling_usage, ruling_raw_response, ruling_parse_error = await _call_ruling(ruling_messages, config, trace_id)
 
-        # Resolve dice in Python (deterministic) — _call_rules degrades intent, we do outcome here
+        # Resolve dice in Python (deterministic) — _call_ruling degrades intent, we do outcome here
         if intent.check.required and intent.check.skill:
             try:
                 # Normalize structured Condition dicts to ids for the rules engine.
@@ -825,16 +825,16 @@ async def run_turn(
         threat_ages = _compute_threat_ages(state)
 
         if config.log_prompts:
-            _log_rules_outcome(
+                _log_ruling_outcome(
                 state.get("meta", {}).get("turn", 0) + 1, intent, outcome
             )
 
-        rules_ms = (asyncio.get_event_loop().time() - t_rules) * 1000
-        rules_metrics = {
-            "total_ms": round(rules_ms, 1),
+        ruling_ms = (asyncio.get_event_loop().time() - t_rules) * 1000
+        ruling_metrics = {
+            "total_ms": round(ruling_ms, 1),
             "rolled": outcome.rolled,
-            "tokens_in": rules_usage.get("prompt_tokens", 0),
-            "tokens_out": rules_usage.get("completion_tokens", 0),
+            "tokens_in": ruling_usage.get("prompt_tokens", 0),
+            "tokens_out": ruling_usage.get("completion_tokens", 0),
         }
 
         yield (
@@ -1064,6 +1064,7 @@ async def run_turn(
         actions = []
         outcome_summary: str = ""
         extraction_event: dict[str, Any] = {}
+        _extraction_ctx = None
 
         _extract_result = None
         try:
@@ -1085,9 +1086,9 @@ async def run_turn(
             errors.append({"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id, "message": str(exc)})
 
         if _extract_result is not None:
-            delta, actions, outcome_summary, extraction_event, progress_result, scene_result, _extraction_ctx = _extract_result  # type: ignore[misc]
+            delta, actions, outcome_summary, extraction_event, storyteller_result, scene_result, _extraction_ctx = _extract_result  # type: ignore[misc]
         # Beat lifecycle: beat_disposition removed — Python infers from state mutations (gm_beat presence in delta)
-            _new_beat = progress_result.gm_beat if progress_result else None
+            _new_beat = storyteller_result.gm_beat if storyteller_result else None
 
             if _new_beat and _new_beat.type:
                 # New beat present → replace/clear pending_gm_beat with new value
@@ -1126,15 +1127,15 @@ async def run_turn(
         # Roll up per-stream token counts for the metrics dict
         _tokens_in = sum(
             (extraction_event.get(s) or {}).get("tokens_in", 0)
-            for s in ("scene", "state", "progress")
+            for s in ("scene", "state", "storytell")
         )
         _tokens_out = sum(
             (extraction_event.get(s) or {}).get("tokens_out", 0)
-            for s in ("scene", "state", "progress")
+            for s in ("scene", "state", "storytell")
         )
         # Build per-stream breakdown for UI display
         _streams = {}
-        for s in ("scene", "state", "progress"):
+        for s in ("scene", "state", "storytell"):
             ev = extraction_event.get(s)
             if ev:
                 _streams[s] = {
@@ -1151,7 +1152,7 @@ async def run_turn(
             "streams": _streams,
         }
         metrics = {
-            "rules": rules_metrics,
+            "ruling": ruling_metrics,
             "narrate": narr_metrics,
             "extract": ext_metrics,
         }
@@ -1218,8 +1219,8 @@ async def run_turn(
                 }
 
             # Arc director: process thread signals and update arc state
-            if state.get("arc") and progress_result:
-                arc_delta = _apply_thread_signals(state, progress_result)
+            if state.get("arc") and storyteller_result:
+                arc_delta = _apply_thread_signals(state, storyteller_result)
                 if arc_delta is not None:
                     _merge_arc_update(
                         state.setdefault("arc", {}), arc_delta
@@ -1230,7 +1231,7 @@ async def run_turn(
                         )
 
                 # Process thread resolutions (resolved/failed/abandoned -> completed)
-                resolved_arc = _apply_thread_resolutions(state, progress_result)
+                resolved_arc = _apply_thread_resolutions(state, storyteller_result)
                 if resolved_arc is not None:
                     _merge_arc_update(
                         state.setdefault("arc", {}), resolved_arc
@@ -1241,8 +1242,8 @@ async def run_turn(
                         )
 
                 # Handle thread_add as new arc thread (only when gate == "allow")
-                if progress_result.thread_add:
-                    _new_thread = progress_result.thread_add
+                if storyteller_result.thread_add:
+                    _new_thread = storyteller_result.thread_add
                     _scope = getattr(_new_thread, "scope", "arc")
                     if _scope == "scene":
                         # Scene-scoped threads are handled by age rules in Python, not here
@@ -1318,16 +1319,16 @@ async def run_turn(
 
         # === Write: events.jsonl → atomic state.yaml → chronicle.md ===
         # Narrative is canonical in chronicle.md only (see load_recent_chronicle_turns).
-        rules_event: dict[str, Any] = {
+        ruling_event: dict[str, Any] = {
             "intent_verb": intent.intent_verb,
             "intent": intent.intent,
             "rolled": outcome.rolled,
-            "total_ms": rules_metrics.get("total_ms"),
-            "tokens_in": rules_metrics.get("tokens_in", 0),
-            "tokens_out": rules_metrics.get("tokens_out", 0),
+            "total_ms": ruling_metrics.get("total_ms"),
+            "tokens_in": ruling_metrics.get("tokens_in", 0),
+            "tokens_out": ruling_metrics.get("tokens_out", 0),
         }
         if outcome.rolled:
-            rules_event.update({
+            ruling_event.update({
                 "skill": outcome.skill,
                 "difficulty": outcome.difficulty,
                 "dice": outcome.dice,
@@ -1352,7 +1353,7 @@ async def run_turn(
             "rejected": rejected,
             "actions": actions,
             "scene_tags": list(getattr(delta, "scene_tags", [])),
-            "rules": rules_event,
+            "ruling": ruling_event,
             "pacing_context": {
                 "directive": _pc.directive if _pc else "",
                 "beat_hint": _pc.beat_hint if _pc else None,
@@ -1372,12 +1373,12 @@ async def run_turn(
             "extraction": extraction_event,
             "changes": changes,
             # Prompt logging (for turn viewer)
-            "rules_prompt": {
-                "rendered_system": rendered_rules_system,
-                "rendered_user": rendered_rules_user,
-                "output": rules_raw_response,
-                "parse_error": rules_parse_error,
-                "context_meta": _context_meta(rendered_rules_system, rendered_rules_user, rules_trimmed, rules_trimmed_chars),
+            "ruling_prompt": {
+                "rendered_system": rendered_ruling_system,
+                "rendered_user": rendered_ruling_user,
+                "output": ruling_raw_response,
+                "parse_error": ruling_parse_error,
+                "context_meta": _context_meta(rendered_ruling_system, rendered_ruling_user, ruling_trimmed, ruling_trimmed_chars),
             },
             "narrate_prompt": {
                 "rendered_system": rendered_narr_system,
@@ -1418,7 +1419,7 @@ async def run_turn(
             changes=changes,
             metrics=metrics,
             errors=errors,
-            rules=rules_event or {},
+            ruling=ruling_event or {},
             outcome_summary=outcome_summary,
             recent_events_evicted=recent_events_evicted,
             ts=_ts,

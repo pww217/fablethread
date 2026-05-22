@@ -191,7 +191,7 @@ def _check_asserts(
 
     Returns a list of dicts: [{assertion, passed, detail}].
     """
-    _VALID_STREAMS = frozenset(("rules", "extract.state", "extract.scene", "extract.progress", "extract", "state_yaml"))
+    _VALID_STREAMS = frozenset(("ruling", "extract.state", "extract.scene", "storytell.extract", "extract", "state_yaml"))
     results: list[dict[str, Any]] = []
     for a in asserts:
         passed = False
@@ -205,26 +205,26 @@ def _check_asserts(
             })
             continue
 
-        if a.stream == "rules":
-            rules = event.get("rules") or {}
+        if a.stream == "ruling":
+            ruling = event.get("ruling") or {}
             if a.field == "rolled":
-                val = rules.get("rolled", False)
+                val = ruling.get("rolled", False)
                 passed = (val == (a.expected == "true"))
                 detail = f"rolled={val}"
             elif a.field == "skill":
-                val = rules.get("skill", "")
+                val = ruling.get("skill", "")
                 passed = val == a.expected
                 detail = f"skill={val!r} (expected {a.expected!r})"
             elif a.field == "difficulty":
-                val = rules.get("difficulty", "")
+                val = ruling.get("difficulty", "")
                 passed = val == a.expected
                 detail = f"difficulty={val!r} (expected {a.expected!r})"
             elif a.field == "band":
-                val = rules.get("band", "")
+                val = ruling.get("band", "")
                 passed = val == a.expected
                 detail = f"band={val!r} (expected {a.expected!r})"
             elif a.field == "intent_verb":
-                val = rules.get("intent_verb", "")
+                val = ruling.get("intent_verb", "")
                 passed = val == a.expected
                 detail = f"intent_verb={val!r} (expected {a.expected!r})"
 
@@ -278,10 +278,10 @@ def _check_asserts(
                 passed = a.expected in tags
                 detail = f"scene_tags[{a.expected}] {'found' if passed else 'not found'}"
 
-        elif a.stream == "extract.progress":
+        elif a.stream == "storytell.extract":
             applied = event.get("applied") or {}
             if a.field == "thread_advance":
-                output = ((event.get("extraction") or {}).get("progress") or {}).get("output") or {}
+                output = ((event.get("extraction") or {}).get("storytell") or {}).get("output") or {}
                 threads = output.get("thread_advance") or []
                 passed = a.expected in threads
                 detail = f"thread_advance[{a.expected}] {'found' if passed else 'not found'}"
@@ -331,23 +331,23 @@ def _extract_parse_failures(events: list[dict[str, Any]]) -> list[tuple[int, int
     results: list[tuple[int, int, int]] = []
     for ev in events:
         turn = int(ev.get("turn", 0))
-        rules = ev.get("rules") or {}
+        ruling = ev.get("ruling") or {}
 
         # Rules parse failures: if rolled=False but the event has a rules key,
         # it means the rules call defaulted to no-roll after parse failures.
         # We can't directly know how many failures occurred, but we know at
         # least one happened if rolled=False and there's a rules key.
         rules_failures = 0
-        if not rules.get("rolled") and "rules_prompt" in ev:
-            # Check if the rules_prompt output contains validation errors
-            output = ev.get("rules_prompt", {}).get("output", "")
+        if not ruling.get("rolled") and "ruling_prompt" in ev:
+            # Check if the ruling_prompt output contains validation errors
+            output = ev.get("ruling_prompt", {}).get("output", "")
             if "check.skill" in output or "check.difficulty" in output:
                 rules_failures = 2  # max retries = 2
 
         # Extract parse failures: count retry_errors across all streams
         extract_failures = 0
         extraction = ev.get("extraction") or {}
-        for sub in ("scene", "state", "progress"):
+        for sub in ("scene", "state", "storytell"):
             ex = extraction.get(sub) or {}
             retry_errors = ex.get("retry_errors") or []
             extract_failures += len(retry_errors)

@@ -18,11 +18,11 @@ _STATUS_CSS: dict[str, str] = {
 }
 
 _STAGE_CSS: dict[str, str] = {
-    "rules": "tv-stage-rules",
+    "ruling": "tv-stage-ruling",
     "narrate": "tv-stage-narrate",
     "scene": "tv-stage-scene",
     "state": "tv-stage-state",
-    "progress": "tv-stage-progress",
+    "storytell": "tv-stage-storytell",
 }
 
 
@@ -133,7 +133,7 @@ def _tv_dict_to_lines(
 def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
     """Produce a flat list of state-change entries from extraction outputs.
 
-    Reads rules (intent), scene/state/progress extraction outputs and flattens
+    Reads ruling (intent), scene/state/storytell extraction outputs and flattens
     them into labelled change entries for the diff right panel.
     """
     rejected_set: set[str] = set()
@@ -144,9 +144,9 @@ def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
     changes: list[dict[str, Any]] = []
 
     # Player intent from rules stream — shown at top
-    rules_intent = _tv_parse_json_blob(ev.get("rules_prompt", {}).get("output") or "")
-    if rules_intent:
-        val = rules_intent.get("intent")
+    ruling_intent = _tv_parse_json_blob(ev.get("ruling_prompt", {}).get("output") or "")
+    if ruling_intent:
+        val = ruling_intent.get("intent")
         if val and isinstance(val, str) and val.strip():
             changes.append({
                 "domain": "intent",
@@ -154,13 +154,13 @@ def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
                 "field": "intent",
                 "value": val[:120] + ("\u2026" if len(val) > 120 else ""),
                 "rejected": False,
-                "from_stream": "rules",
+                "from_stream": "ruling",
             })
 
     _EXTRACTION_STREAMS = [
         ("scene", "extraction.scene"),
         ("state", "extraction.state"),
-        ("progress", "extraction.progress"),
+        ("storytell", "extraction.storytell"),
     ]
 
     for stream_key, path in _EXTRACTION_STREAMS:
@@ -419,12 +419,12 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         # Totals from streams dict
         total_in = sum(int(streams[sd.key].get("tokens_in") or 0) for sd in _STREAMS)
         total_out = sum(int(streams[sd.key].get("tokens_out") or 0) for sd in _STREAMS)
-        # total_tt: rules.total_ms + narrate.total_ms + extract.total_ms
-        rules_ev = ev.get("rules") or {}
+        # total_tt: ruling.total_ms + narrate.total_ms + extract.total_ms
+        ruling_ev = ev.get("ruling") or {}
         narr_ev = ev.get("narrate") or {}
         extract_ev = ev.get("extract") or {}
         total_tt_ms = (
-            (rules_ev.get("total_ms") or 0)
+            (ruling_ev.get("total_ms") or 0)
             + (narr_ev.get("total_ms") or 0)
             + (extract_ev.get("total_ms") or 0)
         )
@@ -540,8 +540,8 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         # State diff
         state_diff = _tv_state_diff(ev)
 
-        # rules_intent for template (parsed from rules_prompt.output)
-        rules_intent = _tv_parse_json_blob(prompts["rules"]["output"])
+        # ruling_intent for template (parsed from ruling_prompt.output)
+        ruling_intent = _tv_parse_json_blob(prompts["ruling"]["output"])
 
         tid = str(ev.get("trace_id") or "")
         tid_short = tid[:8] if len(tid) >= 8 else tid
@@ -564,7 +564,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "total_tokens_in_display": _fmt_tokens_exact(total_in),
                 "total_tokens_out_display": _fmt_tokens_exact(total_out),
                 "user_input": ev.get("input", ""),
-                "rules_intent": rules_intent,
+                "ruling_intent": ruling_intent,
                 "inputs_snapshot": inputs_snapshot,
                 "state_diff": state_diff,
                 "failures": row_failures,

@@ -59,8 +59,8 @@ class EngineConfig:
     generate_seed_max_retries: int = 1
     log_llm_io: bool = False
     log_llm_io_max_chars: int = 4000
-    rules_temperature: float = 0.2
-    max_rules_retries: int = 1
+    ruling_temperature: float = 0.2
+    max_ruling_retries: int = 1
     max_generate_pack_retries: int = 1
     log_prompts: bool = False
     # Thread urgency escalation thresholds (turns)
@@ -113,17 +113,17 @@ def build_engine_config(
     """
     llm = cfg.get("llm", {})
     game = cfg.get("game", {})
-    rules = cfg.get("rules", {})
+    ruling = cfg.get("ruling", {})
     logging_cfg = cfg.get("logging", {})
 
     narrate_t = float(llm.get("narrate_temperature", 0.9))
     extract_t = float(llm.get("extract_temperature", 0.4))
-    rules_t = float(rules.get("temperature", 0.2))
+    ruling_t = float(ruling.get("temperature", 0.2))
     seed_t = float(llm.get("generate_seed_temperature", 0.9))
 
     if temperature_override is not None:
         t = float(temperature_override)
-        narrate_t = extract_t = rules_t = seed_t = t
+        narrate_t = extract_t = ruling_t = seed_t = t
 
     return EngineConfig(
         host=str(llm.get("host", "http://localhost:8080/v1")),
@@ -145,8 +145,8 @@ def build_engine_config(
         log_llm_io=bool(logging_cfg.get("log_llm_io", False)),
         log_llm_io_max_chars=int(logging_cfg.get("log_llm_io_max_chars", 4000)),
         log_prompts=bool(logging_cfg.get("log_prompts", False)),
-        rules_temperature=rules_t,
-        max_rules_retries=int(rules.get("max_retries", 1)),
+        ruling_temperature=ruling_t,
+        max_ruling_retries=int(ruling.get("max_retries", 1)),
         max_generate_pack_retries=int(llm.get("max_generate_pack_retries", 1)),
         thread_urgency_building_at=int(game.get("thread_urgency_building_at", 3)),
         thread_urgency_immediate_at=int(

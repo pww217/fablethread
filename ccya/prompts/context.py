@@ -1,0 +1,331 @@
+"""Typed block and boundary models for prompt context assembly.
+
+Blocks are read-only data containers that accept a raw state dict and produce
+typed snapshots via .model_dump(). Boundaries compose blocks as fields — each
+boundary corresponds to one user/system prompt template.
+
+This keeps prompt context types separate from LLM output types (models.py).
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
+
+from ccya.models import (
+    ArcThread,
+    Condition,
+    InventoryItem,
+    IntentEnvelope,
+    NpcPresence,
+    RulesOutcome,
+)
+
+_log = logging.getLogger(__name__)
+
+
+class PlayerBlock(BaseModel):
+    """Player character snapshot for prompt rendering."""
+
+    name: str
+    tagline: str | None = None
+    concept: str | None = None
+    stats: dict[str, int]  # {strength/dexterity/wits/lore/charisma/resolve: int}
+    conditions: list[Condition]
+
+    @classmethod
+    def from_state(cls, state: dict[str, Any]) -> PlayerBlock:
+        pc = state.get("pc", {})
+        return cls(
+            name=pc.get("name", "Unnamed"),
+            tagline=pc.get("tagline"),
+            concept=None,  # Not stored in state — computed at render time if needed.
+            stats=dict(pc.get("stats", {})),
+            conditions=[Condition(**c) for c in pc.get("conditions", [])],
+        )
+
+
+class LocationBlock(BaseModel):
+    """Location snapshot for prompt rendering."""
+
+    id: str
+    name: str
+    description: str | None = None
+
+    @classmethod
+    def from_state(cls, state: dict[str, Any]) -> LocationBlock:
+        loc = state.get("location", {})
+        return cls(
+            id=loc.get("id", ""),
+            name=loc.get("name", "Unknown"),
+            description=loc.get("description"),
+        )
+
+
+class InventoryBlock(BaseModel):
+    """Inventory snapshot for prompt rendering."""
+
+    items: list[InventoryItem]  # reuses existing InventoryItem model from models.py
+
+    @classmethod
+    def from_state(cls, state: dict[str, Any]) -> InventoryBlock:
+        raw = state.get("inventory", [])
+        return cls(items=[InventoryItem(**i) if isinstance(i, dict) else i for i in raw])
+
+
+class ArcThreadSummary(BaseModel):
+    """Simplified arc thread data for prompt rendering (subset of full ArcThread).
+
+    Used by _arc.j2 line 18 and storytell_user.j2 line 17. Both templates access: id, scope, urgency, summary, tags, active, last_seen_turn.
+    """
+
+    id: str
+    summary: str
+    scope: Literal["scene", "arc"]
+    urgency: Literal["background", "normal", "urgent"]
+    tags: list[str] = Field(default_factory=list)
+    active: bool
+    last_seen_turn: int | None = None  # referenced in _arc.j2 line 18 and storytell_user.j2 line 17 as t.last_seen_turn
+
+
+class ArcThreadBlock(BaseModel):
+    """Campaign arc snapshot for prompt rendering."""
+
+    visible_goal: str
+    thematic_question: str
+    pc_drive: str
+    threads: list[ArcThreadSummary]  # simplified thread view for prompts
+    discovered_truths: list[str] = Field(default_factory=list)
+    hidden_truths: list[str] = Field(default_factory=list)
+
+    @classmethod
+    def from_state(cls, state: dict[str, Any]) -> ArcThreadBlock:
+        arc = state.get("arc", {})
+        raw_threads = []
+        for t in arc.get("threads", []) + arc.get("completed_threads", []):
+            if isinstance(t, ArcThreadSummary):
+                raw_threads.append(t)
+            elif isinstance(t, dict):
+                raw_threads.append(
+                    ArcThreadSummary(
+                        id=t.get("id", ""),
+                        summary=t.get("summary", ""),
+                        scope=t.get("scope", "arc"),
+                        urgency=t.get("urgency", "normal"),
+                        tags=list(t.get("tags", [])),
+                        active=bool(t.get("active", True)),
+                        last_seen_turn=t.get("last_seen_turn"),
+                    )
+                )
+            elif isinstance(t, ArcThread):
+                raw_threads.append(
+                    ArcThreadSummary(
+                        id=t.id,
+                        summary=t.summary,
+                        scope=t.scope,
+                        urgency=t.urgency,
+                        tags=list(t.tags),
+                        active=bool(t.active),
+                        last_seen_turn=t.last_seen_turn,
+                    )
+                )
+        return cls(
+            visible_goal=arc.get("visible_goal", ""),
+            thematic_question=arc.get("thematic_question", ""),
+            pc_drive=arc.get("pc_drive", ""),
+            threads=raw_threads,
+            discovered_truths=list(arc.get("discovered_truths", [])),
+            hidden_truths=list(arc.get("hidden_truths", [])),
+        )
+
+
+class WorldStateBlock(BaseModel):
+    """World state snapshot for prompt rendering."""
+
+    entries: list[str]  # raw world state strings from scene.world_state[]
+
+    @classmethod
+    def from_state(cls, state: dict[str, Any]) -> WorldStateBlock:
+        ws = state.get("scene", {}).get("world_state", [])
+        return cls(entries=[str(e) if isinstance(e, str) else str(e.values()) for e in ws])
+
+
+class ChronicleEntryBlock(BaseModel):
+    """A single chronicle/turn entry for prompt rendering.
+
+    Source: load_recent_chronicle_turns() returns dicts with turn/input/narrative keys (line 94 of state/chronicle.py).
+    Templates only use .turn and .narrative — the "input" field is dead in boundary models but preserved from source data shape.
+    """
+
+    turn: int
+    narrative: str
+
+
+class PacingBlock(BaseModel):
+    """Pacing context snapshot for prompt rendering."""
+
+    directive: str | None = None  # used by storytell_user.j2 line 56 and narrate_user.j2 line 82
+    beat_hint: str | None = None  # used by narrate_user.j2 lines 84-87 only (not in storytell)
+    gate: bool | None = None  # used by storytell_user.j2 line 57 only (dead field on NarratorBoundary's pacing_context)
+
+
+class LastSeenBlock(BaseModel):
+    """Last-seen metadata for an NPC in the roster."""
+
+    turn: int
+    location_id: str
+    location_name: str
+
+
+class NPCRosterEntryBlock(BaseModel):
+    """Single entry in an NPC roster for prompt rendering.
+
+    Source shapes vary by origin: build_npc_roster() outputs dicts with last_seen as a dict (turn/location_id/location_name) from compendium data, or None for present/recently_left NPCs. Template extract_scene_user.j2 line 7 accesses n.last_seen.location_name — not a string.
+    """
+
+    id: str
+    name: str
+    title: str | None = None
+    bio: str | None = None
+    presence: NpcPresence  # reuses existing enum from models.py
+    motivation: str | None = None
+    fear: str | None = None
+    leverage: str | None = None
+    notes: str | None = None
+    last_seen: LastSeenBlock | None = None
+
+
+class NPCRosterBlock(BaseModel):
+    """NPC roster snapshot for prompt rendering."""
+
+    entries: list[NPCRosterEntryBlock]
+
+
+class RulingBoundary(BaseModel):
+    """Context for ruling_user.j2.
+
+    NOTE: recent_turns is passed by _ruling_messages but ruling_user.j2 never renders it — dead field removed from boundary model.
+    """
+
+    pc: PlayerBlock
+    location: LocationBlock
+    user_input: str
+    meta: dict[str, int]
+    present_npcs: list[NPCRosterEntryBlock]
+    last_outcome: str | None = None
+
+
+class NarratorBoundary(BaseModel):
+    """Context for narrate_user.j2.
+
+    Source: _narrate_messages() user_ctx (lines 72-104). Note that _location.j2 and _inventory.j2 includes access state.location/state.inventory,
+    so these are NOT separate top-level fields — they're accessed via the `state` dict.
+    ArcThreadBlock is exposed as `current_arc` to match _arc.j2's variable name (line 1 of _arc.j2).
+
+    NOTE: chronicle_tail, threat_ages, threat_pressure_at, building_threat_imperative_at are passed in user_ctx but narrate_user.j2 never uses them — dead fields removed from boundary model.
+    momentum, scene, compendium_bios, known_npcs, present_npcs, recently_left also flagged as dead by alignment check and removed.
+    """
+
+    pc: PlayerBlock  # maps to {{ pc.* }} (lines 2-6 of narrate_user.j2)
+    current_arc: ArcThreadBlock  # maps to {{ current_arc.* }} in _arc.j2 include (line 13 of narrate_user.j2)
+    state: dict[str, Any]  # covers state.location, state.inventory, state.scene.world_state accessed by includes
+    npc_roster: NPCRosterBlock  # from build_npc_roster() call on line 98 of _narrate_messages
+    pacing_context: PacingBlock | None = None
+    recent_turns: list[ChronicleEntryBlock]
+    prior_history: list[str] = Field(default_factory=list)
+    rules_outcome: RulesOutcome | None = None
+    user_input: str
+    pending_beat: dict[str, Any] | None = None
+    meta: dict[str, int]
+    ages: dict[str, int]
+    pc_allegiance: str | None = None
+    world_factions: list[dict[str, str]]
+    world_locations: list[dict[str, str]]
+    npc_name_pool: dict[str, list[str]]
+
+class SceneExtractBoundary(BaseModel):
+    """Context for extract_scene_user.j2.
+
+    Source: _extract_scene_messages() passes pc, location, conditions directly (lines 274-282).
+    npc_roster comes from build_npc_roster(present_npcs=extraction_ctx.present_npcs_this_turn, known_npcs=_known_characters_for_extract(state, compact=True), recently_left=[]) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_seen. present_npcs is enriched scene data with id/name/title/bio/notes/presence/last_seen (dicts, not NPCRosterEntryBlock instances at current call site).
+
+    NOTE: pc and conditions are passed by _extract_scene_messages but extract_scene_user.j2 never renders them — dead fields removed from boundary model.
+    """
+
+    narration: str
+    location: LocationBlock
+    npc_roster: NPCRosterBlock  # minimal variant (no motivation/fear/leverage) — actually has mfl from compendium lookup
+    present_npcs: list[NPCRosterEntryBlock]
+    recent_turns: list[ChronicleEntryBlock]
+    turn_no: int
+
+
+class StateExtractBoundary(BaseModel):
+    """Context for extract_state_user.j2.
+
+    Source: _extract_state_messages() passes pc, conditions, inventory, intent, turn_no (lines 308-315).
+    Template only uses narration/conditions/inventory/intent/turn_no — pc is passed but never rendered.
+    """
+
+    conditions: list[Condition]
+    inventory: list[InventoryItem]
+    intent: IntentEnvelope | None = None
+    turn_no: int
+    narration: str
+
+
+class StorytellerBoundary(BaseModel):
+    """Context for storytell_user.j2.
+
+    Source: _storytell_messages() passes pc, pc_stats (lines 359-361) but storytell_user.j2 never renders them — dead fields.
+    npc_roster/location/inventory/conditions come from extraction_ctx (lines 363-366).
+    all_threads/recent_events/world_state/intent/pacing_context/recent_turns/turn_no/band/pending_beat are top-level variables used by template.
+
+    NOTE: Template uses `world_state` variable name directly (line 29 of storytell_user.j2), NOT world_state_entries.
+    ArcThreadBlock's threads are accessed via top-level all_threads (not current_arc).
+    """
+
+    narration: str
+    npc_roster: NPCRosterBlock  # from extraction_ctx.present_npcs_this_turn + _known_characters_for_extract(compact=True)
+    location: LocationBlock
+    conditions: list[Condition]
+    inventory: list[InventoryItem]
+    all_threads: list[ArcThreadSummary]  # source is state.arc.threads (raw dicts) — Pydantic coerces since ArcThreadSummary field names match dict keys; schema tests must validate both raw-dict and object inputs
+    world_state: list[str | dict[str, Any]]  # template uses `world_state` variable name (line 29 of storytell_user.j2)
+    recent_events: list[dict[str, Any] | str]  # source is scene.recent_events — raw dicts with text field or plain strings
+    intent: IntentEnvelope | None = None
+    pacing_context: PacingBlock | None = None
+    recent_turns: list[ChronicleEntryBlock]
+    turn_no: int
+    band: str
+    pending_beat: dict[str, Any] | None = None
+
+    # NOTE: _storytell_messages passes pc and pc_stats in user_ctx but storytell_user.j2 never renders them.
+    # The alignment check will flag these as dead fields — they should be removed from the boundary model.
+
+
+class NarratorSystemBoundary(BaseModel):
+    """Context for narrate_system.j2 (only system prompt with dynamic data).
+
+    Source: _narrate_messages() line 106-110 passes pack_style, narrator_rules, world_rules, current_arc.
+    Template uses only `world_rules` and `narrator_rules` — alignment check flags pack_style/current_arc as dead fields removed from boundary model.
+    """
+
+    narrator_rules: list[str]
+    world_rules: list[str]
+
+
+# ---------------------------------------------------------------------------
+# TEMPLATE_CONTRACTS mapping — alignment check wiring.
+# ---------------------------------------------------------------------------
+
+TEMPLATE_CONTRACTS: dict[str, type[BaseModel]] = {
+    "storytell_user.j2": StorytellerBoundary,
+    "narrate_user.j2": NarratorBoundary,
+    "ruling_user.j2": RulingBoundary,
+    "extract_scene_user.j2": SceneExtractBoundary,
+    "extract_state_user.j2": StateExtractBoundary,
+    "narrate_system.j2": NarratorSystemBoundary,
+}

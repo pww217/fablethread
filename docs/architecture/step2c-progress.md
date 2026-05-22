@@ -21,11 +21,11 @@ flowchart LR
         S8["recent_turns[-2:]<br>(T-1 + T-2 prior narration<br>for outcome_summary context)"]
     end
 
-    subgraph LLM2C["LLM — extract_progress_system.j2 + extract_progress_user.j2"]
-        SL["temp: 0.4 · max_retries: 1<br>output: ProgressExtractResult JSON"]:::llmNode
+    subgraph LLM2C["LLM — storytell_system.j2 + storytell_user.j2"]
+        SL["temp: 0.4 · max_retries: 1<br>output: StorytellerResult JSON"]:::llmNode
     end
 
-    subgraph OUT["Outputs — ProgressExtractResult"]
+    subgraph OUT["Outputs — StorytellerResult"]
         O1["thread_advance: list[str]<br>  ids of threads to increment progress"]:::outNode
         O2["thread_resolve: list[ThreadResolution]<br>  id + resolution_state<br>(resolved/failed/abandoned)"]:::outNode
         O3["thread_add: ArcThread | None<br>  new thread, gated by PacingContext.gate"]:::outNode
@@ -61,9 +61,9 @@ The beat flows through three phases per turn:
 
 **Phase 1 — Pre-narration expiry check.** At the start of each turn, the engine reads `state.meta.pending_gm_beat` from the previous turn. If `beat_expires_turn` is set and the current turn number exceeds it, the beat is nullified. Otherwise it proceeds to narration.
 
-**Phase 2 — Narration consumption.** The beat is passed to the narrator via `_narrate_messages(pending_gm_beat=...)`. The narrator integrates the beat's instruction into prose. After narration completes, the beat is temporarily cleared from state. The beat is then restored to state so the progress extractor can see it in its prompt — this is critical because the progress extractor needs to know what beat was narrated to make an informed disposition decision.
+**Phase 2 — Narration consumption.** The beat is passed to the narrator via `_narrate_messages(pending_gm_beat=...)`. The narrator integrates the beat's instruction into prose. After narration completes, the beat is temporarily cleared from state. The beat is then restored to state so the storyteller can see it in its prompt — this is critical because the storyteller needs to know what beat was narrated to make an informed disposition decision.
 
-**Phase 3 — Extraction disposition (inferred).** The progress extractor receives the pending beat context and emits an optional new `gm_beat`. Unlike the previous architecture, there is no explicit `beat_disposition` field. Instead:
+**Phase 3 — Extraction disposition (inferred).** The storyteller receives the pending beat context and emits an optional new `gm_beat`. Unlike the previous architecture, there is no explicit `beat_disposition` field. Instead:
 - If Progress emits a new `gm_beat`, it replaces the old one (`state.meta.pending_gm_beat = gm_beat` with `beat_expires_turn = turn_no + 2`)
 - If Progress emits nothing and the beat's `expires_at` hasn't passed, the engine preserves the existing beat unchanged (carry)
 - The engine stores beats with `beat_expires_turn = turn_no + 2` as a hard TTL ceiling. Beats past their expiry are discarded automatically on load.

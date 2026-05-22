@@ -313,7 +313,7 @@ flowchart TD
 
 ### Phase 3: Structured error logging across engine
 7. Update all `except Exception as exc:` blocks in engine modules (turn.py, extraction.py, compactor.py, seed.py, rules.py) to include structured fields via extra dict with appropriate ErrorKind
-8. Convert `_call_rules` and `_call_stream` retry logic to use typed LlmcError exceptions from llm_client
+8. Convert `_call_ruling` and `_call_stream` retry logic to use typed LlmcError exceptions from llm_client
 
 ### Phase 4: Server middleware + server error persistence
 9. Add `ExceptionCaptureMiddleware` to app.py for unhandled exception capture at FastAPI level

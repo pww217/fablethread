@@ -25,7 +25,7 @@ from typing import Any
 DEFAULT_SAVE_DIR = Path("saves/default")
 DEFAULT_FILE = DEFAULT_SAVE_DIR / "events.jsonl"
 
-STREAMS = ("rules", "narrate", "scene", "state", "progress")
+STREAMS = ("ruling", "narrate", "scene", "state", "storytell")
 
 
 def load_events(path: Path) -> list[dict[str, Any]]:
@@ -60,8 +60,8 @@ def find_turn(events: list[dict[str, Any]], turn: int) -> dict[str, Any] | None:
 
 def extract_prompt(ev: dict[str, Any], stream: str) -> dict[str, str]:
     """Extract {system, user, output} for a stream from a raw event."""
-    if stream == "rules":
-        blob = ev.get("rules_prompt") or {}
+    if stream == "ruling":
+        blob = ev.get("ruling_prompt") or {}
     elif stream == "narrate":
         blob = ev.get("narrate_prompt") or {}
     else:
@@ -135,8 +135,8 @@ def cmd_summary(events: list[dict[str, Any]]) -> None:
         turn = ev.get("turn", "?")
         user_input = (ev.get("input") or "")[:60]
         intent = ""
-        rules_prompt = ev.get("rules_prompt") or {}
-        raw = rules_prompt.get("output", "")
+        ruling_prompt = ev.get("ruling_prompt") or {}
+        raw = ruling_prompt.get("output", "")
         if isinstance(raw, str):
             try:
                 parsed = json.loads(raw)
@@ -150,7 +150,7 @@ def cmd_summary(events: list[dict[str, Any]]) -> None:
         print(
             f"Turn {turn}: streams={_stream_keys(ev)} user={user_input} "
             f"tokens: in={total_in} out={total_out} tt={total_tt} "
-            f"rules_intent: {intent} deltas: {state_diff}"
+            f"ruling_intent: {intent} deltas: {state_diff}"
         )
 
 
@@ -252,30 +252,30 @@ def cmd_mechanics(ev: dict[str, Any]) -> None:
 
     # Rules intent
     print("--- Rules Intent ---")
-    intent = _parse_rules_intent(ev)
+    intent = _parse_ruling_intent(ev)
     print(json.dumps(intent, indent=2) if intent else "(none)")
     print()
 
     # Extract progress user prompt sections
-    progress_user = extract_prompt(ev, "progress")["user"]
+    storytell_event = extract_prompt(ev, "storytell")["user"]
 
     print("--- GM Beat ---")
-    beat = extract_section_by_pattern(progress_user, "## gm_beat", "## deescalate", "## Current Pressures", "## rules_stakes", "## pending_beat", "## last_turn_narration")
+    beat = extract_section_by_pattern(storytell_event, "## gm_beat", "## deescalate", "## Current Pressures", "## rules_stakes", "## pending_beat", "## last_turn_narration")
     print(beat if beat else "(empty)")
     print()
 
     print("--- Deescalate ---")
-    deesc = extract_section_by_pattern(progress_user, "## deescalate", "## Current Pressures", "## last_turn_narration")
+    deesc = extract_section_by_pattern(storytell_event, "## deescalate", "## Current Pressures", "## last_turn_narration")
     print(deesc if deesc else "(empty)")
     print()
 
     print("--- Current Pressures ---")
-    press = extract_section_by_pattern(progress_user, "## Current Pressures", "## last_turn_narration", "## gm_beat")
+    press = extract_section_by_pattern(storytell_event, "## Current Pressures", "## last_turn_narration", "## gm_beat")
     print(press if press else "(empty)")
     print()
 
     print("--- Rules Stakes ---")
-    stakes = extract_section_by_pattern(progress_user, "## rules_stakes", "## gm_beat", "## last_turn_narration")
+    stakes = extract_section_by_pattern(storytell_event, "## rules_stakes", "## gm_beat", "## last_turn_narration")
     print(stakes if stakes else "(empty)")
     print()
 
@@ -366,16 +366,16 @@ def _build_state_diff(ev: dict[str, Any]) -> list:
             rejected_set.add(str(r["field"]))
 
     changes = []
-    rules_intent = _parse_rules_intent(ev)
-    if rules_intent:
-        val = rules_intent.get("intent")
+    ruling_intent = _parse_ruling_intent(ev)
+    if ruling_intent:
+        val = ruling_intent.get("intent")
         if val and isinstance(val, str) and val.strip():
             changes.append({
                 "domain": "intent", "op": "set", "field": "intent",
-                "value": val[:120], "rejected": False, "from_stream": "rules",
+                "value": val[:120], "rejected": False, "from_stream": "ruling",
             })
 
-    for stream_key, path in [("scene", "extraction.scene"), ("state", "extraction.state"), ("progress", "extraction.progress")]:
+    for stream_key, path in [("scene", "extraction.scene"), ("state", "extraction.state"), ("storytell", "extraction.storytell")]:
         blob = _get_nested(ev, path) or {}
         if not isinstance(blob, dict):
             continue
@@ -435,8 +435,8 @@ def _try_parse_json(raw: str) -> dict | None:
     return None
 
 
-def _parse_rules_intent(ev: dict[str, Any]) -> dict | None:
-    raw = (ev.get("rules_prompt") or {}).get("output", "")
+def _parse_ruling_intent(ev: dict[str, Any]) -> dict | None:
+    raw = (ev.get("ruling_prompt") or {}).get("output", "")
     if isinstance(raw, str):
         return _try_parse_json(raw)
     return raw if isinstance(raw, dict) else None
@@ -452,8 +452,8 @@ def _stream_keys(ev: dict[str, Any]) -> str:
 
 
 def _metrics_path(stream: str) -> str:
-    if stream == "rules":
-        return "rules"
+    if stream == "ruling":
+        return "ruling"
     elif stream == "narrate":
         return "narrate"
     else:
@@ -488,10 +488,10 @@ def _total_tokens_out(ev: dict[str, Any]) -> str:
 
 
 def _total_tt(ev: dict[str, Any]) -> str:
-    rules_ev = ev.get("rules") or {}
+    ruling_ev = ev.get("ruling") or {}
     narr_ev = ev.get("narrate") or {}
     extract_ev = ev.get("extract") or {}
-    total_ms = (rules_ev.get("total_ms") or 0) + (narr_ev.get("total_ms") or 0) + (extract_ev.get("total_ms") or 0)
+    total_ms = (ruling_ev.get("total_ms") or 0) + (narr_ev.get("total_ms") or 0) + (extract_ev.get("total_ms") or 0)
     try:
         return f"{float(total_ms) / 1000.0:.1f}s"
     except (TypeError, ValueError):
@@ -525,11 +525,11 @@ def _extract_connectors(ev: dict[str, Any]) -> list[dict]:
     connectors = []
     # Define inputs per stream (matches tv_mirror._STREAMS)
     stream_inputs = {
-        "rules": [],
-        "narrate": ["rules"],
-        "scene": ["rules", "narrate"],
-        "state": ["rules", "narrate", "scene"],
-        "progress": ["rules", "narrate", "scene", "state"],
+        "ruling": [],
+        "narrate": ["ruling"],
+        "scene": ["ruling", "narrate"],
+        "state": ["ruling", "narrate", "scene"],
+        "storytell": ["ruling", "narrate", "scene", "state"],
     }
     # Output types per stream
     is_text = {"narrate": True}
@@ -540,7 +540,7 @@ def _extract_connectors(ev: dict[str, Any]) -> list[dict]:
             continue
         segments = []
         for inp_key in inputs:
-            inp_path = "narrate_prompt" if inp_key == "narrate" else ("rules_prompt" if inp_key == "rules" else f"extraction.{inp_key}")
+            inp_path = "narrate_prompt" if inp_key == "narrate" else ("ruling_prompt" if inp_key == "ruling" else f"extraction.{inp_key}")
             inp_blob = _get_nested(ev, inp_path) or {}
             if not isinstance(inp_blob, dict):
                 inp_blob = {}

@@ -207,16 +207,16 @@ flowchart TD
 
 | Removed | From | Notes |
 |---|---|---|
-| `IntentEnvelope.stakes` | `models.py`, `extract_rules_*.j2`, `extract_progress_user.j2`, `turn.py` | Drop field definition, Jinja rendering, and passage into Progress |
-| `ProgressExtractResult.beat_disposition` | `models.py`, `extract_progress_system.j2`, `turn.py` | Python infers from `gm_beat` presence + turn expiry |
+| `IntentEnvelope.stakes` | `models.py`, `extract_rules_*.j2`, `storytell_user.j2`, `turn.py` | Drop field definition, Jinja rendering, and passage into Progress |
+| `StorytellerResult.beat_disposition` | `models.py`, `storytell_system.j2`, `turn.py` | Python infers from `gm_beat` presence + turn expiry |
 | `state.scene.scene_pressure[]` | `state.yaml` schema, `models.py` `StateDelta`, `apply_delta()`, `delta.py` | Replaced by `arc.threads[]` with `scope: scene` |
-| `ProgressExtractResult.scene_pressure_add/remove/update` | `models.py`, `extract_progress_system.j2`, `extract_progress_user.j2` | Replaced by `thread_advance / thread_resolve / thread_add` |
+| `ProgressExtractResult.scene_pressure_add/remove/update` | `models.py`, `storytell_system.j2`, `storytell_user.j2` | Replaced by `thread_advance / thread_resolve / thread_add` |
 | `arc.active_threads[]` / `arc.latent_threads[]` split | `state.yaml` schema, `models.py`, `extraction.py` | Replaced by unified `arc.threads[]` with `active: bool` |
-| `narrative_velocity` prompt variable | `extract_progress_user.j2`, `extract_narrate_user.j2` (if present) | Computation stays in Python; value folds into `PacingContext` |
-| `deescalate` prompt variable | `extract_progress_user.j2`, `extract_narrate_user.j2` | Same as above |
-| `narration_directive` as standalone variable | `extract_progress_user.j2`, `extract_narrate_user.j2`, `turn.py` | Becomes `PacingContext.directive`, passed as part of struct |
+| `narrative_velocity` prompt variable | `storytell_user.j2`, `extract_narrate_user.j2` (if present) | Computation stays in Python; value folds into `PacingContext` |
+| `deescalate` prompt variable | `storytell_user.j2`, `extract_narrate_user.j2` | Same as above |
+| `narration_directive` as standalone variable | `storytell_user.j2`, `extract_narrate_user.j2`, `turn.py` | Becomes `PacingContext.directive`, passed as part of struct |
 | `_check_floor_relief()` | `turn.py` or wherever it lives | Logic moves into `_compute_pacing_context()` as `beat_locked` |
-| `quest_threshold_directive` | `extract_progress_user.j2` | Subsumed by `PacingContext` |
+| `quest_threshold_directive` | `storytell_user.j2` | Subsumed by `PacingContext` |
 
 ---
 
@@ -337,19 +337,19 @@ plus removal of ~5 variables from the user prompt template.
 ## Context for Implementing LLMs
 
 - **Read `ccya/engine/extraction.py`** in full before starting. The
-  `_extract_progress_messages()` function and `_build_extraction_context()` are the
+  `_storytell_messages()` function and `_build_extraction_context()` are the
   primary touch points.
 - **Read `ccya/engine/turn.py`** for where pacing signals are computed and passed. The
   pacing signal computation is scattered here; `_compute_pacing_context()` consolidates
   it.
-- **Read `ccya/models.py`** for `ProgressExtractResult`, `ScenePressure`,
+- **Read `ccya/models.py`** for `StorytellerResult`, `ScenePressure`,
   `IntentEnvelope`, and the arc thread models. All schema changes originate here.
 - **Read `ccya/state/delta.py` and `apply_delta()`** for how `scene_pressure_add/remove`
   currently mutates state — this logic is removed and replaced by thread signal
   application.
 - **Read `docs/REPOMAP/`** files for the modules being touched before writing any code.
 - **Jinja templates live in `ccya/engine/templates/`**. The templates to modify are
-  `extract_progress_system.j2`, `extract_progress_user.j2`, and
+  `storytell_system.j2`, `storytell_user.j2`, and
   `extract_narrate_user.j2`. Scene and state templates are untouched.
 - **Do not modify Step 0 (Rules) system prompt** beyond removing the `stakes` field from
   the output schema definition.
