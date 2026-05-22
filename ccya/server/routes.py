@@ -124,9 +124,7 @@ async def get_turn(input: str = ""):
                 elif kind == "complete":
                     result = payload
                     for err in result.errors:
-                        _log.error(
-                            "turn error", extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "message": str(err)},
-                        )
+                        _log.error("turn error", extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "error_message": str(err)})
                     ch = result.changes if isinstance(result.changes, dict) else {}
                     # Format ts field for display (engine stores UTC ISO, UI gets human-readable)
                     _ts_display = _format_ts(result.ts)
@@ -147,7 +145,7 @@ async def get_turn(input: str = ""):
                                 "change_lines": format_change_lines(ch),
                                 "state": _load_current_state(),
                                 "metrics": result.metrics,
-                                "rules": result.rules,
+                                "ruling": result.ruling,
                                 "recent_events_evicted": result.recent_events_evicted,
                                 "ts": _ts_display,
                             }

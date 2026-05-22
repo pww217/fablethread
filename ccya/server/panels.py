@@ -19,7 +19,7 @@ def _load_current_state() -> dict[str, Any]:
     return load_state(_app.SAVE_DIR)
 
 
-def _load_rules_map(save_dir: Path) -> dict[int, dict[str, Any]]:
+def _load_ruling_map(save_dir: Path) -> dict[int, dict[str, Any]]:
     """Build a turn→rules map from events.jsonl."""
     path = save_dir / "events.jsonl"
     if not path.exists():
@@ -29,7 +29,7 @@ def _load_rules_map(save_dir: Path) -> dict[int, dict[str, Any]]:
     raw = path.read_text().strip()
     if not raw:
         return {}
-    rules_map: dict[int, dict[str, Any]] = {}
+    ruling_map: dict[int, dict[str, Any]] = {}
     for line in raw.splitlines():
         line = line.strip()
         if not line:
@@ -39,22 +39,22 @@ def _load_rules_map(save_dir: Path) -> dict[int, dict[str, Any]]:
         except json.JSONDecodeError:
             continue
         turn = int(ev.get("turn") or 0)
-        rules = ev.get("rules")
+        rules = ev.get("ruling")
         if rules and isinstance(rules, dict):
-            rules_map[turn] = rules
-    return rules_map
+            ruling_map[turn] = rules
+    return ruling_map
 
 
 def _load_recent_history(save_dir: Path, n: int = 8) -> list[dict[str, Any]]:
     """Return the last n turns from chronicle.md for page-reload continuity (full narrative)."""
     turns = load_recent_chronicle_turns(save_dir, n)
-    rules_map = _load_rules_map(save_dir)
+    ruling_map = _load_ruling_map(save_dir)
     return [
         {
             "turn": t["turn"],
             "input": t["input"],
             "narrative": t["narrative"],
-            "rules": rules_map.get(t["turn"]),
+            "ruling": ruling_map.get(t["turn"]),
         }
         for t in turns
     ]

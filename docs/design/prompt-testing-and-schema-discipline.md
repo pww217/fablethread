@@ -34,9 +34,9 @@ One additional integrated render test is appropriate: a realistic turn-7-style c
 
 ### Scope
 
-- `extract_progress_user.j2` — primary target; most complexity lives here
+- `storytell_user.j2` — primary target; most complexity lives here
 - `narrate_user.j2` — secondary target for directive and beat rendering
-- `rules_user.j2`, `*_scene_*user.j2`, `*_state_*user.j2` — lower priority but should be included once the framework exists
+- `ruling_user.j2`, `*_scene_*user.j2`, `*_state_*user.j2` — lower priority but should be included once the framework exists
 
 ### North Star Test Properties
 
@@ -95,10 +95,10 @@ Raw state dict → typed block models (assemble from state) → per-prompt bound
 
 Each block is a Pydantic model with a class method or constructor that accepts the raw `state` dict and extracts/computes what it needs. The per-prompt boundary object composes these blocks:
 
-- **RulesBoundary** = PlayerBlock + LocationBlock + ChronicleBlock(sliced 1)
+- **RulingBoundary** = PlayerBlock + LocationBlock + ChronicleBlock(sliced 1)
 - **NarratorBoundary** = PlayerBlock + LocationBlock + InventoryBlock(as-list from state) + ArcThreadBlock(active-only) + WorldStateBlock + NPCRosterBlock(rich) + PacingBlock + ChronicleBlock(full window)
 - **SceneExtractBoundary** = PlayerBlock + LocationBlock + NPCRosterBlock(minimal, compendium-hydrated) + ChronicleBlock(sliced 1)
-- **ProgressExtractBoundary** = PlayerBlock(as-post-delta via extraction_ctx) + InventoryBlock(post-delta via extraction_ctx) + ConditionsBlock(post-delta via extraction_ctx) + ArcThreadBlock(all raw from state.arc.threads) + WorldStateBlock + PacingBlock + ChronicleBlock(sliced 2)
+- **StorytellerBoundary** = PlayerBlock(as-post-delta via extraction_ctx) + InventoryBlock(post-delta via extraction_ctx) + ConditionsBlock(post-delta via extraction_ctx) + ArcThreadBlock(all raw from state.arc.threads) + WorldStateBlock + PacingBlock + ChronicleBlock(sliced 2)
 
 The benefit: if you add a field to `PlayerBlock`, every prompt that needs PC data gets it automatically through type checking of boundary objects rather than hunting through multiple builder functions. If you remove a block from one boundary, the schema test catches orphan fields immediately. New prompts are assembled by composing existing blocks rather than building dicts from scratch.
 
@@ -116,9 +116,9 @@ Before any layer tests exist, there should be an AST-based alignment check that 
 1. Define explicit contracts mapping each user prompt template to its boundary model type:
    ```python
    TEMPLATE_CONTRACTS = {
-       "extract_progress_user.j2": ProgressExtractBoundary,
+       "storytell_user.j2": StorytellerBoundary,
        "narrate_user.j2": NarratorBoundary,
-       "rules_user.j2": RulesBoundary,
+       "ruling_user.j2": RulingBoundary,
        # ... etc
    }
    ```

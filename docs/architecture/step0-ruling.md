@@ -1,4 +1,4 @@
-# Step 0 — Rules / Intent Classification
+# Step 0 — Ruling / Intent Classification
 
 Classifies the player's action, determines whether a dice check is needed, and
 identifies which state domains will be active — narrowing every downstream extractor.
@@ -19,7 +19,7 @@ flowchart LR
         I4["user_input"]
     end
 
-    subgraph LLM0["LLM — rules_system.j2 + rules_user.j2"]
+    subgraph LLM0["LLM — ruling_system.j2 + ruling_user.j2"]
         L0["temp: 0.2 · max_retries: 1<br>output: IntentEnvelope JSON"]:::llmNode
     end
 

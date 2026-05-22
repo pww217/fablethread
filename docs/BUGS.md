@@ -2,7 +2,7 @@
 
 ## TRACE_IMMUTABLE markers leaking into production prompts
 
-**File:** `ccya/prompts/narrate_user.j2` (and possibly `extract_scene_user.j2`, `extract_progress_user.j2`)
+**File:** `ccya/prompts/narrate_user.j2` (and possibly `extract_scene_user.j2`, `storytell_user.j2`)
 
 **Symptom:** Rendered user prompts sent to the LLM contain `<<>>` artifacts and the text `Immutable Reference` appearing mid-prompt. Example:
 

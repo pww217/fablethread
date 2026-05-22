@@ -43,7 +43,7 @@ scenario = Scenario(
                 "extract.state should be near-empty",
             ],
             asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="false"),
+                TurnAssert(stream="ruling", field="rolled", expected="false"),
             ],
         ),
         # --- Turn 2: Pay the debt — Cha check, inventory_remove credits, quest progress ---
@@ -56,7 +56,7 @@ scenario = Scenario(
                 "extract.progress marks settle_the_debt objectives done",
             ],
             asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="true"),
+                TurnAssert(stream="ruling", field="rolled", expected="true"),
                 TurnAssert(stream="extract.state", field="inventory_remove", expected="credits", min_amount=500),
             ],
         ),
@@ -70,7 +70,7 @@ scenario = Scenario(
                 "compendium_npc_update for halden",
             ],
             asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="true"),
+                TurnAssert(stream="ruling", field="rolled", expected="true"),
             ],
         ),
         # --- Turn 4: Location change — travel to the road ---
@@ -83,7 +83,7 @@ scenario = Scenario(
                 "no rules call needed (pure movement)",
             ],
             asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="false"),
+                TurnAssert(stream="ruling", field="rolled", expected="false"),
             ],
         ),
         # --- Turn 5: Encounter toughs — combat engagement, Strength/Cha check ---
@@ -98,7 +98,7 @@ scenario = Scenario(
                 "PacingContext.beat_hint should suggest 'complication' when beat is pending",
             ],
             asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="true"),
+                TurnAssert(stream="ruling", field="rolled", expected="true"),
                 TurnAssert(stream="extract.scene", field="scene_tags", expected="standoff"),
             ],
         ),
@@ -112,7 +112,7 @@ scenario = Scenario(
                 "extract.progress marks clear_the_road_toughs done",
             ],
             asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="true"),
+                TurnAssert(stream="ruling", field="rolled", expected="true"),
                 TurnAssert(stream="extract.state", field="inventory_remove", expected="credits", min_amount=200),
             ],
         ),
@@ -137,7 +137,7 @@ scenario = Scenario(
                 "narration should honor the attempt even if it fails",
             ],
             asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="true"),
+                TurnAssert(stream="ruling", field="rolled", expected="true"),
                 TurnAssert(stream="extract.state", field="inventory_remove", expected="brass_key"),
             ],
         ),
@@ -151,7 +151,7 @@ scenario = Scenario(
                 "extract.state should NOT remove credits (engine should reject or narrate failure)",
             ],
             asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="true"),
+                TurnAssert(stream="ruling", field="rolled", expected="true"),
                 TurnAssert(stream="extract.scene", field="scene_tags", expected="social"),
             ],
         ),
@@ -165,7 +165,7 @@ scenario = Scenario(
                 "narration should show character development or revelation",
             ],
             asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="true"),
+                TurnAssert(stream="ruling", field="rolled", expected="true"),
             ],
         ),
         # --- Turn 11: Combat — Matthew's bodyguard attacks, condition add + inventory add ---
@@ -179,7 +179,7 @@ scenario = Scenario(
                 "scene_tags should include combat",
             ],
             asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="true"),
+                TurnAssert(stream="ruling", field="rolled", expected="true"),
                 TurnAssert(stream="extract.scene", field="scene_tags", expected="combat"),
             ],
         ),
@@ -194,7 +194,7 @@ scenario = Scenario(
                 "npc_add for dock workers or rival courier",
             ],
             asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="false"),
+                TurnAssert(stream="ruling", field="rolled", expected="false"),
             ],
         ),
         # --- Turn 13: Tend wounds + send message — condition removal, post-dual-compaction ---
@@ -208,7 +208,7 @@ scenario = Scenario(
                 "inventory_remove for shirt (used as bandage)",
             ],
             asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="false"),
+                TurnAssert(stream="ruling", field="rolled", expected="false"),
             ],
         ),
     ],

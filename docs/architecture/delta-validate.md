@@ -14,7 +14,7 @@ flowchart TD
 
     SR1["SceneExtractResult<br>(Step 2a)"]:::stageScene
     SR2["StateExtractResult<br>(Step 2b)"]:::stageState
-    SR3["ProgressExtractResult<br>(Step 2c)"]:::stageProgress
+    SR3["StorytellerResult<br>(Step 2c)"]:::stageProgress
 
     MERGE["StateDelta<br>──────────────────<br>scene_tags, scene_tagline<br>location_change, location_description<br>npc_add / npc_remove / npc_update<br>compendium_npc_update<br>thread_advance / thread_resolve / thread_add (gated)<br>inventory_add / remove / update<br>pc_condition_add / remove<br>arc_update<br>recent_events_add / update / remove<br><br>(gm_beat NOT in StateDelta —<br>written directly to state.meta.pending_gm_beat)"]:::mergeNode
 

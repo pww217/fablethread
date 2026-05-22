@@ -1,4 +1,4 @@
-"""Three-stream extraction pipeline: scene, state, progress."""
+"""Three-stream extraction pipeline: scene, state, storytell."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from ccya.llm_client import (
 from ccya.models import (
     CompendiumNpcUpdate,
     IntentEnvelope,
-    ProgressExtractResult,
+    StorytellerResult,
     RulesOutcome,
     SceneExtractResult,
     StateExtractResult,
@@ -39,7 +39,7 @@ _log = logging.getLogger(__name__)
 
 @dataclass
 class _ExtractionContext:
-    """Carries this-turn deltas from scene + state streams into the progress stream.
+    """Carries this-turn deltas from scene + state streams into the storytell stream.
 
     All fields are derived from extract results, NOT from `state`.  They
     represent what happened *this turn* as determined by the prior two streams.
@@ -66,7 +66,7 @@ def _build_extraction_context(
 ) -> _ExtractionContext:
     """Compute this-turn derived context from the two upstream extraction results.
 
-    Calls apply_delta() on a deep copy of state so the progress extractor's
+    Calls apply_delta() on a deep copy of state so the storyteller's
     view of NPCs, inventory, and conditions is guaranteed to match what
     apply_delta() will actually write — including any validation rejections.
     Does NOT mutate ``state``.
@@ -322,18 +322,18 @@ def _extract_state_messages(
     return msgs
 
 
-def _extract_progress_messages(
+def _storytell_messages(
     env: Environment,
     narration: str,
     state: dict[str, Any],
     *,
-    state_result: "StateExtractResult",
-    extraction_ctx: "_ExtractionContext",
+    state_result: StateExtractResult | None = None,
+    extraction_ctx: _ExtractionContext,
     enable_thinking: bool = False,
-        intent: "IntentEnvelope | None" = None,
-        pacing_context: Any | None = None,
-        recent_turns: list[dict[str, Any]] | None = None,
-        turn_no: int = 0,
+    intent: IntentEnvelope | None = None,
+    pacing_context: Any | None = None,
+    recent_turns: list[dict[str, Any]] | None = None,
+    turn_no: int = 0,
     band: str = "",
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 3 (thread signals + facts + actions + outcome_summary)."""
@@ -345,7 +345,7 @@ def _extract_progress_messages(
     recent_events = list(scene.get("recent_events") or [])
     world_state = list(scene.get("world_state") or [])
 
-    system_text = _render(env, "extract_progress_system.j2", {})
+    system_text = _render(env, "storytell_system.j2", {})
     pending_beat = (state.get("meta") or {}).get("pending_gm_beat") or None
     npc_roster = build_npc_roster(
         present_npcs=extraction_ctx.present_npcs_this_turn,
@@ -354,7 +354,7 @@ def _extract_progress_messages(
     )
     user_text = _render(
         env,
-        "extract_progress_user.j2",
+        "storytell_user.j2",
         {
             "narration": narration,
             "pc": pc,
@@ -506,10 +506,10 @@ async def _run_extraction_pipeline(
     turn_no: int,
     pacing_context: Any | None = None,
     recent_turns: list[dict[str, Any]] | None = None,
-) -> "AsyncIterator[tuple[str, Any] | tuple['StateDelta', list[str], str, dict[str, Any], 'ProgressExtractResult', 'SceneExtractResult']]":
+) -> "AsyncIterator[tuple[str, Any] | tuple['StateDelta', list[str], str, dict[str, Any], 'StorytellerResult', 'SceneExtractResult']]":
     """Run the three extraction streams in sequence.
 
-    Returns: (merged_delta, actions, outcome_summary, per_stream_event_data, progress_result, scene_result)
+    Returns: (merged_delta, actions, outcome_summary, per_stream_event_data, storyteller_result, scene_result)
     """
 
     _SKIPPED: dict[str, Any] = {
@@ -524,7 +524,7 @@ async def _run_extraction_pipeline(
     # Defaults if a stream is skipped
     scene_result = SceneExtractResult()
     state_result = StateExtractResult()
-    progress_result = ProgressExtractResult()
+    storytell_result = StorytellerResult()
     extraction_event: dict[str, Any] = {}
 
     # --- Stream 1: Scene ---
@@ -617,13 +617,13 @@ async def _run_extraction_pipeline(
 
     yield ("phase", {"phase": "extract_stream_done", "stream": "state"})
 
-    # --- Stream 3: Progress (always runs — post-narration storytelling brain) ---
-    yield ("phase", {"phase": "extract_stream_start", "stream": "progress"})
-    t_progress = asyncio.get_event_loop().time()
+    # --- Stream 3: Storytell (always runs — post-narration storytelling brain) ---
+    yield ("phase", {"phase": "extract_stream_start", "stream": "storytell"})
+    t_storytell = asyncio.get_event_loop().time()
     _band = (rules_outcome.band if rules_outcome and rules_outcome.rolled else "")
-    # Build this-turn context from scene + state results for the progress stream
+    # Build this-turn context from scene + state results for the storyteller stream
     extraction_ctx = _build_extraction_context(state, scene_result, state_result)
-    progress_msgs = _extract_progress_messages(
+    storytell_msgs = _storytell_messages(
         env, narration, state,
         state_result=state_result,
         extraction_ctx=extraction_ctx,
@@ -635,51 +635,51 @@ async def _run_extraction_pipeline(
         band=_band,
     )
     # Capture pre-trim content for context_meta so the judge sees original sizes
-    rendered_prog_system = progress_msgs[0]["content"] if progress_msgs else ""
-    rendered_prog_user = progress_msgs[-1]["content"] if progress_msgs else ""
-    strip_trace_markers_in_messages(progress_msgs)
-    progress_msgs, prog_trimmed, prog_trimmed_chars = trim_messages(progress_msgs, config.prompt_token_budget)
+    rendered_storytell_system = storytell_msgs[0]["content"] if storytell_msgs else ""
+    rendered_storytell_user = storytell_msgs[-1]["content"] if storytell_msgs else ""
+    strip_trace_markers_in_messages(storytell_msgs)
+    storytell_msgs, storytell_trimmed, storytell_trimmed_chars = trim_messages(storytell_msgs, config.prompt_token_budget)
     if config.log_prompts:
-        _log_prompts(turn_no, "extract_progress", progress_msgs)
+        _log_prompts(turn_no, "storytell", storytell_msgs)
 
     try:
-        progress_result, prog_usage, progress_attempts, progress_retry_errors = await _call_stream(
-            progress_msgs, config, trace_id, "extract_progress",
-            ProgressExtractResult, strip_keys=("_reasoning",),
+        storytell_result, storytell_usage, storytell_attempts, storytell_retry_errors = await _call_stream(
+            storytell_msgs, config, trace_id, "storytell",
+            StorytellerResult, strip_keys=("_reasoning",),
         )
         # Overwrite turn stamp on any newly added events — the LLM cannot know the
         # current turn number reliably; the engine stamps it authoritatively.
-        if progress_result.recent_events_add:
-            progress_result = progress_result.model_copy(
+        if storytell_result.recent_events_add:
+            storytell_result = storytell_result.model_copy(
                 update={
                     "recent_events_add": [
                         e.model_copy(update={"turn": turn_no})
-                        for e in progress_result.recent_events_add
+                        for e in storytell_result.recent_events_add
                     ]
                 }
             )
-        extraction_event["progress"] = {
-            "rendered_system": rendered_prog_system,
-            "rendered_user": rendered_prog_user,
-                "output": progress_result.model_dump(exclude_none=True),
+        extraction_event["storytell"] = {
+            "rendered_system": rendered_storytell_system,
+            "rendered_user": rendered_storytell_user,
+                "output": storytell_result.model_dump(exclude_none=True),
             "skipped": False,
-            "attempts": progress_attempts,
-            "retry_errors": progress_retry_errors,
-            "tokens_in": prog_usage.get("prompt_tokens", 0),
-            "tokens_out": prog_usage.get("completion_tokens", 0),
-            "ms": round((asyncio.get_event_loop().time() - t_progress) * 1000, 1),
-            "context_meta": _context_meta(rendered_prog_system, rendered_prog_user, prog_trimmed, prog_trimmed_chars),
+            "attempts": storytell_attempts,
+            "retry_errors": storytell_retry_errors,
+            "tokens_in": storytell_usage.get("prompt_tokens", 0),
+            "tokens_out": storytell_usage.get("completion_tokens", 0),
+            "ms": round((asyncio.get_event_loop().time() - t_storytell) * 1000, 1),
+            "context_meta": _context_meta(rendered_storytell_system, rendered_storytell_user, storytell_trimmed, storytell_trimmed_chars),
         }
     except LlmcTimeout as exc:
-        _log.warning("extract_progress LLM timeout", extra={"error_kind": ErrorKind.LLM_TIMEOUT, "trace_id": trace_id})
-        extraction_event["progress"] = {**_SKIPPED, "error": str(exc)}
+        _log.warning("storytell LLM timeout", extra={"error_kind": ErrorKind.LLM_TIMEOUT, "trace_id": trace_id})
+        extraction_event["storytell"] = {**_SKIPPED, "error": str(exc)}
     except Exception as exc:
         _log.warning(
-            "extract_progress failed: %s", exc, extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id},
+            "storytell failed: %s", exc, extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id},
         )
-        extraction_event["progress"] = {**_SKIPPED, "error": str(exc)}
+        extraction_event["storytell"] = {**_SKIPPED, "error": str(exc)}
 
-    yield ("phase", {"phase": "extract_stream_done", "stream": "progress"})
+    yield ("phase", {"phase": "extract_stream_done", "stream": "storytell"})
 
     # --- Dedup compendium updates before merging into StateDelta ---
     _comp = (state.get("compendium") or {}).get("npcs") or {}
@@ -765,9 +765,9 @@ async def _run_extraction_pipeline(
         inventory_update=state_result.inventory_update,
         pc_condition_add=state_result.pc_condition_add,
         pc_condition_remove=state_result.pc_condition_remove,
-        recent_events_add=progress_result.recent_events_add,
-        recent_events_update=progress_result.recent_events_update,
-        recent_events_remove=progress_result.recent_events_remove,
+        recent_events_add=storytell_result.recent_events_add,
+        recent_events_update=storytell_result.recent_events_update,
+        recent_events_remove=storytell_result.recent_events_remove,
     )
 
     # NOTE: gm_beat is intentionally absent from StateDelta — it is written
@@ -776,10 +776,10 @@ async def _run_extraction_pipeline(
 
     yield (  # type: ignore[misc]
         merged,
-        progress_result.actions,
-        progress_result.outcome_summary,
+        storytell_result.actions,
+        storytell_result.outcome_summary,
         extraction_event,
-        progress_result,
+        storytell_result,
         scene_result,
         extraction_ctx,
     )

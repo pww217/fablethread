@@ -62,9 +62,9 @@ flowchart LR
 
     TURN["engine/turn.py<br>_compute_pacing_context()"]:::pyNode
     PIPELINE["_run_extraction_pipeline()<br>pass PacingContext struct"]:::pyNode
-    EXTRACT_FN["_extract_progress_messages()<br>extraction.py"]:::pyNode
-    USER_TMPL["extract_progress_user.j2<br>pacing_context.directive + gate"]:::prompt
-    SYS_TMPL["extract_progress_system.j2<br>PacingContext guidance"]:::prompt
+    EXTRACT_FN["_storytell_messages()<br>extraction.py"]:::pyNode
+    USER_TMPL["storytell_user.j2<br>pacing_context.directive + gate"]:::prompt
+    SYS_TMPL["storytell_system.j2<br>PacingContext guidance"]:::prompt
     NARRATE_TMPL["narrate_user.j2<br>pacing_context.directive + beat_hint"]:::prompt
 
     TURN --> PIPELINE --> EXTRACT_FN --> USER_TMPL
@@ -73,9 +73,9 @@ flowchart LR
 ```
 
 1. **Computed** once in `run_turn()` via `_compute_pacing_context()`.
-2. **Passed through** `_run_extraction_pipeline()` → both `_narrate_messages()` and `_extract_progress_messages()`.
+2. **Passed through** `_run_extraction_pipeline()` → both `_narrate_messages()` and `_storytell_messages()`.
 3. **Narrator template** (`narrate_user.j2`) renders only `directive` (tone/direction) and `beat_hint` when present. No Jinja2 directive computation remains — all directives computed by Python.
-4. **Progress template** (`extract_progress_system.j2` + `user.j2`) receives the full struct; guidance maps each directive to appropriate thread/beat actions:
+4. **Storytell template** ((`storytell_system.j2` + `user.j2`)) receives the full struct; guidance maps each directive to appropriate thread/beat actions:
 
 | Directive | Thread action | Beat hint | Gate |
 |-----------|--------------|-----------|------|

@@ -14,7 +14,7 @@
 | `ccya/engine/narrate.py` | _narrate_messages(), NPC name helpers for prompt building |
 | `ccya/engine/pack_gen.py` | generate_pack() — LLM-generated ScenarioBrief, writes to packs/custom/<slug>/ |
 | `ccya/engine/names.py` | Name pool generation via Faker (pc, npc, location) |
-| `ccya/engine/rules.py` | _rules_messages(), _call_rules() with retry logic (NOT ccya/rules.py — that's the dice engine) |
+| `ccya/engine/ruling.py` | _ruling_messages(), _call_ruling() with retry logic (NOT ccya/rules.py — that's the dice engine) |
 | `ccya/engine/extraction.py` | _run_extraction_pipeline(): 3 streams (scene/state/progress), _call_stream() with retry |
 | `ccya/engine/seed.py` | generate_seed() for dynamic packs, soft validation |
 | `ccya/engine/changes.py` | summarize_changes(), format_change_lines() — diff pre vs post state → emoji display lines |
@@ -85,7 +85,7 @@
 2. **Narrate** (streaming→SSE→chronicle.md) — prose narrative with narration directive from velocity/pressures
 3. **Scene Extract** (JSON→SceneExtractResult) — scene tags, location change, present NPCs, compendium updates
 4. **State Extract** (JSON→StateExtractResult) — inventory deltas, condition add/remove
-5. **Progress Extract** (JSON→ProgressExtractResult) — thread_advance, thread_resolve, thread_add (gated by PacingContext.gate), recent_events, actions, gm_beat
+5. **Storytell** (JSON→StorytellerResult) — thread_advance, thread_resolve, thread_add (gated by PacingContext.gate), recent_events, actions, gm_beat
 
 Steps 3–5 merge into StateDelta → _validate() → apply_delta() → summarize_changes() → persist (atomic writes). After persist: maybe_compact().
 
@@ -99,7 +99,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - Thread age-based rules handle urgency escalation via Python logic, not LLM labels
 
 ### Arc thread state machine
-- States: LATENT → ACTIVE (via unlock_if condition met) → COMPLETE/FAILED (via advanced_threads progress counter at 3 or _apply_thread_resolutions from ProgressExtractResult.thread_resolve) / EXPIRED (5+ silent turns via last_seen_turn tracking)
+- States: LATENT → ACTIVE (via unlock_if condition met) → COMPLETE/FAILED (via advanced_threads progress counter at 3 or _apply_thread_resolutions from StorytellerResult.thread_resolve) / EXPIRED (5+ silent turns via last_seen_turn tracking)
 - Engine owns threads; narrator owns visible_goal/thematic_question/discovered_truths
 - Active cap = 3, latent cap = 4, promotion cooldown of 3 turns
 - ArcThread.resolution_state: str | None — set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads for narrative context and eval rubrics (Phase 05c)
@@ -117,7 +117,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### Extraction field routing
 - **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, npc_add/remove/update, compendium_npc_update (no pressure fields)
 - **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
-- **ProgressExtractResult**: thread_advance, thread_resolve (list[ThreadResolution]), thread_add (ArcThread | None), recent_events_add/update/remove, actions, outcome_summary, gm_beat (no quest_updates); thread_resolve processed by _apply_thread_resolutions() in turn.py to move threads from arc.threads[] to arc.completed_threads[]
+- **StorytellerResult**: thread_advance, thread_resolve (list[ThreadResolution]), thread_add (ArcThread | None), recent_events_add/update/remove, actions, outcome_summary, gm_beat (no quest_updates); thread_resolve processed by _apply_thread_resolutions() in turn.py to move threads from arc.threads[] to arc.completed_threads[]
 
 ### Cross-stream data flow (minimal by design)
 - Scene → State: location_change (id,name,description) + present_npcs (id,name,title,notes,bio)

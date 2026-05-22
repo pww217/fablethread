@@ -21,7 +21,7 @@ scenario = Scenario(
                 f"Narrate should reflect HIGH MOMENTUM advisory from narrate_user.j2 (momentum={MOMENTUM_MAX})",
                 "Raised stakes or elevated consequence expected in narration",
             ],
-            asserts=[TurnAssert(stream="rules", field="rolled", expected="true")],
+            asserts=[TurnAssert(stream="ruling", field="rolled", expected="true")],
         ),
         Turn(
             input="I pocket the ledger receipt and head for the door without looking back.",
@@ -35,7 +35,7 @@ scenario = Scenario(
                 "rules.required=true skill=charisma",
                 "difficulty should reflect favorable conditions given high momentum",
             ],
-            asserts=[TurnAssert(stream="rules", field="rolled", expected="true")],
+            asserts=[TurnAssert(stream="ruling", field="rolled", expected="true")],
         ),
     ],
 )

@@ -81,7 +81,7 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
         n_in, n_out = narr.get("tokens_in"), narr.get("tokens_out")
         tin, tout = ext.get("tokens_in"), ext.get("tokens_out")
         raw_streams: dict[str, dict[str, Any]] = {}
-        for s in ("scene", "state", "progress"):
+        for s in ("scene", "state", "storytell"):
             sev = extraction.get(s) or {}
             raw_streams[s] = {
                 "ms": sev.get("ms"),
@@ -95,7 +95,7 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
         if tin is not None and tout is not None:
             tok_parts.append(f"E{_fmt_tokens(tin)}/{_fmt_tokens(tout)}")
         tok = "\n".join(tok_parts) if tok_parts else "\u2014"
-        rules_ev = ev.get("rules") or {}
+        ruling_ev = ev.get("ruling") or {}
 
         def _tok(ti: Any = None, to: Any = None) -> str:
             if ti is None or to is None:
@@ -113,8 +113,8 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
                 "tokens": tok,
                 "has_rejections": bool(rej),
                 "streams": {
-                    "R_tt": _fmt_ms_seconds(rules_ev.get("total_ms")),
-                    "R_tok": _tok(rules_ev.get("tokens_in"), rules_ev.get("tokens_out")),
+                    "R_tt": _fmt_ms_seconds(ruling_ev.get("total_ms")),
+                    "R_tok": _tok(ruling_ev.get("tokens_in"), ruling_ev.get("tokens_out")),
                     "N_ttft": _fmt_ms_seconds(narr.get("first_token_ms")),
                     "N_tt": _fmt_ms_seconds(narr.get("total_ms")),
                     "N_tok": _tok(n_in, n_out),
@@ -122,30 +122,30 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
                     "Sc_tok": _tok(raw_streams["scene"]["tokens_in"], raw_streams["scene"]["tokens_out"]) if not raw_streams["scene"]["skipped"] else "\u2014",
                     "St_tt": _fmt_ms_seconds(raw_streams["state"]["ms"]) if not raw_streams["state"]["skipped"] else "\u2014",
                     "St_tok": _tok(raw_streams["state"]["tokens_in"], raw_streams["state"]["tokens_out"]) if not raw_streams["state"]["skipped"] else "\u2014",
-                    "P_tt": _fmt_ms_seconds(raw_streams["progress"]["ms"]) if not raw_streams["progress"]["skipped"] else "\u2014",
-                    "P_tok": _tok(raw_streams["progress"]["tokens_in"], raw_streams["progress"]["tokens_out"]) if not raw_streams["progress"]["skipped"] else "\u2014",
+                    "P_tt": _fmt_ms_seconds(raw_streams["storytell"]["ms"]) if not raw_streams["storytell"]["skipped"] else "\u2014",
+                    "P_tok": _tok(raw_streams["storytell"]["tokens_in"], raw_streams["storytell"]["tokens_out"]) if not raw_streams["storytell"]["skipped"] else "\u2014",
                 },
                 "total_ms": (
-                    (rules_ev.get("total_ms") or 0)
+                    (ruling_ev.get("total_ms") or 0)
                     + (narr.get("total_ms") or 0)
                     + (ext.get("total_ms") or 0)
                 ),
                 "total_tokens_in": (
-                    (rules_ev.get("tokens_in") or 0)
+                    (ruling_ev.get("tokens_in") or 0)
                     + (n_in or 0)
                     + (tin or 0)
                 ),
                 "total_tokens_out": (
-                    (rules_ev.get("tokens_out") or 0)
+                    (ruling_ev.get("tokens_out") or 0)
                     + (n_out or 0)
                     + (tout or 0)
                 ),
                 "total_tt": _fmt_ms_seconds(
-                    (rules_ev.get("total_ms") or 0)
+                    (ruling_ev.get("total_ms") or 0)
                     + (narr.get("total_ms") or 0)
                     + (ext.get("total_ms") or 0)
                 ),
-                "total_tok": f"{_fmt_tokens((rules_ev.get('tokens_in') or 0) + (n_in or 0) + (tin or 0))}/{_fmt_tokens((rules_ev.get('tokens_out') or 0) + (n_out or 0) + (tout or 0))}",
+                "total_tok": f"{_fmt_tokens((ruling_ev.get('tokens_in') or 0) + (n_in or 0) + (tin or 0))}/{_fmt_tokens((ruling_ev.get('tokens_out') or 0) + (n_out or 0) + (tout or 0))}",
             }
         )
     rows.reverse()
@@ -179,12 +179,12 @@ def _turn_log_entries(save_dir: Path, limit: int = 50) -> list[dict[str, Any]]:
             disp = ["(no structured summary — older save)"]
         if not disp:
             disp = ["(no changes this turn)"]
-        rules = ev.get("rules")
+        ruling = ev.get("ruling")
         entries.append(
             {
                 "turn": int(ev.get("turn") or 0),
                 "lines": disp,
-                "rules": rules if isinstance(rules, dict) else None,
+                "ruling": ruling if isinstance(ruling, dict) else None,
             }
         )
     return entries

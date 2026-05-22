@@ -19,13 +19,13 @@ scenario = Scenario(
         Turn(
             input="I settle the debt with Caron.",
             phase="setup_1",
-            asserts=[TurnAssert(stream="rules", field="rolled", expected="false")],
+            asserts=[TurnAssert(stream="ruling", field="rolled", expected="false")],
         ),
         Turn(
             input="I pay Caron the 500 credits and ask him to clear my name in the ledger.",
             phase="setup_2",
             asserts=[
-                TurnAssert(stream="rules", field="rolled", expected="true"),
+                TurnAssert(stream="ruling", field="rolled", expected="true"),
             ],
         ),
         Turn(

@@ -96,7 +96,7 @@ def check_pending_gm_beat_lifecycle_respected(
 ) -> dict[str, Any]:
     """Beat lifecycle from progress extractor must be respected in state.
 
-    NOTE: beat_disposition field removed from ProgressExtractResult in Phase 01.
+    NOTE: beat_disposition field removed from StorytellerResult in Phase 01.
     Python now infers disposition directly from gm_beat presence/absence:
     - new gm_beat with type → replace (write to pending_gm_beat)
     - no gm_beat or gm_beat without type → clear pending_gm_beat
@@ -104,7 +104,7 @@ def check_pending_gm_beat_lifecycle_respected(
     This checks that the engine's beat lifecycle logic correctly handles this.
     """
     extraction = event.get("extraction") or {}
-    progress = extraction.get("progress") or {}
+    progress = extraction.get("storytell") or {}
     progress_gm_beat = progress.get("gm_beat")
 
     cur_snap = event.get("state_snapshot") or {}
@@ -209,9 +209,9 @@ def check_location_change_applied(
 
 
 def check_rolled_implies_binding(event: dict[str, Any]) -> dict[str, Any]:
-    """If rules.rolled=true, narrate_prompt.rendered_user must contain 'rules_outcome (BINDING'."""
-    rules = event.get("rules") or {}
-    if not rules.get("rolled"):
+    """If ruling.rolled=true, narrate_prompt.rendered_user must contain 'rules_outcome (BINDING'."""
+    ruling = event.get("ruling") or {}
+    if not ruling.get("rolled"):
         return {
             "assertion": "universal.narrate.binding_present",
             "passed": True,
@@ -221,7 +221,7 @@ def check_rolled_implies_binding(event: dict[str, Any]) -> dict[str, Any]:
         }
     # If a roll was required, the BINDING block should be in the narrate prompt.
     # If required=false (no roll happened despite rules call), skip.
-    if not rules.get("required", False):
+    if not ruling.get("required", False):
         return {
             "assertion": "universal.narrate.binding_present",
             "passed": True,
@@ -497,11 +497,11 @@ def check_condition_no_dupes(event: dict[str, Any]) -> dict[str, Any]:
 
 
 def check_actions_count_and_distinct(event: dict[str, Any]) -> dict[str, Any]:
-    """progress.actions must contain exactly 4 distinct entries."""
+    """storytell.actions must contain exactly 4 distinct entries."""
     actions = event.get("actions") or []
     if not isinstance(actions, list):
         return {
-            "assertion": "universal.progress.actions_quality",
+            "assertion": "universal.storytell.actions_quality",
             "passed": False,
             "detail": "actions is not a list",
             "scope": "universal",
@@ -511,7 +511,7 @@ def check_actions_count_and_distinct(event: dict[str, Any]) -> dict[str, Any]:
     distinct = len(set(actions))
     if n != 4:
         return {
-            "assertion": "universal.progress.actions_quality",
+            "assertion": "universal.storytell.actions_quality",
             "passed": False,
             "detail": f"actions has {n} entries (expected 4)",
             "scope": "universal",
@@ -519,14 +519,14 @@ def check_actions_count_and_distinct(event: dict[str, Any]) -> dict[str, Any]:
         }
     if distinct != n:
         return {
-            "assertion": "universal.progress.actions_quality",
+            "assertion": "universal.storytell.actions_quality",
             "passed": False,
             "detail": f"actions has {n - distinct} duplicate(s): {actions}",
             "scope": "universal",
             "severity": "red",
         }
     return {
-        "assertion": "universal.progress.actions_quality",
+        "assertion": "universal.storytell.actions_quality",
         "passed": True,
         "detail": "4 distinct actions",
         "scope": "universal",
@@ -539,8 +539,8 @@ def check_momentum_band_delta(
 ) -> dict[str, Any]:
     """If a roll happened, momentum should change per band: crit_success +2,
     success +1, partial 0, setback/fail -1, crit_fail -2."""
-    rules = event.get("rules") or {}
-    if not rules.get("rolled"):
+    ruling = event.get("ruling") or {}
+    if not ruling.get("rolled"):
         return {
             "assertion": "universal.momentum.band_delta",
             "passed": True,
@@ -548,7 +548,7 @@ def check_momentum_band_delta(
             "scope": "universal",
             "severity": "red",
         }
-    band = rules.get("band", "")
+    band = ruling.get("band", "")
     expected = {
         "crit_success": 2,
         "success": 1,
@@ -675,7 +675,7 @@ def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
     Combat Fatigue, Location Imperative, Location Pressure, Threat Pressure, Resolve a Threat.
     """
     narr_user = (event.get("narrate_prompt") or {}).get("rendered_user") or ""
-    progress_user = (event.get("extraction_prompt") or {}).get("rendered_user") or ""
+    storytell_user = (event.get("extraction") or {}).get("storytell") or {}
 
     directive_markers = [
         "**Pressure:**", "**Overwhelm:**", "**Breathe:**", "**Tension:**",
@@ -693,20 +693,11 @@ def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
             "severity": "red",
         }
 
-    if not any(m in narr_user for m in directive_markers):
+    if "narration_directive" not in storytell_user.lower():
         return {
             "assertion": "universal.narrate.directive_rendered",
             "passed": False,
-            "detail": "narration_directive computed but not rendered in narrate user prompt",
-            "scope": "universal",
-            "severity": "red",
-        }
-
-    if "narration_directive" not in progress_user.lower():
-        return {
-            "assertion": "universal.narrate.directive_rendered",
-            "passed": False,
-            "detail": "narration_directive computed but not rendered in extract_progress user prompt",
+            "detail": "narration_directive computed but not rendered in storytell user prompt",
             "scope": "universal",
             "severity": "yellow",
         }

@@ -322,7 +322,7 @@ function _formatMetricsRow(metrics) {
     if (sc && !sc.skipped) parts.push('Sc ' + fmtStep(sc.ms, sc.tokens_in, sc.tokens_out));
     const st = streams.state;
     if (st && !st.skipped) parts.push('St ' + fmtStep(st.ms, st.tokens_in, st.tokens_out));
-    const pg = streams.progress;
+    const pg = streams.storytell;
     if (pg && !pg.skipped) parts.push('P ' + fmtStep(pg.ms, pg.tokens_in, pg.tokens_out));
     return parts.join('   ·   ');
 }
@@ -484,13 +484,13 @@ function _setProgressFromPhase(strip, payload) {
     strip.setAttribute('data-phase', p);
     const label = strip.querySelector('.progress-label');
     const eta = strip.querySelector('.progress-eta');
-    if (p === 'rules_start') {
+    if (p === 'ruling_start') {
         label.textContent = 'Determining outcome…';
         strip._phaseStart = Date.now();
         if (eta && payload && payload.expected_ms > 0) {
             eta.textContent = '~' + (payload.expected_ms / 1000).toFixed(0) + 's avg';
         } else if (eta) { eta.textContent = ''; }
-    } else if (p === 'rules_done') {
+    } else if (p === 'ruling_done') {
         label.textContent = 'Composing narrative…';
         if (eta) eta.textContent = '';
     } else if (p === 'narrate_start') {
@@ -524,7 +524,7 @@ function _setProgressFromPhase(strip, payload) {
             label.textContent = 'Refreshing scene…';
         } else if (stream === 'state') {
             label.textContent = 'Updating state…';
-        } else if (stream === 'progress') {
+        } else if (stream === 'storytell') {
             label.textContent = 'Writing the next page…';
         } else {
             label.textContent = 'Updating game state…';

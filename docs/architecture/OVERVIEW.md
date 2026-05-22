@@ -20,12 +20,12 @@ flowchart TD
     USER["user_input"]
 
     subgraph ENGINE["engine — run_turn()"]
-        STEP0["Step 0<br>Rules / Intent (LLM)"]:::stageRules
+        STEP0["Step 0<br>Ruling/Intent (LLM)"]:::stageRules
         DICE["Dice Resolution<br>(Python)"]:::pyNode
         STEP1["Step 1<br>Narrate (LLM)"]:::stageNarrate
         STEP2A["Step 2a<br>Scene Extract (LLM)"]:::stageScene
         STEP2B["Step 2b<br>State Extract (LLM)"]:::stageState
-        STEP2C["Step 2c<br>Progress Extract (LLM)"]:::stageProgress
+        STEP2C["Step 2c<br>Storytell (LLM)"]:::stageProgress
         VALIDATE["Validate + Apply Delta<br>(Python)"]:::pyNode
     end
 
@@ -48,11 +48,11 @@ flowchart TD
 
 | Step | Docs | When it runs | Key inputs | Key outputs | Mechanics it owns |
 |---|---|---|---|---|---|
-| **Step 0 — Rules / Intent** | [step0-rules](./step0-rules.md) | Every turn (always) | `state.pc`, `state.location`, `recent_turns[-1:]`, `user_input` | `IntentEnvelope`, `RulesOutcome` | Intent classification, dice roll resolution (2d6 + stat + cond − diff → band), difficulty selection, anti-declare-outcome enforcement. |
+| **Step 0 — Ruling/Intent** | [step0-ruling](./step0-ruling.md) | Every turn (always) | `state.pc`, `state.location`, `recent_turns[-1:]`, `user_input` | `IntentEnvelope`, `RulesOutcome` | Intent classification, dice roll resolution (2d6 + stat + cond − diff → band), difficulty selection, anti-declare-outcome enforcement. |
 | **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Every turn (always, streamed) | Full `state`, `chronicle_tail`, `recent_turns`, `pacing_context`, `pending_gm_beat`, `npc_roster` (tiered), `world_factions/locations` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption. Tone shaped by `PacingContext.directive`. |
 | **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Every turn (always) | `narrative`, `state.pc/location`, `npc_roster` (tiered), conditions, known_characters (LRU compendium), RulesOutcome | `SceneExtractResult`: scene_tags, tagline, location_change, npc_add/remove/update, compendium_npc_update | NPC presence, location changes, scene tags, durable NPC compendium identity. |
 | **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Every turn (always) | `narrative`, `state.pc/location/inventory`, rules_outcome, conditions, band_examples | `StateExtractResult`: inventory_add/remove/update, pc_condition_add/remove | Inventory delta accuracy, condition lifecycle. |
-| **Step 2c — Progress Extract** | [step2c-progress](./step2c-progress.md) | Every turn (always) | `narrative`, `_ExtractionContext`, pacing_context, arc.threads[], recent_turns[-2:], band, pending_beat, npc_roster (tiered) | `ProgressExtractResult`: thread_advance/resolve/add, gm_beat, recent_events_add/update/remove, actions, outcome_summary | Unified thread lifecycle, beat disposition inference, durable history events. |
+| **Step 2c — Storytell** | [step2c-progress](./step2c-progress.md) | Every turn (always) | `narrative`, `_ExtractionContext`, pacing_context, arc.threads[], recent_turns[-2:], band, pending_beat, npc_roster (tiered) | `StorytellerResult`: thread_advance/resolve/add, gm_beat, recent_events_add/update/remove, actions, outcome_summary | Unified thread lifecycle, beat disposition inference, durable history events. |
 
 After Step 2c: results merge into a `StateDelta`, the validator checks constraints
 (e.g. `inventory_remove` IDs exist), `apply_delta()` mutates state in-place, and the
@@ -62,11 +62,11 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 
 | Subsystem | Doc | What it covers |
 |---|---|---|
-| **Step 0 — Rules** | [step0-rules](./step0-rules.md) | Intent classification, dice resolution flowchart |
+| **Step 0 — Ruling** | [step0-ruling](./step0-ruling.md) | Intent classification, dice resolution flowchart |
 | **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Streaming narration pipeline with all context inputs |
 | **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Location changes, NPC presence, scene tags |
 | **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Inventory and condition extraction |
-| **Step 2c — Progress Extract** | [step2c-progress](./step2c-progress.md) | Thread lifecycle, GMBeat schema, beat lifecycle (3 phases) |
+| **Step 2c — Storytell** | [step2c-progress](./step2c-progress.md) | Thread lifecycle, GMBeat schema, beat lifecycle (3 phases) |
 | **PacingContext** | [pacing-context](./pacing-context.md) | Struct definition, computation flowchart, wiring to Narrator/Progress |
 | **Delta → Validate → Apply** | [delta-validate](./delta-validate.md) | StateMerge schema, validation rules, apply_delta mutations |
 | **Persist** | [persist](./persist.md) | Atomic writes (events.jsonl, state.yaml, chronicle.md), readback |
@@ -82,7 +82,7 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 - **RulesOutcome**: `rolled`, `skill`, `difficulty`, `stat_value`, `stat_mod`, `diff_mod`, `cond_mod`, `dice`, `raw_total`, `final_total`, `band`, `directive`, `intent`, `intent_verb`
 - **SceneExtractResult**: `scene_tags`, `scene_tagline`, `location_change`, `npc_add/remove/update`, `compendium_npc_update`
 - **StateExtractResult**: `inventory_add/remove/update`, `pc_condition_add/remove`
-- **ProgressExtractResult**: `thread_advance`, `thread_resolve`, `thread_add`, `gm_beat`, `recent_events_add/update/remove`, `actions`, `outcome_summary`
+- **StorytellerResult**: `thread_advance`, `thread_resolve`, `thread_add`, `gm_beat`, `recent_events_add/update/remove`, `actions`, `outcome_summary`
 - **SeedEnvelope**: `seed_state: GameState`, `opening_narrative`, `actions`
 
 ### PacingContext (see [pacing-context](./pacing-context.md))

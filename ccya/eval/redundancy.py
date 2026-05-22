@@ -20,8 +20,8 @@ MIN_BLOCK_LINES = 3          # require at least 3 consecutive matching lines
 
 
 def _stream_text(event: dict[str, Any], stream: str) -> str:
-    if stream == "rules":
-        return (event.get("rules_prompt") or {}).get("rendered_user") or ""
+    if stream == "ruling":
+        return (event.get("ruling_prompt") or {}).get("rendered_user") or ""
     if stream == "narrate":
         return (event.get("narrate_prompt") or {}).get("rendered_user") or ""
     ext = event.get("extraction") or {}
@@ -63,7 +63,7 @@ def compute_redundancy_signals(events: list[dict[str, Any]]) -> dict[str, Any]:
           ]
         }
     """
-    streams = ("rules", "narrate", "scene", "state", "progress")
+    streams = ("ruling", "narrate", "scene", "state", "storytell")
     turn_results: list[dict[str, Any]] = []
     aggregate: dict[tuple[str, ...], dict[str, Any]] = defaultdict(
         lambda: {"total_blocks": 0, "preview": ""}
