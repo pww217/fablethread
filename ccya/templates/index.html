@@ -797,7 +797,6 @@ function game() {
                 if (!gi || gi[side + 'Collapsed']) return;
 
                 const sidebarW = gi[side === 'left' ? 'leftW' : 'rightW'] || 320;
-                const containerRect = document.querySelector('.app-body').getBoundingClientRect();
 
                 this._dragging = {
                     side,
@@ -814,6 +813,8 @@ function game() {
                     let delta = e2.clientX - this._dragging.startX;
                     if (side === 'right') delta = -delta;
                     const newW = Math.max(180, this._dragging.startW + delta);
+                    // Re-read container bounds on every tick to handle window resizes during drag.
+                    const containerRect = document.querySelector('.app-body').getBoundingClientRect();
                     if (side === 'left') {
                         const maxW = containerRect.width - 400;
                         gi.leftW = Math.min(newW, Math.max(180, maxW));
@@ -834,6 +835,7 @@ function game() {
                     }
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
+                    window.removeEventListener('beforeunload', onBeforeUnload);
                 };
 
                 const onBeforeUnload = () => {
