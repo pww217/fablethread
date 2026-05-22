@@ -45,16 +45,38 @@ You are building the entire seed of a playable text adventure world. The player 
   "name_seed": int,
   "inspiration": {
     "pc": "string",
-    "opening_situation": "string",
     "npcs": "string",
     "inventory": "string"
-  }
+  },
+  "situation_archetypes": [
+    {"id": "snake_case", "tags": ["tag1", "tag2", "tag3"]}
+  ],
+  "arc_categories": [
+    {"id": "snake_case", "tags": ["tag1", "tag2", "tag3"]}
+  ],
+  "character_dynamics": [
+    {"id": "snake_case", "tags": ["tag1", "tag2", "tag3"]}
+  ],
+  "moral_pressures": [
+    {"id": "snake_case", "tags": ["tag1", "tag2", "tag3"]}
+  ]
 }
 ```
 
 Constraints guidance: `inventory_size_range` [3,7]; `pc_stat_total_range` [8,14]; `prose_word_range` [300,550]. Scale to match the world's complexity and resource scarcity — a resource-scarce world gets a lower stat total.
 
 name_locales: Choose 2-4 Faker locale codes that fit the setting's cultural geography. Use real Faker locales (en_GB, fr_FR, de_DE, pt_BR, ja_JP, zh_CN, ar_AA, ru_RU, es_ES, id_ID, etc.). Weight them to reflect the dominant cultural mix.
+
+## Archetype pools (4 sections, ~10 entries each)
+
+Generate all four archetype pools. Each entry has an `id` (snake_case identifier) and `tags` (3-5 descriptive tag strings). Keep ids short and semantic; tags should capture the essence of each entry for hash-based selection during seed generation. Omit `incompatible_with`.
+
+### Situation archetypes (~10): Opening moment pressure types — what kind of crisis or situation opens this world's story. Tags: genre-appropriate scenario descriptors.
+### Arc categories (~10): Longer-term narrative directions with escalation potential — how conflicts develop and intensify over time. Tags: thematic progression patterns, conflict evolution markers.
+### Character dynamics (~10): How the PC relates to power structures and other people — their position within social hierarchies and relationships. Tags: access type, alignment, resource level.
+### Moral pressures (~10): Immediate ethical tensions that create compelling choices — dilemmas where every option has real costs or consequences. Tags: value conflict pairs, stakes type.
+
+All entries must be genre-specific to this world's concept. Do not use generic or cross-genre archetypes. Each entry should feel like it could only exist in this particular setting.
 
 ## Output discipline
 
