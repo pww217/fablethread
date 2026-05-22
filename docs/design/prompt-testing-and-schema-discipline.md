@@ -35,9 +35,8 @@ One additional integrated render test is appropriate: a realistic turn-7-style c
 ### Scope
 
 - `extract_progress_user.j2` — primary target; most complexity lives here
-- `extract_narrate_user.j2` — secondary target for directive and beat rendering
-- `extract_rules_*.j2` — low priority; only if the stakes removal creates a test gap
-- Scene and State Extract templates — not in scope; they are not changing
+- `narrate_user.j2` — secondary target for directive and beat rendering
+- `rules_user.j2`, `*_scene_*user.j2`, `*_state_*user.j2` — lower priority but should be included once the framework exists
 
 ### North Star Test Properties
 
@@ -48,7 +47,7 @@ One additional integrated render test is appropriate: a realistic turn-7-style c
 
 ---
 
-## Section 3 — Schema Boundary Discipline
+## Section 3 — Schema Boundary Discipline and Data Block Consolidation
 
 ### Vision
 
@@ -71,27 +70,115 @@ Two boundaries matter most:
 - Fields that exist in the typed model but are never rendered in the template
 - Free-form string fields whose semantics are not validated
 
+### Shared Data Block Consolidation
+
+The engine has 4 LLM calls (rules, narrate, scene extract, state/progress extracts) that each assemble their own context dicts from `state`. Analysis of all call sites and templates reveals significant overlap in what data they need. The consolidation strategy is to define **typed block models** that assemble themselves from the raw state dict, then compose these blocks into per-prompt boundary objects.
+
+#### Data Block Mapping (from full codebase analysis)
+
+| Block | State Source | Used By | Notes |
+|---|---|---|---|
+| `PlayerBlock` | `state["pc"]` | rules, narrate, scene extract | Most shared block — all 3 of these calls need PC data. Progress extract gets it indirectly via extraction_ctx post-delta values. Currently accessed as full dict or partial (stats/conditions separately). |
+| `LocationBlock` | `state["location"]` | rules, narrate, scene extract | Rules needs name/id only; others may use description too. |
+| `InventoryBlock` | `state["inventory"][]` | narrate | Currently consumed via `{% include "sections/_inventory.j2" %}` in narrate_user.j2 as a list of items accessed through the full state dict (not wrapped). Progress extract gets post-delta values from extraction_ctx, not this block. |
+| `ArcThreadBlock` | `state["arc"]` | narrate, progress extract | Narrate filters to active threads only; progress needs all raw threads. Same underlying data, different projections. |
+| `WorldStateBlock` | `state.scene.world_state[]` | narrate (conditional), progress extract (conditional) | Currently rendered via `{% include "sections/_world_state.j2" %}` in both templates — one shared include file already consolidates this rendering logic at the template level. |
+| `ChronicleBlock` | `recent_turns`, optionally `chronicle_tail` | rules, narrate, progress extract | Window size varies: rules gets 1 entry (last chronicle), progress gets 2 entries, narrate gets full window plus older compressed history as a separate string field (`chronicle_tail`). ChronicleBlock should handle slicing; chronicle_tail is distinct data. |
+| `NPCRosterBlock` | `state.scene.present_npcs`, `compendium.npcs[]`, `scene.recently_left` | narrate (rich), progress extract (minimal) | Two variants: rich form includes motivation/fear/leverage for narrator flavor; minimal form has id/name/title/presence/bio only. Keep as separate blocks but share a common base structure to avoid duplication while preserving specialization. Progress extract gets its roster from extraction_ctx post-delta values, not directly from state. |
+| `PacingBlock` | Computed from momentum/deescalate/avoidance | narrate, progress extract | Currently built by `_compute_pacing_context()` in narrate.py and passed separately as a PacingContext model. Should be part of the boundary object for any prompt that needs pacing signals. |
+
+#### Consolidation Pattern
+
+```
+Raw state dict → typed block models (assemble from state) → per-prompt boundary objects (compose blocks) → model_dump() → template.render(**ctx.model_dump())
+```
+
+Each block is a Pydantic model with a class method or constructor that accepts the raw `state` dict and extracts/computes what it needs. The per-prompt boundary object composes these blocks:
+
+- **RulesBoundary** = PlayerBlock + LocationBlock + ChronicleBlock(sliced 1)
+- **NarratorBoundary** = PlayerBlock + LocationBlock + InventoryBlock(as-list from state) + ArcThreadBlock(active-only) + WorldStateBlock + NPCRosterBlock(rich) + PacingBlock + ChronicleBlock(full window)
+- **SceneExtractBoundary** = PlayerBlock + LocationBlock + NPCRosterBlock(minimal, compendium-hydrated) + ChronicleBlock(sliced 1)
+- **ProgressExtractBoundary** = PlayerBlock(as-post-delta via extraction_ctx) + InventoryBlock(post-delta via extraction_ctx) + ConditionsBlock(post-delta via extraction_ctx) + ArcThreadBlock(all raw from state.arc.threads) + WorldStateBlock + PacingBlock + ChronicleBlock(sliced 2)
+
+The benefit: if you add a field to `PlayerBlock`, every prompt that needs PC data gets it automatically through type checking of boundary objects rather than hunting through multiple builder functions. If you remove a block from one boundary, the schema test catches orphan fields immediately. New prompts are assembled by composing existing blocks rather than building dicts from scratch.
+
+#### Dead Code Found During Analysis
+
+- `extract_scene_user.j2` references `scene_location_description` which is never passed in context dict (line 17-20 of template). Should be removed or the field should be added to boundary model.
+- `_npc_roster_extract.j2` and `_npc_roster.j2` share most variables but differ on motivation/fear/leverage presence — consolidate into a single include with conditional rendering based on block variant, not two separate files.
+
+#### Schema-Template Alignment Check (Section 0 of Test Strategy)
+
+Before any layer tests exist, there should be an AST-based alignment check that runs as part of `make check`. This is the fastest feedback loop possible: it catches template/model drift at edit time without running a single test.
+
+### How It Works
+
+1. Define explicit contracts mapping each user prompt template to its boundary model type:
+   ```python
+   TEMPLATE_CONTRACTS = {
+       "extract_progress_user.j2": ProgressExtractBoundary,
+       "narrate_user.j2": NarratorBoundary,
+       "rules_user.j2": RulesBoundary,
+       # ... etc
+   }
+   ```
+
+2. The check parses each `.j2` file using Jinja's AST (`Environment.parse()`), extracts all variable references (all `{{ }}`, `{% %}` data accesses that aren't builtins/control flow keywords).
+
+3. For each contract, compare extracted variables against the boundary model fields:
+   - **Orphan in template**: Variable used in `.j2` but not present on boundary model → test fails
+   - **Dead field**: Field on boundary model never rendered in `.j2` → test warns (not all fields need rendering; some may be for LLM context only)
+
+4. This runs as part of `make check` — no CI or pre-commit needed, just the existing lint/typecheck step extended with a new command.
+
+### How Variables Map to Models
+
+Jinja variable access like `pc.name` maps to the boundary model field `name`. Loops over lists (e.g., `{% for item in inventory %}`) map to iterating over a list field. Filters and builtins (`|join`, `|length`) are ignored — only data accesses count as contract references.
+
+Section includes count as part of their parent template's contract: variables used inside an include file must exist on the boundary model passed by the parent template (Jinja passes context through includes automatically).
+
+### Scope
+
+- All user prompt templates (`*_user.j2`)
+- System prompts that inject dynamic data — currently only `narrate_system.j2` consumes pack_style, narrator_rules, world_rules, current_arc. Other system prompts render with `{}` and are excluded (hardcoded rules prose)
+- Section includes count as part of their parent template's contract
+
+### Dead Field Policy
+
+A field on a boundary model that is never rendered in any `.j2` file should be treated as dead code — either remove it or explicitly mark it as reserved for future use. Silent unused fields undermine schema discipline and make the alignment check less useful over time.
+
 ---
 
 ## Section 4 — Test Coverage Strategy
 
 ### Layer Model
 
-Test coverage for the engine should be three layers with distinct purposes:
+Test coverage for the engine should be four layers with distinct purposes:
 
-**Layer 1 — Schema tests**: Validate that typed boundary models accept valid inputs, reject invalid inputs, and default optional fields correctly. Fast, no I/O, no templates. Purpose: catch schema drift at definition time. One file: `tests/test_schema.py`.
+**Section 0 — Schema-template alignment**: AST-based check that every variable used in a `.j2` user prompt exists on its boundary model. Fast, no I/O, no rendering. Purpose: catch drift at template edit time. Runs as part of `make check`. One file: `tests/test_alignment.py`.
+
+**Layer 1 — Schema tests**: Validate that typed boundary models accept valid inputs, reject invalid inputs, and default optional fields correctly. Also validate extraction result Pydantic models (`ProgressExtractResult`, etc.) for the prompt-out boundary. Fast, no I/O, no templates. Purpose: catch schema drift at definition time. One file: `tests/test_schema.py`.
 
 **Layer 2 — Render tests**: Render Jinja templates with synthetic context and assert structural properties of the output. No LLM, no engine. Purpose: catch prompt contract drift at template time. One file: `tests/test_render.py`.
 
-**Layer 3 — Smoke tests**: Run the full engine pipeline with `FakeLLM` and assert high-level pipeline properties. Purpose: catch wiring mistakes and regression at the pipeline level. One file: `tests/test_smoke.py`.
+**Layer 3 — Integration/smoke tests**: Run the full engine pipeline with `FakeLLM` or real scenarios and assert high-level pipeline properties. Purpose: catch wiring mistakes and regression at the pipeline level. One file: `tests/test_smoke.py`.
 
-Build in this order. Do not write Layer 3 until Layers 1 and 2 exist — the smoke tests are the most expensive to write and maintain and provide the least signal per line.
+Build in this order (Section 0 → Layer 1 → Layer 2 → Layer 3). Section 0 can be built incrementally as boundary models land; render tests should not be written until Layers 1-2 exist — smoke tests are the most expensive to write and maintain and provide the least signal per line.
+
+### Eval Framework Integration
+
+The existing eval framework (`ccya/eval/scenario.py` + `evals/scenarios/`) defines qualitative scenarios with turn definitions and assertions against events.jsonl output. This should be kept as a separate importable module, not moved into `tests/`. Scenario objects are imported two ways:
+- The existing eval runner consumes them for rubric-based evaluation (qualitative)
+- Pytest layer 3 integration tests consume the same scenario definitions to run through the engine pipeline
+
+One source of truth, two consumers. No duplication.
 
 ### What Should Not Happen
 
 - Golden-output tests that snapshot the full text of a rendered prompt
 - Tests that use `FakeLLM` to validate prompt rendering — render tests render templates directly
 - Test files that mix schema tests, render tests, and smoke tests
+- New test infrastructure (fixtures, conftest entries, pytest plugins) beyond what is described here
 
 ### Key Invariants Worth Preserving From the Old Suite
 
@@ -127,7 +214,7 @@ A PR should represent one coherent, reviewable concern. The narration simplifica
 1. Schema changes (`StoryThread`, `PacingContext`, `ProgressExtractResult` model changes)
 2. Python logic changes (pacing context builder, thread signal application)
 3. Template changes (Progress and Narrate templates)
-4. Test additions (Layers 1–3 in order)
+4. Test additions (Section 0 + Layers 1–3 in order)
 
 ### Merge Discipline
 
@@ -140,9 +227,11 @@ A PR should represent one coherent, reviewable concern. The narration simplifica
 These concerns are sequenced, not parallel:
 
 1. **Narration simplification lands first** — schema and template changes per `narration-simplification-design.md`
-2. **Schema boundary discipline second** — typed prompt context models replace ad hoc dicts
-3. **Render coverage third** — once boundary is typed, render tests are stable
-4. **Smoke tests last** — rebuild `tests/test_smoke.py` once schema and render layers exist
+2. **Shared data block consolidation second** — typed boundary models replace ad hoc dicts in prompt builders; define the TEMPLATE_CONTRACTS mapping as each boundary model is created
+3. **Schema-template alignment third** (Section 0) — AST-based check runs as part of `make check`; catches drift at edit time before any layer tests exist
+4. **Layer 1 schema tests fourth** — validate boundary and extraction result models
+5. **Render coverage fifth** (Layer 2) — once boundaries are typed, render tests are stable
+6. **Smoke/integration last** (Layers 3+eval integration) — rebuild `tests/test_smoke.py` plus scenario-based pytest imports
 
 Do not attempt to write tests against the old architecture or against an in-progress simplification. Wait for the simplified architecture to stabilize, then build the suite once against the clean target.
 
