@@ -118,8 +118,6 @@ class Constraints(BaseModel):
     required_inventory_kinds: list[str] = Field(default_factory=list)
     npc_distinct_first_letters: bool = True
     forbid_cliches: list[str] = Field(default_factory=list)
-    forbid_player_dependents: bool = True
-    forbid_legendary_items: bool = True
 
 
 class Inspiration(BaseModel):
@@ -229,6 +227,7 @@ class PackManifest(BaseModel):
     tone_tags: list[str] = Field(default_factory=list)
     baseline_facts: list[str] = Field(default_factory=list, max_length=3)
     name_locales: list[dict[str, Any]] = Field(default_factory=list)
+    use_male_only_names: bool = False
 
 
 class Pack(BaseModel):

@@ -3,6 +3,7 @@ name: "Noir — 1930s"
 description: "Detective in a Depression-era city. Every case is different."
 genre: noir
 tone_tags: [noir, urban, procedural, moral-ambiguity]
+use_male_only_names: true
 version: 2
 mode: dynamic
 baseline_facts:
