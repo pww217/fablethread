@@ -914,22 +914,3 @@ def finalize_report(
     tmp.write_text("\n".join(parts) + "\n")
     tmp.replace(report_path)
 
-
-def generate_report(
-    run_result: RunResult,
-    *,
-    eval_cfg: EvalConfig,
-    judge_result: JudgeResult | list[JudgeResult] | None = None,
-    runs_dir: Path | None = None,
-) -> Path:
-    """Back-compat entry point. New code should call write_report_skeleton/finalize_report directly."""
-    if judge_result is not None:
-        path = write_report_skeleton(run_result, eval_cfg=eval_cfg, runs_dir=runs_dir)
-        finalize_report(path, run_result, eval_cfg=eval_cfg, judge_result=judge_result, runs_dir=runs_dir)
-    else:
-        path = write_report_skeleton(run_result, eval_cfg=eval_cfg, runs_dir=runs_dir)
-    return path
-
-
-if __name__ == "__main__":
-    pass
