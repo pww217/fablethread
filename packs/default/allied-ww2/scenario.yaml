@@ -1,80 +1,179 @@
 constraints:
-   # required-presence
+  # required-presence
   min_named_npcs: 2
   min_objectives_per_quest: 2
   starting_quest_count: 1
-   # ranges
+  # ranges
   inventory_size_range: [4, 8]
   pc_stat_range: [1, 4]
   pc_stat_total_range: [12, 18]
   prose_word_range: [275, 550]
-   # composition
+  # composition
   required_inventory_kinds: [weapon, tool]
   npc_distinct_first_letters: true
-   # creativity guards
+  # creativity guards
   forbid_cliches:
-     - "last soldier standing"
-     - "the war ends after this mission"
-     - "super weapon"
-     - "you're the only one who can"
-     - "the enemy is monstrous / inhuman"
-     - "you've seen too much"
-     - "the war made you this way"
-     - "you're just a soldier / sailor / airman — follow orders"
-  forbid_player_dependents: true
-  forbid_legendary_items: true
+    - "last soldier standing"
+    - "the war ends after this mission"
+    - "super weapon"
+    - "you're the only one who can"
+    - "the enemy is monstrous / inhuman"
+    - "you've seen too much"
+    - "the war made you this way"
+    - "you're just a soldier / sailor / airman — follow orders"
+
+
 
 inspiration:
   pc: |
     The PC is a rank-and-file Allied service member — not an officer giving orders,
-    not a special operative with a dossier. He is a rifleman, a radioman, a
-    mechanic, a medic, a driver, a clerk. His rank is real. His training is
-    real. His fear is normal, not dramatic. What shaped him is pre-war: a
-    farming town, a Detroit assembly line, a Liverpool dock, a Saskatchewan grain
-    field, a Wellington pub. Give him a skill that matters in this moment and a
-    liability that matters in the next.
-
-  opening_situation: |
-    Drop the player into a moment of immediate, visceral action — a firefight that
-    started without warning, a retreat through a burning village, a trench being
-    overrun, a beachhead under fire, a night ambush in a forest. The situation
-    should demand physical response first and thinking second. What the player
-    walks into should involve danger, movement, and people who need them right now.
-    The stakes are survival and the people beside them. The most interesting
-    moments are the ones where instinct and training collide and the player has
-    to choose what to do in the next thirty seconds.
+    not a special operative with a dossier. They are a rifleman, radioman, mechanic,
+    medic, driver, or clerk. Their rank is real. Their training is real. Their fear
+    is normal, not dramatic. What shaped them is pre-war: a farming town, an assembly
+    line, a dock district, a grain field, a pub. Give them a skill that matters in
+    this moment and a liability that matters in the next.
 
   npcs: |
-    All soldiers, sailors, airmen, and military police are men. Civilians may
-    be women or men, but every uniformed person is male. The initial NPCs in
-    the opening scene MUST use male names only — select from the male name
-    pool provided. Each NPC is a real person in the Allied structure — or a
-    civilian whose interests intersect with it. He has a rank, a specialty,
-    a reason for being where he is. He is not an ally because he is a good
-    man; he is an ally because the war made them so. At least one NPC should
-    have an interest that conflicts with the player's — not as a traitor, but
-    as someone with different orders, different information, or different
-    priorities.
+    Each NPC is a real person in the Allied structure — or a civilian whose interests
+    intersect with it. They have a rank, specialty, reason for being where they are.
+    They are not an ally because they are good; they are allies because the war made
+    them so. At least one NPC should have an interest that conflicts with the player's
+    — not as a traitor, but as someone with different orders, information, or priorities.
 
   inventory: |
-    Items reflect what a service member actually carried or had access to. Standard
-    issue weapons, personal modifications, captured items (if appropriate to theater),
-    letters and photos, ration cards, field manuals, medical supplies. Show the
-    gap between what the supply catalogue promised and what the player actually has.
-    Include one thing that was important to someone else before it became a tool.
+    Items reflect what a service member actually carried or had access to. Standard issue
+    weapons, personal modifications, captured items (if appropriate to theater), letters
+    and photos, ration cards, field manuals, medical supplies. Show the gap between what
+    the supply catalogue promised and what the player actually has. Include one thing that
+    was important to someone else before it became a tool.
 
-  arcs: |
-    Arc seeds should center on survival, loyalty, and the moral weight of war.
-    Visible goals: keep your squad alive through the night, reach the extraction
-    point, hold a position until the enemy breaks, protect a wounded comrade,
-    make it back to your unit after being separated. Thematic questions: what
-    does it cost to survive when others don't? When do you follow orders and
-    when do you do what's right? Can you stay human in an inhuman situation?
-    PC drives: protect your squad, get home, survive the war, make amends for
-    something you did, prove yourself to your unit, escape the front. Hidden
-    truths: the mission you're fighting for is already over, your commanding
-    officer is compromised, the enemy unit you're facing has been decimated and
-    is fighting out of desperation. Thread ideas: a squadmate's death that
-    changes everything, a civilian caught in crossfire, a prisoner who knows
-    something critical, a position that becomes a trap, a retreat that turns
-    into a rout.
+situation_archetypes:
+  - id: firefight_starting_unexpected
+    tags: [combat, surprise, immediate_action]
+    incompatible_with: []
+  - id: retreat_through_burning_village
+    tags: [retreat, civilian_crisis, environmental_hazard]
+    incompatible_with: []
+  - id: trench_overrun
+    tags: [trench_warfare, assault, overwhelming_force]
+    incompatible_with: []
+  - id: beachhead_under_fire
+    tags: [amphibious_assault, exposure, landing_operation]
+    incompatible_with: []
+  - id: night_ambush
+    tags: [stealth, ambush, nighttime_warfare]
+    incompatible_with: []
+  - id: supply_convoy_attack
+    tags: [logistics, raiding, resource_denial]
+    incompatible_with: []
+  - id: artillery_preparation
+    tags: [artillery, bombardment, preparation_phase]
+    incompatible_with: []
+  - id: bridge_defense
+    tags: [defense, chokepoint, strategic_objective]
+    incompatible_with: []
+  - id: reconnaissance_in_depth
+    tags: [scouting, behind_lines, intelligence_gathering]
+    incompatible_with: []
+  - id: paratrooper_drop_zone
+    tags: [airborne, isolation, insertion_under_fire]
+    incompatible_with: []
+  - id: naval_support_call
+    tags: [naval_firepower, coordination, close_support]
+    incompatible_with: []
+  - id: medical_evacuation_under_fire
+    tags: [medical, evacuation, casualty_crisis]
+    incompatible_with: []
+
+arc_categories:
+  - id: squad_survival
+    tags: [unit_cohesion, survival, brotherhood]
+    incompatible_with: []
+  - id: mission_vs_casualties
+    tags: [objectives, casualties, moral_tradeoff]
+    incompatible_with: []
+  - id: following_orders_moral_dilemma
+    tags: [chain_of_command, conscience, insubordination]
+    incompatible_with: []
+  - id: enemy_dehumanization
+    tags: [propaganda, hatred, psychological_damage]
+    incompatible_with: []
+  - id: home_front_connection
+    tags: [letters, family, civilian_life]
+    incompatible_with: []
+  - id: war_crimes_coverage
+    tags: [atrocities, witness, moral_burden]
+    incompatible_with: []
+  - id: prisoner_handling
+    tags: [captivity, treatment_of_prisoners, ethics]
+    incompatible_with: []
+  - id: civilian_collateral
+    tags: [civilians, war_impact, moral_complication]
+    incompatible_with: []
+  - id: logistics_breakdown
+    tags: [supply_failure, isolation, resource_crisis]
+    incompatible_with: []
+  - id: command_incompetence
+    tags: [leadership_failure, wasted_lives, frustration]
+    incompatible_with: []
+  - id: brotherhood_bonds
+    tags: [camaraderie, unit_loyalty, shared_trauma]
+    incompatible_with: []
+  - id: fear_management
+    tags: [psychological_stress, combat_anxiety, coping]
+    incompatible_with: []
+  - id: desertion_stigma
+    tags: [cowardice, court_martial, social_shame]
+    incompatible_with: []
+  - id: propaganda_vs_reality
+    tags: [official_narrative, lived_experience, disillusionment]
+    incompatible_with: []
+  - id: post_war_uncertainty
+    tags: [return_home, trauma, uncertain_future]
+    incompatible_with: []
+
+character_dynamics:
+  - id: rank_and_file_rifleman
+    tags: [infantry, common_soldier, basic_training]
+    incompatible_with: []
+  - id: radioman_behind_lines
+    tags: [communications, rear_area, information_flow]
+    incompatible_with: []
+  - id: combat_medic
+    tags: [medical, life_preservation, non_combatant_role]
+    incompatible_with: []
+  - id: tank_crew_member
+    tags: [armor, mechanized_warfare, confined_space]
+    incompatible_with: []
+  - id: scout_reconnaissance
+    tags: [scouting, isolation, behind_enemy_lines]
+    incompatible_with: []
+  - id: clerk_administrative
+    tags: [paperwork, rear_area, non_combat_role]
+    incompatible_with: []
+  - id: veteran_noncommissioned_officer
+    tags: [leadership, experience, institutional_knowledge]
+    incompatible_with: []
+  - id: replacement_conscript
+    tags: [newcomer, inexperience, unit_integration]
+    incompatible_with: []
+
+moral_pressures:
+  - id: survival_vs_duty
+    tags: [survival, duty, ethical_conflict]
+    incompatible_with: []
+  - id: following_orders_vs_conscience
+    tags: [chain_of_command, morality, insubordination]
+    incompatible_with: []
+  - id: protecting_squad_mates
+    tags: [unit_cohesion, sacrifice, loyalty]
+    incompatible_with: []
+  - id: war_dehumanization
+    tags: [enemy_treatment, hatred, moral_erosion]
+    incompatible_with: []
+  - id: home_front_expectations
+    tags: [civilian_support, honor, pressure_to_prove]
+    incompatible_with: []
+  - id: ending_the_war_at_any_cost
+    tags: [victory, extreme_measures, moral_compromise]
+    incompatible_with: []

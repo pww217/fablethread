@@ -21,66 +21,135 @@ constraints:
     - "a honor-bound duel to the death"
     - "the cherry blossoms fall on fresh graves"
     - "a warrior who has lost everything and finds redemption"
-  forbid_player_dependents: true
-  forbid_legendary_items: true
 
-inspiration:
-  pc: |
-    The PC is a warrior or soldier in the Sengoku period — not a legendary daimyo
-    with a thousand vassals, but someone who fights for survival and purpose. He
-    could be a samurai who serves a mid-level lord, an ashigaru spearmen who rose
-    through merit, a ninja (shinobi) hired for espionage and sabotage, a temple
-    warrior (sohei) who fights with religious fervor, a ronin without a master.
-    Give him a skill that keeps him alive and a reason he cannot simply lay down
-    his arms. He is not romantic — he is hardened by war, capable of violence,
-    and bound by loyalties that are as much practical as honorable.
 
-  opening_situation: |
-    Drop the player into a moment of immediate, visceral action — a castle under
-    siege with arrows flying and ladders being raised, a battlefield ambush where
-    enemy ashigaru are closing in, a night raid on a rival camp with torches and
-    swords, a duel in a burning village between two warriors who know each other's
-    styles, a escape through mountain passes with pursuing cavalry. The situation
-    should demand physical response — drawing a blade, loosing a bow, climbing,
-    running, fighting. What the player walks into should involve danger, movement,
-    and people who need them right now. The stakes are survival, their lord's
-    cause, or the people beside them. The most interesting moments are the ones
-    where the player has to choose between honor and survival.
+situation_archetypes:
+  - id: castle_siege
+    tags: [siege, warfare, fortress_assault]
+    incompatible_with: []
+  - id: battlefield_ambush
+    tags: [battlefield, ambush, massed_combat]
+    incompatible_with: []
+  - id: night_raid
+    tags: [stealth, surprise_attack, nighttime_warfare]
+    incompatible_with: []
+  - id: honor_duel
+    tags: [duel, honor, personal_conflict]
+    incompatible_with: []
+  - id: mountain_escape
+    tags: [escape, terrain, pursuit]
+    incompatible_with: []
+  - id: supply_line_attack
+    tags: [logistics, raiding, resource_denial]
+    incompatible_with: []
+  - id: village_defense
+    tags: [defense, civilian_protection, local_forces]
+    incompatible_with: []
+  - id: spy_discovery
+    tags: [espionage, betrayal, intelligence]
+    incompatible_with: []
+  - id: traitor_reveal
+    tags: [betrayal, internal_threat, clan_politics]
+    incompatible_with: []
+  - id: border_skirmish
+    tags: [border_conflict, scouting, small_engagement]
+    incompatible_with: []
+  - id: retreat_under_fire
+    tags: [retreat, pressure, survival]
+    incompatible_with: []
+  - id: assassination_attempt
+    tags: [assassination, stealth, high_value_target]
+    incompatible_with: []
 
-  npcs: |
-    All samurai, ashigaru, shinobi, and temple warriors are men. The initial
-    NPCs in the opening scene MUST use male names only — select from the male
-    name pool provided. Each NPC is a man shaped by an age of endless war. The
-    veteran ashigaru who has served three lords and learned that loyalty means
-    nothing compared to victory. The young samurai who believes in bushido and
-    will die for it. The shinobi who knows secrets that could topple a daimyo.
-    The temple monk who tends the wounded and has seen every wound a katana can
-    make. At least one NPC should want something that conflicts with the player's
-    — not as a villain, but as someone whose survival depends on a different
-    answer. Men lie, conceal, protect, miscalculate. Give them all of that.
+arc_categories:
+  - id: loyalty_vs_survival
+    tags: [loyalty, survival, moral_conflict]
+    incompatible_with: []
+  - id: clan_politics
+    tags: [politics, betrayal, power_struggle]
+    incompatible_with: []
+  - id: daimyo_succession
+    tags: [succession, leadership, clan_stability]
+    incompatible_with: []
+  - id: war_exhaustion
+    tags: [fatigue, prolonged_conflict, morale]
+    incompatible_with: []
+  - id: honor_code_breakdown
+    tags: [honor, bushido, ethical_collapse]
+    incompatible_with: []
+  - id: vassal_defection
+    tags: [defection, loyalty_shift, clan_weakening]
+    incompatible_with: []
+  - id: enemy_infiltration
+    tags: [espionage, infiltration, internal_threat]
+    incompatible_with: []
+  - id: territory_negotiation
+    tags: [diplomacy, land_dispute, negotiation]
+    incompatible_with: []
+  - id: battlefield_command
+    tags: [leadership, tactics, command_authority]
+    incompatible_with: []
+  - id: siege_resistance
+    tags: [siege, endurance, defense]
+    incompatible_with: []
+  - id: rebellion_against_lord
+    tags: [rebellion, insubordination, defiance]
+    incompatible_with: []
+  - id: peace_undertones
+    tags: [peace, warweariness, diplomacy]
+    incompatible_with: []
+  - id: weapon_tech_evolution
+    tags: [technology, firearms, military_innovation]
+    incompatible_with: []
+  - id: supply_crisis
+    tags: [logistics, starvation, resource_scarcity]
+    incompatible_with: []
+  - id: bushido_vs_pragmatism
+    tags: [honor, pragmatism, ethical_conflict]
+    incompatible_with: []
 
-  inventory: |
-    Items reflect what a warrior in the Sengoku period actually carried. A katana
-    with a chipped edge, a yari spear with a iron tip, a bow with a quiver of
-    arrows, a suit of lacquered armor that has saved a life, a pouch of silver
-    coins from a daimyo's pay, a scroll with secret instructions, a waterskin
-    and rice cakes. Show what the character uses and what they won't put down.
-    Show the numbers — not "some arrows" but twelve. Not "food" but three days
-    of rice.
+character_dynamics:
+  - id: loyal_vassal
+    tags: [loyalty, service, clan_ties]
+    incompatible_with: []
+  - id: ronin_without_master
+    tags: [ronin, independence, rootlessness]
+    incompatible_with: []
+  - id: ashigaru_rising_through_merit
+    tags: [commoner, meritocracy, social_mobility]
+    incompatible_with: []
+  - id: shinobi_spy
+    tags: [espionage, secrecy, covert_operations]
+    incompatible_with: []
+  - id: temple_warrior
+    tags: [religion, martial_faith, monastic_military]
+    incompatible_with: []
+  - id: daimyo_heir
+    tags: [noble_lineage, succession, political_weight]
+    incompatible_with: []
+  - id: defected_commander
+    tags: [defection, betrayal, military_experience]
+    incompatible_with: [loyal_vassal]
+  - id: peasant_leader
+    tags: [peasant_origin, grassroots_leadership, rebellion]
+    incompatible_with: []
 
-  arcs: |
-    Arc seeds should center on loyalty, survival, and the cost of war. Visible
-    goals: hold a castle against siege, deliver a message through enemy territory,
-    survive a battlefield ambush, protect a daimyo's heir, sabotage an enemy
-    supply line, escape a collapsing alliance. Thematic questions: what does
-    honor mean when the world rewards betrayal? Can you survive an age of
-    endless war without losing your humanity? When do you serve and when do
-    you rebel? PC drives: serve your lord faithfully, find a lord worth
-    serving, survive and disappear, avenge a killed master, unite the warring
-    factions, protect your family. Hidden truths: your lord is planning to
-    betray you, the enemy you fight knows your tactics, your ally is negotiating
-    with your enemy, the castle you defend is doomed, the war you fight for
-    is already over and you don't know it. Thread ideas: a rival warrior who
-    becomes an uneasy ally, a castle that falls from within, a betrayal that
-    costs a clan everything, a battle that changes the balance of power, a
-    promise that haunts you long after the fighting stops.
+moral_pressures:
+  - id: honor_vs_survival
+    tags: [honor, survival, ethical_dilemma]
+    incompatible_with: []
+  - id: loyalty_to_lord
+    tags: [loyalty, duty, feudal_obligation]
+    incompatible_with: []
+  - id: duty_to_people
+    tags: [leadership, civilian_protection, responsibility]
+    incompatible_with: []
+  - id: cost_of_victory
+    tags: [victory, casualties, moral_burden]
+    incompatible_with: []
+  - id: bushido_idealism
+    tags: [honor_code, idealism, martial_ethics]
+    incompatible_with: []
+  - id: peace_through_warfare
+    tags: [warfare, peace_seeking, strategic_violence]
+    incompatible_with: []

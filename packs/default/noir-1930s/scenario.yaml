@@ -25,8 +25,7 @@ constraints:
      - "the answer was the person standing right in front of him"
      - "a man who played both sides"
      - "the corrupt politician was behind everything"
-  forbid_player_dependents: true
-  forbid_legendary_items: true
+
 
 inspiration:
   pc: |

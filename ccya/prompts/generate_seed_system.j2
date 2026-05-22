@@ -79,8 +79,6 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
 - pc.stats values: {{ c.pc_stat_range[0] }}–{{ c.pc_stat_range[1] }}; total: {{ c.pc_stat_total_range[0] }}–{{ c.pc_stat_total_range[1] }}
 - opening_narrative: {{ c.prose_word_range[0] }}–{{ c.prose_word_range[1] }} words
 {% if c.required_inventory_kinds %}- inventory must include kinds: {{ c.required_inventory_kinds | join(", ") }}
-{% endif %}{% if c.forbid_legendary_items %}- no exotic / legendary / implausibly powerful items at start
-{% endif %}{% if c.forbid_player_dependents %}- no spouse / children / direct family NPCs unless overrides explicitly request them
 {% endif %}{% if c.forbid_cliches %}- forbidden tropes: {{ c.forbid_cliches | join("; ") }}
 {% endif %}{% endif %}
 

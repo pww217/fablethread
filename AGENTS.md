@@ -34,7 +34,7 @@ Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, publi
 - **No redundant docstrings or comments.** Keep only docstrings that explain non-obvious behavior: design decisions, tradeoffs, edge cases, or parameters not obvious from type hints.
 - Fail fast — validate inputs at module boundaries, not deep in logic.
 - No `# noqa` / `# type: ignore` unless absolutely unavoidable (document why inline).
-- **No backwards compatibility required.** If a field, route, config key, or model is unused: delete it.
+- **No backwards compatibility required.** If a field, route, config key, or model is unused: delete it. Do not design migration paths and add a bunch of extra code. Just rip out old system, replace with no. Never do backward compatability unless specifically asked.
 
 ---
 

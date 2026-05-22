@@ -21,8 +21,7 @@ constraints:
     - "the most feared pirate captain in the Caribbean"
     - "a cursed artifact that brings bad luck"
     - "a treasure that can't be spent"
-  forbid_player_dependents: true
-  forbid_legendary_items: true
+
 
 inspiration:
   pc: |

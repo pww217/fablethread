@@ -22,69 +22,135 @@ constraints:
     - "the only pilot who can make the run"
     - "former Companion turned vigilante"
     - "secret Browncoat war hero in hiding"
-  forbid_player_dependents: true
-  forbid_legendary_items: true
 
-inspiration:
-  pc: |
-    The PC is a specific person living and working on the Rim. They could be a frontier
-    deputy in a one-horse mining town, a freight pilot running mail and grain between
-    moons, a herd-doctor who treats both cattle and people, a junker dismantling
-    crashed Coalition hardware for parts, a saloon owner who hears every rumor that
-    crosses the dust line, a terraforming engineer keeping a stalled atmosphere
-    project alive, a Companion-guild registrant who has chosen this circuit, a
-    Browncoat veteran who put down the rifle and picked up a plough. What shaped
-    them is what shaped the Rim — the war, the stalled terraforming, the long supply
-    lanes, the Coalition presence that comes and goes. Avoid the iconic captain-with-
-    a-ship trope unless the inspiration explicitly asks for it; the Rim is bigger
-    than its smugglers.
 
-  opening_situation: |
-    Drop the player into a moment of immediate action — a freighter under attack
-    by pirates, a settlement under siege by a rival crew, a chase through a
-    dust storm with someone hot on your trail, a firefight in a mining town over
-    something valuable, a crash landing on an uncharted moon with limited supplies.
-    The situation should demand physical response and quick thinking. What the
-    player walks into should involve danger, movement, and people who need them
-    right now. The stakes are survival, their ship, or someone they care about.
-    The most interesting moments are the ones where the player has to choose
-    between self-preservation and doing what's right.
+situation_archetypes:
+  - id: freighter_under_attack
+    tags: [frontier, violence, immediate_action]
+    incompatible_with: []
+  - id: settlement_siege
+    tags: [frontier, siege, community_defense]
+    incompatible_with: []
+  - id: dust_storm_chase
+    tags: [frontier, chase, environmental_hazard]
+    incompatible_with: []
+  - id: mining_town_firefight
+    tags: [mining, violence, resource_conflict]
+    incompatible_with: []
+  - id: crash_landing
+    tags: [space, emergency, isolation]
+    incompatible_with: []
+  - id: supply_interdiction
+    tags: [frontier, logistics, blockade]
+    incompatible_with: []
+  - id: border_clash
+    tags: [frontier, violence, territorial_dispute]
+    incompatible_with: []
+  - id: saloon_standoff
+    tags: [frontier, violence, immediate_action]
+    incompatible_with: []
+  - id: convoy_ambush
+    tags: [frontier, ambush, logistics_warfare]
+    incompatible_with: []
+  - id: outpost_defense
+    tags: [space, defense, isolation]
+    incompatible_with: []
+  - id: customs_inspection
+    tags: [coalition, authority, tension]
+    incompatible_with: []
+  - id: desert_crossing
+    tags: [frontier, survival, environmental_hazard]
+    incompatible_with: []
 
-  npcs: |
-    Each NPC is a person carrying their own version of the Rim's tensions. The town
-    sheriff knows which of their deputies still wears a brown coat under the uniform.
-    The freight pilot owes money to a Coalition customs officer they cheated. The
-    rancher remembers which neighbours informed during the war. The Companion-guild
-    registrant has a client list that includes both sides. At least one NPC should
-    have interests that conflict with the player's — a Coalition loyalist among
-    independents, a company foreman among free settlers, a sibling who took the
-    other side. Names should feel period-real and culturally varied (Hannah Bowen,
-    Cyrus Quill, Mei-Ling Park, Esteban Vega, Anders Holm, Yuki Walsh) — never
-    space-opera stylized.
+arc_categories:
+  - id: rebellion_vs_authority
+    tags: [rebellion, coalition, frontier_autonomy]
+    incompatible_with: []
+  - id: settlement_survival
+    tags: [survival, community, resource_scarcity]
+    incompatible_with: []
+  - id: supply_line_warfare
+    tags: [logistics, trade, blockade_breaking]
+    incompatible_with: []
+  - id: coalition_occupation_resistance
+    tags: [rebellion, occupation, partisan warfare]
+    incompatible_with: []
+  - id: terraforming_crisis
+    tags: [space, environmental, corporate_control]
+    incompatible_with: []
+  - id: companion_guild_politics
+    tags: [politics, guild, frontier_law]
+    incompatible_with: []
+  - id: browncoat_legacy
+    tags: [war_veteran, honor, post_war_identity]
+    incompatible_with: []
+  - id: independent_trade_routes
+    tags: [trade, independence, economics]
+    incompatible_with: []
+  - id: frontier_justice
+    tags: [frontier, law, vigilante_action]
+    incompatible_with: []
+  - id: resource_extraction_conflict
+    tags: [mining, corporate_control, labor_dispute]
+    incompatible_with: []
+  - id: colony_abandonment
+    tags: [space, isolation, community_collapse]
+    incompatible_with: []
+  - id: rustbelt_decline
+    tags: [frontier, economic_decay, desperation]
+    incompatible_with: []
+  - id: militia_assembly
+    tags: [militia, defense, frontier_mobilization]
+    incompatible_with: []
+  - id: partisan_operations
+    tags: [rebellion, guerrilla_tactics, occupation]
+    incompatible_with: []
+  - id: corporate_land_grab
+    tags: [corporate_control, land_dispute, exploitation]
+    incompatible_with: []
 
-  inventory: |
-    Items reflect both the frontier and the war that just ended. A deputy carries a
-    plasma sidearm with a hand-cranked recharger and a paper warrant book. A pilot
-    carries fuel certificates (forged or real), a wrench worn smooth, and a battered
-    nav-slate with hand-annotated jump corridors. A rancher carries a lever-action
-    rifle, a set of medical clamps, and a Coalition-issued identity card they refuse
-    to use. A junker carries a plasma cutter, a pry-bar, and a salvaged data chip
-    they haven't read yet. Show the mismatch: high tech beside hand tools, plasma
-    beside black-powder, neural-link patches beside paper ledgers.
+character_dynamics:
+  - id: rim_veteran
+    tags: [frontier, war_experience, established_presence]
+    incompatible_with: []
+  - id: coalition_deserter
+    tags: [coalition, desertion, fugitive_status]
+    incompatible_with: []
+  - id: independent_pilot
+    tags: [space, independence, trade]
+    incompatible_with: []
+  - id: town_deputy
+    tags: [frontier, law_enforcement, community_role]
+    incompatible_with: []
+  - id: companion_registrant
+    tags: [guild, frontier_law, regulated_trade]
+    incompatible_with: []
+  - id: rustbelt_scavenger
+    tags: [space, scavenging, desperation]
+    incompatible_with: []
+  - id: displaced_officer
+    tags: [coalition, post_war_displacement, authority_figure]
+    incompatible_with: [coalition_deserter]
+  - id: free_trader
+    tags: [trade, independence, mobility]
+    incompatible_with: []
 
-  arcs: |
-    Arc seeds should center on survival, rebellion, and frontier justice.
-    Visible goals: protect a settlement from a raiding party, make a desperate
-    run to deliver supplies before a colony starves, escape a Coalition blockade,
-    avenge a killed crewmate, find a lost ship with survivors aboard, hold a
-    position against overwhelming odds. Thematic questions: what does freedom
-    cost on the Rim? Can you build something lasting in a place designed to
-    tear you down? When do you fight and when do you run? PC drives: protect
-    your ship, build a new life, escape your past, prove yourself to the Rim,
-    fight the Coalition, find a place to call home. Hidden truths: the settlement
-    you're protecting is hiding something dark, your ally is playing both sides,
-    the Coalition patrol you're running from has orders to kill, the ship you're
-    looking for was sabotaged from within. Thread ideas: a rival crew that
-    becomes an uneasy alliance, a settlement torn by internal conflict, a
-    Browncoat veteran who won't stay buried, a ship that's more than metal
-    and wire, a betrayal that costs someone everything.
+moral_pressures:
+  - id: freedom_vs_security
+    tags: [frontier, autonomy, safety_tradeoff]
+    incompatible_with: []
+  - id: loyalty_to_rim
+    tags: [rebellion, frontier_identity, coalition_hostility]
+    incompatible_with: []
+  - id: independence_isolation
+    tags: [space, self_reliance, vulnerability]
+    incompatible_with: []
+  - id: frontier_code
+    tags: [frontier, honor, violence_justification]
+    incompatible_with: []
+  - id: survival_vs_principles
+    tags: [survival, ethics, moral_compromise]
+    incompatible_with: []
+  - id: old_loyalties_new_world
+    tags: [war_veteran, post_war_identity, shifting_alliances]
+    incompatible_with: []

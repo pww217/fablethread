@@ -3,6 +3,7 @@ name: "The Outer Rim — After Unification"
 description: "A central empire holds the inner worlds. The Rim is dust, debt, and old loyalties — twelve years after the Browncoats lost the war."
 genre: space western
 tone_tags: [frontier, gritty, scrap-tech, rebellion]
+use_male_only_names: false
 version: 2
 mode: dynamic
 baseline_facts:
@@ -13,7 +14,6 @@ files:
   world: world.md
   scenario: scenario.yaml
   style: style.md
-  extract_examples: extract_examples.yaml
 name_locales:
   - locale: en_US
     weight: 0.60

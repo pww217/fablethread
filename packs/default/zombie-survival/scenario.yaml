@@ -22,8 +22,7 @@ constraints:
     - "a scientist who knows everything about the fungus"
     - "the military is secretly good"
     - "the child is actually the monster"
-  forbid_player_dependents: true
-  forbid_legendary_items: true
+
 
 inspiration:
   pc: |

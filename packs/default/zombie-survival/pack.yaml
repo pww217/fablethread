@@ -3,6 +3,7 @@ name: "Cordyceps: Year Twenty"
 description: "Fungal infection. Nature reclaiming. Scattered, brutal humanity. Every run is different."
 genre: post-apocalyptic
 tone_tags: [horror, survival, human, fungal, nature-reclaimed]
+use_male_only_names: false
 version: 3
 mode: dynamic
 baseline_facts:
