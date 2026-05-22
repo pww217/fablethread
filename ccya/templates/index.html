@@ -55,13 +55,15 @@
     <!-- Body: left sidebar | narrative | right sidebar -->
     <div class="app-body">
 
-        <aside class="sidebar sidebar-left">
+        <aside class="sidebar sidebar-left" :style="leftStyle" @click.self="onSidebarClick('left', $event)">
             <div id="state-panel-left">
                 {% with state=state %}
                 {% include "_state_left.html" %}
                 {% endwith %}
             </div>
         </aside>
+
+        <div class="gutter gutter-left"></div>
 
         <!-- Narrative column (position:relative so turn-log overlay can anchor here) -->
         <main class="narrative-column">
@@ -166,7 +168,7 @@
                           class="game-input"
                           x-model="input"
                           placeholder="What do you do? (Enter to send, Shift+Enter for newline)"
-                          rows="3"
+                          rows="2"
                           :disabled="submitting || !gameStarted"
                           @keydown.enter="onEnter($event)"></textarea>
                 <button class="send-btn"
@@ -181,8 +183,10 @@
 
         </main>
 
+        <div class="gutter gutter-right"></div>
+
         <!-- Right sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" :style="rightStyle" @click.self="onSidebarClick('right', $event)">
             <div id="state-panel-right">
                 {% with state=state %}
                 {% include "_state_right.html" %}
@@ -713,6 +717,139 @@ function game() {
         turnNum: {{ state.meta.turn | default(0) }},
         hasNarrative: {{ 'true' if has_narrative else 'false' }},
         characterCreationEnabled: {{ 'true' if character_creation_enabled else 'false' }},
+
+        // Width state (px or null for collapsed/using default).
+        leftW: (() => {
+            const c = localStorage.getItem('ccya_panel_left_collapsed');
+            if (c === '1') return null;
+            const w = parseInt(localStorage.getItem('ccya_panel_left_w') || '320', 10);
+            return isNaN(w) ? null : Math.max(180, w);
+        })(),
+
+        rightW: (() => {
+            const c = localStorage.getItem('ccya_panel_right_collapsed');
+            if (c === '1') return null;
+            const w = parseInt(localStorage.getItem('ccya_panel_right_w') || '320', 10);
+            return isNaN(w) ? null : Math.max(180, w);
+        })(),
+
+        leftCollapsed: localStorage.getItem('ccya_panel_left_collapsed') === '1',
+        rightCollapsed: localStorage.getItem('ccya_panel_right_collapsed') === '1',
+
+        get leftStyle() { return this.leftCollapsed ? 'width: 0; overflow: hidden;' : (this.leftW !== null ? `width: ${this.leftW}px;` : ''); },
+        get rightStyle() { return this.rightCollapsed ? 'width: 0; overflow: hidden;' : (this.rightW !== null ? `width: ${this.rightW}px;` : ''); },
+
+        _dragging: null,
+
+        toggleCollapse(side) {
+            const key = side + 'Collapsed';
+            if (this[key]) {
+                this.restorePanel(side);
+            } else {
+                this.saveWidth(side);
+                this[key] = true;
+                if (side === 'left') this.leftW = null;
+                else this.rightW = null;
+                localStorage.setItem('ccya_panel_' + side + '_collapsed', '1');
+            }
+        },
+
+        restorePanel(side) {
+            const key = side + 'Collapsed';
+            const savedW = parseInt(localStorage.getItem('ccya_panel_' + side + '_w') || '320', 10);
+            if (side === 'left') this.leftW = Math.max(180, isNaN(savedW) ? 320 : savedW);
+            else this.rightW = Math.max(180, isNaN(savedW) ? 320 : savedW);
+            this[key] = false;
+            localStorage.setItem('ccya_panel_' + side + '_collapsed', '0');
+        },
+
+        saveWidth(side) {
+            const wKey = 'ccya_panel_' + side + '_w';
+            if (side === 'left' && this.leftW !== null) {
+                try { localStorage.setItem(wKey, String(this.leftW)); } catch {}
+            } else if (side === 'right' && this.rightW !== null) {
+                try { localStorage.setItem(wKey, String(this.rightW)); } catch {}
+            }
+        },
+
+        onSidebarClick(side, e) {
+            if (this[side + 'Collapsed']) {
+                this.restorePanel(side);
+            } else {
+                const selector = side === 'left' ? '.sidebar-left' : '.sidebar';
+                const rect = document.querySelector(selector).getBoundingClientRect();
+                const isOuterEdge = side === 'left'
+                    ? (e.clientX - rect.left) < 12
+                    : (rect.right - e.clientX) < 12;
+                if (isOuterEdge || window.innerWidth <= 900) {
+                    this.toggleCollapse(side);
+                }
+            }
+        },
+
+        _setupGutterResize(side, selector) {
+            const gutter = document.querySelector(selector);
+            if (!gutter) return;
+
+            gutter.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                const gi = window._gameInstance;
+                if (!gi || gi[side + 'Collapsed']) return;
+
+                const sidebarW = gi[side === 'left' ? 'leftW' : 'rightW'] || 320;
+                const containerRect = document.querySelector('.app-body').getBoundingClientRect();
+
+                this._dragging = {
+                    side,
+                    startX: e.clientX,
+                    startW: sidebarW,
+                    gutterEl: gutter,
+                };
+
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+                gutter.classList.add('active');
+
+                const onMouseMove = (e2) => {
+                    let delta = e2.clientX - this._dragging.startX;
+                    if (side === 'right') delta = -delta;
+                    const newW = Math.max(180, this._dragging.startW + delta);
+                    if (side === 'left') {
+                        const maxW = containerRect.width - 400;
+                        gi.leftW = Math.min(newW, Math.max(180, maxW));
+                    } else {
+                        const maxW = containerRect.width - 400;
+                        gi.rightW = Math.min(newW, Math.max(180, maxW));
+                    }
+                    this.saveWidth(side);
+                };
+
+                const onMouseUp = () => {
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                    gutter.classList.remove('active');
+                    if (this._dragging) {
+                        this.saveWidth(this._dragging.side);
+                        this._dragging = null;
+                    }
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                };
+
+                const onBeforeUnload = () => {
+                    this.saveWidth(side);
+                };
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+                window.addEventListener('beforeunload', onBeforeUnload);
+            });
+        },
+
+        initGutters() {
+            this._setupGutterResize('left', '.gutter-left');
+            this._setupGutterResize('right', '.gutter-right');
+        },
 
         init() {
             window._gameInstance = this;
@@ -1636,6 +1773,46 @@ document.addEventListener('DOMContentLoaded', () => {
         const dot = document.getElementById('mock-dot');
         if (dot) { dot.classList.add('error'); dot.title = 'Status unknown'; }
     });
+
+    // Set up gutter drag-resize listeners after Alpine init.
+    window._gameInstance?.initGutters();
+
+    // Track mouse position for edge hover detection — show hints near screen edges when panels are collapsed.
+    (function setupCollapsedHints() {
+        const LEFT_ZONE = 20;
+        const RIGHT_ZONE = 20;
+
+        function showHint(side, visible) {
+            const hint = document.getElementById('hint-' + side);
+            if (!hint) return;
+            if (visible && !hint.classList.contains('visible')) {
+                hint.classList.add('visible');
+            } else if (!visible && hint.classList.contains('visible')) {
+                hint.classList.remove('visible');
+            }
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            const gi = window._gameInstance;
+            if (!gi) return;
+
+            if (e.clientX < LEFT_ZONE && gi.leftCollapsed) {
+                showHint('left', true);
+            } else {
+                showHint('left', false);
+            }
+
+            const fromRight = window.innerWidth - e.clientX;
+            if (fromRight < RIGHT_ZONE && gi.rightCollapsed) {
+                showHint('right', true);
+            } else {
+                showHint('right', false);
+            }
+        });
+
+        document.getElementById('hint-left')?.addEventListener('click', () => window._gameInstance?.restorePanel('left'));
+        document.getElementById('hint-right')?.addEventListener('click', () => window._gameInstance?.restorePanel('right'));
+    })();
 });
 </script>
 
@@ -1661,6 +1838,10 @@ document.addEventListener('DOMContentLoaded', () => {
     <p class="game-over-sub" id="game-over-sub"></p>
     <button type="button" class="game-over-btn" id="game-over-new-game">New Game</button>
 </div>
+
+<!-- Panel resize hints -->
+<div id="hint-left" class="gutter-hint gutter-hint--left"></div>
+<div id="hint-right" class="gutter-hint gutter-hint--right"></div>
 
 </body>
 </html>
