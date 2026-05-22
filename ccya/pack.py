@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 from ccya.models import CampaignArc, InventoryItem
 
@@ -29,14 +29,6 @@ class SeedPC(BaseModel):
     conditions: list[str] = Field(default_factory=list)
     momentum: int = 0
     drive: str = ""
-
-    @model_validator(mode="before")
-    @classmethod
-    def _migrate_concept(cls, v: Any) -> Any:
-        if isinstance(v, dict) and "concept" in v and "tagline" not in v:
-            v = dict(v)
-            v["tagline"] = v.pop("concept")
-        return v
 
 
 class SeedLocation(BaseModel):

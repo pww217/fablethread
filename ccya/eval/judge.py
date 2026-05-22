@@ -997,15 +997,6 @@ def _normalize_scores(fm: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def parse_previous_judge_md(path: Path) -> dict[str, Any] | None:
-    """Load a prior judge.md and return its front matter scores, or None."""
-    if not path.exists():
-        return None
-    txt = path.read_text()
-    scores, _ = parse_judge_response(txt)
-    return scores or None
-
-
 # ---------------------------------------------------------------------------
 # Parallel judge runner
 # ---------------------------------------------------------------------------
@@ -1057,6 +1048,7 @@ async def _run_single_judge(
             chunks.append(chunk)
             on_chunk(spec.id, chunk)
     except TypeError:
+        _log.warning("judge[%s]: chat_stream() doesn't accept max_tokens (incompatible LLM backend); falling back without it", spec.id)
         async for chunk in chat_stream(
             host=host,
             model=judge_model,
