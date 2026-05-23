@@ -7,6 +7,7 @@ The campaign arc system tracks story threads, phase progression, and truth disco
 ```
 CampaignArc
   visible_goal: str          — What the PC is trying to achieve
+  goal_context: str          — 2–3 sentences explaining why visible_goal matters to this character specifically; inner cost or pressure that makes it emotionally loaded (Phase 01)
   thematic_question: str     — The moral/thematic tension of the arc
   hidden_truths: list[str]   — Story secrets the narrator knows but must not reveal in prose
   discovered_truths: list[str] — Truths the player has uncovered (subset of hidden_truths)
@@ -73,12 +74,13 @@ flowchart LR
 
     subgraph NARRATOR["Narrator prompt context"]
         NC1["visible_goal"]
-        NC2["thematic_question"]
-        NC3["phase"]
-        NC4["arc.threads[] (summary, scope,<br>urgency, tags)"]
-        NC5["pc_drive"]
-        NC6["hidden_truths[] — internal only<br>NARRATOR MUST NOT reveal in prose"]
-        NC7["discovered_truths[]"]
+        NC2["goal_context (early-turn narrative guidance)"]
+        NC3["thematic_question"]
+        NC4["phase"]
+        NC5["arc.threads[] (summary, scope,<br>urgency, tags)"]
+        NC6["pc_drive"]
+        NC7["hidden_truths[] — internal only<br>NARRATOR MUST NOT reveal in prose"]
+        NC8["discovered_truths[]"]
     end
 
     subgraph EMISSION["Narrator output"]
@@ -101,9 +103,10 @@ flowchart LR
         M4["pc_drive: overwrite if present"]
         M5["hidden_truths: overwrite if present"]
         M6["discovered_truths: union with existing"]
+        M7["goal_context: NOT merged — seed-only field, unchanged during play"]
     end
 
-    NC1 & NC2 & NC3 & NC4 & NC5 & NC6 & NC7 --> PROSE
+    NC1 & NC2 & NC3 & NC4 & NC5 & NC6 & NC7 & NC8 --> PROSE
     PROSE --> SENTINEL
     SENTINEL --> P1 --> P2 --> P3
     P3 -- "clean narrative" --> CLIENT["client"]
@@ -115,12 +118,21 @@ flowchart LR
 **Merge rules:**
 - **Engine owns thread lifecycle** (active/dormant/completed via age-based demotion). Narrator arc_update omits thread fields — they are ignored by `_merge_arc_update()`.
 - **Narrator owns visible_goal/thematic_question/discovered_truths/hidden_truths.** Engine does not modify these.
+- **`goal_context` is seed-only** — set once at game start, never overwritten by narrator or engine during play.
 - **Discovered truths:** merged as set union (dedup).
 - **Merge order:** engine thread signals run first (setting `delta.arc_update`), then narrator arc_update is parsed after narration and merged on top via a second `_merge_arc_update()` call in `run_turn()`.
 
 ## Arc Context in Narration
 
-The arc state is passed to the narrator via `current_arc` in the system prompt. The narrator sees all arc metadata including `hidden_truths` but is explicitly instructed not to reveal them in prose.
+The arc state is passed to the narrator via `current_arc` in both system and user prompts. The narrator sees all arc metadata including `hidden_truths` but is explicitly instructed not to reveal them in prose.
+
+### Early-turn narrative mode
+
+When `goal_context` is present on the arc, the narrator treats it as narrative guidance for early turns: ground the player in personal stakes before broad exposition. The `goal_context` shapes what detail feels loaded, which NPC moment carries emotional charge, and what pressure matters immediately — without restating or summarizing it explicitly. This signal is provided via a conditional block in `narrate_system.j2`.
+
+The `goal_context` is also injected into the user prompt via the `_arc.j2` subtemplate as hidden narrator context (HTML-comment wrapped), consumed by the LLM for narrative emphasis but not displayed to the player.
+
+### Narrator prompt context
 
 ```mermaid
 flowchart LR
@@ -132,20 +144,29 @@ flowchart LR
 
     subgraph CONTEXT["_narrate_messages() → current_arc_ctx"]
         C1["visible_goal"]
-        C2["thematic_question"]
-        C3["phase"]
-        C4["arc.threads[]<br>(summary, scope, urgency)"]
-        C5["pc_drive"]
-        C6["hidden_truths[]"]
+        C2["goal_context"]
+        C3["thematic_question"]
+        C4["phase"]
+        C5["arc.threads[]<br>(summary, scope, urgency)"]
+        C6["pc_drive"]
+        C7["hidden_truths[]"]
     end
 
     subgraph PROMPT["narrate_system.j2"]
-        P1["## Campaign Arc context<br>phase, goal, threads, truths"]:::llmNode
+        P1["## Campaign Arc context<br>goal_context, phase, goal, threads, truths"]:::llmNode
         P2["## ARC UPDATE section<br>instructions + sentinel format<br>+ hidden_truths non-reveal directive"]:::llmNode
     end
 
+    subgraph USER_PROMPT["narrate_user.j2 via _arc.j2"]
+        U1["visible_goal"]
+        U2["goal_context (HTML-comment wrapped)"]
+        U3["thematic_question"]
+        U4["pc_drive"]
+        U5["active threads filtered by active flag"]
+    end
+
     STATE --> CONTEXT
-    CONTEXT --> P1 & P2
+    CONTEXT --> P1 & P2 & USER_PROMPT
 ```
 
 ## Arc System Integration Points

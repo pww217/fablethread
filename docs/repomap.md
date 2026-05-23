@@ -104,6 +104,12 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - Active cap = 3, latent cap = 4, promotion cooldown of 3 turns
 - ArcThread.resolution_state: str | None — set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads for narrative context and eval rubrics (Phase 05c)
 
+### Seed emotional context → narrator consumption
+- **Seed generates**: `goal_context` (character-specific stake in visible_goal), NPC `relation` field (narrative job relative to PC), `pc_drive` (latent motive), action text (character-shaped, scene-grounded).
+- **Narrator consumes**: `goal_context` in both system prompt (`narrate_system.j2` — early-turn guidance block) and user prompt (`_arc.j2` — HTML-comment-wrapped narrator context). The narrator converts these fields into scene texture, dialogue pressure, and prose emphasis — never reciting them directly.
+- **Sidebar surfaces**: `goal_context` as a hover/focus tooltip on the arc goal (`_state_left.html`), using the existing `has-tooltip`/`tooltip-body` nesting convention.
+- **Signal mechanism**: The presence of `goal_context` on the arc is the signal for early-turn narrative mode (approach B, no turn-counting dependency).
+
 ### EngineConfig field naming (Phase 06b)
 - Config fields: thread_urgency_building_at, thread_urgency_immediate_at, thread_urgency_max_age, thread_urgency_immediate_ttl, thread_deescalate_on_success — YAML keys match Python field names directly.
 
