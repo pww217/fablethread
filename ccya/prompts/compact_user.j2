@@ -8,12 +8,11 @@
 
 ## ACTIVE CONTEXT
 
-{% if arc and arc.get('active_threads') -%}
+{% if arc and (arc.get('threads') or []) -%}
 ### Campaign Arc
 **Goal:** {{ arc.get('visible_goal', '') }}
-**Phase:** {{ arc.get('phase', '') }}
-{% if arc.get('pc_drive') %}**Drive:** {{ arc.get('pc_drive') }}{% endif %}
-{% for t in arc.get('active_threads') -%}
+{% set _active = (arc.get('threads') | selectattr('active', 'equalto', true) | list) %}{% if _active -%}
+{% for t in _active -%}
 - [{{ t.get("urgency", "normal") | upper }}] {{ t.get("summary", "?") }}
 {% endfor %}
 {% endif -%}
