@@ -1,7 +1,7 @@
 # Opening Story Cohesion and Goal Framing
 
 ## Status
-`open`
+`completed`
 
 ## Phase Guide
 | Phase | Name | Summary |

@@ -102,14 +102,21 @@
     <summary><span>Arc</span></summary>
     <div class="sidebar-card-body arc-card-body">
         {% set _goal = _arc.get('visible_goal', '') %}
-        {% set _active = _arc.get('active_threads', []) %}
-        {% set _discovered = _arc.get('discovered_truths', []) %}
-        {% set _completed = _arc.get('completed_threads', []) %}
+        {% set _goal_ctx = _arc.get('goal_context', '') %}
 
         {% if _goal %}
-        <div class="arc-goal" data-md>{{ _goal }}</div>
+        <div class="arc-goal{% if _goal_ctx %} has-tooltip{% endif %}" data-md>
+            {{ _goal }}
+            {% if _goal_ctx %}
+            <div class="tooltip-body" data-md>{{ _goal_ctx }}</div>
+            {% endif %}
+        </div>
         {% endif %}
 
+        {# Fix: use unified threads[] with active filter instead of non-existent active_threads #}
+        {% set _active = (_arc.get('threads') | selectattr('active', 'equalto', true) | list) if _arc.get('threads') else [] %}
+        {% set _discovered = _arc.get('discovered_truths', []) %}
+        {% set _completed = _arc.get('completed_threads', []) %}
         {% if _active %}
         {% for thread in _active %}
         {% set _urg = thread.get('urgency', 'normal') %}

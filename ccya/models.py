@@ -67,6 +67,7 @@ class CampaignArc(BaseModel):
 
     completed_threads: list[ArcThread] = Field(default_factory=list)  # resolved/failed/abandoned threads moved here by _apply_thread_resolutions; resolution_state preserved for narrative context and eval rubrics
     pc_drive: str = ""
+    goal_context: str = ""  # NEW: 2–3 sentences explaining why visible_goal matters to this character specifically
 
 class Condition(BaseModel):
     id: str

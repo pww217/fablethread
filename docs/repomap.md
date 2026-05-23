@@ -169,16 +169,17 @@ inventory: list[InventoryItem] — credits pinned to top
 
 arc:                           # managed by engine/turn.py (_apply_thread_signals, _candidate_to_latent_thread)
   visible_goal: str
+  goal_context: str            # 2–3 sentences explaining why visible_goal matters to this character specifically (Phase 01)
   thematic_question: str       # emotional register — never stated directly in narration
   hidden_truths: [str]         # designer-only structural spine
   discovered_truths: [str]     # truths player has learned (starts empty)
-  active_threads: list[Thread] # {id, summary, urgency, progress}
-  latent_threads: list[Thread] # {id, tags, ...} — hidden from player
+  threads: list[ArcThread]     # unified arc.threads[] with active flag replaces old active_threads/latent_threads split
+
   completed_threads: list[Thread]
 
 scene:
   tags: [str], tagline: str
-  present_npcs: list[NpcRef]   # sticky: absence does not cause removal; only explicit npc_remove removes
+  present_npcs: list[NpcRef]   # sticky: absence does not cause removal; only explicit npc_remove removes. Seed data may include `relation` field for NPC-PC narrative connection.
   world_state: [str]           # immutable after seed
   recent_events: list[Event]   # {id, text, turn} — FIFO cap (default 20)
   recently_left: list[dict], recently_left_turns: int (decay counter, default 2)
