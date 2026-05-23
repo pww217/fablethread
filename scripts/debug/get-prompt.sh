@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Get a single prompt (system or user) for a stream on a turn
+# Wrapper for `ev.py prompt`. See ev.py --help.
 set -euo pipefail
-
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 exec python3 "$SCRIPT_DIR/ev.py" prompt "$@"

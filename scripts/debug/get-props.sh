@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Get prompts + outputs for a specific stream on a turn
+# Wrapper for `ev.py props`. See ev.py --help.
 set -euo pipefail
-
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 exec python3 "$SCRIPT_DIR/ev.py" props "$@"
