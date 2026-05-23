@@ -253,7 +253,7 @@ def _apply_thread_signals(
 
         to_promote = available[:available_slots]
         if to_promote:
-            promoted = [
+            newly_promoted = [
                 t.model_copy(update={
                     "active": True,
                     "last_seen_turn": turn_no
@@ -261,7 +261,7 @@ def _apply_thread_signals(
             ]
             updated_threads = [t for t in all_updated_arc_threads if t.id not in {p.id for p in to_promote}]
             arc = arc.model_copy(update={
-                "threads": list(really_still_active) + promoted + updated_threads,
+                "threads": list(really_still_active) + newly_promoted + updated_threads,
                 "arc_last_promotion_turn": turn_no,
             })
             mutated = True

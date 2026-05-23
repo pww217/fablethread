@@ -45,15 +45,10 @@ known-first-party = ["ccya"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-follow_imports = "skip"
 warn_return_any = true
 warn_unused_configs = true
 plugins = ["pydantic.mypy"]
 disallow_subclassing_any = false
-
-[[tool.mypy.overrides]]
-module = ["ccya.models", "ccya.pack"]
-disable_error_code = ["untyped-decorator"]
 
 [[tool.mypy.overrides]]
 module = ["ccya.server", "ccya.server.*"]
@@ -63,15 +58,6 @@ disable_error_code = ["untyped-decorator", "no-untyped-def", "no-untyped-call", 
 module = ["ccya.rules"]
 disable_error_code = ["name-defined"]
 
-[[tool.mypy.overrides]]
-module = ["ccya.eval"]
-disable_error_code = ["no-any-return", "type-arg"]
-
-[[tool.mypy.overrides]]
-module = ["ccya.engine.seed"]
-disable_error_code = ["no-any-return"]
 
 [dependency-groups]
-dev = [
-    "mypy>=1.20.2",
-]
+dev = []

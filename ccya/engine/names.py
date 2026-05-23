@@ -30,7 +30,7 @@ def _build_weighted_fakers(
     if ja_locales:
         locales = ja_locales
     Faker.seed(seed or rng.randint(0, 2**31))
-    fakers = [Faker(entry["locale"]) for entry in locales]
+    fakers = [Faker(entry["locale"]) for entry in locales]  # type: ignore[arg-type]
     raw_weights = [float(entry.get("weight", 1.0) or 1.0) for entry in locales]  # type: ignore[arg-type]
     total = sum(raw_weights) or 1.0
     weights = [w / total for w in raw_weights]
@@ -53,7 +53,7 @@ def _to_romaji(name: str) -> str:
     """Convert Japanese (kanji/kana) to romaji using passport-style romanization."""
     global _kakasi
     if _kakasi is None:
-        _kakasi = Kakasi()
+        _kakasi = Kakasi()  # type: ignore[no-untyped-call]
     result = _kakasi.convert(name)
     parts = []
     for part in result:

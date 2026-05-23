@@ -219,15 +219,15 @@ def apply_delta(
                     ex["amount"] = new_amt
         by_id = _by_id()
 
-    for u in delta.inventory_update:
-        canonical = resolve_inventory_canonical_id(inv, u.id)
+    for inv_upd in delta.inventory_update:
+        canonical = resolve_inventory_canonical_id(inv, inv_upd.id)
         if not canonical:
             continue
         ex = by_id[canonical]
-        if u.name is not None:
-            ex["name"] = _strip_non_ascii(u.name)
-        if u.notes is not None:
-            ex["notes"] = u.notes
+        if inv_upd.name is not None:
+            ex["name"] = _strip_non_ascii(inv_upd.name)
+        if inv_upd.notes is not None:
+            ex["notes"] = inv_upd.notes
 
     inv.sort(key=lambda x: 0 if x.get("id") == "credits" else 1)
     state["inventory"] = inv
@@ -403,8 +403,8 @@ def apply_delta(
         present = list(old_present)
 
         removed_ids: set[str] = set()
-        for rem in delta.npc_remove:
-            rid = _resolve_npc_id(rem.id, comp, alias_map)
+        for npc_rem in delta.npc_remove:
+            rid = _resolve_npc_id(npc_rem.id, comp, alias_map)
             # Find the NPC's notes from present before removing
             npc_notes = ""
             for p in present:
@@ -421,9 +421,9 @@ def apply_delta(
                 else:
                     comp[rid]["bio"] = npc_notes
 
-        for upd in delta.npc_update:
+        for npc_upd in delta.npc_update:
             _apply_npc_to_present(
-                {"id": upd.id, "notes": upd.notes or "", "name": _strip_non_ascii(upd.name or ""), "title": _strip_non_ascii(upd.title or ""), "bio": _strip_non_ascii(upd.bio or "")},
+                {"id": npc_upd.id, "notes": npc_upd.notes or "", "name": _strip_non_ascii(npc_upd.name or ""), "title": _strip_non_ascii(npc_upd.title or ""), "bio": _strip_non_ascii(npc_upd.bio or "")},
                 present, comp, alias_map,
             )
 
@@ -511,8 +511,8 @@ def apply_delta(
 
     comp = state.setdefault("compendium", {}).setdefault("npcs", {})
     alias_map = build_npc_alias_map(comp)
-    for u in delta.compendium_npc_update:
-        nid = normalize_inventory_id(u.id)
+    for comp_upd in delta.compendium_npc_update:
+        nid = normalize_inventory_id(comp_upd.id)
 
         # Alias map lookup: if incoming name/id matches existing NPC alias, route to canonical
         resolved_id = nid
@@ -520,37 +520,37 @@ def apply_delta(
         if nid in alias_map and alias_map[nid] != nid:
             resolved_id = alias_map[nid]
         # Check if the NPC name matches any existing alias
-        if u.name:
-            name_alias = u.name.lower().strip()
+        if comp_upd.name:
+            name_alias = comp_upd.name.lower().strip()
             if name_alias in alias_map:
                 resolved_id = alias_map[name_alias]
             # Name collision: if ID is new but name matches existing NPC, route to existing
             if resolved_id not in comp:
-                name_match = _find_npc_by_name(u.name, comp)
+                name_match = _find_npc_by_name(comp_upd.name, comp)
                 if name_match:
                     resolved_id = name_match
 
         entry = comp.setdefault(resolved_id, {})
-        if u.name is not None:
-            entry["name"] = _strip_non_ascii(u.name)
-        if u.title is not None:
-            entry["title"] = _strip_non_ascii(u.title)
-        if u.bio is not None:
-            entry["bio"] = _strip_non_ascii(u.bio)
-        if u.aliases:
+        if comp_upd.name is not None:
+            entry["name"] = _strip_non_ascii(comp_upd.name)
+        if comp_upd.title is not None:
+            entry["title"] = _strip_non_ascii(comp_upd.title)
+        if comp_upd.bio is not None:
+            entry["bio"] = _strip_non_ascii(comp_upd.bio)
+        if comp_upd.aliases:
             existing_aliases = set(entry.get("aliases") or [])
-            for a in u.aliases:
+            for a in comp_upd.aliases:
                 if a.lower() not in {x.lower() for x in existing_aliases}:
                     existing_aliases.add(a.lower())
             entry["aliases"] = list(existing_aliases)
-        if u.allegiance is not None:
-            entry["allegiance"] = u.allegiance
-        if u.motivation is not None:
-            entry["motivation"] = u.motivation
-        if u.fear is not None:
-            entry["fear"] = u.fear
-        if u.leverage is not None:
-            entry["leverage"] = u.leverage
+        if comp_upd.allegiance is not None:
+            entry["allegiance"] = comp_upd.allegiance
+        if comp_upd.motivation is not None:
+            entry["motivation"] = comp_upd.motivation
+        if comp_upd.fear is not None:
+            entry["fear"] = comp_upd.fear
+        if comp_upd.leverage is not None:
+            entry["leverage"] = comp_upd.leverage
         touch_compendium_order(state, resolved_id)
 
     # --- Arc update: merge arc_update into state arc ---
