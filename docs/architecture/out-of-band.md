@@ -34,7 +34,9 @@ flowchart TD
 
 ## Generate Seed Pipeline (Dynamic Packs Only)
 
-Called by `POST /new-game` and `POST /new-game/reroll`. Generates a complete starting game state (PC, NPCs, location, quests, opening narrative) from the pack manifest and optional player overrides.
+Called by `POST /new-game` and `POST /new-game/reroll`. Generates a complete starting game state (PC, NPCs, location, arc, opening narrative, actions) from the pack manifest and optional player overrides.
+
+The seed owns **first-turn emotional framing** — not just world and arc scaffolding. Every seed element must produce an emotionally legible opening that answers: why this moment matters now, what the character stands to lose, and why at least one person in the scene matters to them personally.
 
 ```mermaid
 flowchart LR
@@ -49,19 +51,30 @@ flowchart LR
         G5["engine_config.generate_seed_temperature (0.9)<br>engine_config.generate_seed_max_retries (1)"]
     end
 
-    subgraph LLM_GS["LLM — seed_system.j2 + seed_user.j2"]
+    subgraph LLM_GS["LLM — generate_seed_system.j2 + generate_seed_user.j2"]
         GL["temp: 0.9<br>output: SeedEnvelope JSON"]:::llmNode
     end
 
     subgraph OUT["Outputs — SeedEnvelope"]
-        O1["seed_state: GameState<br>  pc (name, tagline, bio, stats)<br>  location (id, name, description)<br>  scene (present_npcs, recent_events)<br>  inventory: list[InventoryItem]<br>  quests: list[Quest]<br>  compendium.npcs: list[NpcRef]<br>  meta (model, setting_pack, turn=0)"]:::outNode
-        O2["opening_narrative: str<br>(prose intro shown before turn 1)"]:::outNode
-        O3["actions: list[str]<br>(suggested first player moves)"]:::outNode
+        O1["seed_state: GameState<br>  pc (name, tagline, bio, stats)<br>  location (id, name, description)<br>  scene (present_npcs with relation field,<br>         recent_events, world_state)<br>  inventory: list[InventoryItem]<br>  compendium.npcs: dict[id] NpcRef<br>  meta (model, setting_pack, turn=0)"]:::outNode
+        O2["arc: CampaignArc<br>  visible_goal, goal_context (personal stakes),<br>  thematic_question, hidden_truths,<br>  threads[] (unified, with active flag),<br>  completed_threads[], pc_drive"]:::outNode
+        O3["opening_narrative: str<br>(prose intro shown before turn 1)"]:::outNode
+        O4["actions: list[str]<br>(4 distinct, character-shaped,<br>scene-grounded choices)"]:::outNode
     end
 
     IN --> LLM_GS
     LLM_GS --> OUT
 ```
+
+### Seed emotional framing contract
+
+The seed prompt (`generate_seed_system.j2`) enforces these requirements:
+
+- **`goal_context`**: 2–3 sentences explaining why `visible_goal` matters to this character specifically — inner cost or pressure that makes it emotionally loaded. No hidden-truth spoilers, no restating `visible_goal`, no direct statement of the thematic question. Must connect character motive, story stakes, and emotional cost.
+- **NPC `relation` field**: Each opening NPC has a defined narrative job. One NPC is personally tied to the PC's motive or vulnerability; the other carries immediate external pressure from the world or conflict. The `relation` field encodes PC-facing relevance (e.g. "owes them a favor", "is their only contact here", "represents the institution pressing on them").
+- **Action guidance**: Each of the 4 choices is written from the PC's point of view, grounded in a present NPC, immediate risk, active thread, or character motive. They differ in emotional posture (confront, deflect, investigate, protect, exploit, withdraw, etc.) and avoid generic verbs.
+- **`pc_drive`**: A single sentence about the PC's personal reason for being in this situation. Expressed indirectly through `goal_context`, NPC relations, opening narrative, and actions — never displayed as a labeled UI fact.
+- **`threads[]`**: Unified list (not split active/latent) where each thread has `{id, summary, tags, urgency, scope}` and an `active` boolean flag managed by Python age rules, not LLM.
 
 ## Turn Viewer (`/turn_viewer`) — status colors
 

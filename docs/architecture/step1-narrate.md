@@ -40,6 +40,26 @@ flowchart LR
     LLM1 --> OUT
 ```
 
+## Arc context in narration
+
+The narrator receives `current_arc` in both system and user prompts. Key fields:
+
+- **`goal_context`**: A seed-time field (2–3 sentences) explaining why `visible_goal` matters to the character specifically. When present, `narrate_system.j2` activates an early-turn guidance block: ground the player in personal stakes before broad exposition. This is also injected into the user prompt via `_arc.j2` as HTML-comment-wrapped narrator context.
+- **`visible_goal`**: The player-facing objective.
+- **`thematic_question`**: The moral tension — never stated directly in prose. Used as a lens for emphasis: what detail feels loaded, what silence matters.
+- **`pc_drive`**: The character's personal motive. Expressed indirectly through goal_context, NPC relations, and action language rather than displayed as a labeled UI fact.
+- **`hidden_truths[]`**: Internal-only story secrets the narrator must never reveal in prose.
+- **`threads[]`**: Unified thread collection filtered by `active` flag. Scene-scope threads provide immediate pressure; arc-scope threads provide medium-term tension.
+
+### Opening-turn narrative mode
+
+When `goal_context` is present (always true after seed), the narrator treats early turns as a distinct onboarding mode:
+1. Personal stakes before broad exposition
+2. One NPC moment with emotional charge (driven by `relation` fields on seed NPCs)
+3. One immediately actionable pressure
+
+The presence of `goal_context` itself is the signal — no turn-counting dependency needed. The guidance is most impactful in the first few turns and persists as background context throughout the campaign.
+
 ## Key forward dependency
 
 `narrative` is the primary content input for all three extraction streams below.

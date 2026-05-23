@@ -83,7 +83,9 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 - **SceneExtractResult**: `scene_tags`, `scene_tagline`, `location_change`, `npc_add/remove/update`, `compendium_npc_update`
 - **StateExtractResult**: `inventory_add/remove/update`, `pc_condition_add/remove`
 - **StorytellerResult**: `thread_advance`, `thread_resolve`, `thread_add`, `gm_beat`, `recent_events_add/update/remove`, `actions`, `outcome_summary`
-- **SeedEnvelope**: `seed_state: GameState`, `opening_narrative`, `actions`
+- **SeedEnvelope**: `seed_state: GameState`, `opening_narrative`, `actions`, `arc: CampaignArc` (includes `goal_context`, unified `threads[]`, `completed_threads[]`), `pc_drive`
+
+  The seed owns first-turn emotional framing, not just world and arc scaffolding. It generates `goal_context` (character-specific stake), NPC `relation` fields (narrative job relative to PC), and action text written from the PC's voice and scene pressure — ensuring the opening feels personal and motivated from the start.
 
 ### PacingContext (see [pacing-context](./pacing-context.md))
 
@@ -106,9 +108,18 @@ GMBeat
   beat_expires_turn: int | None (turn number at which the beat expires; set to turn_no + 2 when stored)
 ```
 
-### ArcThread (see [campaign-arcs](./campaign-arcs.md))
+### CampaignArc (see [campaign-arcs](./campaign-arcs.md))
 
 ```
+CampaignArc
+  visible_goal: str           — What the PC is trying to achieve
+  goal_context: str           — 2–3 sentences explaining why visible_goal matters to this character specifically
+  thematic_question: str      — The moral/thematic tension of the arc
+  hidden_truths: list[str]    — Story secrets the narrator knows but must not reveal in prose
+  discovered_truths: list[str] — Truths the player has uncovered
+  threads: list[ArcThread]    — Unified collection with active flag; replaces old active/latent split
+  completed_threads: list[ArcThread] — Resolved/failed/abandoned threads
+
 ArcThread (unified)
   id, summary, scope ("scene"|"arc"), active: bool = True
   urgency ("background"|"normal"|"urgent")
