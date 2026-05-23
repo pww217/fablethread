@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 import asyncio
 import json
 from datetime import datetime, timezone
@@ -44,7 +45,27 @@ except Exception as exc:
 _dynamic_opening: str = ""
 _dynamic_opening_actions: list[str] = []
 
-app = FastAPI(title="ccya")
+@asynccontextmanager
+async def lifespan(app):
+    logger.info(
+        "pack: %s (mode=%s) | LLM: %s",
+        _pack_id,
+        _active_pack.mode,
+        engine_config.model,
+    )
+    if config.get("game", {}).get("warmup_on_start", True):
+
+        async def _warmup_bg() -> None:
+            logger.info("warming up LLM model (background)…")
+            await warmup(engine_config)
+            logger.info("model warmup complete")
+
+        asyncio.create_task(_warmup_bg())
+    yield
+
+
+app = FastAPI(title="ccya", lifespan=lifespan)
+
 
 # Server error persistence
 _errors_file_path: Path | None = None
@@ -125,24 +146,6 @@ def _validate_stats(stats: dict[str, int]) -> bool:
         return False
     total = sum(stats.values())
     return 12 <= total <= 16
-
-
-@app.on_event("startup")
-async def startup_event():
-    logger.info(
-        "pack: %s (mode=%s) | LLM: %s",
-        _pack_id,
-        _active_pack.mode,
-        engine_config.model,
-    )
-    if config.get("game", {}).get("warmup_on_start", True):
-
-        async def _warmup_bg() -> None:
-            logger.info("warming up LLM model (background)…")
-            await warmup(engine_config)
-            logger.info("model warmup complete")
-
-        asyncio.create_task(_warmup_bg())
 
 
 def main() -> None:

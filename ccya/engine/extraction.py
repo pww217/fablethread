@@ -187,7 +187,7 @@ def _dedup_compendium_add(
             (npc.get("id") or "").lower().replace("_", " "),
         ] + [(a or "").lower() for a in (npc.get("aliases") or [])]
         if candidate in npc_names:
-            return proposed.model_copy(update={"id": str(npc["id"])})  # type: ignore[no-any-return]
+            return proposed.model_copy(update={"id": str(npc["id"])})
     return proposed
 
 
