@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, AsyncIterator, Literal, AsyncGenerator
+from typing import Any, AsyncIterator, Literal
 
 
 from ccya.engine.changes import _summarize_applied, summarize_changes
@@ -96,8 +96,8 @@ class TurnContext:
     _avoidance: bool = False
     _momentum_before: float | None = None
     _momentum_after: float | None = None
-    _ages: dict[str, int] | None = None  # set by ruling phase before narrate setup reads it
-    _threat_ages: list[dict[str, Any]] | None = None  # set by ruling phase before narrate setup reads it
+    _ages: dict[str, int] = {}  # set by ruling phase before narrate setup reads it
+    _threat_ages: list[dict[str, Any]] = []  # set by ruling phase before narrate setup reads it
     _compendium_bios: list[dict[str, Any]] | None = None
     _npc_name_pool: dict[str, list[str]] | None = None
     _pending_gm_beat: dict[str, Any] | None = None
@@ -948,17 +948,10 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         except Exception:
             pass  # skip malformed entries
 
-    _effective_pressure = _inject_location_pressure(
-        ages=ctx._ages,  # type: ignore[arg-type]
-        existing_pressure=_raw_thread_dicts,
-        location_pressure_at=config.location_pressure_at,
-        location_imperative_at=config.location_imperative_at,
-    )
-
     # Compute unified pacing context (replaces separate directive computation)
     _pc = _compute_pacing_context(
         deescalate=ctx._deescalate, narrative_velocity=narrative_velocity,
-        scope_scene_threads=_scope_scene_threads, ages=ctx._ages,  # type: ignore[arg-type]
+        scope_scene_threads=_scope_scene_threads, ages=ctx._ages,
         threat_ages=ctx._threat_ages, momentum=(state.get("pc") or {}).get("momentum", 0), config=config,
     )
 
@@ -1040,7 +1033,7 @@ async def run_turn(
         )
 
         # Internal yield helper: inner function that yields from run_turn's generator context
-        async def _emit(event_tuple: tuple[str, Any]) -> AsyncGenerator[tuple[str, Any], None]:
+        async def _emit(event_tuple: tuple[str, Any]) -> None:  # type: ignore[misc]
             yield event_tuple
         # === Call 0: Rules / intent classification (extracted phase) ===
         _intent, _outcome, ruling_metrics, deescalate = await _ruling_phase(ctx, _emit)
