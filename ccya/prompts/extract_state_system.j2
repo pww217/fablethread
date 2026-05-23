@@ -24,6 +24,10 @@ Inventory IDs must be `noun` or `adjective_noun`, lowercase, no articles.
 
 IDs are immutable once assigned. If an item is renamed or upgraded, use `inventory_update` with the existing ID and put the old name in `aliases`.
 
+## Item extraction — hard rule
+
+If the narration describes the player receiving, carrying, collecting, or being handed an item — ANY item — you MUST emit an `inventory_add` for it. Do not skip items. Missing an item is worse than extracting an extra one.
+
 ## Match instruction
 
 Before emitting `inventory_add`, check the existing inventory list provided in context.
@@ -33,6 +37,14 @@ Only emit `inventory_add` for a genuinely new item not present in the current in
 Item descriptions should be relevant to story, player, and setting.
 
 ## Quantities are exact.
+
+## Numerical extraction — mandatory checklist
+
+Before you output any `inventory_add` or `inventory_remove` with an amount:
+
+1. Find the exact number in the narration. If the narration states a specific number ("200 credits"), that is the number you must use.
+2. Do NOT guess, estimate, or round the number. The narration number is authoritative.
+3. If no number is stated, infer from context per Priority 2 below.
 
 **Priority 1 — Explicit numbers.** If narration states a specific number ("drop 200 credits", "used three bandages", "gave him 50 gold"), emit that exact number. The number in the narration is authoritative — never substitute a different value.
 
