@@ -21,11 +21,11 @@ from ccya.models import (
     InventoryUpdate,
     IntentEnvelope,
     NpcPresence,
-    ProgressExtractResult,
     RulesCheck,
     RulesOutcome,
     SceneExtractResult,
     StateExtractResult,
+    StorytellerResult,
 )
 from ccya.prompts.context import (
     ArcThreadBlock,
@@ -40,8 +40,8 @@ from ccya.prompts.context import (
     NarratorSystemBoundary,
     PlayerBlock,
     PacingBlock,
-    ProgressExtractBoundary,
-    RulesBoundary,
+    StorytellerBoundary,
+    RulingBoundary,
     SceneExtractBoundary,
     StateExtractBoundary,
     WorldStateBlock,
@@ -198,13 +198,10 @@ class TestPacingBlock:
     def test_defaults_all_fields_to_none(self):
         block = PacingBlock()
         assert block.directive is None
-        assert block.beat_hint is None
-        assert block.gate is None
 
     def test_accepts_partial_data(self):
         block = PacingBlock(directive="Escalate the threat")
         assert block.directive == "Escalate the threat"
-        assert block.beat_hint is None
 
 
 class TestLastSeenBlock:
@@ -269,15 +266,15 @@ class TestNPCRosterBlock:
 # ---------------------------------------------------------------------------
 
 
-class TestRulesBoundary:
-    """Tests for RulesBoundary construction."""
+class TestRulingBoundary:
+    """Tests for RulingBoundary construction."""
 
     def test_minimal_valid(self):
         pc = PlayerBlock.from_state({"pc": {"name": "Aldric", "stats": {}, "conditions": []}})
         location = LocationBlock(id="l01", name="The Tavern")
         meta: dict[str, int] = {"turn_no": 5}
 
-        boundary = RulesBoundary(
+        boundary = RulingBoundary(
             pc=pc, location=location, user_input="I attack the goblin.",
             meta=meta, present_npcs=[], last_outcome=None,
         )
@@ -330,16 +327,16 @@ class TestStateExtractBoundary:
         assert len(boundary.conditions) == 1
 
 
-class TestProgressExtractBoundary:
-    """Tests for ProgressExtractBoundary construction."""
+class TestStorytellerBoundary:
+    """Tests for StorytellerBoundary construction."""
 
     def test_minimal_valid(self):
         location = LocationBlock(id="l01", name="The Tavern")
         
-        boundary = ProgressExtractBoundary(
+        boundary = StorytellerBoundary(
             narration="", npc_roster=NPCRosterBlock(entries=[]), location=location,
             conditions=[], inventory=[], all_threads=[], world_state=["Peaceful night."],
-            recent_events=[], intent=None, pacing_context=None, recent_turns=[], turn_no=5, band="success", pending_beat=None,
+            recent_events=[], intent=None, pacing_context=None, recent_turns=[], turn_no=5, band="success",
         )
         assert boundary.band == "success"
 
@@ -381,14 +378,14 @@ class TestBoundaryModelDump:
         assert "user_input" in dump
         assert dump["user_input"] == "I attack."
 
-    def test_progress_extract_boundary_model_dump(self):
+    def test_storyteller_boundary_model_dump(self):
         location = LocationBlock(id="l01", name="The Tavern")
         
-        boundary = ProgressExtractBoundary(
+        boundary = StorytellerBoundary(
             narration="", npc_roster=NPCRosterBlock(entries=[]), location=location,
             conditions=[], inventory=[], all_threads=[], world_state=["War."],
             recent_events=[], intent=None, pacing_context=None, recent_turns=[],
-            turn_no=5, band="success", pending_beat=None,
+            turn_no=5, band="success",
         )
 
         dump = boundary.model_dump()
@@ -477,36 +474,36 @@ class TestStateExtractResult:
             StateExtractResult(pc_condition_add=conditions)
 
 
-class TestProgressExtractResult:
-    """Tests for ProgressExtractResult coercion and validation."""
+class TestStorytellerResult:
+    """Tests for StorytellerResult coercion and validation."""
 
     def test_accepts_valid_json(self):
         data = {
             "actions": ["Attack the goblin.", "Cast fireball."],
             "outcome_summary": "Victory with minor injuries.",
         }
-        result = ProgressExtractResult(**data)
+        result = StorytellerResult(**data)
         assert len(result.actions) == 2
 
     def test_coerces_actions_from_dicts(self):
         data = {"actions": [{"action": "Fight"}, {"text": "Defend"}]}
-        result = ProgressExtractResult(**data)
+        result = StorytellerResult(**data)
         assert result.actions[0] == "Fight"
         assert result.actions[1] == "Defend"
 
     def test_coerces_actions_from_mixed(self):
         data = {"actions": ["Direct action", {"description": "Dict action"}]}
-        result = ProgressExtractResult(**data)
+        result = StorytellerResult(**data)
         assert len(result.actions) == 2
 
-    def test_nullifies_gm_beat_without_instruction(self):
-        """Test that gm_beat with no instruction is nullified."""
+    def test_preserves_gm_beat_with_only_type(self):
+        """Test that gm_beat with only a type is valid (instruction no longer required)."""
         data = {
             "actions": ["Attack the goblin.",],
-            "gm_beat": {"type": "complication", "instruction": ""},
+            "gm_beat": {"type": "complication"},
         }
-        result = ProgressExtractResult(**data)
-        assert result.gm_beat is None
+        result = StorytellerResult(**data)
+        assert result.gm_beat is not None
 
     def test_nullifies_gm_beat_without_type(self):
         """Test that gm_beat with no type is nullified."""
@@ -514,16 +511,16 @@ class TestProgressExtractResult:
             "actions": ["Attack the goblin.",],
             "gm_beat": None,  # Invalid type causes _nullify_invalid_gm_beat to set it to None.
         }
-        result = ProgressExtractResult(**data)
+        result = StorytellerResult(**data)
         assert result.gm_beat is None
 
     def test_valid_gm_beat_preserved(self):
-        """Test that gm_beat with both type and instruction >= 40 chars is preserved."""
+        """Test that gm_beat with only type and surface_as is preserved."""
         data = {
             "actions": ["Attack the goblin.",],
-            "gm_beat": {"type": "complication", "instruction": "A dragon appears from the sky and demands tribute!"},
+            "gm_beat": {"type": "complication", "surface_as": "ambient"},
         }
-        result = ProgressExtractResult(**data)
+        result = StorytellerResult(**data)
         assert result.gm_beat is not None
 
 
@@ -581,7 +578,7 @@ class TestAlignmentIntegration:
 
     def test_extraction_results_accept_minimal_data(self):
         """Verify all extraction result models accept minimal valid data."""
-        ProgressExtractResult(actions=[])
+        StorytellerResult()
         SceneExtractResult()
         StateExtractResult()
 

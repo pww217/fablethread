@@ -50,13 +50,14 @@
 
 ### ccya/models.py
 - **load_config(path)** → dict — loads config.yaml
-- **TurnResult** dataclass — returned from run_turn(): turn, trace_id, narrative, state_delta, applied, rejected, actions, scene_tags, recent_events, diff, changes, metrics, errors, rules, outcome_summary, recent_events_evicted, ts
+- **TurnResult** dataclass — returned from run_turn(): turn, trace_id, narrative, state_delta, applied, rejected, actions, scene_tags, recent_events, diff, changes, metrics, errors, ruling, outcome_summary, recent_events_evicted, ts
 
 ### ccya/engine (via __init__.py)
 - **run_turn(...)** → AsyncIterator — 5-call pipeline: rules→narrate→scene/state/progress extract; yields ("token"), ("phase"), ("complete", TurnResult)
 - **generate_seed(pack, config, overrides)** → SeedEnvelope — LLM-generated GameState + opening for dynamic packs
-- **generate_pack(brief, config)** → Pack — LLM generates ScenarioBrief from WorldBrief
-- **generate_pack_from_brief(...)** → AsyncIterator[dict] — SSE-driven ephemeral pack generation (phase/pack_ready/generation_error events)
+- **generate_seed(pack, config, overrides)** → SeedEnvelope — LLM-generated GameState + opening for dynamic packs (via `ccya/engine/seed.py`)
+- **generate_pack_from_brief(...)** → AsyncIterator[dict] — SSE-driven ephemeral pack generation (via `ccya/engine/generate_pack.py`)
+- **generate_pack(brief, config)** → Pack — LLM generates ScenarioBrief from WorldBrief (via `ccya/engine/pack_gen.py`)
 - **maybe_compact(save_dir, state, config)** → (state, bool) — compacts chronicle + sanitizes state if turn % compact_every == 0
 - **format_change_lines(changes)** → list[str] — emoji display lines for UI
 
@@ -132,7 +133,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ## Key models with non-obvious behavior
 
 ### GMBeat
-- `instruction` validated by `_validate_instruction_quality`: nullifies beat if empty, whitespace-only, under 40 chars, or starts with filler prefix
+- Only `type` validated by `StorytellerResult._nullify_invalid_gm_beat`: beat nullified if `type` is None/falsy
 - `beat_expires_turn`: turn number at which pending beat expires (set to `turn_no + 2` in turn.py)
 
 ### CompactorSanitizationResult
@@ -191,7 +192,7 @@ scene:
   recently_left: list[dict], recently_left_turns: int (decay counter, default 2)
   turn_entered: int            # anti-stall tracking
   location_entered_turn: int   # when location was last changed
-  scene_pressure: list[Pressure] # {id, text, urgency, turn_added, max_turns}
+  combat_started_turn: int     # set when scene tags include "combat"
 
 compendium.npcs: dict[id] → {name, title, bio, aliases: [str], allegiance: str | None}
 

@@ -49,9 +49,9 @@ flowchart TD
 | Step | Docs | When it runs | Key inputs | Key outputs | Mechanics it owns |
 |---|---|---|---|---|---|
 | **Step 0 — Ruling/Intent** | [step0-ruling](./step0-ruling.md) | Every turn (always) | `state.pc`, `state.location`, `recent_turns[-1:]`, `user_input` | `IntentEnvelope`, `RulesOutcome` | Intent classification, dice roll resolution (2d6 + stat + cond − diff → band), difficulty selection, anti-declare-outcome enforcement. |
-| **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Every turn (always, streamed) | Full `state`, `chronicle_tail`, `recent_turns`, `pacing_context`, `pending_gm_beat`, `npc_roster` (tiered), `world_factions/locations` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption. Tone shaped by `PacingContext.directive`. |
-| **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Every turn (always) | `narrative`, `state.pc/location`, `npc_roster` (tiered), conditions, known_characters (LRU compendium), RulesOutcome | `SceneExtractResult`: scene_tags, tagline, location_change, npc_add/remove/update, compendium_npc_update | NPC presence, location changes, scene tags, durable NPC compendium identity. |
-| **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Every turn (always) | `narrative`, `state.pc/location/inventory`, rules_outcome, conditions, band_examples | `StateExtractResult`: inventory_add/remove/update, pc_condition_add/remove | Inventory delta accuracy, condition lifecycle. |
+| **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Every turn (always, streamed) | Full `state`, `chronicle_tail`, `recent_turns`, `pacing_context`, `pending_gm_beat`, `npc_roster` (tiered), `world_factions/locations`, `compendium_bios` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption. Tone shaped by `PacingContext.directive`. |
+| **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Every turn (always) | `narrative`, `state.pc/location`, `npc_roster` (tiered), conditions, known_characters (LRU compendium) | `SceneExtractResult`: scene_tags, tagline, location_change, npc_add/remove/update, compendium_npc_update | NPC presence, location changes, scene tags, durable NPC compendium identity. |
+| **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Every turn (always) | `narrative`, `state.pc/location/inventory`, conditions | `StateExtractResult`: inventory_add/remove/update, pc_condition_add/remove | Inventory delta accuracy, condition lifecycle. |
 | **Step 2c — Storytell** | [step2c-progress](./step2c-progress.md) | Every turn (always) | `narrative`, `_ExtractionContext`, pacing_context, arc.threads[], recent_turns[-2:], band, pending_beat, npc_roster (tiered) | `StorytellerResult`: thread_advance/resolve/add, gm_beat, recent_events_add/update/remove, actions, outcome_summary | Unified thread lifecycle, beat disposition inference, durable history events. |
 
 After Step 2c: results merge into a `StateDelta`, the validator checks constraints
@@ -73,6 +73,9 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 | **Cross-Pipeline Data Flow** | [cross-pipeline](./cross-pipeline.md) | Full inter-step data flow diagram |
 | **Campaign Arcs** | [campaign-arcs](./campaign-arcs.md) | Arc data model (unified threads), engine-driven lifecycle, narrator-driven updates, integration points |
 | **Out-of-Band Pipelines** | [out-of-band](./out-of-band.md) | Character Creation pipeline, Generate Seed pipeline, turn viewer status colors |
+| **Narration UI** | [narration-ui](./narration-ui.md) | Main game interface: SSE streaming, HTMX sidebar refresh, Alpine.js state machine |
+| **Turn Viewer UI** | [turn-viewer-ui](./turn-viewer-ui.md) | Pipeline debug UI: turn cards, stage inspector, diff panel, live updates |
+| **Eval Harness** | [eval-harness](./eval-harness.md) | Scenario runner, LLM judges, auto-checkers, REPORT.md generation |
 
 ## Key Models Glossary
 
@@ -91,8 +94,7 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 
 ```
 PacingContext:
-  directive: str           # "" | "Breathe" | "Pressure" | "MoveOn" | "Escalate"
-  beat_hint: str | None    # suggested gm_beat type, or None
+  directive: str           # "" | "Breathe" | "Pressure" | "Overwhelm" | "Tension" | "Resolve a Threat" | "Threat Pressure" (may include "; Combat Fatigue" secondary)
   beat_locked: bool        # True: floor relief fired — Progress MUST emit breathing_room beat and gate is force-closed
   gate: str                # "block_add" | "block_escalate" | "allow" (controls thread_add)
   summary: str             # human-readable log string, never sent to LLM
@@ -104,7 +106,6 @@ PacingContext:
 GMBeat
   type: complication | revelation | opportunity | breathing_room | pressure | twist | setback | escalation | callback
   surface_as: ambient | event | npc_behavior | environmental | player_discovery | item (default: ambient)
-  instruction: str (≥40 chars, no filler prefixes)
   beat_expires_turn: int | None (turn number at which the beat expires; set to turn_no + 2 when stored)
 ```
 
@@ -115,6 +116,7 @@ CampaignArc
   visible_goal: str           — What the PC is trying to achieve
   goal_context: str           — 2–3 sentences explaining why visible_goal matters to this character specifically
   thematic_question: str      — The moral/thematic tension of the arc
+  pc_drive: str               — The PC's personal motive/reason for being in this situation
   hidden_truths: list[str]    — Story secrets the narrator knows but must not reveal in prose
   discovered_truths: list[str] — Truths the player has uncovered
   threads: list[ArcThread]    — Unified collection with active flag; replaces old active/latent split
@@ -126,6 +128,8 @@ ArcThread (unified)
   tags: list[str], progress: int (0..3)
   resolution_state: str | None
   last_seen_turn: int | None, added_turn: int | None
+  unlock_if: str | None — condition string; thread is only promotable when empty/falsy
+  promotes: list[str] — threads this one can promote to when completed
 ```
 
 ### StateDelta (see [delta-validate](./delta-validate.md))

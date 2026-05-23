@@ -346,7 +346,6 @@ def _storytell_messages(
     world_state = list(scene.get("world_state") or [])
 
     system_text = _render(env, "storytell_system.j2", {})
-    pending_beat = (state.get("meta") or {}).get("pending_gm_beat") or None
     npc_roster = build_npc_roster(
         present_npcs=extraction_ctx.present_npcs_this_turn,
         known_npcs=_known_characters_for_extract(state, compact=True),
@@ -373,7 +372,6 @@ def _storytell_messages(
             "recent_turns": recent_turns or [],
             "turn_no": turn_no,
             "band": band,
-            "pending_beat": pending_beat,
         },
     )
     msgs = [
