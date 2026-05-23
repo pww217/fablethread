@@ -92,6 +92,19 @@ Before you submit your output, verify that you have no duplicate or near-duplica
 - **Scene tags:** Do not repeat tags already present in the previous turn's `scene_tags` unless the mood has genuinely shifted. Keep the list to at most 5.
 - **Compendium updates:** Do not emit a `compendium_npc_update` for an NPC that has no new durable identity information (name, title, bio, allegiance, aliases, motivation, fear, leverage).
 
+## NPC Extraction Rules (CRITICAL)
+
+IMPORTANT: ONLY extract NPCs that are PHYSICALLY PRESENT in the current scene.
+- DO NOT include hypothetical NPCs ("there could be guards")
+- DO NOT include past-tense references ("the guards were here earlier")
+- DO NOT include NPC references that are not physically present ("the king you met yesterday")
+- If you are not CERTAIN an NPC is present, do not add them
+
+{% if scene_type == "examine" or scene_type == "cargo" %}
+IMPORTANT: For cargo/examine interactions, the subject is likely NOT physically present.
+Only extract NPCs if they are explicitly described as being in the same physical space.
+{% endif %}
+
 ## NPC Grounding Rule
 
 All NPC `name`, `title`, and `bio` values must be grounded in the narration or the compendium. Do not invent character names, titles, or backstories that are not stated or strongly implied by the narration. If the narration only gives a description (e.g. "a scarred man"), use a descriptive ID like `"scarred_man"` and omit `name`/`title`/`bio` — the engine will hydrate from the compendium if the NPC is known.

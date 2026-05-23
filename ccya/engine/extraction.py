@@ -6,6 +6,7 @@ import asyncio
 import copy
 import json
 import logging
+import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from jinja2 import Environment
@@ -149,6 +150,24 @@ def _context_meta(rendered_system: str, rendered_user: str, was_trimmed: bool, t
         "trimmed": was_trimmed,
         "trimmed_chars": trimmed_chars,
     }
+
+
+_TAG_RE = re.compile(r"^[a-z][a-z0-9-]*:[a-z0-9-]+$")
+
+
+def _validate_scene_tags(tags: list[str]) -> list[str]:
+    """Validate scene_tags format and return warnings for non-conforming tags.
+
+    Expected format: ``tag:value`` where tag is lowercase alphanumeric+hyphens.
+    Non-conforming tags log a warning and are returned in the warning list.
+    """
+    warnings: list[str] = []
+    for tag in tags:
+        if not tag or not isinstance(tag, str):
+            warnings.append(f"Invalid scene tag type or empty: {tag!r}")
+        elif not _TAG_RE.match(tag):
+            warnings.append(f"Scene tag does not match format 'tag:value': {tag!r}")
+    return warnings
 
 
 def _capitalize_inventory_names(items: list[Any]) -> list[Any]:
@@ -548,6 +567,11 @@ async def _run_extraction_pipeline(
             scene_msgs, config, trace_id, "extract_scene", SceneExtractResult
         )
         scene_result = _check_npc_ghost_cycle(scene_result, state, trace_id=trace_id, turn_no=turn_no)
+        for tag_warn in _validate_scene_tags(list(scene_result.scene_tags or [])):
+            _log.warning(
+                "Scene tag validation: %s", tag_warn,
+                extra={"trace_id": trace_id, "turn": turn_no},
+            )
         extraction_event["scene"] = {
             "rendered_system": rendered_scene_system,
             "rendered_user": rendered_scene_user,

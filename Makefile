@@ -35,6 +35,11 @@ test-all: test test-integration
 typecheck:
 	uv run mypy ccya
 
+lint-scripts:
+	uv run ruff check scripts/
+
+check: lint typecheck
+
 check: lint typecheck
 
 css:
