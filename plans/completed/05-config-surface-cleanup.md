@@ -1,7 +1,7 @@
 # Config Surface Cleanup
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 

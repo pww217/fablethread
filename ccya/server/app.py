@@ -34,7 +34,7 @@ _validate_compactor_config(engine_config)
 
 logger = setup_logging(config)
 
-_pack_id: str = config.get("game", {}).get("setting_pack", "expanse-belter")
+_pack_id: str = config.get("game", {}).get("setting_pack", "zombie-survival")
 try:
     _active_pack: Pack = load_pack(_pack_id, PACKS_DIR)
     logger.info("Loaded pack: %s (mode=%s)", _pack_id, _active_pack.mode)
@@ -53,7 +53,7 @@ async def lifespan(app):
         _active_pack.mode,
         engine_config.model,
     )
-    if config.get("game", {}).get("warmup_on_start", True):
+    if config.get("game", {}).get("warmup_on_start", False):
 
         async def _warmup_bg() -> None:
             logger.info("warming up LLM model (background)…")

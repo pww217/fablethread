@@ -956,7 +956,6 @@ async def run_turn(
             user_input,
             chronicle_tail=chronicle_tail,
             recent_turns=recent_turns,
-            enable_narrate_thinking=config.enable_narrate_thinking,
             pack_style=pack_style,
             narrator_rules=_pack_narrator_rules,
             world_rules=_pack_world_rules,
