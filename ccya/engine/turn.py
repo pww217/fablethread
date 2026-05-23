@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, AsyncIterator, Literal
+from typing import Any, AsyncIterator, Literal, AsyncGenerator
 
 
 from ccya.engine.changes import _summarize_applied, summarize_changes
@@ -40,7 +40,6 @@ from ccya.models import (
     IntentEnvelope,
     SceneExtractResult,
     StorytellerResult,
-    RulesCheck,
     RulesOutcome,
     StateDelta,
     TurnResult,
@@ -75,10 +74,36 @@ class TurnContext:
     turn_no: int
     trace_id: str
     config: EngineConfig
-    chronicle_tail: list[str]
-    recent_turns: list[str]
+    chronicle_tail: str
+    recent_turns: list[dict[str, Any]]
     save_dir: Path
     packing: dict[str, Any]
+
+    # Internal tracking (set during setup, consumed by phases)
+    _env: Any = None  # Jinja env built in run_turn
+    _rendered_ruling_system: str = ""
+    _rendered_ruling_user: str = ""
+    _ruling_raw_response: str = ""
+    _ruling_parse_error: str | None = None
+    _ruling_trimmed: bool = False
+    _ruling_trimmed_chars: int = 0
+    _narr_system: str = ""
+    _narr_user: str = ""
+    _narr_trimmed: bool = False
+    _narr_trimmed_chars: int = 0
+    _rendered_narr_system: str = ""
+    _rendered_narr_user: str = ""
+    _avoidance: bool = False
+    _momentum_before: float | None = None
+    _momentum_after: float | None = None
+    _ages: dict[str, int] | None = None  # set by ruling phase before narrate setup reads it
+    _threat_ages: list[dict[str, Any]] | None = None  # set by ruling phase before narrate setup reads it
+    _compendium_bios: list[dict[str, Any]] | None = None
+    _npc_name_pool: dict[str, list[str]] | None = None
+    _pending_gm_beat: dict[str, Any] | None = None
+    _known_npcs: list[dict[str, Any]] | None = None
+    _present_npcs: list[dict[str, Any]] | None = None
+    _deescalate: float = 0.0
 
     # Phase outputs
     pending_gm_beat: dict[str, Any] | None = None
@@ -695,6 +720,269 @@ def _compute_recent_window(
     return desired_recent, last_compacted_turn
 
 
+async def _ruling_phase(ctx: TurnContext, _emit: Any) -> tuple[Any, Any, dict[str, Any], float]:
+    """Execute ruling phase. Emits SSE events via `_emit` callback. Returns (intent, outcome, metrics, deescalate)."""
+    config = ctx.config
+    state = ctx.state
+    trace_id = ctx.trace_id
+    turn_no = state.get("meta", {}).get("turn", 0) + 1
+
+    exp_ruling_ms = _avg_event_ms(ctx.save_dir, "ruling.total_ms")
+    await _emit(("phase", {"phase": "ruling_start", "expected_ms": exp_ruling_ms}))
+    t_rules = asyncio.get_event_loop().time()
+
+    # Avoidance detection
+    avoidance = any(kw in (ctx.user_input or "").lower() for kw in config.avoidance_keywords)
+    ctx._avoidance = avoidance
+    if avoidance:
+        _log.debug(
+            "turn.pacing.avoidance detected", extra={"turn": state.get("meta", {}).get("turn", 0), "trace_id": "", "pack": "", "kind": "pacing"},
+        )
+
+    # Load previous outcome context
+    _prev_outcome = ""
+    if turn_no > 1:
+        _prev_events = load_recent_events(ctx.save_dir, 1)
+        if _prev_events:
+            _prev_outcome = _prev_events[0].get("ruling", {}).get("outcome_summary", "")
+
+    # Build ruling messages
+    _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
+    ruling_messages = _ruling_messages(
+        ctx._env, state, ctx.user_input,
+        recent_turns=ctx.recent_turns[-1:],
+        turn_no=turn_no,
+        present_npcs=_present_npcs,
+        last_outcome=_prev_outcome if _prev_outcome else None,
+    )
+    rendered_ruling_system = ruling_messages[0]["content"] if ruling_messages else ""
+    rendered_ruling_user = ruling_messages[-1]["content"] if ruling_messages else ""
+    ctx._rendered_ruling_system = rendered_ruling_system
+    ctx._rendered_ruling_user = rendered_ruling_user
+
+    strip_trace_markers_in_messages(ruling_messages)
+    ruling_messages, ruling_trimmed, ruling_trimmed_chars = trim_messages(
+        ruling_messages, config.prompt_token_budget,
+    )
+    if config.log_prompts:
+        _log_prompts(state.get("meta", {}).get("turn", 0) + 1, "ruling", ruling_messages)
+
+    intent, ruling_usage, ruling_raw_response, ruling_parse_error = await _call_ruling(
+        ruling_messages, config, trace_id,
+    )
+    ctx.intent = intent
+    ctx._ruling_raw_response = ruling_raw_response
+    ctx._ruling_parse_error = ruling_parse_error
+    ctx._ruling_trimmed = ruling_trimmed
+    ctx._ruling_trimmed_chars = ruling_trimmed_chars
+
+    # Resolve dice in Python (deterministic)
+    if intent.check.required and intent.check.skill:
+        try:
+            _pc_conds_struct = list((state.get("pc") or {}).get("conditions") or [])
+            _pc_cond_ids = [
+                c.get("id", "") if isinstance(c, dict) else str(c) for c in _pc_conds_struct
+            ]
+            outcome = resolve_check(
+                skill=intent.check.skill,
+                difficulty=intent.check.difficulty,
+                pc_stats=(state.get("pc") or {}).get("stats") or {},
+                pc_conditions=[cid for cid in _pc_cond_ids if cid],
+                intent_verb=intent.intent_verb,
+                intent=intent.intent,
+            )
+        except Exception as exc:
+            _log.warning(
+                "rules.resolve_check failed: %s", exc, extra={"trace_id": trace_id}
+            )
+            outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+    elif intent.check.required and not intent.check.skill:
+        _log.warning(
+            "rules: check required on T%d but skill=%s — no roll will occur",
+            state.get("meta", {}).get("turn", 0) + 1,
+            intent.check.skill,
+            extra={"trace_id": trace_id, "turn": turn_no},
+        )
+        outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+    else:
+        outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+
+    ctx.outcome = outcome
+
+    # Apply momentum deterministically from band (never from LLM)
+    if outcome.rolled:
+        apply_momentum(state, outcome.band)
+
+    # De-escalation magnitude
+    deescalate: float = 0.0
+    if config.thread_deescalate_on_success and outcome.rolled and outcome.band in ("success", "crit_success"):
+        if any(
+            t.get("urgency") in ("immediate", "building")
+            for t in ((state.get("arc") or {}).get("threads") or [])
+            if isinstance(t, dict) and t.get("scope") == "scene"
+        ):
+            deescalate = 1.0 if outcome.band == "crit_success" else 0.6
+
+    # Age counters for narration directives
+    ctx._ages = _compute_ages(state)
+    ctx._threat_ages = _compute_threat_ages(state)
+
+    if config.log_prompts:
+        _log_ruling_outcome(
+            state.get("meta", {}).get("turn", 0) + 1, intent, outcome
+        )
+
+    ruling_ms = (asyncio.get_event_loop().time() - t_rules) * 1000
+    ruling_metrics = {
+        "total_ms": round(ruling_ms, 1),
+        "rolled": outcome.rolled,
+        "tokens_in": ruling_usage.get("prompt_tokens", 0),
+        "tokens_out": ruling_usage.get("completion_tokens", 0),
+    }
+
+    await _emit(("phase", {
+            "phase": "rules_done",
+            "rolled": outcome.rolled,
+            "band": outcome.band if outcome.rolled else None,
+            "skill": outcome.skill if outcome.rolled else None,
+            "dice": outcome.dice if outcome.rolled else [],
+            "final_total": outcome.final_total if outcome.rolled else 0,
+            "difficulty": outcome.difficulty if outcome.rolled else None,
+            "stat_value": outcome.stat_value if outcome.rolled else 0,
+            "stat_mod": outcome.stat_mod if outcome.rolled else 0,
+            "diff_mod": outcome.diff_mod if outcome.rolled else 0,
+            "cond_mod": outcome.cond_mod if outcome.rolled else 0,
+            "directive": outcome.directive if outcome.rolled else "",
+            "intent_verb": intent.intent_verb,
+        },
+    ))
+
+    return intent, outcome, ruling_metrics, deescalate
+
+
+async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
+    """Build narration context and messages. Returns (pacing_ctx, narr_messages)."""
+    state = ctx.state
+    config = ctx.config
+    turn_no = state.get("meta", {}).get("turn", 0) + 1
+
+    # Rolling NPC name pool for mid-game cultural anchoring (split by gender)
+    _npc_name_pool: dict[str, list[str]] = {}
+    if ctx.packing.get("name_locales"):
+        _npc_name_pool = generate_npc_names_split(
+            ctx.packing["name_locales"],
+            male_count=5, female_count=5, seed=state.get("meta", {}).get("turn", 0),
+        )
+
+    # Read pending_gm_beat for expiry check and narrator passage
+    _pending_gm_beat = (state.get("meta") or {}).get("pending_gm_beat")
+    if _pending_gm_beat:
+        _expires = _pending_gm_beat.get("beat_expires_turn")
+        if _expires is not None and turn_no > _expires:
+            _pending_gm_beat = None
+            state.setdefault("meta", {})["pending_gm_beat"] = None
+
+    # Known NPCs for narrator context (Phase 4A)
+    _known_npcs = _known_characters_for_extract(state, compact=True)
+
+    # Present NPCs from delta-maintained state (Phase 4H)
+    _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
+
+    # Compendium bios for present + recently_left NPCs (Phase 1)
+    _compendium_bios: list[dict[str, Any]] = []
+    _bio_ids: set[str] = set()
+    for npc in _present_npcs:
+        nid = npc.get("id", "")
+        if nid and nid not in _bio_ids:
+            _bio_ids.add(nid)
+            entry = (state.get("compendium") or {}).get("npcs", {}).get(nid, {})
+            if entry:
+                _compendium_bios.append({
+                    "id": nid,
+                    "name": entry.get("name", ""),
+                    "title": entry.get("title", ""),
+                    "bio": (entry.get("bio") or "").strip(),
+                })
+    for npc in (state.get("scene") or {}).get("recently_left", []):
+        nid = npc.get("id", "") if isinstance(npc, dict) else ""
+        if nid and nid not in _bio_ids:
+            _bio_ids.add(nid)
+            entry = (state.get("compendium") or {}).get("npcs", {}).get(nid, {})
+            if entry:
+                _compendium_bios.append({
+                    "id": nid,
+                    "name": entry.get("name", ""),
+                    "title": entry.get("title", ""),
+                    "bio": (entry.get("bio") or "").strip(),
+                })
+
+    ctx._npc_name_pool = _npc_name_pool
+    ctx._pending_gm_beat = _pending_gm_beat
+    ctx._known_npcs = _known_npcs
+    ctx._present_npcs = _present_npcs
+    ctx._compendium_bios = _compendium_bios
+
+    # PC allegiance and world context
+    _pc_allegiance = (state.get("pc") or {}).get("allegiance")
+    _pack_narrator_rules = ctx.packing.get("narrator_rules", [])
+    _pack_world_rules = ctx.packing.get("world_rules", [])
+    _world_factions = ctx.packing.get("factions", [])
+    _world_locations = ctx.packing.get("locations", [])
+
+    # Compute unified pacing scalar
+    narrative_velocity = _compute_narrative_velocity(
+        deescalate=ctx._deescalate,
+        momentum=(state.get("pc") or {}).get("momentum", 0),
+        avoidance=ctx._avoidance,
+        momentum_floor=config.momentum_floor,
+        momentum_ceiling=config.momentum_ceiling,
+    )
+
+    _raw_thread_dicts = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict) and t.get("scope") == "scene"]
+
+    # Convert raw thread dicts to ArcThread objects for computation functions
+    _scope_scene_threads: list[ArcThread] = []
+    for td in _raw_thread_dicts:
+        try:
+            _scope_scene_threads.append(ArcThread.model_validate(td))
+        except Exception:
+            pass  # skip malformed entries
+
+    _effective_pressure = _inject_location_pressure(
+        ages=ctx._ages,  # type: ignore[arg-type]
+        existing_pressure=_raw_thread_dicts,
+        location_pressure_at=config.location_pressure_at,
+        location_imperative_at=config.location_imperative_at,
+    )
+
+    # Compute unified pacing context (replaces separate directive computation)
+    _pc = _compute_pacing_context(
+        deescalate=ctx._deescalate, narrative_velocity=narrative_velocity,
+        scope_scene_threads=_scope_scene_threads, ages=ctx._ages,  # type: ignore[arg-type]
+        threat_ages=ctx._threat_ages, momentum=(state.get("pc") or {}).get("momentum", 0), config=config,
+    )
+
+    narr_messages = _narrate_messages(
+        ctx._env, state, ctx.user_input,
+        chronicle_tail=ctx.chronicle_tail,
+        recent_turns=ctx.recent_turns,
+        pack_style=ctx.packing.get("style", ""),
+        narrator_rules=_pack_narrator_rules, world_rules=_pack_world_rules,
+        rules_outcome=ctx.outcome, npc_name_pool=_npc_name_pool,
+        recently_left=(state.get("scene") or {}).get("recently_left", []),
+        momentum=(state.get("pc") or {}).get("momentum", 0), pending_beat=_pending_gm_beat,
+        pacing_context=_pc, ages=ctx._ages, known_npcs=_known_npcs, present_npcs=_present_npcs,
+        compendium_bios=_compendium_bios, pc_allegiance=_pc_allegiance, turn_no=turn_no,
+        world_factions=_world_factions, world_locations=_world_locations,
+        threat_ages=ctx._threat_ages, threat_pressure_at=config.threat_pressure_at,
+        threat_imperative_at=config.threat_imperative_at, building_threat_imperative_at=config.building_threat_imperative_at,
+        npc_roster=build_npc_roster(present_npcs=_present_npcs, known_npcs=_known_npcs, recently_left=(state.get("scene") or {}).get("recently_left", [])),
+    )
+
+    ctx.pacing_ctx = _pc
+    return _pc, narr_messages
+
+
 async def run_turn(
     save_dir: Path,
     user_input: str,
@@ -723,35 +1011,11 @@ async def run_turn(
     actions: list[str] = []
     recent_events: list[dict[str, Any]] = []
     recent_events_evicted: bool = False
-    intent = IntentEnvelope(
-        intent="", intent_verb="act", check=RulesCheck(required=False)
-    )
-    outcome = RulesOutcome(rolled=False)
-    ruling_metrics: dict[str, Any] = {"total_ms": 0, "rolled": False}
 
     try:
         await _inflight.acquire(str(save_dir))
 
-        # Avoidance detection: flag de-escalation intent in player input
-        _avoidance_kw = config.avoidance_keywords
-        _input_lower = (user_input or "").lower()
-        avoidance = any(kw in _input_lower for kw in _avoidance_kw)
-        if avoidance:
-            _log.debug(
-                "turn.pacing.avoidance detected", extra={"turn": state.get("meta", {}).get("turn", 0), "trace_id": "", "pack": "", "kind": "pacing"},
-            )
-
-        # Prompt capture variables (initialized early for exception safety)
-        rendered_ruling_system = ""
-        rendered_ruling_user = ""
-        rendered_narr_system = ""
-        rendered_narr_user = ""
-        ruling_raw_response = ""
-        narrative = ""
-
         # --- Memory: load chronicle tail + recent turns ---
-        # chronicle_tail is older history (compressed); recent_turns is the rolling
-        # window. Slice the last window_turns from the tail to avoid overlap.
         desired_recent, last_compacted_turn = _compute_recent_window(state, config)
         recent_turns = load_recent_chronicle_turns(
             save_dir,
@@ -764,274 +1028,57 @@ async def run_turn(
             skip_last_n_turns=config.window_turns,
         )
 
-        # === Call 0: Rules / intent classification ===
-        exp_ruling_ms = _avg_event_ms(save_dir, "ruling.total_ms")
-        yield ("phase", {"phase": "ruling_start", "expected_ms": exp_ruling_ms})
-        t_rules = asyncio.get_event_loop().time()
+        # Build shared context for all phases
+        ctx = TurnContext(
+            state=state, user_input=user_input, turn_no=0, trace_id=trace_id,
+            config=config, chronicle_tail=chronicle_tail, recent_turns=recent_turns,
+            save_dir=save_dir, packing={
+                "style": pack_style, "name_locales": pack_name_locales,
+                "narrator_rules": pack_narrator_rules, "world_rules": pack_world_rules,
+                "factions": pack_factions, "locations": pack_locations,
+            }, _env=env,
+        )
+
+        # Internal yield helper: inner function that yields from run_turn's generator context
+        async def _emit(event_tuple: tuple[str, Any]) -> AsyncGenerator[tuple[str, Any], None]:
+            yield event_tuple
+        # === Call 0: Rules / intent classification (extracted phase) ===
+        _intent, _outcome, ruling_metrics, deescalate = await _ruling_phase(ctx, _emit)
+        ctx._deescalate = deescalate
+
+        # Capture ruling context for event logging (from ctx where ruling phase stored them)
+        rendered_ruling_system = ctx._rendered_ruling_system or ""
+        rendered_ruling_user = ctx._rendered_ruling_user or ""
+        ruling_raw_response = ctx._ruling_raw_response or ""
+        ruling_parse_error = ctx._ruling_parse_error
+        ruling_trimmed = ctx._ruling_trimmed
+        ruling_trimmed_chars = ctx._ruling_trimmed_chars
+
+        momentum_before = state.get("pc", {}).get("momentum", 0.0) if _outcome.rolled else 0.0
+        # Note: apply_momentum was already called inside _ruling_phase above
+        momentum_after = state.get("pc", {}).get("momentum", 0.0)
+
         turn_no = state.get("meta", {}).get("turn", 0) + 1
 
-        # Get last turn's outcome_summary for rules context
-        _prev_outcome = ""
-        if turn_no > 1:
-            _prev_events = load_recent_events(save_dir, 1)
-            if _prev_events:
-                _prev_outcome = _prev_events[0].get("ruling", {}).get("outcome_summary", "")
-
-        _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
-        ruling_messages = _ruling_messages(
-            env, state, user_input,
-            recent_turns=recent_turns[-1:],
-            turn_no=turn_no,
-            present_npcs=_present_npcs,
-            last_outcome=_prev_outcome if _prev_outcome else None,
-        )
-        # Capture pre-trim content for context_meta so the judge sees original sizes
-        rendered_ruling_system = ruling_messages[0]["content"] if ruling_messages else ""
-        rendered_ruling_user = ruling_messages[-1]["content"] if ruling_messages else ""
-        strip_trace_markers_in_messages(ruling_messages)
-        ruling_messages, ruling_trimmed, ruling_trimmed_chars = trim_messages(ruling_messages, config.prompt_token_budget)
-        if config.log_prompts:
-            _log_prompts(
-                state.get("meta", {}).get("turn", 0) + 1, "ruling", ruling_messages
-            )
-        intent, ruling_usage, ruling_raw_response, ruling_parse_error = await _call_ruling(ruling_messages, config, trace_id)
-
-        # Resolve dice in Python (deterministic) — _call_ruling degrades intent, we do outcome here
-        if intent.check.required and intent.check.skill:
-            try:
-                # Normalize structured Condition dicts to ids for the rules engine.
-                _pc_conds_struct = list((state.get("pc") or {}).get("conditions") or [])
-                _pc_cond_ids = [
-                    c.get("id", "") if isinstance(c, dict) else str(c)
-                    for c in _pc_conds_struct
-                ]
-                outcome = resolve_check(
-                    skill=intent.check.skill,
-                    difficulty=intent.check.difficulty,
-                    pc_stats=(state.get("pc") or {}).get("stats") or {},
-                    pc_conditions=[cid for cid in _pc_cond_ids if cid],
-                    intent_verb=intent.intent_verb,
-                    intent=intent.intent,
-                )
-            except Exception as exc:
-                _log.warning(
-                    "rules.resolve_check failed: %s", exc, extra={"trace_id": trace_id}
-                )
-                outcome = RulesOutcome(
-                    rolled=False, intent_verb=intent.intent_verb, intent=intent.intent
-                )
-        elif intent.check.required and not intent.check.skill:
-            _log.warning(
-                "rules: check required on T%d but skill=%s — no roll will occur",
-                state.get("meta", {}).get("turn", 0) + 1,
-                intent.check.skill,
-                extra={"trace_id": trace_id, "turn": state.get("meta", {}).get("turn", 0) + 1},
-            )
-            outcome = RulesOutcome(
-                rolled=False, intent_verb=intent.intent_verb, intent=intent.intent
-            )
-        else:
-            outcome = RulesOutcome(
-                rolled=False, intent_verb=intent.intent_verb, intent=intent.intent
-            )
-
-        # Apply momentum deterministically from band (never from LLM)
-        if outcome.rolled:
-            momentum_before = state.get("pc", {}).get("momentum", 0)
-            apply_momentum(state, outcome.band)
-            momentum_after = state.get("pc", {}).get("momentum", 0)
-
-        # De-escalation magnitude: success on a scene with active pressure
-        deescalate: float = 0.0
-        if config and config.thread_deescalate_on_success:
-            if (
-                outcome.rolled
-                and outcome.band in ("success", "crit_success")
-                and any(
-                    t.get("urgency") in ("immediate", "building")
-                    for t in ((state.get("arc") or {}).get("threads") or [])
-                    if isinstance(t, dict) and t.get("scope") == "scene"
-                )
-            ):
-                deescalate = 1.0 if outcome.band == "crit_success" else 0.6
-
-        # Age counters for narration directives
-        ages = _compute_ages(state)
-        threat_ages = _compute_threat_ages(state)
-
-        if config.log_prompts:
-                _log_ruling_outcome(
-                state.get("meta", {}).get("turn", 0) + 1, intent, outcome
-            )
-
-        ruling_ms = (asyncio.get_event_loop().time() - t_rules) * 1000
-        ruling_metrics = {
-            "total_ms": round(ruling_ms, 1),
-            "rolled": outcome.rolled,
-            "tokens_in": ruling_usage.get("prompt_tokens", 0),
-            "tokens_out": ruling_usage.get("completion_tokens", 0),
-        }
-
-        yield (
-            "phase",
-            {
-                "phase": "rules_done",
-                "rolled": outcome.rolled,
-                "band": outcome.band if outcome.rolled else None,
-                "skill": outcome.skill if outcome.rolled else None,
-                "dice": outcome.dice if outcome.rolled else [],
-                "final_total": outcome.final_total if outcome.rolled else 0,
-                "difficulty": outcome.difficulty if outcome.rolled else None,
-                "stat_value": outcome.stat_value if outcome.rolled else 0,
-                "stat_mod": outcome.stat_mod if outcome.rolled else 0,
-                "diff_mod": outcome.diff_mod if outcome.rolled else 0,
-                "cond_mod": outcome.cond_mod if outcome.rolled else 0,
-                "directive": outcome.directive if outcome.rolled else "",
-                "intent_verb": intent.intent_verb,
-            },
-        )
-
-        # === Call 1: Narrate (streaming) ===
+        # === Call 1: Narration setup (extracted) + streaming ===
         exp_narrate_ms = _avg_event_ms(save_dir, "narrate.total_ms")
         yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
 
-        # Rolling NPC name pool for mid-game cultural anchoring (split by gender)
-        _npc_name_pool: dict[str, list[str]] = {}
-        if pack_name_locales:
-            _npc_name_pool = generate_npc_names_split(
-                pack_name_locales,
-                male_count=5,
-                female_count=5,
-                seed=state.get("meta", {}).get("turn", 0),
-            )
+        # Build narration context and messages (extracted phase)
+        _pc, narr_messages = await _narrate_setup(ctx)
 
-        # Read pending_gm_beat for expiry check and narrator passage
-        _pending_gm_beat = (state.get("meta") or {}).get("pending_gm_beat")
-        if _pending_gm_beat:
-            _expires = _pending_gm_beat.get("beat_expires_turn")
-            if _expires is not None and turn_no > _expires:
-                _pending_gm_beat = None
-                state.setdefault("meta", {})["pending_gm_beat"] = None
-
-        # Known NPCs for narrator context (Phase 4A)
-        _known_npcs = _known_characters_for_extract(state, compact=True)
-
-        # Present NPCs from delta-maintained state (Phase 4H)
-        _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
-
-        # Compendium bios for present + recently_left NPCs (Phase 1)
-        _compendium_bios: list[dict[str, Any]] = []
-        _bio_ids: set[str] = set()
-        for npc in _present_npcs:
-            nid = npc.get("id", "")
-            if nid and nid not in _bio_ids:
-                _bio_ids.add(nid)
-                entry = (state.get("compendium") or {}).get("npcs", {}).get(nid, {})
-                if entry:
-                    _compendium_bios.append({
-                        "id": nid,
-                        "name": entry.get("name", ""),
-                        "title": entry.get("title", ""),
-                        "bio": (entry.get("bio") or "").strip(),
-                    })
-        for npc in (state.get("scene") or {}).get("recently_left", []):
-            nid = npc.get("id", "") if isinstance(npc, dict) else ""
-            if nid and nid not in _bio_ids:
-                _bio_ids.add(nid)
-                entry = (state.get("compendium") or {}).get("npcs", {}).get(nid, {})
-                if entry:
-                    _compendium_bios.append({
-                        "id": nid,
-                        "name": entry.get("name", ""),
-                        "title": entry.get("title", ""),
-                        "bio": (entry.get("bio") or "").strip(),
-                    })
-
-        _pc_allegiance = (state.get("pc") or {}).get("allegiance")
-        _pack_narrator_rules = pack_narrator_rules if pack_narrator_rules else []
-        _pack_world_rules = pack_world_rules if pack_world_rules else []
-        _world_factions = pack_factions if pack_factions else []
-        _world_locations = pack_locations if pack_locations else []
-
-        # Compute unified pacing scalar
-        narrative_velocity = _compute_narrative_velocity(
-            deescalate=deescalate,
-            momentum=(state.get("pc") or {}).get("momentum", 0),
-            avoidance=avoidance,
-            momentum_floor=config.momentum_floor,
-            momentum_ceiling=config.momentum_ceiling,
-        )
-
-        _raw_thread_dicts = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict) and t.get("scope") == "scene"]
-
-        # Convert raw thread dicts to ArcThread objects for computation functions
-        _scope_scene_threads: list[ArcThread] = []
-        for td in _raw_thread_dicts:
-            try:
-                _scope_scene_threads.append(ArcThread.model_validate(td))
-            except Exception:
-                pass  # skip malformed entries
-
-        _effective_pressure = _inject_location_pressure(
-            ages=ages,
-            existing_pressure=_raw_thread_dicts,
-            location_pressure_at=config.location_pressure_at,
-            location_imperative_at=config.location_imperative_at,
-        )
-
-        # Compute unified pacing context (replaces separate directive computation)
-        _pc = _compute_pacing_context(
-            deescalate=deescalate,
-            narrative_velocity=narrative_velocity,
-            scope_scene_threads=_scope_scene_threads,
-            ages=ages,
-            threat_ages=threat_ages,
-            momentum=(state.get("pc") or {}).get("momentum", 0),
-            config=config,
-        )
-
-        narr_messages = _narrate_messages(
-            env,
-            state,
-            user_input,
-            chronicle_tail=chronicle_tail,
-            recent_turns=recent_turns,
-            pack_style=pack_style,
-            narrator_rules=_pack_narrator_rules,
-            world_rules=_pack_world_rules,
-            rules_outcome=outcome,
-            npc_name_pool=_npc_name_pool,
-            recently_left=(state.get("scene") or {}).get("recently_left", []),
-            momentum=(state.get("pc") or {}).get("momentum", 0),
-            pending_beat=_pending_gm_beat,
-            pacing_context=_pc,
-            ages=ages,
-            known_npcs=_known_npcs,
-            present_npcs=_present_npcs,
-            compendium_bios=_compendium_bios,
-            pc_allegiance=_pc_allegiance,
-            turn_no=turn_no,
-            world_factions=_world_factions,
-            world_locations=_world_locations,
-            threat_ages=threat_ages,
-            threat_pressure_at=config.threat_pressure_at,
-            threat_imperative_at=config.threat_imperative_at,
-            building_threat_imperative_at=config.building_threat_imperative_at,
-            npc_roster=build_npc_roster(
-                present_npcs=_present_npcs,
-                known_npcs=_known_npcs,
-                recently_left=(state.get("scene") or {}).get("recently_left", []),
-            ),
-        )
-        # Capture pre-trim content for context_meta so the judge sees original sizes
+        # Trim + log (stays inline for simplicity)
         rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
         rendered_narr_user = narr_messages[-1]["content"] if narr_messages else ""
+        ctx._rendered_narr_system = rendered_narr_system
+        ctx._rendered_narr_user = rendered_narr_user
+
         strip_trace_markers_in_messages(narr_messages)
-        narr_messages, narr_trimmed, narr_trimmed_chars = trim_messages(narr_messages, config.prompt_token_budget)
+        narr_messages, narr_trimmed, narr_trimmed_chars = trim_messages(
+            narr_messages, config.prompt_token_budget,
+        )
         if config.log_prompts:
-            _log_prompts(
-                state.get("meta", {}).get("turn", 0) + 1, "narrate", narr_messages
-            )
+            _log_prompts(state.get("meta", {}).get("turn", 0) + 1, "narrate", narr_messages)
 
         first_ms = 0.0
         t0 = asyncio.get_event_loop().time()
@@ -1097,8 +1144,8 @@ async def run_turn(
             _log.debug("turn.extraction_pipeline_enter trace_id=%s turn_no=%d", trace_id, turn_no)
             async for _evt in _run_extraction_pipeline(
                 env, state, narrative,
-                rules_outcome=outcome,
-                intent=intent,
+                rules_outcome=_outcome,
+                intent=_intent,
                 config=config,
                 trace_id=trace_id,
                 turn_no=turn_no,
@@ -1357,23 +1404,23 @@ async def run_turn(
         # === Write: events.jsonl → atomic state.yaml → chronicle.md ===
         # Narrative is canonical in chronicle.md only (see load_recent_chronicle_turns).
         ruling_event: dict[str, Any] = {
-            "intent_verb": intent.intent_verb,
-            "intent": intent.intent,
-            "rolled": outcome.rolled,
+            "intent_verb": _intent.intent_verb,
+            "intent": _intent.intent,
+            "rolled": _outcome.rolled,
             "total_ms": ruling_metrics.get("total_ms"),
             "tokens_in": ruling_metrics.get("tokens_in", 0),
             "tokens_out": ruling_metrics.get("tokens_out", 0),
         }
-        if outcome.rolled:
+        if _outcome.rolled:
             ruling_event.update({
-                "skill": outcome.skill,
-                "difficulty": outcome.difficulty,
-                "dice": outcome.dice,
-                "stat_mod": outcome.stat_mod,
-                "diff_mod": outcome.diff_mod,
-                "cond_mod": outcome.cond_mod,
-                "final_total": outcome.final_total,
-                "band": outcome.band,
+                "skill": _outcome.skill,
+                "difficulty": _outcome.difficulty,
+                "dice": _outcome.dice,
+                "stat_mod": _outcome.stat_mod,
+                "diff_mod": _outcome.diff_mod,
+                "cond_mod": _outcome.cond_mod,
+                "final_total": _outcome.final_total,
+                "band": _outcome.band,
                 "outcome_summary": outcome_summary,
                 "momentum_before": momentum_before,
                 "momentum_after": momentum_after,
