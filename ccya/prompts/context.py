@@ -166,9 +166,7 @@ class ChronicleEntryBlock(BaseModel):
 class PacingBlock(BaseModel):
     """Pacing context snapshot for prompt rendering."""
 
-    directive: str | None = None  # used by storytell_user.j2 line 56 and narrate_user.j2 line 82
-    beat_hint: str | None = None  # used by narrate_user.j2 lines 84-87 only (not in storytell)
-    gate: bool | None = None  # used by storytell_user.j2 line 57 only (dead field on NarratorBoundary's pacing_context)
+    directive: str | None = None  # used by storytell_user.j2 line 56 and narrate_user.j2 line 80
 
 
 class LastSeenBlock(BaseModel):
@@ -281,7 +279,7 @@ class StorytellerBoundary(BaseModel):
 
     Source: _storytell_messages() passes pc, pc_stats (lines 359-361) but storytell_user.j2 never renders them — dead fields.
     npc_roster/location/inventory/conditions come from extraction_ctx (lines 363-366).
-    all_threads/recent_events/world_state/intent/pacing_context/recent_turns/turn_no/band/pending_beat are top-level variables used by template.
+    all_threads/recent_events/world_state/intent/pacing_context/recent_turns/turn_no/band are top-level variables used by template.
 
     NOTE: Template uses `world_state` variable name directly (line 29 of storytell_user.j2), NOT world_state_entries.
     ArcThreadBlock's threads are accessed via top-level all_threads (not current_arc).
@@ -300,10 +298,6 @@ class StorytellerBoundary(BaseModel):
     recent_turns: list[ChronicleEntryBlock]
     turn_no: int
     band: str
-    pending_beat: dict[str, Any] | None = None
-
-    # NOTE: _storytell_messages passes pc and pc_stats in user_ctx but storytell_user.j2 never renders them.
-    # The alignment check will flag these as dead fields — they should be removed from the boundary model.
 
 
 class NarratorSystemBoundary(BaseModel):

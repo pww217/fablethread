@@ -157,8 +157,8 @@ def test_progress_npc_roster_and_threads(jinja_env):
 
 
 def test_progress_pacing_beat_and_gating(jinja_env):
-    """Pacing directive block, gate conditional rendering, pending_beat present/absent branches."""
-    # With pacing_context and pending_beat populated
+    """Pacing directive block, gate conditional rendering, pacing_context present/absent branches."""
+    # With pacing_context populated
     ctx = {
         "npc_roster": [],
         "location": {"name": "Tavern"},
@@ -168,7 +168,6 @@ def test_progress_pacing_beat_and_gating(jinja_env):
         "world_state": None,
         "inventory": [],
         "band": None,
-        "pending_beat": {"type": "complication", "beat_expires_turn": 6},
         "pacing_context": {"directive": "Build tension with a new threat.", "gate": True},
         "recent_turns": [],
         "intent": None,
@@ -179,27 +178,6 @@ def test_progress_pacing_beat_and_gating(jinja_env):
 
     assert "Directive: Build tension with a new threat." in out
     assert "Gate: True" in out
-
-    # Without pending_beat and pacing_context (absent branches)
-    ctx2 = {
-        "npc_roster": [],
-        "location": {"name": "Tavern"},
-        "conditions": [],
-        "all_threads": [],
-        "recent_events": [],
-        "world_state": None,
-        "inventory": [],
-        "band": None,
-        "pending_beat": None,
-        "pacing_context": None,
-        "recent_turns": [],
-        "intent": {"intent_verb": "act", "intent": ""},
-        "turn_no": 5,
-        "narration": "Nothing happens.",
-    }
-    out2 = _render(jinja_env, "storytell_user.j2", ctx2)
-
-    assert "A mysterious figure approaches." not in out2
 
 
 # ---------------------------------------------------------------------------

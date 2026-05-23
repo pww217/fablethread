@@ -234,7 +234,7 @@ flowchart TD
     subgraph ENGINE["engine pipeline"]
         RULES["Rules/Intent LLM call"]
         NARRATE["Narrate streaming LLM call"]  
-        EXTRACT["3x Extraction streams (scene/state/progress)"]
+        EXTRACT["3x Extraction streams (scene/state/storytell)"]
     end
     
     subgraph SERVER["server layer"]

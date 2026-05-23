@@ -87,6 +87,45 @@ def _coerce_condition_str(v: Any) -> Any:
     return v
 
 
+def _coerce_inventory_remove_item(v: Any) -> Any:
+    """Normalize inventory_remove entries: str -> {id, amount}, passthrough dicts."""
+    if not v:
+        return v
+    out: list[Any] = []
+    for x in v:
+        if isinstance(x, str):
+            out.append({"id": x, "amount": None})
+        else:
+            out.append(x)
+    return out
+
+
+def _coerce_condition_add_item(v: Any) -> Any:
+    """Normalize condition_add entries using _coerce_condition_str."""
+    if not v:
+        return v
+    return [_coerce_condition_str(x) for x in v]
+
+
+_PUNCTUATION_STRIP = frozenset(("*", "_", "`", ".", ",", ";", ":", "!", "?"))
+
+
+def _coerce_condition_remove_item(v: Any) -> Any:
+    """Normalize condition_remove entries: str -> {id}, stripping punctuation."""
+    if not v:
+        return v
+    out: list[Any] = []
+    for x in v:
+        if isinstance(x, str):
+            cid = x.lower().strip().replace(" ", "_")
+            for ch in _PUNCTUATION_STRIP:
+                cid = cid.replace(ch, "")
+            out.append({"id": "_".join(cid.split()) or "condition"})
+        else:
+            out.append(x)
+    return out
+
+
 class ConditionAdd(BaseModel):
     id: str
     label: str
@@ -240,15 +279,7 @@ class StateDelta(BaseModel):
     @field_validator("inventory_remove", mode="before")
     @classmethod
     def _coerce_inventory_remove(cls, v: Any) -> Any:
-        if not v:
-            return v
-        out: list[Any] = []
-        for x in v:
-            if isinstance(x, str):
-                out.append({"id": x, "amount": None})
-            else:
-                out.append(x)
-        return out
+        return _coerce_inventory_remove_item(v)
 
     location_change: LocationRef | None = None
     location_description: str | None = None
@@ -272,25 +303,12 @@ class StateDelta(BaseModel):
     @field_validator("pc_condition_add", mode="before")
     @classmethod
     def _coerce_condition_add(cls, v: Any) -> Any:
-        if not v:
-            return v
-        return [_coerce_condition_str(x) for x in v]
+        return _coerce_condition_add_item(v)
 
     @field_validator("pc_condition_remove", mode="before")
     @classmethod
     def _coerce_condition_remove(cls, v: Any) -> Any:
-        if not v:
-            return v
-        out: list[Any] = []
-        for x in v:
-            if isinstance(x, str):
-                cid = x.lower().strip().replace(" ", "_")
-                for ch in ("*", "_", "`", ".", ",", ";", ":", "!", "?"):
-                    cid = cid.replace(ch, "")
-                out.append({"id": "_".join(cid.split()) or "condition"})
-            else:
-                out.append(x)
-        return out
+        return _coerce_condition_remove_item(v)
 
 
 class SceneExtractResult(BaseModel):
@@ -342,38 +360,17 @@ class StateExtractResult(BaseModel):
     @field_validator("inventory_remove", mode="before")
     @classmethod
     def _coerce_inventory_remove(cls, v: Any) -> Any:
-        if not v:
-            return v
-        out: list[Any] = []
-        for x in v:
-            if isinstance(x, str):
-                out.append({"id": x, "amount": None})
-            else:
-                out.append(x)
-        return out
+        return _coerce_inventory_remove_item(v)
 
     @field_validator("pc_condition_add", mode="before")
     @classmethod
     def _coerce_condition_add(cls, v: Any) -> Any:
-        if not v:
-            return v
-        return [_coerce_condition_str(x) for x in v]
+        return _coerce_condition_add_item(v)
 
     @field_validator("pc_condition_remove", mode="before")
     @classmethod
     def _coerce_condition_remove(cls, v: Any) -> Any:
-        if not v:
-            return v
-        out: list[Any] = []
-        for x in v:
-            if isinstance(x, str):
-                cid = x.lower().strip().replace(" ", "_")
-                for ch in ("*", "_", "`", ".", ","):
-                    cid = cid.replace(ch, "")
-                out.append({"id": "_".join(cid.split()) or "condition"})
-            else:
-                out.append(x)
-        return out
+        return _coerce_condition_remove_item(v)
 
 
 class CompactorNpcMerge(BaseModel):

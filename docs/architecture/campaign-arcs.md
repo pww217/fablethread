@@ -1,14 +1,15 @@
 # Campaign Arc System
 
-The campaign arc system tracks story threads, phase progression, and truth discovery across turns. It has two execution paths: **engine-driven** (thread lifecycle with 5-turn expiry for silent threads) and **narrator-driven** (phase shifts, truth discovery, goal updates).
+The campaign arc system tracks story threads and truth discovery across turns. It has two execution paths: **engine-driven** (thread lifecycle with 5-turn expiry for silent threads) and **narrator-driven** (truth discovery, goal updates).
 
 ## Arc Data Model
 
 ```
 CampaignArc
   visible_goal: str          — What the PC is trying to achieve
-  goal_context: str          — 2–3 sentences explaining why visible_goal matters to this character specifically; inner cost or pressure that makes it emotionally loaded (Phase 01)
+  goal_context: str          — 2–3 sentences explaining why visible_goal matters to this character specifically; inner cost or pressure that makes it emotionally loaded
   thematic_question: str     — The moral/thematic tension of the arc
+  pc_drive: str              — The PC's personal motive/reason for being in this situation; expressed indirectly
   hidden_truths: list[str]   — Story secrets the narrator knows but must not reveal in prose
   discovered_truths: list[str] — Truths the player has uncovered (subset of hidden_truths)
   threads: list[ArcThread]   — Unified collection replacing active_threads + latent_threads split. Each thread has scope ("scene" or "arc") and active flag set by Python age rules, not LLM.
@@ -25,6 +26,8 @@ ArcThread (unified)
   resolution_state: str | None # Set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads
   last_seen_turn: int | None # For age-based active/dormant demotion in Python
   added_turn: int | None     # Python-managed lifecycle tracking
+  unlock_if: str | None      # Condition string; thread is only promotable when empty/falsy
+  promotes: list[str]        # Threads this one can promote to when completed
 ```
 
 **Key change from previous architecture:** `scene_pressure[]` and the split between `active_threads` / `latent_threads` are merged into a single `arc.threads[]`. The engine manages thread lifecycle via `_apply_thread_signals()`: age-based demotion (`active: True → False`) replaces the old active/latent migration logic, with silent threads (not listed in `thread_advance` for 5+ turns) being demoted to dormant state.
@@ -76,7 +79,6 @@ flowchart LR
         NC1["visible_goal"]
         NC2["goal_context (early-turn narrative guidance)"]
         NC3["thematic_question"]
-        NC4["phase"]
         NC5["arc.threads[] (summary, scope,<br>urgency, tags)"]
         NC6["pc_drive"]
         NC7["hidden_truths[] — internal only<br>NARRATOR MUST NOT reveal in prose"]
@@ -86,7 +88,7 @@ flowchart LR
     subgraph EMISSION["Narrator output"]
         PROSE["narration prose<br>(player sees this)"]:::llmNode
         SENTINEL["<<<ARC_UPDATE_START>>>
-{discovered_truths, phase, visible_goal}
+{discovered_truths, visible_goal}
 <<<ARC_UPDATE_END>>>"]:::sentinel
     end
 
@@ -99,14 +101,14 @@ flowchart LR
     subgraph MERGE["_merge_arc_update()"]
         M1["visible_goal: overwrite if present"]
         M2["thematic_question: overwrite if present"]
-        M3["phase: overwrite only if value differs<br>(avoids Pydantic default SETUP overwrite)"]
+        M3["hidden_truths: overwrite if present"]
         M4["pc_drive: overwrite if present"]
         M5["hidden_truths: overwrite if present"]
         M6["discovered_truths: union with existing"]
         M7["goal_context: NOT merged — seed-only field, unchanged during play"]
     end
 
-    NC1 & NC2 & NC3 & NC4 & NC5 & NC6 & NC7 & NC8 --> PROSE
+    NC1 & NC2 & NC3 & NC5 & NC6 & NC7 & NC8 --> PROSE
     PROSE --> SENTINEL
     SENTINEL --> P1 --> P2 --> P3
     P3 -- "clean narrative" --> CLIENT["client"]
@@ -146,14 +148,13 @@ flowchart LR
         C1["visible_goal"]
         C2["goal_context"]
         C3["thematic_question"]
-        C4["phase"]
         C5["arc.threads[]<br>(summary, scope, urgency)"]
         C6["pc_drive"]
         C7["hidden_truths[]"]
     end
 
     subgraph PROMPT["narrate_system.j2"]
-        P1["## Campaign Arc context<br>goal_context, phase, goal, threads, truths"]:::llmNode
+        P1["## Campaign Arc context<br>goal_context, goal, threads, truths"]:::llmNode
         P2["## ARC UPDATE section<br>instructions + sentinel format<br>+ hidden_truths non-reveal directive"]:::llmNode
     end
 

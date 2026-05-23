@@ -83,7 +83,7 @@ _JUDGE_EVENT_FIELDS: dict[str, set[str]] = {
     "state_correctness": {
         # needs: state diffs, applied/rejected deltas, rules output (parsed only), extractor outputs
         "turn", "input",
-        "ruling",                    # parsed rules output (band, stakes, etc.)
+        "ruling",                    # parsed rules output (band, directive, etc.)
         "applied", "rejected",
         "extraction",               # all 3 streams, outputs only
         "state_snapshot",
@@ -91,7 +91,7 @@ _JUDGE_EVENT_FIELDS: dict[str, set[str]] = {
     },
     "narrative_interplay": {
         "turn", "input",
-        "ruling",                    # band, directive, stakes
+        "ruling",                    # band, directive
         "narrate_prompt",           # output (narration text) only — not rendered_user/system
         "extraction",               # scene/state/progress outputs only (for NPC/beat/pressure fields)
         "state_snapshot",           # mechanic fields only (meta, scene, pc.conditions)

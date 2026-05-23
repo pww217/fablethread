@@ -15,9 +15,7 @@ flowchart LR
         S2["state.pc (name, bio, stats, conditions)"]
         S3["state.location"]
         S4["state.inventory"]
-        S5["rules_outcome"]:::xstream
-        S6["intent: str<br>(from Step 0)"]
-        S7["band_examples<br>(few-shot examples for current band)"]
+        S5["intent: str<br>(from Step 0)"]
     end
 
     subgraph LLM2B["LLM — extract_state_system.j2 + extract_state_user.j2"]

@@ -74,17 +74,12 @@
 {% endif %}
 {% if pending_beat and pending_beat.type %}
 
-**GM Beat:** {{ pending_beat.instruction }}
-Surface as {{ pending_beat.surface_as }}. This is backstage direction — integrate it naturally, not as player-visible narration.
+**Beat type:** {{ pending_beat.type | replace('_', ' ') | upper }} to surface as `{{ pending_beat.surface_as | default('ambient') }}`. Use this as creative guidance for the scene — integrate it naturally with pacing context and arc state. Do not recite beat metadata directly in narration.
 {% endif %}
 {% if pacing_context and pacing_context.directive %}
 
 **Narration Directive:** {{ pacing_context.directive }}
 {% endif %}
-{% if not pending_beat or not pending_beat.type %}{% if pacing_context and pacing_context.beat_hint %}
-
-**Beat Hint:** The narrator should surface a `{{ pacing_context.beat_hint }}` beat this turn if narrative context supports it.
-{% endif %}{% endif %}
 
 === PLAYER INPUT ===
 {{ user_input }}

@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from jinja2 import Environment
-from pathlib import Path
 from typing import Any
 
 from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _PROMPTS_LOG_PATH, _render
@@ -119,27 +117,6 @@ async def _call_ruling(
     )
     return _no_intent, _no_usage, "", parse_error
 
-
-def _avg_ruling_ms(save_dir: Path, n: int = 5) -> int:
-    path = save_dir / "events.jsonl"
-    if not path.exists():
-        return 0
-    lines = [ln for ln in path.read_text().strip().splitlines() if ln.strip()]
-    if len(lines) < 2:
-        return 0
-    recent = lines[-n:]
-    times: list[float] = []
-    for line in recent:
-        try:
-            ev = json.loads(line)
-            r = (ev.get("ruling") or {}).get("total_ms")
-            if r is not None:
-                times.append(float(r))
-        except (json.JSONDecodeError, TypeError, ValueError):
-            continue
-    if len(times) < 2:
-        return 0
-    return int(sum(times) / len(times))
 
 
 def _log_ruling_outcome(

@@ -170,10 +170,9 @@ def _validate_scene_tags(tags: list[str]) -> list[str]:
     return warnings
 
 
-def _capitalize_inventory_names(items: list[Any]) -> list[Any]:
-    """Capitalize the first letter of inventory item names.
+def _capitalize_inventory_names(items: list[Any]) -> None:
+    """Capitalize the first letter of inventory item names in-place.
 
-    Modifies items in place and returns them.
     Handles both Pydantic model instances and dicts.
     """
     for item in items:
@@ -185,7 +184,6 @@ def _capitalize_inventory_names(items: list[Any]) -> list[Any]:
             name = item["name"]
             if name and name[0].islower():
                 item["name"] = name[0].upper() + name[1:]
-    return items
 
 
 def _dedup_compendium_add(
@@ -812,7 +810,7 @@ async def _run_extraction_pipeline(
     _log.debug("extraction.pipeline.done trace_id=%s turn_no=%d", trace_id, turn_no)
 
 
-def _avg_narrate_ms(save_dir: Path, n: int = 5) -> int:
+def _avg_event_ms(save_dir: Path, field_path: str, n: int = 5) -> int:
     path = save_dir / "events.jsonl"
     if not path.exists():
         return 0
@@ -824,33 +822,12 @@ def _avg_narrate_ms(save_dir: Path, n: int = 5) -> int:
     for line in recent:
         try:
             ev = json.loads(line)
-            narr = ev.get("narrate") or {}
-            ms = narr.get("total_ms")
-            if ms is not None:
-                times.append(float(ms))
-        except (json.JSONDecodeError, TypeError, ValueError):
-            continue
-    if len(times) < 2:
-        return 0
-    return int(sum(times) / len(times))
-
-
-def _avg_extract_ms(save_dir: Path, n: int = 5) -> int:
-    path = save_dir / "events.jsonl"
-    if not path.exists():
-        return 0
-    lines = [ln for ln in path.read_text().strip().splitlines() if ln.strip()]
-    if len(lines) < 2:
-        return 0
-    recent = lines[-n:]
-    times: list[float] = []
-    for line in recent:
-        try:
-            ev = json.loads(line)
-            ext = ev.get("extract") or {}
-            ms = ext.get("total_ms")
-            if ms is not None:
-                times.append(float(ms))
+            parts = field_path.split(".")
+            val: Any = ev
+            for p in parts:
+                val = (val or {}).get(p) if isinstance(val, dict) else None
+            if val is not None:
+                times.append(float(val))
         except (json.JSONDecodeError, TypeError, ValueError):
             continue
     if len(times) < 2:
