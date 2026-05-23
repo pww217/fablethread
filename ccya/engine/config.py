@@ -78,7 +78,6 @@ class EngineConfig:
     # Momentum floor value and relief trigger threshold
     momentum_floor: int = -3
     momentum_ceiling: int = 3
-    momentum_floor_relief_turns: int = 2
     # Gate for de-escalation flag on successful rolls
     thread_deescalate_on_success: bool = True
     # Threat imperative thresholds (turns since turn_added)
@@ -128,7 +127,7 @@ def build_engine_config(
     return EngineConfig(
         host=str(llm.get("host", "http://localhost:8080/v1")),
         model=str(llm.get("model", "")),
-        prompt_token_budget=int(llm.get("prompt_token_budget", 28672)),
+        prompt_token_budget=int(llm.get("prompt_token_budget", 32768)),
         request_timeout_s=int(llm.get("request_timeout_s", 180)),
         narrate_temperature=narrate_t,
         extract_temperature=extract_t,
@@ -166,7 +165,6 @@ def build_engine_config(
         avoidance_decay_per_turn=int(game.get("avoidance_decay_per_turn", 1)),
         momentum_floor=int(game.get("momentum_floor", -3)),
         momentum_ceiling=int(game.get("momentum_ceiling", 3)),
-        momentum_floor_relief_turns=int(game.get("momentum_floor_relief_turns", 2)),
         compact_every=int(game.get("compact_every", 0)),
         compact_temperature=float(game.get("compact_temperature", 0.1)),
         recent_turns_min=int(game.get("recent_turns_min", 2)),

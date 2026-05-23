@@ -18,6 +18,11 @@ _defaults = EngineConfig()
 THREAD_SCENE_EXPIRE_ON_LOCATION_CHANGE: bool = True        # scene-scoped threads expire when location changes
 THREAD_ARC_DEMOTE_AGE: int = _defaults.thread_urgency_max_age  # arc-scoped threads demote active:True→False after this many turns without last_seen_turn update
 
+# Thread lifecycle mechanics (engine-internal, exposed for judge context)
+_ACTIVE_THREAD_CAP: int = 3        # maximum number of threads that can be active simultaneously
+_EXPIRE_SILENT_TURNS: int = 5      # consecutive turns without being advanced before demoted to latent
+_PROMOTION_COOLDOWN_TURNS: int = 3  # minimum turns between latent-to-active promotions
+
 # For trace injection into judge prompts — maps from ArcThread.urgency values (background/normal/urgent)
 URGENCY_LEVELS: tuple[str, ...] = ("background", "normal", "urgent")
 
@@ -68,7 +73,7 @@ def constants_block() -> str:
     """
     return (
         "## Engine Constants (live — do not override with rubric prose)\n\n"
-        f"- Thread lifecycle: scene-scoped threads expire on location change; arc-scoped threads demote active→False after {THREAD_ARC_DEMOTE_AGE} turns idle\n"
+        f"- Thread lifecycle: scene-scoped threads expire on location change; arc-scoped threads demote active→False after {THREAD_ARC_DEMOTE_AGE} turns idle; cap={_ACTIVE_THREAD_CAP} active, silent expiry={_EXPIRE_SILENT_TURNS} turns, promotion cooldown={_PROMOTION_COOLDOWN_TURNS} turns\n"
         f"- Urgency levels (ordered): {' → '.join(URGENCY_LEVELS)}\n"
         f"- Momentum range: [{MOMENTUM_MIN}, {MOMENTUM_MAX}]\n"
         f"- Momentum delta per band: {MOMENTUM_DELTA}\n"

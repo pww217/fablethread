@@ -26,9 +26,8 @@ game:
   thread_urgency_immediate_at: 5  # building → immediate
   # Thread urgency immediate TTL (turns) — how long an immediate pressure lasts
   thread_urgency_immediate_ttl: 8
-  # Momentum floor and relief trigger
+  # Momentum floor
   momentum_floor: -3
-  momentum_floor_relief_turns: 2
   # Compaction: compress narrative history every N turns (0 = disabled)
   compact_every: 3
   compact_temperature: 0.1
