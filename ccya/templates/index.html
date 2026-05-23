@@ -112,8 +112,8 @@
                 <div class="narrative-block">
                     <p class="narrative-input-echo">&gt; {{ ev.input }}</p>
                     <div class="narrative-text" data-raw>{{ ev.narrative }}</div>
-                    {% if ev.rules and ev.rules.rolled %}
-                    {% set r = ev.rules %}
+                    {% if ev.ruling and ev.ruling.rolled %}
+                    {% set r = ev.ruling %}
                     {% set d1 = (r.dice | default([]))[0] or 0 %}
                     {% set d2 = (r.dice | default([]))[1] or 0 %}
                     {% set raw_sum = d1 + d2 %}
@@ -1376,8 +1376,8 @@ function game() {
 
                 // Roll badge then inline change summary — both after narrative text.
                 let lastInserted = met;
-                if (result.rules && result.rules.rolled) {
-                    const rollBadge = _buildRollBadge(result.rules);
+                if (result.ruling && result.ruling.rolled) {
+                    const rollBadge = _buildRollBadge(result.ruling);
                     if (rollBadge) { lastInserted.after(rollBadge); lastInserted = rollBadge; }
                 }
                 if (result.recent_events_evicted) {
@@ -1415,7 +1415,7 @@ function game() {
                 }
 
                 if (!result.recent_events_evicted) {
-                    _prependTurnLogTurn(result.turn, result.change_lines || [], result.rules);
+                    _prependTurnLogTurn(result.turn, result.change_lines || [], result.ruling);
                 }
 
                 htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });

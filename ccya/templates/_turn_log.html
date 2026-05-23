@@ -4,8 +4,8 @@
 {% for e in entries %}
 <div class="turn-log-block">
     <div class="turn-log-turn">Turn {{ e.turn }}</div>
-    {% if e.rules and e.rules.rolled %}
-    {% set r = e.rules %}
+    {% if e.ruling and e.ruling.rolled %}
+    {% set r = e.ruling %}
     {% set d1 = (r.dice | default([]))[0] or 0 %}
     {% set d2 = (r.dice | default([]))[1] or 0 %}
     {% set raw_sum = d1 + d2 %}
