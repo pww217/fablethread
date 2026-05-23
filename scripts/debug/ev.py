@@ -11,7 +11,9 @@ Usage:
     ev.py outputs TURN [TURN_FILE]     # JSON outputs from all streams
     ev.py deltas TURN [TURN_FILE]      # state diffs and rejections
     ev.py mechanics TURN [TURN_FILE]   # beats, pressures, arcs, connectors
-    ev.py connectors TURN [TURN_FILE]  # inter-stream connectors only
+    ev.py connectors TURN [TURN_FILE]   # inter-stream connectors only
+    ev.py state [--format MODE] [--save-dir PATH]  # show current game state from state.yaml
+    ev.py diff TURN-A TURN-B [--section SEC]       # compare two turns
 
 Defaults to saves/default/events.jsonl relative to repo root.
 """
@@ -44,6 +46,58 @@ def load_events(path: Path) -> list[dict[str, Any]]:
             except json.JSONDecodeError:
                 continue
     return events
+
+
+def _strip_flags(args: list[str]) -> tuple[dict[str, str], list[str]]:
+    """Separate --flags from positional args. Returns (flags dict, positional args).
+
+    Handles:
+      --key value     → {"key": "value"}
+      --flag          → {"flag": "true"}
+    """
+    flags: dict[str, str] = {}
+    positional: list[str] = []
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a.startswith("--"):
+            name = a[2:]
+            if i + 1 < len(args) and not args[i + 1].startswith("--"):
+                flags[name] = args[i + 1]
+                i += 2
+            else:
+                flags[name] = "true"
+                i += 1
+        else:
+            positional.append(a)
+            i += 1
+    return flags, positional
+
+
+def load_state_yaml(save_dir: Path | None = None) -> dict[str, Any]:
+    """Load and parse state.yaml from the save directory."""
+    if save_dir is None:
+        save_dir = DEFAULT_SAVE_DIR
+    path = save_dir / "state.yaml"
+    if not path.exists():
+        print(f"Error: {path} not found", file=sys.stderr)
+        sys.exit(1)
+    import yaml
+
+    with open(path) as f:
+        result = yaml.safe_load(f)
+        if isinstance(result, dict):
+            return result
+        print(f"Error: {path} is not a valid state YAML", file=sys.stderr)
+        sys.exit(1)
+
+
+def load_extraction_context(ev: dict[str, Any]) -> dict[str, Any] | None:
+    """Return the extraction_context sub-dict from an event, or None."""
+    ctx = ev.get("extraction_context")
+    if isinstance(ctx, dict) and ctx:
+        return ctx
+    return None
 
 
 def find_turn(events: list[dict[str, Any]], turn: int) -> dict[str, Any] | None:
@@ -598,6 +652,694 @@ def _dict_to_lines(d: dict, max_str: int = 150) -> list[dict]:
     return lines
 
 
+def format_state(state: dict[str, Any], fmt: str = "full") -> None:
+    """Render state.yaml content in the requested format."""
+    turn_num = (state.get("meta") or {}).get("turn", "?")
+
+    if fmt == "compact":
+        pc_name = (state.get("pc") or {}).get("name", "?")
+        loc_name = (state.get("location") or {}).get("name", "?")
+        print(f"Turn {turn_num}: {pc_name} @ {loc_name}")
+        return
+
+    if fmt == "pc":
+        _render_pc_section(state)
+        return
+
+    if fmt == "inventory":
+        _render_inventory_section(state)
+        return
+
+    if fmt == "location":
+        _render_location_section(state)
+        return
+
+    if fmt == "scene":
+        _render_scene_section(state)
+        return
+
+    if fmt == "arc":
+        _render_arc_section(state)
+        return
+
+    if fmt == "npcs":
+        _render_npcs_section(state)
+        return
+
+    if fmt == "compidx":
+        _render_compidx_section(state)
+        return
+
+    # full mode: all sections in order
+    print(f"Turn {turn_num}")
+    print()
+    pc = state.get("pc") or {}
+    if pc:
+        _render_pc_section(state)
+    inv = state.get("inventory")
+    if inv:
+        _render_inventory_section(state)
+    loc = state.get("location")
+    if loc:
+        _render_location_section(state)
+    scene = state.get("scene") or {}
+    if any(scene.get(k) for k in ("tags", "tagline", "present_npcs", "recently_left", "recent_events")):
+        _render_scene_section(state)
+    arc = state.get("arc") or {}
+    if any(arc.get(k) for k in ("visible_goal", "thematic_question", "threads", "completed_threads", "hidden_truths", "discovered_truths")):
+        _render_arc_section(state)
+    compendium_npcs = (state.get("compendium") or {}).get("npcs")
+    if compendium_npcs:
+        _render_npcs_section(state)
+
+
+def _render_pc_section(state: dict[str, Any]) -> None:
+    pc = state.get("pc", {})
+    print("--- PC ---")
+    name = pc.get("name") or "?"
+    tagline = pc.get("tagline") or ""
+    if tagline:
+        print(f"  {name} — {tagline}")
+    else:
+        print(f"  {name}")
+    stats = pc.get("stats", {})
+    if isinstance(stats, dict) and stats:
+        stat_parts = ", ".join(f"{k}: {v}" for k, v in sorted(stats.items()))
+        print(f"  Stats: {stat_parts}")
+    momentum = pc.get("momentum")
+    if momentum is not None:
+        print(f"  Momentum: {momentum:+d}")
+    conditions = pc.get("conditions", []) or []
+    if conditions:
+        for c in conditions:
+            label = (c.get("label") or c.get("id") or "?") if isinstance(c, dict) else str(c)
+            ttl = ""
+            if isinstance(c, dict):
+                remaining = c.get("turns_remaining")
+                if remaining is not None:
+                    ttl = f" ({remaining} turns left)"
+            print(f"  Condition: {label}{ttl}")
+
+
+def _render_inventory_section(state: dict[str, Any]) -> None:
+    inventory = state.get("inventory", []) or []
+    print("--- Inventory ---")
+    if not inventory:
+        print("  (empty)")
+        return
+    for item in sorted(inventory, key=lambda x: ("0" if isinstance(x, dict) and x.get("id") == "credits" else "1", (x.get("name") or x.get("id") or "").lower())):
+        name = (item.get("name") or item.get("id") or "?") if isinstance(item, dict) else str(item)
+        amount = item.get("amount", 1) if isinstance(item, dict) else 1
+        notes = item.get("notes", "") if isinstance(item, dict) else ""
+        line = f"  {name} ×{amount}"
+        if notes:
+            line += f" ({notes})"
+        print(line)
+
+
+def _render_location_section(state: dict[str, Any]) -> None:
+    loc = state.get("location", {}) or {}
+    print("--- Location ---")
+    name = loc.get("name") or loc.get("id") or "?"
+    desc = loc.get("description", "") or ""
+    if desc:
+        print(f"  {name}")
+        for line in _wrap_text(desc, indent=4):
+            print(line)
+    else:
+        print(f"  {name}")
+
+
+def _render_scene_section(state: dict[str, Any]) -> None:
+    scene = state.get("scene", {}) or {}
+    print("--- Scene ---")
+    tags = scene.get("tags", []) or []
+    if tags:
+        print(f"  Tags: {', '.join(str(t) for t in tags)}")
+    tagline = scene.get("tagline") or ""
+    if tagline:
+        print(f"  Tagline: {tagline}")
+    present_npcs = scene.get("present_npcs", []) or []
+    if present_npcs:
+        npc_lines = [f"{(n.get('id') or '?')} {(n.get('name') or '')}" for n in present_npcs if isinstance(n, dict)]
+        print("  Present NPCs:")
+        for nl in npc_lines:
+            print(f"    {nl}")
+    recently_left = scene.get("recently_left", []) or []
+    if recently_left:
+        left_names = [f"{(n.get('id') or '?')} {(n.get('name') or '')}" for n in recently_left if isinstance(n, dict)]
+        print("  Recently left:")
+        for ln in left_names:
+            print(f"    {ln}")
+
+
+def _render_arc_section(state: dict[str, Any]) -> None:
+    arc = state.get("arc", {}) or {}
+    print("--- Arc ---")
+    goal = arc.get("visible_goal") or ""
+    if goal:
+        print(f"  Goal: {goal}")
+    question = arc.get("thematic_question") or ""
+    if question:
+        print(f"  Question: {question}")
+    threads = arc.get("threads", []) or []
+    active_threads = [t for t in threads if isinstance(t, dict) and t.get("active")]
+    completed = arc.get("completed_threads", []) or []
+    discovered = arc.get("discovered_truths", []) or []
+    hidden = arc.get("hidden_truths", []) or []
+    if active_threads:
+        print("  Active threads:")
+        for t in active_threads:
+            text = (t.get("text") or "?") if isinstance(t, dict) else "?"
+            progress = t.get("progress", "") if isinstance(t, dict) else ""
+            line = f"    {text}"
+            if progress:
+                line += f" ({progress})"
+            print(line)
+    if completed:
+        comp_names = [f"{(t.get('text') or '?')}" for t in completed if isinstance(t, dict)]
+        print("  Completed threads:")
+        for cn in comp_names:
+            print(f"    {cn}")
+    if discovered:
+        print("  Discovered truths:")
+        for dt in discovered:
+            print(f"    - {dt}")
+    if hidden:
+        print("  Hidden truths (not shown to player):")
+        for ht in hidden:
+            print(f"    ? {ht}")
+
+
+def _render_npcs_section(state: dict[str, Any]) -> None:
+    compendium = state.get("compendium", {}) or {}
+    npcs = compendium.get("npcs", {}) or {}
+    if not isinstance(npcs, dict):
+        return
+    print("--- Compendium NPCs ---")
+    for npc_id in sorted(npcs.keys()):
+        npc = npcs[npc_id]
+        name = (npc.get("name") or "?") if isinstance(npc, dict) else "?"
+        title = (npc.get("title") or "") if isinstance(npc, dict) else ""
+        line = f"  {npc_id}: {name}"
+        if title:
+            line += f" — {title}"
+        print(line)
+
+
+def _render_compidx_section(state: dict[str, Any]) -> None:
+    compendium = state.get("compendium", {}) or {}
+    npcs = compendium.get("npcs", {}) or {}
+    if not isinstance(npcs, dict):
+        return
+    print("--- NPC Index ---")
+    for npc_id in sorted(npcs.keys()):
+        npc = npcs[npc_id]
+        name = (npc.get("name") or "?") if isinstance(npc, dict) else "?"
+        title = (npc.get("title") or "") if isinstance(npc, dict) else ""
+        print(f"  {npc_id:<25} {name}{f' ({title})' if title else ''}")
+
+
+def _wrap_text(text: str, indent: int = 0) -> list[str]:
+    """Wrap text to a reasonable line width with indentation."""
+    import textwrap
+
+    lines = []
+    for para in text.splitlines():
+        wrapped = textwrap.fill(para.strip(), width=80 - indent if indent else 80, initial_indent=" " * indent, subsequent_indent=" " * indent) if para.strip() else ""
+        if wrapped:
+            lines.append(wrapped)
+    return lines
+
+
+def diff_extraction_context(ctx_a: dict[str, Any], ctx_b: dict[str, Any]) -> list[dict[str, Any]]:
+    """Compare two extraction_context dicts. Returns structured diffs."""
+    field_map = {
+        "present_npcs_this_turn": ("NPCs", _diff_npcs),
+        "inventory_this_turn": ("Inventory", _diff_inventory),
+        "conditions_this_turn": ("Conditions", _diff_conditions),
+        "location_this_turn": ("Location", _diff_location),
+        "scene_tags_this_turn": ("Scene Tags", _diff_scene_tags),
+    }
+    results = []
+    for key, (section_name, diff_fn) in field_map.items():
+        val_a = ctx_a.get(key) or []
+        val_b = ctx_b.get(key) or []
+        if not isinstance(val_a, list):
+            val_a = []
+        if not isinstance(val_b, list):
+            val_b = []
+        changed = diff_fn(section_name, val_a, val_b)
+        results.append(changed)
+    return results
+
+
+def _diff_npcs(section: str, before: list[dict], after: list[dict]) -> dict[str, Any]:
+    if not isinstance(before, list):
+        before = []
+    if not isinstance(after, list):
+        after = []
+
+    def _id_set(items):
+        return {item.get("id", "") for item in items if isinstance(item, dict)}
+
+    def _notes_map(items):
+        return {(item.get("id", "")): (item.get("notes") or "") for item in items if isinstance(item, dict) and item.get("id")}
+
+    before_ids = _id_set(before)
+    after_ids = _id_set(after)
+    added = sorted(after_ids - before_ids)
+    removed = sorted(before_ids - after_ids)
+    common = before_ids & after_ids
+
+    notes_changed = []
+    for nid in common:
+        bn = next((item.get("notes", "") or "" for item in before if isinstance(item, dict) and item.get("id") == nid), "")
+        an = next((item.get("notes", "") or "" for item in after if isinstance(item, dict) and item.get("id") == nid), "")
+        if bn != an:
+            notes_changed.append(nid)
+
+    if not added and not removed and not notes_changed:
+        # Check if lists are equal (both empty = unchanged)
+        return {"section": section, "kind": "unchanged", "before_value": before, "after_value": after}
+
+    changes = []
+    for aid in added:
+        npc = next((item for item in after if isinstance(item, dict) and item.get("id") == aid), {})
+        name = npc.get("name", "") if isinstance(npc, dict) else ""
+        label = f"+{aid}"
+        if name:
+            label += f" {name}"
+        changes.append({"kind": "added", "label": label})
+
+    for rid in removed:
+        npc = next((item for item in before if isinstance(item, dict) and item.get("id") == rid), {})
+        name = npc.get("name", "") if isinstance(npc, dict) else ""
+        label = f"-{rid}"
+        if name:
+            label += f" {name}"
+        changes.append({"kind": "removed", "label": label})
+
+    for nid in notes_changed:
+        npc_b = next((item for item in before if isinstance(item, dict) and item.get("id") == nid), {})
+        name_b = npc_b.get("name", "") if isinstance(npc_b, dict) else ""
+        label = f"~{nid}"
+        if name_b:
+            label += f" {name_b} (notes changed)"
+        changes.append({"kind": "changed", "label": label})
+
+    return {"section": section, "kind": "changed", "before_value": before, "after_value": after, "changes": changes}
+
+
+def _diff_inventory(section: str, before: list[dict], after: list[dict]) -> dict[str, Any]:
+    if not isinstance(before, list):
+        before = []
+    if not isinstance(after, list):
+        after = []
+
+    def _item_map(items):
+        return {(item.get("id", "")): item for item in items if isinstance(item, dict) and item.get("id")}
+
+    bm = _item_map(before)
+    am = _item_map(after)
+    bid_ids = set(bm.keys())
+    aid_ids = set(am.keys())
+
+    added = sorted(aid_ids - bid_ids)
+    removed = sorted(bid_ids - aid_ids)
+    common = bid_ids & aid_ids
+
+    if not added and not removed:
+        # Check amount changes in common items
+        amt_changes = []
+        for iid in common:
+            ba = int((bm[iid].get("amount") or 1))
+            aa = int((am[iid].get("amount") or 1))
+            if ba != aa:
+                bname = bm[iid].get("name", "") if isinstance(bm[iid], dict) else ""
+                amt_changes.append({"kind": "changed", "label": f"{iid} {bname}: ×{ba} → ×{aa}"})
+        if not amt_changes:
+            return {"section": section, "kind": "unchanged", "before_value": before, "after_value": after}
+
+    changes = []
+    for iid in added:
+        item = am[iid]
+        name = item.get("name", "") if isinstance(item, dict) else ""
+        amt = int((item.get("amount") or 1))
+        label = f"+{iid}"
+        if name:
+            label += f" {name} ×{amt}"
+        changes.append({"kind": "added", "label": label})
+
+    for iid in removed:
+        item = bm[iid]
+        name = item.get("name", "") if isinstance(item, dict) else ""
+        amt = int((item.get("amount") or 1))
+        label = f"-{iid}"
+        if name:
+            label += f" {name} ×{amt}"
+        changes.append({"kind": "removed", "label": label})
+
+    for iid in common:
+        ba = int((bm[iid].get("amount") or 1))
+        aa = int((am[iid].get("amount") or 1))
+        if ba != aa:
+            bname = bm[iid].get("name", "") if isinstance(bm[iid], dict) else ""
+            changes.append({"kind": "changed", "label": f"{iid} {bname}: ×{ba} → ×{aa}"})
+
+    return {"section": section, "kind": "changed", "before_value": before, "after_value": after, "changes": changes}
+
+
+def _diff_conditions(section: str, before: list[dict], after: list[dict]) -> dict[str, Any]:
+    if not isinstance(before, list):
+        before = []
+    if not isinstance(after, list):
+        after = []
+
+    def _cond_map(items):
+        return {(item.get("id", "")): item for item in items if isinstance(item, dict) and item.get("id")}
+
+    bm = _cond_map(before)
+    am = _cond_map(after)
+    bid_ids = set(bm.keys())
+    aid_ids = set(am.keys())
+
+    added = sorted(aid_ids - bid_ids)
+    removed = sorted(bid_ids - aid_ids)
+
+    if not added and not removed:
+        return {"section": section, "kind": "unchanged", "before_value": before, "after_value": after}
+
+    changes = []
+    for cid in added:
+        c = am[cid]
+        label = f"+{cid}"
+        if isinstance(c, dict):
+            lbl = c.get("label") or ""
+            if lbl:
+                label += f" {lbl}"
+        changes.append({"kind": "added", "label": label})
+
+    for cid in removed:
+        c = bm[cid]
+        label = f"-{cid}"
+        if isinstance(c, dict):
+            lbl = c.get("label") or ""
+            if lbl:
+                label += f" {lbl}"
+        changes.append({"kind": "removed", "label": label})
+
+    return {"section": section, "kind": "changed", "before_value": before, "after_value": after, "changes": changes}
+
+
+def _diff_location(section: str, before: list[dict], after: list[dict]) -> dict[str, Any]:
+    if not isinstance(before, list):
+        before = []
+    if not isinstance(after, list):
+        after = []
+
+    def _loc_info(items):
+        return [(item.get("id", ""), item.get("name", "")) for item in items if isinstance(item, dict)]
+
+    # Location is typically a single entry; compare by id+name
+    b_id = before[0].get("id", "") if len(before) > 0 and isinstance(before[0], dict) else ""
+    b_name = before[0].get("name", "") if len(before) > 0 and isinstance(before[0], dict) else ""
+    a_id = after[0].get("id", "") if len(after) > 0 and isinstance(after[0], dict) else ""
+    a_name = after[0].get("name", "") if len(after) > 0 and isinstance(after[0], dict) else ""
+
+    if b_id == a_id and b_name == a_name:
+        return {"section": section, "kind": "unchanged", "before_value": before, "after_value": after}
+
+    label = f"{b_name or b_id} → {a_name or a_id}"
+    return {"section": section, "kind": "changed", "before_value": before, "after_value": after, "changes": [{"kind": "changed", "label": label}]}
+
+
+def _diff_scene_tags(section: str, before: list[dict], after: list[dict]) -> dict[str, Any]:
+    if not isinstance(before, list):
+        before = []
+    if not isinstance(after, list):
+        after = []
+
+    def _tag_names(items):
+        return sorted([item.get("name", "") or item.get("id", "") for item in items if isinstance(item, dict)])
+
+    bt = set(_tag_names(before))
+    at = set(_tag_names(after))
+
+    added_tags = sorted(at - bt)
+    removed_tags = sorted(bt - at)
+
+    if not added_tags and not removed_tags:
+        return {"section": section, "kind": "unchanged", "before_value": before, "after_value": after}
+
+    changes = []
+    for t in added_tags:
+        changes.append({"kind": "added", "label": f"+{t}"})
+    for t in removed_tags:
+        changes.append({"kind": "removed", "label": f"-{t}"})
+
+    return {"section": section, "kind": "changed", "before_value": before, "after_value": after, "changes": changes}
+
+
+def accumulate_intermediate_changes(events: list[dict[str, Any]], turn_a: int, turn_b: int) -> list[dict[str, Any]]:
+    """Collect applied + changes from events between turn_a and turn_b (exclusive of turn_a, inclusive of turn_b).
+
+    Returns list of {turn, field, value, source} dicts."""
+    results = []
+    for ev in events:
+        if not isinstance(ev.get("applied"), dict) and not isinstance(ev.get("changes"), dict):
+            continue
+        ev_turn = ev.get("turn")
+        if ev_turn is None or ev_turn <= turn_a or ev_turn > turn_b:
+            continue
+
+        # Process applied fields
+        applied = ev.get("applied", {})
+        if isinstance(applied, dict) and applied:
+            for field in sorted(applied.keys()):
+                value = applied[field]
+                results.append({"turn": ev_turn, "field": f"applied.{field}", "value": _shorten(value), "source": "applied"})
+
+        # Process changes fields (exclusive categories only)
+        changes = ev.get("changes", {})
+        if isinstance(changes, dict) and changes:
+            for field in sorted(changes.keys()):
+                value = changes[field]
+                results.append({"turn": ev_turn, "field": f"changes.{field}", "value": _shorten(value), "source": "changes"})
+
+    return results
+
+
+def _shorten(value: Any) -> str:
+    """Shorten a value for display."""
+    if isinstance(value, dict):
+        keys = list(value.keys())[:3]
+        rest = f" (+{len(value) - 3} more)" if len(value) > 3 else ""
+        return "{" + ", ".join(str(k) for k in keys) + "}" + rest
+    elif isinstance(value, list):
+        if not value:
+            return "[]"
+        first = str(value[0])[:80]
+        rest = f" (+{len(value) - 1} more)" if len(value) > 1 else ""
+        return f"[{first}{rest}]"
+    elif isinstance(value, str):
+        return value[:200] + ("…" if len(value) > 200 else "")
+    else:
+        return str(value)[:200]
+
+
+def format_diff_output(diff_results: list[dict[str, Any]], intermediate_changes: list[dict[str, Any]], turn_a: int, turn_b: int, section_filter: str | None = None) -> None:
+    """Format the diff output for display."""
+    print(f"diff {turn_a} {turn_b}")
+
+    if not any(r["kind"] == "changed" for r in diff_results):
+        if not intermediate_changes:
+            print()
+            print("(no changes detected between turn {} and turn {})".format(turn_a, turn_b))
+            return
+
+    # Print snapshot diffs by section
+    sections_order = ["NPCs", "Inventory", "Conditions", "Location", "Scene Tags"]
+    for expected_section in sections_order:
+        if section_filter is not None:
+            filter_map = {"npcs": "NPCs", "inventory": "Inventory", "conditions": "Conditions", "location": "Location", "tags": "Scene Tags", "applied": None}
+            if filter_map.get(section_filter) != expected_section:
+                continue
+
+        matching = [r for r in diff_results if r["section"] == expected_section]
+        if not matching:
+            continue
+
+        result = matching[0]
+        print()
+        print(f"--- {expected_section} ---")
+
+        if result["kind"] == "unchanged":
+            # Show the single unchanged item for context
+            before_val = result.get("before_value", [])
+            after_val = result.get("after_value", [])
+            if expected_section == "NPCs":
+                _print_unchanged_npcs(before_val)
+            elif expected_section == "Inventory":
+                _print_unchanged_inventory(before_val, after_val)
+            elif expected_section == "Conditions":
+                _print_unchanged_conditions(before_val)
+            elif expected_section == "Location":
+                if before_val:
+                    loc = before_val[0] if isinstance(before_val[0], dict) else {}
+                    print(f"  {loc.get('name', loc.get('id', '?'))}")
+            elif expected_section == "Scene Tags":
+                _print_unchanged_tags(before_val)
+
+        elif result["kind"] == "changed":
+            changes = result.get("changes", [])
+            if not changes:
+                print("  (no details)")
+            else:
+                for c in changes:
+                    label = c.get("label", "")
+                    # Labels already contain +/- prefix from diff functions
+                    print(f"  {label}")
+
+    # Print intermediate changes (applied + changes from turns between A and B)
+    if section_filter != "applied":
+        print()
+        print("--- Also changed (from applied/changes in intermediate turns) ---")
+        if not intermediate_changes:
+            print("  (none)")
+        else:
+            for ic in intermediate_changes:
+                field = ic["field"]
+                value = str(ic.get("value", ""))[:100]
+                turn = ic["turn"]
+                # Shorten display based on source and field type
+                if "applied." in field:
+                    applied_field = field.replace("applied.", "")
+                    print(f"  turn {turn}: {applied_field} → {_shorten_value(value)}")
+                else:
+                    changes_field = field.replace("changes.", "")
+                    print(f"  turn {turn}: {changes_field} ({_shorten_value(value)})")
+
+    # Print not-tracked section
+    if section_filter is None or section_filter == "not_tracked":
+        print()
+        print("--- Not tracked in historical snapshots ---")
+        print("pc.stats, pc.name, compendium.bios, arc.threads")
+
+
+def _print_unchanged_npcs(items: list[dict]) -> None:
+    if not items:
+        print("  (none)")
+        return
+    for item in items:
+        if isinstance(item, dict):
+            name = item.get("name", "") or ""
+            label = f"{item.get('id', '?')}"
+            if name:
+                label += f" {name}"
+            print(f"  {label}")
+
+
+def _print_unchanged_inventory(before: list[dict], after: list[dict]) -> None:
+    def _item_map(items):
+        return {(item.get("id", "")): item for item in items if isinstance(item, dict) and item.get("id")}
+
+    bm = _item_map(before)
+    am = _item_map(after)
+    common_ids = sorted(set(bm.keys()) & set(am.keys()))
+
+    if not common_ids:
+        print("  (none)")
+        return
+
+    for iid in common_ids:
+        item = bm[iid]
+        name = item.get("name", "") if isinstance(item, dict) else ""
+        amt = int((item.get("amount") or 1))
+        label = f"{iid}"
+        if name:
+            label += f" {name} ×{amt}"
+        print(f"  {label}")
+
+
+def _print_unchanged_conditions(items: list[dict]) -> None:
+    if not items:
+        print("  (none)")
+        return
+    for item in items:
+        if isinstance(item, dict):
+            label = f"{item.get('id', '?')}"
+            lbl = item.get("label", "") or ""
+            if lbl:
+                label += f" {lbl}"
+            print(f"  {label}")
+
+
+def _print_unchanged_tags(items: list[dict]) -> None:
+    if not items:
+        print("  (none)")
+        return
+    names = [item.get("name", "") or item.get("id", "") for item in items if isinstance(item, dict)]
+    print(f"  {', '.join(names)}")
+
+
+def _shorten_value(value: str) -> str:
+    if len(value) > 60:
+        return value[:57] + "…"
+    return value
+
+
+def cmd_state(fmt: str = "full", save_dir_path: Path | None = None) -> None:
+    """Handle the 'state' command."""
+    state = load_state_yaml(save_dir_path)
+    format_state(state, fmt)
+
+
+def cmd_diff(events: list[dict[str, Any]], turn_a: int | None, turn_b: int | None, section_filter: str | None = None) -> None:
+    """Handle the 'diff' command."""
+    if turn_a is None or turn_b is None:
+        print("Error: diff requires two turn numbers", file=sys.stderr)
+        sys.exit(1)
+
+    if turn_b <= turn_a:
+        print(f"Error: turn-B ({turn_b}) must be greater than turn-A ({turn_a})", file=sys.stderr)
+        sys.exit(1)
+
+    ev_a = find_turn(events, turn_a)
+    if not ev_a:
+        print(f"Turn {turn_a} not found (or is a compaction entry)", file=sys.stderr)
+        sys.exit(1)
+
+    ev_b = find_turn(events, turn_b)
+    if not ev_b:
+        print(f"Turn {turn_b} not found", file=sys.stderr)
+        sys.exit(1)
+
+    ctx_a = load_extraction_context(ev_a)
+    ctx_b = load_extraction_context(ev_b)
+
+    has_snapshot_a = ctx_a is not None
+    has_snapshot_b = ctx_b is not None
+
+    if not has_snapshot_a or not has_snapshot_b:
+        print()
+        if not has_snapshot_a:
+            print(f"Turn {turn_a}: (no snapshot available — event predates extraction_context)")
+        if not has_snapshot_b:
+            print(f"Turn {turn_b}: (no snapshot available — event predates extraction_context)")
+
+    # Compute diff from snapshots if both have context
+    if ctx_a is not None and ctx_b is not None:
+        diff_results = diff_extraction_context(ctx_a, ctx_b)
+    else:
+        diff_results = []
+
+    # Accumulate intermediate changes
+    intermediate_changes = accumulate_intermediate_changes(events, turn_a, turn_b)
+
+    format_diff_output(diff_results, intermediate_changes, turn_a, turn_b, section_filter)
+
+
 # ── main ──────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -606,6 +1348,7 @@ def main() -> None:
         print(__doc__.strip())
         sys.exit(0)
 
+    flags, args = _strip_flags(args)
     cmd = args[0]
 
     # Determine events file
@@ -688,12 +1431,29 @@ def main() -> None:
                 sys.exit(1)
             cmd_mechanics(ev)
         case "connectors":
-            turn = int(args[1])
-            ev = find_turn(events, turn)
+            turn = int(args[1]) if len(args) > 1 else None
+            ev = find_turn(events, turn) if turn else None
             if not ev:
                 print(f"Turn {turn} not found")
                 sys.exit(1)
             cmd_connectors(ev)
+        case "state":
+            save_dir_path = Path(flags["save-dir"]) if "save-dir" in flags else DEFAULT_SAVE_DIR
+            fmt = flags.get("format", "full")
+            valid_formats = ("full", "compact", "pc", "inventory", "location", "scene", "arc", "npcs", "compidx")
+            if fmt not in valid_formats:
+                print(f"Error: unknown format '{fmt}'. Valid formats: {', '.join(valid_formats)}", file=sys.stderr)
+                sys.exit(1)
+            cmd_state(fmt, save_dir_path)
+        case "diff":
+            turn_a = int(args[1]) if len(args) > 1 else None
+            turn_b = int(args[2]) if len(args) > 2 else None
+            section = flags.get("section")
+            valid_sections = ("npcs", "inventory", "conditions", "location", "tags", "applied")
+            if section is not None and section not in valid_sections:
+                print(f"Error: unknown section '{section}'. Valid sections: {', '.join(valid_sections)}", file=sys.stderr)
+                sys.exit(1)
+            cmd_diff(events, turn_a, turn_b, section_filter=section)
         case _:
             print(f"Unknown command: {cmd}", file=sys.stderr)
             print(__doc__.strip())
