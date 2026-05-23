@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Get beats, pressures, arcs, connectors (the mechanical pipeline)
+# Wrapper for `ev.py mechanics`. See ev.py --help.
 set -euo pipefail
-
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 exec python3 "$SCRIPT_DIR/ev.py" mechanics "$@"

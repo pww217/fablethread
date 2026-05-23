@@ -22,6 +22,7 @@ Defaults to saves/default/events.jsonl relative to repo root.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,44 @@ DEFAULT_SAVE_DIR = Path("saves/default")
 DEFAULT_FILE = DEFAULT_SAVE_DIR / "events.jsonl"
 
 STREAMS = ("ruling", "narrate", "scene", "state", "storytell")
+
+
+SECTION_MARKERS: dict[str, str] = {
+    "gm_beat": r"^## gm_beat$",
+    "campaign_arc": r"^#{1,3}\s*Campaign Arc$",
+    "deescalate": r"^## deescalate$",
+    "pressures": r"^## Current Pressures$",
+    "rules_stakes": r"^## rules_stakes$",
+    "pending_beat": r"^## pending_beat$",
+    # Reserved as stop markers — not used as start markers currently
+    "pacing_context": r"^## pacing_context$",
+    "last_turn_narration": r"^## last_turn_narration$",
+}
+
+# Compiled once at module load
+_COMPILED_SECTIONS: dict[str, re.Pattern] = {
+    name: re.compile(pattern) for name, pattern in SECTION_MARKERS.items()
+}
+
+
+STREAM_ALIASES: dict[str, str] = {
+    "rules": "ruling",
+    "ruling": "ruling",
+    "progress": "storytell",
+    "storytell": "storytell",
+    "narrate": "narrate",
+    "scene": "scene",
+    "state": "state",
+}
+
+
+def _resolve_stream(name: str) -> str:
+    """Map a user-facing stream name to the canonical data-model key. Dies on unknown names."""
+    canonical = STREAM_ALIASES.get(name)
+    if not canonical:
+        print(f"Unknown stream: {name}. Valid: {', '.join(sorted(STREAM_ALIASES))}", file=sys.stderr)
+        sys.exit(1)
+    return canonical
 
 
 def load_events(path: Path) -> list[dict[str, Any]]:
@@ -163,27 +202,40 @@ def extract_section(text: str | None, *headers: str) -> str:
     return "\n".join(result).strip()
 
 
-def extract_section_by_pattern(text: str | None, start_pattern: str, *stop_patterns: str) -> str:
-    """Extract text between a start header and the next matching stop header."""
-    if not text:
+def extract_section_by_pattern(text: str | None, start_name: str, *stop_names: str) -> str:
+    """Extract text between a section header (matched by name from SECTION_MARKERS) and the next stop header."""
+    if not text or start_name not in _COMPILED_SECTIONS:
         return ""
+    start_re = _COMPILED_SECTIONS[start_name]
+    stop_re_list = [_COMPILED_SECTIONS.get(s) for s in stop_names if s in _COMPILED_SECTIONS]
+
     lines = text.splitlines()
     found = False
-    result = []
-    stop_set = set(stop_patterns)
+    result: list[str] = []
     for line in lines:
         stripped = line.strip()
         if found:
-            if stripped in stop_set:
+            # Stop if we hit any of the stop markers
+            if any(r.search(stripped) for r in stop_re_list if r):
                 break
-            if stripped and not stripped.startswith("#"):
+            # Skip future headers that aren't stop markers
+            if stripped.startswith("#") and not any(r.search(stripped) for r in stop_re_list if r):
+                continue
+            if stripped:
                 result.append(line)
-        if stripped == start_pattern:
+        elif start_re.search(stripped):
             found = True
     return "\n".join(result).strip()
 
 
-def cmd_summary(events: list[dict[str, Any]]) -> None:
+def cmd_summary(events: list[dict[str, Any]], format: str = "text") -> None:
+    if format == "json":
+        for ev in events:
+            if ev.get("kind") == "compaction":
+                continue
+            obj = _build_summary_json(ev)
+            print(json.dumps(obj))
+        return
     print("=== Turn Viewer Summary ===\n")
     for ev in events:
         if ev.get("kind") == "compaction":
@@ -208,6 +260,25 @@ def cmd_summary(events: list[dict[str, Any]]) -> None:
             f"tokens: in={total_in} out={total_out} tt={total_tt} "
             f"ruling_intent: {intent} deltas: {state_diff}"
         )
+
+
+
+def _build_summary_json(ev: dict[str, Any]) -> dict[str, Any]:
+    """Build a structured summary dict for one event for JSON output. All numeric fields are native types."""
+    intent = _parse_ruling_intent(ev) or {}
+    raw_tt = _total_tt(ev)
+    return {
+        "turn": ev.get("turn"),
+        "streams": _stream_keys(ev),
+        "user_input": (ev.get("input") or "")[:100],
+        "tokens_in": int(_total_tokens_in(ev)),
+        "tokens_out": int(_total_tokens_out(ev)),
+        "total_tt_s": float(raw_tt.rstrip("s")) if raw_tt else 0.0,
+        "ruling_intent": (intent.get("intent") or "")[:100],
+        "deltas": int(_count_state_diff(ev)),
+        "has_rejections": bool(_has_rejections(ev)),
+    }
+
 
 
 def cmd_timing(events: list[dict[str, Any]]) -> None:
@@ -316,15 +387,28 @@ def cmd_mechanics(ev: dict[str, Any]) -> None:
     storytell_event = extract_prompt(ev, "storytell")["user"]
 
     print("--- GM Beat ---")
-    beat = extract_section_by_pattern(storytell_event, "## gm_beat", "## pending_beat", "## pacing_context", "## last_turn_narration")
+    beat = extract_section_by_pattern(storytell_event, "gm_beat", "pending_beat")
     print(beat if beat else "(empty)")
     print()
 
     # Campaign arc from narrate
     print("--- Campaign Arc (from narrate) ---")
     narrate_user = extract_prompt(ev, "narrate")["user"]
-    arc = extract_section_by_pattern(narrate_user, "### Campaign Arc", "### Characters")
+    arc = extract_section_by_pattern(narrate_user, "campaign_arc")
     print(arc if arc else "(empty)")
+    print()
+
+    # Narrative output (player received)
+    print("--- Narrative (player received) ---")
+    narrate_output = extract_prompt(ev, "narrate")["output"]
+    if narrate_output and len(narrate_output) > 500:
+        print(narrate_output[:500])
+        print("…")
+        print(f"(full text: python3 scripts/debug/ev.py compact {ev.get('turn', '?')} narrate)")
+    elif narrate_output:
+        print(narrate_output)
+    else:
+        print("(empty)")
     print()
 
     # State deltas
@@ -1942,7 +2026,8 @@ def main() -> None:
 
     match cmd:
         case "summary":
-            cmd_summary(events)
+            fmt = flags.get("format", "text")
+            cmd_summary(events, format=fmt)
         case "timing":
             cmd_timing(events)
         case "turn":
@@ -1955,9 +2040,7 @@ def main() -> None:
         case "props":
             turn = int(args[1])
             stream = args[2]
-            if stream not in STREAMS:
-                print(f"Unknown stream: {stream}", file=sys.stderr)
-                sys.exit(1)
+            stream = _resolve_stream(stream)
             ev = find_turn(events, turn)
             if not ev:
                 print(f"Turn {turn} not found")
@@ -1966,9 +2049,7 @@ def main() -> None:
         case "compact":
             turn = int(args[1])
             stream = args[2]
-            if stream not in STREAMS:
-                print(f"Unknown stream: {stream}", file=sys.stderr)
-                sys.exit(1)
+            stream = _resolve_stream(stream)
             ev = find_turn(events, turn)
             if not ev:
                 print(f"Turn {turn} not found")
@@ -1978,9 +2059,7 @@ def main() -> None:
             turn = int(args[1])
             stream = args[2]
             field = args[3]
-            if stream not in STREAMS:
-                print(f"Unknown stream: {stream}", file=sys.stderr)
-                sys.exit(1)
+            stream = _resolve_stream(stream)
             if field not in ("system", "user", "output"):
                 print(f"Unknown field: {field}", file=sys.stderr)
                 sys.exit(1)

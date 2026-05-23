@@ -4,6 +4,8 @@ Quick CLI tools for inspecting turn data from `saves/default/events.jsonl`.
 
 All scripts are thin wrappers around `ev.py` which reads events.jsonl directly â€” no server required.
 
+**Stream name aliases:** `ruling` (also `rules`), `narrate`, `scene`, `state`, `storytell` (also `progress`).
+
 ## Quick reference
 
 | Script | Purpose |
@@ -18,6 +20,10 @@ All scripts are thin wrappers around `ev.py` which reads events.jsonl directly â
 | `ev.py deltas` | State diffs and rejections |
 | `ev.py mechanics` | Rules intent + beats + pressures + arcs + connectors |
 | `ev.py connectors` | Inter-stream connectors only |
+| `ev.py state` | Current game state (reads state.yaml) |
+| `ev.py diff` | State comparison between two turns |
+| `ev.py trace` | Track a field across turns |
+| `ev.py search` | Find turns matching criteria |
 
 ## Usage
 
@@ -34,11 +40,11 @@ Optionally pass a path to events.jsonl as the last argument to use a different s
 # Full pipeline for turn 5
 ./ev.py turn 5
 
-# Just the progress stream on turn 5
+# Just the progress/storytell stream on turn 5
 ./ev.py props 5 progress
 
 # Progress stream, user + output only
-./ev.py compact 5 progress
+./ev.py compact 5 storytell
 
 # Single field
 ./ev.py prompt 5 progress user

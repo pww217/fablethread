@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Get prompts + outputs for a specific stream on a turn, skipping system prompts
+# Wrapper for `ev.py compact`. See ev.py --help.
 set -euo pipefail
-
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 exec python3 "$SCRIPT_DIR/ev.py" compact "$@"
