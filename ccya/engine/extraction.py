@@ -507,6 +507,7 @@ async def _run_extraction_pipeline(
     pacing_context: Any | None = None,
     recent_turns: list[dict[str, Any]] | None = None,
 ) -> "AsyncIterator[tuple[str, Any] | tuple['StateDelta', list[str], str, dict[str, Any], 'StorytellerResult', 'SceneExtractResult']]":
+    _log.debug("extraction.pipeline.start trace_id=%s turn_no=%d", trace_id, turn_no)
     """Run the three extraction streams in sequence.
 
     Returns: (merged_delta, actions, outcome_summary, per_stream_event_data, storyteller_result, scene_result)
@@ -570,6 +571,7 @@ async def _run_extraction_pipeline(
         )
         extraction_event["scene"] = {**_SKIPPED, "error": str(exc)}
 
+    _log.debug("extraction.scene.done trace_id=%s result_type=%s tags=%d npc_add=%d compendium_updates=%d", trace_id, type(scene_result).__name__, len(scene_result.scene_tags), len(scene_result.npc_add or []), len(scene_result.compendium_npc_update or []))
     yield ("phase", {"phase": "extract_stream_done", "stream": "scene"})
 
     # --- Stream 2: State ---
@@ -615,6 +617,7 @@ async def _run_extraction_pipeline(
         )
         extraction_event["state"] = {**_SKIPPED, "error": str(exc)}
 
+    _log.debug("extraction.state.done trace_id=%s result_type=%s inv_add=%d conds_add=%d", trace_id, type(state_result).__name__, len(state_result.inventory_add or []), len(state_result.pc_condition_add or []))
     yield ("phase", {"phase": "extract_stream_done", "stream": "state"})
 
     # --- Stream 3: Storytell (always runs — post-narration storytelling brain) ---
@@ -679,8 +682,10 @@ async def _run_extraction_pipeline(
         )
         extraction_event["storytell"] = {**_SKIPPED, "error": str(exc)}
 
+    _log.debug("extraction.storytell.done trace_id=%s result_type=%s actions=%d events_add=%d gm_beat=%s", trace_id, type(storytell_result).__name__, len(storytell_result.actions or []), len(storytell_result.recent_events_add or []), storytell_result.gm_beat.type if storytell_result.gm_beat else None)
     yield ("phase", {"phase": "extract_stream_done", "stream": "storytell"})
 
+    _log.debug("extraction.dedup.start trace_id=%s scene_npcs_add=%d compendium_updates=%d state_inv_add=%d", trace_id, len(scene_result.npc_add or []), len(scene_result.compendium_npc_update or []), len(state_result.inventory_add or []))
     # --- Dedup compendium updates before merging into StateDelta ---
     _comp = (state.get("compendium") or {}).get("npcs") or {}
     existing_npcs: list[dict[str, Any]] = []
@@ -699,8 +704,7 @@ async def _run_extraction_pipeline(
         deduped_compendium.append(_dedup_compendium_add(cu, existing_npcs))
     if deduped_compendium != (scene_result.compendium_npc_update or []):
         _log.debug(
-            "extraction.dedup: compendium dedup redirected %d entries",
-            len(scene_result.compendium_npc_update or []),
+            "extraction.dedup: compendium dedup redirected %d entries", len(scene_result.compendium_npc_update or []),
             extra={"turn": turn_no, "trace_id": trace_id},
         )
     scene_result = scene_result.model_copy(update={"compendium_npc_update": deduped_compendium})
@@ -719,9 +723,7 @@ async def _run_extraction_pipeline(
                     ] + [(a or "").lower() for a in (existing.get("aliases") or [])]
                     if candidate in existing_names:
                         _log.debug(
-                            "extraction.dedup: npc_add %r matches compendium %r, redirecting to update",
-                            npc_name,
-                            existing.get("id"),
+                            "extraction.dedup: npc_add %r matches compendium %r, redirecting to update", npc_name, existing.get("id"),
                             extra={"turn": turn_no, "trace_id": trace_id},
                         )
                         notes = getattr(npc, "notes", None) if hasattr(npc, "notes") else npc.get("notes", "") if isinstance(npc, dict) else ""
@@ -746,10 +748,12 @@ async def _run_extraction_pipeline(
 
     for op in (scene_result.npc_remove or []):
         _log.debug(
-            "npc_remove emitted",
-            extra={"trace_id": trace_id, "turn": turn_no, "npc_id": op.id},
+            "npc_remove emitted", extra={"trace_id": trace_id, "turn": turn_no, "npc_id": op.id},
         )
 
+    _log.debug(
+        "extraction.merge.start trace_id=%s scene_tags=%d npc_add=%d inv_add=%d events_add=%d", trace_id, len(scene_result.scene_tags or []), len(scene_result.npc_add or []), len(state_result.inventory_add or []), len(storytell_result.recent_events_add or [])
+    )
     # --- Merge into single StateDelta ---
     merged = StateDelta(
         scene_tags=scene_result.scene_tags,
@@ -783,6 +787,7 @@ async def _run_extraction_pipeline(
         scene_result,
         extraction_ctx,
     )
+    _log.debug("extraction.pipeline.done trace_id=%s turn_no=%d", trace_id, turn_no)
 
 
 def _avg_narrate_ms(save_dir: Path, n: int = 5) -> int:

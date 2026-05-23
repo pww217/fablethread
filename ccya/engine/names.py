@@ -6,11 +6,14 @@ Owned entirely by this module. Do not import faker elsewhere.
 
 from __future__ import annotations
 
+import logging
 import random
 from typing import Any
 
 from faker import Faker
 from pykakasi import Kakasi
+
+_log = logging.getLogger(__name__)
 
 _FALLBACK = [{"locale": "en_US", "weight": 1.0}]
 

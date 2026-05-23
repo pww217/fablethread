@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+
+_log = logging.getLogger(__name__)
 
 
 def _summarize_applied(applied: dict[str, Any]) -> list[str]:
