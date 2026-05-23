@@ -1,7 +1,7 @@
 # Critical Pipeline Fixes
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 

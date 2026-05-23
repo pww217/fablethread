@@ -1166,7 +1166,7 @@ async def run_turn(
                 )
                 narrative += f"\n\n*That action didn't resolve as expected. Trace `{trace_id}` — try rephrasing.*"
 
-            reconcile_warnings = reconcile_delta(state, delta)
+            delta, reconcile_warnings = reconcile_delta(state, delta)
             for w in reconcile_warnings:
                 _log.warning("[reconcile] turn %s: %s", state.get("meta", {}).get("turn", "?"), w, extra={"trace_id": trace_id})
             state, recent_events_evicted = apply_delta(

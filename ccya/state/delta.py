@@ -81,12 +81,14 @@ def _item_to_dict(item: Any) -> dict[str, Any]:
     return result
 
 
-def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> list[str]:
+def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> tuple[StateDelta, list[str]]:
     """Validate and clean `delta` against current `state`.
 
-    Returns a list of warning strings for logging.
-    Mutates delta in place.
+    Returns a ``(reconciled_delta, warnings)`` tuple.  Does NOT mutate
+    the original ``delta`` — creates a copy, reconciles the copy, and
+    returns it.
     """
+    delta = copy.deepcopy(delta)
     warnings: list[str] = []
 
     # 1. Inventory: item in both add and remove -> drop from add
@@ -119,7 +121,7 @@ def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> list[str]:
             warnings.append(f"duplicate condition add within delta: {c.id}")
     delta.pc_condition_add = deduped_adds
 
-    return warnings
+    return delta, warnings
 
 
 def apply_delta(
@@ -182,6 +184,10 @@ def apply_delta(
     for rem in delta.inventory_remove:
         canonical = resolve_inventory_remove_target(inv, rem.id)
         if not canonical:
+            _log.warning(
+                "inventory_remove target %r not found in inventory (turn %s)",
+                rem.id, current_turn_no,
+            )
             continue
         ex = by_id[canonical]
         if rem.amount is None:
