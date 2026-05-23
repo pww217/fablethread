@@ -8,7 +8,6 @@ qualitative runner and quantitative pytest tests — no duplication of test data
 
 from __future__ import annotations
 
-import asyncio
 import json
 from pathlib import Path
 from typing import Any
@@ -52,9 +51,11 @@ def _generate_fake_responses(turn_index: int, turn_asserts: list[Any]) -> dict[s
     # Determine if any assertion expects a dice roll
     needs_roll = False
 
+    def _get_stream(o):
+        return o.get("stream", "") if isinstance(o, dict) else getattr(o, "stream", "")
+
     for assert_obj in turn_asserts:
-        access = lambda o: (o.get("stream", "") if isinstance(o, dict) else getattr(o, "stream", ""))
-        stream = access(assert_obj)
+        stream = _get_stream(assert_obj)
         field = assert_obj.get("field", "") if isinstance(assert_obj, dict) else getattr(assert_obj, "field", "")
         expected = assert_obj.get("expected", None) if isinstance(assert_obj, dict) else getattr(assert_obj, "expected", None)
 
@@ -203,13 +204,7 @@ class TestScenarioIntegration:
 
         Scenario assertions: TurnAssert(stream="ruling", field="rolled", expected="true") on turns 0 and 2.
         """
-        import yaml
-
         save_dir = setup_save_dir
-
-        # Apply seed_overrides from scenario if any (momentum_high sets momentum)
-        with open(save_dir / "state.yaml") as f:
-            state = yaml.safe_load(f) or {}
 
         turns_data = [
             {  # Turn 0 — high_momentum_social, expects rolled=true
@@ -266,12 +261,7 @@ class TestScenarioIntegration:
         Scenario assertions: TurnAssert(stream="ruling", field="rolled") on turns 0-1,
         TurnAssert(stream="state_yaml", field="pending_gm_beat.present/absent") on turns 2-4.
         """
-        import yaml
-
         save_dir = setup_save_dir
-
-        with open(save_dir / "state.yaml") as f:
-            state = yaml.safe_load(f) or {}
 
         turns_data = [
             {  # Turn 0 — setup_1, expects rolled=false (no roll needed for settling debt verbally)
