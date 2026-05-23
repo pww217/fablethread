@@ -427,22 +427,6 @@ class ThreadResolution(BaseModel):
     resolution_state: Literal["resolved", "failed", "abandoned"]
 
 
-_GM_BEAT_FILLER_PREFIXES: tuple[str, ...] = (
-    "something happens",
-    "give the player",
-    "something bad",
-    "an event occurs",
-    "things get worse",
-    "a complication arises",
-    "add tension",
-    "raise the stakes",
-    "provide a",
-    "create a",
-    "introduce a",
-    "the gm",
-)
-
-
 class GMBeat(BaseModel):
     type: Literal[
         "complication",
@@ -463,21 +447,7 @@ class GMBeat(BaseModel):
         "player_discovery",
         "item",
     ] = "ambient"
-    instruction: str | None = None
     beat_expires_turn: int | None = None
-
-    @field_validator("instruction", mode="after")
-    @classmethod
-    def _validate_instruction_quality(cls, v: str | None) -> str | None:
-        if not v:
-            return None
-        stripped = v.strip()
-        if len(stripped) < 40:
-            return None
-        lower = stripped.lower()
-        if any(lower.startswith(prefix) for prefix in _GM_BEAT_FILLER_PREFIXES):
-            return None
-        return stripped
 
 
 class StorytellerResult(BaseModel):
@@ -494,7 +464,7 @@ class StorytellerResult(BaseModel):
     @model_validator(mode="after")
     def _nullify_invalid_gm_beat(self) -> "StorytellerResult":
         if self.gm_beat is not None:
-            if not self.gm_beat.instruction or not self.gm_beat.type:
+            if not self.gm_beat.type:
                 self.gm_beat = None
         return self
 

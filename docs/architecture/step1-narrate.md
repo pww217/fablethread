@@ -13,7 +13,7 @@ flowchart LR
     subgraph IN["Inputs"]
         N1["state (full —<br>pc, location, scene,<br>inventory, quests, compendium)"]
         N2["chronicle_tail<br>(compressed history, ≤budget tokens)"]
-        N3["recent_turns (last window_turns=6)"]
+        N3["recent_turns (last window_turns, default 3)"]
         N4["rules_outcome<br>(band, directive, dice summary)"]:::xstream
         N5["pack_style (tone / prose guide)"]
         N6["npc_name_pool (cultural name list)"]
@@ -22,9 +22,10 @@ flowchart LR
         N9["present_npcs<br>(attitudes)"]
         N10["world_factions<br>(immutable trace)"]
         N11["world_locations<br>(nearby, immutable)"]
-        N12["pending_gm_beat"]
-        N13["pacing_context<br>(directive · beat_hint)<br>from _compute_pacing_context()"]:::xstream
-        N14["user_input"]
+        N12["pending_gm_beat<br>(type · surface_as metadata)"]
+        N13["pacing_context<br>(directive)<br>from _compute_pacing_context()"]:::xstream
+        N14["compendium_bios<br>(upserted bio entries for<br>present + recently_left NPCs)"]
+        N15["user_input"]
     end
 
     subgraph LLM1["LLM — narrate_system.j2 + narrate_user.j2"]
@@ -44,7 +45,7 @@ flowchart LR
 
 The narrator receives `current_arc` in both system and user prompts. Key fields:
 
-- **`goal_context`**: A seed-time field (2–3 sentences) explaining why `visible_goal` matters to the character specifically. When present, `narrate_system.j2` activates an early-turn guidance block: ground the player in personal stakes before broad exposition. This is also injected into the user prompt via `_arc.j2` as HTML-comment-wrapped narrator context.
+- **`goal_context`**: A seed-time field (2–3 sentences) explaining why `visible_goal` matters to the character specifically — inner cost or pressure that makes it emotionally loaded. When present, `narrate_system.j2` activates an early-turn guidance block: ground the player in personal stakes before broad exposition. This is also injected into the user prompt via `_arc.j2` as HTML-comment-wrapped narrator context.
 - **`visible_goal`**: The player-facing objective.
 - **`thematic_question`**: The moral tension — never stated directly in prose. Used as a lens for emphasis: what detail feels loaded, what silence matters.
 - **`pc_drive`**: The character's personal motive. Expressed indirectly through goal_context, NPC relations, and action language rather than displayed as a labeled UI fact.

@@ -14,7 +14,7 @@ flowchart LR
         S1["narrative (from Step 1)"]:::xstream
         S2["_ExtractionContext<br>(present_npcs, location,<br>inventory, conditions)<br>built by _build_extraction_context()"]:::xstream
         S3["npc_roster<br>(tiered: PRESENT/JUST_LEFT/NEARBY/KNOWN)"]:::xstream
-        S4["pacing_context<br>(directive · gate · beat_hint · beat_locked)"]:::xstream
+        S4["pacing_context<br>(directive · gate · beat_locked)"]:::xstream
         S5["arc.threads[]<br>(unified scope=scene + scope=arc)"]:::xstream
         S6["rules_outcome"]:::xstream
         S7["intent (from Step 0)"]:::xstream
@@ -51,7 +51,6 @@ Progress is the post-narration storytelling brain. It always executes every turn
 GMBeat
   type: complication | revelation | opportunity | breathing_room | pressure | twist | setback | escalation | callback
   surface_as: ambient | event | npc_behavior | environmental | player_discovery | item (default: ambient)
-  instruction: str (must be ≥40 chars, not start with filler prefixes)
   beat_expires_turn: int | None (turn number at which the beat expires; set to turn_no + 2 when stored)
 ```
 
@@ -61,9 +60,9 @@ The beat flows through three phases per turn:
 
 **Phase 1 — Pre-narration expiry check.** At the start of each turn, the engine reads `state.meta.pending_gm_beat` from the previous turn. If `beat_expires_turn` is set and the current turn number exceeds it, the beat is nullified. Otherwise it proceeds to narration.
 
-**Phase 2 — Narration consumption.** The beat is passed to the narrator via `_narrate_messages(pending_gm_beat=...)`. The narrator integrates the beat's instruction into prose. After narration completes, the beat is temporarily cleared from state. The beat is then restored to state so the storyteller can see it in its prompt — this is critical because the storyteller needs to know what beat was narrated to make an informed disposition decision.
+**Phase 2 — Narration consumption.** The beat is passed to the narrator via `_narrate_messages(pending_gm_beat=...)`. The narrator uses the beat's type and surface_as metadata as creative guidance alongside the pacing directive. After narration completes, the pending beat is cleared from state — it is not restored for storyteller consumption.
 
-**Phase 3 — Extraction disposition (inferred).** The storyteller receives the pending beat context and emits an optional new `gm_beat`. Unlike the previous architecture, there is no explicit `beat_disposition` field. Instead:
+**Phase 3 — Extraction disposition (inferred).** The storyteller receives no pending beat context in its prompt — it decides beats based solely on current extraction data (scene state, threads, pacing context, band). Unlike the previous architecture, there is no explicit `beat_disposition` field. Instead:
 - If Progress emits a new `gm_beat`, it replaces the old one (`state.meta.pending_gm_beat = gm_beat` with `beat_expires_turn = turn_no + 2`)
 - If Progress emits nothing and the beat's `expires_at` hasn't passed, the engine preserves the existing beat unchanged (carry)
 - The engine stores beats with `beat_expires_turn = turn_no + 2` as a hard TTL ceiling. Beats past their expiry are discarded automatically on load.

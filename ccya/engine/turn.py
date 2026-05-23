@@ -70,8 +70,7 @@ _log = logging.getLogger(__name__)
 @dataclass
 class PacingContext:
     """Consolidated pacing decision for Narrate and Progress steps."""
-    directive: str  # "Breathe" | "Pressure" | "MoveOn" | "Escalate" | ""
-    beat_hint: str | None  # suggested gm_beat type, or None (sent to Narrator when a beat is pending)
+    directive: str  # "Breathe" | "Pressure" | "Overwhelm" | "Tension" | "Resolve a Threat" | "Threat Pressure" | "" (may include "; Combat Fatigue" secondary)
     beat_locked: bool  # True: floor relief fired — Progress MUST emit breathing_room beat and gate is force-closed
     gate: Literal["block_add", "block_escalate", "allow"]  # Progress may only add threads when allow
     summary: str  # human-readable log string, never sent to LLM
@@ -79,7 +78,7 @@ class PacingContext:
     @staticmethod
     def neutral() -> PacingContext:
         """Default pacing context for turns without special conditions."""
-        return PacingContext(directive="", beat_hint=None, beat_locked=False, gate="allow", summary="neutral")
+        return PacingContext(directive="", beat_locked=False, gate="allow", summary="neutral")
 
 
 _ACTIVE_THREAD_CAP = 3
@@ -503,7 +502,6 @@ def _compute_pacing_context(
     scope_scene_threads: list["ArcThread"],
     ages: dict[str, int],
     threat_ages: list[dict[str, Any]] | None,
-    pending_beat: dict[str, Any] | None,
     momentum: int,
     config: "EngineConfig",
 ) -> PacingContext:
@@ -511,7 +509,7 @@ def _compute_pacing_context(
 
     Derives urgency from unified arc.threads[] with scope=scene instead of
     raw scene_pressure dicts. Replaces separate deescalate/narrative_velocity
-    signals with a single authoritative struct containing directive, beat_hint,
+    signals with a single authoritative struct containing directive,
     beat_locked, gate, summary.
     """
     # Compute directive using existing logic
@@ -524,13 +522,6 @@ def _compute_pacing_context(
         threat_imperative_at=config.threat_imperative_at,
         building_threat_imperative_at=config.building_threat_imperative_at,
     )
-
-    # Determine beat_hint: suggest a type when there's a pending beat
-    beat_hint = None
-    if pending_beat and isinstance(pending_beat, dict) and pending_beat.get("type"):
-        beat_type = pending_beat.get("type") or "pressure"
-        surface_as = pending_beat.get("surface_as", "ambient")
-        beat_hint = f"{beat_type} ({surface_as})"
 
     # Determine beat_locked: floor relief fired when momentum is at minimum
     beat_locked = False
@@ -548,15 +539,12 @@ def _compute_pacing_context(
 
     # Build summary for logging
     parts = [directive] if directive else []
-    if beat_hint:
-        parts.append(f"beat_hint={beat_hint}")
     if beat_locked:
         parts.append("locked")
     summary = ", ".join(parts) or "neutral"
 
     return PacingContext(
         directive=directive or "",
-        beat_hint=beat_hint,
         beat_locked=beat_locked,
         gate=gate,
         summary=summary,
@@ -954,7 +942,6 @@ async def run_turn(
             scope_scene_threads=_scope_scene_threads,
             ages=ages,
             threat_ages=threat_ages,
-            pending_beat=_pending_gm_beat,
             momentum=(state.get("pc") or {}).get("momentum", 0),
             config=config,
         )
@@ -1048,17 +1035,10 @@ async def run_turn(
 
         yield ("phase", {"phase": "narrate_done"})
 
-        # Save beat before clearing so extraction pipeline can see it
-        _beat_before_narration = (state.get("meta") or {}).get("pending_gm_beat")
-
-        # Clear pending_gm_beat after narration consumed it
+        # Clear pending_gm_beat after narration consumed it — not restored since beat_disposition was removed
         state.setdefault("meta", {})["pending_gm_beat"] = None
 
         # === Extraction pipeline (3 streams) ===
-        # Restore beat so progress extractor sees it in prompt for disposition decision
-        if _beat_before_narration is not None:
-            state.setdefault("meta", {})["pending_gm_beat"] = _beat_before_narration
-
         exp_ms = _avg_extract_ms(save_dir)
         yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
         t2 = asyncio.get_event_loop().time()
@@ -1370,7 +1350,6 @@ async def run_turn(
             "ruling": ruling_event,
             "pacing_context": {
                 "directive": _pc.directive if _pc else "",
-                "beat_hint": _pc.beat_hint if _pc else None,
                 "beat_locked": bool(_pc.beat_locked) if _pc else False,
                 "gate": _pc.gate if _pc else "allow",
                 "summary": _pc.summary if _pc else "",

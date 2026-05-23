@@ -110,15 +110,8 @@ When deescalating, always prefer `breathing_room` or `null` regardless of band.
 - `item` — inventory/tool relevance: "Your old sea-knife catches on your coat as you move — you hadn't thought of it in years, but its edge is still true."
 
 - Each beat must be narratively specific: name NPCs, reference locations, tie to active threads
-- Emit as: `{"type": "pressure", "surface_as": "npc_behavior", "instruction": "The guard captain returns with reinforcements."}`
+- Emit as: `{"type": "pressure", "surface_as": "npc_behavior"}`
 - If no beat is warranted, emit `null` (not an empty object)
-
-## GM Beat Grounding Rule
-
-`gm_beat.instruction` must reference a specific named entity already present in state:
-an NPC id from the `## characters` roster where `presence == PRESENT`, or a pressure id from the Current Pressures list.
-Do not invent new characters or situations in `gm_beat`. A beat that references no existing
-entity will be nullified by the engine.
 
 ## Rules-outcome guidance
 - crit_fail / fail / setback / partial: do NOT mark thread signals as "advanced" for the attempted action.
