@@ -74,11 +74,20 @@ Narration: "The guard captain steps into your path, hand on his baton, and deman
 
 Sections not shown in the user prompt still exist in the live game state — absence is not removal. Only emit removals you can justify from the narration.
 
+## NPC dedup — mandatory pre-check (apply BEFORE every npc_add)
+
+Before you emit `npc_add` for ANY NPC:
+
+1. Check the `## present_npcs` list. If the NPC is already there, use `npc_update` instead of `npc_add`.
+2. Check the `<<<TRACE_IMMUTABLE>>> known_characters` compendium section. If the NPC's name or title matches an existing compendium entry, use that entry's ID and DO NOT emit `npc_add` — use `npc_update` if already present, or do nothing if they haven't entered the scene.
+3. If the NPC was removed in a prior turn via `npc_remove` and is now returning, use `npc_add` with the existing compendium ID — but DO NOT re-emit `name`, `title`, or `bio` if those already exist in the compendium.
+
+The engine will hydrate NPC identity from the compendium. You do not need to supply `name`/`title`/`bio` for known NPCs.
+
 ## Deduplication rule
 
 Before you submit your output, verify that you have no duplicate or near-duplicate entries:
 
-- **NPCs:** Do not add an NPC whose ID already appears in the `## Present NPCs` list or whose name/title closely matches an existing compendium entry. If the narration refers to an already-present NPC, use `npc_update` instead of `npc_add`.
 - **Locations:** Do not emit `location_change` if the location ID is the same as the current location. Do not emit `location_description` if the narration only restates or paraphrases details already in the stored description.
 - **Scene tags:** Do not repeat tags already present in the previous turn's `scene_tags` unless the mood has genuinely shifted. Keep the list to at most 5.
 - **Compendium updates:** Do not emit a `compendium_npc_update` for an NPC that has no new durable identity information (name, title, bio, allegiance, aliases, motivation, fear, leverage).
