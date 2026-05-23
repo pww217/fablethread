@@ -1,7 +1,7 @@
 """Substring-overlap detector for engine prompts.
 
-For each turn, compares the rendered_user content of the 5 streams (rules,
-narrate, scene, state, progress) pairwise. Reports any line-anchored span of
+For each turn, compares the rendered_user content of the 5 streams (ruling,
+narrate, scene, state, storytell) pairwise. Reports any line-anchored span of
 length >= MIN_LINE_CHARS that appears identically in two or more streams.
 
 Runs as a deterministic pre-pass before judge sees the trace. Output is a

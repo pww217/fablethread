@@ -169,7 +169,7 @@
                                 <div class="tv-stage-body" x-show="expandedKey(t.turn, stage)">
                                     <div x-show="t.streams[stage].skipped" class="tv-skipped">Skipped</div>
                                     <div x-show="!t.streams[stage].skipped">
-                                        <template x-if="stage === 'rules' && t.rules_intent">
+                                        <template x-if="stage === 'ruling' && t.rules_intent">
                                             <dl class="tv-rules-dl">
                                                 <template x-if="t.rules_intent.intent"><dt>intent</dt><dd x-text="t.rules_intent.intent"></dd></template>
                                                 <template x-if="t.rules_intent.intent_verb"><dt>intent_verb</dt><dd x-text="t.rules_intent.intent_verb"></dd></template>
@@ -345,7 +345,7 @@ function tvRoot() {
         onlyCompaction: false,
         liveConnected: false,
         _es: null,
-        stages: ['rules', 'narrate', 'scene', 'state', 'progress'],
+        stages: ['ruling', 'narrate', 'scene', 'state', 'storytell'],
         init() {
             var self = this;
             var el = document.getElementById('tv-initial-data');
