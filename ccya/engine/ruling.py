@@ -89,7 +89,10 @@ async def _call_ruling(
             j = _find_json(cleaned)
             if j is None:
                 raise ValueError("No JSON found in ruling response")
-            return IntentEnvelope(**j), {
+            intent = IntentEnvelope(**j)
+            if intent.check.required and not intent.check.skill:
+                raise ValueError(f"check.required=true but check.skill is missing/empty (got {j.get('check', {}).get('skill', None)})")
+            return intent, {
                 "prompt_tokens": usage.get("prompt_tokens", 0),
                 "completion_tokens": usage.get("completion_tokens", 0),
                 "total_tokens": usage.get("total_tokens", 0),

@@ -788,6 +788,16 @@ async def run_turn(
                 outcome = RulesOutcome(
                     rolled=False, intent_verb=intent.intent_verb, intent=intent.intent
                 )
+        elif intent.check.required and not intent.check.skill:
+            _log.warning(
+                "rules: check required on T%d but skill=%s — no roll will occur",
+                state.get("meta", {}).get("turn", 0) + 1,
+                intent.check.skill,
+                extra={"trace_id": trace_id, "turn": state.get("meta", {}).get("turn", 0) + 1},
+            )
+            outcome = RulesOutcome(
+                rolled=False, intent_verb=intent.intent_verb, intent=intent.intent
+            )
         else:
             outcome = RulesOutcome(
                 rolled=False, intent_verb=intent.intent_verb, intent=intent.intent
@@ -1275,6 +1285,12 @@ async def run_turn(
 
         # Extract narrator arc_update block if present
         narrative, narrator_arc_dict = _extract_narrator_arc_update(narrative)
+        if narrator_arc_dict:
+            _ALLOWED_NARRATOR_ARC_KEYS = {
+                "visible_goal", "thematic_question", "pc_drive",
+                "discovered_truths", "hidden_truths",
+            }
+            narrator_arc_dict = {k: v for k, v in narrator_arc_dict.items() if k in _ALLOWED_NARRATOR_ARC_KEYS}
         if narrator_arc_dict:
             try:
                 narrator_arc_update = CampaignArc.model_validate(narrator_arc_dict)

@@ -25,21 +25,6 @@ _DEFAULT_CONDITION_TTL = 10
 def _merge_arc_update(arc: dict[str, Any], au: CampaignArc) -> None:
     """Surgically merge arc_update into the live arc dict. Never wholesale replaces."""
 
-    def _upsert_threads(
-        existing: list[dict[str, Any]], updates: list[Any]
-    ) -> list[dict[str, Any]]:
-        by_id = {t["id"]: t for t in existing if isinstance(t, dict) and t.get("id")}
-        for t in updates:
-            td = t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
-            tid = td.get("id")
-            if not tid:
-                continue
-            if tid in by_id:
-                by_id[tid].update({k: v for k, v in td.items() if v is not None})
-            else:
-                by_id[tid] = td
-        return list(by_id.values())
-
     if au.visible_goal:
         arc["visible_goal"] = au.visible_goal
     if au.thematic_question:
@@ -52,12 +37,12 @@ def _merge_arc_update(arc: dict[str, Any], au: CampaignArc) -> None:
     if au.discovered_truths:
         existing_dt = set(arc.get("discovered_truths") or [])
         arc["discovered_truths"] = list(existing_dt | set(au.discovered_truths))
-    if au.threads is not None:
+    if au.threads:
         arc["threads"] = [
             t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
             for t in au.threads
         ]
-    if au.completed_threads is not None:
+    if au.completed_threads:
         arc["completed_threads"] = [
             t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
             for t in au.completed_threads
