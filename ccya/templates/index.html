@@ -304,7 +304,7 @@ function _fmtTokens(n) {
 
 function _formatMetricsRow(metrics) {
     if (!metrics || typeof metrics !== 'object') return '';
-    const r = metrics.rules || {};
+    const r = metrics.ruling || {};
     const n = metrics.narrate || {};
     const x = metrics.extract || {};
     const streams = x.streams || {};
