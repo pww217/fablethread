@@ -94,7 +94,7 @@ def check_pending_gm_beat_consumed(
 def check_pending_gm_beat_lifecycle_respected(
     event: dict[str, Any], prev_event: dict[str, Any] | None
 ) -> dict[str, Any]:
-    """Beat lifecycle from progress extractor must be respected in state.
+    """Beat lifecycle from storytell extractor must be respected in state.
 
     NOTE: beat_disposition field removed from StorytellerResult in Phase 01.
     Python now infers disposition directly from gm_beat presence/absence:
@@ -104,29 +104,28 @@ def check_pending_gm_beat_lifecycle_respected(
     This checks that the engine's beat lifecycle logic correctly handles this.
     """
     extraction = event.get("extraction") or {}
-    progress = extraction.get("storytell") or {}
-    progress_gm_beat = progress.get("gm_beat")
-
+    storytell = extraction.get("storytell") or {}
+    storytell_gm_beat = storytell.get("gm_beat")
     cur_snap = event.get("state_snapshot") or {}
     cur_beat = (cur_snap.get("meta") or {}).get("pending_gm_beat")
     prev_snap = prev_event.get("state_snapshot") or {} if prev_event else None
     prev_beat = (prev_snap.get("meta") or {}).get("pending_gm_beat") if prev_snap else None
 
     # If a new gm_beat was emitted, it should be in state after the turn
-    if progress_gm_beat and isinstance(progress_gm_beat, dict) and progress_gm_beat.get("type"):
+    if storytell_gm_beat and isinstance(storytell_gm_beat, dict) and storytell_gm_beat.get("type"):
         if cur_beat is None:
             return {
                 "assertion": "universal.pending_gm_beat.lifecycle_respected",
                 "passed": False,
-                "detail": f"new gm_beat emitted but pending_gm_beat is None in state: {progress_gm_beat.get('type')}",
+                "detail": f"new gm_beat emitted but pending_gm_beat is None in state: {storytell_gm_beat.get('type')}",
                 "scope": "universal",
                 "severity": "red",
             }
-        if cur_beat.get("type") != progress_gm_beat.get("type"):
+        if cur_beat.get("type") != storytell_gm_beat.get("type"):
             return {
                 "assertion": "universal.pending_gm_beat.lifecycle_respected",
                 "passed": False,
-                "detail": f"new gm_beat type mismatch: progress={progress_gm_beat.get('type')}, state={cur_beat.get('type')}",
+                "detail": f"new gm_beat type mismatch: storytell={storytell_gm_beat.get('type')}, state={cur_beat.get('type')}",
                 "scope": "universal",
                 "severity": "red",
             }
@@ -669,8 +668,7 @@ def check_no_negative_inventory(event: dict[str, Any]) -> dict[str, Any]:
 
 
 def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
-    """If narration_directive was computed, it should appear in both narrate and progress prompts.
-
+    """If narration_directive was computed, it should appear in both narrate and storytell prompts.
     Checks for all 9 directive types: Breathe, Pressure, Overwhelm, Tension,
     Combat Fatigue, Location Imperative, Location Pressure, Threat Pressure, Resolve a Threat.
     """
@@ -693,7 +691,7 @@ def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
             "severity": "red",
         }
 
-    if "narration_directive" not in storytell_user.lower():
+    if not isinstance(storytell_user, str) or "narration_directive" not in storytell_user.lower():
         return {
             "assertion": "universal.narrate.directive_rendered",
             "passed": False,

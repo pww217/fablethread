@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator
@@ -152,7 +151,7 @@ def fake_llm_patch(monkeypatch, fake_llm: FakeLLM):
     extraction.py (llm_chat for scene/state/progress streams). Not autouse —
     only used by smoke/integration tests that need the full pipeline.
     """
-    import ccya.engine.rules as rules_mod
+    import ccya.engine.ruling as rules_mod
 
     # Patch chat at module level where it's imported
     monkeypatch.setattr(rules_mod, "llm_chat", fake_llm.chat)
@@ -170,7 +169,7 @@ def fake_llm_patch(monkeypatch, fake_llm: FakeLLM):
     yield fake_llm
 
     # Reset turn counter between tests
-    fake_llm._turn_counter = 0
+    fake_llm._phase_counters.clear()
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 # 02-render-smoke-and-integration-tests
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 
