@@ -14,6 +14,8 @@ Usage:
     ev.py connectors TURN [TURN_FILE]   # inter-stream connectors only
     ev.py state [--format MODE] [--save-dir PATH]  # show current game state from state.yaml
     ev.py diff TURN-A TURN-B [--section SEC]       # compare two turns
+    ev.py trace FIELD [--from N] [--to M]          # show field across turn range
+    ev.py search <expr> [<expr> ...]               # structured cross-turn search
 
 Defaults to saves/default/events.jsonl relative to repo root.
 """
@@ -1340,6 +1342,584 @@ def cmd_diff(events: list[dict[str, Any]], turn_a: int | None, turn_b: int | Non
     format_diff_output(diff_results, intermediate_changes, turn_a, turn_b, section_filter)
 
 
+def extract_field_from_event(ev: dict[str, Any], field: str) -> Any | None:
+    """Extract a single field's printable value from an event.
+
+    Returns None if the field is not tracked in any data source.
+    Dispatch order: extraction_context → applied → changes → ruling.
+    First match wins.
+    """
+    ctx = ev.get("extraction_context") or {}
+    applied = ev.get("applied") or {}
+    changes = ev.get("changes") or {}
+    ruling_ev = ev.get("ruling") or {}
+
+    # extraction_context fields (5 snapshot categories)
+    if field == "inventory":
+        return ctx.get("inventory_this_turn", [])
+    elif field.startswith("inventory."):
+        item_id = field[len("inventory."):]
+        items = ctx.get("inventory_this_turn", []) or []
+        for item in items:
+            if isinstance(item, dict) and item.get("id") == item_id:
+                return {k: v for k, v in item.items() if k != "aliases"}
+        return None
+
+    elif field == "conditions":
+        return ctx.get("conditions_this_turn", []) or []
+    elif field.startswith("conditions."):
+        cond_id = field[len("conditions."):]
+        conds = ctx.get("conditions_this_turn", []) or []
+        for c in conds:
+            if isinstance(c, dict) and c.get("id") == cond_id:
+                return {k: v for k, v in c.items() if k != "description"}
+        return None
+
+    elif field == "npcs":
+        npcs = ctx.get("present_npcs_this_turn", []) or []
+        return [n.get("id", "") for n in npcs if isinstance(n, dict)]
+    elif field.startswith("npcs."):
+        npc_id = field[len("npcs."):]
+        npcs = ctx.get("present_npcs_this_turn", []) or []
+        for n in npcs:
+            if isinstance(n, dict) and n.get("id") == npc_id:
+                return {k: v for k, v in n.items() if k != "bio" and k != "relation"}
+        return None
+
+    elif field == "location":
+        loc = ctx.get("location_this_turn", {}) or {}
+        name = loc.get("name", "") if isinstance(loc, dict) else ""
+        loc_id = loc.get("id", "") if isinstance(loc, dict) else ""
+        if loc_id and name:
+            return f"{loc_id} ({name})"
+        elif name:
+            return name
+        elif loc_id:
+            return loc_id
+        return None
+
+    elif field == "scene.tags":
+        tags = ctx.get("scene_tags_this_turn", []) or []
+        if isinstance(tags, list):
+            return [str(t) for t in tags]
+        return None
+
+    # applied fields (StateDelta mutations)
+    elif field == "scene.tagline":
+        tagline = applied.get("scene_tagline")
+        if isinstance(tagline, str):
+            return tagline
+        return None
+
+    # changes fields + ruling fallback for momentum
+    elif field == "pc.momentum":
+        mom_list = (changes.get("momentum", []) or [])
+        if isinstance(mom_list, list) and mom_list:
+            latest = mom_list[-1] if isinstance(mom_list[-1], dict) else {}
+            return int(latest.get("after", 0))
+        # Fallback to ruling_event.momentum_after
+        if "momentum_after" in ruling_ev:
+            return int(ruling_ev["momentum_after"])
+        return None
+
+    # Not tracked
+    return None
+
+
+def format_trace_value(value: Any, field: str) -> str:
+    """Format a value for display in the trace table."""
+    if value is None:
+        return "(no data)"
+
+    if isinstance(value, list):
+        if not value:
+            return "(empty)"
+        # Collection fields - show condensed format
+        if field == "inventory":
+            parts = []
+            for item in sorted(value, key=lambda x: ("0" if isinstance(x, dict) and x.get("id") == "credits" else "1", (x.get("name") or "").lower())):
+                if not isinstance(item, dict):
+                    continue
+                name = _short_item_name(item.get("name", item.get("id", "?")))
+                amt = int((item.get("amount") or 1))
+                parts.append(f"{name}×{amt}")
+            return ", ".join(parts) if parts else "(empty)"
+
+        elif field == "conditions":
+            labels = []
+            for c in value:
+                if isinstance(c, dict):
+                    lbl = c.get("label", "") or c.get("id", "?")
+                    labels.append(lbl)
+                else:
+                    labels.append(str(c))
+            return ", ".join(labels) if labels else "(empty)"
+
+        elif field == "npcs":
+            # value is already a list of IDs from extract_field_from_event
+            if isinstance(value, list):
+                npc_entries = []
+                for n in (value or []):
+                    if isinstance(n, dict):
+                        name = n.get("name", "") or ""
+                        npc_id = n.get("id", "?")
+                        npc_entries.append(f"{npc_id} {name}") if name else npc_entries.append(str(npc_id))
+                    elif isinstance(n, str):
+                        npc_entries.append(n)
+                return ", ".join(npc_entries) if npc_entries else "(empty)"
+            return str(value)
+
+        # Generic list display (e.g., scene.tags)
+        items = [str(x)[:40] for x in value[:10]]
+        result = ", ".join(items)
+        if len(value) > 10:
+            result += f" (+{len(value)-10} more)"
+        return result
+
+    elif isinstance(value, dict):
+        name = value.get("name", "") or ""
+        npc_id = value.get("id", "?")
+        if name:
+            return f"{npc_id}: {name}"
+        return str({k: v for k, v in list(value.items())[:3]})
+
+    elif isinstance(value, str):
+        return value[:100] + ("…" if len(value) > 100 else "")
+
+    return str(value)[:200]
+
+
+def _short_item_name(name: str) -> str:
+    """Shorten item names for compact display."""
+    words = name.split()
+    if not words:
+        return "?"
+    # Use first letter of each word, but keep full name if short enough
+    if len(words[0]) <= 6 and (len(name) <= 15):
+        return name[:20]
+    abbrevs = [w[0].upper() + w[1:] for w in words if w]
+    joined = "".join(abbrevs).replace("_", "")
+    # Use first letters only if original is long
+    if len(name) > 15:
+        return "".join(w[0] for w in words if w[:1]) + name[-3:] if len(words) > 2 else joined[:6]
+    return joined
+
+
+def cmd_trace(events: list[dict[str, Any]], field: str, from_turn: int | None = None, to_turn: int | None = None, show_unchanged: bool = False) -> None:
+    """Handle the 'trace' command."""
+    # Filter events by turn range
+    filtered = []
+    for ev in events:
+        if not isinstance(ev.get("turn"), int):
+            continue
+        t = ev["turn"]
+        if from_turn is not None and t < from_turn:
+            continue
+        if to_turn is not None and t > to_turn:
+            continue
+        filtered.append(ev)
+
+    if not filtered:
+        print("(no events in range)")
+        return
+
+    # Validate field is tracked by checking first event
+    first_val = extract_field_from_event(filtered[0], field)
+    if first_val is None:
+        print("Field not tracked per-turn")
+        sys.exit(1)
+
+    # Build table header based on field type
+    display_name = _trace_display_name(field)
+
+    # Print header
+    print(f"trace {field}")
+    print()
+    col_width = 60
+    print(f"{'Turn':>5} | {display_name}")
+    print("─────┼" + "─" * col_width)
+
+    prev_value = None
+    for ev in filtered:
+        turn = ev["turn"]
+        value = extract_field_from_event(ev, field)
+        formatted = format_trace_value(value, field)
+
+        if not show_unchanged and prev_value is not None and _values_equal(prev_value, value):
+            print(f"  {turn} | (same)")
+        else:
+            # Show change arrow for collections that changed
+            if prev_value is not None and not _values_equal(prev_value, value) and isinstance(value, list):
+                changes = _describe_collection_change(prev_value, value)
+                line = f"  {turn} | {formatted}"
+                if changes:
+                    # Pad to fit arrow nicely
+                    padding = " " * max(0, col_width - len(formatted))
+                    print(line + padding + " ← " + ", ".join(changes[:3]))
+                    for extra in changes[3:]:
+                        print("     " + (" " * 6) + "← " + extra)
+                else:
+                    print(line)
+            elif prev_value is not None and not _values_equal(prev_value, value):
+                # Scalar field changed - show new value only (not "(same)")
+                if formatted != "(no data)":
+                    print(f"  {turn} | {formatted}")
+                else:
+                    print(f"  {turn} | (no data)")
+            elif prev_value is None and not _values_equal(value, first_val):
+                # First non-matching value after initial check
+                if formatted != "(no data)":
+                    print(f"  {turn} | {formatted}")
+                else:
+                    print(f"  {turn} | (no data)")
+            elif prev_value is None and _values_equal(value, first_val):
+                # First row - always show
+                if formatted != "(no data)":
+                    print(f"  {turn} | {formatted}")
+                else:
+                    print(f"  {turn} | (no data)")
+
+        prev_value = value
+
+
+def _trace_display_name(field: str) -> str:
+    """Convert a field path to a display name for table headers."""
+    if field == "inventory":
+        return "Inventory"
+    elif field.startswith("inventory."):
+        item_id = field[len("inventory."):]
+        return f"Item {item_id}"
+    elif field == "conditions":
+        return "Conditions"
+    elif field.startswith("conditions."):
+        cond_id = field[len("conditions."):]
+        return f"Condition {cond_id}"
+    elif field == "npcs":
+        return "NPCs Present"
+    elif field.startswith("npcs."):
+        npc_id = field[len("npcs."):]
+        return f"NPC {npc_id}"
+    elif field == "location":
+        return "Location"
+    elif field == "scene.tags":
+        return "Scene Tags"
+    elif field == "scene.tagline":
+        return "Tagline"
+    elif field == "pc.momentum":
+        return "Momentum"
+    else:
+        return field
+
+
+def _values_equal(a: Any, b: Any) -> bool:
+    """Compare two values for equality (handles None gracefully)."""
+    if a is None and b is None:
+        return True
+    if a is None or b is None:
+        return False
+    # For lists of dicts, compare by ID+name only
+    if isinstance(a, list) and isinstance(b, list):
+        if len(a) != len(b):
+            return False
+        for i in range(len(a)):
+            ai = a[i] if isinstance(a[i], dict) else {"id": str(a[i])}
+            bi = b[i] if isinstance(b[i], dict) else {"id": str(b[i])}
+            # Compare by id field only (ignore notes/bio/relation differences for "same" check)
+            if ai.get("id") != bi.get("id"):
+                return False
+        return True
+    return a == b
+
+
+def _describe_collection_change(prev: Any, curr: Any) -> list[str]:
+    """Describe what changed between two collection values."""
+    changes = []
+
+    def _item_map(items):
+        m = {}
+        for item in items:
+            if isinstance(item, dict):
+                iid = item.get("id", "")
+                if iid:
+                    m[iid] = item
+            elif isinstance(item, str):
+                m[item] = {"id": item}
+        return m
+
+    pm = _item_map(prev) if prev else {}
+    cm = _item_map(curr) if curr else {}
+
+    for iid in sorted(set(pm.keys()) | set(cm.keys())):
+        if iid not in pm and iid in cm:
+            name = (cm[iid].get("name", "") or "")[:20]
+            changes.append(f"+{iid} {name}")
+        elif iid in pm and iid not in cm:
+            name = (pm[iid].get("name", "") or "")[:20]
+            changes.append(f"-{iid} {name}")
+
+    return changes
+
+
+def parse_search_expression(expr: str) -> dict[str, Any]:
+    """Parse a search expression like 'npc:trevor_riddle' or 'input~steal'.
+
+    Returns dict with keys: field (str), op ('eq' | 'regex'), value (str).
+    For boolean expressions like 'rejected', returns {field: 'rejected', op: 'bool', value: None}.
+    """
+    if expr == "rejected":
+        return {"field": "rejected", "op": "bool", "value": None}
+
+    # Check for regex operator (~) or exact match (:)
+    if "~" in expr:
+        idx = expr.index("~")
+        field = expr[:idx]
+        value = expr[idx + 1:]
+        return {"field": field, "op": "regex", "value": value}
+
+    elif ":" in expr:
+        idx = expr.index(":")
+        field = expr[:idx]
+        value = expr[idx + 1:]
+        return {"field": field, "op": "eq", "value": value}
+
+    else:
+        # Treat as exact match on the whole string (ambiguous)
+        print(f"Error: invalid expression '{expr}'. Use format 'field:value' or 'input~regex'.", file=sys.stderr)
+        sys.exit(1)
+
+
+def search_events(events: list[dict[str, Any]], queries: list[dict[str, str]]) -> list[dict[str, Any]]:
+    """Search events by structured fields.
+
+    Each query is a parsed expression dict {field, op, value}.
+    Multiple expressions AND together (all must match).
+
+    Supported search keys:
+      - npc       exact: checks extraction_context + applied mutations
+      - npc_add   exact: only in applied.npc_add
+      - item      exact: checks extraction_context + applied mutations
+      - condition exact: checks extraction_context + applied mutations
+      - band      exact: matches ruling.band
+      - rejected  boolean: matches ev.get('rejected') truthiness
+      - input     regex: regex match against ev.get('input')
+
+    Returns list of {turn, context_line, input_snippet} dicts.
+    """
+    results = {}  # turn -> result dict (dedup by turn)
+
+    for ev in events:
+        if not isinstance(ev.get("turn"), int):
+            continue
+        turn = ev["turn"]
+        ctx = ev.get("extraction_context") or {}
+        applied = ev.get("applied") or {}
+        ruling_ev = ev.get("ruling") or {}
+
+        # Check all queries against this event (AND logic)
+        matches_all = True
+        best_context = None
+
+        for q in queries:
+            field = q["field"]
+            op = q["op"]
+            value = q["value"]
+
+            if not _match_single_query(ev, ctx, applied, ruling_ev, field, op, value):
+                matches_all = False
+                break
+
+            # Track best context line for this query match
+            ctx_line = _get_context_line(ctx, applied, field, op, value)
+            if ctx_line:
+                best_context = ctx_line
+
+        if matches_all and queries:
+            input_snippet = (ev.get("input") or "")[:80]
+            context = best_context or "(match)"
+            results[turn] = {
+                "turn": turn,
+                "context_line": context,
+                "input_snippet": input_snippet,
+            }
+
+    # Sort by turn number and return as list
+    sorted_results = [results[t] for t in sorted(results.keys())]
+    return sorted_results
+
+
+def _match_single_query(ev: dict[str, Any], ctx: dict, applied: dict, ruling_ev: dict, field: str, op: str, value: str | None) -> bool:
+    """Check if a single query matches an event."""
+
+    # npc: exact match in extraction_context OR any mutation in applied
+    if field == "npc":
+        npcs = ctx.get("present_npcs_this_turn", []) or []
+        has_presence = any(isinstance(n, dict) and n.get("id") == value for n in npcs)
+
+        # Check mutations (add/remove/update all contain the NPC ID)
+        has_mutation = False
+        for mut_field in ("npc_add", "npc_remove", "npc_update"):
+            muts = applied.get(mut_field, []) or []
+            if any(isinstance(m, dict) and m.get("id") == value for m in muts):
+                has_mutation = True
+                break
+
+        return has_presence or has_mutation
+
+    # npc_add: exact match only in applied.npc_add
+    elif field == "npc_add":
+        adds = applied.get("npc_add", []) or []
+        if isinstance(value, str):
+            return any(isinstance(m, dict) and m.get("id") == value for m in adds)
+        return False
+
+    # item: exact match in extraction_context OR mutation in applied
+    elif field == "item":
+        items = ctx.get("inventory_this_turn", []) or []
+        has_presence = any(isinstance(i, dict) and i.get("id") == value for i in items)
+
+        has_mutation = False
+        for mut_field in ("inventory_add", "inventory_remove", "inventory_update"):
+            muts = applied.get(mut_field, []) or []
+            if any(isinstance(m, dict) and m.get("id") == value for m in muts):
+                has_mutation = True
+                break
+
+        return has_presence or has_mutation
+
+    # condition: exact match in extraction_context OR mutation in applied
+    elif field == "condition":
+        conds = ctx.get("conditions_this_turn", []) or []
+        has_presence = any(isinstance(c, dict) and c.get("id") == value for c in conds)
+
+        has_mutation = False
+        for mut_field in ("pc_condition_add", "pc_condition_remove"):
+            muts = applied.get(mut_field, []) or []
+            if any(isinstance(m, dict) and m.get("id") == value for m in muts):
+                has_mutation = True
+                break
+
+        return has_presence or has_mutation
+
+    # band: exact match against ruling.band
+    elif field == "band":
+        band_val = ruling_ev.get("band", "")
+        if op == "eq" and isinstance(value, str):
+            return band_val == value
+        return False
+
+    # rejected: boolean check
+    elif field == "rejected":
+        return bool(ev.get("rejected"))
+
+    # input: regex match against player input text
+    elif field == "input":
+        if op != "regex" or not isinstance(value, str):
+            return False
+        import re
+        try:
+            pattern = re.compile(value)
+            return bool(pattern.search(ev.get("input", "") or ""))
+        except re.error:
+            print(f"Error: invalid regex '{value}'", file=sys.stderr)
+            sys.exit(1)
+
+    # Unknown field - no match
+    return False
+
+
+def _get_context_line(ctx: dict, applied: dict, field: str, op: str, value: str | None) -> str | None:
+    """Get a context line describing the match."""
+
+    if field == "npc":
+        npcs = ctx.get("present_npcs_this_turn", []) or []
+        has_presence = any(isinstance(n, dict) and n.get("id") == value for n in npcs)
+
+        # Check mutations first (more detail)
+        for mut_field in ("npc_add", "npc_remove", "npc_update"):
+            muts = applied.get(mut_field, []) or []
+            if any(isinstance(m, dict) and m.get("id") == value for m in muts):
+                return f"{mut_field} {value}"
+
+        if has_presence:
+            return "(present in scene)"
+        return None
+
+    elif field == "npc_add":
+        adds = applied.get("npc_add", []) or []
+        if any(isinstance(m, dict) and m.get("id") == value for m in adds):
+            return f"npc_add {value}"
+        return None
+
+    elif field == "item":
+        items = ctx.get("inventory_this_turn", []) or []
+        has_presence = any(isinstance(i, dict) and i.get("id") == value for i in items)
+
+        # Check mutations first (more detail)
+        for mut_field in ("inventory_add", "inventory_remove", "inventory_update"):
+            muts = applied.get(mut_field, []) or []
+            if any(isinstance(m, dict) and m.get("id") == value for m in muts):
+                return f"{mut_field} {value}"
+
+        if has_presence:
+            return "(present in inventory)"
+        return None
+
+    elif field == "condition":
+        conds = ctx.get("conditions_this_turn", []) or []
+        has_presence = any(isinstance(c, dict) and c.get("id") == value for c in conds)
+
+        # Check mutations first (more detail)
+        for mut_field in ("pc_condition_add", "pc_condition_remove"):
+            muts = applied.get(mut_field, []) or []
+            if any(isinstance(m, dict) and m.get("id") == value for m in muts):
+                return f"{mut_field} {value}"
+
+        if has_presence:
+            return "(active condition)"
+        return None
+
+    elif field == "band":
+        # Band matching is handled in _match_single_query via ruling_ev parameter
+        return f"band={value}" if value else "(match)"
+
+    elif field == "rejected":
+        return "rejected"
+
+    elif field == "input":
+        return None  # Input matches don't have a context line prefix
+
+    return None
+
+
+def cmd_search(events: list[dict[str, Any]], expressions: list[str]) -> None:
+    """Handle the 'search' command."""
+    if not expressions:
+        print("Error: search requires at least one expression", file=sys.stderr)
+        sys.exit(1)
+
+    # Parse all expressions
+    queries = []
+    for expr in expressions:
+        parsed = parse_search_expression(expr)
+        queries.append(parsed)
+
+    # Run search
+    matches = search_events(events, queries)
+
+    if not matches:
+        print("(no matching turns)")
+        return
+
+    for m in matches:
+        context = m["context_line"] or ""
+        input_text = m.get("input_snippet", "")
+        line = f"turn {m['turn']}: {context}"
+        if input_text:
+            line += f' — "{input_text}"'
+        print(line)
+
+
+# ── main ──────────────────────────────────────────────────────────────────
 # ── main ──────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -1454,6 +2034,23 @@ def main() -> None:
                 print(f"Error: unknown section '{section}'. Valid sections: {', '.join(valid_sections)}", file=sys.stderr)
                 sys.exit(1)
             cmd_diff(events, turn_a, turn_b, section_filter=section)
+        case "trace":
+            # Find field in remaining args (after flags are stripped)
+            if len(args) < 2:
+                print("Error: trace requires a field name", file=sys.stderr)
+                sys.exit(1)
+            field = args[1]
+            from_turn = int(flags["from"]) if "from" in flags else None
+            to_turn = int(flags["to"]) if "to" in flags else None
+            show_unchanged = "show-unchanged" in flags
+            cmd_trace(events, field, from_turn=from_turn, to_turn=to_turn, show_unchanged=show_unchanged)
+        case "search":
+            # Remaining args after flags are search expressions
+            if len(args) < 2:
+                print("Error: search requires at least one expression", file=sys.stderr)
+                sys.exit(1)
+            exprs = args[1:]
+            cmd_search(events, exprs)
         case _:
             print(f"Unknown command: {cmd}", file=sys.stderr)
             print(__doc__.strip())
