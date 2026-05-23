@@ -105,7 +105,7 @@
         {% set _goal_ctx = _arc.get('goal_context', '') %}
 
         {% if _goal %}
-        <div class="arc-goal{% if _goal_ctx %} has-tooltip{% endif %}" data-md>
+        <div class="arc-goal{% if _goal_ctx %} has-tooltip{% endif %}">
             {{ _goal }}
             {% if _goal_ctx %}
             <div class="tooltip-body" data-md>{{ _goal_ctx }}</div>

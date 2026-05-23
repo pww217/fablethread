@@ -67,7 +67,7 @@ def extract_prompt(ev: dict[str, Any], stream: str) -> dict[str, str]:
     else:
         blob = (ev.get("extraction") or {}).get(stream) or {}
     raw_out = blob.get("output", "")
-    # JSON outputs (rules, scene, state, progress) — pretty-print
+    # JSON outputs (ruling, scene, state, storytell) — pretty-print
     if stream != "narrate":
         if isinstance(raw_out, str):
             try:
@@ -256,27 +256,12 @@ def cmd_mechanics(ev: dict[str, Any]) -> None:
     print(json.dumps(intent, indent=2) if intent else "(none)")
     print()
 
-    # Extract progress user prompt sections
+    # Extract storytell user prompt sections
     storytell_event = extract_prompt(ev, "storytell")["user"]
 
     print("--- GM Beat ---")
-    beat = extract_section_by_pattern(storytell_event, "## gm_beat", "## deescalate", "## Current Pressures", "## rules_stakes", "## pending_beat", "## last_turn_narration")
+    beat = extract_section_by_pattern(storytell_event, "## gm_beat", "## pending_beat", "## pacing_context", "## last_turn_narration")
     print(beat if beat else "(empty)")
-    print()
-
-    print("--- Deescalate ---")
-    deesc = extract_section_by_pattern(storytell_event, "## deescalate", "## Current Pressures", "## last_turn_narration")
-    print(deesc if deesc else "(empty)")
-    print()
-
-    print("--- Current Pressures ---")
-    press = extract_section_by_pattern(storytell_event, "## Current Pressures", "## last_turn_narration", "## gm_beat")
-    print(press if press else "(empty)")
-    print()
-
-    print("--- Rules Stakes ---")
-    stakes = extract_section_by_pattern(storytell_event, "## rules_stakes", "## gm_beat", "## last_turn_narration")
-    print(stakes if stakes else "(empty)")
     print()
 
     # Campaign arc from narrate
