@@ -218,16 +218,6 @@ def check_rolled_implies_binding(event: dict[str, Any]) -> dict[str, Any]:
             "scope": "universal",
             "severity": "red",
         }
-    # If a roll was required, the BINDING block should be in the narrate prompt.
-    # If required=false (no roll happened despite rules call), skip.
-    if not ruling.get("required", False):
-        return {
-            "assertion": "universal.narrate.binding_present",
-            "passed": True,
-            "detail": "no roll required, binding not expected",
-            "scope": "universal",
-            "severity": "red",
-        }
     nu = (event.get("narrate_prompt") or {}).get("rendered_user") or ""
     if "rules_outcome (BINDING" in nu:
         return {
@@ -673,7 +663,8 @@ def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
     Combat Fatigue, Location Imperative, Location Pressure, Threat Pressure, Resolve a Threat.
     """
     narr_user = (event.get("narrate_prompt") or {}).get("rendered_user") or ""
-    storytell_user = (event.get("extraction") or {}).get("storytell") or {}
+    # Read the rendered user prompt string from extraction_event["storytell"], not the output dict
+    storytell_rendered = ((event.get("extraction") or {}).get("storytell") or {}).get("rendered_user") or ""
 
     directive_markers = [
         "**Pressure:**", "**Overwhelm:**", "**Breathe:**", "**Tension:**",
@@ -691,7 +682,7 @@ def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
             "severity": "red",
         }
 
-    if not isinstance(storytell_user, str) or "narration_directive" not in storytell_user.lower():
+    if not storytell_rendered or "narration_directive" not in storytell_rendered.lower():
         return {
             "assertion": "universal.narrate.directive_rendered",
             "passed": False,

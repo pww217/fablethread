@@ -174,10 +174,17 @@ def _filter_event_for_judge(judge_id: str, ev: dict[str, Any]) -> dict[str, Any]
 
 
 def _is_compaction_turn(ev: dict[str, Any], all_events: list[dict[str, Any]]) -> bool:
-    """Detect if a turn had compaction activity by checking applied deltas for compaction markers."""
-    applied = ev.get("applied") or {}
-    # Compaction produces chronicle entries and recent_events pruning
-    if applied.get("chronicle_append") or applied.get("recent_events_compact"):
+    """Detect if a turn had compaction activity.
+
+    Compactor runs after events are written to JSONL, so applied deltas won't contain
+    compaction markers. Instead we check state_snapshot.meta.last_compacted_turn which
+    the compactor sets on every compaction turn (compactor.py line 134). Also checks
+    extraction.storytell.output.compaction_fired as a secondary signal if present.
+    """
+    snap = ev.get("state_snapshot") or {}
+    meta = snap.get("meta") or {}
+    # last_compacted_turn is set by compactor on every compaction turn
+    if meta.get("last_compacted_turn", 0) > 0:
         return True
     # Also check storytell extraction output for compaction_fired signal if present
     ext_storytell = ((ev.get("extraction") or {}).get("storytell") or {}).get("output") or {}
@@ -709,14 +716,9 @@ def _render_deterministic_signals(
     else:
         parts.append("*(no metrics)*\n")
 
-    # Scope fallback rate
-    events_for_scope = events or []
-    fallback_turns = sum(
-        1 for e in events_for_scope
-        if e.get("scope", {}).get("decided_by", "narrator") != "narrator"
-    )
-    scope_fallback_rate = fallback_turns / len(events_for_scope) if events_for_scope else 0.0
-    parts.append(f"\n**Scope fallback rate:** {scope_fallback_rate:.0%} ({fallback_turns}/{len(events_for_scope)} turns)\n")
+    # Scope fallback rate: not captured in event output (engine internal logic only).
+    scope_fallback_rate = 0.0
+    parts.append(f"\n**Scope fallback rate:** N/A (not captured in events.jsonl)\n")
 
     if redundancy_signals is not None:
         from ccya.eval.redundancy import render_redundancy_section
