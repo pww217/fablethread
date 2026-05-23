@@ -5,8 +5,6 @@ llm:
   narrate_temperature: 0.9
   extract_temperature: 0.4
   max_extract_retries: 1
-  enable_extract_thinking: false
-  enable_narrate_thinking: false
   prompt_token_budget: 32768
 
 ruling:
@@ -15,17 +13,12 @@ ruling:
 
 game:
   default_save: default
-  setting_pack: zombie-survival # Remove this, legacy
+  setting_pack: zombie-survival
   window_turns: 3
   chronicle_prefix_budget_tokens: 1500
   recent_events_max: 20    # rolling window; world_state is immutable after seed
   warmup_on_start: false
   character_creation_enabled: true
-  # Thread urgency escalation thresholds (turns)
-  thread_urgency_building_at: 3   # background → building
-  thread_urgency_immediate_at: 5  # building → immediate
-  # Thread urgency immediate TTL (turns) — how long an immediate pressure lasts
-  thread_urgency_immediate_ttl: 8
   # Momentum floor
   momentum_floor: -3
   # Compaction: compress narrative history every N turns (0 = disabled)

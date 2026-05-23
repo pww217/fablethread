@@ -18,7 +18,6 @@ from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.engine.narrate import _known_characters_for_extract
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.llm_client import (
-    apply_thinking,
     chat as llm_chat,
     strip_thinking,
     trim_messages,
@@ -258,7 +257,6 @@ def _extract_scene_messages(
     narration: str,
     state: dict[str, Any],
     *,
-    enable_thinking: bool = False,
     recent_turns: list[dict[str, Any]] | None = None,
     turn_no: int = 0,
 ) -> list[dict[str, str]]:
@@ -302,7 +300,6 @@ def _extract_scene_messages(
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
     ]
-    msgs = apply_thinking(msgs, enable_thinking)
     return msgs
 
 
@@ -311,7 +308,6 @@ def _extract_state_messages(
     narration: str,
     state: dict[str, Any],
     *,
-    enable_thinking: bool = False,
     intent: "IntentEnvelope | None" = None,
     turn_no: int = 0,
 ) -> list[dict[str, str]]:
@@ -335,7 +331,6 @@ def _extract_state_messages(
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
     ]
-    msgs = apply_thinking(msgs, enable_thinking)
     return msgs
 
 
@@ -346,7 +341,6 @@ def _storytell_messages(
     *,
     state_result: StateExtractResult | None = None,
     extraction_ctx: _ExtractionContext,
-    enable_thinking: bool = False,
     intent: IntentEnvelope | None = None,
     pacing_context: Any | None = None,
     recent_turns: list[dict[str, Any]] | None = None,
@@ -395,7 +389,6 @@ def _storytell_messages(
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
     ]
-    msgs = apply_thinking(msgs, enable_thinking)
     return msgs
 
 
@@ -548,7 +541,6 @@ async def _run_extraction_pipeline(
     t_scene = asyncio.get_event_loop().time()
     scene_msgs = _extract_scene_messages(
         env, narration, state,
-        enable_thinking=config.enable_extract_thinking,
         recent_turns=(recent_turns or [])[-1:],
         turn_no=turn_no,
     )
@@ -599,7 +591,6 @@ async def _run_extraction_pipeline(
     t_state = asyncio.get_event_loop().time()
     state_msgs = _extract_state_messages(
         env, narration, state,
-        enable_thinking=config.enable_extract_thinking,
         intent=intent,
         turn_no=turn_no,
     )
@@ -650,7 +641,6 @@ async def _run_extraction_pipeline(
         env, narration, state,
         state_result=state_result,
         extraction_ctx=extraction_ctx,
-        enable_thinking=config.enable_extract_thinking,
         intent=intent,
         pacing_context=pacing_context,
         recent_turns=(recent_turns or [])[-2:],

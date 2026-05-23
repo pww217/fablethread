@@ -139,11 +139,6 @@ def _get_client(base_url: str) -> AsyncOpenAI:
 _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 
-def apply_thinking(
-    messages: list[dict[str, str]], enable: bool
-) -> list[dict[str, str]]:
-    return [dict(m) for m in messages]
-
 
 def strip_thinking(text: str) -> str:
     return _THINK_RE.sub("", text).strip()

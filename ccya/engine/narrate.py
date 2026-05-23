@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from ccya.engine.config import _render
 from ccya.engine.npc_roster import build_npc_roster
-from ccya.llm_client import apply_thinking
+
 from ccya.models import RulesOutcome
 
 _log = logging.getLogger(__name__)
@@ -23,7 +23,6 @@ def _narrate_messages(
     *,
     chronicle_tail: str = "",
     recent_turns: list[dict[str, Any]] = [],
-    enable_narrate_thinking: bool = False,
     pack_style: str = "",
     narrator_rules: list[str] = [],
     world_rules: list[str] = [],
@@ -118,7 +117,6 @@ def _narrate_messages(
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
     ]
-    msgs = apply_thinking(msgs, enable_narrate_thinking)
     return msgs
 
 
