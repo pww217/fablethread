@@ -245,9 +245,9 @@ def _test_alignment(template_name: str) -> None:
         )
 
 
-def test_extract_progress_user_alignment() -> None:
-    """All root variables in extract_progress_user.j2 exist on ProgressExtractBoundary."""
-    _test_alignment("extract_progress_user.j2")
+def test_storytell_user_alignment() -> None:
+    """All root variables in storytell_user.j2 exist on StorytellerBoundary."""
+    _test_alignment("storytell_user.j2")
 
 
 def test_narrate_user_alignment() -> None:

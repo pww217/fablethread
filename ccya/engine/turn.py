@@ -19,8 +19,7 @@ from ccya.engine.compactor import maybe_compact
 from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, _log_llm_io, _log_prompts
 from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.engine.extraction import (
-    _avg_extract_ms,
-    _avg_narrate_ms,
+    _avg_event_ms,
     _context_meta,
     _run_extraction_pipeline,
 )
@@ -28,7 +27,7 @@ from ccya.engine.names import generate_npc_names_split
 from ccya.engine.narrate import _known_characters_for_extract, _narrate_messages
 from ccya.engine.npc_roster import build_npc_roster
 
-from ccya.engine.ruling import _avg_ruling_ms, _call_ruling, _log_ruling_outcome, _ruling_messages
+from ccya.engine.ruling import _call_ruling, _log_ruling_outcome, _ruling_messages
 from ccya.llm_client import (
     chat as llm_chat,
     chat_stream as llm_chat_stream,
@@ -173,6 +172,9 @@ def _apply_thread_signals(
             _log.debug(
                 "turn.thread_signals.demoted trace_id=%d thread %s last_seen=%s", turn_no, tid, t.last_seen_turn,
             )
+        else:
+            # Not advanced, not expired -> carry forward unchanged
+            still_active.append(t)
 
     really_still_active = [t for t in still_active if getattr(t, "active", True)]
     demoted_to_latent = [t for t in still_active if not getattr(t, "active", False)]
@@ -309,6 +311,7 @@ def _apply_thread_resolutions(
 
     new_completed: list[ArcThread] = []
     any_found = False
+    found_remaining = False
 
     for res in storyteller_result.thread_resolve:
         # Find matching thread in arc.threads[]
@@ -336,6 +339,7 @@ def _apply_thread_resolutions(
 
         # Dedup: update existing completed entry or collect new ones
         if thread.id in completed_by_id:
+            found_remaining = True
             updated_existing = thread.model_copy(update={
                 "resolution_state": res.resolution_state,
             })
@@ -349,7 +353,7 @@ def _apply_thread_resolutions(
 
     # Finalize completed threads with dedup
     final_completed_map: dict[str, ArcThread] = {}
-    if any_found and 'remaining_completed' in dir():
+    if found_remaining:
         for ct in (remaining_completed or []):
             cid = getattr(ct, "id", "")
             if cid not in final_completed_map:
@@ -361,7 +365,7 @@ def _apply_thread_resolutions(
             final_completed_map[nc.id] = nc
 
     # If no resolutions were found, keep original completed list
-    if not any_found and 'remaining_completed' not in dir():
+    if not any_found and not found_remaining:
         final_completed_list = list(arc.completed_threads)
     else:
         final_completed_list = list(final_completed_map.values())
@@ -721,7 +725,7 @@ async def run_turn(
         )
 
         # === Call 0: Rules / intent classification ===
-        exp_ruling_ms = _avg_ruling_ms(save_dir)
+        exp_ruling_ms = _avg_event_ms(save_dir, "ruling.total_ms")
         yield ("phase", {"phase": "ruling_start", "expected_ms": exp_ruling_ms})
         t_rules = asyncio.get_event_loop().time()
         turn_no = state.get("meta", {}).get("turn", 0) + 1
@@ -848,7 +852,7 @@ async def run_turn(
         )
 
         # === Call 1: Narrate (streaming) ===
-        exp_narrate_ms = _avg_narrate_ms(save_dir)
+        exp_narrate_ms = _avg_event_ms(save_dir, "narrate.total_ms")
         yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
 
         # Rolling NPC name pool for mid-game cultural anchoring (split by gender)
@@ -861,7 +865,7 @@ async def run_turn(
                 seed=state.get("meta", {}).get("turn", 0),
             )
 
-        # Read pending_gm_beat from previous turn's progress extraction
+        # Read pending_gm_beat for expiry check and narrator passage
         _pending_gm_beat = (state.get("meta") or {}).get("pending_gm_beat")
         if _pending_gm_beat:
             _expires = _pending_gm_beat.get("beat_expires_turn")
@@ -1035,11 +1039,11 @@ async def run_turn(
 
         yield ("phase", {"phase": "narrate_done"})
 
-        # Clear pending_gm_beat after narration consumed it — not restored since beat_disposition was removed
+        # Clear pending_gm_beat after narration consumed it — not restored since Storytell no longer receives beat context
         state.setdefault("meta", {})["pending_gm_beat"] = None
 
         # === Extraction pipeline (3 streams) ===
-        exp_ms = _avg_extract_ms(save_dir)
+        exp_ms = _avg_event_ms(save_dir, "extract.total_ms")
         yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
         t2 = asyncio.get_event_loop().time()
 

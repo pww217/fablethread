@@ -10,7 +10,7 @@ Usage:
     ev.py prompt TURN STREAM FIELD [TURN_FILE]  # single field
     ev.py outputs TURN [TURN_FILE]     # JSON outputs from all streams
     ev.py deltas TURN [TURN_FILE]      # state diffs and rejections
-    ev.py mechanics TURN [TURN_FILE]   # beats, pressures, arcs, connectors
+    ev.py mechanics TURN [TURN_FILE]   # beats, rules, pacing, threads, arcs, connectors
     ev.py connectors TURN [TURN_FILE]   # inter-stream connectors only
     ev.py state [--format MODE] [--save-dir PATH]  # show current game state from state.yaml
     ev.py diff TURN-A TURN-B [--section SEC]       # compare two turns
@@ -34,15 +34,19 @@ STREAMS = ("ruling", "narrate", "scene", "state", "storytell")
 
 
 SECTION_MARKERS: dict[str, str] = {
-    "gm_beat": r"^## gm_beat$",
     "campaign_arc": r"^#{1,3}\s*Campaign Arc$",
-    "deescalate": r"^## deescalate$",
-    "pressures": r"^## Current Pressures$",
-    "rules_stakes": r"^## rules_stakes$",
-    "pending_beat": r"^## pending_beat$",
-    # Reserved as stop markers — not used as start markers currently
+    "rules_outcome": r"^## rules_outcome$",
     "pacing_context": r"^## pacing_context$",
-    "last_turn_narration": r"^## last_turn_narration$",
+    "player_intent": r"^## player_intent$",
+    "threads": r"^## threads",
+    "last_turn_narration": r"^## last_turn_narration",
+    "current_narration": r"^## CURRENT TURN",
+    "end_narration": r"^## END CURRENT TURN",
+    # Reserved as stop markers — not used as start markers currently
+    "characters": r"^## characters$",
+    "location": r"^## location$",
+    "inventory": r"^## Current inventory",
+    "recent_events": r"^## recent_events",
 }
 
 # Compiled once at module load
@@ -363,10 +367,52 @@ def cmd_mechanics(ev: dict[str, Any]) -> None:
 
     # Extract storytell user prompt sections
     storytell_event = extract_prompt(ev, "storytell")["user"]
+    narrate_user = extract_prompt(ev, "narrate")["user"]
 
     print("--- GM Beat ---")
-    beat = extract_section_by_pattern(storytell_event, "gm_beat", "pending_beat")
-    print(beat if beat else "(empty)")
+    # Pending (carried from prior turn, consumed by narrator)
+    pending_beat_match = re.search(r"\*\*Beat type:\*\*\s*(.+)", narrate_user) if narrate_user else None
+    if pending_beat_match:
+        print(f"  Pending (to narrate): {pending_beat_match.group(1)}")
+    else:
+        print("  Pending (to narrate): (none)")
+    # Generated (created this turn, stored for next turn)
+    storytell_output_raw = extract_prompt(ev, "storytell")["output"]
+    generated_beat = None
+    if storytell_output_raw:
+        try:
+            so = json.loads(storytell_output_raw)
+            generated_beat = so.get("gm_beat")
+        except (json.JSONDecodeError, TypeError):
+            pass
+    if generated_beat:
+        print("  Generated (stored):", generated_beat)
+    else:
+        print("  Generated (stored): (none)")
+    print()
+
+    print("--- Rules Outcome ---")
+    rules = extract_section_by_pattern(storytell_event, "rules_outcome", "pacing_context", "last_turn_narration", "player_intent", "current_narration")
+    if not rules:
+        # Fallback: extract band from narrate prompt
+        band_match = re.search(r"\*\*Band:\*\*\s*(.+?)(?:\s*→|$)", narrate_user) if narrate_user else None
+        if band_match:
+            rules = band_match.group(0)
+    print(rules if rules else "(empty)")
+    print()
+
+    print("--- Pacing Context ---")
+    pacing = extract_section_by_pattern(storytell_event, "pacing_context", "last_turn_narration", "player_intent", "current_narration")
+    print(pacing if pacing else "(empty)")
+    print()
+
+    print("--- Active Threads (from storytell) ---")
+    threads = extract_section_by_pattern(storytell_event, "threads", "recent_events", "inventory", "rules_outcome", "pacing_context", "last_turn_narration", "player_intent", "current_narration")
+    if threads:
+        for line in threads.splitlines():
+            print(f"  {line.strip()}")
+    else:
+        print("  (none)")
     print()
 
     # Campaign arc from narrate

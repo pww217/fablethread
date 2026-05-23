@@ -104,9 +104,9 @@ If it's deferred, track it in `TODO.md` or `plans/`; don't leave it sitting in a
 
 ### `rules_system.j2` — Intent classification + skill check
 
-**Unique fields:** `intent`, `intent_verb`, `target`, `stakes`, `check`
+**Unique fields:** `intent`, `intent_verb`, `target`, `check`
 
-**Why they exist.** This prompt is the gatekeeper between player input and the dice engine. `intent` captures what the player is trying to do in-story (feeds the narrator). `intent_verb` normalizes the action into a controlled vocabulary for downstream logic. `target` identifies who/what the action is directed at. `stakes` forces the model to articulate failure consequences upfront, which the narrator uses for pacing. `check` is the mechanical decision: whether to roll, which stat, and at what difficulty.
+**Why they exist.** This prompt is the gatekeeper between player input and the dice engine. `intent` captures what the player is trying to do in-story (feeds the narrator). `intent_verb` normalizes the action into a controlled vocabulary for downstream logic. `target` identifies who/what the action is directed at. `check` is the mechanical decision: whether to roll, which stat, and at what difficulty.
 
 **Unique sections:** Stats list, difficulty scale, decision rule (default NO), compound actions, anti-declare-outcome rule.
 
