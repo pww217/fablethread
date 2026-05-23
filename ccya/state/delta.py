@@ -282,6 +282,19 @@ def apply_delta(
     scene = state.setdefault("scene", {})
     existing_events: list[dict[str, Any]] = list(scene.get("recent_events") or [])
 
+    # Defensive coercion: filter out non-dict entries (old string-format events from pre-migration state)
+    _corrupt_count = 0
+    _cleaned: list[dict[str, Any]] = []
+    for e in existing_events:
+        if isinstance(e, dict):
+            _cleaned.append(e)
+        else:
+            _corrupt_count += 1
+            _log.warning("apply_delta: dropping non-dict recent_event entry (type=%s); state may be stale", type(e).__name__)
+    existing_events = _cleaned
+    if _corrupt_count:
+        _log.warning("apply_delta: dropped %d corrupted recent_event entries; consider reloading or re-seeding state", _corrupt_count)
+
     # Remove by ID
     for rid in delta.recent_events_remove:
         existing_events = [e for e in existing_events if e.get("id") != rid]

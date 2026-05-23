@@ -13,7 +13,7 @@ from ccya.engine.config import _build_jinja_env, _render
 from ccya.llm_client import chat as llm_chat
 from ccya.pack import PackManifest, ScenarioBrief
 
-log = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 _NAME_RE = re.compile(r"[^\x00-\x7F]")
 
@@ -54,7 +54,7 @@ async def generate_pack_from_brief(
     out_dir = packs_root / "generated" / pack_id.split("/")[1]
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    log.info(
+    _log.info(
         "generate_pack_from_brief start",
         extra={"trace_id": trace_id, "pack": pack_id},
     )
@@ -89,7 +89,7 @@ async def generate_pack_from_brief(
                 },
             )
 
-            log.debug(
+            _log.debug(
                 "generate_pack_from_brief LLM call",
                 extra={"trace_id": trace_id, "pack": pack_id},
             )
@@ -155,7 +155,7 @@ async def generate_pack_from_brief(
                 encoding="utf-8",
             )
 
-            log.info(
+            _log.info(
                 "generate_pack_from_brief complete",
                 extra={"trace_id": trace_id, "pack": pack_id},
             )
@@ -165,7 +165,7 @@ async def generate_pack_from_brief(
 
         except Exception as exc:
             parse_error = str(exc)
-            log.warning(
+            _log.warning(
                 "generate_pack_from_brief failed (attempt %d/%d): %s",
                 attempt + 1,
                 1 + max_retries,
@@ -173,12 +173,12 @@ async def generate_pack_from_brief(
                 extra={"trace_id": trace_id},
             )
             if attempt < max_retries:
-                log.info(
+                _log.info(
                     "generate_pack_from_brief retrying",
                     extra={"trace_id": trace_id, "attempt": attempt + 2},
                 )
 
-    log.warning(
+    _log.warning(
         "generate_pack_from_brief failed after all attempts",
         extra={"trace_id": trace_id},
     )

@@ -118,8 +118,7 @@ def _apply_thread_signals(
 
     if not arc_raw:
         _log.debug(
-            "thread_signals: no arc in state at T%d, skipping",
-            turn_no, extra={"turn": turn_no},
+            "turn.thread_signals.no_arc trace_id=%d, skipping", turn_no, extra={"turn": turn_no},
         )
         return None
 
@@ -127,8 +126,7 @@ def _apply_thread_signals(
         arc = CampaignArc.model_validate(arc_raw)
     except Exception as exc:
         _log.warning(
-            "thread_signals: failed to validate arc at T%d: %s",
-            turn_no, exc, extra={"turn": turn_no},
+            "turn.thread_signals.validation_failed trace_id=%d: %s", turn_no, exc, extra={"turn": turn_no},
         )
         return None
 
@@ -139,8 +137,7 @@ def _apply_thread_signals(
     latent_by_id: dict[str, ArcThread] = {t.id: t for t in all_arc_threads if not getattr(t, "active", False)}
 
     _log.debug(
-        "thread_signals: T%d advanced_ids=%s active_count=%d latent_count=%d",
-        turn_no, sorted(advanced_ids), len(active_by_id), len(latent_by_id),
+        "turn.thread_signals.summary trace_id=%d advanced_ids=%s active_count=%d latent_count=%d", turn_no, sorted(advanced_ids), len(active_by_id), len(latent_by_id),
     )
 
     mutated = False
@@ -161,8 +158,7 @@ def _apply_thread_signals(
                 newly_completed.append(updated_t)
                 mutated = True
                 _log.debug(
-                    "thread_signals: T%d thread %s completed at progress=%d",
-                    turn_no, tid, new_progress,
+                    "turn.thread_signals.completed trace_id=%d thread %s progress=%d", turn_no, tid, new_progress,
                 )
             else:
                 still_active.append(updated_t)
@@ -176,8 +172,7 @@ def _apply_thread_signals(
             still_active.append(expired_t)  # will be moved below
             mutated = True
             _log.debug(
-                "thread_signals: T%d thread %s silently demoted (turn_no=%d last_seen=%s)",
-                turn_no, tid, turn_no, t.last_seen_turn,
+                "turn.thread_signals.demoted trace_id=%d thread %s last_seen=%s", turn_no, tid, t.last_seen_turn,
             )
 
     really_still_active = [t for t in still_active if getattr(t, "active", True)]
@@ -232,8 +227,7 @@ def _apply_thread_signals(
             really_still_active.append(promoted)
             mutated = True
             _log.debug(
-                "thread_signals: T%d latent thread %s promoted to active (unknown advanced_id)",
-                turn_no, tid,
+                "turn.thread_signals.promoted trace_id=%d latent thread %s", turn_no, tid,
             )
 
     # Promotion check: only if 3-turn cooldown met and slots available
@@ -712,8 +706,7 @@ async def run_turn(
         avoidance = any(kw in _input_lower for kw in _avoidance_kw)
         if avoidance:
             _log.debug(
-                "pacing: avoidance detected in input",
-                extra={"turn": state.get("meta", {}).get("turn", 0), "trace_id": "", "pack": "", "kind": "pacing"},
+                "turn.pacing.avoidance detected", extra={"turn": state.get("meta", {}).get("turn", 0), "trace_id": "", "pack": "", "kind": "pacing"},
             )
 
         # Prompt capture variables (initialized early for exception safety)
@@ -1068,6 +1061,7 @@ async def run_turn(
 
         _extract_result = None
         try:
+            _log.debug("turn.extraction_pipeline_enter trace_id=%s turn_no=%d", trace_id, turn_no)
             async for _evt in _run_extraction_pipeline(
                 env, state, narrative,
                 rules_outcome=outcome,
@@ -1078,11 +1072,15 @@ async def run_turn(
                 pacing_context=_pc,
                 recent_turns=recent_turns,
             ):
-                if isinstance(_evt, tuple) and len(_evt) == 2 and _evt[0] == "phase":
+                if isinstance(_evt, tuple) and len(_evt) == 2:
+                    _log.debug("turn.extraction_evt trace_id=%s evt_type=%s", trace_id, type(_evt[0]).__name__, extra={"event_preview": str(_evt)[:500]})
                     yield _evt
                 else:
                     _extract_result = _evt
         except Exception as exc:
+            import traceback
+            tb = traceback.format_exc()
+            _log.error("turn.extraction_pipeline_error trace_id=%s turn_no=%d\n%s", trace_id, turn_no, tb)
             errors.append({"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id, "message": str(exc)})
 
         if _extract_result is not None:

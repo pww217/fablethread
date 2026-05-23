@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from ccya.engine.config import _render
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.llm_client import apply_thinking
 from ccya.models import RulesOutcome
+
+_log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ccya.engine.turn import PacingContext

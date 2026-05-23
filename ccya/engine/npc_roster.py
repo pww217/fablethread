@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from ccya.models import NpcPresence
+
+
+_log = logging.getLogger(__name__)
 
 
 def build_npc_roster(

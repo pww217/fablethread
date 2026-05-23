@@ -8,8 +8,12 @@ the prompt to the LLM, so they never affect production behavior.
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
+
+
+_log = logging.getLogger(__name__)
 
 _RE = re.compile(r"<<<TRACE_IMMUTABLE_(?:START|END)>>>\s*\n?")
 
