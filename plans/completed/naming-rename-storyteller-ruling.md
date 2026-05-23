@@ -1,7 +1,7 @@
 # Naming Rename: Progress Extractor → Storyteller, Rules → Ruling
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 
