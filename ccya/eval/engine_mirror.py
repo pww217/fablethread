@@ -8,7 +8,7 @@ unless overridden in EvalConfig).
 from __future__ import annotations
 
 from ccya.engine.config import EngineConfig
-from ccya.state.delta import PC_CONDITIONS_MAX
+from ccya.state.delta_builder import PC_CONDITIONS_MAX
 from ccya.state.momentum import MOMENTUM_MIN as _MOMENTUM_MIN, MOMENTUM_MAX as _MOMENTUM_MAX
 from ccya.rules import MOMENTUM_DELTA as _RULES_MOMENTUM_DELTA, VALID_SKILLS
 

@@ -71,7 +71,7 @@ def _build_extraction_context(
     apply_delta() will actually write — including any validation rejections.
     Does NOT mutate ``state``.
     """
-    from ccya.state.delta import apply_delta  # local import to avoid circular deps
+    from ccya.state.delta_builder import apply_delta
 
     combined_delta = StateDelta(
         npc_add=list(scene_result.npc_add or []),

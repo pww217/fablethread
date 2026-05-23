@@ -1,0 +1,331 @@
+"""Delta application logic extracted from delta.py.
+
+Breaking the circular dependency between engine and state packages.
+"""
+
+from __future__ import annotations
+
+import copy
+import logging
+import re
+from typing import Any
+
+from ccya.models import CampaignArc, SceneExtractResult, StateDelta
+from ccya.state.inventory import (
+    _fuzzy_match_inventory,
+    resolve_inventory_canonical_id,
+    resolve_inventory_remove_target,
+)
+
+_NAME_RE = re.compile(r"[^\x00-\x7F]")
+_DEFAULT_CONDITION_TTL = 10
+PC_CONDITIONS_MAX: int = 5
+
+_log = logging.getLogger(__name__)
+
+
+def _strip_non_ascii(text: str) -> str:
+    if not text:
+        return text
+    result = _NAME_RE.sub("", text).strip()
+    return result
+
+
+def _item_to_dict(item: Any) -> dict[str, Any]:
+    if isinstance(item, dict):
+        out = dict(item)
+        if out.get("amount") is None or int(out.get("amount", 0) or 0) < 1:
+            out["amount"] = 1
+        return out
+    amt = getattr(item, "amount", 1)
+    result: dict[str, Any] = {
+        "id": item.id,
+        "name": item.name,
+        "notes": item.notes,
+        "amount": max(1, int(amt or 1)),
+    }
+    aliases = getattr(item, "aliases", None)
+    if aliases:
+        result["aliases"] = list(aliases)
+    return result
+
+
+def _merge_arc_update(arc: dict[str, Any], au: CampaignArc) -> None:
+    """Surgically merge arc_update into the live arc dict. Never wholesale replaces."""
+    if au.visible_goal:
+        arc["visible_goal"] = au.visible_goal
+    if au.thematic_question:
+        arc["thematic_question"] = au.thematic_question
+    if au.pc_drive:
+        arc["pc_drive"] = au.pc_drive
+    if au.hidden_truths is not None:
+        existing_ht = set(arc.get("hidden_truths") or [])
+        arc["hidden_truths"] = list(existing_ht | set(au.hidden_truths))
+    if au.discovered_truths:
+        existing_dt = set(arc.get("discovered_truths") or [])
+        arc["discovered_truths"] = list(existing_dt | set(au.discovered_truths))
+    if au.threads:
+        arc["threads"] = [
+            t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
+            for t in au.threads
+        ]
+    if au.completed_threads:
+        arc["completed_threads"] = [
+            t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
+            for t in au.completed_threads
+        ]
+
+
+def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> tuple[StateDelta, list[str]]:
+    """Validate and clean `delta` against current `state`.
+
+    Returns a ``(reconciled_delta, warnings)`` tuple.  Does NOT mutate
+    the original ``delta`` — creates a copy, reconciles the copy, and
+    returns it.
+    """
+    delta = copy.deepcopy(delta)
+    warnings: list[str] = []
+
+    add_ids = {i.id for i in delta.inventory_add}
+    remove_ids = {r.id for r in delta.inventory_remove}
+    conflict = add_ids & remove_ids
+    if conflict:
+        delta.inventory_add = [i for i in delta.inventory_add if i.id not in conflict]
+        warnings.append(f"inventory conflict (add+remove same turn): {sorted(conflict)}")
+
+    existing_conds = {
+        c.get("id") for c in (state.get("pc") or {}).get("conditions") or []
+        if isinstance(c, dict)
+    }
+    remove_ids = {r.id for r in delta.pc_condition_remove}
+    dupes = [c for c in delta.pc_condition_add if c.id in existing_conds and c.id not in remove_ids]
+    if dupes:
+        delta.pc_condition_add = [c for c in delta.pc_condition_add if c.id not in existing_conds and c.id not in remove_ids]
+        warnings.append(f"duplicate condition add ignored: {[c.id for c in dupes]}")
+
+    seen_adds: set[str] = set()
+    deduped_adds = []
+    for c in delta.pc_condition_add:
+        if c.id not in seen_adds:
+            deduped_adds.append(c)
+            seen_adds.add(c.id)
+        else:
+            warnings.append(f"duplicate condition add within delta: {c.id}")
+    delta.pc_condition_add = deduped_adds
+
+    return delta, warnings
+
+
+def apply_delta(
+    state: dict[str, Any], delta: StateDelta, *, recent_events_max: int = 20, current_turn_no: int | None = None,
+) -> tuple[dict[str, Any], bool]:
+    state = copy.deepcopy(state)
+
+    inv: list[dict[str, Any]] = copy.deepcopy(state.get("inventory", []))
+    for it in inv:
+        if it.get("amount") is None or int(it.get("amount", 0) or 0) < 1:
+            it["amount"] = 1
+
+    def _by_id() -> dict[str, dict[str, Any]]:
+        return {i["id"]: i for i in inv}
+
+    by_id = _by_id()
+
+    for item in delta.inventory_add:
+        d = _item_to_dict(item)
+        d["name"] = _strip_non_ascii(d.get("name", item.id))
+        amt = max(1, int(d.get("amount") or 1))
+        canonical = resolve_inventory_canonical_id(inv, item.id)
+        target_id = canonical if canonical else item.id
+        if target_id in by_id:
+            ex = by_id[target_id]
+            ex["amount"] = int(ex.get("amount", 1)) + amt
+            if d.get("notes"):
+                ex["notes"] = d["notes"]
+            if d.get("aliases"):
+                existing_aliases = set(ex.get("aliases") or [])
+                for a in d["aliases"]:
+                    if a.lower() not in {x.lower() for x in existing_aliases}:
+                        existing_aliases.add(a.lower())
+                ex["aliases"] = list(existing_aliases)
+        else:
+            fuzzy_id = _fuzzy_match_inventory(d.get("name", item.id), inv)
+            if fuzzy_id and fuzzy_id in by_id:
+                ex = by_id[fuzzy_id]
+                ex["amount"] = int(ex.get("amount", 1)) + amt
+                if d.get("notes"):
+                    ex["notes"] = d["notes"]
+                if d.get("aliases"):
+                    existing_aliases = set(ex.get("aliases") or [])
+                    for a in d["aliases"]:
+                        if a.lower() not in {x.lower() for x in existing_aliases}:
+                            existing_aliases.add(a.lower())
+                    ex["aliases"] = list(existing_aliases)
+                _log.info(
+                    "inventory fuzzy merge: %s → %s (score via _fuzzy_match_inventory)",
+                    d.get("name", item.id),
+                    fuzzy_id,
+                )
+            else:
+                d["amount"] = amt
+                d["id"] = target_id
+                inv.append(d)
+                by_id = _by_id()
+
+    for rem in delta.inventory_remove:
+        canonical = resolve_inventory_remove_target(inv, rem.id)
+        if not canonical:
+            _log.warning(
+                "inventory_remove target %r not found in inventory (turn %s)",
+                rem.id, current_turn_no,
+            )
+            continue
+        ex = by_id[canonical]
+        if rem.amount is None:
+            inv = [x for x in inv if x.get("id") != canonical]
+        else:
+            amt_raw = int(rem.amount)
+            if amt_raw <= 0:
+                _log.warning(
+                    "inventory_remove amount=%r coerced to full remove for %s",
+                    rem.amount,
+                    canonical,
+                )
+                inv = [x for x in inv if x.get("id") != canonical]
+            else:
+                cur = int(ex.get("amount", 1))
+                new_amt = max(0, cur - amt_raw)
+                if new_amt <= 0:
+                    inv = [x for x in inv if x.get("id") != canonical]
+                else:
+                    ex["amount"] = new_amt
+        by_id = _by_id()
+
+    for inv_upd in delta.inventory_update:
+        canonical = resolve_inventory_canonical_id(inv, inv_upd.id)
+        if not canonical:
+            continue
+        ex = by_id[canonical]
+        if inv_upd.name is not None:
+            ex["name"] = _strip_non_ascii(inv_upd.name)
+        if inv_upd.notes is not None:
+            ex["notes"] = inv_upd.notes
+
+    inv.sort(key=lambda x: 0 if x.get("id") == "credits" else 1)
+    state["inventory"] = inv
+
+    if delta.location_change:
+        state["location"] = {
+            "id": delta.location_change.id,
+            "name": _strip_non_ascii(delta.location_change.name),
+            "description": delta.location_change.description,
+        }
+        state.setdefault("scene", {})["present_npcs"] = []
+        state.setdefault("scene", {})["recently_left"] = []
+        state.setdefault("scene", {})["recently_left_turns"] = 0
+        _stamp_turn = current_turn_no if current_turn_no is not None else state.get("meta", {}).get("turn", 0)
+        state["scene"]["turn_entered"] = _stamp_turn
+        state["scene"]["location_entered_turn"] = _stamp_turn
+    elif delta.location_description:
+        state.setdefault("location", {})["description"] = delta.location_description
+
+    current_turn = (state.get("meta") or {}).get("turn", 0)
+
+    state.setdefault("pc", {}).setdefault("conditions", [])
+    existing_conds: list[dict[str, Any]] = []
+    for c in state["pc"]["conditions"]:
+        if isinstance(c, dict):
+            existing_conds.append(c)
+        elif isinstance(c, str):
+            cid = c.lower().strip().replace(" ", "_")
+            existing_conds.append({"id": cid, "label": c, "description": "", "added_turn": 0})
+    remove_ids = {r.id for r in delta.pc_condition_remove}
+    existing_conds = [c for c in existing_conds if c.get("id") not in remove_ids]
+    existing_ids = {c.get("id") for c in existing_conds}
+    for ca in delta.pc_condition_add:
+        cid = ca.id
+        if not cid or cid in existing_ids:
+            continue
+        cond_dict = {
+            "id": cid,
+            "label": ca.label,
+            "description": ca.description,
+            "added_turn": current_turn,
+        }
+        if ca.turns_remaining is not None:
+            cond_dict["turns_remaining"] = ca.turns_remaining
+        else:
+            cond_dict["turns_remaining"] = _DEFAULT_CONDITION_TTL
+        existing_conds.append(cond_dict)
+        existing_ids.add(cid)
+    state["pc"]["conditions"] = existing_conds[-PC_CONDITIONS_MAX:]
+
+    current_turn = (state.get("meta") or {}).get("turn", 0)
+    scene = state.setdefault("scene", {})
+    existing_events: list[dict[str, Any]] = list(scene.get("recent_events") or [])
+
+    _corrupt_count = 0
+    _cleaned: list[dict[str, Any]] = []
+    for e in existing_events:
+        if isinstance(e, dict):
+            _cleaned.append(e)
+        else:
+            _corrupt_count += 1
+            _log.warning("apply_delta: dropping non-dict recent_event entry (type=%s); state may be stale", type(e).__name__)
+    existing_events = _cleaned
+    if _corrupt_count:
+        _log.warning("apply_delta: dropped %d corrupted recent_event entries; consider reloading or re-seeding state", _corrupt_count)
+
+    for rid in delta.recent_events_remove:
+        existing_events = [e for e in existing_events if e.get("id") != rid]
+
+    for upd in delta.recent_events_update:
+        for i, e in enumerate(existing_events):
+            if e.get("id") == upd.id:
+                existing_events[i]["text"] = _strip_non_ascii(upd.text)
+                break
+
+    existing_ids = {e.get("id") for e in existing_events}
+    for evt in delta.recent_events_add:
+        if evt.id not in existing_ids:
+            existing_events.append({
+                "id": evt.id,
+                "text": _strip_non_ascii(evt.text),
+                "turn": evt.turn or current_turn,
+            })
+            existing_ids.add(evt.id)
+
+    existing_events.sort(key=lambda e: e.get("turn", 0))
+    recent_events_evicted = len(existing_events) > recent_events_max
+    scene["recent_events"] = existing_events[-recent_events_max:]
+
+    if delta.scene_tags:
+        state["scene"]["tags"] = delta.scene_tags
+        new_tags = set(delta.scene_tags)
+        old_tags = set(state.get("scene", {}).get("tags") or [])
+        if "combat" in new_tags and "combat" not in old_tags:
+            state["scene"]["combat_started_turn"] = state.get("meta", {}).get("turn", 0)
+        elif "combat" not in new_tags and "combat" in old_tags:
+            state["scene"].pop("combat_started_turn", None)
+
+    if delta.scene_tagline is not None:
+        state.setdefault("scene", {})["tagline"] = _strip_non_ascii(delta.scene_tagline)
+
+    # --- NPC scene management (extracted to state/npcs.py) ---
+    from ccya.state.npcs import apply_npc_scene_management
+    state = apply_npc_scene_management(state, SceneExtractResult(
+        npc_add=delta.npc_add or [],
+        npc_remove=delta.npc_remove or [],
+        npc_update=delta.npc_update or [],
+        compendium_npc_update=delta.compendium_npc_update or [],
+        scene_tags=delta.scene_tags or [],
+        scene_tagline=delta.scene_tagline,
+        location_change=delta.location_change,
+        location_description=delta.location_description,
+    ), current_turn_no=current_turn_no)
+
+    # --- Arc update: merge arc_update into state arc ---
+    if delta.arc_update is not None:
+        _merge_arc_update(state.setdefault("arc", {}), delta.arc_update)
+
+    return state, recent_events_evicted
