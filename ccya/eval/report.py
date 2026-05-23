@@ -15,6 +15,7 @@ from typing import Any
 import logging
 
 from ccya.eval.config import EvalConfig
+from ccya.eval.engine_mirror import MOMENTUM_MIN
 from ccya.eval.judge import JudgeResult, merge_judge_scores
 from ccya.eval.runner import RunResult, find_previous_run, load_run_result
 
@@ -660,7 +661,7 @@ def _compute_pacing_metrics(events: list[dict[str, Any]]) -> str:
         meta = (ev.get("state_snapshot") or {}).get("meta") or {}
         cur_turn = int(meta.get("turn") or 0) if isinstance(meta, dict) else 0
         m = ((ev.get("state_snapshot") or {}).get("meta") or {}).get("momentum")
-        if m is not None and m <= -3:
+        if m is not None and m <= MOMENTUM_MIN:
             if current_run_start is None:
                 current_run_start = cur_turn
         else:

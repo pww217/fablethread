@@ -280,11 +280,23 @@ def _check_asserts(
 
         elif a.stream == "storytell.extract":
             applied = event.get("applied") or {}
+            output = ((event.get("extraction") or {}).get("storytell") or {}).get("output") or {}
             if a.field == "thread_advance":
-                output = ((event.get("extraction") or {}).get("storytell") or {}).get("output") or {}
                 threads = output.get("thread_advance") or []
                 passed = a.expected in threads
                 detail = f"thread_advance[{a.expected}] {'found' if passed else 'not found'}"
+
+            elif a.field == "thread_resolve":
+                resolutions = output.get("thread_resolve") or []
+                resolved_ids = [r.get("id", "") for r in resolutions if isinstance(r, dict)]
+                passed = a.expected in resolved_ids
+                detail = f"thread_resolve[{a.expected}] {'found' if passed else 'not found'} (resolved: {resolved_ids[:5]})"
+
+            elif a.field == "thread_add":
+                thread = output.get("thread_add") or {}
+                tid = thread.get("id", "") if isinstance(thread, dict) else ""
+                passed = a.expected == tid
+                detail = f"thread_add[{a.expected}] {'found' if passed else 'not found'} (actual: {tid})"
 
         elif a.stream == "extract":
             extraction = event.get("extraction") or {}
