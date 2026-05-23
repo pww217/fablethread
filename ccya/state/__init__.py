@@ -15,7 +15,6 @@ from ccya.state.delta import (
     reconcile_delta,
 )
 from ccya.state.inventory import (
-    _fuzzy_match_inventory,
     normalize_inventory_id,
     resolve_inventory_canonical_id,
     resolve_inventory_remove_target,
@@ -32,7 +31,6 @@ from ccya.state.npcs import (
 from ccya.state.momentum import apply_momentum
 
 __all__ = [
-    "_fuzzy_match_inventory",
     "append_chronicle",
     "append_event",
     "apply_delta",
