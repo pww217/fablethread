@@ -81,6 +81,21 @@ Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, publi
 - Tests are temporarily removed during refactor; this note is deferred until they return.
 ---
 
+---
+
+## Skills — when to load each
+
+- **create-design** → produce a design doc for a CCYA feature/refactor/problem (no plan/code)
+- **flesh-design** → review & sharpen an existing design doc against source (no plan/code)
+- **plan** → write a complete plan document for a CCYA feature/fix (no execution)
+- **review-plan** → review a plan doc for correctness before execution
+- **execute** → execute a plan exactly as written, review changes, commit
+- **review-code** → review a diff or PR for ccya (correctness, contracts, quality; no fixes)
+- **ev** → inspect turn data from events.jsonl using ev.py (debug pipeline turns)
+- **customize-opencode** → editing opencode's own config/agents/skills/plugins only (not user app code)
+
+---
+
 ## Repo map
 
 Read `docs/repomap.md` for module boundaries, public APIs, and cross-module contracts.
