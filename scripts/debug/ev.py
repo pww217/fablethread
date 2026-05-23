@@ -180,28 +180,6 @@ def extract_prompt(ev: dict[str, Any], stream: str) -> dict[str, str]:
     }
 
 
-def extract_section(text: str | None, *headers: str) -> str:
-    """Extract text between two section headers."""
-    if not text:
-        return ""
-    lines = text.splitlines()
-    found = False
-    result = []
-    stop_set = set(headers)
-    for line in lines:
-        stripped = line.strip()
-        if found:
-            if stripped in stop_set and stripped != headers[0]:
-                break
-            if stripped and not stripped.startswith("#"):
-                result.append(line)
-            elif stripped.startswith("##") and stripped not in stop_set:
-                break
-        if stripped == headers[0]:
-            found = True
-    return "\n".join(result).strip()
-
-
 def extract_section_by_pattern(text: str | None, start_name: str, *stop_names: str) -> str:
     """Extract text between a section header (matched by name from SECTION_MARKERS) and the next stop header."""
     if not text or start_name not in _COMPILED_SECTIONS:
@@ -475,8 +453,6 @@ def cmd_connectors(ev: dict[str, Any]) -> None:
     else:
         print("(none)")
 
-
-# ── helpers ───────────────────────────────────────────────────────────────
 
 def _count_state_diff(ev: dict[str, Any]) -> int:
     sd = ev.get("state_diff") or _build_state_diff(ev)
@@ -1540,17 +1516,9 @@ def format_trace_value(value: Any, field: str) -> str:
             return ", ".join(labels) if labels else "(empty)"
 
         elif field == "npcs":
-            # value is already a list of IDs from extract_field_from_event
+            # value is a list of IDs from extract_field_from_event
             if isinstance(value, list):
-                npc_entries = []
-                for n in (value or []):
-                    if isinstance(n, dict):
-                        name = n.get("name", "") or ""
-                        npc_id = n.get("id", "?")
-                        npc_entries.append(f"{npc_id} {name}") if name else npc_entries.append(str(npc_id))
-                    elif isinstance(n, str):
-                        npc_entries.append(n)
-                return ", ".join(npc_entries) if npc_entries else "(empty)"
+                return ", ".join(str(n) for n in value if value) if value else "(empty)"
             return str(value)
 
         # Generic list display (e.g., scene.tags)
@@ -1578,15 +1546,13 @@ def _short_item_name(name: str) -> str:
     words = name.split()
     if not words:
         return "?"
-    # Use first letter of each word, but keep full name if short enough
-    if len(words[0]) <= 6 and (len(name) <= 15):
+    if len(name) <= 15:
         return name[:20]
-    abbrevs = [w[0].upper() + w[1:] for w in words if w]
-    joined = "".join(abbrevs).replace("_", "")
-    # Use first letters only if original is long
-    if len(name) > 15:
-        return "".join(w[0] for w in words if w[:1]) + name[-3:] if len(words) > 2 else joined[:6]
-    return joined
+    # First letter of each word, joined
+    abbr = "".join(w[0].upper() for w in words if w)
+    if len(words) > 2:
+        return abbr + name[-3:]
+    return abbr[:6]
 
 
 def cmd_trace(events: list[dict[str, Any]], field: str, from_turn: int | None = None, to_turn: int | None = None, show_unchanged: bool = False) -> None:
@@ -1607,11 +1573,12 @@ def cmd_trace(events: list[dict[str, Any]], field: str, from_turn: int | None = 
         print("(no events in range)")
         return
 
-    # Validate field is tracked by checking first event
-    first_val = extract_field_from_event(filtered[0], field)
-    if first_val is None:
+    # Validate field is tracked by checking any event in range
+    found = any(extract_field_from_event(ev, field) is not None for ev in filtered)
+    if not found:
         print("Field not tracked per-turn")
         sys.exit(1)
+    first_val = extract_field_from_event(filtered[0], field)
 
     # Build table header based on field type
     display_name = _trace_display_name(field)
@@ -1899,7 +1866,6 @@ def _match_single_query(ev: dict[str, Any], ctx: dict, applied: dict, ruling_ev:
     elif field == "input":
         if op != "regex" or not isinstance(value, str):
             return False
-        import re
         try:
             pattern = re.compile(value)
             return bool(pattern.search(ev.get("input", "") or ""))
@@ -2003,8 +1969,6 @@ def cmd_search(events: list[dict[str, Any]], expressions: list[str]) -> None:
         print(line)
 
 
-# ── main ──────────────────────────────────────────────────────────────────
-# ── main ──────────────────────────────────────────────────────────────────
 
 def main() -> None:
     args = sys.argv[1:]
@@ -2031,13 +1995,19 @@ def main() -> None:
         case "timing":
             cmd_timing(events)
         case "turn":
-            turn = int(args[1]) if len(args) > 1 else None
-            ev = find_turn(events, turn) if turn else None
+            if len(args) < 2:
+                print("Usage: ev.py turn TURN", file=sys.stderr)
+                sys.exit(1)
+            turn = int(args[1])
+            ev = find_turn(events, turn)
             if not ev:
                 print(f"Turn {turn} not found (or is a compaction entry)")
                 sys.exit(1)
             cmd_turn(ev)
         case "props":
+            if len(args) < 3:
+                print("Usage: ev.py props TURN STREAM", file=sys.stderr)
+                sys.exit(1)
             turn = int(args[1])
             stream = args[2]
             stream = _resolve_stream(stream)
@@ -2047,6 +2017,9 @@ def main() -> None:
                 sys.exit(1)
             cmd_props(ev, stream)
         case "compact":
+            if len(args) < 3:
+                print("Usage: ev.py compact TURN STREAM", file=sys.stderr)
+                sys.exit(1)
             turn = int(args[1])
             stream = args[2]
             stream = _resolve_stream(stream)
@@ -2056,6 +2029,9 @@ def main() -> None:
                 sys.exit(1)
             cmd_compact(ev, stream)
         case "prompt":
+            if len(args) < 4:
+                print("Usage: ev.py prompt TURN STREAM FIELD", file=sys.stderr)
+                sys.exit(1)
             turn = int(args[1])
             stream = args[2]
             field = args[3]
@@ -2069,6 +2045,9 @@ def main() -> None:
                 sys.exit(1)
             cmd_prompt(ev, stream, field)
         case "outputs":
+            if len(args) < 2:
+                print("Usage: ev.py outputs TURN", file=sys.stderr)
+                sys.exit(1)
             turn = int(args[1])
             ev = find_turn(events, turn)
             if not ev:
@@ -2076,6 +2055,9 @@ def main() -> None:
                 sys.exit(1)
             cmd_outputs(ev)
         case "deltas":
+            if len(args) < 2:
+                print("Usage: ev.py deltas TURN", file=sys.stderr)
+                sys.exit(1)
             turn = int(args[1])
             ev = find_turn(events, turn)
             if not ev:
@@ -2083,6 +2065,9 @@ def main() -> None:
                 sys.exit(1)
             cmd_deltas(ev)
         case "mechanics":
+            if len(args) < 2:
+                print("Usage: ev.py mechanics TURN", file=sys.stderr)
+                sys.exit(1)
             turn = int(args[1])
             ev = find_turn(events, turn)
             if not ev:
