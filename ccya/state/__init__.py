@@ -10,10 +10,10 @@ from ccya.state.chronicle import (
     remove_last_event,
 )
 from ccya.state.delta import (
-    PC_CONDITIONS_MAX,
     apply_delta,
     reconcile_delta,
 )
+from ccya.state.delta_builder import PC_CONDITIONS_MAX
 from ccya.state.inventory import (
     normalize_inventory_id,
     resolve_inventory_canonical_id,

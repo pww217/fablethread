@@ -38,6 +38,7 @@ from ccya.models import (
     ArcThread,
     CampaignArc,
     IntentEnvelope,
+    SceneExtractResult,
     StorytellerResult,
     RulesCheck,
     RulesOutcome,
@@ -61,9 +62,48 @@ from ccya.state import (
     resolve_inventory_remove_target,
     save_state,
 )
-from ccya.state.delta import _merge_arc_update
+from ccya.state.delta_builder import _merge_arc_update
 
 _log = logging.getLogger(__name__)
+
+
+@dataclass
+class TurnContext:
+    """Shared context across run_turn phases."""
+    state: dict[str, Any]
+    user_input: str
+    turn_no: int
+    trace_id: str
+    config: EngineConfig
+    chronicle_tail: list[str]
+    recent_turns: list[str]
+    save_dir: Path
+    packing: dict[str, Any]
+
+    # Phase outputs
+    pending_gm_beat: dict[str, Any] | None = None
+    intent: IntentEnvelope | None = None
+    outcome: RulesOutcome | None = None
+    pacing_ctx: PacingContext | None = None
+    narrative: str | None = None
+    narrative_chunks: list[str] | None = None
+    extraction_result: Any = None
+    delta: StateDelta | None = None
+    actions: list[str] | None = None
+    outcome_summary: str | None = None
+    extraction_event: dict[str, Any] | None = None
+    storyteller_result: StorytellerResult | None = None
+    scene_result: SceneExtractResult | None = None
+    extraction_ctx: Any = None
+    errors: list[dict[str, Any]] | None = None
+    metrics: dict[str, Any] | None = None
+    ruling_metrics: dict[str, Any] | None = None
+    narr_metrics: dict[str, Any] | None = None
+    ext_metrics: dict[str, Any] | None = None
+    applied: dict[str, Any] | None = None
+    rejected: list[dict[str, Any]] | None = None
+    recent_events: list[dict[str, Any]] | None = None
+    recent_events_evicted: bool = False
 
 
 @dataclass
