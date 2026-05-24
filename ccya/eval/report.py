@@ -712,23 +712,16 @@ def _compute_pacing_metrics(events: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-_JUDGE_STREAM_SENTINEL_OPEN = "<!-- JUDGE_STREAM_OPEN -->\n"
-_JUDGE_STREAM_SENTINEL_CLOSE = "<!-- JUDGE_STREAM_CLOSE -->\n"
-
-
-def write_report_skeleton(
+def write_full_report(
     run_result: RunResult,
     *,
     eval_cfg: EvalConfig,
+    judge_results: list[JudgeResult] | None = None,
     runs_dir: Path | None = None,
 ) -> Path:
-    """Write REPORT.md with everything except the judge body. Returns the path.
+    """Write REPORT.md in a single pass. Returns the path."""
+    judges = judge_results if isinstance(judge_results, list) and len(judge_results) > 0 else []
 
-    The judge section contains a placeholder: '## Judge (streaming…)' followed by
-    a single empty fenced code block. Phase 05.2's appender writes into the
-    fence; Phase 05.3's finalizer rewrites the whole file with the judge body
-    hoisted into a normal section.
-    """
     output_dir = Path(run_result.output_dir)
     runs_dir = runs_dir or output_dir.parent
     cur_events = _read_events(Path(run_result.events_jsonl_path))
@@ -748,7 +741,7 @@ def write_report_skeleton(
         warn_pct=eval_cfg.report.token_warn_pct,
         fail_pct=eval_cfg.report.token_fail_pct,
     )
-    flags = _collect_flags(cur_metrics, regressions, run_result, judge=None)
+    flags = _collect_flags(cur_metrics, regressions, run_result, judges if judges else None)
 
     parts: list[str] = []
     parts.append(f"# Eval Report — `{run_result.scenario_id}`\n")
@@ -765,129 +758,30 @@ def write_report_skeleton(
         else "**Compared against:** _(no prior run found)_"
     )
     parts.append("")
-    parts.append("## Judge (streaming…)\n")
-    parts.append("_Judge response is streaming live below. This block will be replaced with the parsed verdict once the call completes._\n")
-    parts.append("```\n")
-    parts.append(_JUDGE_STREAM_SENTINEL_OPEN)
-    parts.append(_JUDGE_STREAM_SENTINEL_CLOSE)
-    parts.append("```\n")
-    parts.append(_render_flag_block(flags, eval_cfg.report.flag_at_top))
-    parts.append("")
-    auto_block = _render_auto_checker_block(run_result)
-    if auto_block:
-        parts.append("## Auto-Checker\n")
-        parts.append(auto_block)
-    assert_table = _render_assert_summary_table(run_result)
-    if assert_table:
-        parts.append(assert_table)
-    pacing = _compute_pacing_metrics(cur_events)
-    if pacing:
-        parts.append(pacing)
-    parts.append("## Turn Metrics\n")
-    parts.append(_render_combined_table(cur_metrics, prev_metrics, run_result))
-    if regressions:
-        warns = [r for r in regressions if r.severity == "warn"]
-        if warns:
-            parts.append("\n## Warnings (≥ warn threshold but < fail threshold)\n")
-            for r in warns:
-                parts.append(
-                    f"- `{r.stream}` turn {r.turn}: "
-                    f"{r.prev_tokens_in} → {r.cur_tokens_in} (+{r.pct_change:.1f}%)"
-                )
 
-    out_path = output_dir / "REPORT.md"
-    out_path.write_text("\n".join(parts) + "\n")
-    return out_path
-
-
-def append_judge_chunk(report_path: Path, chunk: str) -> None:
-    """Append a streamed-judge token-or-chunk to REPORT.md atomically.
-
-    Reads the file, inserts `chunk` immediately before _SENTINEL_CLOSE, writes
-    back. Cheap because the file is small until the judge produces real volume.
-    For very long judge outputs this becomes O(n^2) over chunks — acceptable
-    because chunks are coarse (full sentences) and total judge output is
-    bounded at ~64K tokens.
-    """
-    text = report_path.read_text()
-    if _JUDGE_STREAM_SENTINEL_CLOSE not in text:
-        return                          # finalize already ran or skeleton missing
-    new_text = text.replace(
-        _JUDGE_STREAM_SENTINEL_CLOSE,
-        chunk + _JUDGE_STREAM_SENTINEL_CLOSE,
-        1,
-    )
-    report_path.write_text(new_text)
-
-
-def finalize_report(
-    report_path: Path,
-    run_result: RunResult,
-    *,
-    eval_cfg: EvalConfig,
-    judge_result: JudgeResult | list[JudgeResult],
-    runs_dir: Path | None = None,
-) -> None:
-    """Rewrite REPORT.md with the judge summary hoisted to the top.
-
-    The streaming sentinel block is removed; a proper judge summary block is
-    inserted after the metadata header; the parsed scores update the flag
-    computation (judge_score_drop) so the flag block reflects them.
-    """
-    judges = judge_result if isinstance(judge_result, list) else [judge_result]
-
-    output_dir = Path(run_result.output_dir)
-    runs_dir = runs_dir or output_dir.parent
-    cur_events = _read_events(Path(run_result.events_jsonl_path))
-    cur_metrics = _summarize_events(cur_events)
-    prev_metrics: list[TurnMetrics] = []
-    prev_run_path: Path | None = None
-    prev_json = find_previous_run(runs_dir, run_result.scenario_id, exclude=output_dir)
-    if prev_json is not None:
-        prev_run_path = prev_json.parent
-        prev_run = load_run_result(prev_json)
-        prev_events = _read_events(Path(prev_run.events_jsonl_path))
-        prev_metrics = _summarize_events(prev_events)
-    regressions = _compute_regressions(
-        cur_metrics, prev_metrics,
-        warn_pct=eval_cfg.report.token_warn_pct,
-        fail_pct=eval_cfg.report.token_fail_pct,
-    )
-    flags = _collect_flags(cur_metrics, regressions, run_result, judges)
-
-    parts: list[str] = []
-    parts.append(f"# Eval Report — `{run_result.scenario_id}`\n")
-    parts.append(
-        f"**Pack:** `{run_result.pack}` · **Model:** `{run_result.model}` · "
-        f"**Temp override:** `{run_result.temperature_override}`  "
-    )
-    parts.append(
-        f"**Started:** {run_result.started_at} · **Finished:** {run_result.finished_at}  "
-    )
-    parts.append(f"**Output dir:** `{run_result.output_dir}`  ")
-    parts.append(
-        f"**Compared against:** `{prev_run_path}`" if prev_run_path is not None
-        else "**Compared against:** _(no prior run found)_"
-    )
-    parts.append("")
-    parts.append("## Judge Summary\n")
-    parts.append(_render_judge_summary(judges))
-    parts.append(_render_flag_block(flags, eval_cfg.report.flag_at_top))
-    parts.append("")
-
-    # Meta judge verdict first (runs last but placed at top)
-    meta_judge = next((j for j in judges if j.judge_id == "meta"), None)
-    if meta_judge:
-        parts.append("## Meta Judge Verdict\n")
-        parts.append(meta_judge.body_md)
+    # Judge Summary block (only when judges provided and non-empty)
+    if judges:
+        parts.append("## Judge Summary\n")
+        parts.append(_render_judge_summary(judges))
         parts.append("")
 
-    # Domain judge verdicts
-    domain_judges = [j for j in judges if j.judge_id != "meta"]
-    for jr in domain_judges:
-        parts.append(f"## Judge Verdict — `{jr.judge_id}`\n")
-        parts.append(jr.body_md)
-        parts.append("")
+        # Meta judge verdict first (runs last but placed at top)
+        meta_judge = next((j for j in judges if j.judge_id == "meta"), None)
+        if meta_judge:
+            parts.append("## Meta Judge Verdict\n")
+            parts.append(meta_judge.body_md)
+            parts.append("")
+
+        # Domain judge verdicts
+        domain_judges = [j for j in judges if j.judge_id != "meta"]
+        for jr in domain_judges:
+            parts.append(f"## Judge Verdict — `{jr.judge_id}`\n")
+            parts.append(jr.body_md)
+            parts.append("")
+
+    # Flag block (always rendered, with or without judges)
+    parts.append(_render_flag_block(flags, eval_cfg.report.flag_at_top))
+    parts.append("")
 
     auto_block = _render_auto_checker_block(run_result)
     if auto_block:
@@ -911,7 +805,9 @@ def finalize_report(
                     f"{r.prev_tokens_in} → {r.cur_tokens_in} (+{r.pct_change:.1f}%)"
                 )
 
-    tmp = report_path.with_suffix(".md.tmp")
+    tmp = output_dir / "REPORT.md.tmp"
+    report_path = output_dir / "REPORT.md"
     tmp.write_text("\n".join(parts) + "\n")
     tmp.replace(report_path)
+    return report_path
 
