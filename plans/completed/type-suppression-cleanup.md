@@ -1,7 +1,7 @@
 # Type suppression cleanup — remove unnecessary `# type: ignore` / `# noqa`
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 
