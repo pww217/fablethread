@@ -72,9 +72,9 @@
 
 **No roll required.** Describe what happens with appropriate weight for the moment.
 {% endif %}
-{% if rules_outcome and rules_outcome.rolled and rules_outcome.band == "fail" -%}
+{% if rules_outcome and rules_outcome.rolled -%}
 
-**rules_outcome (BINDING)** — Fail band constraint applies. The NPC does NOT engage constructively to help the player. Do not turn FAIL into PARTIAL by offering counter-deals, partial payments, or consolation prizes. See system prompt fail-band section for details.
+**rules_outcome (BINDING)** — This turn had a mechanical outcome. Do not ignore, override, or undermine the resolved band and directive above. The band result is authoritative for what happens next.
 {%- endif %}
 
 === PLAYER INPUT ===
