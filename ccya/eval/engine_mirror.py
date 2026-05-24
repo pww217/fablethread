@@ -39,7 +39,7 @@ INTENT_VERBS_HINT: tuple[str, ...] = (
     "attack", "persuade", "sneak", "hack", "deceive", "intimidate",
     "climb", "repair", "recall", "escape", "negotiate",
 )
-SCENE_NAMED_NPC_CAP: int = 8  # see ccya/prompts/extract_scene_system.j2 "## NPC scene cap"
+SCENE_NAMED_NPC_CAP: int = 10  # see ccya/prompts/extract_scene_system.j2 "## NPC scene cap"
 PC_CONDITION_CAP: int = PC_CONDITIONS_MAX
 
 # Extraction stream names — used in TurnAssert.stream validation
