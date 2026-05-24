@@ -1,7 +1,6 @@
-{# sections/_npc_roster_extract.j2 — minimal form for extractors #}
-{% if npc_roster -%}
+{%- if npc_roster -%}
 ## characters
 {% for n in npc_roster -%}
 - `{{ n.id }}` | **{{ n.name }}**{% if n.title %} ({{ n.title }}){% endif %} [{{ n.presence | upper }}]{% if n.bio %} — {{ n.bio }}{% endif %}{% if n.last_seen %} — last seen: {{ n.last_seen }}{% endif %}
-{% endfor %}
-{% endif %}
+{% endfor -%}
+{%- endif -%}

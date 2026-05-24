@@ -277,12 +277,9 @@ class StateExtractBoundary(BaseModel):
 class StorytellerBoundary(BaseModel):
     """Context for storytell_user.j2.
 
-    Source: _storytell_messages() passes pc, pc_stats (lines 359-361) but storytell_user.j2 never renders them — dead fields.
-    npc_roster/location/inventory/conditions come from extraction_ctx (lines 363-366).
-    all_threads/recent_events/world_state/intent/pacing_context/recent_turns/turn_no/band are top-level variables used by template.
-
-    NOTE: Template uses `world_state` variable name directly (line 29 of storytell_user.j2), NOT world_state_entries.
-    ArcThreadBlock's threads are accessed via top-level all_threads (not current_arc).
+    npc_roster/location/inventory/conditions come from extraction_ctx.
+    all_threads/recent_events/world_state/intent/pacing_context/recent_turns/turn_no/band are top-level variables.
+    current_arc provides campaign arc metadata (visible_goal, thematic_question, pc_drive) via _arc.j2 include.
     """
 
     narration: str
@@ -290,8 +287,9 @@ class StorytellerBoundary(BaseModel):
     location: LocationBlock
     conditions: list[Condition]
     inventory: list[InventoryItem]
+    current_arc: dict[str, Any]  # campaign arc metadata — passed to _arc.j2 include
     all_threads: list[ArcThreadSummary]  # source is state.arc.threads (raw dicts) — Pydantic coerces since ArcThreadSummary field names match dict keys; schema tests must validate both raw-dict and object inputs
-    world_state: list[str | dict[str, Any]]  # template uses `world_state` variable name (line 29 of storytell_user.j2)
+    world_state: list[str | dict[str, Any]]  # template uses `world_state` variable name
     recent_events: list[dict[str, Any] | str]  # source is scene.recent_events — raw dicts with text field or plain strings
     intent: IntentEnvelope | None = None
     pacing_context: PacingBlock | None = None

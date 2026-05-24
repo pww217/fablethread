@@ -331,7 +331,6 @@ def _storytell_messages(
     band: str = "",
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 3 (thread signals + facts + actions + outcome_summary)."""
-    pc = state.get("pc") or {}
     scene = state.get("scene") or {}
 
     arc = state.get("arc") or {}
@@ -350,14 +349,13 @@ def _storytell_messages(
         "storytell_user.j2",
         {
             "narration": narration,
-            "pc": pc,
-            "pc_stats": pc.get("stats") or {},
             # This-turn derived values (from extraction_ctx) — NOT state
             "npc_roster": npc_roster,
             "location": extraction_ctx.location_this_turn,
             "inventory": extraction_ctx.inventory_this_turn,
             "conditions": extraction_ctx.conditions_this_turn,
             # State-sourced (these don't change within a turn)
+            "current_arc": arc,
             "all_threads": all_threads,
             "recent_events": recent_events,
             "world_state": world_state,

@@ -1,63 +1,48 @@
-{% include "sections/_npc_roster_extract.j2" %}
-
-{% if location -%}
+{% include "sections/_npc_roster_extract.j2" %}{% if location %}
 ## location
 **{{ location.name or location.id }}**{% if location.description %} — {{ location.description }}{% endif %}
-{% endif -%}
-
-{%- if conditions %}
+{% endif %}{% if conditions %}
 ## PC conditions (this turn)
 {% for c in conditions -%}
 - {{ c.id }}: {{ c.label }}{% if c.description %} — {{ c.description }}{% endif %}
-{% endfor %}
-{%- endif %}
-
-{% if all_threads -%}
-## threads (all — unified list, scope handled by Python)
-{% for t in all_threads -%}{% set scope_tag = "[SCENE]" if t.scope == "scene" else "[ARC]" %}- `{{ t.id }}` {{ scope_tag }} {% if not t.active %}(dormant){% endif %} [{{ t.urgency | upper }}] {{ t.summary | truncate(120) }}{% if t.tags %} tags: {{ t.tags | join(', ') }}{% endif %}{% if t.last_seen_turn %} (last seen T{{ t.last_seen_turn }}){% endif %}
 {% endfor -%}
-{% else -%}
-## threads
-None currently. Generate actions that could introduce new story directions or explore the environment.
-{% endif -%}
-
-{% if recent_events -%}
-## recent_events (don't duplicate; emit recent_events_add/update/remove for changes)
-{% for event in recent_events %}- {{ event.text if event is mapping else event }}
-{% endfor %}
-{% endif -%}
-{% if not all_threads and world_state -%}
-<<<TRACE_IMMUTABLE_START>>>
-## world_state (read-only context)
-{% for f in world_state %}- {{ f if f is string else f.values() | join(': ') }}
-{% endfor %}
-<<<TRACE_IMMUTABLE_END>>>
-{% endif -%}
-
+{% endif %}{% if inventory %}
 ## Current inventory (this turn)
 {% for item in inventory -%}
 - `{{ item.id }}`: {{ item.name }} x{{ item.amount }}{% if item.notes %} — {{ item.notes }}{% endif %}
-{% endfor %}
-
-{% if band -%}
+{% endfor -%}
+{% endif %}
+{% include "sections/_arc.j2" %}{% if all_threads %}
+## threads (all — unified list, scope handled by Python)
+{% for t in all_threads %}{% set scope_tag = "[SCENE]" if t.scope == "scene" else "[ARC]" %}- `{{ t.id }}` {{ scope_tag }} {% if not t.active %}(dormant){% endif %} [{{ t.urgency | upper }}] {{ t.summary | truncate(120) }}{% if t.tags %} tags: {{ t.tags | join(', ') }}{% endif %}{% if t.last_seen_turn %} (last seen T{{ t.last_seen_turn }}){% endif %}
+{% endfor -%}
+{% else %}
+## threads
+None currently. Generate actions that could introduce new story directions or explore the environment.
+{% endif %}{% if recent_events %}
+## recent_events (don't duplicate; emit recent_events_add/update/remove for changes)
+{% for event in recent_events %}- {{ event.text if event is mapping else event }}
+{% endfor -%}
+{% endif %}{% if not all_threads and world_state %}
+<<<TRACE_IMMUTABLE_START>>>
+## world_state (read-only context)
+{% for f in world_state %}- {{ f if f is string else f.values() | join(': ') }}
+{% endfor -%}
+<<<TRACE_IMMUTABLE_END>>>
+{% endif %}{% if band %}
 ## rules_outcome
 Band: {{ band | upper }}. Apply thread advancement freely on success/crit_success. On fail/setback/partial, do NOT mark threads as advanced for the attempted action; prefer breathing_room/null beats on fail.
-{% endif -%}
-
-{% if pacing_context and (pacing_context.directive or pacing_context.gate) -%}
+{% endif %}{% if pacing_context and (pacing_context.directive or pacing_context.gate) %}
 ## pacing_context
 Directive: {{ pacing_context.directive or "none" }}
 Gate: {{ pacing_context.gate }}
-{% endif -%}
-
-{% if recent_turns -%}
-## last_turn_narration (T{{ recent_turns[-1].turn }})
+{% endif %}{% if recent_turns %}
+## last turn's context (T{{ recent_turns[-1].turn }})
 {{ recent_turns[-1].narrative }}
-{% endif -%}
-{% if intent and intent.intent -%}
+{% endif %}{% if intent and intent.intent %}
 ## player_intent
 **{{ intent.intent_verb }}**: {{ intent.intent }}
-{% endif -%}
+{% endif %}
 ## CURRENT TURN {{ turn_no }} NARRATION
 {{ narration }}
 ## END CURRENT TURN NARRATION
