@@ -8,7 +8,7 @@ import logging
 import os
 import sys
 from datetime import datetime
-from pathlib import Path
+from typing import Any
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
@@ -22,7 +22,7 @@ from ccya.engine import (
     run_turn,
 )
 
-from ccya.pack import PlayerOverrides, load_pack, list_packs
+from ccya.pack import PlayerOverrides, load_pack, list_packs, _resolve_pack_dir
 from ccya.state import (
     init_save_dir,
     load_recent_events,
@@ -44,6 +44,25 @@ from .tv import _turn_viewer_data
 _app_mod = sys.modules["ccya.server.app"]
 
 _log = logging.getLogger(__name__)
+
+
+def _apply_seed_to_save_dir(
+    seed_dict: dict[str, Any],
+    opening_narrative: str | None = None,
+    actions: list[str] | None = None,
+) -> None:
+    """Apply generated/loaded seed to save directory and set dynamic pack variables."""
+    seed_dict.setdefault("meta", {})["model"] = _app_mod.config["llm"]["model"]
+    init_save_dir(_app_mod.SAVE_DIR, seed_dict)
+    if opening_narrative is not None:
+        _app_mod._dynamic_opening = opening_narrative
+    else:
+        _app_mod._dynamic_opening = ""
+    if actions is not None:
+        _app_mod._dynamic_opening_actions = actions
+    else:
+        _app_mod._dynamic_opening_actions = []
+
 
 def _format_ts(ts_str: str) -> str:
     """Convert UTC ISO string to a human-readable display string."""
@@ -250,10 +269,7 @@ async def new_game(request: Request):
                     seed["pc"]["stats"] = stats
             except (json.JSONDecodeError, TypeError):
                 pass
-        seed.setdefault("meta", {})["model"] = _app_mod.config["llm"]["model"]
-        init_save_dir(_app_mod.SAVE_DIR, seed)
-        _app_mod._dynamic_opening = ""
-        _app_mod._dynamic_opening_actions = []
+        _apply_seed_to_save_dir(seed)
     else:
         try:
             envelope = await generate_seed(
@@ -263,11 +279,8 @@ async def new_game(request: Request):
                 overrides=overrides if not overrides.is_empty() else None,
             )
             seed = envelope.seed_state.model_dump(mode="json")
-            seed.setdefault("meta", {})["model"] = _app_mod.config["llm"]["model"]
             seed["meta"]["setting_pack"] = _app_mod._pack_id
-            init_save_dir(_app_mod.SAVE_DIR, seed)
-            _app_mod._dynamic_opening = envelope.opening_narrative
-            _app_mod._dynamic_opening_actions = envelope.actions
+            _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions)
         except Exception:
             _app_mod.logger.exception("generate_seed failed")
 
@@ -290,11 +303,8 @@ async def new_game_reroll(request: Request):
             template_dir=str(_app_mod.PROMPTS_DIR),
         )
         seed = envelope.seed_state.model_dump(mode="json")
-        seed.setdefault("meta", {})["model"] = _app_mod.config["llm"]["model"]
         seed["meta"]["setting_pack"] = _app_mod._pack_id
-        init_save_dir(_app_mod.SAVE_DIR, seed)
-        _app_mod._dynamic_opening = envelope.opening_narrative
-        _app_mod._dynamic_opening_actions = envelope.actions
+        _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions)
     except Exception as exc:
         _app_mod.logger.exception("generate_seed reroll failed")
         return HTMLResponse(f"<p class='text-red-400'>Re-roll failed: {exc}</p>")
@@ -355,24 +365,6 @@ async def delete_pack(pack_id: str):
     shutil.rmtree(pack_dir)
     _log.info("Deleted pack: %s", pack_id)
     return JSONResponse({"ok": True})
-
-
-def _resolve_pack_dir(pack_id: str, packs_dir: Path) -> Path:
-    """Resolve pack_id to a directory (mirrors pack._resolve_pack_dir for server-side use)."""
-    if "/" in pack_id:
-        namespace, slug = pack_id.split("/", 1)
-        candidate = packs_dir / namespace / slug
-        if not candidate.is_dir():
-            raise FileNotFoundError(f"Pack not found: {candidate}")
-        return candidate
-    candidate = packs_dir / pack_id
-    if candidate.is_dir():
-        return candidate
-    for namespace in ("default", "custom"):
-        candidate = packs_dir / namespace / pack_id
-        if candidate.is_dir():
-            return candidate
-    raise FileNotFoundError(f"Pack '{pack_id}' not found in {packs_dir}")
 
 
 @_app_mod.app.get("/panels/pack-picker", response_class=HTMLResponse)
