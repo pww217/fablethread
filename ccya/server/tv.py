@@ -26,6 +26,24 @@ _STAGE_CSS: dict[str, str] = {
 }
 
 
+def _get_input_segments(ev: dict[str, Any], sd) -> dict[str, list[dict[str, Any]]]:
+    """Return {inp_key: lines} for all inputs of stream definition `sd`."""
+    result: dict[str, list[dict[str, Any]]] = {}
+    if not sd.inputs:
+        return result
+    for inp_key in sd.inputs:
+        inp_sd = STREAM_BY_KEY.get(inp_key)
+        if inp_sd is None:
+            continue
+        inp_p_path = inp_sd.prompt_path or inp_sd.metrics_path
+        inp_p_blob = _get_nested(ev, inp_p_path) or {}
+        if not isinstance(inp_p_blob, dict):
+            inp_p_blob = {}
+        raw_out = inp_p_blob.get(inp_sd.output_subkey) if inp_sd.output_subkey else inp_p_blob
+        result[inp_key] = _extract_stream_output_lines(raw_out, inp_sd)
+    return result
+
+
 def _tv_label(x: dict[str, Any]) -> str:
     """Extract a human-readable label from a dict for display purposes."""
     for key in ("id", "name", "text", "label"):
@@ -480,19 +498,8 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
             if not sd.inputs:
                 continue
             segments: list[dict[str, Any]] = []
-            for inp_key in sd.inputs:
-                inp_sd = STREAM_BY_KEY.get(inp_key)
-                if inp_sd is None:
-                    continue
-                # Get the output value for this upstream stream
-                inp_p_path = inp_sd.prompt_path or inp_sd.metrics_path
-                inp_p_blob = _get_nested(ev, inp_p_path) or {}
-                if not isinstance(inp_p_blob, dict):
-                    inp_p_blob = {}
-                raw_out = inp_p_blob.get(inp_sd.output_subkey) if inp_sd.output_subkey else inp_p_blob
-
-                seg_lines = _extract_stream_output_lines(raw_out, inp_sd)
-
+            input_segments = _get_input_segments(ev, sd)
+            for inp_key, seg_lines in input_segments.items():
                 segments.append({
                     "from": inp_key,
                     "label": f"{inp_key} \u2192 {sd.key}",
@@ -508,19 +515,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         for sd in _STREAMS:
             if not sd.inputs:
                 continue
-            snap: dict[str, list[dict[str, Any]]] = {}
-            for inp_key in sd.inputs:
-                inp_sd = STREAM_BY_KEY.get(inp_key)
-                if inp_sd is None:
-                    continue
-                inp_p_path = inp_sd.prompt_path or inp_sd.metrics_path
-                inp_p_blob = _get_nested(ev, inp_p_path) or {}
-                if not isinstance(inp_p_blob, dict):
-                    inp_p_blob = {}
-                raw_out = inp_p_blob.get(inp_sd.output_subkey) if inp_sd.output_subkey else inp_p_blob
-                seg_lines = _extract_stream_output_lines(raw_out, inp_sd)
-                snap[inp_key] = seg_lines
-            inputs_snapshot[sd.key] = snap
+            inputs_snapshot[sd.key] = _get_input_segments(ev, sd)
 
         # Derived flags from failures list
         row_failures = _tv_failures(ev, streams)
