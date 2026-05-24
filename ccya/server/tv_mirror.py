@@ -6,7 +6,7 @@ Import _STREAMS and _get_nested in tv.py. Do not reference stream names directly
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 
 @dataclass(frozen=True)
@@ -110,4 +110,4 @@ def _get_nested(d: dict[str, Any], path: str) -> dict[str, Any] | str | list[Any
         if not isinstance(cur, dict):
             return None
         cur = cur.get(part)
-    return cur  # type: ignore[return-value]
+    return cast("dict[str, Any] | str | list[Any] | None", cur)

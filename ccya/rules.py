@@ -13,7 +13,10 @@ PbtA 7-band resolution:
 from __future__ import annotations
 
 import random
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from ccya.models import RulesOutcome
 
 DIFFICULTY_MOD: dict[str, int] = {
     "trivial": +2,
@@ -175,8 +178,7 @@ def resolve_check(
     intent_verb: str = "",
     intent: str = "",
     rng: random.Random | None = None,
-) -> "RulesOutcome":  # noqa: F821
-    from ccya.models import RulesOutcome
+) -> RulesOutcome:
 
     if skill not in VALID_SKILLS:
         raise ValueError(

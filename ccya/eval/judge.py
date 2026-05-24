@@ -1027,7 +1027,7 @@ async def _run_single_judge(
     previous_scores: dict[str, Any] | None,
 ) -> "JudgeResult":
     """Run one judge spec against a pre-built trace string."""
-    from ccya.llm_client import chat_stream
+    from ccya.llm_client import chat
 
     rubric_path = Path(spec.rubric_path)
     if not rubric_path.is_absolute():
@@ -1046,33 +1046,20 @@ async def _run_single_judge(
     if not judge_model:
         raise ValueError(f"judge model not set for spec {spec.id!r}")
 
-    _log.info("judge[%s]: model=%s trace_chars=%d", spec.id, judge_model, len(trace))
+    _log.info("judge[%s]: model=%s trace_chars=%d max_tokens=%d", spec.id, judge_model, len(trace), spec.max_tokens)
     t0 = time.monotonic()
-    chunks: list[str] = []
-    try:
-        async for chunk in chat_stream(
-            host=host,
-            model=judge_model,
-            messages=messages,
-            temperature=spec.temperature,
-            timeout=spec.timeout_s or 180.0,
-            max_tokens=spec.max_tokens,  # type: ignore[call-arg]
-        ):
-            chunks.append(chunk)
-    except TypeError:
-        _log.warning("judge[%s]: chat_stream() doesn't accept max_tokens (incompatible LLM backend); falling back without it", spec.id)
-        async for chunk in chat_stream(
-            host=host,
-            model=judge_model,
-            messages=messages,
-            temperature=spec.temperature,
-            timeout=spec.timeout_s or 180.0,
-        ):
-            chunks.append(chunk)
+    resp = await chat(
+        host=host,
+        model=judge_model,
+        messages=messages,
+        temperature=spec.temperature,
+        max_tokens=spec.max_tokens,
+        timeout=spec.timeout_s or 180.0,
+    )
     elapsed = time.monotonic() - t0
     _log.info("judge[%s]: complete in %.1fs", spec.id, elapsed)
 
-    raw = "".join(chunks)
+    raw = resp.get("response", "")
     judge_md_path = output_dir / f"{scenario_id}.{spec.id}.judge.md"
     judge_md_path.write_text(raw)
 

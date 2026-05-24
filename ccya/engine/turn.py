@@ -137,7 +137,7 @@ class PacingContext:
     """Consolidated pacing decision for Narrate and Progress steps."""
     directive: str  # "Breathe" | "Pressure" | "Overwhelm" | "Tension" | "Resolve a Threat" | "Threat Pressure" | "" (may include "; Combat Fatigue" secondary)
     beat_locked: bool  # True: floor relief fired — Progress MUST emit breathing_room beat and gate is force-closed
-    gate: Literal["block_add", "block_escalate", "allow"]  # Progress may only add threads when allow
+    gate: Literal["block_escalate", "allow"]  # Progress may only add threads when allow
     summary: str  # human-readable log string, never sent to LLM
 
     @staticmethod
@@ -148,6 +148,9 @@ class PacingContext:
 
 _ACTIVE_THREAD_CAP = 3
 """Maximum number of threads that can be active simultaneously."""
+
+_LATENT_THREAD_CAP = 4
+"""Maximum number of latent (inactive) threads permitted."""
 
 _EXPIRE_SILENT_TURNS = 5
 """Consecutive turns without being advanced before a thread is demoted to latent."""
@@ -252,6 +255,21 @@ def _apply_thread_signals(
 
     really_still_active = [t for t in still_active if getattr(t, "active", True)]
     demoted_to_latent = [t for t in still_active if not getattr(t, "active", False)]
+
+    # Enforce latent cap: drop oldest latent threads if demotion exceeds cap
+    latent_count = len(demoted_to_latent) + sum(
+        1 for t in arc.threads
+        if t.id not in {t2.id for t2 in all_arc_threads}
+        and not getattr(t, "active", False)
+    )
+    if latent_count > _LATENT_THREAD_CAP:
+        excess = latent_count - _LATENT_THREAD_CAP
+        demoted_to_latent.sort(key=lambda t: t.added_turn or 0)
+        dropped = demoted_to_latent[:excess]
+        demoted_to_latent = demoted_to_latent[excess:]
+        mutated = True
+        for t in dropped:
+            _log.info("turn.thread_signals.latent_dropped trace_id=%d thread %s exceeded latent cap %d", turn_no, t.id, _LATENT_THREAD_CAP)
 
     # Rebuild threads list with updated active/latent split
     other_threads = [t for t in arc.threads if t.id not in {t2.id for t2 in all_arc_threads}]  # scene-scoped and completed threads
@@ -613,7 +631,7 @@ def _compute_pacing_context(
         directive = "; ".join(directive_parts) or ""
 
     # Determine gate: block_add when deescalation is strong (pressure just resolved)
-    gate: Literal["block_add", "block_escalate", "allow"] = "allow"
+    gate: Literal["block_escalate", "allow"] = "allow"
     if deescalate >= 0.5:
         gate = "block_escalate"
 
@@ -1166,6 +1184,7 @@ async def run_turn(
             errors.append({"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id, "message": str(exc)})
 
         if _extract_result is not None:
+            # mypy cannot express heterogeneous 7-tuple unpack from async generator
             delta, actions, outcome_summary, extraction_event, storyteller_result, scene_result, _extraction_ctx = _extract_result  # type: ignore[misc]
         # Beat lifecycle: beat_disposition removed — Python infers from state mutations (gm_beat presence in delta)
             _new_beat = storyteller_result.gm_beat if storyteller_result else None
@@ -1346,10 +1365,14 @@ async def run_turn(
                                 _existing_arc = CampaignArc.model_validate(arc_raw)
                                 existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
                                 if _new_thread.id not in existing_ids:
-                                    _updated_t = _new_thread.model_copy(update={
-                                        "active": True,
-                                        "last_seen_turn": turn_no_for_add,
-                                    })
+                                    active_count = sum(1 for t in _existing_arc.threads if getattr(t, "active", False))
+                                    if active_count >= _ACTIVE_THREAD_CAP:
+                                        _log.debug("thread_add blocked by active cap (%d) at T%d", _ACTIVE_THREAD_CAP, turn_no_for_add)
+                                    else:
+                                        _updated_t = _new_thread.model_copy(update={
+                                            "active": True,
+                                            "last_seen_turn": turn_no_for_add,
+                                        })
                                     if not getattr(_updated_t, 'added_turn', None):
                                         _updated_t = _updated_t.model_copy(update={"added_turn": turn_no_for_add})
                                     arc_with_new_thread = _existing_arc.model_copy(

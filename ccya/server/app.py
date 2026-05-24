@@ -122,7 +122,7 @@ async def server_exception_middleware(request: Request, call_next):
 
 # Import routes so @app.get/@app.post decorators register handlers.
 # Must be after `app` is created to avoid circular import.
-import ccya.server.routes  # noqa: F401, E402
+import ccya.server.routes  # noqa: F401, E402  # late import required by FastAPI route registration (circular if done earlier)
 _jinja_env = Environment(
     loader=FileSystemLoader(str(TEMPLATES_DIR)),
     autoescape=True,
