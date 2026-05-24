@@ -257,6 +257,7 @@ def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
                 "value": value_str,
                 "rejected": field_key in rejected_set,
                 "from_stream": stream_key,
+                "op_css_class": "update" if field_key.startswith("inventory_") else None,
             })
     return changes
 
