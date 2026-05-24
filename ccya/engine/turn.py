@@ -220,22 +220,29 @@ def _apply_thread_signals(
             if new_progress >= 3:
                 newly_completed.append(updated_t)
                 mutated = True
-                _log.debug(
-                    "turn.thread_signals.completed trace_id=%d thread %s progress=%d", turn_no, tid, new_progress,
+                _log.info(
+                    "turn.thread_signals.completed trace_id=%d thread %s progress %d -> %d", turn_no, tid, t.progress, new_progress,
+                    extra={"turn": turn_no},
                 )
             else:
                 still_active.append(updated_t)
                 mutated = True  # Advancing a thread is also a mutation
+                _log.info(
+                    "turn.thread_signals.advanced trace_id=%d thread %s progress %d -> %d", turn_no, tid, t.progress, new_progress,
+                    extra={"turn": turn_no},
+                )
         elif t.last_seen_turn is not None and (turn_no - t.last_seen_turn >= _EXPIRE_SILENT_TURNS):
             # Expired -> demote to latent, reset timer
             expired_t = t.model_copy(update={
                 "active": False,
                 "last_seen_turn": None,
             })
+
             still_active.append(expired_t)  # will be moved below
             mutated = True
-            _log.debug(
-                "turn.thread_signals.demoted trace_id=%d thread %s last_seen=%s", turn_no, tid, t.last_seen_turn,
+            _log.info(
+                "turn.thread_signals.demoted trace_id=%d thread %s last_seen_turn=%s turns_since_last_seen=%d", turn_no, tid, t.last_seen_turn, turn_no - (t.last_seen_turn or 0),
+                extra={"turn": turn_no},
             )
         else:
             # Not advanced, not expired -> carry forward unchanged
@@ -292,8 +299,9 @@ def _apply_thread_signals(
             updated_threads = [t for t in all_updated_arc_threads if t.id != tid]
             really_still_active.append(promoted)
             mutated = True
-            _log.debug(
-                "turn.thread_signals.promoted trace_id=%d latent thread %s", turn_no, tid,
+            _log.info(
+                "turn.thread_signals.promoted trace_id=%d latent thread %s progress 0 -> 1", turn_no, tid,
+                extra={"turn": turn_no},
             )
 
     # Promotion check: only if 3-turn cooldown met and slots available
@@ -1435,6 +1443,14 @@ async def run_turn(
                 "beat_locked": bool(_pc.beat_locked) if _pc else False,
                 "gate": _pc.gate if _pc else "allow",
                 "summary": _pc.summary if _pc else "",
+            },
+            # Summary of what was captured in narrate_prompt rendered_user (for meta-eval visibility).
+            # Full rendered content is captured above but too large to parse efficiently.
+            "narrate_summary": {
+                "rules_outcome_present": bool(_outcome and _outcome.rolled),
+                "rules_outcome_verb": (_outcome.intent_verb if _outcome else ""),
+                "pacing_directive": _pc.directive if _pc else "",
+                "beat_locked": bool(_pc.beat_locked) if _pc else False,
             },
             "extraction_context": {
                 "present_npcs_this_turn": list(_extraction_ctx.present_npcs_this_turn) if _extraction_ctx else [],
