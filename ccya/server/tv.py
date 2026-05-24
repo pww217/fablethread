@@ -26,6 +26,15 @@ _STAGE_CSS: dict[str, str] = {
 }
 
 
+def _tv_label(x: dict[str, Any]) -> str:
+    """Extract a human-readable label from a dict for display purposes."""
+    for key in ("id", "name", "text", "label"):
+        val = x.get(key)
+        if val and isinstance(val, str):
+            return val[:60]
+    return str(list(x.values())[0])[:60] if x else ""
+
+
 def _tv_parse_json_blob(raw: Any) -> dict[str, Any] | None:
     if not raw or not isinstance(raw, str):
         return None
@@ -42,6 +51,22 @@ def _tv_parse_json_blob(raw: Any) -> dict[str, Any] | None:
             except _json.JSONDecodeError:
                 return None
         return None
+
+
+def _extract_stream_output_lines(raw_out: Any, inp_sd) -> list[dict[str, Any]]:
+    """Extract formatted seg_lines from raw output for a given stream descriptor."""
+    if inp_sd.is_text_output:
+        return _tv_narration_lines(str(raw_out or ""))
+    elif inp_sd.output_is_json_string and isinstance(raw_out, str):
+        try:
+            parsed = _json.loads(raw_out)
+            return _tv_dict_to_lines(parsed) if isinstance(parsed, dict) else [{"k": "_", "v": str(raw_out), "dim": False}]
+        except Exception:
+            return [{"k": "_", "v": str(raw_out), "dim": False}]
+    elif isinstance(raw_out, dict):
+        return _tv_dict_to_lines(raw_out)
+    else:
+        return [{"k": "_", "v": str(raw_out), "dim": False}] if raw_out else []
 
 
 def _tv_dict_to_lines(
@@ -77,13 +102,7 @@ def _tv_dict_to_lines(
                     joined = joined[:max_str] + "\u2026"
                 lines.append({"k": k, "v": joined, "dim": False})
             elif all(isinstance(x, dict) for x in v):
-                def _label(x: dict[str, Any]) -> str:
-                    for key in ("id", "name", "text", "label"):
-                        val = x.get(key)
-                        if val and isinstance(val, str):
-                            return val[:60]
-                    return str(list(x.values())[0])[:60] if x else ""
-                labels = [_label(x) for x in v if x]
+                labels = [_tv_label(x) for x in v if x]
                 summary = ", ".join(label for label in labels if label)
                 if len(summary) > max_str:
                     summary = summary[:max_str] + "\u2026"
@@ -219,13 +238,7 @@ def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
                 op = "set"
             if isinstance(val, list):
                 if all(isinstance(x, dict) for x in val):
-                    def _label(x: dict[str, Any]) -> str:
-                        for k in ("id", "name", "text", "label"):
-                            v = x.get(k)
-                            if v and isinstance(v, str):
-                                return v[:60]
-                        return ""
-                    summary = ", ".join(_label(x) for x in val if _label(x))
+                    summary = ", ".join(_tv_label(x) for x in val if _tv_label(x))
                     value_str = f"[{len(val)}] {summary}" if summary else f"[{len(val)}]"
                 else:
                     value_str = ", ".join(str(x) for x in val[:4])
@@ -477,18 +490,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                     inp_p_blob = {}
                 raw_out = inp_p_blob.get(inp_sd.output_subkey) if inp_sd.output_subkey else inp_p_blob
 
-                if inp_sd.is_text_output:
-                    seg_lines = _tv_narration_lines(str(raw_out or ""))
-                elif inp_sd.output_is_json_string and isinstance(raw_out, str):
-                    try:
-                        parsed = _json.loads(raw_out)
-                        seg_lines = _tv_dict_to_lines(parsed) if isinstance(parsed, dict) else [{"k": "_", "v": str(raw_out), "dim": False}]
-                    except Exception:
-                        seg_lines = [{"k": "_", "v": str(raw_out), "dim": False}]
-                elif isinstance(raw_out, dict):
-                    seg_lines = _tv_dict_to_lines(raw_out)
-                else:
-                    seg_lines = [{"k": "_", "v": str(raw_out), "dim": False}] if raw_out else []
+                seg_lines = _extract_stream_output_lines(raw_out, inp_sd)
 
                 segments.append({
                     "from": inp_key,
@@ -515,18 +517,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 if not isinstance(inp_p_blob, dict):
                     inp_p_blob = {}
                 raw_out = inp_p_blob.get(inp_sd.output_subkey) if inp_sd.output_subkey else inp_p_blob
-                if inp_sd.is_text_output:
-                    seg_lines = _tv_narration_lines(str(raw_out or ""))
-                elif inp_sd.output_is_json_string and isinstance(raw_out, str):
-                    try:
-                        parsed = _json.loads(raw_out)
-                        seg_lines = _tv_dict_to_lines(parsed) if isinstance(parsed, dict) else [{"k": "_", "v": str(raw_out), "dim": False}]
-                    except Exception:
-                        seg_lines = [{"k": "_", "v": str(raw_out), "dim": False}]
-                elif isinstance(raw_out, dict):
-                    seg_lines = _tv_dict_to_lines(raw_out)
-                else:
-                    seg_lines = [{"k": "_", "v": str(raw_out), "dim": False}] if raw_out else []
+                seg_lines = _extract_stream_output_lines(raw_out, inp_sd)
                 snap[inp_key] = seg_lines
             inputs_snapshot[sd.key] = snap
 
