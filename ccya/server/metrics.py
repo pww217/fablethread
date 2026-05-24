@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 from ccya.engine import format_change_lines
+
+_log = logging.getLogger(__name__)
 
 
 def _fmt_ms_seconds(ms: Any) -> str:
@@ -15,6 +18,7 @@ def _fmt_ms_seconds(ms: Any) -> str:
     try:
         return f"{float(ms) / 1000.0:.1f}s"
     except (TypeError, ValueError):
+        _log.debug("_fmt_ms_seconds non-numeric ms=%r", ms)
         return "\u2014"
 
 
@@ -24,6 +28,7 @@ def _fmt_tokens(n: Any) -> str:
     try:
         n = int(n)
     except (TypeError, ValueError):
+        _log.debug("_fmt_tokens non-numeric n=%r", n)
         return "\u2014"
     if n < 1000:
         return str(n)
@@ -37,6 +42,7 @@ def _fmt_tokens_exact(n: Any) -> str:
     try:
         return f"{int(n):,}"
     except (TypeError, ValueError):
+        _log.debug("_fmt_tokens_exact non-numeric n=%r", n)
         return "\u2014"
 
 
@@ -56,7 +62,8 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
     for line in chunk:
         try:
             ev = json.loads(line)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            _log.warning("Skipping malformed events.jsonl line in _recent_turn_metrics: %s", e)
             continue
         if ev.get("kind") == "compaction":
             compact_start = int(ev.get("compact_start") or 0)
@@ -168,7 +175,8 @@ def _turn_log_entries(save_dir: Path, limit: int = 50) -> list[dict[str, Any]]:
     for line in reversed(tail):
         try:
             ev = json.loads(line)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            _log.warning("Skipping malformed events.jsonl line in _turn_log_entries: %s", e)
             continue
         if ev.get("kind") == "compaction":
             continue

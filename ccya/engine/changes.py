@@ -85,7 +85,7 @@ def summarize_changes(
     _applied: dict[str, Any],
     rejected: list[dict[str, Any]],
 ) -> dict[str, list[dict[str, Any]]]:
-    """Diff pre vs post state into four UI categories (inventory, player, facts, momentum)."""
+    _log.debug("summarize_changes pre_keys=%d post_keys=%d", len(pre), len(post))
     inventory: list[dict[str, Any]] = []
     player: list[dict[str, Any]] = []
     facts: list[dict[str, Any]] = []
@@ -229,12 +229,15 @@ def summarize_changes(
             "delta": post_momentum - pre_momentum,
         })
 
-    return {"inventory": inventory, "player": player, "facts": facts, "momentum": momentum}
+    result = {"inventory": inventory, "player": player, "facts": facts, "momentum": momentum}
+    total = sum(len(v) for v in result.values())
+    _log.debug("summarize_changes complete lines=%d", total)
+    return result
 
 
 def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
-    """Turn a ``changes`` dict into compact display lines (emoji + text)."""
     if not isinstance(ch, dict):
+        _log.debug("format_change_lines received None or non-dict")
         return []
     lines: list[str] = []
     for row in ch.get("inventory") or []:
@@ -291,4 +294,5 @@ def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
         if k == "momentum_changed":
             b, a = row.get("before", 0), row.get("after", 0)
             lines.append(f"⚡ Momentum {b:+d} → {a:+d}")
+    _log.debug("format_change_lines output=%d", len(lines))
     return lines

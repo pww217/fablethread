@@ -7,10 +7,14 @@ unless overridden in EvalConfig).
 """
 from __future__ import annotations
 
+import logging
+
 from ccya.engine.config import EngineConfig
 from ccya.state.delta_builder import PC_CONDITIONS_MAX
 from ccya.state.momentum import MOMENTUM_MIN as _MOMENTUM_MIN, MOMENTUM_MAX as _MOMENTUM_MAX
 from ccya.rules import MOMENTUM_DELTA as _RULES_MOMENTUM_DELTA, VALID_SKILLS
+
+_log = logging.getLogger(__name__)
 
 _defaults = EngineConfig()
 
@@ -94,3 +98,6 @@ KNOWN_SEED_PATHS: frozenset[str] = frozenset((
     "pc.conditions",
     "pc.credits",
 ))
+
+_log.debug("engine_mirror initialized: MOMENTUM_RANGE=[%d,%d] CAPS=(thread=%d,condition=%d,npc=%d) STREAMS=%d",
+           MOMENTUM_MIN, MOMENTUM_MAX, _ACTIVE_THREAD_CAP, PC_CONDITION_CAP, SCENE_NAMED_NPC_CAP, len(EXTRACT_STREAMS))

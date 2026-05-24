@@ -54,8 +54,12 @@ async def generate_pack_from_brief(
     out_dir = packs_root / "generated" / pack_id.split("/")[1]
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    concept = inputs.get("concept", "")
+    world_name = inputs.get("world_name", "")
+    tone_tags = inputs.get("tone_tags", [])
     _log.info(
-        "generate_pack_from_brief start",
+        "generate_pack_from_brief start concept_len=%d tone_tags=%d world_name=%s",
+        len(concept), len(tone_tags), world_name or "(none)",
         extra={"trace_id": trace_id, "pack": pack_id},
     )
 
@@ -155,8 +159,11 @@ async def generate_pack_from_brief(
                 encoding="utf-8",
             )
 
+            faction_count = len(brief.factions)
+            location_count = len(brief.locations)
             _log.info(
-                "generate_pack_from_brief complete",
+                "generate_pack_from_brief complete factions=%d locations=%d world_name=%s",
+                faction_count, location_count, brief.world_name or "(none)",
                 extra={"trace_id": trace_id, "pack": pack_id},
             )
 

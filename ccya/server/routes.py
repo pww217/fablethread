@@ -50,9 +50,20 @@ def _apply_seed_to_save_dir(
     seed_dict: dict[str, Any],
     opening_narrative: str | None = None,
     actions: list[str] | None = None,
+    pack_type: str | None = None,
+    pack_source: str | None = None,
 ) -> None:
     """Apply generated/loaded seed to save directory and set dynamic pack variables."""
     seed_dict.setdefault("meta", {})["model"] = _app_mod.config["llm"]["model"]
+    if pack_type is not None:
+        seed_dict.setdefault("meta", {})["_seed_type"] = pack_type
+    if pack_source is not None:
+        seed_dict.setdefault("meta", {})["_pack_source"] = pack_source
+    if opening_narrative is not None and actions is not None:
+        seed_dict["__seed_meta__"] = {
+            "opening_narrative": opening_narrative,
+            "actions": actions,
+        }
     init_save_dir(_app_mod.SAVE_DIR, seed_dict)
     if opening_narrative is not None:
         _app_mod._dynamic_opening = opening_narrative
@@ -196,6 +207,7 @@ async def delete_last_turn():
     remove_last_event(_app_mod.SAVE_DIR)
     remove_last_chronicle_turn(_app_mod.SAVE_DIR)
 
+    _log.info("delete_last_turn turn=%s", last_event.get("turn"))
     return JSONResponse({"actions": actions, "turn": last_event.get("turn")})
 
 
@@ -269,7 +281,7 @@ async def new_game(request: Request):
                     seed["pc"]["stats"] = stats
             except (json.JSONDecodeError, TypeError):
                 pass
-        _apply_seed_to_save_dir(seed)
+        _apply_seed_to_save_dir(seed, pack_type="static", pack_source=_app_mod._pack_id)
     else:
         try:
             envelope = await generate_seed(
@@ -280,10 +292,11 @@ async def new_game(request: Request):
             )
             seed = envelope.seed_state.model_dump(mode="json")
             seed["meta"]["setting_pack"] = _app_mod._pack_id
-            _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions)
+            _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, pack_type="dynamic", pack_source=_app_mod._pack_id)
         except Exception:
             _app_mod.logger.exception("generate_seed failed")
 
+    _log.info("new_game pack=%s mode=%s", _app_mod._pack_id, _app_mod._active_pack.mode)
     ctx = _debug_context()
     ctx["pack_mode"] = _app_mod._active_pack.mode
     return _app_mod._render("_state.html", ctx)
@@ -304,7 +317,7 @@ async def new_game_reroll(request: Request):
         )
         seed = envelope.seed_state.model_dump(mode="json")
         seed["meta"]["setting_pack"] = _app_mod._pack_id
-        _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions)
+        _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, pack_type="dynamic", pack_source=_app_mod._pack_id)
     except Exception as exc:
         _app_mod.logger.exception("generate_seed reroll failed")
         return HTMLResponse(f"<p class='text-red-400'>Re-roll failed: {exc}</p>")
@@ -321,16 +334,20 @@ async def new_game_reroll(request: Request):
 
 @_app_mod.app.get("/panels/state")
 def panel_state(request: Request):
+    _log.debug("panel_state called")
     return _app_mod._render("_state.html", _debug_context())
 
 
 @_app_mod.app.get("/panels/state-left")
 def panel_state_left(request: Request):
-    return _app_mod._render("_state_left.html", {"state": _load_current_state()})
+    state = _load_current_state()
+    _log.debug("panel_state_left keys=%s", list(state.keys()))
+    return _app_mod._render("_state_left.html", {"state": state})
 
 
 @_app_mod.app.get("/panels/state-right")
 def panel_state_right(request: Request):
+    _log.debug("panel_state_right called")
     return _app_mod._render("_state_right.html", _debug_context())
 
 
@@ -459,13 +476,14 @@ def panel_turn_log(limit: int = 50):
 def turn_viewer():
     css_path = _app_mod.BASE_DIR / "static" / "app.css"
     css_v = int(css_path.stat().st_mtime) if css_path.exists() else 0
-    turns, no_events = _turn_viewer_data(_app_mod.SAVE_DIR)
+    turns, no_events, seed_info = _turn_viewer_data(_app_mod.SAVE_DIR)
     return _app_mod._render(
         "_turn_viewer.html",
         {
             "turns": turns,
             "turn_count": len(turns),
             "no_events": no_events,
+            "seed_info": seed_info,
             "css_v": css_v,
         },
     )
@@ -473,13 +491,14 @@ def turn_viewer():
 
 @_app_mod.app.get("/turn_viewer/data")
 def turn_viewer_data():
-    turns, no_events = _turn_viewer_data(_app_mod.SAVE_DIR)
+    turns, no_events, seed_info = _turn_viewer_data(_app_mod.SAVE_DIR)
     latest = turns[0] if turns else None
     return JSONResponse(
         {
             "turns": turns,
             "no_events": no_events,
             "turn_count": len(turns),
+            "seed_info": seed_info,
             "latest_turn": latest.get("turn") if latest else None,
             "latest_trace_id_full": latest.get("trace_id_full") if latest else None,
         }

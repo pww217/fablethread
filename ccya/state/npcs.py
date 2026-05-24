@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from ccya.models import SceneExtractResult
 from ccya.state.inventory import normalize_inventory_id
+
+_log = logging.getLogger(__name__)
 
 
 def build_npc_alias_map(npcs: dict[str, dict[str, Any]]) -> dict[str, str]:
@@ -23,9 +26,9 @@ def build_npc_alias_map(npcs: dict[str, dict[str, Any]]) -> dict[str, str]:
             if not isinstance(alias, str):
                 continue
             result[alias.lower()] = npc_id
-            # Also index the normalized form so "scarred soldier" matches "scarred_soldier"
             normalized = normalize_inventory_id(alias)
             result[normalized] = npc_id
+    _log.debug("build_npc_alias_map npcs=%d entries=%d", len(npcs), len(result))
     return result
 
 
@@ -37,6 +40,7 @@ def touch_compendium_order(state: dict[str, Any], npc_id: str) -> None:
     if nid in order:
         order.remove(nid)
     order.append(nid)
+    _log.debug("touch_compendium_order npc=%s order_len=%d", npc_id, len(order))
 
 
 def _strip_non_ascii(text: str) -> str:
@@ -125,6 +129,12 @@ def apply_npc_scene_management(
 
     has_npc_delta = bool(scene_result.npc_add or scene_result.npc_remove or scene_result.npc_update)
     if has_npc_delta:
+        _log.debug(
+            "apply_npc_scene_management turns=%s add=%d remove=%d update=%d compendium_update=%d",
+            current_turn_no,
+            len(scene_result.npc_add), len(scene_result.npc_remove),
+            len(scene_result.npc_update), len(scene_result.compendium_npc_update),
+        )
         alias_map = build_npc_alias_map(comp)
         present = list(old_present)
 
@@ -191,6 +201,7 @@ def apply_npc_scene_management(
             present = named_npcs + ambient_npcs
             for evicted_npc in evicted:
                 removed_ids.add(evicted_npc["id"])
+            _log.debug("apply_npc_scene_management evicted=%d ids=%s", len(evicted), [e["id"] for e in evicted])
 
         scene["present_npcs"] = present
         new_present_ids = {str(p.get("id", "")) for p in present if p.get("id")}

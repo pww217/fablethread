@@ -16,16 +16,7 @@ def build_npc_roster(
     known_npcs: list[dict[str, Any]],
     recently_left: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """
-    Merge present, known, and recently_left NPCs into one ordered list.
-
-    Priority order: PRESENT > JUST_LEFT > KNOWN.
-    Dedup by id — the highest-priority presence wins.
-
-    Returns a list of dicts suitable for Jinja rendering (not RosterEntry dataclass
-    instances), with keys: id, name, title, bio, presence, motivation, fear,
-    leverage, notes, last_seen.
-    """
+    """Merge present, known, and recently_left NPCs with priority PRESENT > JUST_LEFT > KNOWN."""
     seen: dict[str, dict[str, Any]] = {}
 
     for n in present_npcs:
@@ -85,4 +76,10 @@ def build_npc_roster(
         NpcPresence.NEARBY.value: 2,
         NpcPresence.KNOWN.value: 3,
     }
-    return sorted(seen.values(), key=lambda e: (order.get(e["presence"], 3), e["name"]))
+    result = sorted(seen.values(), key=lambda e: (order.get(e["presence"], 3), e["name"]))
+    NPC_SCENE_CAP = 8
+    if len(result) > NPC_SCENE_CAP:
+        _log.warning("build_npc_roster merged roster size %d exceeds cap %d", len(result), NPC_SCENE_CAP)
+    else:
+        _log.info("build_npc_roster complete roster=%d", len(result))
+    return result

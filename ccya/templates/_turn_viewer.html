@@ -305,7 +305,67 @@
         </div>
     </div>
     <div class="turn-viewer-body" id="tv-body">
-        {% if no_events %}
+        {% if seed_info %}
+        <div class="tv-seed-card">
+            <div class="tv-seed-header">
+                <span class="tv-seed-badge">{{ seed_info.pack_type | capitalize }}</span>
+                <span class="tv-seed-pack-source">{{ seed_info.pack_source }}</span>
+                <span class="tv-seed-turn-count">0 turns</span>
+            </div>
+
+            {% if seed_info.pack_type == "dynamic" and seed_info.opening_narrative %}
+            <details open>
+                <summary class="tv-seed-section-header">Seed Generation</summary>
+                <div class="tv-seed-narrative">{{ seed_info.opening_narrative }}</div>
+                {% if seed_info.actions %}
+                <ol class="tv-seed-actions">{% for a in seed_info.actions %}<li>{{ a }}</li>{% endfor %}</ol>
+                {% endif %}
+            </details>
+            {% endif %}
+
+            <details open>
+                <summary class="tv-seed-section-header">Player Character</summary>
+                <div><strong>{{ seed_info.pc_name }}</strong> — {{ seed_info.pc_tagline }}</div>
+                <div class="tv-seed-stats">{% for s, v in seed_info.pc_stats.items() %}<span class="tv-seed-stat">{{ s }}: {{ v }}</span>{% endfor %}</div>
+                <div class="tv-seed-momentum">Momentum: {{ seed_info.pc_momentum }}</div>
+                {% if seed_info.pc_conditions %}{% set _conds = [c.label if c is mapping else str(c) for c in seed_info.pc_conditions] %}<div class="tv-seed-conditions">Conditions: {{ _conds | join(", ") }}</div>{% endif %}
+            </details>
+
+            <details open>
+                <summary class="tv-seed-section-header">Location</summary>
+                <div>{{ seed_info.location_name }}</div>
+            </details>
+
+            {% if seed_info.inventory_count %}
+            <details open>
+                <summary class="tv-seed-section-header">Inventory ({{ seed_info.inventory_count }})</summary>
+                <ul>{% for item in seed_info.inventory or [] %}<li>{{ item }}</li>{% endfor %}</ul>
+            </details>
+            {% endif %}
+
+            {% if seed_info.world_state_lines or seed_info.recent_events_lines %}
+            <details open>
+                <summary class="tv-seed-section-header">Scene</summary>
+                {% if seed_info.world_state_lines %}<div><strong>World State:</strong></div>{% for line in seed_info.world_state_lines %}<div>{{ line }}</div>{% endfor %}{% endif %}
+                {% if seed_info.recent_events_lines %}<div><strong>Recent Events:</strong></div>{% for evt in seed_info.recent_events_lines %}<div>{{ evt }}</div>{% endfor %}{% endif %}
+            </details>
+            {% endif %}
+
+            {% if seed_info.arc_info %}
+            <details open>
+                <summary class="tv-seed-section-header">Arc</summary>
+                <div>{{ seed_info.arc_info }}</div>
+            </details>
+            {% endif %}
+
+            {% if seed_info.npcs_in_compendium %}
+            <details open>
+                <summary class="tv-seed-section-header">Compendium NPCs ({{ seed_info.npcs_in_compendium | length }})</summary>
+                <ul>{% for npc in seed_info.npcs_in_compendium.values() %}<li>{{ npc.name }}{% if npc.title %} — {{ npc.title }}{% endif %}</li>{% endfor %}</ul>
+            </details>
+            {% endif %}
+        </div>
+        {% elif no_events %}
         <div class="turn-viewer-no-events">No events found. Start a game to generate turn data.</div>
         {% else %}
         <div class="turn-viewer-empty">No turns recorded yet.</div>

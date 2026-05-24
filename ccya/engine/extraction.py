@@ -533,6 +533,7 @@ async def _run_extraction_pipeline(
     if config.log_prompts:
         _log_prompts(turn_no, "extract_scene", scene_msgs)
 
+    scene_usage: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     try:
         scene_result, scene_usage, scene_attempts, scene_retry_errors = await _call_stream(
             scene_msgs, config, trace_id, "extract_scene", SceneExtractResult
@@ -559,7 +560,9 @@ async def _run_extraction_pipeline(
         )
         extraction_event["scene"] = {**_SKIPPED, "error": str(exc)}
 
-    _log.debug("extraction.scene.done trace_id=%s result_type=%s tags=%d npc_add=%d compendium_updates=%d", trace_id, type(scene_result).__name__, len(scene_result.scene_tags), len(scene_result.npc_add or []), len(scene_result.compendium_npc_update or []))
+    if not scene_result.scene_tags and not scene_result.npc_add:
+        _log.warning("extraction.scene.empty trace_id=%s turn_no=%d scene has no tags or NPC changes after retries", trace_id, turn_no)
+    _log.debug("extraction.scene.done trace_id=%s result_type=%s tags=%d npc_add=%d tokens_in=%d tokens_out=%d", trace_id, type(scene_result).__name__, len(scene_result.scene_tags), len(scene_result.npc_add or []), scene_usage.get("prompt_tokens", 0), scene_usage.get("completion_tokens", 0))
     yield ("phase", {"phase": "extract_stream_done", "stream": "scene"})
 
     # --- Stream 2: State ---
@@ -578,6 +581,7 @@ async def _run_extraction_pipeline(
     if config.log_prompts:
         _log_prompts(turn_no, "extract_state", state_msgs)
 
+    state_usage: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     try:
         state_result, state_usage, state_attempts, state_retry_errors = await _call_stream(
             state_msgs, config, trace_id, "extract_state",
@@ -604,7 +608,9 @@ async def _run_extraction_pipeline(
         )
         extraction_event["state"] = {**_SKIPPED, "error": str(exc)}
 
-    _log.debug("extraction.state.done trace_id=%s result_type=%s inv_add=%d conds_add=%d", trace_id, type(state_result).__name__, len(state_result.inventory_add or []), len(state_result.pc_condition_add or []))
+    if not state_result.inventory_add and not state_result.pc_condition_add:
+        _log.warning("extraction.state.empty trace_id=%s turn_no=%d state has no inventory or condition changes after retries", trace_id, turn_no)
+    _log.debug("extraction.state.done trace_id=%s result_type=%s inv_add=%d conds_add=%d tokens_in=%d tokens_out=%d", trace_id, type(state_result).__name__, len(state_result.inventory_add or []), len(state_result.pc_condition_add or []), state_usage.get("prompt_tokens", 0), state_usage.get("completion_tokens", 0))
     yield ("phase", {"phase": "extract_stream_done", "stream": "state"})
 
     # --- Stream 3: Storytell (always runs — post-narration storytelling brain) ---
@@ -631,6 +637,7 @@ async def _run_extraction_pipeline(
     if config.log_prompts:
         _log_prompts(turn_no, "storytell", storytell_msgs)
 
+    storytell_usage: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     try:
         storytell_result, storytell_usage, storytell_attempts, storytell_retry_errors = await _call_stream(
             storytell_msgs, config, trace_id, "storytell",
@@ -695,7 +702,9 @@ async def _run_extraction_pipeline(
         )
         extraction_event["storytell"] = {**_SKIPPED, "error": str(exc)}
 
-    _log.debug("extraction.storytell.done trace_id=%s result_type=%s actions=%d events_add=%d gm_beat=%s", trace_id, type(storytell_result).__name__, len(storytell_result.actions or []), len(storytell_result.recent_events_add or []), storytell_result.gm_beat.type if storytell_result.gm_beat else None)
+    if not storytell_result.actions and not storytell_result.recent_events_add:
+        _log.warning("extraction.storytell.empty trace_id=%s turn_no=%d storytell has no actions or events after retries", trace_id, turn_no)
+    _log.debug("extraction.storytell.done trace_id=%s result_type=%s actions=%d events_add=%d tokens_in=%d tokens_out=%d gm_beat=%s", trace_id, type(storytell_result).__name__, len(storytell_result.actions or []), len(storytell_result.recent_events_add or []), storytell_usage.get("prompt_tokens", 0), storytell_usage.get("completion_tokens", 0), storytell_result.gm_beat.type if storytell_result.gm_beat else None)
     yield ("phase", {"phase": "extract_stream_done", "stream": "storytell"})
 
     _log.debug("extraction.dedup.start trace_id=%s scene_npcs_add=%d compendium_updates=%d state_inv_add=%d", trace_id, len(scene_result.npc_add or []), len(scene_result.compendium_npc_update or []), len(state_result.inventory_add or []))
