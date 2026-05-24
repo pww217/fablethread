@@ -64,16 +64,14 @@ def _merge_arc_update(arc: dict[str, Any], au: CampaignArc) -> None:
     if au.discovered_truths:
         existing_dt = set(arc.get("discovered_truths") or [])
         arc["discovered_truths"] = list(existing_dt | set(au.discovered_truths))
-    if au.threads:
-        arc["threads"] = [
-            t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
-            for t in au.threads
-        ]
-    if au.completed_threads:
-        arc["completed_threads"] = [
-            t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
-            for t in au.completed_threads
-        ]
+    arc["threads"] = [
+        t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
+        for t in au.threads
+    ]
+    arc["completed_threads"] = [
+        t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
+        for t in au.completed_threads
+    ]
 
 
 def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> tuple[StateDelta, list[str]]:
@@ -326,5 +324,14 @@ def apply_delta(
     # --- Arc update: merge arc_update into state arc ---
     if delta.arc_update is not None:
         _merge_arc_update(state.setdefault("arc", {}), delta.arc_update)
+
+    # --- Persist storyteller actions as rolling window ---
+    if delta.actions:
+        pc = state.setdefault("pc", {})
+        pc["actions"] = list(delta.actions[-10:])
+        _log.info(
+            "Applied %d Storyteller Actions", len(delta.actions),
+            extra={"turn": current_turn_no, "trace_id": "", "pack": "", "kind": "actions"},
+        )
 
     return state, recent_events_evicted

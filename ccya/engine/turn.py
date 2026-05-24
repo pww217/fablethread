@@ -288,8 +288,9 @@ def _apply_thread_signals(
 
     # Promote latent threads matching unknown advanced_ids (first-time advancement).
     # These IDs were emitted by the progress extractor but don't exist in active_by_id.
+    completed_ids = {t.id for t in arc.completed_threads}
     for tid in advanced_ids - set(active_by_id.keys()):
-        if tid in latent_by_id:
+        if tid in latent_by_id and tid not in completed_ids:
             promoted = latent_by_id[tid].model_copy(update={
                 "active": True,
                 "progress": 0,
@@ -1041,10 +1042,12 @@ async def run_turn(
         )
 
         # === Call 0: Rules / intent classification (extracted phase) ===
+        momentum_before = state.get("pc", {}).get("momentum", 0.0)
         _intent, _outcome, ruling_metrics, deescalate, ruling_phase_events = await _ruling_phase(ctx)
         for evt in ruling_phase_events:
             yield evt
         ctx._deescalate = deescalate
+        momentum_after = state.get("pc", {}).get("momentum", 0.0)
 
         # Capture ruling context for event logging (from ctx where ruling phase stored them)
         rendered_ruling_system = ctx._rendered_ruling_system or ""
@@ -1053,10 +1056,6 @@ async def run_turn(
         ruling_parse_error = ctx._ruling_parse_error
         ruling_trimmed = ctx._ruling_trimmed
         ruling_trimmed_chars = ctx._ruling_trimmed_chars
-
-        momentum_before = state.get("pc", {}).get("momentum", 0.0) if _outcome.rolled else 0.0
-        # Note: apply_momentum was already called inside _ruling_phase above
-        momentum_after = state.get("pc", {}).get("momentum", 0.0)
 
         turn_no = state.get("meta", {}).get("turn", 0) + 1
 

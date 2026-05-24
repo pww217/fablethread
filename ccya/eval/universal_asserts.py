@@ -557,12 +557,12 @@ def check_momentum_band_delta(
             "severity": "red",
         }
     cur_snap = event.get("state_snapshot") or {}
-    cur_m = (cur_snap.get("meta") or {}).get("momentum")
+    cur_m = (cur_snap.get("pc") or {}).get("momentum")
     if cur_m is None:
         return {
             "assertion": "universal.momentum.band_delta",
             "passed": True,
-            "detail": "(no momentum field)",
+            "detail": "(no pc.momentum field)",
             "scope": "universal",
             "severity": "red",
         }
@@ -575,7 +575,7 @@ def check_momentum_band_delta(
             "severity": "red",
         }
     prev_snap = prev_event.get("state_snapshot") or {}
-    prev_m = (prev_snap.get("meta") or {}).get("momentum") or 0
+    prev_m = (prev_snap.get("pc") or {}).get("momentum") or 0
     actual = (cur_m or 0) - prev_m
     # Engine clamps to [-3, 3] so an "expected +2" can show as +1 or 0 if at edge.
     # We accept actual within [expected - 1, expected] (engine clamp) or exactly expected.
