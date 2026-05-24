@@ -718,8 +718,7 @@ def _render_deterministic_signals(
         parts.append("*(no metrics)*\n")
 
     # Scope fallback rate: not captured in event output (engine internal logic only).
-    scope_fallback_rate = 0.0
-    parts.append(f"\n**Scope fallback rate:** N/A (not captured in events.jsonl)\n")
+    parts.append("\n**Scope fallback rate:** N/A (not captured in events.jsonl)\n")
 
     if redundancy_signals is not None:
         from ccya.eval.redundancy import render_redundancy_section
@@ -798,6 +797,9 @@ def _sanitize_fm_for_yaml(fm_text: str) -> str:
         # Skip empty lines that break block scalar context
         if not stripped:
             continue
+
+        # Strip bold markers from YAML key-value pairs (e.g. **prompt_quality_score:** 3)
+        stripped = re.sub(r'\*\*(.+?)\*\*', r'\1', stripped)
 
         # Skip markdown table rows (| Criterion | Score | Evidence |)
         if re.match(r"^\s*\|.+\|\s*$", line):
@@ -946,7 +948,7 @@ def parse_judge_response(raw: str) -> tuple[dict[str, Any], str]:
     m = _FM_RE.search(s)
     fm_text_delim: str | None = None
     body_delim: str | None = None
-    if m:
+    if m and m.group(1).strip():
         fm_text_delim = m.group(1)
         body_delim = m.group(2).strip()
         # Sanitize LLM response before YAML parsing. LLMs often inject markdown formatting
@@ -971,7 +973,14 @@ def _normalize_scores(fm: dict[str, Any]) -> dict[str, Any]:
         try:
             n = int(round(float(v)))
         except (TypeError, ValueError):
-            return None
+            parts = str(v).split()
+            if len(parts) > 1:
+                try:
+                    n = int(round(float(parts[-1])))
+                except (TypeError, ValueError):
+                    return None
+            else:
+                return None
         return max(1, min(5, n))
 
     def _coerce_rate(v: Any) -> float | None:

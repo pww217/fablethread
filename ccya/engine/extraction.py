@@ -653,7 +653,6 @@ async def _run_extraction_pipeline(
         # Generate fallback actions when LLM omits them (prompt requires exactly 4)
         if not storytell_result.actions:
             narr_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration.strip()) if len(s.strip().split()) > 5]
-            scene_tags_str = ", ".join(scene_result.scene_tags or [])
             present_npc_names = [n.get("name", "") for n in extraction_ctx.present_npcs_this_turn if isinstance(n, dict)]
             actions = []
             # Action from narration summary
@@ -670,7 +669,7 @@ async def _run_extraction_pipeline(
             # Stat-based action (generic)
             stats = state.get("pc", {}).get("stats") or {}
             if stats:
-                highest_stat = max(stats, key=stats.get)
+                highest_stat = max(stats, key=lambda k: stats[k])
                 actions.append(f"Use your {highest_stat} to assess the situation further.")
             else:
                 actions.append("Plan your next move carefully before acting.")
