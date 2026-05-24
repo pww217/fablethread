@@ -13,6 +13,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from ccya.eval.engine_mirror import MOMENTUM_DELTA, MOMENTUM_MIN
+
 
 def check_recent_events_turn_stamped(event: dict[str, Any]) -> dict[str, Any]:
     """recent_events_add[].turn must be the current turn, not 0 (placeholder)."""
@@ -538,14 +540,7 @@ def check_momentum_band_delta(
             "severity": "red",
         }
     band = ruling.get("band", "")
-    expected = {
-        "crit_success": 2,
-        "success": 1,
-        "partial": 0,
-        "setback": -1,
-        "fail": -1,
-        "crit_fail": -2,
-    }.get(band)
+    expected = MOMENTUM_DELTA.get(band)
     if expected is None:
         return {
             "assertion": "universal.momentum.band_delta",
@@ -628,7 +623,7 @@ def check_momentum_floor_no_relief(
     floor_count = 0
     for ev in reversed(window):
         m = ((ev.get("state_snapshot") or {}).get("meta") or {}).get("momentum")
-        if m is not None and m <= -3:
+        if m is not None and m <= MOMENTUM_MIN:
             floor_count += 1
         else:
             break
