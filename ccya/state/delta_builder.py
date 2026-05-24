@@ -267,11 +267,10 @@ def apply_delta(
     _corrupt_count = 0
     _cleaned: list[dict[str, Any]] = []
     for e in existing_events:
-        if isinstance(e, dict):
+        if isinstance(e, dict) and "id" in e:
             _cleaned.append(e)
         else:
             _corrupt_count += 1
-            _log.warning("apply_delta: dropping non-dict recent_event entry (type=%s); state may be stale", type(e).__name__)
     existing_events = _cleaned
     if _corrupt_count:
         _log.warning("apply_delta: dropped %d corrupted recent_event entries; consider reloading or re-seeding state", _corrupt_count)

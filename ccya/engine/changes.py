@@ -205,8 +205,8 @@ def summarize_changes(
 
     pre_events = list((pre.get("scene") or {}).get("recent_events") or [])
     post_events = list((post.get("scene") or {}).get("recent_events") or [])
-    pre_event_ids = {e["id"] for e in pre_events if isinstance(e, dict)}
-    post_event_ids = {e["id"] for e in post_events if isinstance(e, dict)}
+    pre_event_ids = {e["id"] for e in pre_events if isinstance(e, dict) and "id" in e}
+    post_event_ids = {e["id"] for e in post_events if isinstance(e, dict) and "id" in e}
     for eid in post_event_ids - pre_event_ids:
         evt = next(e for e in post_events if isinstance(e, dict) and e.get("id") == eid)
         facts.append({"kind": "added", "value": evt.get("text", eid)})

@@ -483,9 +483,8 @@ class StorytellerResult(BaseModel):
     @model_validator(mode="after")
     def _warn_empty_actions(self) -> "StorytellerResult":
         if not self.actions:
-            _log.warning(
+            _log.debug(
                 "storytell.actions is empty — LLM omitted field or returned []",
-                extra={"turn": 0, "trace_id": "", "pack": "", "kind": "extraction"},
             )
         return self
 
