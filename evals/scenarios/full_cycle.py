@@ -15,7 +15,7 @@ Expected emergent observations:
   - rules call fires on turns 2, 3, 5, 6, 8, 9, 10, 11
   - extract.state removes inventory on turns 2, 5, 8, 13
   - extract.state adds inventory on turn 11
-  - extract.progress marks quest objectives done on turns 2, 3, 7, 12
+   - storytell.quest_updates marks quest objectives done on turns 2, 3, 7, 12
   - extract.scene shows location_change on turns 4, 6, 9, 12
   - context_economy: recent_events shouldn't balloon by turn 13
    - unified arc threads should escalate across turns 7-10 (urgency: urgent on scene-scope threads)
@@ -53,7 +53,7 @@ scenario = Scenario(
             expects=[
                 "rules.required=true skill=charisma (social negotiation)",
                 "extract.state.inventory_remove includes credits amount=500",
-                "extract.progress marks settle_the_debt objectives done",
+                "storytell.quest_updates settles the debt objective",
             ],
             asserts=[
                 TurnAssert(stream="ruling", field="rolled", expected="true"),
@@ -66,7 +66,7 @@ scenario = Scenario(
             phase="quest_accept",
             expects=[
                 "rules.required=true skill=charisma (negotiation)",
-                "extract.progress marks deliver_the_ledger objectives done (accept contract)",
+                "storytell.quest_updates accepts the courier contract for deliver_the_ledger",
                 "compendium_npc_update for halden",
             ],
             asserts=[
@@ -109,7 +109,7 @@ scenario = Scenario(
             expects=[
                 "rules.required=true skill=charisma",
                 "extract.state.inventory_remove includes credits amount=200",
-                "extract.progress marks clear_the_road_toughs done",
+                "storytell.quest_updates clears the road toughs objective",
             ],
             asserts=[
                 TurnAssert(stream="ruling", field="rolled", expected="true"),
@@ -121,7 +121,7 @@ scenario = Scenario(
             input="I sit across from Halden at his table, slide the merchant seal across, and hand him the ledger from my coat.",
             phase="quest_complete",
             expects=[
-                "extract.progress marks deliver_the_ledger objectives done",
+                "storytell.quest_updates completes the deliver_the_ledger objective",
                 "auto_complete should fire — quest status becomes completed",
                 "compendium_npc_update for halden",
             ],
@@ -189,7 +189,7 @@ scenario = Scenario(
             phase="chase",
             expects=[
                 "extract.scene.location_change to river_dock",
-                "extract.progress quest_updates for deliver_the_ledger",
+                "storytell.quest_updates updates deliver_the_ledger",
                 "compaction fires at T12 (second pass)",
                 "npc_add for dock workers or rival courier",
             ],

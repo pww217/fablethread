@@ -1,7 +1,7 @@
 """gm_beat_lifecycle — Verifies pending_gm_beat lifecycle.
 
 Tests that:
-1. extract.progress generates a pending_gm_beat
+1. storytell extracts a pending_gm_beat
 2. The beat appears in the next turn's narrate context
 3. The beat is consumed (absent from state) by turn N+2
 
@@ -14,7 +14,7 @@ from ccya.eval.scenario import Scenario, Turn, TurnAssert
 scenario = Scenario(
     id="gm_beat_lifecycle",
     pack="eval-pack",
-    description="Verifies pending_gm_beat is set by extract.progress, surfaced in next narration, and consumed.",
+    description="Verifies pending_gm_beat is set by the storyteller extractor, surfaced in next narration, and consumed.",
     turns=[
         Turn(
             input="I settle the debt with Caron.",
@@ -32,7 +32,7 @@ scenario = Scenario(
             input="I find Halden by the town well and offer to courier his ledger.",
             phase="gm_beat_trigger",
             expects=[
-                "extract.progress should generate a pending_gm_beat here",
+                "storytell should emit a pending_gm_beat here",
                 "state_yaml.pending_gm_beat should be present after this turn",
             ],
             asserts=[
