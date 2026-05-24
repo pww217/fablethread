@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import re
 import time
 from dataclasses import dataclass
@@ -977,6 +978,8 @@ def _normalize_scores(fm: dict[str, Any]) -> dict[str, Any]:
         try:
             f = float(v)
         except (TypeError, ValueError):
+            return None
+        if math.isnan(f):
             return None
         return max(0.0, min(1.0, f))
 
