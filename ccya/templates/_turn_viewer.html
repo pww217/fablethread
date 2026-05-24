@@ -274,7 +274,7 @@
                                 <div class="tv-diff-section-label">State changes</div>
                                 <template x-for="(ch, chi) in t.state_diff" :key="chi">
                                     <div class="tv-diff-row" :class="{ 'tv-diff-rejected': ch.rejected, 'tv-diff-op-remove': ch.op === 'remove' }">
-                                        <span class="tv-diff-op" :class="'tv-diff-op--' + ch.op" x-text="ch.op === 'add' ? '+' : ch.op === 'remove' ? '-' : ch.op === 'update' ? '~' : '='"></span>
+                                        <span class="tv-diff-op" :class="ch.op_css_class ? 'tv-diff-op--' + ch.op_css_class : 'tv-diff-op--' + ch.op" x-text="ch.op === 'add' ? '+' : ch.op === 'remove' ? '-' : ch.op === 'update' ? '~' : '='"></span>
                                         <span class="tv-diff-field" x-text="ch.field"></span>
                                         <span class="tv-diff-value" x-text="ch.value"></span>
                                         <span class="tv-diff-rejected-badge" x-show="ch.rejected">rejected</span>

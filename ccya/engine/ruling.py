@@ -22,6 +22,7 @@ def _ruling_messages(
     turn_no: int = 0,
     present_npcs: list[dict[str, Any]] | None = None,
     last_outcome: str | None = None,
+    inventory: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
     pc = state.get("pc") or {}
     location = state.get("location") or {}
@@ -37,6 +38,7 @@ def _ruling_messages(
             "meta": {"turn": turn_no},
             "present_npcs": present_npcs or [],
             "last_outcome": last_outcome,
+            "inventory": inventory or [],
         },
     )
     return [

@@ -12,7 +12,12 @@ Location: {{ location.name or location.id or "Unknown" }}
 {% for n in present_npcs %}- {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}
 {% endfor -%}
 {% endif -%}
-
+{%- if inventory %}
+## Inventory
+{% for item in inventory -%}
+- {{ item.name }} ({{ item.amount }})
+{% endfor -%}
+{% endif -%}
 {%- if last_outcome %}
 ## Last Turn Outcome
 {{ last_outcome }}
