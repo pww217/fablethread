@@ -302,19 +302,19 @@ The GM beat is a multi-turn narrative device. It flows through three phases:
 
 **Phase 1 — Creation.** Progress extractor emits `gm_beat`. Engine stores it in `state.meta.pending_gm_beat` with `beat_expires_turn = turn_no + 2`. Disposition is inferred by Python, not emitted by LLM.
 
-**Phase 2 — Narration.** Beat is injected into the narrator prompt. Narrator weaves it into prose. After narration, beat is temporarily cleared then restored for extraction.
+**Phase 2 — Narration.** Beat is injected into the narrator prompt. Narrator weaves it into prose. After narration, pending_gm_beat is permanently set to None. It is no longer restored before extraction — Storytell no longer receives beat context.
 
 **Phase 3 — Inferred Disposition.** Python infers what happened to the beat:
 - If Progress emits a new `gm_beat` in this turn → old beat was replaced
 - If no `gm_beat` emitted and beat still present → beat aged (not consumed)
-- If beat's `expires_at` turn has passed → engine discards it
+- If beat's `beat_expires_turn` is at or past the current turn → engine discards it
 
 **Evaluation checklist (per turn where a beat exists):**
 
 | Check | How to verify | Pass condition |
 |---|---|---|
-| Beat created | `extraction.progress.gm_beat` present in turn N | Beat has type + instruction |
-| Beat narrated | Narration contains content matching beat's instruction | Beat instruction reflected in prose |
+| Beat created | `extraction.progress.gm_beat` present in turn N | Beat has a non-null `type` value |
+| Beat narrated | Narration reflects the beat's type and surface_as semantics | Prose is consistent with the beat's `type`/`surface_as` |
 | Beat visible to progress | `extraction.progress` prompt contains `## pending_gm_beat` block | Beat data present in user prompt |
 | TTL respected | Beat expires at `beat_expires_turn` | Beat is None after expiry turn |
 | No orphaned beats | Beat is consumed or expired within expected turns | No beat persists beyond TTL |

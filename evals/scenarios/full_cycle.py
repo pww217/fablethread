@@ -95,7 +95,7 @@ scenario = Scenario(
                 "scope active_domains includes pc_condition",
                 "scene_tags should include combat",
                 "PacingContext.directive should be 'Pressure' or 'Escalate' for the immediate threat",
-                "PacingContext.beat_hint should suggest 'complication' when beat is pending",
+                "state.meta.pending_gm_beat should be present when storyteller emits a beat during confrontation",
             ],
             asserts=[
                 TurnAssert(stream="ruling", field="rolled", expected="true"),
