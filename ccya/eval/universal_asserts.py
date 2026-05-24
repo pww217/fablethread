@@ -528,8 +528,7 @@ def check_actions_count_and_distinct(event: dict[str, Any]) -> dict[str, Any]:
 def check_momentum_band_delta(
     event: dict[str, Any], prev_event: dict[str, Any] | None
 ) -> dict[str, Any]:
-    """If a roll happened, momentum should change per band: crit_success +2,
-    success +1, partial 0, setback/fail -1, crit_fail -2."""
+    """If a roll happened, momentum should change per band (see MOMENTUM_DELTA)."""
     ruling = event.get("ruling") or {}
     if not ruling.get("rolled"):
         return {
