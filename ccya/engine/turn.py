@@ -256,15 +256,12 @@ def _apply_thread_signals(
     really_still_active = [t for t in still_active if getattr(t, "active", True)]
     demoted_to_latent = [t for t in still_active if not getattr(t, "active", False)]
 
-    # Enforce latent cap: drop oldest latent threads if demotion exceeds cap
-    latent_count = len(demoted_to_latent) + sum(
-        1 for t in arc.threads
-        if t.id not in {t2.id for t2 in all_arc_threads}
-        and not getattr(t, "active", False)
-    )
+    # Enforce latent cap: existing latent + newly demoted (pre-promotion).
+    # Promotions later in this function further reduce the count, so this is conservative.
+    latent_count = len(latent_by_id) + len(demoted_to_latent)
     if latent_count > _LATENT_THREAD_CAP:
         excess = latent_count - _LATENT_THREAD_CAP
-        demoted_to_latent.sort(key=lambda t: t.added_turn or 0)
+        demoted_to_latent.sort(key=lambda t: t.added_turn if t.added_turn is not None else 9999)
         dropped = demoted_to_latent[:excess]
         demoted_to_latent = demoted_to_latent[excess:]
         mutated = True
@@ -1373,14 +1370,14 @@ async def run_turn(
                                             "active": True,
                                             "last_seen_turn": turn_no_for_add,
                                         })
-                                    if not getattr(_updated_t, 'added_turn', None):
-                                        _updated_t = _updated_t.model_copy(update={"added_turn": turn_no_for_add})
-                                    arc_with_new_thread = _existing_arc.model_copy(
-                                        update={"threads": list(_existing_arc.threads) + [_updated_t]}
-                                    )
-                                    _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
-                                    state.setdefault("meta", {})["last_thread_creation_turn"] = turn_no_for_add
-                                    delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
+                                        if not getattr(_updated_t, 'added_turn', None):
+                                            _updated_t = _updated_t.model_copy(update={"added_turn": turn_no_for_add})
+                                        arc_with_new_thread = _existing_arc.model_copy(
+                                            update={"threads": list(_existing_arc.threads) + [_updated_t]}
+                                        )
+                                        _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
+                                        state.setdefault("meta", {})["last_thread_creation_turn"] = turn_no_for_add
+                                        delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
                             except Exception as exc:
                                 _log.warning(
                                     "thread_add: failed to validate arc at T%d for thread %s: %s",

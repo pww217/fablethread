@@ -251,7 +251,7 @@
                                 <template x-if="t.pacing_context.gate && t.pacing_context.gate !== 'allow'">
                                     <div class="tv-diff-row">
                                         <span class="tv-diff-field">gate</span>
-                                        <span class="tv-diff-value" :class="'tv-sts-' + (t.pacing_context.gate === 'block_add' ? 'rejected' : 'retried')" x-text="t.pacing_context.gate"></span>
+                                        <span class="tv-diff-value tv-sts-rejected" x-text="t.pacing_context.gate"></span>
                                     </div>
                                 </template>
                                 <template x-if="t.pacing_context.beat_hint">
