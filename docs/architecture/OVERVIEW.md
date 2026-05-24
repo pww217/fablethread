@@ -96,7 +96,7 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 PacingContext:
   directive: str           # "" | "Breathe" | "Pressure" | "Overwhelm" | "Tension" | "Resolve a Threat" | "Threat Pressure" (may include "; Combat Fatigue" secondary)
   beat_locked: bool        # True: floor relief fired — Progress MUST emit breathing_room beat and gate is force-closed
-  gate: str                # "block_add" | "block_escalate" | "allow" (controls thread_add)
+  gate: str                # "block_escalate" | "allow" (controls thread_add)
   summary: str             # human-readable log string, never sent to LLM
 ```
 

@@ -23,13 +23,13 @@ All items verified against current source code. "Fixed" means already implemente
 
 | Item | Effort | Verdict | Evidence |
 |---|---|---|---|
-| `_resolve_pack_dir` duplicated in routes.py vs pack.py | XS | **OPEN** | Two near-identical implementations: `pack.py:253-276` (original) and `routes.py:360-375` (docstring even says "mirrors pack._resolve_pack_dir"). Should import from pack or extract to shared utility. |
+| `_resolve_pack_dir` duplicated in routes.py vs pack.py | XS | **FIXED** | Duplicate removed. `routes.py` now imports `from ccya.pack import _resolve_pack_dir`. |
 | `inputs_snapshot` loop duplicates connectors loop in tv.py | S | **OPEN** | Both iterate `_STREAMS` + `sd.inputs` with identical data-fetching/formatting logic: connectors at `tv.py:465-501`, inputs snapshot at `tv.py:505-531`. Extractable into helper. |
-| `_label` defined twice inside tv.py | XS | **OPEN** | Two nested defs in different scopes (`_tv_dict_to_lines`:80-85 vs turn row loop:222-227). 90% identical logic, subtly different fallback behavior (truncated first-value vs empty string). Consolidate. |
+| `_label` defined twice inside tv.py | XS | **NOT VALID** | Source inspection shows a single reusable `_tv_label()` function at `tv.py:47`. Called from two sites; no duplication. |
 | `new_game` / `new_game_reroll` duplicate seed→init pattern | S | **OPEN** | Dynamic pack paths are byte-for-byte identical (`routes.py:265-270` == `291-297`). Static path is similar minus one meta key. Extract into `_init_from_seed()`. |
 | Jinja templating consolidation (Characters, Location, Inventory, Campaign ARC) | L | **FIXED** | All four templates already consolidated under `ccya/prompts/sections/`: `_npc_roster.j2`, `_location.j2`, `_inventory.j2`, `_arc.j2` — referenced via `{% include %}` in main templates. No duplication. |
 | Audit user prompts vs. system prompts — misplaced content | M | **FIXED** | Clean separation: `narrate_system.j2` = instructions only, `narrate_user.j2` = game state + player input. No misplaced content detected. |
-| Compendium cap — lift < 10 | XS | **NOT VALID / ONE-LINER** | Cap of 8 exists only in eval rubric (`engine_mirror.py:42`). Not enforced at runtime. Just change `SCENE_NAMED_NPC_CAP` constant if desired. |
+| Compendium cap — lift < 10 | XS | **FIXED** | `SCENE_NAMED_NPC_CAP` already `10` in `engine_mirror.py:42`. |
 
 ---
 
@@ -56,11 +56,11 @@ All items verified against current source code. "Fixed" means already implemente
 |---|---|---|---|
 | Inventory update hardened to durable changes only (damage/upgrade) | M | **OPEN** | `delta_builder.py:132-209` applies all inventory ops identically — no durability gate. Any LLM can arbitrarily add/remove/update items every turn with no expiry or scene-boundary clearing. |
 | Inventory update UI delta should be yellow | XS | **PARTIALLY FIXED** | `inventory_update` already displays yellow (`app.src.css:2541`). But `inventory_add` (green) and `inventory_remove` (red) are not yellow. Would need special-casing `inventory_` prefix in `_tv_state_diff()` at `tv.py:214-219`. |
-| Thread creation/promotion more durable, less frequent | M | **PARTIALLY IMPLEMENTED + BUG** | Good durability mechanics exist (`_ACTIVE_THREAD_CAP=3`, `_EXPIRE_SILENT_TURNS=5`, `_PROMOTION_COOLDOWN_TURNS=3` at `turn.py:148-154`). Bug: thread_add bypasses the pacing gate entirely — no check of `_pc.gate` before adding threads (`turn.py:1322-1351`). |
+| Thread creation/promotion more durable, less frequent | M | **PARTIALLY IMPLEMENTED** | Good durability mechanics: `_ACTIVE_THREAD_CAP=3`, `_EXPIRE_SILENT_TURNS=5`, `_PROMOTION_COOLDOWN_TURNS=3`. Pacing gate enforcement added (active cap at `turn.py:1368`, gate check at `turn.py:1340-1349`). |
 | Max 3 threads/leads, only every X turns; 2 to progress instead of 3 | S | **PARTIALLY IMPLEMENTED** | ✅ Cap at 3 (line 148), ✅ promotion cooldown 3 turns (line 154). ❌ No per-turn-count throttle on thread_add. ❌ Progress threshold still hardcoded to `>= 3` (line 220) — no config knob for "2 instead of 3". |
-| How pressures + deescalation + `pending_beat` combine — clarify | M | **FIXED** | Mechanics documented in `docs/architecture/pacing-interaction.md` covering floor relief injection priority, directive–beat alignment, and gm_beat replacement rules. These commits: `f33df2f` and follow-ups. |
+| How pressures + deescalation + `pending_beat` combine — clarify | M | **FIXED** | Mechanics documented in `docs/architecture/step2c-progress.md` and `docs/architecture/pacing-context.md`. These commits: `f33df2f` and follow-ups. |
 | Turn viewer — expand to make compaction clearer | S | **PARTIALLY IMPLEMENTED** | Compactions displayed as separate cards with collapsible detail (`_turn_viewer.html:48-86`). Missing: no visual linkage showing which raw turns were compacted into each event. Flat timeline — users can't trace "compaction at T6 covers content from T1-T3". |
-| Probably 5 turns per compaction cycle | XS | **ONE-LINER** | `config.yaml:25` has `compact_every: 3`. Change to `5` only. No code changes needed; validation already enforces valid values (`_validate_compactor_config()`). |
+| Probably 5 turns per compaction cycle | XS | **FIXED** | `config.yaml:25` already `compact_every: 5`. |
 | Seeding: increase both at world gen and turn-by-turn | M | **PARTIALLY IMPLEMENTED** | World-gen supports `npc_count_override` in seed prompt (generate_seed_system.j2:163-167). Turn-by-turn: no "world detail injection" step — new NPCs only enter via scene extraction. Depends on what "increase" means. |
 | `rules_stakes` delivered in progress — useful or complexity? | M | **RESOLVED / LOW IMPACT** | `rules_outcome` is just one line (`storytell_user.j2:43-45`) with dice band + thread advancement instruction. No full stakes text flows through this pipeline. Minimal overhead, adds value by preventing thread advance on failed rolls. |
 | Thread signals vs drift analysis — drift adds a LOT of output | M | **NO DRIFT ANALYSIS EXISTS** | Zero matches for "drift" in engine/ Python code. Only thread signal processing is `_apply_thread_signals()` — no parallel/duplicate analysis. If token overhead exists, it's from the thread list rendered in storytell_user.j2:15-22 as context. |
@@ -84,13 +84,14 @@ All items verified against current source code. "Fixed" means already implemente
 
 ## Priority Summary — Highest Risk Items
 
-1. **Thread_add gate bypass bug** (Improvements #3) — New threads can be created every turn if LLM emits them and gate allows, despite `_ACTIVE_THREAD_CAP=3` existing for a different purpose
-2. **Inventory durability gate missing** (Improvements #1) — Any LLM can arbitrarily add/remove/update items every turn with no expiry or scene-boundary clearing
-3. **Seed JSON parsing fragility** (Bugs #3) — Only 2 attempts total, generic retry feedback, strict constraints on nested structures
+1. **Inventory durability gate missing** (Improvements #1) — Any LLM can arbitrarily add/remove/update items every turn with no expiry or scene-boundary clearing
+2. **Seed JSON parsing fragility** (Bugs #3) — Only 2 attempts total, generic retry feedback, strict constraints on nested structures
+3. **Narrate BINDING block** (FINDINGS.md C1) — Fixed in `e686541`: BINDING block now appears on all rolled turns
 
 ## Priority Summary — Quick Wins (< XS effort)
 
-1. `compact_every: 3` → `5` in config.yaml
-2. Change `SCENE_NAMED_NPC_CAP = 8` to `10` in engine_mirror.py
-3. Consolidate `_resolve_pack_dir` (XS, low risk cut)
-4. Consolidate duplicate `_label` defs in tv.py
+None remaining. All items from previous list already resolved:
+- `compact_every: 5` ✓
+- `SCENE_NAMED_NPC_CAP: 10` ✓
+- `_resolve_pack_dir` consolidated ✓
+- `_label` defs — never duplicated ✓
