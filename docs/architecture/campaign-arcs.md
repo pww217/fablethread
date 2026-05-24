@@ -163,7 +163,6 @@ flowchart LR
         U2["goal_context"]
         U3["thematic_question"]
         U4["pc_drive"]
-        U5["active threads filtered by active flag"]
     end
 
     STATE --> CONTEXT
