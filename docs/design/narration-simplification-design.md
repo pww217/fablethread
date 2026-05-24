@@ -127,9 +127,8 @@ and Progress:
 ```
 PacingContext:
   directive: str           # "Breathe" | "Overwhelm" | "Pressure" | "Tension" | "" (may include secondary via "; ")
-  beat_hint: str | None    # suggested gm_beat type, or None
   beat_locked: bool        # True: floor relief fired — Progress MUST emit breathing_room beat and gate is force-closed
-  gate: str                # "block_add" | "block_escalate" | "allow" (controls thread_add)
+  gate: str                # "block_escalate" | "allow" (controls thread_add)
   summary: str             # human-readable log string, never sent to LLM
 ```
 
@@ -139,7 +138,7 @@ Directive values are richer than the original design spec ("Breathe"/"Pressure"/
 inside `_compute_pacing_context()` and sets this flag rather than running as a separate
 side-channel.
 
-The Narrator receives only `PacingContext.directive` and `PacingContext.beat_hint` (when
+The Narrator receives only `PacingContext.directive` (when
 a beat is pending). Progress receives the full `PacingContext`.
 
 `deescalate`, `narrative_velocity`, and `narration_directive` as separate fields are
@@ -270,9 +269,8 @@ The LLM does not write `active`, `progress`, or `added_turn` — these are Pytho
 @dataclass
 class PacingContext:
     directive: str           # "Breathe" | "Pressure" | "MoveOn" | "Escalate" | ""
-    beat_hint: str | None    # suggested gm_beat type, or None
     beat_locked: bool        # True: Progress MUST emit breathing_room beat, gate is force-closed
-    gate: str                # "block_add" | "block_escalate" | "allow"
+    gate: str                # "block_escalate" | "allow"
     summary: str             # human-readable log string, never sent to LLM
 ```
 

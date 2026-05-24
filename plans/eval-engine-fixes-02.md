@@ -1,7 +1,11 @@
 # Eval Engine Fixes — Phase 07 (C1–C4, M1–M3)
 
 ## Status
-`open`
+`open` — Phase 1 (C1) completed in commit `e686541`
+
+## Completed phases
+
+- **Phase 01** (C1) — `e686541`: BINDING block widened from fail-only to all rolled turns. No auto-checker change needed (existing `check_rolled_implies_binding()` passes with new format).
 
 ## Phases
 

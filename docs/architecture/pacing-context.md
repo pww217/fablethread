@@ -8,7 +8,7 @@ All pacing signals are collapsed into one Python-computed struct (`PacingContext
 PacingContext:
   directive: str           # "" | "Breathe" | "Pressure" | "Overwhelm" | "Tension" | "Resolve a Threat" | "Threat Pressure"
   beat_locked: bool        # True: floor relief fired — Progress MUST emit breathing_room beat and gate is force-closed
-  gate: str                # "block_add" | "block_escalate" | "allow" (controls thread_add)
+  gate: str                # "block_escalate" | "allow" (controls thread_add)
   summary: str             # human-readable log string, never sent to LLM
 ```
 
@@ -77,7 +77,7 @@ flowchart LR
 
 | Directive | Thread action | Gate |
 |-----------|---------------|-------|
-| **"Breathe"** (de-escalation, velocity < -0.3) | Do NOT add new threads. Allow existing scene threads to persist without escalation. | `block_add` + force-closed when at momentum floor |
+| **"Breathe"** (de-escalation, velocity < -0.3) | Do NOT add new threads. Allow existing scene threads to persist without escalation. | `block_escalate` + force-closed when at momentum floor |
 | **"Overwhelm"** (3+ urgent threads) | May add scene-scoped threads if gate allows; emit pressure/escalation beat | `allow` |
 | **"Resolve a Threat"** (aged-out threat imperative) | Advance the aged thread toward resolution; avoid adding new complications | `allow` |
 | **"Pressure"** (1-2 urgent or aging threats) | Advance relevant scene/arc threads. Add new thread only if gate permits. | Varies by context |
