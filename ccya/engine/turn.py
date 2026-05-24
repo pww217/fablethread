@@ -1632,7 +1632,7 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
                 break
         if not has_loot_context:
             rejections.append({
-                "field": f"inventory_add:{add_item.id}",
+                "field": "inventory_add",
                 "kind": "durability_gate",
                 "value": add_item.id,
                 "reason": f"New item '{item_name}' — no loot gain context detected in recent_events or actions; rejected by durability gate",
