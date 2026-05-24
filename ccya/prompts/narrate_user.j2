@@ -10,8 +10,6 @@
 ## inventory (cross-reference before describing item use)
 {% include "sections/_inventory.j2" %}
 
-{% include "sections/_arc.j2" %}
-
 {% include "sections/_npc_roster.j2" %}
 
 <<<TRACE_IMMUTABLE_START>>>
@@ -63,6 +61,8 @@
 {% endfor -%}
 {% endif -%}
 
+{% include "sections/_arc.j2" %}
+
 ## This Turn's (Turn {{ meta.get('turn', '?') if meta is mapping else '?' }}) Result
 {% if rules_outcome and rules_outcome.rolled %}
 
@@ -72,15 +72,19 @@
 
 **No roll required.** Describe what happens with appropriate weight for the moment.
 {% endif %}
-{% if pending_beat and pending_beat.type %}
+{% if rules_outcome and rules_outcome.rolled and rules_outcome.band == "fail" -%}
 
-**Beat type:** {{ pending_beat.type | replace('_', ' ') | upper }} to surface as `{{ pending_beat.surface_as | default('ambient') }}`. Use this as creative guidance for the scene — integrate it naturally with pacing context and arc state. Do not recite beat metadata directly in narration.
-{% endif %}
-{% if pacing_context and pacing_context.directive %}
-
-**Narration Directive:** {{ pacing_context.directive }}
-{% endif %}
+**rules_outcome (BINDING)** — Fail band constraint applies. The NPC does NOT engage constructively to help the player. Do not turn FAIL into PARTIAL by offering counter-deals, partial payments, or consolation prizes. See system prompt fail-band section for details.
+{%- endif %}
 
 === PLAYER INPUT ===
 {{ user_input }}
 === END PLAYER INPUT ===
+
+{% if pending_beat and pending_beat.type -%}
+
+**Beat:** {{ pending_beat.type | replace('_', ' ') | upper }} — surface as `{{ pending_beat.surface_as | default('ambient') }}`. Use this as creative guidance for the scene. Do not recite beat metadata directly in narration.
+{%- endif %}{% if pacing_context and pacing_context.directive -%}
+
+**Directive:** {{ pacing_context.directive }}
+{% endif %}

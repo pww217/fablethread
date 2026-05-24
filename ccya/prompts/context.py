@@ -304,7 +304,7 @@ class NarratorSystemBoundary(BaseModel):
     """Context for narrate_system.j2 (only system prompt with dynamic data).
 
     Source: _narrate_messages() line 106-110 passes pack_style, narrator_rules, world_rules, current_arc.
-    Template uses only `world_rules` and `narrator_rules` — alignment check flags pack_style/current_arc as dead fields removed from boundary model.
+    Template uses only `world_rules`, `narrator_rules`, and `pack_style`. The `current_arc` variable is passed but no longer consumed (lines 64–68 of narrate_system.j2 removed in prompt cleanup). Alignment check passes with no dead fields.
     """
 
     narrator_rules: list[str]

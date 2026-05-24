@@ -114,7 +114,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 
 ### Seed emotional context → narrator consumption
 - **Seed generates**: `goal_context` (character-specific stake in visible_goal), NPC `relation` field (narrative job relative to PC), `pc_drive` (latent motive), action text (character-shaped, scene-grounded).
-- **Narrator consumes**: `goal_context` in both system prompt (`narrate_system.j2` — early-turn guidance block) and user prompt (`_arc.j2` — HTML-comment-wrapped narrator context). The narrator converts these fields into scene texture, dialogue pressure, and prose emphasis — never reciting them directly.
+- **Narrator consumes**: `goal_context` in the narrate user prompt (`_arc.j2`). The system prompt provides general early-turn behavioral guidance; `_arc.j2` presents the actual value alongside other arc context for this turn. The narrator converts these fields into scene texture, dialogue pressure, and prose emphasis — never reciting them directly.
 - **Sidebar surfaces**: `goal_context` as a hover/focus tooltip on the arc goal (`_state_left.html`), using the existing `has-tooltip`/`tooltip-body` nesting convention.
 - **Signal mechanism**: The presence of `goal_context` on the arc is the signal for early-turn narrative mode (approach B, no turn-counting dependency).
 

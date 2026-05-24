@@ -4,21 +4,17 @@
 **Goal:** {{ current_arc.visible_goal }}
 
 {% if current_arc.goal_context -%}
-<!-- Narrator note: this is the character's personal stake in the visible_goal. Use it to shape emphasis, not exposition. -->
 **Narrative guidance — goal context:** {{ current_arc.goal_context }}
 
-
-{%- endif %}{% if current_arc.thematic_question or current_arc.pc_drive -%}
+{% endif %}{% if current_arc.thematic_question or current_arc.pc_drive -%}
 
 {% endif %}{% if current_arc.thematic_question -%}
 **Thematic question:** {{ current_arc.thematic_question }}
 {% endif -%}{% if current_arc.pc_drive -%}
 
-
 **PC drive:** {{ current_arc.pc_drive }}
 {% endif -%}{%- set active_threads = (current_arc.threads | selectattr('active', 'equalto', true) | list) -%}
 {% if active_threads -%}
-
 
 **Active threads:**
 {% for t in active_threads -%}- [{{ t.scope }}/{{ t.urgency | upper }}] {{ t.summary }} (last seen T{{ t.last_seen_turn or '?' }}){% endfor -%}
