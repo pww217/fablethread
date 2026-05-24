@@ -215,7 +215,7 @@ expected outcome.
 ### 3D — Extract State Pipeline Prompt Audit
 (same table and remediation format)
 
-### 3E — Extract Progress Pipeline Prompt Audit
+### 3E — Storyteller Pipeline Prompt Audit
 (same table and remediation format)
 
 ### 3F — Prompt Adherence Rate Calculation
@@ -401,10 +401,10 @@ Verify every mechanic emitted is correctly owned. Flag any mechanic in the wrong
 | `scene_tags`, `scene_tagline` | scene |
 | `inventory_add`, `inventory_remove`, `inventory_update` | state |
 | `pc_condition_add`, `pc_condition_remove` | state |
-| `thread_advance`, `thread_resolve`, `thread_add` (gated) | progress |
-| `recent_events_add`, `recent_events_update`, `recent_events_remove` | progress |
-| `gm_beat` | progress |
-| `actions`, `outcome_summary` | progress |
+| `thread_advance`, `thread_resolve`, `thread_add` (gated) | storytell |
+| `recent_events_add`, `recent_events_update`, `recent_events_remove` | storytell |
+| `gm_beat` | storytell |
+| `actions`, `outcome_summary` | storytell |
 
 If misplaced: name the correct pipeline, name the data flow change needed.
 
@@ -543,7 +543,7 @@ For each of the 5 pipelines, assess whether its inputs and outputs are focused o
 
 **Extract State (Step 2b):** Inputs should be narrative, state.pc, state.location, state.inventory, rules_outcome, active_domains, expired_conditions. Flag if the state extractor receives quest data, recent_events, or thread/pressure data — those belong to other pipelines.
 
-**Extract Progress (Step 2c):** Inputs are narrative, state.pc, recent_events, world_state, rules_outcome, intent, active_domains, PacingContext (full struct), arc.threads[] (unified), recent_turns[-2:]. This is justified because progress is the "storytelling brain." Assess: is every input enabling a specific output? Flag inputs that appear unused.
+**Storyteller (Step 2c):** Inputs are narrative, state.pc, recent_events, world_state, rules_outcome, intent, active_domains, PacingContext (full struct), arc.threads[] (unified), recent_turns[-2:]. This is justified because storyteller is the "storytelling brain." Assess: is every input enabling a specific output? Flag inputs that appear unused.
 
 For each pipeline, note: (a) inputs that seem unnecessary, (b) outputs that seem misplaced, (c) whether the input/output boundary aligns with the pipeline's responsibility. Score: 1–5.
 
