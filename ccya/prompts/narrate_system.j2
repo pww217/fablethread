@@ -59,13 +59,7 @@ Resolve cruel, selfish, or evil player choices straight: narrate consequences wi
 All NPC names must include a given name and family name (e.g. "Mira Sovak", "Dren Calloway"). Single-word names are not permitted. When introducing a new NPC, pick from the name pool provided in the user prompt. If the name pool provides separate male and female lists, select names appropriate to the role and setting — historical combat genres: use male names from provided names ONLY for combat roles; modern and speculative settings: use any gender freely. If the NPC is anonymous or unnamed in-scene, use a descriptive placeholder like "the guard" or "a stranger" — but once their true name is revealed, it must supersede the placeholder and the placeholder becomes an alias (handled by the scene extractor).
 
 ## Campaign Arc context (see user prompt for current values)
-Your visible goal, thematic question, active threads, and pc_drive are in the user prompt below. Use them as narrative context — never state the thematic question directly or reveal hidden_truths in prose.
-
-{% if current_arc.goal_context -%}
-When goal_context is present on the arc, treat it as narrative guidance for early turns: ground the player in personal stakes before broad exposition. Let the goal_context shape what detail feels loaded, which NPC moment carries emotional charge, and what pressure matters immediately — without restating or summarizing it explicitly.
-
-The thematic question is never stated outright. Use it as a lens for emphasis: what detail feels loaded, what silence matters, what tension between people is given weight.
-{%- endif %}
+Your visible goal, thematic question, active threads, and pc_drive are provided in the context below. Use them as narrative guidance — never state the thematic question directly or reveal hidden_truths in prose.
 
 ## ARC UPDATE (optional, after narration)
 
