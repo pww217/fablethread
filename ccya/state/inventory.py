@@ -1,9 +1,32 @@
-"""Inventory normalization and resolution helpers."""
+"""Inventory normalization and resolution helpers.
+
+ID convention:
+  Inventory items have canonical IDs defined at seed time (e.g., "iron_coins",
+  "brass_key"). The LLM extracts items by natural-language names from narration
+  (e.g., "credits", "Iron Coins", "brass key"). The normalization pipeline
+  bridges this gap:
+
+    1. normalize_inventory_id(raw) — Lowercase, strip, replace hyphens/spaces
+       with underscores, remove non-alphanumeric. Maps "Iron Coins" -> "iron_coins".
+    2. resolve_inventory_canonical_id(raw, inventory) — Normalize raw, then
+       match against canonical IDs and alias lists.
+    3. resolve_inventory_remove_target(raw, inventory) — Same as above but also
+       matches against item names (fallback for items without aliases).
+    4. _fuzzy_match_inventory(name, inventory) — Token-overlap scoring for
+       detecting duplicates during inventory_add (threshold 0.6).
+
+  Conditions do NOT currently have equivalent normalization — Phase 04 of
+  eval-engine-fixes-02.md plans to add normalize_condition_id() mirroring
+  this pattern. See plans/eval-engine-fixes-02.md.
+"""
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
+
+_log = logging.getLogger(__name__)
 
 
 def normalize_inventory_id(raw: str) -> str:
@@ -21,10 +44,13 @@ def resolve_inventory_canonical_id(
     want = normalize_inventory_id(raw_id)
     for it in inventory:
         if normalize_inventory_id(it.get("id", "")) == want:
+            _log.debug("resolve_inventory_canonical_id raw=%s -> %s", raw_id, it["id"])
             return str(it["id"])
         for alias in (it.get("aliases") or []):
             if isinstance(alias, str) and normalize_inventory_id(alias) == want:
+                _log.debug("resolve_inventory_canonical_id raw=%s -> %s (via alias %s)", raw_id, it["id"], alias)
                 return str(it["id"])
+    _log.debug("resolve_inventory_canonical_id raw=%s normalized=%s no match", raw_id, want)
     return None
 
 
