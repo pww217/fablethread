@@ -272,6 +272,8 @@ def _extract_candidate_names(
         "Each", "Every", "Both", "All", "Some", "Any", "Many", "Few",
         "Hulking", "Generous", "Armed", "Two", "Three", "Several",
         "Crossed", "Careful", "Narrowing",
+        "Silhouette", "Threshold", "Figure", "Outline", "Shadow", "Glint",
+        "Shape", "Crossing",
     }
 
     inv_lower: set[str] = set()
@@ -296,8 +298,11 @@ def _extract_candidate_names(
         # "Leather-bound ledger")
         if inv_lower and any(token.lower() in inv_name for inv_name in inv_lower):
             continue
-        # Partial match against location names
-        if loc_lower and any(token.lower() in loc_name for loc_name in loc_lower):
+        # Word-boundary match against location names (prevents "crossing" matching
+        # "Crossing Road" but allows it to filter out just "Marrow's Crossing").
+        if loc_lower and any(
+            re.search(rf'\b{re.escape(token.lower())}\b', loc_name) for loc_name in loc_lower
+        ):
             continue
         candidates.add(token)
     return candidates
@@ -377,6 +382,9 @@ def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
         "Now", "Here", "There", "This", "That",
         "These", "Those",
         "Instead", "Behind", "Credits", "Credit",
+        # Transition words that get capitalized mid-sentence
+        "Finally", "However", "Nevertheless", "Meanwhile", "Besides",
+        "Thus", "Furthermore", "Moreover", "Therefore", "Consequently",
     }
     # Also skip candidates that are partial matches for any known NPC name.
     # E.g., "Matthew" matches "Matthew Estrada", "Crossing" matches "Marrow's Crossing".
