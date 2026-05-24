@@ -104,6 +104,13 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - Engine owns threads; narrator owns visible_goal/thematic_question/discovered_truths
 - Active cap = 3, latent cap = 4, promotion cooldown of 3 turns
 - ArcThread.resolution_state: str | None — set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads for narrative context and eval rubrics (Phase 05c)
+- `_merge_arc_update` unconditionally replaces `arc["threads"]` and `arc["completed_threads"]` on every call — no truthy guard (fixes last-thread resolution persistence bug)
+- Latent promotion in `_apply_thread_signals` skips thread IDs already in `arc.completed_threads` — defense-in-depth against re-promotion of resolved threads
+
+### Momentum lifecycle
+- `apply_momentum(state, band)` in ccya/state/momentum.py mutates `state["pc"]["momentum"]` deterministically from band delta, clamped to [-3, +3]
+- Pre-ruling momentum captured BEFORE `_ruling_phase()` (turn.py line ~1044), post-ruling captured AFTER — delta reflects actual band-based change
+- Auto-checker `check_momentum_band_delta` reads from `state_snapshot.pc.momentum` (not meta.momentum)
 
 ### Seed emotional context → narrator consumption
 - **Seed generates**: `goal_context` (character-specific stake in visible_goal), NPC `relation` field (narrative job relative to PC), `pc_drive` (latent motive), action text (character-shaped, scene-grounded).
@@ -125,6 +132,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, npc_add/remove/update, compendium_npc_update (no pressure fields)
 - **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
 - **StorytellerResult**: thread_advance, thread_resolve (list[ThreadResolution]), thread_add (ArcThread | None), recent_events_add/update/remove, actions, outcome_summary, gm_beat (no quest_updates); thread_resolve processed by _apply_thread_resolutions() in turn.py to move threads from arc.threads[] to arc.completed_threads[]
+- **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions, persisted to state["pc"]["actions"] as rolling window by apply_delta()
 
 ### Cross-stream data flow (minimal by design)
 - Scene → State: location_change (id,name,description) + present_npcs (id,name,title,notes,bio)
@@ -168,6 +176,7 @@ pc:
   conditions: list[Condition] — id-based dedup, FIFO cap 5; TTL via turns_remaining (default 10 when None)
     - id: str, label: str, description: str, added_turn: int, turns_remaining: int | None
   momentum: int                # [-3, +3], engine-computed from roll bands
+  actions: [str]               # rolling window of last 10 Storyteller actions, persisted by apply_delta
 
 location: {id, name, description}: str
 

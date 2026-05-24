@@ -298,6 +298,7 @@ class StateDelta(BaseModel):
     recent_events_add: list[RecentEvent] = Field(default_factory=list)
     recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
     recent_events_remove: list[str] = Field(default_factory=list)
+    actions: list[str] = Field(default_factory=list, max_length=10)
     arc_update: CampaignArc | None = None
 
     @field_validator("pc_condition_add", mode="before")

@@ -787,6 +787,7 @@ async def _run_extraction_pipeline(
         recent_events_add=storytell_result.recent_events_add,
         recent_events_update=storytell_result.recent_events_update,
         recent_events_remove=storytell_result.recent_events_remove,
+        actions=storytell_result.actions or [],
     )
 
     # NOTE: gm_beat is intentionally absent from StateDelta — it is written
