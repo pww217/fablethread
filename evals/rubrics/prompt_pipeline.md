@@ -6,7 +6,7 @@
 #   narrate: int 1-5
 #   extract_scene: int 1-5
 #   extract_state: int 1-5
-#   extract_progress: int 1-5
+#   storytell: int 1-5
 ---
 
 # ccya Eval — Prompt Architecture & Pipeline Judge
@@ -15,7 +15,7 @@ You are auditing the prompt architecture and pipeline output quality of the ccya
 You receive:
 - All 5 system prompts (static, appears once in Static Context)
 - Per-turn user prompts for all 5 pipelines (deduped: immutable sections omitted after turn 1)
-- Per-turn extractor JSON outputs (rules, scene, state, progress)
+- Per-turn extractor JSON outputs (rules, scene, state, storytell)
 - Prompt Redundancy signals (cross-stream block duplication detected by harness)
 - Per-turn token counts
 
@@ -72,7 +72,7 @@ For each pipeline, evaluate criteria below. Score each: `Y` / `N` / `PARTIAL`.
 ### 1D — Extract State Pipeline
 (same format)
 
-### 1E — Extract Progress Pipeline
+### 1E — Storyteller Pipeline
 (same format)
 
 ---
@@ -88,10 +88,10 @@ For each turn, verify each mechanic is emitted by the correct stream.
 | `scene_tags`, `scene_tagline` | scene |
 | `inventory_add`, `inventory_remove`, `inventory_update` | state |
 | `pc_condition_add`, `pc_condition_remove` | state |
-| `thread_advance`, `thread_resolve`, `thread_add` (gated) | progress |
-| `recent_events_add`, `recent_events_update`, `recent_events_remove` | progress |
-| `gm_beat` | progress |
-| `actions`, `outcome_summary` | progress |
+| `thread_advance`, `thread_resolve`, `thread_add` (gated) | storytell |
+| `recent_events_add`, `recent_events_update`, `recent_events_remove` | storytell |
+| `gm_beat` | storytell |
+| `actions`, `outcome_summary` | storytell |
 
 List any misplaced mechanics: turn, field, actual stream, correct stream.
 
@@ -109,7 +109,7 @@ For each pipeline, assess whether its inputs are focused:
 
 **Extract State**: should receive narrative, pc, inventory, rules_outcome, band. Flag if it receives arc thread data, recent_events, or pressure data.
 
-**Extract Progress**: richest extractor — assess whether every input enables a specific output. Flag inputs that appear unused. Should receive: narrative, band, PacingContext (full struct), arc.threads[] (unified), recent_turns.
+**Storyteller**: richest extractor — assess whether every input enables a specific output. Flag inputs that appear unused. Should receive: narrative, band, PacingContext (full struct), arc.threads[] (unified), recent_turns.
 
 Assess: is pacing_context being used by the storyteller? Flag if it appears in the prompt but the extractor's output shows no evidence of using directive/gate for thread/beat decisions.
 
@@ -139,7 +139,7 @@ This value goes in YAML front matter as `prompt_adherence_rate`.
 ## SECTION 6 — Scores
 
 ### Pipeline Scores (1–5 each)
-Rules, Narrate, Extract Scene, Extract State, Extract Progress.
+Rules, Narrate, Extract Scene, Extract State, Storyteller.
 Major adherence failures cap at 2. State cap reason explicitly.
 
 ### Prompt Quality Score (1–5)
