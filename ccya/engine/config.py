@@ -70,6 +70,10 @@ class EngineConfig:
     momentum_ceiling: int = 3
     # Gate for de-escalation flag on successful rolls
     thread_deescalate_on_success: bool = True
+    # Thread completion threshold (progress value that completes a thread)
+    thread_completion_threshold: int = 3
+    # Thread creation cooldown (minimum turns between new thread additions)
+    thread_creation_cooldown: int = 3
     # Threat imperative thresholds (turns since turn_added)
     # Background threat -> narration directive "Threat Pressure" at this age
     threat_pressure_at: int = 3
@@ -139,6 +143,8 @@ def build_engine_config(
         thread_deescalate_on_success=bool(
             game.get("thread_deescalate_on_success", True)
         ),
+        thread_completion_threshold=int(game.get("thread_completion_threshold", 3)),
+        thread_creation_cooldown=int(game.get("thread_creation_cooldown", 3)),
         threat_pressure_at=int(game.get("threat_pressure_at", 3)),
         threat_imperative_at=int(game.get("threat_imperative_at", 5)),
         building_threat_imperative_at=int(game.get("building_threat_imperative_at", 4)),
