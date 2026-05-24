@@ -8,9 +8,12 @@ the scenario file gets type-checking, IDE autocomplete, and refactor support.
 from __future__ import annotations
 
 import importlib.util
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+_log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -69,6 +72,8 @@ def load_scenario(path: str | Path) -> Scenario:
         raise AttributeError(
             f"{p} must define module-level `scenario: Scenario` (got {type(sc).__name__})"
         )
+    total_asserts = sum(len(t.asserts) for t in sc.turns)
+    _log.info("load_scenario id=%s turns=%d asserts=%d seed_overrides=%s", sc.id, len(sc.turns), total_asserts, bool(sc.seed_overrides))
     return sc
 
 
@@ -76,5 +81,8 @@ def discover_scenarios(scenarios_dir: str | Path = "evals/scenarios") -> list[Pa
     """Return all *.py files in scenarios_dir (sorted, ignoring __init__.py)."""
     d = Path(scenarios_dir)
     if not d.is_dir():
+        _log.debug("discover_scenarios dir=%s not found", scenarios_dir)
         return []
-    return sorted(p for p in d.glob("*.py") if p.name != "__init__.py")
+    files = sorted(p for p in d.glob("*.py") if p.name != "__init__.py")
+    _log.debug("discover_scenarios dir=%s count=%d", scenarios_dir, len(files))
+    return files

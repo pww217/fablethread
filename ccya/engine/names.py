@@ -97,12 +97,19 @@ def generate_name_pool(
                 locations.append(_ensure_ascii(faker.city()))
         return locations
 
-    return {
+    result = {
         "pc": _gen_names(pc_count),
         "npc": _gen_names(npc_count),
         "location": _gen_locations(location_count),
         "inventory": _gen_locations(3),
     }
+    for cat, names in result.items():
+        expected = {"pc": pc_count, "npc": npc_count, "location": location_count, "inventory": 3}.get(cat, 0)
+        if len(names) < expected:
+            _log.warning("name pool '%s' generated %d/%d names", cat, len(names), expected)
+        else:
+            _log.debug("name pool '%s' generated %d names", cat, len(names))
+    return result
 
 
 def generate_npc_names(

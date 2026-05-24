@@ -65,6 +65,7 @@ async def lifespan(app):
 
 
 app = FastAPI(title="ccya", lifespan=lifespan)
+logger.debug("App startup: pack=%s mode=%s save_dir=%s", _pack_id, _active_pack.mode, SAVE_DIR)
 
 
 # Server error persistence

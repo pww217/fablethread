@@ -45,6 +45,18 @@ Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, publi
 - Follow existing logging patterns.
 - Existing infra: `logging_setup.py` (JSONL file handler + console handler).
 
+### Log level standards
+
+| Level | When to use | Required extra context |
+|---|---|---|
+| `DEBUG` | Detailed trace: per-step timing, LLM call start/end, token counts, conditional branches, truncation details | Pipeline: `trace_id`, `turn` |
+| `INFO` | Phase boundaries: pipeline start/end per turn, compaction trigger, state save/load, server startup | Pipeline: `trace_id`, `turn`; State: `save_dir`; Server: `save`, `turn` |
+| `WARNING` | Recoverable anomalies: malformed data skipped, non-critical parse failures, deprecated paths, LLM retries | Pipeline: `trace_id`, `turn`, `error_kind`; State: `save_dir`; Server: `save`, `turn`, `error_kind` |
+| `ERROR` | Definitive failures: LLM call hard failure, state load failure, migration failure, critical parse failures | Same as WARNING + `exc_info` |
+| `EXCEPTION` | Use `_log.exception()` in `except` blocks where we cannot recover | Same as WARNING |
+
+- No bare `except: pass` — every exception handler must log at minimum a warning with the exception string.
+
 ---
 
 ## Test & lint workflow

@@ -35,14 +35,17 @@ async def maybe_compact(
         compaction actually produced bullets or sanitization.
     """
     if config.compact_every <= 0:
+        _log.info("compactor: disabled (compact_every=0)")
         return state, False
 
     meta = state.get("meta") if isinstance(state, dict) else {}
     current_turn = int(meta.get("turn", 0)) if isinstance(meta, dict) else 0
     if current_turn == 0:
+        _log.info("compactor: skipping turn 0")
         return state, False
 
     if current_turn % config.compact_every != 0:
+        _log.debug("compactor: not due at turn %d (every %d)", current_turn, config.compact_every)
         return state, False
 
     last_compacted_turn = int(meta.get("last_compacted_turn", 0)) if isinstance(meta, dict) else 0
@@ -128,10 +131,18 @@ async def maybe_compact(
                 "compactor: compacted %d → %d recent_events",
                 recent_events_count,
                 len(sanitization.recent_events_compact),
-                extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "compactor"},
+        extra={"turn": current_turn, "trace_id": ""},
             )
 
     state.setdefault("meta", {})["last_compacted_turn"] = compact_end
+
+    _log.debug(
+        "compactor: post-compaction state recent_events=%d inventory=%d prior_history=%d",
+        len(state.get("scene", {}).get("recent_events") or []),
+        len(state.get("inventory") or []),
+        len(state.get("meta", {}).get("prior_history") or []),
+        extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "compactor"},
+    )
 
     san_payload: dict[str, Any] | None = None
     if sanitization is not None:

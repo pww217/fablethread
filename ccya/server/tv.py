@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import json as _json
+import logging
 from pathlib import Path
 from typing import Any
 
+from ccya.state import load_state
 from .metrics import _fmt_tokens_exact
 from .tv_mirror import _STREAMS, STREAM_BY_KEY, _get_nested
+
+_log = logging.getLogger(__name__)
 
 _STATUS_CSS: dict[str, str] = {
     "ok": "tv-sts-ok",
@@ -61,6 +65,7 @@ def _tv_parse_json_blob(raw: Any) -> dict[str, Any] | None:
         out = _json.loads(s)
         return out if isinstance(out, dict) else None
     except _json.JSONDecodeError:
+        _log.debug("_tv_parse_json_blob first parse failed, trying substring extraction: preview=%r", s[:80])
         i, j = s.find("{"), s.rfind("}")
         if 0 <= i < j:
             try:
@@ -79,7 +84,8 @@ def _extract_stream_output_lines(raw_out: Any, inp_sd) -> list[dict[str, Any]]:
         try:
             parsed = _json.loads(raw_out)
             return _tv_dict_to_lines(parsed) if isinstance(parsed, dict) else [{"k": "_", "v": str(raw_out), "dim": False}]
-        except Exception:
+        except Exception as e:
+            _log.warning("_extract_stream_output_lines JSON parse failed: %s", e)
             return [{"k": "_", "v": str(raw_out), "dim": False}]
     elif isinstance(raw_out, dict):
         return _tv_dict_to_lines(raw_out)
@@ -334,10 +340,11 @@ def _tv_narration_lines(narr: str) -> list[dict[str, Any]]:
     return lines
 
 
-def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
+def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool, dict[str, Any] | None]:
     path = save_dir / "events.jsonl"
     if not path.exists():
-        return [], True
+        _log.debug("_turn_viewer_data path=%s not found", path)
+        return [], True, None
 
     # Read server_errors.jsonl for unified timeline
     server_rows: list[dict[str, Any]] = []
@@ -348,23 +355,22 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
             for line in (ln for ln in raw_errs.splitlines() if ln.strip()):
                 try:
                     ev = _json.loads(line)
-                except _json.JSONDecodeError:
+                except _json.JSONDecodeError as e:
+                    _log.warning("Skipping malformed server_errors.jsonl line: %s", e)
                     continue
                 entry = dict(ev)
                 entry["row_kind"] = "server_error"
                 server_rows.append(entry)
 
     # Existing logic: parse events.jsonl for turn-level events
-    raw = path.read_text().strip()
-    if not raw:
-        return server_rows or [], bool(server_rows)
-
+    raw = path.read_text().strip() or ""
     lines = [ln for ln in raw.splitlines() if ln.strip()]
     rows: list[dict[str, Any]] = []
     for line in lines:
         try:
             ev = _json.loads(line)
-        except _json.JSONDecodeError:
+        except _json.JSONDecodeError as e:
+            _log.warning("Skipping malformed events.jsonl line: %s", e)
             continue
 
         if ev.get("kind") == "compaction":
@@ -392,6 +398,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
             try:
                 return f"{float(ms) / 1000.0:.1f}s"
             except (TypeError, ValueError):
+                _log.debug("_fmt_ms non-numeric value: %r", ms)
                 return "\u2014"
 
         rej: list[Any] = ev.get("rejected") or []
@@ -479,7 +486,8 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 try:
                     parsed = _json.loads(raw_out)
                     out_str = _json.dumps(parsed, indent=2)
-                except Exception:
+                except Exception as e:
+                    _log.warning("Prompts output JSON parse failed for stream: %s", e)
                     out_str = raw_out
             elif isinstance(raw_out, dict):
                 out_str = _json.dumps(raw_out, indent=2)
@@ -563,8 +571,40 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
 
     # Merge server errors into unified timeline sorted by timestamp
     if server_rows:
-        all_rows = rows + server_rows
-        all_rows.sort(key=lambda e: e.get("ts", ""))
-        return all_rows, False
+        rows.extend(server_rows)
+        rows.sort(key=lambda e: e.get("ts", ""))
 
-    return rows, False
+    seed_info = None
+    no_events = bool(server_rows) and len(rows) == 0
+    if len(rows) == 0 and not no_events:
+        _log.debug("_turn_viewer_data no turn events — loading seed info from state")
+        try:
+            st = load_state(save_dir)
+            meta = st.get("meta", {}) or {}
+            seed_type = meta.get("_seed_type")
+            if seed_type in ("static", "dynamic"):
+                seed_info = {
+                    "pack_type": seed_type,
+                    "pack_source": meta.get("_pack_source", ""),
+                    "pc_name": st.get("pc", {}).get("name", ""),
+                    "pc_tagline": st.get("pc", {}).get("tagline", ""),
+                    "pc_stats": st.get("pc", {}).get("stats", {}),
+                    "pc_conditions": list(st.get("pc", {}).get("conditions") or []),
+                    "pc_momentum": st.get("pc", {}).get("momentum", 0),
+                    "location_name": st.get("location", {}).get("name", ""),
+                    "inventory_count": len(st.get("inventory", []) or []),
+                    "inventory": list(st.get("inventory") or []),
+                    "world_state_lines": list(st.get("scene", {}).get("world_state") or []),
+                    "recent_events_lines": [e if isinstance(e, str) else e.get("text", "") for e in st.get("scene", {}).get("recent_events") or []],
+                    "npcs_in_compendium": {k: {"name": v.get("name"), "title": v.get("title")} for k, v in (st.get("compendium", {}).get("npcs") or {}).items()},
+                    "arc_info": st.get("arc") if st.get("arc") else None,
+                }
+                __seed_meta = st.get("__seed_meta__") or {}
+                if seed_type == "dynamic" and __seed_meta:
+                    seed_info["opening_narrative"] = __seed_meta.get("opening_narrative")
+                    seed_info["actions"] = __seed_meta.get("actions")
+        except Exception as exc:
+            _log.warning("Failed to load state for turn_viewer seed display", extra={"error": str(exc)})
+
+    _log.debug("_turn_viewer_data events=%d server_errors=%d", len(rows), len(server_rows))
+    return rows, no_events, seed_info

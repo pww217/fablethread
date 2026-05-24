@@ -38,8 +38,14 @@ from ccya.eval.runner import (
     run_scenario,
 )
 from ccya.eval.scenario import discover_scenarios, load_scenario
+from ccya.logging_setup import setup_logging
 
 _log = logging.getLogger(__name__)
+
+try:
+    setup_logging()
+except Exception:
+    pass
 
 
 def _filter_judges(eval_cfg: EvalConfig, judge_ids: list[str]) -> EvalConfig:
@@ -170,10 +176,6 @@ async def _cmd_run(args: argparse.Namespace) -> int:
     log_level = eval_cfg.logging.level
     if log_level != "WARNING":
         _log.setLevel(getattr(logging, log_level, logging.WARNING))
-        if not _log.handlers:
-            handler = logging.StreamHandler()
-            handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
-            _log.addHandler(handler)
     if args.temp is not None:
         eval_cfg = replace(eval_cfg, inference=InferenceConfig(
             temperature_override=float(args.temp),
@@ -208,10 +210,6 @@ async def _cmd_judge_only(args: argparse.Namespace) -> int:
     log_level = eval_cfg.logging.level
     if log_level != "WARNING":
         _log.setLevel(getattr(logging, log_level, logging.WARNING))
-        if not _log.handlers:
-            handler = logging.StreamHandler()
-            handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
-            _log.addHandler(handler)
     run_dir = Path(args.run_dir).resolve()
     if not run_dir.is_dir():
         print(f"[eval] not a directory: {run_dir}", file=sys.stderr)

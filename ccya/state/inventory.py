@@ -92,11 +92,11 @@ def _fuzzy_match_inventory(name: str, inventory: list[dict[str, Any]]) -> str | 
             continue
         overlap = len(name_tokens & candidate_tokens)
         if name_tokens.issubset(candidate_tokens):
-            # Full containment: incoming is a subset of existing (e.g. "dagger" in "worn dagger")
             score = overlap / len(name_tokens)
         else:
             score = overlap / max(len(name_tokens), len(candidate_tokens))
         if score > best_score:
             best_score = score
             best_id = item["id"]
+    _log.debug("_fuzzy_match_inventory name=%s best=%s score=%.2f", name, best_id, best_score)
     return best_id if best_score >= 0.6 else None

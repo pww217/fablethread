@@ -973,7 +973,10 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         try:
             _scope_scene_threads.append(ArcThread.model_validate(td))
         except Exception:
-            pass  # skip malformed entries
+            _log.warning(
+                "Malformed ArcThread entry: %s", td,
+                extra={"turn": turn_no, "trace_id": ctx.trace_id},
+            )
 
     # Compute unified pacing context (replaces separate directive computation)
     _pc = _compute_pacing_context(
@@ -1387,7 +1390,7 @@ async def run_turn(
         narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
 
         # Extract narrator arc_update block if present
-        narrative, narrator_arc_dict = _extract_narrator_arc_update(narrative)
+        narrative, narrator_arc_dict = _extract_narrator_arc_update(narrative, trace_id=trace_id, turn=turn_no)
         if narrator_arc_dict:
             _ALLOWED_NARRATOR_ARC_KEYS = {
                 "visible_goal", "thematic_question", "pc_drive",
@@ -1611,12 +1614,9 @@ _ARC_UPDATE_RE = re.compile(
 )
 
 
-def _extract_narrator_arc_update(raw: str) -> tuple[str, dict[str, Any] | None]:
-    """Strip arc_update block from narrator output.
-
-    Returns (clean_text, arc_dict|None). If no block found, returns (raw, None).
-    If block found but JSON is malformed, returns (clean_text, None).
-    """
+def _extract_narrator_arc_update(
+    raw: str, trace_id: str, turn: int,
+) -> tuple[str, dict[str, Any] | None]:
     match = _ARC_UPDATE_RE.search(raw)
     if not match:
         return raw, None
@@ -1624,6 +1624,10 @@ def _extract_narrator_arc_update(raw: str) -> tuple[str, dict[str, Any] | None]:
     try:
         arc_dict = json.loads(match.group(1))
     except Exception:
+        _log.warning(
+            "Failed to parse arc_update: %s", match.group(1)[:100],
+            extra={"trace_id": trace_id, "turn": turn},
+        )
         arc_dict = None
     return clean, arc_dict
 
@@ -1717,4 +1721,4 @@ async def warmup(config: EngineConfig) -> None:
             timeout=30.0,
         )
     except Exception:
-        pass
+        _log.warning("Warmup LLM call failed — continuing without warmup cache")

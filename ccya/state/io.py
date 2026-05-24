@@ -6,7 +6,7 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 from enum import Enum
@@ -99,10 +99,18 @@ def _default_state() -> dict[str, Any]:
 def load_state(save_dir: Path) -> dict[str, Any]:
     path = save_dir / "state.yaml"
     if not path.exists():
+        _log.debug("load_state path=%s not found — returning default state", path)
         return _default_state()
     with open(path) as f:
         content = f.read()
-    raw = yaml.safe_load(content) or _default_state()
+    try:
+        raw: dict[str, Any] = cast(dict[str, Any], yaml.safe_load(content))
+    except yaml.YAMLError as e:
+        _log.warning("load_state path=%s malformed YAML — returning default state: %s", path, e)
+        return _default_state()
+    if not raw:
+        _log.debug("load_state path=%s empty — returning default state", path)
+        return _default_state()
     loaded_version = raw.get("schema_version", 0)
     if loaded_version == 0:
         raw = _migrate_v0_to_v1(content, raw)

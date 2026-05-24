@@ -51,6 +51,7 @@ async def _call_ruling(
     messages: list[dict[str, Any]],
     config: EngineConfig,
     trace_id: str,
+    turn: int = 0,
 ) -> tuple[IntentEnvelope, dict[str, int], str, str]:
     _no_intent = IntentEnvelope(
         intent="",
@@ -59,6 +60,13 @@ async def _call_ruling(
     )
     _no_usage: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     parse_error = ""
+
+    _log.info(
+        "ruling call start turn=%d messages=%d max_retries=%d",
+        turn, len(messages), config.max_ruling_retries,
+        extra={"trace_id": trace_id, "turn": turn},
+    )
+
     for attempt in range(1 + config.max_ruling_retries):
         try:
             if config.log_llm_io:
@@ -103,7 +111,7 @@ async def _call_ruling(
                 attempt + 1,
                 1 + config.max_ruling_retries,
                 parse_error,
-                extra={"trace_id": trace_id},
+                extra={"trace_id": trace_id, "turn": turn},
             )
             if attempt < config.max_ruling_retries:
                 fb = (
@@ -112,9 +120,9 @@ async def _call_ruling(
                 )
                 messages.append({"role": "user", "content": fb})
 
-    _log.warning(
+    _log.error(
         "ruling call failed after all attempts — defaulting to no-roll",
-        extra={"trace_id": trace_id},
+        extra={"trace_id": trace_id, "turn": turn},
     )
     return _no_intent, _no_usage, "", parse_error
 

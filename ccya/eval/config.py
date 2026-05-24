@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+_log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -130,6 +133,7 @@ def load_eval_config(path: str | Path | None = None) -> EvalConfig:
         raise FileNotFoundError(f"eval config not found: {p}")
     with open(p) as f:
         raw: dict[str, Any] = yaml.safe_load(f) or {}
+    _log.debug("load_eval_config path=%s num_turns=%d judges=%d", p, raw.get("num_turns"), len(raw.get("judges", {}).get("specs") or []))
 
     inf_raw = raw.get("inference") or {}
     rpt_raw = raw.get("report") or {}

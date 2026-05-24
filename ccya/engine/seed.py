@@ -221,6 +221,13 @@ async def generate_seed(
     env = _build_jinja_env(template_dir)
     trace_id = uuid.uuid4().hex[:8]
 
+    _log.debug(
+        "generate_seed start pack=%s timeout=%s overrides=%s",
+        pack.manifest.id, config.request_timeout_s,
+        overrides.model_dump() if overrides else "none",
+        extra={"trace_id": trace_id},
+    )
+
     messages = _build_generate_seed_messages(env, pack, overrides)
     messages, _, _ = trim_messages(messages, config.prompt_token_budget)
     if config.log_prompts:
@@ -346,6 +353,12 @@ async def generate_seed(
                 "generate_seed soft-check: %s", w, extra={"trace_id": trace_id}
             )
 
+        opening_len = len(envelope.opening_narrative) if envelope.opening_narrative else 0
+        _log.info(
+            "generate_seed complete opening_len=%d pack=%s",
+            opening_len, pack.manifest.id,
+            extra={"trace_id": trace_id},
+        )
         return envelope
 
     raise RuntimeError(

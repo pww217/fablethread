@@ -89,7 +89,9 @@ def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> tuple[StateDelt
     conflict = add_ids & remove_ids
     if conflict:
         delta.inventory_add = [i for i in delta.inventory_add if i.id not in conflict]
-        warnings.append(f"inventory conflict (add+remove same turn): {sorted(conflict)}")
+        msg = f"inventory conflict (add+remove same turn): {sorted(conflict)}"
+        warnings.append(msg)
+        _log.warning("reconcile_delta %s", msg)
 
     existing_conds = {
         c.get("id") for c in (state.get("pc") or {}).get("conditions") or []
@@ -99,7 +101,9 @@ def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> tuple[StateDelt
     dupes = [c for c in delta.pc_condition_add if c.id in existing_conds and c.id not in remove_ids]
     if dupes:
         delta.pc_condition_add = [c for c in delta.pc_condition_add if c.id not in existing_conds and c.id not in remove_ids]
-        warnings.append(f"duplicate condition add ignored: {[c.id for c in dupes]}")
+        msg = f"duplicate condition add ignored: {[c.id for c in dupes]}"
+        warnings.append(msg)
+        _log.warning("reconcile_delta %s", msg)
 
     seen_adds: set[str] = set()
     deduped_adds = []
@@ -108,7 +112,9 @@ def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> tuple[StateDelt
             deduped_adds.append(c)
             seen_adds.add(c.id)
         else:
-            warnings.append(f"duplicate condition add within delta: {c.id}")
+            msg = f"duplicate condition add within delta: {c.id}"
+            warnings.append(msg)
+            _log.warning("reconcile_delta %s", msg)
     delta.pc_condition_add = deduped_adds
 
     return delta, warnings
