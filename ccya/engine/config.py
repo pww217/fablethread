@@ -39,6 +39,20 @@ def is_turn_in_progress(save_dir: str) -> bool:
 
 @dataclass
 class EngineConfig:
+    # DURABILITY PATTERNS — how each field is consumed at runtime:
+    #
+    #   re-read per turn:  Fields consumed fresh from config on every turn
+    #                      (e.g., compact_every, window_turns, thread_*).
+    #                      Safe to reload config while server is running.
+    #   module constant:   Fields defined as module-level variables imported
+    #                      at startup (e.g., _ACTIVE_THREAD_CAP in turn.py).
+    #                      Require server restart to change.
+    #   startup only:      Fields read once at EngineConfig construction and
+    #                      never re-read (e.g., model, host, temperatures).
+    #                      Require server restart to change.
+    #   runtime mutable:   Fields that can be changed mid-session via UI
+    #                      config panels (future use). Currently none.
+    #
     host: str = "http://localhost:8080/v1"
     model: str = "mlx-community/Qwen3.6-27B-4bit"
     # Local prompt-token budget for trim_messages (NOT sent to the LLM API —
@@ -117,6 +131,12 @@ def build_engine_config(
     if temperature_override is not None:
         t = float(temperature_override)
         narrate_t = extract_t = ruling_t = seed_t = t
+        _log.debug("build_engine_config temperature_override=%.2f applied", t)
+
+    if not llm.get("host"):
+        _log.warning("build_engine_config: llm.host not configured, using default")
+    if not llm.get("model"):
+        _log.warning("build_engine_config: llm.model not configured, using default")
 
     return EngineConfig(
         host=str(llm.get("host", "http://localhost:8080/v1")),

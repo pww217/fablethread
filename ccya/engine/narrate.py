@@ -46,6 +46,16 @@ def _narrate_messages(
     building_threat_imperative_at: int = 4,
     npc_roster: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
+    npc_roster_input = npc_roster or build_npc_roster(
+        present_npcs=present_npcs,
+        known_npcs=known_npcs,
+        recently_left=recently_left,
+    )
+    _log.debug(
+        "narrate entry turn=%d npc_roster_len=%d present_npcs=%d known_npcs=%d",
+        turn_no, len(npc_roster_input), len(present_npcs), len(known_npcs),
+    )
+
     # Build arc context for narrator (needed by both system and user prompts)
     arc = state.get("arc") or {}
     if arc:
@@ -72,6 +82,16 @@ def _narrate_messages(
     else:
         current_arc_ctx = None
 
+    # Template variable contract for narrate_user.j2:
+    #   REQUIRED (all branches): state, scene, pc, chronicle_tail, prior_history,
+    #     recent_turns, user_input, meta, present_npcs, known_npcs, npc_roster
+    #   OPTIONAL (rendered conditionally): rules_outcome, pacing_context, pending_beat,
+    #     npc_name_pool, recently_left, compendium_bios, ages, world_factions,
+    #     world_locations, threat_ages, current_arc
+    #   Jinja guards ({% if ... %}) handle None/falsy for optional vars;
+    #     required vars use safe fallbacks (.get or | default) in template.
+    #   New vars added here MUST have a corresponding Jinja guard in both
+    #     narrate_user.j2 and any included sections that reference them.
     user_ctx = {
         "state": state,
         "pc": state.get("pc") or {},
@@ -98,11 +118,7 @@ def _narrate_messages(
         "threat_pressure_at": threat_pressure_at,
         "threat_imperative_at": threat_imperative_at,
         "building_threat_imperative_at": building_threat_imperative_at,
-        "npc_roster": npc_roster or build_npc_roster(
-            present_npcs=present_npcs,
-            known_npcs=known_npcs,
-            recently_left=recently_left,
-        ),
+        "npc_roster": npc_roster_input,
         "current_arc": current_arc_ctx,
     }
 
@@ -117,6 +133,10 @@ def _narrate_messages(
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
     ]
+    if not msgs or not any(m.get("content") for m in msgs):
+        _log.warning("narrate messages list is empty or has no content turn=%d", turn_no)
+    else:
+        _log.debug("narrate complete turn=%d messages=%d", turn_no, len(msgs))
     return msgs
 
 
