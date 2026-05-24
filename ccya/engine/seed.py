@@ -44,9 +44,19 @@ def _sanitize_envelope(envelope: SeedEnvelope) -> SeedEnvelope:
         npc["title"] = _strip_non_ascii(npc.get("title", ""))
         npc["bio"] = _strip_non_ascii(npc.get("bio", ""))
         npc["notes"] = _strip_non_ascii(npc.get("notes", ""))
+        name_parts = npc["name"].split()
+        if len(name_parts) == 1 and name_parts[0]:
+            surname_hash = sha256(f"{npc['name']}-{npc.get('id', '')}".encode()).hexdigest()[:4]
+            surnames_pool = ["Smith", "Jones", "Black", "Stone", "Fox", "Wolf", "Hawk", "Knight"]
+            npc["name"] = f'{name_parts[0]} {surnames_pool[int(surname_hash, 16) % len(surnames_pool)]}'
     for npc_id, npc_data in envelope.seed_state.compendium.npcs.items():
         if npc_data.name is not None:
             npc_data.name = _strip_non_ascii(npc_data.name)
+            name_parts = npc_data.name.split()
+            if len(name_parts) == 1 and name_parts[0]:
+                surname_hash = sha256(f"{npc_data.name}-{npc_id}".encode()).hexdigest()[:4]
+                surnames_pool = ["Smith", "Jones", "Black", "Stone", "Fox", "Wolf", "Hawk", "Knight"]
+                npc_data.name = f'{name_parts[0]} {surnames_pool[int(surname_hash, 16) % len(surnames_pool)]}'
         npc_data.title = _strip_non_ascii(npc_data.title or "")
         npc_data.bio = _strip_non_ascii(npc_data.bio or "")
     envelope.opening_narrative = _strip_non_ascii(envelope.opening_narrative)
@@ -274,7 +284,7 @@ async def generate_seed(
                 extra={"trace_id": trace_id},
             )
             if attempt < config.generate_seed_max_retries:
-                fb = f"Your output failed to parse: {parse_error}. Re-emit a valid SeedEnvelope JSON only."
+                fb = f"Your output failed to parse: {parse_error}. Common issues: actions must be exactly 4 items; opening_narrative must be at least 50 characters; present_npcs must include id, name, title for each NPC. Re-emit a valid SeedEnvelope JSON only."
                 messages.append({"role": "user", "content": fb})
             continue
 
@@ -299,6 +309,7 @@ async def generate_seed(
             if attempt < config.generate_seed_max_retries:
                 fb = (
                     f"SeedEnvelope validation failed: {parse_error[:300]}. "
+                    "Check field types, required fields, and array length constraints. "
                     "Re-emit corrected JSON matching the schema."
                 )
                 messages.append({"role": "user", "content": fb})
