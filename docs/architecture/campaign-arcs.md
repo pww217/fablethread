@@ -130,9 +130,9 @@ The arc state is passed to the narrator via `current_arc` in both system and use
 
 ### Early-turn narrative mode
 
-When `goal_context` is present on the arc, the narrator treats it as narrative guidance for early turns: ground the player in personal stakes before broad exposition. The `goal_context` shapes what detail feels loaded, which NPC moment carries emotional charge, and what pressure matters immediately — without restating or summarizing it explicitly. This signal is provided via a conditional block in `narrate_system.j2`.
+When `goal_context` is present on the arc, the narrator treats it as narrative guidance for early turns: ground the player in personal stakes before broad exposition. The `goal_context` shapes what detail feels loaded, which NPC moment carries emotional charge, and what pressure matters immediately — without restating or summarizing it explicitly. This signal is provided via `_arc.j2` in the narrate user prompt.
 
-The `goal_context` is also injected into the user prompt via the `_arc.j2` subtemplate as hidden narrator context (HTML-comment wrapped), consumed by the LLM for narrative emphasis but not displayed to the player.
+The `goal_context` appears alongside other arc context values in the user prompt for this turn.
 
 ### Narrator prompt context
 
@@ -160,7 +160,7 @@ flowchart LR
 
     subgraph USER_PROMPT["narrate_user.j2 via _arc.j2"]
         U1["visible_goal"]
-        U2["goal_context (HTML-comment wrapped)"]
+        U2["goal_context"]
         U3["thematic_question"]
         U4["pc_drive"]
         U5["active threads filtered by active flag"]
