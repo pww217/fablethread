@@ -1318,11 +1318,14 @@ async def run_turn(
                             update={"arc_update": resolved_arc}
                         )
 
-                # Handle thread_add as new arc thread (only when gate == "allow")
+                # Enforce PacingContext gate on thread_add
                 if storyteller_result.thread_add:
                     _new_thread = storyteller_result.thread_add
                     _scope = getattr(_new_thread, "scope", "arc")
-                    if _scope == "scene":
+                    if _pc is None or _pc.gate != "allow":
+                        _log.debug("thread_add blocked by pacing gate %s at T%d", getattr(_pc, 'gate', 'unknown'), state.get('meta', {}).get('turn', 0))
+                        pass  # skip thread creation — same pattern as scene-scope check below
+                    elif _scope == "scene":
                         # Scene-scoped threads are handled by age rules in Python, not here
                         pass
                     else:
