@@ -792,6 +792,7 @@ async def _run_extraction_pipeline(
     # directly to state["meta"]["pending_gm_beat"] in turn.py Step 2.5.
     # Do NOT add gm_beat to the merge block.
 
+    # mypy cannot express heterogeneous 7-tuple yield from async generator
     yield (  # type: ignore[misc]
         merged,
         storytell_result.actions,

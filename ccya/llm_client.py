@@ -145,13 +145,14 @@ async def chat(
     messages: list[dict[str, str]],
     *,
     temperature: float | None = None,
+    max_tokens: int | None = None,
     timeout: float = 180.0,
 ) -> dict[str, Any]:
     if _MOCK_MODE:
         return _mock_extract_chat(messages)
 
     est_tokens = sum(int(len(m.get("content", "")) / 3.5) for m in messages)
-    _log.info("chat: model=%s messages=%d est_tokens=%d", model, len(messages), est_tokens)
+    _log.info("chat: model=%s messages=%d est_tokens=%d max_tokens=%s", model, len(messages), est_tokens, max_tokens)
     t0 = time.monotonic()
     try:
         client = _get_client(host)
@@ -162,6 +163,8 @@ async def chat(
         }
         if temperature is not None:
             kwargs["temperature"] = temperature
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
         resp = await client.chat.completions.create(**kwargs)
         elapsed = time.monotonic() - t0
         content = resp.choices[0].message.content or ""

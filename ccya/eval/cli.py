@@ -25,6 +25,7 @@ import logging
 import sys
 from dataclasses import asdict, replace
 from pathlib import Path
+from typing import cast
 
 from ccya.eval.config import EvalConfig, InferenceConfig, load_eval_config
 from ccya.eval.judge import JudgeResult, merge_judge_scores, run_judges
@@ -331,8 +332,8 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     if getattr(args, "_is_async", False):
-        return asyncio.run(args.func(args))  # type: ignore[no-any-return]
-    return args.func(args)  # type: ignore[no-any-return]
+        return cast(int, asyncio.run(args.func(args)))
+    return cast(int, args.func(args))
 
 
 if __name__ == "__main__":
