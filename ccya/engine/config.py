@@ -54,7 +54,7 @@ class EngineConfig:
     recent_events_max: int = 20
     # generate_seed settings (used by POST /new-game on dynamic packs)
     generate_seed_temperature: float = 0.9
-    generate_seed_max_retries: int = 1
+    generate_seed_max_retries: int = 2
     log_llm_io: bool = False
     log_llm_io_max_chars: int = 4000
     ruling_temperature: float = 0.2
@@ -132,7 +132,7 @@ def build_engine_config(
         ),
         recent_events_max=int(game.get("recent_events_max", 20)),
         generate_seed_temperature=seed_t,
-        generate_seed_max_retries=int(llm.get("generate_seed_max_retries", 1)),
+        generate_seed_max_retries=int(llm.get("generate_seed_max_retries", 2)),
         log_llm_io=bool(logging_cfg.get("log_llm_io", False)),
         log_llm_io_max_chars=int(logging_cfg.get("log_llm_io_max_chars", 4000)),
         log_prompts=bool(logging_cfg.get("log_prompts", False)),
