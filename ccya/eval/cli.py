@@ -28,7 +28,7 @@ from pathlib import Path
 
 from ccya.eval.config import EvalConfig, InferenceConfig, load_eval_config
 from ccya.eval.judge import JudgeResult, merge_judge_scores, run_judges
-from ccya.eval.report import write_report_skeleton, finalize_report
+from ccya.eval.report import write_full_report
 from ccya.eval.runner import (
     REPO_ROOT,
     RunResult,
@@ -116,9 +116,6 @@ async def _run_one_scenario(
     _log.debug("runner done: turns=%d errors=%d output_dir=%s", len(rr.turns), rr.total_errors, rr.output_dir)
     print(f"[eval] runner done: {len(rr.turns)} turns (of {num_turns}), {rr.total_errors} errors → {rr.output_dir}", file=sys.stderr)
 
-    report_path = write_report_skeleton(rr, eval_cfg=eval_cfg)
-    print(f"[eval] skeleton written: {report_path}", file=sys.stderr)
-
     judge_results: list[JudgeResult] = []
     if not args.no_judge and eval_cfg.judges.enabled:
         prev_json = find_previous_run(
@@ -158,8 +155,11 @@ async def _run_one_scenario(
         (artifacts_dir / f"{scenario.id}.run.json").write_text(
             json.dumps(asdict(rr), indent=2, default=str)
         )
-        finalize_report(report_path, rr, eval_cfg=eval_cfg, judge_result=judge_results)
-        print(f"[eval] report finalized: {report_path}", file=sys.stderr)
+
+    report_path = write_full_report(
+        rr, eval_cfg=eval_cfg, judge_results=judge_results if not args.no_judge else None,
+    )
+    print(f"[eval] report written: {report_path}", file=sys.stderr)
 
     return report_path
 
@@ -244,8 +244,9 @@ async def _cmd_judge_only(args: argparse.Namespace) -> int:
 
     merged = merge_judge_scores(judge_results)
     mech = merged.get("mechanical_score", "?")
-    report_path = write_report_skeleton(rr, eval_cfg=eval_cfg, runs_dir=runs_dir)
-    finalize_report(report_path, rr, eval_cfg=eval_cfg, judge_result=judge_results, runs_dir=runs_dir)
+    report_path = write_full_report(
+        rr, eval_cfg=eval_cfg, judge_results=judge_results, runs_dir=runs_dir,
+    )
     print(f"[eval] re-judged: mechanical_score={mech}", file=sys.stderr)
     print(str(report_path))
     return 0

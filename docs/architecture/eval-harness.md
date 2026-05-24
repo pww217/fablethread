@@ -179,10 +179,9 @@ Domain judges run sequentially (not parallel — likely to change). Meta judge a
 
 ## Phase 03 — Report (`report.py`)
 
-The report is written in two phases:
+The report is written in a single pass after judges complete:
 
-1. **`write_report_skeleton()`**: writes `REPORT.md` with metadata header, streaming placeholder, flags, auto-checker table, pacing metrics, and turn metrics. The streaming placeholder contains sentinel comments for live append.
-2. **`finalize_report()`**: replaces the streaming block with judge summary + full verdicts. Recomputes flags with judge score data (for `judge_score_drop` detection).
+1. **`write_full_report(run_result, eval_cfg, judge_results=None)`**: writes `REPORT.md` with metadata header, optional judge summary + verdicts (when `judge_results` provided), flags, auto-checker table, pacing metrics, and turn metrics. Uses atomic write (`tmp.replace()`). If no judges are provided, skips all judge-related sections but still renders the full report for `--no-judge` runs.
 
 ### Report Structure
 

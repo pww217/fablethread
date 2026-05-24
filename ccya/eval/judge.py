@@ -1024,7 +1024,6 @@ async def _run_single_judge(
     arch_context: str,
     output_dir: Path,
     scenario_id: str,
-    on_chunk: Callable[[str, str], None],
     previous_scores: dict[str, Any] | None,
 ) -> "JudgeResult":
     """Run one judge spec against a pre-built trace string."""
@@ -1060,7 +1059,6 @@ async def _run_single_judge(
             max_tokens=spec.max_tokens,  # type: ignore[call-arg]
         ):
             chunks.append(chunk)
-            on_chunk(spec.id, chunk)
     except TypeError:
         _log.warning("judge[%s]: chat_stream() doesn't accept max_tokens (incompatible LLM backend); falling back without it", spec.id)
         async for chunk in chat_stream(
@@ -1071,7 +1069,6 @@ async def _run_single_judge(
             timeout=spec.timeout_s or 180.0,
         ):
             chunks.append(chunk)
-            on_chunk(spec.id, chunk)
     elapsed = time.monotonic() - t0
     _log.info("judge[%s]: complete in %.1fs", spec.id, elapsed)
 
@@ -1200,9 +1197,6 @@ async def run_judges(
         if not spec.model:
             spec.model = engine_model
 
-    def _noop_chunk(judge_id: str, chunk: str) -> None:
-        pass
-
     # Run domain judges sequentially
     domain_results: list["JudgeResult"] = []
     for spec in domain_specs:
@@ -1234,7 +1228,6 @@ async def run_judges(
             arch_context=arch_context,
             output_dir=output_dir,
             scenario_id=scenario_id,
-            on_chunk=_noop_chunk,
             previous_scores=prev_scores_by_id.get(spec.id),
         )
         domain_results.append(result)
@@ -1274,7 +1267,6 @@ async def run_judges(
                 arch_context="",
                 output_dir=output_dir,
                 scenario_id=scenario_id,
-                on_chunk=_noop_chunk,
                 previous_scores=prev_scores_by_id.get("meta"),
             )
             if on_judge_complete:
