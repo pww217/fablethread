@@ -8,7 +8,7 @@ import json
 import logging
 import re
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncIterator, Literal
@@ -96,8 +96,8 @@ class TurnContext:
     _avoidance: bool = False
     _momentum_before: float | None = None
     _momentum_after: float | None = None
-    _ages: dict[str, int] = {}  # set by ruling phase before narrate setup reads it
-    _threat_ages: list[dict[str, Any]] = []  # set by ruling phase before narrate setup reads it
+    _ages: dict[str, int] = field(default_factory=dict)  # set by ruling phase before narrate setup reads it
+    _threat_ages: list[dict[str, Any]] = field(default_factory=list)  # set by ruling phase before narrate setup reads it
     _compendium_bios: list[dict[str, Any]] | None = None
     _npc_name_pool: dict[str, list[str]] | None = None
     _pending_gm_beat: dict[str, Any] | None = None
@@ -720,15 +720,15 @@ def _compute_recent_window(
     return desired_recent, last_compacted_turn
 
 
-async def _ruling_phase(ctx: TurnContext, _emit: Any) -> tuple[Any, Any, dict[str, Any], float]:
-    """Execute ruling phase. Emits SSE events via `_emit` callback. Returns (intent, outcome, metrics, deescalate)."""
+async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], float, list[tuple[str, Any]]]:
+    """Execute ruling phase. Returns (intent, outcome, metrics, deescalate, phase_events)."""
     config = ctx.config
     state = ctx.state
     trace_id = ctx.trace_id
     turn_no = state.get("meta", {}).get("turn", 0) + 1
 
     exp_ruling_ms = _avg_event_ms(ctx.save_dir, "ruling.total_ms")
-    await _emit(("phase", {"phase": "ruling_start", "expected_ms": exp_ruling_ms}))
+    phase_events: list[tuple[str, Any]] = [("phase", {"phase": "ruling_start", "expected_ms": exp_ruling_ms})]
     t_rules = asyncio.get_event_loop().time()
 
     # Avoidance detection
@@ -840,8 +840,8 @@ async def _ruling_phase(ctx: TurnContext, _emit: Any) -> tuple[Any, Any, dict[st
         "tokens_out": ruling_usage.get("completion_tokens", 0),
     }
 
-    await _emit(("phase", {
-            "phase": "rules_done",
+    phase_events.append(("phase", {
+            "phase": "ruling_done",
             "rolled": outcome.rolled,
             "band": outcome.band if outcome.rolled else None,
             "skill": outcome.skill if outcome.rolled else None,
@@ -857,7 +857,7 @@ async def _ruling_phase(ctx: TurnContext, _emit: Any) -> tuple[Any, Any, dict[st
         },
     ))
 
-    return intent, outcome, ruling_metrics, deescalate
+    return intent, outcome, ruling_metrics, deescalate, phase_events
 
 
 async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
@@ -1032,11 +1032,10 @@ async def run_turn(
             }, _env=env,
         )
 
-        # Internal yield helper: inner function that yields from run_turn's generator context
-        async def _emit(event_tuple: tuple[str, Any]) -> None:  # type: ignore[misc]
-            yield event_tuple
         # === Call 0: Rules / intent classification (extracted phase) ===
-        _intent, _outcome, ruling_metrics, deescalate = await _ruling_phase(ctx, _emit)
+        _intent, _outcome, ruling_metrics, deescalate, ruling_phase_events = await _ruling_phase(ctx)
+        for evt in ruling_phase_events:
+            yield evt
         ctx._deescalate = deescalate
 
         # Capture ruling context for event logging (from ctx where ruling phase stored them)
@@ -1515,8 +1514,10 @@ async def run_turn(
         errors.append({"kind": exc.kind, "message": str(exc)})
         raise
     except Exception as exc:
+        import traceback
+        tb = traceback.format_exc()
         _log.error(
-            "run_turn failed: %s", type(exc).__name__, extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id},
+            "run_turn failed: %s: %s\n%s", type(exc).__name__, exc, tb, extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id},
         )
         errors.append({"kind": ErrorKind.TURN_PROCESSING_FAILED, "message": str(exc)})
         fallback = narrative_chunks and "".join(narrative_chunks) or ""

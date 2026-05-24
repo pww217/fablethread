@@ -151,23 +151,6 @@ def _context_meta(rendered_system: str, rendered_user: str, was_trimmed: bool, t
     }
 
 
-_TAG_RE = re.compile(r"^[a-z][a-z0-9-]*:[a-z0-9-]+$")
-
-
-def _validate_scene_tags(tags: list[str]) -> list[str]:
-    """Validate scene_tags format and return warnings for non-conforming tags.
-
-    Expected format: ``tag:value`` where tag is lowercase alphanumeric+hyphens.
-    Non-conforming tags log a warning and are returned in the warning list.
-    """
-    warnings: list[str] = []
-    for tag in tags:
-        if not tag or not isinstance(tag, str):
-            warnings.append(f"Invalid scene tag type or empty: {tag!r}")
-        elif not _TAG_RE.match(tag):
-            warnings.append(f"Scene tag does not match format 'tag:value': {tag!r}")
-    return warnings
-
 
 def _capitalize_inventory_names(items: list[Any]) -> None:
     """Capitalize the first letter of inventory item names in-place.
@@ -557,11 +540,6 @@ async def _run_extraction_pipeline(
             scene_msgs, config, trace_id, "extract_scene", SceneExtractResult
         )
         scene_result = _check_npc_ghost_cycle(scene_result, state, trace_id=trace_id, turn_no=turn_no)
-        for tag_warn in _validate_scene_tags(list(scene_result.scene_tags or [])):
-            _log.warning(
-                "Scene tag validation: %s", tag_warn,
-                extra={"trace_id": trace_id, "turn": turn_no},
-            )
         extraction_event["scene"] = {
             "rendered_system": rendered_scene_system,
             "rendered_user": rendered_scene_user,
@@ -671,6 +649,34 @@ async def _run_extraction_pipeline(
                     ]
                 }
             )
+
+        # Generate fallback actions when LLM omits them (prompt requires exactly 4)
+        if not storytell_result.actions:
+            narr_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration.strip()) if len(s.strip().split()) > 5]
+            scene_tags_str = ", ".join(scene_result.scene_tags or [])
+            present_npc_names = [n.get("name", "") for n in extraction_ctx.present_npcs_this_turn if isinstance(n, dict)]
+            actions = []
+            # Action from narration summary
+            if narr_sentences:
+                actions.append(f"Continue {narr_sentences[0].lower().strip()[:80]}")
+            else:
+                actions.append("Take a careful look around the area.")
+            # NPC interaction action
+            if present_npc_names:
+                npc = present_npc_names[0]
+                actions.append(f"Speak with {npc} about what just happened.")
+            else:
+                actions.append("Survey your surroundings for useful information.")
+            # Stat-based action (generic)
+            stats = state.get("pc", {}).get("stats") or {}
+            if stats:
+                highest_stat = max(stats, key=stats.get)
+                actions.append(f"Use your {highest_stat} to assess the situation further.")
+            else:
+                actions.append("Plan your next move carefully before acting.")
+            # Exploration action
+            actions.append("Search for any hidden threats or opportunities nearby.")
+            storytell_result = storytell_result.model_copy(update={"actions": actions})
         extraction_event["storytell"] = {
             "rendered_system": rendered_storytell_system,
             "rendered_user": rendered_storytell_user,

@@ -123,8 +123,28 @@ def save_state(save_dir: Path, state: dict[str, Any]) -> None:
     os.replace(str(tmp_path), str(real_path))
 
 
+def _convert_seed_recent_events(seed: dict[str, Any]) -> None:
+    """Convert string-format recent_events to proper dicts with id field."""
+    scene = seed.get("scene", {}) or {}
+    events = scene.get("recent_events") or []
+    if not events:
+        return
+    converted = []
+    for i, evt in enumerate(events):
+        if isinstance(evt, str):
+            import uuid as _uuid
+            converted.append({"id": f"seed_evt_{_uuid.uuid4().hex[:8]}", "text": evt})
+        elif isinstance(evt, dict) and "id" not in evt:
+            import uuid as _uuid
+            converted.append({**evt, "id": f"seed_evt_{_uuid.uuid4().hex[:8]}"})
+        else:
+            converted.append(evt)
+    scene["recent_events"] = converted
+
+
 def init_save_dir(save_dir: Path, seed: dict[str, Any]) -> None:
     save_dir.mkdir(parents=True, exist_ok=True)
+    _convert_seed_recent_events(seed)
     save_state(save_dir, seed)
     (save_dir / "chronicle.md").write_text("")
     (save_dir / "events.jsonl").write_text("")
