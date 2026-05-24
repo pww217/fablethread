@@ -7,7 +7,7 @@ constraints:
   inventory_size_range: [4, 8]
   pc_stat_range: [1, 4]
   pc_stat_total_range: [12, 18]
-  prose_word_range: [275, 550]
+  prose_word_range: [400, 700]
   # composition
   required_inventory_kinds: [weapon, tool]
   npc_distinct_first_letters: true

@@ -76,8 +76,10 @@ class SeedState(BaseModel):
 class SeedEnvelope(BaseModel):
     """Output schema for the generate_seed LLM call.
 
-    The LLM must NOT populate compendium.npcs or meta.compendium_touch_order —
-    those are engine-managed and start empty on every new game.
+    The LLM may populate compendium.npcs at seed time with 2-3 additional
+    NPCs (name, title, bio). These are known-to-but-not-present in the
+    opening scene. Do NOT set meta.compendium_touch_order — engine manages
+    that field at runtime.
     """
 
     seed_state: SeedState

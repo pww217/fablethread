@@ -58,6 +58,12 @@ Factions (use these for NPC role assignment):
 {% for fact in scenario.world_facts %}- {{ fact }}
 {% endfor %}{% endif %}
 {% endif %}
+{% if scenario and scenario.factions %}
+## compendium_generation (for the 2-3 NPCs not in the opening scene)
+Use the same faction context and world facts above to create NPCs that feel organic to this world. Compendium NPCs should fill roles that the world needs: faction members, civilians, power figures, or people caught between the forces described in world_state/recent_events. Their bios should establish what they want and why they matter — not as explicit agendas, but as subtext a player would infer from knowing them.
+
+At least one compendium NPC should have a loose connection to a faction or world_state pressure — not as a plot hook, but as a person whose life is visibly shaped by that force.
+{% endif %}
 {% if npc_count_override and npc_count_override > 0 %}
 ## npc_count
 The player requested {{ npc_count_override }} NPCs for the opening scene. Generate exactly that many present_npcs entries.
