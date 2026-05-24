@@ -158,6 +158,7 @@ _PROMOTION_COOLDOWN_TURNS = 3
 def _apply_thread_signals(
     state: dict[str, Any],
     storyteller_result: Any,
+    config: "EngineConfig",
 ) -> CampaignArc | None:
     """Process thread_advance signals for unified threads[].
 
@@ -167,7 +168,7 @@ def _apply_thread_signals(
 
     Any arc thread NOT in advanced_ids is implicitly ignored.
     After 5 consecutive turns without being listed -> demote to latent (frees slot).
-    Threads with progress >= 3 -> complete.
+    Threads reach config.thread_completion_threshold -> complete.
     Promote latent threads if slots available and 3-turn cooldown met.
 
     Unknown advanced_ids that match a latent thread promote it immediately
@@ -217,7 +218,7 @@ def _apply_thread_signals(
             })
 
             # Check completion threshold
-            if new_progress >= 3:
+            if new_progress >= config.thread_completion_threshold:
                 newly_completed.append(updated_t)
                 mutated = True
                 _log.info(
@@ -1297,7 +1298,7 @@ async def run_turn(
 
             # Arc director: process thread signals and update arc state
             if state.get("arc") and storyteller_result:
-                arc_delta = _apply_thread_signals(state, storyteller_result)
+                arc_delta = _apply_thread_signals(state, storyteller_result, config)
                 if arc_delta is not None:
                     _merge_arc_update(
                         state.setdefault("arc", {}), arc_delta
@@ -1322,8 +1323,15 @@ async def run_turn(
                 if storyteller_result.thread_add:
                     _new_thread = storyteller_result.thread_add
                     _scope = getattr(_new_thread, "scope", "arc")
-                    if _pc is None or _pc.gate != "allow":
-                        _log.debug("thread_add blocked by pacing gate %s at T%d", getattr(_pc, 'gate', 'unknown'), state.get('meta', {}).get('turn', 0))
+                    last_creation_turn = state.get("meta", {}).get("last_thread_creation_turn")
+                    turn_no_for_cooldown = state.get("meta", {}).get("turn", 0) + 1
+                    gate_ok = _pc is None or _pc.gate == "allow"
+                    cooldown_satisfied = last_creation_turn is None or (turn_no_for_cooldown - last_creation_turn >= config.thread_creation_cooldown)
+                    if not gate_ok:
+                        _log.debug("thread_add blocked by pacing gate %s at T%d", getattr(_pc, 'gate', 'unknown'), turn_no_for_cooldown)
+                        pass  # skip thread creation — same pattern as scene-scope check below
+                    elif not cooldown_satisfied:
+                        _log.debug("thread_add blocked by cooldown (last=%d, current=%d, threshold=%d)", last_creation_turn, turn_no_for_cooldown, config.thread_creation_cooldown)
                         pass  # skip thread creation — same pattern as scene-scope check below
                     elif _scope == "scene":
                         # Scene-scoped threads are handled by age rules in Python, not here
@@ -1346,6 +1354,7 @@ async def run_turn(
                                         update={"threads": list(_existing_arc.threads) + [_updated_t]}
                                     )
                                     _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
+                                    state.setdefault("meta", {})["last_thread_creation_turn"] = turn_no_for_add
                                     delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
                             except Exception as exc:
                                 _log.warning(
