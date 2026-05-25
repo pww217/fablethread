@@ -575,8 +575,8 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool, dict[
         rows.sort(key=lambda e: e.get("ts", ""))
 
     seed_info = None
-    no_events = bool(server_rows) and len(rows) == 0
-    if len(rows) == 0 and not no_events:
+    no_events = False
+    if len(rows) == 0:
         _log.debug("_turn_viewer_data no turn events — loading seed info from state")
         try:
             st = load_state(save_dir)

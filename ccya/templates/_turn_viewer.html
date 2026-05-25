@@ -354,7 +354,8 @@
             {% if seed_info.arc_info %}
             <details open>
                 <summary class="tv-seed-section-header">Arc</summary>
-                <div>{{ seed_info.arc_info }}</div>
+                <div><strong>Goal:</strong> {{ seed_info.arc_info.visible_goal }}</div>
+                {% if seed_info.arc_info.goal_context %}<div><strong>Context:</strong> {{ seed_info.arc_info.goal_context }}</div>{% endif %}
             </details>
             {% endif %}
 
