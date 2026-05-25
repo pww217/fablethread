@@ -135,7 +135,7 @@ class TurnContext:
 @dataclass
 class PacingContext:
     """Consolidated pacing decision for Narrate and Progress steps."""
-    directive: str  # "Breathe" | "Pressure" | "Overwhelm" | "Tension" | "Resolve a Threat" | "Threat Pressure" | "" (may include "; Combat Fatigue" secondary)
+    directive: str  # "Breathe" | "Scene Imperative" | "Overwhelm" | "Resolve a Threat" | "Pressure" | "Tension" | "Scene Pressure" | "Threat Pressure" | "" (may include "; Resolve a Threat" secondary when beat_locked)
     beat_locked: bool  # True: floor relief fired — Progress MUST emit breathing_room beat and gate is force-closed
     gate: Literal["block_escalate", "allow"]  # Progress may only add threads when allow
     summary: str  # human-readable log string, never sent to LLM
@@ -523,18 +523,23 @@ def _compute_narration_directive(
     when velocity is negative).
 
     Priority order (highest to lowest):
-      1. Breathe       -- explicit de-escalation (velocity < -0.3)
-      2. Overwhelm     -- 3+ urgent threads
-      3. Resolve a Threat -- aged-out threat pressure
-      4. Pressure      -- 1-2 urgent threads
-      5. Tension       -- background urgency threads only
-      6. Threat Pressure -- normal urgency aging toward imperative
-      Secondary (non-contradicting append):
-      7. Combat Fatigue -- combat_age >= 3
+      1. Breathe         -- explicit de-escalation (velocity < -0.3)
+      2. Scene Imperative -- scene has been stale too long (effective_age >= 5)
+      3. Overwhelm       -- 3+ urgent threads
+      4. Resolve a Threat -- aged-out threat pressure
+      5. Pressure        -- 1-2 urgent threads
+      6. Tension         -- background urgency threads only
+      7. Scene Pressure  -- scene approaching staleness (effective_age >= 3)
+      8. Threat Pressure -- normal urgency aging toward imperative
     """
     # Priority 1: breathe (de-escalation wins unconditionally)
     if narrative_velocity < -0.3:
         return "Breathe"
+
+    # Priority 2: scene imperative — stale scene demands attention
+    effective_age = ages.get("effective_scene_age", 0)
+    if effective_age >= 5:
+        return "Scene Imperative"
 
     secondary: list[str] = []
 
@@ -582,9 +587,9 @@ def _compute_narration_directive(
         if background_pressure:
             primary = "Threat Pressure"
 
-    # Secondary: combat fatigue (non-contradicting append)
-    if ages.get("combat_age", 0) >= 3:
-        secondary.append("Combat Fatigue")
+    # Secondary: scene pressure approaching staleness (non-contradicting append)
+    if 3 <= effective_age < 5:
+        secondary.append("Scene Pressure")
 
     parts = [primary] if primary else []
     parts.extend(secondary)
@@ -599,6 +604,7 @@ def _compute_pacing_context(
     threat_ages: list[dict[str, Any]] | None,
     momentum: int,
     config: "EngineConfig",
+    consecutive_pressure_turns: int = 0,
 ) -> PacingContext:
     """Compute unified pacing context for Narrate and Progress steps.
 
@@ -618,13 +624,12 @@ def _compute_pacing_context(
         building_threat_imperative_at=config.building_threat_imperative_at,
     )
 
-    # Determine beat_locked: floor relief fired when momentum is at minimum
+    # Determine beat_locked: relief fired when either consecutive pressure threshold reached or momentum at minimum
     beat_locked = False
-    if momentum <= config.momentum_floor:
+    if consecutive_pressure_turns >= config.consecutive_pressure_threshold or momentum <= config.momentum_floor:
         beat_locked = True
         directive_parts = [directive] if directive else []
-        if "Combat Fatigue" not in (directive or ""):
-            directive_parts.append("Resolve a Threat")
+        directive_parts.append("Resolve a Threat")
         directive = "; ".join(directive_parts) or ""
 
     # Determine gate: block_add when deescalation is strong (pressure just resolved)
@@ -655,20 +660,8 @@ def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
     scene_entered = scene.get("turn_entered", 0)
     scene_age = current_turn - scene_entered if scene_entered > 0 else 0
 
-    loc_entered = scene.get("location_entered_turn", 0)
-    location_age = current_turn - loc_entered if loc_entered > 0 else 0
-
-    tags = scene.get("tags") or []
-    combat_entered = scene.get("combat_started_turn", 0)
-    # combat_started_turn is set during apply_delta (post-narrate), so this
-    # reads the pre-delta value. combat_age will be 0 on the turn combat
-    # starts; COMBAT FATIGUE fires one turn late (acceptable — minor).
-    combat_age = current_turn - combat_entered if ("combat" in tags and combat_entered > 0) else 0
-
     return {
         "scene_age": scene_age,
-        "location_age": location_age,
-        "combat_age": combat_age,
     }
 
 
@@ -825,6 +818,13 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
     ctx._ages = _compute_ages(state)
     ctx._threat_ages = _compute_threat_ages(state)
 
+    # Pre-compute effective scene age with combat boost for directive thresholds.
+    _scene_age = ctx._ages.get("scene_age", 0)
+    _tags: list[str] = (state.get("scene") or {}).get("tags") or []
+    if "combat" in _tags:
+        _scene_age += 2
+    ctx._ages["effective_scene_age"] = _scene_age
+
     if config.log_prompts:
         _log_ruling_outcome(
             state.get("meta", {}).get("turn", 0) + 1, intent, outcome
@@ -941,6 +941,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         deescalate=ctx._deescalate, narrative_velocity=narrative_velocity,
         scope_scene_threads=_scope_scene_threads, ages=ctx._ages,
         threat_ages=ctx._threat_ages, momentum=(state.get("pc") or {}).get("momentum", 0), config=config,
+        consecutive_pressure_turns=(state.get("meta") or {}).get("consecutive_pressure_turns", 0),
     )
 
     narr_messages = _narrate_messages(
@@ -1102,9 +1103,6 @@ async def run_turn(
 
         yield ("phase", {"phase": "narrate_done"})
 
-        # Clear pending_gm_beat after narration consumed it — not restored since Storytell no longer receives beat context
-        state.setdefault("meta", {})["pending_gm_beat"] = None
-
         # === Extraction pipeline (3 streams) ===
         exp_ms = _avg_event_ms(save_dir, "extract.total_ms")
         yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
@@ -1152,9 +1150,6 @@ async def run_turn(
                 _beat_dict = _new_beat.model_dump(exclude_none=True)
                 _beat_dict["beat_expires_turn"] = turn_no + 2
                 state.setdefault("meta", {})["pending_gm_beat"] = _beat_dict
-            else:
-                # consume or no new beat — clear
-                state.setdefault("meta", {})["pending_gm_beat"] = None
 
         yield ("phase", {"phase": "extract_done"})
 
@@ -1446,6 +1441,18 @@ async def run_turn(
                     "narrator emitted invalid arc_update JSON — discarded",
                     extra={"turn": turn_no, "trace_id": trace_id},
                 )
+
+        # Two-pass consecutive pressure counter update.
+        if _extract_result is not None and _pc is not None:
+            directive = _pc.directive or ""
+            thread_advance = (_extract_result[4].thread_advance) if len(_extract_result) > 4 else []
+            meta = state.setdefault("meta", {})
+            current_pressure = meta.get("consecutive_pressure_turns", 0)
+            if (directive in ("Pressure", "Overwhelm")) and not thread_advance:
+                meta["consecutive_pressure_turns"] = current_pressure + 1
+            else:
+                meta["consecutive_pressure_turns"] = 0
+
         diff_lines = _summarize_applied(applied)
         changes = summarize_changes(state_pre_apply, state, applied, rejected)
 
