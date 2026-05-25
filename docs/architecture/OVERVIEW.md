@@ -94,8 +94,8 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 
 ```
 PacingContext:
-  directive: str           # "" | "Breathe" | "Pressure" | "Overwhelm" | "Tension" | "Resolve a Threat" | "Threat Pressure" (may include "; Combat Fatigue" secondary)
-  beat_locked: bool        # True: floor relief fired — Progress MUST emit breathing_room beat and gate is force-closed
+  directive: str           # "" | "Breathe" | "Scene Imperative" | "Overwhelm" | "Resolve a Threat" | "Pressure" | "Tension" | "Scene Pressure" | "Threat Pressure" (may include "; Resolve a Threat" secondary when beat_locked)
+  beat_locked: bool        # True: dual-trigger relief fired (consecutive_pressure_turns >= threshold OR momentum <= floor) — Progress MUST emit breathing_room beat and gate is force-closed
   gate: str                # "block_escalate" | "allow" (controls thread_add)
   summary: str             # human-readable log string, never sent to LLM
 ```

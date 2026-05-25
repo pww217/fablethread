@@ -1,9 +1,23 @@
 # GM Signal System Redesign
 
-## Purpose
+## Status: Partially Implemented (Plans 01-03)
 
-This document defines the target state for the pacing, arc thread, and GMB extender systems in `ccya`.
-It is the design authority for all plans implementing changes described here.
+This document describes the target state for pacing, arc thread, and GM beat systems. The "Current State" section below accurately reflects issues that existed before Plans 01-03; most have been resolved by completed plans as noted in the implementation status table.
+
+### Implementation Status
+
+| Issue (from Current State) | Resolution Plan(s) |
+|---|---|
+| Three redundant age trackers (`location_age`, `combat_age`) + dead `_inject_location_pressure()` | #01 removed dead code; #03 collapsed to single `scene_age` with `effective_scene_age` combat boost |
+| Location Pressure/Imperative directives defined but never emitted (dead tokens) | #01 removed from narrate_system.j2 |
+| Combat Fatigue directive as secondary append | #03 replaced with Scene Pressure (≥3 effective age, secondary append); Combat Fatigue removed entirely |
+| Beat carryover destroyed by unconditional clear after narration | #03 fixed: both unconditional clears removed; beat lifecycle handled only by write/expiry |
+| No `consecutive_pressure_turns` counter for detecting stuck players | #03 added two-pass counter at turn end, dual-trigger beat_locked condition |
+| Arc thread creation has no deduplication by concept | #02 added optional `key` field to ArcThread with ≥70% token-overlap auto-merge gate |
+| Narrator ARC_UPDATE schema doesn't expose `thematic_question` | #02 updated narrate_system.j2 JSON example to include `thematic_question` |
+| `recently_left` NPC tracking (dead feature) | #01 removed from npcs.py, turn.py, npc_roster.py, extraction.py, narrate.py, models.py |
+
+Remaining issues not yet addressed: Primary Thread designation ("most important active thread"), rolling band history in state meta. See below for full Current State details.
 
 ---
 
