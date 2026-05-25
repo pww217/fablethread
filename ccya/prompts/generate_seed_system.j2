@@ -176,9 +176,9 @@ Movement guidance:
 
 ## present_npcs
 {% if npc_count_override and npc_count_override > 0 %}
-Exactly {{ npc_count_override }} NPCs that appear in the opening scene — {id: snake_case, name, title, notes, bio, relation}. These are the characters the player meets immediately.
+Exactly {{ npc_count_override }} NPCs that appear in the opening scene — {id: snake_case, name, title, notes: current attitude/situation, bio: durable identity, relation}. These are the characters the player meets immediately.
 {% else %}
-Exactly 2 NPCs that appear in the opening scene — {id: snake_case, name, title, notes, bio, relation}. These are the characters the player meets immediately.
+Exactly 2 NPCs that appear in the opening scene — {id: snake_case, name, title, notes: current attitude/situation, bio: durable identity, relation}. These are the characters the player meets immediately.
 {% endif %}
 
 Of the 2 in-scene NPCs, at least 1 must have a specific personal connection to the PC: a debt owed, a shared history (served together, grew up together, survived something together), an emotional bond (family, old friend, former lover), or a key story intersection (they are the reason the PC is here, they hold something the PC needs). Their `relation` field must specify this tie — not a generic role description. Their `bio` should reference the PC by name where the shared history demands it.
