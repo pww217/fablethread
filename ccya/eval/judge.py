@@ -733,6 +733,7 @@ def _render_deterministic_signals(
 
 def _build_metrics_rows(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
+    prev_pending_beat = None  # track previous event's pending_gm_beat for beat lifecycle detection
     for ev in events:
         if ev.get("__metadata__"):
             continue
@@ -748,6 +749,17 @@ def _build_metrics_rows(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             sub = ext.get(s) or {}
             retries += max(0, int(sub.get("attempts") or 1) - 1)
             parse_errors.extend(sub.get("retry_errors") or [])
+
+        # Pacing directive from pacing_context (canonical source written by turn.py line ~1501)
+        pacing_ctx = ev.get("pacing_context") or {}
+        pacing_directive = pacing_ctx.get("directive", "") or ""
+
+        # Beat lifecycle detection: beat_generated when pacing_context.beat_locked=True and no prior pending_gm_beat existed.
+        # beat_consumed when previous event had pending_gm_beat but current state_snapshot does not.
+        cur_pending_beat = (ev.get("state_snapshot") or {}).get("meta", {}).get("pending_gm_beat")
+        beat_generated = bool(pacing_ctx.get("beat_locked")) and prev_pending_beat is None
+        beat_consumed = prev_pending_beat is not None and cur_pending_beat is None
+
         rows.append({
             "turn": ev.get("turn", "?"),
             "ruling_tok_in": int(ruling_meta.get("est_tokens", 0) or 0),
@@ -759,7 +771,12 @@ def _build_metrics_rows(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "retries": retries,
             "parse_error_details": parse_errors,
             "momentum_after": (ev.get("state_snapshot") or {}).get("meta", {}).get("momentum", "—"),
+            "pacing_directive": pacing_directive if pacing_directive else "",
+            "beat_generated": beat_generated,
+            "beat_consumed": beat_consumed,
         })
+
+        prev_pending_beat = cur_pending_beat
     return rows
 
 

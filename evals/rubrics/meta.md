@@ -49,7 +49,7 @@ For each pair of judges that touch overlapping concerns:
 - **state_correctness vs prompt_pipeline**: state_correctness says extraction is failing but prompt_pipeline rates the extraction prompts highly — contradiction? Why?
 - **narrative_interplay vs prompt_pipeline**: narrative says directives are ignored but prompt_pipeline says narrate prompt adherence is good — check if PacingContext struct is being passed correctly. Is the issue with data flow or narrator behavior?
 - **state_correctness vs narrative_interplay (unified threads)**: state_correctness says unified thread lifecycle is clean (no flags) but narrative_interplay says threads produce no story consequence — contradiction? Check if arc.threads[] scope-aware rules are being evaluated correctly.
-- **narrative_interplay vs state_correctness (PacingContext)**: state_correctness says PacingContext inputs are correct but narrative_interplay says tone doesn't match directive — check if the 5 PacingContext.directive values (`"" | "Breathe" | "Pressure" | "MoveOn" | "Escalate"`) are being evaluated correctly.
+- **narrative_interplay vs state_correctness (PacingContext)**: state_correctness says PacingContext inputs are correct but narrative_interplay says tone doesn't match directive — check if the 9 PacingContext.directive values (`""` | `"Breathe"` | `"Scene Imperative"` | `"Overwhelm"` | `"Resolve a Threat"` | `"Pressure"` | `"Tension"` | `"Threat Pressure"` | `"Scene Pressure"`) are being evaluated correctly.
 
 If no contradiction: write `None.`
 

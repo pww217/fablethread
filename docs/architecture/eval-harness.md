@@ -113,7 +113,7 @@ Two layers:
 - `extract`: `attempts:<stream>`, `skipped:<stream>`
 - `state_yaml`: `pending_gm_beat.present`, `pending_gm_beat.absent`
 
-**2. Universal asserts** (`universal_asserts.py`): 15 deterministic checkers run on every event. Severity: `red` (must fix) or `yellow` (advisory). Cover: turn stamping, GM beat lifecycle, location changes, pacing directive rendering ("directive:" prefix + known value match against Breathe/Scene Imperative/Overwhelm/Pressure/Tension/Threat Pressure/Resolve a Threat/Scene Pressure), NPC extraction, ring buffer bounds, scene NPC cap, condition dedup, action count/distinctness, momentum deltas, inventory overdraw, floor relief.
+**2. Universal asserts** (`universal_asserts.py`): 20 deterministic checkers run on every event. Severity: `red` (must fix) or `yellow` (advisory). Cover: turn stamping, GM beat lifecycle, location changes, pacing directive rendering ("directive:" prefix + known value match against Breathe/Scene Imperative/Overwhelm/Pressure/Tension/Threat Pressure/Resolve a Threat/Scene Pressure), NPC extraction, ring buffer bounds, scene NPC cap, condition dedup, action count/distinctness, momentum deltas, inventory overdraw, floor relief, ArcThread key deduplication, consecutive pressure tracking, beat-locked dual trigger validation, removed directive/state detection.
 
 ## Phase 02 — Judge (`judge.py`)
 

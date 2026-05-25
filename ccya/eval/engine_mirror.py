@@ -79,14 +79,15 @@ def constants_block() -> str:
         "## Engine Constants (live — do not override with rubric prose)\n\n"
         f"- Thread lifecycle: scene-scoped threads expire on location change; arc-scoped threads demote active→False after {THREAD_ARC_DEMOTE_AGE} turns idle; cap={_ACTIVE_THREAD_CAP} active, silent expiry={_EXPIRE_SILENT_TURNS} turns, promotion cooldown={_PROMOTION_COOLDOWN_TURNS} turns\n"
         f"- Urgency levels (ordered): {' → '.join(URGENCY_LEVELS)}\n"
-        f"- Momentum range: [{MOMENTUM_MIN}, {MOMENTUM_MAX}]\n"
-        f"- Momentum delta per band: {MOMENTUM_DELTA}\n"
+        f"- Momentum range: [{MOMENTUM_MIN}, {MOMENTUM_MAX}], delta per band: {dict(MOMENTUM_DELTA)}, floor={_defaults.momentum_floor}\n"
         f"- Bands (ordered worst→best): {', '.join(BANDS)}\n"
         f"- Skills: {', '.join(SKILLS)}\n"
         f"- Difficulties (ordered): {', '.join(DIFFICULTIES)}\n"
         f"- Intent verb hints: {', '.join(INTENT_VERBS_HINT)}\n"
         f"- PC condition cap: {PC_CONDITION_CAP}\n"
-        f"- Scene named NPC cap: {SCENE_NAMED_NPC_CAP}\n\n"
+        f"- Scene named NPC cap: {SCENE_NAMED_NPC_CAP}\n"
+        f"- Consecutive pressure threshold (relief trigger): {_defaults.consecutive_pressure_threshold} turns\n"
+        f"- Combat scene effective age boost: +2 to scene_age for directive thresholds when 'combat' in scene tags\n\n"
     )
 
 

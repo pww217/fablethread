@@ -250,7 +250,7 @@ wanders), or broken (beat ignored).
 
 ### 4B — Momentum→PacingContext→Tone Chain
 For each roll turn: `roll band → PacingContext.directive issued → narration tone observed`.
-- Did directive language directly shape narrator prose register? (directive values: `""`, `"Breathe"`, `"Pressure"`, `"MoveOn"`, `"Escalate"`)
+- Did directive language directly shape narrator prose register? (directive values: `""`, `"Breathe"`, `"Scene Imperative"`, `"Overwhelm"`, `"Resolve a Threat"`, `"Pressure"`, `"Tension"`, `"Threat Pressure"`, `"Scene Pressure"`)
 - At momentum extremes (±2+), did narration feel correspondingly elevated or desperate?
 - Flag any turn where the chain broke — directive issued but tone ignored.
 
