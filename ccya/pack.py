@@ -46,6 +46,7 @@ class CompendiumEntry(BaseModel):
     name: str | None = None
     title: str | None = None
     bio: str | None = None
+    bond: str | None = None
 
 
 class SeedCompendium(BaseModel):
@@ -125,11 +126,18 @@ class Inspiration(BaseModel):
 
 
 class PoolEntry(BaseModel):
-    """Base entry for archetype pools (situation, arc, character, moral)."""
+    """Base entry for archetype pools (situation, arc, character, moral, npc_bond)."""
 
     id: str
     tags: list[str] = Field(default_factory=list)
     incompatible_with: list[str] = Field(default_factory=list)
+    description: str = ""
+
+
+class SceneDetailBundle(BaseModel):
+    id: str
+    items: list[str] = Field(min_length=3, max_length=6)
+    min_use: int = Field(default=2, ge=1, le=4)
 
 
 class ScenarioBrief(BaseModel):
@@ -161,6 +169,8 @@ class ScenarioBrief(BaseModel):
     arc_categories: list[PoolEntry] = Field(default_factory=list, max_length=20)
     character_dynamics: list[PoolEntry] = Field(default_factory=list, max_length=12)
     moral_pressures: list[PoolEntry] = Field(default_factory=list, max_length=10)
+    npc_bonds: list[PoolEntry] = Field(default_factory=list, max_length=8)
+    scene_detail_bundles: list[SceneDetailBundle] = Field(default_factory=list, max_length=8)
 
 
 class WorldBrief(BaseModel):

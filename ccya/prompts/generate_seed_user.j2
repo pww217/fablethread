@@ -76,6 +76,12 @@ SITUATION ARCHETYPE: {{ pool_selection.situation.id }} (tags: {{ pool_selection.
 ARC CATEGORY: {{ pool_selection.arc.id }} (tags: {{ pool_selection.arc.tags | join(", ") }})
 CHARACTER DYNAMIC: {{ pool_selection.character_dynamic.id }} (tags: {{ pool_selection.character_dynamic.tags | join(", ") }})
 MORAL PRESSURE: {{ pool_selection.moral_pressure.id }} (tags: {{ pool_selection.moral_pressure.tags | join(", ") }})
+{% if pool_selection and pool_selection.npc_bond %}
+NPC BOND: {{ pool_selection.npc_bond.id }} — {{ pool_selection.npc_bond.description }}
+{% endif %}
+{% if pool_selection and pool_selection.scene_bundle %}
+SCENE OBJECTS: bundle "{{ pool_selection.scene_bundle.id }}" — includes objects like: {{ pool_selection.scene_bundle.items[:3] | join(", ") }}{% if pool_selection.scene_bundle.items | length > 3 %}, ...{% endif %}
+{% endif %}
 
 These four elements shape your generation. The situation archetype defines the opening moment's pressure type; arc category shapes longer-term narrative direction with escalation potential; character dynamic places the PC within power structures and relationships; moral pressure creates immediate ethical tension that DIRECTLY GENERATES thematic_question (write as a one-sentence question capturing core moral dilemma).
 

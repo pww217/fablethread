@@ -186,5 +186,8 @@ def _known_characters_for_extract(
                 val = e.get(field)
                 if val:
                     r[field] = val
+            bond = e.get("bond")
+            if bond:
+                r["bond"] = bond
             rows.append(r)
     return rows

@@ -183,3 +183,43 @@ moral_pressures:
   - id: trust_dynamics
     tags: [trust, dynamics, relationship_risk]
     incompatible_with: []
+
+npc_bonds:
+  - id: settlement_founder
+    tags: [community, founding, shared_labor]
+    description: The NPC helped build the settlement the PC lives in. They dug the first well, stood the first wall, buried the first dead together.
+  - id: scavenging_partner
+    tags: [scavenging, survival, daily_risk]
+    description: The NPC has run dozens of scavenging runs with the PC. They know each other's signals, limits, and what the other will carry out.
+  - id: saved_from_infected
+    tags: [rescue, life_debt, crisis]
+    description: The NPC pulled the PC out of a horde encounter. The debt is not discussed but it is understood by both.
+  - id: before_world_neighbor
+    tags: [before, shared_history, loss]
+    description: The NPC lived three doors down from the PC before the collapse. They remember each other's before-names and before-lives.
+  - id: lost_child_found
+    tags: [family, protection, found_family]
+    description: The NPC is a child the PC found and has been protecting. The bond is parental, even if neither uses the word.
+  - id: ration_debt
+    tags: [survival, obligation, debt]
+    description: The NPC kept the PC alive through a bad winter by sharing rations. The debt is material and neither has forgotten.
+  - id: faction_double_agent
+    tags: [faction, divided_loyalty, secrets]
+    description: The NPC is part of a faction the PC distrusts, but there is a personal bond between them that crosses the faction line.
+
+scene_detail_bundles:
+  - id: abandoned_hospital
+    items: [a gurney with torn restraints, a pharmacy cabinet with one drawer crowbarred open, a surgical light flickering on battery backup, a stack of patient charts water-damaged into illegibility, a syringe half-filled with something dark, a body bag on the floor that was never zipped]
+    min_use: 3
+  - id: settlement_wall
+    items: [a guard post with a periscope and a cracked optic, a ladder with two missing rungs, a bucket of gravel and a shovel for the gaps, a listening post with a dented parabolic mic, a warning bell with a frayed rope, a cache of molotov cocktails wrapped in newspaper]
+    min_use: 3
+  - id: overgrown_street
+    items: [a burned-out car with saplings growing through the chassis, a grocery store with the windows boarded but the door swinging, a traffic light dangling from one wire, a mattress dragged halfway across the intersection, a crate of bottled water, a child's shoe in the gutter]
+    min_use: 2
+  - id: underground_bunker
+    items: [a military radio tuned to static, a row of metal bunks with thin mattresses, a water filtration pump with a cracked housing, a crate of MREs stacked six high, a logbook on a field desk with entries growing further apart, a loaded pistol left on the table]
+    min_use: 2
+  - id: quarantine_zone
+    items: [a chain-link fence with biohazard tape woven through the links, a decontamination tent with the flap torn, a clipboard hanging from a nail with names crossed out, a bucket of bleach and a stack of rags, a loudspeaker on a pole repeating a recorded warning, a pile of abandoned bedding]
+    min_use: 2

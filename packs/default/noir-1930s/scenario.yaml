@@ -178,3 +178,43 @@ moral_pressures:
   - id: ends_vs_means
     tags: [ends, means, moral_compromise]
     incompatible_with: []
+
+npc_bonds:
+  - id: former_partner
+    tags: [partnership, shared_history, trust]
+    description: The NPC was the PC's detective partner before the split — they know each other's tells, codes, and the case that ended the partnership.
+  - id: childhood_friend
+    tags: [youth, neighborhood, personal_history]
+    description: The NPC grew up with the PC on the same streets. They both got out different ways, but the old connection still carries weight.
+  - id: locked_up_together
+    tags: [prison, shared_confinement, cell_block]
+    description: The NPC and PC shared a cell block or holding cell. What passed between them there binds them still.
+  - id: debt_to_informant
+    tags: [underground, information, leverage]
+    description: The NPC is a former informant who saved the PC's skin on a dockyard case. The PC owes a favor that keeps getting called.
+  - id: old_war_buddy
+    tags: [war, veteran, trench]
+    description: The NPC served in the same unit as the PC overseas. The war is over but the habits — and the trust — stayed.
+  - id: corrupted_witness
+    tags: [testimony, corruption, court_case]
+    description: The NPC was a witness in a case the PC worked. The testimony fell apart, the case collapsed, and the PC still doesn't know whose hand was in it.
+  - id: family_connection
+    tags: [family, obligation, blood_tie]
+    description: The NPC is connected to the PC through family — a cousin, an in-law, a parent's old friend. The tie is personal, not professional.
+
+scene_detail_bundles:
+  - id: back_alley
+    items: [a fire escape ladder bolted to the brickwork, wet cardboard spread over a grate, a milk bottle with a note wedged inside, a payphone with the receiver dangling, a knife scored into the doorframe, a half-collapsed crate stamped PROPERTY OF CITY MORGUE]
+    min_use: 3
+  - id: police_precinct
+    items: [a bulletin board thick with wanted posters, a typewriter with a stuck 'e' key, a filing cabinet with the bottom drawer padlocked, a mug of coffee gone cold with a skin on it, a witness statement with conflicting handwriting, an evidence envelope stamped PENDING]
+    min_use: 2
+  - id: speakeasy
+    items: [a brass rail worn smooth by shoe leather, a phonograph playing something slow, a booth with torn upholstery and a hidden compartment, a glass with lipstick on the rim, a door that doesn't match the wall, a matchbook with a phone number inside]
+    min_use: 2
+  - id: hotel_room
+    items: [a dresser drawer pulled open and emptied, a telephone with the cord cut, a window onto a fire escape that doesn't reach the ground, a hat left on the bedpost, a telegram on the floor in someone else's room, a radiator that knocks in rhythm]
+    min_use: 2
+  - id: dockyard
+    items: [a crane with its load suspended halfway, mooring ropes coiled and half-uncoiled, a Customs manifest with a page torn out, a cargo hatch with a fresh padlock, a barrel of industrial solvent, a guard shack with the light off]
+    min_use: 3
