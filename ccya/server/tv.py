@@ -590,6 +590,10 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool, dict[
                     "pc_tagline": st.get("pc", {}).get("tagline", ""),
                     "pc_stats": st.get("pc", {}).get("stats", {}),
                     "pc_conditions": list(st.get("pc", {}).get("conditions") or []),
+                    "pc_conditions_display": ", ".join(
+                        c.get("label", "") if isinstance(c, dict) else str(c)
+                        for c in (st.get("pc", {}).get("conditions") or [])
+                    ),
                     "pc_momentum": st.get("pc", {}).get("momentum", 0),
                     "location_name": st.get("location", {}).get("name", ""),
                     "inventory_count": len(st.get("inventory", []) or []),

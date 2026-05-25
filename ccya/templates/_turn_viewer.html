@@ -328,7 +328,7 @@
                 <div><strong>{{ seed_info.pc_name }}</strong> — {{ seed_info.pc_tagline }}</div>
                 <div class="tv-seed-stats">{% for s, v in seed_info.pc_stats.items() %}<span class="tv-seed-stat">{{ s }}: {{ v }}</span>{% endfor %}</div>
                 <div class="tv-seed-momentum">Momentum: {{ seed_info.pc_momentum }}</div>
-                {% if seed_info.pc_conditions %}{% set _conds = [c.label if c is mapping else str(c) for c in seed_info.pc_conditions] %}<div class="tv-seed-conditions">Conditions: {{ _conds | join(", ") }}</div>{% endif %}
+                {% if seed_info.pc_conditions %}<div class="tv-seed-conditions">Conditions: {{ seed_info.pc_conditions_display }}</div>{% endif %}
             </details>
 
             <details open>
