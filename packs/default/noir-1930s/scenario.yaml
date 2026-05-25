@@ -178,6 +178,18 @@ moral_pressures:
   - id: ends_vs_means
     tags: [ends, means, moral_compromise]
     incompatible_with: []
+  - id: client_deception
+    tags: [trust, betrayal, professional_code]
+    incompatible_with: []
+  - id: witness_intimidation
+    tags: [fear, justice, helplessness]
+    incompatible_with: []
+  - id: blood_money
+    tags: [compensation, ethics, dirty_money]
+    incompatible_with: []
+  - id: second_chance
+    tags: [redemption, past_mistakes, reform]
+    incompatible_with: []
 
 npc_bonds:
   - id: former_partner
@@ -201,20 +213,37 @@ npc_bonds:
   - id: family_connection
     tags: [family, obligation, blood_tie]
     description: The NPC is connected to the PC through family — a cousin, an in-law, a parent's old friend. The tie is personal, not professional.
+  - id: case_from_before
+    description: The NPC and PC crossed paths on a previous case — one helped, one hindered.
+    tags: [previous_case, shared_history]
+    incompatible_with: []
 
 scene_detail_bundles:
   - id: back_alley
-    items: [a fire escape ladder bolted to the brickwork, wet cardboard spread over a grate, a milk bottle with a note wedged inside, a payphone with the receiver dangling, a knife scored into the doorframe, a half-collapsed crate stamped PROPERTY OF CITY MORGUE]
-    min_use: 3
+    items: [a fire escape ladder bolted to the brickwork, a payphone with the receiver dangling]
+    conditions: [wet from last night's rain, the streetlamp out]
+    sensory: [the hiss of a flickering neon sign, footsteps echoing from the next block]
   - id: police_precinct
-    items: [a bulletin board thick with wanted posters, a typewriter with a stuck 'e' key, a filing cabinet with the bottom drawer padlocked, a mug of coffee gone cold with a skin on it, a witness statement with conflicting handwriting, an evidence envelope stamped PENDING]
-    min_use: 2
+    items: [a typewriter with a stuck 'e' key, a filing cabinet with the bottom drawer padlocked]
+    conditions: [the floor slick from tracked-in rain, smoke hanging under the ceiling lights]
+    sensory: [the clatter of a teletype machine, the smell of stale coffee and cheap tobacco]
   - id: speakeasy
-    items: [a brass rail worn smooth by shoe leather, a phonograph playing something slow, a booth with torn upholstery and a hidden compartment, a glass with lipstick on the rim, a door that doesn't match the wall, a matchbook with a phone number inside]
-    min_use: 2
+    items: [a brass rail worn smooth by shoe leather, a glass with lipstick on the rim]
+    conditions: [the room hazy with cigarette smoke, the music from the phonograph skipping]
+    sensory: [the low laughter from a back room, the clink of glasses behind the bar]
   - id: hotel_room
-    items: [a dresser drawer pulled open and emptied, a telephone with the cord cut, a window onto a fire escape that doesn't reach the ground, a hat left on the bedpost, a telegram on the floor in someone else's room, a radiator that knocks in rhythm]
-    min_use: 2
+    items: [a telephone with the cord cut, a hat left on the bedpost]
+    conditions: [the radiator knocking, the window onto a fire escape that doesn't reach the ground]
+    sensory: [the drip of a leaky faucet, voices from the room next door through thin walls]
   - id: dockyard
-    items: [a crane with its load suspended halfway, mooring ropes coiled and half-uncoiled, a Customs manifest with a page torn out, a cargo hatch with a fresh padlock, a barrel of industrial solvent, a guard shack with the light off]
-    min_use: 3
+    items: [a crane with its load suspended halfway, a Customs manifest with a page torn out]
+    conditions: [thick fog rolling off the water, the pier slick with oil]
+    sensory: [the clang of metal on metal from a warehouse, the deep horn of a departing freighter]
+  - id: rooftop_chase
+    items: [a water tower with a loose ladder, a fire escape that ends six feet short]
+    conditions: [the tar roof blistering in the sun, the gap between buildings wider than it looks]
+    sensory: [the wail of a siren from the street below, the clatter of a loose antenna in the wind]
+  - id: morgue_basement
+    items: [a body drawer half-open with a tag attached, a dictaphone with a half-finished recording]
+    conditions: [the fluorescent light buzzing, the floor drain stained]
+    sensory: [the sharp smell of formaldehyde, the hum of the refrigeration unit]

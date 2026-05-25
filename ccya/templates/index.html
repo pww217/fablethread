@@ -98,6 +98,11 @@
                 {% if opening %}
                 <div class="narrative-block" id="opening-block">
                     <div class="narrative-text" data-raw>{{ opening }}</div>
+                    {% if opening_outcome_summary %}
+                    <div class="roll-badge roll-badge--outcome">
+                        <div class="roll-outcome roll-outcome--large">{{ opening_outcome_summary }}</div>
+                    </div>
+                    {% endif %}
                 </div>
                 {% endif %}
                 {# Player overrides textarea — wired for future use, hidden for now
@@ -138,6 +143,10 @@
                         {% if r.get('outcome_summary') %}
                         <div class="roll-outcome">{{ r.outcome_summary }}</div>
                         {% endif %}
+                    </div>
+                    {% elif ev.ruling and ev.ruling.get('outcome_summary') %}
+                    <div class="roll-badge roll-badge--outcome">
+                        <div class="roll-outcome roll-outcome--large">{{ ev.ruling.outcome_summary }}</div>
                     </div>
                     {% endif %}
                 </div>
@@ -419,7 +428,7 @@ function _stopDisplayDrain() {
 
 function _progressStripHTML() {
     return '<span class="progress-spinner" aria-hidden="true"></span>'
-        + '<span class="progress-label">Composing narrative…</span>'
+        + '<span class="progress-label">Determining outcome…</span>'
         + '<span class="progress-metas">'
         + '<span class="progress-eta"></span>'
         + '<span class="progress-elapsed">0.0s</span>'
@@ -491,7 +500,6 @@ function _setProgressFromPhase(strip, payload) {
             eta.textContent = '~' + (payload.expected_ms / 1000).toFixed(0) + 's avg';
         } else if (eta) { eta.textContent = ''; }
     } else if (p === 'ruling_done') {
-        label.textContent = 'Composing narrative…';
         if (eta) eta.textContent = '';
     } else if (p === 'narrate_start') {
         label.textContent = 'Composing narrative…';
@@ -1265,7 +1273,7 @@ function game() {
             const cursor = document.createElement('span');
             const strip = document.createElement('div');
             strip.className = 'progress-strip';
-            strip.setAttribute('data-phase', 'narrate');
+            strip.setAttribute('data-phase', 'ruling');
             strip.innerHTML = _progressStripHTML();
             _bindProgressTimer(strip);
             block.appendChild(echo);
@@ -1379,6 +1387,15 @@ function game() {
                 if (result.ruling && result.ruling.rolled) {
                     const rollBadge = _buildRollBadge(result.ruling);
                     if (rollBadge) { lastInserted.after(rollBadge); lastInserted = rollBadge; }
+                } else if (result.outcome_summary) {
+                    const badge = document.createElement('div');
+                    badge.className = 'roll-badge roll-badge--outcome';
+                    const outcomeText = document.createElement('div');
+                    outcomeText.className = 'roll-outcome roll-outcome--large';
+                    outcomeText.textContent = result.outcome_summary;
+                    badge.appendChild(outcomeText);
+                    lastInserted.after(badge);
+                    lastInserted = badge;
                 }
                 if (result.recent_events_evicted) {
                     const evictNote = document.createElement('div');

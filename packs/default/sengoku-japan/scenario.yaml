@@ -153,6 +153,18 @@ moral_pressures:
   - id: peace_through_warfare
     tags: [warfare, peace_seeking, strategic_violence]
     incompatible_with: []
+  - id: peasant_uprising
+    tags: [rebellion, class, justice]
+    incompatible_with: []
+  - id: siege_hardship
+    tags: [starvation, endurance, civilian_suffering]
+    incompatible_with: []
+  - id: duel_of_honor
+    tags: [personal_honor, challenge, face]
+    incompatible_with: []
+  - id: ninja_infiltration
+    tags: [espionage, deception, trust_betrayed]
+    incompatible_with: []
 
 npc_bonds:
   - id: sworn_retainer
@@ -176,20 +188,37 @@ npc_bonds:
   - id: clan_oath
     tags: [blood_oath, brotherhood, unbreakable_bond]
     description: The PC and this NPC swore a clan oath together before their lord. The oath binds them beyond personal feeling.
+  - id: rescued_in_battle
+    description: The NPC once pulled the PC from a collapsed siege tower; the debt is unspoken but known.
+    tags: [rescue, debt, shared_combat]
+    incompatible_with: []
 
 scene_detail_bundles:
   - id: castle_bailey
-    items: [a yari spear rack with three spears missing, a wooden gate reinforced with iron bands, a messenger's saddle still on the horse, a brazier with embers dying, a splintered practice target, a scroll half-unrolled on a campaign chest]
-    min_use: 3
+    items: [a yari spear rack with three spears missing, a scroll half-unrolled on a campaign chest]
+    conditions: [the compound muddy from last night's rain, the gate reinforced with iron bands]
+    sensory: [the whicker of horses in the stable, the smell of cooking rice from the guardhouse]
   - id: mountain_pass
-    items: [a stone marker worn past reading, a broken cart axle propped against a boulder, the remains of a campfire still warm, a sandal stuck in the mud, a paper lantern crumpled by rain, a signal arrow lying in the brush]
-    min_use: 2
+    items: [a broken cart axle propped against a boulder, a paper lantern crumpled by rain]
+    conditions: [the path eroded by the last storm, fog pooling in the valley below]
+    sensory: [the whistle of wind through the pass, the distant crash of a rockslide]
   - id: village_gate
-    items: [a wooden gate with fresh arrow impacts, a notice board with a new decree nailed over an old one, a well with its bucket lowered but not raised, rice drying on a woven mat, a farmer's hoe left in the furrow, a dog barking at the treeline]
-    min_use: 3
+    items: [a wooden gate with fresh arrow impacts, a notice board with a new decree nailed over an old one]
+    conditions: [the well bucket lowered but not raised, rice drying on woven mats trampled]
+    sensory: [a dog barking at the treeline, the murmur of hushed voices from inside the gate]
   - id: temple_grounds
-    items: [a bronze bell with a split clapper, incense ash scattered across the steps, a sutra scroll open to a single passage, a lantern with the paper torn, a wooden training blade left on a stump, a coin offering in a cracked bowl]
-    min_use: 2
+    items: [a bronze bell with a split clapper, a wooden training blade left on a stump]
+    conditions: [incense ash scattered across the steps, the garden overgrown and neglected]
+    sensory: [the rustle of wind through bamboo, the faint chime of a wind bell]
   - id: war_camp
-    items: [a command tent with a map weighted by stones, a cooking pot with burned rice sticking to the bottom, a messenger's horse tethered and unsaddled, a pile of ashigaru spears stacked for inspection, a letter half-finished on a drum, a sake bottle drained and passed around]
-    min_use: 3
+    items: [a command tent with a map weighted by stones, a messenger's horse tethered and unsaddled]
+    conditions: [the cooking fire smoking badly, the camp tense after the last skirmish]
+    sensory: [the ring of a smith's hammer on a field anvil, the low murmur of soldiers around a campfire]
+  - id: rice_paddy
+    items: [a wooden hoe left in the furrow, a scarecrow with a broken pole]
+    conditions: [the water murky and still, the dikes in need of repair]
+    sensory: [the croak of frogs, the drone of mosquitoes at dusk]
+  - id: teahouse
+    items: [a ceramic cup with a crack through the glaze, a board with a half-played game of go]
+    conditions: [the tatami worn thin by years of footsteps, the paper screens patched in several places]
+    sensory: [the fragrance of green tea, the murmur of conversation from the next room]

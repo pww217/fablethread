@@ -92,6 +92,7 @@ class SeedEnvelope(BaseModel):
     actions: list[str] = Field(min_length=4, max_length=4)
     arc: CampaignArc | None = None
     pc_drive: str = ""
+    outcome_summary: str = ""
 
 
 class Faction(BaseModel):
@@ -136,8 +137,9 @@ class PoolEntry(BaseModel):
 
 class SceneDetailBundle(BaseModel):
     id: str
-    items: list[str] = Field(min_length=3, max_length=6)
-    min_use: int = Field(default=2, ge=1, le=4)
+    items: list[str] = Field(default_factory=list, max_length=2)
+    conditions: list[str] = Field(default_factory=list, max_length=2)
+    sensory: list[str] = Field(default_factory=list, max_length=2)
 
 
 class ScenarioBrief(BaseModel):

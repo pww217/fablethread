@@ -143,7 +143,7 @@ def _build_generate_seed_messages(
     env: Environment,
     pack: Pack,
     overrides: PlayerOverrides | None = None,
-) -> list[dict[str, str]]:
+) -> tuple[list[dict[str, str]], dict[str, Any] | None]:
     import random
     scenario = pack.scenario
     locales = scenario.name_locales if scenario else pack.manifest.name_locales
@@ -194,7 +194,7 @@ def _build_generate_seed_messages(
     return [
         {"role": "system", "content": system_text},
         {"role": "user", "content": user_text},
-    ]
+    ], pool_selection
 
 
 def _soft_validate_seed(
@@ -227,7 +227,7 @@ async def generate_seed(
     overrides: PlayerOverrides | None = None,
     seed: int | None = None,
     template_dir: str | None = None,
-) -> SeedEnvelope:
+) -> tuple[SeedEnvelope, dict[str, Any] | None]:
     if pack.seed is not None and pack.scenario is None:
         raise ValueError("generate_seed() requires a generated pack (scenario.yaml), got static seed pack")
 
@@ -242,7 +242,7 @@ async def generate_seed(
         extra={"trace_id": trace_id},
     )
 
-    messages = _build_generate_seed_messages(env, pack, overrides)
+    messages, pool_selection = _build_generate_seed_messages(env, pack, overrides)
     messages, _, _ = trim_messages(messages, config.prompt_token_budget)
     if config.log_prompts:
         _log_prompts(0, "generate_seed", messages)
@@ -369,11 +369,11 @@ async def generate_seed(
 
         opening_len = len(envelope.opening_narrative) if envelope.opening_narrative else 0
         _log.info(
-            "generate_seed complete opening_len=%d pack=%s",
-            opening_len, pack.manifest.id,
+            "generate_seed complete opening_len=%d pack=%s pool_selection=%s",
+            opening_len, pack.manifest.id, bool(pool_selection),
             extra={"trace_id": trace_id},
         )
-        return envelope
+        return envelope, pool_selection
 
     raise RuntimeError(
         f"generate_seed failed after {1 + config.generate_seed_max_retries} attempts — trace {trace_id}"

@@ -44,6 +44,7 @@ except Exception as exc:
 
 _dynamic_opening: str = ""
 _dynamic_opening_actions: list[str] = []
+_dynamic_opening_outcome: str = ""
 
 @asynccontextmanager
 async def lifespan(app):
