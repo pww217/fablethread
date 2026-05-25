@@ -85,7 +85,7 @@ def trim_messages(
             head_keep = min(2000, int(budget * 3.5))
             tail_keep = min(500, max(0, int(budget * 3.5) - head_keep))
             if head_keep + tail_keep >= len(content):
-                pass
+                _log.debug("Truncation skipped: content fits within budget (%d <= %d)", total, budget)
             else:
                 msg["content"] = (
                     content[:head_keep]
@@ -188,14 +188,17 @@ async def chat(
         raise LlmcTimeout(f"LLM request timed out after {timeout:.1f}s") from exc
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code == 429:
+            _log.debug("LLM error reclassified: HTTPStatusError(429) -> LlmcRateLimit")
             raise LlmcRateLimit("Rate limited by LLM provider") from exc
         else:
+            _log.debug("LLM error reclassified: HTTPStatusError(%d) -> LlmcApiError", exc.response.status_code)
             raise LlmcApiError(
                 f"LLM API error {exc.response.status_code}: {exc.response.text}",
                 status_code=exc.response.status_code,
             ) from exc
     except httpx.RequestError as exc:
         elapsed = time.monotonic() - t0
+        _log.debug("LLM error reclassified: RequestError -> LlmcTimeout")
         raise LlmcTimeout(f"Network error connecting to LLM: {exc}") from exc
     except Exception as exc:
         elapsed = time.monotonic() - t0

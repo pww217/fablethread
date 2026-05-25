@@ -849,7 +849,7 @@ def _extract_scores_by_regex(fm_text: str) -> dict[str, Any] | None:
             try:
                 out[field] = int(round(float(val_str)))
             except (ValueError, TypeError):
-                pass
+                _log.warning("judge: failed to convert score field '%s': %s", field, val_str)
 
     return out if out else None
 

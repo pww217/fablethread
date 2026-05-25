@@ -12,6 +12,7 @@ The models here are the schema-of-record for:
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,9 @@ import yaml
 from pydantic import BaseModel, Field, model_validator
 
 from ccya.models import CampaignArc, InventoryItem
+
+
+_log = logging.getLogger(__name__)
 
 
 class SeedPC(BaseModel):
@@ -359,8 +363,9 @@ def list_packs(packs_dir: Path) -> list[PackManifest]:
                     with open(manifest_path) as f:
                         data = yaml.safe_load(f) or {}
                     manifests.append(PackManifest(**data))
-                except Exception:
-                    pass
+                except Exception as err:
+                    _log.warning("Skipping invalid pack manifest at %s: %s", manifest_path, err)
+
     return manifests
 
 

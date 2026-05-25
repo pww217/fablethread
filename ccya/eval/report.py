@@ -743,6 +743,9 @@ def write_full_report(
     )
     flags = _collect_flags(cur_metrics, regressions, run_result, judges if judges else None)
 
+    _log.info("report: scenario=%s turns=%d", run_result.scenario_id, len(cur_events))
+    if not judges:
+        _log.debug("report: no judge results to include")
     parts: list[str] = []
     parts.append(f"# Eval Report — `{run_result.scenario_id}`\n")
     parts.append(
@@ -807,7 +810,9 @@ def write_full_report(
 
     tmp = output_dir / "REPORT.md.tmp"
     report_path = output_dir / "REPORT.md"
-    tmp.write_text("\n".join(parts) + "\n")
+    content = "\n".join(parts) + "\n"
+    tmp.write_text(content)
+    _log.info("report: wrote %s (%d bytes)", report_path, len(content))
     tmp.replace(report_path)
     return report_path
 

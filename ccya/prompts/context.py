@@ -9,10 +9,10 @@ This keeps prompt context types separate from LLM output types (models.py).
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
 
 from ccya.models import (
     ArcThread,
@@ -22,8 +22,6 @@ from ccya.models import (
     NpcPresence,
     RulesOutcome,
 )
-
-_log = logging.getLogger(__name__)
 
 
 class PlayerBlock(BaseModel):

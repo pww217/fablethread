@@ -520,8 +520,10 @@ class TurnResult:
 def load_config(path: str | os.PathLike[str] = "config.yaml") -> dict[str, Any]:
     import yaml
 
+    _log.debug("loading model config from %s", path)
     with open(path) as f:
         result = yaml.safe_load(f)
         if isinstance(result, dict):
             return result
         raise ValueError("config.yaml must contain a mapping at top level")
+
