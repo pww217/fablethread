@@ -507,8 +507,8 @@ async def run_scenario(
         state_snap: dict[str, Any] = {}
         try:
             state_snap = load_state(save_dir)
-        except Exception:
-            pass
+        except Exception as err:
+            _log.warning("turn readback failed for turn %d in %s: %s", idx, save_dir, err)
         state_snapshots.append(state_snap)
 
     src_events = save_dir / "events.jsonl"

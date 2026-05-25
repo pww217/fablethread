@@ -198,7 +198,7 @@ async def _cmd_run(args: argparse.Namespace) -> int:
     for sp in scenario_paths:
         report = await _run_one_scenario(sp, args, eval_cfg, packs_dirs)
         last_report = report
-        print(f"[eval] {sp.stem} → {report}", file=sys.stderr)
+        _log.debug("scenario %s → report=%s", sp.stem, report)
 
     if last_report is not None:
         print(str(last_report))

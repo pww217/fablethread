@@ -29,7 +29,12 @@ module focuses on MEASUREMENT, not on fixing compaction itself.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
+
+
+_log = logging.getLogger(__name__)
+
 
 # Capability list — exact strings from the system prompt; do not paraphrase.
 CAPABILITIES = [
@@ -121,13 +126,13 @@ def compute_compaction_signals(events: list[dict[str, Any]]) -> dict[str, Any]:
         if isinstance(last_compacted, int):
             prev_last_compacted = last_compacted
 
+    _log.debug("compaction_signals: compaction_observed=%s event_count=%d", bool(out_events), len(out_events))
     return {
         "compaction_observed": bool(out_events),
         "events": out_events,
         "summary": (f"{len(out_events)} compaction event(s) observed"
                     if out_events else "no compaction observed during this run"),
     }
-
 
 def render_compaction_section(signals: dict[str, Any]) -> str:
     """Render compaction signals into the # Deterministic Signals section.
@@ -139,6 +144,7 @@ def render_compaction_section(signals: dict[str, Any]) -> str:
     parts: list[str] = ["\n## Compaction Features\n"]
 
     if not signals.get("compaction_observed"):
+        _log.debug("compaction_signals: compaction did not fire during this run")
         parts.append("*(compaction did not fire during this run — likely because the run was shorter than `compact_every`. Judge: do not score compaction capabilities for this run; note this in your verdict.)*\n")
         return "".join(parts)
 

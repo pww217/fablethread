@@ -10,10 +10,14 @@ authors to write per-turn asserts. Designed to be cheap and high-signal.
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
 from ccya.eval.engine_mirror import MOMENTUM_DELTA, MOMENTUM_MIN
+
+
+_log = logging.getLogger(__name__)
 
 
 def check_recent_events_turn_stamped(event: dict[str, Any]) -> dict[str, Any]:
@@ -739,4 +743,7 @@ def run_all_universal_asserts(
         check_no_negative_inventory(event),
     ]
     results.extend(_assert_compactor_sanitization_nonzero(event, prev_event))
+    passed = sum(1 for r in results if r["passed"])
+    failed = sum(1 for r in results if not r["passed"])
+    _log.debug("universal_asserts: %d passed, %d failed", passed, failed)
     return results

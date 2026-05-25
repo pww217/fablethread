@@ -12,8 +12,11 @@ plain dict suitable for JSON serialization and inclusion in the
 from __future__ import annotations
 
 import hashlib
+import logging
 from collections import defaultdict
 from typing import Any
+
+_log = logging.getLogger(__name__)
 
 MIN_LINE_CHARS = 60          # ignore short trivially-shared lines
 MIN_BLOCK_LINES = 3          # require at least 3 consecutive matching lines
@@ -63,6 +66,7 @@ def compute_redundancy_signals(events: list[dict[str, Any]]) -> dict[str, Any]:
           ]
         }
     """
+
     streams = ("ruling", "narrate", "scene", "state", "storytell")
     turn_results: list[dict[str, Any]] = []
     aggregate: dict[tuple[str, ...], dict[str, Any]] = defaultdict(
@@ -103,6 +107,7 @@ def compute_redundancy_signals(events: list[dict[str, Any]]) -> dict[str, Any]:
                 pair_preview[key] = sha_to_preview[sha]
 
         if pair_blocks:
+            _log.debug("redundancy: turn %d has %d overlap pairs", ev.get("turn", "?"), len(pair_blocks))
             turn_results.append({
                 "turn": ev.get("turn", "?"),
                 "overlaps": [
@@ -120,6 +125,7 @@ def compute_redundancy_signals(events: list[dict[str, Any]]) -> dict[str, Any]:
         key=lambda x: -x["total_blocks"],
     )[:10]
 
+    _log.debug("redundancy: %d turns with overlaps, %d unique overlap pairs", len(turn_results), len(top))
     return {"turns": turn_results, "top_overlaps": top}
 
 
@@ -129,12 +135,15 @@ def render_redundancy_section(signals: dict[str, Any]) -> str:
     parts: list[str] = ["\n## Prompt Redundancy (cross-stream duplication)\n"]
     top = signals.get("top_overlaps") or []
     if not top:
-        parts.append("*(no significant cross-stream block duplication detected — all blocks were either too short or unique to one stream.)*\n")
+        _log.debug("redundancy: no significant cross-stream block duplication detected")
         return "".join(parts)
+
     parts.append(f"Detected duplicated content blocks (>= {MIN_BLOCK_LINES} lines, each >= {MIN_LINE_CHARS} chars) appearing in multiple streams. The judge should evaluate whether this duplication is intentional (e.g. the narration is correctly fed to all three extractors) or wasted tokens (e.g. the same PC bio rendered redundantly).\n\n")
     parts.append("### Top overlaps across all turns\n\n")
     parts.append("| Streams | Total duplicated blocks | Preview |\n|---|---:|---|\n")
     for o in top:
         streams = " + ".join(o["streams"])
         parts.append(f"| {streams} | {o['total_blocks']} | `{o['preview']}` |\n")
+
+    _log.info("redundancy: %d unique overlap pairs detected", len(top))
     return "".join(parts)
