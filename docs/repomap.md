@@ -112,11 +112,17 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - CRITICAL instruction added: storyteller must check all active/latent thread summaries for conceptual overlap before emitting new threads; advance existing threads via `thread_advance` instead of creating duplicates when tension is the same
 - Thread key guidance appended to thread_add rules paragraph — structured snake_case format (`subject_action` or `location_event`) enables engine-side dedup auto-merge
 ### Narrator system prompt (`ccya/prompts/narrate_system.j2`)
-- ARC_UPDATE JSON example includes `"thematic_question"` field alongside existing `discovered_truths` and `visible_goal` — matches `_ALLOWED_NARRATOR_ARC_KEYS` which already accepts this key (turn.py lines 1352-1355)
+- ARC_UPDATE JSON example includes `"thematic_question"` field alongside existing `discovered_truths` and `visible_goal` — matches `_ALLOWED_NARRATOR_ARC_KEYS` which already accepts this key (turn.py lines 1416-1419)
+- Directives section: removed Combat Fatigue, Location Pressure, Location Imperative definitions; added Scene Pressure (≥3 effective scene age, intermediate signal to wind down or shift focus) and Scene Imperative (≥5 effective scene age, high-priority directive forcing story advancement); new directives use scene-level language reflecting single-age signal from collapsed _compute_ages()
 ### Momentum lifecycle
-- `apply_momentum(state, band)` in ccya/state/momentum.py mutates `state["pc"]["momentum"]` deterministically from band delta, clamped to [-3, +3]
-- Pre-ruling momentum captured BEFORE `_ruling_phase()` (turn.py line ~1044), post-ruling captured AFTER — delta reflects actual band-based change
+- `apply_momentum(state, band)` in ccya/state/momentum.py mutates `state["pc"]["momentum"]` deterministically from rules band delta, clamped to [-3, +3]
+- Pre-ruling momentum captured BEFORE `_ruling_phase()` (turn.py line ~1049), post-ruling captured AFTER — delta reflects actual band-based change
 - Auto-checker `check_momentum_band_delta` reads from `state_snapshot.pc.momentum` (not meta.momentum)
+
+### Pacing context and beat lifecycle (Phase 03 pacing overhaul)
+- `_compute_pacing_context()` dual-trigger beat_locked: fires when either `consecutive_pressure_turns >= config.consecutive_pressure_threshold` OR `momentum <= config.momentum_floor`; appends "Resolve a Threat" to directive whenever locked
+- Consecutive pressure counter (`state["meta"]["consecutive_pressure_turns"]`) updated via two-pass logic at turn end (~turn.py ~1450): increments when pacing_ctx directive was Pressure/Overwhelm AND storyteller thread_advance empty; resets to 0 otherwise (directive not Pressure/Overwhelm OR any threads advanced)
+- `pending_gm_beat` carryover fixed: both unconditional clears removed from turn.py (~line 1105 post-narration, ~line 1152 else block); beat lifecycle handled only by write/expiry — written after storytelling if non-null gm_beat with beat_expires_turn = turn_no + 2, consumed read-gated at turn_no <= beat_expires_turn in _narrate_setup (~turn.py line 906-910), cleared only on replacement or expiry
 
 ### Seed emotional context → narrator consumption
 - **Seed generates**: `goal_context` (character-specific stake in visible_goal), NPC `relation` field (narrative job relative to PC), `pc_drive` (latent motive), action text (character-shaped, scene-grounded).
@@ -128,8 +134,9 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - Config fields: thread_urgency_building_at, thread_urgency_immediate_at, thread_urgency_max_age, thread_urgency_immediate_ttl, thread_deescalate_on_success — YAML keys match Python field names directly.
 
 ### Computation functions (Phase 06b)
-- `_compute_narration_directive()` derives urgency counts from unified ArcThread objects with scope=scene instead of raw scene_pressure dicts
-- `_compute_pacing_context()` passes derived `arc.threads[] scope=scene` list to `_compute_narration_directive()`
+- `_compute_narration_directive()` derives urgency counts from unified ArcThread objects with scope=scene instead of raw scene_pressure dicts; reads `ages.get("effective_scene_age", 0)` for Scene Imperative (≥5 effective age, short-circuits all directives) and Scene Pressure (≥3 effective age, secondary append); priority order: Breathe → Scene Imperative → Overwhelm → Resolve a Threat → Pressure → Tension → Scene Pressure → Threat Pressure
+- `_compute_pacing_context()` passes derived `arc.threads[] scope=scene` list to `_compute_narration_directive()`; signature includes new `consecutive_pressure_turns: int = 0` parameter for dual-trigger beat_locked condition (OR of consecutive pressure threshold and momentum floor); call site at turn.py ~939-945 passes value from state["meta"]
+- `_compute_ages(state)` returns only `{"scene_age": scene_age}` — location_age and combat_age removed in Phase 03 pacing overhaul; effective_scene_age pre-computed into ctx._ages dict before pacing context computation (turn.py ~821-826) with +2 boost when "combat" in scene tags
 
 ### Token budget cascade
 `config.prompt_token_budget` (default 32768): `llm_client.trim_messages()` drops/truncates oldest non-system messages when budget exceeded. Priority: system prompts retained first, then most recent user/context blocks. This affects all pipeline stages — if budget is tight, older turns in chronicle tail get truncated before narration/extraction contexts.

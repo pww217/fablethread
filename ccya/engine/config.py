@@ -82,6 +82,8 @@ class EngineConfig:
     # Momentum floor value and relief trigger threshold
     momentum_floor: int = -3
     momentum_ceiling: int = 3
+    # Consecutive pressure threshold for relief trigger
+    consecutive_pressure_threshold: int = 3
     # Gate for de-escalation flag on successful rolls
     thread_deescalate_on_success: bool = True
     # Thread completion threshold (progress value that completes a thread)
@@ -170,6 +172,7 @@ def build_engine_config(
 
         momentum_floor=int(game.get("momentum_floor", -3)),
         momentum_ceiling=int(game.get("momentum_ceiling", 3)),
+        consecutive_pressure_threshold=int(game.get("consecutive_pressure_threshold", 3)),
         compact_every=int(game.get("compact_every", 0)),
         compact_temperature=float(game.get("compact_temperature", 0.1)),
         recent_turns_min=int(game.get("recent_turns_min", 2)),
