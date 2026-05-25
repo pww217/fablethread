@@ -664,22 +664,17 @@ def check_no_negative_inventory(event: dict[str, Any]) -> dict[str, Any]:
 
 
 def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
-    """If pacing directive was computed, it should appear in both narrate and storytell prompts.
-    Checks that the rendered prompt contains a known directive value after 'directive:' label.
-    Known directives: Breathe, Scene Imperative, Overwhelm, Pressure, Tension, Threat Pressure, Resolve a Threat, Scene Pressure.
+    """If pacing directive was computed, validate the EXACT value appears in both narrate and storytell prompts.
+
+    Reads directive from event["pacing_context"]["directive"] (the canonical source).
+    Uses word-boundary matching to avoid false positives ("Pressure" must not match "Scene Pressure").
+    Template renders "**Directive:** {value}" in narrate_user and "Directive: {value}" in storytell_user.
     """
-    narr_user = (event.get("narrate_prompt") or {}).get("rendered_user") or ""
-    # Read the rendered user prompt string from extraction_event["storytell"], not the output dict
-    storytell_rendered = ((event.get("extraction") or {}).get("storytell") or {}).get("rendered_user") or ""
+    # Canonical directive value from pacing_context (turn.py writes this)
+    pacing_ctx = event.get("pacing_context") or {}
+    directive_value = pacing_ctx.get("directive", "")
 
-    known_directives = [
-        "Breathe", "Scene Imperative", "Overwhelm", "Pressure", "Tension",
-        "Threat Pressure", "Resolve a Threat", "Scene Pressure",
-    ]
-    # Template renders "**Directive:** {value}" in narrate_user and "Directive: {value}" in storytell_user
-    has_directive = any("directive:" in narr_user.lower() or d in narr_user for d in known_directives)
-
-    if not has_directive:
+    if not directive_value:
         return {
             "assertion": "universal.narrate.directive_rendered",
             "passed": True,
@@ -688,14 +683,30 @@ def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
             "severity": "red",
         }
 
-    # Check storytell prompt also received the directive value (not just label)
-    has_storytell_directive = any(d in storytell_rendered for d in known_directives) or ("directive:" in storytell_rendered.lower() and "none" not in storytell_rendered.split("directive:")[-1].split("\n")[0])
+    narr_user = (event.get("narrate_prompt") or {}).get("rendered_user") or ""
+    storytell_rendered = ((event.get("extraction") or {}).get("storytell") or {}).get("rendered_user") or ""
 
-    if not has_storytell_directive:
+    # Check exact directive value appears in narrate prompt using word-boundary matching.
+    # Matches "**Directive:** {value}" or "Directive: {value}" patterns, or the value as a standalone token.
+    _directive_in_prompt_re = re.compile(
+        r"(?i)(?:directive[:\s]+|[\*\*]?)\b" + re.escape(directive_value) + r"\b",
+    )
+
+    if not _directive_in_prompt_re.search(narr_user):
         return {
             "assertion": "universal.narrate.directive_rendered",
             "passed": False,
-            "detail": "directive computed but not rendered in storytell user prompt",
+            "detail": f"computed directive '{directive_value}' not found in narrate user prompt (pacing_context={pacing_ctx})",
+            "scope": "universal",
+            "severity": "red",
+        }
+
+    # Check storytell prompt also received the exact directive value
+    if not _directive_in_prompt_re.search(storytell_rendered):
+        return {
+            "assertion": "universal.narrate.directive_rendered",
+            "passed": False,
+            "detail": f"computed directive '{directive_value}' not found in storytell user prompt (pacing_context={pacing_ctx})",
             "scope": "universal",
             "severity": "yellow",
         }
@@ -703,9 +714,235 @@ def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
     return {
         "assertion": "universal.narrate.directive_rendered",
         "passed": True,
-        "detail": "directive rendered in both prompts",
+        "detail": f"directive '{directive_value}' rendered in both prompts",
         "scope": "universal",
         "severity": "red",
+    }
+
+
+
+def _token_overlap_score(a: str, b: str) -> float:
+    """Compute token-overlap similarity between two strings (Jaccard-like).
+
+    Splits on whitespace after lowercasing. Score = intersection / max(len_a, len_b).
+    Matches the algorithm used in turn.py ArcThread.key auto-merge dedup gate.
+    """
+    tokens_a = set(a.lower().split()) if a else set()
+    tokens_b = set(b.lower().split()) if b else set()
+    if not tokens_a or not tokens_b:
+        return 0.0
+    overlap = len(tokens_a & tokens_b)
+    return overlap / max(len(tokens_a), len(tokens_b))
+
+
+def check_arcthread_key_dedup(event: dict[str, Any]) -> dict[str, Any]:
+    """Validate ArcThread.key auto-merge dedup gate works correctly.
+
+    Checks that no two threads in state_snapshot.arc.threads have similar non-null keys above 70% threshold.
+    If duplicates exist the fuzzy merge gate failed to catch them during thread_add.
+    """
+    arc = (event.get("state_snapshot") or {}).get("arc") or {}
+    threads: list[dict[str, Any]] = arc.get("threads") or []
+
+    # Filter to threads with non-null, non-empty keys
+    keyed_threads = [t for t in threads if isinstance(t, dict) and t.get("key")]
+
+    if len(keyed_threads) < 2:
+        return {
+            "assertion": "universal.arcthread.key_dedup",
+            "passed": True,
+            "detail": f"only {len(keyed_threads)} thread(s) with non-null key",
+            "scope": "universal",
+            "severity": "yellow",
+        }
+
+    # Check every pair for token-overlap similarity above 70% threshold
+    for i in range(len(keyed_threads)):
+        for j in range(i + 1, len(keyed_threads)):
+            key_a = str(keyed_threads[i].get("key") or "")
+            key_b = str(keyed_threads[j].get("key") or "")
+            score = _token_overlap_score(key_a, key_b)
+            if score >= 0.70:
+                return {
+                    "assertion": "universal.arcthread.key_dedup",
+                    "passed": False,
+                    "detail": f"Duplicate ArcThread.key detected: '{key_a}' ({score:.2f}) vs '{key_b}'",
+                    "scope": "universal",
+                    "severity": "red",
+                }
+
+    return {
+        "assertion": "universal.arcthread.key_dedup",
+        "passed": True,
+        "detail": f"no duplicates among {len(keyed_threads)} keyed thread(s)",
+        "scope": "universal",
+        "severity": "yellow",
+    }
+
+
+def check_consecutive_pressure_tracking(
+    event: dict[str, Any], prev_event: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Validate the two-pass consecutive pressure counter works correctly.
+
+    Increments when directive was Pressure/Overwhelm AND no thread_advance occurred; resets to 0 otherwise.
+    """
+    pacing_ctx = event.get("pacing_context") or {}
+    directive = pacing_ctx.get("directive", "")
+    # Strip "; Resolve a Threat" suffix for base value comparison
+    base_directive = re.sub(r"\s*;\s*Resolve a Threat\s*$", "", directive).strip() if directive else ""
+
+    meta = (event.get("state_snapshot") or {}).get("meta") or {}
+    counter = meta.get("consecutive_pressure_turns", 0)
+
+    # Check whether any thread_advance occurred in this turn's extraction results
+    storytell_output = ((event.get("extraction") or {}).get("storytell") or {}).get("output") or {}
+    thread_advances = storytell_output.get("thread_advance") or []
+    has_thread_advance = bool(thread_advances)
+
+    is_pressure_directive = base_directive in ("Pressure", "Overwhelm")
+
+    if prev_event:
+        prev_pacing_ctx = prev_event.get("pacing_context") or {}
+        prev_base = re.sub(r"\s*;\s*Resolve a Threat\s*$", "", prev_pacing_ctx.get("directive", "")).strip() if prev_pacing_ctx.get("directive") else ""
+
+    # If directive is Pressure/Overwhelm AND no thread_advance: counter should be >= 1 (or incrementing)
+    if is_pressure_directive and not has_thread_advance:
+        if counter < 1:
+            return {
+                "assertion": "universal.pacing.consecutive_pressure_tracking",
+                "passed": False,
+                "detail": f"directive={base_directive!r}, no thread_advance but consecutive_pressure_turns={counter} (expected >= 1)",
+                "scope": "universal",
+                "severity": "red",
+            }
+
+    # If any thread_advance occurred OR directive changed to non-pressure value: counter should reset to 0
+    if has_thread_advance or not is_pressure_directive and prev_event:
+        prev_base = re.sub(r"\s*;\s*Resolve a Threat\s*$", "", (prev_event.get("pacing_context") or {}).get("directive", "")).strip() if prev_event else ""
+        if base_directive != prev_base and counter > 0:
+            # Directive changed from pressure to non-pressure — should have reset
+            return {
+                "assertion": "universal.pacing.consecutive_pressure_tracking",
+                "passed": False,
+                "detail": f"directive changed from {prev_base!r} to {base_directive!r}, consecutive_pressure_turns={counter} (expected 0)",
+                "scope": "universal",
+                "severity": "red",
+            }
+
+    return {
+        "assertion": "universal.pacing.consecutive_pressure_tracking",
+        "passed": True,
+        "detail": f"directive={base_directive!r}, thread_advance={has_thread_advance}, counter={counter}",
+        "scope": "universal",
+        "severity": "yellow",
+    }
+
+
+def check_beat_locked_dual_trigger(
+    event: dict[str, Any], prev_event: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Validate the dual-trigger beat_locked condition works correctly.
+
+    beat_locked should be True when either momentum <= config.momentum_floor (-3 default) OR consecutive_pressure_turns >= config.consecutive_pressure_threshold (3 default).
+    """
+    pacing_ctx = event.get("pacing_context") or {}
+    beat_locked = bool(pacing_ctx.get("beat_locked", False))
+
+    meta = (event.get("state_snapshot") or {}).get("meta") or {}
+    momentum = meta.get("momentum", 0)
+    consecutive_pressure_turns = meta.get("consecutive_pressure_turns", 0)
+
+    # Config defaults from EngineConfig
+    config_momentum_floor = -3
+    config_consecutive_threshold = 3
+
+    expected_beat_locked = (momentum <= config_momentum_floor or consecutive_pressure_turns >= config_consecutive_threshold)
+
+    if beat_locked != expected_beat_locked:
+        return {
+            "assertion": "universal.pacing.beat_locked_dual_trigger",
+            "passed": False,
+            "detail": f"beat_locked={beat_locked} but expected {expected_beat_locked} (momentum={momentum}, floor={config_momentum_floor}, consecutive_pressure_turns={consecutive_pressure_turns}, threshold={config_consecutive_threshold})",
+            "scope": "universal",
+            "severity": "red",
+        }
+
+    return {
+        "assertion": "universal.pacing.beat_locked_dual_trigger",
+        "passed": True,
+        "detail": f"beat_locked={beat_locked} (momentum={momentum}, consecutive_pressure_turns={consecutive_pressure_turns})",
+        "scope": "universal",
+        "severity": "yellow",
+    }
+
+
+def check_no_removed_directives(event: dict[str, Any]) -> dict[str, Any]:
+    """Negative assertion: removed directives ("Location Pressure", "Location Imperative", "Combat Fatigue") must NOT appear in rendered prompts.
+
+    Catches template drift or accidental re-introduction during future edits.
+    """
+    narr_user = (event.get("narrate_prompt") or {}).get("rendered_user") or ""
+    storytell_rendered = ((event.get("extraction") or {}).get("storytell") or {}).get("rendered_user") or ""
+
+    removed_directives = ["location pressure", "location imperative", "combat fatigue"]
+    found: list[str] = []
+
+    for directive in removed_directives:
+        if directive.lower() in narr_user.lower():
+            found.append(f"{directive} (narrate)")
+        if directive.lower() in storytell_rendered.lower():
+            found.append(f"{directive} (storytell)")
+
+    if found:
+        return {
+            "assertion": "universal.directives.no_removed",
+            "passed": False,
+            "detail": f"Removed directives found: {'; '.join(found)}",
+            "scope": "universal",
+            "severity": "yellow",
+        }
+
+    return {
+        "assertion": "universal.directives.no_removed",
+        "passed": True,
+        "detail": "no removed directives in rendered prompts",
+        "scope": "universal",
+        "severity": "yellow",
+    }
+
+
+def check_no_removed_npc_states(event: dict[str, Any]) -> dict[str, Any]:
+    """Negative assertion: removed NPC states ("JUST_LEFT", "recently_left") must NOT appear in state snapshots or rendered prompts.
+
+    Catches accidental re-introduction of scene.recently_left field or JUST_LEFT presence tag after Plan #01 removal.
+    """
+    scene = (event.get("state_snapshot") or {}).get("scene") or {}
+    if "recently_left" in scene:
+        return {
+            "assertion": "universal.npc_states.no_removed",
+            "passed": False,
+            "detail": "removed field 'recently_left' found in state_snapshot.scene",
+            "scope": "universal",
+            "severity": "red",
+        }
+
+    narr_user = (event.get("narrate_prompt") or {}).get("rendered_user") or ""
+    if re.search(r"\bJUST_LEFT\b", narr_user, re.IGNORECASE):
+        return {
+            "assertion": "universal.npc_states.no_removed",
+            "passed": False,
+            "detail": "removed NPC presence tag 'JUST_LEFT' found in rendered narrator prompt",
+            "scope": "universal",
+            "severity": "yellow",
+        }
+
+    return {
+        "assertion": "universal.npc_states.no_removed",
+        "passed": True,
+        "detail": "no removed NPC states detected",
+        "scope": "universal",
+        "severity": "yellow",
     }
 
 
@@ -742,6 +979,11 @@ def run_all_universal_asserts(
         check_momentum_band_delta(event, prev_event),
         check_zero_stack_overdraw(event, prev_event),
         check_narration_directive_rendered(event),
+        check_consecutive_pressure_tracking(event, prev_event),
+        check_beat_locked_dual_trigger(event, prev_event),
+        check_arcthread_key_dedup(event),
+        check_no_removed_directives(event),
+        check_no_removed_npc_states(event),
         check_momentum_floor_no_relief(event, prev_event, event_window=event_window),
         check_no_negative_inventory(event),
     ]

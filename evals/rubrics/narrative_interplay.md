@@ -54,14 +54,14 @@ After the table: Does band progression feel too fast, too slow, or appropriate? 
 ### 1A.5 — PacingContext.directive Analysis
 
 For each turn where pacing_context.directive is non-empty:
-- Was the directive honored in narration? (e.g., "Breathe" → low-urgency prose, "Pressure"/"Escalate" → tension-building)
+- Was the directive honored in narration? (e.g., "Breathe" → low-urgency prose, "Pressure"/"Overwhelm" → tension-building)
 
 | Turn | PacingContext.directive | Honored? | Flag |
 |------|-------------------------|----------|------|
 
 Flag: `DIRECTIVE_IGNORED_BY_NARRATOR`.
 
-Evaluate actual directive values: `""`, `"Breathe"`, `"Pressure"`, `"MoveOn"`, `"Escalate"`.
+Evaluate actual directive values: `""`, `"Breathe"`, `"Scene Imperative"`, `"Overwhelm"`, `"Resolve a Threat"`, `"Pressure"`, `"Tension"`, `"Threat Pressure"`, `"Scene Pressure"`.
 
 ### 1B — GM Beat→Narrative Effect
 
@@ -75,10 +75,10 @@ After the table: Are beats creating meaningful story pivots or are they mechanic
 ### 1B.5 — Beat Generation Quality with Directive Context
 
 For each turn where a beat was generated:
-- Was the beat type appropriate given PacingContext.directive? (e.g., "Breathe" → breathing_room, "Pressure"/"Escalate" → complication)
+- Was the beat type appropriate given PacingContext.directive? (e.g., "Breathe" → breathing_room, "Pressure"/"Overwhelm" → complication)
 
 Assessment method:
-- **Rule-based**: `""`→none/no beat expected, `"Breathe"`→breathing_room, `"Pressure"/"Escalate"`→complication, `"MoveOn"`→revelation or none.
+- **Rule-based**: `""`→none/no beat expected, `"Breathe"`→breathing_room, `"Scene Imperative"`→revelation or escalation (strong scene-level signal), `"Overwhelm"`→complication (more severe than Pressure, short-circuits all other directives), `"Resolve a Threat"`→resolution guidance for aged-out threats, `"Pressure"`/`"Threat Pressure"`→complication, `"Tension"`→mild escalation or none, `"Scene Pressure"`→mild scene-level pressure.
 - **LLM judge**: Let the judge read the beat type + directive and decide if they align. More flexible but subjective.
 
 | Turn Beat Created | Beat Type | PacingContext.directive | Type Matches Directive? | Flag |
