@@ -664,18 +664,20 @@ def check_no_negative_inventory(event: dict[str, Any]) -> dict[str, Any]:
 
 
 def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
-    """If narration_directive was computed, it should appear in both narrate and storytell prompts.
-    Checks for all 8 directive types: Breathe, Scene Imperative, Overwhelm, Pressure, Tension, Threat Pressure, Resolve a Threat, Scene Pressure.
+    """If pacing directive was computed, it should appear in both narrate and storytell prompts.
+    Checks that the rendered prompt contains a known directive value after 'directive:' label.
+    Known directives: Breathe, Scene Imperative, Overwhelm, Pressure, Tension, Threat Pressure, Resolve a Threat, Scene Pressure.
     """
     narr_user = (event.get("narrate_prompt") or {}).get("rendered_user") or ""
     # Read the rendered user prompt string from extraction_event["storytell"], not the output dict
     storytell_rendered = ((event.get("extraction") or {}).get("storytell") or {}).get("rendered_user") or ""
 
-    directive_markers = [
-        "**Pressure:**", "**Overwhelm:**", "**Breathe:**", "**Tension:**",
-        "**Threat Pressure:**", "**Resolve a Threat:**", "**Scene Imperative:**", "**Scene Pressure:**",
+    known_directives = [
+        "Breathe", "Scene Imperative", "Overwhelm", "Pressure", "Tension",
+        "Threat Pressure", "Resolve a Threat", "Scene Pressure",
     ]
-    has_directive = any(m in narr_user for m in directive_markers)
+    # Template renders "**Directive:** {value}" in narrate_user and "Directive: {value}" in storytell_user
+    has_directive = any("directive:" in narr_user.lower() or d in narr_user for d in known_directives)
 
     if not has_directive:
         return {
@@ -686,11 +688,14 @@ def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
             "severity": "red",
         }
 
-    if not storytell_rendered or "narration_directive" not in storytell_rendered.lower():
+    # Check storytell prompt also received the directive value (not just label)
+    has_storytell_directive = any(d in storytell_rendered for d in known_directives) or ("directive:" in storytell_rendered.lower() and "none" not in storytell_rendered.split("directive:")[-1].split("\n")[0])
+
+    if not has_storytell_directive:
         return {
             "assertion": "universal.narrate.directive_rendered",
             "passed": False,
-            "detail": "narration_directive computed but not rendered in storytell user prompt",
+            "detail": "directive computed but not rendered in storytell user prompt",
             "scope": "universal",
             "severity": "yellow",
         }

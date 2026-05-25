@@ -28,6 +28,7 @@ ArcThread (unified)
   added_turn: int | None     # Python-managed lifecycle tracking
   unlock_if: str | None      # Condition string; thread is only promotable when empty/falsy
   promotes: list[str]        # Threads this one can promote to when completed
+  key: str | None            # Optional canonical concept label (2-4 token snake_case); enables engine-side dedup auto-merge at thread_add time via ≥70% token-overlap scoring on matching keys
 ```
 
 **Key change from previous architecture:** `scene_pressure[]` and the split between `active_threads` / `latent_threads` are merged into a single `arc.threads[]`. The engine manages thread lifecycle via `_apply_thread_signals()`: age-based demotion (`active: True → False`) replaces the old active/latent migration logic, with silent threads (not listed in `thread_advance` for 5+ turns) being demoted to dormant state.
