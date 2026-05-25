@@ -41,11 +41,6 @@
 {% endif %}{% endfor -%}
 {% endif -%}
 
-{% if world_locations and ages and ages.get('location_age', 0) >= 3 -%}
-### Nearby Locations
-{% for loc in world_locations %}- **{{ loc.name }}** ({{ loc.type }})
-{% endfor -%}
-{% endif -%}
 
 ## Prior Turns (Compacted)
 {% if prior_history and prior_history | length > 0 -%}

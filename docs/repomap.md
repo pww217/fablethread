@@ -19,7 +19,7 @@
 | `ccya/engine/seed.py` | generate_seed() for dynamic packs, soft validation |
 | `ccya/engine/changes.py` | summarize_changes(), format_change_lines() — diff pre vs post state → emoji display lines |
 | `ccya/engine/compactor.py` | maybe_compact(): chronicle compaction + state sanitization (NPC merge, inventory remove, etc.) |
-| `ccya/engine/npc_roster.py` | build_npc_roster() — merges present/known/recently_left NPCs with presence tags |
+| `ccya/engine/npc_roster.py` | build_npc_roster() — merges present/known NPCs with presence tags |
 | `ccya/engine/generate_pack.py` | generate_pack_from_brief(): SSE-driven ephemeral pack generation from world brief |
 | `ccya/state/__init__.py` | Re-exports all state symbols |
 | `ccya/state/io.py` | load_state, save_state (atomic), init_save_dir, _migrate_state |
@@ -203,8 +203,6 @@ scene:
   present_npcs: list[NpcRef]   # sticky: absence does not cause removal; only explicit npc_remove removes. Seed data may include `relation` field for NPC-PC narrative connection.
   world_state: [str]           # immutable after seed
   recent_events: list[Event]   # {id, text, turn} — FIFO cap (default 20)
-  recently_left: list[dict], recently_left_turns: int (decay counter, default 2)
-  turn_entered: int            # anti-stall tracking
   location_entered_turn: int   # when location was last changed
   combat_started_turn: int     # set when scene tags include "combat"
 

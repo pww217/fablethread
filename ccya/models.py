@@ -21,7 +21,6 @@ Band = Literal[
 
 class NpcPresence(str, Enum):
     PRESENT = "present"
-    JUST_LEFT = "just_left"
     NEARBY = "nearby"
     KNOWN = "known"
 

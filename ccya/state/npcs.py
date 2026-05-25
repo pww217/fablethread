@@ -124,8 +124,6 @@ def apply_npc_scene_management(
     comp = state.setdefault("compendium", {}).setdefault("npcs", {})
     scene = state.setdefault("scene", {})
     old_present = list(state.get("scene", {}).get("present_npcs") or [])
-    old_present_ids = {str(n.get("id", "")) for n in old_present if n.get("id")}
-    new_present_ids: set[str] = set()
 
     has_npc_delta = bool(scene_result.npc_add or scene_result.npc_remove or scene_result.npc_update)
     if has_npc_delta:
@@ -204,7 +202,6 @@ def apply_npc_scene_management(
             _log.debug("apply_npc_scene_management evicted=%d ids=%s", len(evicted), [e["id"] for e in evicted])
 
         scene["present_npcs"] = present
-        new_present_ids = {str(p.get("id", "")) for p in present if p.get("id")}
     elif not old_present and comp:
         fallback_present: list[dict[str, Any]] = []
         for nid, entry in comp.items():
@@ -220,25 +217,6 @@ def apply_npc_scene_management(
             })
         if fallback_present:
             scene["present_npcs"] = fallback_present[:NPC_SCENE_CAP]
-            new_present_ids = {str(p.get("id", "")) for p in scene["present_npcs"] if p.get("id")}
-        else:
-            new_present_ids = set()
-    else:
-        new_present_ids = old_present_ids
-
-    left_ids = old_present_ids - new_present_ids
-    if left_ids:
-        comp = state.get("compendium", {}).get("npcs", {})
-        recently_left: list[dict[str, str]] = []
-        for nid in sorted(left_ids):
-            ce = comp.get(nid, {})
-            recently_left.append({
-                "id": nid,
-                "name": ce.get("name", nid),
-                "title": ce.get("title", ""),
-            })
-        scene["recently_left"] = recently_left
-        scene.setdefault("recently_left_turns", 2)
 
     comp = state.setdefault("compendium", {}).setdefault("npcs", {})
     alias_map = build_npc_alias_map(comp)

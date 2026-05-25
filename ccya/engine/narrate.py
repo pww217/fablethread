@@ -28,7 +28,6 @@ def _narrate_messages(
     world_rules: list[str] = [],
     rules_outcome: "RulesOutcome | None" = None,
     npc_name_pool: dict[str, list[str]] = {},
-    recently_left: list[dict[str, Any]] = [],
     momentum: int = 0,
     pending_beat: dict[str, Any] | None = None,
     pacing_context: "PacingContext | None" = None,
@@ -39,7 +38,6 @@ def _narrate_messages(
     pc_allegiance: str | None = None,
     turn_no: int = 0,
     world_factions: list[dict[str, str]] = [],
-    world_locations: list[dict[str, str]] = [],
     threat_ages: list[dict[str, Any]] | None = None,
     threat_pressure_at: int = 3,
     threat_imperative_at: int = 5,
@@ -49,7 +47,6 @@ def _narrate_messages(
     npc_roster_input = npc_roster or build_npc_roster(
         present_npcs=present_npcs,
         known_npcs=known_npcs,
-        recently_left=recently_left,
     )
     _log.debug(
         "narrate entry turn=%d npc_roster_len=%d present_npcs=%d known_npcs=%d",
@@ -86,8 +83,8 @@ def _narrate_messages(
     #   REQUIRED (all branches): state, scene, pc, chronicle_tail, prior_history,
     #     recent_turns, user_input, meta, present_npcs, known_npcs, npc_roster
     #   OPTIONAL (rendered conditionally): rules_outcome, pacing_context, pending_beat,
-    #     npc_name_pool, recently_left, compendium_bios, ages, world_factions,
-    #     world_locations, threat_ages, current_arc
+    #     npc_name_pool, compendium_bios, ages, world_factions,
+    #     threat_ages, current_arc
     #   Jinja guards ({% if ... %}) handle None/falsy for optional vars;
     #     required vars use safe fallbacks (.get or | default) in template.
     #   New vars added here MUST have a corresponding Jinja guard in both
@@ -100,7 +97,6 @@ def _narrate_messages(
         "recent_turns": recent_turns,
         "rules_outcome": rules_outcome,
         "npc_name_pool": npc_name_pool,
-        "recently_left": recently_left,
         "user_input": user_input,
         "momentum": momentum,
         "pending_beat": pending_beat,
@@ -113,7 +109,6 @@ def _narrate_messages(
         "compendium_bios": compendium_bios,
         "pc_allegiance": pc_allegiance,
         "world_factions": world_factions,
-        "world_locations": world_locations,
         "threat_ages": threat_ages or [],
         "threat_pressure_at": threat_pressure_at,
         "threat_imperative_at": threat_imperative_at,
