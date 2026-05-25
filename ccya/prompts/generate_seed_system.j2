@@ -108,6 +108,7 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
   },
   opening_narrative: string,
   actions: string[],
+  outcome_summary: string,
   arc: {visible_goal: string, goal_context: string, thematic_question: string, hidden_truths: string[], discovered_truths: string[], threads: ArcThread[], completed_threads: ArcThread[], pc_drive: string} | null,
   pc_drive: string
 }
@@ -162,7 +163,10 @@ Structure the opening in three movements:
 
 2. **Exposition** (~100 words): What is around the PC to see, examine, touch, or potentially interact with? Describe 2-4 specific environmental details: a locked footlocker, a cracked mirror, a discarded letter, a tool left behind, a stain on the wall, an open window. These are things the player could choose to engage with. Do NOT describe these as "things you could examine" — weave them into the scene as natural details.
 {% if pool_selection and pool_selection.scene_bundle %}
-   Use the following scene objects as concrete, examinable, or interactable details in this movement: {{ pool_selection.scene_bundle.items | join(", ") }}. Integrate at least {{ pool_selection.scene_bundle.min_use }} of these into the description as natural scene elements.
+   Optional ingredients from the scene bundle — use what fits, ignore what doesn't:
+   {% if pool_selection["scene_bundle"]["items"] %}Objects: {{ pool_selection["scene_bundle"]["items"] | join(", ") }}.{% endif %}
+   {% if pool_selection["scene_bundle"]["conditions"] %}Conditions: {{ pool_selection["scene_bundle"]["conditions"] | join(", ") }}.{% endif %}
+   {% if pool_selection["scene_bundle"]["sensory"] %}Sensory details: {{ pool_selection["scene_bundle"]["sensory"] | join(", ") }}.{% endif %}
 {% endif %}
 
 3. **Crisis / gameplay moment** (remaining words): The tension arrives or is revealed. Present NPCs act. The moment the player must respond to. This is where the "mid-scene" feel belongs — earned after the orientation.
@@ -176,6 +180,9 @@ Movement guidance:
 
 ## actions
 4 distinct meaningful choices (7-10 words each), valid given the opening situation. Actions must: be written from the PC's point of view or voice; be grounded in a present NPC, immediate risk, active thread, or character motive; differ in emotional posture (confront, deflect, investigate, protect, exploit, withdraw, etc.); avoid generic verbs that could fit any protagonist in any setting. At least two should reveal something about the character's priorities or relationships.
+
+## outcome_summary
+One sentence (~10–20 words) summarizing the opening situation in-universe, as if a quest log or journal entry. Example: "A stranded freighter drifts in the outer reach with no response from its crew." NOT an instruction or "you must" phrasing — just the state of things.
 
 ## present_npcs
 {% if npc_count_override and npc_count_override > 0 %}

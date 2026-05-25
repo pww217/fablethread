@@ -96,6 +96,13 @@ def _get_opening() -> str:
     return pack.opening_text
 
 
+def _get_opening_outcome_summary() -> str:
+    pack = cast(Pack, _app._active_pack)
+    if pack.mode == "dynamic":
+        return _app._dynamic_opening_outcome
+    return ""
+
+
 def _get_opening_actions() -> list[str]:
     pack = cast(Pack, _app._active_pack)
     if pack.mode == "dynamic":

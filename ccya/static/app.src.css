@@ -1645,6 +1645,15 @@ body {
   line-height: 1.4;
 }
 
+.roll-badge--outcome {
+  width: 100%;
+}
+
+.roll-outcome--large {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
 /* Center roll badges inside turn-log-block */
 .turn-log-block .roll-badge {
   display: flex;
@@ -2346,6 +2355,16 @@ body {
   padding: 12px 16px 16px;
   border-top: 1px solid var(--border-subtle);
 }
+.tv-compaction-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 8px 0 4px;
+  font-weight: 600;
+}
+.tv-compaction-label:first-child { margin-top: 0; }
+.tv-compaction-body > div + div { margin-top: 10px; }
 .tv-compaction-bullet {
   font-size: 11px;
   font-family: var(--font-mono, monospace);

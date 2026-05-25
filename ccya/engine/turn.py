@@ -1446,6 +1446,7 @@ async def run_turn(
             "total_ms": ruling_metrics.get("total_ms"),
             "tokens_in": ruling_metrics.get("tokens_in", 0),
             "tokens_out": ruling_metrics.get("tokens_out", 0),
+            "outcome_summary": outcome_summary,
         }
         if _outcome.rolled:
             ruling_event.update({
@@ -1457,7 +1458,6 @@ async def run_turn(
                 "cond_mod": _outcome.cond_mod,
                 "final_total": _outcome.final_total,
                 "band": _outcome.band,
-                "outcome_summary": outcome_summary,
                 "momentum_before": momentum_before,
                 "momentum_after": momentum_after,
                 "momentum_delta": momentum_after - momentum_before,

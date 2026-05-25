@@ -182,6 +182,18 @@ moral_pressures:
   - id: legitimate_governance
     tags: [legitimate, governance, political_order]
     incompatible_with: []
+  - id: marooned_survival
+    tags: [abandonment, survival, desperation]
+    incompatible_with: []
+  - id: captured_ship_dilemma
+    tags: [prize, claim, crew_decision]
+    incompatible_with: []
+  - id: coastal_raid
+    tags: [raiding, plunder, civilian_exposure]
+    incompatible_with: []
+  - id: press_gang_encounter
+    tags: [conscription, freedom, moral_line]
+    incompatible_with: []
 
 npc_bonds:
   - id: served_under
@@ -202,20 +214,41 @@ npc_bonds:
   - id: debt_of_blood
     tags: [violence, revenge_bond]
     description: The PC killed someone this NPC loved — a shipmate, a brother. The NPC accepted it as the Articles demanded, but the weight is still there.
+  - id: sailed_with_before
+    description: The NPC and PC served on the same ship in a previous crew, for good or ill.
+    tags: [previous_crew, shared_history]
+    incompatible_with: []
+  - id: ransomed_together
+    description: The NPC and PC were held for ransom together and have a pact from that time.
+    tags: [captivity, pact, shared_trauma]
+    incompatible_with: []
 
 scene_detail_bundles:
   - id: quarterdeck
-    items: [compass in a gimbaled brass mount, speaking trumpet with a cracked bell, signal flags bundled and tied, a swivel gun loaded with grapeshot, officers' logbook open to a half-finished entry, coil of tarred rope]
-    min_use: 3
+    items: [a compass in a gimbaled brass mount, a swivel gun loaded with grapeshot]
+    conditions: [the deck slick with spray, the rigging humming under strain]
+    sensory: [the snap of canvas overhead, the creak of the helm under pressure]
   - id: orlop_deck
-    items: [surgeon's saw with a stained handle, canvas sling for the wounded, water cask with a slow leak, lantern swinging with the ship's roll, hammocks lashed so close they touch, a chest of salted beef crawling with weevils]
-    min_use: 3
+    items: [a surgeon's saw with a stained handle, a lantern swinging with the ship's roll]
+    conditions: [oppressively dark, the air thick with bilge and salt]
+    sensory: [the groan of the hull timbers, the scurrying of rats in the dark]
   - id: captains_cabin
-    items: [a sea chart with course corrections in red ink, a locked dispatch box, a half-empty decanter of Madeira, a brace of pistols in a felt-lined case, the ship's Articles pinned under a paperweight, a telescope with a cracked lens]
-    min_use: 2
+    items: [a sea chart with course corrections in red ink, a brace of pistols in a felt-lined case]
+    conditions: [the cabin listing to starboard, the lock on the dispatch box scratched]
+    sensory: [the tang of gunpowder and Madeira, the drip of water through a deck seam]
   - id: galley
-    items: [iron kettle over a low fire, hardtack crumbs scattered on the workbench, a cleaver worn thin from sharpening, a bucket of seawater for scrubbing, a spice canister labeled "cinnamon" but smells of something else]
-    min_use: 2
+    items: [an iron kettle over a low fire, a cleaver worn thin from sharpening]
+    conditions: [greasy and close, the fire smoking badly]
+    sensory: [the sizzle of hardtack frying, the smell of rancid cooking oil]
   - id: cargo_hold
-    items: [barrels of salt pork stamped with a naval mark, bolts of trade cloth wrapped in oilskin, a broken musket discarded in a corner, crates of shot with the nails pried loose, a stowaway's blanket and an empty waterskin]
-    min_use: 2
+    items: [barrels of salt pork stamped with a naval mark, a broken musket discarded in a corner]
+    conditions: [the hold half-flooded, crates shifted and splintered]
+    sensory: [the slosh of bilgewater against the hull, the smell of damp timber and spoiled provisions]
+  - id: beach_cove
+    items: [a longboat pulled up on the sand, a sea chest with the lock smashed]
+    conditions: [the tide coming in fast, the cove sheltered from the wind]
+    sensory: [the hiss of waves on shingle, the cry of gulls overhead]
+  - id: warehouse_district
+    items: [a hoist with a frayed rope, a ledger open to a page of false weights]
+    conditions: [the air thick with dust from spice sacks, a lantern burning low in a wall sconce]
+    sensory: [the skitter of rats in the rafters, the muffled shouts from the street outside]

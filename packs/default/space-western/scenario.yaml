@@ -154,6 +154,18 @@ moral_pressures:
   - id: old_loyalties_new_world
     tags: [war_veteran, post_war_identity, shifting_alliances]
     incompatible_with: []
+  - id: bounty_hunter_code
+    tags: [hunting, ethics, line_between_law_and_outlaw]
+    incompatible_with: []
+  - id: corporate_encroachment
+    tags: [corporations, colonization, exploitation]
+    incompatible_with: []
+  - id: terraform_failure
+    tags: [environment, survival, hubris]
+    incompatible_with: []
+  - id: first_contact_stakes
+    tags: [aliens, diplomacy, unknown]
+    incompatible_with: []
 
 npc_bonds:
   - id: old_crewmate
@@ -177,20 +189,37 @@ npc_bonds:
   - id: partisan_cell
     tags: [rebellion, underground, mutual_cause]
     description: The NPC and PC worked with the same partisan cell during the war — a shared cause that outlasted the armistice.
+  - id: smuggling_connection
+    description: The NPC was the PC's contact on a smuggling route that went bad — trust was broken, then rebuilt.
+    tags: [smuggling, trust, shared_risk]
+    incompatible_with: []
 
 scene_detail_bundles:
   - id: cargo_bay
-    items: [a grav pallet with a broken levitator, cargo netting strung between crates stamped COALITION PROPERTY, a hydro-spanner with an adaptive grip, a thermal blanket crumpled in a corner, a spliced data cable hanging from an access panel, a crated engine block with contraband filed off the serial]
-    min_use: 3
+    items: [a grav pallet with a broken levitator, a hydro-spanner with an adaptive grip]
+    conditions: [the bay depressurized and cold, cargo netting loose and tangled]
+    sensory: [the hum of emergency lighting, the hiss of atmosphere cycling through scrubbers]
   - id: town_street
-    items: [a holo-sign flickering between two advertisements, a water trough with a dead float switch, a market stall with half the goods under a tarp, a notice board with Coalition bounty posters overlapping settlement notices, a freight droid powered down against a wall, a cracked window taped from the inside]
-    min_use: 3
+    items: [a holo-sign flickering between two advertisements, a freight droid powered down against a wall]
+    conditions: [the street half in shadow, market stalls abandoned mid-day]
+    sensory: [the buzz of faulty lighting, the distant shriek of a ship's engines atmo-burn]
   - id: saloon_interior
-    items: [a card table with a marked deck in the discard, a synthesizer dispensing something brown into a chipped cup, a piano with three dead keys, a booth with a listening device taped under the seat, a wanted poster with the sketched face scratched out, a back door propped open with a boot]
-    min_use: 2
+    items: [a card table with a marked deck in the discard, a synthesizer dispensing something brown into a chipped cup]
+    conditions: [smoke from a hookah hanging in the air, a back door propped open]
+    sensory: [the jangle of an out-of-tune piano, the hum of a cooler unit cycling]
   - id: desert_crossing
-    items: [a rusted hull fragment half-buried in the dust, a cracked oxygen mask hanging from a post, a trail marker knocked askew, a solar still with a broken seal, a ration pack with the seal intact but the contents rattling, a hand-drawn map weighted under a rock]
-    min_use: 2
+    items: [a rusted hull fragment half-buried in the dust, a cracked oxygen mask hanging from a post]
+    conditions: [the heat shimmer distorting the horizon, the trail marker knocked askew]
+    sensory: [the dry scrape of windblown sand, the creak of metal expanding in the heat]
   - id: mine_shaft
-    items: [a drilling rig with the safety guard removed, a cart of raw ore on a damaged track, a ventilation fan that cycles unevenly, a lantern hung from a rusted hook, a shift log open to an entry that stops mid-sentence, a seismic charge with a dead trigger]
-    min_use: 2
+    items: [a drilling rig with the safety guard removed, a seismic charge with a dead trigger]
+    conditions: [the ventilation fan cycling unevenly, the shaft dimly lit]
+    sensory: [the echo of dripping water from deep below, the grinding of ore carts on damaged track]
+  - id: orbit_station
+    items: [an airlock with a jammed seal, a terminal showing docking fees overdue]
+    conditions: [the gravity cycling on and off, the corridor dimly lit with emergency strips]
+    sensory: [the low hum of the station's reactors, the click of magnetic boots on grated flooring]
+  - id: repair_bay
+    items: [a welding torch with a cracked lens, a diagnostic tablet showing red across the board]
+    conditions: [the bay cold from the vacuum seal broken, tools scattered across every surface]
+    sensory: [the hiss of a plasma cutter, the ozone smell of a recent electrical fire]

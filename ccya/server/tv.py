@@ -589,9 +589,6 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "compendium": st.get("compendium"),
                 "arc": st.get("arc"),
             }
-            __seed_meta = st.get("__seed_meta__") or {}
-            if seed_type == "dynamic" and __seed_meta:
-                seed_state["__seed_meta__"] = __seed_meta
             seed_row = {
                 "row_kind": "seed",
                 "turn": 0,
@@ -599,7 +596,14 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "pack_source": meta.get("_pack_source", ""),
                 "seed_json": _json.dumps(seed_state, indent=2, default=str),
             }
-            rows.insert(0, seed_row)
+            __seed_pools = st.get("__seed_pools__") or {}
+            if seed_type == "dynamic" and __seed_pools:
+                seed_row["seed_pools_json"] = _json.dumps(
+                    __seed_pools,
+                    indent=2,
+                    default=str,
+                )
+            rows.append(seed_row)
     except Exception as exc:
         _log.warning("Failed to load state for turn_viewer seed display", extra={"error": str(exc)})
 

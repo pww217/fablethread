@@ -183,6 +183,18 @@ moral_pressures:
   - id: trust_dynamics
     tags: [trust, dynamics, relationship_risk]
     incompatible_with: []
+  - id: quarantine_choice
+    tags: [isolation, protection, ethics_of_exclusion]
+    incompatible_with: []
+  - id: cure_or_supplies
+    tags: [resources, hope, pragmatism]
+    incompatible_with: []
+  - id: stranger_at_the_gate
+    tags: [trust, mercy, security]
+    incompatible_with: []
+  - id: last_stand_decision
+    tags: [sacrifice, defense, survival_of_group]
+    incompatible_with: []
 
 npc_bonds:
   - id: settlement_founder
@@ -206,20 +218,37 @@ npc_bonds:
   - id: faction_double_agent
     tags: [faction, divided_loyalty, secrets]
     description: The NPC is part of a faction the PC distrusts, but there is a personal bond between them that crosses the faction line.
+  - id: held_a_gate_together
+    description: The NPC and PC once held a breach together while others fled. The memory is one of mutual reliance.
+    tags: [shared_defense, trust, combat_bond]
+    incompatible_with: []
 
 scene_detail_bundles:
   - id: abandoned_hospital
-    items: [a gurney with torn restraints, a pharmacy cabinet with one drawer crowbarred open, a surgical light flickering on battery backup, a stack of patient charts water-damaged into illegibility, a syringe half-filled with something dark, a body bag on the floor that was never zipped]
-    min_use: 3
+    items: [a gurney with torn restraints, a syringe half-filled with something dark]
+    conditions: [the power flickering on backup battery, patient charts water-damaged into illegibility]
+    sensory: [the hum of a surgical light on backup power, the smell of rot from a locked ward]
   - id: settlement_wall
-    items: [a guard post with a periscope and a cracked optic, a ladder with two missing rungs, a bucket of gravel and a shovel for the gaps, a listening post with a dented parabolic mic, a warning bell with a frayed rope, a cache of molotov cocktails wrapped in newspaper]
-    min_use: 3
+    items: [a guard post with a periscope and a cracked optic, a cache of molotov cocktails wrapped in newspaper]
+    conditions: [the wall patched in three places, gravel piled for quick fills]
+    sensory: [the constant low moan from beyond the wall, the creak of the watchtower ladder under weight]
   - id: overgrown_street
-    items: [a burned-out car with saplings growing through the chassis, a grocery store with the windows boarded but the door swinging, a traffic light dangling from one wire, a mattress dragged halfway across the intersection, a crate of bottled water, a child's shoe in the gutter]
-    min_use: 2
+    items: [a burned-out car with saplings growing through the chassis, a crate of bottled water]
+    conditions: [a mattress dragged halfway across the intersection, the grocery store windows boarded but the door swinging]
+    sensory: [the buzz of flies over something unseen, glass crunching underfoot with every step]
   - id: underground_bunker
-    items: [a military radio tuned to static, a row of metal bunks with thin mattresses, a water filtration pump with a cracked housing, a crate of MREs stacked six high, a logbook on a field desk with entries growing further apart, a loaded pistol left on the table]
-    min_use: 2
+    items: [a military radio tuned to static, a loaded pistol left on the table]
+    conditions: [the water filtration pump with a cracked housing, the air stale and metallic]
+    sensory: [the echo of footsteps down the corridor, the drip of condensation from a pipe overhead]
   - id: quarantine_zone
-    items: [a chain-link fence with biohazard tape woven through the links, a decontamination tent with the flap torn, a clipboard hanging from a nail with names crossed out, a bucket of bleach and a stack of rags, a loudspeaker on a pole repeating a recorded warning, a pile of abandoned bedding]
-    min_use: 2
+    items: [a decontamination tent with the flap torn, a loudspeaker on a pole repeating a recorded warning]
+    conditions: [the fence layered with biohazard tape, the bedding pile abandoned]
+    sensory: [the endless loop of a recorded warning echoing off concrete, the acrid smell of bleach concentrate]
+  - id: radio_station
+    items: [a broadcast microphone with the foam chewed off, a stack of records with hand-painted labels]
+    conditions: [the window boarded but light coming through the cracks, the transmitter humming but untuned]
+    sensory: [the crackle of static, the echo of footsteps on the tiled floor]
+  - id: farm_outskirts
+    items: [a tractor with the battery pulled, a root cellar door bolted from the outside]
+    conditions: [the field overgrown with thistle, the fence line down in three places]
+    sensory: [the low of cattle left untended, the rustle of dry corn stalks in the wind]

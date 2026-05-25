@@ -33,6 +33,7 @@ from .panels import (
     _debug_context,
     _get_opening,
     _get_opening_actions,
+    _get_opening_outcome_summary,
     _load_current_state,
     _load_last_actions,
     _load_recent_history,
@@ -50,8 +51,11 @@ def _apply_seed_to_save_dir(
     seed_dict: dict[str, Any],
     opening_narrative: str | None = None,
     actions: list[str] | None = None,
+    *,
+    outcome_summary: str = "",
     pack_type: str | None = None,
     pack_source: str | None = None,
+    pool_selection: dict[str, Any] | None = None,
 ) -> None:
     """Apply generated/loaded seed to save directory and set dynamic pack variables."""
     seed_dict.setdefault("meta", {})["model"] = _app_mod.config["llm"]["model"]
@@ -63,7 +67,10 @@ def _apply_seed_to_save_dir(
         seed_dict["__seed_meta__"] = {
             "opening_narrative": opening_narrative,
             "actions": actions,
+            "outcome_summary": outcome_summary,
         }
+    if pool_selection:
+        seed_dict["__seed_pools__"] = pool_selection
     init_save_dir(_app_mod.SAVE_DIR, seed_dict)
     if opening_narrative is not None:
         _app_mod._dynamic_opening = opening_narrative
@@ -73,6 +80,7 @@ def _apply_seed_to_save_dir(
         _app_mod._dynamic_opening_actions = actions
     else:
         _app_mod._dynamic_opening_actions = []
+    _app_mod._dynamic_opening_outcome = outcome_summary
 
 
 def _format_ts(ts_str: str) -> str:
@@ -99,6 +107,7 @@ async def index(request: Request):
     ctx["last_actions"] = last_actions
     ctx["opening"] = opening
     ctx["opening_actions"] = opening_actions
+    ctx["opening_outcome_summary"] = _get_opening_outcome_summary() if opening else ""
     ctx["has_narrative"] = bool(opening or history)
     ctx["pack_mode"] = _app_mod._active_pack.mode
     ctx["pack_name"] = _app_mod._active_pack.manifest.name
@@ -176,6 +185,7 @@ async def get_turn(input: str = ""):
                                 "state": _load_current_state(),
                                 "metrics": result.metrics,
                                 "ruling": result.ruling,
+                                "outcome_summary": result.outcome_summary,
                                 "recent_events_evicted": result.recent_events_evicted,
                                 "ts": _ts_display,
                             }
@@ -284,7 +294,7 @@ async def new_game(request: Request):
         _apply_seed_to_save_dir(seed, pack_type="static", pack_source=_app_mod._pack_id)
     else:
         try:
-            envelope = await generate_seed(
+            envelope, pool_selection = await generate_seed(
                 _app_mod._active_pack,
                 _app_mod.engine_config,
                 template_dir=str(_app_mod.PROMPTS_DIR),
@@ -292,7 +302,7 @@ async def new_game(request: Request):
             )
             seed = envelope.seed_state.model_dump(mode="json")
             seed["meta"]["setting_pack"] = _app_mod._pack_id
-            _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, pack_type="dynamic", pack_source=_app_mod._pack_id)
+            _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, outcome_summary=envelope.outcome_summary, pack_type="dynamic", pack_source=_app_mod._pack_id, pool_selection=pool_selection)
         except Exception:
             _app_mod.logger.exception("generate_seed failed")
 
@@ -310,14 +320,14 @@ async def new_game_reroll(request: Request):
         )
 
     try:
-        envelope = await generate_seed(
+        envelope, pool_selection = await generate_seed(
             _app_mod._active_pack,
             _app_mod.engine_config,
             template_dir=str(_app_mod.PROMPTS_DIR),
         )
         seed = envelope.seed_state.model_dump(mode="json")
         seed["meta"]["setting_pack"] = _app_mod._pack_id
-        _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, pack_type="dynamic", pack_source=_app_mod._pack_id)
+        _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, outcome_summary=envelope.outcome_summary, pack_type="dynamic", pack_source=_app_mod._pack_id, pool_selection=pool_selection)
     except Exception as exc:
         _app_mod.logger.exception("generate_seed reroll failed")
         return HTMLResponse(f"<p class='text-red-400'>Re-roll failed: {exc}</p>")
