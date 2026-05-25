@@ -107,6 +107,12 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - `_merge_arc_update` unconditionally replaces `arc["threads"]` and `arc["completed_threads"]` on every call — no truthy guard (fixes last-thread resolution persistence bug)
 - Latent promotion in `_apply_thread_signals` skips thread IDs already in `arc.completed_threads` — defense-in-depth against re-promotion of resolved threads
 
+### Storyteller system prompt (`ccya/prompts/storytell_system.j2`)
+- JSON schema example shows minimal ArcThread structure with optional `key` field for canonical concept labeling
+- CRITICAL instruction added: storyteller must check all active/latent thread summaries for conceptual overlap before emitting new threads; advance existing threads via `thread_advance` instead of creating duplicates when tension is the same
+- Thread key guidance appended to thread_add rules paragraph — structured snake_case format (`subject_action` or `location_event`) enables engine-side dedup auto-merge
+### Narrator system prompt (`ccya/prompts/narrate_system.j2`)
+- ARC_UPDATE JSON example includes `"thematic_question"` field alongside existing `discovered_truths` and `visible_goal` — matches `_ALLOWED_NARRATOR_ARC_KEYS` which already accepts this key (turn.py lines 1352-1355)
 ### Momentum lifecycle
 - `apply_momentum(state, band)` in ccya/state/momentum.py mutates `state["pc"]["momentum"]` deterministically from band delta, clamped to [-3, +3]
 - Pre-ruling momentum captured BEFORE `_ruling_phase()` (turn.py line ~1044), post-ruling captured AFTER — delta reflects actual band-based change
@@ -131,7 +137,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### Extraction field routing
 - **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, npc_add/remove/update, compendium_npc_update (no pressure fields)
 - **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
-- **StorytellerResult**: thread_advance, thread_resolve (list[ThreadResolution]), thread_add (ArcThread | None), recent_events_add/update/remove, actions, outcome_summary, gm_beat (no quest_updates); thread_resolve processed by _apply_thread_resolutions() in turn.py to move threads from arc.threads[] to arc.completed_threads[]
+- **StorytellerResult**: thread_advance, thread_resolve (list[ThreadResolution]), thread_add (ArcThread | None), recent_events_add/update/remove, actions, outcome_summary, gm_beat (no quest_updates); thread_add validated by key-based dedup gate in turn.py before scope check — exact collision rejects with WARNING log ("thread_add.key_collision"), fuzzy auto-merge on ≥70% token-overlap scoring updates existing thread summary/tags ("thread_add.auto_merge"); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[]
 - **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions, persisted to state["pc"]["actions"] as rolling window by apply_delta()
 
 ### Cross-stream data flow (minimal by design)
@@ -194,7 +200,7 @@ arc:                           # managed by engine/turn.py (_apply_thread_signal
   thematic_question: str       # emotional register — never stated directly in narration
   hidden_truths: [str]         # designer-only structural spine
   discovered_truths: [str]     # truths player has learned (starts empty)
-  threads: list[ArcThread]     # unified arc.threads[] with active flag replaces old active_threads/latent_threads split
+  threads: list[ArcThread]     # unified arc.threads[] with active flag replaces old active_threads/latent_threads split; ArcThread.key optional str | None for canonical concept labeling (dedup at thread_add time)
 
   completed_threads: list[Thread]
 
