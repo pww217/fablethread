@@ -13,6 +13,9 @@ from ccya.models import load_config
 
 
 def setup_logging(config: dict[str, Any] | None = None) -> logging.Logger:
+    if getattr(setup_logging, "_done", False):
+        return logging.getLogger("ccya")
+
     if config is None:
         config = load_config()
 
@@ -39,6 +42,7 @@ def setup_logging(config: dict[str, Any] | None = None) -> logging.Logger:
     ch.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
     logger.addHandler(ch)
 
+    setup_logging._done = True  # type: ignore[attr-defined]
     return logger
 
 
