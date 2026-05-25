@@ -913,7 +913,6 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
     _pack_narrator_rules = ctx.packing.get("narrator_rules", [])
     _pack_world_rules = ctx.packing.get("world_rules", [])
     _world_factions = ctx.packing.get("factions", [])
-    _world_locations = ctx.packing.get("locations", [])
 
     # Compute unified pacing scalar
     narrative_velocity = _compute_narrative_velocity(
