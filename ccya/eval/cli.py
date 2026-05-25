@@ -42,10 +42,7 @@ from ccya.logging_setup import setup_logging
 
 _log = logging.getLogger(__name__)
 
-try:
-    setup_logging()
-except Exception:
-    pass
+setup_logging()
 
 
 def _filter_judges(eval_cfg: EvalConfig, judge_ids: list[str]) -> EvalConfig:

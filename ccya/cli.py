@@ -8,10 +8,7 @@ import uvicorn
 
 from ccya.logging_setup import setup_logging
 
-try:
-    setup_logging()
-except Exception:
-    pass
+setup_logging()
 
 
 def hyperlink(url: str, label: str | None = None) -> str:
