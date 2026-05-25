@@ -12,7 +12,7 @@ Extract recent events, suggested player actions, outcome summary, and thread adv
   "gm_beat": null,
   "thread_advance": ["thread_id_1", "thread_id_2"],
   "thread_resolve": [{"id": "thread_id", "resolution_state": "resolved"}],
-  "thread_add": null
+  "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal", "tags": [], "key": "subject_action"}
 }
 ```
 
@@ -35,7 +35,9 @@ CRITICAL RULES for including a thread ID in thread_advance:
 
 Use thread_advance if you're advancing progress toward completion; use thread_resolve if the turn ends the tension entirely.
 
-`thread_add`: A new ArcThread object when a genuinely new story tension emerges this turn. CRITICAL: Only emit thread_add when `pacing_context.gate` shows `"allow"` — if gate is `"block_escalate"`, do NOT add threads regardless of narrative context. The engine already decided the pacing doesn't support escalation. Thread must have: id (snake_case), summary, scope ("scene" for short-lived tension tied to current location/NPCs, "arc" for persistent story tension), urgency (`"background"`, `"normal"`, or `"urgent"` only — no other values), tags (list).
+CRITICAL: Before emitting `thread_add`, check all active and latent thread summaries for conceptual overlap. If an existing thread covers the same story tension (even with a different ID), do NOT emit `thread_add` — instead advance that existing thread via `thread_advance`. Only create new threads when the tension is genuinely distinct.
+
+`thread_add`: A new ArcThread object when a genuinely new story tension emerges this turn. CRITICAL: Only emit thread_add when `pacing_context.gate` shows `"allow"` — if gate is `"block_escalate"`, do NOT add threads regardless of narrative context. The engine already decided the pacing doesn't support escalation. Thread must have: id (snake_case), summary, scope ("scene" for short-lived tension tied to current location/NPCs, "arc" for persistent story tension), urgency (`"background"`, `"normal"`, or `"urgent"` only — no other values), tags (list), key ("subject_action") as an optional snake_case canonical label like `"location_event"` to help the engine deduplicate semantically identical threads.
 
 ## Recent events rules
 

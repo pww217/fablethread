@@ -55,6 +55,7 @@ class ArcThread(BaseModel):
     # Fields from old ArcThread that are preserved — engine handles these directly on resolve/advance:
     unlock_if: str | None = None
     promotes: list[str] = Field(default_factory=list)
+    key: str | None = None  # optional canonical concept label; 2-4 token snake_case for dedup at thread_add time with auto-merge on collision
 
 
 class CampaignArc(BaseModel):
