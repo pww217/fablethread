@@ -100,7 +100,7 @@
                     </div>
                 </template>
 
-                <template x-if="t.row_kind !== 'compaction'">
+                <template x-if="t.row_kind !== 'compaction' && t.row_kind !== 'seed'">
                     <div class="tv-turn-card" :id="'tv-turn-' + t.turn">
                 <div class="tv-turn-header" @click="toggleTurnCollapsed(t.turn)">
                     <div class="tv-turn-number">Turn <span x-text="t.turn"></span></div>
@@ -445,7 +445,7 @@ function tvRoot() {
             var key = t.row_kind === 'compaction' ? 'c-' + t.turn : 
                       t.row_kind === 'seed' ? 'seed' : t.turn;
             this.turns.forEach(function(tr) {
-                if (tr.row_kind !== 'compaction') {
+                if (tr.row_kind !== 'compaction' && tr.row_kind !== 'seed') {
                     this.turnCollapsed[tr.turn] = true;
                 }
             }.bind(this));
