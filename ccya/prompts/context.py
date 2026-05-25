@@ -221,7 +221,7 @@ class NarratorBoundary(BaseModel):
     ArcThreadBlock is exposed as `current_arc` to match _arc.j2's variable name (line 1 of _arc.j2).
 
     NOTE: chronicle_tail, threat_ages, threat_pressure_at, building_threat_imperative_at are passed in user_ctx but narrate_user.j2 never uses them — dead fields removed from boundary model.
-    momentum, scene, compendium_bios, known_npcs, present_npcs, recently_left also flagged as dead by alignment check and removed.
+    momentum, scene, compendium_bios, known_npcs, present_npcs also flagged as dead by alignment check and removed.
     """
 
     pc: PlayerBlock  # maps to {{ pc.* }} (lines 2-6 of narrate_user.j2)
@@ -238,14 +238,13 @@ class NarratorBoundary(BaseModel):
     ages: dict[str, int]
     pc_allegiance: str | None = None
     world_factions: list[dict[str, str]]
-    world_locations: list[dict[str, str]]
     npc_name_pool: dict[str, list[str]]
 
 class SceneExtractBoundary(BaseModel):
     """Context for extract_scene_user.j2.
 
     Source: _extract_scene_messages() passes pc, location, conditions directly (lines 274-282).
-    npc_roster comes from build_npc_roster(present_npcs=extraction_ctx.present_npcs_this_turn, known_npcs=_known_characters_for_extract(state, compact=True), recently_left=[]) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_seen. present_npcs is enriched scene data with id/name/title/bio/notes/presence/last_seen (dicts, not NPCRosterEntryBlock instances at current call site).
+    npc_roster comes from build_npc_roster(present_npcs=extraction_ctx.present_npcs_this_turn, known_npcs=_known_characters_for_extract(state, compact=True)) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_seen. present_npcs is enriched scene data with id/name/title/bio/notes/presence/last_seen (dicts, not NPCRosterEntryBlock instances at current call site).
 
     NOTE: pc and conditions are passed by _extract_scene_messages but extract_scene_user.j2 never renders them — dead fields removed from boundary model.
     """
