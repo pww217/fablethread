@@ -17,14 +17,12 @@ flowchart LR
         N4["rules_outcome<br>(band, directive, dice summary)"]:::xstream
         N5["pack_style (tone / prose guide)"]
         N6["npc_name_pool (cultural name list)"]
-        N7["recently_left NPCs"]
-        N8["known_npcs<br>(last-seen info)"]
-        N9["present_npcs<br>(attitudes)"]
-        N10["world_factions<br>(immutable trace)"]
-        N11["world_locations<br>(nearby, immutable)"]
-        N12["pending_gm_beat<br>(type · surface_as metadata)"]
-        N13["pacing_context<br>(directive)<br>from _compute_pacing_context()"]:::xstream
-        N14["compendium_bios<br>(upserted bio entries for<br>present + recently_left NPCs)"]
+        N7["known_npcs<br>(last-seen info)"]
+        N8["present_npcs<br>(attitudes)"]
+        N9["world_factions<br>(immutable trace)"]:::xstream
+        N10["pending_gm_beat<br>(type · surface_as metadata)"]
+        N11["pacing_context<br>(directive)<br>from _compute_pacing_context()"]:::xstream
+        N12["compendium_bios<br>(upserted bio entries for present NPCs only)"]
         N15["user_input"]
     end
 
