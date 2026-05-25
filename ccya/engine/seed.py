@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Any
+from typing import Any, cast
 from hashlib import sha256
 from jinja2 import Environment
 from pathlib import Path
@@ -14,7 +14,7 @@ import re
 from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json, _log_llm_io, _log_prompts, _render
 from ccya.engine.names import generate_name_pool, generate_npc_names
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
-from ccya.pack import Pack, PlayerOverrides, PoolEntry, SeedEnvelope, parse_world_facts
+from ccya.pack import Pack, PlayerOverrides, SeedEnvelope, parse_world_facts
 
 from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
 
@@ -77,7 +77,7 @@ def _validate_seed_envelope(envelope: SeedEnvelope) -> None:
 
 
 
-def _select_from_pool(pool_items: list[PoolEntry], seed: int, field_name: str) -> dict[str, Any]:
+def _select_from_pool(pool_items: list[Any], seed: int, field_name: str) -> dict[str, Any]:
     """Select ONE entry from a pool using hash-based deterministic selection."""
     if not pool_items:
         raise ValueError(
@@ -88,7 +88,7 @@ def _select_from_pool(pool_items: list[PoolEntry], seed: int, field_name: str) -
     idx = int(sha256(f"{seed}:{field_name}".encode()).hexdigest(), 16) % len(pool_items)
     selected = pool_items[idx]
 
-    return selected.model_dump()
+    return cast(dict[str, Any], selected.model_dump())
 
 
 def _build_synthesis_context(
@@ -96,14 +96,21 @@ def _build_synthesis_context(
     arc: dict[str, Any],
     character_dynamic: dict[str, Any],
     moral_pressure: dict[str, Any],
+    npc_bond: dict[str, Any] | None = None,
+    scene_bundle: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build a context dictionary with the four selected entries' ids and tags."""
-    return {
+    """Build a context dictionary with the six selected entries' ids and tags."""
+    ctx: dict[str, Any] = {
         "situation": situation,
         "arc": arc,
         "character_dynamic": character_dynamic,
         "moral_pressure": moral_pressure,
     }
+    if npc_bond:
+        ctx["npc_bond"] = npc_bond
+    if scene_bundle:
+        ctx["scene_bundle"] = scene_bundle
+    return ctx
 
 
 def _preselect_pools(scenario: Any, name_seed: int) -> dict[str, Any]:
@@ -119,7 +126,14 @@ def _preselect_pools(scenario: Any, name_seed: int) -> dict[str, Any]:
         scenario.moral_pressures, name_seed, "moral_pressure"
     )
 
-    return _build_synthesis_context(situation, arc, character_dynamic, moral_pressure)
+    npc_bond = _select_from_pool(
+        scenario.npc_bonds, name_seed, "npc_bond"
+    )
+    scene_bundle = _select_from_pool(
+        scenario.scene_detail_bundles, name_seed, "scene_detail_bundle"
+    )
+
+    return _build_synthesis_context(situation, arc, character_dynamic, moral_pressure, npc_bond, scene_bundle)
 
 
 _log = logging.getLogger(__name__)

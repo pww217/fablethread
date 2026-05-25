@@ -32,6 +32,7 @@ def build_npc_roster(
             "motivation": n.get("motivation") or None,
             "fear": n.get("fear") or None,
             "leverage": n.get("leverage") or None,
+            "bond": n.get("bond") or None,
             "notes": n.get("notes") or None,
             "last_seen": None,
         }
@@ -66,6 +67,7 @@ def build_npc_roster(
             "motivation": n.get("motivation") or None,
             "fear": n.get("fear") or None,
             "leverage": n.get("leverage") or None,
+            "bond": n.get("bond") or None,
             "notes": None,
             "last_seen": n.get("last_seen") or None,
         }

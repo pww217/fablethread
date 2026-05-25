@@ -153,3 +153,43 @@ moral_pressures:
   - id: peace_through_warfare
     tags: [warfare, peace_seeking, strategic_violence]
     incompatible_with: []
+
+npc_bonds:
+  - id: sworn_retainer
+    tags: [loyalty, service, years_of_service]
+    description: The NPC has served the PC's clan for years. The bond is feudal — duty layered over genuine respect, tested by battle and hardship.
+  - id: battle_comrade
+    tags: [combat, shared_victory, battlefield_trust]
+    description: The NPC and PC fought side by side in a battle that defined them both. Each knows how the other moves in combat.
+  - id: disgraced_kin
+    tags: [family, shame, divided_loyalty]
+    description: The NPC is a relative whose dishonor stains the family. The PC must navigate love for kin and the weight of obligation.
+  - id: childhood_rival
+    tags: [rivalry, youth, competitive_history]
+    description: The NPC was raised alongside the PC in the same household or dojo. They competed for everything — and still do.
+  - id: former_sensei
+    tags: [teacher, mentorship, martial_debt]
+    description: The NPC trained the PC in the ways of the warrior. The teacher-student bond carries expectations neither can fully escape.
+  - id: wed_by_war
+    tags: [marriage, alliance, political_bond]
+    description: The NPC is wed into the PC's clan through a political marriage. The arrangement began as strategy but became something more.
+  - id: clan_oath
+    tags: [blood_oath, brotherhood, unbreakable_bond]
+    description: The PC and this NPC swore a clan oath together before their lord. The oath binds them beyond personal feeling.
+
+scene_detail_bundles:
+  - id: castle_bailey
+    items: [a yari spear rack with three spears missing, a wooden gate reinforced with iron bands, a messenger's saddle still on the horse, a brazier with embers dying, a splintered practice target, a scroll half-unrolled on a campaign chest]
+    min_use: 3
+  - id: mountain_pass
+    items: [a stone marker worn past reading, a broken cart axle propped against a boulder, the remains of a campfire still warm, a sandal stuck in the mud, a paper lantern crumpled by rain, a signal arrow lying in the brush]
+    min_use: 2
+  - id: village_gate
+    items: [a wooden gate with fresh arrow impacts, a notice board with a new decree nailed over an old one, a well with its bucket lowered but not raised, rice drying on a woven mat, a farmer's hoe left in the furrow, a dog barking at the treeline]
+    min_use: 3
+  - id: temple_grounds
+    items: [a bronze bell with a split clapper, incense ash scattered across the steps, a sutra scroll open to a single passage, a lantern with the paper torn, a wooden training blade left on a stump, a coin offering in a cracked bowl]
+    min_use: 2
+  - id: war_camp
+    items: [a command tent with a map weighted by stones, a cooking pot with burned rice sticking to the bottom, a messenger's horse tethered and unsaddled, a pile of ashigaru spears stacked for inspection, a letter half-finished on a drum, a sake bottle drained and passed around]
+    min_use: 3

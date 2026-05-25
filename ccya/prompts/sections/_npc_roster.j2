@@ -10,6 +10,7 @@ Before introducing a new named NPC, check this list first.
 {%- if n.motivation %} | wants: {{ n.motivation }}{% endif %}
 {%- if n.fear %} | fears: {{ n.fear }}{% endif %}
 {%- if n.leverage %} | leverage: {{ n.leverage }}{% endif %}
+{%- if n.bond %} | bond: {{ n.bond }}{% endif %}
 {%- if n.last_seen %} | last seen: {{ n.last_seen }}{% endif %}
 {%- if n.presence == 'just_left' %} — Do not write dialogue or new action for this character this turn.{% endif %}
 

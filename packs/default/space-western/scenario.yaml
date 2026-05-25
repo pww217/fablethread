@@ -154,3 +154,43 @@ moral_pressures:
   - id: old_loyalties_new_world
     tags: [war_veteran, post_war_identity, shifting_alliances]
     incompatible_with: []
+
+npc_bonds:
+  - id: old_crewmate
+    tags: [crew, ship, shared_mileage]
+    description: The NPC served on the same ship as the PC — not friends, but the kind of bond formed by shared cargo holds and close calls.
+  - id: shared_smuggling_run
+    tags: [smuggling, trust, mutual_risk]
+    description: The NPC and PC ran a smuggling route together. The job paid but the mutual liability is the real tie that holds.
+  - id: coalition_adversary
+    tags: [coalition, war, enemy_lines]
+    description: The NPC was on the opposite side of the war. The PC knows them as an adversary who earned respect through competence.
+  - id: settlement_debt
+    tags: [settlement, community, obligation]
+    description: The NPC's settlement saved the PC once — gave them shelter, fuel, a reason to keep flying. The bond is to the community, not just the person.
+  - id: war_remnant
+    tags: [war, veteran, shared_trauma]
+    description: The NPC served in the same theater of the war as the PC. The war shaped them similarly and neither talks about it.
+  - id: family_scattered
+    tags: [family, separation, search]
+    description: The NPC is connected to the PC's family — a sibling, a cousin, someone who knows what happened to the rest.
+  - id: partisan_cell
+    tags: [rebellion, underground, mutual_cause]
+    description: The NPC and PC worked with the same partisan cell during the war — a shared cause that outlasted the armistice.
+
+scene_detail_bundles:
+  - id: cargo_bay
+    items: [a grav pallet with a broken levitator, cargo netting strung between crates stamped COALITION PROPERTY, a hydro-spanner with an adaptive grip, a thermal blanket crumpled in a corner, a spliced data cable hanging from an access panel, a crated engine block with contraband filed off the serial]
+    min_use: 3
+  - id: town_street
+    items: [a holo-sign flickering between two advertisements, a water trough with a dead float switch, a market stall with half the goods under a tarp, a notice board with Coalition bounty posters overlapping settlement notices, a freight droid powered down against a wall, a cracked window taped from the inside]
+    min_use: 3
+  - id: saloon_interior
+    items: [a card table with a marked deck in the discard, a synthesizer dispensing something brown into a chipped cup, a piano with three dead keys, a booth with a listening device taped under the seat, a wanted poster with the sketched face scratched out, a back door propped open with a boot]
+    min_use: 2
+  - id: desert_crossing
+    items: [a rusted hull fragment half-buried in the dust, a cracked oxygen mask hanging from a post, a trail marker knocked askew, a solar still with a broken seal, a ration pack with the seal intact but the contents rattling, a hand-drawn map weighted under a rock]
+    min_use: 2
+  - id: mine_shaft
+    items: [a drilling rig with the safety guard removed, a cart of raw ore on a damaged track, a ventilation fan that cycles unevenly, a lantern hung from a rusted hook, a shift log open to an entry that stops mid-sentence, a seismic charge with a dead trigger]
+    min_use: 2

@@ -193,15 +193,15 @@ def _dedup_compendium_add(
 def _scene_npc_roster(known_characters: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Build a deduped NPC roster for the scene extractor user prompt.
 
-    Each row is ``{id, name, title, bio, notes, tags, motivation, fear, leverage}``
+    Each row is ``{id, name, title, bio, notes, tags, motivation, fear, leverage, bond}``
     where tags = {"compendium"}.
     """
     by_id: dict[str, dict[str, Any]] = {}
 
-    def _put(nid: str, name: str, title: str, bio: str, notes: str, tag: str, motivation: str = "", fear: str = "", leverage: str = "") -> None:
+    def _put(nid: str, name: str, title: str, bio: str, notes: str, tag: str, motivation: str = "", fear: str = "", leverage: str = "", bond: str = "") -> None:
         if not nid:
             return
-        row = by_id.setdefault(nid, {"id": nid, "name": "", "title": "", "bio": "", "notes": "", "tags": [], "motivation": "", "fear": "", "leverage": ""})
+        row = by_id.setdefault(nid, {"id": nid, "name": "", "title": "", "bio": "", "notes": "", "tags": [], "motivation": "", "fear": "", "leverage": "", "bond": ""})
         if name and not row["name"]:
             row["name"] = name
         if title and not row["title"]:
@@ -218,6 +218,8 @@ def _scene_npc_roster(known_characters: list[dict[str, Any]]) -> list[dict[str, 
             row["fear"] = fear
         if leverage and not row["leverage"]:
             row["leverage"] = leverage
+        if bond and not row["bond"]:
+            row["bond"] = bond
 
     for row in known_characters or []:
         _put(
@@ -230,6 +232,7 @@ def _scene_npc_roster(known_characters: list[dict[str, Any]]) -> list[dict[str, 
             row.get("motivation") or "",
             row.get("fear") or "",
             row.get("leverage") or "",
+            row.get("bond") or "",
         )
 
     return list(by_id.values())
@@ -262,6 +265,8 @@ def _extract_scene_messages(
             enriched["title"] = entry["title"]
         if not enriched.get("bio") and entry.get("bio"):
             enriched["bio"] = (entry.get("bio") or "").strip()
+        if not enriched.get("bond") and entry.get("bond"):
+            enriched["bond"] = entry["bond"]
         present_npcs.append(enriched)
 
     system_text = _render(env, "extract_scene_system.j2", {})

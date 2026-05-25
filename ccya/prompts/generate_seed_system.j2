@@ -103,7 +103,7 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
       recent_events: string[],
       present_npcs: Array<{id: string, name: string, title: string, notes: string, bio: string, relation: string}>
     },
-    compendium: {npcs: {snake_case: {name: string, title: string, bio: string, allegiance?: string}}},
+    compendium: {npcs: {snake_case: {name: string, title: string, bio: string, allegiance?: string, bond?: string}}},
     arc: {visible_goal: string, goal_context: string, thematic_question: string, hidden_truths: string[], discovered_truths: string[], threads: ArcThread[], completed_threads: ArcThread[], pc_drive: string} | null
   },
   opening_narrative: string,
@@ -161,6 +161,9 @@ Structure the opening in three movements:
 1. **Close-up** (~80 words): Start with a specific sensory detail — an object, texture, sound, smell, or weather. The PC's immediate physical reality before any crisis is declared. Orient the player through the character's senses. No summary, no biography, no "you are a..."
 
 2. **Exposition** (~100 words): What is around the PC to see, examine, touch, or potentially interact with? Describe 2-4 specific environmental details: a locked footlocker, a cracked mirror, a discarded letter, a tool left behind, a stain on the wall, an open window. These are things the player could choose to engage with. Do NOT describe these as "things you could examine" — weave them into the scene as natural details.
+{% if pool_selection and pool_selection.scene_bundle %}
+   Use the following scene objects as concrete, examinable, or interactable details in this movement: {{ pool_selection.scene_bundle.items | join(", ") }}. Integrate at least {{ pool_selection.scene_bundle.min_use }} of these into the description as natural scene elements.
+{% endif %}
 
 3. **Crisis / gameplay moment** (remaining words): The tension arrives or is revealed. Present NPCs act. The moment the player must respond to. This is where the "mid-scene" feel belongs — earned after the orientation.
 
@@ -182,13 +185,16 @@ Exactly 2 NPCs that appear in the opening scene — {id: snake_case, name, title
 {% endif %}
 
 Of the 2 in-scene NPCs, at least 1 must have a specific personal connection to the PC: a debt owed, a shared history (served together, grew up together, survived something together), an emotional bond (family, old friend, former lover), or a key story intersection (they are the reason the PC is here, they hold something the PC needs). Their `relation` field must specify this tie — not a generic role description. Their `bio` should reference the PC by name where the shared history demands it.
+{% if pool_selection and pool_selection.npc_bond %}
+The NPC with the personal connection should follow the selected NPC bond pattern: "{{ pool_selection.npc_bond.description }}"
+{% endif %}
 
 The other in-scene NPC carries immediate external pressure from the world, institution, or conflict pressing on the scene — their `relation` describes this institutional or situational connection (e.g., "represents the faction that controls this checkpoint", "is the officer whose orders you're failing"). Together the two NPCs embody: personal stakes (one NPC) + external pressure (the other NPC).
 
 ## compendium.npcs
 Generate exactly 2-3 additional NPCs in compendium.npcs (keyed by snake_case id, with {name, title, bio}). These are characters the PC knows of or has encountered before — they exist in the world but are not present in the opening scene. Their bios should tie them to the world's factions, locations, or pressures rather than to the immediate opening situation. They may become allies, antagonists, sources of information, or neutral parties as the story unfolds.
 
-Do NOT add `relation`, `notes`, `motivation`, `fear`, or `leverage` to compendium entries. Those fields are engine-managed at runtime. Compendium entries get: `name`, `title`, `bio` (and optional `allegiance` if relevant). `allegiance` is a faction id from the world pack.
+Do NOT add `relation`, `notes`, `motivation`, `fear`, or `leverage` to compendium entries. Those fields are engine-managed at runtime. Compendium entries get: `name`, `title`, `bio` (and optional `allegiance` if relevant, and optional `bond` if the NPC has a durable personal tie to the PC). `allegiance` is a faction id from the world pack.
 
 ## Campaign Arc Generation
 Generate a `CampaignArc` with:

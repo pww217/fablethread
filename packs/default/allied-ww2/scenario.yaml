@@ -177,3 +177,43 @@ moral_pressures:
   - id: ending_the_war_at_any_cost
     tags: [victory, extreme_measures, moral_compromise]
     incompatible_with: []
+
+npc_bonds:
+  - id: foxhole_brother
+    tags: [combat, shared_section, front_line]
+    description: The NPC was in the same section as the PC during a sustained engagement. They shared a foxhole, shared ammunition, shared what they had.
+  - id: training_batch
+    tags: [basic_training, unit_cohesion, shared_introduction]
+    description: The NPC and PC went through basic training together. The bond of shared misery and transformation never quite fades.
+  - id: did_a_medevac_for
+    tags: [medical, evacuation, saved_life]
+    description: The PC carried or helped carry the NPC to a medic under fire. The NPC owes their life or their limb to that moment.
+  - id: deserted_together_once
+    tags: [desertion, secret, shared_risk]
+    description: The NPC and PC both stepped off the line once, in a moment neither will speak of. The shared secret is a bond neither can afford to break.
+  - id: superior_officer_conflict
+    tags: [rank, authority, friction]
+    description: The NPC is a non-com or officer who has clashed with the PC before. The friction is personal, grounded in a specific incident.
+  - id: home_town_connection
+    tags: [home, shared_origin, civilian_life]
+    description: The NPC is from the PC's home town or region. They knew the same streets, the same bars, the same pre-war life.
+  - id: shared_pow_experience
+    tags: [captivity, survival, mutual_rescue]
+    description: The NPC and PC were held together in a POW camp. They survived it together and the bond is forged in that specific deprivation.
+
+scene_detail_bundles:
+  - id: bombed_out_village
+    items: [a church bell lying in the rubble, a field kitchen with its stove still warm, a shattered window with a curtain still pinned up, a crate of rifle rounds half-buried in plaster dust, a bicycle with a bent wheel leaning against a wall, a dispatch case with orders from three days ago]
+    min_use: 3
+  - id: command_post
+    items: [a map table with unit positions in grease pencil, a field telephone with the wire trailing out the door, a thermos of coffee and a single cup, a radio log with an urgent transmission half-transcribed, a stack of aerial reconnaissance photos, a helmet with a bullet hole on a peg]
+    min_use: 2
+  - id: field_hospital
+    items: [a triage table with blood-soaked sawdust on the floor, a row of cots with blankets in varying states of stain, a sterilizer with instruments cooling in a tray, a clipboard of morphine doses signed by different hands, a pile of uniforms waiting for salvage, a lantern hissing on low fuel]
+    min_use: 2
+  - id: trench_line
+    items: [a periscope rifle propped against the parapet, a dugout with a shelf of letters tied in bundles, a duckboard section floating in mud, a signal flare pistol with three rounds left, a sandbag wall with a growing crack, a cigarette tin with a map hidden in the lid]
+    min_use: 3
+  - id: supply_depot
+    items: [a pallet of ammunition crates stamped with different unit codes, a fuel drum with a hand-pump fitted, a typewriter on a crate with a half-typed inventory sheet, a stack of clean blankets, a broken radio waiting for parts, a dispatch motorcycle with a flat tire]
+    min_use: 2

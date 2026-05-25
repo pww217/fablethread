@@ -182,3 +182,40 @@ moral_pressures:
   - id: legitimate_governance
     tags: [legitimate, governance, political_order]
     incompatible_with: []
+
+npc_bonds:
+  - id: served_under
+    tags: [crew, years_served_together]
+    description: The NPC was a crewmate on a previous ship — they have shared watches, shared rations, and shared danger.
+  - id: shared_privateer
+    tags: [privateer, shared_past]
+    description: The NPC and PC once sailed under a letter of marque — legitimate privateers turned to piracy together when the war ended.
+  - id: saved_my_life
+    tags: [debt, survival]
+    description: The NPC pulled the PC from a sinking prize ship. The PC owes a life-debt that cannot be squared with coin.
+  - id: oath_brother
+    tags: [oath, bonds_stronger_than_blood]
+    description: The PC and this NPC swore a blood oath to stand together through mutiny, battle, or the gallows.
+  - id: displaced_captain
+    tags: [rivalry, command]
+    description: This NPC was the PC's captain on a previous voyage — a command ended by mutiny, capture, or shipwreck that both survived.
+  - id: debt_of_blood
+    tags: [violence, revenge_bond]
+    description: The PC killed someone this NPC loved — a shipmate, a brother. The NPC accepted it as the Articles demanded, but the weight is still there.
+
+scene_detail_bundles:
+  - id: quarterdeck
+    items: [compass in a gimbaled brass mount, speaking trumpet with a cracked bell, signal flags bundled and tied, a swivel gun loaded with grapeshot, officers' logbook open to a half-finished entry, coil of tarred rope]
+    min_use: 3
+  - id: orlop_deck
+    items: [surgeon's saw with a stained handle, canvas sling for the wounded, water cask with a slow leak, lantern swinging with the ship's roll, hammocks lashed so close they touch, a chest of salted beef crawling with weevils]
+    min_use: 3
+  - id: captains_cabin
+    items: [a sea chart with course corrections in red ink, a locked dispatch box, a half-empty decanter of Madeira, a brace of pistols in a felt-lined case, the ship's Articles pinned under a paperweight, a telescope with a cracked lens]
+    min_use: 2
+  - id: galley
+    items: [iron kettle over a low fire, hardtack crumbs scattered on the workbench, a cleaver worn thin from sharpening, a bucket of seawater for scrubbing, a spice canister labeled "cinnamon" but smells of something else]
+    min_use: 2
+  - id: cargo_hold
+    items: [barrels of salt pork stamped with a naval mark, bolts of trade cloth wrapped in oilskin, a broken musket discarded in a corner, crates of shot with the nails pried loose, a stowaway's blanket and an empty waterskin]
+    min_use: 2
