@@ -476,14 +476,13 @@ def panel_turn_log(limit: int = 50):
 def turn_viewer():
     css_path = _app_mod.BASE_DIR / "static" / "app.css"
     css_v = int(css_path.stat().st_mtime) if css_path.exists() else 0
-    turns, no_events, seed_info = _turn_viewer_data(_app_mod.SAVE_DIR)
+    turns, no_events = _turn_viewer_data(_app_mod.SAVE_DIR)
     return _app_mod._render(
         "_turn_viewer.html",
         {
             "turns": turns,
             "turn_count": len(turns),
             "no_events": no_events,
-            "seed_info": seed_info,
             "css_v": css_v,
         },
     )
@@ -491,14 +490,13 @@ def turn_viewer():
 
 @_app_mod.app.get("/turn_viewer/data")
 def turn_viewer_data():
-    turns, no_events, seed_info = _turn_viewer_data(_app_mod.SAVE_DIR)
+    turns, no_events = _turn_viewer_data(_app_mod.SAVE_DIR)
     latest = turns[0] if turns else None
     return JSONResponse(
         {
             "turns": turns,
             "no_events": no_events,
             "turn_count": len(turns),
-            "seed_info": seed_info,
             "latest_turn": latest.get("turn") if latest else None,
             "latest_trace_id_full": latest.get("trace_id_full") if latest else None,
         }

@@ -340,11 +340,11 @@ def _tv_narration_lines(narr: str) -> list[dict[str, Any]]:
     return lines
 
 
-def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool, dict[str, Any] | None]:
+def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
     path = save_dir / "events.jsonl"
     if not path.exists():
         _log.debug("_turn_viewer_data path=%s not found", path)
-        return [], True, None
+        return [], True
 
     # Read server_errors.jsonl for unified timeline
     server_rows: list[dict[str, Any]] = []
@@ -574,41 +574,34 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool, dict[
         rows.extend(server_rows)
         rows.sort(key=lambda e: e.get("ts", ""))
 
-    seed_info = None
+    # Build seed row from state.yaml if game has been seeded
     no_events = False
-    if len(rows) == 0:
-        _log.debug("_turn_viewer_data no turn events — loading seed info from state")
-        try:
-            st = load_state(save_dir)
-            meta = st.get("meta", {}) or {}
-            seed_type = meta.get("_seed_type")
-            if seed_type in ("static", "dynamic"):
-                seed_info = {
-                    "pack_type": seed_type,
-                    "pack_source": meta.get("_pack_source", ""),
-                    "pc_name": st.get("pc", {}).get("name", ""),
-                    "pc_tagline": st.get("pc", {}).get("tagline", ""),
-                    "pc_stats": st.get("pc", {}).get("stats", {}),
-                    "pc_conditions": list(st.get("pc", {}).get("conditions") or []),
-                    "pc_conditions_display": ", ".join(
-                        c.get("label", "") if isinstance(c, dict) else str(c)
-                        for c in (st.get("pc", {}).get("conditions") or [])
-                    ),
-                    "pc_momentum": st.get("pc", {}).get("momentum", 0),
-                    "location_name": st.get("location", {}).get("name", ""),
-                    "inventory_count": len(st.get("inventory", []) or []),
-                    "inventory": list(st.get("inventory") or []),
-                    "world_state_lines": list(st.get("scene", {}).get("world_state") or []),
-                    "recent_events_lines": [e if isinstance(e, str) else e.get("text", "") for e in st.get("scene", {}).get("recent_events") or []],
-                    "npcs_in_compendium": {k: {"name": v.get("name"), "title": v.get("title")} for k, v in (st.get("compendium", {}).get("npcs") or {}).items()},
-                    "arc_info": st.get("arc") if st.get("arc") else None,
-                }
-                __seed_meta = st.get("__seed_meta__") or {}
-                if seed_type == "dynamic" and __seed_meta:
-                    seed_info["opening_narrative"] = __seed_meta.get("opening_narrative")
-                    seed_info["actions"] = __seed_meta.get("actions")
-        except Exception as exc:
-            _log.warning("Failed to load state for turn_viewer seed display", extra={"error": str(exc)})
+    try:
+        st = load_state(save_dir)
+        meta = st.get("meta", {}) or {}
+        seed_type = meta.get("_seed_type")
+        if seed_type in ("static", "dynamic"):
+            seed_state = {
+                "pc": st.get("pc"),
+                "location": st.get("location"),
+                "inventory": st.get("inventory"),
+                "scene": st.get("scene"),
+                "compendium": st.get("compendium"),
+                "arc": st.get("arc"),
+            }
+            __seed_meta = st.get("__seed_meta__") or {}
+            if seed_type == "dynamic" and __seed_meta:
+                seed_state["__seed_meta__"] = __seed_meta
+            seed_row = {
+                "row_kind": "seed",
+                "turn": 0,
+                "pack_type": seed_type,
+                "pack_source": meta.get("_pack_source", ""),
+                "seed_json": _json.dumps(seed_state, indent=2, default=str),
+            }
+            rows.insert(0, seed_row)
+    except Exception as exc:
+        _log.warning("Failed to load state for turn_viewer seed display", extra={"error": str(exc)})
 
-    _log.debug("_turn_viewer_data events=%d server_errors=%d", len(rows), len(server_rows))
-    return rows, no_events, seed_info
+    _log.debug("_turn_viewer_data events=%d server_errors=%d seed=%s", len(rows), len(server_rows), seed_type)
+    return rows, no_events
