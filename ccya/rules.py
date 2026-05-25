@@ -13,10 +13,9 @@ PbtA 7-band resolution:
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from ccya.models import RulesOutcome
+from ccya.models import RulesOutcome
 
 DIFFICULTY_MOD: dict[str, int] = {
     "trivial": +2,
