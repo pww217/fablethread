@@ -696,35 +696,6 @@ def _compute_threat_ages(state: dict[str, Any]) -> list[dict[str, Any]]:
     return result
 
 
-_LOCATION_PRESSURE_ID = "_engine_location_stale"
-
-
-def _inject_location_pressure(
-    ages: dict[str, int],
-    existing_pressure: list[dict[str, Any]],
-    location_pressure_at: int = 3,
-    location_imperative_at: int = 5,
-) -> list[dict[str, Any]]:
-    """Return a new pressure list with a synthetic location staleness entry if warranted.
-
-    Does not mutate the input list. Returns a new list.
-    The synthetic entry is never persisted to state (turn_added=0 signals engine-generated).
-    """
-    location_age = ages.get("location_age", 0)
-    filtered = [p for p in existing_pressure if p.get("id") != _LOCATION_PRESSURE_ID]
-    if location_age <= location_pressure_at:
-        return filtered
-
-    urgency = "immediate" if location_age > location_imperative_at else "building"
-    synthetic = {
-        "id": _LOCATION_PRESSURE_ID,
-        "text": "The scene has lingered here too long — move it along.",
-        "urgency": urgency,
-        "turn_added": 0,
-    }
-    return filtered + [synthetic]
-
-
 def _compute_recent_window(
     state: dict[str, Any], config: EngineConfig,
 ) -> tuple[int, int]:
@@ -915,23 +886,11 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
     # Present NPCs from delta-maintained state (Phase 4H)
     _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
 
-    # Compendium bios for present + recently_left NPCs (Phase 1)
+    # Compendium bios for present NPCs (Phase 1)
     _compendium_bios: list[dict[str, Any]] = []
     _bio_ids: set[str] = set()
     for npc in _present_npcs:
         nid = npc.get("id", "")
-        if nid and nid not in _bio_ids:
-            _bio_ids.add(nid)
-            entry = (state.get("compendium") or {}).get("npcs", {}).get(nid, {})
-            if entry:
-                _compendium_bios.append({
-                    "id": nid,
-                    "name": entry.get("name", ""),
-                    "title": entry.get("title", ""),
-                    "bio": (entry.get("bio") or "").strip(),
-                })
-    for npc in (state.get("scene") or {}).get("recently_left", []):
-        nid = npc.get("id", "") if isinstance(npc, dict) else ""
         if nid and nid not in _bio_ids:
             _bio_ids.add(nid)
             entry = (state.get("compendium") or {}).get("npcs", {}).get(nid, {})
@@ -992,14 +951,13 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         pack_style=ctx.packing.get("style", ""),
         narrator_rules=_pack_narrator_rules, world_rules=_pack_world_rules,
         rules_outcome=ctx.outcome, npc_name_pool=_npc_name_pool,
-        recently_left=(state.get("scene") or {}).get("recently_left", []),
         momentum=(state.get("pc") or {}).get("momentum", 0), pending_beat=_pending_gm_beat,
         pacing_context=_pc, ages=ctx._ages, known_npcs=_known_npcs, present_npcs=_present_npcs,
         compendium_bios=_compendium_bios, pc_allegiance=_pc_allegiance, turn_no=turn_no,
-        world_factions=_world_factions, world_locations=_world_locations,
+        world_factions=_world_factions,
         threat_ages=ctx._threat_ages, threat_pressure_at=config.threat_pressure_at,
         threat_imperative_at=config.threat_imperative_at, building_threat_imperative_at=config.building_threat_imperative_at,
-        npc_roster=build_npc_roster(present_npcs=_present_npcs, known_npcs=_known_npcs, recently_left=(state.get("scene") or {}).get("recently_left", [])),
+        npc_roster=build_npc_roster(present_npcs=_present_npcs, known_npcs=_known_npcs),
     )
 
     ctx.pacing_ctx = _pc
@@ -1418,17 +1376,6 @@ async def run_turn(
                     "narrator emitted invalid arc_update JSON — discarded",
                     extra={"turn": turn_no, "trace_id": trace_id},
                 )
-
-        # Decay recently_left counter (engine-side, not in state.py).
-        scene = state.get("scene", {})
-        turns = scene.get("recently_left_turns", 0)
-        if turns > 0:
-            turns -= 1
-            if turns == 0:
-                scene["recently_left"] = []
-            else:
-                scene["recently_left_turns"] = turns
-
         diff_lines = _summarize_applied(applied)
         changes = summarize_changes(state_pre_apply, state, applied, rejected)
 

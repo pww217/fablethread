@@ -113,29 +113,6 @@ def _check_npc_ghost_cycle(
     trace_id: str,
     turn_no: int,
 ) -> SceneExtractResult:
-    remove_ids = {op.id for op in (scene_result.npc_remove or [])}
-    add_ids = {op.id for op in (scene_result.npc_add or [])}
-    cycle_ids = remove_ids & add_ids
-    recently_left = {
-        entry.get("id", "")
-        for entry in (state.get("scene") or {}).get("recently_left") or []
-        if isinstance(entry, dict)
-    }
-    if cycle_ids:
-        # Allow removes that match recently_left (legitimate departure)
-        allowed = cycle_ids & recently_left
-        dropped = cycle_ids - allowed
-        if dropped:
-            _log.warning(
-                "npc_remove/npc_add cycle detected — dropping both ops for IDs",
-                extra={"trace_id": trace_id, "turn": turn_no, "ids": list(dropped)},
-            )
-            scene_result = scene_result.model_copy(
-                update={
-                    "npc_remove": [op for op in (scene_result.npc_remove or []) if op.id not in dropped],
-                    "npc_add": [op for op in (scene_result.npc_add or []) if op.id not in dropped],
-                }
-            )
     return scene_result
 
 
@@ -347,7 +324,6 @@ def _storytell_messages(
     npc_roster = build_npc_roster(
         present_npcs=extraction_ctx.present_npcs_this_turn,
         known_npcs=_known_characters_for_extract(state, compact=True),
-        recently_left=[],
     )
     user_text = _render(
         env,

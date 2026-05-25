@@ -1,4 +1,4 @@
-"""NPC roster assembly: merge present/known/recently_left into a single list."""
+"""NPC roster assembly: merge present/known into a single list."""
 
 from __future__ import annotations
 
@@ -14,9 +14,8 @@ _log = logging.getLogger(__name__)
 def build_npc_roster(
     present_npcs: list[dict[str, Any]],
     known_npcs: list[dict[str, Any]],
-    recently_left: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Merge present, known, and recently_left NPCs with priority PRESENT > JUST_LEFT > KNOWN."""
+    """Merge present and known NPCs with priority PRESENT > KNOWN."""
     seen: dict[str, dict[str, Any]] = {}
 
     for n in present_npcs:
@@ -34,23 +33,6 @@ def build_npc_roster(
             "leverage": n.get("leverage") or None,
             "bond": n.get("bond") or None,
             "notes": n.get("notes") or None,
-            "last_seen": None,
-        }
-
-    for n in recently_left:
-        nid = n.get("id", "") if isinstance(n, dict) else ""
-        if not nid or nid in seen:
-            continue
-        seen[nid] = {
-            "id": nid,
-            "name": n.get("name") or "",
-            "title": n.get("title") or "",
-            "bio": None,
-            "presence": NpcPresence.JUST_LEFT.value,
-            "motivation": None,
-            "fear": None,
-            "leverage": None,
-            "notes": None,
             "last_seen": None,
         }
 
@@ -74,7 +56,6 @@ def build_npc_roster(
 
     order = {
         NpcPresence.PRESENT.value: 0,
-        NpcPresence.JUST_LEFT.value: 1,
         NpcPresence.NEARBY.value: 2,
         NpcPresence.KNOWN.value: 3,
     }
