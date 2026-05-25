@@ -1330,7 +1330,7 @@ async def run_turn(
                             # Exact key collision — reject new thread with WARNING log.
                             _log.warning(
                                 "thread_add.key_collision",
-                                extra={"turn": turn_no_for_cooldown, "key": str(_new_thread.key), "existing_id": exact_collision_id, "new_id": getattr(_new_thread, 'id', '?')},
+                                extra={"turn": turn_no_for_cooldown, "key": str(_new_thread.key), "existing_id": exact_collision_id, "new_id": _new_thread.id or "?"},
                             )
                             pass  # skip thread creation — key collision detected
 
@@ -1348,53 +1348,49 @@ async def run_turn(
                                 existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
                                 # Fuzzy auto-merge dedup check (only when key is non-null).
                                 fuzzy_merged = False
-                                if getattr(_new_thread, 'key') and not exact_collision_id:
+                                if _new_thread.key and not exact_collision_id:
                                     new_key_tokens = set(str(_new_thread.key).lower().split())
-                                    best_match_tid, best_score = None, 0.0
-                                    for _ft in (_existing_arc.threads or []):
-                                        _tk = getattr(_ft, 'key')
-                                        if not _tk:
+                                    best_score, best_match_t = 0.0, None
+                                    for ft in (_existing_arc.threads or []):
+                                        tk = getattr(ft, 'key')
+                                        if not tk:
                                             continue
-                                        candidate_tokens = set(str(_tk).lower().split())
+                                        candidate_tokens = set(str(tk).lower().split())
                                         overlap = len(new_key_tokens & candidate_tokens)
                                         score = overlap / max(len(new_key_tokens), len(candidate_tokens)) if candidate_tokens else 0.0
                                         if score > best_score:
                                             best_score = score
-                                            best_match_tid = _ft.id
+                                            best_match_t = ft
 
                                     # Auto-merge on high similarity (≥70% threshold).
-                                    if best_score >= 0.70 and best_match_tid is not None:
-                                        for __t in (_existing_arc.threads or []):
-                                            if __t.id == best_match_tid:
-                                                _merged_t = __t.model_copy()
-                                                # Update summary if new thread's is non-empty.
-                                                if getattr(_new_thread, 'summary') and _new_thread.summary.strip():
-                                                    _merged_t = _merged_t.model_copy(update={"summary": _new_thread.summary})
+                                    if best_score >= 0.70 and best_match_t is not None:
+                                        _merged_t = best_match_t
+                                        # Update summary if new thread's is non-empty.
+                                        if _new_thread.summary and _new_thread.summary.strip():
+                                            _merged_t.summary = _new_thread.summary
 
-                                                # Union tags via set operation.
-                                                existing_tags = set(getattr(__t, 'tags', []) or [])
-                                                new_tags = set(getattr(_new_thread, 'tags') or [])
-                                                merged_tags = sorted(existing_tags | new_tags)
-                                                if merged_tags != list(_merged_t.tags):
-                                                    _merged_t = _merged_t.model_copy(update={"tags": merged_tags})
+                                        # Union tags via set operation.
+                                        existing_tags = set(getattr(best_match_t, 'tags', []) or [])
+                                        new_tags = set(_new_thread.tags or [])
+                                        merged_tags = sorted(existing_tags | new_tags)
+                                        if merged_tags != list(_merged_t.tags):
+                                            _merged_t.tags = merged_tags
 
-                                                # Refresh last_seen_turn.
-                                                turn_no_for_add = state.get("meta", {}).get("turn", 0) + 1
-                                                __t.last_seen_turn = turn_no_for_add
+                                        # Refresh last_seen_turn.
+                                        best_match_t.last_seen_turn = turn_no_for_add
 
-                                                # Persist merged changes via existing pattern.
-                                                arc_with_new_thread = _existing_arc.model_copy(threads=list(_existing_arc.threads))
-                                                _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
-                                                state.setdefault("meta", {})["last_thread_creation_turn"] = turn_no_for_add
+                                        # Persist merged changes via existing pattern.
+                                        arc_with_new_thread = _existing_arc.model_copy(threads=list(_existing_arc.threads))
+                                        _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
+                                        state.setdefault("meta", {})["last_thread_creation_turn"] = turn_no_for_add
 
-                                                # Log merge point with structured context.
-                                                _log.info(
-                                                    "thread_add.auto_merge",
-                                                    extra={"turn": turn_no_for_cooldown, "key": str(getattr(__t, 'key', '')), "score": round(best_score, 2), "existing_id": __t.id, "new_id": getattr(_new_thread, 'id', '?')},
-                                                )
+                                        # Log merge point with structured context.
+                                        _log.info(
+                                            "thread_add.auto_merge",
+                                            extra={"turn": turn_no_for_cooldown, "key": str(getattr(best_match_t, 'key', '')), "score": round(best_score, 2), "existing_id": best_match_t.id, "new_id": _new_thread.id or "?"},
+                                        )
 
-                                                fuzzy_merged = True
-                                                break
+                                        fuzzy_merged = True
 
                                 if not fuzzy_merged and _new_thread.id not in existing_ids:
                                     active_count = sum(1 for t in _existing_arc.threads if getattr(t, "active", False))
