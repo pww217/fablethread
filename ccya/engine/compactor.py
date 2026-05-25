@@ -141,7 +141,7 @@ async def maybe_compact(
         len(state.get("scene", {}).get("recent_events") or []),
         len(state.get("inventory") or []),
         len(state.get("meta", {}).get("prior_history") or []),
-        extra={"turn": current_turn, "trace_id": "", "pack": "", "kind": "compactor"},
+        extra={"turn": current_turn, "trace_id": ""},
     )
 
     san_payload: dict[str, Any] | None = None

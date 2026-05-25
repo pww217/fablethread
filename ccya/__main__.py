@@ -6,10 +6,7 @@ from ccya.cli import print_banner
 from ccya.logging_setup import setup_logging
 from ccya.server import app, config, SAVE_DIR
 
-try:
-    setup_logging()
-except Exception:
-    pass
+setup_logging()
 
 
 def main() -> None:
