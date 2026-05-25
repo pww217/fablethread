@@ -1445,7 +1445,7 @@ async def run_turn(
         # Two-pass consecutive pressure counter update.
         if _extract_result is not None and _pc is not None:
             directive = _pc.directive or ""
-            thread_advance = (_extract_result[4].thread_advance) if len(_extract_result) > 4 else []
+            thread_advance = (_extract_result[4].thread_advance) if len(_extract_result) > 4 and _extract_result[4] else []
             meta = state.setdefault("meta", {})
             current_pressure = meta.get("consecutive_pressure_turns", 0)
             if (directive in ("Pressure", "Overwhelm")) and not thread_advance:

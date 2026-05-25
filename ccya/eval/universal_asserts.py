@@ -665,8 +665,7 @@ def check_no_negative_inventory(event: dict[str, Any]) -> dict[str, Any]:
 
 def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
     """If narration_directive was computed, it should appear in both narrate and storytell prompts.
-    Checks for all 9 directive types: Breathe, Pressure, Overwhelm, Tension,
-    Combat Fatigue, Location Imperative, Location Pressure, Threat Pressure, Resolve a Threat.
+    Checks for all 8 directive types: Breathe, Scene Imperative, Overwhelm, Pressure, Tension, Threat Pressure, Resolve a Threat, Scene Pressure.
     """
     narr_user = (event.get("narrate_prompt") or {}).get("rendered_user") or ""
     # Read the rendered user prompt string from extraction_event["storytell"], not the output dict
@@ -674,8 +673,7 @@ def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
 
     directive_markers = [
         "**Pressure:**", "**Overwhelm:**", "**Breathe:**", "**Tension:**",
-        "**Combat Fatigue:**", "**Location Imperative:**", "**Location Pressure:**",
-        "**Threat Pressure:**", "**Resolve a Threat:**",
+        "**Threat Pressure:**", "**Resolve a Threat:**", "**Scene Imperative:**", "**Scene Pressure:**",
     ]
     has_directive = any(m in narr_user for m in directive_markers)
 

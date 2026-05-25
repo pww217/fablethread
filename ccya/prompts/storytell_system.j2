@@ -61,10 +61,9 @@ The `pacing_context` section tells you how Python shaped tone for this turn. Use
 - **Overwhelm** → emit `gm_beat` of type `pressure`/`escalation`, may add scene-scoped threads if gate == "allow" 
 - **Pressure** → emit `gm_beat` of type `complication`/`pressure`, advance existing threads rather than adding new ones
 - **Tension** → do NOT add pressures unless concrete threat emerges; prefer advancing existing threads
-- **Resolve a Threat** → resolve resolved threads via thread_resolve with resolution_state="resolved"; do NOT add new threads
-- **Combat Fatigue** (secondary) → layer as thematic modifier on beat type, not a separate operation
+ - **Resolve a Threat** → resolve resolved threads via thread_resolve with resolution_state="resolved"; do NOT add new threads
 
-When multiple directives are joined (e.g. "Pressure; Combat Fatigue"), prioritize the primary directive and layer the secondary as a thematic modifier on the beat type.
+When multiple directives are joined (e.g. "Pressure; Resolve a Threat"), prioritize the primary directive and layer the secondary as thematic guidance for beat type selection.
 
 ## GM Beat guidance
 
