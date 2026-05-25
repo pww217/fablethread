@@ -243,8 +243,6 @@ def apply_delta(
             "description": delta.location_change.description,
         }
         state.setdefault("scene", {})["present_npcs"] = []
-        state.setdefault("scene", {})["recently_left"] = []
-        state.setdefault("scene", {})["recently_left_turns"] = 0
         _stamp_turn = current_turn_no if current_turn_no is not None else state.get("meta", {}).get("turn", 0)
         state["scene"]["turn_entered"] = _stamp_turn
         state["scene"]["location_entered_turn"] = _stamp_turn

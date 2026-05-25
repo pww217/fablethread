@@ -178,7 +178,7 @@ class LastSeenBlock(BaseModel):
 class NPCRosterEntryBlock(BaseModel):
     """Single entry in an NPC roster for prompt rendering.
 
-    Source shapes vary by origin: build_npc_roster() outputs dicts with last_seen as a dict (turn/location_id/location_name) from compendium data, or None for present/recently_left NPCs. Template extract_scene_user.j2 line 7 accesses n.last_seen.location_name — not a string.
+    Source shapes vary by origin: build_npc_roster() outputs dicts with last_seen as a dict (turn/location_id/location_name) from compendium data, or None for present NPCs. Template extract_scene_user.j2 line 7 accesses n.last_seen.location_name — not a string.
     """
 
     id: str
