@@ -32,7 +32,7 @@
 | `ccya/server/app.py` | FastAPI app bootstrap, Jinja env, pack loading, startup event; server error persistence + exception middleware → server_errors.jsonl |
 | `ccya/server/routes.py` | All @app.get / @app.post route handlers |
 | `ccya/server/panels.py` | Panel context builders: _debug_context(), _load_* helpers, _get_opening() |
-| `ccya/server/tv.py` | Turn viewer data from events.jsonl + server_errors.jsonl — unified timeline with row_kind discrimination, per-stream metrics, status colors; `_turn_viewer_data()` returns `(rows, no_events, seed_info)` where seed_info contains initial game state at turn 0 for static/dynamic packs (read from __seed_meta__ and root-level keys in state.yaml) |
+| `ccya/server/tv.py` | Turn viewer data from events.jsonl + server_errors.jsonl — unified timeline with row_kind discrimination, per-stream metrics, status colors; `_turn_viewer_data()` returns `(rows, no_events)`; injects a synthetic `row_kind: "seed"` row at index 0 when seed data is present in state.yaml |
 | `ccya/server/metrics.py` | _recent_turn_metrics(), _turn_log_entries() — latency/token formatting |
 | `ccya/eval/__init__.py` | Re-exports: EvalConfig, JudgeResult, RunResult, Scenario, build_trace, run_scenario, etc. |
 | `ccya/eval/config.py` | EvalConfig, JudgesSpec (per-judge rubric/model/temp), load_eval_config() |
