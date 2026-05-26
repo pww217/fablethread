@@ -535,6 +535,12 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         # State diff
         state_diff = _tv_state_diff(ev)
 
+        # Pacing context and momentum from event data
+        pacing_ctx = ev.get("pacing_context") or {}
+        ruling_ev = ev.get("ruling") or {}
+        momentum_after = ruling_ev.get("momentum_after")
+        band_label = ruling_ev.get("band", "")
+
         # ruling_intent for template (parsed from ruling_prompt.output)
         ruling_intent = _tv_parse_json_blob(prompts["ruling"]["output"])
 
@@ -560,6 +566,14 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "total_tokens_out_display": _fmt_tokens_exact(total_out),
                 "user_input": ev.get("input", ""),
                 "ruling_intent": ruling_intent,
+                "pacing_context": {
+                    "directive": pacing_ctx.get("directive"),
+                    "gate": pacing_ctx.get("gate"),
+                    "beat_hint": None,
+                    "beat_locked": pacing_ctx.get("beat_locked"),
+                },
+                "momentum_after": momentum_after,
+                "band_label": band_label,
                 "inputs_snapshot": inputs_snapshot,
                 "state_diff": state_diff,
                 "failures": row_failures,
