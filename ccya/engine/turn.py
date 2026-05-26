@@ -1498,6 +1498,9 @@ async def run_turn(
             "actions": actions,
             "scene_tags": list(getattr(delta, "scene_tags", [])),
             "ruling": ruling_event,
+            "momentum_before": momentum_before,
+            "momentum_after": momentum_after,
+            "momentum_delta": momentum_after - momentum_before,
             "pacing_context": {
                 "directive": _pc.directive if _pc else "",
                 "beat_locked": bool(_pc.beat_locked) if _pc else False,
