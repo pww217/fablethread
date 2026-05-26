@@ -204,14 +204,6 @@
                                             </dl>
                                         </template>
 
-                                        <template x-if="stage === 'ruling' && (t.momentum_after !== undefined || t.band_label)">
-                                            <div class="tv-diff-row">
-                                                <span class="tv-diff-field" x-show="t.momentum_after !== undefined">momentum</span>
-                                                <span class="tv-diff-value" x-text="(t.momentum_after !== undefined ? 'after: ' + t.momentum_after : '')"></span>
-                                                <span class="tv-diff-value" x-text="t.band_label ? ('band: ' + t.band_label) : ''"></span>
-                                            </div>
-                                        </template>
-
                                         <div x-show="t.prompts[stage] && (t.prompts[stage].system || t.prompts[stage].user || t.prompts[stage].output)">
                                             <div class="tv-prompt-output-tabs">
                                                 <button type="button" class="tv-tab-btn" :class="{ 'active': tabKey(t.turn, stage) !== 'output' }" @click="setTab(t.turn, stage, 'prompt')">Prompt</button>
@@ -269,7 +261,7 @@
                             </div>
                         </template>
 
-                        <template x-if="t.pacing_context && (t.pacing_context.directive || t.pacing_context.gate !== 'allow' || t.pacing_context.beat_hint)">
+                        <template x-if="t.pacing_context">
                             <div class="tv-diff-section">
                                 <div class="tv-diff-section-label">Pacing Context</div>
                                 <template x-if="t.pacing_context.directive">
@@ -284,16 +276,17 @@
                                         <span class="tv-diff-value tv-sts-rejected" x-text="t.pacing_context.gate"></span>
                                     </div>
                                 </template>
-                                <template x-if="t.pacing_context.beat_hint">
+                                <template x-if="t.momentum_after !== undefined || t.band_label">
                                     <div class="tv-diff-row">
-                                        <span class="tv-diff-field">beat_hint</span>
-                                        <span class="tv-diff-value" x-text="t.pacing_context.beat_hint"></span>
+                                        <span class="tv-diff-field">momentum</span>
+                                        <span class="tv-diff-value" x-show="t.momentum_after !== undefined" x-text="'after: ' + t.momentum_after"></span>
+                                        <span class="tv-diff-value" x-text="t.band_label ? ('band: ' + t.band_label) : ''"></span>
                                     </div>
                                 </template>
                                 <template x-if="t.pacing_context.beat_locked">
                                     <div class="tv-diff-row">
                                         <span class="tv-diff-field">beat_locked</span>
-                                        <span class="tv-diff-value" style="color: var(--status-error)">true — floor relief fired</span>
+                                        <span class="tv-diff-value" style="color: var(--status-error)">true</span>
                                     </div>
                                 </template>
                             </div>
