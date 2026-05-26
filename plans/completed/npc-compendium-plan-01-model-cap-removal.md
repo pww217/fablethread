@@ -1,7 +1,7 @@
 # NPC Compendium & Seed Generation Plan
 
 ## Status
-`completed` (Phase 01 done)
+`completed` (Phase 02 done)
 
 ## Phases
 
