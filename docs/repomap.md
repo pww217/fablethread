@@ -115,6 +115,10 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### Narrator system prompt (`ccya/prompts/narrate_system.j2`)
 - ARC_UPDATE JSON example includes `"thematic_question"` field alongside existing `discovered_truths` and `visible_goal` — matches `_ALLOWED_NARRATOR_ARC_KEYS` which already accepts this key (turn.py lines 1416-1419)
 - Directives section: removed Combat Fatigue, Location Pressure, Location Imperative definitions; added Scene Pressure (≥3 effective scene age, intermediate signal to wind down or shift focus) and Scene Imperative (≥5 effective scene age, high-priority directive forcing story advancement); new directives use scene-level language reflecting single-age signal from collapsed _compute_ages()
+### Seed system prompt (`ccya/prompts/generate_seed_system.j2`)
+- Generation order: PC → World state → Recent events → Campaign arc → Opening scene/NPCs → Inventory (arc before NPCs so NPC bonds reference actual campaign goals)
+- CompendiumEntry model now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes; seed prompt TypeScript schema includes these as optional fields (motivation?: string, fear?: string, leverage?: string); seed LLM allowed to assign motivation/fear/leverage at seed time on key NPCs (those with personal ties or central roles in opening situation)
+- Scene ideal: 1–4 present NPCs; narrative pressure for exits above that (soft guidance only, engine does NOT track or enforce NPC count at runtime — hard cap removed per Phase 01)
 ### Momentum lifecycle
 - `apply_momentum(state, band)` in ccya/state/momentum.py mutates `state["pc"]["momentum"]` deterministically from rules band delta, clamped to [-3, +3]
 - Pre-ruling momentum captured BEFORE `_ruling_phase()` (turn.py line ~1049), post-ruling captured AFTER — delta reflects actual band-based change
