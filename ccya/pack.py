@@ -49,6 +49,9 @@ class CompendiumEntry(BaseModel):
     bond: str | None = None
     presence: str | None = None  # "present" | "nearby" | "known" — set by seed or engine
     notes: str | None = None      # scene-specific attitude, cleared on departure
+    motivation: str | None = None  # what NPC fundamentally wants (UI-visible in compendium tooltip)
+    fear: str | None = None        # what NPC is most afraid of (state-only, not UI-visible)
+    leverage: str | None = None   # what NPC can offer/threaten/withhold (state-only, not UI-visible)
 
 
 class SeedCompendium(BaseModel):

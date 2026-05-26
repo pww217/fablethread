@@ -51,33 +51,6 @@ def _strip_non_ascii(text: str) -> str:
     return re.compile(r"[^\x00-\x7F]").sub("", text).strip()
 
 
-NPC_SCENE_CAP = 8
-
-
-def _enforce_npc_present_cap(comp: dict[str, Any]) -> int:
-    """If presence=present entries exceed NPC_SCENE_CAP, evict oldest (by last_seen.turn) to known. Returns count evicted."""
-    present_ids: list[tuple[int | None, str]] = []
-    for npc_id, entry in comp.items():
-        if not isinstance(entry, dict):
-            continue
-        if entry.get("presence") == "present":
-            last_seen_turn = (entry.get("last_seen") or {}).get("turn") if isinstance(entry.get("last_seen"), dict) else None
-            present_ids.append((last_seen_turn, npc_id))
-
-    evicted_count = 0
-    if len(present_ids) > NPC_SCENE_CAP:
-        present_ids.sort(key=lambda x: (x[0] or 0, x[1]))
-        to_evict = present_ids[NPC_SCENE_CAP:]
-        for _, nid in to_evict:
-            entry = comp.get(nid)
-            if isinstance(entry, dict):
-                entry["presence"] = "known"
-                entry.pop("notes", None)
-                evicted_count += 1
-
-    return evicted_count
-
-
 def get_present_npcs(comp: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
     """Return (nid, entry) for all compendium entries with presence=present."""
     result = []
@@ -118,14 +91,6 @@ def _find_npc_by_name(name: str, comp: dict[str, Any]) -> str | None:
     return None
 
 
-def clear_present_npcs_on_location_change(comp: dict[str, Any]) -> None:
-    """Set all presence=present NPCs to known and clear notes (location change)."""
-    for entry in comp.values():
-        if isinstance(entry, dict) and entry.get("presence") == "present":
-            entry["presence"] = "known"
-            entry.pop("notes", None)
-
-
 def apply_npc_scene_management(
     state: dict[str, Any],
     scene_result: SceneExtractResult,
@@ -133,7 +98,7 @@ def apply_npc_scene_management(
 ) -> dict[str, Any]:
     """Apply compendium_npc_update entries to compendium.npcs.
 
-    Returns the mutated state dict. NPC_SCENE_CAP is enforced here.
+    Returns the mutated state dict. Compendium entries are merged into state.
     """
     comp = state.setdefault("compendium", {}).setdefault("npcs", {})
 
@@ -188,7 +153,5 @@ def apply_npc_scene_management(
                     entry.pop("notes", None)
             if comp_upd.notes is not None:
                 entry["notes"] = comp_upd.notes
-
-        _enforce_npc_present_cap(comp)
 
     return state
