@@ -277,7 +277,7 @@ class StorytellerBoundary(BaseModel):
     """
 
     narration: str
-    npc_roster: NPCRosterBlock  # from extraction_ctx.present_npcs_this_turn + _known_characters_for_extract(compact=True)
+    npc_roster: NPCRosterBlock  # from build_npc_roster(comp)
     location: LocationBlock
     conditions: list[Condition]
     inventory: list[InventoryItem]

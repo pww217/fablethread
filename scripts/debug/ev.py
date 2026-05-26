@@ -583,16 +583,16 @@ def _build_state_diff(ev: dict[str, Any]) -> list:
                 continue
             if isinstance(val, (list, dict)) and not val:
                 continue
-                if fk == "compendium_npc_update":
-                    op = "upsert"
-                elif fk.endswith("_add"):
-                    op = "add"
-                elif fk.endswith("_remove"):
-                    op = "remove"
-                elif fk.endswith("_update"):
-                    op = "update"
-                else:
-                    op = "set"
+            if fk == "compendium_npc_update":
+                op = "upsert"
+            elif fk.endswith("_add"):
+                op = "add"
+            elif fk.endswith("_remove"):
+                op = "remove"
+            elif fk.endswith("_update"):
+                op = "update"
+            else:
+                op = "set"
             if isinstance(val, str):
                 val_str = val[:120]
             else:
