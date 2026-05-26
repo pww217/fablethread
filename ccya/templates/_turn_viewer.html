@@ -192,17 +192,24 @@
                                 <div class="tv-stage-body" x-show="expandedKey(t.turn, stage)">
                                     <div x-show="t.streams[stage].skipped" class="tv-skipped">Skipped</div>
                                     <div x-show="!t.streams[stage].skipped">
-                                        <template x-if="stage === 'ruling' && t.rules_intent">
+                                        <template x-if="stage === 'ruling' && t.ruling_intent">
                                             <dl class="tv-rules-dl">
-                                                <template x-if="t.rules_intent.intent"><dt>intent</dt><dd x-text="t.rules_intent.intent"></dd></template>
-                                                <template x-if="t.rules_intent.intent_verb"><dt>intent_verb</dt><dd x-text="t.rules_intent.intent_verb"></dd></template>
-                                                <template x-if="t.rules_intent.target"><dt>target</dt><dd x-text="t.rules_intent.target"></dd></template>
-                                                <template x-if="t.rules_intent.target"><dt>target</dt><dd x-text="t.rules_intent.target"></dd></template>
-                                                <template x-if="t.rules_intent.check">
+                                                <template x-if="t.ruling_intent.intent"><dt>intent</dt><dd x-text="t.ruling_intent.intent"></dd></template>
+                                                <template x-if="t.ruling_intent.intent_verb"><dt>intent_verb</dt><dd x-text="t.ruling_intent.intent_verb"></dd></template>
+                                                <template x-if="t.ruling_intent.target"><dt>target</dt><dd x-text="t.ruling_intent.target"></dd></template>
+                                                <template x-if="t.ruling_intent.check">
                                                     <dt>check</dt>
-                                                    <dd><pre class="tv-inline-json" x-text="JSON.stringify(t.rules_intent.check, null, 2)"></pre></dd>
+                                                    <dd><pre class="tv-inline-json" x-text="JSON.stringify(t.ruling_intent.check, null, 2)"></pre></dd>
                                                 </template>
                                             </dl>
+                                        </template>
+
+                                        <template x-if="stage === 'ruling' && (t.momentum_after !== undefined || t.band_label)">
+                                            <div class="tv-diff-row">
+                                                <span class="tv-diff-field" x-show="t.momentum_after !== undefined">momentum</span>
+                                                <span class="tv-diff-value" x-text="(t.momentum_after !== undefined ? 'after: ' + t.momentum_after : '')"></span>
+                                                <span class="tv-diff-value" x-text="t.band_label ? ('band: ' + t.band_label) : ''"></span>
+                                            </div>
                                         </template>
 
                                         <div x-show="t.prompts[stage] && (t.prompts[stage].system || t.prompts[stage].user || t.prompts[stage].output)">
