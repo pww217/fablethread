@@ -178,15 +178,20 @@
             {% set fear = entry.fear if entry is mapping else '' %}
             {% set leverage = entry.leverage if entry is mapping else '' %}
             {% set presence = entry.presence if entry is mapping and entry.presence else None %}
+            {% set npc_bond = entry.bond if entry is mapping and entry.bond else '' %}
+            {% set allegiance = entry.allegiance if entry is mapping and entry.allegiance else '' %}
             <div class="compendium-item has-tooltip{% if presence == 'present' %} compendium-present{% endif %}">
                 <span class="compendium-line">{{ nm or nid }}{% if ttl %}<span class="compendium-title"> — {{ ttl }}</span>{% endif %}{% if presence == 'present' %}<span class="presence-badge in-scene">in scene</span>{% elif presence %}<span class="presence-badge">{{ presence }}</span>{% endif %}</span>
                 <div class="tooltip-body" data-md>
                     {{ bio or '—' }}
+                    {% if npc_bond %}{% if bio %}<br>{% endif %}<strong>Bond:</strong> {{ npc_bond }}{% endif %}
+                    {% if allegiance %}{% if bio or npc_bond %}<br>{% endif %}<strong>Faction:</strong> {{ allegiance }}{% endif %}
                     {% if motivation or fear or leverage %}
-                    <br>
-                    {% if motivation %}<strong>Motivation:</strong> {{ motivation }}<br>{% endif %}
-                    {% if fear %}<strong>Fear:</strong> {{ fear }}<br>{% endif %}
-                    {% if leverage %}<strong>Leverage:</strong> {{ leverage }}{% endif %}
+                    <br><div class="npc-traits">
+                        {% if motivation %}<strong>Motivation:</strong> {{ motivation }}<br>{% endif %}
+                        {% if fear %}<strong>Fear:</strong> {{ fear }}<br>{% endif %}
+                        {% if leverage %}<strong>Leverage:</strong> {{ leverage }}{% endif %}
+                    </div>
                     {% endif %}
                     {% if ls %}
                     <br>Last seen: {{ ls.location_name }}
