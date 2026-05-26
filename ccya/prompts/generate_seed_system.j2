@@ -183,19 +183,19 @@ Movement guidance:
 ## outcome_summary
 One sentence (~10–20 words) summarizing the opening situation in-universe, as if a quest log or journal entry. Example: "A stranded freighter drifts in the outer reach with no response from its crew." NOT an instruction or "you must" phrasing — just the state of things.
 
-## present_npcs
+## scene NPCs (in compendium.npcs with presence="present")
 {% if npc_count_override and npc_count_override > 0 %}
-Exactly {{ npc_count_override }} NPCs that appear in the opening scene — {id: snake_case, name, title, notes: current attitude/situation, bio: durable identity, relation}. These are the characters the player meets immediately.
+Exactly {{ npc_count_override }} NPCs placed in compendium.npcs with `presence: "present"`, `notes: "current attitude or situation"`, and the standard compendium fields (id, name, title, bio). These are the characters the player meets immediately.
 {% else %}
-Exactly 2 NPCs that appear in the opening scene — {id: snake_case, name, title, notes: current attitude/situation, bio: durable identity, relation}. These are the characters the player meets immediately.
+Exactly 2 NPCs placed in compendium.npcs with `presence: "present"`, `notes: "current attitude or situation"`, and the standard compendium fields (id, name, title, bio). These are the characters the player meets immediately.
 {% endif %}
 
-Of the 2 in-scene NPCs, at least 1 must have a specific personal connection to the PC: a debt owed, a shared history (served together, grew up together, survived something together), an emotional bond (family, old friend, former lover), or a key story intersection (they are the reason the PC is here, they hold something the PC needs). Their `relation` field must specify this tie — not a generic role description. Their `bio` should reference the PC by name where the shared history demands it.
+Of the 2 in-scene NPCs, at least 1 must have a specific personal connection to the PC: a debt owed, a shared history (served together, grew up together, survived something together), an emotional bond (family, old friend, former lover), or a key story intersection (they are the reason the PC is here, they hold something the PC needs). Express this tie in their `bond` field — not a generic role description. Their `bio` should reference the PC by name where the shared history demands it.
 {% if pool_selection and pool_selection.npc_bond %}
 The NPC with the personal connection should follow the selected NPC bond pattern: "{{ pool_selection.npc_bond.description }}"
 {% endif %}
 
-The other in-scene NPC carries immediate external pressure from the world, institution, or conflict pressing on the scene — their `relation` describes this institutional or situational connection (e.g., "represents the faction that controls this checkpoint", "is the officer whose orders you're failing"). Together the two NPCs embody: personal stakes (one NPC) + external pressure (the other NPC).
+The other in-scene NPC carries immediate external pressure from the world, institution, or conflict pressing on the scene — their `bond` describes this institutional or situational connection (e.g., "represents the faction that controls this checkpoint", "is the officer whose orders you're failing"). Together the two NPCs embody: personal stakes (one NPC) + external pressure (the other NPC).
 
 ## compendium.npcs
 Generate exactly 2-3 additional NPCs in compendium.npcs (keyed by snake_case id, with {name, title, bio}). These are characters the PC knows of or has encountered before — they exist in the world but are not present in the opening scene. Their bios should tie them to the world's factions, locations, or pressures rather than to the immediate opening situation. They may become allies, antagonists, sources of information, or neutral parties as the story unfolds.
