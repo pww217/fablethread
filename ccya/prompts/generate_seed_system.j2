@@ -211,7 +211,7 @@ Generate a `CampaignArc` with:
 - `discovered_truths`: list of strings — leave empty at seed time. Truths are discovered through play, not seeded.
 - `threads`: single unified list (not split into active/latent) where each thread has `{id, summary, tags, urgency, scope}` with an `active` boolean flag managed by Python age rules; include 2–3 threads that should start as active (`"active": true`) and any latent threads. Use exact enum values: `scope` is `"scene"` or `"arc"`; `urgency` is `"background"`, `"normal"`, or `"urgent"`.
 - `completed_threads`: separate list for resolved/failed threads (leave empty at seed time)
-- `pc_drive`: a single sentence about the PC's personal reason for being in this situation. More narrow than the visible_goal — it is about the PC's motivation, not the objective. Express this motive indirectly through goal_context, present_npcs relations, opening narrative, and actions rather than printing pc_drive as a labeled UI fact.
+- `pc_drive`: a single sentence about the PC's personal reason for being in this situation. More narrow than the visible_goal — it is about the PC's motivation, not the objective. Express this motive indirectly through goal_context, NPC bonds (compendium entries with presence="present"), opening narrative, and actions rather than printing pc_drive as a labeled UI fact.
 
 Thread summaries should be **seeds for the narrator, not dictated plot**. They should describe a situation, not specify exact events. The narrator should always have creative latitude in how a thread manifests.
 

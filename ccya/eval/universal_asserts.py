@@ -319,7 +319,7 @@ def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
     rule: tokens of length >= 3 that are Capitalized AND not the first token of a
     sentence AND not in a pronoun/article allow-list. If any candidate name does
     NOT appear in applied.npc_add[].name OR applied.npc_update[].name OR existing
-    state_snapshot.scene.present_npcs[].name (case-insensitive), flag.
+    state_snapshot.compendium.npcs[presence="present"].name (case-insensitive), flag.
 
     This is intentionally conservative — we only flag when narration introduces a
     clearly-named character that the scene extractor missed.

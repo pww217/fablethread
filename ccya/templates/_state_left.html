@@ -1,7 +1,9 @@
 {# Left sidebar: Player, Scene, Location, Arc, Compendium #}
 {% set pc_tag = state.pc.tagline or state.pc.concept %}
 {% set comp = (state.compendium.npcs if state.compendium and state.compendium.npcs else {}) %}
-{% set present_npcs = [v for k, v in (comp.items() if isinstance(comp, dict) else {}).items() if isinstance(v, dict) and v.get("presence") == "present"] | sort(attribute="name") %}
+{% set _present = namespace(items=[]) %}
+{% if comp is mapping and comp %}{% for _k, _v in comp.items() %}{% if _v is mapping and _v.get("presence") == "present" %}{% set _present.items = _present.items + [_v] %}{% endif %}{% endfor %}{% endif %}
+{% set present_npcs = (_present.items | sort(attribute="name")) if _present.items else [] %}
 <details class="sidebar-card" id="card-player" data-card="player" open>
     <summary>Player</summary>
     <div class="sidebar-card-body">
