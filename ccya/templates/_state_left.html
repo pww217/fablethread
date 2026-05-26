@@ -1,5 +1,7 @@
 {# Left sidebar: Player, Scene, Location, Arc, Compendium #}
 {% set pc_tag = state.pc.tagline or state.pc.concept %}
+{% set comp = (state.compendium.npcs if state.compendium and state.compendium.npcs else {}) %}
+{% set present_npcs = [v for k, v in (comp.items() if isinstance(comp, dict) else {}).items() if isinstance(v, dict) and v.get("presence") == "present"] | sort(attribute="name") %}
 <details class="sidebar-card" id="card-player" data-card="player" open>
     <summary>Player</summary>
     <div class="sidebar-card-body">
@@ -43,38 +45,20 @@
     </div>
 </details>
 
-{% if (state.scene.tags or []) or (state.scene.present_npcs or []) %}
+{% if (state.scene.tags or []) or present_npcs %}
 <details class="sidebar-card" id="card-scene" data-card="scene" open>
-    <summary>Scene <span class="card-count">{{ (state.scene.present_npcs or []) | length }}</span></summary>
+    <summary>Scene <span class="card-count">{{ present_npcs | length }}</span></summary>
     <div class="sidebar-card-body">
-        {% if state.scene.present_npcs %}
+        {% if present_npcs %}
         <div class="npc-list">
-            {% for npc in state.scene.present_npcs %}
+            {% for npc in present_npcs %}
             {% set npc_name = npc.get('name', npc.get('id', npc)) if npc is mapping else npc %}
             {% set npc_title = npc.get('title', '') if npc is mapping else '' %}
             {% set npc_notes = npc.get('notes', '') if npc is mapping else '' %}
-            {% set npc_bio = npc.get('bio', '') if npc is mapping else '' %}
-            {% set npc_motivation = npc.get('motivation', '') if npc is mapping else '' %}
-            {% set npc_fear = npc.get('fear', '') if npc is mapping else '' %}
-            {% set npc_leverage = npc.get('leverage', '') if npc is mapping else '' %}
-            <div class="npc-item{% if npc_bio or npc_motivation or npc_fear or npc_leverage %} has-tooltip{% endif %}">
+            <div class="npc-item">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
                 {% if npc_notes %}
                 <span class="npc-notes-inline">{{ npc_notes }}</span>
-                {% endif %}
-                {% if npc_bio or npc_motivation or npc_fear or npc_leverage %}
-                <div class="tooltip-body">
-                    {% if npc_bio %}
-                    <div class="npc-bio" data-md>{{ npc_bio }}</div>
-                    {% endif %}
-                    {% if npc_motivation or npc_fear or npc_leverage %}
-                    <div class="npc-traits" data-md>
-                        {% if npc_motivation %}<strong>Motivation:</strong> {{ npc_motivation }}<br>{% endif %}
-                        {% if npc_fear %}<strong>Fear:</strong> {{ npc_fear }}<br>{% endif %}
-                        {% if npc_leverage %}<strong>Leverage:</strong> {{ npc_leverage }}{% endif %}
-                    </div>
-                    {% endif %}
-                </div>
                 {% endif %}
             </div>
             {% endfor %}
@@ -160,7 +144,6 @@
 </details>
 {% endif %}
 
-{% set comp = (state.compendium.npcs if state.compendium and state.compendium.npcs else {}) %}
 <details class="sidebar-card" id="card-compendium" data-card="compendium">
     <summary>Compendium <span class="card-count">{{ comp | length }}</span></summary>
     <div class="sidebar-card-body">

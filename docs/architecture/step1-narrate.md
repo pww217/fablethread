@@ -17,8 +17,7 @@ flowchart LR
         N4["rules_outcome<br>(band, directive, dice summary)"]:::xstream
         N5["pack_style (tone / prose guide)"]
         N6["npc_name_pool (cultural name list)"]
-        N7["known_npcs<br>(last-seen info)"]
-        N8["present_npcs<br>(attitudes)"]
+        N7["npc_roster<br>(from build_npc_roster(comp),<br>  presence field: present/nearby/known)"]
         N9["world_factions<br>(immutable trace)"]:::xstream
         N10["pending_gm_beat<br>(type · surface_as metadata)"]
         N11["pacing_context<br>(directive)<br>from _compute_pacing_context()"]:::xstream

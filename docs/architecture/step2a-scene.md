@@ -14,7 +14,7 @@ flowchart LR
         S1["narrative (from Step 1)"]:::xstream
         S2["state.pc (name, tagline, bio, stats)"]
         S3["state.location"]
-        S4["state.scene.present_npcs"]
+        S4["compendium.npcs[presence='present']"]
         S5["state.pc.conditions"]
         S6["known_characters<br>(full roster: id, name, tags, notes<br>up to 10 LRU from compendium)"]
         S7["recent_turns[-1:]<br>(T-1 prior narration)"]

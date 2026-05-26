@@ -150,7 +150,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions, persisted to state["pc"]["actions"] as rolling window by apply_delta()
 
 ### Cross-stream data flow (minimal by design)
-- Scene → State: location_change (id,name,description) + present_npcs (id,name,title,notes,bio)
+- Scene → State: location_change (id,name,description) + compendium_npc_update (upserts into state.compendium.npcs with presence field)
 - No items_gained/items_lost cross-stream fields exist (removed); extraction_ctx covers this-turn derived data
 
 ## Key models with non-obvious behavior
@@ -215,7 +215,7 @@ arc:                           # managed by engine/turn.py (_apply_thread_signal
 
 scene:
   tags: [str], tagline: str
-  present_npcs: list[NpcRef]   # sticky: absence does not cause removal; only explicit npc_remove removes. Seed data may include `relation` field for NPC-PC narrative connection.
+  present_npcs: list[NpcRef]   # REMOVED — NPCs now in compendium.npcs with presence field ("present"|"known")
   world_state: [str]           # immutable after seed
   recent_events: list[Event]   # {id, text, turn} — FIFO cap (default 20)
   location_entered_turn: int   # when location was last changed
