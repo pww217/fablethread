@@ -266,30 +266,35 @@
                                 <div class="tv-diff-section-label">Pacing Context</div>
                                 <template x-if="t.pacing_context.directive">
                                     <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
                                         <span class="tv-diff-field">directive</span>
                                         <span class="tv-diff-value" x-text="t.pacing_context.directive"></span>
                                     </div>
                                 </template>
                                 <template x-if="t.pacing_context.gate && t.pacing_context.gate !== 'allow'">
                                     <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
                                         <span class="tv-diff-field">gate</span>
                                         <span class="tv-diff-value tv-sts-rejected" x-text="t.pacing_context.gate"></span>
                                     </div>
                                 </template>
                                 <template x-if="t.momentum_after !== undefined">
                                     <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
                                         <span class="tv-diff-field">momentum</span>
                                         <span class="tv-diff-value" x-text="(t.momentum_before !== undefined ? t.momentum_before + ' → ' : '') + t.momentum_after"></span>
                                     </div>
                                 </template>
                                 <template x-if="t.band_label">
                                     <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
                                         <span class="tv-diff-field">band</span>
                                         <span class="tv-diff-value" x-text="t.band_label"></span>
                                     </div>
                                 </template>
                                 <template x-if="t.pacing_context.beat_locked">
                                     <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
                                         <span class="tv-diff-field">beat_locked</span>
                                         <span class="tv-diff-value" style="color: var(--status-error)">true</span>
                                     </div>
