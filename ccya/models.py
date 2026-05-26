@@ -25,18 +25,6 @@ class NpcPresence(str, Enum):
     KNOWN = "known"
 
 
-@dataclass
-class RosterEntry:
-    id: str
-    name: str
-    title: str | None = None
-    bio: str | None = None
-    presence: NpcPresence = NpcPresence.KNOWN
-    motivation: str | None = None
-    fear: str | None = None
-    leverage: str | None = None
-    notes: str | None = None
-    last_seen: str | None = None
 
 
 class ArcThread(BaseModel):
@@ -230,6 +218,9 @@ class CompendiumNpcUpdate(BaseModel):
     motivation: str | None = None
     fear: str | None = None
     leverage: str | None = None
+    presence: str | None = None  # "present" | "nearby" | "known" — scene extractor sets this
+    notes: str | None = None      # scene-specific attitude, cleared on departure
+    first_seen_turn: int | None = None  # set by engine on initial entry creation
 
 
 class NpcAdd(BaseModel):

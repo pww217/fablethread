@@ -47,6 +47,8 @@ class CompendiumEntry(BaseModel):
     title: str | None = None
     bio: str | None = None
     bond: str | None = None
+    presence: str | None = None  # "present" | "nearby" | "known" — set by seed or engine
+    notes: str | None = None      # scene-specific attitude, cleared on departure
 
 
 class SeedCompendium(BaseModel):
@@ -83,7 +85,8 @@ class SeedEnvelope(BaseModel):
 
     The LLM may populate compendium.npcs at seed time with 2-3 additional
     NPCs (name, title, bio). These are known-to-but-not-present in the
-    opening scene. Do NOT set meta.compendium_touch_order — engine manages
+    opening scene. Compendium entries may have presence field set to 
+    'present' or 'known'. Do NOT set meta.compendium_touch_order — engine manages
     that field at runtime.
     """
 
