@@ -160,21 +160,15 @@
             {% set ttl = entry.title if entry is mapping else '' %}
             {% set bio = entry.bio if entry is mapping else '' %}
             {% set ls = entry.last_seen if entry is mapping and entry.last_seen else None %}
-            {% set fear = entry.fear if entry is mapping else '' %}
-            {% set leverage = entry.leverage if entry is mapping else '' %}
             {% set npc_bond = entry.bond if entry is mapping and entry.bond else '' %}
+            {% set _mot = entry.motivation if entry is mapping else '' %}
             <div class="compendium-item has-tooltip">
                 <span class="compendium-line">{{ nm or nid }}{% if ttl %}<span class="compendium-title"> — {{ ttl }}</span>{% endif %}</span>
                 <div class="tooltip-body" data-md>
-                    {{ bio or '—' }}
-                    {% if npc_bond %}{% if bio %}<br>{% endif %}<strong>Bond:</strong> {{ npc_bond }}{% endif %}
-                    {% if fear or leverage %}
-                    <br><div class="npc-traits">
-                        {% if fear %}<strong>Fear:</strong> {{ fear }}<br>{% endif %}
-                        {% if leverage %}<strong>Leverage:</strong> {{ leverage }}{% endif %}
-                    </div>
-                    {% endif %}
-                    {% if ls %}{% if npc_bond or fear or leverage %}<br>{% endif %}Last seen: {{ ls.location_name }}{% endif %}
+                    {% if bio %}{{ bio }}{% else %}—{% endif %}{% set _has = false %}
+                    {% if _mot %}<br><br>**Motivation:** {{ _mot }}{% set _has = true %}{% endif %}
+                    {% if npc_bond %}{% if _has %}<br><br>{% endif %}**Bond:** {{ npc_bond }}{% set _has = true %}{% endif %}
+                    {% if ls %}{% if _has %}<br><br>{% endif %}Last seen: {{ ls.location_name }}{% endif %}
                 </div>
             </div>
             {% endfor %}

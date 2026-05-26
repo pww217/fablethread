@@ -225,7 +225,7 @@ scene:
   location_entered_turn: int   # when location was last changed
   combat_started_turn: int     # set when scene tags include "combat"
 
-compendium.npcs: dict[id] → {name, title, bio, aliases: [str], allegiance: str | None, presence: str | "present"|"nearby"|"known", notes: str | None, first_seen_turn: int | None}
+compendium.npcs: dict[id] → {name, title, bio, aliases: [str], allegiance: str | None, presence: str | "present"|"nearby"|"known", notes: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), first_seen_turn: int | None}
 
 world.factions: [str], world.locations: [str]
 ```
