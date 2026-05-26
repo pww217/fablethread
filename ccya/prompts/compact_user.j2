@@ -38,7 +38,7 @@
 
 ### Compendium NPCs
 {% for npc_id, npc in compendium_npcs -%}
-- [{{ npc_id }}] {{ npc.get("name", "?") }} (seen since T{{ npc.get("present_from_turn", "?") }}){% if npc.get("title") %} ({{ npc.get("title") }}){% endif %}{% if npc.get("aliases") %} aka {{ npc.get("aliases") | join(", ") }}{% endif %}
+- [{{ npc_id }}] {{ npc.get("name", "?") }} (seen since T{{ npc.get("first_seen_turn", "?") }}){% if npc.get("title") %} ({{ npc.get("title") }}){% endif %}{% if npc.get("aliases") %} aka {{ npc.get("aliases") | join(", ") }}{% endif %}
   bio: {{ npc.get("bio", "—") }}{% if npc.get("motivation") %} | wants: {{ npc.get("motivation") }}{% endif %}{% if npc.get("fear") %} | fears: {{ npc.get("fear") }}{% endif %}{% if npc.get("leverage") %} | leverage: {{ npc.get("leverage") }}{% endif %}{% if npc.get("bond") %} | bond: {{ npc.get("bond") }}{% endif %}
 
 {% else -%}

@@ -7,9 +7,9 @@
 
 ## scene
 Location: {{ location.name or location.id or "Unknown" }}
-{%- if present_npcs %}
+{%- if npc_roster %}
 ## Present NPCs (in scene right now)
-{% for n in present_npcs %}- {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}
+{% for n in npc_roster %}{% if n.presence == "present" %}- {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}{% endif %}
 {% endfor -%}
 {% endif -%}
 {%- if inventory %}

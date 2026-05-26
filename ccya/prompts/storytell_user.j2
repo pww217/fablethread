@@ -1,4 +1,4 @@
-{% include "sections/_npc_roster_extract.j2" %}{% if location %}
+{% include "sections/_npc_roster.j2" %}{% if location %}
 ## location
 **{{ location.name or location.id }}**{% if location.description %} — {{ location.description }}{% endif %}
 {% endif %}{% if conditions %}

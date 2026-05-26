@@ -344,9 +344,9 @@ def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
             n = npc.get("name") or npc.get("id") or ""
             if n:
                 known_names.add(n.lower())
-    for npc in (snap.get("scene") or {}).get("present_npcs") or []:
-        if isinstance(npc, dict):
-            n = npc.get("name") or npc.get("id") or ""
+    for nid, entry in ((snap.get("compendium") or {}).get("npcs") or {}).items():
+        if isinstance(entry, dict) and entry.get("presence") == "present":
+            n = entry.get("name") or nid
             if n:
                 known_names.add(n.lower())
     for cid, c in ((snap.get("compendium") or {}).get("npcs") or {}).items():
@@ -450,16 +450,16 @@ def check_recent_events_ring_size(event: dict[str, Any]) -> dict[str, Any]:
 
 
 def check_npc_scene_cap(event: dict[str, Any]) -> dict[str, Any]:
-    """state.scene.present_npcs must not exceed 8 (rubric-documented cap)."""
+    """Compendium NPCs with presence=present must not exceed 8 (rubric-documented cap)."""
     snap = event.get("state_snapshot") or {}
-    npcs = (snap.get("scene") or {}).get("present_npcs") or []
-    n = len(npcs) if isinstance(npcs, list) else 0
+    comp = (snap.get("compendium") or {}).get("npcs") or {}
+    present = [nid for nid, e in comp.items() if isinstance(e, dict) and e.get("presence") == "present"]
+    n = len(present)
     if n > 8:
-        names = [n2.get("name", n2.get("id", "?")) for n2 in npcs if isinstance(n2, dict)]
         return {
             "assertion": "universal.scene.npc_cap",
             "passed": False,
-            "detail": f"{n} NPCs in scene (cap is 8): {names[:10]}",
+            "detail": f"{n} NPCs with presence=present (cap is 8): {present[:10]}",
             "scope": "universal",
             "severity": "red",
         }

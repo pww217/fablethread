@@ -39,16 +39,6 @@ def _sanitize_envelope(envelope: SeedEnvelope) -> SeedEnvelope:
         envelope.seed_state.scene.world_state[envelope.seed_state.scene.world_state.index(evt)] = _strip_non_ascii(evt)
     for evt in envelope.seed_state.scene.recent_events:
         envelope.seed_state.scene.recent_events[envelope.seed_state.scene.recent_events.index(evt)] = _strip_non_ascii(evt)
-    for npc in envelope.seed_state.scene.present_npcs:
-        npc["name"] = _strip_non_ascii(npc["name"])
-        npc["title"] = _strip_non_ascii(npc.get("title", ""))
-        npc["bio"] = _strip_non_ascii(npc.get("bio", ""))
-        npc["notes"] = _strip_non_ascii(npc.get("notes", ""))
-        name_parts = npc["name"].split()
-        if len(name_parts) == 1 and name_parts[0]:
-            surname_hash = sha256(f"{npc['name']}-{npc.get('id', '')}".encode()).hexdigest()[:4]
-            surnames_pool = ["Smith", "Jones", "Black", "Stone", "Fox", "Wolf", "Hawk", "Knight"]
-            npc["name"] = f'{name_parts[0]} {surnames_pool[int(surname_hash, 16) % len(surnames_pool)]}'
     for npc_id, npc_data in envelope.seed_state.compendium.npcs.items():
         if npc_data.name is not None:
             npc_data.name = _strip_non_ascii(npc_data.name)
@@ -305,7 +295,7 @@ async def generate_seed(
                 extra={"trace_id": trace_id},
             )
             if attempt < config.generate_seed_max_retries:
-                fb = f"Your output failed to parse: {parse_error}. Common issues: actions must be exactly 4 items; opening_narrative must be at least 50 characters; present_npcs must include id, name, title for each NPC. Re-emit a valid SeedEnvelope JSON only."
+                fb = f"Your output failed to parse: {parse_error}. Common issues: actions must be exactly 4 items; opening_narrative must be at least 50 characters. Re-emit a valid SeedEnvelope JSON only."
                 messages.append({"role": "user", "content": fb})
             continue
 

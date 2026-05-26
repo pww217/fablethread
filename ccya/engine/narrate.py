@@ -32,9 +32,6 @@ def _narrate_messages(
     pending_beat: dict[str, Any] | None = None,
     pacing_context: "PacingContext | None" = None,
     ages: dict[str, int] | None = None,
-    known_npcs: list[dict[str, Any]] = [],
-    present_npcs: list[dict[str, Any]] = [],
-    compendium_bios: list[dict[str, Any]] = [],
     pc_allegiance: str | None = None,
     turn_no: int = 0,
     world_factions: list[dict[str, str]] = [],
@@ -44,13 +41,12 @@ def _narrate_messages(
     building_threat_imperative_at: int = 4,
     npc_roster: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
-    npc_roster_input = npc_roster or build_npc_roster(
-        present_npcs=present_npcs,
-        known_npcs=known_npcs,
-    )
+    if npc_roster is None:
+        comp = (state.get("compendium") or {}).get("npcs") or {}
+        npc_roster = build_npc_roster(comp)
     _log.debug(
-        "narrate entry turn=%d npc_roster_len=%d present_npcs=%d known_npcs=%d",
-        turn_no, len(npc_roster_input), len(present_npcs), len(known_npcs),
+        "narrate entry turn=%d npc_roster_len=%d",
+        turn_no, len(npc_roster),
     )
 
     # Build arc context for narrator (needed by both system and user prompts)
@@ -79,16 +75,6 @@ def _narrate_messages(
     else:
         current_arc_ctx = None
 
-    # Template variable contract for narrate_user.j2:
-    #   REQUIRED (all branches): state, scene, pc, chronicle_tail, prior_history,
-    #     recent_turns, user_input, meta, present_npcs, known_npcs, npc_roster
-    #   OPTIONAL (rendered conditionally): rules_outcome, pacing_context, pending_beat,
-    #     npc_name_pool, compendium_bios, ages, world_factions,
-    #     threat_ages, current_arc
-    #   Jinja guards ({% if ... %}) handle None/falsy for optional vars;
-    #     required vars use safe fallbacks (.get or | default) in template.
-    #   New vars added here MUST have a corresponding Jinja guard in both
-    #     narrate_user.j2 and any included sections that reference them.
     user_ctx = {
         "state": state,
         "pc": state.get("pc") or {},
@@ -104,16 +90,13 @@ def _narrate_messages(
         "meta": {"turn": turn_no},
         "scene": state.get("scene", {}),
         "ages": ages or {},
-        "known_npcs": known_npcs,
-        "present_npcs": present_npcs,
-        "compendium_bios": compendium_bios,
         "pc_allegiance": pc_allegiance,
         "world_factions": world_factions,
         "threat_ages": threat_ages or [],
         "threat_pressure_at": threat_pressure_at,
         "threat_imperative_at": threat_imperative_at,
         "building_threat_imperative_at": building_threat_imperative_at,
-        "npc_roster": npc_roster_input,
+        "npc_roster": npc_roster,
         "current_arc": current_arc_ctx,
     }
 
@@ -133,56 +116,3 @@ def _narrate_messages(
     else:
         _log.debug("narrate complete turn=%d messages=%d", turn_no, len(msgs))
     return msgs
-
-
-def _known_characters_for_extract(
-    state: dict[str, Any], *, compact: bool = False
-) -> list[dict[str, Any]]:
-    comp = (state.get("compendium") or {}).get("npcs") or {}
-    order = list((state.get("meta") or {}).get("compendium_touch_order") or [])
-    seen: set[str] = set()
-    out_ids: list[str] = []
-    for nid in reversed(order):
-        if nid in comp and nid not in seen:
-            out_ids.append(nid)
-            seen.add(nid)
-            if len(out_ids) >= 10:
-                break
-    for k in sorted(comp.keys()):
-        if k not in seen and len(out_ids) < 10:
-            out_ids.append(k)
-            seen.add(k)
-    rows: list[dict[str, Any]] = []
-    for nid in out_ids:
-        e = comp.get(nid) or {}
-        if compact:
-            row: dict[str, Any] = {"id": nid, "name": e.get("name") or ""}
-            bio = (e.get("bio") or "").strip()
-            if bio:
-                if len(bio) > 120:
-                    bio = bio[:117].rstrip() + "..."
-                row["bio"] = bio
-            for field in ("motivation", "fear", "leverage"):
-                val = e.get(field)
-                if val:
-                    row[field] = val
-            rows.append(row)
-        else:
-            bio = (e.get("bio") or "").strip()
-            if len(bio) > 120:
-                bio = bio[:117].rstrip() + "..."
-            r: dict[str, Any] = {
-                "id": nid,
-                "name": e.get("name") or "",
-                "title": e.get("title") or "",
-                "bio": bio,
-            }
-            for field in ("motivation", "fear", "leverage"):
-                val = e.get(field)
-                if val:
-                    r[field] = val
-            bond = e.get("bond")
-            if bond:
-                r["bond"] = bond
-            rows.append(r)
-    return rows

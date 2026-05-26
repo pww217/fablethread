@@ -15,7 +15,6 @@ from typing import Any
 
 from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _log_prompts, _render
 from ccya.engine.markers import strip_trace_markers_in_messages
-from ccya.engine.narrate import _known_characters_for_extract
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.llm_client import (
     chat as llm_chat,
@@ -44,9 +43,8 @@ class _ExtractionContext:
     All fields are derived from extract results, NOT from `state`.  They
     represent what happened *this turn* as determined by the prior two streams.
     """
-    # Scene stream outputs (stream 1)
-    present_npcs_this_turn: list[dict[str, Any]] = field(default_factory=list)
-    """present_npcs list after applying npc_add/npc_remove from scene result."""
+    comp_this_turn: dict[str, Any] = field(default_factory=dict)
+    """Reference to post-delta compendium.npcs dict (not a copy)."""
     location_this_turn: dict[str, Any] = field(default_factory=dict)
     """Location dict after applying location_change from scene result (or state's if no change)."""
     scene_tags_this_turn: list[str] = field(default_factory=list)
@@ -74,9 +72,6 @@ def _build_extraction_context(
     from ccya.state.delta_builder import apply_delta
 
     combined_delta = StateDelta(
-        npc_add=list(scene_result.npc_add or []),
-        npc_remove=list(scene_result.npc_remove or []),
-        npc_update=list(scene_result.npc_update or []),
         compendium_npc_update=list(scene_result.compendium_npc_update or []),
         location_change=scene_result.location_change,
         scene_tags=list(scene_result.scene_tags or []),
@@ -90,7 +85,6 @@ def _build_extraction_context(
     state_copy = copy.deepcopy(state)
     post_state, _evicted = apply_delta(state_copy, combined_delta)
 
-    post_scene = post_state.get("scene") or {}
     post_pc = post_state.get("pc") or {}
 
     location_this_turn = dict(post_state.get("location") or {})
@@ -98,9 +92,9 @@ def _build_extraction_context(
         location_this_turn["description"] = scene_result.location_description
 
     return _ExtractionContext(
-        present_npcs_this_turn=list(post_scene.get("present_npcs") or []),
+        comp_this_turn=post_state.setdefault("compendium", {}).setdefault("npcs", {}),
         location_this_turn=location_this_turn,
-        scene_tags_this_turn=list(post_scene.get("tags") or []),
+        scene_tags_this_turn=list(post_state.get("scene", {}).get("tags") or []),
         inventory_this_turn=list(post_state.get("inventory") or []),
         conditions_this_turn=list(post_pc.get("conditions") or []),
     )
@@ -145,7 +139,7 @@ def _capitalize_inventory_names(items: list[Any]) -> None:
                 item["name"] = name[0].upper() + name[1:]
 
 
-def _dedup_compendium_add(
+def _dedup_compendium_update(
     proposed: "CompendiumNpcUpdate",
     existing_npcs: list[dict[str, Any]],
 ) -> "CompendiumNpcUpdate":
@@ -167,54 +161,6 @@ def _dedup_compendium_add(
     return proposed
 
 
-def _scene_npc_roster(known_characters: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Build a deduped NPC roster for the scene extractor user prompt.
-
-    Each row is ``{id, name, title, bio, notes, tags, motivation, fear, leverage, bond}``
-    where tags = {"compendium"}.
-    """
-    by_id: dict[str, dict[str, Any]] = {}
-
-    def _put(nid: str, name: str, title: str, bio: str, notes: str, tag: str, motivation: str = "", fear: str = "", leverage: str = "", bond: str = "") -> None:
-        if not nid:
-            return
-        row = by_id.setdefault(nid, {"id": nid, "name": "", "title": "", "bio": "", "notes": "", "tags": [], "motivation": "", "fear": "", "leverage": "", "bond": ""})
-        if name and not row["name"]:
-            row["name"] = name
-        if title and not row["title"]:
-            row["title"] = title
-        if bio and not row["bio"]:
-            row["bio"] = bio
-        if notes and not row["notes"]:
-            row["notes"] = notes
-        if tag not in row["tags"]:
-            row["tags"].append(tag)
-        if motivation and not row["motivation"]:
-            row["motivation"] = motivation
-        if fear and not row["fear"]:
-            row["fear"] = fear
-        if leverage and not row["leverage"]:
-            row["leverage"] = leverage
-        if bond and not row["bond"]:
-            row["bond"] = bond
-
-    for row in known_characters or []:
-        _put(
-            str(row.get("id") or ""),
-            str(row.get("name") or ""),
-            str(row.get("title") or ""),
-            str(row.get("bio") or ""),
-            "",
-            "compendium",
-            row.get("motivation") or "",
-            row.get("fear") or "",
-            row.get("leverage") or "",
-            row.get("bond") or "",
-        )
-
-    return list(by_id.values())
-
-
 def _extract_scene_messages(
     env: Environment,
     narration: str,
@@ -227,24 +173,8 @@ def _extract_scene_messages(
     pc = state.get("pc") or {}
     location = state.get("location") or {}
     conditions = list(pc.get("conditions") or [])
-    known_characters = _known_characters_for_extract(state, compact=False)
-    npc_roster = _scene_npc_roster(known_characters)
-    _raw_present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
-    _compendium = (state.get("compendium") or {}).get("npcs") or {}
-    present_npcs = []
-    for npc in _raw_present_npcs:
-        nid = npc.get("id", "")
-        entry = _compendium.get(nid, {})
-        enriched = dict(npc)
-        if not enriched.get("name") and entry.get("name"):
-            enriched["name"] = entry["name"]
-        if not enriched.get("title") and entry.get("title"):
-            enriched["title"] = entry["title"]
-        if not enriched.get("bio") and entry.get("bio"):
-            enriched["bio"] = (entry.get("bio") or "").strip()
-        if not enriched.get("bond") and entry.get("bond"):
-            enriched["bond"] = entry["bond"]
-        present_npcs.append(enriched)
+    comp = (state.get("compendium") or {}).get("npcs") or {}
+    npc_roster = build_npc_roster(comp)
 
     system_text = _render(env, "extract_scene_system.j2", {})
     user_text = _render(
@@ -256,7 +186,6 @@ def _extract_scene_messages(
             "location": location,
             "conditions": conditions,
             "npc_roster": npc_roster,
-            "present_npcs": present_npcs,
             "recent_turns": recent_turns or [],
             "turn_no": turn_no,
         },
@@ -321,10 +250,7 @@ def _storytell_messages(
     world_state = list(scene.get("world_state") or [])
 
     system_text = _render(env, "storytell_system.j2", {})
-    npc_roster = build_npc_roster(
-        present_npcs=extraction_ctx.present_npcs_this_turn,
-        known_npcs=_known_characters_for_extract(state, compact=True),
-    )
+    npc_roster = build_npc_roster(extraction_ctx.comp_this_turn)
     user_text = _render(
         env,
         "storytell_user.j2",
@@ -358,23 +284,8 @@ def _coerce_scene_json(j: dict[str, Any]) -> dict[str, Any]:
     """Coerce LLM output to match Pydantic model expectations.
 
     Handles cases where the LLM returns strings instead of dicts for list fields:
-    - npc_add: ["bystanders"] → [{"id": "bystanders", "notes": "", "bio": ""}]
-    - compendium_npc_update: similar coercion needed
+    - compendium_npc_update: ["bystanders"] → [{"id": "bystanders"}]
     """
-    # Coerce npc_add entries that are strings to NpcAdd objects
-    if isinstance(j.get("npc_add"), list):
-        coerced = []
-        for item in j["npc_add"]:
-            if isinstance(item, str):
-                coerced.append({"id": item.lower().replace(" ", "_").strip(), "notes": "", "bio": ""})
-            elif isinstance(item, dict) and "id" not in item:
-                # Dict without id — extract name/title to create id
-                name = item.get("name", "") or str(item).lower()
-                coerced.append({"id": name.replace(" ", "_").strip(), **item})
-            else:
-                coerced.append(item)
-        j["npc_add"] = coerced
-
     # Coerce compendium_npc_update entries that are strings to dicts
     if isinstance(j.get("compendium_npc_update"), list):
         coerced = []
@@ -388,6 +299,14 @@ def _coerce_scene_json(j: dict[str, Any]) -> dict[str, Any]:
                 coerced.append(item)
         j["compendium_npc_update"] = coerced
 
+    # Coerce malformed thread_add (LLM returns [] or {} when no new thread)
+    if isinstance(j.get("thread_add"), list):
+        del j["thread_add"]
+    elif isinstance(j.get("thread_add"), dict):
+        required = {"id", "summary", "scope"}
+        if not required.issubset(j["thread_add"].keys()):
+            del j["thread_add"]
+
     return j
 
 
@@ -399,7 +318,7 @@ def _parse_stream_result(raw: str, model_cls: type, strip_keys: tuple[str, ...] 
         raise ValueError("No JSON found in response")
     for k in strip_keys:
         j.pop(k, None)
-    # Coerce LLM output to match Pydantic model expectations (e.g., string → dict for npc_add)
+    # Coerce LLM output to match Pydantic model expectations
     return model_cls(**_coerce_scene_json(j))
 
 
@@ -541,9 +460,9 @@ async def _run_extraction_pipeline(
         )
         extraction_event["scene"] = {**_SKIPPED, "error": str(exc)}
 
-    if not scene_result.scene_tags and not scene_result.npc_add:
+    if not scene_result.scene_tags:
         _log.warning("extraction.scene.empty trace_id=%s turn_no=%d scene has no tags or NPC changes after retries", trace_id, turn_no)
-    _log.debug("extraction.scene.done trace_id=%s result_type=%s tags=%d npc_add=%d tokens_in=%d tokens_out=%d", trace_id, type(scene_result).__name__, len(scene_result.scene_tags), len(scene_result.npc_add or []), scene_usage.get("prompt_tokens", 0), scene_usage.get("completion_tokens", 0))
+    _log.debug("extraction.scene.done trace_id=%s result_type=%s tags=%d tokens_in=%d tokens_out=%d", trace_id, type(scene_result).__name__, len(scene_result.scene_tags), scene_usage.get("prompt_tokens", 0), scene_usage.get("completion_tokens", 0))
     yield ("phase", {"phase": "extract_stream_done", "stream": "scene"})
 
     # --- Stream 2: State ---
@@ -639,7 +558,7 @@ async def _run_extraction_pipeline(
         # Generate fallback actions when LLM omits them (prompt requires exactly 4)
         if not storytell_result.actions:
             narr_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration.strip()) if len(s.strip().split()) > 5]
-            present_npc_names = [n.get("name", "") for n in extraction_ctx.present_npcs_this_turn if isinstance(n, dict)]
+            present_npc_names = [entry.get("name", "") for entry in extraction_ctx.comp_this_turn.values() if isinstance(entry, dict) and entry.get("presence") == "present"]
             actions = []
             # Action from narration summary
             if narr_sentences:
@@ -688,7 +607,7 @@ async def _run_extraction_pipeline(
     _log.debug("extraction.storytell.done trace_id=%s result_type=%s actions=%d events_add=%d tokens_in=%d tokens_out=%d gm_beat=%s", trace_id, type(storytell_result).__name__, len(storytell_result.actions or []), len(storytell_result.recent_events_add or []), storytell_usage.get("prompt_tokens", 0), storytell_usage.get("completion_tokens", 0), storytell_result.gm_beat.type if storytell_result.gm_beat else None)
     yield ("phase", {"phase": "extract_stream_done", "stream": "storytell"})
 
-    _log.debug("extraction.dedup.start trace_id=%s scene_npcs_add=%d compendium_updates=%d state_inv_add=%d", trace_id, len(scene_result.npc_add or []), len(scene_result.compendium_npc_update or []), len(state_result.inventory_add or []))
+    _log.debug("extraction.dedup.start trace_id=%s compendium_updates=%d state_inv_add=%d", trace_id, len(scene_result.compendium_npc_update or []), len(state_result.inventory_add or []))
     # --- Dedup compendium updates before merging into StateDelta ---
     _comp = (state.get("compendium") or {}).get("npcs") or {}
     existing_npcs: list[dict[str, Any]] = []
@@ -704,7 +623,7 @@ async def _run_extraction_pipeline(
         })
     deduped_compendium: list[CompendiumNpcUpdate] = []
     for cu in (scene_result.compendium_npc_update or []):
-        deduped_compendium.append(_dedup_compendium_add(cu, existing_npcs))
+        deduped_compendium.append(_dedup_compendium_update(cu, existing_npcs))
     if deduped_compendium != (scene_result.compendium_npc_update or []):
         _log.debug(
             "extraction.dedup: compendium dedup redirected %d entries", len(scene_result.compendium_npc_update or []),
@@ -712,50 +631,12 @@ async def _run_extraction_pipeline(
         )
     scene_result = scene_result.model_copy(update={"compendium_npc_update": deduped_compendium})
 
-    # --- Dedup npc_add against compendium ---
-    if existing_npcs:
-        deduped_adds: list[Any] = []
-        for npc in (scene_result.npc_add or []):
-            npc_name = getattr(npc, "name", None) if hasattr(npc, "name") else npc.get("name", "") if isinstance(npc, dict) else ""
-            if npc_name:
-                candidate = npc_name.strip().lower()
-                for existing in existing_npcs:
-                    existing_names = [
-                        (existing.get("name") or "").lower(),
-                        (existing.get("id") or "").lower().replace("_", " "),
-                    ] + [(a or "").lower() for a in (existing.get("aliases") or [])]
-                    if candidate in existing_names:
-                        _log.debug(
-                            "extraction.dedup: npc_add %r matches compendium %r, redirecting to update", npc_name, existing.get("id"),
-                            extra={"turn": turn_no, "trace_id": trace_id},
-                        )
-                        notes = getattr(npc, "notes", None) if hasattr(npc, "notes") else npc.get("notes", "") if isinstance(npc, dict) else ""
-                        if notes:
-                            scene_result = scene_result.model_copy(
-                                update={
-                                    "npc_update": (scene_result.npc_update or []) + [
-                                        {"id": str(existing["id"]), "notes": notes}
-                                    ]
-                                }
-                            )
-                        break
-                else:
-                    deduped_adds.append(npc)
-                continue
-            deduped_adds.append(npc)
-        scene_result = scene_result.model_copy(update={"npc_add": deduped_adds})
-
     # --- Capitalize inventory item names ---
     _capitalize_inventory_names(state_result.inventory_add)
     _capitalize_inventory_names(state_result.inventory_update)
 
-    for op in (scene_result.npc_remove or []):
-        _log.debug(
-            "npc_remove emitted", extra={"trace_id": trace_id, "turn": turn_no, "npc_id": op.id},
-        )
-
     _log.debug(
-        "extraction.merge.start trace_id=%s scene_tags=%d npc_add=%d inv_add=%d events_add=%d", trace_id, len(scene_result.scene_tags or []), len(scene_result.npc_add or []), len(state_result.inventory_add or []), len(storytell_result.recent_events_add or [])
+        "extraction.merge.start trace_id=%s scene_tags=%d inv_add=%d events_add=%d", trace_id, len(scene_result.scene_tags or []), len(state_result.inventory_add or []), len(storytell_result.recent_events_add or [])
     )
     # --- Merge into single StateDelta ---
     merged = StateDelta(
@@ -763,9 +644,6 @@ async def _run_extraction_pipeline(
         scene_tagline=scene_result.scene_tagline,
         location_change=scene_result.location_change,
         location_description=scene_result.location_description,
-        npc_add=scene_result.npc_add,
-        npc_remove=scene_result.npc_remove,
-        npc_update=scene_result.npc_update,
         compendium_npc_update=scene_result.compendium_npc_update,
         inventory_add=state_result.inventory_add,
         inventory_remove=state_result.inventory_remove,

@@ -583,14 +583,16 @@ def _build_state_diff(ev: dict[str, Any]) -> list:
                 continue
             if isinstance(val, (list, dict)) and not val:
                 continue
-            if fk.endswith("_add"):
-                op = "add"
-            elif fk.endswith("_remove"):
-                op = "remove"
-            elif fk.endswith("_update"):
-                op = "update"
-            else:
-                op = "set"
+                if fk == "compendium_npc_update":
+                    op = "upsert"
+                elif fk.endswith("_add"):
+                    op = "add"
+                elif fk.endswith("_remove"):
+                    op = "remove"
+                elif fk.endswith("_update"):
+                    op = "update"
+                else:
+                    op = "set"
             if isinstance(val, str):
                 val_str = val[:120]
             else:
@@ -856,7 +858,7 @@ def format_state(state: dict[str, Any], fmt: str = "full") -> None:
     if loc:
         _render_location_section(state)
     scene = state.get("scene") or {}
-    if any(scene.get(k) for k in ("tags", "tagline", "present_npcs", "recently_left", "recent_events")):
+    if any(scene.get(k) for k in ("tags", "tagline", "recently_left", "recent_events")):
         _render_scene_section(state)
     arc = state.get("arc") or {}
     if any(arc.get(k) for k in ("visible_goal", "thematic_question", "threads", "completed_threads", "hidden_truths", "discovered_truths")):
@@ -932,12 +934,14 @@ def _render_scene_section(state: dict[str, Any]) -> None:
     tagline = scene.get("tagline") or ""
     if tagline:
         print(f"  Tagline: {tagline}")
-    present_npcs = scene.get("present_npcs", []) or []
+    compendium = state.get("compendium", {}) or {}
+    npcs = compendium.get("npcs", {}) or {}
+    present_npcs = {k: v for k, v in npcs.items() if isinstance(v, dict) and v.get("presence") == "present"}
     if present_npcs:
-        npc_lines = [f"{(n.get('id') or '?')} {(n.get('name') or '')}" for n in present_npcs if isinstance(n, dict)]
         print("  Present NPCs:")
-        for nl in npc_lines:
-            print(f"    {nl}")
+        for npc_id, npc in sorted(present_npcs.items()):
+            name = (npc.get("name") or "[Unnamed]") if isinstance(npc, dict) else "[Unnamed]"
+            print(f"    {npc_id}: {name}")
     recently_left = scene.get("recently_left", []) or []
     if recently_left:
         left_names = [f"{(n.get('id') or '?')} {(n.get('name') or '')}" for n in recently_left if isinstance(n, dict)]
@@ -1028,7 +1032,6 @@ def _wrap_text(text: str, indent: int = 0) -> list[str]:
 def diff_extraction_context(ctx_a: dict[str, Any], ctx_b: dict[str, Any]) -> list[dict[str, Any]]:
     """Compare two extraction_context dicts. Returns structured diffs."""
     field_map = {
-        "present_npcs_this_turn": ("NPCs", _diff_npcs),
         "inventory_this_turn": ("Inventory", _diff_inventory),
         "conditions_this_turn": ("Conditions", _diff_conditions),
         "location_this_turn": ("Location", _diff_location),
@@ -1045,63 +1048,6 @@ def diff_extraction_context(ctx_a: dict[str, Any], ctx_b: dict[str, Any]) -> lis
         changed = diff_fn(section_name, val_a, val_b)
         results.append(changed)
     return results
-
-
-def _diff_npcs(section: str, before: list[dict], after: list[dict]) -> dict[str, Any]:
-    if not isinstance(before, list):
-        before = []
-    if not isinstance(after, list):
-        after = []
-
-    def _id_set(items):
-        return {item.get("id", "") for item in items if isinstance(item, dict)}
-
-    def _notes_map(items):
-        return {(item.get("id", "")): (item.get("notes") or "") for item in items if isinstance(item, dict) and item.get("id")}
-
-    before_ids = _id_set(before)
-    after_ids = _id_set(after)
-    added = sorted(after_ids - before_ids)
-    removed = sorted(before_ids - after_ids)
-    common = before_ids & after_ids
-
-    notes_changed = []
-    for nid in common:
-        bn = next((item.get("notes", "") or "" for item in before if isinstance(item, dict) and item.get("id") == nid), "")
-        an = next((item.get("notes", "") or "" for item in after if isinstance(item, dict) and item.get("id") == nid), "")
-        if bn != an:
-            notes_changed.append(nid)
-
-    if not added and not removed and not notes_changed:
-        # Check if lists are equal (both empty = unchanged)
-        return {"section": section, "kind": "unchanged", "before_value": before, "after_value": after}
-
-    changes = []
-    for aid in added:
-        npc = next((item for item in after if isinstance(item, dict) and item.get("id") == aid), {})
-        name = npc.get("name", "") if isinstance(npc, dict) else ""
-        label = f"+{aid}"
-        if name:
-            label += f" {name}"
-        changes.append({"kind": "added", "label": label})
-
-    for rid in removed:
-        npc = next((item for item in before if isinstance(item, dict) and item.get("id") == rid), {})
-        name = npc.get("name", "") if isinstance(npc, dict) else ""
-        label = f"-{rid}"
-        if name:
-            label += f" {name}"
-        changes.append({"kind": "removed", "label": label})
-
-    for nid in notes_changed:
-        npc_b = next((item for item in before if isinstance(item, dict) and item.get("id") == nid), {})
-        name_b = npc_b.get("name", "") if isinstance(npc_b, dict) else ""
-        label = f"~{nid}"
-        if name_b:
-            label += f" {name_b} (notes changed)"
-        changes.append({"kind": "changed", "label": label})
-
-    return {"section": section, "kind": "changed", "before_value": before, "after_value": after, "changes": changes}
 
 
 def _diff_inventory(section: str, before: list[dict], after: list[dict]) -> dict[str, Any]:
@@ -1312,7 +1258,7 @@ def format_diff_output(diff_results: list[dict[str, Any]], intermediate_changes:
             return
 
     # Print snapshot diffs by section
-    sections_order = ["NPCs", "Inventory", "Conditions", "Location", "Scene Tags"]
+    sections_order = ["Inventory", "Conditions", "Location", "Scene Tags"]
     for expected_section in sections_order:
         if section_filter is not None:
             filter_map = {"npcs": "NPCs", "inventory": "Inventory", "conditions": "Conditions", "location": "Location", "tags": "Scene Tags", "applied": None}
@@ -1331,9 +1277,7 @@ def format_diff_output(diff_results: list[dict[str, Any]], intermediate_changes:
             # Show the single unchanged item for context
             before_val = result.get("before_value", [])
             after_val = result.get("after_value", [])
-            if expected_section == "NPCs":
-                _print_unchanged_npcs(before_val)
-            elif expected_section == "Inventory":
+            if expected_section == "Inventory":
                 _print_unchanged_inventory(before_val, after_val)
             elif expected_section == "Conditions":
                 _print_unchanged_conditions(before_val)
@@ -1377,20 +1321,7 @@ def format_diff_output(diff_results: list[dict[str, Any]], intermediate_changes:
     if section_filter is None or section_filter == "not_tracked":
         print()
         print("--- Not tracked in historical snapshots ---")
-        print("pc.stats, pc.name, compendium.bios, arc.threads")
-
-
-def _print_unchanged_npcs(items: list[dict]) -> None:
-    if not items:
-        print("  (none)")
-        return
-    for item in items:
-        if isinstance(item, dict):
-            name = item.get("name", "") or ""
-            label = f"{item.get('id', '?')}"
-            if name:
-                label += f" {name}"
-            print(f"  {label}")
+        print("pc.stats, pc.name, compendium.npcs, arc.threads")
 
 
 def _print_unchanged_inventory(before: list[dict], after: list[dict]) -> None:
@@ -1527,14 +1458,16 @@ def extract_field_from_event(ev: dict[str, Any], field: str) -> Any | None:
         return None
 
     elif field == "npcs":
-        npcs = ctx.get("present_npcs_this_turn", []) or []
-        return [n.get("id", "") for n in npcs if isinstance(n, dict)]
+        updates = applied.get("compendium_npc_update", []) or []
+        present_ids = [n.get("id", "") for n in updates if isinstance(n, dict) and n.get("presence") == "present"]
+        count = ctx.get("present_npcs_count", 0)
+        return present_ids if present_ids else [f"({count} present)"]
     elif field.startswith("npcs."):
         npc_id = field[len("npcs."):]
-        npcs = ctx.get("present_npcs_this_turn", []) or []
-        for n in npcs:
+        updates = applied.get("compendium_npc_update", []) or []
+        for n in updates:
             if isinstance(n, dict) and n.get("id") == npc_id:
-                return {k: v for k, v in n.items() if k != "bio" and k != "relation"}
+                return {k: v for k, v in n.items() if k != "bio"}
         return None
 
     elif field == "location":
@@ -1837,8 +1770,8 @@ def search_events(events: list[dict[str, Any]], queries: list[dict[str, str]]) -
     Multiple expressions AND together (all must match).
 
     Supported search keys:
-      - npc              exact: checks extraction_context + applied mutations
-      - npc_add          exact: only in applied.npc_add
+      - npc              exact: checks applied.compendium_npc_update
+      - npc_add          exact: checks applied.compendium_npc_update
       - item             exact: checks extraction_context + applied mutations
       - condition        exact: checks extraction_context + applied mutations
       - band             exact: matches ruling.band (or top-level event.momentum fields)
@@ -1895,26 +1828,16 @@ def search_events(events: list[dict[str, Any]], queries: list[dict[str, str]]) -
 def _match_single_query(ev: dict[str, Any], ctx: dict, applied: dict, ruling_ev: dict, field: str, op: str, value: str | None) -> bool:
     """Check if a single query matches an event."""
 
-    # npc: exact match in extraction_context OR any mutation in applied
+    # npc: exact match in compendium_npc_update mutations
     if field == "npc":
-        npcs = ctx.get("present_npcs_this_turn", []) or []
-        has_presence = any(isinstance(n, dict) and n.get("id") == value for n in npcs)
+        updates = applied.get("compendium_npc_update", []) or []
+        return any(isinstance(m, dict) and m.get("id") == value for m in updates)
 
-        # Check mutations (add/remove/update all contain the NPC ID)
-        has_mutation = False
-        for mut_field in ("npc_add", "npc_remove", "npc_update"):
-            muts = applied.get(mut_field, []) or []
-            if any(isinstance(m, dict) and m.get("id") == value for m in muts):
-                has_mutation = True
-                break
-
-        return has_presence or has_mutation
-
-    # npc_add: exact match only in applied.npc_add
+    # npc_add: exact match in compendium_npc_update (replaces old npc_add)
     elif field == "npc_add":
-        adds = applied.get("npc_add", []) or []
+        updates = applied.get("compendium_npc_update", []) or []
         if isinstance(value, str):
-            return any(isinstance(m, dict) and m.get("id") == value for m in adds)
+            return any(isinstance(m, dict) and m.get("id") == value for m in updates)
         return False
 
     # item: exact match in extraction_context OR mutation in applied
@@ -2005,23 +1928,16 @@ def _get_context_line(ctx: dict, applied: dict, field: str, op: str, value: str 
     """Get a context line describing the match."""
 
     if field == "npc":
-        npcs = ctx.get("present_npcs_this_turn", []) or []
-        has_presence = any(isinstance(n, dict) and n.get("id") == value for n in npcs)
-
-        # Check mutations first (more detail)
-        for mut_field in ("npc_add", "npc_remove", "npc_update"):
-            muts = applied.get(mut_field, []) or []
-            if any(isinstance(m, dict) and m.get("id") == value for m in muts):
-                return f"{mut_field} {value}"
-
-        if has_presence:
-            return "(present in scene)"
+        updates = applied.get("compendium_npc_update", []) or []
+        for m in updates:
+            if isinstance(m, dict) and m.get("id") == value:
+                return f"compendium_npc_update {value}"
         return None
 
     elif field == "npc_add":
-        adds = applied.get("npc_add", []) or []
-        if any(isinstance(m, dict) and m.get("id") == value for m in adds):
-            return f"npc_add {value}"
+        updates = applied.get("compendium_npc_update", []) or []
+        if any(isinstance(m, dict) and m.get("id") == value for m in updates):
+            return f"compendium_npc_update {value}"
         return None
 
     elif field == "item":

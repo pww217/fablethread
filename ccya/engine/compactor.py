@@ -225,10 +225,9 @@ def _build_compact_messages(
     conditions = [c for c in (state.get("pc") or {}).get("conditions") or [] if c.get("added_turn", 0) <= compact_end]
     _npcs_raw = (state.get("compendium") or {}).get("npcs") or {}
     compendium_npcs: list[tuple[str, Any]] = []
-    present_from_map: dict[str, int] = {n.get("id"): n.get("turn_entered", 0) for n in (state.get("scene") or {}).get("present_npcs") or []}
     for npc_id, npc_data in _npcs_raw.items():
         enriched = dict(npc_data) if isinstance(npc_data, dict) else {}
-        enriched.setdefault("present_from_turn", present_from_map.get(npc_id, 0))
+        enriched.setdefault("first_seen_turn", enriched.get("first_seen_turn", 0))
         compendium_npcs.append((npc_id, enriched))
     conditions = list((state.get("pc") or {}).get("conditions") or [])
     recent_events = list((state.get("scene") or {}).get("recent_events") or [])
@@ -342,13 +341,6 @@ def _apply_sanitization(
                     kept[field] = removed[field]
             compendium_npcs.pop(rid, None)
             _log.info("compactor: merged duplicate NPC %r into %r", rid, merge.keep_id, extra=log_ctx)
-        # Remove from present_npcs
-        scene = state.setdefault("scene", {})
-        remove_set = set(valid_remove)
-        scene["present_npcs"] = [
-            n for n in (scene.get("present_npcs") or [])
-            if (n.get("id") if isinstance(n, dict) else n) not in remove_set
-        ]
 
     # inventory_remove
     valid_inv_remove = {
