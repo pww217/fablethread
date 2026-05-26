@@ -57,10 +57,28 @@
             {% set npc_name = npc.get('name', npc.get('id', npc)) if npc is mapping else npc %}
             {% set npc_title = npc.get('title', '') if npc is mapping else '' %}
             {% set npc_notes = npc.get('notes', '') if npc is mapping else '' %}
-            <div class="npc-item">
+            {% set npc_bio = npc.get('bio', '') if npc is mapping else '' %}
+            {% set npc_bond = npc.get('bond', '') if npc is mapping else '' %}
+            {% set npc_motivation = npc.get('motivation', '') if npc is mapping else '' %}
+            {% set npc_fear = npc.get('fear', '') if npc is mapping else '' %}
+            {% set npc_leverage = npc.get('leverage', '') if npc is mapping else '' %}
+            <div class="npc-item{% if npc_bio or npc_bond or npc_motivation or npc_fear or npc_leverage %} has-tooltip{% endif %}">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
                 {% if npc_notes %}
                 <span class="npc-notes-inline">{{ npc_notes }}</span>
+                {% endif %}
+                {% if npc_bio or npc_bond or npc_motivation or npc_fear or npc_leverage %}
+                <div class="tooltip-body">
+                    {% if npc_bio %}<div data-md>{{ npc_bio }}</div>{% endif %}
+                    {% if npc_bond %}{% if npc_bio %}<br>{% endif %}<strong>Bond:</strong> {{ npc_bond }}{% endif %}
+                    {% if npc_motivation or npc_fear or npc_leverage %}
+                    <br><div class="npc-traits" data-md>
+                        {% if npc_motivation %}<strong>Motivation:</strong> {{ npc_motivation }}<br>{% endif %}
+                        {% if npc_fear %}<strong>Fear:</strong> {{ npc_fear }}<br>{% endif %}
+                        {% if npc_leverage %}<strong>Leverage:</strong> {{ npc_leverage }}{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
                 {% endif %}
             </div>
             {% endfor %}
@@ -159,8 +177,9 @@
             {% set motivation = entry.motivation if entry is mapping else '' %}
             {% set fear = entry.fear if entry is mapping else '' %}
             {% set leverage = entry.leverage if entry is mapping else '' %}
-            <div class="compendium-item has-tooltip">
-                <span class="compendium-line">{{ nm or nid }}{% if ttl %}<span class="compendium-title"> — {{ ttl }}</span>{% endif %}</span>
+            {% set presence = entry.presence if entry is mapping and entry.presence else None %}
+            <div class="compendium-item has-tooltip{% if presence == 'present' %} compendium-present{% endif %}">
+                <span class="compendium-line">{{ nm or nid }}{% if ttl %}<span class="compendium-title"> — {{ ttl }}</span>{% endif %}{% if presence == 'present' %}<span class="presence-badge in-scene">in scene</span>{% elif presence %}<span class="presence-badge">{{ presence }}</span>{% endif %}</span>
                 <div class="tooltip-body" data-md>
                     {{ bio or '—' }}
                     {% if motivation or fear or leverage %}
@@ -170,8 +189,7 @@
                     {% if leverage %}<strong>Leverage:</strong> {{ leverage }}{% endif %}
                     {% endif %}
                     {% if ls %}
-                    <br>
-                    <div class="compendium-tooltip-location">Last seen: {{ ls.location_name }}</div>
+                    <br>Last seen: {{ ls.location_name }}
                     {% endif %}
                 </div>
             </div>
