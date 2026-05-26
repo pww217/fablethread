@@ -12,8 +12,8 @@ flowchart LR
 
     subgraph IN["Inputs"]
         S1["narrative (from Step 1)"]:::xstream
-        S2["_ExtractionContext<br>(present_npcs, location,<br>inventory, conditions)<br>built by _build_extraction_context()"]:::xstream
-        S3["npc_roster<br>(tiered: PRESENT/NEARBY/KNOWN)"]:::xstream
+        S2["_ExtractionContext<br>(comp_this_turn, location,<br>inventory, conditions)<br>built by _build_extraction_context()"]:::xstream
+        S3["npc_roster<br>(from build_npc_roster())"]:::xstream
         S4["pacing_context<br>(directive · gate · beat_locked)"]:::xstream
         S5["arc.threads[]<br>(unified scope=scene + scope=arc)"]:::xstream
         S6["rules_outcome"]:::xstream

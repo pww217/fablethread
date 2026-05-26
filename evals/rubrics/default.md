@@ -282,7 +282,7 @@ For each NPC that appeared or left the scene:
 - Did NPCs who left stay gone? Flag any NPC removed in T-N but referenced at T-(N+2)
   without re-entry.
 - Did NPC attitude updates track with narrated interactions?
-- Were NPCs in `present_npcs` but never mentioned in narration (ghost NPCs)?
+- Were NPCs in compendium.npcs (presence="present") but never mentioned in narration (ghost NPCs)?
 
 ### 4G — Player Intent Fidelity
 Did the engine honor the player's stated action, or redirect/reinterpret it? For each turn:
@@ -535,11 +535,11 @@ Score 1–5.
 ### V6 — Pipeline I/O Relevance
 For each of the 5 pipelines, assess whether its inputs and outputs are focused on its task and appropriate to its role. The goal is minimal, relevant context per pipeline — no more inputs than needed, no outputs that belong to another pipeline.
 
-**Rules (Step 0):** Inputs should be limited to state.pc, state.location, state.scene.present_npcs, pc.conditions, last_outcome, meta.turn, and user_input. Outputs are IntentEnvelope and RulesOutcome. Flag if the rules prompt includes unnecessary context (e.g., full inventory, quest lists, compendium) or if the output includes fields that should be computed downstream.
+**Rules (Step 0):** Inputs should be limited to state.pc, state.location, pc.conditions, last_outcome, meta.turn, and user_input. Outputs are IntentEnvelope and RulesOutcome. Flag if the rules prompt includes unnecessary context (e.g., full inventory, quest lists, compendium) or if the output includes fields that should be computed downstream.
 
 **Narrate (Step 1):** Inputs are the richest — full state, chronicle_tail, recent_turns, RulesOutcome, pack_style, npc_name_pool, etc. This is justified because the narrator produces prose. Assess: is every input contributing to narrative quality? Are there inputs that could be trimmed without affecting prose? Flag if the narrator receives data it clearly doesn't use.
 
-**Extract Scene (Step 2a):** Inputs should be narrative, state.pc/location, scene.present_npcs, conditions, known_characters, RulesOutcome, active_domains, recent_turns[-1:]. Flag if the scene extractor receives inventory data, quest data, or pressure data — those belong to other pipelines. Flag if it receives too little context (e.g., no known_characters for NPC identity resolution).
+**Extract Scene (Step 2a):** Inputs should be narrative, state.pc/location, npc_roster (from build_npc_roster()), conditions, compendium entries, RulesOutcome, recent_turns[-1:]. Flag if the scene extractor receives inventory data, quest data, or pressure data — those belong to other pipelines.
 
 **Extract State (Step 2b):** Inputs should be narrative, state.pc, state.location, state.inventory, rules_outcome, active_domains, expired_conditions. Flag if the state extractor receives quest data, recent_events, or thread/pressure data — those belong to other pipelines.
 

@@ -21,7 +21,6 @@ flowchart LR
         N9["world_factions<br>(immutable trace)"]:::xstream
         N10["pending_gm_beat<br>(type · surface_as metadata)"]
         N11["pacing_context<br>(directive)<br>from _compute_pacing_context()"]:::xstream
-        N12["compendium_bios<br>(upserted bio entries for present NPCs only)"]
         N15["user_input"]
     end
 

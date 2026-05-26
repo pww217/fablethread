@@ -164,11 +164,11 @@
             {% set _mot = entry.motivation if entry is mapping else '' %}
             <div class="compendium-item has-tooltip">
                 <span class="compendium-line">{{ nm or nid }}{% if ttl %}<span class="compendium-title"> — {{ ttl }}</span>{% endif %}</span>
-                <div class="tooltip-body" data-md>
-                    {% if bio %}{{ bio }}{% else %}—{% endif %}{% set _has = false %}
-                    {% if _mot %}<br><br>**Motivation:** {{ _mot }}{% set _has = true %}{% endif %}
-                    {% if npc_bond %}{% if _has %}<br><br>{% endif %}**Bond:** {{ npc_bond }}{% set _has = true %}{% endif %}
-                    {% if ls %}{% if _has %}<br><br>{% endif %}Last seen: {{ ls.location_name }}{% endif %}
+                <div class="tooltip-body" data-md-compendium>
+                    {% if bio %}<p>{{ bio }}</p>{% else %}—{% endif %}{% set _has = false %}
+                    {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% set _has = true %}{% endif %}
+                    {% if npc_bond %}<p><strong>Bond:</strong> {{ npc_bond }}</p>{% set _has = true %}{% endif %}
+                    {% if ls %}<p>Last seen: {{ ls.location_name }}</p>{% endif %}
                 </div>
             </div>
             {% endfor %}

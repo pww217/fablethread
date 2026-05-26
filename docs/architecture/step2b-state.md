@@ -36,4 +36,4 @@ flowchart LR
 
 ## Key forward dependency
 
-Step 2c receives `npc_roster` (tiered: PRESENT/NEARBY/KNOWN) and `location_change` from Step 2a. Cross-stream items_gained/lost were removed — extraction_ctx now covers all this-turn derived data.
+Step 2c receives `npc_roster` (from build_npc_roster()) and `location_change` from Step 2a. Cross-stream items_gained/lost were removed — extraction_ctx now covers all this-turn derived data.

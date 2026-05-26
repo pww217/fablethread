@@ -16,7 +16,7 @@ flowchart LR
         S3["state.location"]
         S4["compendium.npcs[presence='present']"]
         S5["state.pc.conditions"]
-        S6["known_characters<br>(full roster: id, name, tags, notes<br>up to 10 LRU from compendium)"]
+        S6["npc_roster<br>(from build_npc_roster(), filtered by presence field)"]
         S7["recent_turns[-1:]<br>(T-1 prior narration)"]
     end
 
@@ -29,8 +29,7 @@ flowchart LR
         O2["scene_tagline: str (3–6 words for UI header)"]:::outNode
         O3["location_change: LocationRef | None<br>  id, name, description"]:::outNode
         O4["location_description: str | None"]:::outNode
-        O5["npc_add / npc_remove / npc_update<br>  delta-form NPC presence changes"]:::outNode
-        O6["compendium_npc_update<br>  durable identity changes"]:::outNode
+        O5["compendium_npc_update<br>  durable identity changes (presence, notes, bio upserts)"]:::outNode
     end
 
     IN --> LLM2A
@@ -39,4 +38,4 @@ flowchart LR
 
 ## Key forward dependency
 
-`location_change` and `present_npcs` flow into `extraction_ctx` (built by `_build_extraction_context`). Step 2c also receives `npc_roster` (tiered: PRESENT/NEARBY/KNOWN) built from extraction_ctx. No forward-facing mechanics (`thread_add`, `gm_beat`) are emitted by this stream — they go through the unified thread pipeline via Progress Extract.
+`location_change` flows into `extraction_ctx` (built by `_build_extraction_context`). Step 2c also receives `npc_roster` (from build_npc_roster()) built from comp_this_turn. No forward-facing mechanics (`thread_add`, `gm_beat`) are emitted by this stream — they go through the unified thread pipeline via Progress Extract.

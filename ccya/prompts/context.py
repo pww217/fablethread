@@ -193,12 +193,6 @@ class NPCRosterEntryBlock(BaseModel):
     last_seen: LastSeenBlock | None = None
 
 
-class NPCRosterBlock(BaseModel):
-    """NPC roster snapshot for prompt rendering."""
-
-    entries: list[NPCRosterEntryBlock]
-
-
 class RulingBoundary(BaseModel):
     """Context for ruling_user.j2.
 
@@ -227,7 +221,7 @@ class NarratorBoundary(BaseModel):
     pc: PlayerBlock  # maps to {{ pc.* }} (lines 2-6 of narrate_user.j2)
     current_arc: ArcThreadBlock  # maps to {{ current_arc.* }} in _arc.j2 include (line 13 of narrate_user.j2)
     state: dict[str, Any]  # covers state.location, state.inventory, state.scene.world_state accessed by includes
-    npc_roster: NPCRosterBlock  # from build_npc_roster() call on line 98 of _narrate_messages
+    npc_roster: list[NPCRosterEntryBlock]  # from build_npc_roster() call on line 98 of _narrate_messages
     pacing_context: PacingBlock | None = None
     recent_turns: list[ChronicleEntryBlock]
     prior_history: list[str] = Field(default_factory=list)
@@ -249,7 +243,7 @@ class SceneExtractBoundary(BaseModel):
 
     narration: str
     location: LocationBlock
-    npc_roster: NPCRosterBlock
+    npc_roster: list[NPCRosterEntryBlock]  # from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_seen
     recent_turns: list[ChronicleEntryBlock]
     turn_no: int
 
@@ -277,7 +271,7 @@ class StorytellerBoundary(BaseModel):
     """
 
     narration: str
-    npc_roster: NPCRosterBlock  # from build_npc_roster(comp)
+    npc_roster: list[NPCRosterEntryBlock]  # from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_seen
     location: LocationBlock
     conditions: list[Condition]
     inventory: list[InventoryItem]

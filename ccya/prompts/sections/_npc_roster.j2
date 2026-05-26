@@ -2,16 +2,15 @@
 {# npc_roster: list[dict], ordered PRESENT → NEARBY → KNOWN #}
 {% if npc_roster -%}
 ## Characters
-Before introducing a new named NPC, check this list first.
 
 {% for n in npc_roster -%}
-- **{{ n.name }}**{% if n.title %} ({{ n.title }}){% endif %} [{{ n.presence | upper }}]{% if n.bio %} — {{ n.bio }}{% endif %}
+- `{{ n.id }}` | {% if n.name %}**{{ n.name }}**{% else %}[Unnamed]{% endif %}{% if n.title %} ({{ n.title }}){% endif %} [{{ n.presence | upper }}]{% if n.bio %} — {{ n.bio }}{% endif %}
 {%- if n.notes %} | {{ n.notes }}{% endif %}
 {%- if n.motivation %} | wants: {{ n.motivation }}{% endif %}
 {%- if n.fear %} | fears: {{ n.fear }}{% endif %}
 {%- if n.leverage %} | leverage: {{ n.leverage }}{% endif %}
 {%- if n.bond %} | bond: {{ n.bond }}{% endif %}
-{%- if n.last_seen and n.last_seen.location_name %} | last seen: {{ n.last_seen.location_name }}{% endif %}
+{%- set _ls = n.last_seen %}{% if _ls is mapping and _ls.location_name %} | last seen: {{ _ls.location_name }}{% elif _ls and not (_ls is mapping) %} | last seen: {{ _ls }}{% endif %}
 
 {% endfor -%}
 {% endif %}
