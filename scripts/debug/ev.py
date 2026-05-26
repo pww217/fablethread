@@ -12,6 +12,7 @@ Usage:
     ev.py deltas TURN [TURN_FILE]      # state diffs and rejections
     ev.py mechanics TURN [TURN_FILE]   # beats, rules, pacing, threads, arcs, connectors
     ev.py connectors TURN [TURN_FILE]   # inter-stream connectors only
+    ev.py pacing TURN [TURN_FILE]       # pacing context: summary, gate, momentum, band, beat_locked
     ev.py state [--format MODE] [--save-dir PATH]  # show current game state from state.yaml
     ev.py diff TURN-A TURN-B [--section SEC]       # compare two turns
     ev.py trace FIELD [--from N] [--to M]          # show field across turn range
@@ -482,6 +483,50 @@ def cmd_mechanics(ev: dict[str, Any]) -> None:
         f"tokens_in: {total_in} "
         f"tokens_out: {total_out}"
     )
+
+
+def cmd_pacing(ev: dict[str, Any]) -> None:
+    """Display pacing context from events.jsonl directly."""
+    print(f"=== Turn {ev['turn']} — Pacing Context ===\n")
+
+    # Read from top-level event fields (always available)
+    pacing_ctx = ev.get("pacing_context") or {}
+    momentum_before = ev.get("momentum_before")
+    momentum_after = ev.get("momentum_after")
+    band_label = (ev.get("ruling") or {}).get("band", "")
+
+    # Summary
+    summary = pacing_ctx.get("summary", "")
+    if summary:
+        print(f"  summary: {summary}")
+    else:
+        print("  summary: (none)")
+
+    # Gate
+    gate = pacing_ctx.get("gate", "allow")
+    if gate and gate != "allow":
+        print(f"  gate: {gate}")
+    else:
+        print("  gate: allow")
+
+    # Momentum
+    if momentum_before is not None or momentum_after is not None:
+        mb = momentum_before if momentum_before is not None else "?"
+        ma = momentum_after if momentum_after is not None else "?"
+        delta = (momentum_after - momentum_before) if (momentum_before is not None and momentum_after is not None) else None
+        delta_str = f" ({delta:+d})" if delta is not None else ""
+        print(f"  momentum: {mb} → {ma}{delta_str}")
+    else:
+        print("  momentum: (none)")
+
+    # Beat locked
+    beat_locked = pacing_ctx.get("beat_locked", False)
+    if beat_locked:
+        print("  beat_locked: true")
+
+    # Band (only on roll turns, from ruling event)
+    if band_label:
+        print(f"  band: {band_label}")
 
 
 def cmd_connectors(ev: dict[str, Any]) -> None:
@@ -1792,13 +1837,16 @@ def search_events(events: list[dict[str, Any]], queries: list[dict[str, str]]) -
     Multiple expressions AND together (all must match).
 
     Supported search keys:
-      - npc       exact: checks extraction_context + applied mutations
-      - npc_add   exact: only in applied.npc_add
-      - item      exact: checks extraction_context + applied mutations
-      - condition exact: checks extraction_context + applied mutations
-      - band      exact: matches ruling.band
-      - rejected  boolean: matches ev.get('rejected') truthiness
-      - input     regex: regex match against ev.get('input')
+      - npc              exact: checks extraction_context + applied mutations
+      - npc_add          exact: only in applied.npc_add
+      - item             exact: checks extraction_context + applied mutations
+      - condition        exact: checks extraction_context + applied mutations
+      - band             exact: matches ruling.band (or top-level event.momentum fields)
+      - momentum_after   exact: matches ev.momentum_after (new turns only, from events.jsonl)
+      - momentum_before  exact: matches ev.momentum_before (new turns only, from events.jsonl)
+      - momentum_delta   exact: matches ev.momentum_delta (new turns only, from events.jsonl)
+      - rejected         boolean: matches ev.get('rejected') truthiness
+      - input            regex: regex match against ev.get('input')
 
     Returns list of {turn, context_line, input_snippet} dicts.
     """
@@ -1897,12 +1945,42 @@ def _match_single_query(ev: dict[str, Any], ctx: dict, applied: dict, ruling_ev:
 
         return has_presence or has_mutation
 
-    # band: exact match against ruling.band
+    # band: exact match against ruling.band (or top-level event.momentum fields)
     elif field == "band":
         band_val = ruling_ev.get("band", "")
         if op == "eq" and isinstance(value, str):
             return band_val == value
         return False
+
+    # momentum_after: exact match on top-level event field (new turns only)
+    elif field == "momentum_after":
+        mom = ev.get("momentum_after")
+        if mom is None:
+            return False
+        try:
+            return int(mom) == int(value)
+        except (ValueError, TypeError):
+            return False
+
+    # momentum_before: exact match on top-level event field (new turns only)
+    elif field == "momentum_before":
+        mom = ev.get("momentum_before")
+        if mom is None:
+            return False
+        try:
+            return int(mom) == int(value)
+        except (ValueError, TypeError):
+            return False
+
+    # momentum_delta: exact match on top-level event field (new turns only)
+    elif field == "momentum_delta":
+        delta = ev.get("momentum_delta")
+        if delta is None:
+            return False
+        try:
+            return int(delta) == int(value)
+        except (ValueError, TypeError):
+            return False
 
     # rejected: boolean check
     elif field == "rejected":
@@ -1977,6 +2055,15 @@ def _get_context_line(ctx: dict, applied: dict, field: str, op: str, value: str 
     elif field == "band":
         # Band matching is handled in _match_single_query via ruling_ev parameter
         return f"band={value}" if value else "(match)"
+
+    elif field == "momentum_after":
+        return f"momentum_after={value}"
+
+    elif field == "momentum_before":
+        return f"momentum_before={value}"
+
+    elif field == "momentum_delta":
+        return f"momentum_delta={value}"
 
     elif field == "rejected":
         return "rejected"
@@ -2120,6 +2207,16 @@ def main() -> None:
                 print(f"Turn {turn} not found")
                 sys.exit(1)
             cmd_mechanics(ev)
+        case "pacing":
+            if len(args) < 2:
+                print("Usage: ev.py pacing TURN", file=sys.stderr)
+                sys.exit(1)
+            turn = int(args[1])
+            ev = find_turn(events, turn)
+            if not ev:
+                print(f"Turn {turn} not found")
+                sys.exit(1)
+            cmd_pacing(ev)
         case "connectors":
             turn = int(args[1]) if len(args) > 1 else None
             ev = find_turn(events, turn) if turn else None
