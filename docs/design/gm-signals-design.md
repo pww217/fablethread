@@ -155,7 +155,7 @@ The `_ALLOWED_NARRATOR_ARC_KEYS` set in `turn.py` already includes `thematic_que
 
 #### 6. Remove `recently_left` and `JUST_LEFT`
 
-`scene.recently_left` and `scene.recently_left_turns` are removed from state. The decay logic at turn.py lines 1422-1430 is deleted. `npc_roster.py::build_npc_roster()` no longer accepts a `recently_left` parameter — signature changes to `(present_npcs, known_npcs)`. NPCs that left the scene simply become part of the compendium/known pool without special tagging. The `## NPCs in scene` section in `narrate_system.j2` that describes `JUST_LEFT` behavior is removed. The `JUST_LEFT` presence tag enum value (`NpcPresence.JUST_LEFT`) and its ordering entry are removed from any type definitions.
+`scene.recently_left` and `scene.recently_left_turns` are removed from state. The decay logic at turn.py lines 1422-1430 is deleted. NPCs that left the scene simply become part of the compendium/known pool without special tagging (presence field transitions present→known automatically on location change). The `## NPCs in scene` section in `narrate_system.j2` that describes `JUST_LEFT` behavior is removed.
 
 **Non-backward-compat:** This is a non-BC change — no migration path for saved games containing these fields. Stale keys will be silently ignored on load.
 

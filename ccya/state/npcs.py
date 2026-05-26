@@ -51,15 +51,6 @@ def _strip_non_ascii(text: str) -> str:
     return re.compile(r"[^\x00-\x7F]").sub("", text).strip()
 
 
-def get_present_npcs(comp: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
-    """Return (nid, entry) for all compendium entries with presence=present."""
-    result = []
-    for npc_id, entry in comp.items():
-        if isinstance(entry, dict) and entry.get("presence") == "present":
-            result.append((npc_id, entry))
-    return result
-
-
 def _hydrate_npc_text(delta_val: str | None, stored: Any) -> str:
     st = str(stored).strip() if stored is not None else ""
     if delta_val is None:

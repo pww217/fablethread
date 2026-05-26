@@ -313,12 +313,12 @@ def _extract_candidate_names(
 
 
 def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
-    """If narration mentions a name AND scope includes scene, scene extract should npc_add/update.
+    """If narration mentions a name AND scope includes scene, scene extract should emit compendium_npc_update.
 
     Heuristic: extract candidate NPC names from narration via simple capitalization
     rule: tokens of length >= 3 that are Capitalized AND not the first token of a
     sentence AND not in a pronoun/article allow-list. If any candidate name does
-    NOT appear in applied.npc_add[].name OR applied.npc_update[].name OR existing
+    NOT appear in applied.compendium_npc_update[].name OR existing
     state_snapshot.compendium.npcs[presence="present"].name (case-insensitive), flag.
 
     This is intentionally conservative — we only flag when narration introduces a
@@ -339,7 +339,7 @@ def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
     pc_name = (snap.get("pc") or {}).get("name", "")
 
     known_names: set[str] = set()
-    for npc in (applied.get("npc_add") or []) + (applied.get("npc_update") or []):
+    for npc in (applied.get("compendium_npc_update") or []):
         if isinstance(npc, dict):
             n = npc.get("name") or npc.get("id") or ""
             if n:
@@ -418,7 +418,7 @@ def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
     return {
         "assertion": "universal.npc_mention.extracted",
         "passed": False,
-        "detail": f"narration mentions names not in npc_add/update or known: {missing}",
+        "detail": f"narration mentions names not in compendium_npc_update or known: {missing}",
         "scope": "universal",
         "severity": "red",
     }

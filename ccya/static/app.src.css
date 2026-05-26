@@ -659,6 +659,15 @@ body {
   transform: translateY(0);
 }
 
+/* Compendium tooltip — proper paragraph spacing via full markdown rendering */
+.compendium-tooltip p {
+  margin: 0.4em 0;
+  line-height: 1.5;
+}
+.compendium-tooltip p:first-child {
+  margin-top: 0;
+}
+
 /* Matches .npc-title size/weight/color exactly; italic only here.
    High specificity (.npc-item .npc-notes-inline) so it always wins over any
    sibling/ancestor rule (e.g. tailwind preflight). */

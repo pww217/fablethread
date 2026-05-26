@@ -5,8 +5,7 @@
 {% if npc_roster -%}
 <<<TRACE_IMMUTABLE_START>>>
 ## known_characters (compendium — reuse `id` for compendium_npc_update)
-{% for n in npc_roster %}- `{{ n.id }}` | {{ n.name or n.id }}{% if n.title %} ({{ n.title }}){% endif %}{% if n.presence == "present" %} — *present in scene*{% endif %}{% if n.notes %} — {{ n.notes }}{% endif %} — {{ n.bio or "No bio available" }}{% if n.last_seen %} last seen in: {{ n.last_seen.location_name }}{% endif %}
-{% endfor %}
+{% include "sections/_npc_roster.j2" %}
 <<<TRACE_IMMUTABLE_END>>>
 {% endif -%}
 {% if scene_location_description -%}

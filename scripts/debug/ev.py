@@ -1771,7 +1771,6 @@ def search_events(events: list[dict[str, Any]], queries: list[dict[str, str]]) -
 
     Supported search keys:
       - npc              exact: checks applied.compendium_npc_update
-      - npc_add          exact: checks applied.compendium_npc_update
       - item             exact: checks extraction_context + applied mutations
       - condition        exact: checks extraction_context + applied mutations
       - band             exact: matches ruling.band (or top-level event.momentum fields)
@@ -1832,13 +1831,6 @@ def _match_single_query(ev: dict[str, Any], ctx: dict, applied: dict, ruling_ev:
     if field == "npc":
         updates = applied.get("compendium_npc_update", []) or []
         return any(isinstance(m, dict) and m.get("id") == value for m in updates)
-
-    # npc_add: exact match in compendium_npc_update (replaces old npc_add)
-    elif field == "npc_add":
-        updates = applied.get("compendium_npc_update", []) or []
-        if isinstance(value, str):
-            return any(isinstance(m, dict) and m.get("id") == value for m in updates)
-        return False
 
     # item: exact match in extraction_context OR mutation in applied
     elif field == "item":
@@ -1932,12 +1924,6 @@ def _get_context_line(ctx: dict, applied: dict, field: str, op: str, value: str 
         for m in updates:
             if isinstance(m, dict) and m.get("id") == value:
                 return f"compendium_npc_update {value}"
-        return None
-
-    elif field == "npc_add":
-        updates = applied.get("compendium_npc_update", []) or []
-        if any(isinstance(m, dict) and m.get("id") == value for m in updates):
-            return f"compendium_npc_update {value}"
         return None
 
     elif field == "item":

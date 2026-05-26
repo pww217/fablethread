@@ -351,7 +351,6 @@ def panel_state(request: Request):
 @_app_mod.app.get("/panels/state-left")
 def panel_state_left(request: Request):
     state = _load_current_state()
-    _log.debug("panel_state_left keys=%s", list(state.keys()))
     return _app_mod._render("_state_left.html", {"state": state})
 
 

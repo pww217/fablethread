@@ -34,11 +34,11 @@
 | `ccya/server/panels.py` | Panel context builders: _debug_context(), _load_* helpers, _get_opening() |
 | `ccya/server/tv.py` | Turn viewer data from events.jsonl + server_errors.jsonl — unified timeline with row_kind discrimination, per-stream metrics, status colors; `_turn_viewer_data()` returns `(rows, no_events)`; injects a synthetic `row_kind: "seed"` row at index 0 when seed data is present in state.yaml |
 | `ccya/server/metrics.py` | _recent_turn_metrics(), _turn_log_entries() — latency/token formatting |
-| `scripts/debug/ev.py` | CLI tool for inspecting events.jsonl directly; commands: summary, timing, turn, props, compact, prompt, outputs, deltas, mechanics, connectors, pacing (summary/gate/momentum/band/beat_locked from top-level event fields), state, diff, trace, search (supports npc/npc_add/item/condition/band/momentums_after/momentums_before/momentums_delta/rejected/input) |
+| `scripts/debug/ev.py` | CLI tool for inspecting events.jsonl directly; commands: summary, timing, turn, props, compact, prompt, outputs, deltas, mechanics, connectors, pacing (summary/gate/momentum/band/beat_locked from top-level event fields), state, diff, trace, search (supports npc/item/condition/band/momentums_after/momentums_before/momentums_delta/rejected/input) |
 | `ccya/eval/__init__.py` | Re-exports: EvalConfig, JudgeResult, RunResult, Scenario, build_trace, run_scenario, etc. |
 | `ccya/eval/config.py` | EvalConfig, JudgesSpec (per-judge rubric/model/temp), load_eval_config() |
 | `ccya/eval/judge.py` | run_judges(): parallel domain judges + sequential meta judge; parse_judge_response() YAML front matter; _build_metrics_rows(turn, tok_in per phase, pacing_directive, beat_generated/consumed from pending_gm_beat lifecycle) |
-| `ccya/eval/universal_asserts.py` | 20 auto-checkers (recent_events turn-stamped, NPC cap=8, condition dedup, ArcThread.key dedup with 70% token-overlap threshold, consecutive_pressure_tracking two-pass counter, beat_locked dual-trigger from momentum_floor/consecutive_pressure_threshold, no_removed_directives/npc_states negative assertions, exact directive value rendering via word-boundary regex) — red/yellow severity |
+| `ccya/eval/universal_asserts.py` | Auto-checkers (recent_events turn-stamped, condition dedup, ArcThread.key dedup with 70% token-overlap threshold, consecutive_pressure_tracking two-pass counter, beat_locked dual-trigger from momentum_floor/consecutive_pressure_threshold, no_removed_directives/npc_states negative assertions, exact directive value rendering via word-boundary regex) — red/yellow severity |
 | `ccya/eval/report.py` | write_full_report(run_result, eval_cfg, judge_results=None): single-pass REPORT.md with metadata, optional judge summary + verdicts, flags, auto-checker table, pacing metrics, turn metrics; atomic write via tmp.replace() |
 | `ccya/eval/scenario.py` | Scenario (with seed_overrides), Turn, TurnAssert (with stream_id) |
 | `ccya/eval/engine_mirror.py` | Live engine constants for scenarios: BANDS, SKILLS, DIFFICULTIES, PC_CONDITION_CAP, SCENE_NAMED_NPC_CAP; pacing config mirror (momentum_floor=-3, consecutive_pressure_threshold=3, combat +2 scene_age boost) via EngineConfig defaults |
@@ -85,7 +85,7 @@
 
 1. **Rules/Intent** (non-streaming) — classifies intent, resolves dice via `rules.resolve_check()` → IntentEnvelope + RulesOutcome
 2. **Narrate** (streaming→SSE→chronicle.md) — prose narrative with narration directive from velocity/threads
-3. **Scene Extract** (JSON→SceneExtractResult) — scene tags, location change, present NPCs, compendium updates
+3. **Scene Extract** (JSON→SceneExtractResult) — scene tags, location change, compendium updates
 4. **State Extract** (JSON→StateExtractResult) — inventory deltas, condition add/remove
 5. **Storytell** (JSON→StorytellerResult) — thread_advance, thread_resolve, thread_add (gated by PacingContext.gate), recent_events, actions, gm_beat
 
@@ -148,7 +148,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 `config.prompt_token_budget` (default 32768): `llm_client.trim_messages()` drops/truncates oldest non-system messages when budget exceeded. Priority: system prompts retained first, then most recent user/context blocks. This affects all pipeline stages — if budget is tight, older turns in chronicle tail get truncated before narration/extraction contexts.
 
 ### Extraction field routing
-- **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, npc_add/remove/update, compendium_npc_update (no pressure fields); CompendiumEntry now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes
+- **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, compendium_npc_update (no pressure fields); CompendiumEntry now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes
 - **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
 - **StorytellerResult**: thread_advance, thread_resolve (list[ThreadResolution]), thread_add (ArcThread | None), recent_events_add/update/remove, actions, outcome_summary, gm_beat (no quest_updates); thread_add validated by key-based dedup gate in turn.py before scope check — exact collision rejects with WARNING log ("thread_add.key_collision"), fuzzy auto-merge on ≥70% token-overlap scoring updates existing thread summary/tags ("thread_add.auto_merge"); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[]
 - **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions, persisted to state["pc"]["actions"] as rolling window by apply_delta()
@@ -219,7 +219,6 @@ arc:                           # managed by engine/turn.py (_apply_thread_signal
 
 scene:
   tags: [str], tagline: str
-  present_npcs: list[NpcRef]   # REMOVED — NPCs now in compendium.npcs with presence field ("present"|"known")
   world_state: [str]           # immutable after seed
   recent_events: list[Event]   # {id, text, turn} — FIFO cap (default 20)
   location_entered_turn: int   # when location was last changed

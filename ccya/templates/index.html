@@ -1630,6 +1630,11 @@ function _tooltipShow(anchor) {
     _ttAnchor = anchor;
     t.innerHTML = src.innerHTML;
     _configureMarked();
+    t.querySelectorAll('[data-md-compendium]').forEach((el) => {
+        el.innerHTML = _renderMarkdown(el.textContent);
+        el.classList.add('compendium-tooltip');
+        el.removeAttribute('data-md-compendium');
+    });
     t.querySelectorAll('[data-md]').forEach((el) => {
         el.innerHTML = _renderMarkdownInline(el.textContent);
         el.removeAttribute('data-md');

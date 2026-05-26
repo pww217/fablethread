@@ -101,11 +101,11 @@ List any misplaced mechanics: turn, field, actual stream, correct stream.
 
 For each pipeline, assess whether its inputs are focused:
 
-**Rules**: inputs should be limited to pc, location, present_npcs, conditions, last_outcome, meta.turn, user_input. Flag unnecessary context.
+**Rules**: inputs should be limited to pc, location, conditions, last_outcome, meta.turn, user_input. Flag unnecessary context (e.g., compendium data).
 
 **Narrate**: richest inputs are justified — assess whether every input contributes. Flag inputs the narrator clearly doesn't use (cite turn where the input was present but had no effect on output).
 
-**Extract Scene**: should receive narrative, pc/location, present_npcs, conditions, known_characters, rules_outcome. Flag if it receives inventory or arc thread data.
+**Extract Scene**: should receive narrative, pc/location, npc_roster (from build_npc_roster()), conditions, compendium entries, rules_outcome. Flag if it receives inventory or arc thread data.
 
 **Extract State**: should receive narrative, pc, inventory, rules_outcome, band. Flag if it receives arc thread data, recent_events, or pressure data.
 
