@@ -13,7 +13,7 @@ from enum import Enum
 
 _log = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 
 
 def _migrate_v0_to_v1(content: str, raw: dict[str, Any]) -> dict[str, Any]:
@@ -28,6 +28,63 @@ def _migrate_v0_to_v1(content: str, raw: dict[str, Any]) -> dict[str, Any]:
     )
     raw = yaml.safe_load(content) or _default_state()
     raw["schema_version"] = CURRENT_SCHEMA_VERSION
+    return raw
+
+
+def _migrate_v1_to_v2(raw: dict[str, Any]) -> dict[str, Any]:
+    """Migrate v1 state to v2: fold present_npcs into compendium.npcs with presence/notes/first_seen_turn.
+
+    For each NPC in scene.present_npcs: create or update compendium entry with presence='present', notes, first_seen_turn.
+    NPCs already in compendium but not in present_npcs get presence='known' if they lack a presence field.
+    Missing last_seen is stamped best-effort from state.meta.turn and state.location.
+    """
+    scene = raw.get("scene") or {}
+    present_npcs: list[dict[str, Any]] = scene.get("present_npcs") or []
+
+    compendium: dict[str, Any] = raw.setdefault("compendium", {}).setdefault("npcs", {})
+    meta = raw.get("meta") or {}
+    current_turn = meta.get("turn", 0)
+    location_id = (raw.get("location") or {}).get("id", "") or ""
+    location_name = (raw.get("location") or {}).get("name", "") or ""
+
+    # Fold present_npcs into compendium with presence='present'
+    for npc in present_npcs:
+        if not isinstance(npc, dict):
+            continue
+        npc_id = npc.get("id")
+        if not npc_id:
+            continue
+        existing = compendium.setdefault(str(npc_id), {})
+        if isinstance(existing, str):
+            existing = {}
+            compendium[str(npc_id)] = existing
+        presence_val = npc.get("presence", "present") or "present"
+        notes_val = npc.get("notes", "") or ""
+        turn_entered = npc.get("turn_entered")
+        if isinstance(existing, dict):
+            existing["presence"] = presence_val
+            existing["notes"] = notes_val
+            if not existing.get("first_seen_turn"):
+                existing["first_seen_turn"] = turn_entered
+
+    # NPCs in compendium but not present_npcs: set presence='known' if missing
+    present_ids = {str(npc.get("id")) for npc in present_npcs if isinstance(npc, dict) and npc.get("id")}
+    for npc_id, entry in list(compendium.items()):
+        if not isinstance(entry, dict):
+            continue
+        if npc_id not in present_ids:
+            if "presence" not in entry or not entry["presence"]:
+                entry["presence"] = "known"
+
+    # Stamp missing last_seen best-effort
+    for npc_id, entry in list(compendium.items()):
+        if isinstance(entry, dict) and "last_seen" not in entry:
+            entry["last_seen"] = {
+                "turn": current_turn or 0,
+                "location_id": location_id,
+                "location_name": location_name,
+            }
+
     return raw
 
 
@@ -114,6 +171,8 @@ def load_state(save_dir: Path) -> dict[str, Any]:
     loaded_version = raw.get("schema_version", 0)
     if loaded_version == 0:
         raw = _migrate_v0_to_v1(content, raw)
+    elif loaded_version == 1:
+        raw = _migrate_v1_to_v2(raw)
     elif loaded_version > CURRENT_SCHEMA_VERSION:
         _log.warning(
             "state schema version %d is newer than engine version %d — loading anyway",
