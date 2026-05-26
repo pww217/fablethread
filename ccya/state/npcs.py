@@ -54,6 +54,39 @@ def _strip_non_ascii(text: str) -> str:
 NPC_SCENE_CAP = 8
 
 
+def _enforce_npc_present_cap(comp: dict[str, Any]) -> int:
+    """If presence=present entries exceed NPC_SCENE_CAP, evict oldest (by last_seen.turn) to known. Returns count evicted."""
+    present_ids: list[tuple[int | None, str]] = []
+    for npc_id, entry in comp.items():
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("presence") == "present":
+            last_seen_turn = (entry.get("last_seen") or {}).get("turn") if isinstance(entry.get("last_seen"), dict) else None
+            present_ids.append((last_seen_turn, npc_id))
+
+    evicted_count = 0
+    if len(present_ids) > NPC_SCENE_CAP:
+        present_ids.sort(key=lambda x: (x[0] or 0, x[1]))
+        to_evict = present_ids[NPC_SCENE_CAP:]
+        for _, nid in to_evict:
+            entry = comp.get(nid)
+            if isinstance(entry, dict):
+                entry["presence"] = "known"
+                entry.pop("notes", None)
+                evicted_count += 1
+
+    return evicted_count
+
+
+def get_present_npcs(comp: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    """Return (nid, entry) for all compendium entries with presence=present."""
+    result = []
+    for npc_id, entry in comp.items():
+        if isinstance(entry, dict) and entry.get("presence") == "present":
+            result.append((npc_id, entry))
+    return result
+
+
 def _hydrate_npc_text(delta_val: str | None, stored: Any) -> str:
     st = str(stored).strip() if stored is not None else ""
     if delta_val is None:
@@ -85,31 +118,12 @@ def _find_npc_by_name(name: str, comp: dict[str, Any]) -> str | None:
     return None
 
 
-def _apply_npc_to_present(npc: dict[str, Any], present: list[dict[str, Any]], comp: dict[str, Any], alias_map: dict[str, str]) -> str:
-    """Add/update an NPC in present list. Returns resolved ID."""
-    nid = npc["id"]
-    resolved = _resolve_npc_id(nid, comp, alias_map)
-    for i, p in enumerate(present):
-        if p.get("id") == resolved:
-            if npc.get("notes") is not None:
-                present[i]["notes"] = npc["notes"]
-            if npc.get("name") is not None and str(npc["name"]).strip():
-                present[i]["name"] = str(npc["name"]).strip()
-            if npc.get("title") is not None and str(npc["title"]).strip():
-                present[i]["title"] = str(npc["title"]).strip()
-            if npc.get("bio") is not None and str(npc["bio"]).strip():
-                present[i]["bio"] = str(npc["bio"]).strip()
-            return resolved
-    ce = comp.get(resolved, {})
-    row = {
-        "id": resolved,
-        "name": _hydrate_npc_text(npc.get("name"), ce.get("name")),
-        "title": _hydrate_npc_text(npc.get("title"), ce.get("title")),
-        "notes": npc.get("notes", ""),
-        "bio": _hydrate_npc_text(npc.get("bio"), ce.get("bio")),
-    }
-    present.append(row)
-    return resolved
+def clear_present_npcs_on_location_change(comp: dict[str, Any]) -> None:
+    """Set all presence=present NPCs to known and clear notes (location change)."""
+    for entry in comp.values():
+        if isinstance(entry, dict) and entry.get("presence") == "present":
+            entry["presence"] = "known"
+            entry.pop("notes", None)
 
 
 def apply_npc_scene_management(
@@ -117,144 +131,64 @@ def apply_npc_scene_management(
     scene_result: SceneExtractResult,
     current_turn_no: int | None = None,
 ) -> dict[str, Any]:
-    """Apply NPC scene deltas: add, remove, update present NPCs and compendium.
+    """Apply compendium_npc_update entries to compendium.npcs.
 
     Returns the mutated state dict. NPC_SCENE_CAP is enforced here.
     """
     comp = state.setdefault("compendium", {}).setdefault("npcs", {})
-    scene = state.setdefault("scene", {})
-    old_present = list(state.get("scene", {}).get("present_npcs") or [])
 
-    has_npc_delta = bool(scene_result.npc_add or scene_result.npc_remove or scene_result.npc_update)
-    if has_npc_delta:
+    if scene_result.compendium_npc_update:
         _log.debug(
-            "apply_npc_scene_management turns=%s add=%d remove=%d update=%d compendium_update=%d",
+            "apply_npc_scene_management turns=%s compendium_update=%d",
             current_turn_no,
-            len(scene_result.npc_add), len(scene_result.npc_remove),
-            len(scene_result.npc_update), len(scene_result.compendium_npc_update),
+            len(scene_result.compendium_npc_update),
         )
         alias_map = build_npc_alias_map(comp)
-        present = list(old_present)
 
-        removed_ids: set[str] = set()
-        for npc_rem in scene_result.npc_remove:
-            rid = _resolve_npc_id(npc_rem.id, comp, alias_map)
-            npc_notes = ""
-            for p in present:
-                if p.get("id") == rid:
-                    npc_notes = p.get("notes", "") or ""
-                    break
-            present = [p for p in present if p.get("id") != rid]
-            removed_ids.add(rid)
-            if rid in comp and npc_notes:
-                existing_bio = (comp[rid].get("bio") or "").strip()
-                if existing_bio:
-                    comp[rid]["bio"] = f"{existing_bio} {npc_notes}"
-                else:
-                    comp[rid]["bio"] = npc_notes
-
-        for npc_upd in scene_result.npc_update:
-            _apply_npc_to_present(
-                {"id": npc_upd.id, "notes": npc_upd.notes or "", "name": _strip_non_ascii(npc_upd.name or ""), "title": _strip_non_ascii(npc_upd.title or ""), "bio": _strip_non_ascii(npc_upd.bio or "")},
-                present, comp, alias_map,
-            )
-
-        for add in scene_result.npc_add:
-            add_id = add.id
-            normalized_add = normalize_inventory_id(add_id)
-            if normalized_add in alias_map and alias_map[normalized_add] != normalized_add:
-                add_id = alias_map[normalized_add]
-            if add.name:
-                name_alias = add.name.lower().strip()
-                if name_alias in alias_map and alias_map[name_alias] != name_alias:
-                    add_id = alias_map[name_alias]
-                if add_id not in comp:
-                    name_match = _find_npc_by_name(add.name, comp)
+        for comp_upd in scene_result.compendium_npc_update:
+            nid = normalize_inventory_id(comp_upd.id)
+            resolved_id = nid
+            if nid in alias_map and alias_map[nid] != nid:
+                resolved_id = alias_map[nid]
+            if comp_upd.name:
+                name_alias = comp_upd.name.lower().strip()
+                if name_alias in alias_map:
+                    resolved_id = alias_map[name_alias]
+                if resolved_id not in comp:
+                    name_match = _find_npc_by_name(comp_upd.name, comp)
                     if name_match:
-                        add_id = name_match
-            _apply_npc_to_present(
-                {"id": add_id, "notes": add.notes or "", "name": _strip_non_ascii(add.name or ""), "title": _strip_non_ascii(add.title or ""), "bio": _strip_non_ascii(add.bio or "")},
-                present, comp, alias_map,
-            )
-            entry = comp.setdefault(add_id, {})
-            if add.name is not None and str(add.name).strip():
-                entry["name"] = _strip_non_ascii(str(add.name).strip())
-            elif "name" not in entry:
-                entry["name"] = _hydrate_npc_text(add.name, entry.get("name"))
-            if add.title is not None and str(add.title).strip():
-                entry["title"] = _strip_non_ascii(str(add.title).strip())
-            elif "title" not in entry:
-                entry["title"] = _hydrate_npc_text(add.title, entry.get("title"))
-            if add.bio is not None and str(add.bio).strip():
-                entry["bio"] = _strip_non_ascii(str(add.bio).strip())
-            elif "bio" not in entry:
-                entry["bio"] = _hydrate_npc_text(add.bio, entry.get("bio"))
-            touch_compendium_order(state, add_id)
+                        resolved_id = name_match
 
-        named_npcs = [p for p in present if p.get("id") != "ambient_crowd"]
-        ambient_npcs = [p for p in present if p.get("id") == "ambient_crowd"]
-        if len(named_npcs) > NPC_SCENE_CAP:
-            evicted = named_npcs[NPC_SCENE_CAP:]
-            named_npcs = named_npcs[:NPC_SCENE_CAP]
-            present = named_npcs + ambient_npcs
-            for evicted_npc in evicted:
-                removed_ids.add(evicted_npc["id"])
-            _log.debug("apply_npc_scene_management evicted=%d ids=%s", len(evicted), [e["id"] for e in evicted])
+            entry = comp.setdefault(resolved_id, {})
+            if comp_upd.name is not None:
+                entry["name"] = _strip_non_ascii(comp_upd.name)
+            if comp_upd.title is not None:
+                entry["title"] = _strip_non_ascii(comp_upd.title)
+            if comp_upd.bio is not None:
+                entry["bio"] = _strip_non_ascii(comp_upd.bio)
+            if comp_upd.aliases:
+                existing_aliases = set(entry.get("aliases") or [])
+                for a in comp_upd.aliases:
+                    if a.lower() not in {x.lower() for x in existing_aliases}:
+                        existing_aliases.add(a.lower())
+                entry["aliases"] = list(existing_aliases)
+            if comp_upd.allegiance is not None:
+                entry["allegiance"] = comp_upd.allegiance
+            if comp_upd.motivation is not None:
+                entry["motivation"] = comp_upd.motivation
+            if comp_upd.fear is not None:
+                entry["fear"] = comp_upd.fear
+            if comp_upd.leverage is not None:
+                entry["leverage"] = comp_upd.leverage
+            if comp_upd.presence is not None:
+                entry["presence"] = comp_upd.presence
+                if comp_upd.presence == "present":
+                    touch_compendium_order(state, resolved_id)
+                elif comp_upd.presence == "known":
+                    entry.pop("notes", None)
+            if comp_upd.notes is not None:
+                entry["notes"] = comp_upd.notes
 
-        scene["present_npcs"] = present
-    elif not old_present and comp:
-        fallback_present: list[dict[str, Any]] = []
-        for nid, entry in comp.items():
-            name = (entry.get("name") or "").strip()
-            if not name:
-                continue
-            fallback_present.append({
-                "id": nid,
-                "name": name,
-                "title": (entry.get("title") or "").strip(),
-                "notes": "",
-                "bio": (entry.get("bio") or "").strip(),
-            })
-        if fallback_present:
-            scene["present_npcs"] = fallback_present[:NPC_SCENE_CAP]
-
-    comp = state.setdefault("compendium", {}).setdefault("npcs", {})
-    alias_map = build_npc_alias_map(comp)
-    for comp_upd in scene_result.compendium_npc_update:
-        nid = normalize_inventory_id(comp_upd.id)
-
-        resolved_id = nid
-        if nid in alias_map and alias_map[nid] != nid:
-            resolved_id = alias_map[nid]
-        if comp_upd.name:
-            name_alias = comp_upd.name.lower().strip()
-            if name_alias in alias_map:
-                resolved_id = alias_map[name_alias]
-            if resolved_id not in comp:
-                name_match = _find_npc_by_name(comp_upd.name, comp)
-                if name_match:
-                    resolved_id = name_match
-
-        entry = comp.setdefault(resolved_id, {})
-        if comp_upd.name is not None:
-            entry["name"] = _strip_non_ascii(comp_upd.name)
-        if comp_upd.title is not None:
-            entry["title"] = _strip_non_ascii(comp_upd.title)
-        if comp_upd.bio is not None:
-            entry["bio"] = _strip_non_ascii(comp_upd.bio)
-        if comp_upd.aliases:
-            existing_aliases = set(entry.get("aliases") or [])
-            for a in comp_upd.aliases:
-                if a.lower() not in {x.lower() for x in existing_aliases}:
-                    existing_aliases.add(a.lower())
-            entry["aliases"] = list(existing_aliases)
-        if comp_upd.allegiance is not None:
-            entry["allegiance"] = comp_upd.allegiance
-        if comp_upd.motivation is not None:
-            entry["motivation"] = comp_upd.motivation
-        if comp_upd.fear is not None:
-            entry["fear"] = comp_upd.fear
-        if comp_upd.leverage is not None:
-            entry["leverage"] = comp_upd.leverage
+        _enforce_npc_present_cap(comp)
 
     return state

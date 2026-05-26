@@ -212,7 +212,6 @@ _MINIMAL_STATE: dict[str, Any] = {
     "scene": {
         "tags": [],
         "tagline": None,
-        "present_npcs": [],
         "world_state": [],
         "recent_events": [],
         "recently_left": [],

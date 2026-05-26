@@ -24,7 +24,7 @@ from ccya.engine.extraction import (
     _run_extraction_pipeline,
 )
 from ccya.engine.names import generate_npc_names_split
-from ccya.engine.narrate import _known_characters_for_extract, _narrate_messages
+from ccya.engine.narrate import _narrate_messages
 from ccya.engine.npc_roster import build_npc_roster
 
 from ccya.engine.ruling import _call_ruling, _log_ruling_outcome, _ruling_messages
@@ -99,11 +99,8 @@ class TurnContext:
     _momentum_after: float | None = None
     _ages: dict[str, int] = field(default_factory=dict)  # set by ruling phase before narrate setup reads it
     _threat_ages: list[dict[str, Any]] = field(default_factory=list)  # set by ruling phase before narrate setup reads it
-    _compendium_bios: list[dict[str, Any]] | None = None
     _npc_name_pool: dict[str, list[str]] | None = None
     _pending_gm_beat: dict[str, Any] | None = None
-    _known_npcs: list[dict[str, Any]] | None = None
-    _present_npcs: list[dict[str, Any]] | None = None
     _deescalate: float = 0.0
 
     # Phase outputs
@@ -737,12 +734,12 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
             _prev_outcome = _prev_events[0].get("ruling", {}).get("outcome_summary", "")
 
     # Build ruling messages
-    _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
+    _comp = state.get("compendium", {}).get("npcs", {})
     ruling_messages = _ruling_messages(
         ctx._env, state, ctx.user_input,
         recent_turns=ctx.recent_turns[-1:],
         turn_no=turn_no,
-        present_npcs=_present_npcs,
+        npc_roster=build_npc_roster(_comp),
         last_outcome=_prev_outcome if _prev_outcome else None,
         inventory=state.get("inventory") or None,
     )
@@ -880,33 +877,8 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
             _pending_gm_beat = None
             state.setdefault("meta", {})["pending_gm_beat"] = None
 
-    # Known NPCs for narrator context (Phase 4A)
-    _known_npcs = _known_characters_for_extract(state, compact=True)
-
-    # Present NPCs from delta-maintained state (Phase 4H)
-    _present_npcs = list((state.get("scene") or {}).get("present_npcs") or [])
-
-    # Compendium bios for present NPCs (Phase 1)
-    _compendium_bios: list[dict[str, Any]] = []
-    _bio_ids: set[str] = set()
-    for npc in _present_npcs:
-        nid = npc.get("id", "")
-        if nid and nid not in _bio_ids:
-            _bio_ids.add(nid)
-            entry = (state.get("compendium") or {}).get("npcs", {}).get(nid, {})
-            if entry:
-                _compendium_bios.append({
-                    "id": nid,
-                    "name": entry.get("name", ""),
-                    "title": entry.get("title", ""),
-                    "bio": (entry.get("bio") or "").strip(),
-                })
-
     ctx._npc_name_pool = _npc_name_pool
     ctx._pending_gm_beat = _pending_gm_beat
-    ctx._known_npcs = _known_npcs
-    ctx._present_npcs = _present_npcs
-    ctx._compendium_bios = _compendium_bios
 
     # PC allegiance and world context
     _pc_allegiance = (state.get("pc") or {}).get("allegiance")
@@ -944,6 +916,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         consecutive_pressure_turns=(state.get("meta") or {}).get("consecutive_pressure_turns", 0),
     )
 
+    _comp = (state.get("compendium") or {}).get("npcs") or {}
     narr_messages = _narrate_messages(
         ctx._env, state, ctx.user_input,
         chronicle_tail=ctx.chronicle_tail,
@@ -952,12 +925,11 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         narrator_rules=_pack_narrator_rules, world_rules=_pack_world_rules,
         rules_outcome=ctx.outcome, npc_name_pool=_npc_name_pool,
         momentum=(state.get("pc") or {}).get("momentum", 0), pending_beat=_pending_gm_beat,
-        pacing_context=_pc, ages=ctx._ages, known_npcs=_known_npcs, present_npcs=_present_npcs,
-        compendium_bios=_compendium_bios, pc_allegiance=_pc_allegiance, turn_no=turn_no,
+        pacing_context=_pc, ages=ctx._ages, pc_allegiance=_pc_allegiance, turn_no=turn_no,
         world_factions=_world_factions,
         threat_ages=ctx._threat_ages, threat_pressure_at=config.threat_pressure_at,
         threat_imperative_at=config.threat_imperative_at, building_threat_imperative_at=config.building_threat_imperative_at,
-        npc_roster=build_npc_roster(present_npcs=_present_npcs, known_npcs=_known_npcs),
+        npc_roster=build_npc_roster(_comp),
     )
 
     ctx.pacing_ctx = _pc
@@ -1251,18 +1223,11 @@ async def run_turn(
                         extra={"trace_id": trace_id},
                     )
 
-            # Stamp last_seen on touched NPCs (Phase 4C)
+            # Stamp last_seen on touched NPCs
             comp = state.get("compendium", {}).get("npcs", {})
             location = state.get("location", {})
-            touched_ids: set[str] = set()
-            for na in (delta.npc_add or []):
-                touched_ids.add(na.id)
-            for nu in (delta.npc_update or []):
-                touched_ids.add(nu.id)
             for cu in (delta.compendium_npc_update or []):
-                touched_ids.add(cu.id)
-            for nid in touched_ids:
-                entry = comp.setdefault(nid, {})
+                entry = comp.setdefault(cu.id, {})
                 entry["last_seen"] = {
                     "turn": turn_no,
                     "location_id": location.get("id", ""),
@@ -1516,7 +1481,7 @@ async def run_turn(
                 "beat_locked": bool(_pc.beat_locked) if _pc else False,
             },
             "extraction_context": {
-                "present_npcs_this_turn": list(_extraction_ctx.present_npcs_this_turn) if _extraction_ctx else [],
+                "present_npcs_count": sum(1 for e in (_extraction_ctx.comp_this_turn or {}).values() if isinstance(e, dict) and e.get("presence") == "present") if _extraction_ctx else 0,
                 "location_this_turn": dict(_extraction_ctx.location_this_turn) if _extraction_ctx else {},
                 "scene_tags_this_turn": list(_extraction_ctx.scene_tags_this_turn) if _extraction_ctx else [],
                 "inventory_this_turn": list(_extraction_ctx.inventory_this_turn) if _extraction_ctx else [],

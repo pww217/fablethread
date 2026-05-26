@@ -10,9 +10,6 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
   "scene_tagline": null,
   "location_change": null,
   "location_description": null,
-  "npc_add": [],
-  "npc_remove": [],
-  "npc_update": [],
   "compendium_npc_update": []
 }
 ```
@@ -27,94 +24,76 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 
 `location_description`: Location description — new physical/spatial detail about the current space. Only emit when the narration introduces genuinely new details not already in the stored description. Do not restate or paraphrase existing description. One to two sentences.
 
-`npc_add`: named characters who entered or are revealed in the scene - only add if PRESENT in seen/in proximity to player. Each: `{"id": "snake_case_id", "notes": "current attitude or situation toward the player", "name": "Display Name", "title": "Optional title", "bio": "1-2 sentence identity"}`. Omit `name`, `title`, `bio` when the NPC is already known from the compendium — the engine will hydrate from the compendium. Always include `notes` describing how the NPC is behaving toward the player right now. **Every NPC added to the compendium MUST have a bio.** Ambient presence (crowd, bystanders, etc.) must also have a bio describing what they are and their general role in the scene.
+`compendium_npc_update`: **UNIVERSAL NPC CHANNEL** — use for ALL NPC changes. Each update carries the full set of fields that have new information:
 
-`npc_remove`: named characters who left the scene. Each: `{"id": "snake_case_id"}`. The `id` must match an NPC currently in `present_npcs`.
+```json
+{
+  "id": "snake_case_id",
+  "name": "Display Name (omit if unchanged)",
+  "title": "Optional title (omit if unchanged)",
+  "bio": "1-2 sentence identity (omit if unchanged)",
+  "aliases": ["alias1"],
+  "allegiance": "faction_or_alignment",
+  "motivation": "what this NPC fundamentally wants",
+  "fear": "what this NPC is most afraid of",
+  "leverage": "what this NPC can offer, threaten, or withhold",
+  "presence": "present|known",
+  "notes": "current attitude or situation toward the player"
+}
+```
 
-`npc_update`: changes to how an existing present NPC is behaving toward the player (attitude, situation). Each: `{"id": "snake_case_id", "notes": "updated attitude or situation"}`. Only emit when the NPC's behavior or situation toward the player has changed meaningfully. Omit `name`, `title`, `bio` — those are compendium fields, not scene fields.
+### How to use compendium_npc_update
 
-`compendium_npc_update`: durable identity updates for NPCs that should persist across turns in the global compendium. Add in all cases, even if NPC not currently present. Each: `{"id": "snake_case_id", "name": "new_name", "title": "new_title", "bio": "updated bio", "aliases": ["alias1"], "allegiance": "faction_or_alignment", "motivation": "what this NPC fundamentally wants", "fear": "what this NPC is most afraid of", "leverage": "what this NPC can offer, threaten, or withhold"}`. Only emit when the narration reveals new durable identity information about a known NPC (new name, title, bio, allegiance, aliases, motivation, fear, or leverage). Do NOT emit for temporary scene behavior — that goes in `npc_update` under `notes`. Motivation, fear, and leverage are durable and persistent — only update them if the narrative clearly establishes or revises them. Do not infer them from a single interaction unless they are strongly implied.
+- **NPC enters scene:** Set `presence: "present"` and provide context in `notes`. For first-time NPCs, include `name`, `bio` (mandatory — even for ambient NPCs like "crowd"), and optionally `title`. For known NPCs, omit `name`/`title`/`bio` and only set `presence`/`notes`.
+- **NPC leaves scene:** Set `presence: "known"` — the engine clears notes automatically. Do NOT remove the NPC from state.
+- **NPC behavior changes:** Update `notes` with the new attitude or situation.
+- **Durable identity updates:** Update `name`, `title`, `bio`, `aliases`, `allegiance`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
+- **NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes.
 
 ## NPC ID rules
 
-- Use existing IDs from the `## Present NPCs` list when referencing NPCs already in the scene.
+- Use existing IDs from the `## known_characters` compendium section when referencing known NPCs.
 - For new NPCs, generate a stable `snake_case` ID from their name/title. Examples: `"scarred_tough"`, `"guard_captain_renn"`.
 - If an NPC is known from the compendium, use their existing compendium ID — do NOT create a new ID.
 - When adding a new NPC, include `name`, `title`, and `bio` so the engine can populate the compendium. **Bio is mandatory for every NPC — even ambient presence like "crowd" or "bystanders" needs a bio.**
 
 **NPC ENTER/EXIT RULE (MANDATORY):**
-- Emit `npc_add` for every named NPC who appears in the narration for the first time this turn and is NOT already in `present_npcs`.
-- Emit `npc_remove` for every named NPC who narration indicates has left, fled, died, fainted, or been removed from the scene.
-- Do NOT emit `npc_add` for NPCs already in `present_npcs` — that causes duplicates.
-- Do NOT emit `npc_remove` for NPCs who are simply not mentioned — only remove if narration actively indicates departure.
-- Unnamed ambient characters ("a group of guards," "bystanders") do not require `npc_add`/`npc_remove` tracking.
+- Emit `compendium_npc_update { presence: "present" }` for every named NPC who appears in the narration for the first time this turn and is not already marked as present.
+- Emit `compendium_npc_update { presence: "known" }` for every named NPC who narration indicates has left, fled, died, fainted, or been removed from the scene.
+- Do NOT emit presence changes for NPCs who are simply not mentioned — only remove if narration actively indicates departure.
+- Unnamed ambient characters ("a group of guards," "bystanders") do not require per-turn tracking.
 
 EXAMPLE — NPC enters (correct):
 Narration: "A red-haired man in boiled leather steps through the door and locks eyes with you."
-`present_npcs` before: [caron]
-→ Emit: `npc_add: { id: "red_haired_man", name: "Red-Haired Man", ... }`
+Known NPCs in scene: [caron (present)]
+→ Emit: `compendium_npc_update: { id: "red_haired_man", name: "Red-Haired Man", presence: "present", notes: "locks eyes aggressively", bio: "..." }`
 
 EXAMPLE — NPC exits (correct):
 Narration: "Caron spits on the floor and shoves through the crowd, disappearing into the street."
-→ Emit: `npc_remove: { id: "caron" }`
+→ Emit: `compendium_npc_update: { id: "caron", presence: "known" }`
 
-EXAMPLE — NPC not mentioned, no remove (correct):
+EXAMPLE — NPC not mentioned, no change (correct):
 Narration does not mention Halden this turn.
-→ Do NOT emit `npc_remove: { id: "halden" }` — absence ≠ departure.
-
-EXAMPLE — Standoff / tense confrontation:
-Narration: "Two armed toughs block the doorway, hands hovering near their weapons as you argue."
-→ Emit: `scene_tags: ["standoff", "intimidation"]`
-
-EXAMPLE — Verbal confrontation:
-Narration: "The guard captain steps into your path, hand on his baton, and demands your papers."
-→ Emit: `scene_tags: ["tense_confrontation", "intimidation"]`
+→ Do NOT emit any update for Halden — absence ≠ departure.
 
 ## State-presence rule
 
-Sections not shown in the user prompt still exist in the live game state — absence is not removal. Only emit removals you can justify from the narration.
+Sections not shown in the user prompt still exist in the live game state — absence is not removal. Only emit presence changes you can justify from the narration.
 
-## NPC dedup — mandatory pre-check (apply BEFORE every npc_add)
+## NPC dedup — mandatory pre-check (apply BEFORE every compendium_npc_update)
 
-Before you emit `npc_add` for ANY NPC:
+Before you emit `compendium_npc_update` for ANY NPC:
 
-1. Check the `## present_npcs` list. If the NPC is already there, use `npc_update` instead of `npc_add`.
-2. Check the `<<<TRACE_IMMUTABLE>>> known_characters` compendium section. If the NPC's name or title matches an existing compendium entry, use that entry's ID and DO NOT emit `npc_add` — use `npc_update` if already present, or do nothing if they haven't entered the scene.
-3. If the NPC was removed in a prior turn via `npc_remove` and is now returning, use `npc_add` with the existing compendium ID — but DO NOT re-emit `name`, `title`, or `bio` if those already exist in the compendium.
-
-The engine will hydrate NPC identity from the compendium. You do not need to supply `name`/`title`/`bio` for known NPCs.
-
-## Deduplication rule
-
-Before you submit your output, verify that you have no duplicate or near-duplicate entries:
-
-- **Locations:** Do not emit `location_change` if the location ID is the same as the current location. Do not emit `location_description` if the narration only restates or paraphrases details already in the stored description.
-- **Scene tags:** Do not repeat tags already present in the previous turn's `scene_tags` unless the mood has genuinely shifted. Keep the list to at most 5.
-- **Compendium updates:** Do not emit a `compendium_npc_update` for an NPC that has no new durable identity information (name, title, bio, allegiance, aliases, motivation, fear, leverage).
-
-## NPC Extraction Rules (CRITICAL)
-
-IMPORTANT: ONLY extract NPCs that are PHYSICALLY PRESENT in the current scene.
-- DO NOT include hypothetical NPCs ("there could be guards")
-- DO NOT include past-tense references ("the guards were here earlier")
-- DO NOT include NPC references that are not physically present ("the king you met yesterday")
-- If you are not CERTAIN an NPC is present, do not add them
-
-{% if scene_type == "examine" or scene_type == "cargo" %}
-IMPORTANT: For cargo/examine interactions, the subject is likely NOT physically present.
-Only extract NPCs if they are explicitly described as being in the same physical space.
-{% endif %}
-
-## NPC Grounding Rule
-
-All NPC `name`, `title`, and `bio` values must be grounded in the narration or the compendium. Do not invent character names, titles, or backstories that are not stated or strongly implied by the narration. If the narration only gives a description (e.g. "a scarred man"), use a descriptive ID like `"scarred_man"` and omit `name`/`title`/`bio` — the engine will hydrate from the compendium if the NPC is known.
+1. Check the `<<<TRACE_IMMUTABLE>>> known_characters` compendium section. If the NPC's name or title matches an existing compendium entry, use that entry's ID.
+2. If the NPC was previously known but had `presence: "known"` and is now present, set `presence: "present"` and add `notes`.
+3. If the NPC is already in the compendium, do NOT re-emit `name`, `title`, or `bio` unless the narration reveals new information.
 
 ## Constraints
 
-- **NPC emission:** There MUST always be at least 1 entry in `present_npcs` (either via `npc_add` or by retaining existing ones). Only emit `npc_add` for named characters or entities that interact with the player or arc threads. If no named NPCs are present in the scene, emit ambient presence (e.g., "crowd", "bystanders", "inn_patrons") with a generic ID. **HARD RULE: Do NOT emit ambient `npc_add` when any named NPC is already in `present_npcs`.** If `present_npcs` contains even one named character, do not add ambient NPCs — the named NPCs are sufficient. This prevents hallucinated background characters like "inn_patrons" or "shadowy_figure" when named NPCs like "Bald Tough" are already in the scene.
-- **Never invent location IDs.** Only use location IDs from the `## Current Location` section or well-known locations from the compendium.
+- **NPC presence:** There MUST always be at least 1 NPC with `presence: "present"`. If no named NPCs are present, emit ambient presence (e.g., "crowd", "bystanders", "inn_patrons") with a generic ID. **HARD RULE: Do NOT emit ambient presence when any named NPC is already marked present.** Named NPCs are sufficient — this prevents hallucinated background characters.
+- **Never invent location IDs.** Only use location IDs from the current location section or well-known locations.
 - **Keep scene_tags to at most 5.** Prefer the most salient descriptors.
-- **Limit `npc_add` to at most 3 per turn.** Only add NPCs that are meaningfully present or interact with the player. Background extras go in ambient presence.
+- **Limit new NPCs to at most 3 per turn.** Background extras go in ambient presence.
 
 ## Output discipline
 

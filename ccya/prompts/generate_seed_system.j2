@@ -8,7 +8,7 @@ Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON, wrapped
 - Names: pick from the name pool the user prompt provides; favor names that fit the genre, role, and culture, mixing linguistic origins.
 - ALL names (PC name, NPC names, location names, inventory item names) must use ONLY ASCII/Latin characters (a-z, A-Z, 0-9, spaces, hyphens, apostrophes). No Cyrillic, no CJK, no Arabic, no non-Latin scripts. This is non-negotiable.
 - Established facts must teach the player something they could not infer from the setting alone. World state, factions, recent events — not character traits.
-- Generate 4–5 named NPCs total: exactly 2 in scene.present_npcs and the remaining 2–3 in compendium.npcs with {name, title, bio}. The compendium NPCs exist "out there in the world" — they are known to the PC but not present in the opening scene. Their bios should establish them as real people with roles in the world, not as future quest-givers. Do NOT include motivation, fear, or leverage fields on compendium entries — engine manages those. Do NOT set meta.compendium_touch_order — engine manages that.
+- Generate 4–5 named NPCs total: exactly 2 with presence="present" in compendium.npcs and the remaining 2–3 with presence="known". The "known" NPCs exist "out there in the world" — known to the PC but not present in the opening scene. Their bios should establish them as real people with roles in the world, not as future quest-givers. Do NOT include motivation, fear, or leverage fields on compendium entries — engine manages those. Do NOT set meta.compendium_touch_order — engine manages that.
 
 ## JSON output discipline (CRITICAL)
 - Wrap your entire response in a single ```json code block. Do NOT include any thinking, reasoning, or explanatory text outside the code block.
@@ -101,7 +101,6 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
       tags: string[],
       world_state: string[],
       recent_events: string[],
-      present_npcs: Array<{id: string, name: string, title: string, notes: string, bio: string, relation: string}>
     },
     compendium: {npcs: {snake_case: {name: string, title: string, bio: string, allegiance?: string, bond?: string}}},
     arc: {visible_goal: string, goal_context: string, thematic_question: string, hidden_truths: string[], discovered_truths: string[], threads: ArcThread[], completed_threads: ArcThread[], pc_drive: string} | null

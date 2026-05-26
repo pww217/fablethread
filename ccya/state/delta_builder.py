@@ -242,7 +242,8 @@ def apply_delta(
             "name": _strip_non_ascii(delta.location_change.name),
             "description": delta.location_change.description,
         }
-        state.setdefault("scene", {})["present_npcs"] = []
+        from ccya.state.npcs import clear_present_npcs_on_location_change
+        clear_present_npcs_on_location_change(state.setdefault("compendium", {}).setdefault("npcs", {}))
         _stamp_turn = current_turn_no if current_turn_no is not None else state.get("meta", {}).get("turn", 0)
         state["scene"]["turn_entered"] = _stamp_turn
         state["scene"]["location_entered_turn"] = _stamp_turn
@@ -333,9 +334,6 @@ def apply_delta(
     # --- NPC scene management (extracted to state/npcs.py) ---
     from ccya.state.npcs import apply_npc_scene_management
     state = apply_npc_scene_management(state, SceneExtractResult(
-        npc_add=delta.npc_add or [],
-        npc_remove=delta.npc_remove or [],
-        npc_update=delta.npc_update or [],
         compendium_npc_update=delta.compendium_npc_update or [],
         scene_tags=delta.scene_tags or [],
         scene_tagline=delta.scene_tagline,

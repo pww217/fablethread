@@ -25,8 +25,6 @@ class NpcPresence(str, Enum):
     KNOWN = "known"
 
 
-
-
 class ArcThread(BaseModel):
     id: str
     summary: str
@@ -200,14 +198,6 @@ class LocationRef(BaseModel):
     description: str = ""
 
 
-class NpcRef(BaseModel):
-    id: str
-    name: str | None = None  # omit when known from compendium; engine hydrates
-    title: str | None = None
-    notes: str = ""  # current attitude or situation toward the player
-    bio: str | None = None  # durable identity; omit when unchanged — engine hydrates
-
-
 class CompendiumNpcUpdate(BaseModel):
     id: str
     name: str | None = None
@@ -221,34 +211,6 @@ class CompendiumNpcUpdate(BaseModel):
     presence: str | None = None  # "present" | "nearby" | "known" — scene extractor sets this
     notes: str | None = None      # scene-specific attitude, cleared on departure
     first_seen_turn: int | None = None  # set by engine on initial entry creation
-
-
-class NpcAdd(BaseModel):
-    """Add an NPC to the scene. Notes always required; name/title/bio only for new NPCs or when new info arrives."""
-    id: str
-    notes: str = ""
-    name: str | None = None  # omit when known from compendium
-    title: str | None = None
-    bio: str | None = None
-
-
-class NpcRemove(BaseModel):
-    """Remove an NPC from the scene."""
-    id: str
-
-    @field_validator("id", mode="before")
-    @classmethod
-    def _strip(cls, v: Any) -> Any:
-        return str(v).strip() if v is not None else v
-
-
-class NpcUpdate(BaseModel):
-    """Update an existing scene NPC's notes (and optionally name/title/bio when new info arrives)."""
-    id: str
-    notes: str | None = None
-    name: str | None = None
-    title: str | None = None
-    bio: str | None = None
 
 
 class RecentEvent(BaseModel):
@@ -283,9 +245,6 @@ class StateDelta(BaseModel):
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
-    npc_add: list[NpcAdd] = Field(default_factory=list, max_length=6)
-    npc_remove: list[NpcRemove] = Field(default_factory=list)
-    npc_update: list[NpcUpdate] = Field(default_factory=list, max_length=6)
     recent_events_add: list[RecentEvent] = Field(default_factory=list)
     recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
     recent_events_remove: list[str] = Field(default_factory=list)
@@ -308,25 +267,9 @@ class SceneExtractResult(BaseModel):
     scene_tagline: str | None = None
     location_change: LocationRef | None = None
     location_description: str | None = None
-    npc_add: list[NpcAdd] = Field(default_factory=list)
-    npc_remove: list[NpcRemove] = Field(default_factory=list)
-    npc_update: list[NpcUpdate] = Field(default_factory=list)
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
-
-    @field_validator("npc_remove", mode="before")
-    @classmethod
-    def _coerce_npc_remove(cls, v: Any) -> Any:
-        if not v:
-            return v
-        out: list[Any] = []
-        for x in v:
-            if isinstance(x, str):
-                out.append({"id": x})
-            else:
-                out.append(x)
-        return out
 
     @field_validator("location_description", mode="before")
     @classmethod

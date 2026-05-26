@@ -209,7 +209,7 @@ class RulingBoundary(BaseModel):
     location: LocationBlock
     user_input: str
     meta: dict[str, int]
-    present_npcs: list[NPCRosterEntryBlock]
+    npc_roster: list[NPCRosterEntryBlock]
     last_outcome: str | None = None
 
 
@@ -244,15 +244,12 @@ class SceneExtractBoundary(BaseModel):
     """Context for extract_scene_user.j2.
 
     Source: _extract_scene_messages() passes pc, location, conditions directly (lines 274-282).
-    npc_roster comes from build_npc_roster(present_npcs=extraction_ctx.present_npcs_this_turn, known_npcs=_known_characters_for_extract(state, compact=True)) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_seen. present_npcs is enriched scene data with id/name/title/bio/notes/presence/last_seen (dicts, not NPCRosterEntryBlock instances at current call site).
-
-    NOTE: pc and conditions are passed by _extract_scene_messages but extract_scene_user.j2 never renders them — dead fields removed from boundary model.
+    npc_roster comes from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_seen.
     """
 
     narration: str
     location: LocationBlock
-    npc_roster: NPCRosterBlock  # minimal variant (no motivation/fear/leverage) — actually has mfl from compendium lookup
-    present_npcs: list[NPCRosterEntryBlock]
+    npc_roster: NPCRosterBlock
     recent_turns: list[ChronicleEntryBlock]
     turn_no: int
 
