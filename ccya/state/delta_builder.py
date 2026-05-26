@@ -242,8 +242,6 @@ def apply_delta(
             "name": _strip_non_ascii(delta.location_change.name),
             "description": delta.location_change.description,
         }
-        from ccya.state.npcs import clear_present_npcs_on_location_change
-        clear_present_npcs_on_location_change(state.setdefault("compendium", {}).setdefault("npcs", {}))
         _stamp_turn = current_turn_no if current_turn_no is not None else state.get("meta", {}).get("turn", 0)
         state["scene"]["turn_entered"] = _stamp_turn
         state["scene"]["location_entered_turn"] = _stamp_turn

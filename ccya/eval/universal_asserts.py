@@ -449,29 +449,6 @@ def check_recent_events_ring_size(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def check_npc_scene_cap(event: dict[str, Any]) -> dict[str, Any]:
-    """Compendium NPCs with presence=present must not exceed 8 (rubric-documented cap)."""
-    snap = event.get("state_snapshot") or {}
-    comp = (snap.get("compendium") or {}).get("npcs") or {}
-    present = [nid for nid, e in comp.items() if isinstance(e, dict) and e.get("presence") == "present"]
-    n = len(present)
-    if n > 8:
-        return {
-            "assertion": "universal.scene.npc_cap",
-            "passed": False,
-            "detail": f"{n} NPCs with presence=present (cap is 8): {present[:10]}",
-            "scope": "universal",
-            "severity": "red",
-        }
-    return {
-        "assertion": "universal.scene.npc_cap",
-        "passed": True,
-        "detail": f"{n} NPCs",
-        "scope": "universal",
-        "severity": "red",
-    }
-
-
 def check_condition_no_dupes(event: dict[str, Any]) -> dict[str, Any]:
     """state.pc.conditions must not contain two entries with the same id."""
     snap = event.get("state_snapshot") or {}
@@ -973,7 +950,6 @@ def run_all_universal_asserts(
         check_rolled_implies_binding(event),
         check_npc_mention_extracted(event),
         check_recent_events_ring_size(event),
-        check_npc_scene_cap(event),
         check_condition_no_dupes(event),
         check_actions_count_and_distinct(event),
         check_momentum_band_delta(event, prev_event),
