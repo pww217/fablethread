@@ -276,10 +276,16 @@
                                         <span class="tv-diff-value tv-sts-rejected" x-text="t.pacing_context.gate"></span>
                                     </div>
                                 </template>
-                                <template x-if="t.momentum_after !== undefined || t.band_label">
+                                <template x-if="t.momentum_after !== undefined">
                                     <div class="tv-diff-row">
                                         <span class="tv-diff-field">momentum</span>
-                                        <span class="tv-diff-value" x-text="(t.momentum_before !== undefined ? t.momentum_before + ' → ' : '') + t.momentum_after + (t.momentum_delta !== undefined ? '  (Δ ' + t.momentum_delta + ')' : '') + (t.band_label ? '  |  band: ' + t.band_label : '')"></span>
+                                        <span class="tv-diff-value" x-text="(t.momentum_before !== undefined ? t.momentum_before + ' → ' : '') + t.momentum_after"></span>
+                                    </div>
+                                </template>
+                                <template x-if="t.band_label">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-field">band</span>
+                                        <span class="tv-diff-value" x-text="t.band_label"></span>
                                     </div>
                                 </template>
                                 <template x-if="t.pacing_context.beat_locked">
