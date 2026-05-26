@@ -571,8 +571,8 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "pacing_context": {
                     "directive": pacing_ctx.get("directive"),
                     "gate": pacing_ctx.get("gate"),
-                    "beat_hint": None,
                     "beat_locked": pacing_ctx.get("beat_locked"),
+                    "summary": pacing_ctx.get("summary", ""),
                 },
                 "momentum_after": momentum_after,
                 "momentum_before": momentum_before,
