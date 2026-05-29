@@ -2059,7 +2059,13 @@ def cmd_dice(events: list[dict[str, Any]]) -> None:
     print(header)
     print(sep)
     for r in rows:
-        dice_str = str(r["dice"]) if r["dice"] else "[]"
+        dice_raw = r.get("dice", [])
+        if len(dice_raw) == 1:
+            dice_str = f"d12:{dice_raw[0]}"
+        elif dice_raw:
+            dice_str = str(dice_raw)  # old 2d6 format, backward compat
+        else:
+            dice_str = "[]"
         raw_s = str(r["raw_total"]) if r["raw_total"] is not None else "?"
         final_s = str(r["final_total"]) if r["final_total"] is not None else "?"
         mods = f"stat:{r['stat_mod']:+d} diff:{r['diff_mod']:+d} cond:{r['cond_mod']:+d}"

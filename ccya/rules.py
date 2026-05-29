@@ -1,13 +1,17 @@
 """Pure-Python rules engine. No LLM, no I/O.
 
-Dice system: 2d6 + stat_mod + difficulty_mod + condition_mod.
+Dice system: 1d12 + stat_mod + difficulty_mod + condition_mod.
   stat_mod   = stat_value - 2  (stat range 1–4 → mod -1..+2)
   diff_mod   = DIFFICULTY_MOD[difficulty]
   cond_mod   = sum of CONDITION_MODS[condition][skill] for active conditions
 
-PbtA 7-band resolution:
-  raw_sum 2  → crit_fail    (always, ignores modifiers)
-  ≤ 6        → fail
+PbtA 7-band resolution (1d12):
+  raw_die 1  → crit_fail  (always, ignores modifiers)
+  raw_die 12 → crit_success (always, ignores modifiers)
+  final_total ≤ 5 → fail
+  final_total = 6 → setback
+  final_total ≤ 8 → partial
+  final_total ≥ 9 → success
 """
 
 from __future__ import annotations
@@ -108,26 +112,23 @@ VALID_SKILLS: frozenset[str] = frozenset(
 )
 
 
-def roll_2d6(rng: random.Random | None = None) -> tuple[int, int]:
+def roll_1d12(rng: random.Random | None = None) -> int:
     r = rng or random
-    return (r.randint(1, 6), r.randint(1, 6))
+    return r.randint(1, 12)
 
 
-def compute_band(final_total: int, dice: tuple[int, int]) -> str:
-    raw_sum = dice[0] + dice[1]
-    if raw_sum == 2:
+def compute_band(final_total: int, raw_die: int) -> str:
+    if raw_die == 1:
         return "crit_fail"
-    if raw_sum == 12:
+    if raw_die == 12:
         return "crit_success"
-    if final_total <= 6:
+    if final_total <= 5:
         return "fail"
-    if final_total == 7:
+    if final_total == 6:
         return "setback"
-    if final_total <= 9:
+    if final_total <= 8:
         return "partial"
-    if final_total <= 11:
-        return "success"
-    return "crit_success"
+    return "success"
 
 
 def conditions_modifier(skill: str, conditions: list[Any]) -> int:
@@ -193,12 +194,13 @@ def resolve_check(
     diff_mod = DIFFICULTY_MOD[difficulty]
     cond_mod = conditions_modifier(skill, pc_conditions)
 
-    dice = roll_2d6(rng)
-    raw_total = dice[0] + dice[1]
+    raw_die = roll_1d12(rng)
+    dice = [raw_die]
+    raw_total = raw_die
     final_total = raw_total + stat_mod + diff_mod + cond_mod
 
-    band = compute_band(final_total, dice)
-    near_miss = band == "fail" and final_total >= 6
+    band = compute_band(final_total, raw_die)
+    near_miss = band == "fail" and final_total >= 5
     directive = build_directive(band, intent_verb, skill, near_miss=near_miss)
 
     return RulesOutcome(
@@ -209,7 +211,7 @@ def resolve_check(
         stat_mod=stat_mod,
         diff_mod=diff_mod,
         cond_mod=cond_mod,
-        dice=list(dice),
+        dice=dice,
         raw_total=raw_total,
         final_total=final_total,
         band=band,

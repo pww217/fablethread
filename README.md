@@ -120,7 +120,7 @@ See `packs/AUTHORING.md` for the full pack spec.
 config.yaml              # Server, LLM, and game config
 ccya/                    # Python package
   engine.py              # Turn pipeline (rules + narrate + extract + generate_seed)
-  rules.py               # Pure-Python dice resolver (2d6 PbtA, no LLM)
+  rules.py               # Pure-Python dice resolver (1d12 PbtA, no LLM)
   pack.py                # Pack loader, manifest schema, list_packs()
   llm_client.py          # Thin async OpenAI-compatible client (mlx_lm.server)
   state.py               # YAML + JSONL state I/O
@@ -168,17 +168,18 @@ When you click **New Game** and select a pack, the server calls `generate_seed()
 
 ### Rules engine
 
-Every turn runs a **2d6 + modifier PbtA dice system** before narration.
+Every turn runs a **1d12 + modifier PbtA dice system** before narration.
 
-| Raw dice | Band | Result |
-|----------|------|--------|
-| 2 (snake eyes) | **CRITICAL FAIL** | Catastrophic regardless of modifiers |
-| ≤ 6 | **FAIL** | Attempt fails; complication arises |
-| 7–9 | **MIXED** | Partial success at a real cost |
-| 10–11 | **SUCCESS** | Clean success |
-| 12 (boxcars) | **CRITICAL SUCCESS** | Outstanding regardless of modifiers |
+| Raw die | Band | Result |
+|---------|------|--------|
+| 1 | **CRITICAL FAIL** | Catastrophic regardless of modifiers |
+| ≤ 5 | **FAIL** | Attempt fails; complication arises |
+| 6 | **SETBACK** | Set back; resource lost, time wasted |
+| 7–8 | **PARTIAL** | Yes, but at a cost |
+| ≥ 9 | **SUCCESS** | Clean success |
+| 12 | **CRITICAL SUCCESS** | Outstanding regardless of modifiers |
 
-Final roll = 2d6 + (stat − 2) + difficulty_mod + condition_mod. The outcome is displayed in the UI as a roll badge and is passed to the narrator as a **binding constraint**. Checks only fire when the action is active, has real consequences, and is genuinely uncertain.
+Final roll = 1d12 + (stat − 2) + difficulty_mod + condition_mod. The outcome is displayed in the UI as a roll badge and is passed to the narrator as a **binding constraint**. Checks only fire when the action is active, has real consequences, and is genuinely uncertain.
 
 ### Turn flow
 
