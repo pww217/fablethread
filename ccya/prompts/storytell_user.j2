@@ -19,10 +19,10 @@
 {% else %}
 ## threads
 None currently. Generate actions that could introduce new story directions or explore the environment.
-{% endif %}{% if not all_threads and world_state %}
+{% endif %}{% if world_state %}
 <<<TRACE_IMMUTABLE_START>>>
 ## world_state (read-only context)
-{% for f in world_state %}- {{ f if f is string else f.values() | join(': ') }}
+{% for f in world_state %}- {{ "permanent" if isinstance(f, dict) and f.get("tier") == "permanent" else "persistent" if isinstance(f, dict) else "" }}{{ " " if isinstance(f, dict) else ""}}{{ f.text if isinstance(f, dict) else (f.values() | join(': ') if isinstance(f, dict) else f)}}
 {% endfor -%}
 <<<TRACE_IMMUTABLE_END>>>
 {% endif %}{% if band %}

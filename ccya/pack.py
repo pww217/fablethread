@@ -19,7 +19,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field, model_validator
 
-from ccya.models import CampaignArc, InventoryItem
+from ccya.models import CampaignArc, InventoryItem, WorldStateFact
 
 
 _log = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ class SeedCompendium(BaseModel):
 class SeedScene(BaseModel):
     tagline: str = ""
     tags: list[str] = Field(default_factory=list)
-    world_state: list[str] = Field(default_factory=list)
+    world_state: list[WorldStateFact | str] = Field(default_factory=list)
 
 
 class SeedState(BaseModel):

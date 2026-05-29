@@ -14,6 +14,7 @@ import re
 from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json, _log_llm_io, _log_prompts, _render
 from ccya.engine.names import generate_name_pool, generate_npc_names
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
+from ccya.models import WorldStateFact
 from ccya.pack import Pack, PlayerOverrides, SeedEnvelope, parse_world_facts
 
 from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
@@ -36,7 +37,10 @@ def _sanitize_envelope(envelope: SeedEnvelope) -> SeedEnvelope:
         item.name = _strip_non_ascii(item.name)
     envelope.seed_state.scene.tagline = _strip_non_ascii(envelope.seed_state.scene.tagline)
     for evt in envelope.seed_state.scene.world_state:
-        envelope.seed_state.scene.world_state[envelope.seed_state.scene.world_state.index(evt)] = _strip_non_ascii(evt)
+        if isinstance(evt, str):
+            envelope.seed_state.scene.world_state[envelope.seed_state.scene.world_state.index(evt)] = _strip_non_ascii(evt)
+        elif isinstance(evt, dict):
+            evt["text"] = _strip_non_ascii(evt.get("text", ""))
     for npc_id, npc_data in envelope.seed_state.compendium.npcs.items():
         if npc_data.name is not None:
             npc_data.name = _strip_non_ascii(npc_data.name)
@@ -342,7 +346,8 @@ async def generate_seed(
         # LLM generates 3 global facts into world_state; prepend baseline_facts
         if world_facts:
             existing_ws = list(envelope.seed_state.scene.world_state)
-            merged_ws = world_facts + [f for f in existing_ws if f not in world_facts]
+            baseline_ws = [{"id": f"baseline_{i}", "text": _strip_non_ascii(text), "tier": "permanent"} for i, text in enumerate(world_facts)]
+            merged_ws = cast(list[WorldStateFact | str], baseline_ws + [f for f in existing_ws if not (isinstance(f, dict) and f.get("id") in {b["id"] for b in baseline_ws})])
             envelope.seed_state.scene.world_state = merged_ws
 
         # Keep seeded compendium NPCs; clear engine-managed touch_order

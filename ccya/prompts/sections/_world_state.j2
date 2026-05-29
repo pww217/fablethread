@@ -1,2 +1,4 @@
-{% for fact in (state.scene.world_state or []) %}- {{ fact }}
+{% for fact in (state.scene.world_state or []) %}{% if fact is mapping %}- [{% if fact.tier == "permanent" %}permanent{% else %}persistent{% endif %}] {{ fact.text }}
+{% elif fact is string %}- {{ fact }}
+{% endif -%}
 {% endfor -%}
