@@ -57,8 +57,8 @@ Phase 0: World-State History Redesign (structural removal + rebuild)
 ## Phase-by-Phase Breakdown
 
 ### Phase 0: World-State History Redesign
-**Source:** `plans/world-state-history-redesign/` (design doc; implementation plan to be written from this design)
-**Status:** Design approved. Implementation phases TBD.
+**Source:** `plans/completed/world-state-history-redesign/`
+**Status:** committed — 3 sub-phases (A/B/C) implemented.
 **What it does:**
 - Removes `recent_events` entirely (~20 removals across models, state, delta logic, compaction, prompts, UI) — old save files with this key do not load; no migration function
 - Promotes `world_state` to mutable tiered structure (`WorldStateFact` with `permanent`/`persistent` tiers). Currently world state is a static dict set at seed time that cannot be modified after initialization. Now individual facts can be added/modified without overwriting the entire state. Tier rules: permanent facts come from seed generation and persist indefinitely (immutable, never touched by LLM or apply_delta); persistent facts are set by engine/LLMs during play and survive compaction indefinitely — LLM removes stale facts via world_state_remove when no longer relevant.
@@ -70,7 +70,8 @@ Phase 0: World-State History Redesign (structural removal + rebuild)
 **Why first:** This is a structural removal that changes model shapes, state schema, and prompt templates. All other plans either depend on the new state shape or fight over fields this plan removes.
 
 ### Phase 1a: Beat Timing Observability (independent of world-state changes)
-**Source:** `plans/ev1-fixes/03-beat-timing-observability.md`
+**Source:** `plans/completed/ev1-fixes/03-beat-timing-observability.md`
+**Status:** committed in 0496f92.
 **What it does:**
 - Documents one-turn beat lag as intentional design in `_narrate_setup()` comment
 - Adds `"raw_total"` to events.jsonl ruling dict serialization (turn.py)
@@ -80,7 +81,8 @@ Phase 0: World-State History Redesign (structural removal + rebuild)
 **Can run in parallel with Phase 0.**
 
 ### Phase 2: Prompt Alignment for Beat Type Selection, Null Emission, and Fail Near-Miss Guidance (builds on new prompt structure)
-**Source:** `plans/ev1-fixes/01-prompt-alignment.md`
+**Source:** `plans/completed/ev1-fixes/01-prompt-alignment.md`
+**Status:** committed in bf91554.
 **What it does:**
 - Documents directive/band priority rule at top of band-aligned beat selection section in storyteller_system.j2
 - Adds near-miss exception to fail/setback beat guidance (storytell_system.j2)
@@ -90,7 +92,8 @@ Phase 0: World-State History Redesign (structural removal + rebuild)
 **Why after Phase 0:** World-state redesign changes storyteller_system.j2 JSON schema and adds completed_threads section. Prompt alignment should build on the new structure rather than fight over old template state.
 
 ### Phase 3: Thread Lifecycle Fixes — Key-Branch Black Hole + Urgency Decay + Scene-Scoped Management (partial dependency on world-state changes)
-**Source:** `plans/ev1-fixes/02-thread-lifecycle.md` (blocked by ev2-discovered key-branch bug at turn.py:1275)
+**Source:** `plans/completed/ev1-fixes/02-thread-lifecycle.md`
+**Status:** committed in 2eaf4af.
 **What it does:**
 - **Step 3.0 — Key-branch fix (can run in parallel with Phase 0):** Add fallthrough after the collision check at `turn.py:1275-1295` inline in `run_turn()`, so scene-scoped threads with keys that pass the collision check proceed to normal thread-add logic at line 1301. This step is independent of world-state redesign — it fixes a critical bug in a different code section of turn.py.
 - **Step 3.1:** Add `urgency_set_turn: int | None = None` field to ArcThread model; assign during seed generation and LLM thread_add
@@ -101,7 +104,8 @@ Phase 0: World-State History Redesign (structural removal + rebuild)
 **Resolves C1, C2, C3, C4, C7.**
 
 ### Phase 4: Eval Coverage Gaps — Detection Layer Against Fixed Code (runs against fixed state)
-**Source:** `plans/eval-coverage-gaps.md`
+**Source:** `plans/completed/eval-coverage-gaps.md`
+**Status:** committed in ccfc8da.
 **What it does:**
 - **Phase 1 (modified):** Universal asserts for orphan conditions, thread_add→state application check, beat-type variety warning, surface_as consistency. *Supersedes:* recent_events turn-stamp auto-checker (removed — superseded by world-state redesign).
 - **Phase 2:** Judge rubrics additions: surface flag consistency section, verb variety assessment, skill coverage assessment, thread progress cross-reference table.
@@ -110,8 +114,8 @@ Phase 0: World-State History Redesign (structural removal + rebuild)
 **Why last:** Detection layer should run against fixed code to validate that fixes actually resolved the issues. No production code changes — purely harness updates.
 
 ### Phase 5: Documentation Cleanup (runs after all phases complete)
-**Source:** `plans/05-documentation-cleanup.md`
-**Status:** open — pending execution after Phases 0–4.
+**Source:** `plans/completed/05-documentation-cleanup.md`
+**Status:** completed — all 9 doc files updated and committed in 4733979.
 **What it does:** One pass over docs/repomap.md, docs/architecture/OVERVIEW.md, and architecture subdocs (delta-validate.md, step2c-progress.md, out-of-band.md, campaign-arcs.md) plus AGENTS.md "Navigation path" — remove references to deleted fields (`recent_events`, `recent_events_evicted`), update ArcThread model description (add urgency_set_turn, two-stage latency for scene threads), update world_state tiered structure, fix apply_delta return type.
 
 **Why last:** Documentation depends on knowing what changed across ALL phases. Running it earlier risks missing cross-phase documentation updates or updating docs for code that hasn't been committed yet.
