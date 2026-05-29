@@ -28,11 +28,10 @@ def reconcile_delta(state: dict[str, Any], delta: Any) -> tuple[Any, list[str]]:
 
 
 def apply_delta(
-    state: dict[str, Any], delta: Any, *, recent_events_max: int = 20, current_turn_no: int | None = None,
-) -> tuple[dict[str, Any], bool]:
+    state: dict[str, Any], delta: Any,
+) -> dict[str, Any]:
     from ccya.state.delta_builder import apply_delta as _impl
     if delta is None:
         _log.warning("apply_delta received None delta")
-    result, evicted = _impl(state, delta, recent_events_max=recent_events_max, current_turn_no=current_turn_no)
-    _log.debug("apply_delta complete turn=%s evicted=%s", current_turn_no, evicted)
-    return result, evicted
+    result = _impl(state, delta)
+    return result

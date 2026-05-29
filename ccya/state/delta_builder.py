@@ -121,8 +121,8 @@ def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> tuple[StateDelt
 
 
 def apply_delta(
-    state: dict[str, Any], delta: StateDelta, *, recent_events_max: int = 20, current_turn_no: int | None = None,
-) -> tuple[dict[str, Any], bool]:
+    state: dict[str, Any], delta: StateDelta,
+) -> dict[str, Any]:
     state = copy.deepcopy(state)
 
     inv: list[dict[str, Any]] = copy.deepcopy(state.get("inventory", []))
@@ -174,19 +174,14 @@ def apply_delta(
                 # Durability gate: brand-new items must have loot gain context
                 item_name = d.get("name", item.id) or item.id
                 has_loot_context = False
-                for evt in (delta.recent_events_add or []):
-                    text = getattr(evt, 'text', str(evt))
-                    if item.id.lower() in text.lower() or item_name.lower() in text.lower():
-                        has_loot_context = True
-                        break
                 for action_text in (delta.actions or []):
                     if item.id.lower() in action_text.lower() or item_name.lower() in action_text.lower():
                         has_loot_context = True
                         break
                 if not has_loot_context:
                     _log.warning(
-                        "inventory_add durability gate blocked: '%s' (id=%s) at turn %s — no loot gain context in recent_events or actions",
-                        item_name, item.id, current_turn_no,
+                        "inventory_add durability gate blocked: '%s' (id=%s) at turn %s — no loot gain context in actions",
+                        item_name, item.id, state.get("meta", {}).get("turn", 0),
                     )
                     continue
                 d["amount"] = amt
@@ -199,7 +194,7 @@ def apply_delta(
         if not canonical:
             _log.warning(
                 "inventory_remove target %r not found in inventory (turn %s)",
-                rem.id, current_turn_no,
+                rem.id, state.get("meta", {}).get("turn", 0),
             )
             continue
         ex = by_id[canonical]
@@ -249,7 +244,7 @@ def apply_delta(
             if isinstance(entry, dict) and entry.get("presence") == "present":
                 entry["presence"] = "known"
                 entry.pop("notes", None)
-        _stamp_turn = current_turn_no if current_turn_no is not None else state.get("meta", {}).get("turn", 0)
+        _stamp_turn = state.get("meta", {}).get("turn", 0) if state.get("meta", {}).get("turn", 0) is not None else state.get("meta", {}).get("turn", 0)
         state["scene"]["turn_entered"] = _stamp_turn
         state["scene"]["location_entered_turn"] = _stamp_turn
     elif delta.location_description:
@@ -286,44 +281,6 @@ def apply_delta(
         existing_ids.add(cid)
     state["pc"]["conditions"] = existing_conds[-PC_CONDITIONS_MAX:]
 
-    current_turn = (state.get("meta") or {}).get("turn", 0)
-    scene = state.setdefault("scene", {})
-    existing_events: list[dict[str, Any]] = list(scene.get("recent_events") or [])
-
-    _corrupt_count = 0
-    _cleaned: list[dict[str, Any]] = []
-    for e in existing_events:
-        if isinstance(e, dict) and "id" in e:
-            _cleaned.append(e)
-        else:
-            _corrupt_count += 1
-    existing_events = _cleaned
-    if _corrupt_count:
-        _log.warning("apply_delta: dropped %d corrupted recent_event entries; consider reloading or re-seeding state", _corrupt_count)
-
-    for rid in delta.recent_events_remove:
-        existing_events = [e for e in existing_events if e.get("id") != rid]
-
-    for upd in delta.recent_events_update:
-        for i, e in enumerate(existing_events):
-            if e.get("id") == upd.id:
-                existing_events[i]["text"] = _strip_non_ascii(upd.text)
-                break
-
-    existing_ids = {e.get("id") for e in existing_events}
-    for evt in delta.recent_events_add:
-        if evt.id not in existing_ids:
-            existing_events.append({
-                "id": evt.id,
-                "text": _strip_non_ascii(evt.text),
-                "turn": evt.turn or current_turn,
-            })
-            existing_ids.add(evt.id)
-
-    existing_events.sort(key=lambda e: e.get("turn", 0))
-    recent_events_evicted = len(existing_events) > recent_events_max
-    scene["recent_events"] = existing_events[-recent_events_max:]
-
     if delta.scene_tags:
         state["scene"]["tags"] = delta.scene_tags
         new_tags = set(delta.scene_tags)
@@ -344,7 +301,7 @@ def apply_delta(
         scene_tagline=delta.scene_tagline,
         location_change=delta.location_change,
         location_description=delta.location_description,
-    ), current_turn_no=current_turn_no)
+    ))
 
     # --- Arc update: merge arc_update into state arc ---
     if delta.arc_update is not None:
@@ -356,7 +313,7 @@ def apply_delta(
         pc["actions"] = list(delta.actions[-10:])
         _log.info(
             "Applied %d Storyteller Actions", len(delta.actions),
-            extra={"turn": current_turn_no, "trace_id": "", "pack": "", "kind": "actions"},
+            extra={"turn": state.get("meta", {}).get("turn", 0), "trace_id": "", "pack": "", "kind": "actions"},
         )
 
-    return state, recent_events_evicted
+    return state

@@ -37,8 +37,6 @@ def _sanitize_envelope(envelope: SeedEnvelope) -> SeedEnvelope:
     envelope.seed_state.scene.tagline = _strip_non_ascii(envelope.seed_state.scene.tagline)
     for evt in envelope.seed_state.scene.world_state:
         envelope.seed_state.scene.world_state[envelope.seed_state.scene.world_state.index(evt)] = _strip_non_ascii(evt)
-    for evt in envelope.seed_state.scene.recent_events:
-        envelope.seed_state.scene.recent_events[envelope.seed_state.scene.recent_events.index(evt)] = _strip_non_ascii(evt)
     for npc_id, npc_data in envelope.seed_state.compendium.npcs.items():
         if npc_data.name is not None:
             npc_data.name = _strip_non_ascii(npc_data.name)

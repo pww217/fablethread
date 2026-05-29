@@ -1397,15 +1397,9 @@ function game() {
                     lastInserted.after(badge);
                     lastInserted = badge;
                 }
-                if (result.recent_events_evicted) {
-                    const evictNote = document.createElement('div');
-                    evictNote.className = 'rejection-note';
-                    evictNote.textContent = '\u26a0 Some recent events were pruned (limit reached)';
-                    lastInserted.after(evictNote);
-                } else {
-                    const changes = _buildTurnChanges(result.change_lines || []);
+                const changes = _buildTurnChanges(result.change_lines || []);
                     if (changes) { lastInserted.after(changes); lastInserted = changes; }
-                }
+
                 _applyMarkdown(block);
 
                 if (result.rejected && result.rejected.length > 0) {
@@ -1431,9 +1425,7 @@ function game() {
                     zone.innerHTML = '<span class="empty-state">No suggested actions.</span>';
                 }
 
-                if (!result.recent_events_evicted) {
-                    _prependTurnLogTurn(result.turn, result.change_lines || [], result.ruling);
-                }
+                _prependTurnLogTurn(result.turn, result.change_lines || [], result.ruling);
 
                 htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
                 htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });

@@ -55,7 +55,7 @@ from ccya.state import (
     append_event,
     load_chronicle_tail,
     load_recent_chronicle_turns,
-    load_recent_events,
+    load_recent_turns,
     load_state,
     reconcile_delta,
     resolve_inventory_canonical_id,
@@ -125,9 +125,6 @@ class TurnContext:
     ext_metrics: dict[str, Any] | None = None
     applied: dict[str, Any] | None = None
     rejected: list[dict[str, Any]] | None = None
-    recent_events: list[dict[str, Any]] | None = None
-    recent_events_evicted: bool = False
-
 
 @dataclass
 class PacingContext:
@@ -729,7 +726,7 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
     # Load previous outcome context
     _prev_outcome = ""
     if turn_no > 1:
-        _prev_events = load_recent_events(ctx.save_dir, 1)
+        _prev_events = load_recent_turns(ctx.save_dir, 1)
         if _prev_events:
             _prev_outcome = _prev_events[0].get("ruling", {}).get("outcome_summary", "")
 
@@ -962,8 +959,6 @@ async def run_turn(
     narrative_chunks: list[str] = []
     delta: StateDelta | None = None
     actions: list[str] = []
-    recent_events: list[dict[str, Any]] = []
-    recent_events_evicted: bool = False
 
     try:
         await _inflight.acquire(str(save_dir))
@@ -1200,10 +1195,8 @@ async def run_turn(
             delta, reconcile_warnings = reconcile_delta(state, delta)
             for w in reconcile_warnings:
                 _log.warning("[reconcile] turn %s: %s", state.get("meta", {}).get("turn", "?"), w, extra={"trace_id": trace_id})
-            state, recent_events_evicted = apply_delta(
+            state = apply_delta(
                 state, delta,
-                recent_events_max=config.recent_events_max,
-                current_turn_no=turn_no,
             )
             # Inject floor relief beat via PacingContext.beat_locked
             if _pc.beat_locked and not state.get("meta", {}).get("pending_gm_beat"):
@@ -1213,7 +1206,6 @@ async def run_turn(
                     "surface_as": "ambient",
                     "beat_expires_turn": (state.get("meta") or {}).get("turn", 0) + 3,
                 }
-            recent_events = list(delta.recent_events_add)
             applied = delta.model_dump(exclude_none=True)
             for r in rejected:
                 if r.get("kind") == "warn_overdraw":
@@ -1533,14 +1525,12 @@ async def run_turn(
             rejected=rejected,
             actions=actions,
             scene_tags=list(getattr(delta, "scene_tags", [])),
-            recent_events=recent_events,
             diff=diff_lines,
             changes=changes,
             metrics=metrics,
             errors=errors,
             ruling=ruling_event or {},
             outcome_summary=outcome_summary,
-            recent_events_evicted=recent_events_evicted,
             ts=_ts,
         )
         yield ("complete", result_obj)
@@ -1637,11 +1627,6 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
             continue  # existing item — gate already enforced in apply_delta()
         item_name = add_item.name or add_item.id
         has_loot_context = False
-        for evt in (delta.recent_events_add or []):
-            text = getattr(evt, 'text', str(evt))
-            if add_item.id.lower() in text.lower() or item_name.lower() in text.lower():
-                has_loot_context = True
-                break
         for action_text in (delta.actions or []):
             if add_item.id.lower() in action_text.lower() or item_name.lower() in action_text.lower():
                 has_loot_context = True
@@ -1651,7 +1636,7 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
                 "field": "inventory_add",
                 "kind": "durability_gate",
                 "value": add_item.id,
-                "reason": f"New item '{item_name}' — no loot gain context detected in recent_events or actions; rejected by durability gate",
+                "reason": f"New item '{item_name}' — no loot gain context detected in actions; rejected by durability gate",
             })
     for rem in delta.inventory_remove:
         canonical = resolve_inventory_remove_target(inv_list, rem.id)

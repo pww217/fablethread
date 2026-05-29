@@ -19,10 +19,6 @@
 {% else %}
 ## threads
 None currently. Generate actions that could introduce new story directions or explore the environment.
-{% endif %}{% if recent_events %}
-## recent_events (don't duplicate; emit recent_events_add/update/remove for changes)
-{% for event in recent_events %}- {{ event.text if event is mapping else event }}
-{% endfor -%}
 {% endif %}{% if not all_threads and world_state %}
 <<<TRACE_IMMUTABLE_START>>>
 ## world_state (read-only context)

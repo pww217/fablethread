@@ -83,7 +83,7 @@ def _build_extraction_context(
     )
 
     state_copy = copy.deepcopy(state)
-    post_state, _evicted = apply_delta(state_copy, combined_delta)
+    post_state = apply_delta(state_copy, combined_delta)
 
     post_pc = post_state.get("pc") or {}
 
@@ -246,7 +246,6 @@ def _storytell_messages(
 
     arc = state.get("arc") or {}
     all_threads = [t for t in (arc.get("threads") or []) if isinstance(t, dict)]
-    recent_events = list(scene.get("recent_events") or [])
     world_state = list(scene.get("world_state") or [])
 
     system_text = _render(env, "storytell_system.j2", {})
@@ -264,7 +263,6 @@ def _storytell_messages(
             # State-sourced (these don't change within a turn)
             "current_arc": arc,
             "all_threads": all_threads,
-            "recent_events": recent_events,
             "world_state": world_state,
             "intent": intent,
             "pacing_context": pacing_context,
@@ -543,17 +541,6 @@ async def _run_extraction_pipeline(
             storytell_msgs, config, trace_id, "storytell",
             StorytellerResult, strip_keys=("_reasoning",),
         )
-        # Overwrite turn stamp on any newly added events — the LLM cannot know the
-        # current turn number reliably; the engine stamps it authoritatively.
-        if storytell_result.recent_events_add:
-            storytell_result = storytell_result.model_copy(
-                update={
-                    "recent_events_add": [
-                        e.model_copy(update={"turn": turn_no})
-                        for e in storytell_result.recent_events_add
-                    ]
-                }
-            )
 
         # Generate fallback actions when LLM omits them (prompt requires exactly 4)
         if not storytell_result.actions:
@@ -602,9 +589,9 @@ async def _run_extraction_pipeline(
         )
         extraction_event["storytell"] = {**_SKIPPED, "error": str(exc)}
 
-    if not storytell_result.actions and not storytell_result.recent_events_add:
-        _log.warning("extraction.storytell.empty trace_id=%s turn_no=%d storytell has no actions or events after retries", trace_id, turn_no)
-    _log.debug("extraction.storytell.done trace_id=%s result_type=%s actions=%d events_add=%d tokens_in=%d tokens_out=%d gm_beat=%s", trace_id, type(storytell_result).__name__, len(storytell_result.actions or []), len(storytell_result.recent_events_add or []), storytell_usage.get("prompt_tokens", 0), storytell_usage.get("completion_tokens", 0), storytell_result.gm_beat.type if storytell_result.gm_beat else None)
+    if not storytell_result.actions:
+        _log.warning("extraction.storytell.empty trace_id=%s turn_no=%d storytell has no actions after retries", trace_id, turn_no)
+    _log.debug("extraction.storytell.done trace_id=%s result_type=%s actions=%d tokens_in=%d tokens_out=%d gm_beat=%s", trace_id, type(storytell_result).__name__, len(storytell_result.actions or []), storytell_usage.get("prompt_tokens", 0), storytell_usage.get("completion_tokens", 0), storytell_result.gm_beat.type if storytell_result.gm_beat else None)
     yield ("phase", {"phase": "extract_stream_done", "stream": "storytell"})
 
     _log.debug("extraction.dedup.start trace_id=%s compendium_updates=%d state_inv_add=%d", trace_id, len(scene_result.compendium_npc_update or []), len(state_result.inventory_add or []))
@@ -636,7 +623,7 @@ async def _run_extraction_pipeline(
     _capitalize_inventory_names(state_result.inventory_update)
 
     _log.debug(
-        "extraction.merge.start trace_id=%s scene_tags=%d inv_add=%d events_add=%d", trace_id, len(scene_result.scene_tags or []), len(state_result.inventory_add or []), len(storytell_result.recent_events_add or [])
+        "extraction.merge.start trace_id=%s scene_tags=%d inv_add=%d", trace_id, len(scene_result.scene_tags or []), len(state_result.inventory_add or [])
     )
     # --- Merge into single StateDelta ---
     merged = StateDelta(
@@ -650,9 +637,6 @@ async def _run_extraction_pipeline(
         inventory_update=state_result.inventory_update,
         pc_condition_add=state_result.pc_condition_add,
         pc_condition_remove=state_result.pc_condition_remove,
-        recent_events_add=storytell_result.recent_events_add,
-        recent_events_update=storytell_result.recent_events_update,
-        recent_events_remove=storytell_result.recent_events_remove,
         actions=storytell_result.actions or [],
     )
 

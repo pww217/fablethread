@@ -51,12 +51,3 @@
 {% else -%}
 (none)
 {% endfor %}
-
-## RECENT EVENTS
-*(These are player-facing narrative facts. Consolidate and trim.)*
-{% if recent_events -%}
-{% for event in recent_events %}- [{{ event.get("id", "?") }}] (turn {{ event.get("turn", "?") }}) {{ event.text if event is mapping else event }}
-{% endfor -%}
-{% else -%}
-(empty)
-{% endif -%}

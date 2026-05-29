@@ -97,9 +97,6 @@
                                     <template x-if="t.sanitization.condition_remove && t.sanitization.condition_remove.length">
                                         <div class="tv-compaction-san-row">Conditions removed: <span x-text="t.sanitization.condition_remove.length"></span></div>
                                     </template>
-                                    <template x-if="t.sanitization.recent_events_compact_count">
-                                        <div class="tv-compaction-san-row">Recent events compacted to: <span x-text="t.sanitization.recent_events_compact_count"></span></div>
-                                    </template>
                                 </div>
                             </template>
                             <template x-if="!t.has_sanitization">
