@@ -1,7 +1,7 @@
 # Eval coverage gaps — universal asserts, rubrics, and scenario for ev1 findings
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 3 phases: universal asserts for cross-turn patterns → judge rubric improvements → new eval scenario exercising ev1-specific mechanics.

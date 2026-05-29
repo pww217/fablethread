@@ -55,12 +55,18 @@ After the table: Is momentum responding correctly to dice rolls across the run?
 
 Flags: `ORPHANED` (generated, never consumed/expired), `TTL_EXCEEDED`. Python infers disposition from gm_beat presence in delta and expiry logic on state.meta.pending_gm_beat.
 
+Also note: if every turn emits a non-null `gm_beat`, the beat expiry path (`turn_no > beat_expires_turn`) is never exercised. This means pending_gm_beat are perpetually replaced before they can expire, making the expiry mechanism dead code. Flag `NO_EXPIRY_TESTED` if all turns have `gm_beat != null`.
+
 ### 1C — Unified Thread Lifecycle Table
 
-| ID | Added (Tn) | Scope | Urgency | Location Changed? | Resolved/TTL (Tm) | Lifespan | Flag |
-|----|------------|-------|---------|-------------------|-------------------|----------|------|
+| ID | Added (Tn) | Scope | Urgency | Advances | Progress | Location Changed? | Resolved/TTL (Tm) | Lifespan | Flag |
+|----|------------|-------|---------|----------|----------|-------------------|-------------------|----------|------|
 
-Flags: `INERT` (no advancement across ≥3 turns), `OVERLONG`, `UNRESOLVED_AT_END`. For scope=scene threads, add `EARLY_EXPIRATION` and `LATE_EXPIRATION` — scene-scoped threads expire on location change. For scope=arc threads, track age-based demotion via last_seen_turn (demote active→False after idle turns). CAP_EXCEEDED: more than 3 active threads.
+Flags: `INERT` (no advancement across ≥3 turns), `OVERLONG`, `UNRESOLVED_AT_END`. For scope=scene threads, add `EARLY_EXPIRATION` and `LATE_EXPIRATION` — scene-scoped threads expire on location change. For scope=arc threads, track age-based demotion via last_seen_turn (demote active→False after idle turns). CAP_EXCEEDED: more than 3 active threads. `SCOPE_GATE_ACTIVE` — scene-scoped threads received no thread_advance signals. Verify from turn data whether scene-scoped threads were blocked from signal application or simply never received signals from the storyteller. If thread_advance signals exist for other threads but not scene-scoped ones, and if scene threads remain at progress=0 for their entire lifespan, this may indicate the code-level scene-thread gate at `_apply_thread_signals` is over-aggressive.
+
+Read `Advances` from `thread_advance` signal counts in extraction outputs. Read `Progress` from `arc.threads[].progress` field in state_snapshot. If `Advances > Progress` significantly (e.g., 7 advances but progress=0), flag `SIGNAL_APPLICATION_FAILURE`.
+
+`SIGNAL_APPLICATION_FAILURE`: thread_advance signals are firing but progress in state is not incrementing — either the signal ID doesn't match the thread's `id` field, or `_apply_thread_signals` skipped the thread.
 
 ### 1D — Condition Lifecycle Table
 

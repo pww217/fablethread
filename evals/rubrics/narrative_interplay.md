@@ -72,6 +72,17 @@ Flag: `NO_EFFECT` (beat present in state but narration unchanged), `WRONG_EFFECT
 
 After the table: Are beats creating meaningful story pivots or are they mechanical noise?
 
+### 1B.3 — Surface Flag Consistency
+
+For each unique beat type, list which `surface_as` values appeared:
+
+| Beat Type | surface_as Values | Consistent? | Flag |
+|-----------|------------------|-------------|------|
+
+Flag: `SURFACE_DRIFT` (same beat type used different surface_as across turns without a directive change).
+
+surface_as controls how the beat is presented in narration. 'ambient' → background texture, 'environmental' → scene-level pressure, 'npc' → character-focused. Surface drift means the prompt or LLM is inconsistent about how beats are expressed.
+
 ### 1B.5 — Beat Generation Quality with Directive Context
 
 For each turn where a beat was generated:
@@ -146,6 +157,8 @@ Verdict: tight / loose / broken.
 - **High-tension vs breathing turns**: count each. Flag if >4 consecutive high-pressure turns.
 - **Momentum arc**: did the run have a discernible arc? Or random oscillation?
 - **Beat type variety**: count beat types. Flag if >60% are the same type.
+- **Intent verb variety**: count distinct `intent_verb` values across the run. Flag if >70% are the same verb. Flag if a verb that is known from the scenario (e.g., "negotiate", "sneak", "climb") never appears.
+- **Skill coverage**: list which of the 6 skills (`strength, dexterity, wits, lore, charisma, resolve`) appeared in dice rolls. Flag if a skill never appeared across the entire run.
 - **Escape paths**: when player was in a bad situation (negative momentum, urgent threads),
   were there viable choices to improve it? Assess from narration content.
 
