@@ -30,6 +30,15 @@ def _summarize_applied(applied: dict[str, Any]) -> list[str]:
     for it in applied.get("inventory_update") or []:
         if isinstance(it, dict) and it.get("id"):
             lines.append(f"~ {it['id']} updated")
+    for f in applied.get("world_state_add") or []:
+        if isinstance(f, dict):
+            text = f.get("text") or f.get("id", "?")
+            short = str(text)[:56]
+            lines.append(f"+ {short}{'…' if len(short) > 56 else ''}")
+    for f in applied.get("world_state_remove") or []:
+        if isinstance(f, str):
+            short = f[:40] + ("…" if len(f) > 40 else "")
+            lines.append(f"- {short}")
     for c in applied.get("pc_condition_add") or []:
         label = c.get("label") or c.get("id") or str(c) if isinstance(c, dict) else str(c)
         lines.append(f"+ {label}")
@@ -188,6 +197,22 @@ def summarize_changes(
                         "to": post_stats.get(k),
                     }
                 )
+
+    pre_ws = list((pre.get("scene") or {}).get("world_state") or [])
+    post_ws = list((post.get("scene") or {}).get("world_state") or [])
+    pre_ws_ids = {f["id"] for f in pre_ws if isinstance(f, dict) and "id" in f}
+    post_ws_ids = {f["id"] for f in post_ws if isinstance(f, dict) and "id" in f}
+    for fid in post_ws_ids - pre_ws_ids:
+        fact = next(f for f in post_ws if isinstance(f, dict) and f.get("id") == fid)
+        facts.append({"kind": "added", "value": fact.get("text", fid)})
+    for fid in pre_ws_ids - post_ws_ids:
+        fact = next(f for f in pre_ws if isinstance(f, dict) and f.get("id") == fid)
+        facts.append({"kind": "removed", "value": fact.get("text", fid)})
+    for fid in pre_ws_ids & post_ws_ids:
+        pre_text = next(f for f in pre_ws if isinstance(f, dict) and f.get("id") == fid).get("text", "")
+        post_text = next(f for f in post_ws if isinstance(f, dict) and f.get("id") == fid).get("text", "")
+        if pre_text != post_text:
+            facts.append({"kind": "updated", "old": pre_text, "new": post_text})
 
     pre_momentum = pre.get("pc", {}).get("momentum", 0)
     post_momentum = post.get("pc", {}).get("momentum", 0)
