@@ -1,7 +1,7 @@
 # Ev1 fix — Beat timing architecture decision and observability improvements
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 Single phase: architectural decision about beat consumption timing (turn.py), plus two trivial serialization/CLI fixes (turn.py, ev.py).

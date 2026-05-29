@@ -9,8 +9,9 @@ Usage:
     ev.py compact TURN STREAM [TURN_FILE]  # user + output only
     ev.py prompt TURN STREAM FIELD [TURN_FILE]  # single field
     ev.py outputs TURN [TURN_FILE]     # JSON outputs from all streams
-    ev.py deltas TURN [TURN_FILE]      # state diffs and rejections
-    ev.py mechanics TURN [TURN_FILE]   # beats, rules, pacing, threads, arcs, connectors
+     ev.py deltas TURN [TURN_FILE]      # state diffs and rejections
+     ev.py dice                          # dice roll summary across all turns
+     ev.py mechanics TURN [TURN_FILE]   # beats, rules, pacing, threads, arcs, connectors
     ev.py connectors TURN [TURN_FILE]   # inter-stream connectors only
     ev.py pacing TURN [TURN_FILE]       # pacing context: summary, gate, momentum, band, beat_locked
     ev.py state [--format MODE] [--save-dir PATH]  # show current game state from state.yaml
@@ -2003,6 +2004,75 @@ def cmd_search(events: list[dict[str, Any]], expressions: list[str]) -> None:
         print(line)
 
 
+def cmd_dice(events: list[dict[str, Any]]) -> None:
+    """Display a dice roll summary across all turns.
+    
+    Reads ruling fields from events.jsonl: skill, difficulty, dice, raw_total,
+    final_total, band, stat_mod, diff_mod, cond_mod.
+    """
+    rows: list[dict[str, Any]] = []
+    band_counts: dict[str, int] = {}
+    skill_counts: dict[str, int] = {}
+    total_rolls = 0
+
+    for ev in events:
+        ruling = ev.get("ruling") or {}
+        if not ruling.get("rolled"):
+            continue
+        skill = ruling.get("skill", "?")
+        difficulty = ruling.get("difficulty", "?")
+        dice = ruling.get("dice", [])
+        raw_total = ruling.get("raw_total")
+        final_total = ruling.get("final_total", "?")
+        band = ruling.get("band", "?")
+        stat_mod = ruling.get("stat_mod", 0)
+        diff_mod = ruling.get("diff_mod", 0)
+        cond_mod = ruling.get("cond_mod", 0)
+
+        # Fallback for pre-fix data without raw_total
+        if raw_total is None and isinstance(dice, list):
+            raw_total = sum(dice) + (stat_mod or 0) + (diff_mod or 0) + (cond_mod or 0)
+
+        rows.append({
+            "turn": ev.get("turn", "?"),
+            "skill": skill,
+            "difficulty": difficulty,
+            "dice": dice if isinstance(dice, list) else [],
+            "raw_total": raw_total,
+            "final_total": final_total,
+            "band": band,
+            "stat_mod": stat_mod or 0,
+            "diff_mod": diff_mod or 0,
+            "cond_mod": cond_mod or 0,
+        })
+        total_rolls += 1
+        band_counts[str(band)] = band_counts.get(str(band), 0) + 1
+        key = str(skill)
+        skill_counts[key] = skill_counts.get(key, 0) + 1
+
+    if not rows:
+        print("(no dice rolls found)")
+        return
+
+    header = f"{'Turn':>4} | {'Skill':<12} | {'Difficulty':<12} | {'Dice':<12} | {'Raw → Final':<14} | {'Band':<14} | {'Modifiers'}"
+    sep = "─" * len(header)
+    print(header)
+    print(sep)
+    for r in rows:
+        dice_str = str(r["dice"]) if r["dice"] else "[]"
+        raw_s = str(r["raw_total"]) if r["raw_total"] is not None else "?"
+        final_s = str(r["final_total"]) if r["final_total"] is not None else "?"
+        mods = f"stat:{r['stat_mod']:+d} diff:{r['diff_mod']:+d} cond:{r['cond_mod']:+d}"
+        print(
+            f"{r['turn']:>4} | {str(r['skill']):<12} | {str(r['difficulty']):<12} | {dice_str:<12} | {raw_s} → {final_s:<9} | {str(r['band']):<14} | {mods}"
+        )
+
+    print()
+    print(f"Total rolls: {total_rolls}")
+    print(f"Band distribution: {', '.join(f'{k}={v}' for k, v in sorted(band_counts.items()))}")
+    print(f"Skills used: {', '.join(f'{k}={v}' for k, v in sorted(skill_counts.items()))}")
+
+
 
 def main() -> None:
     args = sys.argv[1:]
@@ -2098,6 +2168,8 @@ def main() -> None:
                 print(f"Turn {turn} not found")
                 sys.exit(1)
             cmd_deltas(ev)
+        case "dice":
+            cmd_dice(events)
         case "mechanics":
             if len(args) < 2:
                 print("Usage: ev.py mechanics TURN", file=sys.stderr)

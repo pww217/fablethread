@@ -868,7 +868,12 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
             male_count=5, female_count=5, seed=state.get("meta", {}).get("turn", 0),
         )
 
-    # Read pending_gm_beat for expiry check and narrator passage
+    # pending_gm_beat from the previous turn's storyteller is read here to set
+    # the atmosphere/scene context for this turn's narration. Beats are consumed
+    # on the turn AFTER generation — this is intentional: beats shape ongoing scene
+    # atmosphere rather than providing immediate mechanical feedback.
+    # Immediate feedback for roll outcomes is handled by the roll-band narration
+    # directive (rules.py build_directive()), not by the beat system.
     _pending_gm_beat = (state.get("meta") or {}).get("pending_gm_beat")
     if _pending_gm_beat:
         _expires = _pending_gm_beat.get("beat_expires_turn")
@@ -1439,6 +1444,7 @@ async def run_turn(
                 "stat_mod": _outcome.stat_mod,
                 "diff_mod": _outcome.diff_mod,
                 "cond_mod": _outcome.cond_mod,
+                "raw_total": _outcome.raw_total,
                 "final_total": _outcome.final_total,
                 "band": _outcome.band,
                 "momentum_before": momentum_before,

@@ -34,7 +34,7 @@
 | `ccya/server/panels.py` | Panel context builders: _debug_context(), _load_* helpers, _get_opening() |
 | `ccya/server/tv.py` | Turn viewer data from events.jsonl + server_errors.jsonl — unified timeline with row_kind discrimination, per-stream metrics, status colors; `_turn_viewer_data()` returns `(rows, no_events)`; injects a synthetic `row_kind: "seed"` row at index 0 when seed data is present in state.yaml |
 | `ccya/server/metrics.py` | _recent_turn_metrics(), _turn_log_entries() — latency/token formatting |
-| `scripts/debug/ev.py` | CLI tool for inspecting events.jsonl directly; commands: summary, timing, turn, props, compact, prompt, outputs, deltas, mechanics, connectors, pacing (summary/gate/momentum/band/beat_locked from top-level event fields), state, diff, trace, search (supports npc/item/condition/band/momentums_after/momentums_before/momentums_delta/rejected/input) |
+| `scripts/debug/ev.py` | CLI tool for inspecting events.jsonl directly; commands: summary, timing, turn, props, compact, prompt, outputs, deltas, dice, mechanics, connectors, pacing (summary/gate/momentum/band/beat_locked from top-level event fields), state, diff, trace, search (supports npc/item/condition/band/momentums_after/momentums_before/momentums_delta/rejected/input) |
 | `ccya/eval/__init__.py` | Re-exports: EvalConfig, JudgeResult, RunResult, Scenario, build_trace, run_scenario, etc. |
 | `ccya/eval/config.py` | EvalConfig, JudgesSpec (per-judge rubric/model/temp), load_eval_config() |
 | `ccya/eval/judge.py` | run_judges(): parallel domain judges + sequential meta judge; parse_judge_response() YAML front matter; _build_metrics_rows(turn, tok_in per phase, pacing_directive, beat_generated/consumed from pending_gm_beat lifecycle) |
@@ -132,7 +132,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - `apply_momentum(state, band)` in ccya/state/momentum.py mutates `state["pc"]["momentum"]` deterministically from rules band delta, clamped to [-3, +3]
 - Pre-ruling momentum captured BEFORE `_ruling_phase()` (turn.py line ~1049), post-ruling captured AFTER — delta reflects actual band-based change
 - Auto-checker `check_momentum_band_delta` reads from `state_snapshot.pc.momentum` (not meta.momentum)
-- **events.jsonl fields**: `momentum_before`, `momentum_after`, `momentum_delta` written as top-level event keys on every turn (turn.py ~1501-1503), not only in the conditional ruling_event. Available for all turns including no-roll turns where momentum carries over unchanged from previous turn
+- **events.jsonl fields**: `momentum_before`, `momentum_after`, `momentum_delta` written as top-level event keys on every turn (turn.py ~1501-1503), not only in the conditional ruling_event. Available for all turns including no-roll turns where momentum carries over unchanged from previous turn. Ruling dict includes `raw_total` (sum of dice + modifiers) alongside `final_total` for dice math verification.
 
 ### Pacing context and beat lifecycle (Phase 03 pacing overhaul)
 - `_compute_pacing_context()` dual-trigger beat_locked: fires when either `consecutive_pressure_turns >= config.consecutive_pressure_threshold` OR `momentum <= config.momentum_floor`; appends "Resolve a Threat" to directive whenever locked
