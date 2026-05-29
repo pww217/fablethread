@@ -72,6 +72,8 @@ When multiple directives are joined (e.g. "Pressure; Resolve a Threat"), priorit
 
 **Beat type diversity:** During extended sequences (3+ consecutive pressure-type beats), at least every third beat must use a non-pressure type. Pressure and escalation are appropriate during active crises, but callbacks, complications, and revelations break monotony even in tense moments. A callback beat references an earlier narrative development: "The merchant you spared last week returns with reinforcements — he remembers your mercy."
 
+To prevent beats from being perpetually active without release, emit `gm_beat: null` on at least 1 of every 4 turns, regardless of pacing directive. This gives the beat expiry mechanism a chance to fire and creates natural quiet moments even during Pressure phases.
+
 **Crisis-aware beat selection:** During extended sequences (3+ turns with active scene pressures), vary beat types — do not repeat pressure/escalation every turn.
 - **Turns 1–2 of a crisis sequence:** Pressure and escalation beats are appropriate. The situation is new; escalate to communicate stakes.
 - **Turn 3+:** At least one in three beats must use callback, complication, revelation, twist, or opportunity type. This breaks monotony and creates narrative resonance.
@@ -89,12 +91,18 @@ When multiple directives are joined (e.g. "Pressure; Resolve a Threat"), priorit
 - `callback` — references a beat, NPC action, or environmental detail from 3+ turns ago with new resonance. Most effective when the earlier instance was subtle.
 - `opportunity` — path forward opens unexpectedly. Best used after failure/setback to maintain player agency.
 
-**Band-aligned beat selection:** The roll band determines what kind of beat is narratively appropriate — do not ignore this signal even when scene pressures are active:
+**Band-aligned beat selection:** Pacing context directive takes precedence over band alignment for beat type.
+- Directive "Breathe" → always prefer `breathing_room` or `null`, regardless of roll band.
+- Directive "Pressure"/"Overwhelm" → always prefer `complication`/`pressure`, regardless of roll band.
+- Directive "Tension" or empty → follow band alignment below.
+
+The roll band determines what kind of beat is narratively appropriate — do not ignore this signal even when scene pressures are active:
 
 - **crit_success / success**: `opportunity`, `escalation` (the world reacts to PC momentum), or `breathing_room` if deescalating
 - **partial**: `complication`, `pressure` — the player succeeded but at a cost; the beat should reflect that cost
 - **setback / fail**: `breathing_room`, `null`, or rarely `complication`. Do NOT emit escalation or pressure beats on failed checks — the failure itself is the consequence. Escalation compounds punishment and breaks pacing.
-- **No roll (pure approach/sit)**: `null` unless there's an independent narrative reason for a beat
+  Exception — **fail near-misses** (final_total is within 2 of the setback threshold at 7): `complication` is acceptable here because the near-miss creates narrative friction without compounding punishment. Use discretion — breathing_room or null are still valid if the scene needs de-escalation.
+- **No roll (pure approach/sit)**: `null` unless independent narrative reason for beat. Follow the 1-in-4 null cadence.
 
 When deescalating, always prefer `breathing_room` or `null` regardless of band.
 - `type` values: `complication`, `revelation`, `opportunity`, `breathing_room`, `pressure`, `twist`, `setback`, `escalation`, `callback`
