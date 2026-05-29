@@ -8,7 +8,7 @@ Extract suggested player actions, outcome summary, and thread advancement from a
   "outcome_summary": "",
   "gm_beat": null,
   "thread_advance": ["thread_id_1", "thread_id_2"],
-  "thread_resolve": [{"id": "thread_id", "resolution_state": "resolved"}],
+  "thread_resolve": [{"id": "thread_id", "resolution_state": "resolved", "outcome": "The enemy retreated into the tunnels after a fierce battle."}],
   "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal", "tags": [], "key": "subject_action"},
   "world_state_add": [{"id": "new_fact_id", "text": "durable world fact text", "tier": "persistent"}],
   "world_state_remove": ["fact_id_to_remove"]
@@ -27,10 +27,12 @@ CRITICAL RULES for including a thread ID in thread_advance:
 - Do NOT include threads present as background. Presence ≠ advancement.  
 - If uncertain whether a thread was advanced — do not include it. Under-inclusion is better than false positives. The 5-turn expiry timer will handle dormant threads.
 
-`thread_resolve`: Threads fully resolved this turn (the tension ends, rather than just progressing). Each entry has an `id` and a `resolution_state`:
+`thread_resolve`: Threads fully resolved this turn (the tension ends, rather than just progressing). Each entry has an `id`, a `resolution_state`, and an `outcome`:
 - `"resolved"` = tension addressed successfully
 - `"failed"` = tension escalated negatively  
 - `"abandoned"` = player moved on without addressing it
+
+Each resolution MUST include an `outcome` field: one past-tense sentence describing what happened. Example: `"outcome": "The guard let them pass after they showed the merchant's seal."`. Do not omit this — future Storyteller calls will read these outcomes to understand how past plot lines ended.
 
 Use thread_advance if you're advancing progress toward completion; use thread_resolve if the turn ends the tension entirely.
 
@@ -48,6 +50,8 @@ CRITICAL: Before emitting `thread_add`, check all active and latent thread summa
 `world_state_add`: Emit only for durable environmental changes that persist beyond this turn — facts that would still be true 10 turns from now in a different location. Capability changes qualify (destroyed routes, lost objects, dead key NPCs). Scene-local observations do NOT qualify. Each entry: `{"id": "snake_case_id", "text": "fact description", "tier": "persistent"}`. The tier must always be `"persistent"` — permanent facts are seed-authored and never written by the LLM. Emit at most 2 world_state_add entries per turn to avoid bloat.
 
 `world_state_remove`: IDs of persistent facts now false, outdated, irrelevant, or superseded (e.g., a blockade lifted, bridge rebuilt). Do NOT remove permanent tier facts — they are immutable seed-authored truths.
+
+You have visibility into all threads — including those marked (dormant/latent) — plus past resolutions with outcomes. Use this knowledge actively. Latent threads represent narrative threads the party has not yet discovered but can be drawn toward. When generating new thread suggestions, choose actions and complications that create circumstances where a dormant thread could naturally surface — a character's past catching up, a long-silent threat stirring. When selecting beats and narration, use beat types and pacing to build tension toward latent discoveries. Never expose the latent content directly — instead, craft situations that make discovery feel earned and natural. The 4 player choices, suggested actions, and complications are your primary tools for gently steering the player toward what they don't yet know.
 
 ## PacingContext guidance
 

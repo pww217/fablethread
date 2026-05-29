@@ -35,12 +35,15 @@
 <<<TRACE_IMMUTABLE_END>>>
 
 ## Scene Context
-{% set scene_arc = state.get("arc") or {} %}
-{% if (scene_arc.get('threads') | selectattr('scope', 'equalto', 'scene') | list) -%}
-### Active Threads
-{% for t in scene_arc.get('threads', []) %}{% if t.scope == 'scene' %}- [{{ t.urgency | upper }}] {{ t.summary }}
-{% endif %}{% endfor -%}
-{% endif -%}
+{% if current_arc and current_arc.threads %}
+### Current Threads
+{% for t in current_arc.threads %}{% set scope_tag = "[SCENE]" if t.scope == "scene" else "[ARC]" %}- `{{ t.id }}` {{ scope_tag }}{% if not t.active %} (latent){% endif %} [{{ t.urgency | upper }}] {{ t.summary }}{% if t.last_seen_turn %} (last seen T{{ t.last_seen_turn }}){% endif %}
+{% endfor -%}
+{% elif state.arc and state.arc.threads %}
+### Current Threads
+{% for t in state.arc.threads %}{% set scope_tag = "[SCENE]" if t.scope == "scene" else "[ARC]" %}- `{{ t.id }}` {{ scope_tag }}{% if not t.active %} (latent){% endif %} [{{ t.urgency | upper }}] {{ t.summary }}{% if t.last_seen_turn %} (last seen T{{ t.last_seen_turn }}){% endif %}
+{% endfor -%}
+{% endif %}
 
 
 ## Prior Turns (Compacted)
@@ -58,6 +61,11 @@
 {% endif -%}
 
 {% include "sections/_arc.j2" %}
+
+{% if current_arc and current_arc.completed_threads -%}
+### Past Resolutions
+{% for t in current_arc.completed_threads %}- `{{ t.id }}` [{{ t.resolution_state or "unknown" | upper }}] {{ t.outcome or "(no outcome recorded)" }}
+{% endfor -%}{%- endif %}
 
 ## This Turn's (Turn {{ meta.get('turn', '?') if meta is mapping else '?' }}) Result
 {% if rules_outcome and rules_outcome.rolled %}

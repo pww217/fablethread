@@ -105,6 +105,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - Engine owns threads; narrator owns visible_goal/thematic_question/discovered_truths
 - Active cap = 3, latent cap = 4, promotion cooldown of 3 turns
 - ArcThread.resolution_state: str | None — set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads for narrative context and eval rubrics (Phase 05c)
+- ArcThread.outcome: str | None — nullable on active/legacy threads, set from ThreadResolution.outcome when moved to completed_threads for future prompt continuity
 - `_merge_arc_update` unconditionally replaces `arc["threads"]` and `arc["completed_threads"]` on every call — no truthy guard (fixes last-thread resolution persistence bug)
 - Latent promotion in `_apply_thread_signals` skips thread IDs already in `arc.completed_threads` — defense-in-depth against re-promotion of resolved threads
 
@@ -119,6 +120,14 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - Generation order: PC → World state → Recent events → Campaign arc → Opening scene/NPCs → Inventory (arc before NPCs so NPC bonds reference actual campaign goals)
 - CompendiumEntry model now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes; seed prompt TypeScript schema includes these as optional fields (motivation?: string, fear?: string, leverage?: string); seed LLM allowed to assign motivation/fear/leverage at seed time on key NPCs (those with personal ties or central roles in opening situation)
 - Scene ideal: 1–4 present NPCs; narrative pressure for exits above that (soft guidance only, engine does NOT track or enforce NPC count at runtime — hard cap removed per Phase 01)
+### Storyteller user prompt (`ccya/prompts/storytell_user.j2`)
+- Renders all threads in unified list with scope tags ([SCENE]/[ARC]), dormant markers for inactive threads, urgency levels, and last_seen_turn; completed_threads rendered as "## past resolutions" section after active threads loop (for continuity — do not re-open resolved tensions)
+### Narrator user prompt (`ccya/prompts/narrate_user.j2`)
+- Renders ALL threads (active + latent/dormant, scene-scoped + arc-scoped) with scope tags and (latent) markers; completed_threads rendered as "## Past Resolutions" section after _arc.j2 include for full narrative continuity
+### Latent thread handling in system prompts
+- narrate_system.j2: instructs narrator to push players toward latent threads through narration, environmental detail, NPC behaviour — show don't tell (NPC glancing at locked door, torchlight from tunnel, curious sounds); build 4 choices toward discovery; increase pressure for unsurfaced threads
+- storytell_system.j2: instructs storyteller to use dormant/latent thread knowledge when generating suggestions and beats — craft situations where dormant threads naturally surface (character's past catching up, long-silent threat stirring); steer player via choices/suggestions/complications without exposing latent content directly
+
 ### Momentum lifecycle
 - `apply_momentum(state, band)` in ccya/state/momentum.py mutates `state["pc"]["momentum"]` deterministically from rules band delta, clamped to [-3, +3]
 - Pre-ruling momentum captured BEFORE `_ruling_phase()` (turn.py line ~1049), post-ruling captured AFTER — delta reflects actual band-based change
@@ -150,7 +159,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### Extraction field routing
 - **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, compendium_npc_update (no pressure fields); CompendiumEntry now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes
 - **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
-- **StorytellerResult**: thread_advance, thread_resolve (list[ThreadResolution]), thread_add (ArcThread | None), world_state_add: list[WorldStateFact], world_state_remove: list[str], actions, outcome_summary, gm_beat (no quest_updates); thread_add validated by key-based dedup gate in turn.py before scope check — exact collision rejects with WARNING log ("thread_add.key_collision"), fuzzy auto-merge on ≥70% token-overlap scoring updates existing thread summary/tags ("thread_add.auto_merge"); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[]
+- **StorytellerResult**: thread_advance, thread_resolve (list[ThreadResolution] with id/resolution_state/outcome), thread_add (ArcThread | None), world_state_add: list[WorldStateFact], world_state_remove: list[str], actions, outcome_summary, gm_beat (no quest_updates); thread_add validated by key-based dedup gate in turn.py before scope check — exact collision rejects with WARNING log ("thread_add.key_collision"), fuzzy auto-merge on ≥70% token-overlap scoring updates existing thread summary/tags ("thread_add.auto_merge"); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
 - **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions, persisted to state["pc"]["actions"] as rolling window by apply_delta()
 
 ### Cross-stream data flow (minimal by design)
@@ -165,6 +174,9 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 
 ### WorldStateFact
 - Pydantic model with id: str, text: str, tier: Literal["permanent", "persistent"] = "persistent" — permanent facts are seed-authored and never written or removed by the LLM; persistent facts are runtime-discovered durable environmental changes added via world_state_add (LLM must always emit "persistent")
+
+### ThreadResolution
+- Pydantic model with id: str, resolution_state: Literal["resolved", "failed", "abandoned"], outcome: str = "" — one past-tense sentence written at resolution time; persisted on completed ArcThread by _apply_thread_resolutions() alongside resolution_state (Phase 05e)
 
 ### CompactorSanitizationResult
 - `inventory_remove`, `pressure_remove`, `condition_remove` coerced by `_coerce_actions` (field_validator): converts bare strings to `{id: str, confidence: "high"}` dicts
@@ -216,9 +228,9 @@ arc:                           # managed by engine/turn.py (_apply_thread_signal
   thematic_question: str       # emotional register — never stated directly in narration
   hidden_truths: [str]         # designer-only structural spine
   discovered_truths: [str]     # truths player has learned (starts empty)
-  threads: list[ArcThread]     # unified arc.threads[] with active flag replaces old active_threads/latent_threads split; ArcThread.key optional str | None for canonical concept labeling (dedup at thread_add time)
+  threads: list[ArcThread]     # unified arc.threads[] with active flag replaces old active_threads/latent_threads split; ArcThread.key optional str | None for canonical concept labeling (dedup at thread_add time); ArcThread.outcome nullable on active, set from ThreadResolution when completed
 
-  completed_threads: list[Thread]
+  completed_threads: list[ArcThread]   # resolved/failed/abandoned threads moved here by _apply_thread_resolutions(); each has resolution_state + outcome from ThreadResolution
 
 scene:
    tags: [str], tagline: str

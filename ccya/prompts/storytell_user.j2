@@ -16,7 +16,11 @@
 ## threads (all — unified list, scope handled by Python)
 {% for t in all_threads %}{% set scope_tag = "[SCENE]" if t.scope == "scene" else "[ARC]" %}- `{{ t.id }}` {{ scope_tag }} {% if not t.active %}(dormant){% endif %} [{{ t.urgency | upper }}] {{ t.summary | truncate(120) }}{% if t.tags %} tags: {{ t.tags | join(', ') }}{% endif %}{% if t.last_seen_turn %} (last seen T{{ t.last_seen_turn }}){% endif %}
 {% endfor -%}
-{% else %}
+{% if current_arc and current_arc.completed_threads %}
+## past resolutions (for continuity — do not re-open resolved tensions)
+{% for t in current_arc.completed_threads %}- `{{ t.id }}` [{{ t.resolution_state or "unknown" | upper }}] {{ t.outcome or "(no outcome recorded)" }}
+{% endfor -%}
+{% endif %}{% else %}
 ## threads
 None currently. Generate actions that could introduce new story directions or explore the environment.
 {% endif %}{% if world_state %}

@@ -71,6 +71,7 @@ def _narrate_messages(
             ],
             "pc_drive": arc.get("pc_drive", ""),
             "hidden_truths": arc.get("hidden_truths") or [],
+            "completed_threads": arc.get("completed_threads") or [],
         }
     else:
         current_arc_ctx = None
