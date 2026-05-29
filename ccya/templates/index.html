@@ -119,17 +119,16 @@
                     <div class="narrative-text" data-raw>{{ ev.narrative }}</div>
                     {% if ev.ruling and ev.ruling.rolled %}
                     {% set r = ev.ruling %}
-                    {% set d1 = (r.dice | default([]))[0] or 0 %}
-                    {% set d2 = (r.dice | default([]))[1] or 0 %}
-                    {% set raw_sum = d1 + d2 %}
+                    {% set die_val = (r.dice | default([]))[0] or 0 %}
+                    {% set total_mod = (r.stat_mod or 0) + (r.diff_mod or 0) + (r.cond_mod or 0) %}
                     <div class="roll-badge roll-badge--{{ r.band }}">
                         <div class="roll-header">🎲 <strong>{{ (r.skill | default('') | upper) }}</strong> &nbsp;·&nbsp; {{ r.difficulty | default('') | lower }}</div>
                         <div class="roll-math">
-                            [{{ d1 }}] + [{{ d2 }}] = {{ raw_sum }}
-                            {% if r.stat_mod %}· {{ ('+' if r.stat_mod > 0 else '') }}{{ r.stat_mod }}&thinsp;{{ r.skill | default('stat') }}{% endif %}
-                            {% if r.diff_mod %}· {{ ('+' if r.diff_mod > 0 else '') }}{{ r.diff_mod }}&thinsp;{{ r.difficulty | default('diff') }}{% endif %}
-                            {% if r.cond_mod %}· {{ ('+' if r.cond_mod > 0 else '') }}{{ r.cond_mod }}&thinsp;cond{% endif %}
-                            ·= <strong>{{ r.final_total }}</strong>
+                            {% if total_mod == 0 %}
+                            Roll = <strong>{{ r.final_total }}</strong>
+                            {% else %}
+                            Roll = {{ die_val }} + {{ total_mod }} = <strong>{{ r.final_total }}</strong>
+                            {% endif %}
                         </div>
                         {% set BAND_LABELS = {
                             'crit_fail': 'CRITICAL FAIL',
@@ -459,14 +458,14 @@ function _buildRollBadge(payload) {
     badge.appendChild(hdr);
 
     // Line 2: dice + labeled modifiers + total
-    const d1 = (payload.dice || [])[0] || 0;
-    const d2 = (payload.dice || [])[1] || 0;
-    const rawSum = d1 + d2;
-    const parts = ['[' + d1 + '] + [' + d2 + '] = ' + rawSum];
-    if (payload.stat_mod) parts.push((payload.stat_mod > 0 ? '+' : '') + payload.stat_mod + '\u202f' + (payload.skill || 'stat'));
-    if (payload.diff_mod) parts.push((payload.diff_mod > 0 ? '+' : '') + payload.diff_mod + '\u202f' + (payload.difficulty || 'diff'));
-    if (payload.cond_mod) parts.push((payload.cond_mod > 0 ? '+' : '') + payload.cond_mod + '\u202fcond');
-    parts.push('= <strong>' + payload.final_total + '</strong>');
+    const dieVal = (payload.dice || [])[0] || 0;
+    const totalMod = (payload.stat_mod || 0) + (payload.diff_mod || 0) + (payload.cond_mod || 0);
+    let parts;
+    if (totalMod === 0) {
+        parts = ['Roll = <strong>' + payload.final_total + '</strong>'];
+    } else {
+        parts = ['Roll = ' + dieVal + ' + ' + totalMod + ' = <strong>' + payload.final_total + '</strong>'];
+    }
     const math = document.createElement('div');
     math.className = 'roll-math';
     math.innerHTML = parts.join(' &thinsp;·&thinsp; ');

@@ -24,7 +24,7 @@ flowchart LR
     end
 
     subgraph PYRES["Python — rules.resolve_check()"]
-        P0["reads pc.stats[skill]<br>reads pc.conditions → cond_mod<br>rolls 2d6 + stat_mod + cond_mod − diff_mod<br>maps total → Band"]:::pyNode
+        P0["reads pc.stats[skill]<br>reads pc.conditions → cond_mod<br>rolls 1d12 + stat_mod + cond_mod − diff_mod<br>maps total → Band"]:::pyNode
     end
 
     subgraph OUT["Outputs"]

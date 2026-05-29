@@ -44,7 +44,7 @@
 | `ccya/eval/engine_mirror.py` | Live engine constants for scenarios: BANDS, SKILLS, DIFFICULTIES, PC_CONDITION_CAP, SCENE_NAMED_NPC_CAP; pacing config mirror (momentum_floor=-3, consecutive_pressure_threshold=3, combat +2 scene_age boost) via EngineConfig defaults |
 | `evals/scenarios/eval_coverage_gap.py` | 8-turn scenario exercising ev1 findings: band-beat conflict, thread progress, orphan conditions, surface_as drift, skill variety |
 | `ccya/pack.py` | load_pack(), list_packs() — validates pack has seed (static) or scenario (generated) |
-| `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (2d6+stat+cond−diff→Band), build_directive() near-miss logic |
+| `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (1d12+stat+cond−diff→Band), build_directive() near-miss logic |
 | `ccya/llm_client.py` | chat(), chat_stream() — OpenAI-compatible → mlx_lm.server; trim_messages() token-budget trimming |
 | `ccya/logging_setup.py` | JSONL RotatingFileHandler + _JsonFormatter (extra fields → flat JSON keys); StreamHandler defaults to WARNING via CCYA_LOG_LEVEL env var |
 
@@ -76,7 +76,7 @@
 - **list_packs(packs_dir)** → list[PackManifest] — aggregates from default/ and custom/
 
 ### ccya/rules.py
-- **resolve_check(skill, difficulty, pc_stats, pc_conditions, intent_verb, rng)** → RulesOutcome — 2d6+stat_mod+cond_mod→Band (pure Python)
+- **resolve_check(skill, difficulty, pc_stats, pc_conditions, intent_verb, rng)** → RulesOutcome — 1d12+stat_mod+cond_mod→Band (pure Python)
 
 ### ccya/llm_client.py
 - **chat(host, model, messages)** → response dict — non-streaming LLM call with retry
@@ -195,7 +195,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 |---|---|
 | `SkillName` | 6 skills (strength, dexterity, wits, lore, charisma, resolve) |
 | `Difficulty` | 5 difficulty levels with modifiers in DIFFICULTY_MOD |
-| `Band` | crit_fail, fail, setback, partial, success, crit_success (2d6 natural: 2=crit_fail, 12=crit_success) |
+| `Band` | crit_fail, fail, setback, partial, success, crit_success (1d12 natural: 1=crit_fail, 12=crit_success) |
 
 ## State shape — state.yaml
 
