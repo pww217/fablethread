@@ -51,15 +51,23 @@ Flag: `TONE_MISMATCH` (narration tone contradicts band), `DIRECTIVE_IGNORED` (ru
 
 After the table: Does band progression feel too fast, too slow, or appropriate? Was there a coherent momentum arc across the run (low→build→peak or similar)?
 
-### 1A.5 — PacingContext.directive Analysis
+### 1A.5 — PacingContext Analysis (Two Signals)
 
-For each turn where pacing_context.directive is non-empty:
-- Was the directive honored in narration? (e.g., "Breathe" → low-urgency prose, "Pressure"/"Overwhelm" → tension-building)
+The engine passes two distinct pacing signals: `directive` to the Progress Extractor (thread/beat decisions), and `outcome_hint` to the Narrator (scene motion). Evaluate each separately.
 
-| Turn | PacingContext.directive | Honored? | Flag |
-|------|-------------------------|----------|------|
+**Narration → outcome_hint:** For each turn where `pacing_context.outcome_hint` is non-null:
+- Was the scene motion honored? ("hold" → continue current pace, "advance" → narrate through to resolution, "transition" → write arrival at new location)
 
-Flag: `DIRECTIVE_IGNORED_BY_NARRATOR`.
+| Turn | PacingContext.outcome_hint | Honored? | Flag |
+|------|----------------------------|----------|------|
+
+**Progress Extractor → directive:** For each turn where `pacing_context.directive` is non-empty:
+- Did the storyteller's thread/beat choices align with the directive? (e.g., "Breathe" → no new threads, breathing_room beat; "Pressure"/"Overwhelm" → tension-building)
+
+| Turn | PacingContext.directive | Thread Action Aligned? | Flag |
+|------|-------------------------|------------------------|------|
+
+Flag: `DIRECTIVE_IGNORED_BY_NARRATOR` (outcome_hint not honored), `THREAD_DIRECTIVE_IGNORED` (directive contradicts thread/beat choices).
 
 Evaluate actual directive values: `""`, `"Breathe"`, `"Scene Imperative"`, `"Overwhelm"`, `"Resolve a Threat"`, `"Pressure"`, `"Tension"`, `"Threat Pressure"`, `"Scene Pressure"`.
 

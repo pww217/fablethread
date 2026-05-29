@@ -568,6 +568,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "ruling_intent": ruling_intent,
                 "pacing_context": {
                     "directive": pacing_ctx.get("directive"),
+                    "outcome_hint": pacing_ctx.get("outcome_hint"),
                     "gate": pacing_ctx.get("gate"),
                     "beat_locked": pacing_ctx.get("beat_locked"),
                     "summary": pacing_ctx.get("summary", ""),

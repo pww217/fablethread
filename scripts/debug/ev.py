@@ -502,6 +502,11 @@ def cmd_pacing(ev: dict[str, Any]) -> None:
     else:
         print("  summary: (none)")
 
+    # Outcome hint (narrator's scene motion signal)
+    outcome_hint = pacing_ctx.get("outcome_hint")
+    if outcome_hint:
+        print(f"  outcome_hint: {outcome_hint}")
+
     # Gate
     gate = pacing_ctx.get("gate", "allow")
     if gate and gate != "allow":
@@ -527,6 +532,11 @@ def cmd_pacing(ev: dict[str, Any]) -> None:
     # Band (only on roll turns, from ruling event)
     if band_label:
         print(f"  band: {band_label}")
+
+    # Impossible action flag
+    ruling = ev.get("ruling") or {}
+    if ruling.get("impossible"):
+        print(f"  impossible: true — {ruling.get('impossible_reason', '')}")
 
 
 def cmd_connectors(ev: dict[str, Any]) -> None:
