@@ -76,6 +76,10 @@ class EngineConfig:
     log_prompts: bool = False
     # Thread urgency hard age cap (turns) — auto-remove threads older than this
     thread_urgency_max_age: int = 8
+    # Track progress for scene-scoped threads (True = include in advance/completion pipeline; set False to restore old arc-only behavior)
+    track_scene_thread_progress: bool = True
+    # Scene-scoped thread expiry (turns without progress): active → latent → removed
+    scene_thread_expire_silent_turns: int = 5
     # Avoidance-based pressure decay: keywords that trigger de-escalation detection
     avoidance_keywords: list[str] = field(default_factory=lambda: ["retreat", "run", "flee", "hide", "rest", "escape", "back away", "disengage", "withdraw", "surrender", "concede", "leave", "get out"])
     # Momentum floor value and relief trigger threshold
@@ -157,6 +161,8 @@ def build_engine_config(
         max_ruling_retries=int(ruling.get("max_retries", 1)),
         max_generate_pack_retries=int(llm.get("max_generate_pack_retries", 1)),
         thread_urgency_max_age=int(game.get("thread_urgency_max_age", 8)),
+        track_scene_thread_progress=bool(game.get("track_scene_thread_progress", True)),
+        scene_thread_expire_silent_turns=int(game.get("scene_thread_expire_silent_turns", 5)),
         thread_deescalate_on_success=bool(
             game.get("thread_deescalate_on_success", True)
         ),
