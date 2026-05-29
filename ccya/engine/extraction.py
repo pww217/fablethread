@@ -638,6 +638,8 @@ async def _run_extraction_pipeline(
         pc_condition_add=state_result.pc_condition_add,
         pc_condition_remove=state_result.pc_condition_remove,
         actions=storytell_result.actions or [],
+        world_state_add=storytell_result.world_state_add or [],
+        world_state_remove=storytell_result.world_state_remove or [],
     )
 
     # NOTE: gm_beat is intentionally absent from StateDelta — it is written
