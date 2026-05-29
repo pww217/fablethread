@@ -61,9 +61,7 @@ Thread quality rules (unchanged from existing):
 
 These constraints prevent logical contradictions across generated fields:
 
-1. **recent_events vs arc threads:** recent_events cannot state someone is dead if any arc thread references them as alive (and vice versa). If an arc mentions protecting "Mayor Chen," recent_events can say she's missing or injured but not that she's been found dead.
-
-2. **world_state vs arc_category:** world_state facts must establish pressures consistent with the arc category. Cannot state "all factions cooperate peacefully" when arc is power_struggle. Each of the 3 world_state facts must directly affect gameplay choices (border closures, banned technologies, faction blockades). No nebulous lore — no historical backstory older than one generation unless it's an active constraint right now.
+1. **world_state vs arc_category:** world_state facts must establish pressures consistent with the arc category. Cannot state "all factions cooperate peacefully" when arc is power_struggle. Each of the 3 world_state facts must directly affect gameplay choices (border closures, banned technologies, faction blockades). No nebulous lore — no historical backstory older than one generation unless it's an active constraint right now.
 
 3. **character_dynamic vs PC bio:** character dynamic shapes who the PC is relative to power structures. If trusted_insider, bio must show community ties and authority; if free_agent, bio must show independence from institutions (not embedded connections).
 
@@ -106,7 +104,6 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
       tagline: string,
       tags: string[],
       world_state: string[],
-      recent_events: string[],
     },
     compendium: {npcs: {snake_case: {name: string, title: string, bio: string, allegiance?: string, bond?: string, motivation?: string, fear?: string, leverage?: string}}},
     arc: {visible_goal: string, goal_context: string, thematic_question: string, hidden_truths: string[], discovered_truths: string[], threads: ArcThread[], completed_threads: ArcThread[], pc_drive: string} | null
@@ -136,16 +133,6 @@ Rules:
 - Maximum 5 entries. Each is one sentence.
 - BAD: "The old empire fell three centuries ago and its ruins dot the landscape."
 - GOOD: "Travel between the Northern and Southern districts requires a valid faction pass."
-
-## recent_events — Immediate Pre-Story Context
-`recent_events` are things that happened in the last few days or weeks, visible to anyone paying attention on the street.
-
-Rules:
-- Must be immediately relevant to the opening scene or the PC's situation.
-- Must NOT telegraph, echo, or foreshadow any gm_beat. The player should learn of gm_beat content through play, not world setup.
-- Maximum 4 entries. Each is one sentence in past tense.
-- BAD: "A mysterious figure was seen entering the Governor's mansion last night." (telegraphs a gm_beat)
-- GOOD: "A dockworkers' strike has slowed cargo movement across the port for three days."
 
 ## inventory — Starter Inventory Rules
 - Generate 3–6 starting items appropriate to the opening scene.

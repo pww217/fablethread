@@ -411,7 +411,6 @@ class TurnResult:
     rejected: list[dict[str, Any]] = field(default_factory=list)
     actions: list[str] = field(default_factory=list)
     scene_tags: list[str] = field(default_factory=list)
-    recent_events: list[dict[str, Any]] = field(default_factory=list)
     diff: list[str] = field(
         default_factory=list
     )  # short human-readable delta lines for UI toast
@@ -424,7 +423,6 @@ class TurnResult:
         default_factory=dict
     )  # serialized RulesOutcome + intent for logging/UI
     outcome_summary: str = field(default="")
-    recent_events_evicted: bool = field(default=False)
     ts: str = field(default="")
 
 

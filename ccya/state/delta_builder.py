@@ -244,7 +244,7 @@ def apply_delta(
             if isinstance(entry, dict) and entry.get("presence") == "present":
                 entry["presence"] = "known"
                 entry.pop("notes", None)
-        _stamp_turn = state.get("meta", {}).get("turn", 0) if state.get("meta", {}).get("turn", 0) is not None else state.get("meta", {}).get("turn", 0)
+        _stamp_turn = state.get("meta", {}).get("turn", 0)
         state["scene"]["turn_entered"] = _stamp_turn
         state["scene"]["location_entered_turn"] = _stamp_turn
     elif delta.location_description:
