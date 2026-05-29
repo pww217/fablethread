@@ -68,7 +68,7 @@
     <summary>World State</summary>
     <div class="sidebar-card-body">
         {% if state.scene.world_state %}
-        {% for fact in state.scene.world_state if fact is not mapping or fact.tier != "permanent" %}
+        {% for fact in (state.scene.world_state | reverse) if fact is not mapping or fact.tier != "permanent" %}
         <div class="fact-item" data-md>{% if fact is mapping %}{{ fact.text }}{% elif fact is string %}{{ fact }}{% endif %}</div>
         {% endfor %}
         {% for fact in state.scene.world_state if fact is mapping and fact.tier == "permanent" %}
