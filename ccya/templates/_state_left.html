@@ -1,52 +1,8 @@
-{# Left sidebar: Player, Scene, Location, Arc, Compendium #}
-{% set pc_tag = state.pc.tagline or state.pc.concept %}
+{# Left sidebar: Scene, Location, Arc, Compendium #}
 {% set comp = (state.compendium.npcs if state.compendium and state.compendium.npcs else {}) %}
 {% set _present = namespace(items=[]) %}
 {% if comp is mapping and comp %}{% for _k, _v in comp.items() %}{% if _v is mapping and _v.get("presence") == "present" %}{% set _present.items = _present.items + [_v] %}{% endif %}{% endfor %}{% endif %}
 {% set present_npcs = (_present.items | sort(attribute="name")) if _present.items else [] %}
-<details class="sidebar-card" id="card-player" data-card="player" open>
-    <summary>Player</summary>
-    <div class="sidebar-card-body">
-        <div class="stat-row{% if state.pc.bio %} has-tooltip{% endif %}">
-            <span class="stat-label">Name</span>
-            <span class="stat-value">{{ state.pc.name or '—' }}</span>
-            {% if state.pc.bio %}
-            <div class="tooltip-body" data-md>{{ state.pc.bio }}</div>
-            {% endif %}
-        </div>
-        {% if pc_tag %}
-        <div class="stat-tagline"><span data-md>{{ pc_tag }}</span></div>
-        {% endif %}
-        {% set _stat_tips = {
-            "strength": "Physical force, melee, lifting, breaking, soak, endure pain",
-            "dexterity": "Agility, stealth, ranged attacks, fine motor, dodge, pickpocket",
-            "wits": "Quick thinking, perception, deduction, hacking under pressure, spot a lie",
-            "lore": "Recalled knowledge, history, languages, protocols, identification, expertise",
-            "charisma": "Persuade, deceive, charm, negotiate, perform, seduce, intimidate by presence",
-            "resolve": "Willpower, courage, resist fear, torture, coercion, temptation"
-        } %}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;margin-top:4px;">
-        {% for k, v in (state.pc.stats or {}).items() %}
-        {% set tip = _stat_tips.get(k) %}
-        <div class="stat-row{% if tip %} has-tooltip{% endif %}" style="margin:0;">
-            <span class="stat-label">{{ k | capitalize }}</span>
-            <span class="stat-value">{{ v }}</span>
-            {% if tip %}<div class="tooltip-body">{{ tip }}</div>{% endif %}
-        </div>
-        {% endfor %}
-        </div>
-        {% if state.pc.conditions %}
-        <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;">
-            {% for cond in state.pc.conditions %}
-            {% set cond_label = cond.label if cond is mapping else cond %}
-            {% set cond_desc = cond.description if cond is mapping else '' %}
-            <span class="condition-pill{% if cond_desc %} has-tooltip{% endif %}">{{ cond_label }}{% if cond_desc %}<div class="tooltip-body">{{ cond_desc }}</div>{% endif %}</span>
-            {% endfor %}
-        </div>
-        {% endif %}
-    </div>
-</details>
-
 {% if (state.scene.tags or []) or present_npcs %}
 <details class="sidebar-card" id="card-scene" data-card="scene" open>
     <summary>Scene <span class="card-count">{{ present_npcs | length }}</span></summary>
