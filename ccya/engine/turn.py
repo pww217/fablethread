@@ -36,6 +36,7 @@ from ccya.llm_client import (
 )
 from ccya.models import (
     ArcThread,
+    Band,
     CampaignArc,
     IntentEnvelope,
     SceneExtractResult,
@@ -47,7 +48,7 @@ from ccya.models import (
 
 from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
 
-from ccya.rules import resolve_check
+from ccya.rules import resolve_check, build_directive
 from ccya.state import (
     apply_delta,
     apply_momentum,
@@ -129,6 +130,7 @@ class TurnContext:
 class PacingContext:
     """Consolidated pacing decision for Narrate and Progress steps."""
     directive: str  # "Breathe" | "Scene Imperative" | "Overwhelm" | "Resolve a Threat" | "Pressure" | "Tension" | "Scene Pressure" | "Threat Pressure" | "" (may include "; Resolve a Threat" secondary when beat_locked)
+    outcome_hint: str | None  # narrator's primary scene motion instruction
     beat_locked: bool  # True: floor relief fired — Progress MUST emit breathing_room beat and gate is force-closed
     gate: Literal["block_escalate", "allow"]  # Progress may only add threads when allow
     summary: str  # human-readable log string, never sent to LLM
@@ -136,7 +138,7 @@ class PacingContext:
     @staticmethod
     def neutral() -> PacingContext:
         """Default pacing context for turns without special conditions."""
-        return PacingContext(directive="", beat_locked=False, gate="allow", summary="neutral")
+        return PacingContext(directive="", outcome_hint="hold", beat_locked=False, gate="allow", summary="neutral")
 
 
 _ACTIVE_THREAD_CAP = 3
@@ -665,6 +667,8 @@ def _compute_pacing_context(
     momentum: int,
     config: "EngineConfig",
     consecutive_pressure_turns: int = 0,
+    scene_motion: str = "hold",
+    impossible: bool = False,
 ) -> PacingContext:
     """Compute unified pacing context for Narrate and Progress steps.
 
@@ -692,6 +696,25 @@ def _compute_pacing_context(
         directive_parts.append("Resolve a Threat")
         directive = "; ".join(directive_parts) or ""
 
+    # Compute outcome_hint from scene_motion and PacingContext escalation signals
+    outcome_hint: str | None = "hold"
+    if scene_motion == "transition":
+        outcome_hint = "transition"
+    elif scene_motion == "advance":
+        outcome_hint = "advance"
+    elif impossible:
+        outcome_hint = "advance"
+    else:
+        effective_age = ages.get("effective_scene_age", 0)
+        if effective_age >= config.threat_imperative_at:
+            outcome_hint = "advance"
+        elif beat_locked:
+            outcome_hint = "advance"
+        else:
+            urgent_count = sum(1 for t in scope_scene_threads if getattr(t, "urgency", "normal") == "urgent")
+            if directive in ("Overwhelm", "Pressure") and urgent_count >= 1:
+                outcome_hint = "advance"
+
     # Determine gate: block_add when deescalation is strong (pressure just resolved)
     gate: Literal["block_escalate", "allow"] = "allow"
     if deescalate >= 0.5:
@@ -705,6 +728,7 @@ def _compute_pacing_context(
 
     return PacingContext(
         directive=directive or "",
+        outcome_hint=outcome_hint,
         beat_locked=beat_locked,
         gate=gate,
         summary=summary,
@@ -830,6 +854,26 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
     ctx._ruling_trimmed = ruling_trimmed
     ctx._ruling_trimmed_chars = ruling_trimmed_chars
 
+    # Handle impossible actions: no dice roll, synthesize failure outcome
+    if intent.impossible:
+        intent.check.required = False
+        band: Band = "fail"
+        directive = build_directive(band, intent.intent_verb, intent.check.skill or "")
+        outcome = RulesOutcome(
+            rolled=False,
+            band=band,
+            directive=directive,
+            intent_verb=intent.intent_verb,
+            intent=intent.intent,
+            impossible=True,
+            impossible_reason=intent.impossible_reason,
+        )
+        apply_momentum(state, band)
+        _log.info(
+            "impossible action: %s — %s",
+            intent.intent_verb, intent.impossible_reason,
+            extra={"trace_id": trace_id, "turn": turn_no, "pack": "", "kind": "ruling"},
+        )
     # Resolve dice in Python (deterministic)
     if intent.check.required and intent.check.skill:
         try:
@@ -980,11 +1024,15 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
             )
 
     # Compute unified pacing context (replaces separate directive computation)
+    _scene_motion = ctx.intent.scene_motion if ctx.intent else "hold"
+    _impossible = ctx.intent.impossible if ctx.intent else False
     _pc = _compute_pacing_context(
         deescalate=ctx._deescalate, narrative_velocity=narrative_velocity,
         scope_scene_threads=_scope_scene_threads, ages=ctx._ages,
         threat_ages=ctx._threat_ages, momentum=(state.get("pc") or {}).get("momentum", 0), config=config,
         consecutive_pressure_turns=(state.get("meta") or {}).get("consecutive_pressure_turns", 0),
+        scene_motion=_scene_motion,
+        impossible=_impossible,
     )
 
     _comp = (state.get("compendium") or {}).get("npcs") or {}

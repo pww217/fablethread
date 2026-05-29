@@ -84,7 +84,7 @@
 
 ## 5-call turn pipeline (run_turn)
 
-1. **Rules/Intent** (non-streaming) — classifies intent, resolves dice via `rules.resolve_check()` → IntentEnvelope + RulesOutcome
+1. **Rules/Intent** (non-streaming) — classifies intent, resolves dice via `rules.resolve_check()` → IntentEnvelope + RulesOutcome. IntentEnvelope gains `impossible` and `impossible_reason` fields; when `impossible=true`, no roll occurs and Python synthesizes a failure outcome.
 2. **Narrate** (streaming→SSE→chronicle.md) — prose narrative with narration directive from velocity/threads
 3. **Scene Extract** (JSON→SceneExtractResult) — scene tags, location change, compendium updates
 4. **State Extract** (JSON→StateExtractResult) — inventory deltas, condition add/remove
@@ -131,6 +131,8 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - Renders all threads in unified list with scope tags ([SCENE]/[ARC]), dormant markers for inactive threads, urgency levels, and last_seen_turn; completed_threads rendered as "## past resolutions" section after active threads loop (for continuity — do not re-open resolved tensions)
 ### Narrator user prompt (`ccya/prompts/narrate_user.j2`)
 - Renders ALL threads (active + latent/dormant, scene-scoped + arc-scoped) with scope tags and (latent) markers; completed_threads rendered as "## Past Resolutions" section after _arc.j2 include for full narrative continuity
+- Impossible action block: when `rules_outcome.impossible=true`, renders `**IMPOSSIBLE:**` fact with reason before the band/no-roll section
+- `outcome_hint` replaces `directive` as narrator's scene-motion signal: renders `**Outcome:** hold/advance/transition` with value-specific guidance
 ### Latent thread handling in system prompts
 - narrate_system.j2: instructs narrator to push players toward latent threads through narration, environmental detail, NPC behaviour — show don't tell (NPC glancing at locked door, torchlight from tunnel, curious sounds); build 4 choices toward discovery; increase pressure for unsurfaced threads
 - storytell_system.j2: instructs storyteller to use dormant/latent thread knowledge when generating suggestions and beats — craft situations where dormant threads naturally surface (character's past catching up, long-silent threat stirring); steer player via choices/suggestions/complications without exposing latent content directly
@@ -143,6 +145,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 
 ### Pacing context and beat lifecycle (Phase 03 pacing overhaul)
 - `_compute_pacing_context()` dual-trigger beat_locked: fires when either `consecutive_pressure_turns >= config.consecutive_pressure_threshold` OR `momentum <= config.momentum_floor`; appends "Resolve a Threat" to directive whenever locked
+- `_compute_pacing_context()` gains `scene_motion` and `impossible` inputs from ruling LLM; computes `outcome_hint` (`hold`/`advance`/`transition`) from ruling's `scene_motion` and PacingContext escalation signals. `outcome_hint` replaces `directive` as narrator's primary scene-motion signal.
 - Consecutive pressure counter (`state["meta"]["consecutive_pressure_turns"]`) updated via two-pass logic at turn end (~turn.py ~1450): increments when pacing_ctx directive was Pressure/Overwhelm AND storyteller thread_advance empty; resets to 0 otherwise (directive not Pressure/Overwhelm OR any threads advanced)
 - `pending_gm_beat` carryover fixed: both unconditional clears removed from turn.py (~line 1105 post-narration, ~line 1152 else block); beat lifecycle handled only by write/expiry — written after storytelling if non-null gm_beat with beat_expires_turn = turn_no + 2, consumed read-gated at turn_no <= beat_expires_turn in _narrate_setup (~turn.py line 906-910), cleared only on replacement or expiry
 
