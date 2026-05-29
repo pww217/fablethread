@@ -35,6 +35,7 @@ class ArcThread(BaseModel):
     progress: int = 0  # incremented by thread_advance (LLM writes this on advance)
     last_seen_turn: int | None = None  # for age-based active/latent demotion in Python
     added_turn: int | None = None  # Python-managed lifecycle tracking
+    urgency_set_turn: int | None = None  # turn when urgency was last changed; used for urgency decay
 
     resolution_state: str | None = None  # set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads
 

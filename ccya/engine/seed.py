@@ -339,6 +339,10 @@ async def generate_seed(
                 for t in arc.threads or []:
                     if not getattr(t, "active", True):
                         object.__setattr__(t, "active", True)
+                    if getattr(t, 'added_turn', None) is None:
+                        object.__setattr__(t, 'added_turn', 0)
+                    if getattr(t, 'urgency_set_turn', None) is None:
+                        object.__setattr__(t, 'urgency_set_turn', 0)
         if envelope.pc_drive:
             envelope.seed_state.pc.drive = envelope.pc_drive
 
