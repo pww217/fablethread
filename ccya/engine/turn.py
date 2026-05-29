@@ -58,7 +58,6 @@ from ccya.state import (
     load_recent_turns,
     load_state,
     reconcile_delta,
-    resolve_inventory_canonical_id,
     resolve_inventory_remove_target,
     save_state,
 )
@@ -1694,23 +1693,6 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
     inv_by_id: dict[str, dict[str, Any]] = {
         str(it.get("id", "")): it for it in inv_list if isinstance(it, dict)
     }
-    for add_item in delta.inventory_add:
-        canonical = resolve_inventory_canonical_id(inv_list, add_item.id)
-        if canonical is not None:
-            continue  # existing item — gate already enforced in apply_delta()
-        item_name = add_item.name or add_item.id
-        has_loot_context = False
-        for action_text in (delta.actions or []):
-            if add_item.id.lower() in action_text.lower() or item_name.lower() in action_text.lower():
-                has_loot_context = True
-                break
-        if not has_loot_context:
-            rejections.append({
-                "field": "inventory_add",
-                "kind": "durability_gate",
-                "value": add_item.id,
-                "reason": f"New item '{item_name}' — no loot gain context detected in actions; rejected by durability gate",
-            })
     for rem in delta.inventory_remove:
         canonical = resolve_inventory_remove_target(inv_list, rem.id)
         if canonical is None:
