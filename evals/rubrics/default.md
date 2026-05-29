@@ -249,10 +249,14 @@ Verdict: tight (beat always shapes narration), loose (beat present but narration
 wanders), or broken (beat ignored).
 
 ### 4B — Momentum→PacingContext→Tone Chain
-For each roll turn: `roll band → PacingContext.directive issued → narration tone observed`.
-- Did directive language directly shape narrator prose register? (directive values: `""`, `"Breathe"`, `"Scene Imperative"`, `"Overwhelm"`, `"Resolve a Threat"`, `"Pressure"`, `"Tension"`, `"Threat Pressure"`, `"Scene Pressure"`)
+For each roll turn: `roll band → PacingContext signals issued → narration tone observed`.
+
+Two distinct pacing signals exist post-refactor:
+- **outcome_hint** (narrator): scene motion instruction ("hold" = continue current pace, "advance" = narrate through to resolution, "transition" = write arrival). Evaluate whether the narrator honored this scene motion.
+- **directive** (Progress Extractor): thread/beat guidance for storyteller. Evaluate whether thread advances and beat choices align with the directive value (`""`, `"Breathe"`, `"Scene Imperative"`, `"Overwhelm"`, `"Resolve a Threat"`, `"Pressure"`, `"Tension"`, `"Threat Pressure"`, `"Scene Pressure"`).
+
 - At momentum extremes (±2+), did narration feel correspondingly elevated or desperate?
-- Flag any turn where the chain broke — directive issued but tone ignored.
+- Flag any turn where the chain broke — either signal ignored.
 
 ### 4C — Thread Tension Chain
 For each `thread_add` event:
@@ -265,7 +269,7 @@ Flag any break. A thread that never feeds into story consequence is mechanically
 ### 4D — Condition→Narrative Callback
 For each active condition in state:
 - Was it referenced in narration at least once during its active lifetime?
-- Did it affect any roll (modifier) or directive (narrator instructed to reflect it)?
+- Did it affect any roll (modifier) or shape narration tone via the resulting band and outcome_hint?
 - Flag conditions that existed purely in state with no narrative or mechanical footprint.
 
 ### 4E — Pacing Assessment
@@ -452,7 +456,7 @@ Major failures cap score at 2. State the cap reason explicitly.
 2–4 lines per subsection. Cite turns. Verifies handoffs work.
 
 ### Rules → Narrate Binding
-Verify: roll band → directive → narration outcome. Flag inversions, ignored directives.
+Verify: roll band → rules directive + outcome_hint → narration outcome. Flag inversions, ignored signals (outcome_hint scene motion or band tone).
 
 ### Rules → Extract State Routing
 Verify: band + verb/target encode failure cost. Flag turns where consequences were not extracted for setback/fail bands.

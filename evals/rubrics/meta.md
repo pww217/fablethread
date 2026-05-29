@@ -47,9 +47,9 @@ Meta adjustment: if domain judges contradict each other on a shared concern, adj
 For each pair of judges that touch overlapping concerns:
 - **state_correctness vs narrative_interplay**: state_correctness says state is clean but narrative_interplay says mechanics produce no story consequence — contradiction? Why?
 - **state_correctness vs prompt_pipeline**: state_correctness says extraction is failing but prompt_pipeline rates the extraction prompts highly — contradiction? Why?
-- **narrative_interplay vs prompt_pipeline**: narrative says directives are ignored but prompt_pipeline says narrate prompt adherence is good — check if PacingContext struct is being passed correctly. Is the issue with data flow or narrator behavior?
+- **narrative_interplay vs prompt_pipeline**: narrative says directives are ignored but prompt_pipeline says narrate prompt adherence is good — check if both PacingContext signals (outcome_hint for narrator, directive for storytell) are being passed correctly. Is the issue with data flow or LLM behavior?
 - **state_correctness vs narrative_interplay (unified threads)**: state_correctness says unified thread lifecycle is clean (no flags) but narrative_interplay says threads produce no story consequence — contradiction? Check if arc.threads[] scope-aware rules are being evaluated correctly.
-- **narrative_interplay vs state_correctness (PacingContext)**: state_correctness says PacingContext inputs are correct but narrative_interplay says tone doesn't match directive — check if the 9 PacingContext.directive values (`""` | `"Breathe"` | `"Scene Imperative"` | `"Overwhelm"` | `"Resolve a Threat"` | `"Pressure"` | `"Tension"` | `"Threat Pressure"` | `"Scene Pressure"`) are being evaluated correctly.
+- **narrative_interplay vs state_correctness (PacingContext)**: state_correctness says PacingContext inputs are correct but narrative_interplay says tone doesn't match — check which signal is involved. Narrator receives `outcome_hint` (3 values: `"hold"` | `"advance"` | `"transition"`) for scene motion; Progress Extractor still receives `directive` (9 values) for thread/beat decisions. Verify the rubric evaluator is checking the right signal against the right LLM's output.
 
 If no contradiction: write `None.`
 

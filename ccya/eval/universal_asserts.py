@@ -553,48 +553,73 @@ def check_no_negative_inventory(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
-    """If pacing directive was computed, validate the EXACT value appears in both narrate and storytell prompts.
+def check_outcome_hint_rendered(event: dict[str, Any]) -> dict[str, Any]:
+    """If outcome_hint was computed, validate it appears in the narrate prompt.
 
-    Reads directive from event["pacing_context"]["directive"] (the canonical source).
-    Uses word-boundary matching to avoid false positives ("Pressure" must not match "Scene Pressure").
-    Template renders "**Directive:** {value}" in narrate_user and "Directive: {value}" in storytell_user.
+    Reads outcome_hint from event["pacing_context"]["outcome_hint"] (the canonical source).
+    Template renders "**Outcome:** {value}" followed by value-specific guidance in narrate_user.
     """
-    # Canonical directive value from pacing_context (turn.py writes this)
     pacing_ctx = event.get("pacing_context") or {}
-    directive_value = pacing_ctx.get("directive", "")
+    outcome_hint = pacing_ctx.get("outcome_hint")
 
-    if not directive_value:
+    if not outcome_hint:
         return {
-            "assertion": "universal.narrate.directive_rendered",
+            "assertion": "universal.narrate.outcome_hint_rendered",
             "passed": True,
-            "detail": "(no directive computed)",
+            "detail": "(no outcome_hint computed)",
             "scope": "universal",
             "severity": "red",
         }
 
     narr_user = (event.get("narrate_prompt") or {}).get("rendered_user") or ""
-    storytell_rendered = ((event.get("extraction") or {}).get("storytell") or {}).get("rendered_user") or ""
 
-    # Check exact directive value appears in narrate prompt using word-boundary matching.
-    # Matches "**Directive:** {value}" or "Directive: {value}" patterns, or the value as a standalone token.
-    _directive_in_prompt_re = re.compile(
-        r"(?i)(?:directive[:\s]+|[\*\*]?)\b" + re.escape(directive_value) + r"\b",
-    )
-
-    if not _directive_in_prompt_re.search(narr_user):
+    # Check outcome_hint appears in narrate prompt
+    if f"**Outcome:** {outcome_hint}" not in narr_user:
         return {
-            "assertion": "universal.narrate.directive_rendered",
+            "assertion": "universal.narrate.outcome_hint_rendered",
             "passed": False,
-            "detail": f"computed directive '{directive_value}' not found in narrate user prompt (pacing_context={pacing_ctx})",
+            "detail": f"outcome_hint '{outcome_hint}' not found in narrate user prompt (pacing_context={pacing_ctx})",
             "scope": "universal",
             "severity": "red",
         }
 
-    # Check storytell prompt also received the exact directive value
+    return {
+        "assertion": "universal.narrate.outcome_hint_rendered",
+        "passed": True,
+        "detail": f"outcome_hint '{outcome_hint}' rendered in narrate prompt",
+        "scope": "universal",
+        "severity": "red",
+    }
+
+
+def check_directive_rendered_storytell(event: dict[str, Any]) -> dict[str, Any]:
+    """If pacing directive was computed, validate it appears in the storytell prompt.
+
+    Reads directive from event["pacing_context"]["directive"] (the canonical source).
+    Template renders "Directive: {value}" in storytell_user.
+    """
+    pacing_ctx = event.get("pacing_context") or {}
+    directive_value = pacing_ctx.get("directive", "")
+
+    if not directive_value:
+        return {
+            "assertion": "universal.storytell.directive_rendered",
+            "passed": True,
+            "detail": "(no directive computed)",
+            "scope": "universal",
+            "severity": "yellow",
+        }
+
+    storytell_rendered = ((event.get("extraction") or {}).get("storytell") or {}).get("rendered_user") or ""
+
+    # Check exact directive value appears in storytell prompt using word-boundary matching
+    _directive_in_prompt_re = re.compile(
+        r"(?i)(?:directive[:\s]+|[\*\*]?)\b" + re.escape(directive_value) + r"\b",
+    )
+
     if not _directive_in_prompt_re.search(storytell_rendered):
         return {
-            "assertion": "universal.narrate.directive_rendered",
+            "assertion": "universal.storytell.directive_rendered",
             "passed": False,
             "detail": f"computed directive '{directive_value}' not found in storytell user prompt (pacing_context={pacing_ctx})",
             "scope": "universal",
@@ -602,11 +627,11 @@ def check_narration_directive_rendered(event: dict[str, Any]) -> dict[str, Any]:
         }
 
     return {
-        "assertion": "universal.narrate.directive_rendered",
+        "assertion": "universal.storytell.directive_rendered",
         "passed": True,
-        "detail": f"directive '{directive_value}' rendered in both prompts",
+        "detail": f"directive '{directive_value}' rendered in storytell prompt",
         "scope": "universal",
-        "severity": "red",
+        "severity": "yellow",
     }
 
 
@@ -1057,7 +1082,8 @@ def run_all_universal_asserts(
         check_actions_count_and_distinct(event),
         check_momentum_band_delta(event, prev_event),
         check_zero_stack_overdraw(event, prev_event),
-        check_narration_directive_rendered(event),
+        check_outcome_hint_rendered(event),
+        check_directive_rendered_storytell(event),
         check_consecutive_pressure_tracking(event, prev_event),
         check_beat_locked_dual_trigger(event, prev_event),
         check_arcthread_key_dedup(event),
