@@ -213,6 +213,12 @@ class CompendiumNpcUpdate(BaseModel):
     first_seen_turn: int | None = None  # set by engine on initial entry creation
 
 
+class WorldStateFact(BaseModel):
+    id: str
+    text: str
+    tier: Literal["permanent", "persistent"] = "persistent"
+
+
 
 class StateDelta(BaseModel):
     inventory_add: list[InventoryItem] = Field(default_factory=list, max_length=6)
@@ -237,6 +243,8 @@ class StateDelta(BaseModel):
     )
     actions: list[str] = Field(default_factory=list, max_length=10)
     arc_update: CampaignArc | None = None
+    world_state_add: list[WorldStateFact] = Field(default_factory=list)
+    world_state_remove: list[str] = Field(default_factory=list)
 
     @field_validator("pc_condition_add", mode="before")
     @classmethod
@@ -369,6 +377,8 @@ class StorytellerResult(BaseModel):
     thread_advance: list[str] = Field(default_factory=list)
     thread_resolve: list[ThreadResolution] = Field(default_factory=list)
     thread_add: ArcThread | None = None
+    world_state_add: list[WorldStateFact] = Field(default_factory=list)
+    world_state_remove: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _nullify_invalid_gm_beat(self) -> "StorytellerResult":

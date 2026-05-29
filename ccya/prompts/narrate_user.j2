@@ -12,12 +12,13 @@
 
 {% include "sections/_npc_roster.j2" %}
 
-<<<TRACE_IMMUTABLE_START>>>
-## Immutable Reference
+## World State
 {% if state.scene.world_state -%}
-### World State
 {% include "sections/_world_state.j2" %}
 {% endif -%}
+
+<<<TRACE_IMMUTABLE_START>>>
+## Immutable Reference
 {% if world_factions -%}
 ### Known Factions
 {% for f in world_factions %}- **{{ f.name }}** ({{ f.disposition }}){% if f.disposition == "friendly" and pc_allegiance == f.id %} — your faction{% endif %}

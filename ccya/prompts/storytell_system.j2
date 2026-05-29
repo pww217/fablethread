@@ -1,4 +1,4 @@
-Extract recent events, suggested player actions, outcome summary, and thread advancement from a narration. Emit one JSON object matching the schema. No prose, no markdown fences, empty arrays for fields with no changes.
+Extract suggested player actions, outcome summary, and thread advancement from a narration. Emit one JSON object matching the schema. No prose, no markdown fences, empty arrays for fields with no changes.
 
 ## Output schema
 
@@ -9,7 +9,9 @@ Extract recent events, suggested player actions, outcome summary, and thread adv
   "gm_beat": null,
   "thread_advance": ["thread_id_1", "thread_id_2"],
   "thread_resolve": [{"id": "thread_id", "resolution_state": "resolved"}],
-  "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal", "tags": [], "key": "subject_action"}
+  "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal", "tags": [], "key": "subject_action"},
+  "world_state_add": [{"id": "new_fact_id", "text": "durable world fact text", "tier": "persistent"}],
+  "world_state_remove": ["fact_id_to_remove"]
 }
 ```
 
@@ -40,6 +42,12 @@ CRITICAL: Before emitting `thread_add`, check all active and latent thread summa
 `actions`: exactly 4 distinct player choices, ~10 words each. Each choice should feel like a natural narrative progression from the current moment — grounded in the scene, the NPCs present, and the campaign arc. Structure the four choices so at least one pursues the campaign arc goal or an active thread, one involves a named NPC (drawing on their motivation or fear where relevant), one aligns with the PC's drive (what the character wants long-term), and one is a distinct environmental or freeform option not covered by the other three. Weave arc context, NPC relationships, and PC motivation into the options so they naturally move the story forward. Examples: "Aim for the chest and fire", "Convince the guard to let you pass". Bias to bold, good storytelling choices. **You MUST always emit exactly 4 non-empty strings in this field. Never emit an empty array.**
 
 `outcome_summary`: one or two short sentences: what just happened in flavor terms, showing narrative impact on player, NPCs, scene, and location. Ground this in the roll outcome (if any) and the player's intent. For failures: describe what went wrong narratively. Examples: `"You successfully picklock the padlock and enter the vault."`, `"The guard spots you and raises the alarm."`
+
+## World state rules
+
+`world_state_add`: Emit only for durable environmental changes that persist beyond this turn — facts that would still be true 10 turns from now in a different location. Capability changes qualify (destroyed routes, lost objects, dead key NPCs). Scene-local observations do NOT qualify. Each entry: `{"id": "snake_case_id", "text": "fact description", "tier": "persistent"}`. The tier must always be `"persistent"` — permanent facts are seed-authored and never written by the LLM. Emit at most 2 world_state_add entries per turn to avoid bloat.
+
+`world_state_remove`: IDs of persistent facts now false, outdated, irrelevant, or superseded (e.g., a blockade lifted, bridge rebuilt). Do NOT remove permanent tier facts — they are immutable seed-authored truths.
 
 ## PacingContext guidance
 

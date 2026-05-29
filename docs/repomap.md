@@ -38,7 +38,7 @@
 | `ccya/eval/__init__.py` | Re-exports: EvalConfig, JudgeResult, RunResult, Scenario, build_trace, run_scenario, etc. |
 | `ccya/eval/config.py` | EvalConfig, JudgesSpec (per-judge rubric/model/temp), load_eval_config() |
 | `ccya/eval/judge.py` | run_judges(): parallel domain judges + sequential meta judge; parse_judge_response() YAML front matter; _build_metrics_rows(turn, tok_in per phase, pacing_directive, beat_generated/consumed from pending_gm_beat lifecycle) |
-| `ccya/eval/universal_asserts.py` | Auto-checkers (recent_events turn-stamped, condition dedup, ArcThread.key dedup with 70% token-overlap threshold, consecutive_pressure_tracking two-pass counter, beat_locked dual-trigger from momentum_floor/consecutive_pressure_threshold, no_removed_directives/npc_states negative assertions, exact directive value rendering via word-boundary regex) — red/yellow severity |
+| `ccya/eval/universal_asserts.py` | Auto-checkers (condition dedup, ArcThread.key dedup with 70% token-overlap threshold, consecutive_pressure_tracking two-pass counter, beat_locked dual-trigger from momentum_floor/consecutive_pressure_threshold, no_removed_directives/npc_states negative assertions, exact directive value rendering via word-boundary regex) — red/yellow severity |
 | `ccya/eval/report.py` | write_full_report(run_result, eval_cfg, judge_results=None): single-pass REPORT.md with metadata, optional judge summary + verdicts, flags, auto-checker table, pacing metrics, turn metrics; atomic write via tmp.replace() |
 | `ccya/eval/scenario.py` | Scenario (with seed_overrides), Turn, TurnAssert (with stream_id) |
 | `ccya/eval/engine_mirror.py` | Live engine constants for scenarios: BANDS, SKILLS, DIFFICULTIES, PC_CONDITION_CAP, SCENE_NAMED_NPC_CAP; pacing config mirror (momentum_floor=-3, consecutive_pressure_threshold=3, combat +2 scene_age boost) via EngineConfig defaults |
@@ -51,7 +51,7 @@
 
 ### ccya/models.py
 - **load_config(path)** → dict — loads config.yaml
-- **TurnResult** dataclass — returned from run_turn(): turn, trace_id, narrative, state_delta, applied, rejected, actions, scene_tags, recent_events, diff, changes, metrics, errors, ruling, outcome_summary, recent_events_evicted, ts
+- **TurnResult** dataclass — returned from run_turn(): turn, trace_id, narrative, state_delta, applied, rejected, actions, scene_tags, diff, changes, metrics, errors, ruling, outcome_summary, ts
 
 ### ccya/engine (via __init__.py)
 - **run_turn(...)** → AsyncIterator — 5-call pipeline: rules→narrate→scene/state/storytell extract; yields ("token"), ("phase"), ("complete", TurnResult)
@@ -87,7 +87,7 @@
 2. **Narrate** (streaming→SSE→chronicle.md) — prose narrative with narration directive from velocity/threads
 3. **Scene Extract** (JSON→SceneExtractResult) — scene tags, location change, compendium updates
 4. **State Extract** (JSON→StateExtractResult) — inventory deltas, condition add/remove
-5. **Storytell** (JSON→StorytellerResult) — thread_advance, thread_resolve, thread_add (gated by PacingContext.gate), recent_events, actions, gm_beat
+5. **Storytell** (JSON→StorytellerResult) — thread_advance, thread_resolve, thread_add (gated by PacingContext.gate), world_state_add/remove, actions, gm_beat
 
 Steps 3–5 merge into StateDelta → _validate() → apply_delta() → summarize_changes() → persist (atomic writes). After persist: maybe_compact().
 
@@ -150,7 +150,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### Extraction field routing
 - **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, compendium_npc_update (no pressure fields); CompendiumEntry now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes
 - **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
-- **StorytellerResult**: thread_advance, thread_resolve (list[ThreadResolution]), thread_add (ArcThread | None), recent_events_add/update/remove, actions, outcome_summary, gm_beat (no quest_updates); thread_add validated by key-based dedup gate in turn.py before scope check — exact collision rejects with WARNING log ("thread_add.key_collision"), fuzzy auto-merge on ≥70% token-overlap scoring updates existing thread summary/tags ("thread_add.auto_merge"); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[]
+- **StorytellerResult**: thread_advance, thread_resolve (list[ThreadResolution]), thread_add (ArcThread | None), world_state_add: list[WorldStateFact], world_state_remove: list[str], actions, outcome_summary, gm_beat (no quest_updates); thread_add validated by key-based dedup gate in turn.py before scope check — exact collision rejects with WARNING log ("thread_add.key_collision"), fuzzy auto-merge on ≥70% token-overlap scoring updates existing thread summary/tags ("thread_add.auto_merge"); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[]
 - **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions, persisted to state["pc"]["actions"] as rolling window by apply_delta()
 
 ### Cross-stream data flow (minimal by design)
@@ -162,6 +162,9 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### GMBeat
 - Only `type` validated by `StorytellerResult._nullify_invalid_gm_beat`: beat nullified if `type` is None/falsy
 - `beat_expires_turn`: turn number at which pending beat expires (set to `turn_no + 2` in turn.py)
+
+### WorldStateFact
+- Pydantic model with id: str, text: str, tier: Literal["permanent", "persistent"] = "persistent" — permanent facts are seed-authored and never written or removed by the LLM; persistent facts are runtime-discovered durable environmental changes added via world_state_add (LLM must always emit "persistent")
 
 ### CompactorSanitizationResult
 - `inventory_remove`, `pressure_remove`, `condition_remove` coerced by `_coerce_actions` (field_validator): converts bare strings to `{id: str, confidence: "high"}` dicts
@@ -218,10 +221,9 @@ arc:                           # managed by engine/turn.py (_apply_thread_signal
   completed_threads: list[Thread]
 
 scene:
-  tags: [str], tagline: str
-  world_state: [str]           # immutable after seed
-  recent_events: list[Event]   # {id, text, turn} — FIFO cap (default 20)
-  location_entered_turn: int   # when location was last changed
+   tags: [str], tagline: str
+   world_state: list[WorldStateFact]   # permanent tier = seed-authored; persistent tier = LLM-added at runtime
+   location_entered_turn: int   # when location was last changed
   combat_started_turn: int     # set when scene tags include "combat"
 
 compendium.npcs: dict[id] → {name, title, bio, aliases: [str], allegiance: str | None, presence: str | "present"|"nearby"|"known", notes: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), first_seen_turn: int | None}

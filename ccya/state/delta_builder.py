@@ -316,4 +316,27 @@ def apply_delta(
             extra={"turn": state.get("meta", {}).get("turn", 0), "trace_id": "", "pack": "", "kind": "actions"},
         )
 
+    # --- World state mutations (persistent tier only) ---
+    ws_list: list[dict[str, Any]] = copy.deepcopy(state.setdefault("scene", {}).get("world_state") or [])
+
+    for rem_id in delta.world_state_remove:
+        ws_list = [f for f in ws_list if not (isinstance(f, dict) and f.get("id") == rem_id and f.get("tier") != "permanent")]
+
+    for fact in delta.world_state_add:
+        tier = fact.tier  # LLM should only emit "persistent"; permanent facts are seed-only
+        text = _strip_non_ascii(fact.text)
+        existing = next((f for f in ws_list if isinstance(f, dict) and f.get("id") == fact.id), None)
+        if existing:
+            if tier != "permanent":  # never overwrite permanent facts even if LLM tries
+                existing["text"] = text
+                existing["tier"] = tier
+        else:
+            ws_list.append({
+                "id": fact.id,
+                "text": text,
+                "tier": tier,
+            })
+
+    state.setdefault("scene", {})["world_state"] = ws_list
+
     return state
