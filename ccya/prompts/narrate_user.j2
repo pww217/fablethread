@@ -95,5 +95,5 @@ Narrate the attempt and its natural failure. Do NOT write a version where the ac
 {%- endif %}{% if pacing_context and pacing_context.outcome_hint -%}
 
 **Outcome:** {{ pacing_context.outcome_hint }}
-{% if pacing_context.outcome_hint == "advance" %}Narrate through to the resolution. Do not linger on preparation or setup. Something significant happens this turn.{% elif pacing_context.outcome_hint == "transition" %}Write the arrival at the new location, not the departure from this one. The scene moves forward.{% elif pacing_context.outcome_hint == "hold" %}Continue the current scene at its natural pace.{% endif %}
+{% if pacing_context.outcome_hint == "advance" %}Narrate through to the resolution. Do not linger on preparation or setup. Something significant happens this turn.{% elif pacing_context.outcome_hint == "transition" %}Write the arrival at the new location, not the departure from this one. The scene moves forward.{% elif pacing_context.outcome_hint == "hold" %}Continue the current scene at its natural pace.{% else %}Continue the scene.{% endif %}
 {% endif %}

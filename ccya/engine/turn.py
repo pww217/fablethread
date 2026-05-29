@@ -874,8 +874,8 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
             intent.intent_verb, intent.impossible_reason,
             extra={"trace_id": trace_id, "turn": turn_no, "pack": "", "kind": "ruling"},
         )
-    # Resolve dice in Python (deterministic)
-    if intent.check.required and intent.check.skill:
+    elif intent.check.required and intent.check.skill:
+        # Resolve dice in Python (deterministic)
         try:
             _pc_conds_struct = list((state.get("pc") or {}).get("conditions") or [])
             _pc_cond_ids = [
