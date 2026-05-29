@@ -38,10 +38,11 @@
 | `ccya/eval/__init__.py` | Re-exports: EvalConfig, JudgeResult, RunResult, Scenario, build_trace, run_scenario, etc. |
 | `ccya/eval/config.py` | EvalConfig, JudgesSpec (per-judge rubric/model/temp), load_eval_config() |
 | `ccya/eval/judge.py` | run_judges(): parallel domain judges + sequential meta judge; parse_judge_response() YAML front matter; _build_metrics_rows(turn, tok_in per phase, pacing_directive, beat_generated/consumed from pending_gm_beat lifecycle) |
-| `ccya/eval/universal_asserts.py` | Auto-checkers (condition dedup, ArcThread.key dedup with 70% token-overlap threshold, consecutive_pressure_tracking two-pass counter, beat_locked dual-trigger from momentum_floor/consecutive_pressure_threshold, no_removed_directives/npc_states negative assertions, exact directive value rendering via word-boundary regex) — red/yellow severity |
+| `ccya/eval/universal_asserts.py` | Auto-checkers (condition dedup, ArcThread.key dedup with 70% token-overlap threshold, consecutive_pressure_tracking two-pass counter, beat_locked dual-trigger from momentum_floor/consecutive_pressure_threshold, no_removed_directives/npc_states negative assertions, exact directive value rendering via word-boundary regex, orphan condition detection, thread_add→state application verification, beat type variety warning, surface_as consistency check) — red/yellow severity |
 | `ccya/eval/report.py` | write_full_report(run_result, eval_cfg, judge_results=None): single-pass REPORT.md with metadata, optional judge summary + verdicts, flags, auto-checker table, pacing metrics, turn metrics; atomic write via tmp.replace() |
 | `ccya/eval/scenario.py` | Scenario (with seed_overrides), Turn, TurnAssert (with stream_id) |
 | `ccya/eval/engine_mirror.py` | Live engine constants for scenarios: BANDS, SKILLS, DIFFICULTIES, PC_CONDITION_CAP, SCENE_NAMED_NPC_CAP; pacing config mirror (momentum_floor=-3, consecutive_pressure_threshold=3, combat +2 scene_age boost) via EngineConfig defaults |
+| `evals/scenarios/eval_coverage_gap.py` | 8-turn scenario exercising ev1 findings: band-beat conflict, thread progress, orphan conditions, surface_as drift, skill variety |
 | `ccya/pack.py` | load_pack(), list_packs() — validates pack has seed (static) or scenario (generated) |
 | `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (2d6+stat+cond−diff→Band), build_directive() near-miss logic |
 | `ccya/llm_client.py` | chat(), chat_stream() — OpenAI-compatible → mlx_lm.server; trim_messages() token-budget trimming |

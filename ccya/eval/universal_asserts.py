@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections import Counter
 from typing import Any
 
 from ccya.eval.engine_mirror import MOMENTUM_DELTA, MOMENTUM_MIN
@@ -835,6 +836,199 @@ def check_no_removed_npc_states(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def check_orphan_conditions(event: dict[str, Any]) -> dict[str, Any]:
+    """Conditions in state must each have a corresponding CONDITION_MODS entry.
+
+    Reads pc.conditions from state_snapshot. Flags red if a condition's id
+    does not exist as a key in CONDITION_MODS — it's mechanically inert and
+    creates observability debt.
+    """
+    from ccya.rules import CONDITION_MODS
+
+    snap = event.get("state_snapshot") or {}
+    conditions = (snap.get("pc") or {}).get("conditions") or []
+    orphan_ids: list[str] = []
+    for cond in conditions:
+        if isinstance(cond, dict):
+            cid = str(cond.get("id") or "").lower()
+            if cid and cid not in CONDITION_MODS and cid not in orphan_ids:
+                orphan_ids.append(cid)
+
+    if orphan_ids:
+        return {
+            "assertion": "universal.conditions.orphan",
+            "passed": False,
+            "detail": f"conditions with no CONDITION_MODS entry: {orphan_ids}",
+            "scope": "universal",
+            "severity": "red",
+        }
+    return {
+        "assertion": "universal.conditions.orphan",
+        "passed": True,
+        "detail": "all conditions have CONDITION_MODS entries",
+        "scope": "universal",
+        "severity": "red",
+    }
+
+
+def check_thread_add_applied(
+    event: dict[str, Any],
+    prev_event: dict[str, Any] | None,
+    event_window: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """thread_add signals must produce visible state mutations.
+
+    For each consecutive pair in event_window where storytell output has a
+    non-null thread_add, verify the thread id appears in state_snapshot.arc.threads
+    or state_snapshot.arc.completed_threads of the *following* event.
+    """
+    window: list[dict[str, Any]] = event_window or []
+    failures: list[str] = []
+    for i in range(len(window) - 1):
+        cur = window[i]
+        nxt = window[i + 1]
+        storytell_output = ((cur.get("extraction") or {}).get("storytell") or {}).get("output") or {}
+        thread_add = storytell_output.get("thread_add")
+        if not thread_add or not isinstance(thread_add, dict):
+            continue
+        tid = thread_add.get("id")
+        if not tid:
+            continue
+
+        nxt_arc = (nxt.get("state_snapshot") or {}).get("arc") or {}
+        thread_ids: set[str] = set()
+        for t in (nxt_arc.get("threads") or []):
+            if isinstance(t, dict) and t.get("id"):
+                thread_ids.add(t["id"])
+        for t in (nxt_arc.get("completed_threads") or []):
+            if isinstance(t, dict) and t.get("id"):
+                thread_ids.add(t["id"])
+
+        if tid not in thread_ids:
+            failures.append(tid)
+
+    if failures:
+        return {
+            "assertion": "universal.thread_add.applied",
+            "passed": False,
+            "detail": f"thread(s) added but never appeared in state: {failures}",
+            "scope": "universal",
+            "severity": "red",
+        }
+    return {
+        "assertion": "universal.thread_add.applied",
+        "passed": True,
+        "detail": "all thread_add signals produced state mutations",
+        "scope": "universal",
+        "severity": "red",
+    }
+
+
+def check_beat_type_variety(
+    event: dict[str, Any],
+    event_window: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Warn if >60% of non-null beats in the event window share the same type.
+
+    Reads gm_beat.type from storytell extraction output across the window.
+    Flags yellow when a single beat type dominates — monotonous beat generation
+    reduces narrative quality. Passes if fewer than 3 beats in window.
+    """
+    window: list[dict[str, Any]] = event_window or []
+    beats: list[str] = []
+    for ev in window:
+        storytell_output = ((ev.get("extraction") or {}).get("storytell") or {}).get("output") or {}
+        gm_beat = storytell_output.get("gm_beat")
+        if isinstance(gm_beat, dict) and gm_beat.get("type"):
+            beats.append(gm_beat["type"])
+
+    if len(beats) < 3:
+        return {
+            "assertion": "universal.beat_type.variety",
+            "passed": True,
+            "detail": f"only {len(beats)} beat(s) in window (need >= 3)",
+            "scope": "universal",
+            "severity": "yellow",
+        }
+
+    counts = Counter(beats)
+    dominant_type, dominant_count = counts.most_common(1)[0]
+    ratio = dominant_count / len(beats)
+
+    if ratio > 0.6:
+        return {
+            "assertion": "universal.beat_type.variety",
+            "passed": False,
+            "detail": f"beats are {ratio:.0%} '{dominant_type}' (threshold: 60%): {dict(counts)}",
+            "scope": "universal",
+            "severity": "yellow",
+        }
+    return {
+        "assertion": "universal.beat_type.variety",
+        "passed": True,
+        "detail": f"beat variety OK: {dict(counts)}",
+        "scope": "universal",
+        "severity": "yellow",
+    }
+
+
+def check_surface_as_consistency(
+    event: dict[str, Any],
+    event_window: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Consecutive same-type beats should keep the same surface_as flag.
+
+    For consecutive events in the window with the same gm_beat.type, verify
+    that surface_as does not flip between 'ambient' and 'environmental' without
+    a directive change. Passes if surface_as is absent/null on either event, or
+    if fewer than 2 same-type beats exist. Flags yellow on drift.
+    """
+    window: list[dict[str, Any]] = event_window or []
+    for i in range(len(window) - 1):
+        cur = window[i]
+        nxt = window[i + 1]
+
+        cur_output = ((cur.get("extraction") or {}).get("storytell") or {}).get("output") or {}
+        nxt_output = ((nxt.get("extraction") or {}).get("storytell") or {}).get("output") or {}
+
+        cur_beat = cur_output.get("gm_beat")
+        nxt_beat = nxt_output.get("gm_beat")
+
+        if not isinstance(cur_beat, dict) or not isinstance(nxt_beat, dict):
+            continue
+
+        cur_type = cur_beat.get("type")
+        nxt_type = nxt_beat.get("type")
+        if cur_type is None or nxt_type is None or cur_type != nxt_type:
+            continue
+
+        cur_surface = cur_beat.get("surface_as")
+        nxt_surface = nxt_beat.get("surface_as")
+        if cur_surface is None or nxt_surface is None:
+            continue
+
+        surface_set = {cur_surface, nxt_surface}
+        if surface_set == {"ambient", "environmental"}:
+            cur_pacing = cur.get("pacing_context") or {}
+            nxt_pacing = nxt.get("pacing_context") or {}
+            if cur_pacing.get("directive") == nxt_pacing.get("directive"):
+                return {
+                    "assertion": "universal.beat_type.surface_as_consistency",
+                    "passed": False,
+                    "detail": f"same beat type '{cur_type}' but surface_as flipped from '{cur_surface}' to '{nxt_surface}' without directive change (directive='{cur_pacing.get('directive')}')",
+                    "scope": "universal",
+                    "severity": "yellow",
+                }
+
+    return {
+        "assertion": "universal.beat_type.surface_as_consistency",
+        "passed": True,
+        "detail": "no surface_as drift detected",
+        "scope": "universal",
+        "severity": "yellow",
+    }
+
+
 def _assert_compactor_sanitization_nonzero(
     ev: dict[str, Any], prev_ev: dict[str, Any] | None
 ) -> list[dict[str, Any]]:
@@ -871,6 +1065,10 @@ def run_all_universal_asserts(
         check_no_removed_npc_states(event),
         check_momentum_floor_no_relief(event, prev_event, event_window=event_window),
         check_no_negative_inventory(event),
+        check_orphan_conditions(event),
+        check_thread_add_applied(event, prev_event, event_window=event_window),
+        check_beat_type_variety(event, event_window=event_window),
+        check_surface_as_consistency(event, event_window=event_window),
     ]
     results.extend(_assert_compactor_sanitization_nonzero(event, prev_event))
     passed = sum(1 for r in results if r["passed"])
