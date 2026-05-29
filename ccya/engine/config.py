@@ -65,7 +65,6 @@ class EngineConfig:
     max_extract_retries: int = 1
     window_turns: int = 3
     chronicle_prefix_budget_tokens: int = 1500
-    recent_events_max: int = 20
     # generate_seed settings (used by POST /new-game on dynamic packs)
     generate_seed_temperature: float = 0.9
     generate_seed_max_retries: int = 2
@@ -149,7 +148,6 @@ def build_engine_config(
         chronicle_prefix_budget_tokens=int(
             game.get("chronicle_prefix_budget_tokens", 1500)
         ),
-        recent_events_max=int(game.get("recent_events_max", 20)),
         generate_seed_temperature=seed_t,
         generate_seed_max_retries=int(llm.get("generate_seed_max_retries", 2)),
         log_llm_io=bool(logging_cfg.get("log_llm_io", False)),

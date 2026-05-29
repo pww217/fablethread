@@ -55,8 +55,6 @@ You MUST identify and flag structural problems in the mechanical state. The bull
 
 **inventory_remove** — An inventory item that appears twice with different IDs but identical name and purpose. Provide the ID of the copy to remove (keep the one with higher amount or richer notes).
 
-**recent_events_compact** — Merge similar events, aim to halve the count. See Part 3.
-
 ### Output format (MANDATORY)
 
 After the bullet lines and a blank line, output exactly one JSON object with your sanitization actions. **You MUST include at least one non-empty list in the JSON.** If you have checked every category and genuinely found nothing to fix, output `{}` — but this should be rare.
@@ -70,14 +68,12 @@ The JSON must include a `_checklist` key with your verification results. This is
     "pressure_remove": "Checked 3 pressures — 0 have resolved triggers → NONE",
     "condition_remove": "Checked 1 conditions — 0 are resolved per bulletin → NONE",
     "npc_merge": "Checked compendium — no duplicates found",
-    "inventory_remove": "Checked inventory — no duplicates found",
-    "recent_events_compact": "Checked 8 events — merging to 4 entries → [list below]"
+    "inventory_remove": "Checked inventory — no duplicates found"
   },
   "pressure_remove": [],
   "condition_remove": [],
   "npc_merge": [],
-  "inventory_remove": [],
-  "recent_events_compact": [{"id": "...", "text": "...", "turn": 0}]
+  "inventory_remove": []
 }
 ```
 
@@ -96,45 +92,6 @@ Omit any key whose list would be empty (except `_checklist` — always include i
 - **low** — Plausible but uncertain (e.g., two NPCs with similar names but no clear evidence they're the same person). Flag but don't auto-apply.
 
 ---
-
-## PART 3: Recent events compaction
-
-The game maintains a list of `recent_events` — narratively significant facts surfaced
-to the player in the UI. This list has grown across turns and needs consolidation.
-
-### What to do
-
-- **Consolidate:** Merge similar or related events into single entries. If two events
-  describe the same NPC, the same location change, or the same arc thread, combine
-  them into one coherent narrative sentence.
-- **Trim:** Aim to reduce the total count by about half. Keep the most narratively
-  significant events. Drop events that are now stale, irrelevant, or fully superseded
-  by later events.
-- **Preserve:** Keep key facts about:
-  - PC status changes (conditions, injuries, morale)
-  - NPC introductions and their roles
-  - Arc-relevant developments and leads
-  - Major world/state changes (location shifts, new alliances, conflicts)
-  - Durable facts that will matter for future turns
-- **Phase narratively:** Write each consolidated event as an in-universe narrative
-  fact, not a mechanical summary. The player reads these directly. Use the same
-  prose style as the narration. Examples:
-  - Bad: "Player met Caron and learned he's waiting for payment."
-  - Good: "Caron has been waiting for you — he knows about the debt."
-- **New IDs:** Generate fresh snake_case IDs for consolidated events. Do NOT reuse
-  old IDs — the compactor replaces the entire list.
-
-### Output format
-
-Include `recent_events_compact` in the JSON object. Each entry:
-```json
-{
-  "recent_events_compact": [
-    {"id": "caron_waiting", "text": "Caron has been waiting for you — he knows about the debt.", "turn": 2},
-    {"id": "road_toughs", "text": "Road-toughs are extorting travelers near the Crossed Keys Inn.", "turn": 3}
-  ]
-}
-```
 
 Omit the key if the list would be empty (no consolidation needed).
 

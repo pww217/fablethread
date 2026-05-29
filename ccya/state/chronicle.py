@@ -67,7 +67,7 @@ def load_chronicle_tail(
     return ""
 
 
-def load_recent_events(save_dir: Path, n: int) -> list[dict[str, Any]]:
+def load_recent_turns(save_dir: Path, n: int) -> list[dict[str, Any]]:
     path = save_dir / "events.jsonl"
     if not path.exists():
         return []

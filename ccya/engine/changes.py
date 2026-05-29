@@ -30,20 +30,6 @@ def _summarize_applied(applied: dict[str, Any]) -> list[str]:
     for it in applied.get("inventory_update") or []:
         if isinstance(it, dict) and it.get("id"):
             lines.append(f"~ {it['id']} updated")
-    for f in applied.get("recent_events_add") or []:
-        if isinstance(f, dict):
-            text = f.get("text") or f.get("id", "?")
-            short = str(text)[:56]
-            lines.append(f"+ {short}{'…' if len(short) > 56 else ''}")
-        elif isinstance(f, str):
-            short = f[:56] + ("…" if len(f) > 56 else "")
-            lines.append(f"+ {short}")
-    for f in applied.get("recent_events_remove") or []:
-        if isinstance(f, str):
-            short = f[:40] + ("…" if len(f) > 40 else "")
-            lines.append(f"- {short}")
-    for _upd in applied.get("recent_events_update") or []:
-        lines.append("~ Event revised")
     for c in applied.get("pc_condition_add") or []:
         label = c.get("label") or c.get("id") or str(c) if isinstance(c, dict) else str(c)
         lines.append(f"+ {label}")
@@ -202,22 +188,6 @@ def summarize_changes(
                         "to": post_stats.get(k),
                     }
                 )
-
-    pre_events = list((pre.get("scene") or {}).get("recent_events") or [])
-    post_events = list((post.get("scene") or {}).get("recent_events") or [])
-    pre_event_ids = {e["id"] for e in pre_events if isinstance(e, dict) and "id" in e}
-    post_event_ids = {e["id"] for e in post_events if isinstance(e, dict) and "id" in e}
-    for eid in post_event_ids - pre_event_ids:
-        evt = next(e for e in post_events if isinstance(e, dict) and e.get("id") == eid)
-        facts.append({"kind": "added", "value": evt.get("text", eid)})
-    for eid in pre_event_ids - post_event_ids:
-        evt = next(e for e in pre_events if isinstance(e, dict) and e.get("id") == eid)
-        facts.append({"kind": "removed", "value": evt.get("text", eid)})
-    for eid in pre_event_ids & post_event_ids:
-        pre_text = next(e for e in pre_events if isinstance(e, dict) and e.get("id") == eid).get("text", "")
-        post_text = next(e for e in post_events if isinstance(e, dict) and e.get("id") == eid).get("text", "")
-        if pre_text != post_text:
-            facts.append({"kind": "updated", "old": pre_text, "new": post_text})
 
     pre_momentum = pre.get("pc", {}).get("momentum", 0)
     post_momentum = post.get("pc", {}).get("momentum", 0)

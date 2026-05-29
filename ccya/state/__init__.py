@@ -5,7 +5,7 @@ from ccya.state.chronicle import (
     append_event,
     load_chronicle_tail,
     load_recent_chronicle_turns,
-    load_recent_events,
+    load_recent_turns,
     remove_last_chronicle_turn,
     remove_last_event,
 )
@@ -39,7 +39,7 @@ __all__ = [
     "init_save_dir",
     "load_chronicle_tail",
     "load_recent_chronicle_turns",
-    "load_recent_events",
+    "load_recent_turns",
     "load_state",
     "normalize_inventory_id",
     "PC_CONDITIONS_MAX",

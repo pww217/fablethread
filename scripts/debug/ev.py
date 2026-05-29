@@ -47,7 +47,6 @@ SECTION_MARKERS: dict[str, str] = {
     "characters": r"^## characters$",
     "location": r"^## location$",
     "inventory": r"^## Current inventory",
-    "recent_events": r"^## recent_events",
 }
 
 # Compiled once at module load
@@ -858,7 +857,7 @@ def format_state(state: dict[str, Any], fmt: str = "full") -> None:
     if loc:
         _render_location_section(state)
     scene = state.get("scene") or {}
-    if any(scene.get(k) for k in ("tags", "tagline", "recently_left", "recent_events")):
+    if any(scene.get(k) for k in ("tags", "tagline", "recently_left")):
         _render_scene_section(state)
     arc = state.get("arc") or {}
     if any(arc.get(k) for k in ("visible_goal", "thematic_question", "threads", "completed_threads", "hidden_truths", "discovered_truths")):

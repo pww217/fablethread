@@ -4,9 +4,6 @@ Extract recent events, suggested player actions, outcome summary, and thread adv
 
 ```json
 {
-  "recent_events_add": [],
-  "recent_events_update": [],
-  "recent_events_remove": [],
   "actions": [],
   "outcome_summary": "",
   "gm_beat": null,
@@ -39,15 +36,6 @@ CRITICAL: Before emitting `thread_add`, check all active and latent thread summa
 
 `thread_add`: A new ArcThread object when a genuinely new story tension emerges this turn. CRITICAL: Only emit thread_add when `pacing_context.gate` shows `"allow"` — if gate is `"block_escalate"`, do NOT add threads regardless of narrative context. The engine already decided the pacing doesn't support escalation. Thread must have: id (snake_case), summary, scope ("scene" for short-lived tension tied to current location/NPCs, "arc" for persistent story tension), urgency (`"background"`, `"normal"`, or `"urgent"` only — no other values), tags (list), key ("subject_action") as an optional snake_case canonical label like `"location_event"` to help the engine deduplicate semantically identical threads.
 
-## Recent events rules
-
-`recent_events_add`: Default to no new facts. Never restate facts that overlap or exist already in recent_events or world_state. Top priority for new facts: must be relevant to the arc, player, scene, and location, and not already known. Must be narratively significant: an obstacle, revelation, opportunity, relevant news that changes the player, location, or arc state substantially. Examples: "We learn of a new plot to overthrow the emperor", "The enemy has quietly flanked the party to the West". Each: `{"id": "snake_case_id", "text": "Event description", "turn": <CURRENT_TURN>}`. The current turn number is shown at the top of the user prompt under `## turn`. Always use that value — never 0.
-
-Each new event must have a stable `snake_case` ID. To update an existing event's text, emit under `recent_events_update` with its existing ID. To remove, emit ID in `recent_events_remove`. Never emit a new event with the same ID as an existing one.
-
-`recent_events_remove`: IDs of facts now false, outdated, irrelevant, or superseded.
-
-`recent_events_update`: facts whose content changed. Each: `{"id": "existing_event_id", "text": "replacement text"}`. Prefer updating over remove+add.
 
 `actions`: exactly 4 distinct player choices, ~10 words each. Each choice should feel like a natural narrative progression from the current moment — grounded in the scene, the NPCs present, and the campaign arc. Structure the four choices so at least one pursues the campaign arc goal or an active thread, one involves a named NPC (drawing on their motivation or fear where relevant), one aligns with the PC's drive (what the character wants long-term), and one is a distinct environmental or freeform option not covered by the other three. Weave arc context, NPC relationships, and PC motivation into the options so they naturally move the story forward. Examples: "Aim for the chest and fire", "Convince the guard to let you pass". Bias to bold, good storytelling choices. **You MUST always emit exactly 4 non-empty strings in this field. Never emit an empty array.**
 

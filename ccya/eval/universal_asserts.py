@@ -20,42 +20,6 @@ from ccya.eval.engine_mirror import MOMENTUM_DELTA, MOMENTUM_MIN
 _log = logging.getLogger(__name__)
 
 
-def check_recent_events_turn_stamped(event: dict[str, Any]) -> dict[str, Any]:
-    """recent_events_add[].turn must be the current turn, not 0 (placeholder)."""
-    cur_turn = int(event.get("turn") or 0)
-    adds = (event.get("applied") or {}).get("recent_events_add") or []
-    bad = []
-    for e in adds:
-        if not isinstance(e, dict):
-            continue
-        t = e.get("turn")
-        if t == 0 or t is None:
-            bad.append(e.get("text", "(no text)"))
-    if not adds:
-        return {
-            "assertion": "universal.recent_events_add.turn_stamped",
-            "passed": True,
-            "detail": "(no adds)",
-            "scope": "universal",
-            "severity": "red",
-        }
-    if bad:
-        return {
-            "assertion": "universal.recent_events_add.turn_stamped",
-            "passed": False,
-            "detail": f"{len(bad)} entries had turn=0/null instead of {cur_turn}: {bad[:3]}",
-            "scope": "universal",
-            "severity": "red",
-        }
-    return {
-        "assertion": "universal.recent_events_add.turn_stamped",
-        "passed": True,
-        "detail": f"all {len(adds)} entries stamped with turn={cur_turn}",
-        "scope": "universal",
-        "severity": "red",
-    }
-
-
 def check_pending_gm_beat_consumed(
     event: dict[str, Any], prev_event: dict[str, Any] | None
 ) -> dict[str, Any]:
@@ -419,58 +383,6 @@ def check_npc_mention_extracted(event: dict[str, Any]) -> dict[str, Any]:
         "assertion": "universal.npc_mention.extracted",
         "passed": False,
         "detail": f"narration mentions names not in compendium_npc_update or known: {missing}",
-        "scope": "universal",
-        "severity": "red",
-    }
-
-
-def check_recent_events_ring_size(event: dict[str, Any]) -> dict[str, Any]:
-    """recent_events ring buffer must stay <= recent_events_max (default 15).
-    Hardcoded threshold of 20 here as a generous cap; if it exceeds 20, the
-    ring buffer is broken regardless of the configured max.
-    """
-    snap = event.get("state_snapshot") or {}
-    recent = (snap.get("scene") or {}).get("recent_events") or []
-    n = len(recent) if isinstance(recent, list) else 0
-    if n > 20:
-        return {
-            "assertion": "universal.recent_events.ring_bounded",
-            "passed": False,
-            "detail": f"recent_events has {n} entries (max should be ~15)",
-            "scope": "universal",
-            "severity": "red",
-        }
-    return {
-        "assertion": "universal.recent_events.ring_bounded",
-        "passed": True,
-        "detail": f"{n} entries",
-        "scope": "universal",
-        "severity": "red",
-    }
-
-
-def check_condition_no_dupes(event: dict[str, Any]) -> dict[str, Any]:
-    """state.pc.conditions must not contain two entries with the same id."""
-    snap = event.get("state_snapshot") or {}
-    conds = (snap.get("pc") or {}).get("conditions") or []
-    ids = [c.get("id") for c in conds if isinstance(c, dict)]
-    seen: dict[str, int] = {}
-    for cid in ids:
-        if cid:
-            seen[cid] = seen.get(cid, 0) + 1
-    dupes = [cid for cid, n in seen.items() if n > 1]
-    if dupes:
-        return {
-            "assertion": "universal.pc.condition_no_dupes",
-            "passed": False,
-            "detail": f"duplicate condition ids: {dupes}",
-            "scope": "universal",
-            "severity": "red",
-        }
-    return {
-        "assertion": "universal.pc.condition_no_dupes",
-        "passed": True,
-        "detail": f"{len(ids)} conditions, no dupes",
         "scope": "universal",
         "severity": "red",
     }
@@ -943,14 +855,11 @@ def run_all_universal_asserts(
     event: dict[str, Any], prev_event: dict[str, Any] | None, event_window: list[dict[str, Any]] | None = None
 ) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = [
-        check_recent_events_turn_stamped(event),
         check_pending_gm_beat_consumed(event, prev_event),
         check_pending_gm_beat_lifecycle_respected(event, prev_event),
         check_location_change_applied(event, prev_event),
         check_rolled_implies_binding(event),
         check_npc_mention_extracted(event),
-        check_recent_events_ring_size(event),
-        check_condition_no_dupes(event),
         check_actions_count_and_distinct(event),
         check_momentum_band_delta(event, prev_event),
         check_zero_stack_overdraw(event, prev_event),

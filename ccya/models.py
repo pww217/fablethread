@@ -213,16 +213,6 @@ class CompendiumNpcUpdate(BaseModel):
     first_seen_turn: int | None = None  # set by engine on initial entry creation
 
 
-class RecentEvent(BaseModel):
-    id: str
-    text: str
-    turn: int = 0
-
-
-class RecentEventUpdate(BaseModel):
-    id: str
-    text: str
-
 
 class StateDelta(BaseModel):
     inventory_add: list[InventoryItem] = Field(default_factory=list, max_length=6)
@@ -245,9 +235,6 @@ class StateDelta(BaseModel):
     compendium_npc_update: list[CompendiumNpcUpdate] = Field(
         default_factory=list, max_length=12
     )
-    recent_events_add: list[RecentEvent] = Field(default_factory=list)
-    recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
-    recent_events_remove: list[str] = Field(default_factory=list)
     actions: list[str] = Field(default_factory=list, max_length=10)
     arc_update: CampaignArc | None = None
 
@@ -313,12 +300,6 @@ class CompactorNpcMerge(BaseModel):
     remove_ids: list[str] = Field(default_factory=list)
 
 
-class CompactorRecentEventCompact(BaseModel):
-    """A consolidated recent event produced by the compactor."""
-    id: str
-    text: str
-    turn: int = 0
-
 
 class CompactorSanitizationAction(BaseModel):
     """A sanitization action with confidence level."""
@@ -343,7 +324,6 @@ class CompactorSanitizationResult(BaseModel):
     inventory_remove: list[CompactorSanitizationAction] = Field(default_factory=list)
     pressure_remove: list[CompactorSanitizationAction] = Field(default_factory=list)
     condition_remove: list[CompactorSanitizationAction] = Field(default_factory=list)
-    recent_events_compact: list[CompactorRecentEventCompact] = Field(default_factory=list)
 
     model_config = {"extra": "ignore"}
 
@@ -383,9 +363,6 @@ class GMBeat(BaseModel):
 
 
 class StorytellerResult(BaseModel):
-    recent_events_add: list[RecentEvent] = Field(default_factory=list)
-    recent_events_update: list[RecentEventUpdate] = Field(default_factory=list)
-    recent_events_remove: list[str] = Field(default_factory=list)
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = ""
     gm_beat: GMBeat | None = None

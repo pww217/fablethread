@@ -109,36 +109,13 @@ async def maybe_compact(
 
     _write_compacted_block(save_dir, bullets_text, compact_start, compact_end)
 
-    recent_events_count = len(state.get("scene", {}).get("recent_events") or [])
-
-    compaction_ran = True
-
     if sanitization is not None:
         _apply_sanitization(state, sanitization)
-
-        # Replace recent_events with compactor's consolidated version
-        if sanitization.recent_events_compact:
-            scene = state.setdefault("scene", {})
-            scene["recent_events"] = [
-                {
-                    "id": e.id,
-                    "text": e.text,
-                    "turn": e.turn or current_turn,
-                }
-                for e in sanitization.recent_events_compact
-            ]
-            _log.info(
-                "compactor: compacted %d → %d recent_events",
-                recent_events_count,
-                len(sanitization.recent_events_compact),
-        extra={"turn": current_turn, "trace_id": ""},
-            )
 
     state.setdefault("meta", {})["last_compacted_turn"] = compact_end
 
     _log.debug(
-        "compactor: post-compaction state recent_events=%d inventory=%d prior_history=%d",
-        len(state.get("scene", {}).get("recent_events") or []),
+        "compactor: post-compaction state inventory=%d prior_history=%d",
         len(state.get("inventory") or []),
         len(state.get("meta", {}).get("prior_history") or []),
         extra={"turn": current_turn, "trace_id": ""},
@@ -151,7 +128,6 @@ async def maybe_compact(
             "inventory_remove": [i.model_dump() for i in (sanitization.inventory_remove or [])],
             "pressure_remove": [p.model_dump() for p in (sanitization.pressure_remove or [])],
             "condition_remove": [c.model_dump() for c in (sanitization.condition_remove or [])],
-            "recent_events_compact_count": len(sanitization.recent_events_compact or []),
         }
 
     compact_ms = round((asyncio.get_running_loop().time() - t_compact) * 1000, 1)
@@ -176,7 +152,7 @@ async def maybe_compact(
     except OSError as exc:
         _log.warning("compactor: failed to write event record: %s", exc)
 
-    return state, compaction_ran
+    return state, True
 
 
 def _extract_turns_for_compact(
@@ -230,7 +206,6 @@ def _build_compact_messages(
         enriched.setdefault("first_seen_turn", enriched.get("first_seen_turn", 0))
         compendium_npcs.append((npc_id, enriched))
     conditions = list((state.get("pc") or {}).get("conditions") or [])
-    recent_events = list((state.get("scene") or {}).get("recent_events") or [])
 
     user_prompt = env.get_template("compact_user.j2").render(
         turns=turns,
@@ -239,7 +214,6 @@ def _build_compact_messages(
         inventory=inventory,
         compendium_npcs=compendium_npcs,
         conditions=conditions,
-        recent_events=recent_events,
     )
 
     return [

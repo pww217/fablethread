@@ -62,7 +62,6 @@ class SeedScene(BaseModel):
     tagline: str = ""
     tags: list[str] = Field(default_factory=list)
     world_state: list[str] = Field(default_factory=list)
-    recent_events: list[str] = Field(default_factory=list)
 
 
 class SeedState(BaseModel):

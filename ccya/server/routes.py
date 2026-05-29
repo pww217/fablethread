@@ -25,7 +25,7 @@ from ccya.engine import (
 from ccya.pack import PlayerOverrides, load_pack, list_packs, _resolve_pack_dir
 from ccya.state import (
     init_save_dir,
-    load_recent_events,
+    load_recent_turns,
     remove_last_chronicle_turn,
     remove_last_event,
 )
@@ -186,7 +186,6 @@ async def get_turn(input: str = ""):
                                 "metrics": result.metrics,
                                 "ruling": result.ruling,
                                 "outcome_summary": result.outcome_summary,
-                                "recent_events_evicted": result.recent_events_evicted,
                                 "ts": _ts_display,
                             }
                         ),
@@ -205,7 +204,7 @@ async def delete_last_turn():
             {"error": "Turn already in progress"}, status_code=409
         )
 
-    last_events = load_recent_events(_app_mod.SAVE_DIR, 1)
+    last_events = load_recent_turns(_app_mod.SAVE_DIR, 1)
     if not last_events:
         return JSONResponse(
             {"error": "No previous turn to delete"}, status_code=400

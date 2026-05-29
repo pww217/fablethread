@@ -96,16 +96,13 @@ def compute_compaction_signals(events: list[dict[str, Any]]) -> dict[str, Any]:
     """
     out_events: list[dict[str, Any]] = []
     prev_history_size = 0
-    prev_recent_events_size = 0
     prev_last_compacted = 0
     for ev in events:
         if ev.get("__metadata__"):
             continue
         snap = ev.get("state_snapshot") or {}
         meta = snap.get("meta") or {}
-        scene = snap.get("scene") or {}
         prior = list(meta.get("prior_history") or [])
-        recent = list(scene.get("recent_events") or [])
 
         if _compaction_event(ev, prev_last_compacted):
             new_bullets = prior[prev_history_size:]
@@ -114,14 +111,11 @@ def compute_compaction_signals(events: list[dict[str, Any]]) -> dict[str, Any]:
                 "turn": ev.get("turn", "?"),
                 "prior_history_size_before": prev_history_size,
                 "prior_history_size_after": len(prior),
-                "recent_events_size_before": prev_recent_events_size,
-                "recent_events_size_after": len(recent),
                 "bullets_added": new_bullets,
                 "applied_sanitization": applied_san,
                 "capabilities_to_evaluate": list(CAPABILITIES),
             })
         prev_history_size = len(prior)
-        prev_recent_events_size = len(recent)
         last_compacted = meta.get("last_compacted_turn")
         if isinstance(last_compacted, int):
             prev_last_compacted = last_compacted
@@ -155,8 +149,7 @@ def render_compaction_section(signals: dict[str, Any]) -> str:
 
     for ev in signals["events"]:
         parts.append(f"### Compaction at turn {ev['turn']}\n\n")
-        parts.append(f"- prior_history: {ev['prior_history_size_before']} → {ev['prior_history_size_after']} bullets ({len(ev['bullets_added'])} added)\n")
-        parts.append(f"- recent_events: {ev['recent_events_size_before']} → {ev['recent_events_size_after']} entries\n\n")
+        parts.append(f"- prior_history: {ev['prior_history_size_before']} → {ev['prior_history_size_after']} bullets ({len(ev['bullets_added'])} added)\n\n")
         parts.append("**Bullets added:**\n\n")
         if ev["bullets_added"]:
             for b in ev["bullets_added"]:

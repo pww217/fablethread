@@ -266,7 +266,7 @@ class StorytellerBoundary(BaseModel):
     """Context for storytell_user.j2.
 
     npc_roster/location/inventory/conditions come from extraction_ctx.
-    all_threads/recent_events/world_state/intent/pacing_context/recent_turns/turn_no/band are top-level variables.
+    all_threads/world_state/intent/pacing_context/recent_turns/turn_no/band are top-level variables.
     current_arc provides campaign arc metadata (visible_goal, thematic_question, pc_drive) via _arc.j2 include.
     """
 
@@ -278,7 +278,6 @@ class StorytellerBoundary(BaseModel):
     current_arc: dict[str, Any]  # campaign arc metadata — passed to _arc.j2 include
     all_threads: list[ArcThreadSummary]  # source is state.arc.threads (raw dicts) — Pydantic coerces since ArcThreadSummary field names match dict keys; schema tests must validate both raw-dict and object inputs
     world_state: list[str | dict[str, Any]]  # template uses `world_state` variable name
-    recent_events: list[dict[str, Any] | str]  # source is scene.recent_events — raw dicts with text field or plain strings
     intent: IntentEnvelope | None = None
     pacing_context: PacingBlock | None = None
     recent_turns: list[ChronicleEntryBlock]
