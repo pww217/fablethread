@@ -38,6 +38,8 @@ class ArcThread(BaseModel):
 
     resolution_state: str | None = None  # set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads
 
+    outcome: str | None = None  # set from ThreadResolution.outcome when moved to completed_threads; None on active/legacy threads
+
     # Fields from old ArcThread that are preserved — engine handles these directly on resolve/advance:
     unlock_if: str | None = None
     promotes: list[str] = Field(default_factory=list)
@@ -345,6 +347,7 @@ class ThreadResolution(BaseModel):
     """Structured resolution for a thread — replaces scene_pressure_add/remove/update semantics."""
     id: str
     resolution_state: Literal["resolved", "failed", "abandoned"]
+    outcome: str = ""  # one past-tense sentence written at resolution time; stored on completed ArcThread
 
 
 class GMBeat(BaseModel):

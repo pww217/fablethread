@@ -1,7 +1,7 @@
 # Phase C: ThreadResolution Outcome Field & Completed Threads Visibility
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 

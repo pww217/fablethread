@@ -417,6 +417,7 @@ def _apply_thread_resolutions(
         thread = arc.threads[found_idx]
         updated_thread = thread.model_copy(update={
             "resolution_state": res.resolution_state,
+            "outcome": res.outcome,
         })
 
         # Remove from threads[]
@@ -427,6 +428,7 @@ def _apply_thread_resolutions(
             found_remaining = True
             updated_existing = thread.model_copy(update={
                 "resolution_state": res.resolution_state,
+                "outcome": res.outcome,
             })
             remaining_completed = [
                 t if t.id != thread.id else updated_existing
