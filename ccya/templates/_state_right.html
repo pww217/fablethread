@@ -47,43 +47,44 @@
 <details class="sidebar-card" id="card-inventory" data-card="inventory" open>
     <summary>Inventory</summary>
     <div class="sidebar-card-body">
-        {% set _items = state.inventory or [] %}
-        {% if _items %}
-        {% for item in _items | sort(attribute="id") %}
-        {% set _amt = item.amount if item.amount and item.amount > 1 else None %}
-        <div class="inv-item">
-            <span class="inv-item-name">{{ item.name or item.id }}</span>
-            {% if _amt %}
-            <span class="inv-item-amount">×{{ _amt }}</span>
-            {% endif %}
-            {% if item.notes %}
-            <span class="inv-item-notes">{{ item.notes }}</span>
+        {% if state.inventory %}
+        {% for item in state.inventory %}
+        {% set amt = item.get("amount") or 1 %}
+        {% set notes = item.get("notes") or "" %}
+        <div class="inventory-item{% if item.get('id') == 'credits' %} inventory-item-credits{% endif %}{% if notes %} has-tooltip has-tooltip-right{% endif %}">
+            <span class="inventory-item-name">{{ item.get("name", item.get("id", "?")) }}{% if amt > 1 or item.get("id") == "credits" %} <span class="inventory-item-amount">×{{ amt }}</span>{% endif %}</span>
+            {% if notes %}
+            <div class="tooltip-body" data-md>{{ notes }}</div>
             {% endif %}
         </div>
         {% endfor %}
         {% else %}
-        <span class="empty-state">Empty.</span>
+        <span class="empty-state">Nothing of note.</span>
         {% endif %}
     </div>
 </details>
 
 <details class="sidebar-card" id="card-world-state" data-card="world-state" open>
     <summary>World State</summary>
-    <div class="sidebar-card-body" style="white-space: pre-line; font-size: 12px; line-height: 1.5;">
+    <div class="sidebar-card-body">
         {% if state.scene.world_state %}
-        {% for fact in state.scene.world_state %}{% if fact is mapping %}[{% if fact.tier == "permanent" %}permanent{% else %}persistent{% endif %}] {{ fact.text }}
-{% elif fact is string %}{{ fact }}
-{% endif %}
-{% endfor %}
+        {% for fact in state.scene.world_state %}
+        <div class="fact-item" data-md>{% if fact is mapping %}[{% if fact.tier == "permanent" %}permanent{% else %}persistent{% endif %}] {{ fact.text }}{% elif fact is string %}{{ fact }}{% endif %}</div>
+        {% endfor %}
         {% else %}
-        <span class="empty-state">No world state facts.</span>
+        <span class="empty-state">No world state yet.</span>
         {% endif %}
     </div>
 </details>
 
 <details class="sidebar-card" id="card-debug" data-card="debug">
     <summary>Debug</summary>
-    <div class="sidebar-card-body">
+    <div class="sidebar-card-body" id="debug-content">
         {% include "_debug.html" %}
     </div>
 </details>
+
+<div class="sidebar-meta-footer">
+    <span>turn {{ state.meta.turn or 0 }}</span>
+    <span title="{{ state.meta.model or '' }}">{{ state.meta.model or '—' }}</span>
+</div>
