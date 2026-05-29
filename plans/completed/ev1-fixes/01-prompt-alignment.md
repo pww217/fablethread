@@ -1,7 +1,7 @@
 # Ev1 fix — Prompt alignment for beat type selection, null emission, and fail near-miss guidance
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 Single phase: all changes to `storytell_system.j2` and `narrate_system.j2`.
