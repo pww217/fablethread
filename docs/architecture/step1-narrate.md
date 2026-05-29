@@ -14,13 +14,13 @@ flowchart LR
         N1["state (full —<br>pc, location, scene,<br>inventory, quests, compendium)"]
         N2["chronicle_tail<br>(compressed history, ≤budget tokens)"]
         N3["recent_turns (last window_turns, default 3)"]
-        N4["rules_outcome<br>(band, directive, dice summary)"]:::xstream
+        N4["rules_outcome<br>(band, directive, impossible, dice summary)"]:::xstream
         N5["pack_style (tone / prose guide)"]
         N6["npc_name_pool (cultural name list)"]
         N7["npc_roster<br>(from build_npc_roster(comp),<br>  presence field: present/nearby/known)"]
         N9["world_factions<br>(immutable trace)"]:::xstream
         N10["pending_gm_beat<br>(type · surface_as metadata)"]
-        N11["pacing_context<br>(directive)<br>from _compute_pacing_context()"]:::xstream
+        N11["pacing_context<br>(outcome_hint)<br>from _compute_pacing_context()"]:::xstream
         N15["user_input"]
     end
 
