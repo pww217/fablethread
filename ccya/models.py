@@ -157,6 +157,9 @@ class IntentEnvelope(BaseModel):
     intent_verb: str = Field(default="act", max_length=24)
     target: str = ""
     check: RulesCheck = Field(default_factory=RulesCheck)
+    impossible: bool = False
+    impossible_reason: str = ""
+    scene_motion: Literal["hold", "advance", "transition"] = "hold"
 
 
 class RulesOutcome(BaseModel):
@@ -174,6 +177,8 @@ class RulesOutcome(BaseModel):
     directive: str = ""
     intent_verb: str = ""
     intent: str = ""
+    impossible: bool = False
+    impossible_reason: str = ""
 
 
 class InventoryItem(BaseModel):

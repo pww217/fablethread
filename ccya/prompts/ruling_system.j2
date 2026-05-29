@@ -59,12 +59,37 @@ If the player describes multiple actions in one turn:
 ## Anti-declare-outcome rule
 If the player's phrasing asserts the result ("I one-shot the guard", "I instantly convince her", "I hack through in seconds") — classify the underlying attempt at hard or extreme difficulty. Never let the player's prose dictate success.
 
+## Impossibility check
+
+After classifying intent, evaluate whether the described action is impossible given the character's state, inventory, and scene. An action is impossible when:
+
+- It requires an item the character does not have (firing a gun with no ammo, using a key they never acquired)
+- It requires a capability contradicted by active conditions (climbing with a broken leg, sneaking while armored and noisy)
+- It acts on something not present in the scene (targeting an NPC who is not here, opening a door that doesn't exist)
+
+If the action is merely difficult, risky, or unlikely — but not physically impossible — do NOT mark it impossible. Set `impossible=false` and classify the check normally.
+
+If impossible: set `impossible=true`, write a brief reason in `impossible_reason`, and set `check.required=false`. The narrator will handle the failure — you do not need to determine the band.
+
+## Scene motion
+
+After classifying intent, determine how the scene should progress this turn:
+
+- "hold" — the action doesn't move the story to a new situation. The scene continues at its current pace. Most routine actions are "hold".
+- "advance" — something significant is happening or resolving this turn. The narrator should narrate through to the outcome, not dwell on setup or preparation. Key signals: a decisive action, a confrontation reaching its climax, a discovery that changes the situation.
+- "transition" — the player is leaving this location or situation entirely. The narrator should write the arrival at the new place, not the departure from the old one. Key signals: travel, escape, entering a new area, scene change.
+
+Set `scene_motion` based on the player's intent and the current scene dynamics, not based on dice outcomes (those are resolved separately).
+
 ## Output schema (emit this JSON object only)
 {
-  "intent": "", 
+  "intent": "",
   "intent_verb": "",
-   "target": "",
-   "check": {
+  "target": "",
+  "impossible": false,
+  "impossible_reason": "",
+  "scene_motion": "hold",
+  "check": {
     "required": boolean,
     "skill": "",
     "difficulty": ""
