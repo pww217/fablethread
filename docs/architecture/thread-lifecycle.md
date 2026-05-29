@@ -12,11 +12,11 @@ Threads have a `scope` field (`"scene"` or `"arc"`) that determines lifecycle tr
 
 | Scope | Active management | Expiration | LLM instructions |
 |---|---|---|---|
-| `scene` | None — no engine processing | Via scene age rules (indirect) | Tied to current location/NPCs |
-| `arc` | Full lifecycle: advance, demote, promote, complete | 5 silent turns → demote to latent | Persistent story tension |
+| `scene` | Full lifecycle: advance, demote, promote, complete | Two-stage: active→latent at threshold → removed at 2×threshold | Tied to current location/NPCs |
+| `arc` | Full lifecycle: advance, demote, promote, complete | Two-stage lifecycle for both scopes | Persistent story tension |
 
 Scene-scoped threads exist in `arc.threads[]` alongside arc-scoped threads. They are
-excluded from engine processing by the `scope == "arc"` filter at `turn.py:203-205`.
+included in engine processing alongside arc threads via scope-aware filters.
 
 ## Entry Points
 
@@ -37,7 +37,7 @@ For each arc-scoped active thread:
 | Condition | Action |
 |---|---|
 | ID in `storyteller_result.thread_advance` | `progress += 1`, update `last_seen_turn = turn_no` |
-| Not advanced AND `turn_no - last_seen_turn >= _EXPIRE_SILENT_TURNS` (5) | Demote: `active = False`, `last_seen_turn = None` |
+| Not advanced AND turns since last_seen_turn >= `scene_thread_expire_silent_turns` (5) | Stage 1: demote to latent (`active = False`, urgency = `background`); Stage 2: remove at 2×threshold if still unsurfaced |
 | Not advanced AND still within expiry window | Carry forward unchanged |
 | Progress >= `config.thread_completion_threshold` (default 3) | Move to `completed_threads[]` |
 
@@ -61,7 +61,7 @@ so this cap is conservative (may drop more than strictly necessary).
 ### Phase C — Rebuild Thread List
 
 Active threads (`really_still_active`), surviving newly-demoted threads, and
-unprocessed threads (scene-scoped, already-completed) are merged into a single
+unprocessed threads (already-completed) are merged into a single
 `all_updated_arc_threads` list.
 
 ### Phase D — Immediate Promotion (unknown advanced_ids)
@@ -112,17 +112,18 @@ cap_ok = active_count < _ACTIVE_THREAD_CAP (3)
 | ✅ | ❌ | — | Logged: "blocked by cooldown" |
 | ✅ | ✅ | ❌ | Logged: "blocked by active cap" |
 
-Scene-scoped threads are silently ignored (they are handled by age rules, not
-engine lifecycle).
+Scene-scoped threads follow the same lifecycle rules as arc-scoped threads after
+Phase 3 — they are advanced by thread_advance, demoted by silent turns,
+completed at threshold, and subject to two-stage active→latent→removal.
 
 ## Step-by-Step: `_apply_thread_resolutions()`
 
 Processes `storyteller_result.thread_resolve` (list of `ThreadResolution`
-with `id`, `resolution_state`). For each resolution:
+with `id`, `resolution_state`, `outcome`). For each resolution:
 
 1. Find matching thread by ID in `arc.threads[]`
 2. If not found → log warning, skip
-3. If found → move to `arc.completed_threads[]`, set `resolution_state`
+3. If found → move to `arc.completed_threads[]`, set `resolution_state` and `outcome`
 4. Deduplicate completed_threads entries: existing ID gets updated, not duplicated
 
 ## Step-by-Step: Pacing Context Gate
@@ -142,10 +143,12 @@ not to emit thread_add when gate != "allow").
 ## Constants Reference
 
 | Constant | Value | Location | Effect |
-|---|---|---|---|
+|---|---|---|---|---|
 | `_ACTIVE_THREAD_CAP` | 3 | `turn.py:149` | Max concurrent active threads |
 | `_LATENT_THREAD_CAP` | 4 | `turn.py:152` | Max latent (inactive) threads |
-| `_EXPIRE_SILENT_TURNS` | 5 | `turn.py:155` | Turns of silence before demotion |
+| `_EXPIRE_SILENT_TURNS` | 5 | `turn.py:149` | Turns of silence before demotion for all threads (arc: active→latent; scene: stage 1 in two-stage lifecycle) |
+| `scene_thread_expire_silent_turns` | 5 (config default) | `config.py` | Second-stage threshold for scene threads: latent→removed after 2× this many unsurfaced turns |
+| `thread_urgency_max_age` | 8 (config default) | `config.py` | Turns at same urgency level before stepwise demotion (urgent→normal→background) |
 | `_PROMOTION_COOLDOWN_TURNS` | 3 | `turn.py:158` | Min turns between auto-promotions |
 | `config.thread_completion_threshold` | 3 (default in config.yaml) | config | Progress needed to auto-complete |
 | `config.thread_creation_cooldown` | configurable | config | Min turns between LLM thread creation |

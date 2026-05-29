@@ -14,6 +14,8 @@ Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, publi
 
 **Plan selection:** If multiple plans are open in `/plans/review/` or `/plans/`, the user specifies which to execute. If not specified, ask before proceeding.
 
+> **Completed plans:** Live in `/plans/completed/`. Before loading any doc from there, verify its status line matches implementation state — `open` means implemented but needs status update; `abandoned` means no longer relevant.
+
 **Source vs. plan conflicts:** If source code contradicts a plan doc, trust the source. Note the discrepancy in your commit message and proceed with what source shows.
 
 ---

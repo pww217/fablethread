@@ -1,6 +1,6 @@
 # Campaign Arc System
 
-The campaign arc system tracks story threads and truth discovery across turns. It has two execution paths: **engine-driven** (thread lifecycle with 5-turn expiry for silent threads) and **narrator-driven** (truth discovery, goal updates).
+The campaign arc system tracks story threads and truth discovery across turns. It has two execution paths: **engine-driven** (thread lifecycle with two-stage age-based demotion for silent threads) and **narrator-driven** (truth discovery, goal updates).
 
 ## Arc Data Model
 
@@ -21,9 +21,11 @@ ArcThread (unified)
   scope: Literal["scene", "arc"]  # scene = short-lived tied to current location; arc = persistent story tension
   active: bool = True        # False = dormant/latent; set by Python age rules (not LLM)
   urgency: Literal["background", "normal", "urgent"] = "normal"
+  urgency_set_turn: int | None # Turn when urgency was last changed; enables decay pass in _apply_thread_signals()
   tags: list[str]            — Keywords for engagement matching
   progress: int              — 0..3 (incremented by thread_advance)
   resolution_state: str | None # Set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads
+  outcome: str | None        # Set from ThreadResolution.outcome when moved to completed_threads
   last_seen_turn: int | None # For age-based active/dormant demotion in Python
   added_turn: int | None     # Python-managed lifecycle tracking
   unlock_if: str | None      # Condition string; thread is only promotable when empty/falsy
@@ -31,7 +33,7 @@ ArcThread (unified)
   key: str | None            # Optional canonical concept label (2-4 token snake_case); enables engine-side dedup auto-merge at thread_add time via ≥70% token-overlap scoring on matching keys
 ```
 
-**Key change from previous architecture:** `scene_pressure[]` and the split between `active_threads` / `latent_threads` are merged into a single `arc.threads[]`. The engine manages thread lifecycle via `_apply_thread_signals()`: age-based demotion (`active: True → False`) replaces the old active/latent migration logic, with silent threads (not listed in `thread_advance` for 5+ turns) being demoted to dormant state.
+**Key change from previous architecture:** `scene_pressure[]` and the split between `active_threads` / `latent_threads` are merged into a single `arc.threads[]`. The engine manages thread lifecycle via `_apply_thread_signals()`: two-stage lifecycle for scene threads (active→latent at threshold → removed at 2×threshold) with arc+scene progress tracking, plus urgency decay stepwise demotion (urgent→normal→background).
 
 ## Engine-Driven Arc: Unified Thread Lifecycle
 
@@ -46,7 +48,7 @@ flowchart TD
 
     subgraph SIGNALS["_apply_thread_signals() + _apply_thread_resolutions()"]
         S1["For each ID in thread_advance:<br>If ArcThread exists → progress +1,<br>last_seen_turn = turn_no"]
-        S2["Check silent threads (not in<br>thread_advance):<br>If last_seen_turn < turn_no - 5 → demote active=False"]
+        S2["Check silent threads (not in<br>thread_advance):<br>Stage 1: if turns_since_last_seen ≥ threshold →<br>active=False, urgency=background<br>Stage 2: if unsurfaced for 2×threshold →<br>remove from arc.threads"]
         S3["Auto-complete: progress ≥ 3 → move to completed_threads"]
     end
 
@@ -61,9 +63,9 @@ flowchart TD
 ```
 
 **Key rules:**
-- **Unified collection:** `arc.threads[]` replaces the old active_threads/latent_threads split. The engine manages thread lifecycle via age-based demotion (`active: True → False`) instead of LLM-labeled urgency states.
-- **Completion threshold:** progress reaches 3 → thread moved to `completed_threads`. Resolution state is preserved on completed threads for narrative context and eval rubrics.
-- **5-turn expiry (age-based):** Threads not listed in `thread_advance` for 5+ turns get demoted (`active=False`). This replaces the old active→latent migration with a simpler boolean flag that Python manages directly from thread age, not LLM judgment.
+- **Unified collection:** `arc.threads[]` replaces the old active_threads/latent_threads split. The engine manages thread lifecycle via two-stage latency for scene threads (active→latent at threshold → removed at 2×threshold) and urgency decay stepwise demotion (urgent→normal→background).
+- **Completion threshold:** progress reaches 3 → thread moved to `completed_threads`. Resolution state and outcome are preserved on completed threads for narrative context and eval rubrics.
+- **Two-stage lifecycle:** Threads not listed in `thread_advance` for `_EXPIRE_SILENT_TURNS` (5) turns are demoted to latent (`active=False`, urgency `background`). If unsurfaced for another 2×threshold, scene-scoped threads are removed from `arc.threads[]`. Arc-scoped threads follow the same lifecycle but do not auto-remove. Urgency decays stepwise: urgent→normal→background after `thread_urgency_max_age` turns at the same level.
 
 ## Narrator-Driven Arc: Phase & Truth Updates
 

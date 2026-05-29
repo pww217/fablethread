@@ -29,12 +29,11 @@ flowchart LR
         O1["thread_advance: list[str]<br>  ids of threads to increment progress"]:::outNode
         O2["thread_resolve: list[ThreadResolution]<br>  id + resolution_state<br>(resolved/failed/abandoned)"]:::outNode
         O3["thread_add: ArcThread | None<br>  new thread, gated by PacingContext.gate"]:::outNode
-        O4["recent_events_add: list[RecentEvent]<br>  id, text, turn"]:::outNode
-        O5["recent_events_update: list[RecentEventUpdate]<br>  id, text"]:::outNode
-        O6["recent_events_remove: list[str]"]:::outNode
-        O7["actions: list[str]<br>  exactly 4 suggested player choices"]:::outNode
-        O8["outcome_summary: str<br>  1–2 sentence narrative recap"]:::outNode
-        O9["gm_beat: GMBeat | None<br>  forward-facing storytelling beat"]:::outNode
+        O4["world_state_add: list[WorldStateFact]<br>  id, text, tier"]:::outNode
+        O5["world_state_remove: list[str]<br>  ids to remove from persistent tier"]:::outNode
+        O6["actions: list[str]<br>  exactly 4 suggested player choices"]:::outNode
+        O7["outcome_summary: str<br>  1–2 sentence narrative recap"]:::outNode
+        O8["gm_beat: GMBeat | None<br>  forward-facing storytelling beat"]:::outNode
     end
 
     IN --> LLM2C
@@ -43,7 +42,7 @@ flowchart LR
 
 ## Always runs
 
-Progress is the post-narration storytelling brain. It always executes every turn (never skipped) and feeds next turn's rules call via `recent_events_add` (durable narrative facts), `thread_advance/resolve/add` (unified thread lifecycle with scope-aware age demotion), and `gm_beat` (forward-facing beats stored in `state.meta.pending_gm_beat`).
+Progress is the post-narration storytelling brain. It always executes every turn (never skipped) and feeds next turn's rules call via `world_state_add/remove` (persistent world facts), `thread_advance/resolve/add` (unified thread lifecycle with scope-aware age demotion), and `gm_beat` (forward-facing beats stored in `state.meta.pending_gm_beat`).
 
 ## GMBeat schema
 

@@ -66,7 +66,7 @@
 ### ccya/state (via __init__.py)
 - **load_state(save_dir)** → dict — loads YAML with _migrate_state() normalization
 - **save_state(save_dir, state)** — atomic write (tmp + rename)
-- **apply_delta(state, delta)** → (dict, bool) — merges extract results into state; returns deep copy + evicted flag
+- **apply_delta(state, delta)** → dict — merges extract results into state; returns deep copy of mutated state dict
 
 ### ccya/server (via __init__.py)
 - **app** — FastAPI instance with ~25 routes (GET/POST for panels, turn SSE stream, new-game, healthz)
@@ -102,9 +102,9 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - Thread age-based rules handle urgency escalation via Python logic, not LLM labels
 
 ### Arc thread state machine
-- States: LATENT → ACTIVE (via unlock_if condition met) → COMPLETE/FAILED (via advanced_threads progress counter at 3 or _apply_thread_resolutions from StorytellerResult.thread_resolve) / EXPIRED (5+ silent turns via last_seen_turn tracking)
+- States: LATENT → ACTIVE (via unlock_if condition met) → COMPLETE/FAILED (via advanced_threads progress counter at 3 or _apply_thread_resolutions from StorytellerResult.thread_resolve) / EXPIRED (two-stage: active→latent at threshold → removed at 2×threshold for scene threads)
 - Scene-scoped threads: active→latent after scene_thread_expire_silent_turns (default 5) without progress; latent→removed after 2× threshold unsurfaced
-- Arc-scoped threads: active→latent after _EXPIRE_SILENT_TURNS without advance (no removal stage)
+- Arc-scoped threads: active→latent after _EXPIRE_SILENT_TURNS (default 5) without advance (no auto-removal stage)
 - Urgency decay: urgent→normal→background stepwise after thread_urgency_max_age turns at same urgency level; Python-side floor only, LLM can still set urgency arbitrarily
 - Engine owns threads; narrator owns visible_goal/thematic_question/discovered_truths
 - Active cap = 3, latent cap = 4, promotion cooldown of 3 turns
@@ -124,7 +124,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - Directives section: removed Combat Fatigue, Location Pressure, Location Imperative definitions; added Scene Pressure (≥3 effective scene age, intermediate signal to wind down or shift focus) and Scene Imperative (≥5 effective scene age, high-priority directive forcing story advancement); new directives use scene-level language reflecting single-age signal from collapsed _compute_ages()
 - Null-beat fallback: when no GM beat is present, narrate purely from pacing directive and player input — no added pressure or relief beyond what the scene demands
 ### Seed system prompt (`ccya/prompts/generate_seed_system.j2`)
-- Generation order: PC → World state → Recent events → Campaign arc → Opening scene/NPCs → Inventory (arc before NPCs so NPC bonds reference actual campaign goals)
+- Generation order: PC → World state → Campaign arc → Opening scene/NPCs → Inventory (arc before NPCs so NPC bonds reference actual campaign goals)
 - CompendiumEntry model now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes; seed prompt TypeScript schema includes these as optional fields (motivation?: string, fear?: string, leverage?: string); seed LLM allowed to assign motivation/fear/leverage at seed time on key NPCs (those with personal ties or central roles in opening situation)
 - Scene ideal: 1–4 present NPCs; narrative pressure for exits above that (soft guidance only, engine does NOT track or enforce NPC count at runtime — hard cap removed per Phase 01)
 ### Storyteller user prompt (`ccya/prompts/storytell_user.j2`)

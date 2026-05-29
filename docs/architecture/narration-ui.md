@@ -23,7 +23,7 @@ flowchart TD
     subgraph STREAM["SSE — run_turn() pipeline"]
         TOK["event: narrative_token<br>{ chunk: str }"]:::sse
         PHASE["event: phase<br>{ phase_name, ... }"]:::sse
-        DONE["event: turn_complete<br>{ turn, trace_id, narrative, actions,<br>  scene_tags, game_over, rejected,<br>  errors, diff, changes, change_lines,<br>  state, metrics, ruling,<br>  recent_events_evicted, ts }"]:::sse
+        DONE["event: turn_complete<br>{ turn, trace_id, narrative, actions,<br>  scene_tags, game_over, rejected,<br>  errors, diff, changes, change_lines,<br>  state, metrics, ruling, ts }"]:::sse
         ERR["event: turn_error<br>{ error }"]:::sse
     end
 
