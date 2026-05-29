@@ -1,12 +1,13 @@
 # PacingContext
 
-All pacing signals are collapsed into one Python-computed struct (`PacingContext`) passed to both the Narrator and Progress Extractor. This replaces six independent fields (`narration_directive`, `deescalate`, `narrative_velocity`, `beat_disposition` output, `quest_threshold_directive`, and stale momentum-derived signals). The narrator receives `directive`; Progress receives the full struct.
+All pacing signals are collapsed into one Python-computed struct (`PacingContext`) passed to both the Narrator and Progress Extractor. This replaces six independent fields (`narration_directive`, `deescalate`, `narrative_velocity`, `beat_disposition` output, `quest_threshold_directive`, and stale momentum-derived signals). The narrator receives `outcome_hint` (scene motion); Progress receives the full struct including `directive`.
 
 ## Struct definition
 
 ```
 PacingContext:
-  directive: str           # "" | "Breathe" | "Scene Imperative" | "Overwhelm" | "Resolve a Threat" | "Pressure" | "Tension" | "Scene Pressure" | "Threat Pressure" (may include "; Resolve a Threat" secondary when beat_locked)
+  directive: str           # "" | "Breathe" | "Scene Imperative" | "Overwhelm" | "Resolve a Threat" | "Pressure" | "Tension" | "Scene Pressure" | "Threat Pressure" (may include "; Resolve a Threat" secondary when beat_locked); used by Progress Extractor
+  outcome_hint: str | None # "hold" | "advance" | "transition" — narrator's primary scene motion instruction
   beat_locked: bool        # True: relief fired — Progress MUST emit breathing_room beat and gate is force-closed
   gate: str                # "block_escalate" | "allow" (controls thread_add)
   summary: str             # human-readable log string, never sent to LLM
@@ -16,7 +17,7 @@ PacingContext:
 
 ## Computation
 
-`_compute_pacing_context()` in `engine/turn.py` consolidates pacing computation (replacing the former scattered functions: `_compute_narration_directive`, `_compute_narrative_velocity`, `_check_floor_relief`). It takes inputs (`momentum`, `consecutive_pressure_turns` from state meta, `arc.threads[] scope=scene urgency counts`, threat ages) and returns a single struct with directive derived from the same priority stack:
+`_compute_pacing_context()` in `engine/turn.py` consolidates pacing computation (replacing the former scattered functions: `_compute_narration_directive`, `_compute_narrative_velocity`, `_check_floor_relief`). It takes inputs (`momentum`, `consecutive_pressure_turns` from state meta, `arc.threads[] scope=scene urgency counts`, threat ages) and returns a single struct with directive derived from the same priority stack. It also computes `outcome_hint` from the ruling LLM's `scene_motion` and PacingContext escalation signals: ruling `scene_motion` takes priority (`transition` > `advance` > fallback), then `impossible=true` forces `advance`, then Python escalation signals (`threat_imperative_at`, `beat_locked`, Overwhelm/Pressure with urgent threads) produce `advance`, defaulting to `hold`.
 
 ```mermaid
 flowchart TD
@@ -45,7 +46,7 @@ flowchart TD
     D7 -- yes --> B7["directive='Threat Pressure'"]:::output
     D7 -- no --> SEC2["Scene Pressure (secondary,<br>3 ≤ effective_age < 5)"]
 
-    FINAL["PacingContext<br>directive · beat_locked · gate"]:::output
+    FINAL["PacingContext<br>directive · outcome_hint · beat_locked · gate"]:::output
 
     SEC2 -. "appended to directive" .-> FINAL
 
@@ -73,7 +74,7 @@ flowchart LR
     EXTRACT_FN["_storytell_messages()<br>extraction.py"]:::pyNode
     USER_TMPL["storytell_user.j2<br>pacing_context.directive + gate"]:::prompt
     SYS_TMPL["storytell_system.j2<br>PacingContext guidance"]:::prompt
-    NARRATE_TMPL["narrate_user.j2<br>pacing_context.directive"]:::prompt
+    NARRATE_TMPL["narrate_user.j2<br>pacing_context.outcome_hint"]:::prompt
 
     TURN --> PIPELINE --> EXTRACT_FN --> USER_TMPL
     USER_TMPL --> SYS_TMPL --> EXTRACTOR["Progress Extractor LLM"]:::extractor
@@ -82,7 +83,7 @@ flowchart LR
 
 1. **Computed** once in `run_turn()` via `_compute_pacing_context()`.
 2. **Passed through** `_run_extraction_pipeline()` → both `_narrate_messages()` and `_storytell_messages()`.
-3. **Narrator template** (`narrate_user.j2`) renders only `directive` (tone/direction). No Jinja2 directive computation remains — all directives computed by Python.
+3. **Narrator template** (`narrate_user.j2`) renders `outcome_hint` (scene motion: hold/advance/transition) with value-specific guidance. No Jinja2 pacing computation remains — all pacing computed by Python.
 4. **Storytell template** ((`storytell_system.j2` + `user.j2`)) receives the full struct; guidance maps each directive to appropriate thread/beat actions:
 
 | Directive | Thread action | Gate |
