@@ -18,7 +18,6 @@ def _ruling_messages(
     state: dict[str, Any],
     user_input: str,
     *,
-    recent_turns: list[dict[str, Any]] | None = None,
     turn_no: int = 0,
     npc_roster: list[dict[str, Any]] | None = None,
     last_outcome: str | None = None,
@@ -33,7 +32,6 @@ def _ruling_messages(
         {
             "pc": pc,
             "location": location,
-            "recent_turns": recent_turns or [],
             "user_input": user_input,
             "meta": {"turn": turn_no},
             "npc_roster": npc_roster or [],

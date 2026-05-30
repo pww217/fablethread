@@ -170,9 +170,7 @@ def _extract_scene_messages(
     turn_no: int = 0,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 1 (NPC presence, location, tags)."""
-    pc = state.get("pc") or {}
     location = state.get("location") or {}
-    conditions = list(pc.get("conditions") or [])
     comp = (state.get("compendium") or {}).get("npcs") or {}
     npc_roster = build_npc_roster(comp)
 
@@ -182,9 +180,7 @@ def _extract_scene_messages(
         "extract_scene_user.j2",
         {
             "narration": narration,
-            "pc": pc,
             "location": location,
-            "conditions": conditions,
             "npc_roster": npc_roster,
             "recent_turns": recent_turns or [],
             "turn_no": turn_no,
@@ -214,7 +210,6 @@ def _extract_state_messages(
         "extract_state_user.j2",
         {
             "narration": narration,
-            "pc": pc,
             "conditions": list(pc.get("conditions") or []),
             "inventory": state.get("inventory") or [],
             "intent": intent,

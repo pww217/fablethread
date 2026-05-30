@@ -167,19 +167,9 @@ def _build_generate_seed_messages(
         "npc_count_override": overrides.npc_count
         if (overrides and overrides.npc_count > 0)
         else 0,
-        "min_named_npcs": (
-            scenario.constraints.min_named_npcs
-            if scenario and scenario.constraints
-            else 2
-        ),
         "name_pool": name_pool,
-        "male_npc_pool": male_npc_pool,
         "name_seed": name_seed,
-        # Pool selection (pre-selected archetype entries for synthesis guidance)
         "pool_selection": pool_selection,
-        # Legacy fallbacks for old packs without scenario
-        "world_text": pack.world_text,
-        "style_text": pack.style_text,
     }
     system_text = _render(env, "generate_seed_system.j2", ctx)
     user_text = _render(env, "generate_seed_user.j2", ctx)
