@@ -63,7 +63,7 @@ Four phases ordered by dependency: (1) models/config/state defaults — foundati
 - `pack.py:98`: `SeedEnvelope.pc_drive` field must be removed along with all `pc_drive` wiring in seed.py.
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 

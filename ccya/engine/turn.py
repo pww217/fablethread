@@ -508,10 +508,9 @@ def _compute_pacing_context(
 ) -> PacingContext:
     """Compute unified pacing context for Narrate and Progress steps.
 
-    Derives urgency from unified arc.threads[] with scope=scene instead of
-    raw scene_pressure dicts. Replaces separate deescalate/narrative_velocity
-    signals with a single authoritative struct containing directive,
-    beat_locked, gate, summary.
+    Derives urgency from unified arc.threads[] with scope=scene. Replaces separate
+    deescalate/narrative_velocity signals with a single authoritative struct containing
+    directive, beat_locked, gate, summary.
     """
     # Compute directive using existing logic
     directive = _compute_narration_directive(
