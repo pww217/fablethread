@@ -3,161 +3,104 @@
 ## Scope
 
 This doc covers the internal mechanics of arc thread lifecycle management in `turn.py`.
-It complements `campaign-arcs.md` (data model, narrator arc updates, high-level flow)
-by detailing the exact rules, order of operations, constants, and edge cases.
+It complements `campaign-arcs.md` (data model, high-level flow)
+by detailing the exact rules, order of operations, and edge cases.
+
+## Thread State Management
+
+Thread state is **storyteller-managed**. The LLM explicitly controls urgency and active/dormant state via `thread_update` directives. The engine applies these without enforcement of caps, cooldowns, or silent timers.
 
 ## Two Thread Scopes
 
-Threads have a `scope` field (`"scene"` or `"arc"`) that determines lifecycle treatment:
+Threads have a `scope` field (`"scene"` or `"arc"`) that determines narrative treatment:
 
-| Scope | Active management | Expiration | LLM instructions |
-|---|---|---|---|
-| `scene` | Full lifecycle: advance, demote, promote, complete | Two-stage: active→latent at threshold → removed at 2×threshold | Tied to current location/NPCs |
-| `arc` | Full lifecycle: advance, demote, promote, complete | Two-stage lifecycle for both scopes | Persistent story tension |
+| Scope | Narrative role | LLM instructions |
+|---|---|---|
+| `scene` | Short-lived tension tied to current location/NPCs | Tied to current location/NPCs |
+| `arc` | Persistent story tension across scenes | Persistent story tension |
 
-Scene-scoped threads exist in `arc.threads[]` alongside arc-scoped threads. They are
-included in engine processing alongside arc threads via scope-aware filters.
+Both scopes are managed identically by the engine — no scope-based lifecycle differences.
 
 ## Entry Points
 
 Three call sites in `run_turn()` process threads (order matters):
 
-1. **`_apply_thread_signals()`** — advance, expire, demote, promote, complete
-2. **`_apply_thread_resolutions()`** — resolve/fail/abandon → completed
-3. **Inline thread_add logic** — create new threads (gated by pacing context)
+1. **`_apply_thread_updates()`** — apply storyteller's explicit state changes
+2. **`_apply_arc_resolve()`** — resolve arc, store in resolved_arcs, create successor
+3. **`_apply_thread_resolutions()`** — resolve/fail/abandon → completed
 
 All three run after `apply_delta()` but before `save_state()`.
 
-## Step-by-Step: `_apply_thread_signals()`
+## Step-by-Step: `_apply_thread_updates()`
 
-### Phase A — Advance or Expire (per active thread)
+Processes `storyteller_result.thread_update` (list of `ThreadUpdate` with `id`, optional `active`, `urgency`, `summary`).
 
-For each arc-scoped active thread:
+For each ThreadUpdate:
+1. Find matching thread by ID in `arc.threads[]`
+2. If not found → log WARNING, skip
+3. Apply non-None fields (`active`, `urgency`, `summary`) via `model_copy`
+4. Log applied changes at INFO level
 
-| Condition | Action |
-|---|---|
-| ID in `storyteller_result.thread_advance` | `progress += 1`, update `last_seen_turn = turn_no` |
-| Not advanced AND turns since last_seen_turn >= `scene_thread_expire_silent_turns` (5) | Stage 1: demote to latent (`active = False`, urgency = `background`); Stage 2: remove at 2×threshold if still unsurfaced |
-| Not advanced AND still within expiry window | Carry forward unchanged |
-| Progress >= `config.thread_completion_threshold` (default 3) | Move to `completed_threads[]` |
+No caps, cooldowns, or silent timers are enforced. The storyteller decides which threads to update.
 
-All three outcomes (advance, demote, unchanged) accumulate into `still_active[]`.
-Advancing a thread is treated as a mutation. Only threads NOT advanced AND expired
-are demoted — normal carry-forward does not count as a mutation.
+## Step-by-Step: `_apply_arc_resolve()`
 
-### Phase B — Enforce Latent Cap
+Processes `storyteller_result.arc_resolve` (optional `ArcResolution` with `resolution`, `visible_goal`, `goal_context`, optional `thematic_question`, `thread_directives`).
 
-After Phase A, the post-demotion latent count is:
-
-```
-latent_count = len(latent_by_id) + len(demoted_to_latent)
-```
-
-If `latent_count > _LATENT_THREAD_CAP (4)`, excess threads are dropped from
-the **newly demoted** pool (oldest by `added_turn` first — `added_turn=9999`
-sentinel sorts unset last). Promotions in Phase D may further reduce the count,
-so this cap is conservative (may drop more than strictly necessary).
-
-### Phase C — Rebuild Thread List
-
-Active threads (`really_still_active`), surviving newly-demoted threads, and
-unprocessed threads (already-completed) are merged into a single
-`all_updated_arc_threads` list.
-
-### Phase D — Immediate Promotion (unknown advanced_ids)
-
-Any ID in `storyteller_result.thread_advance` that is NOT currently in `active_by_id`
-but IS in `latent_by_id` is promoted immediately: `active = True`, `progress = 0`,
-`last_seen_turn = turn_no`.
-
-This bypasses the cooldown check — it is the primary path for activating a
-latent thread. The LLM activates it by listing it in `thread_advance`.
-
-### Phase E — Cooldown-Gated Promotion
-
-Promotion of eligible latent threads that were NOT explicitly advanced by the LLM:
-
-**Conditions (both must be met):**
-
-1. `turn_no - arc_last_promotion_turn >= _PROMOTION_COOLDOWN_TURNS (3)` OR no active threads exist
-2. Available slot: `_ACTIVE_THREAD_CAP (3) - len(really_still_active) > 0`
-
-**Eligibility (latent thread must satisfy ALL):**
-- Not already active
-- Not already completed
-- `unlock_if` is empty/falsy (if set, thread is locked and won't auto-promote)
-
-**Selection:** Eligible threads sorted by `added_turn` (oldest first). Up to
-`available_slots` are promoted. Sets `arc_last_promotion_turn = turn_no`.
-
-This path fires at most once per 3 turns and fills gaps left by the
-LLM's thread_advance omissions.
+1. If `arc_resolve` is None → return None
+2. Validate arc from state; if missing/invalid → log WARNING, return None
+3. Store current arc in `state["resolved_arcs"]` with `resolved_turn` for TTL tracking
+4. Process `thread_directives`:
+   - `drop` → remove thread from arc
+   - `move_latent` → set `active = False`
+   - Threads not mentioned carry over as-is
+5. Create successor arc with new `visible_goal`, `goal_context`, inherited `thematic_question`, surviving threads
+6. Replace `state["arc"]` with successor
 
 ## Step-by-Step: Thread Creation (inline in `run_turn()`)
 
-New threads (`storyteller_result.thread_add`) are **not** handled inside
-`_apply_thread_signals()`. They are gated by three checks in sequence:
+New threads (`storyteller_result.thread_add`) are gated by:
 
-```
-gate_ok = _pc is None or _pc.gate == "allow"
-cooldown_ok = last_creation_turn is None or
-              (current_turn - last_creation_turn >= config.thread_creation_cooldown)
-cap_ok = active_count < _ACTIVE_THREAD_CAP (3)
-```
+1. **Pacing gate**: `_pc is None or _pc.gate == "allow"` — blocks escalation when pacing context says so
+2. **Key collision**: exact match on thread `key` → reject with WARNING log
+3. **Fuzzy auto-merge**: ≥70% token overlap on `key` → update existing thread summary/tags instead of creating new thread
 
-| Gate | Cooldown | Cap | Result |
-|---|---|---|---|
-| ✅ | ✅ | ✅ | Thread created, `last_thread_creation_turn` updated |
-| ❌ | — | — | Logged: "blocked by pacing gate" |
-| ✅ | ❌ | — | Logged: "blocked by cooldown" |
-| ✅ | ✅ | ❌ | Logged: "blocked by active cap" |
-
-Scene-scoped threads follow the same lifecycle rules as arc-scoped threads after
-Phase 3 — they are advanced by thread_advance, demoted by silent turns,
-completed at threshold, and subject to two-stage active→latent→removal.
+No cooldown or cap checks. The storyteller is trusted to manage thread count.
 
 ## Step-by-Step: `_apply_thread_resolutions()`
 
-Processes `storyteller_result.thread_resolve` (list of `ThreadResolution`
-with `id`, `resolution_state`, `outcome`). For each resolution:
+Processes `storyteller_result.thread_resolve` (list of `ThreadResolution` with `id`, `resolution_state`, `outcome`).
 
 1. Find matching thread by ID in `arc.threads[]`
 2. If not found → log warning, skip
-3. If found → move to `arc.completed_threads[]`, set `resolution_state` and `outcome`
+3. If found → move to `arc.completed_threads[]`, set `resolution_state`, `outcome`, and `resolved_turn`
 4. Deduplicate completed_threads entries: existing ID gets updated, not duplicated
 
 ## Step-by-Step: Pacing Context Gate
 
-`_compute_pacing_context()` at `turn.py:594` sets `gate` based on deescalation:
+`_compute_pacing_context()` sets `gate` based on deescalation:
 
 ```
 gate = "allow" by default
 gate = "block_escalate" when deescalate >= 0.5
 ```
 
-The gate is exclusively Python-computed — the LLM never sets it directly.
-`block_escalate` blocks both thread creation (in `run_turn()`) and thread
-escalation (pacing context sent to Progress Extract, but the LLM is instructed
-not to emit thread_add when gate != "allow").
+The gate blocks thread creation (in `run_turn()`). The LLM is instructed not to emit `thread_add` when gate != "allow".
 
 ## Constants Reference
 
-| Constant | Value | Location | Effect |
-|---|---|---|---|---|
-| `_ACTIVE_THREAD_CAP` | 3 | `turn.py:149` | Max concurrent active threads |
-| `_LATENT_THREAD_CAP` | 4 | `turn.py:152` | Max latent (inactive) threads |
-| `_EXPIRE_SILENT_TURNS` | 5 | `turn.py:149` | Turns of silence before demotion for all threads (arc: active→latent; scene: stage 1 in two-stage lifecycle) |
-| `scene_thread_expire_silent_turns` | 5 (config default) | `config.py` | Second-stage threshold for scene threads: latent→removed after 2× this many unsurfaced turns |
-| `thread_urgency_max_age` | 8 (config default) | `config.py` | Turns at same urgency level before stepwise demotion (urgent→normal→background) |
-| `_PROMOTION_COOLDOWN_TURNS` | 3 | `turn.py:158` | Min turns between auto-promotions |
-| `config.thread_completion_threshold` | 3 (default in config.yaml) | config | Progress needed to auto-complete |
-| `config.thread_creation_cooldown` | configurable | config | Min turns between LLM thread creation |
+| Constant | Value | Effect |
+|---|---|---|
+| `config.resolved_arc_ttl` | 3 (default) | Turns to keep resolved arcs in prompt context |
+| `config.completed_thread_ttl` | 3 (default) | Turns to keep completed threads in prompt context |
+
+No active/latent caps, no cooldowns, no expiry timers, no promotion cooldowns.
 
 ## Validation Edge Cases
 
 1. **Empty arc state** — No arc in state → log DEBUG, return None (no crash)
 2. **Validation failure** — Arc fails Pydantic validation → log WARNING, return None
-3. **Unknown resolution ID** — Log WARNING, skip — does not block valid resolutions
-4. **Latent cap excess** — Drops oldest newly-demoted; continues without error
-5. **Active cap exceeded in thread_add** — Blocks creation; no rollback needed
-6. **Duplicate thread ID in creation** — Checked against existing + completed IDs
+3. **Unknown thread ID in update** — Log WARNING, skip — does not block valid updates
+4. **Unknown resolution ID** — Log WARNING, skip — does not block valid resolutions
+5. **Duplicate thread ID in creation** — Checked against existing + completed IDs
+6. **Key collision in creation** — Exact match rejects; fuzzy match auto-merges

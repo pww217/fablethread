@@ -167,6 +167,7 @@ def _apply_thread_updates(
         return None
 
     mutated = False
+    remaining_threads = list(arc.threads)
     for update in storyteller_result.thread_update:
         found_idx = None
         for i, t in enumerate(arc.threads):
@@ -200,7 +201,7 @@ def _apply_thread_updates(
             )
 
     return arc.model_copy(update={
-        "threads": remaining_threads if found_idx is not None else list(arc.threads),
+        "threads": remaining_threads,
     }) if mutated else None
 
 
@@ -243,13 +244,8 @@ def _apply_arc_resolve(
         "resolution": resolution.resolution,
         "goal_context": resolution.goal_context,
         "thematic_question": old_arc.thematic_question,
-        "resolved_turn": None,  # set below after threads are processed
+        "resolved_turn": turn_no,
     }
-
-    # Set resolved_turn on the arc's threads that don't have it yet
-    for t in old_arc.threads:
-        if t.resolved_turn is None:
-            pass  # keep existing value or None
 
     state.setdefault("resolved_arcs", []).append(resolved_arc_entry)
 
