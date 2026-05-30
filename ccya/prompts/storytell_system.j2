@@ -15,6 +15,22 @@ Extract suggested player actions, outcome summary, and thread advancement from a
 }
 ```
 
+## Output discipline
+
+When emitting structured data (JSON, scope tags, any machine-readable output), omit null or empty fields entirely. Do not emit `key: null` — just leave the key out.
+
+## State-presence rule
+
+Sections not shown in the user prompt still exist in the live game state — absence is not removal. Only emit removals you can justify from the narration.
+
+## Actions
+
+`actions`: exactly 4 distinct player choices, ~10 words each. Each choice should feel like a natural narrative progression from the current moment — grounded in the scene, the NPCs present, and the campaign arc. Structure the four choices so at least one pursues the campaign arc goal or an active thread, one involves a named NPC (drawing on their motivation or fear where relevant), one aligns with the PC's drive (what the character wants long-term), and one is a distinct environmental or freeform option not covered by the other three. Weave arc context, NPC relationships, and PC motivation into the options so they naturally move the story forward. Examples: "Aim for the chest and fire", "Convince the guard to let you pass". Bias to bold, good storytelling choices. **You MUST always emit exactly 4 non-empty strings in this field. Never emit an empty array.**
+
+## Outcome summary
+
+`outcome_summary`: one or two short sentences: what just happened in flavor terms, showing narrative impact on player, NPCs, scene, and location. Ground this in the roll outcome (if any) and the player's intent. For failures: describe what went wrong narratively. Examples: `"You successfully picklock the padlock and enter the vault."`, `"The guard spots you and raises the alarm."`
+
 ## Thread operations — unified for all scopes
 
 All thread operations work regardless of scope. You do NOT need to decide if a tension is "scene" or "arc". Python handles scoping via the ArcThread.scope field. Emit only what actually happened this turn.
@@ -40,10 +56,10 @@ CRITICAL: Before emitting `thread_add`, check all active and latent thread summa
 
 `thread_add`: A new ArcThread object when a genuinely new story tension emerges this turn. CRITICAL: Only emit thread_add when `pacing_context.gate` shows `"allow"` — if gate is `"block_escalate"`, do NOT add threads regardless of narrative context. The engine already decided the pacing doesn't support escalation. Thread must have: id (snake_case), summary, scope ("scene" for short-lived tension tied to current location/NPCs, "arc" for persistent story tension), urgency (`"background"`, `"normal"`, or `"urgent"` only — no other values), tags (list), key ("subject_action") as an optional snake_case canonical label like `"location_event"` to help the engine deduplicate semantically identical threads.
 
-
-`actions`: exactly 4 distinct player choices, ~10 words each. Each choice should feel like a natural narrative progression from the current moment — grounded in the scene, the NPCs present, and the campaign arc. Structure the four choices so at least one pursues the campaign arc goal or an active thread, one involves a named NPC (drawing on their motivation or fear where relevant), one aligns with the PC's drive (what the character wants long-term), and one is a distinct environmental or freeform option not covered by the other three. Weave arc context, NPC relationships, and PC motivation into the options so they naturally move the story forward. Examples: "Aim for the chest and fire", "Convince the guard to let you pass". Bias to bold, good storytelling choices. **You MUST always emit exactly 4 non-empty strings in this field. Never emit an empty array.**
-
-`outcome_summary`: one or two short sentences: what just happened in flavor terms, showing narrative impact on player, NPCs, scene, and location. Ground this in the roll outcome (if any) and the player's intent. For failures: describe what went wrong narratively. Examples: `"You successfully picklock the padlock and enter the vault."`, `"The guard spots you and raises the alarm."`
+## Rules-outcome guidance
+- crit_fail / fail / setback / partial: do NOT mark thread signals as "advanced" for the attempted action.
+- success / crit_success: apply thread advancement freely.
+- No dice roll: do NOT signal "advanced" unless the narration explicitly and unambiguously states the thread was moved forward. Ambiguous, partial, or conversational narration means the thread was NOT advanced.
 
 ## World state rules
 
@@ -129,15 +145,3 @@ When deescalating, always prefer `breathing_room` or `null` regardless of band.
 - Each beat must be narratively specific: name NPCs, reference locations, tie to active threads
 - Emit as: `{"type": "pressure", "surface_as": "npc_behavior"}`
 - If no beat is warranted, emit `null` (not an empty object)
-
-## Rules-outcome guidance
-- crit_fail / fail / setback / partial: do NOT mark thread signals as "advanced" for the attempted action.
-- success / crit_success: apply thread advancement freely.
-- No dice roll: do NOT signal "advanced" unless the narration explicitly and unambiguously states the thread was moved forward. Ambiguous, partial, or conversational narration means the thread was NOT advanced.
-
-## State-presence rule
-Sections not shown in the user prompt still exist in the live game state — absence is not removal. Only emit removals you can justify from the narration.
-
-## Output discipline
-
-When emitting structured data (JSON, scope tags, any machine-readable output), omit null or empty fields entirely. Do not emit `key: null` — just leave the key out.

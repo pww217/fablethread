@@ -1,18 +1,16 @@
-{% include "sections/_npc_roster.j2" %}{% if location %}
-## location
-**{{ location.name or location.id }}**{% if location.description %} — {{ location.description }}{% endif %}
+## Current inventory (this turn){% if inventory %}
+{% for item in inventory -%}
+- `{{ item.id }}`: {{ item.name }} x{{ item.amount }}{% if item.notes %} — {{ item.notes }}{% endif %}
+{% endfor -%}
 {% endif %}{% if conditions %}
 ## PC conditions (this turn)
 {% for c in conditions -%}
 - {{ c.id }}: {{ c.label }}{% if c.description %} — {{ c.description }}{% endif %}
 {% endfor -%}
-{% endif %}{% if inventory %}
-## Current inventory (this turn)
-{% for item in inventory -%}
-- `{{ item.id }}`: {{ item.name }} x{{ item.amount }}{% if item.notes %} — {{ item.notes }}{% endif %}
-{% endfor -%}
-{% endif %}
-{% include "sections/_arc.j2" %}{% if all_threads %}
+{% endif %}{% include "sections/_npc_roster.j2" %}{% if location %}
+## location
+**{{ location.name or location.id }}**{% if location.description %} — {{ location.description }}{% endif %}
+{% endif %}{% include "sections/_arc.j2" %}{% if all_threads %}
 ## threads (all — unified list, scope handled by Python)
 {% for t in all_threads %}{% set scope_tag = "[SCENE]" if t.scope == "scene" else "[ARC]" %}- `{{ t.id }}` {{ scope_tag }} {% if not t.active %}(dormant){% endif %} [{{ t.urgency | upper }}] {{ t.summary | truncate(120) }}{% if t.tags %} tags: {{ t.tags | join(', ') }}{% endif %}{% if t.last_seen_turn %} (last seen T{{ t.last_seen_turn }}){% endif %}
 {% endfor -%}
@@ -29,13 +27,13 @@ None currently. Generate actions that could introduce new story directions or ex
 {% for f in world_state %}{% if f is string %}- {{ f }}{% else -%}- [{% if "tier" in f and f["tier"] == "permanent" %}permanent{% else %}persistent{% endif %}] {% if "text" in f %}{{ f["text"] }}{% else %}(no text){% endif %}
 {%- endif %}{% endfor -%}
 <<<TRACE_IMMUTABLE_END>>>
-{% endif %}{% if band %}
-## rules_outcome
-Band: {{ band | upper }}. Apply thread advancement freely on success/crit_success. On fail/setback/partial, do NOT mark threads as advanced for the attempted action; prefer breathing_room/null beats on fail.
 {% endif %}{% if pacing_context and (pacing_context.directive or pacing_context.gate) %}
 ## pacing_context
 Directive: {{ pacing_context.directive or "none" }}
 Gate: {{ pacing_context.gate }}
+{% endif %}{% if band %}
+## rules_outcome
+Band: {{ band | upper }}. Apply thread advancement freely on success/crit_success. On fail/setback/partial, do NOT mark threads as advanced for the attempted action; prefer breathing_room/null beats on fail.
 {% endif %}{% if recent_turns %}
 ## last turn's context (T{{ recent_turns[-1].turn }})
 {{ recent_turns[-1].narrative }}

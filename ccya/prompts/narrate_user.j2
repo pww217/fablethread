@@ -5,11 +5,13 @@
 
 **Conditions:** {% if pc.conditions %}{% for c in pc.conditions %}{{ c.label if c is mapping else c }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}none{% endif %}
 
-## Location
-{% include "sections/_location.j2" %}
-## inventory (cross-reference before describing item use)
+## Inventory
 {% include "sections/_inventory.j2" %}
 
+## Location
+{% include "sections/_location.j2" %}
+
+## Characters
 {% include "sections/_npc_roster.j2" %}
 
 ## World State
@@ -46,7 +48,7 @@
 {% endif %}
 
 
-## Prior Turns (Compacted)
+## Prior History
 {% if prior_history and prior_history | length > 0 -%}
 {% for b in prior_history %}{{ b }}
 {% endfor -%}
