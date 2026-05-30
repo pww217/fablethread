@@ -1,13 +1,13 @@
 """eval_coverage_gap — 8-turn scenario exercising ev1 findings.
 
-Exercises: band-beat conflict, thread progress accumulation, orphan conditions,
+Exercises: band-beat conflict, thread update urgency, orphan conditions,
 surface_as drift, and skill variety. Relies on universal asserts from Phase 1
 for much of the coverage.
 
 Turns:
   T1: No-roll dialogue (establish scene)
   T2: Fail/setback roll — pressure beat is NOT expected (per prompt guidance)
-  T3: No-roll with thread_advance — progress should increment
+  T3: No-roll with thread_update — urgency should change
   T4: Success/crit_success roll — escalation beat IS expected
   T5: Partial roll with orphan condition
   T6: Breathe directive — breathing_room surface_as=environmental
@@ -21,7 +21,7 @@ from ccya.eval.scenario import Scenario, Turn, TurnAssert
 scenario = Scenario(
     id="eval_coverage_gap",
     pack="eval-pack",
-    description="8-turn scenario exercising ev1 findings: band-beat conflict, thread progress, orphan conditions, surface_as patterns, and skill variety.",
+    description="8-turn scenario exercising ev1 findings: band-beat conflict, thread updates, orphan conditions, surface_as patterns, and skill variety.",
     seed_overrides={
         "arc.threads": [
             {
@@ -29,8 +29,6 @@ scenario = Scenario(
                 "summary": "The village is stockpiling weapons and fortifying the eastern wall against an expected attack.",
                 "scope": "arc",
                 "urgency": "normal",
-                "progress": 0,
-                "in_narrative": True,
             }
         ]
     },
@@ -60,14 +58,13 @@ scenario = Scenario(
         ),
         Turn(
             input="I find the foreman and ask how preparations are going.",
-            phase="thread_advance",
+            phase="thread_update_dialogue",
             expects=[
                 "no roll (dialogue, no obstacle)",
-                "storytell should emit thread_advance=siege_preparations — progress should increment",
+                "storytell may emit thread_update=siege_preparations — urgency change or summary update",
             ],
             asserts=[
                 TurnAssert(stream="ruling", field="rolled", expected="false"),
-                TurnAssert(stream="storytell.extract", field="thread_advance", expected="siege_preparations"),
             ],
         ),
         Turn(
