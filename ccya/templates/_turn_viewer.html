@@ -92,10 +92,10 @@
                                         <div class="tv-compaction-san-row">NPCs merged: <span x-text="t.sanitization.npc_merge.length"></span></div>
                                     </template>
                                     <template x-if="t.sanitization.inventory_remove && t.sanitization.inventory_remove.length">
-                                        <div class="tv-compaction-san-row">Items removed: <span x-text="t.sanitization.inventory_remove.length"></span><template x-for="ir in t.sanitization.inventory_remove"><span class="tv-san-reason" x-text="ir.reason ? ' — ' + ir.reason : ''"></span></template></div>
+                                        <div class="tv-compaction-san-row"><span x-text="'Items removed (' + t.sanitization.inventory_remove.length + '):'"></span><template x-for="ir in t.sanitization.inventory_remove"><div class="tv-compaction-san-item"><span x-text="ir.id"></span><span x-show="ir.reason" x-text="' — ' + ir.reason"></span></div></template></div>
                                     </template>
                                     <template x-if="t.sanitization.condition_remove && t.sanitization.condition_remove.length">
-                                        <div class="tv-compaction-san-row">Conditions removed: <span x-text="t.sanitization.condition_remove.length"></span><template x-for="cr in t.sanitization.condition_remove"><span class="tv-san-reason" x-text="cr.reason ? ' — ' + cr.reason : ''"></span></template></div>
+                                        <div class="tv-compaction-san-row"><span x-text="'Conditions removed (' + t.sanitization.condition_remove.length + '):'"></span><template x-for="cr in t.sanitization.condition_remove"><div class="tv-compaction-san-item"><span x-text="cr.id"></span><span x-show="cr.reason" x-text="' — ' + cr.reason"></span></div></template></div>
                                     </template>
                                 </div>
                             </template>

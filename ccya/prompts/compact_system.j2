@@ -77,7 +77,7 @@ The JSON must include a `_checklist` key with your verification results. This is
 }
 ```
 
-Each list item must include `id`, `confidence`, and `reason` (one sentence). Omit any key whose list would be empty (except `_checklist` — always include it). The `_checklist` key is always present and contains string values for each category.
+For `pressure_remove`, `condition_remove`, and `inventory_remove`, each list item must include `id`, `confidence`, and `reason` (one sentence). Omit any key whose list would be empty (except `_checklist` — always include it). When you include a `reason`, it must be a non-null string. The `_checklist` key is always present and contains string values for each category.
 
 ### Concrete examples
 

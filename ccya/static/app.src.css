@@ -2383,6 +2383,7 @@ body {
 .tv-compaction-more { font-size: 11px; color: var(--text-muted); padding: 2px 0; }
 .tv-compaction-san { margin-top: 12px; }
 .tv-compaction-san-row { font-size: 11px; color: var(--text-primary); padding: 2px 0; }
+.tv-compaction-san-item { font-size: 11px; color: var(--text-primary); padding: 1px 0 1px 16px; }
 .tv-compaction-no-san { font-size: 11px; color: var(--text-muted); padding: 8px 0; }
 
 /* Seed card (game start, no turns yet) */
