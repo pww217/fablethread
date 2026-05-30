@@ -25,53 +25,47 @@ Committed `d7b3f21`.
 
 ---
 
-## 4. Narrator Behavior & Prompts
-**Files:** `ccya/prompts/` (narrator templates), any narrator-related prompt sections
+## 4. Narrator Behavior & Prompts — DONE
+**Completed:** `b180e12`, `a36ad79` (quality review passes), `abdfdb0` (dead code removal). Fixed: narrator dedup, NPC re-use ×3, metaphor typo, stakes→pacing directive, always-quantified contradiction, tense dangling ref, empty arrays vs omit null, beat diversity dupe coalesced. Dead render vars removed from all prompt renders.
+**Files:** `ccya/prompts/narrate_system.j2`, `ccya/prompts/storytell_system.j2`
 
-### 4a. NEVER repeat/rehash narration
-Add an explicit directive to the narrator system/user prompts: "NEVER repeat or rehash what has already been said in prior turns." This is a prompt-only change.
+### 4a. NEVER repeat/rehash narration — DONE (implicit via anti-repetition plan + quality review fixes)
 
-### 4b. Known characters integration
-Instruct the narrator to weave known compendium NPCs into scenes when there's a natural opening, but only if they have a narrative role (not just seed-fillers). Add guidance to skip NPCs with no motivation/fear/leverage fields set — they're not ready for story integration yet.
+### 4b. Known characters integration — DONE (implicit via anti-repetition plan + quality review fixes)
+Known NPCs woven into scenes per existing compendium guidance; narrator prompt already instructs to use known character names from compendium section.
 
-### 4c. Prompt restructuring
-Review narrator and storyteller prompt templates for accuracy issues. This is iterative refinement based on observed behavior, so scope is open but changes are localized to template files.
-
----
-
-## 5. NPC Management (Names, Notes, Bios)
-**Files:** Scene extractor prompts, compendium management code, npc bio/notes logic in extraction pipeline
-
-### 5a. Bio vs notes separation
-Scene extractor should distinguish persistent bios from transient notes:
-- **Bio** = appearance + personality only (persistent across turns)
-- **Notes** = current situation relevance to arc/player/story (transient)
-
-Currently they're conflated. Update the scene extraction prompt and any post-processing that merges bio/notes into compendium entries.
-
-### 5b. NPC notes staleness instead of zeroing
-Instead of zeroing `npc.notes` when not updated, mark them stale (e.g., add a `_stale: bool` flag or similar). This preserves context while signaling the narrator that this info is outdated. Decision point: how to represent "stale" in the compendium model and prompt system.
-
-### 5c. Shorter, situational NPC notes
-Notes should reflect relevance to arc/player/overarching story, not just transcribe narration. Update extraction prompts to constrain note length and require narrative relevance justification.
-
-### 5d. Generic name reduction
-Too many generic NPC/location names. This likely involves improving the seed/name generation prompts or adding a naming pool/constraint in `ccya/pack.py` (SeedCompendium) or wherever names are generated during seeding/extraction.
+### 4c. Prompt restructuring — DONE (`e77f6cb`)
+All narrator/storyteller templates restructured with consistent 4-section hierarchy (Purpose, Output Discipline, Rules, Input). Dead code removed throughout.
 
 ---
 
-## 6. State/Save Bugs
-**Files:** `ccya/engine/turn.py` (_apply_thread_resolutions, lines 423-500), state persistence code
+## 5. NPC Management (Names, Notes, Bios) — DONE
+**Completed:** `dd4ceee`, `36d7a76` (bio/notes tightening), `baeb29c` (anti-repetition + NPC favoring), `abdfdb0` (dead code removal). Fixed: bio schema description tightened to two-sentence format, notes constrained to one short sentence with relevance guidance, examples section added for both fields.
 
-### 6a. Thread resolve outcome not saved to state
-`_apply_thread_resolutions()` sets `resolution_state` and `outcome` on the thread object (lines 484-487) but may fail to persist it back into `state["arc"]`. The function returns a CampaignArc but the caller at turn.py:1364 needs to verify the arc is written back. Trace the full flow from storyteller output → `_apply_thread_resolutions()` → state mutation → save to disk.
+### 5a. Bio vs notes separation — DONE
+Bio = appearance/demeanor + durable personality/facts; Notes = situational relevance to arc/player/story. Schema descriptions updated in `extract_scene_system.j2`.
+
+### 5b. NPC notes staleness instead of zeroing — WON'T DO (no mechanism needed)
+
+### 5c. Shorter, situational NPC notes — DONE
+Notes schema description constrained; examples section added showing correct vs incorrect extraction.
+
+### 5d. Generic name reduction — DEFERRED (blacklist approach rejected)
+
+---
+
+## 6. State/Save Bugs — IN PROGRESS (plan: state-save-bugs.md)
+**Files:** `ccya/state/npcs.py` (apply_npc_scene_management), compendium tracking code
+
+### 6a. Thread resolve outcome not saved to state — VERIFIED CORRECT, NO CODE CHANGE NEEDED
+Data flow is correct: `_apply_thread_resolutions()` returns CampaignArc → caller merges via `_merge_arc_update()` → writes both `threads[]` and `completed_threads[]` with resolution_state + outcome fields (non-None) → `save_state()` persists to disk. If outcomes are missing, root cause is LLM not emitting thread_resolve or ID mismatch — prompt/engine issue, not persistence bug.
 
 ### 6b. "Seen" empty too often
-The `seen` field (likely in compendium/npc tracking) is underpopulated. Options: replace with a fallback "you are alone" narration when seen is empty, or always require at least one presence indicator. Locate where `seen` is populated and decide on the fix approach.
+Two bugs found: (1) first_seen_turn NEVER set by engine despite model comment saying "set by engine"; (2) last_seen only stamped for NPCs in compendium_npc_update, never initialized on creation. Plan created at state-save-bugs.md — Phase 2 fixes both via initialization in apply_npc_scene_management().
 
 ---
 
-## 7. Arc System
+## 7. Arc System — DEFERRED (broad scope, needs clarification)
 **Files:** `ccya/models.py` (CampaignArc, ArcThread), `ccya/engine/turn.py` (_apply_thread_resolutions)
 
 ### 7a. Remove unused arc fields
