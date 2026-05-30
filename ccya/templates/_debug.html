@@ -13,13 +13,6 @@
         </thead>
         <tbody>
             {% for t in turns %}
-            {% if t.is_compaction %}
-            <tr class="debug-turn-compaction">
-                <td style="text-align:left">{{ t.pipe_label }}</td>
-                <td>{{ t.time }}</td>
-                <td>{{ t.tok }}</td>
-            </tr>
-            {% else %}
             <tr class="debug-turn-sep" colspan="3">
                 <td style="text-align:left" colspan="3">Turn {{ t.turn }}</td>
             </tr>

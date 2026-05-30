@@ -18,7 +18,6 @@
 | `ccya/engine/extraction.py` | _run_extraction_pipeline(): 3 streams (scene/state/storytell), _call_stream() with retry |
 | `ccya/engine/seed.py` | generate_seed() for dynamic packs, soft validation |
 | `ccya/engine/changes.py` | summarize_changes(), format_change_lines() — diff pre vs post state → emoji display lines |
-| `ccya/engine/compactor.py` | maybe_compact(): chronicle compaction + state sanitization (NPC merge, inventory remove, etc.) |
 | `ccya/engine/npc_roster.py` | build_npc_roster() — merges present/known NPCs with presence tags |
 | `ccya/engine/generate_pack.py` | generate_pack_from_brief(): SSE-driven ephemeral pack generation from world brief |
 | `ccya/state/__init__.py` | Re-exports all state symbols |
@@ -26,7 +25,7 @@
 | `ccya/state/delta.py` | apply_delta(), reconcile_delta() — condition dedup, cross-turn dedup |
 | `ccya/state/inventory.py` | normalize_inventory_id, resolve/fuzzy match helpers; resolve_inventory_remove_target() uses fuzzy matching (threshold 0.6) as final fallback |
 | `ccya/state/npcs.py` | build_npc_alias_map, touch_compendium_order (LRU) |
-| `ccya/state/chronicle.py` | append_event (events.jsonl), append_chronicle (chronicle.md), load_chronicle_tail() |
+| `ccya/state/chronicle.py` | append_event (events.jsonl), append_chronicle (chronicle.md), load_last_narration() |
 | `ccya/state/momentum.py` | apply_momentum() — deterministic from rules band, clamped to [-3,+3] |
 | `ccya/server/__init__.py` | Re-exports: app, main, config, SAVE_DIR, _validate_stats |
 | `ccya/server/app.py` | FastAPI app bootstrap, Jinja env, pack loading, startup event; server error persistence + exception middleware → server_errors.jsonl |
@@ -225,8 +224,7 @@ meta:
   model: str
   compendium_touch_order: [str]  # LRU order for NPC selection
   pending_gm_beat: dict | None  # GM beat from scene extractor, consumed by next turn's narrator (runtime-only)
-  last_compacted_turn: int     # compaction tracking (0 = never compacted)
-  prior_history: list[str]     # canonical append-only compacted history (- [T{n}] ...)
+  prior_history: list[str]     # incremental history bullets (- [T{n}] text), appended per storyteller turn, capped at 20 newest
   _seed_type: str | None       # "static" or "dynamic" — set by seed application, read by turn viewer
   _pack_source: str | None     # pack ID that was used to generate this state
 

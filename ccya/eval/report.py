@@ -375,7 +375,6 @@ def _render_judge_summary(
     parts.append(f"**Narrative:** {_fmt_score(merged.get('narrative_score'))}/5  ")
     parts.append(f"**System Cohesion:** {_fmt_score(merged.get('system_cohesion_score'))}/5  ")
     parts.append(f"**Prompt Quality:** {_fmt_score(merged.get('prompt_quality_score'))}/5  ")
-    parts.append(f"**Compaction:** {_fmt_score(merged.get('compaction_score'))}/5  ")
     parts.append(f"**State Fidelity:** {_fmt_rate(merged.get('state_fidelity_rate'))}  ")
     parts.append(f"**Prompt Adherence:** {_fmt_rate(merged.get('prompt_adherence_rate'))}")
     parts.append(f"**Judge model:** `{meta.model}`")

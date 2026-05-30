@@ -19,7 +19,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from ccya.engine import EngineConfig, build_engine_config, run_turn
-from ccya.engine.config import _validate_compactor_config
 from ccya.eval.config import EvalConfig
 from ccya.eval.engine_mirror import (
     MOMENTUM_DELTA,
@@ -449,7 +448,6 @@ async def run_scenario(
     append_event(save_dir, metadata_event)
 
     engine_config = _build_engine_config(eval_cfg)
-    _validate_compactor_config(engine_config)
 
     started_at = datetime.now(timezone.utc).isoformat()
     turn_records: list[TurnRecord] = []

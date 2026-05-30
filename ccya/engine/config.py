@@ -42,7 +42,7 @@ class EngineConfig:
     # DURABILITY PATTERNS — how each field is consumed at runtime:
     #
     #   re-read per turn:  Fields consumed fresh from config on every turn
-    #                      (e.g., compact_every, window_turns, thread_*).
+    #                      (e.g., thread_*).
     #                      Safe to reload config while server is running.
     #   module constant:   Fields defined as module-level variables imported
     #                      at startup (e.g., _ACTIVE_THREAD_CAP in turn.py).
@@ -63,8 +63,6 @@ class EngineConfig:
     narrate_temperature: float = 0.9
     extract_temperature: float = 0.4
     max_extract_retries: int = 1
-    window_turns: int = 3
-    chronicle_prefix_budget_tokens: int = 1500
     # generate_seed settings (used by POST /new-game on dynamic packs)
     generate_seed_temperature: float = 0.9
     generate_seed_max_retries: int = 2
@@ -100,10 +98,6 @@ class EngineConfig:
     threat_imperative_at: int = 5
     # Building threat -> narration directive "Resolve a Threat" at this age
     building_threat_imperative_at: int = 4
-    # Compaction: periodically compress narrative history + events
-    compact_every: int = 0
-    compact_temperature: float = 0.1
-    recent_turns_min: int = 2
 
 
 def build_engine_config(
@@ -148,10 +142,6 @@ def build_engine_config(
         narrate_temperature=narrate_t,
         extract_temperature=extract_t,
         max_extract_retries=int(llm.get("max_extract_retries", 1)),
-        window_turns=int(game.get("window_turns", 3)),
-        chronicle_prefix_budget_tokens=int(
-            game.get("chronicle_prefix_budget_tokens", 1500)
-        ),
         generate_seed_temperature=seed_t,
         generate_seed_max_retries=int(llm.get("generate_seed_max_retries", 2)),
         log_llm_io=bool(logging_cfg.get("log_llm_io", False)),
@@ -177,37 +167,24 @@ def build_engine_config(
         momentum_floor=int(game.get("momentum_floor", -3)),
         momentum_ceiling=int(game.get("momentum_ceiling", 3)),
         consecutive_pressure_threshold=int(game.get("consecutive_pressure_threshold", 3)),
-        compact_every=int(game.get("compact_every", 0)),
-        compact_temperature=float(game.get("compact_temperature", 0.1)),
-        recent_turns_min=int(game.get("recent_turns_min", 2)),
     )
 
 
-def _validate_compactor_config(config: EngineConfig) -> None:
-    if config.window_turns < 1:
-        raise ValueError(f"window_turns must be >= 1, got {config.window_turns}")
-    if config.compact_every < 0:
-        raise ValueError(
-            f"compact_every must be >= 0, got {config.compact_every}"
-        )
-    if config.recent_turns_min < 1:
-        raise ValueError(f"recent_turns_min must be >= 1, got {config.recent_turns_min}")
-    if config.recent_turns_min > config.window_turns:
-        raise ValueError(
-            f"recent_turns_min ({config.recent_turns_min}) must be <= window_turns ({config.window_turns})"
-        )
-    if 0 < config.compact_every < config.recent_turns_min:
-        raise ValueError(
-            f"compact_every ({config.compact_every}) must be >= recent_turns_min ({config.recent_turns_min})"
-            f" (or 0 to disable)"
-        )
+
+def _strip_turn_prefix(s: str) -> str:
+    if not s:
+        return s
+    import re
+    return re.sub(r'^- \[T\d+\] ', '', s).lstrip('- ').strip()
 
 
 def _build_jinja_env(template_dir: str) -> Environment:
-    return Environment(
+    env = Environment(
         loader=FileSystemLoader(template_dir),
         keep_trailing_newline=True,
     )
+    env.filters["strip_turn_prefix"] = _strip_turn_prefix
+    return env
 
 
 def _render(env: Environment, template_name: str, ctx: dict[str, Any]) -> str:
