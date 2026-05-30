@@ -48,7 +48,7 @@
 
 ## Prior History
 {% if prior_history and prior_history | length > 0 -%}
-{% for b in prior_history %}{{ b | strip_turn_prefix }}
+{% for b in prior_history %}{{ b }}
 
 {% endfor -%}
 {% endif -%}

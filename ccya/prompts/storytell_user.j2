@@ -34,6 +34,10 @@ Gate: {{ pacing_context.gate }}
 {% endif %}{% if band %}
 ## rules_outcome
 Band: {{ band | upper }}. Apply thread advancement freely on success/crit_success. On fail/setback/partial, do NOT mark threads as advanced for the attempted action; prefer breathing_room/null beats on fail.
+{% endif %}{% if prior_history %}
+## Recent Outcomes
+{% for b in prior_history %}{{ b }}
+{% endfor -%}
 {% endif %}{% if recent_turns %}
 ## last turn's context (T{{ recent_turns[-1].turn }})
 {{ recent_turns[-1].narrative }}
