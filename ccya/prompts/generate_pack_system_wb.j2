@@ -8,7 +8,6 @@ You are building the entire seed of a playable text adventure world. The player 
 - ALL names (world_name, faction names, location names, PC names, NPC names, inventory item names) must use ONLY ASCII/Latin characters (a-z, A-Z, 0-9, spaces, hyphens, apostrophes). No Cyrillic, no CJK, no Arabic, no non-Latin scripts. This is non-negotiable.
 - World facts must be specific and named — treaties with years, organizations with names, rules with consequences. "Magic exists" is not a world fact. "The Conclave of Seventeen banned unlicensed casting after the Ashfall of 1312" is a world fact.
 - Factions must have genuine conflict potential — at least two factions should have interests that can plausibly conflict with each other and with the player.
-- Locations must cover the spatial range the player will actually traverse: a home base, a dangerous destination, a transit/route, and a political/institutional node.
 - Narrator rules must be behavioral directives, not world facts. "Violence is lethal and local" is a narrator rule. "The city was destroyed in 1942" is a world fact.
 - Inspiration fields must describe qualities and failure modes only. No concrete examples, no named characters, no specific scenario suggestions.
 - forbid_cliches must be specific story patterns to avoid — not vague ("no chosen one") but precise ("no character who turns out to be the lost heir of the ruling dynasty").
@@ -21,13 +20,11 @@ You are building the entire seed of a playable text adventure world. The player 
 {
   "world_name": "string — a short evocative name for this world, drawn from the concept and tone",
   "constraints": {
-    "min_named_npcs": 2,
     "inventory_size_range": [int, int],
     "pc_stat_range": [int, int],
     "pc_stat_total_range": [int, int],
     "prose_word_range": [int, int],
     "required_inventory_kinds": ["string"],
-    "npc_distinct_first_letters": true,
     "forbid_cliches": ["string"]
   },
   "world_facts": ["string (3-8 named, specific, durable facts)"],
@@ -35,9 +32,6 @@ You are building the entire seed of a playable text adventure world. The player 
   "world_rules": ["string (exactly 3, hard physical laws of this world)"],
   "factions": [
     {"id": "snake_case", "name": "string from name pool", "description": "string", "disposition": "neutral|hostile|friendly"}
-  ],
-  "locations": [
-    {"id": "snake_case", "name": "string from name pool", "type": "settlement|ruin|wilderness|transit|institution", "description": "string"}
   ],
   "name_locales": [
     {"locale": "faker_locale_code", "weight": float}
@@ -57,9 +51,15 @@ You are building the entire seed of a playable text adventure world. The player 
   "character_dynamics": [
     {"id": "snake_case", "tags": ["tag1", "tag2", "tag3"]}
   ],
-  "moral_pressures": [
-    {"id": "snake_case", "tags": ["tag1", "tag2", "tag3"]}
-  ]
+   "moral_pressures": [
+     {"id": "snake_case", "tags": ["tag1", "tag2", "tag3"]}
+   ],
+   "npc_bonds": [
+     {"id": "snake_case", "tags": ["tag1", "tag2"], "description": "string — one sentence describing the bond"}
+   ],
+   "scene_detail_bundles": [
+     {"id": "snake_case", "items": ["string (max 2 objects)"], "conditions": ["string (max 2 conditions)"], "sensory": ["string (max 2 sensory details)"]}
+   ]
 }
 ```
 
@@ -67,14 +67,16 @@ Constraints guidance: `inventory_size_range` [3,7]; `pc_stat_total_range` [8,14]
 
 name_locales: Choose 2-4 Faker locale codes that fit the setting's cultural geography. Use real Faker locales (en_GB, fr_FR, de_DE, pt_BR, ja_JP, zh_CN, ar_AA, ru_RU, es_ES, id_ID, etc.). Weight them to reflect the dominant cultural mix.
 
-## Archetype pools (4 sections, ~10 entries each)
+## Archetype pools (6 sections)
 
-Generate all four archetype pools. Each entry has an `id` (snake_case identifier) and `tags` (3-5 descriptive tag strings). Keep ids short and semantic; tags should capture the essence of each entry for hash-based selection during seed generation. Omit `incompatible_with`.
+Generate all six archetype pools. Each entry has an `id` (snake_case identifier). For archetypes, add `tags` (3-5 descriptive tag strings); for npc_bonds and scene_detail_bundles, use the formats below. Keep ids short and semantic; tags should capture the essence of each entry for hash-based selection during seed generation. Omit `incompatible_with`.
 
 ### Situation archetypes (~10): Opening moment pressure types — what kind of crisis or situation opens this world's story. Tags: genre-appropriate scenario descriptors.
 ### Arc categories (~10): Longer-term narrative directions with escalation potential — how conflicts develop and intensify over time. Tags: thematic progression patterns, conflict evolution markers.
 ### Character dynamics (~10): How the PC relates to power structures and other people — their position within social hierarchies and relationships. Tags: access type, alignment, resource level.
 ### Moral pressures (~10): Immediate ethical tensions that create compelling choices — dilemmas where every option has real costs or consequences. Tags: value conflict pairs, stakes type.
+### NPC bonds (~8): Pre-existing relationships between the PC and NPCs — shared history, debts, conflicts, loyalties. Each entry needs a `description` (one sentence) explaining what happened between them. Tags: relationship type, emotional weight.
+### Scene detail bundles (~7): Physical details for specific scene types (locations/moments). Each bundle has an `id`, two `items` (objects present), two `conditions` (environmental state), and two `sensory` entries (sounds/smells/textures). Tags: setting type, mood.
 
 All entries must be genre-specific to this world's concept. Do not use generic or cross-genre archetypes. Each entry should feel like it could only exist in this particular setting.
 

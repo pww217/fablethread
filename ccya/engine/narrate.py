@@ -22,7 +22,6 @@ def _narrate_messages(
     user_input: str,
     *,
     recent_turns: list[dict[str, Any]] = [],
-    pack_style: str = "",
     narrator_rules: list[str] = [],
     world_rules: list[str] = [],
     rules_outcome: "RulesOutcome | None" = None,
@@ -100,7 +99,6 @@ def _narrate_messages(
     }
 
     system_text = _render(env, "narrate_system.j2", {
-        "pack_style": pack_style,
         "narrator_rules": narrator_rules,
         "world_rules": world_rules,
         "current_arc": current_arc_ctx,

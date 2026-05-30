@@ -1,6 +1,5 @@
 constraints:
-  # required-presence
-  min_named_npcs: 2
+   # required-presence
   min_objectives_per_quest: 2
   starting_quest_count: 1
   # ranges
@@ -9,19 +8,12 @@ constraints:
   pc_stat_total_range: [12, 18]
   prose_word_range: [400, 700]
   # composition
-  required_inventory_kinds: [weapon, consumable]
-  npc_distinct_first_letters: true
+   required_inventory_kinds: [weapon, consumable]
   # creativity guards
   forbid_cliches:
-    - "immune to infection"
-    - "the cure is the MacGuffin"
     - "amnesia"
     - "chosen one"
     - "lone wolf who trusts no one"
-    - "the infected are about to learn to speak again"
-    - "a scientist who knows everything about the fungus"
-    - "the military is secretly good"
-    - "the child is actually the monster"
 
 
 inspiration:

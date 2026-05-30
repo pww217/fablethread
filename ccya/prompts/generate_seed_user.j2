@@ -15,10 +15,6 @@
 ## factions (name these in the seed — use ids and names as given, do not rename)
 {% for f in scenario.factions %}- {{ f.name }} ({{ f.disposition }}): {{ f.description }}
 {% endfor %}{% endif %}
-{% if scenario.locations %}
-## locations (use these as named places in the seed — do not invent new top-level locations)
-{% for loc in scenario.locations %}- {{ loc.name }} ({{ loc.type }}): {{ loc.description }}
-{% endfor %}{% endif %}
 {% if scenario.inspiration %}
 {% set ins = scenario.inspiration %}
 ## creative_direction (guidance only — do not borrow phrasing or pick the obvious answer)

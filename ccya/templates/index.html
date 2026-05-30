@@ -36,7 +36,6 @@
                 <span x-show="!starting">New Game</span>
                 <span x-show="starting">Starting…</span>
             </button>
-            {% if pack_mode == "dynamic" %}
             <button class="new-game-btn reroll-btn"
                     id="reroll-btn"
                     hx-post="/new-game/reroll"
@@ -48,7 +47,6 @@
                     style="display: none;">
                 Roll Again
             </button>
-            {% endif %}
         </div>
     </header>
 

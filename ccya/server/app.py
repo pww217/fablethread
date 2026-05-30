@@ -35,7 +35,7 @@ logger = setup_logging(config)
 _pack_id: str = config.get("game", {}).get("setting_pack", "zombie-survival")
 try:
     _active_pack: Pack = load_pack(_pack_id, PACKS_DIR)
-    logger.info("Loaded pack: %s (mode=%s)", _pack_id, _active_pack.mode)
+    logger.info("Loaded pack: %s", _pack_id)
 except Exception as exc:
     logger.error("Failed to load pack %r: %s", _pack_id, exc)
     raise
@@ -47,9 +47,8 @@ _dynamic_opening_outcome: str = ""
 @asynccontextmanager
 async def lifespan(app):
     logger.info(
-        "pack: %s (mode=%s) | LLM: %s",
+        "pack: %s | LLM: %s",
         _pack_id,
-        _active_pack.mode,
         engine_config.model,
     )
     if config.get("game", {}).get("warmup_on_start", False):
@@ -64,7 +63,7 @@ async def lifespan(app):
 
 
 app = FastAPI(title="ccya", lifespan=lifespan)
-logger.debug("App startup: pack=%s mode=%s save_dir=%s", _pack_id, _active_pack.mode, SAVE_DIR)
+logger.debug("App startup: pack=%s save_dir=%s", _pack_id, SAVE_DIR)
 
 
 # Server error persistence

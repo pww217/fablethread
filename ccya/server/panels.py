@@ -6,9 +6,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, cast
-
-from ccya.pack import Pack
+from typing import Any
 from ccya.state import load_last_narration, load_state
 
 from .metrics import _recent_turn_metrics
@@ -90,24 +88,15 @@ def _load_last_actions(save_dir: Path) -> list[str]:
 
 
 def _get_opening() -> str:
-    pack = cast(Pack, _app._active_pack)
-    if pack.mode == "dynamic":
-        return _app._dynamic_opening
-    return pack.opening_text
+    return _app._dynamic_opening
 
 
 def _get_opening_outcome_summary() -> str:
-    pack = cast(Pack, _app._active_pack)
-    if pack.mode == "dynamic":
-        return _app._dynamic_opening_outcome
-    return ""
+    return _app._dynamic_opening_outcome
 
 
 def _get_opening_actions() -> list[str]:
-    pack = cast(Pack, _app._active_pack)
-    if pack.mode == "dynamic":
-        return _app._dynamic_opening_actions
-    return pack.opening_actions
+    return _app._dynamic_opening_actions
 
 
 def _debug_context() -> dict[str, Any]:

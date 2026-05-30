@@ -1477,24 +1477,6 @@ body {
   font-weight: 600;
   color: var(--text-primary);
 }
-.pack-card-mode {
-  font-size: 10px;
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 1px 6px;
-  border-radius: 999px;
-  border: 1px solid;
-}
-.pack-card-mode--dynamic {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-.pack-card-mode--static {
-  color: var(--text-muted);
-  border-color: var(--border-subtle);
-  background: transparent;
 }
 .pack-card-desc {
   font-size: 12px;

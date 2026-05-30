@@ -1,6 +1,5 @@
 constraints:
-  # required-presence
-  min_named_npcs: 2
+   # required-presence
   min_objectives_per_quest: 2
   starting_quest_count: 1
   # ranges
@@ -9,8 +8,7 @@ constraints:
   pc_stat_total_range: [12, 18]
   prose_word_range: [400, 700]
   # composition
-  required_inventory_kinds: [weapon, tool]
-  npc_distinct_first_letters: true
+   required_inventory_kinds: [weapon, tool]
   # creativity guards
   forbid_cliches:
     - "the last surviving samurai"
@@ -22,6 +20,8 @@ constraints:
     - "the cherry blossoms fall on fresh graves"
     - "a warrior who has lost everything and finds redemption"
 
+world_rules:
+  - No supernatural, paranormal, or mythological beings exist in this setting. Technology is limited to pre-modern Japanese warfare (15th–17th century).
 
 situation_archetypes:
   - id: castle_siege

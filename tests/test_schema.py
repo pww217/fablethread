@@ -292,7 +292,7 @@ class TestNarratorBoundary:
             pc=pc, current_arc=arc, state={}, npc_roster=NPCRosterBlock(entries=[]),
             pacing_context=None, recent_turns=[], prior_history=[], rules_outcome=None,
             user_input="I cast a spell.", pending_beat=None, meta={"turn_no": 1},
-            ages={}, pc_allegiance=None, world_factions=[], world_locations=[],
+            ages={}, pc_allegiance=None, world_factions=[],
             npc_name_pool={},
         )
         assert boundary.user_input == "I cast a spell."
@@ -367,7 +367,7 @@ class TestBoundaryModelDump:
             pc=pc, current_arc=arc, state={}, npc_roster=NPCRosterBlock(entries=[]),
             pacing_context=None, recent_turns=[], prior_history=[], rules_outcome=None,
             user_input="I attack.", pending_beat=None, meta={"turn_no": 1}, ages={},
-            pc_allegiance=None, world_factions=[], world_locations=[], npc_name_pool={},
+            pc_allegiance=None, world_factions=[],  npc_name_pool={},
         )
 
         dump = boundary.model_dump()
@@ -573,7 +573,7 @@ class TestAlignmentIntegration:
             pc=pc, current_arc=ArcThreadBlock(visible_goal="", thematic_question="", pc_drive="", threads=[]),
             state={}, npc_roster=NPCRosterBlock(entries=[]), pacing_context=None, recent_turns=[],
             prior_history=[], rules_outcome=None, user_input="test", pending_beat=None, meta={"turn_no": 1},
-            ages={}, pc_allegiance=None, world_factions=[], world_locations=[], npc_name_pool={},
+            ages={}, pc_allegiance=None, world_factions=[],  npc_name_pool={},
         )
 
     def test_extraction_results_accept_minimal_data(self):

@@ -30,8 +30,6 @@ def _sanitize_brief(brief: ScenarioBrief) -> ScenarioBrief:
     brief.world_name = _strip_non_ascii(brief.world_name)
     for f in brief.factions:
         f.name = _strip_non_ascii(f.name)
-    for loc in brief.locations:
-        loc.name = _strip_non_ascii(loc.name)
     return brief
 
 
@@ -150,8 +148,6 @@ async def generate_pack_from_brief(
             manifest = PackManifest(
                 id=pack_id,
                 name=pack_name,
-                description=concept[:120] if concept else "A generated world.",
-                mode="generated",
                 tone_tags=tone_tags,
             )
             (out_dir / "pack.yaml").write_text(
@@ -159,11 +155,9 @@ async def generate_pack_from_brief(
                 encoding="utf-8",
             )
 
-            faction_count = len(brief.factions)
-            location_count = len(brief.locations)
             _log.info(
-                "generate_pack_from_brief complete factions=%d locations=%d world_name=%s",
-                faction_count, location_count, brief.world_name or "(none)",
+                "generate_pack_from_brief complete factions=%d world_name=%s",
+                len(brief.factions), brief.world_name or "(none)",
                 extra={"trace_id": trace_id, "pack": pack_id},
             )
 

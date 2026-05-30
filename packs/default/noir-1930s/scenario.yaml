@@ -1,6 +1,5 @@
 constraints:
    # required-presence
-  min_named_npcs: 2
   min_objectives_per_quest: 2
   starting_quest_count: 1
    # ranges
@@ -9,8 +8,7 @@ constraints:
   pc_stat_total_range: [12, 18]
   prose_word_range: [400, 700]
    # composition
-  required_inventory_kinds: ['weapon', 'tool']
-  npc_distinct_first_letters: true
+   required_inventory_kinds: ['weapon', 'tool']
    # creativity guards
   forbid_cliches:
      - "the guy was trouble"
@@ -26,6 +24,8 @@ constraints:
      - "a man who played both sides"
      - "the corrupt politician was behind everything"
 
+world_rules:
+  - No supernatural, paranormal, or sci-fi phenomena exist in this setting. All technology and social conditions are grounded in the 1930s United States.
 
 inspiration:
   pc: |
