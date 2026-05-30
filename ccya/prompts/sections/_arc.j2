@@ -6,11 +6,13 @@
 **Narrative guidance — goal context:** {{ current_arc.goal_context }}
 {% endif %}{% if current_arc.thematic_question %}
 **Thematic question:** {{ current_arc.thematic_question }}
-{% endif %}{% if resolved_arc and resolved_arc|length > 0 -%}
+{% endif %}{% if current_arc.resolution %}
+**Arc resolution (turn {{ current_arc.resolved_turn }}):** {{ current_arc.resolution }}
+{% endif %}{% if resolved_arc and resolved_arc.resolution -%}
 
 ### Previously Resolved Arcs
 {%- for ra in resolved_arc %}
-- **Turn {{ ra.resolved_turn }}:** {{ ra.resolution[:120] }}{% if ra.goal_context %} (Goal: {{ ra.goal_context[:80] }}){% endif %}
+- **Turn {{ ra.turn }}:** {{ ra.resolution[:120] }}{% if ra.goal_context %} (Goal: {{ ra.goal_context[:80] }}){% endif %}{% if ra.surviving_threads and ra.surviving_threads|length > 0 %} → threads: {{ ra.surviving_threads|join(", ") }}{% endif %}
 {%- endfor %}
 {%- endif %}{% if completed_threads and completed_threads|length > 0 -%}
 

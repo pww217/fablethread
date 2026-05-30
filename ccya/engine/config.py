@@ -74,27 +74,8 @@ class EngineConfig:
     # Gate for de-escalation flag on successful rolls
     thread_deescalate_on_success: bool = True
     # TTL (in turns) for resolved arcs and completed threads kept in prompt context
-
-    # Difficulty curve preset (forgiving/balanced/demanding)
-    difficulty_curve: str = "balanced"
-    # Scene pacing thresholds (turns before directive triggers)
-    scene_pressure_threshold: int = 3
-    scene_imperative_threshold: int = 5
-    # Momentum influence on narrative direction (scaling factor, capped at ±factor)
-    momentum_pacing_factor: float = 0.5
-    # Near-miss softening: whether near-fails get softer narration directive text
-    near_miss_softening: bool = True
-    # TTL for completed threads and resolved arcs in narration context (turns)
-    thread_memory_ttl: int = 3
-    arc_memory_ttl: int = 3
-
-    def _resolve_difficulty_modifiers(self) -> dict[str, int]:
-        curves = {
-            "forgiving": {"trivial": 3, "easy": 1, "normal": 0, "hard": -1, "extreme": -2},
-            "balanced": {"trivial": 2, "easy": 1, "normal": 0, "hard": -1, "extreme": -2},
-            "demanding": {"trivial": 1, "easy": 0, "normal": 0, "hard": -1, "extreme": -3},
-        }
-        return curves.get(self.difficulty_curve or "balanced", curves["balanced"])
+    resolved_arc_ttl: int = 3
+    completed_thread_ttl: int = 3
 
 
 def build_engine_config(
@@ -143,10 +124,14 @@ def build_engine_config(
         log_llm_io=bool(logging_cfg.get("log_llm_io", False)),
         log_llm_io_max_chars=int(logging_cfg.get("log_llm_io_max_chars", 4000)),
         log_prompts=bool(logging_cfg.get("log_prompts", False)),
-
+        ruling_temperature=ruling_t,
+        max_ruling_retries=int(ruling.get("max_retries", 1)),
+        max_generate_pack_retries=int(llm.get("max_generate_pack_retries", 1)),
         thread_deescalate_on_success=bool(
             game.get("thread_deescalate_on_success", True)
         ),
+        resolved_arc_ttl=int(game.get("resolved_arc_ttl", 3)),
+        completed_thread_ttl=int(game.get("completed_thread_ttl", 3)),
 
         avoidance_keywords=[str(kw) for kw in game.get("avoidance_keywords", ["retreat", "run", "flee", "hide", "rest", "escape", "back away", "disengage", "withdraw", "surrender", "concede", "leave", "get out"])],
 

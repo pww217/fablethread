@@ -117,11 +117,33 @@ def _build_engine_config(
     )
 
 
+_EVAL_PACK_STARTING_CONDITIONS = [
+    {
+        "id": "bruised_ribs",
+        "label": "bruised ribs",
+        "description": "A hard fall on the bridge two days ago left a deep, aching bruise along the right ribcage.",
+    },
+    {
+        "id": "low_morale",
+        "label": "low morale",
+        "description": "Twelve days on the road, two days behind schedule, and an old debt waiting at the end of it.",
+    },
+]
+
+
 def _patch_eval_pack_starting_state(
     save_dir: Path, pack_id: str, seed_overrides: dict[str, Any] | None = None
 ) -> None:
-    """Apply runtime-only seed adjustments that SeedState's schema can't express."""
-    if seed_overrides:
+    """Apply runtime-only seed adjustments that SeedState's schema can't express.
+
+    Currently only affects eval-pack: adds two structured Condition objects with
+    explicit added_turn that SeedPC.conditions (list[str]) cannot represent.
+    No-op for any other pack.
+
+    If `seed_overrides` is provided, applies dotpath overrides on top of the
+    pack seed state (e.g. {"meta.momentum": 3, "arc.threads": [...]}).
+    """
+    if pack_id == "eval-pack" or seed_overrides:
         state = load_state(save_dir)
         for dotpath, value in seed_overrides.items():
             _apply_dotpath(state, dotpath, value)
