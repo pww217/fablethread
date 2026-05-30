@@ -8,7 +8,7 @@ Triggered by `POST /new-game`. Behavior differs by pack mode.
 
 ```mermaid
 flowchart TD
-    FORM["New Game Form<br>──────────────────<br>pack_id<br>pc_name, pc_tagline, pc_stats<br>pc_hints, npc_hints<br>location_hints, quest_hints<br>free_form, npc_count"]
+    FORM["New Game Form<br>──────────────────<br>pack_id<br>pc_name, pc_tagline, pc_stats<br>pc_hints, npc_hints<br>location_hints, arc_hints<br>free_form, npc_count"]
 
     MODE{pack.manifest.mode}
 
@@ -17,7 +17,7 @@ flowchart TD
     end
 
     subgraph DYNAMIC["Dynamic Pack — generate_seed()"]
-        DS["Build PlayerOverrides<br>  (pc_hints, npc_hints, location_hints,<br>  quest_hints, free_form, npc_count)<br>Pass to generate_seed() LLM pipeline"]
+        DS["Build PlayerOverrides<br>  (pc_hints, npc_hints, location_hints,<br>  arc_hints, drive_hint, free_form, npc_count)<br>Pass to generate_seed() LLM pipeline"]
     end
 
     INIT["init_save_dir(SAVE_DIR, seed)<br>Writes state.yaml<br>Clears chronicle.md + events.jsonl"]
@@ -46,7 +46,7 @@ flowchart LR
     subgraph IN["Inputs"]
         G1["pack.manifest<br>(world rules, tone, setting)"]
         G2["pack.style_text"]
-        G3["PlayerOverrides (optional)<br>  pc_hints, npc_hints<br>  location_hints, quest_hints<br>  free_form, npc_count"]
+        G3["PlayerOverrides (optional)<br>  pc_hints, npc_hints<br>  location_hints, arc_hints, drive_hint<br>  free_form, npc_count"]
         G4["npc_name_pool (name locales)"]
         G5["engine_config.generate_seed_temperature (0.9)<br>engine_config.generate_seed_max_retries (1)"]
     end

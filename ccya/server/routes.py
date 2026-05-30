@@ -257,7 +257,8 @@ async def new_game(request: Request):
     pc_hints = str(form.get("pc_hints", "")).strip()
     npc_hints = str(form.get("npc_hints", "")).strip()
     location_hints = str(form.get("location_hints", "")).strip()
-    quest_hints = str(form.get("quest_hints", "")).strip()
+    arc_hints = str(form.get("arc_hints", "")).strip()
+    drive_hint = str(form.get("drive_hint", "")).strip()
     free_form = str(form.get("free_form", "")).strip()
 
     npc_count_raw = str(form.get("npc_count", "")).strip()
@@ -270,7 +271,8 @@ async def new_game(request: Request):
         pc_hints=pc_hints,
         npc_hints=npc_hints,
         location_hints=location_hints,
-        quest_hints=quest_hints,
+        arc_hints=arc_hints,
+        drive_hint=drive_hint,
         free_form=free_form,
         npc_count=npc_count,
     )
