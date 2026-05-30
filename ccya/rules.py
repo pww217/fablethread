@@ -118,9 +118,9 @@ def roll_1d12(rng: random.Random | None = None) -> int:
 
 
 def compute_band(final_total: int, raw_die: int) -> str:
-    if raw_die == 1:
+    if final_total <= 1:
         return "crit_fail"
-    if raw_die == 12:
+    if final_total >= 12:
         return "crit_success"
     if final_total <= 5:
         return "fail"
