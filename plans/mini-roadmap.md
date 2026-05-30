@@ -60,8 +60,8 @@ Notes schema description constrained; examples section added showing correct vs 
 ### 6a. Thread resolve outcome not saved to state — VERIFIED CORRECT, NO CODE CHANGE NEEDED
 Data flow is correct: `_apply_thread_resolutions()` returns CampaignArc → caller merges via `_merge_arc_update()` → writes both `threads[]` and `completed_threads[]` with resolution_state + outcome fields (non-None) → `save_state()` persists to disk. If outcomes are missing, root cause is LLM not emitting thread_resolve or ID mismatch — prompt/engine issue, not persistence bug.
 
-### 6b. "Seen" empty too often
-Two bugs found: (1) first_seen_turn NEVER set by engine despite model comment saying "set by engine"; (2) last_seen only stamped for NPCs in compendium_npc_update, never initialized on creation. Plan created at state-save-bugs.md — Phase 2 fixes both via initialization in apply_npc_scene_management().
+### 6b. "Seen" empty too often — DONE (this plan)
+first_seen_turn now initialized on NPC creation in apply_npc_scene_management(); last_seen set for all new NPCs with turn/location info. Call site updated to pass current_turn_no from delta_builder.py. Fixes both sub-bugs: first_seen_turn defaults no longer needed, newly created NPCs have visible seen history immediately.
 
 ---
 

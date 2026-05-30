@@ -115,7 +115,18 @@ def apply_npc_scene_management(
                     if name_match:
                         resolved_id = name_match
 
+            is_new = resolved_id not in comp
             entry = comp.setdefault(resolved_id, {})
+
+            if is_new and current_turn_no is not None:
+                entry["first_seen_turn"] = current_turn_no  # 0-based, matches compact_user.j2 convention (T{{ npc.first_seen_turn }})
+                location = state.get("location", {})
+                entry["last_seen"] = {
+                    "turn": current_turn_no,
+                    "location_id": location.get("id", ""),
+                    "location_name": location.get("name", ""),
+                }
+
             if comp_upd.name is not None:
                 entry["name"] = _strip_non_ascii(comp_upd.name)
             if comp_upd.title is not None:
