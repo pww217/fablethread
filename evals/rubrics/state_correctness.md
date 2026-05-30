@@ -59,14 +59,14 @@ Also note: if every turn emits a non-null `gm_beat`, the beat expiry path (`turn
 
 ### 1C — Unified Thread Lifecycle Table
 
-| ID | Added (Tn) | Scope | Urgency | Advances | Progress | Location Changed? | Resolved/TTL (Tm) | Lifespan | Flag |
-|----|------------|-------|---------|----------|----------|-------------------|-------------------|----------|------|
+| ID | Added (Tn) | Scope | Urgency | Updates | Resolved (Tm) | Flag |
+|----|------------|-------|---------|---------|----------------|------|
 
-Flags: `INERT` (no advancement across ≥3 turns), `OVERLONG`, `UNRESOLVED_AT_END`. For scope=scene threads, add `EARLY_EXPIRATION` and `LATE_EXPIRATION` — scene-scoped threads expire on location change. For scope=arc threads, track age-based demotion via last_seen_turn (demote active→False after idle turns). CAP_EXCEEDED: more than 3 active threads. `SCOPE_GATE_ACTIVE` — scene-scoped threads received no thread_advance signals. Verify from turn data whether scene-scoped threads were blocked from signal application or simply never received signals from the storyteller. If thread_advance signals exist for other threads but not scene-scoped ones, and if scene threads remain at progress=0 for their entire lifespan, this may indicate the code-level scene-thread gate at `_apply_thread_signals` is over-aggressive.
+Flags: `INERT` (thread exists ≥3 turns with no thread_update or resolve), `UNRESOLVED_AT_END`. For scope=scene threads, verify they are present in arc.threads[] while relevant and removed (via thread_resolve) when tension ends. For scope=arc threads, verify they persist until explicitly resolved. CAP_EXCEEDED: more than 3 active threads.
 
-Read `Advances` from `thread_advance` signal counts in extraction outputs. Read `Progress` from `arc.threads[].progress` field in state_snapshot. If `Advances > Progress` significantly (e.g., 7 advances but progress=0), flag `SIGNAL_APPLICATION_FAILURE`.
+Read `Updates` from `thread_update` signal counts in extraction outputs (thread_update lists IDs that received urgency/active/summary changes). Read `Resolved` from `thread_resolve` signals. Verify resolved thread IDs appear in `arc.completed_threads[]` in state_snapshot. If thread_resolve fires but the thread is still in `arc.threads[]`, flag `RESOLUTION_FAILED`.
 
-`SIGNAL_APPLICATION_FAILURE`: thread_advance signals are firing but progress in state is not incrementing — either the signal ID doesn't match the thread's `id` field, or `_apply_thread_signals` skipped the thread.
+`RESOLUTION_FAILED`: thread_resolve signals fired but the thread was not moved to completed_threads — either the signal ID doesn't match the thread's `id` field, or `_apply_thread_updates` / `_merge_arc_update` skipped it.
 
 ### 1D — Condition Lifecycle Table
 
@@ -93,7 +93,7 @@ Cite specific turns and fields where they diverge.
 
 ### 2B — Extraction Drift
 For each turn where a delta was rejected OR where state did not change but should have:
-identify the responsible pipeline (scene/state/progress) and the field that drifted.
+identify the responsible pipeline (scene/state/storytell) and the field that drifted.
 Distinguish: extraction failure (pipeline emitted nothing) vs. schema mismatch (pipeline
 emitted wrong structure) vs. validation rejection (engine rejected a valid-looking delta).
 

@@ -6,7 +6,7 @@
 # ccya Eval — Compaction Judge
 
 You are evaluating the quality and correctness of the ccya compactor.
-Compaction fires every N turns (typically every 6 turns in a 13-turn run, at T6 and T12).
+The compactor is currently dormant (no batch compaction runs). If no compaction occurred in this run, state that and score 3/5 (neutral — cannot assess). When compaction is re-enabled, it fires every N turns (typically every 6 turns in a 13-turn run, at T6 and T12).
 
 You receive:
 - State snapshots at and around compaction turns (full JSON, not diffs)

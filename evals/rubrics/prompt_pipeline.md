@@ -88,7 +88,7 @@ For each turn, verify each mechanic is emitted by the correct stream.
 | `scene_tags`, `scene_tagline` | scene |
 | `inventory_add`, `inventory_remove`, `inventory_update` | state |
 | `pc_condition_add`, `pc_condition_remove` | state |
-| `thread_advance`, `thread_resolve`, `thread_add` (gated) | storytell |
+| `thread_update`, `thread_resolve`, `thread_add` (gated) | storytell |
 | `recent_events_add`, `recent_events_update`, `recent_events_remove` | storytell |
 | `gm_beat` | storytell |
 | `actions`, `outcome_summary` | storytell |

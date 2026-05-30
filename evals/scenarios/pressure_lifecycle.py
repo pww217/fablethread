@@ -1,12 +1,13 @@
-"""pressure_lifecycle — Tests unified ArcThread scope-aware expiration across 8 turns.
+"""pressure_lifecycle — Tests ArcThread scope semantics across 8 turns.
 
 Seeds a scene-scoped thread at turn 1, verifies it persists while location unchanged,
-expires on location change (turn 4), then seeds an arc-scoped thread that persists
-across locations until aged out via age-based demotion rules.
+and is resolved by the storyteller when tension ends (turn 4). Then seeds an arc-scoped
+thread that persists across locations until the storyteller resolves it.
 
-All thresholds derive from engine_mirror constants:
-- THREAD_SCENE_EXPIRE_ON_LOCATION_CHANGE=True
-- THREAD_ARC_DEMOTE_AGE=8 turns idle for active→False demotion
+Thread lifecycle is storyteller-managed:
+- thread_update: changes urgency/active/summary on existing threads
+- thread_add: creates new threads (gated by pacing_context.gate)
+- thread_resolve: moves threads to completed_threads with resolution_state
 """
 
 from ccya.eval.scenario import Scenario, Turn
@@ -15,7 +16,7 @@ from ccya.eval.scenario import Scenario, Turn
 scenario = Scenario(
     id="pressure_lifecycle",
     pack="eval-pack",
-    description="Tests unified ArcThread scope-aware expiration across 8 turns. Scene-scoped thread expires on location change; arc-scoped thread persists across locations.",
+    description="Tests ArcThread scope semantics across 8 turns. Scene-scoped thread resolved when tension ends; arc-scoped thread persists across locations.",
     seed_overrides={
         "arc.threads": [
             {
@@ -54,19 +55,19 @@ scenario = Scenario(
         ),
         Turn(
             input="I duck into the alley behind the smithy when I hear heavy footsteps on the cobblestones.",
-            phase="location_change_expire_scene_thread",
+            phase="scene_thread_resolved",
             expects=[
-                "scene-scoped thread debt_collector_approaching should expire — location changed from Marrow's Crossing to alley/smithy area",
-                "arc.threads[] in state snapshot should NOT include expired scene-scoped threads",
+                "scene-scoped thread debt_collector_approaching should be resolved — location changed and tension moved with player",
+                "arc.threads[] in state snapshot should NOT include resolved scene-scoped threads (moved to completed_threads)",
                 "narration should reflect the new tension (footsteps approaching)",
             ],
         ),
         Turn(
             input="I confront whoever is following me — I tell them I'm not interested in trouble.",
-            phase="arc_thread_persists_across_location",
+            phase="arc_thread_created",
             expects=[
                 "rules.required=true skill=charisma",
-                "an arc-scoped thread should be visible (created by Progress during this turn or previous)",
+                "an arc-scoped thread should be visible (created by storyteller during this turn or previous)",
                 "PacingContext.directive should reflect the confrontation context",
             ],
         ),
@@ -74,15 +75,15 @@ scenario = Scenario(
             input="I watch whoever I confronted leave and wait ten minutes before moving.",
             phase="arc_thread_persists_no_resolution",
             expects=[
-                "arc-scoped thread should still be in arc.threads[] — no location change for scene threads, but this is scope=arc so it persists",
-                "thread should not have expired yet (age-based demotion requires >=8 idle turns)",
+                "arc-scoped thread should still be in arc.threads[] — not resolved by storyteller yet",
+                "thread persists across location change — only resolved explicitly via thread_resolve",
             ],
         ),
         Turn(
             input="I head back to the inn and order a drink.",
-            phase="location_change_no_effect_on_arc_thread",
+            phase="location_change_arc_thread_persists",
             expects=[
-                "arc-scoped thread persists across location change — only scope=scene threads expire on location change",
+                "arc-scoped thread persists across location change — only resolved explicitly via thread_resolve",
                 "new scene-scoped threads may be created for new tensions in this location",
             ],
         ),
@@ -91,7 +92,7 @@ scenario = Scenario(
             phase="cooldown",
             expects=[
                 "low-stakes, breathing room — no roll needed",
-                "arc.threads[] should contain only threads that are still relevant (no expired scene-scoped threads)",
+                "arc.threads[] should contain only active threads (no resolved scene-scoped threads)",
             ],
         ),
     ],

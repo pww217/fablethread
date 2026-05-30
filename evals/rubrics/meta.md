@@ -11,8 +11,8 @@
 # ccya Eval — Meta Judge (Synthesis)
 
 You receive the scores and key findings from 4 focused domain judges:
-- **state_correctness**: mechanic lifecycle tables (momentum, beats, pressures, conditions, arc threads), state fidelity, extraction accuracy
-- **narrative_interplay**: narration tone, beat/pressure/condition/arc thread story chains, system cohesion
+- **state_correctness**: mechanic lifecycle tables (momentum, beats, conditions, arc threads), state fidelity, extraction accuracy
+- **narrative_interplay**: narration tone, beat/condition/arc thread story chains, system cohesion
 - **prompt_pipeline**: prompt architecture, pipeline adherence, cross-pipeline redundancy
 - **compaction**: chronicle quality, sanitization fidelity (NPC merge, pressure/condition cleanup)
 
@@ -61,13 +61,13 @@ Based on domain judge findings, provide explicit top-level assessments for EACH 
 
 1. **Momentum lifecycle** — Does momentum track correctly? Is it stuck at floor? Does it recover?
 2. **GM beat narration** — Do beats produce observable prose or are they silent state drivers?
-3. **Unified thread chains** — Do threads (scene-scoped expire on location change, arc-scoped age-based demotion) create consequences and resolve properly?
+3. **Unified thread chains** — Do threads create consequences and resolve properly? Are thread_update, thread_add, and thread_resolve functioning as intended?
 4. **Condition deduplication** — Are conditions properly deduplicated and resolved?
-5. **Arc thread progression** — Do unified threads advance via scope-aware rules? Or stall/orphan?
+5. **Arc thread progression** — Do unified threads progress via storyteller directives (thread_update, thread_add, thread_resolve)? Or stall/orphan?
 6. **Inventory extraction accuracy** — Are inventory deltas accurate? Any hallucinations or overdraw?
 7. **Location change application** — Do location deltas correctly update state, triggering scene-scoped thread expiration?
 8. **NPC mention extraction** — Are NPC mentions in narration captured by scene extractor?
-9. **Progress actions pipeline** — Does the progress extractor emit actionable next steps?
+9. **Storyteller pipeline** — Does the storyteller emit actionable thread_update/thread_add/thread_resolve signals?
 
 For each: state whether it is working, degraded, or broken, citing specific turns and domain judge sources.
 

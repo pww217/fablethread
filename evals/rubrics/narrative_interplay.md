@@ -31,7 +31,7 @@ Scoring philosophy:
 Per-turn blocks contain:
 - **Rules output**: `band`, `directive`, `intent`, `roll` (if present)
 - **Narration**: the prose output
-- **Extraction outputs**: scene (NPCs, location), state (inventory, conditions), progress (unified threads, beats)
+- **Extraction outputs**: scene (NPCs, location), state (inventory, conditions), storytell (unified threads, beats)
 - **State diff**: changes to `meta.momentum`, `scene`, `pc.conditions`
 
 You do NOT have access to the system or user prompts — do not comment on prompt architecture.
@@ -114,17 +114,17 @@ For each `thread_add` event:
 
 Flag: `INERT_THREAD` (thread exists in state, never feeds into story consequence).
 
-### 1C.5 — Thread Expiration Evaluation
+### 1C.5 — Thread Resolution Evaluation
 
-For each resolved/expired thread:
-- Was the expiration justified by narration? (narration showed the tension being addressed/resolved)
-- For scope=scene threads: was it expired on location change per engine rules?
-- For scope=arc threads: was age-based demotion applied correctly via last_seen_turn?
+For each resolved thread (in arc.completed_threads[]):
+- Was the resolution justified by narration? (narration showed the tension being addressed/resolved)
+- For scope=scene threads: was it resolved when the tension ended in the scene?
+- For scope=arc threads: was the resolution outcome consistent with the story arc?
 
-| Thread ID | Added (Tn) | Resolved/TTL (Tm) | Scope | Location Changed? | Narration Justified? | Flag |
-|-----------|------------|-------------------|-------|-------------------|---------------------|------|
+| Thread ID | Added (Tn) | Resolved (Tm) | Scope | Narration Justified? | Flag |
+|-----------|------------|---------------|-------|---------------------|------|
 
-Flag: `EARLY_EXPIRATION` (expired before narration showed resolution), `LATE_EXPIRATION` (>3 turns after location change when narration showed resolution for scope=scene, or >8 idle turns for scope=arc), `FALSE_EXPIRATION` (removed when tension was still active in narration), `MISSING_EXPIRATION` (tension resolved but thread not expired).
+Flag: `EARLY_RESOLUTION` (resolved before narration showed resolution), `LATE_RESOLUTION` (>3 turns after narrative resolution when the thread was still active), `FALSE_RESOLUTION` (removed when tension was still active in narration), `MISSING_RESOLUTION` (tension resolved narratively but thread not resolved).
 
 ### 1D — Condition→Narrative Callback
 For each active condition per turn: was it referenced in narration or did it affect a roll directive?

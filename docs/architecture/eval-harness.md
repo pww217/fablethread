@@ -97,7 +97,7 @@ EvalConfig:
    - Calls `run_turn()` — the same 5-call pipeline (Rules→Narrate→Scene→State→Storytell)
    - Captures `TurnRecord` (duration, errors, narrative chars, parse failures)
    - Runs structured `_check_asserts()` against the turn's event from `events.jsonl`
-   - Runs all 15 universal asserts on the event
+   - Runs all 20 universal asserts on the event
 7. **Writes artifacts**: `events.jsonl`, `run.json` to `evals/runs/<ts>_<rand>/artifacts/`
 8. **Updates `latest` symlink**
 
@@ -109,7 +109,7 @@ Two layers:
 - `ruling`: `rolled`, `skill`, `difficulty`, `band`, `intent_verb`
 - `extract.state`: `inventory_remove`, `inventory_add`, `pc_condition_add`, `pc_condition_remove`
 - `extract.scene`: `scene_tags`
-- `storytell.extract`: `thread_advance`
+- `storytell.extract`: `thread_update`, `thread_resolve`, `thread_add`
 - `extract`: `attempts:<stream>`, `skipped:<stream>`
 - `state_yaml`: `pending_gm_beat.present`, `pending_gm_beat.absent`
 
