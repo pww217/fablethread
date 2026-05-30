@@ -1478,7 +1478,7 @@ async def run_turn(
         yield ("phase", {"phase": "persist"})
 
         # === Write: events.jsonl → atomic state.yaml → chronicle.md ===
-        # Narrative is canonical in chronicle.md only (see load_recent_chronicle_turns).
+        # Narrative is canonical in chronicle.md only (see load_last_narration).
         ruling_event: dict[str, Any] = {
             "intent_verb": _intent.intent_verb,
             "intent": _intent.intent,
@@ -1574,6 +1574,7 @@ async def run_turn(
             prior.append(bullet)
             if len(prior) > 20:
                 meta["prior_history"] = prior[-20:]
+            save_state(save_dir, state)
 
         result_obj = TurnResult(
             turn=state["meta"]["turn"],
