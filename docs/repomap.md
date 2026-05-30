@@ -24,7 +24,7 @@
 | `ccya/state/__init__.py` | Re-exports all state symbols |
 | `ccya/state/io.py` | load_state, save_state (atomic), init_save_dir, _migrate_state |
 | `ccya/state/delta.py` | apply_delta(), reconcile_delta() — condition dedup, cross-turn dedup |
-| `ccya/state/inventory.py` | normalize_inventory_id, resolve/fuzzy match helpers |
+| `ccya/state/inventory.py` | normalize_inventory_id, resolve/fuzzy match helpers; resolve_inventory_remove_target() uses fuzzy matching (threshold 0.6) as final fallback |
 | `ccya/state/npcs.py` | build_npc_alias_map, touch_compendium_order (LRU) |
 | `ccya/state/chronicle.py` | append_event (events.jsonl), append_chronicle (chronicle.md), load_chronicle_tail() |
 | `ccya/state/momentum.py` | apply_momentum() — deterministic from rules band, clamped to [-3,+3] |

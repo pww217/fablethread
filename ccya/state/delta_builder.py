@@ -192,7 +192,7 @@ def apply_delta(
     for rem in delta.inventory_remove:
         canonical = resolve_inventory_remove_target(inv, rem.id)
         if not canonical:
-            _log.warning(
+            _log.debug(
                 "inventory_remove target %r not found in inventory (turn %s)",
                 rem.id, state.get("meta", {}).get("turn", 0),
             )
