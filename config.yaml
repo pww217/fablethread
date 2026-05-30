@@ -12,7 +12,6 @@ ruling:
   max_retries: 1
 
 game:
-  default_save: default
   setting_pack: zombie-survival
   window_turns: 3
   chronicle_prefix_budget_tokens: 1500

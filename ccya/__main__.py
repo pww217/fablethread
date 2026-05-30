@@ -4,7 +4,8 @@ import uvicorn
 
 from ccya.cli import print_banner
 from ccya.logging_setup import setup_logging
-from ccya.server import app, config, SAVE_DIR
+from ccya.server import app, config
+from ccya.server.app import SAVE_DIR
 
 setup_logging()
 

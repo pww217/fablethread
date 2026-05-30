@@ -7,7 +7,8 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import date, datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import Request
@@ -47,6 +48,13 @@ _app_mod = sys.modules["ccya.server.app"]
 _log = logging.getLogger(__name__)
 
 
+def _generate_save_dir_name(pack_name: str) -> str:
+    today = date.today().isoformat()
+    safe = pack_name.lower().replace("/", "-").replace(" ", "-")
+    safe = "".join(c for c in safe if c.isalnum() or c in "-_")
+    return f"{safe}-{today}"
+
+
 def _apply_seed_to_save_dir(
     seed_dict: dict[str, Any],
     opening_narrative: str | None = None,
@@ -57,7 +65,11 @@ def _apply_seed_to_save_dir(
     pack_source: str | None = None,
     pool_selection: dict[str, Any] | None = None,
 ) -> None:
-    """Apply generated/loaded seed to save directory and set dynamic pack variables."""
+    """Apply generated/loaded seed to a new save directory and set dynamic pack variables."""
+    dir_name = _generate_save_dir_name(_app_mod._active_pack.manifest.name)
+    save_dir = Path("saves") / dir_name
+    _app_mod.SAVE_DIR = save_dir
+
     seed_dict.setdefault("meta", {})["model"] = _app_mod.config["llm"]["model"]
     if pack_type is not None:
         seed_dict.setdefault("meta", {})["_seed_type"] = pack_type
@@ -71,7 +83,7 @@ def _apply_seed_to_save_dir(
         }
     if pool_selection:
         seed_dict["__seed_pools__"] = pool_selection
-    init_save_dir(_app_mod.SAVE_DIR, seed_dict)
+    init_save_dir(save_dir, seed_dict)
     if opening_narrative is not None:
         _app_mod._dynamic_opening = opening_narrative
     else:
