@@ -119,15 +119,15 @@ def _filter_completed_threads(arc: dict[str, Any], turn_no: int) -> list[dict[st
     return result
 
 
-def _get_resolved_arc(state: dict[str, Any], turn_no: int) -> dict[str, Any] | None:
-    """Get the most recently resolved arc from state's resolved_arcs list (TTL-filtered)."""
+def _get_resolved_arc(state: dict[str, Any], turn_no: int) -> list[dict[str, Any]]:
+    """Get resolved arcs from state's resolved_arcs list (TTL-filtered)."""
     ttl = 3
     resolved_arcs = state.get("resolved_arcs") or []
     if not resolved_arcs:
-        return None
-    # Find the most recent one within TTL
-    for ra in reversed(resolved_arcs):
+        return []
+    result: list[dict[str, Any]] = []
+    for ra in resolved_arcs:
         resolved_turn = ra.get("resolved_turn", 0)
         if (turn_no - resolved_turn) <= ttl:
-            return dict(ra)
-    return None
+            result.append(dict(ra))
+    return result

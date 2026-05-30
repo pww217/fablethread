@@ -8,7 +8,7 @@ Extract suggested player actions, outcome summary, thread updates, and arc resol
   "outcome_summary": "",
   "gm_beat": null,
   "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent"}, {"id": "..."}],
-  "arc_resolve": {"resolution": "How this arc concluded narratively.", "surviving_threads": ["thread_id_1"]},
+  "arc_resolve": {"resolution": "How this arc concluded narratively.", "visible_goal": "The next arc's goal.", "goal_context": "Why this goal matters to the PC."},
   "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal", "tags": [], "key": "subject_action"},
   "world_state_add": [{"id": "new_fact_id", "text": "durable world fact text", "tier": "persistent"}],
   "world_state_remove": ["fact_id_to_remove"]
@@ -57,7 +57,10 @@ CRITICAL: Before emitting `thread_add`, check all active and latent thread summa
 Use `arc_resolve` to signal that this campaign arc has reached its natural conclusion. This tells Python to store the resolved arc and generate a successor with surviving threads, goal_context from prior context, and thematic_question inherited from the parent.
 
 - `resolution`: One-sentence narrative summary of how this arc concluded (e.g., "The quarantine perimeter collapsed after Dr. Voss's team was overrun").
-- `surviving_threads`: List of thread IDs that persist into the next arc — tensions that were addressed but not fully resolved, or threads that naturally carry forward.
+- `visible_goal`: The next arc's visible goal — a new objective that emerges from or follows from this arc's conclusion.
+- `goal_context`: 2–3 sentences explaining why this new goal matters to the PC specifically.
+- `thematic_question`: Optional override for the successor arc's thematic question. Omit to inherit from the current arc.
+- `thread_directives`: Optional list of `{"id": "thread_id", "action": "drop"|"move_latent"}` for threads that should be removed or demoted. Threads not mentioned carry over as-is into the successor arc.
 
 Only emit `arc_resolve` when the visible_goal has been meaningfully completed, abandoned, or transformed. Do NOT use it for partial progress or temporary setbacks.
 

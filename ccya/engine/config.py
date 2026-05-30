@@ -47,7 +47,7 @@ class EngineConfig:
     #                      (e.g., thread_*).
     #                      Safe to reload config while server is running.
     #   module constant:   Fields defined as module-level variables imported
-    #                      at startup (e.g., _ACTIVE_THREAD_CAP in turn.py).
+    #                      at startup (e.g., _MOMENTUM_MIN in rules.py).
     #                      Require server restart to change.
     #   startup only:      Fields read once at EngineConfig construction and
     #                      never re-read (e.g., model, host, temperatures).

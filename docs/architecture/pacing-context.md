@@ -102,7 +102,7 @@ flowchart LR
 
 ## Consecutive pressure counter
 
-`state["meta"]["consecutive_pressure_turns"]` tracks how many consecutive turns have had Pressure or Overwhelm directives without any threads being advanced by the storyteller. Updated via two-pass logic at turn end (~turn.py ~1450): increments when directive was Pressure/Overwhelm AND `thread_advance` is empty; resets to 0 otherwise (directive not Pressure/Overwhelm OR any threads were advanced). When this counter reaches `config.consecutive_pressure_threshold` (default 3), it triggers the dual-trigger beat_locked condition alongside momentum floor relief.
+`state["meta"]["consecutive_pressure_turns"]` tracks how many consecutive turns have had Pressure or Overwhelm directives without any thread updates emitted by the storyteller. Updated via two-pass logic at turn end (~turn.py ~1450): increments when directive was Pressure/Overwhelm AND no `thread_update` emitted; resets to 0 otherwise. When this counter reaches `config.consecutive_pressure_threshold` (default 3), it triggers the dual-trigger beat_locked condition alongside momentum floor relief.
 
 ## GM Beat lifecycle (Phase 03 carryover fix)
 

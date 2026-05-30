@@ -90,7 +90,7 @@
             </summary>
             <div class="arc-truths">
                 {% for ra in _resolved_arcs %}
-                <div class="arc-truth" data-md><strong>T{{ ra.turn }}</strong>: {{ ra.resolution[:120] }}{% if ra.goal_context %} (Goal: {{ ra.goal_context[:80] }}){% endif %}</div>
+                <div class="arc-truth" data-md><strong>T{{ ra.resolved_turn }}</strong>: {{ ra.resolution[:120] }}{% if ra.goal_context %} (Goal: {{ ra.goal_context[:80] }}){% endif %}</div>
                 {% endfor %}
             </div>
         </details>
