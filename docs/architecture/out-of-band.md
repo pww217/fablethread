@@ -4,30 +4,21 @@ These run only at new-game time or are non-engine concerns. They are excluded fr
 
 ## Character Creation Pipeline
 
-Triggered by `POST /new-game`. Behavior differs by pack mode.
+Triggered by `POST /new-game`. All packs use the Generate Seed pipeline (dynamic). Static packs with pre-built seed_state.yaml exist but are not used by new_game.
 
 ```mermaid
-flowchart TD
+flowchart LR
     FORM["New Game Form<br>──────────────────<br>pack_id<br>pc_name, pc_tagline, pc_stats<br>pc_hints, npc_hints<br>location_hints, arc_hints<br>free_form, npc_count"]
 
-    MODE{pack.manifest.mode}
-
-    subgraph STATIC["Static Pack"]
-        SS["Load pack.seed (YAML)<br>Apply hard overrides:<br>  pc.name, pc.tagline, pc.stats<br>(validated: 6 stats, each 1–4, total 12–16)"]
-    end
-
     subgraph DYNAMIC["Dynamic Pack — generate_seed()"]
-        DS["Build PlayerOverrides<br>  (pc_hints, npc_hints, location_hints,<br>  arc_hints, drive_hint, free_form, npc_count)<br>Pass to generate_seed() LLM pipeline"]
+        DS["Build PlayerOverrides<br>  (pc_hints, npc_hints, location_hints,<br>  arc_hints, free_form, npc_count)<br>Pass to generate_seed() LLM pipeline"]
     end
 
     INIT["init_save_dir(SAVE_DIR, seed)<br>Writes state.yaml<br>Clears chronicle.md + events.jsonl"]
 
-    OPENING["static: pack.opening_text<br>dynamic: envelope.opening_narrative<br>dynamic: envelope.actions (suggested first moves)"]
+    OPENING["envelope.opening_narrative<br>envelope.actions (suggested first moves)"]
 
-    FORM --> MODE
-    MODE -- "static" --> STATIC
-    MODE -- "dynamic" --> DYNAMIC
-    STATIC --> INIT
+    FORM --> DYNAMIC
     DYNAMIC --> INIT
     INIT --> OPENING
 ```
@@ -45,8 +36,7 @@ flowchart LR
 
     subgraph IN["Inputs"]
         G1["pack.manifest<br>(world rules, tone, setting)"]
-        G2["pack.style_text"]
-        G3["PlayerOverrides (optional)<br>  pc_hints, npc_hints<br>  location_hints, arc_hints, drive_hint<br>  free_form, npc_count"]
+        G3["PlayerOverrides (optional)<br>  pc_hints, npc_hints<br>  location_hints, arc_hints<br>  free_form, npc_count"]
         G4["npc_name_pool (name locales)"]
         G5["engine_config.generate_seed_temperature (0.9)<br>engine_config.generate_seed_max_retries (1)"]
     end
@@ -57,7 +47,7 @@ flowchart LR
 
     subgraph OUT["Outputs — SeedEnvelope"]
         O1["seed_state: GameState<br>  pc (name, tagline, bio, stats)<br>  location (id, name, description)<br>  scene (world_state: list[WorldStateFact])<br>  inventory: list[InventoryItem]<br>  compendium.npcs: dict[id] CompendiumEntry<br>    (presence='present' for in-scene NPCs,<br>     presence='known' otherwise)<br>  meta (model, setting_pack, turn=0)"]:::outNode
-        O2["arc: CampaignArc<br>  visible_goal, goal_context (personal stakes),<br>  thematic_question, hidden_truths,<br>  threads[] (unified, with active flag),<br>  completed_threads[], pc_drive"]:::outNode
+        O2["arc: CampaignArc<br>  visible_goal, goal_context (personal stakes),<br>  thematic_question,<br>  threads[] (unified, with active flag),<br>  completed_threads[]"]:::outNode
         O3["opening_narrative: str<br>(prose intro shown before turn 1)"]:::outNode
         O4["actions: list[str]<br>(4 distinct, character-shaped,<br>scene-grounded choices)"]:::outNode
     end
@@ -74,8 +64,7 @@ The seed prompt (`generate_seed_system.j2`) enforces these requirements:
 - **NPC `relation` field**: Each opening NPC has a defined narrative job. One NPC is personally tied to the PC's motive or vulnerability; the other carries immediate external pressure from the world or conflict. The `relation` field encodes PC-facing relevance (e.g. "owes them a favor", "is their only contact here", "represents the institution pressing on them").
 - **Compendium NPCs**: The seed also generates 2–3 NPCs in `compendium.npcs` (name, title, bio) who exist in the world but are not present in the opening scene. Their bios tie them to factions, locations, or world pressures, not to the immediate situation. These become discoverable characters during play.
 - **Action guidance**: Each of the 4 choices is written from the PC's point of view, grounded in a present NPC, immediate risk, active thread, or character motive. They differ in emotional posture (confront, deflect, investigate, protect, exploit, withdraw, etc.) and avoid generic verbs.
-- **`pc_drive`**: A single sentence about the PC's personal reason for being in this situation. Expressed indirectly through `goal_context`, NPC relations, opening narrative, and actions — never displayed as a labeled UI fact.
-- **`threads[]`**: Unified list (not split active/latent) where each thread has `{id, summary, tags, urgency, scope}` and an `active` boolean flag managed by Python age rules, not LLM.
+- **`threads[]`**: Unified list (not split active/latent) where each thread has `{id, summary, tags, urgency, scope}` and an `active` boolean flag managed by the storyteller via `thread_update`, not Python age rules.
 
 ## Turn Viewer — status colors
 

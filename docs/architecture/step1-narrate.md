@@ -11,11 +11,10 @@ flowchart LR
     classDef outNode   fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
 
     subgraph IN["Inputs"]
-        N1["state (full —<br>pc, location, scene,<br>inventory, quests, compendium)"]
-        N2["chronicle_tail<br>(compressed history, ≤budget tokens)"]
-        N3["recent_turns (last window_turns, default 3)"]
+        N1["state (full —<br>pc, location, scene,<br>inventory, compendium)"]
+        N2["prior_history<br>(last 10 incremental history bullets)"]
+        N3["recent_turns (last window of events.jsonl entries)"]
         N4["rules_outcome<br>(band, directive, impossible, dice summary)"]:::xstream
-        N5["pack_style (tone / prose guide)"]
         N6["npc_name_pool (cultural name list)"]
         N7["npc_roster<br>(from build_npc_roster(comp),<br>  presence field: present/nearby/known)"]
         N9["world_factions<br>(immutable trace)"]:::xstream
