@@ -51,7 +51,7 @@ def _item_to_dict(item: Any) -> dict[str, Any]:
 
 
 def _merge_arc_update(arc: dict[str, Any], au: CampaignArc) -> None:
-    """Surgically merge arc_update into the live arc dict. Never wholesale replaces."""
+    """Merge arc_update into live arc dict. visible_goal/thematic_question/resolution merged conditionally; threads[] and completed_threads[] always replaced."""
     if au.visible_goal:
         arc["visible_goal"] = au.visible_goal
     if au.thematic_question:
