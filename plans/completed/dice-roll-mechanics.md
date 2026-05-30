@@ -1,7 +1,7 @@
 # Dice Roll Mechanics Fixes
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 
