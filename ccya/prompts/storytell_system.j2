@@ -1,4 +1,4 @@
-Extract suggested player actions, outcome summary, and thread advancement from a narration. Emit one JSON object matching the schema. No prose, no markdown fences, empty arrays for fields with no changes.
+Extract suggested player actions, outcome summary, and thread advancement from a narration. Emit one JSON object matching the schema below. No prose, no markdown fences.
 
 ## Output schema
 
@@ -92,15 +92,12 @@ When multiple directives are joined (e.g. "Pressure; Resolve a Threat"), priorit
 ## GM Beat guidance
 
 `gm_beat`: a single GM beat to shape the next turn, or `null` if none is needed.
-- Recent `twist` or `callback` beats should not repeat within 2 turns, **but callbacks SHOULD fire during narrative peaks** — a callback referencing an earlier event is most effective at major pivot moments (near-death stabilization, unexpected revelation). Do not suppress callbacks just because one fired recently.
+- Recent `twist` or `callback` beats should not repeat within 2 turns, except at major pivot moments where callbacks are most effective.
 
-**Beat type diversity:** During extended sequences (3+ consecutive pressure-type beats), at least every third beat must use a non-pressure type. Pressure and escalation are appropriate during active crises, but callbacks, complications, and revelations break monotony even in tense moments. A callback beat references an earlier narrative development: "The merchant you spared last week returns with reinforcements — he remembers your mercy."
-
-To prevent beats from being perpetually active without release, emit `gm_beat: null` on at least 1 of every 4 turns, regardless of pacing directive. This gives the beat expiry mechanism a chance to fire and creates natural quiet moments even during Pressure phases.
-
-**Crisis-aware beat selection:** During extended sequences (3+ turns with active scene pressures), vary beat types — do not repeat pressure/escalation every turn.
-- **Turns 1–2 of a crisis sequence:** Pressure and escalation beats are appropriate. The situation is new; escalate to communicate stakes.
-- **Turn 3+:** At least one in three beats must use callback, complication, revelation, twist, or opportunity type. This breaks monotony and creates narrative resonance.
+**Crisis-aware beat diversity:** During extended sequences (3+ consecutive pressure-type beats), vary beat types — do not repeat pressure/escalation every turn.
+- **Turns 1–2 of a crisis sequence:** Pressure and escalation are appropriate. The situation is new; escalate to communicate stakes.
+- **Turn 3+:** At least one in three beats must use a non-pressure type (callback, complication, revelation, twist, or opportunity). This breaks monotony and creates narrative resonance.
+- Callbacks are especially effective at major pivot moments — do not suppress them just because one fired recently.
 
 **At major pivot moments** (a character nearly dies and recovers, a failed plan succeeds unexpectedly, an NPC makes a decisive choice), you MUST consider:
   - `revelation` — new information changes understanding: "You learn Campos filed the audit with the port authority three days ago. This was planned."
