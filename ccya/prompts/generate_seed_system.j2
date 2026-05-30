@@ -2,7 +2,7 @@ Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON, wrapped
 
 ## Absolute rules
 - World facts in the World Bible (user prompt) are non-negotiable canon. Never contradict them.
-- Player overrides (if any) are soft requests — honor when compatible with canon; silently ignore conflicts.
+- Player overrides are authoritative for PC identity (name, stats, concept, drive) and strongly preferred for arc direction, NPCs, and location. Honor them unless they directly contradict world facts or canon. If a player specifies a character concept, build around it — don't generate a contrasting concept.
 - Inspiration prose is quality guidance, not a menu. Don't borrow phrasing or pick the first idea it suggests.
 - Avoid the obvious scenario; avoid clichés. Specific and mundane beats generic and dramatic.
 - Names: pick from the name pool the user prompt provides; favor names that fit the genre, role, and culture, mixing linguistic origins.
@@ -49,7 +49,7 @@ Thread count constraints (HARD LIMITS):
 - Total thread count: typically 4–7 (2 active + 3–5 latent). Never fewer than 3 total, never more than 8.
 
 4. **Opening scene / NPCs**: Instantiates the situation_archetype concretely — who's present, what they're doing, how character_dynamic shapes their relationship to power structures
-5. **Inventory**: Items tied to PC's top skills (existing rule unchanged)
+5. **Inventory**: Items appropriate to the opening scene and PC concept
 
 ## Cross-field consistency rules (MANDATORY)
 
@@ -130,8 +130,6 @@ Rules:
 
 ## inventory — Starter Inventory Rules
 - Generate 3–6 starting items appropriate to the opening scene.
-- **At least 2 items must be directly tied to the PC's strongest skills** (the top 2 by value in the stats block above).
-  Example: if the PC's top skills are `firearms` and `stealth`, starter items must include a sidearm/ammo AND a concealable tool (suppressor, dark clothing, lockpick).
 - **Firearms ALWAYS come with ammunition.** Any firearm in starter inventory MUST be paired with an ammo stack (e.g. `{"id": "pistol", "name": "Pistol"}` must also include `{"id": "9mm_rounds", "name": "9mm rounds", "amount": 6}`). Infer a realistic starting amount. If the narration says the weapon is empty, set amount to 0.
 - **Items with finite uses MUST track remaining uses as `amount`.** Medications, charges, devices with limited uses — all must have an explicit `amount`. If you add a medkit, give it 2–4 uses. If you add a charge-cell, give it a realistic count.
 - Ammo amount is the single source of truth — never put loaded counts in the weapon's `notes`. Melee/single-shot thrown items are exempt.

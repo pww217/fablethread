@@ -205,9 +205,9 @@ class GeneratedPackMeta(BaseModel):
 
 
 class PlayerOverrides(BaseModel):
-    """Optional player-supplied tweaks at New Game time. All fields default empty.
-    Engine injects into generate_seed prompt as soft guidance — Pydantic constraints
-    and world.md canon win on conflict."""
+    """Optional player-supplied direction at New Game time. All fields default empty.
+    Authoritative for PC identity (name, stats, concept, drive); strongly preferred for
+    arc, NPCs, and location. Only override on direct canon conflict."""
 
     pc_hints: str = ""
     npc_hints: str = ""

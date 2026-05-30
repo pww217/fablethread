@@ -31,7 +31,7 @@
 {% endif %}{% endif %}
 {% endif %}
 {% if overrides %}
-## player_overrides (soft — honor when compatible with canon)
+## player_overrides (authoritative for PC identity; strongly preferred otherwise — only override on canon conflict)
 {% if overrides.pc_hints %}- pc: {{ overrides.pc_hints }}
 {% endif %}{% if overrides.npc_hints %}- npcs: {{ overrides.npc_hints }}
 {% endif %}{% if overrides.location_hints %}- location: {{ overrides.location_hints }}
