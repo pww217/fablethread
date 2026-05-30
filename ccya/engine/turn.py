@@ -825,7 +825,6 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
     _comp = state.get("compendium", {}).get("npcs", {})
     ruling_messages = _ruling_messages(
         ctx._env, state, ctx.user_input,
-        recent_turns=ctx.recent_turns[-1:],
         turn_no=turn_no,
         npc_roster=build_npc_roster(_comp),
         last_outcome=_prev_outcome if _prev_outcome else None,
