@@ -28,35 +28,24 @@ class NpcPresence(str, Enum):
 class ArcThread(BaseModel):
     id: str
     summary: str
-    scope: Literal["scene", "arc"]  # unified collection replacing scene_pressure[] and active/latent thread split
-    active: bool = True  # False = dormant/latent; set by Python, not LLM
+    scope: Literal["scene", "arc"]
+    active: bool = True
     urgency: Literal["background", "normal", "urgent"] = "normal"
     tags: list[str] = Field(default_factory=list)
-    progress: int = 0  # incremented by thread_advance (LLM writes this on advance)
-    last_seen_turn: int | None = None  # for age-based active/latent demotion in Python
-    added_turn: int | None = None  # Python-managed lifecycle tracking
-    urgency_set_turn: int | None = None  # turn when urgency was last changed; used for urgency decay
-
-    resolution_state: str | None = None  # set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads
-
-    outcome: str | None = None  # set from ThreadResolution.outcome when moved to completed_threads; None on active/legacy threads
-
-    # Fields from old ArcThread that are preserved — engine handles these directly on resolve/advance:
-    unlock_if: str | None = None
-    promotes: list[str] = Field(default_factory=list)
-    key: str | None = None  # optional canonical concept label; 2-4 token snake_case for dedup at thread_add time with auto-merge on collision
+    resolution_state: str | None = None
+    outcome: str | None = None
+    resolved_turn: int | None = None
+    key: str | None = None
 
 
 class CampaignArc(BaseModel):
     visible_goal: str = ""
     thematic_question: str = ""
-    hidden_truths: list[str] = Field(default_factory=list)
-    discovered_truths: list[str] = Field(default_factory=list)
-    threads: list[ArcThread] = Field(default_factory=list)  # unified arc.threads[] replaces active_threads/latent_threads split — scope-aware expiration rules with age-based demotion (active: True → False)
-
-    completed_threads: list[ArcThread] = Field(default_factory=list)  # resolved/failed/abandoned threads moved here by _apply_thread_resolutions; resolution_state preserved for narrative context and eval rubrics
-    pc_drive: str = ""
-    goal_context: str = ""  # NEW: 2–3 sentences explaining why visible_goal matters to this character specifically
+    goal_context: str = ""
+    threads: list[ArcThread] = Field(default_factory=list)
+    completed_threads: list[ArcThread] = Field(default_factory=list)
+    resolution: str | None = None
+    last_thread_created_turn: int = 0
 
 class Condition(BaseModel):
     id: str
@@ -357,6 +346,26 @@ class ThreadResolution(BaseModel):
     outcome: str = ""  # one past-tense sentence written at resolution time; stored on completed ArcThread
 
 
+class ThreadUpdate(BaseModel):
+    id: str
+    active: bool | None = None
+    urgency: Literal["background", "normal", "urgent"] | None = None
+    summary: str | None = None
+
+
+class ThreadDirective(BaseModel):
+    id: str
+    action: Literal["drop", "move_latent"]
+
+
+class ArcResolution(BaseModel):
+    resolution: str
+    visible_goal: str
+    goal_context: str
+    thematic_question: str | None = None
+    thread_directives: list[ThreadDirective] = Field(default_factory=list)
+
+
 class GMBeat(BaseModel):
     type: Literal[
         "complication",
@@ -384,9 +393,10 @@ class StorytellerResult(BaseModel):
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = ""
     gm_beat: GMBeat | None = None
-    thread_advance: list[str] = Field(default_factory=list)
     thread_resolve: list[ThreadResolution] = Field(default_factory=list)
     thread_add: ArcThread | None = None
+    thread_update: list[ThreadUpdate] = Field(default_factory=list)
+    arc_resolve: ArcResolution | None = None
     world_state_add: list[WorldStateFact] = Field(default_factory=list)
     world_state_remove: list[str] = Field(default_factory=list)
 

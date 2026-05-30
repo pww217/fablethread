@@ -18,14 +18,9 @@ _log = logging.getLogger(__name__)
 
 _defaults = EngineConfig()
 
-# Unified thread lifecycle rules (scope-aware, replaces urgency escalation thresholds)
-THREAD_SCENE_EXPIRE_ON_LOCATION_CHANGE: bool = True        # scene-scoped threads expire when location changes
-THREAD_ARC_DEMOTE_AGE: int = _defaults.thread_urgency_max_age  # arc-scoped threads demote active:True→False after this many turns without last_seen_turn update
-
-# Thread lifecycle mechanics (engine-internal, exposed for judge context)
-_ACTIVE_THREAD_CAP: int = 3        # maximum number of threads that can be active simultaneously
-_EXPIRE_SILENT_TURNS: int = 5      # consecutive turns without being advanced before demoted to latent
-_PROMOTION_COOLDOWN_TURNS: int = 3  # minimum turns between latent-to-active promotions
+# Thread TTL defaults (matches config defaults)
+THREAD_RESOLVED_ARC_TTL: int = 3
+THREAD_COMPLETED_THREAD_TTL: int = 3
 
 # For trace injection into judge prompts — maps from ArcThread.urgency values (background/normal/urgent)
 URGENCY_LEVELS: tuple[str, ...] = ("background", "normal", "urgent")
@@ -61,7 +56,7 @@ EXTRACT_STREAMS: tuple[str, ...] = (
 # Keep in sync with runner._check_asserts handler names.
 KNOWN_ASSERT_FIELDS: dict[str, set[str]] = {
     "ruling": {"rolled", "skill", "difficulty", "band", "intent_verb"},
-    "storytell.extract": {"thread_advance", "thread_resolve", "thread_add"},
+    "storytell.extract": {"thread_update", "arc_resolve", "thread_resolve", "thread_add"},
     "extract.scene": {"scene_tags"},
     "extract.state": {"inventory_remove", "inventory_add", "pc_condition_add", "pc_condition_remove"},
     "extract": {"attempts:scene", "attempts:state", "skipped:scene", "skipped:state"},
@@ -77,7 +72,7 @@ def constants_block() -> str:
     """
     return (
         "## Engine Constants (live — do not override with rubric prose)\n\n"
-        f"- Thread lifecycle: scene-scoped threads expire on location change; arc-scoped threads demote active→False after {THREAD_ARC_DEMOTE_AGE} turns idle; cap={_ACTIVE_THREAD_CAP} active, silent expiry={_EXPIRE_SILENT_TURNS} turns, promotion cooldown={_PROMOTION_COOLDOWN_TURNS} turns\n"
+        f"- Thread lifecycle: storyteller-managed via thread_update directives; TTL-based cleanup for resolved_arcs ({THREAD_RESOLVED_ARC_TTL} turns) and completed_threads ({THREAD_COMPLETED_THREAD_TTL} turns)\n"
         f"- Urgency levels (ordered): {' → '.join(URGENCY_LEVELS)}\n"
         f"- Momentum range: [{MOMENTUM_MIN}, {MOMENTUM_MAX}], delta per band: {dict(MOMENTUM_DELTA)}, floor={_defaults.momentum_floor}\n"
         f"- Bands (ordered worst→best): {', '.join(BANDS)}\n"
@@ -100,5 +95,5 @@ KNOWN_SEED_PATHS: frozenset[str] = frozenset((
     "pc.credits",
 ))
 
-_log.debug("engine_mirror initialized: MOMENTUM_RANGE=[%d,%d] CAPS=(thread=%d,condition=%d,npc=%d) STREAMS=%d",
-           MOMENTUM_MIN, MOMENTUM_MAX, _ACTIVE_THREAD_CAP, PC_CONDITION_CAP, SCENE_NAMED_NPC_CAP, len(EXTRACT_STREAMS))
+_log.debug("engine_mirror initialized: MOMENTUM_RANGE=[%d,%d] CAPS=(thread=N/A,condition=%d,npc=%d) STREAMS=%d",
+            MOMENTUM_MIN, MOMENTUM_MAX, PC_CONDITION_CAP, SCENE_NAMED_NPC_CAP, len(EXTRACT_STREAMS))

@@ -56,14 +56,10 @@ def _merge_arc_update(arc: dict[str, Any], au: CampaignArc) -> None:
         arc["visible_goal"] = au.visible_goal
     if au.thematic_question:
         arc["thematic_question"] = au.thematic_question
-    if au.pc_drive:
-        arc["pc_drive"] = au.pc_drive
-    if au.hidden_truths is not None:
-        existing_ht = set(arc.get("hidden_truths") or [])
-        arc["hidden_truths"] = list(existing_ht | set(au.hidden_truths))
-    if au.discovered_truths:
-        existing_dt = set(arc.get("discovered_truths") or [])
-        arc["discovered_truths"] = list(existing_dt | set(au.discovered_truths))
+    if au.resolution is not None:
+        arc["resolution"] = au.resolution
+    if au.last_thread_created_turn and au.last_thread_created_turn != 0:
+        arc["last_thread_created_turn"] = au.last_thread_created_turn
     arc["threads"] = [
         t.model_dump(exclude_none=True) if hasattr(t, "model_dump") else dict(t)
         for t in au.threads

@@ -95,7 +95,6 @@ class SeedEnvelope(BaseModel):
     opening_narrative: str = Field(min_length=50)
     actions: list[str] = Field(min_length=4, max_length=4)
     arc: CampaignArc | None = None
-    pc_drive: str = ""
     outcome_summary: str = ""
 
 

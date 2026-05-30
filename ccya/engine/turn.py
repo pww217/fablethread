@@ -93,7 +93,6 @@ class TurnContext:
     _momentum_before: float | None = None
     _momentum_after: float | None = None
     _ages: dict[str, int] = field(default_factory=dict)  # set by ruling phase before narrate setup reads it
-    _threat_ages: list[dict[str, Any]] = field(default_factory=list)  # set by ruling phase before narrate setup reads it
     _npc_name_pool: dict[str, list[str]] | None = None
     _pending_gm_beat: dict[str, Any] | None = None
     _deescalate: float = 0.0
@@ -136,51 +135,26 @@ class PacingContext:
         return PacingContext(directive="", outcome_hint="hold", beat_locked=False, gate="allow", summary="neutral")
 
 
-_ACTIVE_THREAD_CAP = 3
-"""Maximum number of threads that can be active simultaneously."""
-
-_LATENT_THREAD_CAP = 4
-"""Maximum number of latent (inactive) threads permitted."""
-
-_EXPIRE_SILENT_TURNS = 5
-"""Consecutive turns without being advanced before a thread is demoted to latent."""
-
-_PROMOTION_COOLDOWN_TURNS = 3
-"""Minimum turns between latent-to-active promotions."""
 
 
-def _apply_thread_signals(
+def _apply_thread_updates(
     state: dict[str, Any],
-    storyteller_result: Any,
-    config: "EngineConfig",
+    storyteller_result: StorytellerResult,
 ) -> CampaignArc | None:
-    """Process thread_advance signals for unified threads[].
+    """Apply explicit thread updates from the storyteller.
 
-    Unified threads[] with scope-aware active bool managed by Python.
-    Both arc- and scene-scoped threads are processed (scene-scoped tracking
-    guarded by config.track_scene_thread_progress).
-    Urgency decay demotes urgent→normal→background after thread_urgency_max_age turns.
-
-    Any thread NOT in advanced_ids is implicitly ignored.
-    After 5 consecutive turns without being listed -> demote to latent (frees slot).
-    Threads reach config.thread_completion_threshold -> complete.
-    Promote latent threads if slots available and 3-turn cooldown met.
-
-    Unknown advanced_ids that match a latent thread promote it immediately
-    (bypassing the cooldown), per ARCHITECTURE.md "Engine-Driven Arc: Thread Lifecycle".
-
-    Scene-scoped two-stage lifecycle: active→latent after scene_thread_expire_silent_turns
-    without progress, latent→removed after another scene_thread_expire_silent_turns.
-
-    Returns a CampaignArc if any mutation occurred, None otherwise. Logs at WARNING
-    level when arc validation fails so silent returns can be diagnosed.
+    Does NOT enforce caps, cooldowns, or silent timers. Purely applies
+    the storyteller's explicit ThreadUpdate operations.
     """
+    if not storyteller_result.thread_update:
+        return None
+
     arc_raw = state.get("arc")
     turn_no = state.get("meta", {}).get("turn", 0) + 1
 
     if not arc_raw:
         _log.debug(
-            "turn.thread_signals.no_arc trace_id=%d, skipping", turn_no, extra={"turn": turn_no},
+            "thread_updates.no_arc trace_id=%d, skipping", turn_no, extra={"turn": turn_no},
         )
         return None
 
@@ -188,232 +162,135 @@ def _apply_thread_signals(
         arc = CampaignArc.model_validate(arc_raw)
     except Exception as exc:
         _log.warning(
-            "turn.thread_signals.validation_failed trace_id=%d: %s", turn_no, exc, extra={"turn": turn_no},
+            "thread_updates.validation_failed trace_id=%d: %s", turn_no, exc, extra={"turn": turn_no},
         )
         return None
 
-    advanced_ids = set(storyteller_result.thread_advance or [])
-    # Unified threads[] with scope-aware active bool — scene-scoped threads included when config allows
-    _thread_scopes = ("arc", "scene") if getattr(config, "track_scene_thread_progress", True) else ("arc",)
-    all_arc_threads = [t for t in arc.threads if getattr(t, "scope", "arc") in _thread_scopes]
-    active_by_id: dict[str, ArcThread] = {t.id: t for t in all_arc_threads if getattr(t, "active", True)}
-    latent_by_id: dict[str, ArcThread] = {t.id: t for t in all_arc_threads if not getattr(t, "active", False)}
+    mutated = False
+    for update in storyteller_result.thread_update:
+        found_idx = None
+        for i, t in enumerate(arc.threads):
+            if getattr(t, "id", "") == update.id:
+                found_idx = i
+                break
 
-    _log.debug(
-        "turn.thread_signals.summary trace_id=%d advanced_ids=%s active_count=%d latent_count=%d", turn_no, sorted(advanced_ids), len(active_by_id), len(latent_by_id),
+        if found_idx is None:
+            _log.warning(
+                "thread_updates.unknown_id trace_id=%d thread %s — skipping", turn_no, update.id, extra={"turn": turn_no},
+            )
+            continue
+
+        updates: dict[str, Any] = {}
+        if update.active is not None:
+            updates["active"] = update.active
+        if update.urgency is not None:
+            updates["urgency"] = update.urgency
+        if update.summary is not None:
+            updates["summary"] = update.summary
+
+        thread = arc.threads[found_idx]
+        updated_thread = thread.model_copy(update=updates)
+        remaining_threads = [t for i2, t in enumerate(arc.threads) if i2 != found_idx]
+        remaining_threads.insert(found_idx, updated_thread)
+
+        if updates:
+            mutated = True
+            _log.info(
+                "thread_updates.applied trace_id=%d thread %s changes=%s", turn_no, update.id, updates, extra={"turn": turn_no},
+            )
+
+    return arc.model_copy(update={
+        "threads": remaining_threads if found_idx is not None else list(arc.threads),
+    }) if mutated else None
+
+
+def _apply_arc_resolve(
+    state: dict[str, Any],
+    storyteller_result: StorytellerResult,
+    config: "EngineConfig",
+) -> CampaignArc | None:
+    """Process arc resolution from the storyteller.
+
+    Resolves current arc, stores it in resolved_arcs with TTL tracking,
+    processes thread directives (drop/move_latent), and creates a new
+    successor arc.
+    """
+    if not storyteller_result.arc_resolve:
+        return None
+
+    arc_raw = state.get("arc")
+    turn_no = state.get("meta", {}).get("turn", 0) + 1
+
+    if not arc_raw:
+        _log.warning(
+            "arc_resolve.no_arc trace_id=%d, skipping", turn_no, extra={"turn": turn_no},
+        )
+        return None
+
+    try:
+        old_arc = CampaignArc.model_validate(arc_raw)
+    except Exception as exc:
+        _log.warning(
+            "arc_resolve.validation_failed trace_id=%d: %s", turn_no, exc, extra={"turn": turn_no},
+        )
+        return None
+
+    resolution = storyteller_result.arc_resolve
+
+    # Store resolved arc in state's resolved_arcs list with TTL tracking
+    resolved_arc_entry = {
+        "visible_goal": old_arc.visible_goal,
+        "resolution": resolution.resolution,
+        "goal_context": resolution.goal_context,
+        "thematic_question": old_arc.thematic_question,
+        "resolved_turn": None,  # set below after threads are processed
+    }
+
+    # Set resolved_turn on the arc's threads that don't have it yet
+    for t in old_arc.threads:
+        if t.resolved_turn is None:
+            pass  # keep existing value or None
+
+    state.setdefault("resolved_arcs", []).append(resolved_arc_entry)
+
+    _log.info(
+        "arc_resolve.applied trace_id=%d goal='%s' threads_in_old=%d directives_count=%d",
+        turn_no, resolution.visible_goal, len(old_arc.threads), len(resolution.thread_directives),
+        extra={"turn": turn_no},
     )
 
-    mutated = False
-    newly_completed: list[ArcThread] = []
-    still_active: list[ArcThread] = []
-
-    # Process each active thread -> advance or silently expire
-    for tid, t in active_by_id.items():
-        if tid in advanced_ids:
-            new_progress = t.progress + 1
-            updated_t = t.model_copy(update={
-                "progress": new_progress,
-                "last_seen_turn": turn_no,
-            })
-
-            # Check completion threshold
-            if new_progress >= config.thread_completion_threshold:
-                newly_completed.append(updated_t)
-                mutated = True
+    # Process thread directives: drop or move_latent
+    directive_ids = {d.id for d in resolution.thread_directives}
+    surviving_threads = []
+    for t in old_arc.threads:
+        if t.id not in directive_ids:
+            surviving_threads.append(t)
+        else:
+            directive = next((d for d in resolution.thread_directives if d.id == t.id), None)
+            if directive and directive.action == "drop":
                 _log.info(
-                    "turn.thread_signals.completed trace_id=%d thread %s progress %d -> %d", turn_no, tid, t.progress, new_progress,
-                    extra={"turn": turn_no},
+                    "arc_resolve.drop trace_id=%d thread %s", turn_no, t.id, extra={"turn": turn_no},
                 )
-            else:
-                still_active.append(updated_t)
-                mutated = True  # Advancing a thread is also a mutation
+            elif directive and directive.action == "move_latent":
+                surviving_threads.append(t.model_copy(update={"active": False}))
                 _log.info(
-                    "turn.thread_signals.advanced trace_id=%d thread %s progress %d -> %d", turn_no, tid, t.progress, new_progress,
-                    extra={"turn": turn_no},
+                    "arc_resolve.move_latent trace_id=%d thread %s", turn_no, t.id, extra={"turn": turn_no},
                 )
-        elif t.last_seen_turn is not None and (turn_no - t.last_seen_turn >= _EXPIRE_SILENT_TURNS):
-            # Expired -> demote to latent, reset timer
-            expired_t = t.model_copy(update={
-                "active": False,
-                "last_seen_turn": None,
-            })
 
-            still_active.append(expired_t)  # will be moved below
-            mutated = True
-            _log.info(
-                "turn.thread_signals.demoted trace_id=%d thread %s last_seen_turn=%s turns_since_last_seen=%d", turn_no, tid, t.last_seen_turn, turn_no - (t.last_seen_turn or 0),
-                extra={"turn": turn_no},
-            )
-        else:
-            # Not advanced, not expired -> carry forward unchanged
-            still_active.append(t)
+    # Create new successor arc
+    new_arc = CampaignArc(
+        visible_goal=resolution.visible_goal,
+        goal_context=resolution.goal_context,
+        thematic_question=resolution.thematic_question if resolution.thematic_question is not None else old_arc.thematic_question,
+        threads=surviving_threads,
+        completed_threads=[],
+        last_thread_created_turn=turn_no,
+    )
 
-    # Reactivate latent threads that received an advance signal
-    for tid in advanced_ids:
-        if tid in latent_by_id and tid not in {t.id for t in still_active}:
-            _lt = latent_by_id[tid]
-            _reactivated = _lt.model_copy(update={
-                "active": True,
-                "last_seen_turn": turn_no,
-                "progress": _lt.progress + 1,
-            })
-            still_active.append(_reactivated)
-            mutated = True
-            _log.info(
-                "turn.thread_signals.reactivated trace_id=%d thread %s", turn_no, tid,
-                extra={"turn": turn_no},
-            )
+    state["arc"] = new_arc.model_dump()
 
-    # Urgency decay: demote threads that have been at their urgency level for
-    # >= thread_urgency_max_age turns. Urgent → normal → background stepwise.
-    _urgency_decay_threshold = getattr(config, "thread_urgency_max_age", 8)
-    _decayed: dict[str, ArcThread] = {}
-    for t in still_active:
-        _urgency_set = getattr(t, "urgency_set_turn", None)
-        if _urgency_set is not None and (turn_no - _urgency_set) >= _urgency_decay_threshold:
-            _current = getattr(t, "urgency", "background")
-            if _current == "urgent":
-                t = t.model_copy(update={"urgency": "normal", "urgency_set_turn": turn_no})
-                mutated = True
-                _log.info("turn.thread_signals.urgency_decay trace_id=%d thread %s urgent→normal", turn_no, t.id, extra={"turn": turn_no})
-            elif _current == "normal":
-                t = t.model_copy(update={"urgency": "background", "urgency_set_turn": turn_no})
-                mutated = True
-                _log.info("turn.thread_signals.urgency_decay trace_id=%d thread %s normal→background", turn_no, t.id, extra={"turn": turn_no})
-        _decayed[t.id] = t
-    still_active = list(_decayed.values())
+    return new_arc
 
-    really_still_active = [t for t in still_active if getattr(t, "active", True)]
-    demoted_to_latent = [t for t in still_active if not getattr(t, "active", False)]
-
-    # Enforce latent cap: existing latent + newly demoted (pre-promotion).
-    # Promotions later in this function further reduce the count, so this is conservative.
-    latent_count = len(latent_by_id) + len(demoted_to_latent)
-    if latent_count > _LATENT_THREAD_CAP:
-        excess = latent_count - _LATENT_THREAD_CAP
-        demoted_to_latent.sort(key=lambda t: t.added_turn if t.added_turn is not None else 9999)
-        dropped = demoted_to_latent[:excess]
-        demoted_to_latent = demoted_to_latent[excess:]
-        mutated = True
-        for t in dropped:
-            _log.info("turn.thread_signals.latent_dropped trace_id=%d thread %s exceeded latent cap %d", turn_no, t.id, _LATENT_THREAD_CAP)
-
-    # Scene-scoped two-stage lifecycle: active→latent→removed (before building other_threads/updated_threads).
-    # Threads advanced this turn are excluded — the advance loop handles their state.
-    _scene_latency = getattr(config, "scene_thread_expire_silent_turns", 5)
-    _scene_modified: list[ArcThread] = []
-    for t in arc.threads:
-        if getattr(t, "scope", "arc") == "arc":
-            _scene_modified.append(t)
-        elif t.id in advanced_ids:
-            _scene_modified.append(t)
-        else:
-            _last_seen = getattr(t, "last_seen_turn", None)
-            if _last_seen is None:
-                _scene_modified.append(t)
-            elif getattr(t, "active", True) and (turn_no - _last_seen) >= _scene_latency:
-                _scene_modified.append(t.model_copy(update={"active": False, "urgency": "background"}))
-                mutated = True
-                _log.info("turn.thread_signals.scene_latent trace_id=%d scene_thread %s last_seen_turn=%d", turn_no, t.id, _last_seen, extra={"turn": turn_no})
-            elif not getattr(t, "active", False) and (turn_no - _last_seen) >= _scene_latency * 2:
-                mutated = True
-                _log.info("turn.thread_signals.scene_removed trace_id=%d scene_thread %s unsurfaced_since_turn=%d", turn_no, t.id, _last_seen, extra={"turn": turn_no})
-                # intentionally not appended — thread removed
-            else:
-                _scene_modified.append(t)
-    if len(_scene_modified) != len(arc.threads):
-        arc = arc.model_copy(update={"threads": _scene_modified})
-
-    # Rebuild threads list with updated active/latent split
-    other_threads = [t for t in arc.threads if t.id not in {t2.id for t2 in all_arc_threads}]
-    new_complete_ids = {t.id for t in newly_completed}
-
-    updated_threads: list[ArcThread] = []
-    for t in arc.threads:
-        if getattr(t, "scope", "arc") != "arc":
-            # Scene-scoped thread -> keep as-is (lifecycle handled above)
-            updated_threads.append(t)
-        elif t.id in new_complete_ids:
-            pass
-        else:
-            updated_threads.append(t)
-
-    # Update the thread objects with their new active state
-    for tid, t in active_by_id.items():
-        if tid in {st.id for st in really_still_active}:
-            for i, ut in enumerate(updated_threads):
-                if ut.id == tid:
-                    updated_threads[i] = [st for st in really_still_active if st.id == tid][0]
-                    break
-
-    # Build the arc update with new thread lists
-    all_updated_arc_threads = list(really_still_active) + demoted_to_latent + other_threads
-    
-    # Find completed threads to move out of active/latent into completed
-    for t in newly_completed:
-        updated_threads = [ut for ut in updated_threads if ut.id != t.id]
-
-    arc = arc.model_copy(update={
-        "threads": all_updated_arc_threads,
-        "completed_threads": list(arc.completed_threads) + newly_completed,
-    })
-
-    # Promote latent threads matching unknown advanced_ids (first-time advancement).
-    # These IDs were emitted by the progress extractor but don't exist in active_by_id.
-    completed_ids = {t.id for t in arc.completed_threads}
-    for tid in advanced_ids - set(active_by_id.keys()):
-        if tid in latent_by_id and tid not in completed_ids:
-            promoted = latent_by_id[tid].model_copy(update={
-                "active": True,
-                "progress": 0,
-                "last_seen_turn": turn_no,
-                "urgency": "normal",
-            })
-            updated_threads = [t for t in all_updated_arc_threads if t.id != tid]
-            really_still_active.append(promoted)
-            mutated = True
-            _log.info(
-                "turn.thread_signals.promoted trace_id=%d latent thread %s progress 0 -> 1", turn_no, tid,
-                extra={"turn": turn_no},
-            )
-
-    # Promotion check: only if 3-turn cooldown met and slots available
-    last_promotion = arc_raw.get("arc_last_promotion_turn") or 0
-    can_promote = (turn_no - last_promotion >= _PROMOTION_COOLDOWN_TURNS) or len(really_still_active) == 0
-
-    if can_promote:
-        available_slots = _ACTIVE_THREAD_CAP - len(really_still_active)
-
-        # Find eligible latent threads (no unlock_if or satisfied, excluding recently demoted)
-        completed_ids = {t.id for t in arc.completed_threads}
-        already_active_ids = {t.id for t in really_still_active}
-        available = [
-            t for t in all_updated_arc_threads
-            if not getattr(t, "active", False)
-            and t.id not in completed_ids
-            and t.id not in already_active_ids
-            and not (getattr(t, "unlock_if") and str(getattr(t, "unlock_if")).strip())
-        ]
-
-        # Sort by last_seen_turn or added_turn (oldest first) -> skip recently demoted ones
-        available.sort(key=lambda t: t.added_turn or 0)
-
-        to_promote = available[:available_slots]
-        if to_promote:
-            newly_promoted = [
-                t.model_copy(update={
-                    "active": True,
-                    "last_seen_turn": turn_no
-                }) for t in to_promote
-            ]
-            updated_threads = [t for t in all_updated_arc_threads if t.id not in {p.id for p in to_promote}]
-            arc = arc.model_copy(update={
-                "threads": list(really_still_active) + newly_promoted + updated_threads,
-                "arc_last_promotion_turn": turn_no,
-            })
-            mutated = True
-
-    return arc if mutated else None
 
 def _apply_thread_resolutions(
     state: dict[str, Any],
@@ -479,6 +356,7 @@ def _apply_thread_resolutions(
         updated_thread = thread.model_copy(update={
             "resolution_state": res.resolution_state,
             "outcome": res.outcome,
+            "resolved_turn": turn_no,
         })
 
         # Remove from threads[]
@@ -490,6 +368,7 @@ def _apply_thread_resolutions(
             updated_existing = thread.model_copy(update={
                 "resolution_state": res.resolution_state,
                 "outcome": res.outcome,
+                "resolved_turn": turn_no,
             })
             remaining_completed = [
                 t if t.id != thread.id else updated_existing
@@ -564,16 +443,12 @@ def _compute_narration_directive(
     narrative_velocity: float,
     scope_scene_threads: list["ArcThread"],
     ages: dict[str, int],
-    threat_ages: list[dict[str, Any]],
-    threat_pressure_at: int = 3,
-    threat_imperative_at: int = 5,
-    building_threat_imperative_at: int = 4,
 ) -> str:
     """Compute the narration directive string using a priority stack.
 
     Derives urgency counts from unified arc.threads[] with scope=scene.
     ArcThread.urgency values map to directives: urgent→Pressure/Overwhelm,
-    background→Tension, normal→Threat Pressure (when aging).
+    background→Tension.
 
     Returns the highest-priority directive. Secondary directives are appended
     only when they do not contradict the primary (i.e., no escalation labels
@@ -583,11 +458,9 @@ def _compute_narration_directive(
       1. Breathe         -- explicit de-escalation (velocity < -0.3)
       2. Scene Imperative -- scene has been stale too long (effective_age >= 5)
       3. Overwhelm       -- 3+ urgent threads
-      4. Resolve a Threat -- aged-out threat pressure
-      5. Pressure        -- 1-2 urgent threads
-      6. Tension         -- background urgency threads only
-      7. Scene Pressure  -- scene approaching staleness (effective_age >= 3)
-      8. Threat Pressure -- normal urgency aging toward imperative
+      4. Pressure        -- 1-2 urgent threads
+      5. Tension         -- background urgency threads only
+      6. Scene Pressure  -- scene approaching staleness (effective_age >= 3)
     """
     # Priority 1: breathe (de-escalation wins unconditionally)
     if narrative_velocity < -0.3:
@@ -600,49 +473,22 @@ def _compute_narration_directive(
 
     secondary: list[str] = []
 
-    # Priority 2: overwhelm (3+ urgent threads)
+    # Overwhelm (3+ urgent threads)
     immediate_count = sum(1 for t in scope_scene_threads if getattr(t, "urgency", "") == "urgent")
     if immediate_count >= 3:
         primary = "Overwhelm"
     else:
         primary = ""
 
-    # Priority 3: aged-out threat (resolve a threat)
-    if not primary and threat_ages:
-        old_building = [
-            t for t in threat_ages
-            if t.get("urgency") == "normal" and t.get("age", 0) >= building_threat_imperative_at
-        ]
-        old_background = [
-            t for t in threat_ages
-            if t.get("urgency") == "background" and t.get("age", 0) >= threat_imperative_at
-        ]
-        old_immediate = [
-            t for t in threat_ages
-            if t.get("urgency") == "urgent" and t.get("age", 0) >= 3
-        ]
-        if old_building or old_background or old_immediate:
-            primary = "Resolve a Threat"
-
-    # Priority 4: pressure (1-2 urgent)
+    # Pressure (1-2 urgent)
     if not primary and immediate_count > 0:
         primary = "Pressure"
 
-    # Priority 5: tension (background only)
+    # Tension (background only)
     if not primary:
         building_count = sum(1 for t in scope_scene_threads if getattr(t, "urgency", "") == "background")
         if building_count > 0:
             primary = "Tension"
-
-    # Priority 6: threat pressure (normal urgency aging toward imperative)
-    if not primary and threat_ages:
-        background_pressure = [
-            t for t in threat_ages
-            if t.get("urgency") == "normal"
-            and threat_pressure_at <= t.get("age", 0) < threat_imperative_at
-        ]
-        if background_pressure:
-            primary = "Threat Pressure"
 
     # Secondary: scene pressure approaching staleness (non-contradicting append)
     if 3 <= effective_age < 5:
@@ -658,7 +504,6 @@ def _compute_pacing_context(
     narrative_velocity: float,
     scope_scene_threads: list["ArcThread"],
     ages: dict[str, int],
-    threat_ages: list[dict[str, Any]] | None,
     momentum: int,
     config: "EngineConfig",
     consecutive_pressure_turns: int = 0,
@@ -677,10 +522,6 @@ def _compute_pacing_context(
         narrative_velocity=narrative_velocity,
         scope_scene_threads=scope_scene_threads,
         ages=ages,
-        threat_ages=threat_ages or [],
-        threat_pressure_at=config.threat_pressure_at,
-        threat_imperative_at=config.threat_imperative_at,
-        building_threat_imperative_at=config.building_threat_imperative_at,
     )
 
     # Determine beat_locked: relief fired when either consecutive pressure threshold reached or momentum at minimum
@@ -701,7 +542,7 @@ def _compute_pacing_context(
         outcome_hint = "advance"
     else:
         effective_age = ages.get("effective_scene_age", 0)
-        if effective_age >= config.threat_imperative_at:
+        if effective_age >= 3:
             outcome_hint = "advance"
         elif beat_locked:
             outcome_hint = "advance"
@@ -743,32 +584,6 @@ def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
         "scene_age": scene_age,
     }
 
-
-def _compute_threat_ages(state: dict[str, Any]) -> list[dict[str, Any]]:
-    """Compute age of each scene-scoped arc thread for threat imperative directives.
-
-    Returns a list of dicts with keys: id, text, urgency, age.
-    Only includes threads with a valid added_turn (> 0).
-    """
-    threads = [t for t in ((state.get("arc") or {}).get("threads") or []) if isinstance(t, dict) and t.get("scope") == "scene"]
-    current_turn = (state.get("meta") or {}).get("turn", 0)
-    result: list[dict[str, Any]] = []
-    for t in threads:
-        added_turn = t.get("added_turn") or t.get("last_seen_turn")
-        if not added_turn or added_turn == 0:
-            # Fallback: use current turn for threads seeded without added_turn (defense-in-depth)
-            added_turn = state.get("meta", {}).get("turn", 1)
-            if added_turn == 0:
-                continue
-        result.append({
-            "id": t.get("id", ""),
-            "text": t.get("summary", ""),
-            "urgency": t.get("urgency", "background"),
-            "age": current_turn - added_turn,
-        })
-    # Sort by age descending so the oldest threat is first
-    result.sort(key=lambda x: x["age"], reverse=True)
-    return result
 
 
 def _recent_turn_count(state: dict[str, Any]) -> int:
@@ -901,7 +716,6 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
 
     # Age counters for narration directives
     ctx._ages = _compute_ages(state)
-    ctx._threat_ages = _compute_threat_ages(state)
 
     # Pre-compute effective scene age with combat boost for directive thresholds.
     _scene_age = ctx._ages.get("scene_age", 0)
@@ -1007,7 +821,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
     _pc = _compute_pacing_context(
         deescalate=ctx._deescalate, narrative_velocity=narrative_velocity,
         scope_scene_threads=_scope_scene_threads, ages=ctx._ages,
-        threat_ages=ctx._threat_ages, momentum=(state.get("pc") or {}).get("momentum", 0), config=config,
+        momentum=(state.get("pc") or {}).get("momentum", 0), config=config,
         consecutive_pressure_turns=(state.get("meta") or {}).get("consecutive_pressure_turns", 0),
         scene_motion=_scene_motion,
         impossible=_impossible,
@@ -1022,8 +836,6 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         momentum=(state.get("pc") or {}).get("momentum", 0), pending_beat=_pending_gm_beat,
         pacing_context=_pc, ages=ctx._ages, pc_allegiance=_pc_allegiance, turn_no=turn_no,
         world_factions=_world_factions,
-        threat_ages=ctx._threat_ages, threat_pressure_at=config.threat_pressure_at,
-        threat_imperative_at=config.threat_imperative_at, building_threat_imperative_at=config.building_threat_imperative_at,
         npc_roster=build_npc_roster(_comp),
     )
 
@@ -1315,16 +1127,27 @@ async def run_turn(
                     "location_name": location.get("name", ""),
                 }
 
-            # Arc director: process thread signals and update arc state
+            # Arc director: process thread updates and arc resolution
             if state.get("arc") and storyteller_result:
-                arc_delta = _apply_thread_signals(state, storyteller_result, config)
-                if arc_delta is not None:
+                thread_delta = _apply_thread_updates(state, storyteller_result)
+                if thread_delta is not None:
                     _merge_arc_update(
-                        state.setdefault("arc", {}), arc_delta
+                        state.setdefault("arc", {}), thread_delta
                     )
                     if delta is not None:
                         delta = delta.model_copy(
-                            update={"arc_update": arc_delta}
+                            update={"arc_update": thread_delta}
+                        )
+
+                # Process arc resolution (resolves arc + creates successor)
+                resolved_arc = _apply_arc_resolve(state, storyteller_result, config)
+                if resolved_arc is not None:
+                    _merge_arc_update(
+                        state.setdefault("arc", {}), resolved_arc
+                    )
+                    if delta is not None:
+                        delta = delta.model_copy(
+                            update={"arc_update": resolved_arc}
                         )
 
                 # Process thread resolutions (resolved/failed/abandoned -> completed)
@@ -1342,15 +1165,10 @@ async def run_turn(
                 if storyteller_result.thread_add:
                     _new_thread = storyteller_result.thread_add
                     _scope = getattr(_new_thread, "scope", "arc")
-                    last_creation_turn = state.get("meta", {}).get("last_thread_creation_turn")
                     turn_no_for_cooldown = state.get("meta", {}).get("turn", 0) + 1
                     gate_ok = _pc is None or _pc.gate == "allow"
-                    cooldown_satisfied = last_creation_turn is None or (turn_no_for_cooldown - last_creation_turn >= config.thread_creation_cooldown)
                     if not gate_ok:
                         _log.debug("thread_add blocked by pacing gate %s at T%d", getattr(_pc, 'gate', 'unknown'), turn_no_for_cooldown)
-                        pass  # skip thread creation — same pattern as scene-scope check below
-                    elif not cooldown_satisfied:
-                        _log.debug("thread_add blocked by cooldown (last=%d, current=%d, threshold=%d)", last_creation_turn, turn_no_for_cooldown, config.thread_creation_cooldown)
                         pass  # skip thread creation — same pattern as scene-scope check below
 
                     elif _scope == "scene":
@@ -1416,11 +1234,9 @@ async def run_turn(
                                             if merged_tags != list(_merged_t.tags):
                                                 _merged_t.tags = merged_tags
 
-                                            best_match_t.last_seen_turn = turn_no_for_add
-
                                             arc_with_new_thread = _existing_arc.model_copy(threads=list(_existing_arc.threads))
                                             _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
-                                            state.setdefault("meta", {})["last_thread_creation_turn"] = turn_no_for_add
+                                            state.setdefault("meta", {})["last_thread_created_turn"] = turn_no_for_add
 
                                             _log.info(
                                                 "thread_add.auto_merge",
@@ -1430,23 +1246,14 @@ async def run_turn(
                                             fuzzy_merged = True
 
                                     if not fuzzy_merged and _new_thread.id not in existing_ids:
-                                        active_count = sum(1 for t in _existing_arc.threads if getattr(t, "active", False))
-                                        if active_count >= _ACTIVE_THREAD_CAP:
-                                            _log.debug("thread_add blocked by active cap (%d) at T%d", _ACTIVE_THREAD_CAP, turn_no_for_add)
-                                        else:
-                                            _updated_t = _new_thread.model_copy(update={
-                                                "active": True,
-                                                "last_seen_turn": turn_no_for_add,
-                                                "urgency_set_turn": turn_no_for_add,
-                                            })
-                                            if not getattr(_updated_t, 'added_turn', None):
-                                                _updated_t = _updated_t.model_copy(update={"added_turn": turn_no_for_add})
-                                            arc_with_new_thread = _existing_arc.model_copy(
-                                                update={"threads": list(_existing_arc.threads) + [_updated_t]}
-                                            )
-                                            _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
-                                            state.setdefault("meta", {})["last_thread_creation_turn"] = turn_no_for_add
-                                            delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
+                                        _updated_t = _new_thread.model_copy()
+                                        arc_with_new_thread = _existing_arc.model_copy(
+                                            update={"threads": list(_existing_arc.threads) + [_updated_t],
+                                                    "last_thread_created_turn": turn_no_for_add}
+                                        )
+                                        _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
+                                        state.setdefault("meta", {})["last_thread_creation_turn"] = turn_no_for_add
+                                        delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
                                 except Exception as exc:
                                     _log.warning(
                                         "thread_add: failed to validate arc at T%d for thread %s: %s",
@@ -1458,10 +1265,10 @@ async def run_turn(
         # Two-pass consecutive pressure counter update.
         if _extract_result is not None and _pc is not None:
             directive = _pc.directive or ""
-            thread_advance = (_extract_result[4].thread_advance) if len(_extract_result) > 4 and _extract_result[4] else []
+            thread_updates = storyteller_result.thread_update if storyteller_result else []
             meta = state.setdefault("meta", {})
             current_pressure = meta.get("consecutive_pressure_turns", 0)
-            if (directive in ("Pressure", "Overwhelm")) and not thread_advance:
+            if (directive in ("Pressure", "Overwhelm")) and not thread_updates:
                 meta["consecutive_pressure_turns"] = current_pressure + 1
             else:
                 meta["consecutive_pressure_turns"] = 0

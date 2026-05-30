@@ -232,7 +232,15 @@ def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
                 continue
 
             # Special display for unified thread operations (not covered by _add/_update/_remove suffixes)
-            if field_key == "thread_advance":
+            if field_key == "thread_update":
+                value_str = "; ".join(f"{t.get('id', '?')}:{t.get('urgency','?')}" for t in (val or [])[:4]) + ("\u2026" if len(val) > 4 else "")
+                op = "set"
+            elif field_key == "arc_resolve":
+                arc_res = val if isinstance(val, dict) else {}
+                resolution_text = arc_res.get("resolution", "")[:120] if arc_res else ""
+                value_str = f"resolved: {resolution_text}" if resolution_text else "\u2014"
+                op = "set"
+            elif field_key == "thread_resolve" and isinstance(val, list):
                 value_str = ", ".join(str(x) for x in val[:6]) + ("\u2026" if len(val) > 6 else "")
                 op = "set"
             elif field_key == "thread_resolve" and isinstance(val, list):

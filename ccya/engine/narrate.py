@@ -33,10 +33,6 @@ def _narrate_messages(
     pc_allegiance: str | None = None,
     turn_no: int = 0,
     world_factions: list[dict[str, str]] = [],
-    threat_ages: list[dict[str, Any]] | None = None,
-    threat_pressure_at: int = 3,
-    threat_imperative_at: int = 5,
-    building_threat_imperative_at: int = 4,
     npc_roster: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
     if npc_roster is None:
@@ -53,8 +49,9 @@ def _narrate_messages(
         all_threads = [t for t in (arc.get("threads") or [])]
         current_arc_ctx = {
             "visible_goal": arc.get("visible_goal", ""),
-            "goal_context": arc.get("goal_context", ""),
             "thematic_question": arc.get("thematic_question", ""),
+            "resolution": arc.get("resolution"),
+            "resolved_arc": _get_resolved_arc(state, turn_no),
             "threads": [
                 {
                     "summary": t.get("summary", "") if isinstance(t, dict) else getattr(t, "summary", ""),
@@ -63,13 +60,10 @@ def _narrate_messages(
                     "scope": t.get("scope", "arc") if isinstance(t, dict) else getattr(t, "scope", "arc"),
                     "id": t.get("id", "") if isinstance(t, dict) else getattr(t, "id", ""),
                     "active": t.get("active", True) if isinstance(t, dict) else getattr(t, "active", True),
-                    "last_seen_turn": t.get("last_seen_turn") if isinstance(t, dict) else getattr(t, "last_seen_turn", None),
                 }
                 for t in all_threads if not (isinstance(t, dict) and t.get("active") is False) or not hasattr(t, "active") or getattr(t, "active", True)
             ],
-            "pc_drive": arc.get("pc_drive", ""),
-            "hidden_truths": arc.get("hidden_truths") or [],
-            "completed_threads": arc.get("completed_threads") or [],
+            "completed_threads": _filter_completed_threads(arc, turn_no),
         }
     else:
         current_arc_ctx = None
@@ -90,10 +84,6 @@ def _narrate_messages(
         "ages": ages or {},
         "pc_allegiance": pc_allegiance,
         "world_factions": world_factions,
-        "threat_ages": threat_ages or [],
-        "threat_pressure_at": threat_pressure_at,
-        "threat_imperative_at": threat_imperative_at,
-        "building_threat_imperative_at": building_threat_imperative_at,
         "npc_roster": npc_roster,
         "current_arc": current_arc_ctx,
     }
@@ -112,4 +102,32 @@ def _narrate_messages(
         _log.warning("narrate messages list is empty or has no content turn=%d", turn_no)
     else:
         _log.debug("narrate complete turn=%d messages=%d", turn_no, len(msgs))
+
     return msgs
+
+
+def _filter_completed_threads(arc: dict[str, Any], turn_no: int) -> list[dict[str, Any]]:
+    """Filter completed threads by TTL — only include recent ones."""
+    # Use a default config for TTL value; actual config comes through caller context
+    ttl = 3
+    raw_threads = arc.get("completed_threads") or []
+    result: list[dict[str, Any]] = []
+    for t in raw_threads:
+        resolved_turn = t.get("resolved_turn") if isinstance(t, dict) else getattr(t, "resolved_turn", None)
+        if resolved_turn is not None and (turn_no - resolved_turn) <= ttl:
+            result.append(dict(t) if isinstance(t, dict) else t.model_dump())
+    return result
+
+
+def _get_resolved_arc(state: dict[str, Any], turn_no: int) -> dict[str, Any] | None:
+    """Get the most recently resolved arc from state's resolved_arcs list (TTL-filtered)."""
+    ttl = 3
+    resolved_arcs = state.get("resolved_arcs") or []
+    if not resolved_arcs:
+        return None
+    # Find the most recent one within TTL
+    for ra in reversed(resolved_arcs):
+        resolved_turn = ra.get("resolved_turn", 0)
+        if (turn_no - resolved_turn) <= ttl:
+            return dict(ra)
+    return None

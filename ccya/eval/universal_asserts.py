@@ -700,7 +700,7 @@ def check_consecutive_pressure_tracking(
 ) -> dict[str, Any]:
     """Validate the two-pass consecutive pressure counter works correctly.
 
-    Increments when directive was Pressure/Overwhelm AND no thread_advance occurred; resets to 0 otherwise.
+    Increments when directive was Pressure/Overwhelm AND no thread_update occurred; resets to 0 otherwise.
     """
     pacing_ctx = event.get("pacing_context") or {}
     directive = pacing_ctx.get("directive", "")
@@ -710,10 +710,10 @@ def check_consecutive_pressure_tracking(
     meta = (event.get("state_snapshot") or {}).get("meta") or {}
     counter = meta.get("consecutive_pressure_turns", 0)
 
-    # Check whether any thread_advance occurred in this turn's extraction results
+    # Check whether any thread_update occurred in this turn's extraction results
     storytell_output = ((event.get("extraction") or {}).get("storytell") or {}).get("output") or {}
-    thread_advances = storytell_output.get("thread_advance") or []
-    has_thread_advance = bool(thread_advances)
+    thread_updates = storytell_output.get("thread_update") or []
+    has_thread_update = bool(thread_updates)
 
     is_pressure_directive = base_directive in ("Pressure", "Overwhelm")
 
@@ -721,19 +721,19 @@ def check_consecutive_pressure_tracking(
         prev_pacing_ctx = prev_event.get("pacing_context") or {}
         prev_base = re.sub(r"\s*;\s*Resolve a Threat\s*$", "", prev_pacing_ctx.get("directive", "")).strip() if prev_pacing_ctx.get("directive") else ""
 
-    # If directive is Pressure/Overwhelm AND no thread_advance: counter should be >= 1 (or incrementing)
-    if is_pressure_directive and not has_thread_advance:
+    # If directive is Pressure/Overwhelm AND no thread_update: counter should be >= 1 (or incrementing)
+    if is_pressure_directive and not has_thread_update:
         if counter < 1:
             return {
                 "assertion": "universal.pacing.consecutive_pressure_tracking",
                 "passed": False,
-                "detail": f"directive={base_directive!r}, no thread_advance but consecutive_pressure_turns={counter} (expected >= 1)",
+                "detail": f"directive={base_directive!r}, no thread_update but consecutive_pressure_turns={counter} (expected >= 1)",
                 "scope": "universal",
                 "severity": "red",
             }
 
-    # If any thread_advance occurred OR directive changed to non-pressure value: counter should reset to 0
-    if has_thread_advance or not is_pressure_directive and prev_event:
+    # If any thread_update occurred OR directive changed to non-pressure value: counter should reset to 0
+    if has_thread_update or not is_pressure_directive and prev_event:
         prev_base = re.sub(r"\s*;\s*Resolve a Threat\s*$", "", (prev_event.get("pacing_context") or {}).get("directive", "")).strip() if prev_event else ""
         if base_directive != prev_base and counter > 0:
             # Directive changed from pressure to non-pressure — should have reset
@@ -748,7 +748,7 @@ def check_consecutive_pressure_tracking(
     return {
         "assertion": "universal.pacing.consecutive_pressure_tracking",
         "passed": True,
-        "detail": f"directive={base_directive!r}, thread_advance={has_thread_advance}, counter={counter}",
+        "detail": f"directive={base_directive!r}, thread_update={has_thread_update}, counter={counter}",
         "scope": "universal",
         "severity": "yellow",
     }

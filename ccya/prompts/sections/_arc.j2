@@ -6,14 +6,21 @@
 **Narrative guidance — goal context:** {{ current_arc.goal_context }}
 {% endif %}{% if current_arc.thematic_question %}
 **Thematic question:** {{ current_arc.thematic_question }}
-{% endif %}{% if current_arc.pc_drive %}
-**PC drive:** {{ current_arc.pc_drive }}
-{% endif %}{% if current_arc.discovered_truths %}
-**Revealed truths:**
-{% for truth in current_arc.discovered_truths -%}
-- {{ truth }}
-{% endfor %}
-{% endif %}
+{% endif %}{% if current_arc.resolution %}
+**Arc resolution (turn {{ current_arc.resolved_turn }}):** {{ current_arc.resolution }}
+{% endif %}{% if resolved_arc and resolved_arc.resolution -%}
+
+### Previously Resolved Arcs
+{%- for ra in resolved_arc %}
+- **Turn {{ ra.turn }}:** {{ ra.resolution[:120] }}{% if ra.goal_context %} (Goal: {{ ra.goal_context[:80] }}){% endif %}{% if ra.surviving_threads and ra.surviving_threads|length > 0 %} → threads: {{ ra.surviving_threads|join(", ") }}{% endif %}
+{%- endfor %}
+{%- endif %}{% if completed_threads and completed_threads|length > 0 -%}
+
+### Completed Threads (TTL)
+{%- for ct in completed_threads[:15] %}
+- {{ ct.summary[:80] }} [{{ ct.scope }}][urgency:{{ ct.urgency }}]{% if ct.resolved_turn %} resolved turn {{ ct.resolved_turn }}{% endif %}
+{%- endfor %}{% if completed_threads|length > 15 %}...and {{ completed_threads|length - 15 }} more{% endif %}
+{%- endif %}
 {%- else -%}
 No active campaign arc.
 {% endif -%}

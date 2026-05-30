@@ -74,12 +74,6 @@ class EngineConfig:
     max_ruling_retries: int = 1
     max_generate_pack_retries: int = 1
     log_prompts: bool = False
-    # Thread urgency hard age cap (turns) — auto-remove threads older than this
-    thread_urgency_max_age: int = 8
-    # Track progress for scene-scoped threads (True = include in advance/completion pipeline; set False to restore old arc-only behavior)
-    track_scene_thread_progress: bool = True
-    # Scene-scoped thread expiry (turns without progress): active → latent → removed
-    scene_thread_expire_silent_turns: int = 5
     # Avoidance-based pressure decay: keywords that trigger de-escalation detection
     avoidance_keywords: list[str] = field(default_factory=lambda: ["retreat", "run", "flee", "hide", "rest", "escape", "back away", "disengage", "withdraw", "surrender", "concede", "leave", "get out"])
     # Momentum floor value and relief trigger threshold
@@ -89,17 +83,9 @@ class EngineConfig:
     consecutive_pressure_threshold: int = 3
     # Gate for de-escalation flag on successful rolls
     thread_deescalate_on_success: bool = True
-    # Thread completion threshold (progress value that completes a thread)
-    thread_completion_threshold: int = 3
-    # Thread creation cooldown (minimum turns between new thread additions)
-    thread_creation_cooldown: int = 3
-    # Threat imperative thresholds (turns since turn_added)
-    # Background threat -> narration directive "Threat Pressure" at this age
-    threat_pressure_at: int = 3
-    # Background threat -> narration directive "Resolve a Threat" at this age
-    threat_imperative_at: int = 5
-    # Building threat -> narration directive "Resolve a Threat" at this age
-    building_threat_imperative_at: int = 4
+    # TTL (in turns) for resolved arcs and completed threads kept in prompt context
+    resolved_arc_ttl: int = 3
+    completed_thread_ttl: int = 3
 
 
 def build_engine_config(
@@ -152,17 +138,11 @@ def build_engine_config(
         ruling_temperature=ruling_t,
         max_ruling_retries=int(ruling.get("max_retries", 1)),
         max_generate_pack_retries=int(llm.get("max_generate_pack_retries", 1)),
-        thread_urgency_max_age=int(game.get("thread_urgency_max_age", 8)),
-        track_scene_thread_progress=bool(game.get("track_scene_thread_progress", True)),
-        scene_thread_expire_silent_turns=int(game.get("scene_thread_expire_silent_turns", 5)),
         thread_deescalate_on_success=bool(
             game.get("thread_deescalate_on_success", True)
         ),
-        thread_completion_threshold=int(game.get("thread_completion_threshold", 3)),
-        thread_creation_cooldown=int(game.get("thread_creation_cooldown", 3)),
-        threat_pressure_at=int(game.get("threat_pressure_at", 3)),
-        threat_imperative_at=int(game.get("threat_imperative_at", 5)),
-        building_threat_imperative_at=int(game.get("building_threat_imperative_at", 4)),
+        resolved_arc_ttl=int(game.get("resolved_arc_ttl", 3)),
+        completed_thread_ttl=int(game.get("completed_thread_ttl", 3)),
 
         avoidance_keywords=[str(kw) for kw in game.get("avoidance_keywords", ["retreat", "run", "flee", "hide", "rest", "escape", "back away", "disengage", "withdraw", "surrender", "concede", "leave", "get out"])],
 
