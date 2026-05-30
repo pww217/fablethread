@@ -39,12 +39,10 @@
 ## Scene Context
 {% if current_arc and current_arc.threads %}
 ### Current Threads
-{% for t in current_arc.threads %}{% set scope_tag = "[SCENE]" if t.scope == "scene" else "[ARC]" %}- `{{ t.id }}` {{ scope_tag }}{% if not t.active %} (latent){% endif %} [{{ t.urgency | upper }}] {{ t.summary }}{% if t.last_seen_turn %} (last seen T{{ t.last_seen_turn }}){% endif %}
-{% endfor -%}
+{% include "sections/_thread_list.j2" with threads=current_arc.threads %}
 {% elif state.arc and state.arc.threads %}
 ### Current Threads
-{% for t in state.arc.threads %}{% set scope_tag = "[SCENE]" if t.scope == "scene" else "[ARC]" %}- `{{ t.id }}` {{ scope_tag }}{% if not t.active %} (latent){% endif %} [{{ t.urgency | upper }}] {{ t.summary }}{% if t.last_seen_turn %} (last seen T{{ t.last_seen_turn }}){% endif %}
-{% endfor -%}
+{% include "sections/_thread_list.j2" with threads=state.arc.threads %}
 {% endif %}
 
 
