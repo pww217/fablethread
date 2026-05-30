@@ -8,7 +8,7 @@ constraints:
   pc_stat_total_range: [12, 18]
   prose_word_range: [400, 700]
   # composition
-  required_inventory_kinds: [weapon, consumable]
+   required_inventory_kinds: [weapon, consumable]
   # creativity guards
   forbid_cliches:
     - "amnesia"

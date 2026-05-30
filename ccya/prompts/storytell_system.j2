@@ -8,7 +8,7 @@ Extract suggested player actions, outcome summary, thread updates, and arc resol
   "outcome_summary": "",
   "gm_beat": null,
   "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent"}, {"id": "..."}],
-  "arc_resolve": {"resolution": "How this arc concluded narratively.", "visible_goal": "The next arc's goal.", "goal_context": "Why this goal matters to the PC."},
+  "arc_resolve": {"resolution": "How this arc concluded narratively.", "surviving_threads": ["thread_id_1"]},
   "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal", "tags": [], "key": "subject_action"},
   "world_state_add": [{"id": "new_fact_id", "text": "durable world fact text", "tier": "persistent"}],
   "world_state_remove": ["fact_id_to_remove"]
@@ -40,25 +40,13 @@ Examples:
 
 All thread operations work regardless of scope. You do NOT need to decide if a tension is "scene" or "arc". Python handles scoping via the ArcThread.scope field. Emit only what actually happened this turn.
 
-`thread_update`: A list of objects with `id` (snake_case) and optional fields — `urgency` (change priority level) and/or `active` (boolean — set `true` to activate a dormant thread, `false` to demote to dormant). Only include threads whose narrative advanced meaningfully this turn. Example: `[{"id": "the_missing_ore", "urgency": "urgent", "active": true}]`.
+`thread_update`: A list of objects with `id` (snake_case) and optional `urgency` changes for threads that shifted meaningfully this turn. Include ONLY if you want to change a thread's urgency level or mark it as active/inactive. Example: `[{"id": "the_missing_ore", "urgency": "urgent"}, {"id": "fraying_rigging_and_broken"}]`. Omitting `urgency` marks the thread as seen/acknowledged without changing its priority.
 
 CRITICAL RULES for including a thread ID in thread_update:
 - Include ONLY if this turn's events DIRECTLY affected that specific thread. The player took meaningful action toward it, or its narrative arc clearly progressed.
 - Do NOT include threads merely mentioned in narration. Mentioning ≠ affecting.
 - Do NOT include threads present as background. Presence ≠ advancement.  
 - If uncertain whether a thread was affected — do not include it.
-
-`thread_add`: A new ArcThread object when a genuinely new story tension emerges this turn. CRITICAL: Only emit thread_add when `pacing_context.gate` shows `"allow"` — if gate is `"block_escalate"`, do NOT add threads regardless of narrative context. The engine already decided the pacing doesn't support escalation. Thread must have: id (snake_case), summary, scope ("scene" for short-lived tension tied to current location/NPCs — **deleted on location change**, "arc" for persistent story tension that spans locations), urgency (`"background"`, `"normal"`, or `"urgent"` only — no other values).
-
-CRITICAL — CONSOLIDATE BEFORE CREATING: Before emitting `thread_add`, scan every active and latent thread for conceptual overlap with the proposed new thread. Overlap means: same antagonist, same problem domain (e.g., both about enemy forces), same NPC, same location-based threat, or same thematic tension. If ANY existing thread covers related ground — even with a different ID, different wording, or a different specific instance — do NOT create a new thread. Instead, update the existing thread via `thread_update` with a broadened summary and new progress.
-
-Only create a new thread when the tension is genuinely, fundamentally distinct from everything already tracked. Examples of when to UPDATE an existing thread instead:
-- A sniper threat and a pursuer threat are both "enemy contact" — update one broader thread.
-- A jammed radio and a weak signal are both "communication problems" — update one thread.
-- A guard confrontation and a locked door are both "obstacles to the objective" — update one thread.
-- An NPC's moral crisis and a faction's propaganda campaign are both "thematic pressure" — consider keeping one thread.
-
-When in doubt about overlap, UPDATE an existing thread rather than creating a new one. You can always narrow later.
 
 `thread_resolve`: A list of objects to mark individual threads as resolved, failed, or abandoned — independent of arc resolution. Use this when a thread has run its course, was superseded by events, or merged into a broader concern. THIS IS VALID — not every thread needs a dramatic completion. Example: `[{"id": "enemy_presence_in_ruins", "resolution_state": "abandoned", "outcome": "Threats absorbed into broader encirclement situation."}]`
 
@@ -93,6 +81,17 @@ Arc resolution timing: Emit `arc_resolve` when the visible_goal has been meaning
 When the arc is approaching resolution (the main objective is in progress, the climactic scene is underway, or the story has clearly moved on from the original goal), shift thread strategy: prefer resolving side-threads via `thread_resolve`, consolidate scene threads into the main arc thread, and avoid creating new threads. A thread whose concern will be resolved by the arc's conclusion should be marked as `"abandoned"` or `"resolved"` — the arc resolution will subsume it. Do not let side-threads accumulate during the final push toward the arc goal.
 
 When the arc's visible_goal is close to achievement (the main objective is in progress or the climactic scene is underway), shift thread strategy: prefer resolving side-threads via `thread_resolve`, consolidate scene threads into the main arc thread, and avoid creating new threads. A thread whose concern will soon be resolved by the arc's conclusion should be marked as `"abandoned"` or `"resolved"` — the arc resolution will subsume it. Do not let side-threads accumulate during the final push toward the arc goal.
+
+CRITICAL: Before emitting `thread_add`, check all active and latent thread summaries for conceptual overlap. If an existing thread covers the same story tension (even with a different ID), do NOT emit `thread_add` — instead update that existing thread via `thread_update`. Only create new threads when the tension is genuinely distinct.
+
+## Arc resolution
+
+Use `arc_resolve` to signal that this campaign arc has reached its natural conclusion. This tells Python to store the resolved arc and generate a successor with surviving threads, goal_context from prior context, and thematic_question inherited from the parent.
+
+- `resolution`: One-sentence narrative summary of how this arc concluded (e.g., "The quarantine perimeter collapsed after Dr. Voss's team was overrun").
+- `surviving_threads`: List of thread IDs that persist into the next arc — tensions that were addressed but not fully resolved, or threads that naturally carry forward.
+
+Only emit `arc_resolve` when the visible_goal has been meaningfully completed, abandoned, or transformed. Do NOT use it for partial progress or temporary setbacks.
 
 ## Rules-outcome guidance
 - crit_fail / fail / setback / partial: do NOT mark threads as affected for the attempted action.
