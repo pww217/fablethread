@@ -1744,13 +1744,9 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
     for rem in delta.inventory_remove:
         canonical = resolve_inventory_remove_target(inv_list, rem.id)
         if canonical is None:
-            rejections.append(
-                {
-                    "field": "inventory_remove",
-                    "kind": "warn_missing_item",
-                    "value": rem.id,
-                    "reason": f"Inventory item '{rem.id}' does not exist — ignoring removal request",
-                }
+            _log.debug(
+                "inventory_remove target %r not found in inventory (turn %s) — skipping",
+                rem.id, state.get("meta", {}).get("turn", 0),
             )
             continue
         item = inv_by_id.get(canonical)

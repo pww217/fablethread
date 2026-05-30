@@ -11,9 +11,11 @@ ID convention:
     2. resolve_inventory_canonical_id(raw, inventory) — Normalize raw, then
        match against canonical IDs and alias lists.
     3. resolve_inventory_remove_target(raw, inventory) — Same as above but also
-       matches against item names (fallback for items without aliases).
+       matches against item names, then falls back to fuzzy token-overlap matching
+       (threshold 0.6).
     4. _fuzzy_match_inventory(name, inventory) — Token-overlap scoring for
-       detecting duplicates during inventory_add (threshold 0.6).
+       detecting duplicates during inventory_add and as a fallback for
+       inventory_remove (threshold 0.6).
 
   Conditions do NOT currently have equivalent normalization — Phase 04 of
   eval-engine-fixes-02.md plans to add normalize_condition_id() mirroring
@@ -65,6 +67,10 @@ def resolve_inventory_remove_target(
         nm = it.get("name")
         if isinstance(nm, str) and normalize_inventory_id(nm) == want:
             return str(it["id"])
+    fuzzy = _fuzzy_match_inventory(raw_id, inventory)
+    if fuzzy:
+        _log.debug("resolve_inventory_remove_target raw=%s -> %s (fuzzy)", raw_id, fuzzy)
+        return fuzzy
     return None
 
 
