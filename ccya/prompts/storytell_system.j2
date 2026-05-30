@@ -1,4 +1,4 @@
-Extract suggested player actions, outcome summary, and thread advancement from a narration. Emit one JSON object matching the schema below. No prose, no markdown fences.
+Extract suggested player actions, outcome summary, thread updates, and arc resolution from a narration. Emit one JSON object matching the schema below. No prose, no markdown fences.
 
 ## Output schema
 
@@ -7,8 +7,8 @@ Extract suggested player actions, outcome summary, and thread advancement from a
   "actions": [],
   "outcome_summary": "",
   "gm_beat": null,
-  "thread_advance": ["thread_id_1", "thread_id_2"],
-  "thread_resolve": [{"id": "thread_id", "resolution_state": "resolved", "outcome": "The enemy retreated into the tunnels after a fierce battle."}],
+  "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent"}, {"id": "..."}],
+  "arc_resolve": {"resolution": "How this arc concluded narratively.", "surviving_threads": ["thread_id_1"]},
   "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal", "tags": [], "key": "subject_action"},
   "world_state_add": [{"id": "new_fact_id", "text": "durable world fact text", "tier": "persistent"}],
   "world_state_remove": ["fact_id_to_remove"]
@@ -40,31 +40,31 @@ Examples:
 
 All thread operations work regardless of scope. You do NOT need to decide if a tension is "scene" or "arc". Python handles scoping via the ArcThread.scope field. Emit only what actually happened this turn.
 
-`thread_advance`: List of snake_case thread IDs meaningfully advanced this turn. Include ONLY if events directly advanced that specific thread (meaningful action, not just mention/background presence). Example output: `["the_missing_ore", "fraying_rigging_and_broken"]`.
+`thread_update`: A list of objects with `id` (snake_case) and optional `urgency` changes for threads that shifted meaningfully this turn. Include ONLY if you want to change a thread's urgency level or mark it as active/inactive. Example: `[{"id": "the_missing_ore", "urgency": "urgent"}, {"id": "fraying_rigging_and_broken"}]`. Omitting `urgency` marks the thread as seen/acknowledged without changing its priority.
 
-CRITICAL RULES for including a thread ID in thread_advance:
-- Include ONLY if this turn's events DIRECTLY advanced that specific thread. The player took meaningful action toward it. A check was rolled on it, or its narrative arc clearly progressed.
-- Do NOT include threads merely mentioned in narration. Mentioning ≠ advancing.
+CRITICAL RULES for including a thread ID in thread_update:
+- Include ONLY if this turn's events DIRECTLY affected that specific thread. The player took meaningful action toward it, or its narrative arc clearly progressed.
+- Do NOT include threads merely mentioned in narration. Mentioning ≠ affecting.
 - Do NOT include threads present as background. Presence ≠ advancement.  
-- If uncertain whether a thread was advanced — do not include it. Under-inclusion is better than false positives. The 5-turn expiry timer will handle dormant threads.
-
-`thread_resolve`: Threads fully resolved this turn (the tension ends, rather than just progressing). Each entry has an `id`, a `resolution_state`, and an `outcome`:
-- `"resolved"` = tension addressed successfully
-- `"failed"` = tension escalated negatively  
-- `"abandoned"` = player moved on without addressing it
-
-Each resolution MUST include an `outcome` field: one past-tense sentence describing what happened. Example: `"outcome": "The guard let them pass after they showed the merchant's seal."`. Do not omit this — future Storyteller calls will read these outcomes to understand how past plot lines ended.
-
-Use thread_advance if you're advancing progress toward completion; use thread_resolve if the turn ends the tension entirely.
-
-CRITICAL: Before emitting `thread_add`, check all active and latent thread summaries for conceptual overlap. If an existing thread covers the same story tension (even with a different ID), do NOT emit `thread_add` — instead advance that existing thread via `thread_advance`. Only create new threads when the tension is genuinely distinct.
+- If uncertain whether a thread was affected — do not include it.
 
 `thread_add`: A new ArcThread object when a genuinely new story tension emerges this turn. CRITICAL: Only emit thread_add when `pacing_context.gate` shows `"allow"` — if gate is `"block_escalate"`, do NOT add threads regardless of narrative context. The engine already decided the pacing doesn't support escalation. Thread must have: id (snake_case), summary, scope ("scene" for short-lived tension tied to current location/NPCs, "arc" for persistent story tension), urgency (`"background"`, `"normal"`, or `"urgent"` only — no other values), tags (list), key ("subject_action") as an optional snake_case canonical label like `"location_event"` to help the engine deduplicate semantically identical threads.
 
+CRITICAL: Before emitting `thread_add`, check all active and latent thread summaries for conceptual overlap. If an existing thread covers the same story tension (even with a different ID), do NOT emit `thread_add` — instead update that existing thread via `thread_update`. Only create new threads when the tension is genuinely distinct.
+
+## Arc resolution
+
+Use `arc_resolve` to signal that this campaign arc has reached its natural conclusion. This tells Python to store the resolved arc and generate a successor with surviving threads, goal_context from prior context, and thematic_question inherited from the parent.
+
+- `resolution`: One-sentence narrative summary of how this arc concluded (e.g., "The quarantine perimeter collapsed after Dr. Voss's team was overrun").
+- `surviving_threads`: List of thread IDs that persist into the next arc — tensions that were addressed but not fully resolved, or threads that naturally carry forward.
+
+Only emit `arc_resolve` when the visible_goal has been meaningfully completed, abandoned, or transformed. Do NOT use it for partial progress or temporary setbacks.
+
 ## Rules-outcome guidance
-- crit_fail / fail / setback / partial: do NOT mark thread signals as "advanced" for the attempted action.
-- success / crit_success: apply thread advancement freely.
-- No dice roll: do NOT signal "advanced" unless the narration explicitly and unambiguously states the thread was moved forward. Ambiguous, partial, or conversational narration means the thread was NOT advanced.
+- crit_fail / fail / setback / partial: do NOT mark threads as affected for the attempted action.
+- success / crit_success: apply thread updates freely.
+- No dice roll: do NOT signal "affected" unless the narration explicitly and unambiguously states a thread shifted meaningfully. Ambiguous, partial, or conversational narration means threads were NOT affected.
 
 ## World state rules
 
@@ -86,11 +86,10 @@ You have visibility into all threads — including those marked (dormant/latent)
 
 The `pacing_context` section tells you how Python shaped tone for this turn. Use it to inform `gm_beat` and thread decisions:
 
-- **Breathe** → prefer `breathing_room` beat, do NOT add threads even if gate allows, resolve tensions where possible
+- **Breathe** → prefer `breathing_room` beat, do NOT add threads even if gate allows
 - **Overwhelm** → emit `gm_beat` of type `pressure`/`escalation`, may add scene-scoped threads if gate == "allow" 
-- **Pressure** → emit `gm_beat` of type `complication`/`pressure`, advance existing threads rather than adding new ones
-- **Tension** → do NOT add pressures unless concrete threat emerges; prefer advancing existing threads
- - **Resolve a Threat** → resolve resolved threads via thread_resolve with resolution_state="resolved"; do NOT add new threads
+- **Pressure** → emit `gm_beat` of type `complication`/`pressure`, update existing threads rather than adding new ones
+- **Tension** → do NOT add pressures unless concrete threat emerges; prefer updating existing threads
 
 When multiple directives are joined (e.g. "Pressure; Resolve a Threat"), prioritize the primary directive and layer the secondary as thematic guidance for beat type selection.
 

@@ -61,8 +61,8 @@
 
         {# Fix: use unified threads[] with active filter instead of non-existent active_threads #}
         {% set _active = (_arc.get('threads') | selectattr('active', 'equalto', true) | list) if _arc.get('threads') else [] %}
-        {% set _discovered = _arc.get('discovered_truths', []) %}
-        {% set _completed = _arc.get('completed_threads', []) %}
+        {% set _completed = (state.get('completed_threads', [])[:20]) if state.get('completed_threads') else [] %}
+        {% set _resolved_arcs = (state.get('resolved_arcs', [])[:5]) if state.get('resolved_arcs') else [] %}
         {% if _active %}
         {% for thread in _active %}
         {% set _urg = thread.get('urgency', 'normal') %}
@@ -72,16 +72,39 @@
         {% endfor %}
         {% endif %}
 
-        {% if _discovered %}
-        <details class="arc-section arc-section-truths">
+        {% if _arc.get('resolution') %}
+        <details class="arc-section arc-section-resolution">
             <summary class="arc-section-summary">
-                <span class="arc-eye">👁</span>
-                <span>Discovered Truths</span>
-                <span class="arc-section-count">{{ _discovered | length }}</span>
+                <span class="arc-eye">✓</span>
+                <span>Arc Resolution (Turn {{ _arc.resolved_turn or '?' }})</span>
+            </summary>
+            <div class="arc-truth" data-md>{{ _arc.resolution }}</div>
+        </details>
+        {% endif %}
+
+        {% if _resolved_arcs %}
+        <details class="arc-section arc-section-resolved">
+            <summary class="arc-section-summary">
+                <span class="arc-eye">📜</span>
+                <span>Previously Resolved Arcs ({{ _resolved_arcs | length }})</span>
             </summary>
             <div class="arc-truths">
-                {% for truth in _discovered %}
-                <div class="arc-truth" data-md>{{ truth }}</div>
+                {% for ra in _resolved_arcs %}
+                <div class="arc-truth" data-md><strong>T{{ ra.turn }}</strong>: {{ ra.resolution[:120] }}{% if ra.goal_context %} (Goal: {{ ra.goal_context[:80] }}){% endif %}</div>
+                {% endfor %}
+            </div>
+        </details>
+        {% endif %}
+
+        {% if _completed %}
+        <details class="arc-section arc-section-completed">
+            <summary class="arc-section-summary">
+                <span class="arc-eye">📋</span>
+                <span>Completed Threads ({{ _completed | length }})</span>
+            </summary>
+            <div class="arc-truths">
+                {% for ct in _completed %}
+                <div class="arc-thread" data-md>{{ ct.summary[:100] }}{% if ct.resolved_turn %} [resolved T{{ ct.resolved_turn }}]{% endif %}</div>
                 {% endfor %}
             </div>
         </details>

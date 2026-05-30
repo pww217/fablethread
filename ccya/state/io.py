@@ -74,11 +74,13 @@ def _default_state() -> dict[str, Any]:
         "arc": {
             "visible_goal": "",
             "thematic_question": "",
-            "hidden_truths": [],
-            "discovered_truths": [],
+            "goal_context": "",
             "threads": [],
             "completed_threads": [],
+            "resolution": None,
+            "last_thread_created_turn": 0,
         },
+        "resolved_arcs": [],
         "scene": {
             "tags": [],
             "world_state": [],

@@ -318,23 +318,15 @@ async def generate_seed(
                 messages.append({"role": "user", "content": fb})
             continue
 
-        # Copy arc from envelope top-level into seed_state; wire pc_drive into arc
+        # Copy arc from envelope top-level into seed_state; ensure seeded active threads are marked active
         if envelope.arc:
             envelope.seed_state.arc = envelope.arc
-            if envelope.pc_drive:
-                envelope.seed_state.arc.pc_drive = envelope.pc_drive
             # Ensure seeded active threads start with correct state
             arc = envelope.seed_state.arc
             if arc and hasattr(arc, "threads"):
                 for t in arc.threads or []:
                     if not getattr(t, "active", True):
                         object.__setattr__(t, "active", True)
-                    if getattr(t, 'added_turn', None) is None:
-                        object.__setattr__(t, 'added_turn', 0)
-                    if getattr(t, 'urgency_set_turn', None) is None:
-                        object.__setattr__(t, 'urgency_set_turn', 0)
-        if envelope.pc_drive:
-            envelope.seed_state.pc.drive = envelope.pc_drive
 
         # Inject baseline_facts (hardcoded genre canon) into world_state
         # LLM generates 3 global facts into world_state; prepend baseline_facts

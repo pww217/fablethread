@@ -24,7 +24,6 @@ from ccya.eval.engine_mirror import (
     MOMENTUM_DELTA,
     MOMENTUM_MAX,
     MOMENTUM_MIN,
-    THREAD_ARC_DEMOTE_AGE,
     URGENCY_LEVELS,
 )
 from ccya.eval.scenario import Scenario, TurnAssert
@@ -123,13 +122,11 @@ _EVAL_PACK_STARTING_CONDITIONS = [
         "id": "bruised_ribs",
         "label": "bruised ribs",
         "description": "A hard fall on the bridge two days ago left a deep, aching bruise along the right ribcage.",
-        "added_turn": 8,
     },
     {
         "id": "low_morale",
         "label": "low morale",
         "description": "Twelve days on the road, two days behind schedule, and an old debt waiting at the end of it.",
-        "added_turn": 10,
     },
 ]
 
@@ -140,7 +137,7 @@ def _patch_eval_pack_starting_state(
     """Apply runtime-only seed adjustments that SeedState's schema can't express.
 
     Currently only affects eval-pack: adds two structured Condition objects with
-    explicit `added_turn` that SeedPC.conditions (list[str]) cannot represent.
+    explicit added_turn that SeedPC.conditions (list[str]) cannot represent.
     No-op for any other pack.
 
     If `seed_overrides` is provided, applies dotpath overrides on top of the
@@ -280,10 +277,16 @@ def _check_asserts(
         elif a.stream == "storytell.extract":
             applied = event.get("applied") or {}
             output = ((event.get("extraction") or {}).get("storytell") or {}).get("output") or {}
-            if a.field == "thread_advance":
-                threads = output.get("thread_advance") or []
-                passed = a.expected in threads
-                detail = f"thread_advance[{a.expected}] {'found' if passed else 'not found'}"
+            if a.field == "thread_update":
+                threads = output.get("thread_update") or []
+                passed = any(isinstance(t, dict) and t.get("id") == a.expected for t in threads)
+                detail = f"thread_update[{a.expected}] {'found' if passed else 'not found'}"
+
+            elif a.field == "arc_resolve":
+                arc_res = output.get("arc_resolve") or {}
+                resolution_text = arc_res.get("resolution", "") if isinstance(arc_res, dict) else ""
+                passed = (a.expected or "").lower() in resolution_text.lower()
+                detail = f"arc_resolve[{a.expected}] {'found' if passed else 'not found'} (resolution: {resolution_text[:80]})"
 
             elif a.field == "thread_resolve":
                 resolutions = output.get("thread_resolve") or []
@@ -434,7 +437,6 @@ async def run_scenario(
         "world_factions": [f.model_dump() for f in (pack.scenario.factions if pack.scenario else [])],
         "seed_state": seed,
         "engine_constants": {
-            "thread_arc_demote_age": THREAD_ARC_DEMOTE_AGE,
             "urgency_levels": list(URGENCY_LEVELS),
             "momentum_min": MOMENTUM_MIN,
             "momentum_max": MOMENTUM_MAX,

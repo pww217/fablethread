@@ -76,7 +76,7 @@ class InventoryBlock(BaseModel):
 class ArcThreadSummary(BaseModel):
     """Simplified arc thread data for prompt rendering (subset of full ArcThread).
 
-    Used by _arc.j2 line 18 and storytell_user.j2 line 17. Both templates access: id, scope, urgency, summary, tags, active, last_seen_turn.
+    Used by _thread_list.j2 and storytell_user.j2. Both templates access: id, scope, urgency, summary, tags, active.
     """
 
     id: str
@@ -85,7 +85,6 @@ class ArcThreadSummary(BaseModel):
     urgency: Literal["background", "normal", "urgent"]
     tags: list[str] = Field(default_factory=list)
     active: bool
-    last_seen_turn: int | None = None  # referenced in _arc.j2 line 18 and storytell_user.j2 line 17 as t.last_seen_turn
 
 
 class ArcThreadBlock(BaseModel):
@@ -93,10 +92,7 @@ class ArcThreadBlock(BaseModel):
 
     visible_goal: str
     thematic_question: str
-    pc_drive: str
     threads: list[ArcThreadSummary]  # simplified thread view for prompts
-    discovered_truths: list[str] = Field(default_factory=list)
-    hidden_truths: list[str] = Field(default_factory=list)
 
     @classmethod
     def from_state(cls, state: dict[str, Any]) -> ArcThreadBlock:
@@ -114,7 +110,6 @@ class ArcThreadBlock(BaseModel):
                         urgency=t.get("urgency", "normal"),
                         tags=list(t.get("tags", [])),
                         active=bool(t.get("active", True)),
-                        last_seen_turn=t.get("last_seen_turn"),
                     )
                 )
             elif isinstance(t, ArcThread):
@@ -126,16 +121,12 @@ class ArcThreadBlock(BaseModel):
                         urgency=t.urgency,
                         tags=list(t.tags),
                         active=bool(t.active),
-                        last_seen_turn=t.last_seen_turn,
                     )
                 )
         return cls(
             visible_goal=arc.get("visible_goal", ""),
             thematic_question=arc.get("thematic_question", ""),
-            pc_drive=arc.get("pc_drive", ""),
             threads=raw_threads,
-            discovered_truths=list(arc.get("discovered_truths", [])),
-            hidden_truths=list(arc.get("hidden_truths", [])),
         )
 
 
@@ -267,7 +258,7 @@ class StorytellerBoundary(BaseModel):
 
     npc_roster/location/inventory/conditions come from extraction_ctx.
     all_threads/world_state/intent/pacing_context/recent_turns/turn_no/band are top-level variables.
-    current_arc provides campaign arc metadata (visible_goal, thematic_question, pc_drive) via _arc.j2 include.
+    current_arc provides campaign arc metadata (visible_goal, thematic_question) via _arc.j2 include.
     """
 
     narration: str
