@@ -106,21 +106,12 @@ class Faction(BaseModel):
     disposition: str = "neutral"
 
 
-class NamedLocation(BaseModel):
-    id: str
-    name: str
-    type: str
-    description: str
-
-
 class Constraints(BaseModel):
-    min_named_npcs: int = 2
     inventory_size_range: tuple[int, int] = (4, 8)
     pc_stat_range: tuple[int, int] = (1, 4)
     pc_stat_total_range: tuple[int, int] = (12, 18)
     prose_word_range: tuple[int, int] = (200, 500)
     required_inventory_kinds: list[str] = Field(default_factory=list)
-    npc_distinct_first_letters: bool = True
     forbid_cliches: list[str] = Field(default_factory=list)
 
 
@@ -156,7 +147,6 @@ class ScenarioBrief(BaseModel):
       narrator_rules — tone/style rules injected into narrate system prompt (replaces style.md)
       world_rules   — 0–5 hard physical laws of the world (rendered as ## Universe rules)
       factions      — 3–6 named power groups injected into narrate context each turn
-      locations     — 5–10 named places injected into narrate context each turn
       name_locales  — weighted Faker locales for name generation
       name_seed     — int; controls name selection randomness at generate time
       inspiration   — quality anti-pattern guidance for seed generation (no concrete examples)
@@ -167,7 +157,6 @@ class ScenarioBrief(BaseModel):
     narrator_rules: list[str] = Field(default_factory=list, max_length=12)
     world_rules: list[str] = Field(default_factory=list, max_length=5)
     factions: list[Faction] = Field(default_factory=list, max_length=6)
-    locations: list[NamedLocation] = Field(default_factory=list, max_length=10)
     name_locales: list[dict[str, Any]] = Field(default_factory=list)
     name_seed: int = 0
     inspiration: Inspiration = Field(default_factory=Inspiration)
@@ -213,7 +202,7 @@ class PlayerOverrides(BaseModel):
     npc_hints: str = ""
     location_hints: str = ""
     free_form: str = ""
-    npc_count: int = 0  # 0 = use pack default (scenario.constraints.min_named_npcs)
+    npc_count: int = 0
     arc_hints: str = ""
     drive_hint: str = ""
 
@@ -235,9 +224,6 @@ class PackManifest(BaseModel):
     model_config = {"extra": "ignore"}
     id: str
     name: str
-    description: str = ""
-    genre: str = ""
-    mode: str = "dynamic"
     tone_tags: list[str] = Field(default_factory=list)
     baseline_facts: list[str] = Field(default_factory=list, max_length=3)
     name_locales: list[dict[str, Any]] = Field(default_factory=list)
@@ -246,29 +232,16 @@ class PackManifest(BaseModel):
 
 class Pack(BaseModel):
     manifest: PackManifest
-    # Legacy text fields (world.md / style.md — still loaded for old packs)
     world_text: str = ""
-    style_text: str = ""
-    # Static mode
     seed: SeedState | None = None
     opening_text: str = ""
     opening_actions: list[str] = Field(default_factory=list)
-    # Generated mode (new consolidated scenario.yaml)
     scenario: ScenarioBrief | None = None
-
-    @property
-    def mode(self) -> str:
-        """Return 'static' or 'dynamic' based on which fields are populated."""
-        if self.seed is not None:
-            return "static"
-        return "dynamic"
 
     @model_validator(mode="after")
     def _check_playable(self) -> "Pack":
         if self.seed is None and self.scenario is None:
-            raise ValueError(
-                "Pack must have either seed_state.yaml (static) or scenario.yaml (generated)"
-            )
+            raise ValueError("Pack must have seed_state.yaml or scenario.yaml")
         return self
 
 
@@ -341,14 +314,12 @@ def load_pack(pack_id: str, packs_dir: Path) -> Pack:
         if scenario_data:
             scenario = ScenarioBrief(**scenario_data)
 
-    # Legacy fallback: world.md and style.md (old dynamic packs)
+    # Legacy fallback: world.md (old dynamic packs)
     world_text = _read("world.md", "")
-    style_text = _read("style.md", "")
 
     return Pack(
         manifest=manifest,
         world_text=world_text,
-        style_text=style_text,
         seed=seed,
         opening_text=opening_text,
         opening_actions=opening_actions,

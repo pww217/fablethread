@@ -1,6 +1,5 @@
 constraints:
   # required-presence
-  min_named_npcs: 2
   min_objectives_per_quest: 2
   starting_quest_count: 1
   # ranges
@@ -10,7 +9,6 @@ constraints:
   prose_word_range: [400, 700]
   # composition
   required_inventory_kinds: [weapon, tool]
-  npc_distinct_first_letters: true
   # creativity guards
   forbid_cliches:
     - "last soldier standing"
@@ -22,7 +20,8 @@ constraints:
     - "the war made you this way"
     - "you're just a soldier / sailor / airman — follow orders"
 
-
+world_rules:
+  - No supernatural, paranormal, or sci-fi phenomena exist in this setting. All events are grounded in historical reality (1940–1945).
 
 inspiration:
   pc: |

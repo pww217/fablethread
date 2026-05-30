@@ -1,7 +1,6 @@
 id: allied-ww2
 name: "Allied — 1940–1945"
 description: "Allied service member across any theater. Every rotation is different."
-genre: ww2
 tone_tags: [gritty, logistics, moral-weight, grounded]
 use_male_only_names: true
 version: 2
@@ -13,7 +12,6 @@ baseline_facts:
 files:
   world: world.md
   scenario: scenario.yaml
-  style: style.md
 name_locales:
   - locale: en_GB
     weight: 0.30

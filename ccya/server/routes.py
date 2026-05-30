@@ -121,7 +121,6 @@ async def index(request: Request):
     ctx["opening_actions"] = opening_actions
     ctx["opening_outcome_summary"] = _get_opening_outcome_summary() if opening else ""
     ctx["has_narrative"] = bool(opening or history)
-    ctx["pack_mode"] = _app_mod._active_pack.mode
     ctx["pack_name"] = _app_mod._active_pack.manifest.name
     ctx["character_creation_enabled"] = _app_mod.config.get("game", {}).get(
         "character_creation_enabled", True
@@ -158,12 +157,10 @@ async def get_turn(input: str = ""):
                 user_input,
                 config=_app_mod.engine_config,
                 template_dir=str(_app_mod.PROMPTS_DIR),
-                pack_style=_app_mod._active_pack.style_text,
                 pack_name_locales=_app_mod._active_pack.manifest.name_locales,
                 pack_narrator_rules=_app_mod._active_pack.scenario.narrator_rules if _app_mod._active_pack.scenario else [],
                 pack_world_rules=_app_mod._active_pack.scenario.world_rules if _app_mod._active_pack.scenario else [],
                 pack_factions=[f.model_dump() for f in (_app_mod._active_pack.scenario.factions if _app_mod._active_pack.scenario else [])],
-                pack_locations=[loc.model_dump() for loc in (_app_mod._active_pack.scenario.locations if _app_mod._active_pack.scenario else [])],
             ):
                 if kind == "token":
                     yield {
@@ -242,7 +239,7 @@ async def new_game(request: Request):
             _app_mod._active_pack = load_pack(requested_pack, _app_mod.PACKS_DIR)
             _app_mod._pack_id = requested_pack
             _app_mod.logger.info(
-                "Switched pack to %s (mode=%s)", _app_mod._pack_id, _app_mod._active_pack.mode
+                "Switched pack to %s", _app_mod._pack_id
             )
         except Exception as exc:
             _app_mod.logger.error("Failed to switch pack %r: %s", requested_pack, exc)
@@ -290,48 +287,26 @@ async def new_game(request: Request):
                 update={"pc_hints": " ".join(hint_parts) + " " + overrides.pc_hints}
             )
 
-    if _app_mod._active_pack.mode == "static":
-        assert _app_mod._active_pack.seed is not None
-        seed = _app_mod._active_pack.seed.model_dump(mode="json")
-        if pc_name:
-            seed["pc"]["name"] = pc_name
-        if pc_tagline:
-            seed["pc"]["tagline"] = pc_tagline
-        if pc_stats_raw:
-            try:
-                stats = json.loads(pc_stats_raw)
-                if _app_mod._validate_stats(stats):
-                    seed["pc"]["stats"] = stats
-            except (json.JSONDecodeError, TypeError):
-                pass
-        _apply_seed_to_save_dir(seed, pack_type="static", pack_source=_app_mod._pack_id)
-    else:
-        try:
-            envelope, pool_selection = await generate_seed(
-                _app_mod._active_pack,
-                _app_mod.engine_config,
-                template_dir=str(_app_mod.PROMPTS_DIR),
-                overrides=overrides if not overrides.is_empty() else None,
-            )
-            seed = envelope.seed_state.model_dump(mode="json")
-            seed["meta"]["setting_pack"] = _app_mod._pack_id
-            _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, outcome_summary=envelope.outcome_summary, pack_type="dynamic", pack_source=_app_mod._pack_id, pool_selection=pool_selection)
-        except Exception:
-            _app_mod.logger.exception("generate_seed failed")
+    try:
+        envelope, pool_selection = await generate_seed(
+            _app_mod._active_pack,
+            _app_mod.engine_config,
+            template_dir=str(_app_mod.PROMPTS_DIR),
+            overrides=overrides if not overrides.is_empty() else None,
+        )
+        seed = envelope.seed_state.model_dump(mode="json")
+        seed["meta"]["setting_pack"] = _app_mod._pack_id
+        _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, outcome_summary=envelope.outcome_summary, pack_type="dynamic", pack_source=_app_mod._pack_id, pool_selection=pool_selection)
+    except Exception:
+        _app_mod.logger.exception("generate_seed failed")
 
-    _log.info("new_game pack=%s mode=%s", _app_mod._pack_id, _app_mod._active_pack.mode)
+    _log.info("new_game pack=%s", _app_mod._pack_id)
     ctx = _debug_context()
-    ctx["pack_mode"] = _app_mod._active_pack.mode
     return _app_mod._render("_state.html", ctx)
 
 
 @_app_mod.app.post("/new-game/reroll")
 async def new_game_reroll(request: Request):
-    if _app_mod._active_pack.mode != "dynamic":
-        return HTMLResponse(
-            "<p>Re-roll only available for dynamic packs.</p>", status_code=400
-        )
-
     try:
         envelope, pool_selection = await generate_seed(
             _app_mod._active_pack,

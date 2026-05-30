@@ -430,10 +430,8 @@ async def run_scenario(
         "__metadata__": True,
         "pack_id": pack.manifest.id,
         "pack_name": pack.manifest.name,
-        "pack_style": pack.style_text,
         "narrator_rules": pack.scenario.narrator_rules if pack.scenario else [],
         "world_factions": [f.model_dump() for f in (pack.scenario.factions if pack.scenario else [])],
-        "world_locations": [loc.model_dump() for loc in (pack.scenario.locations if pack.scenario else [])],
         "seed_state": seed,
         "engine_constants": {
             "thread_arc_demote_age": THREAD_ARC_DEMOTE_AGE,
@@ -472,12 +470,10 @@ async def run_scenario(
                 turn.input,
                 config=engine_config,
                 template_dir=str(PROMPTS_DIR),
-                pack_style=pack.style_text,
                 pack_name_locales=pack.manifest.name_locales or [],
                 pack_narrator_rules=pack.scenario.narrator_rules if pack.scenario else [],
                 pack_world_rules=pack.scenario.world_rules if pack.scenario else [],
                 pack_factions=[f.model_dump() for f in (pack.scenario.factions if pack.scenario else [])],
-                pack_locations=[loc.model_dump() for loc in (pack.scenario.locations if pack.scenario else [])],
             ):
                 if kind == "complete":
                     result_obj = payload

@@ -1,7 +1,6 @@
 id: sengoku-japan
 name: "Sengoku — Warring States"
 description: "Samurai and soldiers in an age of endless war. Every battle, every alliance, every betrayal is different."
-genre: sengoku japan
 tone_tags: [warrior, feudal, brutal, honor-and-blood]
 use_male_only_names: true
 version: 1
@@ -13,7 +12,6 @@ baseline_facts:
 files:
   world: world.md
   scenario: scenario.yaml
-  style: style.md
 name_locales:
   - locale: ja_JP
     weight: 0.50

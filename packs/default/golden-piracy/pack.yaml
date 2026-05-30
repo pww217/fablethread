@@ -1,7 +1,6 @@
 id: golden-piracy
 name: "The Golden Age — 1715–1725"
 description: "Pirate life on the edge of the world. Every port, every ship, every mutiny is different."
-genre: pirate
 tone_tags: [naval, brutal, democratic, salt-and-blood]
 use_male_only_names: true
 version: 1
@@ -13,7 +12,6 @@ baseline_facts:
 files:
   world: world.md
   scenario: scenario.yaml
-  style: style.md
 name_locales:
   - locale: en_GB
     weight: 0.40

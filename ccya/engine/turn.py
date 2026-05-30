@@ -1017,7 +1017,6 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
     narr_messages = _narrate_messages(
         ctx._env, state, ctx.user_input,
         recent_turns=ctx.recent_turns,
-        pack_style=ctx.packing.get("style", ""),
         narrator_rules=_pack_narrator_rules, world_rules=_pack_world_rules,
         rules_outcome=ctx.outcome, npc_name_pool=_npc_name_pool,
         momentum=(state.get("pc") or {}).get("momentum", 0), pending_beat=_pending_gm_beat,
@@ -1038,12 +1037,10 @@ async def run_turn(
     config: EngineConfig | None = None,
     *,
     template_dir: str | None = None,
-    pack_style: str = "",
     pack_name_locales: list[dict[str, Any]] = [],
     pack_narrator_rules: list[str] = [],
     pack_world_rules: list[str] = [],
     pack_factions: list[dict[str, str]] = [],
-    pack_locations: list[dict[str, str]] = [],
 ) -> AsyncIterator[tuple[str, Any]]:
     if config is None:
         config = EngineConfig()
@@ -1073,9 +1070,9 @@ async def run_turn(
             state=state, user_input=user_input, turn_no=0, trace_id=trace_id,
             config=config, recent_turns=recent_turns,
             save_dir=save_dir, packing={
-                "style": pack_style, "name_locales": pack_name_locales,
+                "name_locales": pack_name_locales,
                 "narrator_rules": pack_narrator_rules, "world_rules": pack_world_rules,
-                "factions": pack_factions, "locations": pack_locations,
+                "factions": pack_factions,
             }, _env=env,
         )
 

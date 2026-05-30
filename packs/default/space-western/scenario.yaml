@@ -1,6 +1,5 @@
 constraints:
-  # required-presence
-  min_named_npcs: 2
+   # required-presence
   min_objectives_per_quest: 2
   starting_quest_count: 1
   # ranges
@@ -9,8 +8,7 @@ constraints:
   pc_stat_total_range: [9, 12]
   prose_word_range: [400, 700]
   # composition
-  required_inventory_kinds: [weapon, tool]
-  npc_distinct_first_letters: true
+   required_inventory_kinds: [weapon, tool]
   # creativity guards
   forbid_cliches:
     - "pirate captain with a bounty on their head"

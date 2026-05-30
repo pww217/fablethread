@@ -1,6 +1,5 @@
 constraints:
-  # required-presence
-  min_named_npcs: 2
+   # required-presence
   min_objectives_per_quest: 2
   starting_quest_count: 1
   # ranges
@@ -10,7 +9,6 @@ constraints:
   prose_word_range: [400, 700]
   # composition
   required_inventory_kinds: [weapon, tool]
-  npc_distinct_first_letters: true
   # creativity guards
   forbid_cliches:
     - "treasure map with an X marks the spot"
@@ -22,6 +20,8 @@ constraints:
     - "a cursed artifact that brings bad luck"
     - "a treasure that can't be spent"
 
+world_rules:
+  - No supernatural, paranormal, or mythological creatures exist in this setting. Technology is limited to the Age of Sail era (late 1600s–early 1700s).
 
 inspiration:
   pc: |
