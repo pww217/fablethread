@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import re
+
 from jinja2 import Environment, FileSystemLoader
 
 _log = logging.getLogger(__name__)
@@ -174,7 +176,6 @@ def build_engine_config(
 def _strip_turn_prefix(s: str) -> str:
     if not s:
         return s
-    import re
     return re.sub(r'^- \[T\d+\] ', '', s).lstrip('- ').strip()
 
 

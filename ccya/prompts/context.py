@@ -153,7 +153,7 @@ class WorldStateBlock(BaseModel):
 class ChronicleEntryBlock(BaseModel):
     """A single chronicle/turn entry for prompt rendering.
 
-    Source: load_recent_chronicle_turns() returns dicts with turn/input/narrative keys (line 94 of state/chronicle.py).
+    Source: load_last_narration() returns dicts with turn/input/narrative keys (line 43 of state/chronicle.py).
     Templates only use .turn and .narrative — the "input" field is dead in boundary models but preserved from source data shape.
     """
 
@@ -214,7 +214,7 @@ class NarratorBoundary(BaseModel):
     so these are NOT separate top-level fields — they're accessed via the `state` dict.
     ArcThreadBlock is exposed as `current_arc` to match _arc.j2's variable name (line 1 of _arc.j2).
 
-    NOTE: chronicle_tail, threat_ages, threat_pressure_at, building_threat_imperative_at are passed in user_ctx but narrate_user.j2 never uses them — dead fields removed from boundary model.
+    NOTE: threat_ages, threat_pressure_at, building_threat_imperative_at are passed in user_ctx but narrate_user.j2 never uses them — dead fields removed from boundary model. chronicle_tail was also dead and was removed from user_ctx in the incremental history refactor.
     momentum, scene, compendium_bios, known_npcs, present_npcs also flagged as dead by alignment check and removed.
     """
 
