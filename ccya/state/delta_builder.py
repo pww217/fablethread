@@ -301,7 +301,7 @@ def apply_delta(
         scene_tagline=delta.scene_tagline,
         location_change=delta.location_change,
         location_description=delta.location_description,
-    ))
+    ), current_turn_no=current_turn)
 
     # --- Arc update: merge arc_update into state arc ---
     if delta.arc_update is not None:
