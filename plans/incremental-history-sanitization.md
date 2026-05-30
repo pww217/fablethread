@@ -1,7 +1,7 @@
 # Incremental History + Compactor Removal
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 
