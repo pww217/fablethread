@@ -1,5 +1,8 @@
 # Mini Roadmap — Iteration Fixes (Easiest → Hardest)
 
+## Status
+`completed` — item 7 moved to `arc-system.md`
+
 ## 1. Dice Roll Mechanics — PARTIAL
 1a done (`2ac48d2`). 1b (skill name display) remains open. 1c (recent_events dedup) is NOOP — dropped.
 **Files:** `ccya/rules.py` (lines 120-131, 172-221), `ccya/prompts/` (roll display templates)
