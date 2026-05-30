@@ -75,6 +75,7 @@ Narrate the attempt and its natural failure. Do NOT write a version where the ac
 {% elif rules_outcome and rules_outcome.rolled %}
 
 **Band:** {{ rules_outcome.band | upper | replace('_', ' ') }} → {{ rules_outcome.directive }}
+**Roll:** d12: {{ rules_outcome.dice[0] if rules_outcome.dice else '?' }} + {{ (rules_outcome.stat_mod or 0) + (rules_outcome.diff_mod or 0) + (rules_outcome.cond_mod or 0) }} ({{ rules_outcome.skill | capitalize }}) = {{ rules_outcome.final_total }}
 
 {% elif rules_outcome and not rules_outcome.rolled %}
 
