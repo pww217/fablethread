@@ -262,6 +262,7 @@ def _storytell_messages(
             "intent": intent,
             "pacing_context": pacing_context,
             "recent_turns": recent_turns or [],
+            "prior_history": list((state.get("meta") or {}).get("prior_history", [])[-10:]),
             "turn_no": turn_no,
             "band": band,
         },

@@ -281,6 +281,7 @@ class StorytellerBoundary(BaseModel):
     intent: IntentEnvelope | None = None
     pacing_context: PacingBlock | None = None
     recent_turns: list[ChronicleEntryBlock]
+    prior_history: list[str]
     turn_no: int
     band: str
 
