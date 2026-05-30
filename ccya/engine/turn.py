@@ -13,7 +13,6 @@ from typing import Any, AsyncIterator, Literal
 
 
 from ccya.engine.changes import _summarize_applied, summarize_changes
-from ccya.engine.compactor import maybe_compact
 from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, _log_llm_io, _log_prompts
 from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.engine.extraction import (
@@ -52,8 +51,7 @@ from ccya.state import (
     apply_momentum,
     append_chronicle,
     append_event,
-    load_chronicle_tail,
-    load_recent_chronicle_turns,
+    load_last_narration,
     load_recent_turns,
     load_state,
     reconcile_delta,
@@ -73,7 +71,6 @@ class TurnContext:
     turn_no: int
     trace_id: str
     config: EngineConfig
-    chronicle_tail: str
     recent_turns: list[dict[str, Any]]
     save_dir: Path
     packing: dict[str, Any]
@@ -774,25 +771,9 @@ def _compute_threat_ages(state: dict[str, Any]) -> list[dict[str, Any]]:
     return result
 
 
-def _compute_recent_window(
-    state: dict[str, Any], config: EngineConfig,
-) -> tuple[int, int]:
-    """Compute (desired_recent, last_compacted_turn) for narrate/extract calls.
-
-    Returns the number of recent chronicle turns to load and the compaction
-    boundary turn so the loader can skip already-compacted history.
-    """
-    meta = state.get("meta") or {}
-    last_compacted_turn = int(meta.get("last_compacted_turn", 0) or 0)
-    current_turn_completed = int(meta.get("turn", 0) or 0)
-    turns_since_compaction = max(0, current_turn_completed - last_compacted_turn)
-    desired_recent = min(config.window_turns, turns_since_compaction)
-    if current_turn_completed > 0:
-        desired_recent = max(
-            desired_recent,
-            min(config.recent_turns_min, turns_since_compaction),
-        )
-    return desired_recent, last_compacted_turn
+def _recent_turn_count(state: dict[str, Any]) -> int:
+    """Always return 1 — the narrator gets exactly one recent turn as full prose."""
+    return 1
 
 
 async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], float, list[tuple[str, Any]]]:
@@ -1035,7 +1016,6 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
     _comp = (state.get("compendium") or {}).get("npcs") or {}
     narr_messages = _narrate_messages(
         ctx._env, state, ctx.user_input,
-        chronicle_tail=ctx.chronicle_tail,
         recent_turns=ctx.recent_turns,
         pack_style=ctx.packing.get("style", ""),
         narrator_rules=_pack_narrator_rules, world_rules=_pack_world_rules,
@@ -1082,23 +1062,16 @@ async def run_turn(
     try:
         await _inflight.acquire(str(save_dir))
 
-        # --- Memory: load chronicle tail + recent turns ---
-        desired_recent, last_compacted_turn = _compute_recent_window(state, config)
-        recent_turns = load_recent_chronicle_turns(
+        # --- Memory: load last narration turn + prior_history bullets ---
+        recent_turns = load_last_narration(
             save_dir,
-            desired_recent,
-            min_turn_exclusive=last_compacted_turn,
-        )
-        chronicle_tail = load_chronicle_tail(
-            save_dir,
-            config.chronicle_prefix_budget_tokens,
-            skip_last_n_turns=config.window_turns,
+            _recent_turn_count(state),
         )
 
         # Build shared context for all phases
         ctx = TurnContext(
             state=state, user_input=user_input, turn_no=0, trace_id=trace_id,
-            config=config, chronicle_tail=chronicle_tail, recent_turns=recent_turns,
+            config=config, recent_turns=recent_turns,
             save_dir=save_dir, packing={
                 "style": pack_style, "name_locales": pack_name_locales,
                 "narrator_rules": pack_narrator_rules, "world_rules": pack_world_rules,
@@ -1592,16 +1565,15 @@ async def run_turn(
             f"\n\n## Turn {state['meta']['turn']} — {user_input}\n\n{narrative.strip()}",
         )
 
-        # === Compaction (after persist, before yield complete) ===
-        if config.compact_every > 0:
-            t_compact = asyncio.get_running_loop().time()
-            state, compaction_ran = await maybe_compact(save_dir, state, config, trace_id=trace_id)
-            if compaction_ran:
-                yield ("phase", {"phase": "compact_start", "expected_ms": 0})
-                yield ("phase", {"phase": "compact_done", "ms": round(
-                    (asyncio.get_running_loop().time() - t_compact) * 1000, 1
-                )})
-            save_state(save_dir, state)
+        # Append outcome_summary as prior_history bullet (after persist, before yield complete)
+        if outcome_summary and outcome_summary.strip():
+            turn_no = state["meta"]["turn"]
+            bullet = f"- [T{turn_no}] {outcome_summary}"
+            meta = state.setdefault("meta", {})
+            prior = meta.setdefault("prior_history", [])
+            prior.append(bullet)
+            if len(prior) > 20:
+                meta["prior_history"] = prior[-20:]
 
         result_obj = TurnResult(
             turn=state["meta"]["turn"],

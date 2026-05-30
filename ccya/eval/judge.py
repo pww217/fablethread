@@ -46,13 +46,12 @@ JUDGE_SCORE_KEYS: dict[str, list[str]] = {
         "prompt_quality_score", "prompt_adherence_rate",
         "pipeline_scores",  # nested dict
     ],
-    "compaction": ["compaction_score", "sanitization_fidelity_rate"],
     "meta": ["mechanical_score", "narrative_score", "system_cohesion_score",
-             "prompt_quality_score", "compaction_score",
+             "prompt_quality_score",
              "state_fidelity_rate", "prompt_adherence_rate"],
     "default": [  # legacy single-judge
         "mechanical_score", "narrative_score", "system_cohesion_score",
-        "prompt_quality_score", "compaction_score",
+        "prompt_quality_score",
         "state_fidelity_rate", "prompt_adherence_rate", "pipeline_scores",
     ],
 }
@@ -106,12 +105,6 @@ _JUDGE_EVENT_FIELDS: dict[str, set[str]] = {
         "rejected",
         # no state_snapshot, no narrate text (it's in narrate_prompt.output)
     },
-    "compaction": {
-        "turn", "input",
-        "extraction",               # progress stream only (compaction fires here)
-        "applied", "rejected",
-        "state_snapshot",           # full — compaction judge needs complete pre/post state
-    },
     # meta judge receives no events.jsonl trace at all — it receives prior judge summaries
 }
 
@@ -120,15 +113,10 @@ _JUDGE_EXTRACTION_STREAMS: dict[str, set[str]] = {
     "state_correctness": {"scene", "state", "storytell"},
     "narrative_interplay": {"scene", "state", "storytell"},
     "prompt_pipeline": {"scene", "state", "storytell"},
-    "compaction": {"storytell"},
 }
 
 # For narrative_interplay: which state_snapshot top-level keys to keep
 _NARRATIVE_SNAPSHOT_KEYS = {"meta", "scene", "pc", "location", "arc"}
-
-# For compaction: only include events at or adjacent to compaction turns
-# (compaction fires when turn % compact_every == 0; we include ±1 turns)
-_COMPACTION_WINDOW = 1
 
 
 def _filter_event_for_judge(judge_id: str, ev: dict[str, Any]) -> dict[str, Any]:
@@ -174,40 +162,6 @@ def _filter_event_for_judge(judge_id: str, ev: dict[str, Any]) -> dict[str, Any]
     return out
 
 
-def _is_compaction_turn(ev: dict[str, Any], all_events: list[dict[str, Any]]) -> bool:
-    """Detect if a turn had compaction activity.
-
-    Compactor runs after events are written to JSONL, so applied deltas won't contain
-    compaction markers. Instead we check state_snapshot.meta.last_compacted_turn which
-    the compactor sets on every compaction turn (compactor.py line 134). Also checks
-    extraction.storytell.output.compaction_fired as a secondary signal if present.
-    """
-    snap = ev.get("state_snapshot") or {}
-    meta = snap.get("meta") or {}
-    # last_compacted_turn is set by compactor on every compaction turn
-    if meta.get("last_compacted_turn", 0) > 0:
-        return True
-    # Also check storytell extraction output for compaction_fired signal if present
-    ext_storytell = ((ev.get("extraction") or {}).get("storytell") or {}).get("output") or {}
-    return bool(ext_storytell.get("compaction_fired"))
-
-
-def _select_compaction_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """For compaction judge: return only turns at/around compaction events."""
-    compaction_turns: set[int] = set()
-    for ev in events:
-        if _is_compaction_turn(ev, events):
-            t = int(ev.get("turn", 0))
-            for offset in range(-_COMPACTION_WINDOW, _COMPACTION_WINDOW + 1):
-                compaction_turns.add(t + offset)
-
-    if not compaction_turns:
-        # No compaction detected — return all events so judge can report absence
-        return events
-
-    return [ev for ev in events if int(ev.get("turn", 0)) in compaction_turns]
-
-
 def build_trace_for_judge(
     judge_id: str,
     events: list[dict[str, Any]],
@@ -216,13 +170,11 @@ def build_trace_for_judge(
     auto_checker_failures: list[dict[str, Any]] | None = None,
     metrics_rows: list[dict[str, Any]] | None = None,
     redundancy_signals: dict[str, Any] | None = None,
-    compaction_signals: dict[str, Any] | None = None,
     arch_context: str = "",
 ) -> str:
     """Build a filtered trace for a specific judge id.
 
-    Filters event fields and (for compaction judge) event selection before
-    delegating to build_trace(). The meta judge receives an empty string —
+    Filters event fields before delegating to build_trace(). The meta judge receives an empty string —
     its input is assembled separately from prior judge outputs.
     """
     if judge_id == "meta":
@@ -230,19 +182,6 @@ def build_trace_for_judge(
 
     options = options or TraceOptions()
     metadata, turn_events = _split_metadata(events)
-
-    if judge_id == "compaction":
-        turn_events = _select_compaction_events(turn_events)
-        # Compaction judge gets deterministic signals focused on compaction only
-        return build_trace(
-            [metadata] + turn_events if metadata else turn_events,
-            options=options,
-            auto_checker_failures=None,   # not relevant
-            metrics_rows=None,
-            redundancy_signals=None,
-            compaction_signals=compaction_signals,
-            arch_context="",              # no arch context needed
-        )
 
     filtered_events = [_filter_event_for_judge(judge_id, ev) for ev in turn_events]
     all_filtered = ([metadata] + filtered_events) if metadata else filtered_events
@@ -255,7 +194,6 @@ def build_trace_for_judge(
             auto_checker_failures=auto_checker_failures,
             metrics_rows=metrics_rows,
             redundancy_signals=None,
-            compaction_signals=None,
             arch_context=arch_context,
         )
 
@@ -267,7 +205,6 @@ def build_trace_for_judge(
             auto_checker_failures=None,
             metrics_rows=metrics_rows,   # token counts relevant to prompt audit
             redundancy_signals=redundancy_signals,
-            compaction_signals=None,
             arch_context=arch_context,
         )
 
@@ -278,7 +215,6 @@ def build_trace_for_judge(
         auto_checker_failures=None,
         metrics_rows=None,
         redundancy_signals=None,
-        compaction_signals=None,
         arch_context="",
     )
 
@@ -449,7 +385,6 @@ def build_trace(
     auto_checker_failures: list[dict[str, Any]] | None = None,
     metrics_rows: list[dict[str, Any]] | None = None,
     redundancy_signals: dict[str, Any] | None = None,
-    compaction_signals: dict[str, Any] | None = None,
     arch_context: str = "",
 ) -> str:
     """Render the full markdown trace sent to the judge as the user message.
@@ -483,9 +418,9 @@ def build_trace(
             full_snapshot=is_first or is_last,
         ))
         prev_snap = ev.get("state_snapshot") or prev_snap
-    if auto_checker_failures or metrics_rows or redundancy_signals or compaction_signals:
+    if auto_checker_failures or metrics_rows or redundancy_signals:
         parts.append(_render_deterministic_signals(
-            auto_checker_failures, metrics_rows, turn_events, redundancy_signals, compaction_signals
+            auto_checker_failures, metrics_rows, turn_events, redundancy_signals
         ))
     return "\n".join(parts)
 
@@ -679,7 +614,6 @@ def _render_deterministic_signals(
     metrics: list[dict[str, Any]] | None,
     events: list[dict[str, Any]] | None = None,
     redundancy_signals: dict[str, Any] | None = None,
-    compaction_signals: dict[str, Any] | None = None,
 ) -> str:
     parts: list[str] = ["\n---\n", "# Deterministic Signals\n"]
     parts.append("\n## Auto-Checker Failures\n")
@@ -723,10 +657,6 @@ def _render_deterministic_signals(
     if redundancy_signals is not None:
         from ccya.eval.redundancy import render_redundancy_section
         parts.append(render_redundancy_section(redundancy_signals))
-
-    if compaction_signals is not None:
-        from ccya.eval.compaction_signals import render_compaction_section
-        parts.append(render_compaction_section(compaction_signals))
 
     return "".join(parts)
 
@@ -850,7 +780,7 @@ def _extract_scores_by_regex(fm_text: str) -> dict[str, Any] | None:
     # All recognized score/rate field names from _normalize_scores()
     _score_fields = [
         "mechanical_score", "narrative_score", "system_cohesion_score",
-        "prompt_quality_score", "compaction_score",
+        "prompt_quality_score",
         "extraction_accuracy_score", "mechanic_lifecycle_score",
     ]
     _rate_fields = ["state_fidelity_rate", "prompt_adherence_rate", "sanitization_fidelity_rate"]
@@ -884,7 +814,7 @@ def _extract_scores_from_raw_yaml(text: str) -> dict[str, Any] | None:
     # All recognized score/rate field names from _normalize_scores()
     _score_fields = [
         "mechanical_score", "narrative_score", "system_cohesion_score",
-        "prompt_quality_score", "compaction_score",
+        "prompt_quality_score",
         "extraction_accuracy_score", "mechanic_lifecycle_score",
     ]
     _rate_fields = ["state_fidelity_rate", "prompt_adherence_rate", "sanitization_fidelity_rate"]
@@ -1011,7 +941,7 @@ def _normalize_scores(fm: dict[str, Any]) -> dict[str, Any]:
 
     out: dict[str, Any] = {}
     for k in ("mechanical_score", "narrative_score", "system_cohesion_score",
-              "prompt_quality_score", "compaction_score",
+        "prompt_quality_score",
               "extraction_accuracy_score", "mechanic_lifecycle_score"):
         if k in fm:
             out[k] = _coerce_int(fm[k])
@@ -1154,12 +1084,6 @@ async def run_judges(
         redundancy = None
 
     try:
-        from ccya.eval.compaction_signals import compute_compaction_signals
-        compaction = compute_compaction_signals(events)
-    except ImportError:
-        compaction = None
-
-    try:
         from ccya.eval.architecture_context import load_architecture_context
         arch_context = load_architecture_context()
     except ImportError:
@@ -1188,7 +1112,6 @@ async def run_judges(
             auto_checker_failures=failures,
             metrics_rows=metrics_rows,
             redundancy_signals=redundancy,
-            compaction_signals=compaction,
             arch_context=arch_context,
         )
         trace_md_path = output_dir / f"{scenario_id}.{spec.id}.trace.md"

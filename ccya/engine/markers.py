@@ -4,8 +4,7 @@ Design intent:
   Per-turn user prompts in Jinja templates wrap immutable sections
   (world state, NPC rosters) with <<<TRACE_IMMUTABLE_START>>>/<<<TRACE_IMMUTABLE_END>>>
   sentinels. The eval harness uses these to dedup immutable content when building
-  judge traces — it only sends the immutable section from the first turn of a
-  compaction cycle, not every turn.
+  judge traces — it only sends the immutable section from the first turn, not every turn.
 
 Contract:
   - strip_trace_markers_in_messages() is called on every message list before the

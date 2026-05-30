@@ -21,7 +21,6 @@ def _narrate_messages(
     state: dict[str, Any],
     user_input: str,
     *,
-    chronicle_tail: str = "",
     recent_turns: list[dict[str, Any]] = [],
     pack_style: str = "",
     narrator_rules: list[str] = [],
@@ -79,7 +78,6 @@ def _narrate_messages(
     user_ctx = {
         "state": state,
         "pc": state.get("pc") or {},
-        "chronicle_tail": chronicle_tail,
         "prior_history": list((state.get("meta") or {}).get("prior_history") or []),
         "recent_turns": recent_turns,
         "rules_outcome": rules_outcome,

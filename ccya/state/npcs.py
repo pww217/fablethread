@@ -119,7 +119,7 @@ def apply_npc_scene_management(
             entry = comp.setdefault(resolved_id, {})
 
             if is_new and current_turn_no is not None:
-                entry["first_seen_turn"] = current_turn_no  # 0-based, matches compact_user.j2 convention (T{{ npc.first_seen_turn }})
+                entry["first_seen_turn"] = current_turn_no  # 0-based, matches narrate_user.j2 convention (T{{ npc.first_seen_turn }})
                 location = state.get("location", {})
                 entry["last_seen"] = {
                     "turn": current_turn_no,

@@ -15,7 +15,6 @@ from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, pass_context
 
 from ccya.engine import build_engine_config, warmup
-from ccya.engine.config import _validate_compactor_config
 from ccya.errors import ErrorKind, LlmcApiError, LlmcRateLimit, LlmcTimeout
 from ccya.logging_setup import setup_logging
 from ccya.models import load_config as _load_config
@@ -30,7 +29,6 @@ SAVE_DIR = Path("saves") / "default"
 
 config: dict[str, Any] = _load_config(REPO_ROOT / "config.yaml")
 engine_config = build_engine_config(config)
-_validate_compactor_config(engine_config)
 
 logger = setup_logging(config)
 

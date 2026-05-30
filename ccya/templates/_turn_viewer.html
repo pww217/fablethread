@@ -37,7 +37,6 @@
         <label class="tv-filter-toggle"><input type="checkbox" x-model="onlyRetried"> retries</label>
         <label class="tv-filter-toggle"><input type="checkbox" x-model="onlyErrors"> errors</label>
         <label class="tv-filter-toggle"><input type="checkbox" x-model="onlySkipped"> skipped</label>
-        <label class="tv-filter-toggle"><input type="checkbox" x-model="onlyCompaction"> compaction</label>
     </div>
     <div class="turn-viewer-body" id="tv-body">
         <template x-if="visibleTurns().length === 0">
@@ -68,45 +67,8 @@
                         </div>
                     </div>
                 </template>
-                <template x-if="t.row_kind === 'compaction'">
-                    <div class="tv-compaction-card">
-                        <div class="tv-compaction-header" @click="toggleTurnCollapsed('c-' + t.turn)">
-                            <span class="tv-compaction-icon">⟳</span>
-                            <span class="tv-compaction-title">Compaction</span>
-                            <span class="tv-compaction-range" x-text="'Turns ' + t.compact_start + '\u2013' + t.compact_end"></span>
-                            <span class="tv-compaction-bullets" x-text="t.bullets_count + ' bullets'"></span>
-                            <span x-show="t.has_sanitization" class="tv-compaction-san-badge">sanitized</span>
-                            <span class="tv-stage-chevron" :class="{ open: !isTurnCollapsed('c-' + t.turn) }">▶</span>
-                        </div>
-                        <div class="tv-compaction-body" x-show="!isTurnCollapsed('c-' + t.turn)">
-                            <template x-for="(b, bi) in t.bullets_preview" :key="bi">
-                                <div class="tv-compaction-bullet" x-text="b"></div>
-                            </template>
-                            <template x-if="t.bullets_count > 3">
-                                <div class="tv-compaction-more" x-text="'\u2026 ' + (t.bullets_count - 3) + ' more bullets'"></div>
-                            </template>
-                            <template x-if="t.has_sanitization && t.sanitization">
-                                <div class="tv-compaction-san">
-                                    <div class="tv-diff-section-label">Sanitization</div>
-                                    <template x-if="t.sanitization.npc_merge && t.sanitization.npc_merge.length">
-                                        <div class="tv-compaction-san-row">NPCs merged: <span x-text="t.sanitization.npc_merge.length"></span></div>
-                                    </template>
-                                    <template x-if="t.sanitization.inventory_remove && t.sanitization.inventory_remove.length">
-                                        <div class="tv-compaction-san-row"><span x-text="'Items removed (' + t.sanitization.inventory_remove.length + '):'"></span><template x-for="ir in t.sanitization.inventory_remove"><div class="tv-compaction-san-item"><span x-text="ir.id"></span><span x-show="ir.reason" x-text="' — ' + ir.reason"></span></div></template></div>
-                                    </template>
-                                    <template x-if="t.sanitization.condition_remove && t.sanitization.condition_remove.length">
-                                        <div class="tv-compaction-san-row"><span x-text="'Conditions removed (' + t.sanitization.condition_remove.length + '):'"></span><template x-for="cr in t.sanitization.condition_remove"><div class="tv-compaction-san-item"><span x-text="cr.id"></span><span x-show="cr.reason" x-text="' — ' + cr.reason"></span></div></template></div>
-                                    </template>
-                                </div>
-                            </template>
-                            <template x-if="!t.has_sanitization">
-                                <div class="tv-compaction-no-san">No sanitization changes</div>
-                            </template>
-                        </div>
-                    </div>
-                </template>
 
-                <template x-if="t.row_kind !== 'compaction' && t.row_kind !== 'seed'">
+                <template x-if="t.row_kind !== 'seed'">
                     <div class="tv-turn-card" :id="'tv-turn-' + t.turn">
                 <div class="tv-turn-header" @click="toggleTurnCollapsed(t.turn)">
                     <div class="tv-turn-number">Turn <span x-text="t.turn"></span></div>
@@ -372,7 +334,6 @@ function tvRoot() {
         turnCollapsed: {},
         inputPillOpen: {},
         focusedTurnIdx: 0,
-        onlyCompaction: false,
         liveConnected: false,
         _es: null,
         stages: ['ruling', 'narrate', 'scene', 'state', 'storytell'],
@@ -391,8 +352,7 @@ function tvRoot() {
         _collapseTurns() {
             var self = this;
             this.turns.forEach(function(t, i) {
-            var key = t.row_kind === 'compaction' ? 'c-' + t.turn : 
-                      t.row_kind === 'seed' ? 'seed' : t.turn;
+            var key = t.row_kind === 'seed' ? 'seed' : t.turn;
                 self.turnCollapsed[key] = i > 0;
             });
             this.$nextTick(function() { self.hlAllVisibleJson(); });
@@ -458,10 +418,9 @@ function tvRoot() {
             idx = Math.max(0, Math.min(idx, vt.length - 1));
             this.focusedTurnIdx = idx;
             var t = vt[idx];
-            var key = t.row_kind === 'compaction' ? 'c-' + t.turn : 
-                      t.row_kind === 'seed' ? 'seed' : t.turn;
+            var key = t.row_kind === 'seed' ? 'seed' : t.turn;
             this.turns.forEach(function(tr) {
-                if (tr.row_kind !== 'compaction' && tr.row_kind !== 'seed') {
+                if (tr.row_kind !== 'seed') {
                     this.turnCollapsed[tr.turn] = true;
                 }
             }.bind(this));
@@ -490,15 +449,12 @@ function tvRoot() {
             return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
         },
         visibleTurns() {
-            var onlyC = this.onlyCompaction;
             var onlyR = this.onlyRejected;
             var onlyRe = this.onlyRetried;
             var onlyE = this.onlyErrors;
             var onlyS = this.onlySkipped;
             return this.turns.filter(function(t) {
                 if (t.row_kind === 'seed') return true;
-                if (onlyC) return t.row_kind === 'compaction';
-                if (t.row_kind === 'compaction') return true;
                 if (onlyR && !t.has_rejections) return false;
                 if (onlyRe && !t.has_retries) return false;
                 if (onlyE && !t.has_errors) return false;

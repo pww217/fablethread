@@ -65,21 +65,6 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
         except json.JSONDecodeError as e:
             _log.warning("Skipping malformed events.jsonl line in _recent_turn_metrics: %s", e)
             continue
-        if ev.get("kind") == "compaction":
-            compact_start = int(ev.get("compact_start") or 0)
-            compact_end = int(ev.get("compact_end") or 0)
-            range_label = f"turn {compact_start}" if compact_start == compact_end else f"turns {compact_start}-{compact_end}"
-            compact_ms = ev.get("ms")
-            c_tin = ev.get("tokens_in")
-            c_tout = ev.get("tokens_out")
-            rows.append({
-                "turn": ev.get("turn", 0),
-                "is_compaction": True,
-                "pipe_label": f"Compaction ({range_label})",
-                "time": _fmt_ms_seconds(compact_ms) if compact_ms else "\u2014",
-                "tok": f"{_fmt_tokens(c_tin)}/{_fmt_tokens(c_tout)}" if (c_tin and c_tout) else "\u2014",
-            })
-            continue
         narr = ev.get("narrate") or {}
         ext = ev.get("extract") or {}
         extraction = ev.get("extraction") or {}
@@ -177,8 +162,6 @@ def _turn_log_entries(save_dir: Path, limit: int = 50) -> list[dict[str, Any]]:
             ev = json.loads(line)
         except json.JSONDecodeError as e:
             _log.warning("Skipping malformed events.jsonl line in _turn_log_entries: %s", e)
-            continue
-        if ev.get("kind") == "compaction":
             continue
         ch = ev.get("changes")
         if isinstance(ch, dict):

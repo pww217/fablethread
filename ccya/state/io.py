@@ -51,7 +51,6 @@ def _default_state() -> dict[str, Any]:
             "setting_pack": "",
             "model": "",
             "compendium_touch_order": [],
-            "last_compacted_turn": 0,
             "prior_history": [],
         },
         "pc": {

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from ccya.pack import Pack
-from ccya.state import load_recent_chronicle_turns, load_state
+from ccya.state import load_last_narration, load_state
 
 from .metrics import _recent_turn_metrics
 
@@ -55,7 +55,7 @@ def _load_ruling_map(save_dir: Path) -> dict[int, dict[str, Any]]:
 
 def _load_recent_history(save_dir: Path, n: int = 8) -> list[dict[str, Any]]:
     """Return the last n turns from chronicle.md for page-reload continuity (full narrative)."""
-    turns = load_recent_chronicle_turns(save_dir, n)
+    turns = load_last_narration(save_dir, n)
     ruling_map = _load_ruling_map(save_dir)
     _log.debug("_load_recent_history n=%d turns=%d ruling_entries=%d", n, len(turns), len(ruling_map))
     return [

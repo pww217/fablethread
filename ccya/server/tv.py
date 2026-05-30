@@ -373,25 +373,6 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
             _log.warning("Skipping malformed events.jsonl line: %s", e)
             continue
 
-        if ev.get("kind") == "compaction":
-            san = ev.get("sanitization")
-            rows.append({
-                "row_kind": "compaction",
-                "turn": int(ev.get("turn") or 0),
-                "compact_start": int(ev.get("compact_start") or 0),
-                "compact_end": int(ev.get("compact_end") or 0),
-                "bullets_count": int(ev.get("bullets_count") or 0),
-                "bullets_preview": list(ev.get("bullets_preview") or []),
-                "sanitization": san,
-                "has_sanitization": bool(san and any(
-                    san.get(k) for k in (
-                        "npc_merge", "inventory_remove",
-                        "condition_remove"
-                    )
-                )),
-            })
-            continue
-
         def _fmt_ms(ms: Any) -> str:
             if ms is None:
                 return "\u2014"

@@ -13,17 +13,11 @@ ruling:
 
 game:
   setting_pack: zombie-survival
-  window_turns: 3
-  chronicle_prefix_budget_tokens: 1500
   recent_events_max: 20    # rolling window; world_state is immutable after seed
   warmup_on_start: false
   character_creation_enabled: true
   # Momentum floor
   momentum_floor: -3
-  # Compaction: compress narrative history every N turns (0 = disabled)
-  compact_every: 5
-  compact_temperature: 0.1
-  recent_turns_min: 2
 
 server:
   bind_host: 127.0.0.1

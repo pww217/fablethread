@@ -1054,22 +1054,6 @@ def check_surface_as_consistency(
     }
 
 
-def _assert_compactor_sanitization_nonzero(
-    ev: dict[str, Any], prev_ev: dict[str, Any] | None
-) -> list[dict[str, Any]]:
-    results: list[dict[str, Any]] = []
-    applied = ev.get("applied") or {}
-    compaction = applied.get("compaction") or {}
-    if not compaction:
-        return results
-    sanit = compaction.get("sanitization") or {}
-    cond_remove = sanit.get("condition_remove") or []
-    pres_remove = sanit.get("pressure_remove") or []
-    if sanit.get("npc_merge") or sanit.get("inventory_remove") or cond_remove or pres_remove:
-        return results  # something was sanitized — pass
-    return results
-
-
 def run_all_universal_asserts(
     event: dict[str, Any], prev_event: dict[str, Any] | None, event_window: list[dict[str, Any]] | None = None
 ) -> list[dict[str, Any]]:
@@ -1096,7 +1080,6 @@ def run_all_universal_asserts(
         check_beat_type_variety(event, event_window=event_window),
         check_surface_as_consistency(event, event_window=event_window),
     ]
-    results.extend(_assert_compactor_sanitization_nonzero(event, prev_event))
     passed = sum(1 for r in results if r["passed"])
     failed = sum(1 for r in results if not r["passed"])
     _log.debug("universal_asserts: %d passed, %d failed", passed, failed)
