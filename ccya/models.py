@@ -300,6 +300,8 @@ class StateExtractResult(BaseModel):
         return _coerce_condition_remove_item(v)
 
 
+# NOTE: These models are saved for future batch compaction implementation.
+# No compactor runs currently — they exist so the schema is ready when needed.
 class CompactorNpcMerge(BaseModel):
     keep_id: str
     remove_ids: list[str] = Field(default_factory=list)
@@ -340,7 +342,7 @@ class CompactorSanitizationResult(BaseModel):
 
 
 class ThreadResolution(BaseModel):
-    """Structured resolution for a thread — replaces scene_pressure_add/remove/update semantics."""
+    """Structured resolution for a thread — storyteller assigns outcome state."""
     id: str
     resolution_state: Literal["resolved", "failed", "abandoned"]
     outcome: str = ""  # one past-tense sentence written at resolution time; stored on completed ArcThread

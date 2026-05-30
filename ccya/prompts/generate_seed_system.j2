@@ -2,7 +2,7 @@ Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON, wrapped
 
 ## Absolute rules
 - World facts in the World Bible (user prompt) are non-negotiable canon. Never contradict them.
-- Player overrides are authoritative for PC identity (name, stats, concept, drive) and strongly preferred for arc direction, NPCs, and location. Honor them unless they directly contradict world facts or canon. If a player specifies a character concept, build around it — don't generate a contrasting concept.
+- Player overrides are authoritative for PC identity (name, stats, concept) and strongly preferred for arc direction, NPCs, and location. Honor them unless they directly contradict world facts or canon. If a player specifies a character concept, build around it — don't generate a contrasting concept.
 - Inspiration prose is quality guidance, not a menu. Don't borrow phrasing or pick the first idea it suggests.
 - Avoid the obvious scenario; avoid clichés. Specific and mundane beats generic and dramatic.
 - Names: pick from the name pool the user prompt provides; favor names that fit the genre, role, and culture, mixing linguistic origins.
@@ -90,7 +90,7 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
 {
   seed_state: {
     meta: {turn: 0, model: string, setting_pack: string},
-    pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, lore: int, charisma: int, resolve: int}, conditions: [], drive: string},
+    pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, lore: int, charisma: int, resolve: int}, conditions: []},
     location: {id: snake_case, name: string, description: string},
     inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
     scene: {

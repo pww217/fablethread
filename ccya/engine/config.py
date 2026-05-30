@@ -43,9 +43,6 @@ def is_turn_in_progress(save_dir: str) -> bool:
 class EngineConfig:
     # DURABILITY PATTERNS — how each field is consumed at runtime:
     #
-    #   re-read per turn:  Fields consumed fresh from config on every turn
-    #                      (e.g., thread_*).
-    #                      Safe to reload config while server is running.
     #   module constant:   Fields defined as module-level variables imported
     #                      at startup (e.g., _MOMENTUM_MIN in rules.py).
     #                      Require server restart to change.

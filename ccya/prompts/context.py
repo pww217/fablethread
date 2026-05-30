@@ -205,8 +205,7 @@ class NarratorBoundary(BaseModel):
     so these are NOT separate top-level fields — they're accessed via the `state` dict.
     ArcThreadBlock is exposed as `current_arc` to match _arc.j2's variable name (line 1 of _arc.j2).
 
-    NOTE: threat_ages, threat_pressure_at, building_threat_imperative_at are passed in user_ctx but narrate_user.j2 never uses them — dead fields removed from boundary model. chronicle_tail was also dead and was removed from user_ctx in the incremental history refactor.
-    momentum, scene, compendium_bios, known_npcs, present_npcs also flagged as dead by alignment check and removed.
+    NOTE: threat_ages, threat_pressure_at, building_threat_imperative_at are passed in user_ctx but narrate_user.j2 never uses them — dead fields removed from boundary model. momentum, scene, compendium_bios, known_npcs, present_npcs also flagged as dead by alignment check and removed.
     """
 
     pc: PlayerBlock  # maps to {{ pc.* }} (lines 2-6 of narrate_user.j2)
