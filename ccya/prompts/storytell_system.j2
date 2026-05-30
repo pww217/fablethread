@@ -7,9 +7,9 @@ Extract suggested player actions, outcome summary, thread updates, and arc resol
   "actions": [],
   "outcome_summary": "",
   "gm_beat": null,
-  "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent", "active": true}, {"id": "..."}],
+  "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent"}, {"id": "..."}],
   "arc_resolve": {"resolution": "How this arc concluded narratively.", "visible_goal": "The next arc's goal.", "goal_context": "Why this goal matters to the PC."},
-  "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal"},
+  "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal", "tags": [], "key": "subject_action"},
   "world_state_add": [{"id": "new_fact_id", "text": "durable world fact text", "tier": "persistent"}],
   "world_state_remove": ["fact_id_to_remove"]
 }
@@ -25,7 +25,7 @@ Sections not shown in the user prompt still exist in the live game state — abs
 
 ## Actions
 
-`actions`: exactly 4 distinct player choices, ~10 words each. Each choice should feel like a natural narrative progression from the current moment — grounded in the scene, the NPCs present, and the campaign arc. Structure the four choices so at least one pursues the campaign arc goal or an active thread, one involves a named NPC (drawing on motivation or fear where relevant), one is a distinct environmental option that explores the setting differently, and one is freeform. Weave arc context, NPC relationships, and PC motivations into the options so they naturally move the story forward. Examples: "Aim for the chest and fire", "Convince the guard to let you pass". Each choice must escalate consequences, force a decision, or change the situation irreversibly — avoid passive options like "look around", "wait and watch", "plan carefully". The four choices must span different emotional postures (confront vs negotiate vs flee vs exploit) not variations of the same approach. Write choices in active voice as if spoken by the PC; avoid generic filler that could fit any protagonist in any setting. **You MUST always emit exactly 4 non-empty strings in this field. Never emit an empty array.**
+`actions`: exactly 4 distinct player choices, ~10 words each. Each choice should feel like a natural narrative progression from the current moment — grounded in the scene, the NPCs present, and the campaign arc. Structure the four choices so at least one pursues the campaign arc goal or an active thread, one involves a named NPC (drawing on their motivation or fear where relevant), one is a distinct environmental option that explores the setting differently, and one is freeform. Weave arc context, NPC relationships, and PC motivations into the options so they naturally move the story forward. Examples: "Aim for the chest and fire", "Convince the guard to let you pass". Bias to bold, good storytelling choices. **You MUST always emit exactly 4 non-empty strings in this field. Never emit an empty array.**
 
 ## Outcome summary
 
@@ -76,7 +76,11 @@ CRITICAL: Do NOT resolve threads that are still meaningfully active. `thread_res
 
 Use `arc_resolve` to signal that this campaign arc has reached its natural conclusion. This tells Python to store the resolved arc and generate a successor with surviving threads, goal_context from prior context, and thematic_question inherited from the parent.
 
-**Only emit `arc_resolve` when resolving an arc.** If no arc is being resolved, omit the field entirely — do NOT return `"arc_resolve": {}`.
+- `resolution`: One-sentence narrative summary of how this arc concluded (e.g., "The quarantine perimeter collapsed after Dr. Voss's team was overrun").
+- `visible_goal`: The next arc's visible goal — a new objective that emerges from or follows from this arc's conclusion.
+- `goal_context`: 2–3 sentences explaining why this new goal matters to the PC specifically.
+- `thematic_question`: Optional override for the successor arc's thematic question. Omit to inherit from the current arc.
+- `thread_directives`: Optional list of `{"id": "thread_id", "action": "drop"|"move_latent"}` for threads that should be removed or demoted. Threads not mentioned carry over as-is into the successor arc.
 
 - `resolution`: One-sentence narrative summary of how this arc concluded (e.g., "The quarantine perimeter collapsed after Dr. Voss's team was overrun").
 - `visible_goal`: The next arc's visible goal. Must use the current context — active threads, world state changes, NPC developments, and recent narration — to derive a new medium-to-long-term objective that follows naturally from this arc's outcome. Do not repeat the just-resolved goal. Examples: if the arc was "escape the city," the next goal might be "find a safe route through the quarantine zone" or "confront the official who sealed the gates."
