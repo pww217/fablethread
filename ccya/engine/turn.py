@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
-import json
 import logging
-import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -1488,36 +1486,6 @@ async def run_turn(
 
         narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
 
-        # Extract narrator arc_update block if present
-        narrative, narrator_arc_dict = _extract_narrator_arc_update(narrative, trace_id=trace_id, turn=turn_no)
-        if narrator_arc_dict:
-            _ALLOWED_NARRATOR_ARC_KEYS = {
-                "visible_goal", "thematic_question", "pc_drive",
-                "discovered_truths", "hidden_truths",
-            }
-            narrator_arc_dict = {k: v for k, v in narrator_arc_dict.items() if k in _ALLOWED_NARRATOR_ARC_KEYS}
-        if narrator_arc_dict:
-            try:
-                narrator_arc_update = CampaignArc.model_validate(narrator_arc_dict)
-                if delta is not None:
-                    _merge_arc_update(
-                        state.setdefault("arc", {}), narrator_arc_update
-                    )
-                    merged = narrator_arc_update.model_copy(
-                        update={
-                            "threads": (delta.arc_update.threads if delta.arc_update else None),
-                            "completed_threads": (delta.arc_update.completed_threads if delta.arc_update else None),
-                        }
-                    )
-                    delta = delta.model_copy(
-                        update={"arc_update": merged}
-                    )
-            except Exception:
-                _log.warning(
-                    "narrator emitted invalid arc_update JSON — discarded",
-                    extra={"turn": turn_no, "trace_id": trace_id},
-                )
-
         # Two-pass consecutive pressure counter update.
         if _extract_result is not None and _pc is not None:
             directive = _pc.directive or ""
@@ -1709,29 +1677,6 @@ def _strip_fallback(narration: str, *, trace_id: str, turn: int) -> str:
         )
     return "\n".join(clean)
 
-
-_ARC_UPDATE_RE = re.compile(
-    r"<<<ARC_UPDATE_START>>>\s*(.*?)\s*<<<ARC_UPDATE_END>>>",
-    re.DOTALL,
-)
-
-
-def _extract_narrator_arc_update(
-    raw: str, trace_id: str, turn: int,
-) -> tuple[str, dict[str, Any] | None]:
-    match = _ARC_UPDATE_RE.search(raw)
-    if not match:
-        return raw, None
-    clean = _ARC_UPDATE_RE.sub("", raw).rstrip()
-    try:
-        arc_dict = json.loads(match.group(1))
-    except Exception:
-        _log.warning(
-            "Failed to parse arc_update: %s", match.group(1)[:100],
-            extra={"trace_id": trace_id, "turn": turn},
-        )
-        arc_dict = None
-    return clean, arc_dict
 
 
 def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
