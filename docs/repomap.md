@@ -59,7 +59,6 @@
 - **generate_seed(pack, config, overrides)** → SeedEnvelope — LLM-generated GameState + opening for dynamic packs (via `ccya/engine/seed.py`)
 - **generate_pack_from_brief(...)** → AsyncIterator[dict] — SSE-driven ephemeral pack generation (via `ccya/engine/generate_pack.py`)
 - **generate_pack(brief, config)** → Pack — LLM generates ScenarioBrief from WorldBrief (via `ccya/engine/pack_gen.py`)
-- **maybe_compact(save_dir, state, config)** → (state, bool) — compacts chronicle + sanitizes state if turn % compact_every == 0
 - **format_change_lines(changes)** → list[str] — emoji display lines for UI
 
 ### ccya/state (via __init__.py)
@@ -128,7 +127,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - CompendiumEntry model now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes; seed prompt TypeScript schema includes these as optional fields (motivation?: string, fear?: string, leverage?: string); seed LLM allowed to assign motivation/fear/leverage at seed time on key NPCs (those with personal ties or central roles in opening situation)
 - Scene ideal: 1–4 present NPCs; narrative pressure for exits above that (soft guidance only, engine does NOT track or enforce NPC count at runtime — hard cap removed per Phase 01)
 ### Storyteller user prompt (`ccya/prompts/storytell_user.j2`)
-- Renders all threads in unified list with scope tags ([SCENE]/[ARC]), dormant markers for inactive threads, urgency levels, and last_seen_turn; completed_threads rendered as "## past resolutions" section after active threads loop (for continuity — do not re-open resolved tensions)
+- Renders all threads in unified list with scope tags ([SCENE]/[ARC]), dormant markers for inactive threads, urgency levels; completed_threads rendered as "## past resolutions" section after active threads loop (for continuity — do not re-open resolved tensions)
 - Sections reordered by recency: inventory → conditions → characters → location → arc/threads → past resolutions → world_state → pacing_context → rules_outcome → player_intent → CURRENT TURN NARRATION (most important signal last)
 ### Narrator user prompt (`ccya/prompts/narrate_user.j2`)
 - Sections reordered by recency: Player Character → Inventory → Location → Characters → World State → Immutable Reference → Scene Context → Prior History (renamed from Prior Turns) → Recent Turns → Campaign Arc → This Turn's Result → PLAYER INPUT → directives (most important signal last)
@@ -198,9 +197,8 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### ThreadResolution
 - Pydantic model with id: str, resolution_state: Literal["resolved", "failed", "abandoned"], outcome: str = "" — one past-tense sentence written at resolution time; persisted on completed ArcThread by _apply_thread_resolutions() alongside resolution_state (Phase 05e)
 
-### CompactorSanitizationResult
-- `inventory_remove`, `pressure_remove`, `condition_remove` coerced by `_coerce_sanitization_actions` (field_validator): converts bare strings to `{id: str, confidence: "high", reason: None}` dicts
-- `CompactorSanitizationAction` has `reason: str | None = None` — LLM instructed to emit one-sentence reason per action; rendered in turn viewer HTML alongside count
+### CompactorSanitizationResult (dormant — no compactor runs)
+- Models saved for future batch compaction implementation; currently unused. `inventory_remove`, `pressure_remove`, `condition_remove` coerced by `_coerce_sanitization_actions` (field_validator): converts bare strings to `{id: str, confidence: "high", reason: None}` dicts
 
 ## Type aliases
 
