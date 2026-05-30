@@ -204,7 +204,8 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - Pydantic model with id: str, resolution_state: Literal["resolved", "failed", "abandoned"], outcome: str = "" — one past-tense sentence written at resolution time; persisted on completed ArcThread by _apply_thread_resolutions() alongside resolution_state (Phase 05e)
 
 ### CompactorSanitizationResult
-- `inventory_remove`, `pressure_remove`, `condition_remove` coerced by `_coerce_actions` (field_validator): converts bare strings to `{id: str, confidence: "high"}` dicts
+- `inventory_remove`, `pressure_remove`, `condition_remove` coerced by `_coerce_sanitization_actions` (field_validator): converts bare strings to `{id: str, confidence: "high", reason: None}` dicts
+- `CompactorSanitizationAction` has `reason: str | None = None` — LLM instructed to emit one-sentence reason per action; rendered in turn viewer HTML alongside count
 
 ## Type aliases
 

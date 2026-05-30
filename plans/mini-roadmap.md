@@ -1,27 +1,26 @@
 # Mini Roadmap — Iteration Fixes (Easiest → Hardest)
 
-## 1. Dice Roll Mechanics
+## 1. Dice Roll Mechanics — PARTIAL
+1a done (`2ac48d2`). 1b (skill name display) remains open. 1c (recent_events dedup) is NOOP — dropped.
 **Files:** `ccya/rules.py` (lines 120-131, 172-221), `ccya/prompts/` (roll display templates)
 
 ### 1a. Critical success threshold includes modifiers
-Currently `compute_band()` only checks raw_die == 1 or 12 for crit_fail/crit_success (rules.py:120-124). A roll of e.g. 11 + 1 modifier = 12 should arguably be a critical success since the final_total hits the threshold. Need to decide: should crit thresholds apply to raw_die only, or also check final_total? If including modifiers, update `compute_band()` to treat final_total >= 9 (not just raw_die == 12) as potential crit_success when the die itself is high enough (e.g., raw_die >= 10).
+Done (`2ac48d2`).
 
 ### 1b. Roll display: show skill name
-When narration references a roll result ("X + Y = Z"), it should specify which skill Y represents, e.g., "8 + 2 (Strength) = 10". Find where rolls are rendered in prompts/narration and ensure the skill label is included from `RulesOutcome.skill`.
-
-### 1c. Raise recent_events repeat threshold
-`recent_events` currently allows similar outcomes to persist too long. Increase the dedup/similarity window so that a new event won't be added if it's too close in meaning to an existing one. This likely involves adjusting logic in `ccya/engine/turn.py` where events are appended (around line 916) or adding a similarity check before insertion.
+When narration references a roll result ("X + Y = Z"), it should specify which skill Y represents, e.g., "8 + 2 (Strength) = 10". `RulesOutcome` already has `skill`, `stat_value`, `dice`, `raw_total`, `final_total` — but `narrate_user.j2` only shows `band` and `directive`. Need to surface the skill name and roll math in the template or add guidance to the storyteller.
 
 ---
 
-## 2. Compactor — Sanitization Reasons
-**Files:** `ccya/models.py` (CompactorSanitizationAction, lines 320-324), `ccya/engine/compactor.py` (_parse_compact_response, _apply_sanitization)
-
+## 2. Compactor — Sanitization Reasons — DONE
 Add a `reason: str | None = None` field to `CompactorSanitizationAction`. Update the compact prompt (`ccya/prompts/compact_system.j2`) to instruct the LLM to include reasons. Wire the reason through `_parse_compact_response()` → `_apply_sanitization()` → event payload (compaction record at compactor.py:126-131) → server UI (server/tv.py:376-386). The sanitization display in `tv.py` should render reasons alongside each action.
 
+Committed `d7b3f21`.
+
 ---
 
-## 3. Inventory Durability Gate
+## 3. Inventory Durability Gate — DONE
+**Commit:** `c82a208`. Replaced with fuzzy-match inventory_remove + silent cancellation. Durability gate for inventory_add remains unchanged.
 **Files:** Wherever the durability gate logic lives — likely in compactor or inventory management code. Flip the condition so that items NOT owned by the player are protected from removal (reverse original intention). This is a single conditional inversion once located.
 
 ---

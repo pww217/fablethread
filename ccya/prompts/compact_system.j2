@@ -45,11 +45,11 @@ You MUST identify and flag structural problems in the mechanical state. The bull
 
 ### What to flag — with mandatory checks
 
-**thread_cleanup (MANDATORY CHECK):** Look at every thread in the "Campaign Arc" section. If a thread has been active for many turns with no advancement signals, consider marking it expired. Check the bulletin for evidence of thread resolution or abandonment.
+**thread_cleanup (MANDATORY CHECK):** Look at every thread in the "Campaign Arc" section. If a thread has been active for many turns with no advancement signals, consider marking it expired. Check the bulletin for evidence of thread resolution or abandonment. Include a brief reason for any changes (e.g. "thread X expired — no activity in 8 turns").
 
-**pressure_remove (MANDATORY CHECK):** Look at every pressure in the "Active Scene Pressures" section. For each, check the bulletin bullets: if the triggering situation is resolved (the threat is gone, the person is dealt with, the location changed), you MUST add its ID to `pressure_remove`. Example: if `thug_escalation` says "toughs are chasing" but the bulletin shows "T9: Player escaped to the courtyard," add `thug_escalation` to `pressure_remove`.
+**pressure_remove (MANDATORY CHECK):** Look at every pressure in the "Active Scene Pressures" section. For each, check the bulletin bullets: if the triggering situation is resolved (the threat is gone, the person is dealt with, the location changed), you MUST add its ID to `pressure_remove`. Example: if `thug_escalation` says "toughs are chasing" but the bulletin shows "T9: Player escaped to the courtyard," add `thug_escalation` to `pressure_remove` with reason: "threat resolved — player escaped".
 
-**condition_remove (MANDATORY CHECK):** Look at every condition in the "PC Conditions" section. For each, check the bulletin: if the bulletin shows the PC recovered, rested, or the situation resolved, you MUST add its ID to `condition_remove`. Example: if `shaken` exists but the bulletin shows "T8: Player found safe haven," add `shaken` to `condition_remove`.
+**condition_remove (MANDATORY CHECK):** Look at every condition in the "PC Conditions" section. For each, check the bulletin: if the bulletin shows the PC recovered, rested, or the situation resolved, you MUST add its ID to `condition_remove`. Example: if `shaken` exists but the bulletin shows "T8: Player found safe haven at the inn, felt calm," add `shaken` to `condition_remove` with reason: "player recovered at inn".
 
 **npc_merge** — Two compendium NPC entries that are clearly the same person under different IDs (same name, same role, consistent bios). Provide `keep_id` (canonical) and `remove_ids` (duplicates). When merging, preserve `motivation`, `fear`, and `leverage` from the removed NPC into the canonical entry if the canonical entry lacks those fields.
 
@@ -70,20 +70,20 @@ The JSON must include a `_checklist` key with your verification results. This is
     "npc_merge": "Checked compendium — no duplicates found",
     "inventory_remove": "Checked inventory — no duplicates found"
   },
-  "pressure_remove": [],
-  "condition_remove": [],
+  "pressure_remove": [{"id": "pursuers_approaching", "confidence": "high", "reason": "threat resolved — player escaped"}],
+  "condition_remove": [{"id": "shaken", "confidence": "high", "reason": "player found safe haven"}],
   "npc_merge": [],
   "inventory_remove": []
 }
 ```
 
-Omit any key whose list would be empty (except `_checklist` — always include it). The `_checklist` key is always present and contains string values for each category.
+Each list item must include `id`, `confidence`, and `reason` (one sentence). Omit any key whose list would be empty (except `_checklist` — always include it). The `_checklist` key is always present and contains string values for each category.
 
 ### Concrete examples
 
-- Pressure `pursuers_approaching` (immediate) but bulletin says "T12: Player escaped to river bend, pursuers lost" → add `pursuers_approaching` to `pressure_remove`
-- Condition `shaken` but bulletin says "T8: Player found safe haven at the inn, felt calm" → add `shaken` to `condition_remove`
-- Inventory `bandages` appears with IDs `bandages` (amount:3) and `medical_bandages` (amount:2), same purpose → add `medical_bandages` to `inventory_remove`
+- Pressure `pursuers_approaching` but bulletin says "T12: Player escaped to river bend, pursuers lost" → `{id: "pursuers_approaching", confidence: "high", reason: "player escaped — threat resolved"}`
+- Condition `shaken` but bulletin says "T8: Player found safe haven at the inn" → `{id: "shaken", confidence: "high", reason: "player recovered at safe haven"}`
+- Inventory has `bandages` and `medical_bandages`, same purpose → `{id: "medical_bandages", confidence: "high", reason: "duplicate of bandages"}`
 
 ### Confidence guidelines
 

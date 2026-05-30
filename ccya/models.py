@@ -321,6 +321,7 @@ class CompactorSanitizationAction(BaseModel):
     """A sanitization action with confidence level."""
     id: str
     confidence: Literal["high", "medium", "low"] = "high"
+    reason: str | None = None
 
 
 def _coerce_sanitization_actions(v: Any) -> Any:
@@ -329,7 +330,7 @@ def _coerce_sanitization_actions(v: Any) -> Any:
     out = []
     for item in v:
         if isinstance(item, str):
-            out.append({"id": item.strip(), "confidence": "high"})
+            out.append({"id": item.strip(), "confidence": "high", "reason": None})
         else:
             out.append(item)
     return out
