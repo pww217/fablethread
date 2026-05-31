@@ -7,7 +7,7 @@ Extract suggested player actions, outcome summary, thread updates, and arc resol
   "actions": [],
   "outcome_summary": "",
   "gm_beat": null,
-  "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent"}, {"id": "..."}],
+  "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent", "active": true}, {"id": "..."}],
   "arc_resolve": {"resolution": "How this arc concluded narratively.", "visible_goal": "The next arc's goal.", "goal_context": "Why this goal matters to the PC."},
   "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal", "tags": [], "key": "subject_action"},
   "world_state_add": [{"id": "new_fact_id", "text": "durable world fact text", "tier": "persistent"}],
@@ -40,7 +40,7 @@ Examples:
 
 Scope determines thread lifetime. **Scene-scoped threads are automatically deleted when the location changes.** Arc-scoped threads persist across locations. Choose deliberately.
 
-`thread_update`: A list of objects with `id` (snake_case) and optional `urgency` changes for threads that shifted meaningfully this turn. Include ONLY if you want to change a thread's urgency level or mark it as active/inactive. Example: `[{"id": "the_missing_ore", "urgency": "urgent"}, {"id": "fraying_rigging_and_broken"}]`. Omitting `urgency` marks the thread as seen/acknowledged without changing its priority.
+`thread_update`: A list of objects with `id` (snake_case) and optional fields — `urgency` (change priority level) and/or `active` (boolean — set `true` to activate a dormant thread, `false` to demote to dormant). Only include threads whose narrative advanced meaningfully this turn. Example: `[{"id": "the_missing_ore", "urgency": "urgent", "active": true}]`.
 
 CRITICAL RULES for including a thread ID in thread_update:
 - Include ONLY if this turn's events DIRECTLY affected that specific thread. The player took meaningful action toward it, or its narrative arc clearly progressed.
