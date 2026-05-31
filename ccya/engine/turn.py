@@ -557,7 +557,7 @@ def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
 
 
 def _recent_turn_count(state: dict[str, Any]) -> int:
-    """Always return 1 — the narrator gets exactly one recent turn as full prose."""
+    """Return max turns needed — now each consumer only needs 1 ([-1:] slice)."""
     return 1
 
 
@@ -595,6 +595,7 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
         npc_roster=build_npc_roster(_comp),
         last_outcome=_prev_outcome if _prev_outcome else None,
         inventory=state.get("inventory") or None,
+        recent_turns=ctx.recent_turns[-1:],
     )
     rendered_ruling_system = ruling_messages[0]["content"] if ruling_messages else ""
     rendered_ruling_user = ruling_messages[-1]["content"] if ruling_messages else ""
@@ -803,7 +804,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
     _comp = (state.get("compendium") or {}).get("npcs") or {}
     narr_messages = _narrate_messages(
         ctx._env, state, ctx.user_input,
-        recent_turns=ctx.recent_turns,
+        recent_turns=ctx.recent_turns[:-1][-20:],
         narrator_rules=_pack_narrator_rules, world_rules=_pack_world_rules,
         rules_outcome=ctx.outcome, npc_name_pool=_npc_name_pool,
         momentum=(state.get("pc") or {}).get("momentum", 0), pending_beat=_pending_gm_beat,
