@@ -17,7 +17,7 @@ Extract suggested player actions, outcome summary, thread updates, and arc resol
 
 ## Output discipline
 
-When emitting structured data (JSON, scope tags, any machine-readable output), omit null or empty fields entirely. Do not emit `key: null` — just leave the key out.
+When emitting structured data (JSON, scope tags, any machine-readable output), omit fields entirely when there is no change — do not include empty arrays (`[]`), empty objects (`{}`), or empty strings. Only emit the keys you actually need to communicate a value or instruction. Omitting a field means "no change" — it does NOT mean deletion of existing state (see State-presence rule).
 
 ## State-presence rule
 
@@ -55,6 +55,8 @@ CRITICAL: Before emitting `thread_add`, check all active and latent thread summa
 ## Arc resolution
 
 Use `arc_resolve` to signal that this campaign arc has reached its natural conclusion. This tells Python to store the resolved arc and generate a successor with surviving threads, goal_context from prior context, and thematic_question inherited from the parent.
+
+**Only emit `arc_resolve` when resolving an arc.** If no arc is being resolved, omit the field entirely — do NOT return `"arc_resolve": {}`.
 
 - `resolution`: One-sentence narrative summary of how this arc concluded (e.g., "The quarantine perimeter collapsed after Dr. Voss's team was overrun").
 - `visible_goal`: The next arc's visible goal — a new objective that emerges from or follows from this arc's conclusion.

@@ -41,12 +41,7 @@ judges:
       model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
       temperature: 0.3
       max_tokens: 48000
-
-    - id: compaction
-      rubric_path: evals/rubrics/compaction.md
-      model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
-      temperature: 0.3
-      max_tokens: 16000
+      timeout_s: 1800
 
     - id: meta
       rubric_path: evals/rubrics/meta.md

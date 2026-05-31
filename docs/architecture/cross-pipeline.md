@@ -15,8 +15,8 @@ flowchart TD
     EVENTS["events.jsonl"]:::storageNode
 
     STATE -- "load_state()" --> STEP0["Step 0<br>Rules / Intent"]:::stageRules
-    CHRONICLE -- "chronicle_tail<br>recent_turns" --> STEP1["Step 1<br>Narrate"]:::stageNarrate
-    STATE -- "pc, inventory,<br>quests, compendium" --> STEP1
+    CHRONICLE -- "recent_turns<br>(load_last_narration())" --> STEP1["Step 1<br>Narrate"]:::stageNarrate
+    STATE -- "pc, inventory, compendium,<br>prior_history (state.yaml)" --> STEP1
     STEP0 -- "IntentEnvelope<br>RulesOutcome" --> STEP1
     STEP1 -- "narrative: str" --> STEP2A["Step 2a<br>Scene"]:::stageScene
     STEP2A -- "location_change<br>npc_roster" --> STEP2B["Step 2b<br>State"]:::stageState
@@ -27,5 +27,5 @@ flowchart TD
     DELTA -- "validate + apply" --> STATE
     DELTA -- "event record" --> EVENTS
     DELTA -- "narrative" --> CHRONICLE
-    STEP2C -- "thread_advance/resolve/add<br>gm_beat (inferred disposition)" --> STATE
+    STEP2C -- "thread_update/arc_resolve/resolve/add<br>gm_beat" --> STATE
 ```

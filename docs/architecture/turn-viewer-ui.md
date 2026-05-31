@@ -1,6 +1,6 @@
 # Turn Viewer (`/turn_viewer`) — Pipeline Debug UI
 
-Standalone turn-inspection tool for debugging the 5-stage pipeline. Shows every turn's inputs, prompts, outputs, status, metrics, state diffs, compaction events, and server errors in a single scrollable page. Pure Alpine.js — no HTMX.
+Standalone turn-inspection tool for debugging the 5-stage pipeline. Shows every turn's inputs, prompts, outputs, status, metrics, state diffs, and server errors in a single scrollable page. Pure Alpine.js — no HTMX.
 
 ## Interaction Model
 
@@ -88,12 +88,6 @@ Three optional sections:
 2. **Pacing Context** — summary (directive + "locked" suffix or "neutral"), gate (with colored badge, hidden when "allow"), momentum before→after with delta, band label (roll turns only), beat_locked flag (when true). All rows use 4-column CSS grid (`1.2em 1fr 2fr auto`) — every row includes an empty `<span class="tv-diff-op">` as first child for correct column placement.
 3. **State Changes** — ops table showing `+` (add), `-` (remove), `~` (update), `=` (no-op). Each row: op, field path, value. Rejected rows get a `rejected` badge and dimmed styling.
 
-## Compaction Cards
-
-Compaction events (`row_kind: "compaction"`) render as separate `.tv-compaction-card` elements:
-- Header: icon, "Compaction" label, turn range, bullet count, sanitization badge
-- Body: bullet previews (up to 3), sanitization details (NPC merges, inventory removals, condition removals, recent events compaction count)
-
 ## Filter Bar
 
 Checkboxes bound to Alpine booleans:
@@ -101,8 +95,6 @@ Checkboxes bound to Alpine booleans:
 - `onlyRetried` — turns with LLM parse retries
 - `onlyErrors` — turns with stage errors
 - `onlySkipped` — turns with skipped stages
-- `onlyCompaction` — show only compaction events
-
 `visibleTurns()` computed property filters `turns[]` reactively.
 
 ## Live Updates
@@ -185,7 +177,6 @@ Turn viewer styles live in **`app.src.css`** lines 2102–3101+:
 - `.tv-pipeline-stage` — stage row with accent stripe, header, expandable body
 - `.tv-diff-panel` — right column, sticky within scroll
 - `.tv-input-pill` — upstream-stage input display
-- `.tv-compaction-card` — compaction event card
 - `.tv-filter-bar` — checkbox filter row
 - `.tv-stage-<name>` / `.tv-sts-<status>` — color classes
 
