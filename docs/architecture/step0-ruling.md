@@ -15,7 +15,7 @@ flowchart LR
     subgraph IN["Inputs"]
         I1["state.pc<br>(name, stats, conditions)"]
         I2["state.location"]
-        I3["recent_turns[-1:]<br>(from chronicle;<br>user prompt: narrative tail)"]
+        I3["recent_turns[-1:]<br>(last turn's full narrative from chronicle.md<br>via load_last_narration();<br>ruling user prompt)"]
         I4["user_input"]
     end
 
@@ -65,12 +65,12 @@ All pacing signals are collapsed into one Python-computed struct (`PacingContext
 PacingContext:
   directive: str           # "" | "Breathe" | "Scene Imperative" | "Overwhelm" | "Pressure" | "Tension" | "Scene Pressure" (may include "; Resolve a Threat" secondary when beat_locked); used by Storytell pipeline
   outcome_hint: str | None # "hold" | "advance" | "transition" — narrator's primary scene motion instruction
-  beat_locked: bool        # True: relief fired — Progress MUST emit breathing_room beat; gate unaffected (controlled by deescalate independently)
-  gate: "block_escalate" | "allow"  # Controls thread_add; set when deescalate >= 0.5
+  beat_locked: bool        # True: relief fired — Progress MUST emit breathing_room beat and gate is force-closed
+  gate: str                # "block_escalate" | "allow" (controls thread_add)
   summary: str             # human-readable log string, never sent to LLM
 ```
 
-`beat_locked: True` fires when either `consecutive_pressure_turns >= config.consecutive_pressure_threshold` OR `momentum <= config.momentum_floor`. When locked, `"Resolve a Threat"` is appended to the directive via semicolon. The `gate` field prevents Storytell from adding new threads during de-escalation windows.
+`beat_locked: True` fires when either `consecutive_pressure_turns >= config.consecutive_pressure_threshold` OR `momentum <= config.momentum_floor`. When locked, `"Resolve a Threat"` is appended to the directive via semicolon. The `gate` field prevents Progress from adding new threads during de-escalation windows.
 
 ### Computation
 
@@ -114,7 +114,7 @@ flowchart TD
     style B2 fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
 ```
 
-Priority order (highest to lowest): **Breathe > Scene Imperative > Overwhelm > Pressure > Tension > Scene Pressure**. The `beat_locked` flag appends `"; Resolve a Threat"` to whatever directive was computed but does not affect the gate (gate is controlled independently by de-escalation signal).
+Priority order (highest to lowest): **Breathe > Scene Imperative > Overwhelm > Pressure > Tension > Scene Pressure**. The `beat_locked` flag takes precedence — when either consecutive pressure threshold or momentum floor is reached, `"Resolve a Threat"` is appended to whatever directive was computed and gate may be force-closed.
 
 #### Age computation
 
@@ -147,18 +147,18 @@ flowchart LR
 3. **Narrator template** (`narrate_user.j2`) renders `outcome_hint` (scene motion: hold/advance/transition) with value-specific guidance. No Jinja2 pacing computation remains — all pacing computed by Python.
 4. **Storytell template** ((`storytell_system.j2` + `user.j2`)) receives the full struct; guidance maps each directive to appropriate thread/beat actions:
 
-| Directive | Thread action |
-|-----------|---------------|
-| **"Breathe"** (de-escalation, velocity < -0.3) | Do NOT add new threads. Allow existing scene threads to persist without escalation. |
-| **"Scene Imperative"** (effective_age ≥ 5) | Story must advance — introduce new development forcing resolution or movement; do not linger |
-| **"Overwhelm"** (3+ urgent threads) | May add scene-scoped threads if gate allows; emit pressure/escalation beat |
-| **"Pressure"** (1-2 urgent threads) | Advance relevant scene/arc threads. Add new thread only if gate permits. |
-| **"Tension"** (background urgency only) | Do NOT add pressures unless concrete threat emerges; prefer advancing existing threads |
-| **"Scene Pressure"** (3 ≤ effective_age < 5, secondary append) | Begin winding down or introduce reason to shift focus: development elsewhere, closing window |
-| **"" (empty)** | No action required beyond normal aging of silent threads. |
+| Directive | Thread action | Gate |
+|-----------|---------------|-------|
+| **"Breathe"** (de-escalation, velocity < -0.3) | Do NOT add new threads. Allow existing scene threads to persist without escalation. | `block_escalate` + force-closed when at momentum floor |
+| **"Scene Imperative"** (effective_age ≥ 5) | Story must advance — introduce new development forcing resolution or movement; do not linger | Varies by context |
+| **"Overwhelm"** (3+ urgent threads) | May add scene-scoped threads if gate allows; emit pressure/escalation beat | `allow` |
+| **"Pressure"** (1-2 urgent threads) | Advance relevant scene/arc threads. Add new thread only if gate permits. | Varies by context |
+| **"Tension"** (background urgency only) | Do NOT add pressures unless concrete threat emerges; prefer advancing existing threads | Allow |
+| **"Scene Pressure"** (3 ≤ effective_age < 5, secondary append) | Begin winding down or introduce reason to shift focus: development elsewhere, closing window | Varies by context |
+| **"" (empty)** | No action required beyond normal aging of silent threads. | Allow |
 
-**Note:** Directives may include secondary modifiers joined by semicolons (e.g., "Pressure; Resolve a Threat" when beat_locked). The primary directive drives thread/beat logic; the secondary (`; Resolve a Threat`) acts as thematic guidance for beat type selection. "Resolve a Threat" never appears as a standalone primary directive — it is only appended by the `beat_locked` mechanism. The gate (`block_escalate`/`allow`) is computed independently from `deescalate >= 0.5` on successful rolls — see `PacingContext.gate` under Struct definition above. Gate is unrelated to directive value or beat_locked.
+**Note:** Directives may include secondary modifiers joined by semicolons (e.g., "Pressure; Resolve a Threat" when beat_locked). The primary directive drives thread/beat logic; the secondary (`; Resolve a Threat`) acts as thematic guidance for beat type selection. "Resolve a Threat" never appears as a standalone primary directive — it is only appended by the `beat_locked` mechanism.
 
 ### Consecutive pressure counter
 
-`state["meta"]["consecutive_pressure_turns"]` tracks how many consecutive turns have had Pressure or Overwhelm directives without any thread updates emitted by the storyteller. Updated via two-pass logic at turn end (~turn.py ~1149): increments when directive was Pressure/Overwhelm AND no `thread_update` emitted; resets to 0 otherwise. When this counter reaches `config.consecutive_pressure_threshold` (default 3), it triggers the dual-trigger beat_locked condition alongside momentum floor relief.
+`state["meta"]["consecutive_pressure_turns"]` tracks how many consecutive turns have had Pressure or Overwhelm directives without any thread updates emitted by the storyteller. Updated via two-pass logic at turn end (~turn.py ~1450): increments when directive was Pressure/Overwhelm AND no `thread_update` emitted; resets to 0 otherwise. When this counter reaches `config.consecutive_pressure_threshold` (default 3), it triggers the dual-trigger beat_locked condition alongside momentum floor relief.

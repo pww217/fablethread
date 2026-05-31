@@ -58,3 +58,7 @@ The presence of `goal_context` itself is the signal — no turn-counting depende
 ## Key forward dependency
 
 `narrative` is the primary content input for all three extraction streams below.
+
+### GM Beat consumption
+
+The narrator receives a pending GM beat from `state.meta.pending_gm_beat` (set by Storytell in the previous turn). The beat's `type` and `surface_as` metadata are passed alongside the pacing directive as creative guidance for the narrative. After narration completes, the pending beat is cleared from state. Full beat lifecycle is documented in [step2c-progress](./step2c-progress.md#gm-beat).

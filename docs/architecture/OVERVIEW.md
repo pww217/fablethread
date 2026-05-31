@@ -1,7 +1,7 @@
 # Architecture Overview — CCYA Engine
 
 CCYA is a local-LLM-backed text RPG engine. Every player turn drives a five-step
-pipeline (Rules → Narrate → Scene Extract → State Extract → Progress Extract) with
+pipeline (Rules → Narrate → Scene Extract → State Extract → Storytell) with
 a pure-Python validation+persist tail. Two additional LLM pipelines handle new-game
 creation: **Character Creation** (static packs) and **Generate Seed** (dynamic packs).
 
@@ -41,7 +41,7 @@ flowchart TD
     STEP1 --> STEP2A & STEP2B & STEP2C
     STEP2A & STEP2B & STEP2C --> VALIDATE
     VALIDATE --> PERSISTENCE
-    PERSISTENCE -- "load_state()<br>prior_history<br>recent_turns" --> ENGINE
+    PERSISTENCE -- "load_state() (incl. prior_history)<br>load_last_narration() (→ recent_turns)" --> ENGINE
 ```
 
 ## Pipeline Quick Reference
@@ -52,7 +52,7 @@ flowchart TD
 | **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Every turn (always, streamed) | Full `state`, `prior_history` (last 20 bullets, all but last rendered), `recent_turns[-1:]`, `pacing_context`, `pending_gm_beat`, `npc_roster` (from build_npc_roster()), `world_factions/locations` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption. Scene motion shaped by `PacingContext.outcome_hint`; impossible actions narrated as natural failures. |
 | **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Every turn (always) | `narrative`, `state.pc/location`, `npc_roster` (from build_npc_roster()), conditions, compendium entries | `SceneExtractResult`: scene_tags, tagline, location_change, compendium_npc_update | NPC presence, location changes, scene tags, durable NPC compendium identity. |
 | **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Every turn (always) | `narrative`, `state.pc/location/inventory`, conditions | `StateExtractResult`: inventory_add/remove/update, pc_condition_add/remove | Inventory delta accuracy, condition lifecycle. |
-| **Step 2c — Storytell** | [step2c-progress](./step2c-progress.md) | Every turn (always) | `narrative`, `_ExtractionContext` (comp_this_turn, location, inventory, conditions), pacing_context, arc.threads[], recent_turns[-2:], band, npc_roster (from build_npc_roster()) | `StorytellerResult`: thread_update/arc_resolve/resolve/add, gm_beat, world_state_add/remove, actions, outcome_summary | Storyteller-managed thread lifecycle, arc resolution, beat disposition inference, durable history events. |
+| **Step 2c — Storytell** | [step2c-progress](./step2c-progress.md) | Every turn (always) | `narrative`, `_ExtractionContext` (comp_this_turn, location, inventory, conditions), pacing_context, arc.threads[], recent_turns[-1:], band, npc_roster (from build_npc_roster()) | `StorytellerResult`: thread_update/arc_resolve/resolve/add, gm_beat, world_state_add/remove, actions, outcome_summary | Storyteller-managed thread lifecycle, arc resolution, beat disposition inference, durable history events. |
 
 After Step 2c: results merge into a `StateDelta`, the validator checks constraints
 (e.g. `inventory_remove` IDs exist), `apply_delta()` mutates state in-place, and the
@@ -62,16 +62,14 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 
 | Subsystem | Doc | What it covers |
 |---|---|---|
-| **Step 0 — Ruling** | [step0-ruling](./step0-ruling.md) | Intent classification, dice resolution flowchart |
+| **Step 0 — Ruling** | [step0-ruling](./step0-ruling.md) | Intent classification, dice resolution flowchart, pacing context computation |
 | **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Streaming narration pipeline with all context inputs |
 | **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Location changes, NPC presence, scene tags |
 | **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Inventory and condition extraction |
-| **Step 2c — Storytell** | [step2c-progress](./step2c-progress.md) | Thread lifecycle, GMBeat schema, beat lifecycle (3 phases) |
-| **PacingContext** | [pacing-context](./pacing-context.md) | Struct definition, computation flowchart, wiring to Narrator/Progress |
+| **Step 2c — Storytell** | [step2c-progress](./step2c-progress.md) | Pipeline mechanics, GM beat lifecycle, campaign arc system, thread lifecycle mechanics |
 | **Delta → Validate → Apply** | [delta-validate](./delta-validate.md) | StateMerge schema, validation rules, apply_delta mutations |
 | **Persist** | [persist](./persist.md) | Atomic writes (events.jsonl, state.yaml, chronicle.md), readback |
 | **Cross-Pipeline Data Flow** | [cross-pipeline](./cross-pipeline.md) | Full inter-step data flow diagram |
-| **Campaign Arcs** | [campaign-arcs](./campaign-arcs.md) | Arc data model (unified threads), engine-driven lifecycle, narrator-driven updates, integration points |
 | **Out-of-Band Pipelines** | [out-of-band](./out-of-band.md) | Character Creation pipeline, Generate Seed pipeline, turn viewer status colors |
 | **Narration UI** | [narration-ui](./narration-ui.md) | Main game interface: SSE streaming, HTMX sidebar refresh, Alpine.js state machine |
 | **Turn Viewer UI** | [turn-viewer-ui](./turn-viewer-ui.md) | Pipeline debug UI: turn cards, stage inspector, diff panel, live updates |
@@ -90,46 +88,11 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 
   The seed owns first-turn emotional framing, not just world and arc scaffolding. It generates `goal_context` (character-specific stake), NPC `relation` fields (narrative job relative to PC), and action text written from the PC's voice and scene pressure — ensuring the opening feels personal and motivated from the start.
 
-### PacingContext (see [pacing-context](./pacing-context.md))
+### PacingContext (see [step0-ruling](./step0-ruling.md#pacing-context))
 
-```
-PacingContext:
-  directive: str           # "" | "Breathe" | "Scene Imperative" | "Overwhelm" | "Resolve a Threat" | "Pressure" | "Tension" | "Scene Pressure" | "Threat Pressure" (may include "; Resolve a Threat" secondary when beat_locked); used by Progress Extractor
-  outcome_hint: str | None # "hold" | "advance" | "transition" — narrator's primary scene motion instruction
-  beat_locked: bool        # True: dual-trigger relief fired (consecutive_pressure_turns >= threshold OR momentum <= floor) — Progress MUST emit breathing_room beat and gate is force-closed
-  gate: str                # "block_escalate" | "allow" (controls thread_add)
-  summary: str             # human-readable log string, never sent to LLM
-```
+### GMBeat (see [step2c-progress](./step2c-progress.md#gm-beat))
 
-### GMBeat (see [step2c-progress](./step2c-progress.md))
-
-```
-GMBeat
-  type: complication | revelation | opportunity | breathing_room | pressure | twist | setback | escalation | callback
-  surface_as: ambient | event | npc_behavior | environmental | player_discovery | item (default: ambient)
-  beat_expires_turn: int | None (turn number at which the beat expires; set to turn_no + 2 when stored)
-```
-
-### CampaignArc (see [campaign-arcs](./campaign-arcs.md))
-
-```
-CampaignArc
-  visible_goal: str           — What the PC is trying to achieve
-  goal_context: str           — 2–3 sentences explaining why visible_goal matters to this character specifically
-  thematic_question: str      — The moral/thematic tension of the arc
-  threads: list[ArcThread]    — Unified collection with active flag; replaces old active/latent split
-  completed_threads: list[ArcThread] — Resolved/failed/abandoned threads
-  resolution: str | None      — Set when arc is resolved via arc_resolve
-  last_thread_created_turn: int — Tracks when a thread was last created for pacing
-
-ArcThread (unified)
-  id, summary, scope ("scene"|"arc"), active: bool = True
-  urgency ("background"|"normal"|"urgent")
-  tags: list[str]
-  resolution_state: str | None, outcome: str | None
-  resolved_turn: int | None   — Turn when thread was resolved; used for TTL filtering
-  key: str | None             — Canonical concept label for dedup
-```
+### CampaignArc (see [step2c-progress](./step2c-progress.md#campaign-arc-system))
 
 ### StateDelta (see [delta-validate](./delta-validate.md))
 
