@@ -1166,10 +1166,6 @@ async def run_turn(
                         _log.debug("thread_add blocked by pacing gate %s at T%d", getattr(_pc, 'gate', 'unknown'), turn_no_for_cooldown)
                         pass  # skip thread creation — same pattern as scene-scope check below
 
-                    elif _scope == "scene":
-                        # Scene-scoped threads are handled by age rules in Python, not here
-                        pass
-
                     else:
                         # Key collision gate: if matching key exists, skip creation.
                         exact_collision_id = None
