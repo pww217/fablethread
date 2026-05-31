@@ -39,10 +39,12 @@
 ## Scene Context
 {% if current_arc and current_arc.threads %}
 ### Current Threads
-{% include "sections/_thread_list.j2" with threads=current_arc.threads %}
+{% set threads = current_arc.threads %}
+{% include "sections/_thread_list.j2" %}
 {% elif state.arc and state.arc.threads %}
 ### Current Threads
-{% include "sections/_thread_list.j2" with threads=state.arc.threads %}
+{% set threads = state.arc.threads %}
+{% include "sections/_thread_list.j2" %}
 {% endif %}
 
 

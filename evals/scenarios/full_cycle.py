@@ -22,7 +22,8 @@ Expected emergent observations:
   - momentum should swing based on band outcomes
   - compendium NPC bio should update on turns 3, 7, 10
   - compaction fires at T6 (3 bullets for T1-3, visible at T7) and T12 (3 bullets for T7-9, visible at T13)
-  - condition management: pc_condition_add at T11, pc_condition_remove at T13
+  - condition management: pc_condition_add at T11, pc_condition_remove at T12/T13
+  - arc/thread lifecycle: thread_update on turns 2, 3, 5; thread_resolve on turn 7
 """
 
 from ccya.eval.scenario import Scenario, Turn, TurnAssert
@@ -57,7 +58,7 @@ scenario = Scenario(
             ],
             asserts=[
                 TurnAssert(stream="ruling", field="rolled", expected="true"),
-                TurnAssert(stream="extract.state", field="inventory_remove", expected="credits", min_amount=500),
+                TurnAssert(stream="storytell.extract", field="thread_update", expected="settle_the_debt"),
             ],
         ),
         # --- Turn 3: Accept courier contract — social, quest progress, NPC update ---
@@ -71,6 +72,7 @@ scenario = Scenario(
             ],
             asserts=[
                 TurnAssert(stream="ruling", field="rolled", expected="true"),
+                TurnAssert(stream="storytell.extract", field="thread_update", expected="deliver_the_ledger"),
             ],
         ),
         # --- Turn 4: Location change — travel to the road ---
@@ -100,6 +102,7 @@ scenario = Scenario(
             asserts=[
                 TurnAssert(stream="ruling", field="rolled", expected="true"),
                 TurnAssert(stream="extract.scene", field="scene_tags", expected="standoff"),
+                TurnAssert(stream="storytell.extract", field="thread_update", expected="clear_the_road_toughs"),
             ],
         ),
         # --- Turn 6: Pay off toughs — Cha + credits, quest progress ---
@@ -125,7 +128,9 @@ scenario = Scenario(
                 "auto_complete should fire — quest status becomes completed",
                 "compendium_npc_update for halden",
             ],
-            asserts=[],
+            asserts=[
+                TurnAssert(stream="storytell.extract", field="thread_resolve", expected="deliver_the_ledger"),
+            ],
         ),
         # --- Turn 8: Unconventional — try to use the brass key on the inn door ---
         Turn(
@@ -181,6 +186,8 @@ scenario = Scenario(
             asserts=[
                 TurnAssert(stream="ruling", field="rolled", expected="true"),
                 TurnAssert(stream="extract.scene", field="scene_tags", expected="combat"),
+                TurnAssert(stream="extract.state", field="pc_condition_add", expected="winded"),
+                TurnAssert(stream="extract.state", field="inventory_add", expected="wax_sealed_cylinder"),
             ],
         ),
         # --- Turn 12: Rush to river dock — quest completion + location change + second compaction ---
@@ -195,6 +202,7 @@ scenario = Scenario(
             ],
             asserts=[
                 TurnAssert(stream="ruling", field="rolled", expected="false"),
+                TurnAssert(stream="extract.state", field="pc_condition_remove", expected="winded"),
             ],
         ),
         # --- Turn 13: Tend wounds + send message — condition removal, post-dual-compaction ---
@@ -209,6 +217,7 @@ scenario = Scenario(
             ],
             asserts=[
                 TurnAssert(stream="ruling", field="rolled", expected="false"),
+                TurnAssert(stream="extract.state", field="pc_condition_remove", expected="bruised_ribs"),
             ],
         ),
     ],

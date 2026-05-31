@@ -331,8 +331,12 @@ async def generate_seed(
         # LLM generates 3 global facts into world_state; prepend baseline_facts
         if world_facts:
             existing_ws = list(envelope.seed_state.scene.world_state)
-            baseline_ws = [{"id": f"baseline_{i}", "text": _strip_non_ascii(text), "tier": "permanent"} for i, text in enumerate(world_facts)]
-            merged_ws = cast(list[WorldStateFact | str], baseline_ws + [f for f in existing_ws if not (isinstance(f, dict) and f.get("id") in {b["id"] for b in baseline_ws})])
+            baseline_ws = [WorldStateFact(id=f"baseline_{i}", text=_strip_non_ascii(text), tier="permanent") for i, text in enumerate(world_facts)]
+            baseline_ids = {b.id for b in baseline_ws}
+            merged_ws = cast(
+                list[WorldStateFact | str],
+                baseline_ws + [f for f in existing_ws if not (isinstance(f, dict) and f.get("id") in baseline_ids)],
+            )
             envelope.seed_state.scene.world_state = merged_ws
 
         # Keep seeded compendium NPCs; clear engine-managed touch_order

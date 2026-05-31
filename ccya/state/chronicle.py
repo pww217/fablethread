@@ -16,6 +16,7 @@ _TURN_HEADER = re.compile(r"^## Turn (\d+) — (.+)$", re.MULTILINE)
 def append_event(save_dir: Path, event: dict[str, Any]) -> None:
     path = save_dir / "events.jsonl"
     _log.debug("append_event path=%s keys=%s", path, list(event.keys()))
+    save_dir.mkdir(parents=True, exist_ok=True)
     with open(path, "a") as f:
         f.write(json.dumps(event, default=str) + "\n")
 
@@ -23,6 +24,7 @@ def append_event(save_dir: Path, event: dict[str, Any]) -> None:
 def append_chronicle(save_dir: Path, text: str) -> None:
     path = save_dir / "chronicle.md"
     _log.debug("append_chronicle path=%s chars=%d", path, len(text))
+    save_dir.mkdir(parents=True, exist_ok=True)
     with open(path, "a") as f:
         f.write("\n" + text)
 
