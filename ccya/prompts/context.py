@@ -180,10 +180,7 @@ class NPCRosterEntryBlock(BaseModel):
 
 
 class RulingBoundary(BaseModel):
-    """Context for ruling_user.j2.
-
-    NOTE: recent_turns is passed by _ruling_messages but ruling_user.j2 never renders it — dead field removed from boundary model.
-    """
+    """Context for ruling_user.j2."""
 
     pc: PlayerBlock
     location: LocationBlock
@@ -191,6 +188,7 @@ class RulingBoundary(BaseModel):
     meta: dict[str, int]
     npc_roster: list[NPCRosterEntryBlock]
     last_outcome: str | None = None
+    recent_turns: list[ChronicleEntryBlock] = Field(default_factory=list)
 
 
 class NarratorBoundary(BaseModel):

@@ -34,8 +34,10 @@ Band: {{ band | upper }}. Apply thread updates freely on success/crit_success. O
 {% for b in prior_history %}{{ b }}
 {% endfor -%}
 {% endif %}{% if recent_turns %}
-## last turn's context (T{{ recent_turns[-1].turn }})
-{{ recent_turns[-1].narrative }}
+## prior turn context
+{% for t in recent_turns %}
+**T{{ t.turn }}:** {{ t.narrative }}
+{% endfor %}
 {% endif %}{% if intent and intent.intent %}
 ## player_intent
 **{{ intent.intent_verb }}**: {{ intent.intent }}
