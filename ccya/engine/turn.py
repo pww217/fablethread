@@ -817,7 +817,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
     _comp = (state.get("compendium") or {}).get("npcs") or {}
     narr_messages = _narrate_messages(
         ctx._env, state, ctx.user_input,
-        recent_turns=ctx.recent_turns[:-1][-20:],
+        recent_turns=ctx.recent_turns[-1:],
         narrator_rules=_pack_narrator_rules, world_rules=_pack_world_rules,
         rules_outcome=ctx.outcome, npc_name_pool=_npc_name_pool,
         momentum=(state.get("pc") or {}).get("momentum", 0), pending_beat=_pending_gm_beat,
