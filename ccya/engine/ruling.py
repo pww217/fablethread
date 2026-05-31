@@ -22,6 +22,7 @@ def _ruling_messages(
     npc_roster: list[dict[str, Any]] | None = None,
     last_outcome: str | None = None,
     inventory: list[dict[str, Any]] | None = None,
+    recent_turns: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
     pc = state.get("pc") or {}
     location = state.get("location") or {}
@@ -37,6 +38,7 @@ def _ruling_messages(
             "npc_roster": npc_roster or [],
             "last_outcome": last_outcome,
             "inventory": inventory or [],
+            "recent_turns": recent_turns or [],
         },
     )
     return [

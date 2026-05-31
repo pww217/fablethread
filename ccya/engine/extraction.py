@@ -519,7 +519,7 @@ async def _run_extraction_pipeline(
         extraction_ctx=extraction_ctx,
         intent=intent,
         pacing_context=pacing_context,
-        recent_turns=(recent_turns or [])[-2:],
+        recent_turns=(recent_turns or [])[:-1][-10:],
         turn_no=turn_no,
         band=_band,
     )
