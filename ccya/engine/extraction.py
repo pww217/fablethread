@@ -262,7 +262,7 @@ def _storytell_messages(
             "intent": intent,
             "pacing_context": pacing_context,
             "recent_turns": recent_turns or [],
-            "prior_history": list((state.get("meta") or {}).get("prior_history", [])[-10:]),
+            "prior_history": list((state.get("meta") or {}).get("prior_history", [])[:-1]),
             "turn_no": turn_no,
             "band": band,
         },
@@ -519,7 +519,7 @@ async def _run_extraction_pipeline(
         extraction_ctx=extraction_ctx,
         intent=intent,
         pacing_context=pacing_context,
-        recent_turns=(recent_turns or [])[:-1][-10:],
+        recent_turns=(recent_turns or [])[-1:],
         turn_no=turn_no,
         band=_band,
     )
