@@ -27,10 +27,34 @@ PROMPTS_DIR = BASE_DIR.parent / "prompts"
 PACKS_DIR = REPO_ROOT / "packs"
 SAVE_DIR = Path("saves") / "default"
 
+
+def _find_latest_save() -> Path | None:
+    """Return the most recently modified non-default save directory, or None."""
+    saves_dir = Path("saves")
+    if not saves_dir.exists():
+        return None
+    candidates = sorted(
+        (d for d in saves_dir.iterdir() if d.is_dir() and d.name != "default"),
+        key=lambda d: d.stat().st_mtime,
+        reverse=True,
+    )
+    return candidates[0] if candidates else None
+
+
+_latest = _find_latest_save()
+if _latest is not None:
+    SAVE_DIR = _latest
+
+
 config: dict[str, Any] = _load_config(REPO_ROOT / "config.yaml")
 engine_config = build_engine_config(config)
 
 logger = setup_logging(config)
+
+if SAVE_DIR.name != "default":
+    logger.info("Resumed save: %s", SAVE_DIR)
+else:
+    logger.info("No existing save found, will use fresh state")
 
 _pack_id: str = config.get("game", {}).get("setting_pack", "zombie-survival")
 try:
