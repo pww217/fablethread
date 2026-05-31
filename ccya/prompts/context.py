@@ -192,7 +192,6 @@ class RulingBoundary(BaseModel):
     user_input: str
     meta: dict[str, int]
     npc_roster: list[NPCRosterEntryBlock]
-    last_outcome: str | None = None
     recent_turns: list[ChronicleEntryBlock] = Field(default_factory=list)
 
 

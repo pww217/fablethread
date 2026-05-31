@@ -18,10 +18,6 @@ Location: {{ location.name or location.id or "Unknown" }}
 - {{ item.name }} ({{ item.amount }})
 {% endfor -%}
 {% endif -%}
-{%- if last_outcome %}
-## Last Turn Outcome
-{{ last_outcome }}
-{%- endif %}
 {% if recent_turns %}
 ## Last Turn Narrative (T{{ recent_turns[-1].turn }})
 {{ recent_turns[-1].narrative }}

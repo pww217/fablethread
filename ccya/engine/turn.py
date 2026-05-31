@@ -52,7 +52,6 @@ from ccya.state import (
     append_chronicle,
     append_event,
     load_last_narration,
-    load_recent_turns,
     load_state,
     reconcile_delta,
     resolve_inventory_remove_target,
@@ -605,20 +604,12 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
             "turn.pacing.avoidance detected", extra={"turn": state.get("meta", {}).get("turn", 0), "trace_id": "", "pack": "", "kind": "pacing"},
         )
 
-    # Load previous outcome context
-    _prev_outcome = ""
-    if turn_no > 1:
-        _prev_events = load_recent_turns(ctx.save_dir, 1)
-        if _prev_events:
-            _prev_outcome = _prev_events[0].get("ruling", {}).get("outcome_summary", "")
-
     # Build ruling messages
     _comp = state.get("compendium", {}).get("npcs", {})
     ruling_messages = _ruling_messages(
         ctx._env, state, ctx.user_input,
         turn_no=turn_no,
         npc_roster=build_npc_roster(_comp),
-        last_outcome=_prev_outcome if _prev_outcome else None,
         inventory=state.get("inventory") or None,
         recent_turns=ctx.recent_turns[-1:],
     )
