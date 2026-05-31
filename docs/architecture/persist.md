@@ -22,7 +22,7 @@ flowchart LR
         W3["chronicle.md<br>append — '## Turn N — input\n\nnarrative'"]:::storageNode
     end
 
-    READBACK["Feeds Steps 0 & 1 on the next turn<br>via load_state(), load_chronicle_tail(),<br>load_recent_chronicle_turns()"]:::pyNode
+    READBACK["Feeds Steps 0–2c on the next turn<br>via load_state(), load_last_narration() for recent_turns,<br>prior_history bullets in state.yaml"]:::pyNode
 
     IN --> W1
     IN --> W2

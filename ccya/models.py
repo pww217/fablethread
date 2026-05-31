@@ -380,6 +380,24 @@ class GMBeat(BaseModel):
         "escalation",
         "callback",
     ] | None = None
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def _coerce_gm_beat_type(cls, v: Any) -> Any:
+        valid_types = {
+            "complication",
+            "revelation",
+            "opportunity",
+            "breathing_room",
+            "pressure",
+            "twist",
+            "setback",
+            "escalation",
+            "callback",
+        }
+        if isinstance(v, str) and v not in valid_types:
+            return None
+        return v
     surface_as: Literal[
         "ambient",
         "event",
@@ -407,6 +425,18 @@ class StorytellerResult(BaseModel):
         if self.gm_beat is not None:
             if not self.gm_beat.type:
                 self.gm_beat = None
+        return self
+
+    @model_validator(mode="after")
+    def _nullify_empty_arc_resolve(self) -> "StorytellerResult":
+        if isinstance(self.arc_resolve, dict) and not self.arc_resolve:
+            self.arc_resolve = None
+        return self
+
+    @model_validator(mode="after")
+    def _nullify_empty_thread_add(self) -> "StorytellerResult":
+        if isinstance(self.thread_add, dict) and not self.thread_add:
+            self.thread_add = None
         return self
 
     @field_validator("actions", mode="before")

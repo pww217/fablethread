@@ -70,7 +70,7 @@ PacingContext:
   summary: str             # human-readable log string, never sent to LLM
 ```
 
-`beat_locked: True` fires when either `consecutive_pressure_turns >= config.consecutive_pressure_threshold` OR `momentum <= config.momentum_floor`. When locked, `"Resolve a Threat"` is appended to the directive via semicolon. The `gate` field is computed independently from the de-escalation signal (`deescalate >= 0.5` on successful roll with urgent scene threads) — it is unrelated to beat_locked.
+`beat_locked: True` fires when either `consecutive_pressure_turns >= config.consecutive_pressure_threshold` OR `momentum <= config.momentum_floor`. When locked, `"Resolve a Threat"` is appended to the directive via semicolon. The `gate` field prevents Storytell from adding new threads during de-escalation windows.
 
 ### Computation
 
