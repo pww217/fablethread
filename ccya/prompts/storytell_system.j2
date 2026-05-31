@@ -7,7 +7,7 @@ Extract suggested player actions, outcome summary, thread updates, and arc resol
   "actions": [],
   "outcome_summary": "",
   "gm_beat": null,
-  "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent", "active": true, "progress": "optional progress note"}, {"id": "..."}],
+  "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent", "active": true}, {"id": "..."}],
   "arc_resolve": {"resolution": "How this arc concluded narratively.", "visible_goal": "The next arc's goal.", "goal_context": "Why this goal matters to the PC."},
   "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal"},
   "world_state_add": [{"id": "new_fact_id", "text": "durable world fact text", "tier": "persistent"}],
@@ -40,7 +40,7 @@ Examples:
 
 All thread operations work regardless of scope. You do NOT need to decide if a tension is "scene" or "arc". Python handles scoping via the ArcThread.scope field. Emit only what actually happened this turn.
 
-`thread_update`: A list of objects with `id` (snake_case) and optional fields — `urgency` (change priority level), `active` (boolean — set `true` to activate a dormant thread, `false` to demote to dormant), and/or `progress` (free-text progress note). Only include threads whose narrative advanced meaningfully this turn. Example: `[{"id": "the_missing_ore", "urgency": "urgent", "active": true, "progress": "2/3 leads followed"}]`.
+`thread_update`: A list of objects with `id` (snake_case) and optional fields — `urgency` (change priority level) and/or `active` (boolean — set `true` to activate a dormant thread, `false` to demote to dormant). Only include threads whose narrative advanced meaningfully this turn. Example: `[{"id": "the_missing_ore", "urgency": "urgent", "active": true}]`.
 
 CRITICAL RULES for including a thread ID in thread_update:
 - Include ONLY if this turn's events DIRECTLY affected that specific thread. The player took meaningful action toward it, or its narrative arc clearly progressed.
