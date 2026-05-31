@@ -128,6 +128,7 @@ Rules:
 
 ## inventory — Starter Inventory Rules
 - Generate 3–6 starting items appropriate to the opening scene.
+- **Every item must have a proper, specific name.** Not generic descriptors like "standard issue rifle" or "random book." Give it an actual name: a gun model (e.g., "Kestrel M4"), a tool with identity. Books, lore artifacts, and sentimental items must carry narrative weight — their names should tie to the story world (a known text, a faction publication) or reflect emotional attachment (an heirloom, something left behind by someone important). The name itself should hint at why this item matters.
 - **Firearms ALWAYS come with ammunition.** Any firearm in starter inventory MUST be paired with an ammo stack (e.g. `{"id": "pistol", "name": "Pistol"}` must also include `{"id": "9mm_rounds", "name": "9mm rounds", "amount": 6}`). Infer a realistic starting amount. If the narration says the weapon is empty, set amount to 0.
 - **Items with finite uses MUST track remaining uses as `amount`.** Medications, charges, devices with limited uses — all must have an explicit `amount`. If you add a medkit, give it 2–4 uses. If you add a charge-cell, give it a realistic count.
 - Ammo amount is the single source of truth — never put loaded counts in the weapon's `notes`. Melee/single-shot thrown items are exempt.
