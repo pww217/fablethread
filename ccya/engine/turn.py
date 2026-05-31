@@ -581,8 +581,8 @@ def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
 
 
 def _recent_turn_count(state: dict[str, Any]) -> int:
-    """Return up to 21 turns for all consumers (narrator bullets + ruling/storytell slices)."""
-    return 21
+    """Return max turns needed — now each consumer only needs 1 ([-1:] slice)."""
+    return 1
 
 
 async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], float, list[tuple[str, Any]]]:
