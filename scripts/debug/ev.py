@@ -214,14 +214,14 @@ def extract_section_by_pattern(text: str | None, start_name: str, *stop_names: s
 def cmd_summary(events: list[dict[str, Any]], format: str = "text") -> None:
     if format == "json":
         for ev in events:
-            if ev.get("kind") == "compaction":
+            if ev.get("kind") not in (None, "turn"):
                 continue
             obj = _build_summary_json(ev)
             print(json.dumps(obj))
         return
     print("=== Turn Viewer Summary ===\n")
     for ev in events:
-        if ev.get("kind") == "compaction":
+        if ev.get("kind") not in (None, "turn"):
             continue
         turn = ev.get("turn", "?")
         user_input = (ev.get("input") or "")[:60]
@@ -267,7 +267,7 @@ def _build_summary_json(ev: dict[str, Any]) -> dict[str, Any]:
 def cmd_timing(events: list[dict[str, Any]]) -> None:
     print("=== Turn Viewer — Timing & Tokens ===\n")
     for ev in events:
-        if ev.get("kind") == "compaction":
+        if ev.get("kind") not in (None, "turn"):
             continue
         turn = ev.get("turn", "?")
         total_tt = _total_tt(ev)
