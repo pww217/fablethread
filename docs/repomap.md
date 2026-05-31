@@ -55,8 +55,7 @@
 
 ### ccya/engine (via __init__.py)
 - **run_turn(...)** → AsyncIterator — 5-call pipeline: rules→narrate→scene/state/storytell extract; yields ("token"), ("phase"), ("complete", TurnResult)
-- **generate_seed(pack, config, overrides)** → SeedEnvelope — LLM-generated GameState + opening for dynamic packs
-- **generate_seed(pack, config, overrides)** → SeedEnvelope — LLM-generated GameState + opening for dynamic packs (via `ccya/engine/seed.py`)
+- **generate_seed(pack, config, overrides)** → SeedEnvelope — LLM-generated GameState + opening for dynamic packs (via `ccya/engine/seed.py`; model class in `ccya/pack.py`)
 - **generate_pack_from_brief(...)** → AsyncIterator[dict] — SSE-driven ephemeral pack generation (via `ccya/engine/generate_pack.py`)
 - **generate_pack(brief, config)** → Pack — LLM generates ScenarioBrief from WorldBrief (via `ccya/engine/pack_gen.py`)
 - **format_change_lines(changes)** → list[str] — emoji display lines for UI
@@ -88,7 +87,7 @@
 4. **State Extract** (JSON→StateExtractResult) — inventory deltas, condition add/remove
 5. **Storytell** (JSON→StorytellerResult) — thread_update, arc_resolve, thread_resolve, thread_add (gated by PacingContext.gate), world_state_add/remove, actions, gm_beat
 
-Steps 3–5 merge into StateDelta → _validate() → apply_delta() → summarize_changes() → persist (atomic writes). After persist: maybe_compact().
+Steps 3–5 merge into StateDelta → _validate() → apply_delta() → summarize_changes() → persist (atomic writes).
 
 ## Cross-module contracts
 
@@ -96,8 +95,9 @@ Steps 3–5 merge into StateDelta → _validate() → apply_delta() → summariz
 LLM failure in extraction → typed LlmcError raised with ErrorKind classification → caught by server middleware → persisted to `server_errors.jsonl` + SSE error event pushed via logging_setup.py. Engine modules use `_log = logging.getLogger(__name__)`; all log calls pass structured fields via `extra={}` (error_kind, trace_id). TurnResult.errors collected as list[dict] with ErrorKind constants. Server middleware catches unhandled exceptions and returns JSON responses instead of raw HTML error pages.
 
 ### Scene thread lifecycle (unified arc.threads[])
-- All scene_pressure functionality migrated to `arc.threads[]` with `scope: scene` — ccya/engine/pressure.py module deleted in phase 06 validation sweep
+- All scene_pressure functionality migrated to arc.threads[] with `scope: scene` — ccya/engine/pressure.py module deleted in phase 06 validation sweep
 - Thread state is storyteller-managed via `thread_update` directives — no Python-side age-based demotion or urgency decay
+- **Scene-scoped threads purged on location change:** `apply_delta()` in delta_builder.py removes all threads with `scope: "scene"` from `arc.threads[]` when `location_change` is present in the delta, since they are localized to the prior location
 
 ### Arc thread state machine
 - States: LATENT → ACTIVE (via thread_update with active=True) → COMPLETE/FAILED (via thread_resolve from StorytellerResult) / DORMANT (via thread_update with active=False)

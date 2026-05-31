@@ -14,7 +14,7 @@ flowchart TD
     classDef input     fill:#1f2937,color:#9ca3af,stroke:#4b5563
 
     REQ["GET /<br>index(request)"]:::ssr
-    SSR["Server renders index.html via Jinja2<br>────────────────────────<br>state (state.yaml)<br>history (events.jsonl, last N)<br>last_actions · opening · opening_actions<br>has_narrative · pack_mode · pack_name<br>character_creation_enabled · css_v"]:::ssr
+    SSR["Server renders index.html via Jinja2<br>────────────────────────<br>state (state.yaml)<br>history (events.jsonl, last N)<br>last_actions · opening · opening_actions<br>opening_outcome_summary<br>has_narrative · pack_name<br>character_creation_enabled · css_v"]:::ssr
 
     UI["Browser — Alpine.js app-shell<br>x-data=&quot;game()&quot;"]:::alpine
 

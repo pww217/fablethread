@@ -98,7 +98,7 @@ EvalConfig:
    - Captures `TurnRecord` (duration, errors, narrative chars, parse failures)
    - Runs structured `_check_asserts()` against the turn's event from `events.jsonl`
    - Runs all 21 universal asserts on the event
-7. **Writes artifacts**: `events.jsonl`, `run.json`, `<scenario>.state.yaml` (copy of final state) to `evals/runs/<ts>_<rand>/artifacts/`
+7. **Writes artifacts**: `events.jsonl`, `run.json` to `evals/runs/<ts>_<rand>/artifacts/`
 8. **Updates `latest` symlink**
 
 ### Auto-Checker System
@@ -113,7 +113,7 @@ Two layers:
 - `extract`: `attempts:<stream>`, `skipped:<stream>`
 - `state_yaml`: `pending_gm_beat.present`, `pending_gm_beat.absent`
 
-**2. Universal asserts** (`universal_asserts.py`): 22 deterministic checkers run on every event. Severity: `red` (must fix) or `yellow` (advisory). Cover: turn stamping, GM beat lifecycle, location changes, pacing directive rendering ("directive:" prefix + known value match against Breathe/Scene Imperative/Overwhelm/Pressure/Tension/Scene Pressure), NPC extraction, ring buffer bounds, scene NPC cap, condition dedup, action count/distinctness, momentum deltas, inventory overdraw, inventory remove existence, thread_update ID validity, floor relief, consecutive pressure tracking, beat-locked dual trigger validation, removed directive/state detection.
+**2. Universal asserts** (`universal_asserts.py`): 21 deterministic checkers run on every event. Severity: `red` (must fix) or `yellow` (advisory). Cover: turn stamping, GM beat lifecycle, location changes, pacing directive rendering ("directive:" prefix + known value match against Breathe/Scene Imperative/Overwhelm/Pressure/Tension/Scene Pressure), NPC extraction, ring buffer bounds, scene NPC cap, condition dedup, action count/distinctness, momentum deltas, inventory overdraw, floor relief, ArcThread key deduplication, consecutive pressure tracking, beat-locked dual trigger validation, removed directive/state detection.
 
 ## Phase 02 — Judge (`judge.py`)
 
@@ -122,11 +122,10 @@ Domain-specialized LLM judges evaluate different facets of the pipeline output. 
 ### Judge Specs (from `evals/config.yaml`)
 
 | Judge ID | Rubric | Scores Produced |
-|---|---|---|
+|---|---|---|---|
 | `state_correctness` | `evals/rubrics/state_correctness.md` | state_fidelity_rate, extraction_accuracy_score, mechanic_lifecycle_score |
 | `narrative_interplay` | `evals/rubrics/narrative_interplay.md` | narrative_score, system_cohesion_score |
 | `prompt_pipeline` | `evals/rubrics/prompt_pipeline.md` | prompt_quality_score, prompt_adherence_rate, pipeline_scores |
-| `compaction` | `evals/rubrics/compaction.md` | compaction_score, sanitization_fidelity_rate |
 | `meta` | `evals/rubrics/meta.md` | 7 final scores (synthesis) |
 
 ### Trace Construction
@@ -144,25 +143,22 @@ flowchart LR
     F --> F1["_filter_event_for_judge('state_correctness')"]:::filter
     F --> F2["_filter_event_for_judge('narrative_interplay')"]:::filter
     F --> F3["_filter_event_for_judge('prompt_pipeline')"]:::filter
-    F --> F4["_select_compaction_events()"]:::filter
 
     F1 --> B1["build_trace() — state_correctness<br>+ auto_checker_failures + metrics"]:::trace
     F2 --> B2["build_trace() — narrative<br>no signals"]:::trace
     F3 --> B3["build_trace() — prompt_pipeline<br>+ redundancy + metrics"]:::trace
-    F4 --> B4["build_trace() — compaction<br>+ compaction_signals, no arch_context"]:::trace
     B1 --> L1["LLM judge (rubric as system)"]:::llm
     B2 --> L2["LLM judge"]:::llm
     B3 --> L3["LLM judge"]:::llm
-    B4 --> L4["LLM judge"]:::llm
 
-    L1 & L2 & L3 & L4 --> M["_build_meta_judge_input()<br>synthesizes domain scores"]:::trace
+    L1 & L2 & L3 --> M["_build_meta_judge_input()<br>synthesizes domain scores"]:::trace
     M --> LM["Meta LLM judge → 7 final scores"]:::llm
 ```
 
 Each trace contains:
-1. **Static Context** (once): Engine Design Reference (if available), pack style, narrator rules, factions, locations, seed state, engine constants, all 5 system prompts
+1. **Static Context** (once): Engine Design Reference (if available), narrator rules, world rules, factions, seed state, engine constants, all 5 system prompts
 2. **Per-Turn Blocks**: user prompts (with dedup of immutable seed sections), engine outputs (ruling parsed+raw, narration, extractor JSON), applied/rejected deltas, suggested actions, context telemetry (token estimates, trimming), state snapshot (diff vs previous, full on first/last turn)
-3. **Deterministic Signals**: auto-checker failures table, per-stream metrics (token counts, parse failures, retries, momentum), scope fallback rate, redundancy signals, compaction signals
+3. **Deterministic Signals**: auto-checker failures table, per-stream metrics (token counts, parse failures, retries, momentum), scope fallback rate, redundancy signals
 
 ### Response Parsing (`parse_judge_response`)
 
@@ -262,7 +258,7 @@ python -m ccya.eval list              # List discovered scenarios
 1. **Python-based scenarios** (not YAML): get type-checking, IDE autocomplete, refactor support
 2. **No server dependency**: calls `run_turn()` directly in-process, no FastAPI/SSE
 3. **Isolated save dir per run**: fresh `~/.cache/ccya-eval/<ts>/save/` each time, cleaned up after
-4. **Deterministic signals before LLM judge**: auto-checker failures, token metrics, redundancy and compaction signals are computed in Python and injected into the trace. The judge evaluates the same trace every time for the same events.
+4. **Deterministic signals before LLM judge**: auto-checker failures, token metrics, and redundancy signals are computed in Python and injected into the trace. The judge evaluates the same trace every time for the same events.
 5. **Per-judge field filtering**: each judge sees only the fields relevant to its rubric, reducing token costs and scoring contamination
 6. **Diff state snapshots**: middle turns show only changed state fields (diff vs previous); first and last turns show full state
 7. **Immutable section dedup**: seed state sections in user prompts are replaced with a placeholder after the first turn

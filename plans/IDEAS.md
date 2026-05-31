@@ -78,7 +78,7 @@ class PCState(BaseModel):
 **Problem.** Arc threads persist indefinitely with no automatic expiry or demotion. 4 out of 5 arc threads in the eval run were "INERT" — updated with urgency changes but never resolved in 13 turns. They sit in state forever unless explicitly resolved via `thread_resolve` or dropped via `arc_resolve` + `ThreadDirective.drop`.
 
 **Proposed.** Implement a multi-stage thread lifecycle:
-- **No action for N turns** (e.g. 5): auto-demote to `active=False` (latent). 
+- **No action for N turns** (e.g. 5): auto-demote to `active=False` (latent). System stops rendering them in prompt context.
 - **No mention for M additional turns** (e.g. 5 after latent): auto-remove from `arc.threads[]`.
 - **TTL constants** in `engine_mirror.py` like the existing `THREAD_RESOLVED_ARC_TTL` and `THREAD_COMPLETED_THREAD_TTL`.
 - Trigger decay pass during `_apply_thread_signals()` or as a new pipeline step between extraction and persist.

@@ -19,7 +19,7 @@
 
 ## Output discipline
 
-When emitting structured data (JSON, scope tags, any machine-readable output), omit null or empty fields entirely. Do not emit `key: null` — just leave the key out.
+When emitting structured data (JSON, scope tags, any machine-readable output), omit fields entirely when there is no change — do not include empty arrays (`[]`), empty objects (`{}`), or empty strings. Only emit the keys you actually need to communicate a value or instruction. Omitting a field means "no change" — it does NOT mean deletion of existing state (see State-presence rule).
 
 - Wrap your entire response in a single ```json code block. Do NOT include any thinking or explanatory text outside the code block.
 - All string values must use normal spaces between words — never hyphens as word separators. DO NOT replace spaces with hyphens or insert hyphens between every word.

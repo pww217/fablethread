@@ -1211,26 +1211,6 @@ body {
   border-radius: var(--radius-sm);
 }
 
-/* Log section */
-.arc-log {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 4px 0;
-}
-
-.arc-log-entry {
-  font-size: 10px;
-  color: var(--text-muted);
-  line-height: 1.45;
-  padding: 2px 0;
-  border-bottom: 1px dotted var(--border-subtle);
-}
-
-.arc-log-entry:last-child {
-  border-bottom: none;
-}
-
 /* Empty state */
 .arc-empty {
   font-size: 10.5px;
