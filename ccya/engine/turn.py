@@ -321,18 +321,12 @@ def _apply_thread_resolutions(
         )
         return None
 
-    # Build a map of existing completed threads by id for dedup
-    completed_by_id: dict[str, ArcThread] = {}
-    for ct in arc.completed_threads:
-        if ct.id not in completed_by_id:
-            completed_by_id[ct.id] = ct
-
-    new_completed: list[ArcThread] = []
+    # Collect resolution targets by ID, building updated ArcThread for each
+    resolved_ids: set[str] = set()
+    updates: list[ArcThread] = []
     any_found = False
-    found_remaining = False
 
     for res in storyteller_result.thread_resolve:
-        # Find matching thread in arc.threads[]
         found_idx = None
         for i, t in enumerate(arc.threads):
             if getattr(t, "id", "") == res.id:
@@ -348,56 +342,30 @@ def _apply_thread_resolutions(
 
         any_found = True
         thread = arc.threads[found_idx]
-        updated_thread = thread.model_copy(update={
+        resolved_ids.add(thread.id)
+        updates.append(thread.model_copy(update={
             "resolution_state": res.resolution_state,
             "outcome": res.outcome,
             "resolved_turn": turn_no,
-        })
+        }))
 
-        # Remove from threads[]
-        remaining_threads = [t for i2, t in enumerate(arc.threads) if i2 != found_idx]
+    if not any_found:
+        return None
 
-        # Dedup: update existing completed entry or collect new ones
-        if thread.id in completed_by_id:
-            found_remaining = True
-            updated_existing = thread.model_copy(update={
-                "resolution_state": res.resolution_state,
-                "outcome": res.outcome,
-                "resolved_turn": turn_no,
-            })
-            remaining_completed = [
-                t if t.id != thread.id else updated_existing
-                for t in arc.completed_threads
-            ]
-        else:
-            new_completed.append(updated_thread)
-            remaining_completed = list(arc.threads)  # placeholder
+    # Build new threads[] — exclude all resolved threads
+    remaining_threads = [t for t in arc.threads if t.id not in resolved_ids]
 
-    # Finalize completed threads with dedup
-    final_completed_map: dict[str, ArcThread] = {}
-    if found_remaining:
-        for ct in (remaining_completed or []):
-            cid = getattr(ct, "id", "")
-            if cid not in final_completed_map:
-                final_completed_map[cid] = ct
-
-    # Add new completions (deduped)
-    for nc in new_completed:
-        if nc.id not in final_completed_map:
-            final_completed_map[nc.id] = nc
-
-    # If no resolutions were found, keep original completed list
-    if not any_found and not found_remaining:
-        final_completed_list = list(arc.completed_threads)
-    else:
-        final_completed_list = list(final_completed_map.values())
-
-    mutated = any_found or bool(new_completed)
+    # Build new completed_threads[] — merge updates into existing completed list (dedup by id)
+    completed_map: dict[str, ArcThread] = {}
+    for ct in arc.completed_threads:
+        completed_map[ct.id] = ct
+    for u in updates:
+        completed_map[u.id] = u
 
     return arc.model_copy(update={
-        "threads": remaining_threads if any_found else list(arc.threads),
-        "completed_threads": final_completed_list,
-    }) if mutated else None
+        "threads": remaining_threads,
+        "completed_threads": list(completed_map.values()),
+    })
 
 
 def _compute_narrative_velocity(
