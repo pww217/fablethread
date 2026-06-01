@@ -1573,7 +1573,11 @@ function game() {
             if (!trimmed) return;
             const existing = this.input.trimEnd();
             this.input = existing + (existing ? ', ' : '') + trimmed + ' ';
-            document.getElementById('player-input')?.focus();
+            if (window.innerWidth <= 768) {
+                this.submitTurn();
+            } else {
+                document.getElementById('player-input')?.focus();
+            }
         },
     };
 }
