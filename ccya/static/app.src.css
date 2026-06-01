@@ -294,6 +294,7 @@ body {
   padding: 10px 40px;
   border-top: 1px solid var(--border-subtle);
   min-height: 48px;
+  transition: opacity 0.4s ease;
 }
 
 .action-pill {
