@@ -64,6 +64,10 @@
     <div class="app-body">
 
         <aside class="sidebar sidebar-left" :style="leftStyle" :class="{ 'sidebar--open': leftDrawerOpen }" @click.self="onSidebarClick('left', $event)">
+            <button class="sidebar-close"
+                    @click="closeDrawer('left')"
+                    type="button"
+                    aria-label="Close left panel">✕</button>
             <div id="state-panel-left">
                 {% with state=state %}
                 {% include "_state_left.html" %}
@@ -203,6 +207,10 @@
 
         <!-- Right sidebar -->
         <aside class="sidebar" :style="rightStyle" :class="{ 'sidebar--open': rightDrawerOpen }" @click.self="onSidebarClick('right', $event)">
+            <button class="sidebar-close"
+                    @click="closeDrawer('right')"
+                    type="button"
+                    aria-label="Close right panel">✕</button>
             <div id="state-panel-right">
                 {% with state=state %}
                 {% include "_state_right.html" %}
@@ -912,6 +920,38 @@ function game() {
                     document.body.style.overflow = '';
                 }
             });
+            // Touch swipe: edge open + drawer dismiss
+            this._swipeStartX = 0;
+            this._swipeStartY = 0;
+            document.addEventListener('touchstart', (e) => {
+                if (window.innerWidth > 768) return;
+                const t = e.touches[0];
+                this._swipeStartX = t.clientX;
+                this._swipeStartY = t.clientY;
+            }, { passive: true });
+            document.addEventListener('touchend', (e) => {
+                if (window.innerWidth > 768) return;
+                const dx = e.changedTouches[0].clientX - this._swipeStartX;
+                const dy = e.changedTouches[0].clientY - this._swipeStartY;
+                const sw = window.innerWidth;
+                // Horizontal swipe matters; ignore if more vertical than horizontal
+                if (Math.abs(dx) < Math.abs(dy) * 1.5) return;
+                // Edge swipe to open
+                if (Math.abs(dx) > 40) {
+                    if (this._swipeStartX < 40 && dx > 0 && !this.leftDrawerOpen) {
+                        this.toggleDrawer('left');
+                    } else if (this._swipeStartX > sw - 40 && dx < 0 && !this.rightDrawerOpen) {
+                        this.toggleDrawer('right');
+                    }
+                }
+                // Swipe on open drawer to dismiss
+                if (this.leftDrawerOpen && this._swipeStartX < sw * 0.75 && dx < -40) {
+                    this.closeDrawer('left');
+                }
+                if (this.rightDrawerOpen && this._swipeStartX > sw * 0.25 && dx > 40) {
+                    this.closeDrawer('right');
+                }
+            }, { passive: true });
         },
 
         onEnter(event) {

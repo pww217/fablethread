@@ -427,6 +427,7 @@ body {
 
 /* Sidebar drawer toggle buttons — hidden on desktop, shown in mobile media query */
 .sidebar-toggle { display: none; }
+.sidebar-close { display: none; }
 
 /* =========================================================
    GUTTERS — drag-resize handles between columns
@@ -1824,6 +1825,23 @@ body {
 
   /* ── Sidebar cards ── */
   .sidebar-meta-footer { padding: 6px 12px; }
+
+  /* ── Close button on mobile sidebars ── */
+  .sidebar-close {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    align-self: flex-end;
+    margin-left: auto;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 /* =========================================================
