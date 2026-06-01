@@ -580,8 +580,14 @@ async def get_settings():
         "warmup_on_start": game_config.get("warmup_on_start", False),
         "character_creation_enabled": game_config.get("character_creation_enabled", True),
         "debug_enabled": debug.get("enabled", False),
+        "difficulty_curve": game_config.get("difficulty_curve", "balanced"),
+        "scene_pressure_threshold": game_config.get("scene_pressure_threshold", 3),
+        "scene_imperative_threshold": game_config.get("scene_imperative_threshold", 5),
+        "momentum_pacing_factor": game_config.get("momentum_pacing_factor", 0.5),
+        "near_miss_softening": game_config.get("near_miss_softening", True),
+        "thread_memory_ttl": game_config.get("thread_memory_ttl", 3),
+        "arc_memory_ttl": game_config.get("arc_memory_ttl", 3),
     })
-
 
 @_app_mod.app.post("/api/settings")
 async def post_settings(request: Request):
@@ -602,6 +608,24 @@ async def post_settings(request: Request):
         if key in data:
             val = bool(data[key])
             game_config[key] = val
+
+    for key in ("scene_pressure_threshold", "scene_imperative_threshold", "thread_memory_ttl", "arc_memory_ttl"):
+        if key in data:
+            game_config[key] = int(data[key])
+
+    if "momentum_pacing_factor" in data:
+        game_config["momentum_pacing_factor"] = max(0.1, min(2.0, float(data["momentum_pacing_factor"])))
+
+    if "difficulty_curve" in data:
+        valid_curves = ("forgiving", "balanced", "demanding")
+        curve_val = str(data["difficulty_curve"])
+        if curve_val not in valid_curves:
+            return JSONResponse({"error": f"Invalid difficulty_curve. Must be one of {valid_curves}"}, status_code=400)
+        game_config["difficulty_curve"] = curve_val
+
+    for key in ("near_miss_softening",):
+        if key in data:
+            game_config[key] = bool(data[key])
 
     debug_section = game_config.get("debug", {}) or {}
     if "debug_enabled" in data:

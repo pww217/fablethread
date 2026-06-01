@@ -325,6 +325,72 @@
                 </div>
             </fieldset>
 
+            <!-- Difficulty -->
+            <fieldset class="settings-fieldset">
+                <legend>⚔️ Difficulty</legend>
+                
+                <label class="setting-row has-tooltip">
+                    <span class="setting-label">Curve</span>
+                    <div class="tooltip-body">How challenging are rolls overall. "Forgiving" gives generous bonuses to easy actions; "Demanding" makes hard and extreme checks punishing.</div>
+                    <select x-model="settings.difficulty_curve">
+                        <option value="forgiving">🤝 Forgiving</option>
+                        <option value="balanced">⚖️ Balanced</option>
+                        <option value="demanding">💀 Demanding</option>
+                    </select>
+                </label>
+            </fieldset>
+
+            <!-- Pacing (new engine knobs) -->
+            <fieldset class="settings-fieldset">
+                <legend>🎬 Scene Pacing</legend>
+                
+                <div class="setting-row has-tooltip">
+                    <span class="setting-label">Scene turnover speed</span>
+                    <div class="tooltip-body">How quickly stale scenes trigger Pressure or Imperative directives. "Slow burn" gives scenes more time; "Fast forward" pushes action sooner.</div>
+                    <select x-model.number="settings.scene_pressure_threshold">
+                        <option :value="2">⚡ Fast</option>
+                        <option :value="3">🎬 Normal</option>
+                        <option :value="5">🐌 Slow burn</option>
+                    </select>
+                </div>
+
+                <div class="setting-row has-tooltip">
+                    <span class="setting-label">Momentum influence on pacing</span>
+                    <div class="tooltip-body">How much good or bad rolls steer the narrative direction. "Subtle" means momentum barely nudges pacing; "Strong" means roll outcomes directly shape scene motion.</div>
+                    <select x-model.number="settings.momentum_pacing_factor">
+                        <option :value="0.3">🌊 Subtle</option>
+                        <option :value="0.5">⚖️ Normal</option>
+                        <option :value="1.0">💨 Strong</option>
+                    </select>
+                </div>
+            </fieldset>
+
+            <!-- Failure tone -->
+            <fieldset class="settings-fieldset">
+                <legend>🎭 Failure Tone</legend>
+                
+                <div class="setting-row setting-toggle has-tooltip">
+                    <span class="setting-label">Near-miss softening</span>
+                    <div class="tooltip-body">When a roll barely fails (just 1 or 2 points away from success), should the narration soften the blow with "the roll was close" instead of harsh failure text?</div>
+                    <button type="button" 
+                            @click="settings.near_miss_softening = !settings.near_miss_softening"
+                            :class="{ 'toggle-on': settings.near_miss_softening }"
+                            class="setting-toggle-btn">
+                        <div class="toggle-knob"></div>
+                    </button>
+                </div>
+
+                <div class="setting-row has-tooltip">
+                    <span class="setting-label">Thread memory depth</span>
+                    <div class="tooltip-body">How long resolved threads and arcs stay visible in narration context. "Shallow" means fresh context each turn; "Deep" keeps past resolutions visible longer for continuity.</div>
+                    <select x-model.number="settings.thread_memory_ttl">
+                        <option :value="1">📄 Shallow</option>
+                        <option :value="3">🎭 Normal</option>
+                        <option :value="6">📚 Deep</option>
+                    </select>
+                </div>
+            </fieldset>
+
             <!-- Status message -->
             <div x-show="settingsStatus.text" 
                  :class="'settings-status ' + settingsStatus.class"
