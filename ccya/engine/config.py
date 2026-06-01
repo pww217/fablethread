@@ -54,22 +54,15 @@ class EngineConfig:
     #
     host: str = "http://localhost:8080/v1"
     model: str = "mlx-community/Qwen3.6-27B-4bit"
-    # Local prompt-token budget for trim_messages (NOT sent to the LLM API —
-    # mlx_lm.server has no equivalent of Ollama's num_ctx knob; this just
-    # caps how much we pack into a single request).
-    prompt_token_budget: int = 32768
     request_timeout_s: int = 180
-    narrate_temperature: float = 0.9
+    ruling_temperature: float = 0.2
     extract_temperature: float = 0.4
-    max_extract_retries: int = 1
-    # generate_seed settings (used by POST /new-game on dynamic packs)
+    narrate_temperature: float = 0.9
     generate_seed_temperature: float = 0.9
-    generate_seed_max_retries: int = 2
+    max_llm_retries: int = 1
+    context_window: int = 32768
     log_llm_io: bool = False
     log_llm_io_max_chars: int = 4000
-    ruling_temperature: float = 0.2
-    max_ruling_retries: int = 1
-    max_generate_pack_retries: int = 1
     log_prompts: bool = False
     # Avoidance-based pressure decay: keywords that trigger de-escalation detection
     avoidance_keywords: list[str] = field(default_factory=lambda: ["retreat", "run", "flee", "hide", "rest", "escape", "back away", "disengage", "withdraw", "surrender", "concede", "leave", "get out"])
@@ -81,8 +74,6 @@ class EngineConfig:
     # Gate for de-escalation flag on successful rolls
     thread_deescalate_on_success: bool = True
     # TTL (in turns) for resolved arcs and completed threads kept in prompt context
-    resolved_arc_ttl: int = 3
-    completed_thread_ttl: int = 3
 
 
 def build_engine_config(
@@ -101,12 +92,11 @@ def build_engine_config(
     """
     llm = cfg.get("llm", {})
     game = cfg.get("game", {})
-    ruling = cfg.get("ruling", {})
-    logging_cfg = cfg.get("logging", {})
+    logging_cfg = cfg.get("server", {}).get("logging", {})
 
     narrate_t = float(llm.get("narrate_temperature", 0.9))
     extract_t = float(llm.get("extract_temperature", 0.4))
-    ruling_t = float(ruling.get("temperature", 0.2))
+    ruling_t = float(llm.get("ruling_temperature", 0.2))
     seed_t = float(llm.get("generate_seed_temperature", 0.9))
 
     if temperature_override is not None:
@@ -122,29 +112,24 @@ def build_engine_config(
     return EngineConfig(
         host=str(llm.get("host", "http://localhost:8080/v1")),
         model=str(llm.get("model", "")),
-        prompt_token_budget=int(llm.get("prompt_token_budget", 32768)),
+        context_window=int(llm.get("context_window", 32768)),
         request_timeout_s=int(llm.get("request_timeout_s", 180)),
         narrate_temperature=narrate_t,
         extract_temperature=extract_t,
-        max_extract_retries=int(llm.get("max_extract_retries", 1)),
+        ruling_temperature=ruling_t,
         generate_seed_temperature=seed_t,
-        generate_seed_max_retries=int(llm.get("generate_seed_max_retries", 2)),
+        max_llm_retries=int(llm.get("max_llm_retries", 1)),
         log_llm_io=bool(logging_cfg.get("log_llm_io", False)),
         log_llm_io_max_chars=int(logging_cfg.get("log_llm_io_max_chars", 4000)),
         log_prompts=bool(logging_cfg.get("log_prompts", False)),
-        ruling_temperature=ruling_t,
-        max_ruling_retries=int(ruling.get("max_retries", 1)),
-        max_generate_pack_retries=int(llm.get("max_generate_pack_retries", 1)),
+
         thread_deescalate_on_success=bool(
             game.get("thread_deescalate_on_success", True)
         ),
-        resolved_arc_ttl=int(game.get("resolved_arc_ttl", 3)),
-        completed_thread_ttl=int(game.get("completed_thread_ttl", 3)),
 
         avoidance_keywords=[str(kw) for kw in game.get("avoidance_keywords", ["retreat", "run", "flee", "hide", "rest", "escape", "back away", "disengage", "withdraw", "surrender", "concede", "leave", "get out"])],
 
         momentum_floor=int(game.get("momentum_floor", -3)),
-        momentum_ceiling=int(game.get("momentum_ceiling", 3)),
         consecutive_pressure_threshold=int(game.get("consecutive_pressure_threshold", 3)),
     )
 
