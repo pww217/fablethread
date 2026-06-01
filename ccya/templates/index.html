@@ -1402,7 +1402,7 @@ function game() {
                     zone.innerHTML = '<span class="empty-state">Suggested actions appear after each turn.</span>';
                 }
                 self.submitting = false;
-                document.getElementById('player-input')?.focus();
+                if (window.innerWidth > 768) document.getElementById('player-input')?.focus();
             };
 
             const url = '/turn?input=' + encodeURIComponent(userInput);
@@ -1522,7 +1522,7 @@ function game() {
 
                 if (result.game_over) {
                     _showGameOver(this);
-                } else {
+                } else if (window.innerWidth > 768) {
                     setTimeout(() => document.getElementById('player-input')?.focus(), 100);
                 }
                 _bindTooltips(document);
@@ -1601,12 +1601,14 @@ function game() {
                     htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
                     htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
                     this.submitting = false;
-                    setTimeout(() => document.getElementById('player-input')?.focus(), 100);
+                    if (window.innerWidth > 768) {
+                        setTimeout(() => document.getElementById('player-input')?.focus(), 100);
+                    }
                 })
                 .catch(e => {
                     zone.innerHTML = '<span class="empty-state" style="color:var(--accent-error)">Delete failed: ' + _escapeHtml(e.message) + '</span>';
                     this.submitting = false;
-                    document.getElementById('player-input')?.focus();
+                    if (window.innerWidth > 768) document.getElementById('player-input')?.focus();
                 });
         },
 
@@ -1857,9 +1859,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const np = document.getElementById('narrative-panel');
     if (np) np.scrollTop = np.scrollHeight;
 
-    // Focus input if a game is already in progress
+    // Focus input if a game is already in progress (desktop only)
     const inp = document.getElementById('player-input');
-    if (inp && !inp.disabled) inp.focus();
+    if (inp && !inp.disabled && window.innerWidth > 768) inp.focus();
 
     // Fetch Ollama status and update the header dot
     fetch('/healthz').then(r => r.json()).then(data => {
