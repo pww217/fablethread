@@ -3819,13 +3819,6 @@ body {
     background: var(--accent);
 }
 
-.setting-hint {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-top: 4px;
-    grid-column: 1 / -1;
-}
-
 .settings-status {
     padding: 8px 12px;
     border-radius: var(--radius-sm);
