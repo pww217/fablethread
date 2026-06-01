@@ -75,6 +75,27 @@ class EngineConfig:
     thread_deescalate_on_success: bool = True
     # TTL (in turns) for resolved arcs and completed threads kept in prompt context
 
+    # Difficulty curve preset (forgiving/balanced/demanding)
+    difficulty_curve: str = "balanced"
+    # Scene pacing thresholds (turns before directive triggers)
+    scene_pressure_threshold: int = 3
+    scene_imperative_threshold: int = 5
+    # Momentum influence on narrative direction (scaling factor, capped at ±factor)
+    momentum_pacing_factor: float = 0.5
+    # Near-miss softening: whether near-fails get softer narration directive text
+    near_miss_softening: bool = True
+    # TTL for completed threads and resolved arcs in narration context (turns)
+    thread_memory_ttl: int = 3
+    arc_memory_ttl: int = 3
+
+    def _resolve_difficulty_modifiers(self) -> dict[str, int]:
+        curves = {
+            "forgiving": {"trivial": 3, "easy": 1, "normal": 0, "hard": -1, "extreme": -2},
+            "balanced": {"trivial": 2, "easy": 1, "normal": 0, "hard": -1, "extreme": -2},
+            "demanding": {"trivial": 1, "easy": 0, "normal": 0, "hard": -1, "extreme": -3},
+        }
+        return curves.get(self.difficulty_curve or "balanced", curves["balanced"])
+
 
 def build_engine_config(
     cfg: dict[str, Any],
@@ -131,6 +152,14 @@ def build_engine_config(
 
         momentum_floor=int(game.get("momentum_floor", -3)),
         consecutive_pressure_threshold=int(game.get("consecutive_pressure_threshold", 3)),
+
+        difficulty_curve=game.get("difficulty_curve", "balanced"),
+        scene_pressure_threshold=int(game.get("scene_pressure_threshold", 3)),
+        scene_imperative_threshold=int(game.get("scene_imperative_threshold", 5)),
+        momentum_pacing_factor=float(game.get("momentum_pacing_factor", 0.5)),
+        near_miss_softening=bool(game.get("near_miss_softening", True)),
+        thread_memory_ttl=int(game.get("thread_memory_ttl", 3)),
+        arc_memory_ttl=int(game.get("arc_memory_ttl", 3)),
     )
 
 

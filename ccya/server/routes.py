@@ -561,3 +561,82 @@ def healthz():
             "available": False,
             "llm_version": llm_version,
         }
+
+
+@_app_mod.app.get("/api/settings")
+async def get_settings():
+    """Return the current 'game:' section of config.yaml."""
+    game_config = _app_mod.config.get("game", {})
+    # Flatten nested keys for UI consumption
+    debug = game_config.get("debug", {}) or {}
+    return JSONResponse({
+        "momentum_floor": game_config.get("momentum_floor"),
+        "consecutive_pressure_threshold": game_config.get("consecutive_pressure_threshold"),
+        "thread_deescalate_on_success": game_config.get("thread_deescalate_on_success"),
+        "warmup_on_start": game_config.get("warmup_on_start", False),
+        "character_creation_enabled": game_config.get("character_creation_enabled", True),
+        "debug_enabled": debug.get("enabled", False),
+        "difficulty_curve": game_config.get("difficulty_curve", "balanced"),
+        "scene_pressure_threshold": game_config.get("scene_pressure_threshold", 3),
+        "scene_imperative_threshold": game_config.get("scene_imperative_threshold", 5),
+        "momentum_pacing_factor": game_config.get("momentum_pacing_factor", 0.5),
+        "near_miss_softening": game_config.get("near_miss_softening", True),
+        "thread_memory_ttl": game_config.get("thread_memory_ttl", 3),
+        "arc_memory_ttl": game_config.get("arc_memory_ttl", 3),
+    })
+
+@_app_mod.app.post("/api/settings")
+async def post_settings(request: Request):
+    """Update the 'game:' section of config.yaml and return updated values."""
+    data = await request.json()
+    if not isinstance(data, dict):
+        return JSONResponse({"error": "Expected JSON object"}, status_code=400)
+
+    game_config = _app_mod.config.get("game", {})
+
+    # Apply updates from request body
+    for key in ("momentum_floor", "consecutive_pressure_threshold"):
+        if key in data:
+            val = int(data[key])
+            game_config[key] = val
+
+    for key in ("thread_deescalate_on_success", "warmup_on_start", "character_creation_enabled"):
+        if key in data:
+            val = bool(data[key])
+            game_config[key] = val
+
+    for key in ("scene_pressure_threshold", "scene_imperative_threshold", "thread_memory_ttl", "arc_memory_ttl"):
+        if key in data:
+            game_config[key] = int(data[key])
+
+    if "momentum_pacing_factor" in data:
+        game_config["momentum_pacing_factor"] = max(0.1, min(2.0, float(data["momentum_pacing_factor"])))
+
+    if "difficulty_curve" in data:
+        valid_curves = ("forgiving", "balanced", "demanding")
+        curve_val = str(data["difficulty_curve"])
+        if curve_val not in valid_curves:
+            return JSONResponse({"error": f"Invalid difficulty_curve. Must be one of {valid_curves}"}, status_code=400)
+        game_config["difficulty_curve"] = curve_val
+
+    for key in ("near_miss_softening",):
+        if key in data:
+            game_config[key] = bool(data[key])
+
+    debug_section = game_config.get("debug", {}) or {}
+    if "debug_enabled" in data:
+        debug_section["enabled"] = bool(data["debug_enabled"])
+    game_config["debug"] = debug_section
+
+    # Persist to disk
+    from ccya.models import save_config as _save_config
+    _save_config("config.yaml", _app_mod.config)
+
+    # Update in-memory config reference so subsequent turns see new values
+    _app_mod.config["game"] = game_config
+
+    # Rebuild engine_config — game fields (momentum_floor, etc.) are read from cfg.get("game")
+    from ccya.engine import build_engine_config as _build_engine_config
+    _app_mod.engine_config = _build_engine_config(_app_mod.config)
+
+    return await get_settings()  # Return updated state
