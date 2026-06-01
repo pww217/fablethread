@@ -225,19 +225,14 @@ async def generate_seed(
     )
 
     messages, pool_selection = _build_generate_seed_messages(env, pack, overrides)
-    messages, _, _ = trim_messages(messages, config.prompt_token_budget)
+    messages, _, _ = trim_messages(messages, config.context_window)
+
     if config.log_prompts:
         _log_prompts(0, "generate_seed", messages)
-    # Source world_facts from scenario (new) or fall back to manifest baseline_facts / world.md parsing (legacy)
-    world_facts: list[str] = (
-        list(pack.scenario.world_facts)
-        if pack.scenario and pack.scenario.world_facts
-        else list(pack.manifest.baseline_facts)
-        if pack.manifest.baseline_facts
-        else parse_world_facts(pack.world_text)
-    )
 
-    for attempt in range(1 + config.generate_seed_max_retries):
+    for attempt in range(1 + config.max_llm_retries):
+        # Source world_facts from scenario (new) or fall back to manifest baseline_facts / world.md parsing (legacy)
+
         if config.log_llm_io:
             _log_llm_io(
                 trace_id=trace_id,
@@ -285,7 +280,7 @@ async def generate_seed(
                 parse_error,
                 extra={"trace_id": trace_id},
             )
-            if attempt < config.generate_seed_max_retries:
+            if attempt < config.max_llm_retries:
                 fb = f"Your output failed to parse: {parse_error}. Common issues: actions must be exactly 4 items; opening_narrative must be at least 50 characters. Re-emit a valid SeedEnvelope JSON only."
                 messages.append({"role": "user", "content": fb})
             continue
@@ -308,7 +303,7 @@ async def generate_seed(
                 parse_error,
                 extra={"trace_id": trace_id},
             )
-            if attempt < config.generate_seed_max_retries:
+            if attempt < config.max_llm_retries:
                 fb = (
                     f"SeedEnvelope validation failed: {parse_error[:300]}. "
                     "Check field types, required fields, and array length constraints. "
@@ -354,5 +349,5 @@ async def generate_seed(
         return envelope, pool_selection
 
     raise RuntimeError(
-        f"generate_seed failed after {1 + config.generate_seed_max_retries} attempts — trace {trace_id}"
+        f"generate_seed failed after {1 + config.max_llm_retries} attempts — trace {trace_id}"
     )

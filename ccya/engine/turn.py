@@ -628,7 +628,7 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
 
     strip_trace_markers_in_messages(ruling_messages)
     ruling_messages, ruling_trimmed, ruling_trimmed_chars = trim_messages(
-        ruling_messages, config.prompt_token_budget,
+        ruling_messages, config.context_window,
     )
     if config.log_prompts:
         _log_prompts(state.get("meta", {}).get("turn", 0) + 1, "ruling", ruling_messages)
@@ -916,7 +916,7 @@ async def run_turn(
 
         strip_trace_markers_in_messages(narr_messages)
         narr_messages, narr_trimmed, narr_trimmed_chars = trim_messages(
-            narr_messages, config.prompt_token_budget,
+            narr_messages, config.context_window,
         )
         if config.log_prompts:
             _log_prompts(state.get("meta", {}).get("turn", 0) + 1, "narrate", narr_messages)

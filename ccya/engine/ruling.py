@@ -61,11 +61,11 @@ async def _call_ruling(
 
     _log.info(
         "ruling call start turn=%d messages=%d max_retries=%d",
-        turn, len(messages), config.max_ruling_retries,
+        turn, len(messages), config.max_llm_retries,
         extra={"trace_id": trace_id, "turn": turn},
     )
 
-    for attempt in range(1 + config.max_ruling_retries):
+    for attempt in range(1 + config.max_llm_retries):
         try:
             if config.log_llm_io:
                 _log_llm_io(
@@ -107,11 +107,12 @@ async def _call_ruling(
             _log.warning(
                 "ruling parse failed (attempt %d/%d): %s",
                 attempt + 1,
-                1 + config.max_ruling_retries,
+                1 + config.max_llm_retries,
                 parse_error,
                 extra={"trace_id": trace_id, "turn": turn},
             )
-            if attempt < config.max_ruling_retries:
+
+            if attempt < config.max_llm_retries:
                 fb = (
                     f"Your previous output failed to parse: {parse_error[:200]}. "
                     "Re-emit the IntentEnvelope JSON only. No prose."

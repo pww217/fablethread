@@ -19,12 +19,11 @@ def setup_logging(config: dict[str, Any] | None = None) -> logging.Logger:
     if config is None:
         config = load_config()
 
-    log_cfg = config.get("logging", {})
-    log_file = log_cfg.get("file", "logs/llm-g.log")
+    log_cfg = config.get("server", {}).get("logging", {})
     level_str = log_cfg.get("level", "INFO")
     level = getattr(logging, level_str, logging.INFO)
 
-    log_path = Path(log_file)
+    log_path = Path("logs/game.log")
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     logger = logging.getLogger("ccya")
