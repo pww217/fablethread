@@ -56,6 +56,7 @@ from ccya.state import (
     reconcile_delta,
     resolve_inventory_remove_target,
     save_state,
+    snapshot_state,
 )
 from ccya.state.delta_builder import _merge_arc_update
 
@@ -1077,7 +1078,9 @@ async def run_turn(
             comp = state.get("compendium", {}).get("npcs", {})
             location = state.get("location", {})
             for cu in (delta.compendium_npc_update or []):
-                entry = comp.setdefault(cu.id, {})
+                entry = comp.get(cu.id)
+                if entry is None:
+                    continue
                 entry["last_seen"] = {
                     "turn": turn_no,
                     "location_id": location.get("id", ""),
@@ -1249,6 +1252,8 @@ async def run_turn(
             },
         }
         append_event(save_dir, event)
+        # Snapshot pre-turn state before overwriting — used by delete_last_turn
+        snapshot_state(save_dir)
         save_state(save_dir, state)
         append_chronicle(
             save_dir,
