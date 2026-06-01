@@ -838,7 +838,9 @@ body {
 .turn-log-line.tl-inv-loss { color: #f87171cc; }
 .turn-log-line.tl-pl       { color: #facc15cc; }
 .turn-log-line.tl-loc      { color: #fb923ccc; }
-.turn-log-line.tl-fa     { color: #60a5facc; }
+.turn-log-line.tl-fa       { color: #60a5facc; }
+.turn-log-line.tl-th       { color: #c084fccc; }
+.turn-log-line.tl-qu       { color: #f9a8d4cc; }
 .turn-log-empty {
   color: var(--text-muted);
   font-style: italic;
@@ -861,12 +863,13 @@ body {
   padding: 1px 0 1px 6px;
   border-left: 2px solid var(--border-subtle);
 }
-.turn-changes-line.tc-inv    { border-color: #fbbf24; color: #fbbf24cc; }
+.turn-changes-line.tc-inv      { border-color: #fbbf24; color: #fbbf24cc; }
 .turn-changes-line.tc-inv-gain { border-color: #4ade80; color: #4ade80cc; }
 .turn-changes-line.tc-inv-loss { border-color: #f87171; color: #f87171cc; }
-.turn-changes-line.tc-pl     { border-color: #facc15; color: #facc15cc; }
-.turn-changes-line.tc-loc    { border-color: #fb923c; color: #fb923ccc; }
-.turn-changes-line.tc-fa     { border-color: #60a5fa; color: #60a5facc; }
+.turn-changes-line.tc-pl       { border-color: #facc15; color: #facc15cc; }
+.turn-changes-line.tc-loc      { border-color: #fb923c; color: #fb923ccc; }
+.turn-changes-line.tc-fa       { border-color: #60a5fa; color: #60a5facc; }
+.turn-changes-line.tc-th       { border-color: #c084fc; color: #c084fccc; }
 
 .turn-metrics {
   margin: 8px 0 4px;

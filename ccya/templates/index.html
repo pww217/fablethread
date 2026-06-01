@@ -391,7 +391,7 @@ function _headerTaglineFromState(st) {
 }
 
 function _groupChangeLines(lines) {
-    const invGain = [], invLoss = [], pl = [], loc = [], fa = [];
+    const invGain = [], invLoss = [], pl = [], loc = [], fa = [], th = [];
     (lines || []).forEach((ln) => {
         const s = String(ln);
         if (s.startsWith('🎒')) {
@@ -403,9 +403,10 @@ function _groupChangeLines(lines) {
         else if (s.startsWith('🩺')) pl.push(s);
         else if (s.startsWith('📍')) loc.push(s);
         else if (s.startsWith('📜')) fa.push(s);
+        else if (s.startsWith('🧵')) th.push(s);
         else invGain.push(s);
     });
-    return { invGain, invLoss, pl, loc, fa };
+    return { invGain, invLoss, pl, loc, fa, th };
 }
 
 function _buildTurnChanges(changeLines) {
@@ -414,6 +415,7 @@ function _buildTurnChanges(changeLines) {
     const sections = [
         ['tc-inv-gain', g.invGain],
         ['tc-inv-loss', g.invLoss],
+        ['tc-th',       g.th],
         ['tc-pl',       g.pl],
         ['tc-loc',      g.loc],
         ['tc-fa',       g.fa],
@@ -457,6 +459,7 @@ function _prependTurnLogTurn(turn, changeLines, rules) {
         else if (s.startsWith('🩺')) cls += ' tl-pl';
         else if (s.startsWith('📍')) cls += ' tl-loc';
         else if (s.startsWith('📜')) cls += ' tl-fa';
+        else if (s.startsWith('🧵')) cls += ' tl-th';
         row.className = cls;
         row.setAttribute('data-md', '');
         row.textContent = ln;
@@ -1489,7 +1492,7 @@ function game() {
 
             const _drainRenderFn = (currentDisplayBuf) => {
                 _configureMarked();
-                const html = _renderMarkdown(currentDisplayBuf);
+                const html = _renderMarkdown(currentDisplayBuf.replace(/\s+$/, ''));
                 textDiv.innerHTML = html + '<span class="streaming-cursor"></span>';
                 // Smooth scroll so textDiv top stays near top of narrative-panel.
                 // Uses a fresh scroll animation each call — no state carried across calls.

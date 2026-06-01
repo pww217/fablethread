@@ -6,6 +6,8 @@ import logging
 from typing import Any
 
 
+_THREAD_EMOJI = "🧵"
+
 _log = logging.getLogger(__name__)
 
 
@@ -289,8 +291,6 @@ def summarize_changes(
                     changes.append("reactivated" if po.get("active") else "dormant")
                 if po.get("summary") and po.get("summary") != pr.get("summary"):
                     changes.append("summary updated")
-                if po.get("progress") and po.get("progress") != pr.get("progress"):
-                    changes.append("progress updated")
                 if changes:
                     threads.append({
                         "kind": "updated",
@@ -369,6 +369,31 @@ def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
             old = str(row.get("old") or "")
             new = str(row.get("new") or "")
             lines.append(f"📜 ↻ {old} → {new}")
+    for row in ch.get("threads") or []:
+        if not isinstance(row, dict):
+            continue
+        k = row.get("kind")
+        summary = str(row.get("summary") or row.get("id") or "")
+        detail = str(row.get("detail") or "")
+        scope = str(row.get("scope") or "")
+        tag = f" [{scope.capitalize()}]" if scope in ("scene", "arc") else ""
+        if k == "added":
+            lines.append(f"{_THREAD_EMOJI} + {summary}{tag}")
+        elif k == "updated":
+            lines.append(f"{_THREAD_EMOJI} ~ {summary} ({detail})")
+        elif k == "resolved":
+            snippet = f" — {detail}" if detail else ""
+            lines.append(f"{_THREAD_EMOJI} ✓ {summary}{snippet}")
+        elif k == "failed":
+            snippet = f" — {detail}" if detail else ""
+            lines.append(f"{_THREAD_EMOJI} ✗ {summary}{snippet}")
+        elif k == "abandoned":
+            lines.append(f"{_THREAD_EMOJI} ⊘ {summary}")
+        elif k == "removed":
+            lines.append(f"{_THREAD_EMOJI} − {summary}{' (' + detail + ')' if detail else ''}")
+        elif k == "arc_resolved":
+            snippet = f" — {detail}" if detail else ""
+            lines.append(f"{_THREAD_EMOJI} ↻ {summary}{snippet}")
     for row in ch.get("momentum") or []:
         if not isinstance(row, dict):
             continue

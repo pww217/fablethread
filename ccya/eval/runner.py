@@ -569,9 +569,9 @@ async def run_scenario(
     else:
         dst_events.write_text("")
 
-    # NOTE: state.yaml is intentionally NOT copied — its content is fully
-    # reproduced inside <scenario>.trace.md as the last turn's "State After
-    # Turn" snapshot. See Phase 04 of eval-system-hardening.
+    state_yaml_src = save_dir / "state.yaml"
+    if state_yaml_src.exists():
+        shutil.copy2(state_yaml_src, artifacts_dir / f"{scenario.id}.state.yaml")
 
     run_result = RunResult(
         scenario_id=scenario.id,
