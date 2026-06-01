@@ -41,7 +41,7 @@ Add three orthogonal improvements: (A) validate domain judge output format befor
 - **R3**: Score regression flags depend on `previous_scores` being available from the previous run's judge.md files. The judge system already loads these at judge.py:1086-1094.
 
 ## Status
-`open`
+`completed`
 
 ## Phases
 

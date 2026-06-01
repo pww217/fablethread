@@ -73,6 +73,7 @@ class JudgeResult:
     trace_md_path: str = ""
     judge_md_path: str = ""
     previous_scores: dict[str, Any] | None = None
+    suspicious: bool = False
 
 
 # ---- Per-judge trace field masks ----------------------------------------
@@ -1008,6 +1009,7 @@ async def _run_single_judge(
     # trace was already written by caller before this function was invoked
 
     scores, body = parse_judge_response(raw)
+    suspicious = not scores and not body.strip()
     return JudgeResult(
         raw_response=raw,
         body_md=body,
@@ -1018,6 +1020,7 @@ async def _run_single_judge(
         trace_md_path=str(trace_md_path),
         judge_md_path=str(judge_md_path),
         previous_scores=previous_scores,
+        suspicious=suspicious,
     )
 
 

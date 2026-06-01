@@ -586,7 +586,7 @@ def check_thread_update_id_valid(event: dict[str, Any]) -> dict[str, Any]:
         t.get("id") for t in ((event.get("state_snapshot") or {}).get("arc") or {}).get("threads") or []
         if isinstance(t, dict) and t.get("id")
     }
-    bad = [tid for tid in thread_updates if tid not in state_thread_ids]
+    bad = [t.get("id") for t in thread_updates if isinstance(t, dict) and t.get("id") and t["id"] not in state_thread_ids]
     if bad:
         return {
             "assertion": "universal.thread_update.valid_id",
@@ -1063,6 +1063,8 @@ def run_all_universal_asserts(
         check_no_removed_npc_states(event),
         check_momentum_floor_no_relief(event, prev_event, event_window=event_window),
         check_no_negative_inventory(event),
+        check_inventory_remove_existence(event, prev_event),
+        check_thread_update_id_valid(event),
         check_orphan_conditions(event),
         check_thread_add_applied(event, prev_event, event_window=event_window),
         check_beat_type_variety(event, event_window=event_window),
