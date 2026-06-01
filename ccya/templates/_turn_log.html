@@ -42,6 +42,8 @@
         {% set cls = cls ~ ' tl-fa' %}
     {% elif ln.startswith('🗺️') %}
         {% set cls = cls ~ ' tl-qu' %}
+    {% elif ln.startswith('🧵') %}
+        {% set cls = cls ~ ' tl-th' %}
     {% endif %}
     <div class="{{ cls }}" data-md>{{ ln }}</div>
     {% endfor %}
