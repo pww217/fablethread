@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from ccya.engine.markers import strip_trace_markers
 from ccya.state import load_state
 from .metrics import _fmt_tokens_exact
 from .tv_mirror import _STREAMS, STREAM_BY_KEY, _get_nested
@@ -485,7 +486,7 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
 
             prompts[sd.key] = {
                 "system": p_blob.get("rendered_system") or "",
-                "user": p_blob.get("rendered_user") or "",
+                "user": strip_trace_markers(p_blob.get("rendered_user") or ""),
                 "output": out_str,
             }
 

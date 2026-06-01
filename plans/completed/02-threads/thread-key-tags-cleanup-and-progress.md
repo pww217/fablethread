@@ -43,7 +43,7 @@ Eliminate dead fields on `ArcThread` (`key`, `tags`) that add complexity without
 
 ## Status
 
-`open`
+`completed`
 
 ## Phases
 
