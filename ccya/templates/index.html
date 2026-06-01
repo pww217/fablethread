@@ -30,6 +30,42 @@
         <button type="button" class="turn-log-toggle" id="turn-log-toggle" title="Turn history" aria-expanded="false">
             <span class="turn-log-toggle-label">📖 Chronicle</span>
         </button>
+        <div class="header-menu-wrapper" x-data="{ menuOpen: false }">
+            <button type="button" 
+                    @click="menuOpen = !menuOpen; settingsPanelOpen = false"
+                    :aria-expanded="menuOpen"
+                    title="Menu"
+                    class="gear-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+            </button>
+
+            <!-- Dropdown menu -->
+            <div x-show="menuOpen" 
+                 @click.away="menuOpen = false"
+                 x-transition:enter.transition.duration.100ms
+                 x-cloak
+                 class="header-menu-dropdown">
+                <button type="button" class="menu-item menu-item--new-game" @click="openPackPicker(); menuOpen = false">
+                    New Game
+                </button>
+                <button type="button" class="menu-item menu-item--retry-turn" 
+                        x-show="turnNum > 0"
+                        :disabled="submitting || starting"
+                        @click="retryTurn(); menuOpen = false">
+                    ↻ Retry Turn
+                </button>
+                <div class="menu-divider"></div>
+                <button type="button" class="menu-item menu-item--settings" 
+                        x-show="gameStarted && turnNum > 0"
+                        @click="openSettingsPanel(); menuOpen = false">
+                    Settings…
+                </button>
+            </div>
+        </div>
+
         <div class="header-meta">
             <span id="mock-dot" class="mock-dot" title="Checking Ollama…"></span>
             <span class="turn-counter" x-show="gameStarted" x-text="'Turn\u00a0' + turnNum"></span>
@@ -224,7 +260,99 @@
     <div class="sidebar-backdrop"
          x-show="leftDrawerOpen || rightDrawerOpen"
          x-transition.opacity.duration.200ms
-         @click="closeDrawer('left'); closeDrawer('right')"></div>
+          @click="closeDrawer('left'); closeDrawer('right')"></div>
+
+    <!-- Settings Panel Overlay -->
+    <template x-if="settingsPanelOpen">
+        <div class="settings-overlay" @keydown.escape.window="closeSettingsPanel()">
+            <div class="settings-backdrop" @click="closeSettingsPanel()"></div>
+            <aside class="settings-panel" role="dialog" aria-labelledby="settings-title">
+                <div class="settings-head">
+                    <span id="settings-title">Game Settings</span>
+                    <button type="button" class="settings-close" @click="closeSettingsPanel()" aria-label="Close">×</button>
+                </div>
+
+                <div class="settings-body">
+                    <!-- Pacing -->
+                    <fieldset class="settings-fieldset">
+                        <legend>Pacing</legend>
+                        
+                        <label class="setting-row">
+                            <span class="setting-label">Momentum Floor</span>
+                            <input type="number" x-model.number="settings.momentum_floor" min="-10" max="10"/>
+                        </label>
+
+                        <label class="setting-row">
+                            <span class="setting-label">Consecutive Pressure Threshold</span>
+                            <input type="number" x-model.number="settings.consecutive_pressure_threshold" min="1" max="20"/>
+                        </label>
+                    </fieldset>
+
+                    <!-- Thread Behavior -->
+                    <fieldset class="settings-fieldset">
+                        <legend>Thread Behavior</legend>
+                        
+                        <div class="setting-row setting-toggle">
+                            <span class="setting-label">De-escalate threads on success</span>
+                            <button type="button" 
+                                    @click="settings.thread_deescalate_on_success = !settings.thread_deescalate_on_success"
+                                    :class="{ 'toggle-on': settings.thread_deescalate_on_success }"
+                                    class="setting-toggle-btn">
+                                <div class="toggle-knob"></div>
+                            </button>
+                        </div>
+                    </fieldset>
+
+                    <!-- Game Options -->
+                    <fieldset class="settings-fieldset">
+                        <legend>Game Options</legend>
+                        
+                        <div class="setting-row setting-toggle">
+                            <span class="setting-label">Character Creation</span>
+                            <button type="button" 
+                                    @click="settings.character_creation_enabled = !settings.character_creation_enabled"
+                                    :class="{ 'toggle-on': settings.character_creation_enabled }"
+                                    class="setting-toggle-btn">
+                                <div class="toggle-knob"></div>
+                            </button>
+                        </div>
+
+                        <label class="setting-row setting-warn">
+                            <span class="setting-label">Warmup on Server Start</span>
+                            <input type="checkbox" x-model="settings.warmup_on_start"/>
+                            <span class="setting-hint">Requires server restart to take effect</span>
+                        </label>
+
+                        <div class="setting-row setting-toggle">
+                            <span class="setting-label">Debug Mode</span>
+                            <button type="button" 
+                                    @click="settings.debug_enabled = !settings.debug_enabled"
+                                    :class="{ 'toggle-on': settings.debug_enabled }"
+                                    class="setting-toggle-btn">
+                                <div class="toggle-knob"></div>
+                            </button>
+                        </div>
+                    </fieldset>
+
+                    <!-- Status message -->
+                    <div x-show="settingsStatus.text" 
+                         :class="'settings-status ' + settingsStatus.class"
+                         x-text="settingsStatus.text">
+                    </div>
+                </div>
+
+                <div class="settings-foot">
+                    <button type="button" 
+                            @click="saveSettings()"
+                            :disabled="savingSettings"
+                            class="settings-save-btn">
+                        <span x-show="!savingSettings">Save</span>
+                        <span x-show="savingSettings">Saving…</span>
+                    </button>
+                </div>
+            </aside>
+        </div>
+    </template>
 
 </div><!-- .app-shell -->
 
@@ -1630,6 +1758,53 @@ function game() {
             } else {
                 document.getElementById('player-input')?.focus();
             }
+        },
+
+        // Settings panel state
+        settingsPanelOpen: false,
+        savingSettings: false,
+        settingsStatus: { text: '', class: '' },
+        settings: {},
+
+        async loadSettings() {
+            try {
+                const resp = await fetch('/api/settings');
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                this.settings = await resp.json();
+            } catch (e) {
+                console.error('Failed to load settings:', e);
+            }
+        },
+
+        async saveSettings() {
+            this.savingSettings = true;
+            this.settingsStatus = { text: '', class: '' };
+            
+            try {
+                const resp = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.settings),
+                });
+                
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                this.settings = await resp.json();
+                
+                this.settingsStatus = { text: 'Settings saved.', class: 'settings-status--success' };
+            } catch (e) {
+                console.error('Failed to save settings:', e);
+                this.settingsStatus = { text: `Save failed: ${e.message}`, class: 'settings-status--error' };
+            } finally {
+                this.savingSettings = false;
+            }
+        },
+
+        openSettingsPanel() {
+            this.settingsPanelOpen = true;
+        },
+
+        closeSettingsPanel() {
+            this.settingsPanelOpen = false;
         },
     };
 }
