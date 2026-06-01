@@ -8,7 +8,7 @@ constraints:
   pc_stat_total_range: [12, 18]
   prose_word_range: [400, 700]
   # composition
-   required_inventory_kinds: [weapon, tool]
+  required_inventory_kinds: [weapon, tool]
   # creativity guards
   forbid_cliches:
     - "the last surviving samurai"
