@@ -8,6 +8,7 @@ Extract suggested player actions, outcome summary, thread updates, and arc resol
   "outcome_summary": "",
   "gm_beat": null,
   "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent", "active": true, "progress": "optional progress note"}, {"id": "..."}],
+  "thread_resolve": [{"id": "thread_id", "resolution_state": "resolved|failed|abandoned", "outcome": "One sentence outcome."}],
   "arc_resolve": {"resolution": "How this arc concluded narratively.", "visible_goal": "The next arc's goal.", "goal_context": "Why this goal matters to the PC."},
   "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal"},
   "world_state_add": [{"id": "new_fact_id", "text": "durable world fact text", "tier": "persistent"}],
@@ -40,7 +41,12 @@ Examples:
 
 Scope determines thread lifetime. **Scene-scoped threads are automatically deleted when the location changes.** Arc-scoped threads persist across locations. Choose deliberately.
 
-`thread_update`: A list of objects with `id` (snake_case) and optional fields — `urgency` (change priority level), `active` (boolean — set `true` to activate a dormant thread, `false` to demote to dormant), and/or `progress` (free-text progress note). Only include threads whose narrative advanced meaningfully this turn. Example: `[{"id": "the_missing_ore", "urgency": "urgent", "active": true, "progress": "2/3 leads followed"}]`.
+`thread_update`: A list of objects with `id` (snake_case) and optional fields — `summary` (rewrite the thread's summary), `urgency` (change priority level), `active` (boolean — set `true` to activate a dormant thread, `false` to demote to dormant), and/or `progress` (free-text progress note). Only include threads whose narrative advanced meaningfully this turn. Example: `[{"id": "the_missing_ore", "summary": "broadened thread description", "urgency": "urgent", "active": true, "progress": "2/3 leads followed"}]`.
+
+IMPORTANT: A thread's identity is its `id` — not its current summary, progress, or urgency. When a situation evolves, update the existing thread via `thread_update` with new wording, rather than creating a new thread. Do not create a thread for every encounter variant — broaden it. Examples:
+- Instead of creating `enemy_presence_in_ruins` + `alleyway_pursuit` + `encirclement_threat` as three threads, maintain one broader thread like `enemy_contact_advance` and update its summary/progress each turn.
+- Instead of creating `naval_coordination_failure` and `electronic_jamming_interference` as separate threads, keep one thread and widen its summary to encompass both symptoms.
+- When a threat escalates (e.g., sniper → pursuit → encirclement), update the existing thread to reflect the new reality. Do not spawn a new thread per escalation step.
 
 CRITICAL RULES for including a thread ID in thread_update:
 - Include ONLY if this turn's events DIRECTLY affected that specific thread. The player took meaningful action toward it, or its narrative arc clearly progressed.
@@ -50,7 +56,27 @@ CRITICAL RULES for including a thread ID in thread_update:
 
 `thread_add`: A new ArcThread object when a genuinely new story tension emerges this turn. CRITICAL: Only emit thread_add when `pacing_context.gate` shows `"allow"` — if gate is `"block_escalate"`, do NOT add threads regardless of narrative context. The engine already decided the pacing doesn't support escalation. Thread must have: id (snake_case), summary, scope ("scene" for short-lived tension tied to current location/NPCs — **deleted on location change**, "arc" for persistent story tension that spans locations), urgency (`"background"`, `"normal"`, or `"urgent"` only — no other values).
 
-CRITICAL: Before emitting `thread_add`, check all active and latent thread summaries for conceptual overlap. If an existing thread covers the same story tension (even with a different ID), do NOT emit `thread_add` — instead update that existing thread via `thread_update`. Only create new threads when the tension is genuinely distinct.
+CRITICAL — CONSOLIDATE BEFORE CREATING: Before emitting `thread_add`, scan every active and latent thread for conceptual overlap with the proposed new thread. Overlap means: same antagonist, same problem domain (e.g., both about enemy forces), same NPC, same location-based threat, or same thematic tension. If ANY existing thread covers related ground — even with a different ID, different wording, or a different specific instance — do NOT create a new thread. Instead, update the existing thread via `thread_update` with a broadened summary and new progress.
+
+Only create a new thread when the tension is genuinely, fundamentally distinct from everything already tracked. Examples of when to UPDATE an existing thread instead:
+- A sniper threat and a pursuer threat are both "enemy contact" — update one broader thread.
+- A jammed radio and a weak signal are both "communication problems" — update one thread.
+- A guard confrontation and a locked door are both "obstacles to the objective" — update one thread.
+- An NPC's moral crisis and a faction's propaganda campaign are both "thematic pressure" — consider keeping one thread.
+
+When in doubt about overlap, UPDATE an existing thread rather than creating a new one. You can always narrow later.
+
+`thread_resolve`: A list of objects to mark individual threads as resolved, failed, or abandoned — independent of arc resolution. Use this when a thread has run its course, was superseded by events, or merged into a broader concern. THIS IS VALID — not every thread needs a dramatic completion. Example: `[{"id": "enemy_presence_in_ruins", "resolution_state": "abandoned", "outcome": "Threats absorbed into broader encirclement situation."}]`
+
+Valid `resolution_state` values: `"resolved"` (thread reached its conclusion), `"failed"` (thread's goal was thwarted), `"abandoned"` (thread superseded, merged, or no longer relevant — use for consolidation).
+
+When to resolve:
+- Thread reached its natural conclusion → `"resolved"` or `"failed"`.
+- Thread's concern was absorbed into a different, broader thread → `"abandoned"` (resolve the narrower one, keep the broader one; outcome explains why).
+- Thread no longer relevant to the current story direction → `"abandoned"`.
+- Thread existed long enough that its urgency decayed to background without renewal → `"abandoned"`.
+
+CRITICAL: Do NOT resolve threads that are still meaningfully active. `thread_resolve` removes the thread from the active list — use it decisively but sparingly. Prefer `thread_update {active: false}` to dormant-demote threads that might resurface.
 
 ## Arc resolution
 
