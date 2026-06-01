@@ -280,7 +280,11 @@ def load_pack(pack_id: str, packs_dir: Path) -> Pack:
         if not p.exists():
             return {}
         with open(p) as f:
-            return yaml.safe_load(f) or {}
+            try:
+                return yaml.safe_load(f) or {}
+            except Exception:
+                _log.error("YAML parse failed in %s", p)
+                raise
 
     seed: SeedState | None = None
     opening_text = ""
