@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 import logging
 
 from ccya.eval.config import EvalConfig
@@ -194,6 +196,8 @@ def _collect_flags(
     regressions: list[StreamRegression],
     run_result: RunResult,
     judge: JudgeResult | list[JudgeResult] | None,
+    cur_state: dict[str, Any] | None = None,
+    prev_state: dict[str, Any] | None = None,
 ) -> list[Flag]:
     flags: list[Flag] = []
 
@@ -314,6 +318,51 @@ def _collect_flags(
                 ),
             )
 
+        judges_list = judge if isinstance(judge, list) else [judge]
+        suspicious_ids = [j.judge_id for j in judges_list if j.suspicious]
+        if suspicious_ids:
+            flags.append(
+                Flag(
+                    kind="judge_output_suspicious",
+                    summary=f"suspicious judge output: {', '.join(suspicious_ids)}",
+                    detail="Judge returned no analysis text and no valid scores. Meta judge synthesis may be unreliable.",
+                ),
+            )
+
+        score_keys = [
+            "mechanical_score", "narrative_score", "system_cohesion_score",
+            "prompt_quality_score", "state_fidelity_rate", "prompt_adherence_rate",
+        ]
+        regressed: list[str] = []
+        for key in score_keys:
+            cur_val = merged.get(key)
+            prev_val = prev_scores.get(key)
+            if cur_val is not None and prev_val is not None and cur_val < prev_val:
+                regressed.append(f"{key}: {prev_val} → {cur_val} (-{prev_val - cur_val})")
+        if regressed:
+            flags.append(
+                Flag(
+                    kind="score_regression",
+                    summary="score regression(s): " + "; ".join(regressed),
+                    detail="One or more domain scores decreased compared to the previous run.",
+                ),
+            )
+
+    if cur_state is not None and prev_state is not None:
+        state_diffs = _compare_state_structures(cur_state, prev_state)
+        removed_items = [d for d in state_diffs if d["removed"]]
+        if removed_items:
+            summary_parts = []
+            for d in removed_items:
+                summary_parts.append(f"{d['field']}: removed {', '.join(str(x) for x in d['removed'])}")
+            flags.append(
+                Flag(
+                    kind="state_comparison_diff",
+                    summary="state structure changed: " + "; ".join(summary_parts),
+                    detail="Items or threads present in the previous run are missing from the current run. See State Comparison section.",
+                ),
+            )
+
     return flags
 
 
@@ -407,12 +456,25 @@ def _render_judge_summary(
 
     # Previous scores comparison (use meta or last judge)
     if meta.previous_scores:
-        prev_mech = meta.previous_scores.get("mechanical_score")
-        prev_narr = meta.previous_scores.get("narrative_score")
-        if prev_mech is not None:
-            parts.append(f"**Previous mechanical:** {prev_mech}/5")
-        if prev_narr is not None:
-            parts.append(f"**Previous narrative:** {prev_narr}/5")
+        score_keys = [
+            ("mechanical_score", "Mechanical", _fmt_score, "/5"),
+            ("narrative_score", "Narrative", _fmt_score, "/5"),
+            ("system_cohesion_score", "System Cohesion", _fmt_score, "/5"),
+            ("prompt_quality_score", "Prompt Quality", _fmt_score, "/5"),
+            ("state_fidelity_rate", "State Fidelity", _fmt_rate, ""),
+            ("prompt_adherence_rate", "Prompt Adherence", _fmt_rate, ""),
+        ]
+        deltas: list[str] = []
+        for key, label, fmt_fn, suffix in score_keys:
+            cur_val = merged.get(key)
+            prev_val = meta.previous_scores.get(key)
+            if prev_val is not None and cur_val is not None and cur_val != prev_val:
+                diff = prev_val - cur_val if isinstance(cur_val, (int, float)) else 0
+                arrow = "▼" if diff > 0 else "▲"
+                deltas.append(f"**{label}:** {fmt_fn(cur_val)}{suffix} (was {fmt_fn(prev_val)}{suffix}, {arrow}{abs(diff)})")
+        if deltas:
+            parts.append("**Score change vs previous run:**")
+            parts.append("  ".join(deltas))
         parts.append("")
 
     # Artifact links for all judges
@@ -711,6 +773,84 @@ def _compute_pacing_metrics(events: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def _compare_state_structures(cur_state: dict[str, Any], prev_state: dict[str, Any]) -> list[dict[str, Any]]:
+    """Compare structural fields between two state dicts.
+
+    Returns a list of diff dicts: {"field": str, "added": list, "removed": list}.
+    """
+    diffs: list[dict[str, Any]] = []
+
+    # Inventory: set of item IDs
+    cur_inv_ids = {
+        i["id"] for i in (cur_state.get("inventory") or [])
+        if isinstance(i, dict) and i.get("id")
+    }
+    prev_inv_ids = {
+        i["id"] for i in (prev_state.get("inventory") or [])
+        if isinstance(i, dict) and i.get("id")
+    }
+    added_inv = cur_inv_ids - prev_inv_ids
+    removed_inv = prev_inv_ids - cur_inv_ids
+    if added_inv or removed_inv:
+        diffs.append({"field": "inventory.ids", "added": sorted(added_inv), "removed": sorted(removed_inv)})
+
+    # Threads: set of thread IDs
+    cur_thread_ids = {
+        t.get("id") for t in ((cur_state.get("arc") or {}).get("threads") or [])
+        if isinstance(t, dict) and t.get("id")
+    }
+    prev_thread_ids = {
+        t.get("id") for t in ((prev_state.get("arc") or {}).get("threads") or [])
+        if isinstance(t, dict) and t.get("id")
+    }
+    added_threads = cur_thread_ids - prev_thread_ids
+    removed_threads = prev_thread_ids - cur_thread_ids
+    if added_threads or removed_threads:
+        diffs.append({"field": "thread.ids", "added": sorted(added_threads), "removed": sorted(removed_threads)})
+
+    # Conditions: set of condition IDs
+    cur_cond_ids = {
+        c.get("id") for c in ((cur_state.get("meta") or {}).get("conditions") or [])
+        if isinstance(c, dict) and c.get("id")
+    }
+    prev_cond_ids = {
+        c.get("id") for c in ((prev_state.get("meta") or {}).get("conditions") or [])
+        if isinstance(c, dict) and c.get("id")
+    }
+    added_conds = cur_cond_ids - prev_cond_ids
+    removed_conds = prev_cond_ids - cur_cond_ids
+    if added_conds or removed_conds:
+        diffs.append({"field": "conditions.ids", "added": sorted(added_conds), "removed": sorted(removed_conds)})
+
+    # Quests: set of quest IDs + status
+    cur_quests = {
+        (q.get("id"), q.get("status")) for q in ((cur_state.get("arc") or {}).get("quests") or [])
+        if isinstance(q, dict) and q.get("id")
+    }
+    prev_quests = {
+        (q.get("id"), q.get("status")) for q in ((prev_state.get("arc") or {}).get("quests") or [])
+        if isinstance(q, dict) and q.get("id")
+    }
+    added_quests = cur_quests - prev_quests
+    removed_quests = prev_quests - cur_quests
+    if added_quests or removed_quests:
+        diffs.append({
+            "field": "quests.id_status",
+            "added": sorted(added_quests),
+            "removed": sorted(removed_quests),
+        })
+
+    # NPC compendium: set of NPC IDs
+    cur_npc_ids = set(((cur_state.get("npcs") or {}).get("compendium") or {}).keys())
+    prev_npc_ids = set(((prev_state.get("npcs") or {}).get("compendium") or {}).keys())
+    added_npcs = cur_npc_ids - prev_npc_ids
+    removed_npcs = prev_npc_ids - cur_npc_ids
+    if added_npcs or removed_npcs:
+        diffs.append({"field": "npc.compendium", "added": sorted(added_npcs), "removed": sorted(removed_npcs)})
+
+    return diffs
+
+
 def write_full_report(
     run_result: RunResult,
     *,
@@ -740,7 +880,22 @@ def write_full_report(
         warn_pct=eval_cfg.report.token_warn_pct,
         fail_pct=eval_cfg.report.token_fail_pct,
     )
-    flags = _collect_flags(cur_metrics, regressions, run_result, judges if judges else None)
+    cur_state: dict[str, Any] | None = None
+    prev_state: dict[str, Any] | None = None
+    cur_state_path = output_dir / "artifacts" / f"{run_result.scenario_id}.state.yaml"
+    if cur_state_path.exists():
+        try:
+            cur_state = yaml.safe_load(cur_state_path.read_text())
+        except Exception:
+            _log.warning("failed to load cur_state.yaml", exc_info=True)
+    if prev_run_path is not None:
+        prev_state_path = prev_run_path / "artifacts" / f"{run_result.scenario_id}.state.yaml"
+        if prev_state_path.exists():
+            try:
+                prev_state = yaml.safe_load(prev_state_path.read_text())
+            except Exception:
+                _log.warning("failed to load prev_state.yaml", exc_info=True)
+    flags = _collect_flags(cur_metrics, regressions, run_result, judges if judges else None, cur_state=cur_state, prev_state=prev_state)
 
     _log.info("report: scenario=%s turns=%d", run_result.scenario_id, len(cur_events))
     if not judges:
@@ -795,6 +950,28 @@ def write_full_report(
     pacing = _compute_pacing_metrics(cur_events)
     if pacing:
         parts.append(pacing)
+
+    # State Comparison section (only when a previous run exists)
+    if prev_run_path is not None:
+        cur_state_path = output_dir / "artifacts" / f"{run_result.scenario_id}.state.yaml"
+        prev_state_path = prev_run_path / "artifacts" / f"{run_result.scenario_id}.state.yaml"
+        if cur_state_path.exists() and prev_state_path.exists():
+            try:
+                cur_state = yaml.safe_load(cur_state_path.read_text())
+                prev_state = yaml.safe_load(prev_state_path.read_text())
+                state_diffs = _compare_state_structures(cur_state, prev_state)
+                if state_diffs:
+                    parts.append("## State Comparison\n")
+                    parts.append("| Field | Added | Removed |")
+                    parts.append("|---|---|---|")
+                    for d in state_diffs:
+                        added_str = ", ".join(str(x) for x in d["added"]) if d["added"] else "—"
+                        removed_str = ", ".join(str(x) for x in d["removed"]) if d["removed"] else "—"
+                        parts.append(f"| `{d['field']}` | {added_str} | {removed_str} |")
+                    parts.append("")
+            except Exception:
+                _log.warning("failed to load or compare state.yaml", exc_info=True)
+
     parts.append("## Turn Metrics\n")
     parts.append(_render_combined_table(cur_metrics, prev_metrics, run_result))
     if regressions:
