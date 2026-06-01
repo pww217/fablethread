@@ -12,8 +12,8 @@ flowchart LR
 
     subgraph IN["Inputs"]
         N1["state (full —<br>pc, location, scene,<br>inventory, compendium)"]
-        N2["prior_history<br>(last 10 incremental history bullets)"]
-        N3["recent_turns (last window of events.jsonl entries)"]
+        N2["prior_history<br>(last 20 incremental history bullets, all but last rendered as bullets)"]
+        N3["recent_turns[-1:]<br>(single most recent turn as full text)"]
         N4["rules_outcome<br>(band, directive, impossible, dice summary)"]:::xstream
         N6["npc_name_pool (cultural name list)"]
         N7["npc_roster<br>(from build_npc_roster(comp),<br>  presence field: present/nearby/known)"]
