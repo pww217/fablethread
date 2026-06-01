@@ -224,7 +224,94 @@ def summarize_changes(
             "delta": post_momentum - pre_momentum,
         })
 
-    result = {"inventory": inventory, "player": player, "facts": facts, "momentum": momentum}
+    threads: list[dict[str, Any]] = []
+    pre_arc = pre.get("arc") or {}
+    post_arc = post.get("arc") or {}
+    if pre_arc or post_arc:
+        pre_t = {t.get("id"): t for t in (pre_arc.get("threads") or []) if isinstance(t, dict)}
+        post_t = {t.get("id"): t for t in (post_arc.get("threads") or []) if isinstance(t, dict)}
+        pre_c = {t.get("id"): t for t in (pre_arc.get("completed_threads") or []) if isinstance(t, dict)}
+        post_c = {t.get("id"): t for t in (post_arc.get("completed_threads") or []) if isinstance(t, dict)}
+
+        all_ids = set(pre_t) | set(post_t) | set(pre_c) | set(post_c)
+        for tid in all_ids:
+            pr = pre_t.get(tid)
+            po = post_t.get(tid)
+            pc = post_c.get(tid)
+
+            if pr and not po and not pc:
+                thread = pr
+                reason = "removed"
+                if thread.get("scope") == "scene":
+                    pre_loc = (pre.get("location") or {}).get("id", "")
+                    post_loc = (post.get("location") or {}).get("id", "")
+                    if pre_loc != post_loc:
+                        reason = "removed (location changed)"
+                    else:
+                        reason = "dropped via arc directive"
+                threads.append({
+                    "kind": "removed",
+                    "id": tid,
+                    "summary": thread.get("summary", ""),
+                    "scope": thread.get("scope", ""),
+                    "urgency": thread.get("urgency", "normal"),
+                    "detail": reason,
+                })
+            elif not pr and po:
+                threads.append({
+                    "kind": "added",
+                    "id": tid,
+                    "summary": po.get("summary", ""),
+                    "scope": po.get("scope", "arc"),
+                    "urgency": po.get("urgency", "normal"),
+                })
+            elif pr and pc and tid not in pre_c:
+                threads.append({
+                    "kind": pc.get("resolution_state", "resolved"),
+                    "id": tid,
+                    "summary": pc.get("summary", pr.get("summary", "")),
+                    "scope": pc.get("scope", pr.get("scope", "arc")),
+                    "detail": pc.get("outcome", ""),
+                })
+            elif pc and not pr and not po:
+                threads.append({
+                    "kind": pc.get("resolution_state", "resolved"),
+                    "id": tid,
+                    "summary": pc.get("summary", ""),
+                    "scope": pc.get("scope", "arc"),
+                    "detail": pc.get("outcome", ""),
+                })
+            elif po and pr:
+                changes = []
+                if po.get("urgency") != pr.get("urgency"):
+                    changes.append(f"urgency: {pr.get('urgency', '?')}→{po.get('urgency', '?')}")
+                if po.get("active") != pr.get("active"):
+                    changes.append("reactivated" if po.get("active") else "dormant")
+                if po.get("summary") and po.get("summary") != pr.get("summary"):
+                    changes.append("summary updated")
+                if po.get("progress") and po.get("progress") != pr.get("progress"):
+                    changes.append("progress updated")
+                if changes:
+                    threads.append({
+                        "kind": "updated",
+                        "id": tid,
+                        "summary": po.get("summary", ""),
+                        "detail": "; ".join(changes),
+                    })
+
+        pre_resolved = len(pre.get("resolved_arcs") or [])
+        post_resolved = len(post.get("resolved_arcs") or [])
+        if post_resolved > pre_resolved:
+            for ra in (post.get("resolved_arcs") or [])[pre_resolved:]:
+                if isinstance(ra, dict):
+                    threads.append({
+                        "kind": "arc_resolved",
+                        "id": ra.get("visible_goal", "?"),
+                        "summary": ra.get("visible_goal", ""),
+                        "detail": ra.get("resolution", ""),
+                    })
+
+    result = {"inventory": inventory, "player": player, "facts": facts, "momentum": momentum, "threads": threads}
     total = sum(len(v) for v in result.values())
     _log.debug("summarize_changes complete lines=%d", total)
     return result
