@@ -1246,6 +1246,8 @@ function game() {
             this.input = '';
 
             document.querySelectorAll('.action-pill').forEach((p) => { p.disabled = true; });
+            const az = document.getElementById('actions-zone');
+            if (az) az.innerHTML = '';
 
             document.getElementById('empty-prompt')?.remove();
 
