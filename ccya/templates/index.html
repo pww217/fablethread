@@ -21,12 +21,12 @@
                 @click="toggleDrawer('left')"
                 :aria-expanded="leftDrawerOpen"
                 title="Open left panel"
-                type="button">☰</button>
+                type="button"><span class="sidebar-toggle-label">World</span></button>
         <button class="sidebar-toggle sidebar-toggle--right"
                 @click="toggleDrawer('right')"
                 :aria-expanded="rightDrawerOpen"
                 title="Open right panel"
-                type="button">≡</button>
+                type="button"><span class="sidebar-toggle-label">Player</span></button>
         <button type="button" class="turn-log-toggle" id="turn-log-toggle" title="Turn history" aria-expanded="false">
             <span class="turn-log-toggle-label">📖 Chronicle</span>
         </button>

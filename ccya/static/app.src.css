@@ -1696,13 +1696,16 @@ body {
   .turn-log-toggle { font-size: 0; padding: 5px 10px; min-height: 36px; min-width: 36px; justify-content: center; }
   .turn-log-toggle-label { font-size: 18px; }
 
+  /* ── Sidebar drawer toggle labels ── */
+  .sidebar-toggle-label { font-size: 12px; font-weight: 600; }
+
   /* ── Sidebar drawer toggles (header buttons) ── */
   .sidebar-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
     height: 36px;
+    padding: 0 10px;
     background: transparent;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -1712,7 +1715,6 @@ body {
     flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
     transition: border-color 120ms, color 120ms;
-    padding: 0;
   }
   .sidebar-toggle:hover { border-color: var(--border-strong); color: var(--text-primary); }
   .sidebar-toggle[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
@@ -1756,8 +1758,8 @@ body {
   /* ── Narrative column ── */
   .narrative-panel { padding: 16px; }
   .pills-row {
-    padding: 8px 16px;
-    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    padding: 6px 16px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
   .input-bar {
     padding: 10px 16px;
@@ -1768,9 +1770,9 @@ body {
 
   /* ── Touch targets ── */
   .action-pill {
-    padding: 10px 16px;
-    font-size: 14px;
-    min-height: 44px;
+    padding: 6px 12px;
+    font-size: 13px;
+    min-height: 36px;
   }
   .send-btn {
     padding: 0 18px;
