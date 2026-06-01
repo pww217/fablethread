@@ -249,6 +249,10 @@ async def new_game(request: Request):
                 "Unknown pack: %s", requested_pack,
                 extra={"error_kind": ErrorKind.PACK_LOAD_FAILED},
             )
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Failed to load pack '{requested_pack}': {exc}"},
+            )
 
     pc_name = str(form.get("pc_name", "")).strip()
     pc_tagline = str(form.get("pc_tagline", "")).strip()
