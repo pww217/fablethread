@@ -192,7 +192,7 @@ def _apply_thread_updates(
 
         thread = arc.threads[found_idx]
         updated_thread = thread.model_copy(update=updates)
-        remaining_threads = [t for i2, t in enumerate(arc.threads) if i2 != found_idx]
+        remaining_threads = [t for i2, t in enumerate(remaining_threads) if i2 != found_idx]
         remaining_threads.insert(found_idx, updated_thread)
 
         if updates:
