@@ -291,6 +291,8 @@ def summarize_changes(
                     changes.append("reactivated" if po.get("active") else "dormant")
                 if po.get("summary") and po.get("summary") != pr.get("summary"):
                     changes.append("summary updated")
+                if po.get("progress") and po.get("progress") != pr.get("progress"):
+                    changes.append("progress updated")
                 if changes:
                     threads.append({
                         "kind": "updated",
