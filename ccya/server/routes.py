@@ -71,7 +71,7 @@ def _apply_seed_to_save_dir(
     save_dir = Path("saves") / dir_name
     _app_mod.SAVE_DIR = save_dir
 
-    seed_dict.setdefault("meta", {})["model"] = _app_mod.config["llm"]["model"]
+    seed_dict.setdefault("meta", {})["model"] = _app_mod.engine_config.model
     if pack_type is not None:
         seed_dict.setdefault("meta", {})["_seed_type"] = pack_type
     if pack_source is not None:
@@ -445,10 +445,10 @@ async def new_game_generate_pack(request: Request):
     }
 
     packs_root = _app_mod.PACKS_DIR
-    llm_host = str(_app_mod.config["llm"]["host"]).rstrip("/")
-    llm_model = str(_app_mod.config["llm"]["model"])
+    llm_host = str(_app_mod.engine_config.host).rstrip("/")
+    llm_model = str(_app_mod.engine_config.model)
     template_dir = str(_app_mod.PROMPTS_DIR)
-    max_retries = int(_app_mod.config.get("llm", {}).get("max_generate_pack_retries", 1))
+    max_retries = _app_mod.engine_config.max_llm_retries
 
     from ccya.engine.generate_pack import generate_pack_from_brief
 
@@ -534,12 +534,12 @@ def opening():
 def healthz():
     import httpx
 
-    host = str(_app_mod.config["llm"]["host"]).rstrip("/")
+    host = str(_app_mod.engine_config.host).rstrip("/")
     mock_mode = os.environ.get("MOCK_MODE", "").lower() in ("true", "1", "yes")
     if mock_mode:
         return {
             "llm": "mock",
-            "model": _app_mod.config["llm"]["model"],
+            "model": _app_mod.engine_config.model,
             "available": True,
             "mock": True,
             "llm_version": "",
@@ -551,7 +551,7 @@ def healthz():
             resp.raise_for_status()
             body = resp.json()
             models = [m["id"] for m in body.get("data", [])]
-            model = _app_mod.config["llm"]["model"]
+            model = _app_mod.engine_config.model
             return {
                 "llm": "ok",
                 "model": model,
@@ -561,7 +561,7 @@ def healthz():
     except Exception:
         return {
             "llm": "fail",
-            "model": _app_mod.config["llm"]["model"],
+            "model": _app_mod.engine_config.model,
             "available": False,
             "llm_version": llm_version,
         }

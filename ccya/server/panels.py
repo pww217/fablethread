@@ -109,5 +109,5 @@ def _debug_context() -> dict[str, Any]:
         "state": state,
         "log_llm_io": _app.engine_config.log_llm_io,
         "log_prompts": _app.engine_config.log_prompts,
-        "log_file": _app.config.get("logging", {}).get("file", "logs/llm-g.log"),
+        "log_file": "logs/game.log",
     }

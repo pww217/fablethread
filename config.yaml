@@ -2,33 +2,33 @@ llm:
   host: http://127.0.0.1:8080/v1
   model: mlx-community/gemma-4-26b-a4b-it-mxfp8
   request_timeout_s: 180
-  narrate_temperature: 0.9
+
+  ruling_temperature: 0.2
   extract_temperature: 0.4
-  max_extract_retries: 1
-  prompt_token_budget: 32768
+  narrate_temperature: 0.9
+  generate_seed_temperature: 0.9
 
-ruling:
-  temperature: 0.2
-  max_retries: 1
+  max_llm_retries: 1
 
-game:
-  setting_pack: zombie-survival
-  recent_events_max: 20    # rolling window; world_state is immutable after seed
-  warmup_on_start: false
-  character_creation_enabled: true
-  # Momentum floor
-  momentum_floor: -3
+  context_window: 32768
 
 server:
   bind_host: 127.0.0.1
   bind_port: 8765
+  
+  logging:
+    level: DEBUG
+    log_llm_io: false
+    log_llm_io_max_chars: 4000
+    log_prompts: true
 
-logging:
-  file: logs/llm-g.log
-  level: DEBUG            # DEBUG required for log_llm_io payloads to be emitted
-  log_llm_io: false        # log full prompts + raw responses to logs/llm-g.log
-  log_llm_io_max_chars: 4000   # truncate per field to keep log readable
-  log_prompts: true       # log fully formatted prompts to logs/prompts.log
+game:
+  momentum_floor: -3
+  consecutive_pressure_threshold: 3
+  thread_deescalate_on_success: true
 
-debug:
-  panel: true
+  warmup_on_start: false
+  character_creation_enabled: true
+
+  debug:
+    enabled: true
