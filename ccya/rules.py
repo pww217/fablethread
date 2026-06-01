@@ -178,20 +178,23 @@ def resolve_check(
     intent_verb: str = "",
     intent: str = "",
     rng: random.Random | None = None,
+    difficulty_mods: dict[str, int] | None = None,
+    near_miss_softening: bool = True,
 ) -> RulesOutcome:
 
     if skill not in VALID_SKILLS:
         raise ValueError(
             f"Unknown skill: {skill!r}. Must be one of {sorted(VALID_SKILLS)}"
         )
-    if difficulty not in DIFFICULTY_MOD:
+    mods = difficulty_mods or DIFFICULTY_MOD
+    if difficulty not in mods:
         raise ValueError(
-            f"Unknown difficulty: {difficulty!r}. Must be one of {sorted(DIFFICULTY_MOD)}"
+            f"Unknown difficulty: {difficulty!r}. Must be one of {sorted(mods)}"
         )
 
     stat_value = int(pc_stats.get(skill, 2))
     stat_mod = stat_value - 2
-    diff_mod = DIFFICULTY_MOD[difficulty]
+    diff_mod = mods[difficulty]
     cond_mod = conditions_modifier(skill, pc_conditions)
 
     raw_die = roll_1d12(rng)
@@ -200,7 +203,7 @@ def resolve_check(
     final_total = raw_total + stat_mod + diff_mod + cond_mod
 
     band = compute_band(final_total, raw_die)
-    near_miss = band == "fail" and final_total >= 5
+    near_miss = near_miss_softening and band == "fail" and final_total >= 5
     directive = build_directive(band, intent_verb, skill, near_miss=near_miss)
 
     return RulesOutcome(
