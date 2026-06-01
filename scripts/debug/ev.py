@@ -151,9 +151,9 @@ def find_turn(events: list[dict[str, Any]], turn: int) -> dict[str, Any] | None:
     for ev in events:
         if ev.get("turn") == turn and ev.get("kind", "turn") == "turn":
             return ev
-    # Fallback to any non-compaction event with matching turn number
+    # Fallback to any turn-eligible event with matching turn number
     for ev in events:
-        if ev.get("turn") == turn and ev.get("kind") != "compaction":
+        if ev.get("turn") == turn and ev.get("kind") not in (None, "turn"):
             return ev
     return None
 

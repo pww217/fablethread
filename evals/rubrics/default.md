@@ -547,7 +547,7 @@ For each of the 5 pipelines, assess whether its inputs and outputs are focused o
 
 **Extract State (Step 2b):** Inputs should be narrative, state.pc, state.location, state.inventory, rules_outcome, active_domains, expired_conditions. Flag if the state extractor receives quest data, recent_events, or thread/pressure data — those belong to other pipelines.
 
-**Storyteller (Step 2c):** Inputs are narrative, state.pc, recent_events, world_state, rules_outcome, intent, active_domains, PacingContext (full struct), arc.threads[] (unified), recent_turns[-2:]. This is justified because storyteller is the "storytelling brain." Assess: is every input enabling a specific output? Flag inputs that appear unused.
+**Storyteller (Step 2c):** Inputs are narrative, state.pc, recent_events, world_state, rules_outcome, intent, active_domains, PacingContext (full struct), arc.threads[] (unified), recent_turns[-1:]. This is justified because storyteller is the "storytelling brain." Assess: is every input enabling a specific output? Flag inputs that appear unused.
 
 For each pipeline, note: (a) inputs that seem unnecessary, (b) outputs that seem misplaced, (c) whether the input/output boundary aligns with the pipeline's responsibility. Score: 1–5.
 

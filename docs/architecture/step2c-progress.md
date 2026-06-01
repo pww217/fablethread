@@ -68,7 +68,7 @@ The beat system intersects with pacing via two fields in `PacingContext` (see [s
 | Field | Type | Meaning |
 |-------|------|---------|
 | `directive` | str | Includes secondary modifier `"Resolve a Threat"` (appended by semicolon) when `beat_locked=True`. Drives storytell guidance for beat type selection. |
-| `beat_locked` | bool | True when dual-trigger relief fired: either `consecutive_pressure_turns >= config.consecutive_pressure_threshold` OR `momentum <= config.momentum_floor`. When locked, `"Resolve a Threat"` is appended to the directive and gate is force-closed (`block_escalate`). Progress MUST emit a breathing_room beat. |
+| `beat_locked` | bool | True when dual-trigger relief fired: either `consecutive_pressure_turns >= config.consecutive_pressure_threshold` OR `momentum <= config.momentum_floor`. When locked, `"Resolve a Threat"` is appended to the directive. Progress MUST emit a breathing_room beat. Gate is unaffected — controlled independently by deescalate signal. |
 
 ### Beat Lifecycle — Three Phases Per Turn
 
@@ -111,7 +111,7 @@ flowchart TD
 
 ### Floor Relief Injection
 
-The floor relief mechanism fires when `_pc.beat_locked=True` AND no beat exists in `state.meta.pending_gm_beat` at extraction completion time (`turn.py:1263`). It injects a `breathing_room` beat with TTL of 3 turns (one more than storyteller-emitted beats' TTL of 2).
+The floor relief mechanism fires when `_pc.beat_locked=True` AND no beat exists in `state.meta.pending_gm_beat` after storytelling extraction completes (turn.py:~1058). It injects a `breathing_room` beat with `beat_expires_turn = turn_no + 3` (current turn number, before increment — so the effective lifetime from the consumer's perspective is 2 turns, same as storyteller-emitted beats which use `turn_no + 2` from the same pre-increment turn number).
 
 Floor relief beats are **fallback only** — they inject a recovery beat when the LLM didn't already provide one. If Storytell emits any gm_beat during extraction, floor relief does NOT fire because `pending_gm_beat` is already set. The LLM's beat takes priority over Python-injected recovery signals.
 
@@ -126,7 +126,7 @@ The storyteller prompt (`storytell_system.j2`, pacing context guidance section) 
 | Storytell-emitted beat | 2 turns | `beat_expires_turn = turn_no + 2` |
 | Floor relief (Python-injected) | 3 turns | `beat_expires_turn = turn_no + 3` (extra recovery margin) |
 
-Beats past their expiry are discarded automatically on load. Both unconditional clears were removed from turn.py — beats survive until replacement, explicit nullification, or TTL expiry. Beat write logic in Progress step only writes if `beat_locked` AND no existing pending_gm_beat exists, preventing overwrites during locked windows.
+Beats past their expiry are discarded automatically on load. Beat write logic in Progress step writes the storyteller's `gm_beat` unconditionally if it has a truthy `type`, replacing any existing `pending_gm_beat`. Floor relief only fires when `beat_locked=True` AND `pending_gm_beat` is still None after storytelling — the LLM's beat takes priority over Python-injected recovery signals.
 
 ## Campaign Arc System
 
