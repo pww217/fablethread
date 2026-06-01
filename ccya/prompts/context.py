@@ -74,16 +74,13 @@ class InventoryBlock(BaseModel):
 
 
 class ArcThreadSummary(BaseModel):
-    """Simplified arc thread data for prompt rendering (subset of full ArcThread).
-
-    Used by _thread_list.j2 and storytell_user.j2. Both templates access: id, scope, urgency, summary, tags, active.
-    """
+    """Simplified arc thread data for prompt rendering (subset of full ArcThread)."""
 
     id: str
     summary: str
     scope: Literal["scene", "arc"]
     urgency: Literal["background", "normal", "urgent"]
-    tags: list[str] = Field(default_factory=list)
+    progress: str = ""
     active: bool
 
 
@@ -108,7 +105,6 @@ class ArcThreadBlock(BaseModel):
                         summary=t.get("summary", ""),
                         scope=t.get("scope", "arc"),
                         urgency=t.get("urgency", "normal"),
-                        tags=list(t.get("tags", [])),
                         active=bool(t.get("active", True)),
                     )
                 )
@@ -119,7 +115,6 @@ class ArcThreadBlock(BaseModel):
                         summary=t.summary,
                         scope=t.scope,
                         urgency=t.urgency,
-                        tags=list(t.tags),
                         active=bool(t.active),
                     )
                 )
