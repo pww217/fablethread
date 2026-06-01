@@ -1302,6 +1302,7 @@ function game() {
                         btn.addEventListener('click', () => self.fillFromChoice(action));
                         zone.appendChild(btn);
                     });
+                    _revealPillsOnScroll();
                 } else if (zone) {
                     zone.innerHTML = '<span class="empty-state">Suggested actions appear after each turn.</span>';
                 }
@@ -1414,6 +1415,7 @@ function game() {
                         zone.appendChild(btn);
                     });
                     _applyMarkdown(zone);
+                    _revealPillsOnScroll();
                 } else {
                     zone.innerHTML = '<span class="empty-state">No suggested actions.</span>';
                 }
@@ -1497,6 +1499,7 @@ function game() {
                             zone.appendChild(btn);
                         });
                         _applyMarkdown(zone);
+                        _revealPillsOnScroll();
                     } else {
                         zone.innerHTML = '<span class="empty-state">Suggested actions appear after each turn.</span>';
                     }
@@ -1685,6 +1688,26 @@ function _showGameOver(gameInstance) {
     };
 
     goBackdrop.onclick = dismiss;
+}
+
+function _revealPillsOnScroll() {
+    const zone = document.getElementById('actions-zone');
+    const np = document.getElementById('narrative-panel');
+    if (!zone || !np) return;
+    if (!zone.querySelector('.action-pill')) return;
+
+    zone.style.opacity = '0';
+    zone.style.pointerEvents = 'none';
+
+    const obs = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+            zone.style.opacity = '';
+            zone.style.pointerEvents = '';
+            obs.disconnect();
+        }
+    }, { root: np, rootMargin: '0px 0px 100px 0px' });
+
+    obs.observe(zone);
 }
 
 function initTurnLogUi() {
