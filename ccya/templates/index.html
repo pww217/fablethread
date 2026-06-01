@@ -260,9 +260,35 @@
         </div>
 
         <div class="settings-body">
-            <!-- Pacing -->
+            <!-- Difficulty & Rolls -->
             <fieldset class="settings-fieldset">
-                <legend>Pacing</legend>
+                <legend>Difficulty &amp; Rolls</legend>
+                
+                <label class="setting-row has-tooltip">
+                    <span class="setting-label">Difficulty Curve</span>
+                    <div class="tooltip-body">How challenging are rolls overall. "Forgiving" gives generous bonuses to easy actions; "Demanding" makes hard and extreme checks punishing.</div>
+                    <select x-model="settings.difficulty_curve">
+                        <option value="forgiving">🤝 Forgiving</option>
+                        <option value="balanced">⚖️ Balanced</option>
+                        <option value="demanding">💀 Demanding</option>
+                    </select>
+                </label>
+
+                <div class="setting-row setting-toggle has-tooltip">
+                    <span class="setting-label">Near-miss softening</span>
+                    <div class="tooltip-body">When a roll barely fails (just 1 or 2 points away from success), should the narration soften the blow with "the roll was close" instead of harsh failure text?</div>
+                    <button type="button" 
+                            @click="settings.near_miss_softening = !settings.near_miss_softening"
+                            :class="{ 'toggle-on': settings.near_miss_softening }"
+                            class="setting-toggle-btn">
+                        <div class="toggle-knob"></div>
+                    </button>
+                </div>
+            </fieldset>
+
+            <!-- Pacing & Scenes -->
+            <fieldset class="settings-fieldset">
+                <legend>Pacing &amp; Scenes</legend>
                 
                 <label class="setting-row has-tooltip">
                     <span class="setting-label">Momentum Floor</span>
@@ -297,9 +323,9 @@
                 </div>
             </fieldset>
 
-            <!-- Thread Behavior -->
+            <!-- Narrative Threads -->
             <fieldset class="settings-fieldset">
-                <legend>Thread Behavior</legend>
+                <legend>Narrative Threads</legend>
                 
                 <div class="setting-row setting-toggle has-tooltip">
                     <span class="setting-label">De-escalate threads on success</span>
@@ -323,31 +349,10 @@
                 </div>
             </fieldset>
 
-            <!-- Difficulty & Rolls -->
+            <!-- System Settings -->
             <fieldset class="settings-fieldset">
-                <legend>Difficulty &amp; Rolls</legend>
+                <legend>System Settings</legend>
                 
-                <label class="setting-row has-tooltip">
-                    <span class="setting-label">Difficulty Curve</span>
-                    <div class="tooltip-body">How challenging are rolls overall. "Forgiving" gives generous bonuses to easy actions; "Demanding" makes hard and extreme checks punishing.</div>
-                    <select x-model="settings.difficulty_curve">
-                        <option value="forgiving">🤝 Forgiving</option>
-                        <option value="balanced">⚖️ Balanced</option>
-                        <option value="demanding">💀 Demanding</option>
-                    </select>
-                </label>
-
-                <div class="setting-row setting-toggle has-tooltip">
-                    <span class="setting-label">Near-miss softening</span>
-                    <div class="tooltip-body">When a roll barely fails (just 1 or 2 points away from success), should the narration soften the blow with "the roll was close" instead of harsh failure text?</div>
-                    <button type="button" 
-                            @click="settings.near_miss_softening = !settings.near_miss_softening"
-                            :class="{ 'toggle-on': settings.near_miss_softening }"
-                            class="setting-toggle-btn">
-                        <div class="toggle-knob"></div>
-                    </button>
-                </div>
-
                 <div class="setting-row setting-toggle has-tooltip">
                     <span class="setting-label">Character Creation</span>
                     <div class="tooltip-body">Allow the engine to generate new characters during play based on player choices and story context.</div>
@@ -358,12 +363,7 @@
                         <div class="toggle-knob"></div>
                     </button>
                 </div>
-            </fieldset>
 
-            <!-- Server & Tools -->
-            <fieldset class="settings-fieldset">
-                <legend>Server &amp; Tools</legend>
-                
                 <label class="setting-row setting-warn has-tooltip">
                     <span class="setting-label">Warmup on Server Start</span>
                     <div class="tooltip-body">Run a lightweight model warmup request when the server starts. Prevents first-request latency but adds ~5 seconds to startup.</div>
