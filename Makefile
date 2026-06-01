@@ -38,9 +38,10 @@ typecheck:
 lint-scripts:
 	uv run ruff check scripts/
 
-check: lint typecheck
+validate-packs:
+	uv run python scripts/validate_pack_yamls.py
 
-check: lint typecheck
+check: lint typecheck validate-packs
 
 css:
 	npx --yes @tailwindcss/cli -i ccya/static/app.src.css -o ccya/static/app.css --minify
