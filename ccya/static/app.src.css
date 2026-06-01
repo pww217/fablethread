@@ -1725,7 +1725,7 @@ body {
     top: 0;
     z-index: 8000;
     height: 100dvh;
-    width: 100vw;
+    width: 100vw !important;
     width: 100dvw;
     transform: translateX(-100%);
     transition: transform 220ms ease;
