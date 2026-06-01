@@ -318,5 +318,4 @@ The gate blocks thread creation (in `run_turn()`). The LLM is instructed not to 
 2. **Validation failure** — Arc fails Pydantic validation → log WARNING, return None
 3. **Unknown thread ID in update** — Log WARNING, skip — does not block valid updates
 4. **Unknown resolution ID** — Log WARNING, skip — does not block valid resolutions
-5. **Duplicate thread ID in creation** — Checked against existing + completed IDs
-6. **Key collision in creation** — Exact match rejects; fuzzy match auto-merges
+5. **Duplicate thread ID in creation** — Checked against existing + completed IDs; dedup is id-only (no key or fuzzy merge)
