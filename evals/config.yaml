@@ -63,3 +63,5 @@ report:
     - extraction_failures
     - judge_score_drop
     - rejected_deltas
+    - judge_output_suspicious
+    - score_regression

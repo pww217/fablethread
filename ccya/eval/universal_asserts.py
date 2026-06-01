@@ -553,6 +553,51 @@ def check_no_negative_inventory(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def check_inventory_remove_existence(
+    event: dict[str, Any], prev_event: dict[str, Any] | None
+) -> dict[str, Any]:
+    """inventory_remove must target items that exist with amount > 0 in state."""
+    if prev_event is None:
+        return {"assertion": "universal.inventory.remove_existence", "passed": True, "detail": "(first turn)", "scope": "universal", "severity": "red"}
+    prev_inv_ids = {
+        item["id"] for item in ((prev_event.get("state_snapshot") or {}).get("inventory") or [])
+        if isinstance(item, dict) and item.get("id") and item.get("amount", 0) > 0
+    }
+    removes = (event.get("applied") or {}).get("inventory_remove") or []
+    bad = [r for r in removes if isinstance(r, dict) and r.get("id") and r["id"] not in prev_inv_ids]
+    if bad:
+        return {
+            "assertion": "universal.inventory.remove_existence",
+            "passed": False,
+            "detail": f"removed non-existent item(s): {[b.get('id') for b in bad]}",
+            "scope": "universal",
+            "severity": "red",
+        }
+    return {"assertion": "universal.inventory.remove_existence", "passed": True, "detail": f"checked {len(removes)} removes", "scope": "universal", "severity": "red"}
+
+
+def check_thread_update_id_valid(event: dict[str, Any]) -> dict[str, Any]:
+    """thread_update signals must reference thread IDs that exist in state."""
+    storytell_output = ((event.get("extraction") or {}).get("storytell") or {}).get("output") or {}
+    thread_updates = storytell_output.get("thread_update") or []
+    if not thread_updates:
+        return {"assertion": "universal.thread_update.valid_id", "passed": True, "detail": "no thread_updates", "scope": "universal", "severity": "red"}
+    state_thread_ids = {
+        t.get("id") for t in ((event.get("state_snapshot") or {}).get("arc") or {}).get("threads") or []
+        if isinstance(t, dict) and t.get("id")
+    }
+    bad = [t.get("id") for t in thread_updates if isinstance(t, dict) and t.get("id") and t["id"] not in state_thread_ids]
+    if bad:
+        return {
+            "assertion": "universal.thread_update.valid_id",
+            "passed": False,
+            "detail": f"thread_update references unknown thread ID(s): {bad}",
+            "scope": "universal",
+            "severity": "red",
+        }
+    return {"assertion": "universal.thread_update.valid_id", "passed": True, "detail": f"checked {len(thread_updates)} thread_updates", "scope": "universal", "severity": "red"}
+
+
 def check_outcome_hint_rendered(event: dict[str, Any]) -> dict[str, Any]:
     """If outcome_hint was computed, validate it appears in the narrate prompt.
 
@@ -1075,6 +1120,8 @@ def run_all_universal_asserts(
         check_no_removed_npc_states(event),
         check_momentum_floor_no_relief(event, prev_event, event_window=event_window),
         check_no_negative_inventory(event),
+        check_inventory_remove_existence(event, prev_event),
+        check_thread_update_id_valid(event),
         check_orphan_conditions(event),
         check_thread_add_applied(event, prev_event, event_window=event_window),
         check_beat_type_variety(event, event_window=event_window),
