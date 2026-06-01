@@ -425,6 +425,9 @@ body {
   border-right: 1px solid var(--border-subtle);
 }
 
+/* Sidebar drawer toggle buttons — hidden on desktop, shown in mobile media query */
+.sidebar-toggle { display: none; }
+
 /* =========================================================
    GUTTERS — drag-resize handles between columns
    ========================================================= */
@@ -1460,7 +1463,6 @@ body {
   font-weight: 600;
   color: var(--text-primary);
 }
-}
 .pack-card-desc {
   font-size: 12px;
   color: var(--text-secondary);
@@ -1669,29 +1671,158 @@ body {
 }
 
 /* =========================================================
-   RESPONSIVE — narrow: sidebar stacks below narrative
+   RESPONSIVE — mobile drawer layout (≤ 768px)
    ========================================================= */
 
-@media (max-width: 900px) {
-  .app-body {
-    flex-direction: column;
+@media (max-width: 768px) {
+
+  /* ── Hide desktop-only elements ── */
+  .gutter { display: none; }
+  .gutter-hint { display: none; }
+  .mock-dot { display: none; }
+  .turn-counter { display: none; }
+  .reroll-btn { display: none; }
+
+  /* ── Header ── */
+  .header-bar {
+    padding: 8px 12px;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    gap: 8px;
   }
-  .narrative-panel { padding: 20px 22px; }
-  .pills-row, .input-bar { padding-left: 22px; padding-right: 22px; }
+  .header-logo { font-size: 13px; max-width: 40vw; }
+  .header-meta { gap: 6px; }
+  .new-game-btn { padding: 6px 10px; font-size: 13px; min-height: 36px; }
+  .turn-log-toggle { font-size: 0; padding: 5px 10px; min-height: 36px; min-width: 36px; justify-content: center; }
+  .turn-log-toggle-label { font-size: 18px; }
+
+  /* ── Sidebar drawer toggles (header buttons) ── */
+  .sidebar-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 18px;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: border-color 120ms, color 120ms;
+    padding: 0;
+  }
+  .sidebar-toggle:hover { border-color: var(--border-strong); color: var(--text-primary); }
+  .sidebar-toggle[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Drawer overlay layout ── */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    z-index: 8000;
+    height: 100dvh;
+    width: min(320px, 85vw);
+    transform: translateX(-100%);
+    transition: transform 220ms ease;
+    border: none;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
   .sidebar-left {
-    width: 100%;
+    left: 0;
     border-right: none;
-    border-bottom: 1px solid var(--border-subtle);
-    max-height: 40vh;
   }
   .sidebar:not(.sidebar-left) {
-    width: 100%;
+    right: 0;
+    transform: translateX(100%);
     border-left: none;
-    border-top: 1px solid var(--border-subtle);
-    max-height: 40vh;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
   }
-  .turn-counter { display: none; }
-  .header-logo { font-size: 13px; max-width: 55vw; }
+  .sidebar.sidebar--open {
+    transform: translateX(0);
+  }
+
+  /* ── Drawer backdrop ── */
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 7500;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  /* ── Narrative column ── */
+  .narrative-panel { padding: 16px; }
+  .pills-row {
+    padding: 8px 16px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+  .input-bar {
+    padding: 10px 16px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .narrative-block { padding-left: 12px; margin-bottom: 24px; }
+  .narrative-text { font-size: 16px; }
+
+  /* ── Touch targets ── */
+  .action-pill {
+    padding: 10px 16px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+  .send-btn {
+    padding: 0 18px;
+    min-height: 44px;
+    height: auto;
+  }
+  .game-input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  /* ── Progress strip wrapping ── */
+  .progress-strip { flex-wrap: wrap; gap: 4px; }
+
+  /* ── Modals: fullscreen ── */
+  .pack-picker-modal {
+    width: 100vw;
+    width: 100dvw;
+    height: 100dvh;
+    left: 0;
+    top: 0;
+    transform: none;
+    border-radius: 0;
+    border: none;
+    max-width: none;
+    max-height: none;
+  }
+  .pack-picker-backdrop { display: none !important; }
+  .pack-picker-head {
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+  .pack-picker-body { height: calc(100dvh - 52px); }
+  .game-over-modal {
+    width: 90vw;
+    padding: 24px 20px;
+  }
+
+  /* ── Turn log / chronicle: fullscreen ── */
+  .turn-log-panel {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 0;
+    border: none;
+  }
+  .turn-log-backdrop { display: none; }
+
+  /* ── Sidebar cards ── */
+  .sidebar-meta-footer { padding: 6px 12px; }
 }
 
 /* =========================================================
