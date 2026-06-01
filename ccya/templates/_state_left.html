@@ -14,13 +14,22 @@
             {% set npc_title = npc.get('title', '') if npc is mapping else '' %}
             {% set npc_notes = npc.get('notes', '') if npc is mapping else '' %}
             {% set npc_bio = npc.get('bio', '') if npc is mapping else '' %}
-            <div class="npc-item{% if npc_bio %} has-tooltip{% endif %}">
+            {% set _mot = npc.get('motivation', '') if npc is mapping else '' %}
+            {% set npc_bond = npc.get('bond', '') if npc is mapping else '' %}
+            {% set ls = npc.get('last_seen', None) if npc is mapping and npc.get('last_seen') else None %}
+            {% set _has_tt = npc_bio or _mot or npc_bond %}
+            <div class="npc-item{% if _has_tt %} has-tooltip{% endif %}">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
                 {% if npc_notes %}
                 <span class="npc-notes-inline">{{ npc_notes }}</span>
                 {% endif %}
-                {% if npc_bio %}
-                <div class="tooltip-body"><div data-md>{{ npc_bio }}</div></div>
+                {% if _has_tt %}
+                <div class="tooltip-body" data-md-compendium>
+                    {% if npc_bio %}<p>{{ npc_bio }}</p>{% endif %}
+                    {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% endif %}
+                    {% if npc_bond %}<p><strong>Bond:</strong> {{ npc_bond }}</p>{% endif %}
+                    {% if ls %}<p>Last seen: {{ ls.location_name }}</p>{% endif %}
+                </div>
                 {% endif %}
             </div>
             {% endfor %}
@@ -66,8 +75,12 @@
         {% if _active %}
         {% for thread in _active %}
         {% set _urg = thread.get('urgency', 'normal') %}
-        <div class="arc-thread{% if _urg == 'immediate' %} arc-thread-urgent{% elif _urg == 'building' %} arc-thread-building{% endif %}">
+        {% set _progress = thread.get('progress', '') %}
+        <div class="arc-thread{% if _urg == 'immediate' %} arc-thread-urgent{% elif _urg == 'building' %} arc-thread-building{% endif %}{% if _progress %} has-tooltip{% endif %}">
             <span class="arc-thread-summary" data-md>{{ thread.get('summary', '') | striptags }}</span>
+            {% if _progress %}
+            <div class="tooltip-body" data-md>{{ _progress }}</div>
+            {% endif %}
         </div>
         {% endfor %}
         {% endif %}
@@ -105,7 +118,10 @@
             <div class="arc-truths">
                 {% for ct in _completed %}
                 {% set _outcome = ct.get('outcome') or ct.get('resolution_state', '') %}
-                <div class="arc-thread" title="{{ _outcome }}" data-md>{{ ct.summary[:100] }}{% if ct.resolved_turn %} [resolved T{{ ct.resolved_turn }}]{% endif %}</div>
+                <div class="arc-thread{% if _outcome %} has-tooltip{% endif %}">
+                    <span data-md>{{ ct.summary[:100] }}{% if ct.resolved_turn %} [resolved T{{ ct.resolved_turn }}]{% endif %}</span>
+                    {% if _outcome %}<div class="tooltip-body" data-md>{{ _outcome }}</div>{% endif %}
+                </div>
                 {% endfor %}
             </div>
         </details>
