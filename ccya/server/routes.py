@@ -29,6 +29,7 @@ from ccya.state import (
     load_recent_turns,
     remove_last_chronicle_turn,
     remove_last_event,
+    restore_snapshot_state,
 )
 from .panels import (
     _debug_context,
@@ -224,6 +225,7 @@ async def delete_last_turn():
 
     remove_last_event(_app_mod.SAVE_DIR)
     remove_last_chronicle_turn(_app_mod.SAVE_DIR)
+    restore_snapshot_state(_app_mod.SAVE_DIR)
 
     _log.info("delete_last_turn turn=%s", last_event.get("turn"))
     return JSONResponse({"actions": actions, "turn": last_event.get("turn")})
