@@ -407,6 +407,7 @@ def _compute_narrative_velocity(
     avoidance: bool,
     momentum_floor: int = -3,
     momentum_ceiling: int = 3,
+    pacing_factor: float = 0.5,
 ) -> float:
     """Compute a signed pacing scalar in [-1.0, 1.0].
 
@@ -431,14 +432,16 @@ def _compute_narrative_velocity(
         return 0.0
     midpoint = (momentum_ceiling + momentum_floor) / 2.0
     normalized = (momentum - midpoint) / (span / 2.0)
-    # Scale down -- momentum alone shouldn't dominate; caps at +/-0.5
-    return max(-0.5, min(0.5, normalized * 0.5))
+    # Scale down -- momentum alone shouldn't dominate; caps at +/-pacing_factor
+    return max(-pacing_factor, min(pacing_factor, normalized * pacing_factor))
 
 
 def _compute_narration_directive(
     narrative_velocity: float,
     scope_scene_threads: list["ArcThread"],
     ages: dict[str, int],
+    scene_pressure_threshold: int = 3,
+    scene_imperative_threshold: int = 5,
 ) -> str:
     """Compute the narration directive string using a priority stack.
 
@@ -464,7 +467,7 @@ def _compute_narration_directive(
 
     # Priority 2: scene imperative — stale scene demands attention
     effective_age = ages.get("effective_scene_age", 0)
-    if effective_age >= 5:
+    if effective_age >= scene_imperative_threshold:
         return "Scene Imperative"
 
     secondary: list[str] = []
@@ -487,7 +490,7 @@ def _compute_narration_directive(
             primary = "Tension"
 
     # Secondary: scene pressure approaching staleness (non-contradicting append)
-    if 3 <= effective_age < 5:
+    if scene_pressure_threshold <= effective_age < scene_imperative_threshold:
         secondary.append("Scene Pressure")
 
     parts = [primary] if primary else []
@@ -517,6 +520,8 @@ def _compute_pacing_context(
         narrative_velocity=narrative_velocity,
         scope_scene_threads=scope_scene_threads,
         ages=ages,
+        scene_pressure_threshold=config.scene_pressure_threshold,
+        scene_imperative_threshold=config.scene_imperative_threshold,
     )
 
     # Determine beat_locked: relief fired when either consecutive pressure threshold reached or momentum at minimum
@@ -676,6 +681,8 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
                 pc_conditions=[cid for cid in _pc_cond_ids if cid],
                 intent_verb=intent.intent_verb,
                 intent=intent.intent,
+                difficulty_mods=config._resolve_difficulty_modifiers(),
+                near_miss_softening=config.near_miss_softening,
             )
         except Exception as exc:
             _log.warning(
@@ -795,6 +802,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         avoidance=ctx._avoidance,
         momentum_floor=config.momentum_floor,
         momentum_ceiling=config.momentum_ceiling,
+        pacing_factor=config.momentum_pacing_factor,
     )
 
     _raw_thread_dicts = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict) and t.get("scope") == "scene"]
@@ -832,6 +840,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         pacing_context=_pc, ages=ctx._ages, pc_allegiance=_pc_allegiance, turn_no=turn_no,
         world_factions=_world_factions,
         npc_roster=build_npc_roster(_comp),
+        arc_ttl=config.arc_memory_ttl, thread_ttl=config.thread_memory_ttl,
     )
 
     ctx.pacing_ctx = _pc
