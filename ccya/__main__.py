@@ -28,7 +28,7 @@ def main() -> None:
         import yaml
         from ccya.state import init_save_dir
 
-        pack = config.get("game", {}).get("setting_pack", "expanse-belter")
+        pack = config.get("game", {}).get("setting_pack", "zombie-survival")
         seed_path = f"packs/{pack}/seed_state.yaml"
         with open(seed_path) as f:
             seed = yaml.safe_load(f) or {}

@@ -328,7 +328,7 @@ async def _call_stream(
     parse_error = ""
     usage: dict[str, Any] = {}
     retry_errors: list[str] = []
-    for attempt in range(1 + config.max_extract_retries):
+    for attempt in range(1 + config.max_llm_retries):
         if config.log_llm_io:
             _log_llm_io(
                 trace_id=trace_id,
@@ -362,11 +362,11 @@ async def _call_stream(
                 "%s parse failed (attempt %d/%d): %s",
                 phase,
                 attempt + 1,
-                1 + config.max_extract_retries,
+                1 + config.max_llm_retries,
                 parse_error,
                 extra={"trace_id": trace_id},
             )
-            if attempt < config.max_extract_retries:
+            if attempt < config.max_llm_retries:
                 messages.append({
                     "role": "user",
                     "content": (
@@ -423,7 +423,7 @@ async def _run_extraction_pipeline(
     rendered_scene_system = scene_msgs[0]["content"] if scene_msgs else ""
     rendered_scene_user = scene_msgs[-1]["content"] if scene_msgs else ""
     strip_trace_markers_in_messages(scene_msgs)
-    scene_msgs, scene_trimmed, scene_trimmed_chars = trim_messages(scene_msgs, config.prompt_token_budget)
+    scene_msgs, scene_trimmed, scene_trimmed_chars = trim_messages(scene_msgs, config.context_window)
     if config.log_prompts:
         _log_prompts(turn_no, "extract_scene", scene_msgs)
 
@@ -471,7 +471,7 @@ async def _run_extraction_pipeline(
     rendered_state_system = state_msgs[0]["content"] if state_msgs else ""
     rendered_state_user = state_msgs[-1]["content"] if state_msgs else ""
     strip_trace_markers_in_messages(state_msgs)
-    state_msgs, state_trimmed, state_trimmed_chars = trim_messages(state_msgs, config.prompt_token_budget)
+    state_msgs, state_trimmed, state_trimmed_chars = trim_messages(state_msgs, config.context_window)
     if config.log_prompts:
         _log_prompts(turn_no, "extract_state", state_msgs)
 
@@ -527,7 +527,7 @@ async def _run_extraction_pipeline(
     rendered_storytell_system = storytell_msgs[0]["content"] if storytell_msgs else ""
     rendered_storytell_user = storytell_msgs[-1]["content"] if storytell_msgs else ""
     strip_trace_markers_in_messages(storytell_msgs)
-    storytell_msgs, storytell_trimmed, storytell_trimmed_chars = trim_messages(storytell_msgs, config.prompt_token_budget)
+    storytell_msgs, storytell_trimmed, storytell_trimmed_chars = trim_messages(storytell_msgs, config.context_window)
     if config.log_prompts:
         _log_prompts(turn_no, "storytell", storytell_msgs)
 

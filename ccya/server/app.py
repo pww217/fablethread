@@ -18,7 +18,7 @@ from ccya.engine import build_engine_config, warmup
 from ccya.errors import ErrorKind, LlmcApiError, LlmcRateLimit, LlmcTimeout
 from ccya.logging_setup import setup_logging
 from ccya.models import load_config as _load_config
-from ccya.pack import Pack, load_pack
+from ccya.pack import Pack, load_pack, list_packs
 
 BASE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = BASE_DIR.parent.parent
@@ -56,7 +56,10 @@ if SAVE_DIR.name != "default":
 else:
     logger.info("No existing save found, will use fresh state")
 
-_pack_id: str = config.get("game", {}).get("setting_pack", "zombie-survival")
+_all_packs = list_packs(PACKS_DIR)
+_default_pack_id = next((p.id for p in _all_packs if not p.id.startswith("custom/") and not p.id.startswith("generated/")), None) or (_all_packs[0].id if _all_packs else "zombie-survival")
+
+_pack_id: str = _default_pack_id
 try:
     _active_pack: Pack = load_pack(_pack_id, PACKS_DIR)
     logger.info("Loaded pack: %s", _pack_id)

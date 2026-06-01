@@ -38,7 +38,7 @@ flowchart LR
         G1["pack.manifest<br>(world rules, tone, setting)"]
         G3["PlayerOverrides (optional)<br>  pc_hints, npc_hints<br>  location_hints, arc_hints<br>  free_form, npc_count"]
         G4["npc_name_pool (name locales)"]
-        G5["engine_config.generate_seed_temperature (0.9)<br>engine_config.generate_seed_max_retries (1)"]
+        G5["engine_config.generate_seed_temperature (0.9)<br>engine_config.max_llm_retries (1)"]
     end
 
     subgraph LLM_GS["LLM — generate_seed_system.j2 + generate_seed_user.j2"]
