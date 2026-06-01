@@ -933,14 +933,26 @@ function game() {
                 if (window.innerWidth > 768) return;
                 const dx = e.changedTouches[0].clientX - this._swipeStartX;
                 const dy = e.changedTouches[0].clientY - this._swipeStartY;
-                // Ignore if more vertical than horizontal
                 if (Math.abs(dx) < Math.abs(dy) * 1.5) return;
                 if (Math.abs(dx) < 40) return;
-                // Swipe right → toggle left drawer, swipe left → toggle right drawer
+                // 3-slide carousel: [left] ←→ [narrative] ←→ [right]
+                // Swipe direction determines which adjacent panel opens
                 if (dx > 0) {
-                    this.toggleDrawer('left');
+                    // Swipe right: close left if open, otherwise open left
+                    if (this.leftDrawerOpen) {
+                        this.closeDrawer('left');
+                    } else {
+                        if (this.rightDrawerOpen) this.closeDrawer('right');
+                        this.toggleDrawer('left');
+                    }
                 } else {
-                    this.toggleDrawer('right');
+                    // Swipe left: close right if open, otherwise open right
+                    if (this.rightDrawerOpen) {
+                        this.closeDrawer('right');
+                    } else {
+                        if (this.leftDrawerOpen) this.closeDrawer('left');
+                        this.toggleDrawer('right');
+                    }
                 }
             }, { passive: true });
         },
