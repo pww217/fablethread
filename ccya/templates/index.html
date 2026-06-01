@@ -275,75 +275,7 @@
                     <div class="tooltip-body">Number of consecutive turns below momentum floor before pressure events trigger automatically.</div>
                     <input type="number" x-model.number="settings.consecutive_pressure_threshold" min="1" max="20"/>
                 </label>
-            </fieldset>
 
-            <!-- Thread Behavior -->
-            <fieldset class="settings-fieldset">
-                <legend>Thread Behavior</legend>
-                
-                <div class="setting-row setting-toggle has-tooltip">
-                    <span class="setting-label">De-escalate threads on success</span>
-                    <div class="tooltip-body">When enabled, successful actions clear related thread state instead of accumulating it. Reduces narrative clutter over time.</div>
-                    <button type="button" 
-                            @click="settings.thread_deescalate_on_success = !settings.thread_deescalate_on_success"
-                            :class="{ 'toggle-on': settings.thread_deescalate_on_success }"
-                            class="setting-toggle-btn">
-                        <div class="toggle-knob"></div>
-                    </button>
-                </div>
-            </fieldset>
-
-            <!-- Game Options -->
-            <fieldset class="settings-fieldset">
-                <legend>Game Options</legend>
-                
-                <div class="setting-row setting-toggle has-tooltip">
-                    <span class="setting-label">Character Creation</span>
-                    <div class="tooltip-body">Allow the engine to generate new characters during play based on player choices and story context.</div>
-                    <button type="button" 
-                            @click="settings.character_creation_enabled = !settings.character_creation_enabled"
-                            :class="{ 'toggle-on': settings.character_creation_enabled }"
-                            class="setting-toggle-btn">
-                        <div class="toggle-knob"></div>
-                    </button>
-                </div>
-
-                <label class="setting-row setting-warn has-tooltip">
-                    <span class="setting-label">Warmup on Server Start</span>
-                    <div class="tooltip-body">Run a lightweight model warmup request when the server starts. Prevents first-request latency but adds ~5 seconds to startup.</div>
-                    <input type="checkbox" x-model="settings.warmup_on_start"/>
-                </label>
-                <div class="setting-row setting-toggle has-tooltip">
-                    <span class="setting-label">Debug Mode</span>
-                    <div class="tooltip-body">Enable detailed logging during gameplay for debugging purposes.</div>
-                    <button type="button" 
-                            @click="settings.debug_enabled = !settings.debug_enabled"
-                            :class="{ 'toggle-on': settings.debug_enabled }"
-                            class="setting-toggle-btn">
-                        <div class="toggle-knob"></div>
-                    </button>
-                </div>
-            </fieldset>
-
-            <!-- Difficulty -->
-            <fieldset class="settings-fieldset">
-                <legend>⚔️ Difficulty</legend>
-                
-                <label class="setting-row has-tooltip">
-                    <span class="setting-label">Curve</span>
-                    <div class="tooltip-body">How challenging are rolls overall. "Forgiving" gives generous bonuses to easy actions; "Demanding" makes hard and extreme checks punishing.</div>
-                    <select x-model="settings.difficulty_curve">
-                        <option value="forgiving">🤝 Forgiving</option>
-                        <option value="balanced">⚖️ Balanced</option>
-                        <option value="demanding">💀 Demanding</option>
-                    </select>
-                </label>
-            </fieldset>
-
-            <!-- Pacing (new engine knobs) -->
-            <fieldset class="settings-fieldset">
-                <legend>🎬 Scene Pacing</legend>
-                
                 <div class="setting-row has-tooltip">
                     <span class="setting-label">Scene turnover speed</span>
                     <div class="tooltip-body">How quickly stale scenes trigger Pressure or Imperative directives. "Slow burn" gives scenes more time; "Fast forward" pushes action sooner.</div>
@@ -365,16 +297,16 @@
                 </div>
             </fieldset>
 
-            <!-- Failure tone -->
+            <!-- Thread Behavior -->
             <fieldset class="settings-fieldset">
-                <legend>🎭 Failure Tone</legend>
+                <legend>Thread Behavior</legend>
                 
                 <div class="setting-row setting-toggle has-tooltip">
-                    <span class="setting-label">Near-miss softening</span>
-                    <div class="tooltip-body">When a roll barely fails (just 1 or 2 points away from success), should the narration soften the blow with "the roll was close" instead of harsh failure text?</div>
+                    <span class="setting-label">De-escalate threads on success</span>
+                    <div class="tooltip-body">When enabled, successful actions clear related thread state instead of accumulating it. Reduces narrative clutter over time.</div>
                     <button type="button" 
-                            @click="settings.near_miss_softening = !settings.near_miss_softening"
-                            :class="{ 'toggle-on': settings.near_miss_softening }"
+                            @click="settings.thread_deescalate_on_success = !settings.thread_deescalate_on_success"
+                            :class="{ 'toggle-on': settings.thread_deescalate_on_success }"
                             class="setting-toggle-btn">
                         <div class="toggle-knob"></div>
                     </button>
@@ -388,6 +320,65 @@
                         <option :value="3">🎭 Normal</option>
                         <option :value="6">📚 Deep</option>
                     </select>
+                </div>
+            </fieldset>
+
+            <!-- Difficulty & Rolls -->
+            <fieldset class="settings-fieldset">
+                <legend>Difficulty &amp; Rolls</legend>
+                
+                <label class="setting-row has-tooltip">
+                    <span class="setting-label">Difficulty Curve</span>
+                    <div class="tooltip-body">How challenging are rolls overall. "Forgiving" gives generous bonuses to easy actions; "Demanding" makes hard and extreme checks punishing.</div>
+                    <select x-model="settings.difficulty_curve">
+                        <option value="forgiving">🤝 Forgiving</option>
+                        <option value="balanced">⚖️ Balanced</option>
+                        <option value="demanding">💀 Demanding</option>
+                    </select>
+                </label>
+
+                <div class="setting-row setting-toggle has-tooltip">
+                    <span class="setting-label">Near-miss softening</span>
+                    <div class="tooltip-body">When a roll barely fails (just 1 or 2 points away from success), should the narration soften the blow with "the roll was close" instead of harsh failure text?</div>
+                    <button type="button" 
+                            @click="settings.near_miss_softening = !settings.near_miss_softening"
+                            :class="{ 'toggle-on': settings.near_miss_softening }"
+                            class="setting-toggle-btn">
+                        <div class="toggle-knob"></div>
+                    </button>
+                </div>
+
+                <div class="setting-row setting-toggle has-tooltip">
+                    <span class="setting-label">Character Creation</span>
+                    <div class="tooltip-body">Allow the engine to generate new characters during play based on player choices and story context.</div>
+                    <button type="button" 
+                            @click="settings.character_creation_enabled = !settings.character_creation_enabled"
+                            :class="{ 'toggle-on': settings.character_creation_enabled }"
+                            class="setting-toggle-btn">
+                        <div class="toggle-knob"></div>
+                    </button>
+                </div>
+            </fieldset>
+
+            <!-- Server & Tools -->
+            <fieldset class="settings-fieldset">
+                <legend>Server &amp; Tools</legend>
+                
+                <label class="setting-row setting-warn has-tooltip">
+                    <span class="setting-label">Warmup on Server Start</span>
+                    <div class="tooltip-body">Run a lightweight model warmup request when the server starts. Prevents first-request latency but adds ~5 seconds to startup.</div>
+                    <input type="checkbox" x-model="settings.warmup_on_start"/>
+                </label>
+
+                <div class="setting-row setting-toggle has-tooltip">
+                    <span class="setting-label">Debug Mode</span>
+                    <div class="tooltip-body">Enable detailed logging during gameplay for debugging purposes.</div>
+                    <button type="button" 
+                            @click="settings.debug_enabled = !settings.debug_enabled"
+                            :class="{ 'toggle-on': settings.debug_enabled }"
+                            class="setting-toggle-btn">
+                        <div class="toggle-knob"></div>
+                    </button>
                 </div>
             </fieldset>
 
