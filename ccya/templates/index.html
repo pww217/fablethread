@@ -933,23 +933,14 @@ function game() {
                 if (window.innerWidth > 768) return;
                 const dx = e.changedTouches[0].clientX - this._swipeStartX;
                 const dy = e.changedTouches[0].clientY - this._swipeStartY;
-                const sw = window.innerWidth;
-                // Horizontal swipe matters; ignore if more vertical than horizontal
+                // Ignore if more vertical than horizontal
                 if (Math.abs(dx) < Math.abs(dy) * 1.5) return;
-                // Edge swipe to open
-                if (Math.abs(dx) > 40) {
-                    if (this._swipeStartX < 40 && dx > 0 && !this.leftDrawerOpen) {
-                        this.toggleDrawer('left');
-                    } else if (this._swipeStartX > sw - 40 && dx < 0 && !this.rightDrawerOpen) {
-                        this.toggleDrawer('right');
-                    }
-                }
-                // Swipe on open drawer to dismiss
-                if (this.leftDrawerOpen && this._swipeStartX < sw * 0.75 && dx < -40) {
-                    this.closeDrawer('left');
-                }
-                if (this.rightDrawerOpen && this._swipeStartX > sw * 0.25 && dx > 40) {
-                    this.closeDrawer('right');
+                if (Math.abs(dx) < 40) return;
+                // Swipe right → toggle left drawer, swipe left → toggle right drawer
+                if (dx > 0) {
+                    this.toggleDrawer('left');
+                } else {
+                    this.toggleDrawer('right');
                 }
             }, { passive: true });
         },
