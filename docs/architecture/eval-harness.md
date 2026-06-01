@@ -97,7 +97,7 @@ EvalConfig:
    - Calls `run_turn()` — the same 5-call pipeline (Rules→Narrate→Scene→State→Storytell)
    - Captures `TurnRecord` (duration, errors, narrative chars, parse failures)
    - Runs structured `_check_asserts()` against the turn's event from `events.jsonl`
-   - Runs all 22 universal asserts on the event
+   - Runs all 21 universal asserts on the event
 7. **Writes artifacts**: `events.jsonl`, `run.json`, `<scenario>.state.yaml` (copy of final state) to `evals/runs/<ts>_<rand>/artifacts/`
 8. **Updates `latest` symlink**
 
@@ -113,7 +113,7 @@ Two layers:
 - `extract`: `attempts:<stream>`, `skipped:<stream>`
 - `state_yaml`: `pending_gm_beat.present`, `pending_gm_beat.absent`
 
-**2. Universal asserts** (`universal_asserts.py`): 20 deterministic checkers run on every event. Severity: `red` (must fix) or `yellow` (advisory). Cover: turn stamping, GM beat lifecycle, location changes, pacing directive rendering ("directive:" prefix + known value match against Breathe/Scene Imperative/Overwhelm/Pressure/Tension/Threat Pressure/Resolve a Threat/Scene Pressure), NPC extraction, ring buffer bounds, scene NPC cap, condition dedup, action count/distinctness, momentum deltas, inventory overdraw, floor relief, ArcThread key deduplication, consecutive pressure tracking, beat-locked dual trigger validation, removed directive/state detection.
+**2. Universal asserts** (`universal_asserts.py`): 22 deterministic checkers run on every event. Severity: `red` (must fix) or `yellow` (advisory). Cover: turn stamping, GM beat lifecycle, location changes, pacing directive rendering ("directive:" prefix + known value match against Breathe/Scene Imperative/Overwhelm/Pressure/Tension/Scene Pressure), NPC extraction, ring buffer bounds, scene NPC cap, condition dedup, action count/distinctness, momentum deltas, inventory overdraw, inventory remove existence, thread_update ID validity, floor relief, consecutive pressure tracking, beat-locked dual trigger validation, removed directive/state detection.
 
 ## Phase 02 — Judge (`judge.py`)
 
@@ -192,7 +192,7 @@ Metadata (pack, model, temp, time, previous run)
 ## Judge Summary
   - Merged scores (all 7 final scores)
   - Domain judge breakdown table
-  - Previous scores comparison
+  - Full 7-score comparison vs previous run (with arrows)
   - Links to trace + verdict files
 
 ## Flags
@@ -202,6 +202,8 @@ Metadata (pack, model, temp, time, previous run)
   - runner_errors
   - rules_parse_failures / extract_parse_failures
   - judge_score_drop (mechanical drop ≥1)
+  - score_regression (any domain score decreased vs previous run)
+  - judge_output_suspicious (judge returned no analysis text or scores)
 
 ## Meta Judge Verdict
 
@@ -210,6 +212,8 @@ Metadata (pack, model, temp, time, previous run)
 ## Auto-Checker (structured assert results)
 
 ## Universal Assert Results (summary table)
+
+## State Comparison (diff vs previous run — inventory, thread, condition, quest, NPC ID sets)
 
 ## Pacing Metrics
   - Thread duration table

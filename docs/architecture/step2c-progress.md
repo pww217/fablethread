@@ -26,7 +26,7 @@ flowchart LR
     end
 
     subgraph OUT["Outputs — StorytellerResult"]
-        O1["thread_update: list[ThreadUpdate]<br>  id + urgency/active/summary changes"]:::outNode
+        O1["thread_update: list[ThreadUpdate]<br>  id + urgency/active/summary/progress changes"]:::outNode
         O1b["arc_resolve: ArcResolution | None<br>  resolution, visible_goal,<br>goal_context, thread_directives"]:::outNode
         O2["thread_resolve: list[ThreadResolution]<br>  id + resolution_state<br>(resolved/failed/abandoned)"]:::outNode
         O3["thread_add: ArcThread | None<br>  new thread, gated by PacingContext.gate"]:::outNode
