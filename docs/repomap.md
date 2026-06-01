@@ -155,8 +155,8 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### Pacing context and beat lifecycle (Phase 03 pacing overhaul)
 - `_compute_pacing_context()` dual-trigger beat_locked: fires when either `consecutive_pressure_turns >= config.consecutive_pressure_threshold` OR `momentum <= config.momentum_floor`; appends "Resolve a Threat" to directive whenever locked
 - `_compute_pacing_context()` gains `scene_motion` and `impossible` inputs from ruling LLM; computes `outcome_hint` (`hold`/`advance`/`transition`) from ruling's `scene_motion` and PacingContext escalation signals. `outcome_hint` replaces `directive` as narrator's primary scene-motion signal.
-- Consecutive pressure counter (`state["meta"]["consecutive_pressure_turns"]`) updated via two-pass logic at turn end (~turn.py ~1450): increments when pacing_ctx directive was Pressure/Overwhelm AND no thread_update emitted; resets to 0 otherwise
-- `pending_gm_beat` carryover fixed: both unconditional clears removed from turn.py (~line 1105 post-narration, ~line 1152 else block); beat lifecycle handled only by write/expiry — written after storytelling if non-null gm_beat with beat_expires_turn = turn_no + 2, consumed read-gated at turn_no <= beat_expires_turn in _narrate_setup (~turn.py line 906-910), cleared only on replacement or expiry
+- Consecutive pressure counter (`state["meta"]["consecutive_pressure_turns"]`) updated via two-pass logic at turn end (~turn.py ~1149): increments when pacing_ctx directive was Pressure/Overwhelm AND no thread_update emitted; resets to 0 otherwise
+- `pending_gm_beat` carryover: unconditional clears removed from turn.py; beat lifecycle handled only by write/expiry — written after storytelling if non-null gm_beat with beat_expires_turn = turn_no + 2, consumed read-gated at turn_no <= beat_expires_turn in _narrate_setup, cleared only on replacement or expiry
 
 ### Seed emotional context → narrator consumption
 - **Seed generates**: `goal_context` (character-specific stake in visible_goal), NPC `relation` field (narrative job relative to PC), action text (character-shaped, scene-grounded).
@@ -238,7 +238,7 @@ pc:
 location: {id, name, description}: str
 
 inventory: list[InventoryItem] — credits pinned to top
-  - id: str, name: str, notes: str, amount: int (≥1)
+  - id: str, name: str, notes: str, amount: int (≥1), aliases: [str]
 
 arc:                           # managed by engine/turn.py (_apply_thread_updates, _apply_arc_resolve)
   visible_goal: str
@@ -252,9 +252,10 @@ arc:                           # managed by engine/turn.py (_apply_thread_update
 resolved_arcs: list[dict]     # stored at state level, TTL-pruned in prompts; each entry has visible_goal, resolution, goal_context, thematic_question, resolved_turn
 
 scene:
-   tags: [str], tagline: str
-   world_state: list[WorldStateFact]   # permanent tier = seed-authored; persistent tier = LLM-added at runtime
-   location_entered_turn: int   # when location was last changed
+  tags: [str], tagline: str
+  world_state: list[WorldStateFact]   # permanent tier = seed-authored; persistent tier = LLM-added at runtime
+  turn_entered: int            # when the current scene was entered (set on location change, used by _compute_ages())
+  location_entered_turn: int   # when location was last changed
   combat_started_turn: int     # set when scene tags include "combat"
 
 compendium.npcs: dict[id] → {name, title, bio, aliases: [str], allegiance: str | None, presence: str | "present"|"nearby"|"known", notes: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), first_seen_turn: int | None}

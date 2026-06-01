@@ -103,12 +103,9 @@ Events are stored as one JSON line per turn in `saves/default/events.jsonl`.
 - `.state_diff` — flat list of state mutations (added by turn viewer)
 - `.connectors` — inter-stream data flow (added by turn viewer)
 
-### Compaction entries
+### Non-turn entries
 
-Compaction events have `.kind == "compaction"` and no prompts. Filter them out with:
-```bash
-ev.py turn 5   # automatically skips compaction entries
-```
+Non-turn events (kind != "turn") have no prompts and are automatically filtered by summary/timing/turn commands.
 
 ### Mechanics sections in prompts
 

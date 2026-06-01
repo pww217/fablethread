@@ -123,9 +123,9 @@ class TurnContext:
 @dataclass
 class PacingContext:
     """Consolidated pacing decision for Narrate and Progress steps."""
-    directive: str  # "Breathe" | "Scene Imperative" | "Overwhelm" | "Resolve a Threat" | "Pressure" | "Tension" | "Scene Pressure" | "Threat Pressure" | "" (may include "; Resolve a Threat" secondary when beat_locked)
+    directive: str  # "Breathe" | "Scene Imperative" | "Overwhelm" | "Pressure" | "Tension" | "Scene Pressure" | "" (may include "; Resolve a Threat" secondary when beat_locked)
     outcome_hint: str | None  # narrator's primary scene motion instruction
-    beat_locked: bool  # True: floor relief fired — Progress MUST emit breathing_room beat and gate is force-closed
+    beat_locked: bool  # True: floor relief fired — Progress MUST emit breathing_room beat; gate is unaffected (controlled by deescalate independently)
     gate: Literal["block_escalate", "allow"]  # Progress may only add threads when allow
     summary: str  # human-readable log string, never sent to LLM
 
@@ -188,6 +188,8 @@ def _apply_thread_updates(
             updates["urgency"] = update.urgency
         if update.summary is not None:
             updates["summary"] = update.summary
+        if update.progress is not None:
+            updates["progress"] = update.progress
 
         thread = arc.threads[found_idx]
         updated_thread = thread.model_copy(update=updates)
@@ -710,7 +712,7 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
     deescalate: float = 0.0
     if config.thread_deescalate_on_success and outcome.rolled and outcome.band in ("success", "crit_success"):
         if any(
-            t.get("urgency") in ("immediate", "building")
+            t.get("urgency") in ("urgent",)
             for t in ((state.get("arc") or {}).get("threads") or [])
             if isinstance(t, dict) and t.get("scope") == "scene"
         ):
