@@ -31,11 +31,10 @@ class ArcThread(BaseModel):
     scope: Literal["scene", "arc"]
     active: bool = True
     urgency: Literal["background", "normal", "urgent"] = "normal"
-    tags: list[str] = Field(default_factory=list)
+    progress: str = ""
     resolution_state: str | None = None
     outcome: str | None = None
     resolved_turn: int | None = None
-    key: str | None = None
 
 
 class CampaignArc(BaseModel):
@@ -353,6 +352,7 @@ class ThreadUpdate(BaseModel):
     active: bool | None = None
     urgency: Literal["background", "normal", "urgent"] | None = None
     summary: str | None = None
+    progress: str | None = None
 
 
 class ThreadDirective(BaseModel):

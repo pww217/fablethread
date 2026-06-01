@@ -8,9 +8,8 @@ Extract suggested player actions, outcome summary, thread updates, and arc resol
   "outcome_summary": "",
   "gm_beat": null,
   "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent", "active": true, "progress": "optional progress note"}, {"id": "..."}],
-  "thread_resolve": [{"id": "thread_id", "resolution_state": "resolved|failed|abandoned", "outcome": "One sentence outcome."}],
   "arc_resolve": {"resolution": "How this arc concluded narratively.", "visible_goal": "The next arc's goal.", "goal_context": "Why this goal matters to the PC."},
-  "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal", "tags": [], "key": "subject_action"},
+  "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal"},
   "world_state_add": [{"id": "new_fact_id", "text": "durable world fact text", "tier": "persistent"}],
   "world_state_remove": ["fact_id_to_remove"]
 }
@@ -26,7 +25,7 @@ Sections not shown in the user prompt still exist in the live game state — abs
 
 ## Actions
 
-`actions`: exactly 4 distinct player choices, ~10 words each. Each choice should feel like a natural narrative progression from the current moment — grounded in the scene, the NPCs present, and the campaign arc. Structure the four choices so at least one pursues the campaign arc goal or an active thread, one involves a named NPC (drawing on their motivation or fear where relevant), one is a distinct environmental option that explores the setting differently, and one is freeform. Weave arc context, NPC relationships, and PC motivations into the options so they naturally move the story forward. Examples: "Aim for the chest and fire", "Convince the guard to let you pass". Bias to bold, good storytelling choices. **You MUST always emit exactly 4 non-empty strings in this field. Never emit an empty array.**
+`actions`: exactly 4 distinct player choices, ~10 words each. Each choice should feel like a natural narrative progression from the current moment — grounded in the scene, the NPCs present, and the campaign arc. Structure the four choices so at least one pursues the campaign arc goal or an active thread, one involves a named NPC (drawing on motivation or fear where relevant), one is a distinct environmental option that explores the setting differently, and one is freeform. Weave arc context, NPC relationships, and PC motivations into the options so they naturally move the story forward. Examples: "Aim for the chest and fire", "Convince the guard to let you pass". Each choice must escalate consequences, force a decision, or change the situation irreversibly — avoid passive options like "look around", "wait and watch", "plan carefully". The four choices must span different emotional postures (confront vs negotiate vs flee vs exploit) not variations of the same approach. Write choices in active voice as if spoken by the PC; avoid generic filler that could fit any protagonist in any setting. **You MUST always emit exactly 4 non-empty strings in this field. Never emit an empty array.**
 
 ## Outcome summary
 
@@ -41,12 +40,7 @@ Examples:
 
 All thread operations work regardless of scope. You do NOT need to decide if a tension is "scene" or "arc". Python handles scoping via the ArcThread.scope field. Emit only what actually happened this turn.
 
-`thread_update`: A list of objects with `id` (snake_case) and optional fields — `summary` (rewrite the thread's summary), `urgency` (change priority level), `active` (boolean — set `true` to activate a dormant thread, `false` to demote to dormant), and/or `progress` (free-text progress note). Only include threads whose narrative advanced meaningfully this turn. Example: `[{"id": "the_missing_ore", "summary": "broadened thread description", "urgency": "urgent", "active": true, "progress": "2/3 leads followed"}]`.
-
-IMPORTANT: A thread's identity is its `id` — not its current summary, progress, or urgency. When a situation evolves, update the existing thread via `thread_update` with new wording, rather than creating a new thread. Do not create a thread for every encounter variant — broaden it. Examples:
-- Instead of creating `enemy_presence_in_ruins` + `alleyway_pursuit` + `encirclement_threat` as three threads, maintain one broader thread like `enemy_contact_advance` and update its summary/progress each turn.
-- Instead of creating `naval_coordination_failure` and `electronic_jamming_interference` as separate threads, keep one thread and widen its summary to encompass both symptoms.
-- When a threat escalates (e.g., sniper → pursuit → encirclement), update the existing thread to reflect the new reality. Do not spawn a new thread per escalation step.
+`thread_update`: A list of objects with `id` (snake_case) and optional fields — `urgency` (change priority level), `active` (boolean — set `true` to activate a dormant thread, `false` to demote to dormant), and/or `progress` (free-text progress note). Only include threads whose narrative advanced meaningfully this turn. Example: `[{"id": "the_missing_ore", "urgency": "urgent", "active": true, "progress": "2/3 leads followed"}]`.
 
 CRITICAL RULES for including a thread ID in thread_update:
 - Include ONLY if this turn's events DIRECTLY affected that specific thread. The player took meaningful action toward it, or its narrative arc clearly progressed.
@@ -54,7 +48,7 @@ CRITICAL RULES for including a thread ID in thread_update:
 - Do NOT include threads present as background. Presence ≠ advancement.  
 - If uncertain whether a thread was affected — do not include it.
 
-MAINTENANCE UPDATES: You may also include threads in `thread_update` for housekeeping — lowering urgency, marking dormant (`active: false`), or updating progress — even when the thread was NOT directly advanced this turn. A thread sitting at `urgent` for 5+ turns with no progress should be downgraded. A thread from an earlier scene that is no longer relevant should be marked dormant. The CRITICAL RULES above apply to advancement updates (threads whose narrative moved); this guidance applies to maintenance updates (threads whose status needs adjustment).
+`thread_add`: A new ArcThread object when a genuinely new story tension emerges this turn. CRITICAL: Only emit thread_add when `pacing_context.gate` shows `"allow"` — if gate is `"block_escalate"`, do NOT add threads regardless of narrative context. The engine already decided the pacing doesn't support escalation. Thread must have: id (snake_case), summary, scope ("scene" for short-lived tension tied to current location/NPCs — **deleted on location change**, "arc" for persistent story tension that spans locations), urgency (`"background"`, `"normal"`, or `"urgent"` only — no other values).
 
 CRITICAL — CONSOLIDATE BEFORE CREATING: Before emitting `thread_add`, scan every active and latent thread for conceptual overlap with the proposed new thread. Overlap means: same antagonist, same problem domain (e.g., both about enemy forces), same NPC, same location-based threat, or same thematic tension. If ANY existing thread covers related ground — even with a different ID, different wording, or a different specific instance — do NOT create a new thread. Instead, update the existing thread via `thread_update` with a broadened summary and new progress.
 
@@ -114,6 +108,12 @@ Each entry: `{"id": "snake_case_id", "text": "fact description", "tier": "persis
 `world_state_remove`: IDs of persistent facts now false, outdated, irrelevant, or superseded (e.g., a blockade lifted, bridge rebuilt). Do NOT remove permanent tier facts — they are immutable seed-authored truths.
 
 You have visibility into all threads — including those marked (dormant/latent) — plus past resolutions with outcomes. Use this knowledge actively. Latent threads represent narrative threads the party has not yet discovered but can be drawn toward. When generating new thread suggestions, choose actions and complications that create circumstances where a dormant thread could naturally surface — a character's past catching up, a long-silent threat stirring. When selecting beats and narration, use beat types and pacing to build tension toward latent discoveries. Never expose the latent content directly — instead, craft situations that make discovery feel earned and natural. The 4 player choices, suggested actions, and complications are your primary tools for gently steering the player toward what they don't yet know.
+
+## Choice momentum
+
+**Escalate from prior turns.** Look at what happened in recent turns — choices should escalate or complicate what came before, not repeat it. If last turn was combat, this turn's options might involve consequences of that fight (pursuing wounded enemies, looting bodies, dealing with reinforcements).
+
+**Pacing and urgency:** When the directive is "Overwhelm" or "Pressure", choices should reflect escalating stakes — urgent, time-sensitive options that demand immediate action. When the directive is "Breathe", allow investigative or exploratory choices but still avoid passive stalling ("wait", "observe"). Never let a choice sit at zero tension for more than one turn in an active arc.
 
 ## PacingContext guidance
 

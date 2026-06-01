@@ -586,7 +586,7 @@ def check_thread_update_id_valid(event: dict[str, Any]) -> dict[str, Any]:
         t.get("id") for t in ((event.get("state_snapshot") or {}).get("arc") or {}).get("threads") or []
         if isinstance(t, dict) and t.get("id")
     }
-    bad = [t.get("id") for t in thread_updates if isinstance(t, dict) and t.get("id") and t["id"] not in state_thread_ids]
+    bad = [tid for tid in thread_updates if tid not in state_thread_ids]
     if bad:
         return {
             "assertion": "universal.thread_update.valid_id",
@@ -681,63 +681,7 @@ def check_directive_rendered_storytell(event: dict[str, Any]) -> dict[str, Any]:
 
 
 
-def _token_overlap_score(a: str, b: str) -> float:
-    """Compute token-overlap similarity between two strings (Jaccard-like).
 
-    Splits on whitespace after lowercasing. Score = intersection / max(len_a, len_b).
-    Matches the algorithm used in turn.py ArcThread.key auto-merge dedup gate.
-    """
-    tokens_a = set(a.lower().split()) if a else set()
-    tokens_b = set(b.lower().split()) if b else set()
-    if not tokens_a or not tokens_b:
-        return 0.0
-    overlap = len(tokens_a & tokens_b)
-    return overlap / max(len(tokens_a), len(tokens_b))
-
-
-def check_arcthread_key_dedup(event: dict[str, Any]) -> dict[str, Any]:
-    """Validate ArcThread.key auto-merge dedup gate works correctly.
-
-    Checks that no two threads in state_snapshot.arc.threads have similar non-null keys above 70% threshold.
-    If duplicates exist the fuzzy merge gate failed to catch them during thread_add.
-    """
-    arc = (event.get("state_snapshot") or {}).get("arc") or {}
-    threads: list[dict[str, Any]] = arc.get("threads") or []
-
-    # Filter to threads with non-null, non-empty keys
-    keyed_threads = [t for t in threads if isinstance(t, dict) and t.get("key")]
-
-    if len(keyed_threads) < 2:
-        return {
-            "assertion": "universal.arcthread.key_dedup",
-            "passed": True,
-            "detail": f"only {len(keyed_threads)} thread(s) with non-null key",
-            "scope": "universal",
-            "severity": "yellow",
-        }
-
-    # Check every pair for token-overlap similarity above 70% threshold
-    for i in range(len(keyed_threads)):
-        for j in range(i + 1, len(keyed_threads)):
-            key_a = str(keyed_threads[i].get("key") or "")
-            key_b = str(keyed_threads[j].get("key") or "")
-            score = _token_overlap_score(key_a, key_b)
-            if score >= 0.70:
-                return {
-                    "assertion": "universal.arcthread.key_dedup",
-                    "passed": False,
-                    "detail": f"Duplicate ArcThread.key detected: '{key_a}' ({score:.2f}) vs '{key_b}'",
-                    "scope": "universal",
-                    "severity": "red",
-                }
-
-    return {
-        "assertion": "universal.arcthread.key_dedup",
-        "passed": True,
-        "detail": f"no duplicates among {len(keyed_threads)} keyed thread(s)",
-        "scope": "universal",
-        "severity": "yellow",
-    }
 
 
 def check_consecutive_pressure_tracking(
@@ -1115,7 +1059,6 @@ def run_all_universal_asserts(
         check_directive_rendered_storytell(event),
         check_consecutive_pressure_tracking(event, prev_event),
         check_beat_locked_dual_trigger(event, prev_event),
-        check_arcthread_key_dedup(event),
         check_no_removed_directives(event),
         check_no_removed_npc_states(event),
         check_momentum_floor_no_relief(event, prev_event, event_window=event_window),
