@@ -87,14 +87,14 @@ Use `arc_resolve` to signal that this campaign arc has reached its natural concl
 **Only emit `arc_resolve` when resolving an arc.** If no arc is being resolved, omit the field entirely — do NOT return `"arc_resolve": {}`.
 
 - `resolution`: One-sentence narrative summary of how this arc concluded (e.g., "The quarantine perimeter collapsed after Dr. Voss's team was overrun").
-- `visible_goal`: The next arc's visible goal — a new objective that emerges from or follows from this arc's conclusion.
-- `goal_context`: 2–3 sentences explaining why this new goal matters to the PC specifically.
+- `visible_goal`: The next arc's visible goal. Must use the current context — active threads, world state changes, NPC developments, and recent narration — to derive a new medium-to-long-term objective that follows naturally from this arc's outcome. Do not repeat the just-resolved goal. Examples: if the arc was "escape the city," the next goal might be "find a safe route through the quarantine zone" or "confront the official who sealed the gates."
+- `goal_context`: 2–3 sentences explaining why this new goal matters to the PC specifically — reference the PC's background, relationships, and what they've been through this arc.
 - `thematic_question`: Optional override for the successor arc's thematic question. Omit to inherit from the current arc.
 - `thread_directives`: Optional list of `{"id": "thread_id", "action": "drop"|"move_latent"}` for threads that should be removed or demoted. Threads not mentioned carry over as-is into the successor arc.
 
-Only emit `arc_resolve` when the visible_goal has been meaningfully completed, abandoned, or transformed. Do NOT use it for partial progress or temporary setbacks.
+Arc resolution timing: Emit `arc_resolve` when the visible_goal has been meaningfully completed, abandoned, or transformed by events. A goal is ready to resolve when the PC has taken decisive action toward it and the situation has moved past the original objective — even if not every thread is tied off. The successor arc is where lingering threads get a new context. Do NOT use arc_resolve for partial progress or temporary setbacks — the arc is not done until the goal is genuinely reached or rendered obsolete.
 
-When the arc's visible_goal is close to achievement (the main objective is in progress or the climactic scene is underway), shift thread strategy: prefer resolving side-threads via `thread_resolve`, consolidate scene threads into the main arc thread, and avoid creating new threads. A thread whose concern will soon be resolved by the arc's conclusion should be marked as `"abandoned"` or `"resolved"` — the arc resolution will subsume it. Do not let side-threads accumulate during the final push toward the arc goal.
+When the arc is approaching resolution (the main objective is in progress, the climactic scene is underway, or the story has clearly moved on from the original goal), shift thread strategy: prefer resolving side-threads via `thread_resolve`, consolidate scene threads into the main arc thread, and avoid creating new threads. A thread whose concern will be resolved by the arc's conclusion should be marked as `"abandoned"` or `"resolved"` — the arc resolution will subsume it. Do not let side-threads accumulate during the final push toward the arc goal.
 
 ## Rules-outcome guidance
 - crit_fail / fail / setback / partial: do NOT mark threads as affected for the attempted action.
