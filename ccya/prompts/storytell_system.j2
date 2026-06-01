@@ -7,7 +7,8 @@ Extract suggested player actions, outcome summary, thread updates, and arc resol
   "actions": [],
   "outcome_summary": "",
   "gm_beat": null,
-  "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent"}, {"id": "..."}],
+  "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent", "active": true, "progress": "optional progress note"}, {"id": "..."}],
+  "thread_resolve": [{"id": "thread_id", "resolution_state": "resolved|failed|abandoned", "outcome": "One sentence outcome."}],
   "arc_resolve": {"resolution": "How this arc concluded narratively.", "visible_goal": "The next arc's goal.", "goal_context": "Why this goal matters to the PC."},
   "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal", "tags": [], "key": "subject_action"},
   "world_state_add": [{"id": "new_fact_id", "text": "durable world fact text", "tier": "persistent"}],
@@ -40,7 +41,12 @@ Examples:
 
 All thread operations work regardless of scope. You do NOT need to decide if a tension is "scene" or "arc". Python handles scoping via the ArcThread.scope field. Emit only what actually happened this turn.
 
-`thread_update`: A list of objects with `id` (snake_case) and optional `urgency` changes for threads that shifted meaningfully this turn. Include ONLY if you want to change a thread's urgency level or mark it as active/inactive. Example: `[{"id": "the_missing_ore", "urgency": "urgent"}, {"id": "fraying_rigging_and_broken"}]`. Omitting `urgency` marks the thread as seen/acknowledged without changing its priority.
+`thread_update`: A list of objects with `id` (snake_case) and optional fields — `summary` (rewrite the thread's summary), `urgency` (change priority level), `active` (boolean — set `true` to activate a dormant thread, `false` to demote to dormant), and/or `progress` (free-text progress note). Only include threads whose narrative advanced meaningfully this turn. Example: `[{"id": "the_missing_ore", "summary": "broadened thread description", "urgency": "urgent", "active": true, "progress": "2/3 leads followed"}]`.
+
+IMPORTANT: A thread's identity is its `id` — not its current summary, progress, or urgency. When a situation evolves, update the existing thread via `thread_update` with new wording, rather than creating a new thread. Do not create a thread for every encounter variant — broaden it. Examples:
+- Instead of creating `enemy_presence_in_ruins` + `alleyway_pursuit` + `encirclement_threat` as three threads, maintain one broader thread like `enemy_contact_advance` and update its summary/progress each turn.
+- Instead of creating `naval_coordination_failure` and `electronic_jamming_interference` as separate threads, keep one thread and widen its summary to encompass both symptoms.
+- When a threat escalates (e.g., sniper → pursuit → encirclement), update the existing thread to reflect the new reality. Do not spawn a new thread per escalation step.
 
 CRITICAL RULES for including a thread ID in thread_update:
 - Include ONLY if this turn's events DIRECTLY affected that specific thread. The player took meaningful action toward it, or its narrative arc clearly progressed.
@@ -49,8 +55,6 @@ CRITICAL RULES for including a thread ID in thread_update:
 - If uncertain whether a thread was affected — do not include it.
 
 MAINTENANCE UPDATES: You may also include threads in `thread_update` for housekeeping — lowering urgency, marking dormant (`active: false`), or updating progress — even when the thread was NOT directly advanced this turn. A thread sitting at `urgent` for 5+ turns with no progress should be downgraded. A thread from an earlier scene that is no longer relevant should be marked dormant. The CRITICAL RULES above apply to advancement updates (threads whose narrative moved); this guidance applies to maintenance updates (threads whose status needs adjustment).
-
-`thread_add`: A new ArcThread object when a genuinely new story tension emerges this turn. CRITICAL: Only emit thread_add when `pacing_context.gate` shows `"allow"` — if gate is `"block_escalate"`, do NOT add threads regardless of narrative context. The engine already decided the pacing doesn't support escalation. Even when gate is "allow", "allow" means escalation is permitted — it does NOT mean a new thread is required. Prefer updating an existing thread (especially a scene-scoped thread already tracking this situation) over creating a new one. The evolving stages of a single combat encounter are not distinct threads — update the existing scene thread with a broadened summary and new progress. Thread must have: id (snake_case), summary, scope ("scene" for short-lived tension tied to current location/NPCs — **deleted on location change**, "arc" for persistent story tension that spans locations), urgency (`"background"`, `"normal"`, or `"urgent"` only — no other values).
 
 CRITICAL — CONSOLIDATE BEFORE CREATING: Before emitting `thread_add`, scan every active and latent thread for conceptual overlap with the proposed new thread. Overlap means: same antagonist, same problem domain (e.g., both about enemy forces), same NPC, same location-based threat, or same thematic tension. If ANY existing thread covers related ground — even with a different ID, different wording, or a different specific instance — do NOT create a new thread. Instead, update the existing thread via `thread_update` with a broadened summary and new progress.
 
