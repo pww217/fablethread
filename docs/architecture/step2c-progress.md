@@ -27,7 +27,7 @@ flowchart LR
     end
 
     subgraph OUT["Outputs — StorytellerResult"]
-        O1["thread_update: list[ThreadUpdate]<br>  id + urgency/active/summary changes"]:::outNode
+        O1["thread_update: list[ThreadUpdate]<br>  id + urgency/active/summary/progress changes"]:::outNode
         O1b["arc_resolve: ArcResolution | None<br>  resolution, visible_goal,<br>goal_context, thread_directives"]:::outNode
         O2["thread_resolve: list[ThreadResolution]<br>  id + resolution_state<br>(resolved/failed/abandoned)"]:::outNode
         O3["thread_add: ArcThread | None<br>  new thread, gated by PacingContext.gate"]:::outNode
@@ -150,11 +150,10 @@ ArcThread
   scope: Literal["scene", "arc"]  # scene = short-lived tied to current location; arc = persistent story tension
   active: bool = True        # Storyteller-controlled via thread_update
   urgency: Literal["background", "normal", "urgent"] = "normal"  # Storyteller-controlled
-  tags: list[str]            — Keywords for engagement matching
+  progress: str = ""         — Free-text progress note, set via thread_update[].progress
   resolution_state: str | None # Set when thread_resolve processes resolved/failed/abandoned
   outcome: str | None        # Set from ThreadResolution.outcome when moved to completed_threads
   resolved_turn: int | None  — Turn when thread was resolved; used for TTL filtering in prompts
-  key: str | None            — Optional canonical concept label; enables engine-side dedup auto-merge
 ```
 
 ### Engine-Driven Arc
@@ -257,12 +256,12 @@ All three run after `apply_delta()` but before `save_state()`.
 
 #### Step-by-Step: `_apply_thread_updates()`
 
-Processes `storyteller_result.thread_update` (list of `ThreadUpdate` with `id`, optional `active`, `urgency`, `summary`).
+Processes `storyteller_result.thread_update` (list of `ThreadUpdate` with `id`, optional `active`, `urgency`, `summary`, `progress`).
 
 For each ThreadUpdate:
 1. Find matching thread by ID in `arc.threads[]`
 2. If not found → log WARNING, skip
-3. Apply non-None fields (`active`, `urgency`, `summary`) via `model_copy`
+3. Apply non-None fields (`active`, `urgency`, `summary`, `progress`) via `model_copy`
 4. Log applied changes at INFO level
 
 #### Step-by-Step: `_apply_arc_resolve()`
@@ -284,8 +283,7 @@ Processes `storyteller_result.arc_resolve` (optional `ArcResolution` with `resol
 New threads (`storyteller_result.thread_add`) are gated by:
 
 1. **Pacing gate**: `_pc is None or _pc.gate == "allow"` — blocks escalation when pacing context says so
-2. **Key collision**: exact match on thread `key` → reject with WARNING log
-3. **Fuzzy auto-merge**: ≥70% token overlap on `key` → update existing thread summary/tags instead of creating new thread
+2. **ID collision**: exact match on thread `id` → skip; dedup is id-only (no key-based or fuzzy merge)
 
 #### Step-by-Step: `_apply_thread_resolutions()`
 
