@@ -264,13 +264,15 @@
             <fieldset class="settings-fieldset">
                 <legend>Pacing</legend>
                 
-                <label class="setting-row">
+                <label class="setting-row has-tooltip">
                     <span class="setting-label">Momentum Floor</span>
+                    <div class="tooltip-body">Minimum momentum gain per turn, regardless of player success or failure. Keeps the game from stalling at zero.</div>
                     <input type="number" x-model.number="settings.momentum_floor" min="-10" max="10"/>
                 </label>
 
-                <label class="setting-row">
+                <label class="setting-row has-tooltip">
                     <span class="setting-label">Consecutive Pressure Threshold</span>
+                    <div class="tooltip-body">Number of consecutive turns below momentum floor before pressure events trigger automatically.</div>
                     <input type="number" x-model.number="settings.consecutive_pressure_threshold" min="1" max="20"/>
                 </label>
             </fieldset>
@@ -279,8 +281,9 @@
             <fieldset class="settings-fieldset">
                 <legend>Thread Behavior</legend>
                 
-                <div class="setting-row setting-toggle">
+                <div class="setting-row setting-toggle has-tooltip">
                     <span class="setting-label">De-escalate threads on success</span>
+                    <div class="tooltip-body">When enabled, successful actions clear related thread state instead of accumulating it. Reduces narrative clutter over time.</div>
                     <button type="button" 
                             @click="settings.thread_deescalate_on_success = !settings.thread_deescalate_on_success"
                             :class="{ 'toggle-on': settings.thread_deescalate_on_success }"
@@ -294,8 +297,9 @@
             <fieldset class="settings-fieldset">
                 <legend>Game Options</legend>
                 
-                <div class="setting-row setting-toggle">
+                <div class="setting-row setting-toggle has-tooltip">
                     <span class="setting-label">Character Creation</span>
+                    <div class="tooltip-body">Allow the engine to generate new characters during play based on player choices and story context.</div>
                     <button type="button" 
                             @click="settings.character_creation_enabled = !settings.character_creation_enabled"
                             :class="{ 'toggle-on': settings.character_creation_enabled }"
@@ -304,14 +308,14 @@
                     </button>
                 </div>
 
-                <label class="setting-row setting-warn">
+                <label class="setting-row setting-warn has-tooltip">
                     <span class="setting-label">Warmup on Server Start</span>
+                    <div class="tooltip-body">Run a lightweight model warmup request when the server starts. Prevents first-request latency but adds ~5 seconds to startup.</div>
                     <input type="checkbox" x-model="settings.warmup_on_start"/>
-                    <span class="setting-hint">Requires server restart to take effect</span>
                 </label>
-
-                <div class="setting-row setting-toggle">
+                <div class="setting-row setting-toggle has-tooltip">
                     <span class="setting-label">Debug Mode</span>
+                    <div class="tooltip-body">Enable detailed logging during gameplay for debugging purposes.</div>
                     <button type="button" 
                             @click="settings.debug_enabled = !settings.debug_enabled"
                             :class="{ 'toggle-on': settings.debug_enabled }"
@@ -1784,7 +1788,8 @@ function game() {
             }
         },
 
-        openSettingsPanel() {
+        async openSettingsPanel() {
+            await this.loadSettings();
             document.getElementById('settings-backdrop').classList.remove('hidden');
             const modal = document.getElementById('settings-modal');
             modal.classList.remove('hidden');
@@ -1804,15 +1809,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsModal = document.getElementById('settings-modal');
     if (settingsBackdrop && settingsModal) {
         settingsBackdrop.addEventListener('click', () => {
-            window.appInstance?.closeSettingsPanel();
+            window._gameInstance?.closeSettingsPanel();
         });
         settingsModal.querySelector('.settings-close').addEventListener('click', () => {
-            window.appInstance?.closeSettingsPanel();
+            window._gameInstance?.closeSettingsPanel();
         });
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !settingsModal.classList.contains('hidden')) {
                 e.preventDefault();
-                window.appInstance?.closeSettingsPanel();
+                window._gameInstance?.closeSettingsPanel();
             }
         });
     }
