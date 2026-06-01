@@ -37,7 +37,7 @@
 | `ccya/eval/__init__.py` | Re-exports: EvalConfig, JudgeResult, RunResult, Scenario, build_trace, run_scenario, etc. |
 | `ccya/eval/config.py` | EvalConfig, JudgesSpec (per-judge rubric/model/temp), load_eval_config() |
 | `ccya/eval/judge.py` | run_judges(): parallel domain judges + sequential meta judge; parse_judge_response() YAML front matter; _build_metrics_rows(turn, tok_in per phase, pacing_directive, beat_generated/consumed from pending_gm_beat lifecycle) |
-| `ccya/eval/universal_asserts.py` | Auto-checkers (condition dedup, ArcThread.key dedup with 70% token-overlap threshold, consecutive_pressure_tracking two-pass counter, beat_locked dual-trigger from momentum_floor/consecutive_pressure_threshold, no_removed_directives/npc_states negative assertions, exact directive value rendering via word-boundary regex, orphan condition detection, thread_add→state application verification, beat type variety warning, surface_as consistency check) — red/yellow severity |
+| `ccya/eval/universal_asserts.py` | Auto-checkers (condition dedup, consecutive_pressure_tracking two-pass counter, beat_locked dual-trigger from momentum_floor/consecutive_pressure_threshold, no_removed_directives/npc_states negative assertions, exact directive value rendering via word-boundary regex, orphan condition detection, thread_add→state application verification, inventory remove existence, thread_update ID validity, beat type variety warning, surface_as consistency check) — red/yellow severity |
 | `ccya/eval/report.py` | write_full_report(run_result, eval_cfg, judge_results=None): single-pass REPORT.md with metadata, optional judge summary + verdicts, flags, auto-checker table, pacing metrics, turn metrics; atomic write via tmp.replace() |
 | `ccya/eval/scenario.py` | Scenario (with seed_overrides), Turn, TurnAssert (with stream_id) |
 | `ccya/eval/engine_mirror.py` | Live engine constants for scenarios: BANDS, SKILLS, DIFFICULTIES, PC_CONDITION_CAP, SCENE_NAMED_NPC_CAP; pacing config mirror (momentum_floor=-3, consecutive_pressure_threshold=3, combat +2 scene_age boost) via EngineConfig defaults |
@@ -102,7 +102,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### Arc thread state machine
 - States: LATENT → ACTIVE (via thread_update with active=True) → COMPLETE/FAILED (via thread_resolve from StorytellerResult) / DORMANT (via thread_update with active=False)
 - Storyteller controls all thread state transitions via `thread_update` — engine applies them without cap/cooldown enforcement
-- Engine owns thread creation (key-based dedup + fuzzy merge safety net); storyteller owns urgency/active state
+- Engine owns thread creation (id-based dedup only — no key or fuzzy merge); storyteller owns urgency/active/progress state
 - TTL-based cleanup: completed threads and resolved arcs are pruned from prompt context after `completed_thread_ttl` / `resolved_arc_ttl` turns (default 3)
 - ArcThread.resolution_state: str | None — set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads for narrative context
 - ArcThread.outcome: str | None — set from ThreadResolution.outcome when moved to completed_threads
@@ -110,10 +110,10 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - `_merge_arc_update` unconditionally replaces `arc["threads"]` and `arc["completed_threads"]` on every call
 
 ### Storyteller system prompt (`ccya/prompts/storytell_system.j2`)
-- JSON schema example shows minimal ArcThread structure with optional `key` field for canonical concept labeling
+- JSON schema example shows ArcThread without `key` or `tags`; `thread_update` supports `active`, `urgency`, and `progress`; `thread_add` no longer includes `tags` or `key`
 - CRITICAL instruction added: storyteller must check all active/latent thread summaries for conceptual overlap before emitting new threads; update existing threads via `thread_update` instead of creating duplicates when tension is the same
-- Thread key guidance appended to thread_add rules paragraph — structured snake_case format (`subject_action` or `location_event`) enables engine-side dedup auto-merge
 - Band-aligned beat selection section: directive/band priority rule added (directive takes precedence over band — Breathe→breathing_room, Pressure/Overwhelm→complication/pressure, Tension→follow band); near-miss exception: fail near-misses within 2 of threshold at 7 may use complication; null cadence: emit null at least 1 of every 4 turns regardless of directive
+- Choice momentum section added: instructs LLM to escalate from prior turns, connect pacing context to choice urgency, and avoid passive options
 ### Narrator system prompt (`ccya/prompts/narrate_system.j2`)
 - Restructured into 4-section hierarchy: (1) Task/role, (2) Hard rules (Player Input Is Truth, Inventory, Never Repeat Prior Narration, Fail-Band Outcomes), (3) Behavioral guidance (NPCs merged single section, Style, Pragmatic Interpretation, Pacing, Campaign arc context), (4) Formatting/output (Markdown). Output discipline section removed (narrator emits only prose after ARC UPDATE removal). Dynamic sections (Universe rules, Genre tone) remain at end.
 - ARC UPDATE section (former lines 70-87) removed entirely — narrator never emits the block, extraction code removed from turn.py
@@ -178,7 +178,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### Extraction field routing
 - **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, compendium_npc_update (no pressure fields); CompendiumEntry now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes
 - **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
-- **StorytellerResult**: thread_update (list[ThreadUpdate] with id/urgency/active/summary), arc_resolve (ArcResolution with resolution/visible_goal/goal_context/thematic_question/thread_directives), thread_resolve (list[ThreadResolution] with id/resolution_state/outcome), thread_add (ArcThread | None), world_state_add: list[WorldStateFact], world_state_remove: list[str], actions, outcome_summary, gm_beat; thread_add validated by key-based dedup gate in turn.py — exact collision rejects with WARNING log ("thread_add.key_collision"), fuzzy auto-merge on ≥70% token-overlap scoring updates existing thread summary/tags ("thread_add.auto_merge"); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
+- **StorytellerResult**: thread_update (list[ThreadUpdate] with id/urgency/active/summary/progress), arc_resolve (ArcResolution with resolution/visible_goal/goal_context/thematic_question/thread_directives), thread_resolve (list[ThreadResolution] with id/resolution_state/outcome), thread_add (ArcThread | None), world_state_add: list[WorldStateFact], world_state_remove: list[str], actions, outcome_summary, gm_beat; thread_add validated by id-based dedup only (no key, no fuzzy merge); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
 - **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions, persisted to state["pc"]["actions"] as rolling window by apply_delta()
 
 ### Cross-stream data flow (minimal by design)
@@ -244,7 +244,7 @@ arc:                           # managed by engine/turn.py (_apply_thread_update
   visible_goal: str
   goal_context: str            # 2–3 sentences explaining why visible_goal matters to this character specifically
   thematic_question: str       # emotional register — never stated directly in narration
-  threads: list[ArcThread]     # unified arc.threads[] with active flag; ArcThread.key optional str | None for canonical concept labeling (dedup at thread_add time); ArcThread.outcome nullable on active, set from ThreadResolution when completed; ArcThread.resolved_turn tracks when thread was resolved for TTL filtering
+  threads: list[ArcThread]     # unified arc.threads[] with active flag; dedup is id-only (no key or fuzzy merge); ArcThread.outcome nullable on active, set from ThreadResolution when completed; ArcThread.resolved_turn tracks when thread was resolved for TTL filtering
   completed_threads: list[ArcThread]   # resolved/failed/abandoned threads moved here by _apply_thread_resolutions(); each has resolution_state + outcome + resolved_turn from ThreadResolution
   resolution: str | None       # set when arc is resolved via arc_resolve
   last_thread_created_turn: int  # tracks when a thread was last created for pacing
