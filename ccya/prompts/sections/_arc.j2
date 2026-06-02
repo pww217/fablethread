@@ -8,13 +8,13 @@
 **Thematic question:** {{ current_arc.thematic_question }}
 {% endif %}{% if current_arc.resolution %}
 **Arc resolution (turn {{ current_arc.resolved_turn }}):** {{ current_arc.resolution }}
-{% endif %}{% if resolved_arc and resolved_arc.resolution -%}
+{% endif %}{% if resolved_arcs and resolved_arcs|length > 0 -%}
 
-### Previously Resolved Arcs
-{%- for ra in resolved_arc %}
-- **Turn {{ ra.turn }}:** {{ ra.resolution[:120] }}{% if ra.goal_context %} (Goal: {{ ra.goal_context[:80] }}){% endif %}{% if ra.surviving_threads and ra.surviving_threads|length > 0 %} → threads: {{ ra.surviving_threads|join(", ") }}{% endif %}
-{%- endfor %}
-{%- endif %}{% if completed_threads and completed_threads|length > 0 -%}
+### Previously Resolved Arcs (TTL)
+{%- for ra in resolved_arcs %}
+- **Turn {{ ra.resolved_turn }}:** {{ ra.resolution[:120] }}{% if ra.goal_context %} (Goal: {{ ra.goal_context[:80] }}){% endif %}{% endfor -%}
+
+{% endif -%}{% if completed_threads and completed_threads|length > 0 -%}
 
 ### Completed Threads (TTL)
 {%- for ct in completed_threads[:15] %}
