@@ -56,7 +56,6 @@ from ccya.state import (
     reconcile_delta,
     resolve_inventory_remove_target,
     save_state,
-    snapshot_state,
 )
 from ccya.state.delta_builder import _merge_arc_update
 
@@ -1282,10 +1281,10 @@ async def run_turn(
                 "context_meta": _context_meta(rendered_narr_system, rendered_narr_user, narr_trimmed, narr_trimmed_chars),
             },
         }
+        event["state_snapshot"] = load_state(save_dir)
         append_event(save_dir, event)
         # Snapshot pre-turn state before overwriting — used by delete_last_turn
         register_persist(str(save_dir))
-        snapshot_state(save_dir)
         save_state(save_dir, state)
         append_chronicle(
             save_dir,

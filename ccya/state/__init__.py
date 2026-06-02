@@ -21,9 +21,7 @@ from ccya.state.inventory import (
 from ccya.state.io import (
     init_save_dir,
     load_state,
-    restore_snapshot_state,
     save_state,
-    snapshot_state,
 )
 from ccya.state.npcs import (
     build_npc_alias_map,
@@ -48,8 +46,6 @@ __all__ = [
     "reconcile_delta",
     "resolve_inventory_canonical_id",
     "resolve_inventory_remove_target",
-    "restore_snapshot_state",
     "save_state",
-    "snapshot_state",
     "touch_compendium_order",
 ]
