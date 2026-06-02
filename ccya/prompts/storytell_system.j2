@@ -48,9 +48,11 @@ CRITICAL RULES for including a thread ID in thread_update:
 - Do NOT include threads present as background. Presence ≠ advancement.  
 - If uncertain whether a thread was affected — do not include it.
 
-`thread_resolve`: A list of objects to mark individual threads as resolved, failed, or abandoned — independent of arc resolution. Use this when a thread has run its course, was superseded by events, or merged into a broader concern. THIS IS VALID — not every thread needs a dramatic completion. Example: `[{"id": "enemy_presence_in_ruins", "resolution_state": "abandoned", "outcome": "Threats absorbed into broader encirclement situation."}]`
+`thread_resolve`: A list of objects to mark individual threads as resolved, failed, or abandoned — independent of arc resolution. Use this when a thread has run its course, was superseded by events, or merged into a broader concern. THIS IS VALID — not every thread needs a dramatic completion.
 
 Valid `resolution_state` values: `"resolved"` (thread reached its conclusion), `"failed"` (thread's goal was thwarted), `"abandoned"` (thread superseded, merged, or no longer relevant — use for consolidation).
+
+`outcome`: One sentence. Must be HONEST to the actual events — if the thread was never pursued, say that. Do not invent narrative that didn't occur. Valid outcomes include "Remained unresolved as the story moved on" or "Never surfaced — the crew's priorities shifted." Invalid: inventing an investigation that never happened to justify resolution. Example: `[{"id": "the_missing_manifest", "resolution_state": "abandoned", "outcome": "Never surfaced — the crew's priorities shifted to the pardon."}]`
 
 When to resolve:
 - Thread reached its natural conclusion → `"resolved"` or `"failed"`.
@@ -79,8 +81,6 @@ Use `arc_resolve` to signal that this campaign arc has reached its natural concl
 Arc resolution timing: Emit `arc_resolve` when the visible_goal has been meaningfully completed, abandoned, or transformed by events. A goal is ready to resolve when the PC has taken decisive action toward it and the situation has moved past the original objective — even if not every thread is tied off. The successor arc is where lingering threads get a new context. Do NOT use arc_resolve for partial progress or temporary setbacks — the arc is not done until the goal is genuinely reached or rendered obsolete.
 
 When the arc is approaching resolution (the main objective is in progress, the climactic scene is underway, or the story has clearly moved on from the original goal), shift thread strategy: prefer resolving side-threads via `thread_resolve`, consolidate scene threads into the main arc thread, and avoid creating new threads. A thread whose concern will be resolved by the arc's conclusion should be marked as `"abandoned"` or `"resolved"` — the arc resolution will subsume it. Do not let side-threads accumulate during the final push toward the arc goal.
-
-When the arc's visible_goal is close to achievement (the main objective is in progress or the climactic scene is underway), shift thread strategy: prefer resolving side-threads via `thread_resolve`, consolidate scene threads into the main arc thread, and avoid creating new threads. A thread whose concern will soon be resolved by the arc's conclusion should be marked as `"abandoned"` or `"resolved"` — the arc resolution will subsume it. Do not let side-threads accumulate during the final push toward the arc goal.
 
 CRITICAL: Before emitting `thread_add`, check all active and latent thread summaries for conceptual overlap. If an existing thread covers the same story tension (even with a different ID), do NOT emit `thread_add` — instead update that existing thread via `thread_update`. Only create new threads when the tension is genuinely distinct.
 
