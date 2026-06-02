@@ -1,10 +1,13 @@
-.PHONY: install run dev fmt lint test test-v test-x typecheck check css clean new-game vendor llama-swap eval eval-fast eval-judge-only eval-pack eval-all full-eval
+.PHONY: install run dev fmt lint test test-v test-x typecheck check css clean new-game vendor llama-swap kill eval eval-fast eval-judge-only eval-pack eval-all full-eval
 
 install:
 	uv sync
 
 llama-swap:
 	@bash scripts/infra/llama-swap.sh
+
+kill:
+	@lsof -ti:8765 2>/dev/null | xargs -r kill -9 && echo "killed server on 8765" || echo "no server on 8765"
 
 run: llama-swap
 	uv run ccya --host 0.0.0.0
