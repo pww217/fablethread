@@ -1772,14 +1772,20 @@ body {
     padding-right: max(12px, env(safe-area-inset-right));
     gap: 8px;
   }
-  .header-logo { font-size: 13px; max-width: 40vw; }
-  .header-meta { gap: 6px; }
+  .header-logo { display: none; }
+  .header-meta { gap: 6px; flex-basis: auto; flex-grow: 0; }
+
+  /* Center chronicle pill perfectly in header on mobile */
+  #turn-log-toggle { flex: 1; justify-content: center; margin-left: 8px; margin-right: 8px; }
+
   .new-game-btn { padding: 6px 10px; font-size: 13px; min-height: 36px; }
   .turn-log-toggle { font-size: 0; padding: 5px 10px; min-height: 36px; min-width: 36px; justify-content: center; }
   .turn-log-toggle-label { font-size: 18px; }
 
   /* ── Sidebar drawer toggle labels ── */
   .sidebar-toggle-label { font-size: 12px; font-weight: 600; }
+  .sidebar-toggle--left::after { content: '→'; margin-left: 4px; color: var(--accent); font-size: 16px; }
+  .sidebar-toggle--right::before { content: '←'; margin-right: 4px; color: var(--accent); font-size: 16px; }
 
   /* ── Sidebar drawer toggles (header buttons) ── */
   .sidebar-toggle {
