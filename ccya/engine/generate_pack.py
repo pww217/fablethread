@@ -149,6 +149,8 @@ async def generate_pack_from_brief(
                 id=pack_id,
                 name=pack_name,
                 tone_tags=tone_tags,
+                name_locales=brief.name_locales,
+                use_male_only_names=False,
             )
             (out_dir / "pack.yaml").write_text(
                 yaml.dump(manifest.model_dump(), allow_unicode=True, sort_keys=False),

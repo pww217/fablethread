@@ -18,7 +18,7 @@ from ccya.engine import build_engine_config, warmup
 from ccya.errors import ErrorKind, LlmcApiError, LlmcRateLimit, LlmcTimeout
 from ccya.logging_setup import setup_logging
 from ccya.models import load_config as _load_config
-from ccya.pack import Pack, load_pack, list_packs
+from ccya.pack import Pack, load_pack
 
 BASE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = BASE_DIR.parent.parent

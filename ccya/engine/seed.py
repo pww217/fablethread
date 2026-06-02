@@ -326,11 +326,15 @@ async def generate_seed(
         # LLM generates 3 global facts into world_state; prepend baseline_facts
         if (scenario := pack.scenario) and scenario.world_facts:
             existing_ws = list(envelope.seed_state.scene.world_state)
-            baseline_ws = [WorldStateFact(id=f"baseline_{i}", text=_strip_non_ascii(text), tier="permanent") for i, text in enumerate(world_facts)]
-            baseline_ids = {b.id for b in baseline_ws}
+
+            def _normalize_for_match(text: str) -> str:
+                return _strip_non_ascii(text).strip().rstrip(".")
+
+            baseline_texts_set = {_normalize_for_match(t) for t in scenario.world_facts}
+            baseline_ws = [WorldStateFact(id=f"baseline_{i}", text=text, tier="permanent") for i, text in enumerate(scenario.world_facts)]
             merged_ws = cast(
                 list[WorldStateFact | str],
-                baseline_ws + [f for f in existing_ws if not (isinstance(f, dict) and f.get("id") in baseline_ids)],
+                baseline_ws + [f for f in existing_ws if _normalize_for_match(f.text if isinstance(f, WorldStateFact) else f) not in baseline_texts_set],
             )
             envelope.seed_state.scene.world_state = merged_ws
 

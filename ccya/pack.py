@@ -135,7 +135,7 @@ class ScenarioBrief(BaseModel):
     Sections:
       constraints   — hard numeric rules for seed generation
       world_name    — short evocative name for the world (LLM-generated)
-      world_facts   — 3–8 durable facts injected into world_state (replaces world.md)
+      world_facts   — 3–8 durable facts injected into world_state at seed time
       narrator_rules — tone/style rules injected into narrate system prompt (replaces style.md)
       world_rules   — 0–5 hard physical laws of the world (rendered as ## Universe rules)
       factions      — 3–6 named power groups injected into narrate context each turn
@@ -179,12 +179,6 @@ class WorldBrief(BaseModel):
     player_hint: str = ""
 
 
-class GeneratedPackMeta(BaseModel):
-    """Written into pack.yaml for generated packs. Marks provenance."""
-    generated: bool = True
-    world_brief_concept: str = ""
-
-
 class PlayerOverrides(BaseModel):
     """Optional player-supplied direction at New Game time. All fields default empty.
     Authoritative for PC identity (name, stats, concept); strongly preferred for
@@ -222,10 +216,7 @@ class PackManifest(BaseModel):
 
 class Pack(BaseModel):
     manifest: PackManifest
-    world_text: str = ""
     seed: SeedState | None = None
-    opening_text: str = ""
-    opening_actions: list[str] = Field(default_factory=list)
     scenario: ScenarioBrief | None = None
 
     @model_validator(mode="after")
@@ -271,10 +262,6 @@ def load_pack(pack_id: str, packs_dir: Path) -> Pack:
         manifest_data = yaml.safe_load(f) or {}
     manifest = PackManifest(**manifest_data)
 
-    def _read(filename: str, default: str = "") -> str:
-        p = pack_dir / filename
-        return p.read_text() if p.exists() else default
-
     def _read_yaml(filename: str) -> dict[str, Any]:
         p = pack_dir / filename
         if not p.exists():
@@ -287,19 +274,14 @@ def load_pack(pack_id: str, packs_dir: Path) -> Pack:
                 raise
 
     seed: SeedState | None = None
-    opening_text = ""
-    opening_actions: list[str] = []
-    world_text = ""
     scenario: ScenarioBrief | None = None
 
-    # Static mode: seed_state.yaml + opening_scene.md
+    # Static mode: seed_state.yaml (eval harness only)
     seed_path = pack_dir / "seed_state.yaml"
     if seed_path.exists():
         seed_data = _read_yaml("seed_state.yaml")
-        opening_actions = seed_data.pop("opening_actions", [])
         if seed_data:
             seed = SeedState(**seed_data)
-        opening_text = _read("opening_scene.md", "")
 
     # Dynamic mode: scenario.yaml (new consolidated schema)
     scenario_path = pack_dir / "scenario.yaml"
@@ -308,15 +290,9 @@ def load_pack(pack_id: str, packs_dir: Path) -> Pack:
         if scenario_data:
             scenario = ScenarioBrief(**scenario_data)
 
-    # Legacy fallback: world.md (old dynamic packs)
-    world_text = _read("world.md", "")
-
     return Pack(
         manifest=manifest,
-        world_text=world_text,
         seed=seed,
-        opening_text=opening_text,
-        opening_actions=opening_actions,
         scenario=scenario,
     )
 
@@ -350,14 +326,3 @@ def list_packs(packs_dir: Path) -> list[PackManifest]:
     return manifests
 
 
-def parse_world_facts(world_md: str) -> list[str]:
-    facts: list[str] = []
-    for line in world_md.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if len(line) >= 2 and line[0] in "-*+" and line[1] == " ":
-            line = line[2:].strip()
-        if line:
-            facts.append(line)
-    return facts

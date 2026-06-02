@@ -119,9 +119,8 @@ def _filter_completed_threads(arc: dict[str, Any], turn_no: int, ttl: int = 3) -
     return result
 
 
-def _get_resolved_arc(state: dict[str, Any], turn_no: int) -> dict[str, Any] | None:
+def _get_resolved_arc(state: dict[str, Any], turn_no: int, *, ttl: int = 3) -> dict[str, Any] | None:
     """Get the most recently resolved arc from state's resolved_arcs list (TTL-filtered)."""
-    ttl = 3
     resolved_arcs = state.get("resolved_arcs") or []
     if not resolved_arcs:
         return None
