@@ -33,10 +33,60 @@ class _EventLock:
 
 _inflight: _EventLock = _EventLock()
 
+_cancel_requested: dict[str, asyncio.Event] = {}
+_turn_done: dict[str, asyncio.Event] = {}
+_persist_started: dict[str, bool] = {}
+
 
 def is_turn_in_progress(save_dir: str) -> bool:
     lock = _inflight._locks.get(save_dir)
     return lock is not None and lock.locked()
+
+
+def request_cancel(save_dir: str) -> None:
+    event = _cancel_requested.get(save_dir)
+    if event is not None:
+        event.set()
+
+
+def is_cancel_requested(save_dir: str) -> bool:
+    event = _cancel_requested.get(save_dir)
+    return event is not None and event.is_set()
+
+
+def register_persist(save_dir: str) -> None:
+    _persist_started[save_dir] = True
+
+
+def pop_persist_started(save_dir: str) -> bool:
+    return _persist_started.pop(save_dir, False)
+
+
+def clear_cancel(save_dir: str) -> None:
+    _cancel_requested.pop(save_dir, None)
+
+
+def register_turn(save_dir: str) -> None:
+    _turn_done[save_dir] = asyncio.Event()
+
+
+def signal_turn_done(save_dir: str) -> None:
+    event = _turn_done.pop(save_dir, None)
+    if event is not None:
+        event.set()
+    clear_cancel(save_dir)
+    pop_persist_started(save_dir)
+
+
+async def await_turn_done(save_dir: str, timeout: float = 30.0) -> bool:
+    event = _turn_done.get(save_dir)
+    if event is None:
+        return False
+    try:
+        await asyncio.wait_for(event.wait(), timeout=timeout)
+        return True
+    except asyncio.TimeoutError:
+        return False
 
 
 @dataclass

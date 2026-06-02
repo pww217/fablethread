@@ -1748,6 +1748,7 @@ function game() {
 
         stopTurn() {
             if (!this.submitting || typeof this._turnCancel !== 'function') return;
+            fetch('/turn/cancel', { method: 'POST' }).catch(() => {});
             this._turnCancel();
         },
 

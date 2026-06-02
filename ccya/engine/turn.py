@@ -13,7 +13,7 @@ from typing import Any, AsyncIterator, Literal
 
 
 from ccya.engine.changes import _summarize_applied, summarize_changes
-from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, _log_llm_io, _log_prompts
+from ccya.engine.config import EngineConfig, _build_jinja_env, _inflight, _log_llm_io, _log_prompts, is_cancel_requested, register_persist, register_turn, signal_turn_done
 from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.engine.extraction import (
     _avg_event_ms,
@@ -840,6 +840,7 @@ async def run_turn(
     actions: list[str] = []
 
     try:
+        register_turn(str(save_dir))
         await _inflight.acquire(str(save_dir))
 
         # --- Memory: load last narration turn + prior_history bullets ---
@@ -862,6 +863,8 @@ async def run_turn(
         # === Call 0: Rules / intent classification (extracted phase) ===
         momentum_before = state.get("pc", {}).get("momentum", 0.0)
         _intent, _outcome, ruling_metrics, deescalate, ruling_phase_events = await _ruling_phase(ctx)
+        if is_cancel_requested(str(save_dir)):
+            return
         for evt in ruling_phase_events:
             yield evt
         ctx._deescalate = deescalate
@@ -879,6 +882,8 @@ async def run_turn(
 
         # === Call 1: Narration setup (extracted) + streaming ===
         exp_narrate_ms = _avg_event_ms(save_dir, "narrate.total_ms")
+        if is_cancel_requested(str(save_dir)):
+            return
         yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
 
         # Build narration context and messages (extracted phase)
@@ -921,6 +926,8 @@ async def run_turn(
                 first_ms = (asyncio.get_event_loop().time() - t0) * 1000
                 first_visible = False
                 yield ("phase", {"phase": "narrate_first_token", "first_token_ms": round(first_ms, 1)})
+            if is_cancel_requested(str(save_dir)):
+                return
             yield ("token", chunk)
 
         narr_ms = (asyncio.get_event_loop().time() - t0) * 1000
@@ -940,10 +947,14 @@ async def run_turn(
                 max_chars=config.log_llm_io_max_chars,
             )
 
+        if is_cancel_requested(str(save_dir)):
+            return
         yield ("phase", {"phase": "narrate_done"})
 
         # === Extraction pipeline (3 streams) ===
         exp_ms = _avg_event_ms(save_dir, "extract.total_ms")
+        if is_cancel_requested(str(save_dir)):
+            return
         yield ("phase", {"phase": "extract_start", "expected_ms": exp_ms})
         t2 = asyncio.get_event_loop().time()
 
@@ -968,6 +979,8 @@ async def run_turn(
             ):
                 if isinstance(_evt, tuple) and len(_evt) == 2:
                     _log.debug("turn.extraction_evt trace_id=%s evt_type=%s", trace_id, type(_evt[0]).__name__, extra={"event_preview": str(_evt)[:500]})
+                    if is_cancel_requested(str(save_dir)):
+                        return
                     yield _evt
                 else:
                     _extract_result = _evt
@@ -990,6 +1003,8 @@ async def run_turn(
                 _beat_dict["beat_expires_turn"] = turn_no + 2
                 state.setdefault("meta", {})["pending_gm_beat"] = _beat_dict
 
+        if is_cancel_requested(str(save_dir)):
+            return
         yield ("phase", {"phase": "extract_done"})
 
         # Condition age pass: decrement turns_remaining, remove expired
@@ -1181,6 +1196,8 @@ async def run_turn(
         # === Turn increment (single source of truth: here) ===
         state.setdefault("meta", {})["turn"] = state.get("meta", {}).get("turn", 0) + 1
 
+        if is_cancel_requested(str(save_dir)):
+            return
         yield ("phase", {"phase": "persist"})
 
         # === Write: events.jsonl → atomic state.yaml → chronicle.md ===
@@ -1266,6 +1283,7 @@ async def run_turn(
         }
         append_event(save_dir, event)
         # Snapshot pre-turn state before overwriting — used by delete_last_turn
+        register_persist(str(save_dir))
         snapshot_state(save_dir)
         save_state(save_dir, state)
         append_chronicle(
@@ -1341,6 +1359,7 @@ async def run_turn(
         )
     finally:
         await _inflight.release(str(save_dir))
+        signal_turn_done(str(save_dir))
 
 
 _FALLBACK_SENTINEL = "*That action didn't resolve as expected"

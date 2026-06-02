@@ -17,9 +17,13 @@ from sse_starlette.sse import EventSourceResponse
 
 from ccya.errors import ErrorKind
 from ccya.engine import (
+    await_turn_done,
+    clear_cancel,
     format_change_lines,
     generate_seed,
     is_turn_in_progress,
+    pop_persist_started,
+    request_cancel,
     run_turn,
 )
 
@@ -205,6 +209,27 @@ async def get_turn(input: str = ""):
             yield {"event": "turn_error", "data": json.dumps({"error": str(e)})}
 
     return EventSourceResponse(event_stream())
+
+
+@_app_mod.app.post("/turn/cancel")
+async def cancel_turn():
+    if not is_turn_in_progress(str(_app_mod.SAVE_DIR)):
+        return JSONResponse({"ok": True})
+
+    request_cancel(str(_app_mod.SAVE_DIR))
+    released = await await_turn_done(str(_app_mod.SAVE_DIR), timeout=30.0)
+    if not released:
+        _log.warning("cancel_turn timeout waiting for turn to finish")
+    clear_cancel(str(_app_mod.SAVE_DIR))
+
+    # Idempotent cleanup — always remove event/chronicle if written
+    remove_last_event(_app_mod.SAVE_DIR)
+    remove_last_chronicle_turn(_app_mod.SAVE_DIR)
+    # Only restore snapshot if persist phase had started (snapshot was taken for this turn)
+    if pop_persist_started(str(_app_mod.SAVE_DIR)):
+        restore_snapshot_state(_app_mod.SAVE_DIR)
+
+    return JSONResponse({"ok": True})
 
 
 @_app_mod.app.post("/turn/delete")
