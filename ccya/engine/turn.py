@@ -214,8 +214,8 @@ def _apply_arc_resolve(
     """Process arc resolution from the storyteller.
 
     Resolves current arc, stores it in resolved_arcs with TTL tracking,
-    processes thread directives (drop/move_latent), and creates a new
-    successor arc.
+    processes thread drop list (opt-out carry-over), and creates a new
+    successor arc seeded with surviving + new threads.
     """
     if not storyteller_result.arc_resolve:
         return None
@@ -256,35 +256,25 @@ def _apply_arc_resolve(
     state.setdefault("resolved_arcs", []).append(resolved_arc_entry)
 
     _log.info(
-        "arc_resolve.applied trace_id=%d goal='%s' threads_in_old=%d directives_count=%d",
-        turn_no, resolution.visible_goal, len(old_arc.threads), len(resolution.thread_directives),
+        "arc_resolve.applied trace_id=%d goal='%s' threads_in_old=%d drop_count=%d new_threads=%d",
+        turn_no, resolution.visible_goal, len(old_arc.threads), len(resolution.drop_threads), len(resolution.new_threads),
         extra={"turn": turn_no},
     )
 
-    # Process thread directives: drop or move_latent
-    directive_ids = {d.id for d in resolution.thread_directives}
-    surviving_threads = []
-    for t in old_arc.threads:
-        if t.id not in directive_ids:
-            surviving_threads.append(t)
-        else:
-            directive = next((d for d in resolution.thread_directives if d.id == t.id), None)
-            if directive and directive.action == "drop":
-                _log.info(
-                    "arc_resolve.drop trace_id=%d thread %s", turn_no, t.id, extra={"turn": turn_no},
-                )
-            elif directive and directive.action == "move_latent":
-                surviving_threads.append(t.model_copy(update={"active": False}))
-                _log.info(
-                    "arc_resolve.move_latent trace_id=%d thread %s", turn_no, t.id, extra={"turn": turn_no},
-                )
+    # Process thread directives: opt-out carry-over (everything carries forward unless explicitly dropped)
+    surviving_threads = [t for t in old_arc.threads if t.id not in resolution.drop_threads]
+    for tid in resolution.drop_threads:
+        _log.info(
+            "arc_resolve.drop trace_id=%d thread %s", turn_no, tid, extra={"turn": turn_no},
+        )
 
-    # Create new successor arc
+    # Create new successor arc with surviving threads + new threads
+    all_thread = surviving_threads + list(resolution.new_threads)
     new_arc = CampaignArc(
         visible_goal=resolution.visible_goal,
         goal_context=resolution.goal_context,
         thematic_question=resolution.thematic_question if resolution.thematic_question is not None else old_arc.thematic_question,
-        threads=surviving_threads,
+        threads=all_thread,
         completed_threads=[],
         last_thread_created_turn=turn_no,
     )
@@ -355,6 +345,17 @@ def _apply_thread_resolutions(
             "outcome": res.outcome,
             "resolved_turn": turn_no,
         }))
+
+        # Promote to world state if requested (Step 3.1: D3 + D7)
+        if res.promote_to_world_state and res.outcome:
+            ws_list = state.setdefault("scene", {}).get("world_state") or []
+            existing = next((f for f in ws_list if isinstance(f, dict) and f.get("id") == res.id), None)
+            if existing:
+                existing["text"] = res.outcome
+                existing["tier"] = "persistent"
+            else:
+                ws_list.append({"id": res.id, "text": res.outcome, "tier": "persistent"})
+            state.setdefault("scene", {})["world_state"] = ws_list
 
     if not any_found:
         return None

@@ -42,7 +42,7 @@ D7. World state uses ID-based overwrite semantics (already exists in delta_build
 
 ## Status
 
-`open`
+`completed` — all 4 phases implemented. Lint + typecheck pass with no errors or deviations from plan.
 
 ## Phases
 

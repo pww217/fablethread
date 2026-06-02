@@ -346,6 +346,7 @@ class ThreadResolution(BaseModel):
     id: str
     resolution_state: Literal["resolved", "failed", "abandoned"]
     outcome: str = ""  # one past-tense sentence written at resolution time; stored on completed ArcThread
+    promote_to_world_state: bool = False
 
 
 class ThreadUpdate(BaseModel):
@@ -356,17 +357,13 @@ class ThreadUpdate(BaseModel):
     progress: str | None = None
 
 
-class ThreadDirective(BaseModel):
-    id: str
-    action: Literal["drop", "move_latent"]
-
-
 class ArcResolution(BaseModel):
     resolution: str
     visible_goal: str
     goal_context: str
     thematic_question: str | None = None
-    thread_directives: list[ThreadDirective] = Field(default_factory=list)
+    drop_threads: list[str] = Field(default_factory=list)
+    new_threads: list[ArcThread] = Field(default_factory=list)
 
 
 class GMBeat(BaseModel):
