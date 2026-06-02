@@ -215,23 +215,29 @@ async def cancel_turn():
     if not is_turn_in_progress(str(_app_mod.SAVE_DIR)):
         return JSONResponse({"ok": True})
 
+    last_events_before = load_recent_turns(_app_mod.SAVE_DIR, 1)
+    turn_before = last_events_before[-1]["turn"] if last_events_before else 0
+
     request_cancel(str(_app_mod.SAVE_DIR))
-    await await_turn_done(str(_app_mod.SAVE_DIR), timeout=30.0)
+    released = await await_turn_done(str(_app_mod.SAVE_DIR), timeout=30.0)
+    if not released:
+        _log.warning("cancel_turn timeout waiting for turn to finish")
     clear_cancel(str(_app_mod.SAVE_DIR))
 
-    last_events = load_recent_turns(_app_mod.SAVE_DIR, 1)
-    if last_events:
-        event = last_events[-1]
-        pre_turn_state = event.get("state_snapshot")
-        remove_last_event(_app_mod.SAVE_DIR)
-        remove_last_chronicle_turn(_app_mod.SAVE_DIR)
-        if pre_turn_state is not None:
-            save_state(_app_mod.SAVE_DIR, pre_turn_state)
-        else:
-            _log.warning(
-                "cancel_turn state_snapshot missing for turn=%s — state not reverted",
-                event.get("turn"),
-            )
+    last_events_after = load_recent_turns(_app_mod.SAVE_DIR, 1)
+    if last_events_after:
+        event = last_events_after[-1]
+        if event.get("turn", 0) > turn_before:
+            pre_turn_state = event.get("state_snapshot")
+            remove_last_event(_app_mod.SAVE_DIR)
+            remove_last_chronicle_turn(_app_mod.SAVE_DIR)
+            if pre_turn_state is not None:
+                save_state(_app_mod.SAVE_DIR, pre_turn_state)
+            else:
+                _log.warning(
+                    "cancel_turn state_snapshot missing for turn=%s — state not reverted",
+                    event.get("turn"),
+                )
 
     return JSONResponse({"ok": True})
 
