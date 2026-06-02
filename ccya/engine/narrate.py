@@ -53,7 +53,7 @@ def _narrate_messages(
             "visible_goal": arc.get("visible_goal", ""),
             "thematic_question": arc.get("thematic_question", ""),
             "resolution": arc.get("resolution"),
-            "resolved_arc": _get_resolved_arc(state, turn_no, ttl=arc_ttl),
+            "resolved_arcs": _get_resolved_arcs(state, turn_no, ttl=arc_ttl),
             "threads": [
                 {
                     "summary": t.get("summary", "") if isinstance(t, dict) else getattr(t, "summary", ""),
@@ -119,14 +119,12 @@ def _filter_completed_threads(arc: dict[str, Any], turn_no: int, ttl: int = 3) -
     return result
 
 
-def _get_resolved_arc(state: dict[str, Any], turn_no: int, *, ttl: int = 3) -> dict[str, Any] | None:
-    """Get the most recently resolved arc from state's resolved_arcs list (TTL-filtered)."""
+def _get_resolved_arcs(state: dict[str, Any], turn_no: int, *, ttl: int = 3) -> list[dict[str, Any]]:
+    """Get all TTL-filtered resolved arcs from state's resolved_arcs list."""
     resolved_arcs = state.get("resolved_arcs") or []
-    if not resolved_arcs:
-        return None
-    # Find the most recent one within TTL
+    result: list[dict[str, Any]] = []
     for ra in reversed(resolved_arcs):
         resolved_turn = ra.get("resolved_turn", 0)
-        if (turn_no - resolved_turn) <= ttl:
-            return dict(ra)
-    return None
+        if (turn_no - resolved_turn) <= ttl and resolved_turn is not None:
+            result.append(dict(ra))
+    return result
