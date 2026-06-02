@@ -162,7 +162,7 @@ async def get_turn(input: str = ""):
                 user_input,
                 config=_app_mod.engine_config,
                 template_dir=str(_app_mod.PROMPTS_DIR),
-                pack_name_locales=_app_mod._active_pack.manifest.name_locales,
+                pack_name_locales=_app_mod._active_pack.scenario.name_locales if _app_mod._active_pack.scenario else _app_mod._active_pack.manifest.name_locales,
                 pack_narrator_rules=_app_mod._active_pack.scenario.narrator_rules if _app_mod._active_pack.scenario else [],
                 pack_world_rules=_app_mod._active_pack.scenario.world_rules if _app_mod._active_pack.scenario else [],
                 pack_factions=[f.model_dump() for f in (_app_mod._active_pack.scenario.factions if _app_mod._active_pack.scenario else [])],

@@ -167,6 +167,7 @@ def _apply_thread_updates(
         return None
 
     mutated = False
+    remaining_threads = list(arc.threads)
     for update in storyteller_result.thread_update:
         found_idx = None
         for i, t in enumerate(arc.threads):
@@ -202,7 +203,7 @@ def _apply_thread_updates(
             )
 
     return arc.model_copy(update={
-        "threads": remaining_threads if found_idx is not None else list(arc.threads),
+        "threads": remaining_threads,
     }) if mutated else None
 
 
