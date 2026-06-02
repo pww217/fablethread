@@ -434,9 +434,9 @@ function _headerTaglineFromState(st) {
 }
 
 function _groupChangeLines(lines) {
-    const invGain = [], invLoss = [], pl = [], loc = [], fa = [], th = [];
-    (lines || []).forEach((ln) => {
-        const s = String(ln);
+    const invGain = [], invLoss = [], pl = [], loc = [], fa = [], th = [], ar = [];
+    lines.forEach(s => {
+        s = String(s);
         if (s.startsWith('🎒')) {
             const isGain = s.includes(' + ') || s.includes('×') && !s.includes(' − ');
             const isLoss = s.startsWith('🎒 −') || s.includes(' − ');
@@ -447,9 +447,10 @@ function _groupChangeLines(lines) {
         else if (s.startsWith('📍')) loc.push(s);
         else if (s.startsWith('📜')) fa.push(s);
         else if (s.startsWith('🧵')) th.push(s);
+        else if (s.startsWith('🏁')) ar.push(s);
         else invGain.push(s);
     });
-    return { invGain, invLoss, pl, loc, fa, th };
+    return { invGain, invLoss, pl, loc, fa, th, ar };
 }
 
 function _buildTurnChanges(changeLines) {
@@ -459,6 +460,7 @@ function _buildTurnChanges(changeLines) {
         ['tc-inv-gain', g.invGain],
         ['tc-inv-loss', g.invLoss],
         ['tc-th',       g.th],
+        ['tc-ar',       g.ar],
         ['tc-pl',       g.pl],
         ['tc-loc',      g.loc],
         ['tc-fa',       g.fa],
@@ -503,6 +505,7 @@ function _prependTurnLogTurn(turn, changeLines, rules) {
         else if (s.startsWith('📍')) cls += ' tl-loc';
         else if (s.startsWith('📜')) cls += ' tl-fa';
         else if (s.startsWith('🧵')) cls += ' tl-th';
+        else if (s.startsWith('🏁')) cls += ' tl-ar';
         row.className = cls;
         row.setAttribute('data-md', '');
         row.textContent = ln;

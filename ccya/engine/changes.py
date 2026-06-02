@@ -7,6 +7,7 @@ from typing import Any
 
 
 _THREAD_EMOJI = "🧵"
+_ARC_EMOJI = "🏁"
 
 _log = logging.getLogger(__name__)
 
@@ -275,7 +276,7 @@ def summarize_changes(
                     "scope": pc.get("scope", pr.get("scope", "arc")),
                     "detail": pc.get("outcome", ""),
                 })
-            elif pc and not pr and not po:
+            elif pc and not pr and not po and tid not in pre_c:
                 threads.append({
                     "kind": pc.get("resolution_state", "resolved"),
                     "id": tid,
@@ -380,7 +381,7 @@ def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
         if k == "added":
             lines.append(f"{_THREAD_EMOJI} + {summary}{tag}")
         elif k == "updated":
-            lines.append(f"{_THREAD_EMOJI} ~ {summary} ({detail})")
+            lines.append(f"{_THREAD_EMOJI} ↻ {summary} ({detail})")
         elif k == "resolved":
             snippet = f" — {detail}" if detail else ""
             lines.append(f"{_THREAD_EMOJI} ✓ {summary}{snippet}")
@@ -393,7 +394,7 @@ def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
             lines.append(f"{_THREAD_EMOJI} − {summary}{' (' + detail + ')' if detail else ''}")
         elif k == "arc_resolved":
             snippet = f" — {detail}" if detail else ""
-            lines.append(f"{_THREAD_EMOJI} ↻ {summary}{snippet}")
+            lines.append(f"{_ARC_EMOJI} {summary}{snippet}")
     for row in ch.get("momentum") or []:
         if not isinstance(row, dict):
             continue
