@@ -8,7 +8,8 @@ Extract suggested player actions, outcome summary, thread updates, and arc resol
   "outcome_summary": "",
   "gm_beat": null,
   "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent"}, {"id": "..."}],
-  "arc_resolve": {"resolution": "How this arc concluded narratively.", "surviving_threads": ["thread_id_1"]},
+  "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "thematic_question": "...", "drop_threads": ["stale_thread_id"], "new_threads": [{"id": "new_thread", "summary": "...", "scope": "arc", "urgency": "normal"}]},
+  "thread_resolve": [{"id": "resolved_thread", "resolution_state": "resolved", "outcome": "...", "promote_to_world_state": true}],
   "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal", "tags": [], "key": "subject_action"},
   "world_state_add": [{"id": "new_fact_id", "text": "durable world fact text", "tier": "persistent"}],
   "world_state_remove": ["fact_id_to_remove"]
@@ -59,6 +60,8 @@ Valid `resolution_state` values: `"resolved"` (thread reached its conclusion), `
 
 `outcome`: One sentence. Must be HONEST to the actual events — if the thread was never pursued, say that. Do not invent narrative that didn't occur. Valid outcomes include "Remained unresolved as the story moved on" or "Never surfaced — the crew's priorities shifted." Invalid: inventing an investigation that never happened to justify resolution. Example: `[{"id": "the_missing_manifest", "resolution_state": "abandoned", "outcome": "Never surfaced — the crew's priorities shifted to the pardon."}]`
 
+- `promote_to_world_state` (optional, default false): When true, this thread's outcome becomes a persistent world state entry immediately — it will persist beyond TTL windows as a durable fact. Use this for outcomes that are permanently true about the world (a blockade collapsed, a faction turned hostile, a route destroyed). Do NOT use for narrative tension that could still change — that's what unresolved threads are for.
+
 When to resolve:
 - Thread reached its natural conclusion → `"resolved"` or `"failed"`.
 - Thread's concern was absorbed into a different, broader thread → `"abandoned"` (resolve the narrower one, keep the broader one; outcome explains why).
@@ -69,7 +72,7 @@ CRITICAL: Do NOT resolve threads that are still meaningfully active. `thread_res
 
 ## Arc resolution
 
-Use `arc_resolve` to signal that this campaign arc has reached its natural conclusion. This tells Python to store the resolved arc and generate a successor with surviving threads, goal_context from prior context, and thematic_question inherited from the parent.
+Use `arc_resolve` to signal that this campaign arc has reached its natural conclusion. This tells Python to store the resolved arc and generate a successor with new threads, goal_context from prior context, and thematic_question inherited from the parent.
 
 **Only emit `arc_resolve` when resolving an arc.** If no arc is being resolved, omit the field entirely — do NOT return `"arc_resolve": {}`.
 
@@ -77,28 +80,14 @@ Use `arc_resolve` to signal that this campaign arc has reached its natural concl
 - `visible_goal`: The next arc's visible goal. Must use the current context — active threads, world state changes, NPC developments, and recent narration — to derive a new medium-to-long-term objective that follows naturally from this arc's outcome. Do not repeat the just-resolved goal. Examples: if the arc was "escape the city," the next goal might be "find a safe route through the quarantine zone" or "confront the official who sealed the gates."
 - `goal_context`: 2–3 sentences explaining why this new goal matters to the PC specifically — reference the PC's background, relationships, and what they've been through this arc.
 - `thematic_question`: Optional override for the successor arc's thematic question. Omit to inherit from the current arc.
-- `thread_directives`: Optional list of `{"id": "thread_id", "action": "drop"|"move_latent"}` for threads that should be removed or demoted. Threads not mentioned carry over as-is into the successor arc.
-
-- `resolution`: One-sentence narrative summary of how this arc concluded (e.g., "The quarantine perimeter collapsed after Dr. Voss's team was overrun").
-- `visible_goal`: The next arc's visible goal. Must use the current context — active threads, world state changes, NPC developments, and recent narration — to derive a new medium-to-long-term objective that follows naturally from this arc's outcome. Do not repeat the just-resolved goal. Examples: if the arc was "escape the city," the next goal might be "find a safe route through the quarantine zone" or "confront the official who sealed the gates."
-- `goal_context`: 2–3 sentences explaining why this new goal matters to the PC specifically — reference the PC's background, relationships, and what they've been through this arc.
-- `thematic_question`: Optional override for the successor arc's thematic question. Omit to inherit from the current arc.
-- `thread_directives`: Optional list of `{"id": "thread_id", "action": "drop"|"move_latent"}` for threads that should be removed or demoted. Threads not mentioned carry over as-is into the successor arc.
+- `drop_threads`: Optional list of thread IDs to drop. Threads not listed carry over as-is into the successor arc (opt-out). Use `thread_update {active: false}` to mark a thread as dormant instead of dropping it.
+- `new_threads`: Optional list of new thread objects to seed the successor arc with fresh narrative tension. At least one new thread recommended per resolution.
 
 Arc resolution timing: Emit `arc_resolve` when the visible_goal has been meaningfully completed, abandoned, or transformed by events. A goal is ready to resolve when the PC has taken decisive action toward it and the situation has moved past the original objective — even if not every thread is tied off. The successor arc is where lingering threads get a new context. Do NOT use arc_resolve for partial progress or temporary setbacks — the arc is not done until the goal is genuinely reached or rendered obsolete.
 
 When the arc is approaching resolution (the main objective is in progress, the climactic scene is underway, or the story has clearly moved on from the original goal), shift thread strategy: prefer resolving side-threads via `thread_resolve`, consolidate scene threads into the main arc thread, and avoid creating new threads. A thread whose concern will be resolved by the arc's conclusion should be marked as `"abandoned"` or `"resolved"` — the arc resolution will subsume it. Do not let side-threads accumulate during the final push toward the arc goal.
 
 CRITICAL: Before emitting `thread_add`, check all active and latent thread summaries for conceptual overlap. If an existing thread covers the same story tension (even with a different ID), do NOT emit `thread_add` — instead update that existing thread via `thread_update`. Only create new threads when the tension is genuinely distinct.
-
-## Arc resolution
-
-Use `arc_resolve` to signal that this campaign arc has reached its natural conclusion. This tells Python to store the resolved arc and generate a successor with surviving threads, goal_context from prior context, and thematic_question inherited from the parent.
-
-- `resolution`: One-sentence narrative summary of how this arc concluded (e.g., "The quarantine perimeter collapsed after Dr. Voss's team was overrun").
-- `surviving_threads`: List of thread IDs that persist into the next arc — tensions that were addressed but not fully resolved, or threads that naturally carry forward.
-
-Only emit `arc_resolve` when the visible_goal has been meaningfully completed, abandoned, or transformed. Do NOT use it for partial progress or temporary setbacks.
 
 ## Rules-outcome guidance
 - crit_fail / fail / setback / partial: do NOT mark threads as affected for the attempted action.
@@ -118,6 +107,11 @@ Each entry: `{"id": "snake_case_id", "text": "fact description", "tier": "persis
 **Thread vs world_state:** Threads track narrative tension, story arcs, and character goals. World state tracks durable reality — what is permanently true about the world regardless of story direction. If the fact would change a faction's behavior in a future scene, it belongs in world_state, not a thread.
 
 `world_state_remove`: IDs of persistent facts now false, outdated, irrelevant, or superseded (e.g., a blockade lifted, bridge rebuilt). Do NOT remove permanent tier facts — they are immutable seed-authored truths.
+
+**World state management:**
+1. **Prefer update over create:** When a fact already exists in world state, reuse its ID and update the text rather than creating a new entry. The engine merges by ID — reuse the same ID to update, use a new ID to create.
+2. **Consolidate overlapping facts:** If two world state entries describe the same reality (e.g., `faction_allied_traders` and `traders_friendly_to_pc`), update one to cover both and remove the other via `world_state_remove`.
+3. **Avoid duplication with threads:** If a fact represents narrative tension that could still change, keep it as a thread. Only promote to world state when it's settled durable reality.
 
 You have visibility into all threads — including those marked (dormant/latent) — plus past resolutions with outcomes. Use this knowledge actively. Latent threads represent narrative threads the party has not yet discovered but can be drawn toward. When generating new thread suggestions, choose actions and complications that create circumstances where a dormant thread could naturally surface — a character's past catching up, a long-silent threat stirring. When selecting beats and narration, use beat types and pacing to build tension toward latent discoveries. Never expose the latent content directly — instead, craft situations that make discovery feel earned and natural. The 4 player choices, suggested actions, and complications are your primary tools for gently steering the player toward what they don't yet know.
 
