@@ -20,7 +20,6 @@ def _ruling_messages(
     *,
     turn_no: int = 0,
     npc_roster: list[dict[str, Any]] | None = None,
-    last_outcome: str | None = None,
     inventory: list[dict[str, Any]] | None = None,
     recent_turns: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
@@ -36,7 +35,6 @@ def _ruling_messages(
             "user_input": user_input,
             "meta": {"turn": turn_no},
             "npc_roster": npc_roster or [],
-            "last_outcome": last_outcome,
             "inventory": inventory or [],
             "recent_turns": recent_turns or [],
         },

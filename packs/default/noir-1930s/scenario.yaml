@@ -1,5 +1,5 @@
 constraints:
-   # required-presence
+  # required-presence
   min_objectives_per_quest: 2
   starting_quest_count: 1
   # ranges
@@ -7,9 +7,9 @@ constraints:
   pc_stat_range: [1, 4]
   pc_stat_total_range: [12, 18]
   prose_word_range: [400, 700]
-   # composition
-   required_inventory_kinds: ['weapon', 'tool']
-   # creativity guards
+  # composition
+  required_inventory_kinds: ['weapon', 'tool']
+  # creativity guards
   forbid_cliches:
      - "the guy was trouble"
      - "the case was a setup from the start"

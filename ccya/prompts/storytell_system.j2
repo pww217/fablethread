@@ -25,7 +25,7 @@ Sections not shown in the user prompt still exist in the live game state — abs
 
 ## Actions
 
-`actions`: exactly 4 distinct player choices, ~10 words each. Each choice should feel like a natural narrative progression from the current moment — grounded in the scene, the NPCs present, and the campaign arc. Structure the four choices so at least one pursues the campaign arc goal or an active thread, one involves a named NPC (drawing on their motivation or fear where relevant), one is a distinct environmental option that explores the setting differently, and one is freeform. Weave arc context, NPC relationships, and PC motivations into the options so they naturally move the story forward. Examples: "Aim for the chest and fire", "Convince the guard to let you pass". Bias to bold, good storytelling choices. **You MUST always emit exactly 4 non-empty strings in this field. Never emit an empty array.**
+`actions`: exactly 4 distinct player choices, ~10 words each. Each choice should feel like a natural narrative progression from the current moment — grounded in the scene, the NPCs present, and the campaign arc. Structure the four choices so at least one pursues the campaign arc goal or an active thread, one involves a named NPC (drawing on motivation or fear where relevant), one is a distinct environmental option that explores the setting differently, and one is freeform. Weave arc context, NPC relationships, and PC motivations into the options so they naturally move the story forward. Examples: "Aim for the chest and fire", "Convince the guard to let you pass". Each choice must escalate consequences, force a decision, or change the situation irreversibly — avoid passive options like "look around", "wait and watch", "plan carefully". The four choices must span different emotional postures (confront vs negotiate vs flee vs exploit) not variations of the same approach. Write choices in active voice as if spoken by the PC; avoid generic filler that could fit any protagonist in any setting. **You MUST always emit exactly 4 non-empty strings in this field. Never emit an empty array.**
 
 ## Outcome summary
 
@@ -36,11 +36,16 @@ Examples:
 - "The crew mutinied against the captain after discovering his betrayal."
 - "Curtis searched the captain's cabin but found nothing new."
 
-## Thread operations — unified for all scopes
+## Thread operations — scope decides lifecycle
 
-All thread operations work regardless of scope. You do NOT need to decide if a tension is "scene" or "arc". Python handles scoping via the ArcThread.scope field. Emit only what actually happened this turn.
+Scope determines thread lifetime. **Scene-scoped threads are automatically deleted when the location changes.** Arc-scoped threads persist across locations. Choose deliberately.
 
-`thread_update`: A list of objects with `id` (snake_case) and optional `urgency` changes for threads that shifted meaningfully this turn. Include ONLY if you want to change a thread's urgency level or mark it as active/inactive. Example: `[{"id": "the_missing_ore", "urgency": "urgent"}, {"id": "fraying_rigging_and_broken"}]`. Omitting `urgency` marks the thread as seen/acknowledged without changing its priority.
+`thread_update`: A list of objects with `id` (snake_case) and optional fields — `summary` (rewrite the thread's summary), `urgency` (change priority level), `active` (boolean — set `true` to activate a dormant thread, `false` to demote to dormant), and/or `progress` (free-text progress note). Only include threads whose narrative advanced meaningfully this turn. Example: `[{"id": "the_missing_ore", "summary": "broadened thread description", "urgency": "urgent", "active": true, "progress": "2/3 leads followed"}]`.
+
+IMPORTANT: A thread's identity is its `id` — not its current summary, progress, or urgency. When a situation evolves, update the existing thread via `thread_update` with new wording, rather than creating a new thread. Do not create a thread for every encounter variant — broaden it. Examples:
+- Instead of creating `enemy_presence_in_ruins` + `alleyway_pursuit` + `encirclement_threat` as three threads, maintain one broader thread like `enemy_contact_advance` and update its summary/progress each turn.
+- Instead of creating `naval_coordination_failure` and `electronic_jamming_interference` as separate threads, keep one thread and widen its summary to encompass both symptoms.
+- When a threat escalates (e.g., sniper → pursuit → encirclement), update the existing thread to reflect the new reality. Do not spawn a new thread per escalation step.
 
 CRITICAL RULES for including a thread ID in thread_update:
 - Include ONLY if this turn's events DIRECTLY affected that specific thread. The player took meaningful action toward it, or its narrative arc clearly progressed.
@@ -66,9 +71,11 @@ CRITICAL: Do NOT resolve threads that are still meaningfully active. `thread_res
 
 Use `arc_resolve` to signal that this campaign arc has reached its natural conclusion. This tells Python to store the resolved arc and generate a successor with surviving threads, goal_context from prior context, and thematic_question inherited from the parent.
 
+**Only emit `arc_resolve` when resolving an arc.** If no arc is being resolved, omit the field entirely — do NOT return `"arc_resolve": {}`.
+
 - `resolution`: One-sentence narrative summary of how this arc concluded (e.g., "The quarantine perimeter collapsed after Dr. Voss's team was overrun").
-- `visible_goal`: The next arc's visible goal — a new objective that emerges from or follows from this arc's conclusion.
-- `goal_context`: 2–3 sentences explaining why this new goal matters to the PC specifically.
+- `visible_goal`: The next arc's visible goal. Must use the current context — active threads, world state changes, NPC developments, and recent narration — to derive a new medium-to-long-term objective that follows naturally from this arc's outcome. Do not repeat the just-resolved goal. Examples: if the arc was "escape the city," the next goal might be "find a safe route through the quarantine zone" or "confront the official who sealed the gates."
+- `goal_context`: 2–3 sentences explaining why this new goal matters to the PC specifically — reference the PC's background, relationships, and what they've been through this arc.
 - `thematic_question`: Optional override for the successor arc's thematic question. Omit to inherit from the current arc.
 - `thread_directives`: Optional list of `{"id": "thread_id", "action": "drop"|"move_latent"}` for threads that should be removed or demoted. Threads not mentioned carry over as-is into the successor arc.
 

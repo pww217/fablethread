@@ -97,8 +97,8 @@ EvalConfig:
    - Calls `run_turn()` — the same 5-call pipeline (Rules→Narrate→Scene→State→Storytell)
    - Captures `TurnRecord` (duration, errors, narrative chars, parse failures)
    - Runs structured `_check_asserts()` against the turn's event from `events.jsonl`
-   - Runs all 20 universal asserts on the event
-7. **Writes artifacts**: `events.jsonl`, `run.json` to `evals/runs/<ts>_<rand>/artifacts/`
+   - Runs all 22 universal asserts on the event
+7. **Writes artifacts**: `events.jsonl`, `run.json`, `<scenario>.state.yaml` (copy of final state) to `evals/runs/<ts>_<rand>/artifacts/`
 8. **Updates `latest` symlink**
 
 ### Auto-Checker System

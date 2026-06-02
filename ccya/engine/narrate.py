@@ -53,7 +53,7 @@ def _narrate_messages(
             "visible_goal": arc.get("visible_goal", ""),
             "thematic_question": arc.get("thematic_question", ""),
             "resolution": arc.get("resolution"),
-            "resolved_arc": _get_resolved_arc(state, turn_no),
+            "resolved_arc": _get_resolved_arc(state, turn_no, ttl=arc_ttl),
             "threads": [
                 {
                     "summary": t.get("summary", "") if isinstance(t, dict) else getattr(t, "summary", ""),
@@ -65,7 +65,7 @@ def _narrate_messages(
                 }
                 for t in all_threads if not (isinstance(t, dict) and t.get("active") is False) or not hasattr(t, "active") or getattr(t, "active", True)
             ],
-            "completed_threads": _filter_completed_threads(arc, turn_no),
+            "completed_threads": _filter_completed_threads(arc, turn_no, ttl=thread_ttl),
         }
     else:
         current_arc_ctx = None
@@ -73,7 +73,7 @@ def _narrate_messages(
     user_ctx = {
         "state": state,
         "pc": state.get("pc") or {},
-        "prior_history": list((state.get("meta") or {}).get("prior_history") or []),
+        "prior_history": list((state.get("meta") or {}).get("prior_history") or [])[:-1],
         "recent_turns": recent_turns,
         "rules_outcome": rules_outcome,
         "npc_name_pool": npc_name_pool,
@@ -108,10 +108,8 @@ def _narrate_messages(
     return msgs
 
 
-def _filter_completed_threads(arc: dict[str, Any], turn_no: int) -> list[dict[str, Any]]:
+def _filter_completed_threads(arc: dict[str, Any], turn_no: int, ttl: int = 3) -> list[dict[str, Any]]:
     """Filter completed threads by TTL — only include recent ones."""
-    # Use a default config for TTL value; actual config comes through caller context
-    ttl = 3
     raw_threads = arc.get("completed_threads") or []
     result: list[dict[str, Any]] = []
     for t in raw_threads:

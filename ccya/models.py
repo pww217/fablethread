@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Literal
 
 from enum import Enum
@@ -31,11 +32,10 @@ class ArcThread(BaseModel):
     scope: Literal["scene", "arc"]
     active: bool = True
     urgency: Literal["background", "normal", "urgent"] = "normal"
-    tags: list[str] = Field(default_factory=list)
+    progress: str = ""
     resolution_state: str | None = None
     outcome: str | None = None
     resolved_turn: int | None = None
-    key: str | None = None
 
 
 class CampaignArc(BaseModel):
@@ -353,6 +353,7 @@ class ThreadUpdate(BaseModel):
     active: bool | None = None
     urgency: Literal["background", "normal", "urgent"] | None = None
     summary: str | None = None
+    progress: str | None = None
 
 
 class ThreadDirective(BaseModel):
@@ -498,3 +499,18 @@ def load_config(path: str | os.PathLike[str] = "config.yaml") -> dict[str, Any]:
             return result
         raise ValueError("config.yaml must contain a mapping at top level")
 
+
+def save_config(
+    path: str | os.PathLike[str] = "config.yaml",
+    config_dict: dict[str, Any] | None = None,
+) -> None:
+    """Write a config dict to YAML. Atomic via tmp + rename."""
+    import yaml as _yaml
+
+    if config_dict is None:
+        config_dict = load_config(path)
+    path = Path(path).resolve()
+    tmp_path = path.with_suffix(".tmp")
+    with open(tmp_path, "w") as f:
+        _yaml.safe_dump(config_dict, f, default_flow_style=False, sort_keys=False)
+    tmp_path.replace(path)

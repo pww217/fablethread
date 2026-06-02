@@ -41,7 +41,7 @@ flowchart TD
     STEP1 --> STEP2A & STEP2B & STEP2C
     STEP2A & STEP2B & STEP2C --> VALIDATE
     VALIDATE --> PERSISTENCE
-    PERSISTENCE -- "load_state()<br>prior_history<br>recent_turns" --> ENGINE
+    PERSISTENCE -- "load_state() (incl. prior_history)<br>load_last_narration() (→ recent_turns)" --> ENGINE
 ```
 
 ## Pipeline Quick Reference
@@ -49,10 +49,10 @@ flowchart TD
 | Step | Docs | When it runs | Key inputs | Key outputs | Mechanics it owns |
 |---|---|---|---|---|---|
 | **Step 0 — Ruling/Intent** | [step0-ruling](./step0-ruling.md) | Every turn (always) | `state.pc`, `state.location`, `recent_turns[-1:]`, `user_input` | `IntentEnvelope`, `RulesOutcome` | Intent classification, impossibility check, scene motion determination, dice roll resolution (1d12 + stat + cond − diff → band), difficulty selection, anti-declare-outcome enforcement. When `impossible=true`, no roll occurs and Python synthesizes a `fail` outcome. |
-| **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Every turn (always, streamed) | Full `state`, `prior_history` (last 10 bullets), `recent_turns`, `pacing_context`, `pending_gm_beat`, `npc_roster` (from build_npc_roster()), `world_factions/locations` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption. Scene motion shaped by `PacingContext.outcome_hint`; impossible actions narrated as natural failures. |
+| **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Every turn (always, streamed) | Full `state`, `prior_history` (last 20 bullets, all but last rendered), `recent_turns[-1:]`, `pacing_context`, `pending_gm_beat`, `npc_roster` (from build_npc_roster()), `world_factions/locations` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption. Scene motion shaped by `PacingContext.outcome_hint`; impossible actions narrated as natural failures. |
 | **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Every turn (always) | `narrative`, `state.pc/location`, `npc_roster` (from build_npc_roster()), conditions, compendium entries | `SceneExtractResult`: scene_tags, tagline, location_change, compendium_npc_update | NPC presence, location changes, scene tags, durable NPC compendium identity. |
 | **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Every turn (always) | `narrative`, `state.pc/location/inventory`, conditions | `StateExtractResult`: inventory_add/remove/update, pc_condition_add/remove | Inventory delta accuracy, condition lifecycle. |
-| **Step 2c — Storytell** | [step2c-progress](./step2c-progress.md) | Every turn (always) | `narrative`, `_ExtractionContext` (comp_this_turn, location, inventory, conditions), pacing_context, arc.threads[], recent_turns[-2:], band, npc_roster (from build_npc_roster()) | `StorytellerResult`: thread_update/arc_resolve/resolve/add, gm_beat, world_state_add/remove, actions, outcome_summary | Storyteller-managed thread lifecycle, arc resolution, beat disposition inference, durable history events. |
+| **Step 2c — Storytell** | [step2c-progress](./step2c-progress.md) | Every turn (always) | `narrative`, `_ExtractionContext` (comp_this_turn, location, inventory, conditions), pacing_context, arc.threads[], recent_turns[-1:], band, npc_roster (from build_npc_roster()) | `StorytellerResult`: thread_update/arc_resolve/resolve/add, gm_beat, world_state_add/remove, actions, outcome_summary | Storyteller-managed thread lifecycle, arc resolution, beat disposition inference, durable history events. |
 
 After Step 2c: results merge into a `StateDelta`, the validator checks constraints
 (e.g. `inventory_remove` IDs exist), `apply_delta()` mutates state in-place, and the
@@ -92,35 +92,7 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 
 ### GMBeat (see [step2c-progress](./step2c-progress.md#gm-beat))
 
-### GMBeat (see [step2c-progress](./step2c-progress.md))
-
-```
-GMBeat
-  type: complication | revelation | opportunity | breathing_room | pressure | twist | setback | escalation | callback
-  surface_as: ambient | event | npc_behavior | environmental | player_discovery | item (default: ambient)
-  beat_expires_turn: int | None (turn number at which the beat expires; set to turn_no + 2 when stored)
-```
-
-### CampaignArc (see [campaign-arcs](./campaign-arcs.md))
-
-```
-CampaignArc
-  visible_goal: str           — What the PC is trying to achieve
-  goal_context: str           — 2–3 sentences explaining why visible_goal matters to this character specifically
-  thematic_question: str      — The moral/thematic tension of the arc
-  threads: list[ArcThread]    — Unified collection with active flag; replaces old active/latent split
-  completed_threads: list[ArcThread] — Resolved/failed/abandoned threads
-  resolution: str | None      — Set when arc is resolved via arc_resolve
-  last_thread_created_turn: int — Tracks when a thread was last created for pacing
-
-ArcThread (unified)
-  id, summary, scope ("scene"|"arc"), active: bool = True
-  urgency ("background"|"normal"|"urgent")
-  tags: list[str]
-  resolution_state: str | None, outcome: str | None
-  resolved_turn: int | None   — Turn when thread was resolved; used for TTL filtering
-  key: str | None             — Canonical concept label for dedup
-```
+### CampaignArc (see [step2c-progress](./step2c-progress.md#campaign-arc-system))
 
 ### StateDelta (see [delta-validate](./delta-validate.md))
 

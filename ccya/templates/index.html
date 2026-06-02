@@ -17,25 +17,60 @@
     <!-- Header -->
     <header class="header-bar">
         <span class="header-logo" id="header-logo">{{ state.scene.tagline or ((state.pc.name + ' @ ' + state.location.name) if state.location.id else '') or 'Choose Your Own Adventure' }}</span>
+        <button class="sidebar-toggle sidebar-toggle--left"
+                @click="toggleDrawer('left')"
+                :aria-expanded="leftDrawerOpen"
+                title="Open left panel"
+                type="button"><span class="sidebar-toggle-label">World</span></button>
+        <button class="sidebar-toggle sidebar-toggle--right"
+                @click="toggleDrawer('right')"
+                :aria-expanded="rightDrawerOpen"
+                title="Open right panel"
+                type="button"><span class="sidebar-toggle-label">Player</span></button>
         <button type="button" class="turn-log-toggle" id="turn-log-toggle" title="Turn history" aria-expanded="false">
             <span class="turn-log-toggle-label">📖 Chronicle</span>
         </button>
+
         <div class="header-meta">
             <span id="mock-dot" class="mock-dot" title="Checking Ollama…"></span>
             <span class="turn-counter" x-show="gameStarted" x-text="'Turn\u00a0' + turnNum"></span>
-            <button class="new-game-btn"
-                    @click="retryTurn()"
-                    :disabled="starting || submitting || turnNum === 0"
-                    title="Delete last turn and try again"
-                    x-show="turnNum > 0">
-                ↻ Retry
-            </button>
-            <button class="new-game-btn"
-                    @click="openPackPicker()"
-                    :disabled="starting || submitting">
-                <span x-show="!starting">New Game</span>
-                <span x-show="starting">Starting…</span>
-            </button>
+
+            <!-- Gear menu button -->
+            <div class="header-menu-wrapper" x-data="{ menuOpen: false }">
+                <button type="button" 
+                        @click="menuOpen = !menuOpen"
+                        :aria-expanded="menuOpen"
+                        title="Menu"
+                        class="gear-btn"
+                        :class="{ 'gear-btn--active': menuOpen }">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </button>
+
+                <!-- Dropdown menu -->
+                <div x-show="menuOpen" 
+                     @click.away="menuOpen = false"
+                     x-cloak
+                     class="gear-menu-dropdown">
+                    <button type="button" class="gear-menu-item" @click="menuOpen = false; openPackPicker()">
+                        New Game
+                    </button>
+                    <button type="button" class="gear-menu-item" 
+                            x-show="turnNum > 0"
+                            :disabled="starting || submitting"
+                            @click="menuOpen = false; retryTurn()">
+                        ↻ Retry Turn
+                    </button>
+                    <div class="gear-menu-divider"></div>
+                    <button type="button" class="gear-menu-item gear-menu-item--settings" 
+                            @click="menuOpen = false; openSettingsPanel()">
+                        Settings
+                    </button>
+                </div>
+            </div>
+
             <button class="new-game-btn reroll-btn"
                     id="reroll-btn"
                     hx-post="/new-game/reroll"
@@ -53,7 +88,11 @@
     <!-- Body: left sidebar | narrative | right sidebar -->
     <div class="app-body">
 
-        <aside class="sidebar sidebar-left" :style="leftStyle" @click.self="onSidebarClick('left', $event)">
+        <aside class="sidebar sidebar-left" :style="leftStyle" :class="{ 'sidebar--open': leftDrawerOpen }" @click.self="onSidebarClick('left', $event)">
+            <button class="sidebar-close"
+                    @click="closeDrawer('left')"
+                    type="button"
+                    aria-label="Close left panel">✕</button>
             <div id="state-panel-left">
                 {% with state=state %}
                 {% include "_state_left.html" %}
@@ -174,7 +213,7 @@
                           class="game-input"
                           x-model="input"
                           placeholder="What do you do? (Enter to send, Shift+Enter for newline)"
-                          rows="2"
+                           rows="1"
                           :disabled="submitting || !gameStarted"
                           @keydown.enter="onEnter($event)"></textarea>
                 <button class="send-btn"
@@ -192,7 +231,11 @@
         <div class="gutter gutter-right"></div>
 
         <!-- Right sidebar -->
-        <aside class="sidebar" :style="rightStyle" @click.self="onSidebarClick('right', $event)">
+        <aside class="sidebar" :style="rightStyle" :class="{ 'sidebar--open': rightDrawerOpen }" @click.self="onSidebarClick('right', $event)">
+            <button class="sidebar-close"
+                    @click="closeDrawer('right')"
+                    type="button"
+                    aria-label="Close right panel">✕</button>
             <div id="state-panel-right">
                 {% with state=state %}
                 {% include "_state_right.html" %}
@@ -902,8 +945,32 @@ function game() {
         leftCollapsed: localStorage.getItem('ccya_panel_left_collapsed') === '1',
         rightCollapsed: localStorage.getItem('ccya_panel_right_collapsed') === '1',
 
+        // Mobile drawer state (session-only, not persisted)
+        leftDrawerOpen: false,
+        rightDrawerOpen: false,
+
         get leftStyle() { return this.leftCollapsed ? 'width: 0; overflow: hidden;' : (this.leftW !== null ? `width: ${this.leftW}px;` : ''); },
         get rightStyle() { return this.rightCollapsed ? 'width: 0; overflow: hidden;' : (this.rightW !== null ? `width: ${this.rightW}px;` : ''); },
+
+        toggleDrawer(side) {
+            const key = side + 'DrawerOpen';
+            this[key] = !this[key];
+            if (!this.leftDrawerOpen && !this.rightDrawerOpen) {
+                document.body.style.overflow = '';
+            } else if (this[key]) {
+                document.body.style.overflow = 'hidden';
+            }
+        },
+
+        closeDrawer(side) {
+            const key = side + 'DrawerOpen';
+            if (this[key]) {
+                this[key] = false;
+                if (!this.leftDrawerOpen && !this.rightDrawerOpen) {
+                    document.body.style.overflow = '';
+                }
+            }
+        },
 
         _dragging: null,
 
@@ -939,6 +1006,7 @@ function game() {
         },
 
         onSidebarClick(side, e) {
+            if (window.innerWidth <= 768) return; // mobile uses drawer toggles
             if (this[side + 'Collapsed']) {
                 this.restorePanel(side);
             } else {
@@ -1026,6 +1094,52 @@ function game() {
             if (!this.hasNarrative) {
                 this.$nextTick(() => this.openPackPicker());
             }
+            // Close drawers when crossing the 768px boundary (orientation change, etc.)
+            this._drawerBoundary = window.matchMedia('(max-width: 768px)');
+            this._drawerBoundary.addEventListener('change', (e) => {
+                if (!e.matches) {
+                    this.leftDrawerOpen = false;
+                    this.rightDrawerOpen = false;
+                    document.body.style.overflow = '';
+                }
+            });
+            // Touch swipe: edge open + drawer dismiss
+            this._swipeStartX = 0;
+            this._swipeStartY = 0;
+            document.addEventListener('touchstart', (e) => {
+                if (window.innerWidth > 768) return;
+                const t = e.touches[0];
+                this._swipeStartX = t.clientX;
+                this._swipeStartY = t.clientY;
+            }, { passive: true });
+            document.addEventListener('touchend', (e) => {
+                if (window.innerWidth > 768) return;
+                const dx = e.changedTouches[0].clientX - this._swipeStartX;
+                const dy = e.changedTouches[0].clientY - this._swipeStartY;
+                if (Math.abs(dx) < Math.abs(dy) * 1.5) return;
+                if (Math.abs(dx) < 40) return;
+                // 3-slide carousel: [left] ←→ [narrative] ←→ [right]
+                // Swipe direction determines which adjacent panel opens
+                if (dx > 0) {
+                    // Swipe right: close left if open, else open left
+                    if (this.leftDrawerOpen) {
+                        this.closeDrawer('left');
+                    } else if (this.rightDrawerOpen) {
+                        this.closeDrawer('right');
+                    } else {
+                        this.toggleDrawer('left');
+                    }
+                } else {
+                    // Swipe left: close right if open, else open right
+                    if (this.rightDrawerOpen) {
+                        this.closeDrawer('right');
+                    } else if (this.leftDrawerOpen) {
+                        this.closeDrawer('left');
+                    } else {
+                        this.toggleDrawer('right');
+                    }
+                }
+            }, { passive: true });
         },
 
         onEnter(event) {
@@ -1477,7 +1591,7 @@ function game() {
                     zone.innerHTML = '<span class="empty-state">Suggested actions appear after each turn.</span>';
                 }
                 self.submitting = false;
-                document.getElementById('player-input')?.focus();
+                if (window.innerWidth > 768) document.getElementById('player-input')?.focus();
             };
 
             const url = '/turn?input=' + encodeURIComponent(userInput);
@@ -1596,7 +1710,7 @@ function game() {
 
                 if (result.game_over) {
                     _showGameOver(this);
-                } else {
+                } else if (window.innerWidth > 768) {
                     setTimeout(() => document.getElementById('player-input')?.focus(), 100);
                 }
                 _bindTooltips(document);
@@ -1676,12 +1790,14 @@ function game() {
                     htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
                     htmx.ajax('GET', '/panels/state-right', { target: '#state-panel-right' });
                     this.submitting = false;
-                    setTimeout(() => document.getElementById('player-input')?.focus(), 100);
+                    if (window.innerWidth > 768) {
+                        setTimeout(() => document.getElementById('player-input')?.focus(), 100);
+                    }
                 })
                 .catch(e => {
                     zone.innerHTML = '<span class="empty-state" style="color:var(--accent-error)">Delete failed: ' + _escapeHtml(e.message) + '</span>';
                     this.submitting = false;
-                    document.getElementById('player-input')?.focus();
+                    if (window.innerWidth > 768) document.getElementById('player-input')?.focus();
                 });
         },
 
@@ -1693,10 +1809,85 @@ function game() {
             if (!trimmed) return;
             const existing = this.input.trimEnd();
             this.input = existing + (existing ? ', ' : '') + trimmed + ' ';
-            document.getElementById('player-input')?.focus();
+            if (window.innerWidth <= 768) {
+                this.submitTurn();
+            } else {
+                document.getElementById('player-input')?.focus();
+            }
+        },
+
+        // Settings panel state
+        savingSettings: false,
+        settingsStatus: { text: '', class: '' },
+        settings: {},
+
+        async loadSettings() {
+            try {
+                const resp = await fetch('/api/settings');
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                this.settings = await resp.json();
+            } catch (e) {
+                console.error('Failed to load settings:', e);
+            }
+        },
+
+        async saveSettings() {
+            this.savingSettings = true;
+            this.settingsStatus = { text: '', class: '' };
+            
+            try {
+                const resp = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.settings),
+                });
+                
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                this.settings = await resp.json();
+                
+                this.settingsStatus = { text: 'Settings saved.', class: 'settings-status--success' };
+            } catch (e) {
+                console.error('Failed to save settings:', e);
+                this.settingsStatus = { text: `Save failed: ${e.message}`, class: 'settings-status--error' };
+            } finally {
+                this.savingSettings = false;
+            }
+        },
+
+        async openSettingsPanel() {
+            await this.loadSettings();
+            document.getElementById('settings-backdrop').classList.remove('hidden');
+            const modal = document.getElementById('settings-modal');
+            modal.classList.remove('hidden');
+            modal.focus();
+        },
+
+        closeSettingsPanel() {
+            document.getElementById('settings-backdrop').classList.add('hidden');
+            document.getElementById('settings-modal').classList.add('hidden');
         },
     };
 }
+
+// Settings panel: escape key closes it; backdrop click closes it
+document.addEventListener('DOMContentLoaded', () => {
+    const settingsBackdrop = document.getElementById('settings-backdrop');
+    const settingsModal = document.getElementById('settings-modal');
+    if (settingsBackdrop && settingsModal) {
+        settingsBackdrop.addEventListener('click', () => {
+            window._gameInstance?.closeSettingsPanel();
+        });
+        settingsModal.querySelector('.settings-close').addEventListener('click', () => {
+            window._gameInstance?.closeSettingsPanel();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !settingsModal.classList.contains('hidden')) {
+                e.preventDefault();
+                window._gameInstance?.closeSettingsPanel();
+            }
+        });
+    }
+});
 
 function _escapeHtml(str) {
     return String(str)
@@ -1987,7 +2178,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Focus input if a game is already in progress (desktop only)
     const inp = document.getElementById('player-input');
-    if (inp && !inp.disabled) inp.focus();
+    if (inp && !inp.disabled && window.innerWidth > 768) inp.focus();
 
     // Fetch Ollama status and update the header dot
     fetch('/healthz').then(r => r.json()).then(data => {
