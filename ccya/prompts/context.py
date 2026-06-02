@@ -74,10 +74,7 @@ class InventoryBlock(BaseModel):
 
 
 class ArcThreadSummary(BaseModel):
-    """Simplified arc thread data for prompt rendering (subset of full ArcThread).
-
-    Used by _thread_list.j2 and storytell_user.j2. Both templates access: id, scope, urgency, summary, tags, active.
-    """
+    """Simplified arc thread data for prompt rendering (subset of full ArcThread)."""
 
     id: str
     summary: str

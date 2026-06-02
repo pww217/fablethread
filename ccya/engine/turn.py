@@ -52,11 +52,11 @@ from ccya.state import (
     append_chronicle,
     append_event,
     load_last_narration,
-    load_recent_turns,
     load_state,
     reconcile_delta,
     resolve_inventory_remove_target,
     save_state,
+    snapshot_state,
 )
 from ccya.state.delta_builder import _merge_arc_update
 
@@ -187,10 +187,12 @@ def _apply_thread_updates(
             updates["urgency"] = update.urgency
         if update.summary is not None:
             updates["summary"] = update.summary
+        if update.progress is not None:
+            updates["progress"] = update.progress
 
         thread = arc.threads[found_idx]
         updated_thread = thread.model_copy(update=updates)
-        remaining_threads = [t for i2, t in enumerate(arc.threads) if i2 != found_idx]
+        remaining_threads = [t for i2, t in enumerate(remaining_threads) if i2 != found_idx]
         remaining_threads.insert(found_idx, updated_thread)
 
         if updates:
@@ -352,26 +354,13 @@ def _apply_thread_resolutions(
             "resolution_state": res.resolution_state,
             "outcome": res.outcome,
             "resolved_turn": turn_no,
-        })
+        }))
 
     if not any_found:
         return None
 
-        # Dedup: update existing completed entry or collect new ones
-        if thread.id in completed_by_id:
-            found_remaining = True
-            updated_existing = thread.model_copy(update={
-                "resolution_state": res.resolution_state,
-                "outcome": res.outcome,
-                "resolved_turn": turn_no,
-            })
-            remaining_completed = [
-                t if t.id != thread.id else updated_existing
-                for t in arc.completed_threads
-            ]
-        else:
-            new_completed.append(updated_thread)
-            remaining_completed = list(arc.threads)  # placeholder
+    # Build new threads[] — exclude all resolved threads
+    remaining_threads = [t for t in arc.threads if t.id not in resolved_ids]
 
     # Build new completed_threads[] — merge updates into existing completed list (dedup by id)
     completed_map: dict[str, ArcThread] = {}
@@ -425,6 +414,8 @@ def _compute_narration_directive(
     narrative_velocity: float,
     scope_scene_threads: list["ArcThread"],
     ages: dict[str, int],
+    scene_pressure_threshold: int = 3,
+    scene_imperative_threshold: int = 5,
 ) -> str:
     """Compute the narration directive string using a priority stack.
 
@@ -503,6 +494,8 @@ def _compute_pacing_context(
         narrative_velocity=narrative_velocity,
         scope_scene_threads=scope_scene_threads,
         ages=ages,
+        scene_pressure_threshold=config.scene_pressure_threshold,
+        scene_imperative_threshold=config.scene_imperative_threshold,
     )
 
     # Determine beat_locked: relief fired when either consecutive pressure threshold reached or momentum at minimum
@@ -591,20 +584,12 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
             "turn.pacing.avoidance detected", extra={"turn": state.get("meta", {}).get("turn", 0), "trace_id": "", "pack": "", "kind": "pacing"},
         )
 
-    # Load previous outcome context
-    _prev_outcome = ""
-    if turn_no > 1:
-        _prev_events = load_recent_turns(ctx.save_dir, 1)
-        if _prev_events:
-            _prev_outcome = _prev_events[0].get("ruling", {}).get("outcome_summary", "")
-
     # Build ruling messages
     _comp = state.get("compendium", {}).get("npcs", {})
     ruling_messages = _ruling_messages(
         ctx._env, state, ctx.user_input,
         turn_no=turn_no,
         npc_roster=build_npc_roster(_comp),
-        last_outcome=_prev_outcome if _prev_outcome else None,
         inventory=state.get("inventory") or None,
         recent_turns=ctx.recent_turns[-1:],
     )
@@ -815,7 +800,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
     _comp = (state.get("compendium") or {}).get("npcs") or {}
     narr_messages = _narrate_messages(
         ctx._env, state, ctx.user_input,
-        recent_turns=ctx.recent_turns,
+        recent_turns=ctx.recent_turns[-1:],
         narrator_rules=_pack_narrator_rules, world_rules=_pack_world_rules,
         rules_outcome=ctx.outcome, npc_name_pool=_npc_name_pool,
         momentum=(state.get("pc") or {}).get("momentum", 0), pending_beat=_pending_gm_beat,
@@ -1106,7 +1091,9 @@ async def run_turn(
             comp = state.get("compendium", {}).get("npcs", {})
             location = state.get("location", {})
             for cu in (delta.compendium_npc_update or []):
-                entry = comp.setdefault(cu.id, {})
+                entry = comp.get(cu.id)
+                if entry is None:
+                    continue
                 entry["last_seen"] = {
                     "turn": turn_no,
                     "location_id": location.get("id", ""),
@@ -1150,100 +1137,21 @@ async def run_turn(
                 # Enforce PacingContext gate on thread_add
                 if storyteller_result.thread_add:
                     _new_thread = storyteller_result.thread_add
-                    _scope = getattr(_new_thread, "scope", "arc")
-                    turn_no_for_cooldown = state.get("meta", {}).get("turn", 0) + 1
+                    turn_no_for_add = state.get("meta", {}).get("turn", 0) + 1
                     gate_ok = _pc is None or _pc.gate == "allow"
                     if not gate_ok:
-                        _log.debug("thread_add blocked by pacing gate %s at T%d", getattr(_pc, 'gate', 'unknown'), turn_no_for_cooldown)
-                        pass  # skip thread creation — same pattern as scene-scope check below
-
-                    elif _scope == "scene":
-                        # Scene-scoped threads are handled by age rules in Python, not here
-                        pass
-
+                        _log.debug("thread_add blocked by pacing gate %s at T%d", getattr(_pc, 'gate', 'unknown'), turn_no_for_add)
                     else:
-                        # Key collision gate: if matching key exists, skip creation.
-                        exact_collision_id = None
-                        if _new_thread.key:
-                            _state_arc = state.get("arc")
-                            if _state_arc and delta is not None:
-                                try:
-                                    _check_arc = CampaignArc.model_validate(_state_arc)
-                                    for _t in (_check_arc.threads or []) + (_check_arc.completed_threads or []):
-                                        if getattr(_t, 'key') and str(getattr(_t, 'key', '')).lower() == str(_new_thread.key).lower():
-                                            exact_collision_id = _t.id
-                                            break
-                                except Exception:
-                                    pass
-
-                            if exact_collision_id is not None:
-                                _log.warning(
-                                    "thread_add.key_collision",
-                                    extra={"turn": turn_no_for_cooldown, "key": str(_new_thread.key), "existing_id": exact_collision_id, "new_id": _new_thread.id or "?"},
-                                )
-                                pass  # skip thread creation — key collision detected
-
-                        if exact_collision_id is not None:
-                            pass
-                        else:
-                            arc_raw = state.get("arc")
-                            turn_no_for_add = state.get("meta", {}).get("turn", 0) + 1
-                            _state_arc = state.get("arc")
-                            if _state_arc and delta is not None:
-                                try:
-                                    _existing_arc = CampaignArc.model_validate(arc_raw)
-                                    existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
-                                    # Fuzzy auto-merge dedup check (only when key is non-null).
-                                    fuzzy_merged = False
-                                    if _new_thread.key and not exact_collision_id:
-                                        new_key_tokens = set(str(_new_thread.key).lower().split())
-                                        best_score, best_match_t = 0.0, None
-                                        for ft in (_existing_arc.threads or []):
-                                            tk = getattr(ft, 'key')
-                                            if not tk:
-                                                continue
-                                            candidate_tokens = set(str(tk).lower().split())
-                                            overlap = len(new_key_tokens & candidate_tokens)
-                                            score = overlap / max(len(new_key_tokens), len(candidate_tokens)) if candidate_tokens else 0.0
-                                            if score > best_score:
-                                                best_score = score
-                                                best_match_t = ft
-
-                                        if best_score >= 0.70 and best_match_t is not None:
-                                            _merged_t = best_match_t
-                                            if _new_thread.summary and _new_thread.summary.strip():
-                                                _merged_t.summary = _new_thread.summary
-
-                                            existing_tags = set(getattr(best_match_t, 'tags', []) or [])
-                                            new_tags = set(_new_thread.tags or [])
-                                            merged_tags = sorted(existing_tags | new_tags)
-                                            if merged_tags != list(_merged_t.tags):
-                                                _merged_t.tags = merged_tags
-
-                                            arc_with_new_thread = _existing_arc.model_copy(threads=list(_existing_arc.threads))
-                                            _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
-                                            state.setdefault("meta", {})["last_thread_created_turn"] = turn_no_for_add
-
-                                            _log.info(
-                                                "thread_add.auto_merge",
-                                                extra={"turn": turn_no_for_cooldown, "key": str(getattr(best_match_t, 'key', '')), "score": round(best_score, 2), "existing_id": best_match_t.id, "new_id": _new_thread.id or "?"},
-                                            )
-
-                                            fuzzy_merged = True
-
-                                    if not fuzzy_merged and _new_thread.id not in existing_ids:
-                                        _updated_t = _new_thread.model_copy()
-                                        arc_with_new_thread = _existing_arc.model_copy(
-                                            update={"threads": list(_existing_arc.threads) + [_updated_t],
-                                                    "last_thread_created_turn": turn_no_for_add}
-                                        )
-                                        _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
-                                        state.setdefault("meta", {})["last_thread_creation_turn"] = turn_no_for_add
-                                        delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
-                                except Exception as exc:
-                                    _log.warning(
-                                        "thread_add: failed to validate arc at T%d for thread %s: %s",
-                                        turn_no_for_add, getattr(_new_thread, 'id', '?'), exc, extra={"turn": turn_no_for_add},
+                        arc_raw = state.get("arc")
+                        if arc_raw and delta is not None:
+                            try:
+                                _existing_arc = CampaignArc.model_validate(arc_raw)
+                                existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
+                                if _new_thread.id not in existing_ids:
+                                    _updated_t = _new_thread.model_copy()
+                                    arc_with_new_thread = _existing_arc.model_copy(
+                                        update={"threads": list(_existing_arc.threads) + [_updated_t],
+                                                "last_thread_created_turn": turn_no_for_add}
                                     )
                                     _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
                                     state.setdefault("meta", {})["last_thread_created_turn"] = turn_no_for_add
@@ -1357,6 +1265,8 @@ async def run_turn(
             },
         }
         append_event(save_dir, event)
+        # Snapshot pre-turn state before overwriting — used by delete_last_turn
+        snapshot_state(save_dir)
         save_state(save_dir, state)
         append_chronicle(
             save_dir,

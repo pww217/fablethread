@@ -9,7 +9,7 @@
 
 # ccya Eval — Meta Judge (Synthesis)
 
-You receive the scores and key findings from 4 focused domain judges:
+You receive the scores and key findings from 3 focused domain judges:
 - **state_correctness**: mechanic lifecycle tables (momentum, beats, conditions, arc threads), state fidelity, extraction accuracy
 - **narrative_interplay**: narration tone, beat/condition/arc thread story chains, system cohesion
 - **prompt_pipeline**: prompt architecture, pipeline adherence, cross-pipeline redundancy

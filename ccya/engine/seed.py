@@ -15,7 +15,7 @@ from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json, _log_
 from ccya.engine.names import generate_name_pool, generate_npc_names
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
 from ccya.models import WorldStateFact
-from ccya.pack import Pack, PlayerOverrides, SeedEnvelope, parse_world_facts
+from ccya.pack import Pack, PlayerOverrides, SeedEnvelope
 
 from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
 
@@ -324,7 +324,7 @@ async def generate_seed(
 
         # Inject baseline_facts (hardcoded genre canon) into world_state
         # LLM generates 3 global facts into world_state; prepend baseline_facts
-        if world_facts:
+        if (scenario := pack.scenario) and scenario.world_facts:
             existing_ws = list(envelope.seed_state.scene.world_state)
             baseline_ws = [WorldStateFact(id=f"baseline_{i}", text=_strip_non_ascii(text), tier="permanent") for i, text in enumerate(world_facts)]
             baseline_ids = {b.id for b in baseline_ws}

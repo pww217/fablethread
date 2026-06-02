@@ -70,7 +70,7 @@
 
         {# Fix: use unified threads[] with active filter instead of non-existent active_threads #}
         {% set _active = (_arc.get('threads') | selectattr('active', 'equalto', true) | list) if _arc.get('threads') else [] %}
-        {% set _completed = (state.get('completed_threads', [])[:20]) if state.get('completed_threads') else [] %}
+        {% set _completed = (_arc.get('completed_threads', [])[:20]) if _arc else [] %}
         {% set _resolved_arcs = (state.get('resolved_arcs', [])[:5]) if state.get('resolved_arcs') else [] %}
         {% if _active %}
         {% for thread in _active %}
@@ -117,7 +117,11 @@
             </summary>
             <div class="arc-truths">
                 {% for ct in _completed %}
-                <div class="arc-thread" data-md>{{ ct.summary[:100] }}{% if ct.resolved_turn %} [resolved T{{ ct.resolved_turn }}]{% endif %}</div>
+                {% set _outcome = ct.get('outcome') or ct.get('resolution_state', '') %}
+                <div class="arc-thread{% if _outcome %} has-tooltip{% endif %}">
+                    <span data-md>{{ ct.summary[:100] }}{% if ct.resolved_turn %} [resolved T{{ ct.resolved_turn }}]{% endif %}</span>
+                    {% if _outcome %}<div class="tooltip-body" data-md>{{ _outcome }}</div>{% endif %}
+                </div>
                 {% endfor %}
             </div>
         </details>
