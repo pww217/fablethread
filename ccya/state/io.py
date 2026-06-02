@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import os
 import re
-import shutil
 from pathlib import Path
 from typing import Any, cast
 
@@ -137,27 +136,3 @@ def init_save_dir(save_dir: Path, seed: dict[str, Any]) -> None:
     (save_dir / "events.jsonl").write_text("")
     # Remove stale snapshot from a previous game
     (save_dir / "state_snapshot.yaml").unlink(missing_ok=True)
-
-
-def snapshot_state(save_dir: Path) -> None:
-    """Copy state.yaml → state_snapshot.yaml before a turn's delta is applied.
-
-    The snapshot represents the game state BEFORE the upcoming turn, so
-    delete_last_turn can restore it to revert the last turn's delta.
-    """
-    src = save_dir / "state.yaml"
-    dst = save_dir / "state_snapshot.yaml"
-    if src.exists():
-        shutil.copy2(str(src), str(dst))
-        _log.debug("snapshot_state path=%s", dst)
-
-
-def restore_snapshot_state(save_dir: Path) -> None:
-    """Restore state_snapshot.yaml → state.yaml, reverting the last turn's delta."""
-    src = save_dir / "state_snapshot.yaml"
-    dst = save_dir / "state.yaml"
-    if not src.exists():
-        _log.debug("restore_snapshot_state path=%s not found — nothing to restore", src)
-        return
-    shutil.copy2(str(src), str(dst))
-    _log.info("restore_snapshot_state path=%s restored", dst)

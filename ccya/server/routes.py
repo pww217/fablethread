@@ -22,7 +22,6 @@ from ccya.engine import (
     format_change_lines,
     generate_seed,
     is_turn_in_progress,
-    pop_persist_started,
     request_cancel,
     run_turn,
 )
@@ -33,7 +32,7 @@ from ccya.state import (
     load_recent_turns,
     remove_last_chronicle_turn,
     remove_last_event,
-    restore_snapshot_state,
+    save_state,
 )
 from .panels import (
     _debug_context,
@@ -217,17 +216,22 @@ async def cancel_turn():
         return JSONResponse({"ok": True})
 
     request_cancel(str(_app_mod.SAVE_DIR))
-    released = await await_turn_done(str(_app_mod.SAVE_DIR), timeout=30.0)
-    if not released:
-        _log.warning("cancel_turn timeout waiting for turn to finish")
+    await await_turn_done(str(_app_mod.SAVE_DIR), timeout=30.0)
     clear_cancel(str(_app_mod.SAVE_DIR))
 
-    # Idempotent cleanup — always remove event/chronicle if written
-    remove_last_event(_app_mod.SAVE_DIR)
-    remove_last_chronicle_turn(_app_mod.SAVE_DIR)
-    # Only restore snapshot if persist phase had started (snapshot was taken for this turn)
-    if pop_persist_started(str(_app_mod.SAVE_DIR)):
-        restore_snapshot_state(_app_mod.SAVE_DIR)
+    last_events = load_recent_turns(_app_mod.SAVE_DIR, 1)
+    if last_events:
+        event = last_events[-1]
+        pre_turn_state = event.get("state_snapshot")
+        remove_last_event(_app_mod.SAVE_DIR)
+        remove_last_chronicle_turn(_app_mod.SAVE_DIR)
+        if pre_turn_state is not None:
+            save_state(_app_mod.SAVE_DIR, pre_turn_state)
+        else:
+            _log.warning(
+                "cancel_turn state_snapshot missing for turn=%s — state not reverted",
+                event.get("turn"),
+            )
 
     return JSONResponse({"ok": True})
 
@@ -247,10 +251,18 @@ async def delete_last_turn():
 
     last_event = last_events[-1]
     actions = last_event.get("actions", [])
+    pre_turn_state = last_event.get("state_snapshot")
 
     remove_last_event(_app_mod.SAVE_DIR)
     remove_last_chronicle_turn(_app_mod.SAVE_DIR)
-    restore_snapshot_state(_app_mod.SAVE_DIR)
+
+    if pre_turn_state is not None:
+        save_state(_app_mod.SAVE_DIR, pre_turn_state)
+    else:
+        _log.warning(
+            "delete_last_turn state_snapshot missing for turn=%s — state not reverted",
+            last_event.get("turn"),
+        )
 
     _log.info("delete_last_turn turn=%s", last_event.get("turn"))
     return JSONResponse({"actions": actions, "turn": last_event.get("turn")})
