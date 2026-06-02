@@ -4,6 +4,14 @@ from ccya.engine.config import (
     EngineConfig,
     build_engine_config,
     is_turn_in_progress,
+    request_cancel,
+    is_cancel_requested,
+    register_persist,
+    pop_persist_started,
+    clear_cancel,
+    register_turn,
+    signal_turn_done,
+    await_turn_done,
 )
 from ccya.engine.seed import generate_seed
 from ccya.engine.changes import format_change_lines
@@ -15,6 +23,14 @@ __all__ = [
     "format_change_lines",
     "generate_seed",
     "is_turn_in_progress",
+    "request_cancel",
+    "is_cancel_requested",
+    "register_persist",
+    "pop_persist_started",
+    "clear_cancel",
+    "register_turn",
+    "signal_turn_done",
+    "await_turn_done",
     "run_turn",
     "warmup",
 ]
