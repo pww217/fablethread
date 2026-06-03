@@ -12,7 +12,7 @@ The arc and thread systems exist but produce zero useful output across both game
 
 - Pipeline order is fixed: narrator runs first, then extraction, then arc director. The 1-turn lag between extraction and arc director is acceptable — it predates this design and reordering is too expensive.
 - The basic thread lifecycle (create → update → resolve → completed_threads) is sound and unchanged.
-- `_merge_arc_update` conditional replace behavior (only overwrite visible_goal/thematic_question when non-empty) is correct and unchanged.
+- `_merge_arc_update` conditional replace behavior (only overwrite visible_goal/thematic_question when non-empty) is correct and unchanged for the arc_resolve path. The new `goal_update` field applies via direct dict assignment, NOT through `_merge_arc_update` (which always replaces `threads[]` unconditionally — passing a bare CampaignArc would wipe the thread list).
 - Backwards compatibility is not required. Any state format change is acceptable.
 - The prompt templates are the primary interface to the storyteller. Code changes enforce constraints; prompt changes guide behavior.
 
@@ -49,7 +49,7 @@ The arc and thread systems exist but produce zero useful output across both game
 
 `CampaignArc`: visible_goal (str), thematic_question (str), goal_context (str), threads (list[ArcThread]), completed_threads (list[ArcThread]), resolution, last_thread_created_turn.
 
-`ThreadUpdate`: id, active (optional), urgency (optional), summary (optional), progress (optional).
+`ThreadUpdate`: id, active (optional), urgency (optional), summary (optional), progress (optional), progress_replace (optional, default False).
 
 `ArcResolution`: resolution, visible_goal, goal_context, thematic_question (optional), drop_threads, new_threads.
 
@@ -81,8 +81,10 @@ The `PacingContext.gate` is `"block_escalate"` when `deescalate >= 0.5` (high de
 
 #### 1. Make visible_goal updateable without arc_resolve
 
-- Add a `visible_goal` field to `StorytellerResult` (or reuse existing signals) that the storyteller can update independently of arc resolution.
-- `_merge_arc_update` already handles this correctly (conditional replace when non-empty). The missing piece is a prompt-level mechanism for the storyteller to emit goal updates.
+- Add `goal_update: str | None = None` to `StorytellerResult`. Bare string, no new model class — the value is the new `visible_goal`.
+- In the arc director sequence (between thread updates and arc resolve), extract `goal_update` and apply it directly to the arc dict: `if storyteller_result.goal_update: state["arc"]["visible_goal"] = storyteller_result.goal_update`.
+- Does NOT go through `_merge_arc_update` — that function replaces `threads[]` unconditionally, so passing a bare campaign arc would wipe the thread list. A direct dict-level assignment is simpler and correct.
+- **Ordering:** goal_update applies before arc_resolve. If both fire on the same turn, arc_resolve wins (ending the arc supersedes a mid-arc update).
 - **Rationale:** The storyteller demonstrably drives narrative direction but has no way to formally acknowledge that the goal has shifted. A dedicated goal_update field decouples goal progression from the arc resolution lifecycle.
 
 #### 2. Add prompt guidance for visible_goal updates
@@ -97,16 +99,17 @@ The `PacingContext.gate` is `"block_escalate"` when `deescalate >= 0.5` (high de
 
 #### 4. Make thread_progress an append-only list
 
-- Change `ArcThread.progress` type from `str` to `list[str]` (or add a new field `progress_log: list[str]` while keeping `progress` as the latest entry for backward compatibility).
-- `_apply_thread_updates` appends new progress strings instead of replacing.
+- Change `ArcThread.progress` type from `str` to `list[str]`. No backward compat needed — constraint #16.
+- Add `progress_replace: bool = False` to `ThreadUpdate`. When `True`, the new progress value replaces the entire log (overwrites the list with a single new entry). When `False` (default), the new value is appended.
+- `_apply_thread_updates` checks `progress_replace` to decide append vs. replace. A boolean is strictly more reliable than string-prefix parsing (no casing/whitespace edge cases from LLM output).
 - The `_thread_list.j2` section renders the full progress log for the storyteller.
 - **Rationale:** The storyteller needs to see past progress to avoid repeating itself. The 8 near-identical updates to `black_market_contact` are direct evidence that single-string progress is insufficient.
 
 #### 5. Add urgency decay guidance
 
 - Add prompt language: "Thread urgency should decay over time. If a thread has been updated once without the player addressing it, consider lowering urgency. If it's been inactive for 3+ turns, lower urgency to background or mark it inactive."
-- Code addition: a per-thread counter `turns_since_last_update` (derivable from state, not a new field — compare `thread_resolved_turn` or last update turn against current turn).
-- `_thread_list.j2` can render `turns_since_last_update` in the thread display.
+- Add `last_updated_turn: int | None = None` to `ArcThread`. Set to current turn on every `_apply_thread_updates` mutation. Rendered as `turns_since_last_update` in the prompt context for the storyteller to see.
+- **Rationale:** `ArcThread` has no timestamp field in source. "Derivable from state without a new field" was inaccurate — there's no update-turn tracking. The field is one integer, zero ongoing cost.
 
 #### 6. Add silent-drop feedback for thread_add gate
 
@@ -119,13 +122,17 @@ The `PacingContext.gate` is `"block_escalate"` when `deescalate >= 0.5` (high de
 - Add prompt guidance: "Only emit `thread_update` when you are changing a thread's state. Do not emit updates with all-null fields."
 - This is purely a prompt change. The code already handles `updates` being empty (returns None when `mutated` is False).
 
-#### 8. Strengthen thread scope guidance
+#### 8. Strengthen thread scope guidance + thread ecology
 
 - Add explicit rules to `storytell_system.j2`:
   - "Use `scope: scene` for threads that will resolve within the current location or within 1-3 turns. These are automatically cleaned up on location change."
   - "Use `scope: arc` only for threads that span multiple locations and are central to the arc's visible_goal. Arc-scoped threads must be explicitly resolved — they will not be cleaned up."
   - "When in doubt, prefer `scope: scene`. Over-classifying as arc creates permanent dead threads."
-- Optionally: add a cap on arc-scoped threads (e.g., at most 3 active arc-scoped threads).
+- Add soft cap guidance (rendered in prompt, not code-enforced):
+  - Aim for **2-3 arc-scoped** and **1-2 scene-scoped** threads active at any time — **~5 total max**.
+  - Keep each thread's domain broad; use the appendable progress log to record specific, grounded developments within that domain.
+  - If you need to add a thread near the cap, downgrade or resolve an existing one first.
+- **Rationale:** The 100% misclassification rate (8/8 across two games) is structural — the LLM lacks distinguishing signal, not better instructions. The soft cap renders the constraint visibly so the storyteller self-regulates. Combined with the progress log, the storyteller has room to evolve existing threads without creating new ones.
 
 ### Alternatives Considered and Rejected
 
@@ -133,16 +140,17 @@ The `PacingContext.gate` is `"block_escalate"` when `deescalate >= 0.5` (high de
 - **Auto-decay urgency in code:** Rejected. The storyteller controls narrative salience. Code-decay would silently change urgency in ways that contradict narrative intent. Prompt guidance is the right tool.
 - **Replace thread_update with append-only always:** Rejected. Sometimes the storyteller needs to correct or replace progress (e.g., when new information invalidates old progress). The append model should dominate, but the storyteller should be able to signal "replace" vs "append" explicitly.
 - **Prevent arc-scoped thread creation in code:** Rejected. Arc-scoped threads are valid for multi-location plots. The problem is misclassification, not the existence of arc-scoped threads.
+- **Auto-reclassify arc-scoped threads based on location change:** Rejected. The pipeline cannot retroactively reclassify threads — scope is declared at creation time. A soft cap with visible feedback is more practical.
 
 ## Decision Table
 
 | Decision | What | Why |
-|---|---|---|
-| visible_goal updateable without arc_resolve | New StorytellerResult.goal_update field | Decouples goal progression from arc resolution; arc_resolve is too heavyweight for incremental goal shifts |
-| thread_progress changes to append-by-default | ArcThread.progress becomes list[str] or new progress_log: list[str] added | Stops investigative trail loss; storyteller can see past progress and avoid repetition |
-| urgency decay is prompt-only | No code enforcement | Code cannot judge narrative salience; storyteller must own decay decisions |
+|---|---|---|---|
+| visible_goal updateable without arc_resolve | `StorytellerResult.goal_update: str \| None` — bare string, direct dict assignment, before arc_resolve in director sequence | Decouples goal progression from arc resolution; arc_resolve is too heavyweight for incremental goal shifts |
+| thread_progress changes to append-by-default | `ArcThread.progress` becomes `list[str]`; `ThreadUpdate.progress_replace: bool` for explicit overwrite | Stops investigative trail loss; boolean flag is more reliable than string-prefix parsing for LLM output |
+| urgency decay is prompt + `last_updated_turn` field | New `ArcThread.last_updated_turn: int \| None` set on every update; prompt guidance to decay urgency over time | Code tracks update timing; storyteller decides urgency level |
 | thread_add gate feedback is prompt-only | Render gate status in thread section | No code change needed; gives storyteller the awareness to avoid wasted emissions |
-| scope guidance strengthened in prompt | Explicit rules and preference for scene | Misclassification is a prompt quality problem, not a code enforcement problem |
+| scope guidance + soft cap in prompt | Explicit rules + target: 2-3 arc-scoped, 1-2 scene-scoped, ~5 total max; broad thread domains; progress log for granularity | 100% misclassification rate is structural; soft cap renders constraint visibly for self-regulation |
 | thematic_question engagement is prompt-only | Add behavioral guidance in story context | The pipeline already renders it; only missing behavioral weight |
 | no-op thread_updates discouraged via prompt | Guidance: only emit when changing state | Fixes excessive null-field updates with zero code change |
 
@@ -150,55 +158,84 @@ The `PacingContext.gate` is `"block_escalate"` when `deescalate >= 0.5` (high de
 
 - **Storyteller ignores new prompt guidance.** Prompt guidance is advisory. If the LLM continues to misclassify scope or never emits goal_updates, the system state will not improve. Mitigation: add alert logging when scope misclassification exceeds thresholds (e.g., >50% of arc-scoped threads are resolved within 3 turns — suggesting misclassification).
 - **progress_log grows unbounded.** A thread updated 20+ times will have a long progress log. Mitigation: cap rendering to the last N entries (e.g., last 5) in `_thread_list.j2`, or summarize older entries.
-- **goal_update competes with arc_resolve.** The storyteller might use goal_update when it should use arc_resolve (to end the arc) or vice versa. Mitigation: prompt must clearly distinguish: "Use goal_update for mid-arc goal shifts. Use arc_resolve to end the current arc and start a new one."
+- **goal_update competes with arc_resolve.** The storyteller might use goal_update when it should use arc_resolve (to end the arc) or vice versa. Mitigation: prompt must clearly distinguish: "Use goal_update for mid-arc goal shifts. Use arc_resolve to end the current arc and start a new one." If both fire on the same turn, arc_resolve wins (order: goal_update → arc_resolve).
 - **Urgency decay guidance makes threads too passive.** If the storyteller drops urgency too aggressively, nothing feels urgent. Mitigation: monitor urgency distribution in the thread list. At least 1-2 urgent threads per active arc is healthy.
-- **Scoped-thread cap creates silent drops.** If a cap on arc-scoped threads is enforced in code, threads beyond the cap would be silently dropped (same failure mode as the pacing gate). Mitigation: any cap must be explicit in the prompt, not enforced in code, with the storyteller deciding which threads to downgrade or resolve to stay under cap.
+- **Soft cap ignored by LLM.** The cap is rendered but not enforced. The LLM may still accumulate 8+ threads. Mitigation: monitor active thread count; if it exceeds 6 for 5+ consecutive turns, escalate to a code-enforced cap or automatic reclassification.
+- **goal_update applied directly to dict bypasses _merge_arc_update's conditional replace.** The direct assignment is unconditional — it always overwrites `visible_goal`. This is intentional: if the storyteller emitted a goal_update, they meant to change the goal. The conditional-replace safety net of `_merge_arc_update` only applies to arc_resolve path.
 
-## Open Questions
+## Open Questions (Resolved)
 
-- `[OPEN: progress type change — new field or replace?]` Should `ArcThread.progress` change type from `str` to `list[str]`, or should a new `progress_log: list[str]` be added alongside the existing `progress` field as the latest entry? The `list[str]` replacement is cleaner but requires a migration. The dual-field approach maintains backward compatibility but creates two sources of truth.
-- `[OPEN: arc-scoped thread cap value?]` If a cap on arc-scoped threads is added, what value? 3 seems reasonable (enough for one main plot + two subplots). But any cap is arbitrary — the storyteller may legitimately need 5+ arc-scoped threads for a complex political arc.
-- `[OPEN: goal_update field shape?]` Should `goal_update` be a simple `str` (new visible_goal) or a structured type with `visible_goal` + optional `goal_context`? The current code already merges `goal_context` from `ArcResolution` — a structured type aligns better with existing patterns.
+These questions from the original design have been resolved during review:
+
+- **progress type change** → `list[str]` replacement. Backwards compatibility not required (constraint #16). Two-source-of-truth problem outweighs migration cost.
+- **arc-scoped thread cap** → Soft cap of 2-3 arc-scoped, 1-2 scene-scoped, ~5 total max. Rendered in prompt context, not code-enforced. Broad thread domains + appendable progress log reduce need for new threads.
+- **goal_update field shape** → Bare `str | None = None`. No model class, no `id`, no `goal_context`. If the arc needs `goal_context` changes, those go through arc_resolve.
 
 ## What Is Removed
 
-Nothing. This design adds prompt guidance and one optional new field. No existing functionality is removed.
+- `ArcThread.progress` single-string field — replaced with `list[str]`.
+- `_merge_arc_update` as the sole mechanism for `visible_goal` updates — `goal_update` now applies via direct dict assignment.
+- `REPLACE:` string-prefix approach — replaced with `progress_replace: bool` for append-vs-replace control.
 
 ## What Is Unchanged
 
-- `_merge_arc_update` conditional replace logic (non-empty fields only)
-- `_apply_thread_updates` function signature and flow (only changes field behavior)
-- `_apply_thread_resolutions` logic for moving threads to completed_threads
-- `_apply_arc_resolve` logic for arc resolution + successor creation
-- Pipeline order (narrate before extraction before arc director)
-- Pacing gate mechanism (gate value computation and enforcement)
-- `CampaignArc` structure aside from optional new goal_update field
-- `ArcThread` basic lifecycle (create → update → resolve → completed)
+- `_merge_arc_update` conditional replace logic (non-empty fields only) — still used by arc_resolve and thread_resolutions paths.
+- `_apply_thread_updates` function signature and flow (only progress field behavior changes; `progress_replace` field added to `ThreadUpdate`).
+- `_apply_thread_resolutions` logic for moving threads to completed_threads.
+- `_apply_arc_resolve` logic for arc resolution + successor creation.
+- Pipeline order (narrate before extraction before arc director).
+- Pacing gate mechanism (gate value computation and enforcement).
+- `CampaignArc` structure — no changes.
+- `ArcThread` basic lifecycle (create → update → resolve → completed).
+- `StorytellerResult` structure aside from the new `goal_update: str | None` field.
 
 ## New Model Shapes
 
-### GoalUpdate (new)
+### StorytellerResult.goal_update (new field)
 
 ```
-class GoalUpdate(BaseModel):
-    id: str  # arc id, for multi-arc support
-    visible_goal: str
-    goal_context: str | None = None
+goal_update: str | None = None
 ```
 
-### ThreadUpdate.progress semantics (changed)
+Bare string — the value is the new `visible_goal`. No new model class. Applied directly to the arc dict outside of `_merge_arc_update`.
 
-`progress` field behavior changes from "replace" to "append-default". The storyteller can optionally prefix with `REPLACE:` to force a replacement instead of append.
+### ThreadUpdate (changed)
 
-No new field — same field, changed semantics. The `_apply_thread_updates` function appends new progress to existing progress (with newline or bullet separator) unless the value starts with `REPLACE:`.
+```
+class ThreadUpdate(BaseModel):
+    id: str
+    active: bool | None = None
+    urgency: str | None = None
+    summary: str | None = None
+    progress: str | None = None
+    progress_replace: bool = False  # NEW — replaces progress log when True
+```
+
+When `progress_replace=False` (default), the progress string is appended to `ArcThread.progress` list. When `True`, the list is replaced with a single new entry.
+
+### ArcThread (changed)
+
+```
+class ArcThread(BaseModel):
+    id: str
+    summary: str
+    scope: str  # scene | arc
+    active: bool = True
+    urgency: str = "normal"  # background | normal | urgent
+    progress: str | list[str] = []  # CHANGED from str to list[str]
+    last_updated_turn: int | None = None  # NEW
+    resolution_state: str | None = None
+    outcome: str | None = None
+    resolved_turn: int | None = None
+```
 
 ## Context for Implementing LLMs
 
 - `ccya/models.py` lines 29-48 — `ArcThread` and `CampaignArc` model shapes. Understand existing fields before adding new ones.
 - `ccya/engine/turn.py` lines 139-206 — `_apply_thread_updates`. This is where progress replacement happens and where append logic will be added.
 - `ccya/engine/turn.py` lines 209-286 — `_apply_arc_resolve`. Understand how arc resolution currently works and where goal_update fits alongside it.
-- `ccya/engine/turn.py` lines 1119-1174 — Arc director entry point. Understand the order of operations (updates → resolve → resolutions → thread_add gate).
+- `ccya/engine/turn.py` lines 1119-1174 — Arc director entry point. The new sequence: 1) thread updates (1121), 2) **goal_update apply** (new — between 1129 and 1131), 3) arc resolve (1132), 4) thread resolutions (1143), 5) thread_add gate (1153).
 - `ccya/prompts/storytell_system.j2` — Primary prompt template. Lines 120-187 contain thread and beat guidance. Lines 1-120 contain visible_goal and thread_list rendering context. All prompt changes go here.
-- `ccya/prompts/sections/_thread_list.j2` — Thread rendering for prompt context. Must be updated to render progress_log and turns_since_last_update.
+- `ccya/prompts/sections/_thread_list.j2` — Thread rendering for prompt context. Must be updated to render progress log (`list[str]`) as a human-readable list, plus `turns_since_last_update` from `last_updated_turn`. Also render the soft-cap guidance: current arc-scoped count vs target, gate status.
 - `ccya/prompts/sections/_arc.j2` — Arc rendering. Currently renders visible_goal and thematic_question. Must be checked for goal_update awareness.
 - `plans/findings/CONSOLIDATED-EV-FINDINGS.md` — Empirical evidence for every problem this design addresses. Category 2 (thread system) and Category 4 (arc system) are most relevant.
