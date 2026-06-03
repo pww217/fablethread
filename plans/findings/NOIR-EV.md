@@ -169,43 +169,161 @@ No duplicates or overwrites. 5 persistent facts are non-redundant and accurately
 
 ---
 
-## 6. GM Beat Expiration Mechanism — Broken in Two Ways
+## 6. GM Beat Expiration Mechanism — Broken in Three Ways
 
-**Current behavior:** At `turn.py:998-1005`, TTL is set to `beat_expires_turn = turn_no + 2`. At lines 750-758, expiration checks `turn_no > beat_expires_turn` and clears pending_gm_beat.
+**Current behavior:** At `turn.py:998-1005`, TTL is set to `beat_expires_turn = turn_no + 2`. At lines 750-758, expiration checks `turn_no > beat_expires_turn` and clears pending_gm_beat. Both use the same formula (`state.turn + 1`), so a beat generated at Tn expires at Tn+3 narrate setup (`(n+2) + 1 > n+2` is false, `n+3 > n+2` is true). In practice: beat lives for 2 narration turns.
 
-**Problem A — Storytell always replaces before expiry:** Since storytell emits a GM beat 100% of turns in this save (except when "Breathe" directive is active), TTL=2 means expiration never fires in practice. The beat is always replaced by a new one before it expires. This creates a state where `pending_gm_beat` always exists, so floor relief beats at lines 1090-1096 (`beat_locked=True AND no existing beat`) never trigger even after 5+ consecutive pressure turns.
+**Problem A — Storytell always replaces before expiry:** Since storytell emits a GM beat on most turns, expiration never fires in practice. The beat is always replaced by a new one before it expires. This creates a state where `pending_gm_beat` always exists, so floor relief beats at lines 1090-1096 (`beat_locked=True AND no existing beat`) never trigger even after 5+ consecutive pressure turns.
 
-**Problem B — "Breathe" directives don't clear pending_gm_beat:** When storytell receives a "Breathe" directive, it respects the intent and emits null (no GM beat field in output). However, `pending_gm_beat` is **never cleared** when storytell outputs null. Old pressure beats persist in narrate for 2-3 extra turns after the "Breathe" directive should have taken effect:
+**Problem B — "Breathe" directives don't clear pending_gm_beat:** When storytell receives a "Breathe" directive, it respects the intent and emits null (no GM beat field in output). However, `pending_gm_beat` is **never cleared** when storytell outputs null (line 1000 only writes if `_new_beat and _new_beat.type` are both truthy). Old pressure beats persist in narrate for 2-3 extra turns after the "Breathe" directive should have taken effect.
 
-| Turn | Directive | Storytell Output | Narrate Sees | What Happened |
-|------|-----------|-----------------|--------------|---------------|
-| T10  | Breathe   | *(none)*        | PRESSURE/npc_behavior | Old beat from T8/T9 persists; storytell emitted null but pending_gm_beat was never cleared |
-| T11  | -         | *(none)*        | pressure/event | Same old beat, now 3-turn persistence — expiration should have fired at turn_no > expires_turn but no new beat overwrote it either (storytell still had nothing to emit) |
-| T12  | Breathe   | pressure/event  | PRESSURE/npc_behavior | "Breathe" ignored by storytell; old beats from earlier turns injected into narrate before storytell's own output took effect |
-| T13  | Breathe + block_escalate | *(none)* | PRESSURE/event | Both directives ignored — no beat generated but old pressure beat persisted in pending_gm_beat for 2+ extra turns |
-| T16  | Breathe   | *(none)*        | PRESSURE/npc_behavior | Same pattern: storytell respected "Breathe" (null output), narrate saw old beat from 2-3 turns ago |
+The actual directive + beat chain (corrected, verified from state_snapshot + event data):
 
-**The timing mismatch:** Storytell generates its GM beat based on previous turn's narration and stores it into `pending_gm_beat`. Narrator reads the *current* `pending_gm_beat` at injection time. At T7, storytell generated opportunity/npc_behavior but narrate saw PRESSURE/npc_behavior — this is because beat 4 (expires_turn=6) expired when turn_no > 6 triggered, clearing pending_gm_beat before storytell stored its output for the *next* cycle. The result: old beats bleed into narration across multiple turns after they should have been cleared.
+| Turn | Pacing Directive | Storytell GM | Narrate Beat Injection | Actual Behavior |
+|------|-----------------|-------------|----------------------|-----------------|
+| T4   | "" (empty)      | *null*      | REVELATION/npc_behavior | Valid 1-in-4 null cadence. T3's revelation persists as carryover. **Not** a "Breathe" turn. |
+| T5   | ""              | pressure/event | REVELATION/npc_behavior | Architectural 1-turn lag. Narrate reads T3's revelation (persisted through T4 null). |
+| T6   | ""              | pressure/npc_behavior | PRESSURE/event | Clean — narrate sees T5's pressure/event. |
+| T7   | **Breathe**     | opportunity/npc_behavior | PRESSURE/npc_behavior | Architectural 1-turn lag. Narrate reads T6's pressure. T7's opportunity is for T8 narrate. |
+| T8   | ""              | revelation/player_discovery | OPPORTUNITY/npc_behavior | Clean — narrate sees T7's opportunity. |
+| T9   | ""              | pressure/npc_behavior | REVELATION/player_discovery | Clean — narrate sees T8's revelation. |
+| T10  | **Breathe**     | *null*      | PRESSURE/npc_behavior | **[BUG REVEALED]** Storytell respects Breathe (null). T9's pressure persists (expires_turn=11, 10>11? No). Narrate sees stale T9 beat. |
+| T11  | ""              | *null*      | PRESSURE/npc_behavior | Same T9 beat persists (11>11? No). **Not** a Breathe turn — storytell chose null independently. |
+| T12  | ""              | pressure/event | *(no Beat line)* | T9's beat finally expires (12>11? Yes). **Narrate had zero beat guidance this turn.** |
+| T13  | **Breathe**     | *null*      | PRESSURE/event | T12's beat persists (13>14? No). gate=block_escalate blocks thread_add (not beat generation). |
+| T14  | Scene Pressure  | pressure/event(?) | PRESSURE/event | T12's beat still persists through T13 null (14>14? No). |
+| T15  | Scene Imperative | pressure/npc_behavior | PRESSURE/event | Clean — narrate sees T14's pressure/event. |
+| T16  | **Breathe**     | *null*      | PRESSURE/npc_behavior | T15's beat persists (16>17? No). Breathe respected but stale beat continues. |
+| T17  | Scene Imperative | pressure/npc_behavior | PRESSURE/npc_behavior | T15's beat persists (17>17? No). T17's new beat will reach T18. |
 
-**Problem C — TTL mechanism doesn't help:** When storytell emits null ("Breathe"), expiration never fires because there's no beat to expire — pending_gm_beat just sits there until a *new* beat overwrites it 2-3 turns later (or 3+ turns pass and turn_no > expires_turn finally triggers). The TTL=2 mechanism was designed for beats that persist across turns, but in practice storytell either replaces them immediately or never generates anything to replace with.
+**Core problem — architectural 1-turn lag, not expiration race:** Narrate runs BEFORE extraction (storytell). At `turn.py:891`, narrate setup reads pending_gm_beat. At lines 965-1005, extraction runs and storytell may replace it. So narrate ALWAYS reads the beat generated by the **previous** turn's storytell, never the current turn's. This is by design (line 744-747 comment), but it means:
 
-**Likely fix:** Tear out the 2-turn TTL entirely. Replace with a simpler model where pending_gm_beat is cleared when storytell emits null (respecting "Breathe"/"block_escalate") and only persists for 1 turn after generation before auto-clearing. This eliminates the race condition between expiration checks, beat storage timing, and narrate injection points.
+- **T7**: Mismatch is NOT about beat 4 expiring. Beat 4 was already overwritten by T5 and T6. The real cause: narrate reads T6's pressure, T7's opportunity is for T8.
+- **T10/T13/T16**: "Breathe" is respected by storytell (emits null), but the previous turn's pressure beat is still in pending_gm_beat. Since nothing clears it, narrate sees stale data.
+
+**Problem C — Floor relief beats blocked by `not pending_gm_beat` condition:** At `turn.py:1090`:
+```python
+if _pc.beat_locked and not state.get("meta", {}).get("pending_gm_beat"):
+```
+The `not pending_gm_beat` condition means the floor relief beat is ONLY injected if pending_gm_beat is already None. But since storytell generates a beat every turn (Problem A) OR old beats persist through null turns (Problem B), pending_gm_beat is almost never None. Result: the breathing_room relief path at line 1090-1096 is **structurally unreachable** in the noir save.
+
+**The beat_locked threshold also never triggered** — `consecutive_pressure_turns` was 0 across all 17 turns (see Section 7). Even if it did trigger, the relief beat would still be blocked by the `not pending_gm_beat` condition.
+
+**Likely fix:** Three independent changes:
+1. Clear pending_gm_beat when storytell emits null (fixes "Breathe" broken)
+2. Remove `not pending_gm_beat` from line 1090 (enables floor relief beats to override stale beats)
+3. Tear out the TTL=2 mechanism entirely. Replace with simpler model: beat persists for exactly 1 narration turn, then auto-clears. The 1-turn lag is architectural (narrate runs before extraction) so this gives each beat exactly 1 narration impact.
 
 ---
 
-## 7. Consecutive Pressure Tracking — Not Working as Designed
+## 7. Consecutive Pressure Tracking — Never Triggered
 
 At `turn.py:1184-1192`, `consecutive_pressure_turns` increments when directive is "Pressure"/"Overwhelm" AND no thread_update was emitted, resetting otherwise. When it reaches `config.consecutive_pressure_threshold` (default 3), it triggers `beat_locked=True`.
 
-**Problem:** The eval shows `consecutive_pressure_turns=0` across all turns in events.jsonl despite T7-T11 having 5 consecutive pressure beats with no thread updates. This suggests either:
-- Thread updates *were* emitted each turn (resetting the counter), or
-- The directive wasn't consistently "Pressure"/"Overwhelm"
+**Problem — not just thread updates, but wrong directive basis:** The eval shows `consecutive_pressure_turns=0` across all 17 turns in events.jsonl. This isn't just because thread updates reset it — the bigger issue is that **directives were never "Pressure" or "Overwhelm"** in this save. Directives across all 17 turns were:
 
-Looking at mechanics output, storytell was emitting `thread_update` on nearly every turn (updating `clerk_murder_coverup` progress), which resets the consecutive pressure counter. This means beat_locked never triggers and floor relief beats never fire — even though 5+ consecutive pressure turns occurred. The mechanism exists but is defeated by thread updates being emitted alongside pressure beats.
+| Directive Type | Turns |
+|---------------|-------|
+| "" (empty) | T1-T6, T8-T9, T11-T12 |
+| "Breathe" | T7, T10, T13, T16 |
+| "Scene Pressure" | T14 |
+| "Scene Imperative" | T15, T17 |
 
-**Tentative fix:** Separate "pressure directive" tracking from "thread update presence." Track `consecutive_pressure_beats` (based on storytell's actual gm_beat output) independently of `consecutive_pressure_turns` (based on ruling directives). This way, 5 consecutive pressure GM beats would trigger beat_locked even if thread updates were also emitted.
+Zero turns with "Pressure" or "Overwhelm" directive. The counter is keyed to RULING directives, not actual BEAT types. Storytell generated 9 pressure-type GM beats (T5, T6, T9, T12, T14, T15, T17 + T8?/T10?) without a single counter increment — because none of those turns had a "Pressure"/"Overwhelm" directive.
 
-**Compounding issue:** Even if beat_locked triggers and forces floor relief beats through the beat_locked path at turn.py:1090-1096, those relief beats still need to reach narrate correctly. The TTL=2 mechanism + timing mismatch (Section 6) means even forced null/relief beats may not clear pending_gm_beat in time for narration. Fix Section 6 first before relying on beat_locked as a safety net.
+**The fundamental design flaw:** `consecutive_pressure_turns` tracks `directive in ("Pressure", "Overwhelm")` — the ruling phase's assessment of scene velocity. But the actual repetitive beats come from storytell's independent generation, not from the directive. The ruling phase never output "Pressure" in this save because the narrative velocity didn't trigger that threshold (momentum stayed moderate, scene age was low, thread urgency varied). Meanwhile storytell generated pressure beats anyway due to the door-knocking scene state.
+
+**Tentative fix:** Change `consecutive_pressure_turns` to track actual beat types emitted by storytell, not ruling directives. Store `gm_beat.type` into `state.meta.consecutive_pressure_beats` at turn.py:1000-1005 when the beat is stored. Use this new counter for beat_locked threshold: `consecutive_pressure_beats >= 3` triggers locked regardless of directive or thread updates.
+
+**Compounding issue:** Even if beat_locked triggers, the floor relief beat at turn.py:1090-1096 is blocked by the `not pending_gm_beat` condition (Section 6, Problem C). Fix both: (1) separate beat type tracking from directive-based tracking, (2) remove `not pending_gm_beat` condition so relief beats can override stale beats.
+
+---
+
+## 8. Solution Effectiveness Analysis
+
+### Proposed Solutions (from NOIR-EV T1-T7 and IDEAS.md)
+
+| Solution | Effectiveness | Why |
+|----------|--------------|-----|
+| Clear pending_gm_beat when storytell emits null | **HIGH — directly fixes root cause** | Solves Problem B + C. Stale beats stop persisting. Requires 2 lines of code at turn.py:998-1005. Token cost: 0. |
+| Remove `not pending_gm_beat` from line 1090 | **HIGH — enables existing mechanism** | Score relief beats can now override stale beats regardless of pending_gm_beat state. 0 tokens, 1 line deletion. |
+| Tear out TTL=2 mechanism entirely | **HIGH — eliminates dead code** | Currently serves no purpose (beat always replaced before expiry or persists through null). Replace with "1 narration turn then clear." |
+| GM beat last_n_beats history | **MEDIUM — necessary but insufficient alone** | Gives storytell visibility into its own output. But without Fix A+B+C (clear on null, remove block, TTL fix), stale beats still reach narrate even with better storytell output. |
+| Track beat type, not directive, for consecutive_pressure | **MEDIUM — fixes wrong basis** | Changes counter from ruling directive to actual GM beat type. Without the `not pending_gm_beat` fix, relief beats still blocked. |
+| GM beat expiration countdown in narrate | **LOW — cosmetic, doesn't change beat quality** | Narrate sees TTL remaining but can't act on it differently than current "use it or lose it" behavior. ~5 tokens for no structural improvement. |
+| NPC last_seen with turn delta + context | **MEDIUM — improves narrator quality** | Helps but doesn't address root cause. The beat loop is structural, not NPC-continuity-driven. |
+| Resolved arcs for storytell | **LOW-MEDIUM — correct asymmetry but low recurrence** | Asymmetry exists but resolved arcs were rare in this save (only 1 at T10). |
+| Thread progress as append list | **LOW PRIORITY** | Thread progress wasn't the driver of the beat loop. Separating thread_add from threads. |
+| Python-side diversity enforcement | **HIGH but complex** | Hard override for storytell beats. Risk of hallucinogenic override if Python doesn't understand scene state. Better approach: inject corrective guidance first, escalate to override. |
+| Narrator feedback loop (reorder narrate/storytell) | **HIGH impact, HIGH complexity** | Fixes the 1-turn lag fundamentally. But requires significant pipeline restructuring. Worth considering for Phase 2 after the simpler fixes prove insufficient. |
+
+### New Low-Cost, High-Impact Solutions
+
+**Gap identified:** None of the proposed solutions (T1-T7, A-H, IDEAS items) address the structural 1-turn lag or the `not pending_gm_beat` blocker. Below are fixes that cost near-zero tokens and require small code changes.
+
+#### Fix 1: Remove `not pending_gm_beat` condition (0 tokens, 1 line)
+At `turn.py:1090`, change:
+```python
+if _pc.beat_locked and not state.get("meta", {}).get("pending_gm_beat"):
+```
+To:
+```python
+if _pc.beat_locked:
+```
+This makes floor relief beats fire whenever beat_locked triggers, regardless of whether pending_gm_beat already exists. The relief beat overwrites the stale beat entirely. Risk: if beat_locked triggers incorrectly, it could suppress a valid storytell beat — but beat_locked is conservative (only triggers at consecutive_pressure >= 3 or momentum <= floor), so this is safe.
+
+#### Fix 2: Track actual beat types for consecutive_pressure (2 lines, 0 tokens)
+At `turn.py:1000-1005`, after storing the beat, add:
+```python
+if _new_beat and _new_beat.type in ("pressure", "escalation"):
+    meta["consecutive_pressure_beats"] = meta.get("consecutive_pressure_beats", 0) + 1
+else:
+    meta["consecutive_pressure_beats"] = 0
+```
+Then change beat_locked at rules.py to use `consecutive_pressure_beats` instead of `consecutive_pressure_turns`. This tracks actual GM beat repetition, not ruling directives. Works regardless of thread updates.
+
+#### Fix 3: Pass `pending_gm_beat` to storytell (~5 tokens)
+Currently storytell receives ZERO beat information — not even the beat it generated last turn. Add to extraction.py `_storytell_messages()` context: `"current_gm_beat": pending_gm_beat` (the beat pending from last turn). Inject into storytell_user.j2 as a single line: `## Current GM Beat: {type: pressure, surface_as: npc_behavior}`. This gives storytell minimal awareness of what beat is currently shaping narration. Without this, storytell is blind to the beat system entirely.
+
+Cost: ~5 tokens. High leverage because it closes the feedback loop: storytell can now see "the current beat is pressure/npc_behavior" and adjust.
+
+#### Fix 4: Beat origin tag in narrate (~1 token)
+At `narrate_user.j2:95-97`, append whether the beat is `[generated]` (fresh from last turn's storytell) or `[carryover]` (persisted from 2+ turns ago, meaning storytell has emitted null since). Python can compute this: if `pending_gm_beat.turn_generated == turn_no - 1`, it's generated; otherwise carryover.
+
+This tells narrate: "the beat you're receiving is stale — don't prioritize it as a fresh creative signal." Narrate can then weight it lower.
+
+Cost: ~1 token (the tag word). Implementation: store `turn_generated` alongside `beat_expires_turn` at line 1003-1004.
+
+#### Fix 5: Directive hint in narrate beat line (~3 tokens)
+At `narrate_user.j2:95-97`, change from:
+```
+**Beat:** PRESSURE — surface as `npc_behavior`
+```
+To:
+```
+**Beat:** PRESSURE — surface as `npc_behavior` [dir: Tension]
+```
+Tells narrate *why* this beat type was chosen — was it from a ruling directive, or from storytell's independent judgment? Narrate can then interpret "this is a Soft Pressure directive beat — escalate but leave room" vs. "this is a storytell-chosen pressure beat — scene state caused this."
+
+Cost: ~3 tokens. Requires passing directive into the template context.
+
+#### Fix 6: Track scene element target per beat (cheaper than categorization)
+Instead of the complex categorization proposed in Section 4A, simply add a `scene_context` field to the GM beat struct: e.g., `"scene_context": "door_arrival"` or `"scene_context": "interior_search"`. This is a single string generated by storytell alongside type/surface_as. Python stores it, passes it back in last_n_beats. Storytell can then see `last_n_beats: [{type: pressure, surface_as: event, scene_context: door_arrival}, ...]`.
+
+This replaces the 4-category scene element system with a simpler free-text tag. Storytell generates the tag; Python just passes it through. Zero token cost at generation time (storytell outputs it for free as part of the beat dict). ~3-5 tokens at injection time for the last 5 beats.
+
+### Implementation Order (revised)
+
+1. **Remove `not pending_gm_beat` from line 1090** — 0 tokens, 1 line, enables existing safety net
+2. **Clear pending_gm_beat when storytell emits null** — 2 lines, 0 tokens, fixes "Breathe" broken
+3. **Track actual beat types for consecutive_pressure** — 2 lines, 0 tokens, makes beat_locked functional
+4. **Pass pending_gm_beat to storytell** — ~5 tokens, closes storytell's blindness
+5. **Tear out TTL=2 mechanism** — replace with 1-narration auto-clear
+6. **Beat origin tag + directive hint in narrate** — ~4 tokens total, improves narrate beat interpretation
+7. **last_n_beats history** — ~5-10 tokens, enables storytell diversity instructions
+8. **Scene context tag in beats** — ~3-5 tokens, replaces scene element categorization
+
+All of steps 1-6 cost under 10 tokens total and require fewer than 20 lines of Python changes. They fix the "Breathe" broken issue, enable beat_locked, close storytell's beat blindness, and improve narrate's beat interpretation — without any LLM prompt restructuring or pipeline reordering.
 
 ---
 
@@ -213,13 +331,20 @@ Looking at mechanics output, storytell was emitting `thread_update` on nearly ev
 
 | Component | File | Lines | Purpose |
 |-----------|------|-------|---------|
-| Beat storage/replacement | `turn.py` | 998-1005 | Stores storytell gm_beat into state.meta.pending_gm_beat, TTL=2; never cleared when storytell emits null |
-| Beat expiration check | `turn.py` | 750-758 | Clears pending_gm_beat if turn_no > beat_expires_turn — race condition with storytell timing |
-| Floor relief beats | `turn.py` | 1090-1096 | Generates breathing_room when beat_locked AND no existing beat; defeated by TTL=2 + thread updates resetting counter |
-| Consecutive pressure counter | `turn.py` | 1184-1192 | Tracks consecutive Pressure/Overwhelm directives (defeated by thread updates) |
+| Beat storage/replacement | `turn.py` | 998-1005 | Stores storytell gm_beat into state.meta.pending_gm_beat, TTL=2; never cleared when storytell emits null (only writes if `_new_beat and _new_beat.type` are truthy) |
+| Beat expiration check | `turn.py` | 750-758 | Clears pending_gm_beat if turn_no > beat_expires_turn. 1-turn architectural lag (narrate runs before extraction) means beats always serve 1 turn late |
+| Floor relief beats | `turn.py` | 1090-1096 | Generates breathing_room when `beat_locked AND not pending_gm_beat`. **Both conditions structurally blocked**: (1) beat_locked never triggers — counter tracks directives, not actual beats (Section 7). (2) pending_gm_beat never None — stale beats persist through null turns. |
+| Consecutive pressure counter | `turn.py` | 1184-1192 | Tracks when directive in ("Pressure", "Overwhelm") AND no thread_update. Counter was 0 across all 17 turns because directives were never "Pressure"/"Overwhelm" — they were empty, Breathe, Scene Pressure, or Scene Imperative. |
+| Narrate/storytell pipeline order | `turn.py` | 891, 965 | Narrate setup (line 891) runs BEFORE extraction pipeline (line 965). This creates the 1-turn architectural lag: narrate always reads the previous turn's storytell beat. |
 | Storytell messages build | `extraction.py` | 226-274 | Builds storytell [system, user] — no beat history injected |
-| Narrate GM beat injection | `narrate_user.j2` | 95-97 | Injects current pending_gm_beat (type + surface_as only) |
-| Storytell diversity instructions | `storytell_system.j2` | 135-184 | 50 lines of GM beat guidance — advisory only, no enforcement |
+| Narrate GM beat injection | `narrate_user.j2` | 95-97 | Injects current pending_gm_beat (type + surface_as only) — no origin tag, no directive hint, no TTL countdown |
+| Storytell diversity instructions | `storytell_system.j2` | 135-184 | 50 lines of GM beat guidance — advisory only, no enforcement, no beat history provided |
+| NPC roster template | `_npc_roster.j2` | 1-16 | Renders NPCs with last_seen as location name only; no turn delta or context |
+| last_seen stamping | `turn.py` | 1106-1117 | Stamps {turn, location_id, location_name} on compendium update |
+| Thread updates application | `turn.py` | 1119-1125 | Applies storytell thread_update (single-string replacement) |
+| Prior history accumulation | `turn.py` | 1295-1304 | Appends outcome_summary bullets, capped at 20 entries |
+
+(Showing lines 332-364. Use offset=365 to continue.)
 | NPC roster template | `_npc_roster.j2` | 1-16 | Renders NPCs with last_seen as location name only |
 | last_seen stamping | `turn.py` | 1106-1117 | Stamps {turn, location_id, location_name} on compendium update |
 | Thread updates application | `turn.py` | 1119-1125 | Applies storytell thread_update (single-string replacement) |
