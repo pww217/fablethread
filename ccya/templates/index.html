@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if state.scene.tagline %}{{ state.scene.tagline }}{% elif state.location.id %}{{ state.pc.name }} @ {{ state.location.name }}{% else %}Choose Your Own Adventure{% endif %}</title>
+    <title>{% if state.scene.tagline %}CCYA: {{ state.scene.tagline }}{% elif state.location.id %}{{ state.pc.name }} @ {{ state.location.name }}{% else %}Choose Your Own Adventure{% endif %}</title>
     <script src="/static/vendor/htmx.min.js" defer></script>
     <script src="/static/vendor/alpine.min.js" defer></script>
     <script src="/static/vendor/marked.min.js"></script>
@@ -543,7 +543,7 @@ function _formatMetricsRow(metrics) {
     const st = streams.state;
     if (st && !st.skipped) parts.push('St ' + fmtStep(st.ms, st.tokens_in, st.tokens_out));
     const pg = streams.storytell;
-    if (pg && !pg.skipped) parts.push('P ' + fmtStep(pg.ms, pg.tokens_in, pg.tokens_out));
+    if (pg && !pg.skipped) parts.push('So ' + fmtStep(pg.ms, pg.tokens_in, pg.tokens_out));
     return parts.join('   ·   ');
 }
 
@@ -1653,7 +1653,7 @@ function game() {
                 const tagline = result.state ? _headerTaglineFromState(result.state) : null;
                 const hl = document.getElementById('header-logo');
                 if (hl && tagline) hl.innerHTML = _renderMarkdownInline(tagline);
-                if (tagline) document.title = tagline.replace(/\*\*?([^*]+)\*\*?/g, '$1').trim();
+                if (tagline) document.title = 'CCYA: ' + tagline.replace(/\*\*?([^*]+)\*\*?/g, '$1').trim();
 
                 if (cursor.parentNode) cursor.remove();
                 textDiv.classList.remove('streaming');

@@ -5,7 +5,7 @@
 {% set present_npcs = (_present.items | sort(attribute="name")) if _present.items else [] %}
 {% if (state.scene.tags or []) or present_npcs %}
 <details class="sidebar-card" id="card-scene" data-card="scene" open>
-    <summary>Scene <span class="card-count">{{ present_npcs | length }}</span></summary>
+    <summary>Scene</summary>
     <div class="sidebar-card-body">
         {% if present_npcs %}
         <div class="npc-list">
@@ -34,6 +34,8 @@
             </div>
             {% endfor %}
         </div>
+        {% else %}
+        <span class="empty-state">No one else is around.</span>
         {% endif %}
     </div>
 </details>
