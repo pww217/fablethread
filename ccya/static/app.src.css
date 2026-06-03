@@ -256,7 +256,6 @@ body {
 
 .narrative-block {
   margin-bottom: 32px;
-  border-left: 2px solid var(--accent-soft);
   padding-left: 18px;
 }
 
@@ -367,11 +366,12 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   padding: 10px 40px;
-  border-top: 1px solid var(--border-subtle);
   min-height: 48px;
   transition: opacity 0.4s ease;
+  box-sizing: border-box;
 }
 
 .action-pill {
@@ -1845,9 +1845,20 @@ body {
 
   /* ── Narrative column ── */
   .narrative-panel { padding: 16px; }
+  /* When pills are moved inside narrative panel, break out of panel padding */
+  .narrative-panel .pills-row {
+    margin-left: -16px;
+    margin-right: -16px;
+  }
   .pills-row {
+    justify-content: center;
     padding: 6px 16px;
     padding-bottom: max(6px, env(safe-area-inset-bottom));
+  }
+  .action-pill {
+    flex: 1 1 auto;
+    max-width: 320px;
+    text-align: center;
   }
   .input-bar {
     padding: 10px 16px;
@@ -1930,6 +1941,12 @@ body {
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
+}
+
+/* When pills are moved inside narrative panel on desktop, break out of panel padding */
+.narrative-panel .pills-row {
+  margin-left: -40px;
+  margin-right: -40px;
 }
 
 /* =========================================================
