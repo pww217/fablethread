@@ -117,16 +117,21 @@ if (directive in ("Pressure", "Overwhelm")) and not thread_updates:
 ```
 to tracking the actual storyteller beat type:
 ```
+last_gm_beat_type = (storyteller_result.gm_beat.type
+                     if storyteller_result and storyteller_result.gm_beat
+                     else None)
 if last_gm_beat_type in ("pressure", "escalation", "complication"):
 ```
 
-This aligns the counter with what the storyteller actually generates rather than with ruling directives that never fire.
+`storyteller_result` is in scope at the counter update site (turn.py:1183-1192) — it was unpacked from `_extract_result` earlier in the same function. The intermediate variable `last_gm_beat_type` makes the data source explicit.
+
+**Null behavior:** When `storyteller_result.gm_beat` is `None` (null beat turn), `last_gm_beat_type` is `None` and does not match any pressure type, so the counter resets to `0`. This is correct — a null beat means nothing notable happened, which is effectively relief, and should not accumulate toward beat_locked.
 
 **Effect:** After 3 consecutive pressure-type beats, `consecutive_pressure_turns >= 3` triggers beat_locked, which enables floor relief.
 
 **Momentum floor fallback** retained: `momentum <= -3` still triggers beat_locked independently (belt-and-suspenders).
 
-#### 2. Remove the `not pending_gm_beat` condition from floor relief
+#### 2. Replace `not pending_gm_beat` guard with a pressure-type check
 
 Change `turn.py:1090` from:
 ```
@@ -135,11 +140,17 @@ if _pc.beat_locked and not state.get("meta", {}).get("pending_gm_beat"):
 to:
 ```
 if _pc.beat_locked:
+    _current_beat = state.get("meta", {}).get("pending_gm_beat")
+    if _current_beat is None or _current_beat.get("type") in ("pressure", "escalation", "complication"):
 ```
 
-**Rationale:** The `not pending_gm_beat` condition was intended to prevent overwriting an active beat, but in practice it blocks relief because storytell always generates a beat. Floor relief should override — if the system determines the player needs relief, it should take priority over whatever beat the storyteller generated.
+**Rationale:** The old guard blocked floor relief whenever storytell generated any beat (80%+ of turns), making it structurally unreachable. But unconditional override (always inject breathing_room when beat_locked) is too aggressive — it overwrites legitimate non-pressure beats the storyteller independently produced (revelation, opportunity, breathing_room). The replacement guard only overrides when:
+- No beat exists (null turn — stale beat cleared by change #3), OR
+- The current beat is a pressure type (storyteller is stuck in a pressure loop)
 
-**Mitigation:** The system injects the floor relief beat. If the storyteller generated a different beat, the floor relief beat replaces it. This is correct behavior: the system's pacing determination trumps the storyteller's independent beat choice when the player is in momentum crisis.
+When the storyteller already produced a non-pressure beat, let it stand — the diversity/relief goal is already being met.
+
+**Timing note:** By the time floor relief runs (line 1089), `pending_gm_beat` reflects the current turn's storyteller output (set at line 1005). Change #3's null-clear (at line 1006) has already run, so null turns leave `pending_gm_beat` absent. The check correctly distinguishes "storyteller already provided relief" from "storyteller is stuck in pressure mode."
 
 #### 3. Clear pending_gm_beat on null storytell output
 
@@ -175,32 +186,41 @@ Previous beats:
 
 **Prompt change:** In `storytell_system.j2`, render the beat history before the GM Beat guidance section. Add instruction: "Use this history to vary your beat types — avoid repeating the same type more than twice in a sequence. At least one in three beats should be a non-pressure type."
 
-#### 5. Give Scene Imperative behavioral weight
+#### 5. Give Scene Imperative behavioral weight (storytell only)
 
-Add to `storytell_system.j2`:
+**Context — outcome_hint is already "advance" when SI fires.**
+
+In `_compute_pacing_context` (turn.py:510-527), `outcome_hint` is set to `"advance"` when `effective_age >= 3`. Scene Imperative fires when `effective_age >= 5`, so outcome_hint is always already `"advance"` on SI turns. The narrator already receives _"Narrate through to the resolution. Do not linger on preparation or setup. Something significant happens this turn."_ (narrate_user.j2:101). If that instruction hasn't produced behavioral change, the problem is at the LLM level, not prompt wording.
+
+**The narrator cannot receive directive-specific guidance.** The narrate prompt only receives `pacing_context.outcome_hint` — it has no access to the directive string. Adding "when the pacing directive is Scene Imperative" to narrate prompts is inoperable.
+
+**Proposed:** Add Scene Imperative guidance only to `storytell_system.j2` (which does receive the directive):
+
 - "Scene Imperative means this scene has been active too long without meaningful progression. Your primary directive is to **advance the story** — generate choices that move the narrative forward, introduce new information, or force a decision point."
 
-Add to `narrate_system.j2`:
-- "When the pacing directive is Scene Imperative, keep narration lean and move the scene forward. Avoid atmospheric or ambient descriptions — prioritize action and dialogue that advances the plot."
+No narrate prompt changes — the existing outcome_hint "advance" guidance already covers this. If the narrator ignores it, the fix belongs elsewhere (investigation needed).
 
 #### 6. Refine Breathe trigger to distinguish stealth from relief
 
 Current: `narrative_velocity < -0.3` triggers Breathe unconditionally.
 
-Proposed: Add a secondary check — if the scene has active urgent threads AND recent pressure-type beats, do not trigger Breathe even if velocity is low. Instead, output "Tension" or "" (let the beat system handle it).
+Proposed: Add a secondary check — if urgent scene-scoped threads exist, do not trigger Breathe even if velocity is low. Urgent threads mean the player is lying low in an active tense situation, not genuinely de-escalating. When those threads resolve, velocity drops are genuine relief.
 
-In `_compute_narration_directive`:
+In `_compute_narration_directive` (turn.py:440):
 ```
 if narrative_velocity < -0.3:
-    if has_active_pressure(scene_threads) and has_recent_pressure_beats(meta, window=3):
-        pass  # skip Breathe — player is lying low, tension hasn't resolved
+    urgent_count = sum(1 for t in scope_scene_threads if getattr(t, "urgency", "") == "urgent")
+    if urgent_count > 0:
+        pass  # skip Breathe — low velocity is tactical avoidance, not genuine relief
     else:
         return "Breathe"
 ```
 
-`has_active_pressure` checks for urgent scene-scoped threads. `has_recent_pressure_beats` checks the last 3 beats for pressure-type entries.
+This is simpler than the original proposal (which required beat history and an `has_recent_pressure_beats` function). It has zero dependency on beat history — the `scope_scene_threads` list already exists in `_compute_narration_directive`'s scope. It directly addresses the root conflation: `narrative_velocity` cannot distinguish tactical avoidance from genuine relief, but thread urgency can.
 
-This prevents Breathe from firing when the player is actively in a tense situation but choosing cautious actions.
+**Rationale for removing the beat history check:** If urgent threads exist, tension is unresolved regardless of recent beat types — the player hasn't escaped the situation. If urgent threads are absent, the player has resolved the threat (or it never existed) and low velocity is genuine relief. Beat history adds no signal beyond what thread urgency already provides for this guard.
+
+**Edge case — player has been avoiding urgent threads for 5+ turns:** Breathe is suppressed throughout, which is correct — the tension isn't resolved until the player deals with the threat. Once the thread resolves (de-escalated or completed), urgent threads disappear from `scope_scene_threads` and Breathe fires normally on the next low-velocity turn.
 
 ### Alternatives Considered and Rejected
 
@@ -214,21 +234,21 @@ This prevents Breathe from firing when the player is actively in a tense situati
 
 | Decision | What | Why |
 |---|---|---|
-| consecutive_pressure re-keyed to beat types | Counter tracks last_gm_beat.type, not directive | Directives never fire; beat types are the actual signal |
-| `not pending_gm_beat` removed from floor relief | Floor relief overrides active beat | Pacing determination trumps storyteller's independent choice in crisis |
+| consecutive_pressure re-keyed to beat types | Counter tracks `storyteller_result.gm_beat.type` (null → reset to 0), not directive | Directives never fire; beat types are the actual signal |
+| Floor relief guard changed to pressure-type check | Only overrides when current beat is None or pressure-type | Lets non-pressure storyteller beats stand; only injects breathing_room when storyteller is still in pressure loop |
 | pending_gm_beat cleared on null storytell | Pop pending_gm_beat when gm_beat is None | Stale beats should not persist through intentional null |
 | Beat history passed to storyteller | New `recent_beats: list[dict]` in meta + prompt rendering | Enables LLM to follow diversity guidance with actual data |
-| Scene Imperative gains prompt guidance | New behavioral instructions in storytell_system.j2 and narrate_system.j2 | Turns a dead label into actionable directive |
-| Breathe trigger refined with pressure context | Secondary check for recent pressure beats + urgent threads | Prevents Breathe during active tension when player is lying low |
+| Scene Imperative gains storytell prompt guidance | New behavioral instruction in storytell_system.j2 only; outcome_hint already "advance" on SI turns | Narrator can't read directive — outcome_hint "advance" already covers narrate; storytell gets specific SI instruction |
+| Breathe trigger refined with thread urgency | Secondary check: if urgent threads exist, skip Breathe regardless of velocity | Velocity conflates tactical avoidance with relief; thread urgency is the correct signal |
 | Momentum floor fallback retained | `momentum <= -3` remains beat_locked trigger | Belt-and-suspenders for edge cases where momentum crashes without pressure beats |
 | Null beat cadence unchanged | 1-in-4 null guidance preserved | Null beats are healthy; only the state-clear problem needs fixing |
 | Pipeline order unchanged | Narrate → extraction → storytell preserved | Reordering is too expensive for marginal benefit |
 
 ## Failure Modes and Risks
 
-- **Floor relief overrides legitimate storyteller beats.** If beat_locked fires and overwrites a carefully chosen storyteller beat, narrative quality may drop. Mitigation: beat_locked threshold should be conservative (3+ consecutive pressure beats is already a strong signal). The momentum floor trigger adds a safety net for rare cases.
+- **Floor relief may trigger too often.** After re-key, consecutive_pressure hits 3 with ~12.5% probability in any 3-turn window (pressure ~50% of storyteller output). Over a 20-turn scene, beat_locked fires ~2-3 times. The pressure-type guard mitigates this — floor relief only overrides when the storyteller IS still generating pressure beats. If the storyteller independently varies output, no override occurs. The momentum floor fallback remains for extreme cases.
 - **Beat history makes prompt too long.** 5 beats × ~40 chars each = ~200 tokens. Acceptable overhead. If beats expand, cap at 3 or summarize older entries. Monitor prompt length in logging.
-- **Breathe refinement may be too conservative.** If `has_recent_pressure_beats` blocks Breathe even when tension has genuinely resolved, the player gets no relief. Mitigation: `has_active_pressure` (urgent threads) is the stronger signal — if no urgent threads exist, Breathe fires normally even if there were recent pressure beats.
+- **Breathe refinement blocks relief during unresolved tension.** The revised check (urgent threads only, no beat history) suppresses Breathe whenever urgent scene-scoped threads exist, regardless of how many turns the player has been avoiding them. If the player is stuck in a loop (urgent thread persists for 10+ turns, velocity stays low), no Breathe directive is ever issued. Mitigation: the beat_locked + floor relief mechanism provides an alternative path to breathing_room when consecutive pressure turns hit the threshold. If the thread eventually resolves, urgent_count drops to 0 and Breathe fires on the next low-velocity turn.
 - **consecutive_pressure counter may spike incorrectly.** If the storyteller generates `complication` beats routinely (which map to pressure-type), the counter might hit 3 every 4 turns. Mitigation: monitor counter distribution after deploy. If it triggers too frequently, add a decay (counter decrements on non-pressure beats rather than resetting to 0).
 - **Null-clear may surprise the narrator.** The narrator reads pending_gm_beat during its call. If the beat was cleared at the end of the previous turn (because that turn's storytell was null), the narrator may have no beat to work with on a turn where one was expected. Mitigation: verify that the clear happens after storytell processes in the arc director, which is already after narrate. The timing is correct — narrate reads the pre-clear state.
 
@@ -266,15 +286,30 @@ meta["recent_beats"]: list[dict]  # max 5 entries, oldest first
     surface_as: str | None  # surface type or null
 ```
 
-Appended to at the end of each turn (after storytell processes). Capped at N entries. Null beats are included as `{"type": null, "surface_as": null}`.
+Appended to at the end of each turn, after floor relief injection (turn.py:~1096) and before the counter update (~1183). This ordering is critical:
+1. Storytell output → `pending_gm_beat` set (line 1005)
+2. Null-clear (change #3) — clears `pending_gm_beat` if null (line 1006)
+3. Floor relief (change #2) — may override `pending_gm_beat` with breathing_room (line 1089)
+4. **recent_beats append** — snapshot of `pending_gm_beat` after any override
+5. Counter update (change #1 — line 1183)
+6. Turn increment (line 1197)
+
+Appending after floor relief ensures the beat history reflects what the narrator actually received, not what the storyteller originally generated (which may have been overridden by floor relief). Capped at N entries. Null beats are included as `{"type": null, "surface_as": null}` (only if pending_gm_beat was cleared by null-clear and not overridden by floor relief).
+
+**Save/load initialization:** Pre-feature saves (v1 schema) won't have `recent_beats` in meta. The append code must use `meta.setdefault("recent_beats", [])` to handle missing keys gracefully. No explicit migration is required — the setdefault handles initialization on first write. Readers in the beat history prompt renderer should also use `.get("recent_beats", [])` for the same reason.
 
 ## Context for Implementing LLMs
 
 - `ccya/engine/turn.py` lines 476-546 — `_compute_pacing_context`. The beat_locked trigger (line 502-508) and outcome_hint (line 511-528) logic. The counter change goes here or at the update site (line 1183-1192).
 - `ccya/engine/turn.py` lines 1089-1096 — Floor relief injection. The `not pending_gm_beat` condition removal goes here. The null-clear does NOT go here — it must be at line ~1006 (after the existing gm_beat apply block, before floor relief checks).
 - `ccya/engine/turn.py` lines 1183-1192 — consecutive_pressure counter update. The re-key from directive to beat type goes here.
+- `ccya/engine/turn.py` lines ~1096-1183 — recent_beats append location (between floor relief and counter update). Use `meta.setdefault("recent_beats", []).append(...)`.
 - `ccya/engine/turn.py` lines 430-473 — `_compute_narration_directive`. The Breathe trigger refinement goes here (adding secondary pressure check).
 - `ccya/prompts/storytell_system.j2` — Beat diversity guidance (lines 135-187). Beat history rendering and Scene Imperative guidance go here.
-- `ccya/prompts/narrate_system.j2` — Lines 3-17 contain pending_gm_beat integration. Scene Imperative narration guidance goes here.
+- `ccya/prompts/narrate_system.j2` — Lines 3-17 contain pending_gm_beat integration. Scene Imperative guidance is NOT added here — the narrator cannot read the directive (see change #5).
 - `ccya/prompts/sections/` — New `_beat_history.j2` section (or inline in storytell_system.j2) for rendering recent_beats.
 - `plans/findings/CONSOLIDATED-EV-FINDINGS.md` — Category 1 (GM Beat System) and Category 3 (Pacing Computation) contain the empirical evidence for every change in this design.
+
+### Wiring note: `narrate_frequency_penalty`
+
+If the narration stream adds a `narrate_frequency_penalty` field to `EngineConfig` (default 0.3), `build_engine_config()` at `ccya/engine/config.py:183-213` must explicitly pull it from `llm.get("narrate_frequency_penalty", 0.3)`. The function uses keyword-only construction — an unlisted field silently takes its dataclass default and the YAML knob becomes cosmetic. The fix is a one-line addition in `build_engine_config` alongside the existing temperature wiring (line 188-191).
