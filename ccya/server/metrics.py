@@ -114,8 +114,8 @@ def _recent_turn_metrics(save_dir: Path, n: int = 10) -> list[dict[str, Any]]:
                     "Sc_tok": _tok(raw_streams["scene"]["tokens_in"], raw_streams["scene"]["tokens_out"]) if not raw_streams["scene"]["skipped"] else "\u2014",
                     "St_tt": _fmt_ms_seconds(raw_streams["state"]["ms"]) if not raw_streams["state"]["skipped"] else "\u2014",
                     "St_tok": _tok(raw_streams["state"]["tokens_in"], raw_streams["state"]["tokens_out"]) if not raw_streams["state"]["skipped"] else "\u2014",
-                    "P_tt": _fmt_ms_seconds(raw_streams["storytell"]["ms"]) if not raw_streams["storytell"]["skipped"] else "\u2014",
-                    "P_tok": _tok(raw_streams["storytell"]["tokens_in"], raw_streams["storytell"]["tokens_out"]) if not raw_streams["storytell"]["skipped"] else "\u2014",
+                    "So_tt": _fmt_ms_seconds(raw_streams["storytell"]["ms"]) if not raw_streams["storytell"]["skipped"] else "\u2014",
+                    "So_tok": _tok(raw_streams["storytell"]["tokens_in"], raw_streams["storytell"]["tokens_out"]) if not raw_streams["storytell"]["skipped"] else "\u2014",
                 },
                 "total_ms": (
                     (ruling_ev.get("total_ms") or 0)
