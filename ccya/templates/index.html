@@ -1559,7 +1559,7 @@ function game() {
             np.appendChild(block);
 
             // One-time scroll to bottom so "determining outcome" state is visible.
-            np.scrollTop = np.scrollHeight;
+            np.scrollTo({ top: np.scrollHeight, behavior: 'instant' });
 
             const self = this;
             this._turnEs = null;
@@ -1589,10 +1589,13 @@ function game() {
                         btn.addEventListener('click', () => self.fillFromChoice(action));
                         zone.appendChild(btn);
                     });
-                    _revealPillsOnScroll();
-                } else if (zone) {
+                }
+                _revealPillsOnScroll();
+                if (zone && prevActions.length === 0) {
                     zone.innerHTML = '<span class="empty-state">Suggested actions appear after each turn.</span>';
                 }
+                const npReroll = document.getElementById('narrative-panel');
+                if (npReroll) npReroll.scrollTo({ top: npReroll.scrollHeight, behavior: 'instant' });
                 self.submitting = false;
                 if (window.innerWidth > 768) document.getElementById('player-input')?.focus();
             };
@@ -1700,10 +1703,10 @@ function game() {
                         zone.appendChild(btn);
                     });
                     _applyMarkdown(zone);
-                    _revealPillsOnScroll();
-                } else {
-                    zone.innerHTML = '<span class="empty-state">No suggested actions.</span>';
                 }
+                _revealPillsOnScroll();
+                const npAfter = document.getElementById('narrative-panel');
+                if (npAfter) npAfter.scrollTo({ top: npAfter.scrollHeight, behavior: 'instant' });
 
                 _prependTurnLogTurn(result.turn, result.change_lines || [], result.ruling);
 
@@ -1785,10 +1788,10 @@ function game() {
                             zone.appendChild(btn);
                         });
                         _applyMarkdown(zone);
-                        _revealPillsOnScroll();
-                    } else {
-                        zone.innerHTML = '<span class="empty-state">Suggested actions appear after each turn.</span>';
                     }
+                    _revealPillsOnScroll();
+                    const npRetry = document.getElementById('narrative-panel');
+                    if (npRetry) npRetry.scrollTo({ top: npRetry.scrollHeight, behavior: 'instant' });
 
                     this.input = '';
                     htmx.ajax('GET', '/panels/state-left', { target: '#state-panel-left' });
@@ -1903,7 +1906,9 @@ function _escapeHtml(str) {
 function _renderMarkdown(text) {
     if (!text) return '';
     if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
-        return marked.parse(String(text));
+        // Strip inter-element newlines so white-space: pre-wrap doesn't
+        // render phantom gaps during streaming.
+        return marked.parse(String(text)).replace(/>\n+</g, '><');
     }
     let s = _escapeHtml(text);
     s = s.replace(/^# (.+)$/gm,  '<h2>$1</h2>');
@@ -1923,7 +1928,7 @@ function _renderMarkdown(text) {
         if (!p) return '';
         if (/^<(h[23]|ul|ol|li)/.test(p)) return p;
         return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
-    }).filter(Boolean).join('\n');
+    }).filter(Boolean).join('');
 }
 
 function _renderMarkdownInline(text) {
@@ -2057,54 +2062,33 @@ let _pillScrollHandler = null;
 let _pillThrottledHandler = null;
 let _pillsVisible = false;
 
-function _revealPillsOnScroll() {
+/*
+  Pills live inside the narrative panel (last child) so they scroll
+  naturally with the content — no show/hide state machine needed.
+*/
+function _inlinePillsLayout() {
     const zone = document.getElementById('actions-zone');
-    if (!zone) return;
-    if (!zone.querySelector('.action-pill')) return;
+    const np = document.getElementById('narrative-panel');
+    if (!zone || !np) return;
 
-    zone.style.display = 'none';
+    // Tear down any stale scroll listener from previous state
+    if (_pillThrottledHandler) {
+        np.removeEventListener('scroll', _pillThrottledHandler);
+        _pillThrottledHandler = null;
+        _pillScrollHandler = null;
+    }
+    _pillsVisible = false;
 
-    if (_pillThrottledHandler) return; // already attached.
+    np.appendChild(zone);
+    // Ensure pills are visible in normal document flow
+    zone.style.removeProperty('display');
+    zone.style.removeProperty('opacity');
+    zone.style.removeProperty('pointer-events');
+}
 
-    const npEl = document.getElementById('narrative-panel');
-    if (!npEl) return;
-
-    _pillScrollHandler = () => {
-        const npEl = document.getElementById('narrative-panel');
-        if (!npEl) return;
-        const maxScroll = npEl.scrollHeight - npEl.clientHeight;
-        if (maxScroll <= 0) return;
-
-        const nearBottom = npEl.scrollTop >= maxScroll - 42;
-        const aboveThreshold = npEl.scrollTop < maxScroll - 200;
-
-        if (_pillsVisible) {
-            // Sticky: hide only when scrolled well above the reveal zone.
-            if (aboveThreshold) {
-                zone.style.display = 'none';
-                _pillsVisible = false;
-            }
-        } else {
-            // Show when within 64px of bottom.
-            if (nearBottom) {
-                zone.style.display = 'flex';
-                _pillsVisible = true;
-            }
-        }
-    };
-
-    let ticking = false;
-    _pillThrottledHandler = () => {
-        if (!ticking) {
-            requestAnimationFrame(() => {
-                _pillScrollHandler();
-                ticking = false;
-            });
-            ticking = true;
-        }
-    };
-
-    npEl.addEventListener('scroll', _pillThrottledHandler);
+function _revealPillsOnScroll() {
+    // Pills are always inline in the narrative panel — no scroll-based toggle.
+    _inlinePillsLayout();
 }
 
 function initTurnLogUi() {
@@ -2173,11 +2157,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Inline pills inside the narrative panel so they scroll naturally with content.
+    _inlinePillsLayout();
+    window.addEventListener('resize', _inlinePillsLayout);
+
     // Auto-scroll narrative to bottom (shows most recent history entry)
     const np = document.getElementById('narrative-panel');
-    if (np) np.scrollTop = np.scrollHeight;
+    if (np) np.scrollTo({ top: np.scrollHeight, behavior: 'instant' });
 
-    // Apply scroll-based pill reveal on initial load (after auto-scroll to bottom).
+    // Ensure pills are inline after auto-scroll.
     _revealPillsOnScroll();
 
     // Focus input if a game is already in progress (desktop only)
