@@ -246,6 +246,7 @@ body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 32px 40px;
   scrollbar-width: thin;
   scrollbar-color: var(--border-subtle) var(--bg-base);
@@ -397,6 +398,11 @@ body {
   font-weight: 600;
 }
 .action-pill:disabled { opacity: 0.45; cursor: not-allowed; }
+.action-pill.hold-filled {
+  border-color: var(--accent-warm, #c8844a);
+  color: var(--accent-warm, #c8844a);
+  background: color-mix(in srgb, var(--accent-warm, #c8844a) 15%, transparent);
+}
 
 /* =========================================================
    INPUT BAR

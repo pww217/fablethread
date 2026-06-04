@@ -1585,8 +1585,10 @@ function game() {
                     prevActions.forEach((action) => {
                         const btn = document.createElement('button');
                         btn.className = 'action-pill';
+                        btn.setAttribute('data-md', '');
                         btn.textContent = action;
                         btn.addEventListener('click', () => self.fillFromChoice(action));
+                        self._setupPillHold(btn, action);
                         zone.appendChild(btn);
                     });
                 }
@@ -1700,6 +1702,7 @@ function game() {
                         btn.setAttribute('data-md', '');
                         btn.textContent = action;
                         btn.addEventListener('click', () => this.fillFromChoice(action));
+                        this._setupPillHold(btn, action);
                         zone.appendChild(btn);
                     });
                     _applyMarkdown(zone);
@@ -1783,6 +1786,7 @@ function game() {
                             btn.setAttribute('data-md', '');
                             btn.textContent = action;
                             btn.addEventListener('click', () => this.fillFromChoice(action));
+                            this._setupPillHold(btn, action);
                             zone.appendChild(btn);
                         });
                         _applyMarkdown(zone);
@@ -1806,7 +1810,7 @@ function game() {
                 });
         },
 
-        fillFromChoice(text) {
+        fillFromChoice(text, fromHold = false) {
             if (this.submitting) return;
             const pill = event?.target?.closest('.action-pill');
             if (pill) pill.classList.toggle('selected');
@@ -1814,11 +1818,31 @@ function game() {
             if (!trimmed) return;
             const existing = this.input.trimEnd();
             this.input = existing + (existing ? ', ' : '') + trimmed + ' ';
-            if (window.innerWidth <= 768) {
-                this.submitTurn();
-            } else {
+            if (fromHold || window.innerWidth > 768) {
                 document.getElementById('player-input')?.focus();
+            } else {
+                this.submitTurn();
             }
+        },
+
+        _setupPillHold(btn, text) {
+            let holdTimer = null;
+            const handler = () => {
+                holdTimer = setTimeout(() => {
+                    this.fillFromChoice(text, true);
+                    btn.classList.add('hold-filled');
+                    setTimeout(() => btn.classList.remove('hold-filled'), 300);
+                    const inp = document.getElementById('player-input');
+                    if (inp) { inp.focus(); inp.click(); }
+                }, 1000);
+            };
+            const cleanup = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
+            btn.addEventListener('mousedown', handler);
+            btn.addEventListener('touchstart', handler);
+            btn.addEventListener('mouseup', cleanup);
+            btn.addEventListener('mouseleave', cleanup);
+            btn.addEventListener('touchend', cleanup);
+            btn.addEventListener('touchcancel', cleanup);
         },
 
         // Settings panel state
