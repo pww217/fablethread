@@ -274,8 +274,15 @@ def _apply_arc_resolve(
         "resolved_turn": turn_no,
     }
 
-    # Append closed arc threads to completed_threads of the resolved entry context
-    state.setdefault("completed_threads", []).extend(closed_arc_threads)
+    # Store resolved arc entry in state's resolved_arcs list with TTL tracking
+    resolved_arc_entry = {
+        "visible_goal": old_arc.visible_goal,
+        "resolution": resolution.resolution,
+        "goal_context": resolution.goal_context,
+        "resolved_turn": turn_no,
+        "closed_threads": [t.model_dump(exclude_none=True) for t in closed_arc_threads],
+    }
+
     state.setdefault("resolved_arcs", []).append(resolved_arc_entry)
 
     _log.info(
