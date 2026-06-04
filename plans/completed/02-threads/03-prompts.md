@@ -44,7 +44,7 @@ Update three template files: remove `thematic_question` and `goal_context` from 
 
 ## Status
 
-`open` — depends on Phases 1 and 2
+`completed` — all steps implemented and committed in 8f93040
 
 ## Phases
 
