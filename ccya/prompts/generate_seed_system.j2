@@ -42,11 +42,16 @@ Build your output in this order, using everything already established before gen
        - **threads** (scope="arc"): unified list of medium-term sustained tensions where each thread has `{id, summary, urgency, scope}`. Thread fields must use these exact values: `scope` is `"scene"` (immediate, local tension — auto-deleted on location change) or `"arc"` (longer-term campaign thread); `urgency` is `"background"`, `"normal"`, or `"urgent"`; `active` is `true` for threads the narrator should track now, `false` for latent/dormant ones.
 
 Thread count constraints (HARD LIMITS):
-- Exactly 1–2 threads start as `active: true` at game start — pick the TWO most urgent/important tensions only. Never exceed 2 active.
-- Generate up to 3 latent threads (`"active": false`) that unlock when conditions are met. These represent future story hooks. Do NOT set any latent thread to `true`.
-- Total thread count: typically 4–5 (1–2 active + 3 latent). Minimum 3 total, maximum 6.
+- Exactly 1–2 threads start as `active: true` — pick the single most urgent/important tension only. Never exceed 2 active at game start. If you can't narrow it down to one, generate exactly 1.
+- All other new threads MUST be `"active": false`. Do NOT set any thread beyond those 1–2 as `true`, even if they feel important. They become active later when conditions are met or the player engages with them.
+- Generate up to 3 latent threads (`"active": false`) that unlock when conditions are met. These represent future story hooks.
+- Total new thread count: typically 4–5 (1–2 active + 3 latent). Minimum 3 total, maximum 6.
 
-Do not generate `scope="scene"` threads at game start — all threads should be `scope="arc"`.
+Urgency rules for new threads at game start:
+- Active threads may use `"urgent"` or `"normal"`. Never generate a new thread with `"urgent"` urgency unless the situation archetype explicitly demands it — prefer `"normal"` instead.
+- All `active: false` threads MUST be `"background"` or `"normal"` urgency. Never set latent threads to `"urgent"`.
+
+Do not generate `scope="scene"` threads at game start — all new threads should be `scope="arc"`.
 
 4. **Opening scene / NPCs**: Instantiates the situation_archetype concretely — who's present, what they're doing, how character_dynamic shapes their relationship to power structures
 5. **Inventory**: Items appropriate to the opening scene and PC concept
@@ -194,7 +199,7 @@ Do NOT add `relation` or `notes` to compendium entries (deprecated field and sce
 Generate a `CampaignArc` with:
 - `visible_goal`: one sentence, affirmative, player-visible (e.g. "Find the cure before the quarantine collapses")
 - `goal_context`: 2–3 sentences explaining why visible_goal matters to this character specifically — inner cost or pressure that makes it emotionally loaded; must connect character motive, story stakes, and emotional cost without restating visible_goal. Deepen, don't summarize.
-- `threads`: single unified list (not split into active/latent) where each thread has `{id, summary, urgency, scope}`. HARD LIMITS: 1–2 threads start as `active: true` — never more than 2 at game start. Up to 3 latent threads (`"active": false`). Total typically 4–5 (minimum 3, maximum 6). All threads should use `scope="arc"`; do not generate `scope="scene"` threads at game start. Urgency values: `"background"`, `"normal"`, or `"urgent"`.
+- `threads`: single unified list (not split into active/latent) where each thread has `{id, summary, urgency, scope}`. HARD LIMITS: Exactly 1–2 threads start as `active: true` — never more than 2 at game start; prefer exactly 1 if unsure. All other new threads MUST be `"active": false`. Up to 3 latent threads total. Total typically 4–5 (minimum 3, maximum 6). New active threads may use urgency `"urgent"` or `"normal"`, but prefer `"normal"` — never set `active: false` threads to `"urgent"`; they must be `"background"` or `"normal"`. All new threads should use `scope="arc"`; do not generate `scope="scene"` threads at game start.
 - `completed_threads`: separate list for resolved/failed threads (leave empty at seed time)
 
 Thread summaries should be **seeds for the narrator, not dictated plot**. They should describe a situation, not specify exact events. The narrator should always have creative latitude in how a thread manifests.
