@@ -240,7 +240,10 @@ def _storytell_messages(
     scene = state.get("scene") or {}
 
     arc = state.get("arc") or {}
-    all_threads = [t for t in (arc.get("threads") or []) if isinstance(t, dict)]
+    _raw_threads = arc.get("threads") or []
+    all_threads: list[dict[str, Any]] = [
+        {**t, "last_updated_turn": t.get("last_updated_turn")} if isinstance(t, dict) else {"id": "", "summary": ""} for t in _raw_threads
+    ]
     world_state = list(scene.get("world_state") or [])
 
     system_text = _render(
