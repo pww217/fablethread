@@ -80,16 +80,18 @@ class ArcThreadSummary(BaseModel):
     summary: str
     scope: Literal["scene", "arc"]
     urgency: Literal["background", "normal", "urgent"]
-    progress: str = ""
+    progress: list[str] = Field(default_factory=list)
     active: bool
+    last_updated_turn: int | None = None
 
 
 class ArcThreadBlock(BaseModel):
     """Campaign arc snapshot for prompt rendering."""
 
     visible_goal: str
-    thematic_question: str
+    resolution: str | None = None
     threads: list[ArcThreadSummary]  # simplified thread view for prompts
+    completed_threads: list[ArcThreadSummary] = Field(default_factory=list)
 
     @classmethod
     def from_state(cls, state: dict[str, Any]) -> ArcThreadBlock:
@@ -105,7 +107,9 @@ class ArcThreadBlock(BaseModel):
                         summary=t.get("summary", ""),
                         scope=t.get("scope", "arc"),
                         urgency=t.get("urgency", "normal"),
+                        progress=t.get("progress", []) if isinstance(t.get("progress"), list) else [t.get("progress", "")] if t.get("progress") else [],
                         active=bool(t.get("active", True)),
+                        last_updated_turn=t.get("last_updated_turn"),
                     )
                 )
             elif isinstance(t, ArcThread):
@@ -115,13 +119,17 @@ class ArcThreadBlock(BaseModel):
                         summary=t.summary,
                         scope=t.scope,
                         urgency=t.urgency,
+                        progress=list(t.progress) if t.progress else [],
                         active=bool(t.active),
+                        last_updated_turn=getattr(t, "last_updated_turn", None),
                     )
                 )
+        completed = [t for t in arc.get("completed_threads", []) if isinstance(t, ArcThreadSummary)]
         return cls(
             visible_goal=arc.get("visible_goal", ""),
-            thematic_question=arc.get("thematic_question", ""),
-            threads=raw_threads,
+            resolution=arc.get("resolution"),
+            threads=[t for t in raw_threads if isinstance(t, ArcThreadSummary)],
+            completed_threads=completed,
         )
 
 
@@ -249,8 +257,9 @@ class StorytellerBoundary(BaseModel):
     """Context for storytell_user.j2.
 
     npc_roster/location/inventory/conditions come from extraction_ctx.
-    all_threads/world_state/intent/pacing_context/recent_turns/turn_no/band are top-level variables.
-    current_arc provides campaign arc metadata (visible_goal, thematic_question) via _arc.j2 include.
+    all_threads/world_state/intent/pacing_context/recent_turns/turn_no/band/gate are top-level variables.
+    current_arc provides campaign arc metadata (visible_goal, resolution) via _arc.j2 include.
+    all_threads is mapped to threads via {% set threads = all_threads %} before _thread_list.j2 include.
     """
 
     narration: str

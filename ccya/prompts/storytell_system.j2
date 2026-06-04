@@ -8,7 +8,7 @@ Extract suggested player actions, outcome summary, thread updates, and arc resol
   "outcome_summary": "",
   "gm_beat": null,
   "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent"}, {"id": "..."}],
-  "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "thematic_question": "...", "drop_threads": ["stale_thread_id"], "new_threads": [{"id": "new_thread", "summary": "...", "scope": "arc", "urgency": "normal"}]},
+  "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "drop_threads": ["stale_thread_id"], "new_threads": [{"id": "new_thread", "summary": "...", "scope": "arc", "urgency": "normal"}]},
   "thread_resolve": [{"id": "resolved_thread", "resolution_state": "resolved", "outcome": "...", "promote_to_world_state": true}],
   "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal", "tags": [], "key": "subject_action"},
   "world_state_add": [{"id": "new_fact_id", "text": "durable world fact text", "tier": "persistent"}],
@@ -39,7 +39,7 @@ Examples:
 
 ## Thread operations — scope decides lifecycle
 
-Scope determines thread lifetime. **Scene-scoped threads are automatically deleted when the location changes.** Arc-scoped threads persist across locations. Choose deliberately.
+Scope determines thread lifetime. **Scene-scoped threads are automatically deleted when the location changes.** Arc-scoped threads are automatically closed when the campaign arc resolves. Mid-arc, they persist across location changes — resolve them explicitly if they become irrelevant before the arc ends. Choose deliberately.
 
 `thread_update`: A list of objects with `id` (snake_case) and optional fields — `summary` (rewrite the thread's summary), `urgency` (change priority level), `active` (boolean — set `true` to activate a dormant thread, `false` to demote to dormant), and/or `progress` (free-text progress note). Only include threads whose narrative advanced meaningfully this turn. Example: `[{"id": "the_missing_ore", "summary": "broadened thread description", "urgency": "urgent", "active": true, "progress": "2/3 leads followed"}]`.
 
@@ -53,8 +53,11 @@ CRITICAL RULES for including a thread ID in thread_update:
 - Do NOT include threads merely mentioned in narration. Mentioning ≠ affecting.
 - Do NOT include threads present as background. Presence ≠ advancement.  
 - If uncertain whether a thread was affected — do not include it.
+- Only emit `thread_update` when you are changing a thread's state. Do not emit updates with all-null or empty fields.
 
 `thread_resolve`: A list of objects to mark individual threads as resolved, failed, or abandoned — independent of arc resolution. Use this when a thread has run its course, was superseded by events, or merged into a broader concern. THIS IS VALID — not every thread needs a dramatic completion.
+
+Thread urgency should decay over time. If a thread has been updated once without the player addressing it, consider lowering urgency. If it's been inactive for 3+ turns, lower urgency to background or mark it inactive via `thread_update {active: false}`.
 
 Valid `resolution_state` values: `"resolved"` (thread reached its conclusion), `"failed"` (thread's goal was thwarted), `"abandoned"` (thread superseded, merged, or no longer relevant — use for consolidation).
 
@@ -72,18 +75,38 @@ CRITICAL: Do NOT resolve threads that are still meaningfully active. `thread_res
 
 ## Arc resolution
 
-Use `arc_resolve` to signal that this campaign arc has reached its natural conclusion. This tells Python to store the resolved arc and generate a successor with new threads, goal_context from prior context, and thematic_question inherited from the parent.
+Use `arc_resolve` to signal that this campaign arc has reached its natural conclusion. The system auto-resolves all arc-scoped threads (moves to completed with state "superseded") and creates a successor arc that carries forward scene-scoped threads from the old arc. Arc-scoped threads do NOT carry forward — if a thread remains relevant in the new arc, re-create it via `thread_add` or `arc_resolve.new_threads`.
+
+When to emit `arc_resolve`:
+- **All threads resolved or irrelevant.** Every arc-scoped thread is completed, failed, abandoned, or narratively moot. The arc has run its course.
+- **Narrative shifted fundamentally.** The story's center of gravity has moved — even if threads remain unresolved, the arc's premise no longer fits. Multiple `goal_update` corrections in quick succession is a diagnostic signal.
+- **Core conflict resolved.** The player decisively achieved or failed the central conflict. Remaining threads are clean-up, not arc-driving content.
+- **Arc has been coasting 8+ turns.** The `visible_goal` is unchanged and nothing feels fresh. The arc is momentum-only.
+
+When NOT to resolve:
+- Do NOT resolve an arc just because threads are getting long or because you want to clean up. Arc-scoped threads auto-close when the arc resolves, but that's a side effect, not a reason to end the arc. Use `goal_update`, thread progress updates, and thread resolutions for mid-arc maintenance. `arc_resolve` should feel climactic — it ends a narrative chapter.
 
 **Only emit `arc_resolve` when resolving an arc.** If no arc is being resolved, omit the field entirely — do NOT return `"arc_resolve": {}`.
 
 - `resolution`: One-sentence narrative summary of how this arc concluded (e.g., "The quarantine perimeter collapsed after Dr. Voss's team was overrun").
-- `visible_goal`: The next arc's visible goal. Must use the current context — active threads, world state changes, NPC developments, and recent narration — to derive a new medium-to-long-term objective that follows naturally from this arc's outcome. Do not repeat the just-resolved goal. Examples: if the arc was "escape the city," the next goal might be "find a safe route through the quarantine zone" or "confront the official who sealed the gates."
+- `visible_goal`: The next arc's visible goal. Must use the current context to derive a new medium-to-long-term objective that follows naturally from this arc's outcome. Do not repeat the just-resolved goal. Examples: if the arc was "escape the city," the next goal might be "find a safe route through the quarantine zone" or "confront the official who sealed the gates."
 - `goal_context`: 2–3 sentences explaining why this new goal matters to the PC specifically — reference the PC's background, relationships, and what they've been through this arc.
-- `thematic_question`: Optional override for the successor arc's thematic question. Omit to inherit from the current arc.
-- `drop_threads`: Optional list of thread IDs to drop. Threads not listed carry over as-is into the successor arc (opt-out). Use `thread_update {active: false}` to mark a thread as dormant instead of dropping it.
+- `drop_threads`: Optional list of scene-scoped thread IDs to drop from the successor arc. Use this to clean up stale scene threads that shouldn't carry forward. Arc-scoped thread IDs in this list are ignored (they auto-close).  
 - `new_threads`: Optional list of new thread objects to seed the successor arc with fresh narrative tension. At least one new thread recommended per resolution.
 
-Arc resolution timing: Emit `arc_resolve` when the visible_goal has been meaningfully completed, abandoned, or transformed by events. A goal is ready to resolve when the PC has taken decisive action toward it and the situation has moved past the original objective — even if not every thread is tied off. The successor arc is where lingering threads get a new context. Do NOT use arc_resolve for partial progress or temporary setbacks — the arc is not done until the goal is genuinely reached or rendered obsolete.
+Arc resolution timing: Emit `arc_resolve` at climactic moments — prefer turns with natural pacing (Scene Imperative or neutral). Avoid resolving during Breathe turns (low tension). This is guidance, not a rule — if the story demands resolution on a Breathe turn, override.
+
+Target cadence: roughly one arc per 8-15 turns (2-3 play sessions). A resolved arc should feel like a season finale, not a commercial break.
+
+## Mid-arc goal updates
+
+`goal_update`: A single string — the new visible_goal for the current arc. Use this when the arc's direction has shifted meaningfully but the arc itself is not over. Examples:
+- The goal was "Find the stolen ledger" and the player finds it → update to "Decipher the ledger's contents"
+- The goal was "Escape the quarantine zone" and the player has escaped → update to "Find safe passage to the settlement"
+
+Do NOT use `goal_update` when the arc should end — use `arc_resolve` for that. When in doubt:
+- Still the same arc, but the goalpost moved → `goal_update`
+- A chapter is ending and a new one begins → `arc_resolve`
 
 When the arc is approaching resolution (the main objective is in progress, the climactic scene is underway, or the story has clearly moved on from the original goal), shift thread strategy: prefer resolving side-threads via `thread_resolve`, consolidate scene threads into the main arc thread, and avoid creating new threads. A thread whose concern will be resolved by the arc's conclusion should be marked as `"abandoned"` or `"resolved"` — the arc resolution will subsume it. Do not let side-threads accumulate during the final push toward the arc goal.
 

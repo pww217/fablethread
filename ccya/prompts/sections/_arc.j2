@@ -2,17 +2,13 @@
 ### Campaign Arc
 
 **Goal:** {{ current_arc.visible_goal }}
-{% if current_arc.goal_context %}
-**Narrative guidance — goal context:** {{ current_arc.goal_context }}
-{% endif %}{% if current_arc.thematic_question %}
-**Thematic question:** {{ current_arc.thematic_question }}
-{% endif %}{% if current_arc.resolution %}
-**Arc resolution (turn {{ current_arc.resolved_turn }}):** {{ current_arc.resolution }}
+{% if current_arc.resolution %}
+**Arc resolution:** {{ current_arc.resolution }}
 {% endif %}{% if resolved_arcs and resolved_arcs|length > 0 -%}
 
 ### Previously Resolved Arcs (TTL)
 {%- for ra in resolved_arcs %}
-- **Turn {{ ra.resolved_turn }}:** {{ ra.resolution[:120] }}{% if ra.goal_context %} (Goal: {{ ra.goal_context[:80] }}){% endif %}{% endfor -%}
+- **Turn {{ ra.resolved_turn }}:** {{ ra.resolution[:120] }}{% endfor -%}
 
 {% endif -%}{% if completed_threads and completed_threads|length > 0 -%}
 
