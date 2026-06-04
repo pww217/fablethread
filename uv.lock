@@ -7,7 +7,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-05-27T00:00:00Z"
+exclude-newer = "2026-05-28T00:00:00Z"
 
 [[package]]
 name = "annotated-doc"
