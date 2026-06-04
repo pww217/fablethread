@@ -347,6 +347,8 @@ async def _call_stream(
             config.model,
             messages,
             temperature=config.extract_temperature,
+            top_p=config.extract_top_p,
+            frequency_penalty=config.extract_frequency_penalty,
             timeout=float(config.request_timeout_s),
         )
         raw = result.get("response", "") if isinstance(result, dict) else ""

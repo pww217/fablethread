@@ -9,7 +9,7 @@ from typing import Any, AsyncIterator
 
 import yaml
 
-from ccya.engine.config import _build_jinja_env, _render
+from ccya.engine.config import EngineConfig, _build_jinja_env, _render
 from ccya.llm_client import chat as llm_chat
 from ccya.pack import PackManifest, ScenarioBrief
 
@@ -36,8 +36,7 @@ def _sanitize_brief(brief: ScenarioBrief) -> ScenarioBrief:
 async def generate_pack_from_brief(
     inputs: dict[str, Any],
     packs_root: Path,
-    llm_host: str,
-    llm_model: str,
+    config: EngineConfig,
     template_dir: str,
     trace_id: str,
     max_retries: int = 1,
@@ -97,12 +96,14 @@ async def generate_pack_from_brief(
             )
 
             response_text = await llm_chat(
-                host=llm_host,
-                model=llm_model,
+                host=config.host,
+                model=config.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
+                temperature=config.pack_generation_temperature,
+                top_p=config.pack_generation_top_p,
                 timeout=300.0,
             )
 
