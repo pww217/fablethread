@@ -124,7 +124,8 @@ class ArcThreadBlock(BaseModel):
                         last_updated_turn=getattr(t, "last_updated_turn", None),
                     )
                 )
-        completed = [t for t in arc.get("completed_threads", []) if isinstance(t, ArcThreadSummary)]
+        completed_start = len(arc.get("threads", []))
+        completed = [t for t in raw_threads[completed_start:] if isinstance(t, ArcThreadSummary)]
         return cls(
             visible_goal=arc.get("visible_goal", ""),
             resolution=arc.get("resolution"),
