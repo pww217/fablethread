@@ -1705,8 +1705,6 @@ function game() {
                     _applyMarkdown(zone);
                 }
                 _revealPillsOnScroll();
-                const npAfter = document.getElementById('narrative-panel');
-                if (npAfter) npAfter.scrollTo({ top: npAfter.scrollHeight, behavior: 'instant' });
 
                 _prependTurnLogTurn(result.turn, result.change_lines || [], result.ruling);
 
