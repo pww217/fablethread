@@ -118,18 +118,18 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
 - `pc.stats`: six integer values, range 1–4, total 12–18.
 - `pc.tagline`: 5–10 words — role + defining trait (e.g. "Structural engineer, nine months sober").
 - `pc.bio`: 2–4 sentences — pre-event history, what shaped this person, what they want now.
-- `scene.world_state`: exactly 3 consolidated global facts — political, economic, infrastructural reality the player would know from living in this setting. Immutable for the entire game. Don't make a separate fact per faction or vocabulary word — consolidate.
+- `scene.world_state`: 3–4 consolidated global facts that directly shape the current situation, arc tension, NPC relationships, or player's immediate circumstances. Immutable for the entire game. Don't make a separate fact per faction or vocabulary word — consolidate. Each must be something that actively constrains what can happen right now.
 
 ## world_state — Hard Constraints Only
 `world_state` is a list of **immutable hard constraints** that govern what is physically, legally, or politically possible in this world.
 
 Rules:
 - Each entry states a constraint that will *directly affect gameplay choices*: border closures, active martial law, banned technologies, faction blockades, economic collapse.
-- No historical backstory older than 1 generation unless it is an active hard constraint right now.
+- No historical backstory older than 1 generation unless it is an active hard constraint right now. Treat "treaties from year XXXX" or "ancient ruins" as flavor prose — not world_state.
 - No flavor lore, legends, myths, or distant history — those belong in prose, not world_state.
-- Maximum 5 entries. Each is one sentence.
-- BAD: "The old empire fell three centuries ago and its ruins dot the landscape."
-- GOOD: "Travel between the Northern and Southern districts requires a valid faction pass."
+- Maximum 4 entries (including baseline_facts prepended by engine). Each is one sentence. Fewer high-quality facts > many generic ones. Every fact must relate directly to the current situation, arc tension, NPC dynamics, or player's immediate circumstances.
+- BAD: "The old empire fell three centuries ago and its ruins dot the landscape." / "A peace treaty was signed in 2147 between the factions." (historical flavor with no present-day impact)
+- GOOD: "Travel between the Northern and Southern districts requires a valid faction pass." / "All firearms are banned under penalty of immediate detention by the Wardens."
 
 ## inventory — Starter Inventory Rules
 - Generate 3–6 starting items appropriate to the opening scene.
