@@ -61,6 +61,8 @@ from ccya.state.delta_builder import _merge_arc_update
 
 _log = logging.getLogger(__name__)
 
+PRESSURE_BEAT_TYPES = ("pressure", "escalation", "complication")
+
 
 @dataclass
 class TurnContext:
@@ -438,7 +440,12 @@ def _compute_narration_directive(
     """
     # Priority 1: breathe (de-escalation wins unconditionally)
     if narrative_velocity < -0.3:
-        return "Breathe"
+        urgent_count = sum(
+            1 for t in scope_scene_threads
+            if getattr(t, "urgency", "") == "urgent"
+        )
+        if urgent_count == 0:
+            return "Breathe"
 
     # Priority 2: scene imperative — stale scene demands attention
     effective_age = ages.get("effective_scene_age", 0)
@@ -1003,6 +1010,8 @@ async def run_turn(
                 _beat_dict = _new_beat.model_dump(exclude_none=True)
                 _beat_dict["beat_expires_turn"] = turn_no + 2
                 state.setdefault("meta", {})["pending_gm_beat"] = _beat_dict
+            else:
+                state.get("meta", {}).pop("pending_gm_beat", None)
 
         if is_cancel_requested(str(save_dir)):
             return
@@ -1087,13 +1096,27 @@ async def run_turn(
                 state, delta,
             )
             # Inject floor relief beat via PacingContext.beat_locked
-            if _pc.beat_locked and not state.get("meta", {}).get("pending_gm_beat"):
-                meta = state.setdefault("meta", {})
-                meta["pending_gm_beat"] = {
-                    "type": "breathing_room",
-                    "surface_as": "ambient",
-                    "beat_expires_turn": (state.get("meta") or {}).get("turn", 0) + 3,
-                }
+            if _pc.beat_locked:
+                _current_beat = state.get("meta", {}).get("pending_gm_beat")
+                if _current_beat is None or _current_beat.get("type") in PRESSURE_BEAT_TYPES:
+                    meta = state.setdefault("meta", {})
+                    meta["pending_gm_beat"] = {
+                        "type": "breathing_room",
+                        "surface_as": "ambient",
+                        "beat_expires_turn": (state.get("meta") or {}).get("turn", 0) + 3,
+                    }
+            # Beat history: snapshot pending_gm_beat after floor relief override
+            _history_beat = state.get("meta", {}).get("pending_gm_beat")
+            meta = state.setdefault("meta", {})
+            meta.setdefault("recent_beats", []).append({
+                "turn": turn_no,
+                "type": _history_beat.get("type") if _history_beat else None,
+                "surface_as": _history_beat.get("surface_as") if _history_beat else None,
+            })
+            # Cap at N entries, oldest first
+            max_beats = config.recent_beats_max if config else 5
+            if len(meta["recent_beats"]) > max_beats:
+                meta["recent_beats"] = meta["recent_beats"][-max_beats:]
             applied = delta.model_dump(exclude_none=True)
             for r in rejected:
                 if r.get("kind") == "warn_overdraw":
@@ -1180,13 +1203,16 @@ async def run_turn(
 
         narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
 
-        # Two-pass consecutive pressure counter update.
+        # Consecutive pressure counter: tracks storyteller beat types, not directives.
         if _extract_result is not None and _pc is not None:
-            directive = _pc.directive or ""
-            thread_updates = storyteller_result.thread_update if storyteller_result else []
+            last_gm_beat_type = (
+                storyteller_result.gm_beat.type
+                if storyteller_result and storyteller_result.gm_beat
+                else None
+            )
             meta = state.setdefault("meta", {})
             current_pressure = meta.get("consecutive_pressure_turns", 0)
-            if (directive in ("Pressure", "Overwhelm")) and not thread_updates:
+            if last_gm_beat_type in PRESSURE_BEAT_TYPES:
                 meta["consecutive_pressure_turns"] = current_pressure + 1
             else:
                 meta["consecutive_pressure_turns"] = 0

@@ -42,7 +42,7 @@ Execute the six changes in top-to-bottom `turn.py` file order (plus one `config.
 
 ## Status
 
-`open`
+`completed`
 
 ---
 
