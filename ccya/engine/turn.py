@@ -938,6 +938,8 @@ async def run_turn(
             config.model,
             narr_messages,
             temperature=config.narrate_temperature,
+            top_p=config.narrate_top_p,
+            frequency_penalty=config.narrate_frequency_penalty,
             timeout=float(config.request_timeout_s),
             stream_stats=narr_stream_stats,
         ):

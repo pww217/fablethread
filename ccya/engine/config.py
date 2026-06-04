@@ -109,6 +109,25 @@ class EngineConfig:
     extract_temperature: float = 0.4
     narrate_temperature: float = 0.9
     generate_seed_temperature: float = 0.9
+
+    # ruling
+    ruling_top_p: float = 0.8
+
+    # extract  
+    extract_top_p: float = 0.85
+    extract_frequency_penalty: float = 0.15
+
+    # narrate
+    narrate_top_p: float = 0.95
+    narrate_frequency_penalty: float = 0.5
+
+    # generate_seed
+    generate_seed_top_p: float = 0.95
+
+    # pack_generation (stub)
+    pack_generation_temperature: float = 0.8
+    pack_generation_top_p: float = 0.95
+
     max_llm_retries: int = 1
     context_window: int = 32768
     log_llm_io: bool = False
@@ -167,10 +186,27 @@ def build_engine_config(
     game = cfg.get("game", {})
     logging_cfg = cfg.get("server", {}).get("logging", {})
 
-    narrate_t = float(llm.get("narrate_temperature", 0.9))
-    extract_t = float(llm.get("extract_temperature", 0.4))
-    ruling_t = float(llm.get("ruling_temperature", 0.2))
-    seed_t = float(llm.get("generate_seed_temperature", 0.9))
+    ruling_cfg = llm.get("ruling", {})
+    ruling_t = float(ruling_cfg.get("temperature", 0.2))
+    ruling_top_p = float(ruling_cfg.get("top_p", 0.8))
+
+    extract_cfg = llm.get("extract", {})
+    extract_t = float(extract_cfg.get("temperature", 0.4))
+    extract_top_p = float(extract_cfg.get("top_p", 0.85))
+    extract_freq_penalty = float(extract_cfg.get("frequency_penalty") or 0)
+
+    narrate_cfg = llm.get("narrate", {})
+    narrate_t = float(narrate_cfg.get("temperature", 0.9))
+    narrate_top_p = float(narrate_cfg.get("top_p", 0.95))
+    narrate_freq_penalty = float(narrate_cfg.get("frequency_penalty") or 0)
+
+    seed_cfg = llm.get("generate_seed", {})
+    seed_t = float(seed_cfg.get("temperature", 0.9))
+    seed_top_p = float(seed_cfg.get("top_p", 0.95))
+
+    pack_cfg = llm.get("pack_generation", {})
+    pack_temp = float(pack_cfg.get("temperature") or 0.8)
+    pack_top_p = float(pack_cfg.get("top_p") or 0.95)
 
     if temperature_override is not None:
         t = float(temperature_override)
@@ -191,6 +227,14 @@ def build_engine_config(
         extract_temperature=extract_t,
         ruling_temperature=ruling_t,
         generate_seed_temperature=seed_t,
+        ruling_top_p=ruling_top_p,
+        extract_top_p=extract_top_p,
+        extract_frequency_penalty=extract_freq_penalty,
+        narrate_top_p=narrate_top_p,
+        narrate_frequency_penalty=narrate_freq_penalty,
+        generate_seed_top_p=seed_top_p,
+        pack_generation_temperature=pack_temp,
+        pack_generation_top_p=pack_top_p,
         max_llm_retries=int(llm.get("max_llm_retries", 1)),
         log_llm_io=bool(logging_cfg.get("log_llm_io", False)),
         log_llm_io_max_chars=int(logging_cfg.get("log_llm_io_max_chars", 4000)),

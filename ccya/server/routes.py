@@ -488,8 +488,6 @@ async def new_game_generate_pack(request: Request):
     }
 
     packs_root = _app_mod.PACKS_DIR
-    llm_host = str(_app_mod.engine_config.host).rstrip("/")
-    llm_model = str(_app_mod.engine_config.model)
     template_dir = str(_app_mod.PROMPTS_DIR)
     max_retries = _app_mod.engine_config.max_llm_retries
 
@@ -499,8 +497,7 @@ async def new_game_generate_pack(request: Request):
         async for event in generate_pack_from_brief(
             inputs=inputs,
             packs_root=packs_root,
-            llm_host=llm_host,
-            llm_model=llm_model,
+            config=_app_mod.engine_config,
             template_dir=template_dir,
             trace_id=trace_id,
             max_retries=max_retries,

@@ -107,6 +107,14 @@ async def chat_stream(
     temperature: float | None = None,
     timeout: float = 180.0,
     stream_stats: MutableMapping[str, Any] | None = None,
+    top_p: float | None = None,
+    frequency_penalty: float | None = None,
+    seed: int | None = None,
+    # Stub fields for later mlx-lm SDK support — accepted but never passed to API yet:
+    top_k: int | None = None,  # not in OpenAI SDK signature
+    min_p: float | None = None,  # not in OpenAI SDK signature  
+    rep_penalty: float | None = None,  # not in OpenAI SDK signature
+    rep_penalty_window: int | None = None,  # not in OpenAI SDK signature
 ) -> AsyncIterator[str]:
     if _MOCK_MODE:
         async for chunk in _mock_stream():
@@ -126,6 +134,12 @@ async def chat_stream(
     }
     if temperature is not None:
         kwargs["temperature"] = temperature
+    if top_p is not None:
+        kwargs["top_p"] = float(top_p)
+    if frequency_penalty is not None:
+        kwargs["frequency_penalty"] = float(frequency_penalty)
+    if seed is not None:
+        kwargs["seed"] = int(seed)
     stream = await client.chat.completions.create(**kwargs)
 
     async for chunk in stream:
@@ -147,6 +161,14 @@ async def chat(
     temperature: float | None = None,
     max_tokens: int | None = None,
     timeout: float = 180.0,
+    top_p: float | None = None,
+    frequency_penalty: float | None = None,
+    seed: int | None = None,
+    # Stub fields for later mlx-lm SDK support — accepted but never passed to API yet:
+    top_k: int | None = None,  # not in OpenAI SDK signature
+    min_p: float | None = None,  # not in OpenAI SDK signature  
+    rep_penalty: float | None = None,  # not in OpenAI SDK signature
+    rep_penalty_window: int | None = None,  # not in OpenAI SDK signature
 ) -> dict[str, Any]:
     if _MOCK_MODE:
         return _mock_extract_chat(messages)
@@ -165,6 +187,12 @@ async def chat(
             kwargs["temperature"] = temperature
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
+        if top_p is not None:
+            kwargs["top_p"] = float(top_p)
+        if frequency_penalty is not None:
+            kwargs["frequency_penalty"] = float(frequency_penalty)
+        if seed is not None:
+            kwargs["seed"] = int(seed)
         resp = await client.chat.completions.create(**kwargs)
         elapsed = time.monotonic() - t0
         content = resp.choices[0].message.content or ""

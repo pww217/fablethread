@@ -79,6 +79,7 @@ async def _call_ruling(
                 config.model,
                 messages,
                 temperature=config.ruling_temperature,
+                top_p=config.ruling_top_p,
                 timeout=float(config.request_timeout_s),
             )
             raw = result.get("response", "") if isinstance(result, dict) else ""

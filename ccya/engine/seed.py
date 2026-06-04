@@ -246,6 +246,7 @@ async def generate_seed(
                 config.model,
                 messages,
                 temperature=config.generate_seed_temperature,
+                top_p=config.generate_seed_top_p,
                 timeout=float(config.request_timeout_s),
             )
         except LlmcTimeout:

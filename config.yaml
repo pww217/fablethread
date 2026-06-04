@@ -3,10 +3,27 @@ llm:
   model: mlx-community/gemma-4-26b-a4b-it-mxfp8
   request_timeout_s: 180
 
-  ruling_temperature: 0.2
-  extract_temperature: 0.4
-  narrate_temperature: 0.9
-  generate_seed_temperature: 0.9
+  ruling:
+    temperature: 0.2
+    top_p: 0.80
+
+  extract:
+    temperature: 0.4
+    top_p: 0.85
+    frequency_penalty: 0.15
+
+  narrate:
+    temperature: 0.9
+    top_p: 0.95
+    frequency_penalty: 0.5
+
+  generate_seed:
+    temperature: 0.9
+    top_p: 0.95
+
+  pack_generation:
+    temperature: 0.8
+    top_p: 0.95
 
   max_llm_retries: 1
 

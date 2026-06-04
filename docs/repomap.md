@@ -56,7 +56,7 @@
 ### ccya/engine (via __init__.py)
 - **run_turn(...)** → AsyncIterator — 5-call pipeline: rules→narrate→scene/state/storytell extract; yields ("token"), ("phase"), ("complete", TurnResult)
 - **generate_seed(pack, config, overrides)** → SeedEnvelope — LLM-generated GameState + opening for dynamic packs (via `ccya/engine/seed.py`; model class in `ccya/pack.py`)
-- **generate_pack_from_brief(...)** → AsyncIterator[dict] — SSE-driven ephemeral pack generation (via `ccya/engine/generate_pack.py`)
+- **generate_pack_from_brief(inputs, packs_root, config, template_dir, trace_id, max_retries=1)** → AsyncIterator[dict] — SSE-driven ephemeral pack generation; receives full EngineConfig instead of individual host/model args (Phase 08)
 - **generate_pack(brief, config)** → Pack — LLM generates ScenarioBrief from WorldBrief (via `ccya/engine/pack_gen.py`)
 - **format_change_lines(changes)** → list[str] — emoji display lines for UI
 
@@ -76,7 +76,7 @@
 - **resolve_check(skill, difficulty, pc_stats, pc_conditions, intent_verb, rng)** → RulesOutcome — 1d12+stat_mod+cond_mod→Band (pure Python)
 
 ### ccya/llm_client.py
-- **chat(host, model, messages)** → response dict — non-streaming LLM call with retry
+- **chat(host, model, messages, *, temperature=None, max_tokens=None, timeout=180.0, top_p=None, frequency_penalty=None, seed=None)** → response dict — non-streaming LLM call with retry; optional sampling params passed conditionally (only when not None)
 - **chat_stream(...)** → AsyncIterator[str] — streaming tokens; trim_messages() drops oldest non-system msgs on budget overflow
 
 ## 5-call turn pipeline (run_turn)
@@ -166,6 +166,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 
 ### EngineConfig field naming (Phase 06b)
 - Config fields: thread_deescalate_on_success, resolved_arc_ttl (default 3), completed_thread_ttl (default 3) — YAML keys match Python field names directly.
+- Sampling parameters: ruling_temperature/ruling_top_p, extract_temperature/extract_top_p/extract_frequency_penalty, narrate_temperature/narrate_top_p/narrate_frequency_penalty, generate_seed_temperature/generate_seed_top_p, pack_generation_temperature/pack_generation_top_p; stub fields always null until mlx-lm SDK support: seed, top_k, min_p, rep_penalty, rep_penalty_window. Config structure migrated from flat keys to nested `llm.<stage>.<param>` format (Phase 08).
 
 ### Computation functions (Phase 06b)
 - `_compute_narration_directive()` derives urgency counts from unified ArcThread objects with scope=scene; reads `ages.get("effective_scene_age", 0)` for Scene Imperative (≥5 effective age, short-circuits all directives) and Scene Pressure (≥3 effective age, secondary append); priority order: Breathe → Scene Imperative → Overwhelm → Pressure → Tension → Scene Pressure
