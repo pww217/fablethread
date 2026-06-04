@@ -39,7 +39,7 @@ Three prompt modifications plus one extraction.py wiring change: (1) pass `pendi
 
 ## Status
 
-`completed`
+`open`
 
 ---
 
