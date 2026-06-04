@@ -129,8 +129,19 @@ The `pacing_context` section tells you how Python shaped tone for this turn. Use
 - **Overwhelm** → emit `gm_beat` of type `pressure`/`escalation`, may add scene-scoped threads if gate == "allow" 
 - **Pressure** → emit `gm_beat` of type `complication`/`pressure`, update existing threads rather than adding new ones
 - **Tension** → do NOT add pressures unless concrete threat emerges; prefer updating existing threads
+- **Scene Imperative** — this scene has been active too long without meaningful progression. Your primary directive is to **advance the story** — generate choices that move the narrative forward, introduce new information, or force a decision point.
 
 When multiple directives are joined (e.g. "Pressure; Resolve a Threat"), prioritize the primary directive and layer the secondary as thematic guidance for beat type selection.
+
+{% if recent_beats %}
+## Recent Beats (last {{ recent_beats | length }})
+
+{% for b in recent_beats %}
+T{{ b.turn }}: {% if b.type %}{{ b.type | replace('_', ' ') | upper }}{% else %}null{% endif %}{% if b.type and b.surface_as %} ({{ b.surface_as }}){% endif %}
+{% endfor %}
+
+Use this history to vary your beat types — avoid repeating the same type more than twice in a sequence. At least one in three beats should be a non-pressure type.
+{% endif %}
 
 ## GM Beat guidance
 

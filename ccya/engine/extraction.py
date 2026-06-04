@@ -243,7 +243,11 @@ def _storytell_messages(
     all_threads = [t for t in (arc.get("threads") or []) if isinstance(t, dict)]
     world_state = list(scene.get("world_state") or [])
 
-    system_text = _render(env, "storytell_system.j2", {})
+    system_text = _render(
+        env, "storytell_system.j2", {
+            "recent_beats": list((state.get("meta") or {}).get("recent_beats", [])),
+        }
+    )
     npc_roster = build_npc_roster(extraction_ctx.comp_this_turn)
     user_text = _render(
         env,
@@ -263,6 +267,7 @@ def _storytell_messages(
             "pacing_context": pacing_context,
             "recent_turns": recent_turns or [],
             "prior_history": list((state.get("meta") or {}).get("prior_history", [])[:-1]),
+            "pending_beat": (state.get("meta") or {}).get("pending_gm_beat"),
             "turn_no": turn_no,
             "band": band,
         },
