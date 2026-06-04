@@ -42,9 +42,11 @@ Build your output in this order, using everything already established before gen
        - **threads** (scope="arc"): unified list of medium-term sustained tensions where each thread has `{id, summary, urgency, scope}`. Thread fields must use these exact values: `scope` is `"scene"` (immediate, local tension — auto-deleted on location change) or `"arc"` (longer-term campaign thread); `urgency` is `"background"`, `"normal"`, or `"urgent"`; `active` is `true` for threads the narrator should track now, `false` for latent/dormant ones.
 
 Thread count constraints (HARD LIMITS):
-- Maximum 2 active threads at game start (`"active": true`). Never generate more than 2 — even if you can think of more reasons to care about something. Pick the TWO most urgent/important tensions.
-- Generate 3–5 latent threads (`"active": false`) that unlock when conditions are met. These should be plentiful — they represent future story hooks.
-- Total thread count: typically 4–7 (2 active + 3–5 latent). Never fewer than 3 total, never more than 8.
+- Exactly 1–2 threads start as `active: true` at game start — pick the TWO most urgent/important tensions only. Never exceed 2 active.
+- Generate up to 3 latent threads (`"active": false`) that unlock when conditions are met. These represent future story hooks. Do NOT set any latent thread to `true`.
+- Total thread count: typically 4–5 (1–2 active + 3 latent). Minimum 3 total, maximum 6.
+
+Do not generate `scope="scene"` threads at game start — all threads should be `scope="arc"`.
 
 4. **Opening scene / NPCs**: Instantiates the situation_archetype concretely — who's present, what they're doing, how character_dynamic shapes their relationship to power structures
 5. **Inventory**: Items appropriate to the opening scene and PC concept
@@ -170,16 +172,18 @@ One sentence (~10–20 words) summarizing the opening situation in-universe, as 
 
 ## Compendium NPCs (in compendium.npcs with presence="present")
 {% if npc_count_override and npc_count_override > 0 %}
-Generate exactly {{ npc_count_override }} NPCs placed in compendium.npcs with `presence: "present"`, `notes: "current attitude or situation"`, and the standard compendium fields (id, name, title, bio). These are the characters the player meets immediately. Aim for 1–4 present NPCs — this is ideal scene density. If you generate more than 4, give narrative reasons why some should leave (shift change, dismissed, running an errand) so their absence feels natural on turn 2+.
+Generate exactly {{ npc_count_override }} NPCs placed in compendium.npcs with `presence: "present"`, `notes: "current attitude or situation"`, and the standard compendium fields (id, name, title, bio). These are the characters the player meets immediately. Aim for 1–4 present NPCs — this is ideal scene density. If you generate more than 4, give narrative reasons why some should leave (shift change, dismissed, running an errand) so their absence feels natural on turn 2+. Present NPCs must have `name`, `title`, and `bio` populated; also fill `allegiance` when faction affiliation is relevant. Most other fields (`bond`, `motivation`, `fear`, `leverage`) should be filled for present characters — only omit MFL for background extras who play no narrative role in this scene.
 {% else %}
-Generate 4–5 named NPCs total, typically ~2 present in the opening scene (exact count may be overridden by player preference). Aim for 1–4 present NPCs — this is ideal scene density. If you generate more than 4, give narrative reasons why some should leave (shift change, dismissed, running an errand) so their absence feels natural on turn 2+.
+Generate 4–5 named NPCs total, typically ~2 present in the opening scene (exact count may be overridden by player preference). Aim for 1–4 present NPCs — this is ideal scene density. If you generate more than 4, give narrative reasons why some should leave (shift change, dismissed, running an errand) so their absence feels natural on turn 2+. Present NPCs must have `name`, `title`, and `bio` populated; also fill `allegiance` when faction affiliation is relevant. Most other fields (`bond`, `motivation`, `fear`, `leverage`) should be filled for present characters — only omit MFL for background extras who play no narrative role in this scene.
 {% endif %}
 
-Of the in-scene NPCs, assign motivation, fear, and leverage to whichever feel important — those with personal ties to the PC or central roles in this opening situation. There is no formal definition of "key NPC"; use judgment based on who matters narratively. For each such NPC, populate all three fields (motivation = what they fundamentally want; fear = what they dread most; leverage = what they can offer/threaten/withhold).
+Of the in-scene NPCs, assign `motivation`, `fear`, and `leverage` to **all present NPCs who play a narrative role** — anyone with dialogue, agency, or tension-creating behavior gets all three fields populated (motivation = what they fundamentally want; fear = what they dread most; leverage = what they can offer/threaten/withhold). Background extras standing silently at the edge of the scene may omit them.
 
-The remaining in-scene NPCs should have bonds reflecting their connection to the PC or situation — not generic role descriptions. If `pool_selection.npc_bond` is provided, use it as inspiration but CONVERT IT INTO NARRATIVE PROSE for the bond field: write a short sentence describing how this NPC's history with the PC manifests in the current scene and arc context. Never emit raw seed ids (like "wounded_before") or bare descriptions — always adapt into player-facing flavor text that ties to the opening situation, character motives, and active threads. Example: instead of `bond: "debt_owed"`, write `bond: "Owes the PC a life-debt after they pulled them from enemy fire during the border skirmish."` Express ties through the bond field; reference the PC by name in their bio where shared history demands it.
+At least half of present NPCs should have a `bond` field — this is not optional for narrative characters. Bonds describe durable personal history and can be:
+- A bond to the PC (e.g., "Owes the PC after they pulled them from enemy fire.")
+- A bond between two NPCs in this scene (e.g., "Siblings who haven't spoken since the incident at the mill." — explicitly name both parties)
 
-Do NOT force exactly two NPCs or require one to carry "personal stakes" and another "external pressure." Let narrative context determine how many NPCs belong in this scene and what roles they fill.
+If `pool_selection.npc_bond` is provided, use it as inspiration but CONVERT IT INTO NARRATIVE PROSE for the bond field. Never emit raw seed ids or bare descriptions — always adapt into player-facing flavor text that ties to the opening situation and character motives. Reference the PC by name in their bio where shared history demands it.
 
 ## compendium.npcs
 Generate exactly 2-3 additional NPCs in compendium.npcs (keyed by snake_case id, with {name, title, bio}). These are characters the PC knows of or has encountered before — they exist in the world but are not present in the opening scene. Their bios should tie them to the world's factions, locations, or pressures rather than to the immediate opening situation. They may become allies, antagonists, sources of information, or neutral parties as the story unfolds.
@@ -190,7 +194,7 @@ Do NOT add `relation` or `notes` to compendium entries (deprecated field and sce
 Generate a `CampaignArc` with:
 - `visible_goal`: one sentence, affirmative, player-visible (e.g. "Find the cure before the quarantine collapses")
 - `goal_context`: 2–3 sentences explaining why visible_goal matters to this character specifically — inner cost or pressure that makes it emotionally loaded; must connect character motive, story stakes, and emotional cost without restating visible_goal. Deepen, don't summarize.
-- `threads`: single unified list (not split into active/latent) where each thread has `{id, summary, urgency, scope}`. HARD LIMITS: Maximum 2 threads start as active (`"active": true`) — never more than 2 at game start. Generate 3–5 latent threads (`"active": false`). Total: typically 4–7 (2 active + 3–5 latent), minimum 3, maximum 8. Use exact enum values: `scope` is `"scene"` (auto-deleted on location change) or `"arc"`; `urgency` is `"background"`, `"normal"`, or `"urgent"`.
+- `threads`: single unified list (not split into active/latent) where each thread has `{id, summary, urgency, scope}`. HARD LIMITS: 1–2 threads start as `active: true` — never more than 2 at game start. Up to 3 latent threads (`"active": false`). Total typically 4–5 (minimum 3, maximum 6). All threads should use `scope="arc"`; do not generate `scope="scene"` threads at game start. Urgency values: `"background"`, `"normal"`, or `"urgent"`.
 - `completed_threads`: separate list for resolved/failed threads (leave empty at seed time)
 
 Thread summaries should be **seeds for the narrator, not dictated plot**. They should describe a situation, not specify exact events. The narrator should always have creative latitude in how a thread manifests.
