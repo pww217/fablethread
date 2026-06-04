@@ -121,6 +121,8 @@ class EngineConfig:
     momentum_ceiling: int = 3
     # Consecutive pressure threshold for relief trigger
     consecutive_pressure_threshold: int = 3
+    # Max entries in recent_beats history list
+    recent_beats_max: int = 5
     # Gate for de-escalation flag on successful rolls
     thread_deescalate_on_success: bool = True
     # TTL (in turns) for resolved arcs and completed threads kept in prompt context
@@ -202,6 +204,7 @@ def build_engine_config(
 
         momentum_floor=int(game.get("momentum_floor", -3)),
         consecutive_pressure_threshold=int(game.get("consecutive_pressure_threshold", 3)),
+        recent_beats_max=int(game.get("recent_beats_max", 5)),
 
         difficulty_curve=game.get("difficulty_curve", "balanced"),
         scene_pressure_threshold=int(game.get("scene_pressure_threshold", 3)),
