@@ -12,8 +12,8 @@
 **{{ location.name or location.id }}**{% if location.description %} — {{ location.description }}{% endif %}
 {% endif %}{% include "sections/_arc.j2" %}{% if all_threads %}
 ## threads ({{ all_threads|length }} total — unified list; [SCENE] threads are auto-removed on location change)
-{% for t in all_threads %}{% set scope_tag = "[SCENE]" if t.scope == "scene" else "[ARC]" %}- `{{ t.id }}` {{ scope_tag }} {% if not t.active %}(dormant){% endif %} [{{ t.urgency | upper }}] {{ t.summary | truncate(120) }}{% if t.progress %} [progress: {{ t.progress }}]{% endif %}
-{% endfor -%}{% else %}
+{% set threads = all_threads %}
+{% include "sections/_thread_list.j2" %}{% else %}
 ## threads
 None currently. Generate actions that could introduce new story directions or explore the environment.
 {% endif %}{% if world_state %}

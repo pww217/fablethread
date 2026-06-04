@@ -114,7 +114,7 @@ No `frequency_penalty` or other extra params.
 
 **Line 1 — Length target:**
 ```
-2-3 short paragraphs → 2-3 paragraphs, ~180 words. Hard ceiling: 250 words.
+2-3 paragraphs, ~180 words. Hard ceiling: 250 words. If your draft exceeds 250 words, reduce it — every sentence must advance the beat; delete the rest.
 ```
 
 **New Hard Rule #2 — Open with player action:**
@@ -148,6 +148,11 @@ BEFORE OUTPUTTING: scan every sentence. If it restates information from a prior 
 Each beat must advance the plot meaningfully. No holding patterns, no extended descriptions of static scenes.
 
 Override rule: The Outcome directive and pending GM beat are authoritative scene signals. Do not override them because the prose feels like it should go a different direction.
+```
+
+**Markdown section — widen blockquote scope:**
+```
+`> blockquote` for signage, broadcasts, and any text the player reads verbatim (books, terminals, letters).
 ```
 
 **NPC naming (collapse to 2 lines):**
@@ -184,6 +189,8 @@ Structure the opening in three movements — these are loose beats, not word-cou
    Objects: ... Conditions: ... Sensory: ...
 
 3. **Crisis/gameplay moment** (the bulk): The tension arrives or is revealed. Present NPCs act. The moment the player must respond to. This is where the "mid-scene" feel belongs — earned after the orientation.
+
+   Spend most of your words on the crisis/gameplay moment — the close-up and exposition are setup, not the main event.
 ```
 
 The scene bundle block in `generate_seed_system.j2` gets an explicit optional preamble wrapping the entire block: `{% if pool_selection and pool_selection.scene_bundle -%}Optional ingredients — use what fits, ignore what doesn't:`.
@@ -251,7 +258,7 @@ mlx_lm.server supports `frequency_penalty` as a standard OpenAI-compatible chat 
 
 - **Word ceiling ignored**: The model may still over-produce despite the 250-word instruction. Mitigation: monitor average output and tighten further (lower ceiling, add "if your draft exceeds this, cut" enforcement language).
 - **Direct dialogue mandate causes pacing issues**: If the model interprets "prefer direct dialogue" as "no summarized action," turns could become all-talk. Mitigation: the instruction says "when a character speaks" — action-first narration still takes priority.
-- **[QUESTION: blockquote scope conflict]** Proposed Style says "show text verbatim in `> blockquote`" but current Markdown section limits blockquotes to "signage or quoted broadcast text." If the Style says to show any read text (letters, terminals, books) in blockquote, the Markdown rule blocks it. The executor needs to know: widen the Markdown rule to cover all verbatim text, or remove the limitation? Recommend widening the Markdown section: "`> blockquote` for signage, broadcasts, and any text the player reads verbatim (books, terminals, letters)."
+- **[RESOLVED: blockquote scope widened]** Markdown section updated to: "`> blockquote` for signage, broadcasts, and any text the player reads verbatim (books, terminals, letters)." No contradiction remains.
 - **frequency_penalty=0.3 is too weak or strong for this model**: Qwen3 may respond differently than other models. If modifier repetition persists, increase to 0.5. If sentence fluency degrades, reduce to 0.15.
 - **[frequency_penalty targets all tokens, not just modifiers]** Frequency penalty penalizes every repeated token proportionally to its frequency — common words like "the", "a", "was" get a larger penalty than modifiers because they appear more often. At 0.3 this effect should be mild, but if sentence fluency degrades (unusual article usage, dropped auxiliaries), it's the frequency_penalty, not the content changes. Monitor for unnatural article/auxiliary patterns after deploy.
 - **[CRITICAL: frequency_penalty server support unverified]** The design assumes `mlx_lm.server` supports OpenAI-compatible `frequency_penalty`. If it doesn't — ignored silently, errors, or behaves differently — the entire Change C is dead code. The executor must verify this against the running server before implementing. See CONSOLIDATED-EV-FINDINGS.md for prior patterns of silent LLM parameter ignores.
@@ -261,10 +268,9 @@ mlx_lm.server supports `frequency_penalty` as a standard OpenAI-compatible chat 
 
 ## Open Questions
 
-All three from the original design resolved. New questions from review:
+All three from the original design resolved. Blockquote scope resolved — Markdown section widened. One remaining:
 
-- `[OPEN: blockquote scope]` — Proposed Style says "show text verbatim in `> blockquote`" but current Markdown section limits blockquotes to "signage or quoted broadcast text." Recommend widening the Markdown rule to cover all verbatim text.
-- `[OPEN: frequency_penalty MLX support]` — The design assumes `mlx_lm.server` supports OpenAI-compatible `frequency_penalty`. This must be verified before implementation. If unsupported, the entire Change C is dead code.
+- `[OPEN: frequency_penalty MLX support]` — The design assumes `mlx_lm.server` supports OpenAI-compatible `frequency_penalty`. This must be verified before implementation as a blocking step. If unsupported, the entire Change C is dead code.
 
 ## Decisions (resolved from Open Questions)
 
@@ -273,6 +279,10 @@ All three from the original design resolved. New questions from review:
 | frequency_penalty → config.yaml field | New `narrate_frequency_penalty` field in config.yaml under `llm:`, default 0.3 | User control; matches existing pattern of `narrate_temperature` |
 | Scene bundle marked optional in template | Wrap scene bundle block in `{% if pool_selection and pool_selection.scene_bundle -%}` with preamble text "Optional ingredients — use what fits, ignore what doesn't" | Makes optional status unambiguous at the template level, not just in prose guidance |
 | Seed 3-movement → loose structure | Replace per-section word targets (~30 / ~130 / remaining) with one unified target (~700 words) and the three movements as loose structural guidance with no word counts | Model under-produced against tight sub-targets; loose structure gives it room while preserving the close-up/exposition/crisis arc |
+| Blockquote widened for all verbatim text | `> blockquote` for signage, broadcasts, and any text the player reads verbatim (books, terminals, letters) | Removes contradiction between Style and Markdown sections |
+| Word ceiling enforcement added | "If your draft exceeds 250 words, reduce it — every sentence must advance the beat; delete the rest" | Pre-empts known over-production risk at cost of ~15 tokens |
+| Seed proportional guard added | "Spend most of your words on the crisis/gameplay moment" appended to 3rd movement guidance | Prevents model reverting to close-up-over-weighting learned pattern |
+| frequency_penalty verification | Blocking pre-implemention curl test against running server | Prior silent parameter ignores documented; verify before committing to Change C |
 
 ## What Is Removed
 
