@@ -37,10 +37,16 @@ class ArcThread(BaseModel):
     outcome: str | None = None
     resolved_turn: int | None = None
 
+    @field_validator("progress", mode="wrap")
+    @classmethod
+    def _coerce_progress(cls, v: Any, handler: Any) -> Any:
+        if isinstance(v, str):
+            return [v]
+        return handler(v)
+
 
 class CampaignArc(BaseModel):
     visible_goal: str = ""
-    thematic_question: str = ""
     goal_context: str = ""
     threads: list[ArcThread] = Field(default_factory=list)
     completed_threads: list[ArcThread] = Field(default_factory=list)
@@ -361,7 +367,6 @@ class ArcResolution(BaseModel):
     resolution: str
     visible_goal: str
     goal_context: str
-    thematic_question: str | None = None
     drop_threads: list[str] = Field(default_factory=list)
     new_threads: list[ArcThread] = Field(default_factory=list)
 
@@ -410,6 +415,7 @@ class GMBeat(BaseModel):
 class StorytellerResult(BaseModel):
     actions: list[str] = Field(default_factory=list)
     outcome_summary: str = ""
+    goal_update: str | None = None
     gm_beat: GMBeat | None = None
     thread_resolve: list[ThreadResolution] = Field(default_factory=list)
     thread_add: ArcThread | None = None

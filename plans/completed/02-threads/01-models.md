@@ -40,7 +40,7 @@ Remove `thematic_question` from `CampaignArc` and `ArcResolution`. Change `ArcTh
 
 ## Status
 
-`open`
+`completed`
 
 ## Phases
 
