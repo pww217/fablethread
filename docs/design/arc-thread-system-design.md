@@ -45,7 +45,7 @@ The arc and thread systems exist but produce zero useful output across both game
 
 ### Models
 
-`ArcThread`: id, summary, scope (scene|arc), active (bool), urgency (background|normal|urgent), progress (str — single string), resolution_state, outcome, resolved_turn.
+`ArcThread` (pre-change): id, summary, scope (scene|arc), active (bool), urgency (background|normal|urgent), progress (str — single string, overwritten on every update), resolution_state, outcome, resolved_turn.
 
 `CampaignArc`: visible_goal (str), thematic_question (str), goal_context (str), threads (list[ArcThread]), completed_threads (list[ArcThread]), resolution, last_thread_created_turn.
 
@@ -222,12 +222,14 @@ class ArcThread(BaseModel):
     scope: str  # scene | arc
     active: bool = True
     urgency: str = "normal"  # background | normal | urgent
-    progress: str | list[str] = []  # CHANGED from str to list[str]
+    progress: list[str] = []  # CHANGED from str to list[str]
     last_updated_turn: int | None = None  # NEW
     resolution_state: str | None = None
     outcome: str | None = None
     resolved_turn: int | None = None
 ```
+
+**Migration:** Existing saves have `progress: "some string"` (a single str). A Pydantic `field_validator("progress", mode="wrap")` is needed to coerce old string values: if the loaded value is a `str`, wrap it in a list `[value]`. Without this, loading a pre-change save will fail Pydantic validation.
 
 ## Context for Implementing LLMs
 
