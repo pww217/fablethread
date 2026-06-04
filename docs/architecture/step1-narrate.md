@@ -42,7 +42,6 @@ The narrator receives `current_arc` in both system and user prompts. Key fields:
 
 - **`goal_context`**: A seed-time field (2–3 sentences) explaining why `visible_goal` matters to the character specifically — inner cost or pressure that makes it emotionally loaded. When present, `_arc.j2` presents it alongside other arc context in the user prompt for early-turn narrative guidance: ground the player in personal stakes before broad exposition.
 - **`visible_goal`**: The player-facing objective.
-- **`thematic_question`**: The moral tension — never stated directly in prose. Used as a lens for emphasis: what detail feels loaded, what silence matters.
 - **`threads[]`**: Unified thread collection filtered by `active` flag. Scene-scope threads provide immediate pressure; arc-scope threads provide medium-term tension.
 - **`resolved_arc`**: TTL-filtered list of previously resolved arcs, providing narrative continuity across arc transitions.
 

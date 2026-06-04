@@ -51,7 +51,6 @@ def _narrate_messages(
         all_threads = [t for t in (arc.get("threads") or [])]
         current_arc_ctx = {
             "visible_goal": arc.get("visible_goal", ""),
-            "thematic_question": arc.get("thematic_question", ""),
             "resolution": arc.get("resolution"),
             "resolved_arcs": _get_resolved_arcs(state, turn_no, ttl=arc_ttl),
             "threads": [

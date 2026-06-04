@@ -11,7 +11,7 @@ Extract suggested player actions, outcome summary, thread updates, and arc resol
   "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "drop_threads": ["stale_thread_id"], "new_threads": [{"id": "new_thread", "summary": "...", "scope": "arc", "urgency": "normal"}]},
   "goal_update": "...",
   "thread_resolve": [{"id": "resolved_thread", "resolution_state": "resolved", "outcome": "...", "promote_to_world_state": true}],
-  "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal", "tags": [], "key": "subject_action"},
+  "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal"},
   "world_state_add": [{"id": "new_fact_id", "text": "durable world fact text", "tier": "persistent"}],
   "world_state_remove": ["fact_id_to_remove"]
 }
@@ -132,10 +132,15 @@ Each entry: `{"id": "snake_case_id", "text": "fact description", "tier": "persis
 
 `world_state_remove`: IDs of persistent facts now false, outdated, irrelevant, or superseded (e.g., a blockade lifted, bridge rebuilt). Do NOT remove permanent tier facts — they are immutable seed-authored truths.
 
-**World state management:**
-1. **Prefer update over create:** When a fact already exists in world state, reuse its ID and update the text rather than creating a new entry. The engine merges by ID — reuse the same ID to update, use a new ID to create.
-2. **Consolidate overlapping facts:** If two world state entries describe the same reality (e.g., `faction_allied_traders` and `traders_friendly_to_pc`), update one to cover both and remove the other via `world_state_remove`.
-3. **Avoid duplication with threads:** If a fact represents narrative tension that could still change, keep it as a thread. Only promote to world state when it's settled durable reality.
+**World state management — UPDATE AND CONSOLIDATE, NEVER ADD REDUNDANTLY:**
+
+1. **MANDATORY: Check before adding.** Before emitting `world_state_add`, scan ALL existing world state entries for conceptual overlap. If an existing entry covers the same fact (even with a different ID or slightly different wording), DO NOT emit `world_state_add` — reuse that existing ID in your new `world_state_add`. The engine merges by ID: same ID = update, new ID = create. Creating when an entry already exists is redundant and must be avoided.
+
+2. **Consolidate overlapping facts aggressively.** If two world state entries describe the same or substantially overlapping reality (e.g., `faction_allied_traders` and `traders_friendly_to_pc`, or `blockade_at_port` and `port_closed_to_civilians`), update one entry to cover both concerns via ID-reuse, then remove the redundant entry. The world state should be lean — every fact must earn its place as a unique piece of durable information.
+
+3. **Prefer updating over creating in ALL cases.** Even when no existing entry perfectly matches, if an existing entry is close enough that updating it would capture the new fact without losing meaning, update rather than create. The world state grows monotonically — redundant entries compound into bloat that degrades narrative quality.
+
+4. **Avoid duplication with threads:** If a fact represents narrative tension that could still change, keep it as a thread. Only promote to world state when it's settled durable reality.
 
 You have visibility into all threads — including those marked (dormant/latent) — plus past resolutions with outcomes. Use this knowledge actively. Latent threads represent narrative threads the party has not yet discovered but can be drawn toward. When generating new thread suggestions, choose actions and complications that create circumstances where a dormant thread could naturally surface — a character's past catching up, a long-silent threat stirring. When selecting beats and narration, use beat types and pacing to build tension toward latent discoveries. Never expose the latent content directly — instead, craft situations that make discovery feel earned and natural. The 4 player choices, suggested actions, and complications are your primary tools for gently steering the player toward what they don't yet know.
 

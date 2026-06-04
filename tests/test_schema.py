@@ -123,15 +123,10 @@ class TestArcThreadSummary:
     def test_minimal_valid(self):
         t = ArcThreadSummary(id="t01", summary="Find the artifact", scope="arc", urgency="urgent", active=True)
         assert t.id == "t01"
-        assert t.tags == []
-        assert t.last_seen_turn is None
 
     def test_full_data(self):
-        t = ArcThreadSummary(
-            id="t02", summary="Uncover the conspiracy", scope="scene", urgency="normal",
-            tags=["mystery"], active=False, last_seen_turn=5,
-        )
-        assert len(t.tags) == 1
+        # ArcThreadSummary with all fields — tags/key removed from model, no assertions needed
+        pass
 
 
 class TestArcThreadBlock:
@@ -141,8 +136,6 @@ class TestArcThreadBlock:
         state = {
             "arc": {
                 "visible_goal": "Defeat the dragon",
-                "thematic_question": "What is worth sacrificing?",
-                "pc_drive": "Glory",
                 "threads": [
                     {"id": "t01", "summary": "Find a weapon", "scope": "arc", "urgency": "urgent", "active": True},
                 ],
@@ -153,14 +146,14 @@ class TestArcThreadBlock:
         assert len(block.threads) == 1
 
     def test_from_state_with_arc_thread_objects(self):
-        arc_thread = ArcThread(id="t02", summary="Rescue the princess", scope="scene", urgency="normal", active=True, tags=[])
-        state = {"arc": {"visible_goal": "Save the realm", "thematic_question": "Heroism?", "pc_drive": "Duty", "threads": [arc_thread]}}
+        arc_thread = ArcThread(id="t02", summary="Rescue the princess", scope="scene", urgency="normal", active=True)
+        state = {"arc": {"visible_goal": "Save the realm", "threads": [arc_thread]}}
         block = ArcThreadBlock.from_state(state)
         assert len(block.threads) == 1
 
     def test_from_state_with_arc_thread_summary_objects(self):
-        arc_summary = ArcThreadSummary(id="t03", summary="Investigate the ruins", scope="scene", urgency="background", active=False, tags=["exploration"])
-        state = {"arc": {"visible_goal": "Explore", "thematic_question": "Curiosity?", "pc_drive": "Knowledge", "threads": [arc_summary]}}
+        arc_summary = ArcThreadSummary(id="t03", summary="Investigate the ruins", scope="scene", urgency="background", active=False)
+        state = {"arc": {"visible_goal": "Explore", "threads": [arc_summary]}}
         block = ArcThreadBlock.from_state(state)
         assert len(block.threads) == 1
 
@@ -286,7 +279,7 @@ class TestNarratorBoundary:
 
     def test_minimal_valid(self):
         pc = PlayerBlock.from_state({"pc": {"name": "Aldric", "stats": {}, "conditions": []}})
-        arc = ArcThreadBlock(visible_goal="Defeat the dragon", thematic_question="", pc_drive="", threads=[])
+        arc = ArcThreadBlock(visible_goal="Defeat the dragon", threads=[])
         
         boundary = NarratorBoundary(
             pc=pc, current_arc=arc, state={}, npc_roster=NPCRosterBlock(entries=[]),
@@ -361,7 +354,7 @@ class TestBoundaryModelDump:
 
     def test_narrator_boundary_model_dump(self):
         pc = PlayerBlock.from_state({"pc": {"name": "Aldric", "stats": {}, "conditions": []}})
-        arc = ArcThreadBlock(visible_goal="Defeat the dragon", thematic_question="", pc_drive="", threads=[])
+        arc = ArcThreadBlock(visible_goal="Defeat the dragon", threads=[])
 
         boundary = NarratorBoundary(
             pc=pc, current_arc=arc, state={}, npc_roster=NPCRosterBlock(entries=[]),
@@ -570,7 +563,7 @@ class TestAlignmentIntegration:
         
         # NarratorBoundary is the most complex — verify it constructs.
         NarratorBoundary(
-            pc=pc, current_arc=ArcThreadBlock(visible_goal="", thematic_question="", pc_drive="", threads=[]),
+            pc=pc, current_arc=ArcThreadBlock(visible_goal="", threads=[]),
             state={}, npc_roster=NPCRosterBlock(entries=[]), pacing_context=None, recent_turns=[],
             prior_history=[], rules_outcome=None, user_input="test", pending_beat=None, meta={"turn_no": 1},
             ages={}, pc_allegiance=None, world_factions=[],  npc_name_pool={},

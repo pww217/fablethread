@@ -219,7 +219,7 @@ def test_narrate_pc_location_inventory(jinja_env):
 
 
 def test_narrate_arc_roster_history(jinja_env):
-    """Arc visible_goal/thematic_question threads list, NPC roster ordering by presence, prior history block present/absent branches."""
+    """Arc visible_goal threads list, NPC roster ordering by presence, prior history block present/absent branches."""
     ctx = {
         "pc": {"name": "Test PC", "tagline": "", "stats": {}, "conditions": []},
         "state": {
@@ -229,8 +229,6 @@ def test_narrate_arc_roster_history(jinja_env):
         },
         "current_arc": {
             "visible_goal": "Find the missing merchant.",
-            "thematic_question": "What price is loyalty?",
-            "pc_drive": "Seek justice for the innocent.",
             "threads": [
                 {"id": "t1", "summary": "Investigate the conspiracy", "scope": "scene", "urgency": "normal"},
             ],
@@ -249,7 +247,6 @@ def test_narrate_arc_roster_history(jinja_env):
     out = _render(jinja_env, "narrate_user.j2", ctx)
 
     assert "**Goal:** Find the missing merchant." in out or ("missing merchant" in out.lower())
-    assert "Thematic question:" in out or ("thematic_question" in out.lower() or "What price is loyalty?" in out)
 
     # With prior_history populated (present branch)
     ctx2 = dict(ctx, prior_history=["- [T1] The adventure begins."])

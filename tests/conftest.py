@@ -202,7 +202,6 @@ _MINIMAL_STATE: dict[str, Any] = {
     ],
     "arc": {
         "visible_goal": "",
-        "thematic_question": "",
         "hidden_truths": [],
         "discovered_truths": [],
         "threads": [],
