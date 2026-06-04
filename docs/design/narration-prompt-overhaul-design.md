@@ -248,13 +248,19 @@ mlx_lm.server supports `frequency_penalty` as a standard OpenAI-compatible chat 
 
 - **Word ceiling ignored**: The model may still over-produce despite the 250-word instruction. Mitigation: monitor average output and tighten further (lower ceiling, add "if your draft exceeds this, cut" enforcement language).
 - **Direct dialogue mandate causes pacing issues**: If the model interprets "prefer direct dialogue" as "no summarized action," turns could become all-talk. Mitigation: the instruction says "when a character speaks" — action-first narration still takes priority.
+- **[QUESTION: blockquote scope conflict]** Proposed Style says "show text verbatim in `> blockquote`" but current Markdown section limits blockquotes to "signage or quoted broadcast text." If the Style says to show any read text (letters, terminals, books) in blockquote, the Markdown rule blocks it. The executor needs to know: widen the Markdown rule to cover all verbatim text, or remove the limitation? Recommend widening the Markdown section: "`> blockquote` for signage, broadcasts, and any text the player reads verbatim (books, terminals, letters)."
 - **frequency_penalty=0.3 is too weak or strong for this model**: Qwen3 may respond differently than other models. If modifier repetition persists, increase to 0.5. If sentence fluency degrades, reduce to 0.15.
+- **[frequency_penalty targets all tokens, not just modifiers]** Frequency penalty penalizes every repeated token proportionally to its frequency — common words like "the", "a", "was" get a larger penalty than modifiers because they appear more often. At 0.3 this effect should be mild, but if sentence fluency degrades (unusual article usage, dropped auxiliaries), it's the frequency_penalty, not the content changes. Monitor for unnatural article/auxiliary patterns after deploy.
+- **[CRITICAL: frequency_penalty server support unverified]** The design assumes `mlx_lm.server` supports OpenAI-compatible `frequency_penalty`. If it doesn't — ignored silently, errors, or behaves differently — the entire Change C is dead code. The executor must verify this against the running server before implementing. See CONSOLIDATED-EV-FINDINGS.md for prior patterns of silent LLM parameter ignores.
 - **Smell ban is too absolute**: Some scenes legitimately need olfactory detail (a sewer, a chemical spill). Mitigation: the instruction says "if a smell matters, say it in 3 words" — it bans gratuitous smell, not all smell.
 - **Seed word range increase may not translate to actual longer output**: The model currently under-produces at 308 words against a 400 floor. Raising the floor to 530 doesn't guarantee the model hits it. The rewritten close-up and exposition instructions may help, but the instruction word targets are advisory, not enforced by the engine.
 
 ## Open Questions
 
-All three resolved.
+All three from the original design resolved. New questions from review:
+
+- `[OPEN: blockquote scope]` — Proposed Style says "show text verbatim in `> blockquote`" but current Markdown section limits blockquotes to "signage or quoted broadcast text." Recommend widening the Markdown rule to cover all verbatim text.
+- `[OPEN: frequency_penalty MLX support]` — The design assumes `mlx_lm.server` supports OpenAI-compatible `frequency_penalty`. This must be verified before implementation. If unsupported, the entire Change C is dead code.
 
 ## Decisions (resolved from Open Questions)
 
@@ -281,12 +287,12 @@ All three resolved.
 ## What Is Unchanged
 
 - Narrate user prompt (`narrate_user.j2`) — no changes to how state is rendered for the narrator
-- Seed system prompt aside from the opening_narrative section — JSON schema, generation order, constraints, output discipline all untouched
+- Seed system prompt aside from the opening_narrative section — JSON schema, generation order, constraints, output discipline all untouched. (Scene bundle block template structure changes are listed under "Core Changes — B.")
 - Seed user prompt (`generate_seed_user.j2`) — no changes
 - `ccya/engine/narrate.py` — prompt building logic unchanged
 - `ccya/engine/seed.py` — seed generation logic unchanged (only the template rendering changes)
 - `ccya/engine/config.py` — EngineConfig gains `narrate_frequency_penalty: float = 0.3` field
-- `ccya/prompts/sections/` — all includes unchanged
+- `ccya/prompts/sections/` — all includes untouched
 - Extract, ruling, storyteller prompts — untouched
 - Packs' inspiration text, situation_archetypes, arc_categories, pools — untouched (only prose_word_range changes)
 - Seeds' 3-movement structure itself — preserved, only tightened
