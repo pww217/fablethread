@@ -183,6 +183,7 @@ def _apply_thread_updates(
             continue
 
         updates: dict[str, Any] = {}
+        thread = arc.threads[found_idx]
         if update.active is not None:
             updates["active"] = update.active
         if update.urgency is not None:
@@ -190,14 +191,16 @@ def _apply_thread_updates(
         if update.summary is not None:
             updates["summary"] = update.summary
         if update.progress is not None:
-            updates["progress"] = update.progress
+            current_progress = list(thread.progress)
+            current_progress.append(update.progress)
+            updates["progress"] = current_progress
 
-        thread = arc.threads[found_idx]
         updated_thread = thread.model_copy(update=updates)
         remaining_threads = [t for i2, t in enumerate(remaining_threads) if i2 != found_idx]
         remaining_threads.insert(found_idx, updated_thread)
 
         if updates:
+            updates["last_updated_turn"] = turn_no
             mutated = True
             _log.info(
                 "thread_updates.applied trace_id=%d thread %s changes=%s", turn_no, update.id, updates, extra={"turn": turn_no},
@@ -241,36 +244,48 @@ def _apply_arc_resolve(
 
     resolution = storyteller_result.arc_resolve
 
-    # Store resolved arc in state's resolved_arcs list with TTL tracking
-    resolved_arc_entry = {
-        "visible_goal": old_arc.visible_goal,
-        "resolution": resolution.resolution,
-        "goal_context": resolution.goal_context,
-        "resolved_turn": None,  # set below after threads are processed
-    }
+    # Partition threads into arc-scoped and scene-scoped
+    arc_scoped = [t for t in old_arc.threads if t.scope == "arc"]
+    scene_scoped = [t for t in old_arc.threads if t.scope != "arc"]
 
-    # Set resolved_turn on the arc's threads that don't have it yet
-    for t in old_arc.threads:
-        if t.resolved_turn is None:
-            pass  # keep existing value or None
+    # Auto-close arc-scoped threads: move to completed_threads with superseded state
+    closed_arc_threads = []
+    for t in arc_scoped:
+        closed_arc_threads.append(t.model_copy(update={
+            "resolution_state": "superseded",
+            "resolved_turn": turn_no,
+        }))
 
-    state.setdefault("resolved_arcs", []).append(resolved_arc_entry)
+    # Scene-scoped threads carry forward; apply drop_threads filter
+    surviving_scene_ids = set(resolution.drop_threads)
+    surviving_scene_threads = [t for t in scene_scoped if t.id not in surviving_scene_ids]
 
-    _log.info(
-        "arc_resolve.applied trace_id=%d goal='%s' threads_in_old=%d drop_count=%d new_threads=%d",
-        turn_no, resolution.visible_goal, len(old_arc.threads), len(resolution.drop_threads), len(resolution.new_threads),
-        extra={"turn": turn_no},
-    )
-
-    # Process thread directives: opt-out carry-over (everything carries forward unless explicitly dropped)
-    surviving_threads = [t for t in old_arc.threads if t.id not in resolution.drop_threads]
+    # Warn about arc-scoped IDs in drop_threads (no-op — already auto-closed)
     for tid in resolution.drop_threads:
         _log.info(
             "arc_resolve.drop trace_id=%d thread %s", turn_no, tid, extra={"turn": turn_no},
         )
 
-    # Create new successor arc with surviving threads + new threads
-    all_thread = surviving_threads + list(resolution.new_threads)
+    # Store resolved arc entry in state's resolved_arcs list with TTL tracking
+    resolved_arc_entry = {
+        "visible_goal": old_arc.visible_goal,
+        "resolution": resolution.resolution,
+        "goal_context": resolution.goal_context,
+        "resolved_turn": turn_no,
+    }
+
+    # Append closed arc threads to completed_threads of the resolved entry context
+    state.setdefault("completed_threads", []).extend(closed_arc_threads)
+    state.setdefault("resolved_arcs", []).append(resolved_arc_entry)
+
+    _log.info(
+        "arc_resolve.applied trace_id=%d goal='%s' arc_scoped_closed=%d scene_surviving=%d drop_count=%d new_threads=%d",
+        turn_no, resolution.visible_goal, len(arc_scoped), len(surviving_scene_threads), len(resolution.drop_threads), len(resolution.new_threads),
+        extra={"turn": turn_no},
+    )
+
+    # Create new successor arc with surviving scene threads + new threads
+    all_thread = surviving_scene_threads + list(resolution.new_threads)
     new_arc = CampaignArc(
         visible_goal=resolution.visible_goal,
         goal_context=resolution.goal_context,
@@ -1148,6 +1163,25 @@ async def run_turn(
                         delta = delta.model_copy(
                             update={"arc_update": thread_delta}
                         )
+
+                # Apply goal_update (mid-arc visible_goal change, separate from arc_resolve)
+                if storyteller_result.goal_update:
+                    state.setdefault("arc", {})["visible_goal"] = storyteller_result.goal_update
+                    _log.info(
+                        "goal_update trace_id=%d visible_goal='%s'",
+                        trace_id, storyteller_result.goal_update,
+                        extra={"trace_id": trace_id},
+                    )
+
+                # Detect same-turn thread_update + thread_resolve conflict
+                update_ids = {u.id for u in (storyteller_result.thread_update or [])}
+                resolve_ids = {r.id for r in (storyteller_result.thread_resolve or [])}
+                conflict_ids = update_ids & resolve_ids
+                if conflict_ids:
+                    _log.warning(
+                        "thread_same_turn_conflict trace_id=%d ids=%s — thread_update and thread_resolve for same id",
+                        trace_id, sorted(conflict_ids), extra={"trace_id": trace_id},
+                    )
 
                 # Process arc resolution (resolves arc + creates successor)
                 resolved_arc = _apply_arc_resolve(state, storyteller_result, config)

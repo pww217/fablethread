@@ -270,6 +270,7 @@ def _storytell_messages(
             "pending_beat": (state.get("meta") or {}).get("pending_gm_beat"),
             "turn_no": turn_no,
             "band": band,
+            "gate": pacing_context.gate if pacing_context else None,
         },
     )
     msgs = [
