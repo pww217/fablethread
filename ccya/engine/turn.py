@@ -246,7 +246,6 @@ def _apply_arc_resolve(
         "visible_goal": old_arc.visible_goal,
         "resolution": resolution.resolution,
         "goal_context": resolution.goal_context,
-        "thematic_question": old_arc.thematic_question,
         "resolved_turn": None,  # set below after threads are processed
     }
 
@@ -275,7 +274,6 @@ def _apply_arc_resolve(
     new_arc = CampaignArc(
         visible_goal=resolution.visible_goal,
         goal_context=resolution.goal_context,
-        thematic_question=resolution.thematic_question if resolution.thematic_question is not None else old_arc.thematic_question,
         threads=all_thread,
         completed_threads=[],
         last_thread_created_turn=turn_no,
