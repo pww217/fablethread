@@ -105,6 +105,8 @@ The `PacingContext.gate` is `"block_escalate"` when `deescalate >= 0.5` (high de
 - The `_thread_list.j2` section renders the full progress log for the storyteller.
 - **Rationale:** The storyteller needs to see past progress to avoid repeating itself. The 8 near-identical updates to `black_market_contact` are direct evidence that single-string progress is insufficient.
 
+**Same-turn resolve+update conflict detection:** Finding 2.7 (CONSOLIDATED-EV-FINDINGS.md) confirmed that at v2 T18 the storyteller emitted both `thread_resolve` (abandon) and `thread_update` (set `active=true`, new summary) for the same thread id in a single output, leaving the thread in contradictory state. The arc director's processing order (updates at line 1121, resolutions at line 1143) means resolution takes precedence over a same-turn update for the same thread id — the update fires, then the resolution fires, which is the correct precedence (resolution wins). The executor must verify this ordering is preserved and should add a debug log warning when both a `thread_update` and `thread_resolve` are present for the same `id` in a single turn's output — this is always an LLM error and should be surfaced for monitoring.
+
 #### 5. Add urgency decay guidance
 
 - Add prompt language: "Thread urgency should decay over time. If a thread has been updated once without the player addressing it, consider lowering urgency. If it's been inactive for 3+ turns, lower urgency to background or mark it inactive."
@@ -128,11 +130,12 @@ The `PacingContext.gate` is `"block_escalate"` when `deescalate >= 0.5` (high de
   - "Use `scope: scene` for threads that will resolve within the current location or within 1-3 turns. These are automatically cleaned up on location change."
   - "Use `scope: arc` only for threads that span multiple locations and are central to the arc's visible_goal. Arc-scoped threads must be explicitly resolved — they will not be cleaned up."
   - "When in doubt, prefer `scope: scene`. Over-classifying as arc creates permanent dead threads."
+  - "Before adding a new thread, check whether an existing thread already covers this domain. If an existing thread is related, update it with new progress rather than creating a new thread. New threads should represent genuinely new narrative concerns, not sub-events of an existing one. This directly addresses Finding 2.9 (CONSOLIDATED-EV-FINDINGS.md), where three separate threads were created for different facets of the same entity threat event."
 - Add soft cap guidance (rendered in prompt, not code-enforced):
   - Aim for **2-3 arc-scoped** and **1-2 scene-scoped** threads active at any time — **~5 total max**.
   - Keep each thread's domain broad; use the appendable progress log to record specific, grounded developments within that domain.
   - If you need to add a thread near the cap, downgrade or resolve an existing one first.
-- **Rationale:** The 100% misclassification rate (8/8 across two games) is structural — the LLM lacks distinguishing signal, not better instructions. The soft cap renders the constraint visibly so the storyteller self-regulates. Combined with the progress log, the storyteller has room to evolve existing threads without creating new ones.
+- **Rationale:** The soft cap serves two purposes. First, the 100% misclassification rate (8/8 across two games) is structural — the LLM lacks distinguishing signal, not better instructions. The soft cap renders the constraint visibly so the storyteller self-regulates. Combined with the progress log, the storyteller has room to evolve existing threads without creating new ones. Second, it is a token budget decision: Finding 2.8 (CONSOLIDATED-EV-FINDINGS.md) quantified thread section growth from 781 chars at T1 to 2408 chars at T26 (~1000 tokens of overhead), growing O(n) in turns played. Dead arc threads that are never resolved or pruned are the primary driver of this unbounded growth. The soft cap and arc-scoped thread guidance together are the only mechanism in this design that limits unbounded prompt growth.
 
 ### Alternatives Considered and Rejected
 
