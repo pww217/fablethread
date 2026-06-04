@@ -871,7 +871,7 @@ def format_state(state: dict[str, Any], fmt: str = "full") -> None:
     if any(scene.get(k) for k in ("tags", "tagline", "recently_left")):
         _render_scene_section(state)
     arc = state.get("arc") or {}
-    if any(arc.get(k) for k in ("visible_goal", "thematic_question", "threads", "completed_threads", "hidden_truths", "discovered_truths")):
+    if any(arc.get(k) for k in ("visible_goal", "threads", "completed_threads", "hidden_truths", "discovered_truths")):
         _render_arc_section(state)
     compendium_npcs = (state.get("compendium") or {}).get("npcs")
     if compendium_npcs:
@@ -966,9 +966,6 @@ def _render_arc_section(state: dict[str, Any]) -> None:
     goal = arc.get("visible_goal") or ""
     if goal:
         print(f"  Goal: {goal}")
-    question = arc.get("thematic_question") or ""
-    if question:
-        print(f"  Question: {question}")
     threads = arc.get("threads", []) or []
     active_threads = [t for t in threads if isinstance(t, dict) and t.get("active")]
     completed = arc.get("completed_threads", []) or []

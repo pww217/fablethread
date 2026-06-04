@@ -73,7 +73,6 @@ def _default_state() -> dict[str, Any]:
         "inventory": [],
         "arc": {
             "visible_goal": "",
-            "thematic_question": "",
             "goal_context": "",
             "threads": [],
             "completed_threads": [],

@@ -32,7 +32,7 @@ class ArcThread(BaseModel):
     scope: Literal["scene", "arc"]
     active: bool = True
     urgency: Literal["background", "normal", "urgent"] = "normal"
-    progress: str = ""
+    progress: list[str] = []
     resolution_state: str | None = None
     outcome: str | None = None
     resolved_turn: int | None = None

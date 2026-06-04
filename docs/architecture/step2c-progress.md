@@ -28,7 +28,7 @@ flowchart LR
 
     subgraph OUT["Outputs — StorytellerResult"]
         O1["thread_update: list[ThreadUpdate]<br>  id + urgency/active/summary/progress changes"]:::outNode
-        O1b["arc_resolve: ArcResolution | None<br>  resolution, visible_goal,<br>goal_context, thread_directives"]:::outNode
+        O1b["arc_resolve: ArcResolution | None<br>  resolution, visible_goal,<br>goal_context, drop_threads, new_threads"]:::outNode
         O2["thread_resolve: list[ThreadResolution]<br>  id + resolution_state<br>(resolved/failed/abandoned)"]:::outNode
         O3["thread_add: ArcThread | None<br>  new thread, gated by PacingContext.gate"]:::outNode
         O4["world_state_add: list[WorldStateFact]<br>  id, text, tier"]:::outNode
@@ -138,7 +138,6 @@ The campaign arc system tracks story threads across turns. Thread state is **sto
 CampaignArc
   visible_goal: str          — What the PC is trying to achieve
   goal_context: str          — 2–3 sentences explaining why visible_goal matters to this character specifically
-  thematic_question: str     — The moral/thematic tension of the arc
   threads: list[ArcThread]   — Unified collection with active flag; storyteller controls state via thread_update
   completed_threads: list[ArcThread] — Resolved/failed/abandoned threads
   resolution: str | None     — Set when arc is resolved via arc_resolve
@@ -174,8 +173,8 @@ flowchart TD
 
     subgraph RESOLVE["_apply_arc_resolve()"]
         R1["Store current arc in resolved_arcs<br>with resolved_turn for TTL tracking"]
-        R2["Process thread_directives:<br>drop → remove thread<br>move_latent → active=False"]
-        R3["Create successor arc with<br>new visible_goal, goal_context,<br>inherited thematic_question"]
+        R2["Auto-close arc-scoped threads with 'superseded' state<br>Carry forward scene-scoped threads (minus drop_threads)<br>Add new_threads from resolution"]
+        R3["Create successor arc with<br>new visible_goal, goal_context,<br>surviving scene-scoped + new threads"]
     end
 
     subgraph RESOLUTIONS["_apply_thread_resolutions()"]
@@ -191,7 +190,7 @@ flowchart TD
 
 **Key rules:**
 - **Storyteller-controlled:** No caps, cooldowns, or silent timers. The storyteller decides which threads to update via `thread_update` and when to resolve the arc via `arc_resolve`.
-- **Arc resolution:** When `arc_resolve` is emitted, the current arc is stored in `state["resolved_arcs"]` with `resolved_turn` for TTL tracking. A successor arc is created with the new `visible_goal`, `goal_context`, and inherited `thematic_question`. Threads not mentioned in `thread_directives` carry over.
+- **Arc resolution:** When `arc_resolve` is emitted, the current arc is stored in `state["resolved_arcs"]` with `resolved_turn` for TTL tracking. A successor arc is created with the new `visible_goal`, `goal_context`. Arc-scoped threads are auto-closed with 'superseded' state; scene-scoped threads carry forward (minus any IDs in drop_threads).
 - **TTL-based cleanup:** Completed threads and resolved arcs are pruned from prompt context after `completed_thread_ttl` / `resolved_arc_ttl` turns (default 3).
 
 ### Arc Context in Narration
@@ -267,17 +266,16 @@ For each ThreadUpdate:
 
 #### Step-by-Step: `_apply_arc_resolve()`
 
-Processes `storyteller_result.arc_resolve` (optional `ArcResolution` with `resolution`, `visible_goal`, `goal_context`, optional `thematic_question`, `thread_directives`).
+Processes `storyteller_result.arc_resolve` (optional `ArcResolution` with `resolution`, `visible_goal`, `goal_context`, `drop_threads: list[str]`, `new_threads: list[ArcThread]`).
 
 1. If `arc_resolve` is None → return None
 2. Validate arc from state; if missing/invalid → log WARNING, return None
 3. Store current arc in `state["resolved_arcs"]` with `resolved_turn` for TTL tracking
-4. Process `thread_directives`:
-   - `drop` → remove thread from arc
-   - `move_latent` → set `active = False`
-   - Threads not mentioned carry over as-is
-5. Create successor arc with new `visible_goal`, `goal_context`, inherited `thematic_question`, surviving threads
-6. Replace `state["arc"]` with successor
+4. Auto-close all arc-scoped threads: move to completed_threads with resolution_state="superseded"
+5. Carry forward scene-scoped threads minus any IDs listed in drop_threads
+6. Add new_threads from the ArcResolution model
+7. Create successor arc with new `visible_goal`, `goal_context`, and combined surviving + new threads
+8. Replace `state["arc"]` with successor
 
 #### Thread Creation (inline in `run_turn()`)
 
