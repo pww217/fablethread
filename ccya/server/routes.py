@@ -177,6 +177,24 @@ async def get_turn(input: str = ""):
                     result = payload
                     for err in result.errors:
                         _log.error("turn error", extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "error_message": str(err)})
+
+                    # Check if all 3 extraction streams failed (LLM crash) — don't show success state
+                    extract_metrics = result.metrics.get("extract", {}) or {}
+                    streams = extract_metrics.get("streams", {}) or {}
+                    scene_skipped = (streams.get("scene") or {}).get("skipped", False)
+                    state_skipped = (streams.get("state") or {}).get("skipped", False)
+                    storytell_skipped = (streams.get("storytell") or {}).get("skipped", False)
+
+                    if scene_skipped and state_skipped and storytell_skipped:
+                        yield {
+                            "event": "turn_error",
+                            "data": json.dumps({
+                                "error": f"All extraction streams failed. Trace `{result.trace_id}` — try rephrasing.",
+                                "trace_id": result.trace_id,
+                            }),
+                        }
+                        continue
+
                     ch = result.changes if isinstance(result.changes, dict) else {}
                     # Format ts field for display (engine stores UTC ISO, UI gets human-readable)
                     _ts_display = _format_ts(result.ts)
@@ -344,8 +362,9 @@ async def new_game(request: Request):
         seed = envelope.seed_state.model_dump(mode="json")
         seed["meta"]["setting_pack"] = _app_mod._pack_id
         _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, outcome_summary=envelope.outcome_summary, pack_type="dynamic", pack_source=_app_mod._pack_id, pool_selection=pool_selection)
-    except Exception:
+    except Exception as exc:
         _app_mod.logger.exception("generate_seed failed")
+        return HTMLResponse(f"<p class='text-red-400'>Seed generation failed: {exc}</p>")
 
     _log.info("new_game pack=%s", _app_mod._pack_id)
     ctx = _debug_context()
