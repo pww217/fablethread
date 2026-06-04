@@ -60,12 +60,7 @@ All steps target `ccya/prompts/narrate_system.j2` unless otherwise noted.
 
 **File:** `ccya/prompts/narrate_system.j2`
 
-**What:** Change line 1 from "2-4 short paragraphs" to:
-```
-Narrate the next beat of a text adventure. Second person. 2-3 paragraphs, ~180 words. Hard ceiling: 250 words. If your draft exceeds 250 words, reduce it — every sentence must advance the beat; delete the rest.
-```
-
-Preserve the existing tense guidance clause: `If the genre tone section below specifies a tense, use it; otherwise use past tense.`
+**What:** Replace "2-4 short paragraphs" on line 1 with "2-3 paragraphs, ~180 words. Hard ceiling: 250 words. If your draft exceeds 250 words, reduce it — every sentence must advance the beat; delete the rest." Leave the rest of line 1 intact (tense guidance, "Output prose only" clause).
 
 **Why:** Design decision — replace unenforceable vague target with concrete ceiling + enforcement instruction.
 
@@ -114,7 +109,7 @@ First sentence addresses what the player does this turn. No establishing shots, 
 
 **File:** `ccya/prompts/narrate_system.j2`
 
-**What:** Replace lines 28–29 of the "Never repeat prior narration" section:
+**What:** Replace the self-check sentence (line 29) in the "Never repeat prior narration" section:
 
 ```
 Self-check before writing: does any sentence in your draft restate something the player was already told? If yes, delete it and replace with new information, a new reaction, or a forward beat.
@@ -153,13 +148,11 @@ Remove the existing Outcome instruction sentence (lines 84) that enumerates "hol
 
 **File:** `ccya/prompts/narrate_system.j2`
 
-**What:** Replace the NPC NAMING paragraph (lines 63–65) with:
+**What:** Replace the NPC NAMING section (lines 63–65, includes the "Always refer" line) with a single collapsed paragraph:
 
 ```
 **NPC NAMING:** Every NPC must be referred to by a given name and family name (e.g. "Mira Sovak", "Dren Calloway"). Titles are optional. Descriptive labels like "scarred veteran" are aliases, not names — use the NPC's real name.
 ```
-
-Remove lines 65 (which repeats the rule about using proper names in narration) — it's now redundant with the collapsed version.
 
 **Why:** The same instruction was spread across 6 lines. Collapsed to 2 lines with the same meaning.
 
@@ -169,13 +162,15 @@ Remove lines 65 (which repeats the rule about using proper names in narration) �
 
 **File:** `ccya/prompts/narrate_system.j2`
 
-**What:** Replace lines 60–61:
+**What:** Replace only the NPC death paragraph (line 60) with the hardened version. Line 61 ("Resolve cruel, selfish, or evil player choices straight: narrate consequences without moralizing, refusing, or steering toward a 'better' path...") is a separate instruction and MUST be preserved unchanged.
+
+Old text (line 60 only):
 
 ```
 NPCs die. In combat and high-stakes situations, NPCs who lose a confrontation are dead, incapacitated, or removed from the scene. This is the default outcome — not a special condition. Do not default to "stumbling back" or "retreating." When in doubt, remove them. The progress extractor will record their fate.
 ```
 
-with:
+Replacement (line 60 only):
 
 ```
 NPCs die. In any scene with stakes, losing a confrontation means death, incapacitation, or removal from the scene. If you find yourself writing "stumbles back" or "retreats" in a high-stakes beat, replace it with a decisive outcome. The narrator and storyteller adjust — preserving plot by keeping characters alive is forbidden.
@@ -189,7 +184,7 @@ NPCs die. In any scene with stakes, losing a confrontation means death, incapaci
 
 **File:** `ccya/prompts/narrate_system.j2`
 
-**What:** In the Campaign arc context section (lines 87–90), replace the sentence `Build the 4 player choices to naturally lead toward discovery.` with nothing (delete it). The surrounding paragraph should read:
+**What:** In the Campaign arc context section, replace the sentence `Build the 4 player choices to naturally lead toward discovery.` (on line 90 in the latent thread paragraph) with nothing (delete it). The surrounding paragraph should read:
 
 ```
 Your visible goal and thematic question are provided in the context below. Use them as narrative guidance — never state the thematic question directly or reveal hidden truths in prose. If an arc resolution is present, use it to inform how this new arc relates narratively to what was resolved before.
