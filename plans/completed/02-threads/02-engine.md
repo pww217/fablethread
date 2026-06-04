@@ -41,7 +41,7 @@ Update `ccya/engine/turn.py` to wire in the new model shapes: always-append prog
 
 ## Status
 
-`open` — depends on Phase 1
+`completed`
 
 ## Phases
 

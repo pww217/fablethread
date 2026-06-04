@@ -58,10 +58,11 @@ def _narrate_messages(
                 {
                     "summary": t.get("summary", "") if isinstance(t, dict) else getattr(t, "summary", ""),
                     "urgency": t.get("urgency", "normal") if isinstance(t, dict) else getattr(t, "urgency", "normal"),
-                    "tags": t.get("tags", []) if isinstance(t, dict) else getattr(t, "tags", []),
                     "scope": t.get("scope", "arc") if isinstance(t, dict) else getattr(t, "scope", "arc"),
                     "id": t.get("id", "") if isinstance(t, dict) else getattr(t, "id", ""),
                     "active": t.get("active", True) if isinstance(t, dict) else getattr(t, "active", True),
+                    "progress": t.get("progress", []) if isinstance(t, dict) else (t.progress if hasattr(t, "progress") else []),
+                    "last_updated_turn": t.get("last_updated_turn") if isinstance(t, dict) else getattr(t, "last_updated_turn", None),
                 }
                 for t in all_threads if not (isinstance(t, dict) and t.get("active") is False) or not hasattr(t, "active") or getattr(t, "active", True)
             ],
@@ -81,6 +82,8 @@ def _narrate_messages(
         "momentum": momentum,
         "pending_beat": pending_beat,
         "pacing_context": pacing_context,
+        "turn_no": turn_no,
+        "gate": pacing_context.gate if pacing_context else None,
         "meta": {"turn": turn_no},
         "scene": state.get("scene", {}),
         "ages": ages or {},
