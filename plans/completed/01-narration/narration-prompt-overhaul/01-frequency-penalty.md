@@ -39,7 +39,7 @@ Add `narrate_frequency_penalty` config field (default 0.3), thread it through `E
 - Qwen3 27B may respond differently to frequency_penalty than other models. If modifier repetition persists, increase to 0.5. If fluency degrades, reduce to 0.15.
 
 ## Status
-`open`
+`abandoned` — Pre-condition failed: `mlx_lm.server` (via llama-swap) silently ignores `frequency_penalty`. 0.0 and 1.0 tests with Qwen3-Coder-30B-A3B-Instruct-4bit produced nearly identical output. Unknown parameters also silently accepted.
 
 ## Blocking pre-condition — verify frequency_penalty server support
 

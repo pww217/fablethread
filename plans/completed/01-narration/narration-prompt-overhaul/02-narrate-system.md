@@ -44,7 +44,7 @@ Replace the length target, promote "open with player action" to a hard rule, rep
 - **Smell ban too absolute:** Mitigation: instruction says "if a smell matters, say it in 3 words" — it bans gratuitous smell, not all smell.
 
 ## Status
-`open`
+`completed` — all 9 steps implemented and committed
 
 ## Implementation — Phase 2
 

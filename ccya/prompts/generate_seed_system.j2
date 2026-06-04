@@ -138,21 +138,24 @@ Rules:
 - Inventory items start with capital letters.
 
 ## opening_narrative
-{{ c.prose_word_range[0] }}–{{ c.prose_word_range[1] }} words. Second person, present tense.
+~700 words. Second person, present tense.
 
-Structure the opening in three movements:
+Structure the opening in three movements — these are loose beats, not word-count quotas:
 
-1. **Close-up** (~80 words): Start with a specific sensory detail — an object, texture, sound, smell, or weather. The PC's immediate physical reality before any crisis is declared. Orient the player through the character's senses. No summary, no biography, no "you are a..."
+1. **Close-up** (1–3 sentences): Start with one live sensory detail that matters. Orients the player in the character's immediate physical reality. No summary, no biography.
 
-2. **Exposition** (~100 words): What is around the PC to see, examine, touch, or potentially interact with? Describe 2-4 specific environmental details: a locked footlocker, a cracked mirror, a discarded letter, a tool left behind, a stain on the wall, an open window. These are things the player could choose to engage with. Do NOT describe these as "things you could examine" — weave them into the scene as natural details.
-{% if pool_selection and pool_selection.scene_bundle %}
-   Optional ingredients from the scene bundle — use what fits, ignore what doesn't:
+2. **Exposition** (the middle): What is around the PC to see, examine, or potentially interact with — weave 1–2 environmental details into the scene. These aren't a checklist; every detail should imply recent action, conflict, or presence.
+
+   Optional ingredients — use what fits, ignore what doesn't:
+   {% if pool_selection and pool_selection.scene_bundle -%}
    {% if pool_selection["scene_bundle"]["items"] %}Objects: {{ pool_selection["scene_bundle"]["items"] | join(", ") }}.{% endif %}
    {% if pool_selection["scene_bundle"]["conditions"] %}Conditions: {{ pool_selection["scene_bundle"]["conditions"] | join(", ") }}.{% endif %}
    {% if pool_selection["scene_bundle"]["sensory"] %}Sensory details: {{ pool_selection["scene_bundle"]["sensory"] | join(", ") }}.{% endif %}
-{% endif %}
+   {% endif -%}
 
-3. **Crisis / gameplay moment** (remaining words): The tension arrives or is revealed. Present NPCs act. The moment the player must respond to. This is where the "mid-scene" feel belongs — earned after the orientation.
+3. **Crisis/gameplay moment** (the bulk): The tension arrives or is revealed. Present NPCs act. The moment the player must respond to. This is where the "mid-scene" feel belongs — earned after the orientation.
+
+   Spend most of your words on the crisis/gameplay moment — the close-up and exposition are setup, not the main event.
 
 Movement guidance:
 - The close-up and exposition together should feel like chapter one, building atmosphere and place before revealing danger.

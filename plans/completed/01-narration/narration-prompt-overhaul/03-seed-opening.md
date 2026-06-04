@@ -42,7 +42,7 @@ Change `prose_word_range: [400, 700]` → `[530, 930]` in all 6 default packs. R
 - **Close-up over-weighting may persist:** Without sub-targets, the model may revert to writing 80+ words of close-up. The proportional guard and 1–3 sentence constraint mitigate this but don't guarantee it.
 
 ## Status
-`open`
+`completed` — both steps implemented and committed
 
 ## Implementation — Phase 3
 
