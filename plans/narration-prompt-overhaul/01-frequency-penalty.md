@@ -102,7 +102,7 @@ curl -s http://127.0.0.1:8080/v1/chat/completions \
 
 **File:** `ccya/engine/config.py`
 
-**What:** Add `narrate_freq = float(llm.get("narrate_frequency_penalty", 0.3))` after the temperature parsing block (after line 173), and pass it as `narrate_frequency_penalty=narrate_freq` to the `EngineConfig(...)` constructor.
+**What:** Add `narrate_freq = float(llm.get("narrate_frequency_penalty", 0.3))` after the `seed_t = float(llm.get("generate_seed_temperature", 0.9))` line in the temperature parsing block, and pass it as `narrate_frequency_penalty=narrate_freq` to the `EngineConfig(...)` constructor.
 
 **Why:** Bridge between config.yaml dict and the typed dataclass.
 
