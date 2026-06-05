@@ -162,7 +162,7 @@ def _check_asserts(
 
     Returns a list of dicts: [{assertion, passed, detail}].
     """
-    _VALID_STREAMS = frozenset(("ruling", "extract.state", "extract.scene", "storytell.extract", "extract", "state_yaml"))
+    _VALID_STREAMS = frozenset(("ruling", "extract.state", "storytell.extract", "extract", "state_yaml"))
     results: list[dict[str, Any]] = []
     for a in asserts:
         passed = False
@@ -241,13 +241,6 @@ def _check_asserts(
                 ids = [c.get("id") for c in conds if isinstance(c, dict)]
                 passed = a.expected in ids
                 detail = f"pc_condition_remove[{a.expected}] {'found' if passed else 'not found'}"
-
-        elif a.stream == "extract.scene":
-            applied = event.get("applied") or {}
-            if a.field == "scene_tags":
-                tags = applied.get("scene_tags") or []
-                passed = a.expected in tags
-                detail = f"scene_tags[{a.expected}] {'found' if passed else 'not found'}"
 
         elif a.stream == "storytell.extract":
             applied = event.get("applied") or {}
@@ -502,9 +495,12 @@ async def run_scenario(
                 record.rules_parse_failures = rules_f
                 record.extract_parse_failures = extract_f
 
-        # Merge state snapshots into turn_events for state_yaml assertions
+        # Merge state snapshots into turn_events for state_yaml assertions.
+        # Only set if not already present — events.jsonl has per-turn embedded
+        # state_snapshot which is correct; YAML-loaded snapshot is the final
+        # state only and would cause false positives on thread/arc checks.
         for i, snap in enumerate(state_snapshots):
-            if i < len(turn_events):
+            if i < len(turn_events) and "state_snapshot" not in turn_events[i]:
                 turn_events[i]["state_snapshot"] = snap
 
         # Run structured asserts

@@ -44,7 +44,6 @@ PC_CONDITION_CAP: int = PC_CONDITIONS_MAX
 # Extraction stream names — used in TurnAssert.stream validation
 EXTRACT_STREAMS: tuple[str, ...] = (
     "ruling",
-    "extract.scene",
     "extract.state",
     "storytell.extract",
     "extract",
@@ -57,7 +56,6 @@ EXTRACT_STREAMS: tuple[str, ...] = (
 KNOWN_ASSERT_FIELDS: dict[str, set[str]] = {
     "ruling": {"rolled", "skill", "difficulty", "band", "intent_verb"},
     "storytell.extract": {"thread_update", "arc_resolve", "thread_resolve", "thread_add", "goal_update"},
-    "extract.scene": {"scene_tags"},
     "extract.state": {"inventory_remove", "inventory_add", "pc_condition_add", "pc_condition_remove"},
     "extract": {"attempts:scene", "attempts:state", "skipped:scene", "skipped:state"},
     "state_yaml": {"pending_gm_beat.present", "pending_gm_beat.absent"},
