@@ -1,0 +1,402 @@
+# Step 2c — Storytell
+
+Extracts thread updates, arc actions, world state changes, and durable NPC compendium changes.
+
+## Flowchart
+
+```mermaid
+flowchart LR
+    classDef llmNode fill:#0f172a,color:#94a3b8,stroke:#334155
+    classDef xstream fill:#4c1d95,color:#ddd6fe,stroke:#7c3aed
+    classDef outNode fill:#500724,color:#fbcfe8,stroke:#ec4899
+
+    subgraph IN["Inputs"]
+        S1["narrative (from Step 1)"]:::xstream
+        S2["_ExtractionContext<br>(comp_this_turn, location,<br>inventory, conditions)<br>built by _build_extraction_context()"]:::xstream
+        S3["npc_roster<br>(from build_npc_roster())"]:::xstream
+        S4["pacing_context<br>(directive · gate · beat_locked)"]:::xstream
+        S5["arc.threads[]<br>(unified scope=scene + scope=arc)"]:::xstream
+        S6["rules_outcome"]:::xstream
+        S7["intent (from Step 0)"]:::xstream
+        S8["recent_turns[-10:]<br>(prior narration, last 10 turns)"]:::xstream
+        S9["prior_history[:-1]<br>(all history bullets except last,<br>already shown as full text)"]:::xstream
+        S10["recent_beats<br>(beat history for diversity)"]:::xstream
+    end
+
+    subgraph LLM2C["LLM — storytell_system.j2 + storytell_user.j2"]
+        SL["temp: 0.4 · max_retries: 1<br>output: StorytellerResult JSON"]:::llmNode
+    end
+
+    subgraph OUT["Outputs — StorytellerResult"]
+        O1["thread_update: list[ThreadUpdate]<br>  id + urgency/active/summary/progress changes"]:::outNode
+        O1b["goal_update: str | None<br>  new visible_goal, mid-arc pivot<br>  applied directly to arc dict"]:::outNode
+        O1c["arc_resolve: ArcResolution | None<br>  resolution, visible_goal,<br>goal_context, drop_threads, new_threads"]:::outNode
+        O2["thread_resolve: list[ThreadResolution]<br>  id + resolution_state<br>(resolved/failed/abandoned)"]:::outNode
+        O3["thread_add: ArcThread | None<br>  new thread, gated by PacingContext.gate"]:::outNode
+        O4["world_state_add: list[WorldStateFact]<br>  id, text, tier"]:::outNode
+        O5["world_state_remove: list[str]<br>  ids to remove from persistent tier"]:::outNode
+        O6["actions: list[str]<br>  exactly 4 suggested player choices"]:::outNode
+        O7["outcome_summary: str<br>  1–2 sentence narrative recap"]:::outNode
+        O8["gm_beat: GMBeat | None<br>  forward-facing storytelling beat"]:::outNode
+    end
+
+    IN --> LLM2C
+    LLM2C --> OUT
+```
+
+## Always runs
+
+Storytell is the post-narration storytelling brain. It always executes every turn (never skipped) and feeds next turn's rules call via `world_state_add/remove` (persistent world facts), `thread_update/goal_update/arc_resolve/thread_resolve/thread_add` (storyteller-managed thread lifecycle), and `gm_beat` (forward-facing beats stored in `state.meta.pending_gm_beat`).
+
+## GM Beat
+
+Forward-facing storytelling beats that shape scene progression across turns. Beats are emitted by Storytell (Step 2c), consumed by Narrator (Step 1) the following turn, and managed via a write/expiry lifecycle in `state.meta.pending_gm_beat`.
+
+### GMBeat Schema
+
+```
+GMBeat
+  type: complication | revelation | opportunity | breathing_room | pressure | twist | setback | escalation | callback
+  surface_as: ambient | event | npc_behavior | environmental | player_discovery | item (default: ambient)
+  beat_expires_turn: int | None — turn number at which the beat expires; set to turn_no + 2 when stored
+```
+
+**Validation:** Only `type` is validated by `StorytellerResult._nullify_invalid_gm_beat` — nullified if type is falsy or not in the valid set. No validation on `surface_as`. Python accepts whatever gm_beat the LLM emits with no correction or override.
+
+### PacingContext Beat Fields
+
+The beat system intersects with pacing via two fields in `PacingContext` (see [step0-ruling](./step0-ruling.md#pacing-context)):
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `directive` | str | May include secondary modifier `"; Resolve a Threat"` when `beat_locked=True`. Drives storytell guidance for beat type selection. |
+| `beat_locked` | bool | True when either `consecutive_pressure_turns >= threshold` OR `momentum <= momentum_floor`. When locked, `"Resolve a Threat"` is appended to the directive. Enables floor relief to inject a breathing_room beat if the storyteller is stuck in a pressure-type loop. |
+
+### Beat Lifecycle — Turn Sequence
+
+```mermaid
+flowchart TD
+    classDef pyNode fill:#1f2937,color:#9ca3af,stroke:#4b5563
+    classDef decision fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
+    classDef output fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
+
+    START["Turn begins"]:::pyNode --> EXPIRY{"beat_expires_turn set<br>AND turn_no > expires?"}:::decision
+    EXPIRY -- yes --> NULLIFIED["Beat nullified (expired)<br>state.meta.pending_gm_beat = None"]:::output
+    EXPIRY -- no --> KEEPBEAT["Beat kept<br>stays in state"]:::pyNode
+
+    NULLIFIED --> NARRATE["Narrate receives pending_gm_beat<br>(None if expired, beat dict if kept)"]
+    KEEPBEAT --> NARRATE
+
+    NARRATE --> EXTRACTION["Extraction pipeline (scene → state → storytell)<br>pending_gm_beat persists unchanged<br>through this phase"]:::pyNode
+
+    EXTRACTION --> STORYLLM{"Storytell emits gm_beat<br>with non-null type?"}:::decision
+    STORYLLM -- "yes" --> STORED["state.meta.pending_gm_beat = storyteller beat<br>beat_expires_turn = turn_no + 2 (TTL: 2 turns)"]:::output
+
+    STORYLLM -- "no / null" --> POPPED["state.meta.pending_gm_beat = None<br>(key popped from meta)"]:::pyNode
+    POPPED --> FLOOR{"beat_locked == True<br>AND (pending_gm_beat is None<br>    OR type in pressure types)?"}:::decision
+    STORED --> FLOOR
+
+    FLOOR -- yes --> BREATHING["Inject breathing_room beat<br>overrides any pressure-type pending beat<br>beat_expires_turn = turn_no + 3"]:::output
+
+    FLOOR -- no --> APPEND_BEATS["recent_beats.append(snapshot)"]:::pyNode
+    BREATHING --> APPEND_BEATS
+
+    APPEND_BEATS --> COUNTER["consecutive_pressure counter<br>updated from gm_beat.type"]:::pyNode
+    COUNTER --> DONE["Turn ends"]:::pyNode
+
+    STORED -. "next turn" .-> START
+    BREATHING -. "next turn" .-> START
+
+    style EXPIRY fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
+    style STORYLLM fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
+    style FLOOR fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
+```
+
+**Step 1 — Pre-narration expiry check.** At the start of each turn, the engine reads `state.meta.pending_gm_beat` from the previous turn. If `beat_expires_turn` is set and the current turn number exceeds it, the beat is nullified (key set to None). Otherwise it proceeds to narration.
+
+Note: This expiry runs early enough that the beat is gone before the extraction phase begins. This is intentional — it creates clean state for floor relief to inject breathing_room if `beat_locked` is active and storyteller doesn't provide its own non-pressure beat. Without the pre-narration expiry, a stale expired beat could block floor relief's null check.
+
+**Step 2 — Narration consumption.** The beat is passed to the narrator via `_narrate_messages(pending_gm_beat=...)`. The narrator uses the beat's `type` and `surface_as` metadata as creative guidance alongside the pacing directive. The beat is NOT cleared after narration — it persists through the extraction phase.
+
+**Step 3 — Storytell writes or clears the beat.** After extraction completes:
+- If Storytell emits a valid `gm_beat` (non-null `type`): replaces `pending_gm_beat` with `beat_expires_turn = turn_no + 2`.
+- If Storytell emits `null` or an invalid beat: pops `pending_gm_beat` from state (null-clear). The old beat does NOT carry forward.
+
+**Step 4 — Floor relief injection.** After delta apply, if `beat_locked=True` AND the current `pending_gm_beat` is either `None` or a pressure-type (`pressure`, `escalation`, `complication`): injects a `breathing_room` beat with `beat_expires_turn = turn_no + 3`. This overrides pressure-type beats that would otherwise continue the pressure cycle, but does NOT override non-pressure beats the storyteller independently produced (e.g., `revelation`, `opportunity`, `breathing_room`).
+
+**Step 5 — Beat history snapshot.** `pending_gm_beat` is appended to `state.meta.recent_beats` (capped at 5 entries). The snapshot is taken after any floor relief override, so it reflects the beat the next turn's narrator will consume.
+
+**Step 6 — Consecutive pressure counter update.** The counter increments on pressure-type beats and resets to 0 otherwise.
+
+### Floor Relief Injection
+
+The floor relief mechanism fires after delta apply when `_pc.beat_locked=True` AND the current `pending_gm_beat` is either `None` or a pressure-type beat (`pressure`, `escalation`, `complication`). It injects a `breathing_room` beat with TTL of 3 turns (one more than storyteller-emitted beats' TTL of 2).
+
+Floor relief is a **fallback override** — it breaks a pressure-type run by force-injecting recovery:
+- If Storytell emitted a pressure-type beat → floor relief overrides it with breathing_room.
+- If Storytell emitted a non-pressure beat (revelation, opportunity, breathing_room, etc.) → floor relief lets it stand. Relief is already being achieved.
+- If Storytell emitted nothing (null) → floor relief injects breathing_room. This is appropriate: after a null turn with beat_locked active, relief is needed.
+
+### Directive-Beat Alignment
+
+The storyteller prompt (`storytell_system.j2`, pacing context guidance section) maps each PacingContext directive to recommended beat types (e.g., "Breathe" → breathing_room; "Scene Imperative" → advance story; "Overwhelm" → pressure/escalation). This alignment is **guidance only** — Python accepts whatever gm_beat the LLM emits with no validation, correction, or override. Design rationale: forcing directive-beat alignment would constrain storytelling flexibility and create brittleness if the LLM makes contextually appropriate but directive-divergent beat choices.
+
+### Beat History
+
+`state.meta.recent_beats` stores the last 5 beats (including null entries) with `turn`, `type`, and `surface_as`. This history is rendered in both the storyteller system prompt (behavioral guidance) and the user prompt (current-turn context, more salient). Each entry shows `T{N}: {BEAT TYPE} (surface)` or `T{N}: No beat emitted this turn`.
+
+The LLM uses this history to follow beat diversity guidance: avoid repeating the same type more than twice in a sequence; at least one in three beats should be a non-pressure type.
+
+### TTL Mechanics Summary
+
+| Source | Default TTL | Expiry Calculation |
+|--------|-------------|-------------------|
+| Storytell-emitted beat | 2 turns | `beat_expires_turn = turn_no + 2` |
+| Floor relief (Python-injected) | 3 turns | `beat_expires_turn = turn_no + 3` (extra recovery margin) |
+
+### Null-Clear Behavior
+
+When Storytell emits a null beat (or an invalid beat whose type is nullified), `pending_gm_beat` is popped from `state.meta`. The beat does NOT carry forward. This replaced the old carryover behavior where stale beats persisted through null turns.
+
+The storyteller user prompt always renders the GM Beat section — on null-following turns it shows "No beat currently carried over from the previous turn. Choose freely." This ensures the LLM has consistent beat awareness on every turn.
+
+### GM Beat Section in UI
+
+The storyteller user prompt renders the `## GM Beat` section unconditionally:
+- **Beat present:** Shows type, surface_as, expiration turn.
+- **No beat:** Shows fallback text — "No beat currently carried over from the previous turn. Choose freely."
+
+This was changed from the previous conditional rendering (where the section vanished on ~38% of turns), ensuring full beat awareness coverage.
+
+## Campaign Arc System
+
+The campaign arc system tracks story threads across turns. Thread state is **storyteller-managed** — the LLM explicitly controls urgency, progress, and goal direction via `thread_update` and `goal_update` directives. The engine applies these without enforcement of caps, cooldowns, or silent timers.
+
+### Arc Data Model
+
+```
+CampaignArc
+  visible_goal: str          — What the PC is trying to achieve
+  goal_context: str          — 2–3 sentences explaining why visible_goal matters (UI-only; not rendered in prompts)
+  threads: list[ArcThread]   — Unified collection with active flag
+  completed_threads: list[ArcThread] — Resolved/failed/abandoned threads
+  resolution: str | None     — Set when arc is resolved via arc_resolve
+  last_thread_created_turn: int — Tracks when a thread was last created for pacing
+
+ArcThread
+  id: str                    — Unique identifier
+  summary: str               — What this thread is about
+  scope: Literal["scene", "arc"]  # scene = short-lived, purged on location change; arc = persistent story tension
+  active: bool = True        # Storyteller-controlled via thread_update
+  urgency: Literal["background", "normal", "urgent"] = "normal"  # Storyteller-controlled
+  progress: list[str] = []   — Append-only log of progress updates (CHANGED from single-string overwrite)
+  resolution_state: str | None # Set when thread_resolve processes resolved/failed/abandoned
+  outcome: str | None        # Set from ThreadResolution.outcome when moved to completed_threads
+  resolved_turn: int | None  — Turn when thread was resolved; used for TTL filtering in prompts
+
+  # NOTE: last_updated_turn (int | None) is NOT a Pydantic field on ArcThread.
+  # It is injected at the dict level in _apply_thread_updates() and in the rendering
+  # pipeline (extraction.py, narrate.py). The _thread_list.j2 template references
+  # t.last_updated_turn — this works because the dicts passed to templates have been
+  # augmented with this key. It tracks when the thread was last mutated for urgency
+  # decay guidance (rendered as "turns since last update").
+```
+
+### Engine-Driven Arc
+
+Thread lifecycle runs in `engine/turn.py` during the extraction phase. Six operations handle arc/thread state in strict order:
+
+```mermaid
+flowchart TD
+    classDef pyNode fill:#1f2937,color:#9ca3af,stroke:#4b5563
+    classDef arcNode fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
+
+    PR["StorytellerResult<br>thread_update: list[ThreadUpdate]<br>goal_update: str | None<br>arc_resolve: ArcResolution | None<br>thread_resolve: list[ThreadResolution]"]:::pyNode
+
+    subgraph UPDATES["_apply_thread_updates()"]
+        U1["For each ThreadUpdate:<br>Find thread by id → apply<br>active/urgency/summary/progress changes<br>progress is append-only (list[str])<br>Sets last_updated_turn = current turn"]
+    end
+
+    subgraph GOAL["goal_update (direct dict assignment)"]
+        G1["If storyteller_result.goal_update is set:<br>state['arc']['visible_goal'] = value<br>Direct assignment, NOT through _merge_arc_update<br>(which would wipe threads[])"]
+    end
+
+    subgraph CONFLICT["Same-turn conflict detection"]
+        C1["If same thread id appears in both<br>thread_update and thread_resolve:<br>log WARNING (LLM error)<br>resolution wins (fires after update)"]
+    end
+
+    subgraph RESOLVE["_apply_arc_resolve()"]
+        R1["Store current arc in resolved_arcs<br>with resolved_turn for TTL tracking"]
+        R2["Auto-close arc-scoped threads with 'superseded' state<br>Carry forward scene-scoped threads (minus drop_threads)"]
+        R3["Add new_threads from resolution"]
+        R4["Create successor arc with<br>new visible_goal, goal_context,<br>surviving scene-scoped + new threads"]
+    end
+
+    subgraph RESOLUTIONS["_apply_thread_resolutions()"]
+        S1["For each ThreadResolution:<br>Move ArcThread to completed_threads<br>Set resolution_state, outcome, resolved_turn"]
+    end
+
+    subgraph GATE["Thread add gate"]
+        T1["PacingContext.gate == 'allow'?<br>If blocked: log debug, skip add<br>Gate status rendered in prompt<br>(no silent drops)"]
+        T2["ID collision? Thread id in existing_ids<br>or completed_ids → reject"]
+    end
+
+    PR --> UPDATES --> GOAL --> CONFLICT --> RESOLVE --> RESOLUTIONS --> GATE
+
+    GATE -- "CampaignArc" --> ARC[arc state in<br>state.yaml]:::arcNode
+```
+
+**Pipeline order:** thread updates → goal_update (dict assignment) → conflict detection → arc resolution → thread resolutions → thread_add gate.
+
+**Key rules:**
+- **Storyteller-controlled:** No caps, cooldowns, or silent timers. The storyteller decides which threads to update, when to shift the visible_goal, and when to resolve the arc.
+- **goal_update:** A bare string applied directly to `state["arc"]["visible_goal"]` via dict assignment. Does NOT route through `_merge_arc_update` (which replaces `threads[]` unconditionally — passing a bare CampaignArc would wipe the thread list). Applied before arc_resolve; if both fire on the same turn, arc_resolve wins (ending the arc supersedes a mid-arc update).
+- **Same-turn conflict detection:** When the same thread id appears in both `thread_update` and `thread_resolve` in a single output, a WARNING is logged. The processing order (update before resolve) means resolution takes precedence — correct behavior, but this is always an LLM error worth monitoring.
+- **Arc resolution:** When `arc_resolve` is emitted, the current arc is stored in `state["resolved_arcs"]` with `resolved_turn` for TTL tracking. Arc-scoped threads are auto-closed with 'superseded' state; scene-scoped threads carry forward (minus any in drop_threads). The successor arc starts with empty `threads[]`.
+- **Scene-scoped threads:** Purged from state on location change (delta_builder.py) before the arc director re-derives.
+- **TTL-based cleanup:** Completed threads and resolved arcs are pruned from prompt context after `completed_thread_ttl` / `resolved_arc_ttl` turns (default 3).
+
+### Arc Context in Narration
+
+The arc state is passed to the narrator via `current_arc` in both system and user prompts. `goal_context` is present in the model but only surfaced in the player UI (tooltip/description text) — the pipeline and prompts never read it directly. The narrator sees arc metadata including resolved arcs (TTL-filtered) and completed threads.
+
+### Arc System Integration Points
+
+```mermaid
+flowchart TD
+    classDef stageRules fill:#4c1d95,color:#ddd6fe,stroke:#7c3aed
+    classDef stageNarrate fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
+    classDef stageProgress fill:#500724,color:#fbcfe8,stroke:#ec4899
+    classDef pyNode fill:#1f2937,color:#9ca3af,stroke:#4b5563
+    classDef arcNode fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
+    classDef storageNode fill:#0f172a,color:#7dd3fc,stroke:#1e40af
+
+    STATE["state.yaml<br>arc section"]:::storageNode
+
+    subgraph NARRATE["Step 1 — Narrate"]
+        N1["_narrate_messages() reads state['arc']<br>→ current_arc_ctx in system prompt"]:::pyNode
+    end
+
+    subgraph EXTRACT["Step 2c — Storytell Extract"]
+        E1["Storyteller emits<br>thread_update: list[ThreadUpdate],<br>goal_update: str | None,<br>arc_resolve: ArcResolution | None,<br>thread_resolve: list[ThreadResolution],<br>thread_add (gated by PacingContext.gate)"]:::pyNode
+    end
+
+    subgraph ARC_ENGINE["Arc Engine (turn.py)"]
+        A1["_apply_thread_updates()<br>apply storyteller's explicit state changes"]:::pyNode
+        A2["goal_update → direct dict assignment<br>state['arc']['visible_goal'] = value"]:::pyNode
+        A3["Same-turn conflict detection<br>update + resolve for same id → WARNING"]:::pyNode
+        A4["_apply_arc_resolve()<br>resolve arc, store in resolved_arcs,<br>create successor arc"]:::pyNode
+        A5["_apply_thread_resolutions()<br>thread_resolve → completed_threads<br>with resolution_state, outcome, resolved_turn"]:::pyNode
+        A6["_merge_arc_update()<br>engine arc_delta → state['arc']"]:::pyNode
+    end
+
+    STATE --> N1
+    N1 --> E1
+    E1 --> A1 --> A2 --> A3 --> A4 --> A5 --> A6
+
+    A6 --> STATE
+```
+
+### Thread Mechanics
+
+#### Two Thread Scopes
+
+Threads have a `scope` field (`"scene"` or `"arc"`) that determines narrative treatment:
+
+| Scope | Narrative role | Engine lifecycle |
+|---|---|---|
+| `scene` | Short-lived tension tied to current location/NPCs | **Purged on location change** — removed from `arc.threads[]` when player moves to a new location (delta_builder.py). |
+| `arc` | Persistent story tension across scenes | Persists across location changes. Only removed via `thread_resolve` or auto-closed on arc_resolve (state `"superseded"`). |
+
+#### Entry Points
+
+Six call sites in `run_turn()` process arc/thread operations in order:
+1. **`_apply_thread_updates()`** — apply storyteller's explicit state changes; progress is append-only (`list[str]`); sets `last_updated_turn`
+2. **`goal_update`** — direct dict assignment to `state["arc"]["visible_goal"]`
+3. **Same-turn conflict detection** — warn if same thread id in both update and resolve
+4. **`_apply_arc_resolve()`** — resolve arc, store in resolved_arcs, create successor
+5. **`_apply_thread_resolutions()`** — resolve/fail/abandon → completed
+6. **Thread add gate** — pacing gate + key collision/fuzzy merge checks
+
+All six run after `apply_delta()` but before `save_state()`.
+
+#### Step-by-Step: `_apply_thread_updates()`
+
+Processes `storyteller_result.thread_update` (list of `ThreadUpdate` with `id`, optional `active`, `urgency`, `summary`, `progress`).
+
+For each ThreadUpdate:
+1. Find matching thread by ID in `arc.threads[]`
+2. If not found → log WARNING, skip
+3. If found:
+   - Apply non-None fields (`active`, `urgency`, `summary`) via `model_copy`
+   - If `progress` is non-None: append to `thread.progress` list (always append, never replace)
+   - Set `last_updated_turn` to current turn number
+4. Log applied changes at INFO level
+
+**Progress append behavior:** Every `progress` value from a `thread_update` is appended to `ArcThread.progress`. When prior progress is invalidated, the storyteller appends a natural-language entry acknowledging the shift (e.g., "Correction: the dock lead was a dead end."). The renderer shows all entries in order; the LLM on subsequent turns sees the full trail. No replace mechanism, no boolean flag.
+
+#### Step-by-Step: `_apply_arc_resolve()`
+
+Processes `storyteller_result.arc_resolve` (optional `ArcResolution` with `resolution`, `visible_goal`, `goal_context`, `drop_threads: list[str]`, `new_threads: list[ArcThread]`).
+
+1. If `arc_resolve` is None → return None
+2. Validate arc from state; if missing/invalid → log WARNING, return None
+3. Store current arc in `state["resolved_arcs"]` with `resolved_turn` for TTL tracking
+4. Auto-close all arc-scoped threads: move to completed_threads with resolution_state="superseded"
+5. Carry forward scene-scoped threads minus any IDs listed in drop_threads
+6. Add new_threads from the ArcResolution model
+7. Create successor arc with new `visible_goal`, `goal_context`, and combined surviving + new threads
+8. Replace `state["arc"]` with successor
+
+#### Thread Creation (gated in `run_turn()`)
+
+New threads (`storyteller_result.thread_add`) are gated by:
+
+1. **Pacing gate**: `PacingContext.gate == "allow"` — blocks escalation when pacing context says so. Gate status is rendered in the prompt (`_thread_list.j2`) so the storyteller has awareness instead of silent drops.
+2. **ID collision**: thread `id` already exists in `arc.threads[]` or `arc.completed_threads[]` → reject with WARNING log. Id-based dedup only — no key field or fuzzy merge.
+
+**Thread creation via thread_update (ungoverned):** Threads can also be created implicitly by appearing in `thread_update` without a prior `thread_add`. This is the dominant creation path in practice — the LLM introduces new thread IDs directly via updates.
+
+**Thread creation via thread_update (ungoverned):** Threads can also be created implicitly by appearing in `thread_update` without a prior `thread_add`. This is the dominant creation path in practice — the LLM introduces new thread IDs directly via updates.
+
+#### Step-by-Step: `_apply_thread_resolutions()`
+
+Processes `storyteller_result.thread_resolve` (list of `ThreadResolution` with `id`, `resolution_state`, `outcome`).
+
+1. Find matching thread by ID in `arc.threads[]`
+2. If not found → log warning, skip
+3. If found → move to `arc.completed_threads[]`, set `resolution_state`, `outcome`, and `resolved_turn`
+4. Deduplicate completed_threads entries: existing ID gets updated, not duplicated
+
+#### Pacing Context Gate
+
+`_compute_pacing_context()` sets `gate` based on deescalation:
+
+```
+gate = "allow" by default
+gate = "block_escalate" when deescalate >= 0.5
+```
+
+The gate blocks thread creation. The LLM is instructed not to emit `thread_add` when `gate != "allow"`, and the gate status is explicitly rendered in the prompt to provide awareness.
+
+#### Constants Reference
+
+| Constant | Value (default) | Effect |
+|---|---|---|
+| `config.resolved_arc_ttl` | 3 | Turns to keep resolved arcs in prompt context |
+| `config.completed_thread_ttl` | 3 | Turns to keep completed threads in prompt context |
+
+#### Validation Edge Cases
+
+1. **Empty arc state** — No arc in state → log DEBUG, return None (no crash)
+2. **Validation failure** — Arc fails Pydantic validation → log WARNING, return None
+3. **Unknown thread ID in update** — Log WARNING, skip — does not block valid updates
+4. **Unknown resolution ID** — Log WARNING, skip — does not block valid resolutions
+5. **Duplicate thread ID in creation** — Checked against existing + completed IDs
+6. **Duplicate ID in creation** — Checked against existing + completed IDs
+7. **Same-turn update+resolve conflict** — Same thread id in both `thread_update` and `thread_resolve` → log WARNING, resolution wins (fires after update)
+8. **Progress type migration** — Old saves with `progress: "str"` are coerced via `field_validator` wrapping single strings in a list
+
+### Progress Migration
+
+`ArcThread.progress` was changed from `str` to `list[str]` (backward compat not required). A Pydantic `field_validator("progress", mode="wrap")` on the model coerces old string values: if the loaded value is a `str`, it wraps it in `[value]`. This prevents validation failure when loading pre-change saves.
