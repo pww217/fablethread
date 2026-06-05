@@ -37,7 +37,7 @@
 | `ccya/eval/__init__.py` | Re-exports: EvalConfig, JudgeResult, RunResult, Scenario, build_trace, run_scenario, etc. |
 | `ccya/eval/config.py` | EvalConfig, JudgesSpec (per-judge rubric/model/temp), load_eval_config() |
 | `ccya/eval/judge.py` | run_judges(): parallel domain judges + sequential meta judge; parse_judge_response() YAML front matter; _build_metrics_rows(turn, tok_in per phase, pacing_directive, beat_generated/consumed from pending_gm_beat lifecycle) |
-| `ccya/eval/universal_asserts.py` | Auto-checkers (condition dedup, consecutive_pressure_tracking two-pass counter, beat_locked dual-trigger from momentum_floor/consecutive_pressure_threshold, no_removed_directives/npc_states negative assertions, exact directive value rendering via word-boundary regex, orphan condition detection, thread_add→state application verification, inventory remove existence, thread_update ID validity, beat type variety warning, surface_as consistency check) — red/yellow severity |
+| `ccya/eval/universal_asserts.py` | Auto-checkers (condition dedup, consecutive_pressure_tracking beat-type-based counter, beat_locked dual-trigger from momentum_floor/consecutive_pressure_threshold, floor relief injection verification, no_removed_directives/npc_states negative assertions, exact directive value rendering via word-boundary regex, orphan condition detection, thread_add→state application verification, inventory remove existence, thread_update ID validity, beat type variety warning, surface_as consistency check) — red/yellow severity |
 | `ccya/eval/report.py` | write_full_report(run_result, eval_cfg, judge_results=None): single-pass REPORT.md with metadata, optional judge summary + verdicts, flags, auto-checker table, pacing metrics, turn metrics; atomic write via tmp.replace() |
 | `ccya/eval/scenario.py` | Scenario (with seed_overrides), Turn, TurnAssert (with stream_id) |
 | `ccya/eval/engine_mirror.py` | Live engine constants for scenarios: BANDS, SKILLS, DIFFICULTIES, PC_CONDITION_CAP, SCENE_NAMED_NPC_CAP; pacing config mirror (momentum_floor=-3, consecutive_pressure_threshold=3, combat +2 scene_age boost) via EngineConfig defaults |
@@ -85,7 +85,7 @@
 2. **Narrate** (streaming→SSE→chronicle.md) — prose narrative with narration directive from velocity/threads
 3. **Scene Extract** (JSON→SceneExtractResult) — scene tags, location change, compendium updates
 4. **State Extract** (JSON→StateExtractResult) — inventory deltas, condition add/remove
-5. **Storytell** (JSON→StorytellerResult) — thread_update, arc_resolve, thread_resolve, thread_add (gated by PacingContext.gate), world_state_add/remove, actions, gm_beat
+5. **Storytell** (JSON→StorytellerResult) — thread_update, goal_update (str | None, direct dict assignment), arc_resolve, thread_resolve, thread_add (gated by PacingContext.gate), world_state_add/remove, actions, gm_beat
 
 Steps 3–5 merge into StateDelta → _validate() → apply_delta() → summarize_changes() → persist (atomic writes).
 
@@ -155,14 +155,14 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### Pacing context and beat lifecycle (Phase 03 pacing overhaul)
 - `_compute_pacing_context()` dual-trigger beat_locked: fires when either `consecutive_pressure_turns >= config.consecutive_pressure_threshold` OR `momentum <= config.momentum_floor`; appends "Resolve a Threat" to directive whenever locked
 - `_compute_pacing_context()` gains `scene_motion` and `impossible` inputs from ruling LLM; computes `outcome_hint` (`hold`/`advance`/`transition`) from ruling's `scene_motion` and PacingContext escalation signals. `outcome_hint` replaces `directive` as narrator's primary scene-motion signal.
-- Consecutive pressure counter (`state["meta"]["consecutive_pressure_turns"]`) updated via two-pass logic at turn end (~turn.py ~1149): increments when pacing_ctx directive was Pressure/Overwhelm AND no thread_update emitted; resets to 0 otherwise
-- `pending_gm_beat` carryover: unconditional clears removed from turn.py; beat lifecycle handled only by write/expiry — written after storytelling if non-null gm_beat with beat_expires_turn = turn_no + 2, consumed read-gated at turn_no <= beat_expires_turn in _narrate_setup, cleared only on replacement or expiry
+- Consecutive pressure counter (`state["meta"]["consecutive_pressure_turns"]`) updated at turn end: increments when storyteller's `gm_beat.type` is `"pressure"`, `"escalation"`, or `"complication"`; resets to 0 on any other beat type or null beat (re-keyed from directive-based tracking, which never fired)
+- `pending_gm_beat` lifecycle: null-clear on null storytell output (key popped from meta); replaced on valid storytell emittion (beat_expires_turn = turn_no + 2); expires when turn_no > beat_expires_turn at narrate setup. Floor relief injects breathing_room when beat_locked AND (pending_gm_beat is None or pressure-type)
 
 ### Seed emotional context → narrator consumption
 - **Seed generates**: `goal_context` (character-specific stake in visible_goal), NPC `relation` field (narrative job relative to PC), action text (character-shaped, scene-grounded).
-- **Narrator consumes**: `goal_context` in the narrate user prompt (`_arc.j2`). The system prompt provides general early-turn behavioral guidance; `_arc.j2` presents the actual value alongside other arc context for this turn. The narrator converts these fields into scene texture, dialogue pressure, and prose emphasis — never reciting them directly.
+- **`goal_context` is UI-only**: Rendered in the sidebar tooltip (`_state_left.html`). NOT rendered in narrator or storyteller prompt context — the LLM never reads the raw `goal_context` value during gameplay. The system prompt provides general early-turn behavioral guidance instead.
 - **Sidebar surfaces**: `goal_context` as a hover/focus tooltip on the arc goal (`_state_left.html`), using the existing `has-tooltip`/`tooltip-body` nesting convention.
-- **Signal mechanism**: The presence of `goal_context` on the arc is the signal for early-turn narrative mode (approach B, no turn-counting dependency).
+- **Seed emotional framing contract**: The seed generation prompt enforces `goal_context` (2-3 sentences of personal stakes for the PC), NPC `relation` field, and character-shaped action text. This emotional data is embedded in the initial state and the sidebar, not reintroduced per-turn via prompts.
 
 ### EngineConfig field naming (Phase 06b)
 - Config fields: thread_deescalate_on_success, resolved_arc_ttl (default 3), completed_thread_ttl (default 3) — YAML keys match Python field names directly.
@@ -179,7 +179,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### Extraction field routing
 - **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, compendium_npc_update (no pressure fields); CompendiumEntry now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes
 - **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
-- **StorytellerResult**: thread_update (list[ThreadUpdate] with id/urgency/active/summary/progress), arc_resolve (ArcResolution with resolution/visible_goal/goal_context/drop_threads/new_threads), thread_resolve (list[ThreadResolution] with id/resolution_state/outcome), thread_add (ArcThread | None), world_state_add: list[WorldStateFact], world_state_remove: list[str], actions, outcome_summary, gm_beat; thread_add validated by id-based dedup only (no key, no fuzzy merge); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
+- **StorytellerResult**: thread_update (list[ThreadUpdate] with id/urgency/active/summary/progress), goal_update (str | None, applied directly to arc dict — NOT through _merge_arc_update), arc_resolve (ArcResolution with resolution/visible_goal/goal_context/drop_threads/new_threads), thread_resolve (list[ThreadResolution] with id/resolution_state/outcome), thread_add (ArcThread | None), world_state_add: list[WorldStateFact], world_state_remove: list[str], actions, outcome_summary, gm_beat; thread_add validated by id-based dedup only (no key, no fuzzy merge); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
 - **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions, persisted to state["pc"]["actions"] as rolling window by apply_delta()
 
 ### Cross-stream data flow (minimal by design)

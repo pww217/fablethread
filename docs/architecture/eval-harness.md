@@ -109,11 +109,11 @@ Two layers:
 - `ruling`: `rolled`, `skill`, `difficulty`, `band`, `intent_verb`
 - `extract.state`: `inventory_remove`, `inventory_add`, `pc_condition_add`, `pc_condition_remove`
 - `extract.scene`: `scene_tags`
-- `storytell.extract`: `thread_update`, `thread_resolve`, `thread_add`
+- `storytell.extract`: `thread_update`, `thread_resolve`, `thread_add`, `goal_update`, `arc_resolve`
 - `extract`: `attempts:<stream>`, `skipped:<stream>`
 - `state_yaml`: `pending_gm_beat.present`, `pending_gm_beat.absent`
 
-**2. Universal asserts** (`universal_asserts.py`): 21 deterministic checkers run on every event. Severity: `red` (must fix) or `yellow` (advisory). Cover: turn stamping, GM beat lifecycle, location changes, pacing directive rendering ("directive:" prefix + known value match against Breathe/Scene Imperative/Overwhelm/Pressure/Tension/Scene Pressure), NPC extraction, ring buffer bounds, scene NPC cap, condition dedup, action count/distinctness, momentum deltas, inventory overdraw, floor relief, ArcThread key deduplication, consecutive pressure tracking, beat-locked dual trigger validation, removed directive/state detection.
+**2. Universal asserts** (`universal_asserts.py`): 24 deterministic checkers run on every event. Severity: `red` (must fix) or `yellow` (advisory). Cover: turn stamping, GM beat lifecycle, location changes, pacing directive rendering ("directive:" prefix + known value match against Breathe/Scene Imperative/Overwhelm/Pressure/Tension), NPC extraction, ring buffer bounds, scene NPC cap, condition dedup, action count/distinctness, momentum deltas, inventory overdraw, floor relief injection verification, goal_update application verification, ArcThread key deduplication, consecutive pressure tracking (beat-type-based), beat-locked dual trigger validation, removed directive/state detection.
 
 ## Phase 02 — Judge (`judge.py`)
 

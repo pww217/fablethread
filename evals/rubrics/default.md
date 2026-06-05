@@ -53,7 +53,7 @@ Appears once. Contains:
   Every pipeline's outputs must be evaluated against its own system prompt.
 
 ### Per-turn blocks
-Each turn: user prompts (5), engine outputs (rules→narrate→scene→state→progress),
+Each turn: user prompts (5), engine outputs (rules→narrate→scene→state→storytell),
 applied deltas, rejected deltas, suggested actions, context telemetry, state snapshot/diff.
 
 ### Deterministic Signals
@@ -253,7 +253,7 @@ For each roll turn: `roll band → PacingContext signals issued → narration to
 
 Two distinct pacing signals exist post-refactor:
 - **outcome_hint** (narrator): scene motion instruction ("hold" = continue current pace, "advance" = narrate through to resolution, "transition" = write arrival). Evaluate whether the narrator honored this scene motion.
-- **directive** (Progress Extractor): thread/beat guidance for storyteller. Evaluate whether thread advances and beat choices align with the directive value (`""`, `"Breathe"`, `"Scene Imperative"`, `"Overwhelm"`, `"Resolve a Threat"`, `"Pressure"`, `"Tension"`, `"Threat Pressure"`, `"Scene Pressure"`).
+- **directive** (Storyteller): thread/beat guidance for storyteller. Evaluate whether thread advances and beat choices align with the directive value (`""`, `"Breathe"`, `"Scene Imperative"`, `"Overwhelm"`, `"Pressure"`, `"Tension"`).
 
 - At momentum extremes (±2+), did narration feel correspondingly elevated or desperate?
 - Flag any turn where the chain broke — either signal ignored.
@@ -277,6 +277,7 @@ For each active condition in state:
 - **Thread timer alignment:** Did any thread sit inert long enough a player would forget it? Suggest a cap in turns. For scope=scene threads, verify location-change expiry is working.
 - **Momentum arc:** Did the run have a momentum arc (low → build → peak → resolution)? Or random oscillation with no story direction?
 - **Beat type variety:** Count beat types. Flag if >60% are the same type.
+- **recent_beats diversity signal:** Check `state.meta.recent_beats`. If populated, verify diversity improves in later turns vs early turns. If absent, flag `NO_RECENT_BEATS`.
 - **Escape paths:** When player was in a bad situation (negative momentum, urgent threads), were there viable choices to improve it? Or a death spiral?
 
 ### 4F — NPC Entry/Exit Coherence
@@ -302,33 +303,51 @@ Verdict: tight (player intent always honored), loose (occasional redirections), 
 
 ### 4H — GM Beat Lifecycle
 
-The GM beat is a multi-turn narrative device. It flows through three phases:
+The GM beat is a multi-turn narrative device with a simplified 2-phase lifecycle (post-overhaul):
 
-**Phase 1 — Creation.** Progress extractor emits `gm_beat`. Engine stores it in `state.meta.pending_gm_beat` with `beat_expires_turn = turn_no + 2`. Disposition is inferred by Python, not emitted by LLM.
+**Phase 1 — Creation.** Storyteller emits `gm_beat` in its extraction output. Engine stores it in `state.meta.pending_gm_beat` with `beat_expires_turn = turn_no + 2`. If storyteller emits null or no valid type, the pending beat is cleared (key popped). Floor relief may then inject a `breathing_room` beat if `beat_locked=True` and no non-pressure beat is pending.
 
-**Phase 2 — Narration.** Beat is injected into the narrator prompt. Narrator weaves it into prose. After narration, pending_gm_beat is permanently set to None. It is no longer restored before extraction — Storytell no longer receives beat context.
+**Phase 2 — Narration (next turn).** Beat is passed to the narrator via `pending_gm_beat` in the narrate context. Narrator weaves it into prose. After narration, the beat persists through extraction — it is NOT cleared until storytell writes/clears it in the current turn.
 
-**Phase 3 — Inferred Disposition.** Python infers what happened to the beat:
-- If Progress emits a new `gm_beat` in this turn → old beat was replaced
-- If no `gm_beat` emitted and beat still present → beat aged (not consumed)
-- If beat's `beat_expires_turn` is at or past the current turn → engine discards it
+**Expiry.** At the start of each turn, the engine checks `beat_expires_turn`. If `turn_no > beat_expires_turn`, the beat is nullified (set to None) regardless of any other logic.
 
 **Evaluation checklist (per turn where a beat exists):**
 
 | Check | How to verify | Pass condition |
 |---|---|---|
-| Beat created | `extraction.progress.gm_beat` present in turn N | Beat has a non-null `type` value |
+| Beat created | `extraction.storytell.output.gm_beat` present in state snapshot | Beat has a non-null `type` value |
 | Beat narrated | Narration reflects the beat's type and surface_as semantics | Prose is consistent with the beat's `type`/`surface_as` |
-| Beat visible to progress | `extraction.progress` prompt contains `## pending_gm_beat` block | Beat data present in user prompt |
 | TTL respected | Beat expires at `beat_expires_turn` | Beat is None after expiry turn |
-| No orphaned beats | Beat is consumed or expired within expected turns | No beat persists beyond TTL |
+| No orphaned beats | Beat is consumed, replaced, expired, or floor-relief-injected within expected turns | No beat persists beyond TTL without action |
+| Floor relief injection | If `beat_locked=True` in pacing_context and storytell emitted null/pressure beat | `pending_gm_beat.type == 'breathing_room'` |
+| Consecutive pressure counter | Counter tracks storytell's raw gm_beat.type (pressure/escalation/complication), not directives | Counter increments on pressure types, resets otherwise |
 
 **Common failure patterns:**
-- Beat generated every turn but consumed within 1 turn → progress LLM over-generating beats, not exercising `null`
-- Beat persists unchanged for 3+ turns → beat never narrated or TTL exceeded without cleanup
-- Beat disappears after narration but should have persisted → **engine bug**
+- Beat generated every turn but consumed within 1 turn → storyteller over-generating beats, not exercising null-clear
+- Beat persists unchanged for 3+ turns → TTL exceeded without cleanup or floor relief override
+- Floor relief fails to inject breathing_room when beat_locked=True and no non-pressure beat → **engine bug**
+- Counter doesn't reset on non-pressure beats → consecutive pressure threshold never clears → permanent beat_locked
 
-**Verdict:** tight (beats cycle correctly), loose (occasional disposition mismatches), or broken (beats cycle every turn).
+**Verdict:** tight (beats cycle correctly), loose (occasional lifecycle misses), or broken (beats cycle every turn with no variety or floor relief absent).
+
+### 4I — goal_update Application
+
+goal_update is an optional storyteller field that overwrites `arc.visible_goal` mid-arc (separate from arc_resolve). For each turn where `goal_update` is non-null in storytell output:
+
+| Turn | goal_update | visible_goal (pre) | visible_goal (post) | Narration Reflects? | Flag |
+|------|-------------|--------------------|--------------------|---------------------|------|
+
+Flag: `NOT_APPLIED` (goal_update emitted but visible_goal unchanged), `NO_NARRATIVE_EFFECT` (goal changed but narration and thread focus did not shift).
+
+### 4J — recent_beats Tracking
+
+The engine appends each turn's pending_gm_beat to `state.meta.recent_beats` (capped at 5). This beat history is injected into the storyteller prompt for diversity guidance. Evaluate:
+
+1. Is `recent_beats` populated? Check `state_snapshot.meta.recent_beats`.
+2. Is it capped at 5? No more than 5 entries.
+3. Does beat variety improve over the run? Compare beat types in early vs late turns. If all beats are the same type despite beat history being available, the diversity guidance may be ineffective.
+
+Flag: `NO_RECENT_BEATS` (field absent), `CAP_EXCEEDED` (more than 5 entries), `DIVERSITY_FAILURE` (recent_beats present but no variety improvement across run).
 
 ---
 
@@ -405,8 +424,9 @@ Verify every mechanic emitted is correctly owned. Flag any mechanic in the wrong
 | `scene_tags`, `scene_tagline` | scene |
 | `inventory_add`, `inventory_remove`, `inventory_update` | state |
 | `pc_condition_add`, `pc_condition_remove` | state |
-| `thread_advance`, `thread_resolve`, `thread_add` (gated) | storytell |
+| `thread_update`, `thread_resolve`, `thread_add` (gated) | storytell |
 | `recent_events_add`, `recent_events_update`, `recent_events_remove` | storytell |
+| `goal_update` | storytell |
 | `gm_beat` | storytell |
 | `actions`, `outcome_summary` | storytell |
 
@@ -426,6 +446,7 @@ If misplaced: name the correct pipeline, name the data flow change needed.
 - Quest deduplication: existing `done: true` objective re-emitted → flag.
 - Quest ID collision: new quest ID semantically duplicates an active quest → flag.
 - Premature completion: `status: completed` before all objectives done → flag.
+- goal_update application: if `goal_update` emitted, verify `arc.visible_goal` changed to match. Flag `GOAL_NOT_APPLIED` if unchanged.
 
 ### Scope Discipline
 Verify each pipeline only processes its own domain. Flag scope violations:
@@ -434,9 +455,9 @@ Verify each pipeline only processes its own domain. Flag scope violations:
 - **State extractor:** Should skip when no state-relevant events (no inventory changes, no
   condition changes, no location changes). Flag if it emits state data when nothing
   state-relevant occurred.
-- **Progress extractor:** Should skip when no progress-relevant events (no quest updates,
-  no recent events, no pressure changes, no beats). Flag if it emits progress data when
-  nothing progress-relevant occurred.
+- **Storyteller:** Should skip when no storytell-relevant events (no thread changes,
+  no recent events, no beats, no goal_update). Flag if it emits storytell data when
+  nothing storytell-relevant occurred.
 - **Rules pipeline:** Should only roll dice when the player's action warrants a check. Flag
   turns where rules were invoked for actions that don't need resolution.
 
@@ -470,12 +491,13 @@ Location change narrated → scene extract captures it.
 Inventory change narrated → state extract captures it.
 Condition change narrated → state extract captures it.
 
-### Narrate → Progress Extract Consistency
-Thread objective narrated → progress extract captures via thread_advance/thread_resolve.
+### Narrate → Storytell Consistency
+Thread objective narrated → storytell captures via thread_update/thread_resolve.
 
-### Progress → Narrate Feedback Loop
+### Storytell → Narrate Feedback Loop
 `gm_beat` from T-N surfaces in narration T-(N+1).
 `recent_events_add` from T-N appears in T-(N+1) context.
+`goal_update` from T-N produces a visible_goal change in state T-N that narrator and storytell use in T-(N+1).
 Unified threads (arc.threads[]) appear in rules/narrate context T-(N+1).
 
 ---

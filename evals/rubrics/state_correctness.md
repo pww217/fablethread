@@ -50,25 +50,43 @@ After the table: Is momentum responding correctly to dice rolls across the run?
 
 ### 1B — GM Beat Lifecycle Table
 
-| Generated (Tn) | Beat Type | Inferred Disposition | State After | TTL Respected? | Flag |
-|----------------|-----------|---------------------|-------------|----------------|------|
+| Generated (Tn) | Beat Type | Surface As | State After (type) | Injected By | TTL Respected? | Flag |
+|----------------|-----------|------------|--------------------|-------------|----------------|------|
 
-Flags: `ORPHANED` (generated, never consumed/expired), `TTL_EXCEEDED`. Python infers disposition from gm_beat presence in delta and expiry logic on state.meta.pending_gm_beat.
+Build from storytell extraction output (`gm_beat`) vs state_snapshot (`meta.pending_gm_beat`). The "Injected By" column distinguishes storyteller-emitted beats from floor-relief-injected breathing_room (post-overhaul: floor relief fires when beat_locked=True and no non-pressure beat is pending).
 
-Also note: if every turn emits a non-null `gm_beat`, the beat expiry path (`turn_no > beat_expires_turn`) is never exercised. This means pending_gm_beat are perpetually replaced before they can expire, making the expiry mechanism dead code. Flag `NO_EXPIRY_TESTED` if all turns have `gm_beat != null`.
+Flags: `ORPHANED` (generated, never consumed/expired). `FLOOR_RELIEF_MISS` (beat_locked=True, storytell emitted null/pressure, but no breathing_room injected). `TTL_EXCEEDED` (TTL-based expiry is checked at narrate setup: `turn_no > beat_expires_turn`).
 
-### 1C — Unified Thread Lifecycle Table
+Also note: if every turn emits a non-null `gm_beat`, the beat expiry path is never exercised. Flag `NO_EXPIRY_TESTED` if all turns have `gm_beat != null`.
+
+Beat lifecycle pipeline order (per turn):
+1. Pre-narration: pending_gm_beat nullified if `turn_no > beat_expires_turn`
+2. Storytell: writes new beat or clears pending_gm_beat (null-clear)
+3. Floor relief (after delta apply): injects breathing_room if beat_locked=True and no non-pressure beat
+4. consecutive_pressure counter: updated from storytell's raw gm_beat.type (not post-relief state)
+5. recent_beats snapshot: pending_gm_beat is appended to `state.meta.recent_beats` (capped at 5) after floor relief override
+
+### 1C — Arc Goal Update Table
+
+| Turn | goal_update Emitted | visible_goal Before | visible_goal After | Applied? | Flag |
+|------|---------------------|---------------------|--------------------|----------|------|
+
+Read `goal_update` from storytell extraction output (`storytell.output.goal_update`). Read `visible_goal` from state_snapshot (`arc.visible_goal`). Compare between current and previous turn's snapshot.
+
+Flags: `NOT_APPLIED` (goal_update emitted but visible_goal unchanged). `SILENT_CHANGE` (visible_goal changed but no goal_update was emitted — suspect stale delta from a prior turn).
+
+### 1D — Unified Thread Lifecycle Table
 
 | ID | Added (Tn) | Scope | Urgency | Updates | Resolved (Tm) | Flag |
 |----|------------|-------|---------|---------|----------------|------|
 
-Flags: `INERT` (thread exists ≥3 turns with no thread_update or resolve), `UNRESOLVED_AT_END`. For scope=scene threads, verify they are present in arc.threads[] while relevant and removed (via thread_resolve) when tension ends. For scope=arc threads, verify they persist until explicitly resolved. CAP_EXCEEDED: more than 3 active threads.
+Flags: `INERT` (thread exists ≥3 turns with no thread_update or resolve), `UNRESOLVED_AT_END`. For scope=scene threads, verify they are resolved (via thread_resolve emitted by arc director) when the location changes — scene-scoped threads do not survive location transitions. For scope=arc threads, verify they persist until explicitly resolved. CAP_EXCEEDED: more than 3 active threads.
 
 Read `Updates` from `thread_update` signal counts in extraction outputs (thread_update lists IDs that received urgency/active/summary changes). Read `Resolved` from `thread_resolve` signals. Verify resolved thread IDs appear in `arc.completed_threads[]` in state_snapshot. If thread_resolve fires but the thread is still in `arc.threads[]`, flag `RESOLUTION_FAILED`.
 
 `RESOLUTION_FAILED`: thread_resolve signals fired but the thread was not moved to completed_threads — either the signal ID doesn't match the thread's `id` field, or `_apply_thread_updates` / `_merge_arc_update` skipped it.
 
-### 1D — Condition Lifecycle Table
+### 1E — Condition Lifecycle Table
 
 | ID | Added (Tn) | Source | Resolved (Tm) | Duration | Flag |
 |----|------------|--------|---------------|----------|------|
@@ -76,7 +94,7 @@ Read `Updates` from `thread_update` signal counts in extraction outputs (thread_
 Source: `roll` / `narrative` / `engine`.
 Flags: `SILENT_DROP`, `OVERLONG` (active >5 turns), `DUPLICATE`.
 
-### 1E — Inventory Evolution Table
+### 1F — Inventory Evolution Table
 
 | Turn | Action | Item | Qty Extracted | Rejected? | Flag |
 |------|--------|------|---------------|-----------|------|
@@ -124,7 +142,7 @@ Based on Sections 2B and 3. Major extraction failures cap at 2. State cap reason
 Score 1–5.
 
 ### Mechanic Lifecycle Score (1–5)
-Based on Section 1 tables. Count flags: >4 red flags across all tables caps at 2.
+Based on Section 1 tables (1A–1F). Count flags: >4 red flags across all tables caps at 2.
 Score 1–5.
 
 ---

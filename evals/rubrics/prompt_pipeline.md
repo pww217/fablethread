@@ -90,6 +90,7 @@ For each turn, verify each mechanic is emitted by the correct stream.
 | `pc_condition_add`, `pc_condition_remove` | state |
 | `thread_update`, `thread_resolve`, `thread_add` (gated) | storytell |
 | `recent_events_add`, `recent_events_update`, `recent_events_remove` | storytell |
+| `goal_update` | storytell |
 | `gm_beat` | storytell |
 | `actions`, `outcome_summary` | storytell |
 
@@ -109,7 +110,7 @@ For each pipeline, assess whether its inputs are focused:
 
 **Extract State**: should receive narrative, pc, inventory, rules_outcome, band. Flag if it receives arc thread data, recent_events, or pressure data.
 
-**Storyteller**: richest extractor — assess whether every input enables a specific output. Flag inputs that appear unused. Should receive: narrative, band, PacingContext (full struct), arc.threads[] (unified), recent_turns.
+**Storyteller**: richest extractor — assess whether every input enables a specific output. Flag inputs that appear unused. Should receive: narrative, band, PacingContext (full struct), arc.threads[] (unified), recent_turns, recent_beats, pending_gm_beat. Outputs include: thread_update/thread_resolve/thread_add, gm_beat, goal_update, actions, outcome_summary.
 
 Assess: is pacing_context being used by the storyteller? Flag if it appears in the prompt but the extractor's output shows no evidence of using directive/gate for thread/beat decisions.
 

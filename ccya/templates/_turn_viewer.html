@@ -251,11 +251,11 @@
                                         <span class="tv-diff-value" x-text="t.band_label"></span>
                                     </div>
                                 </template>
-                                <template x-if="t.pacing_context.beat_locked">
+                                <template x-if="t.pacing_context.outcome_hint">
                                     <div class="tv-diff-row">
                                         <span class="tv-diff-op"></span>
-                                        <span class="tv-diff-field">beat_locked</span>
-                                        <span class="tv-diff-value" style="color: var(--status-error)">true</span>
+                                        <span class="tv-diff-field">outcome_hint</span>
+                                        <span class="tv-diff-value" x-text="t.pacing_context.outcome_hint"></span>
                                     </div>
                                 </template>
                             </div>

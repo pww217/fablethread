@@ -44,7 +44,7 @@ scenario = Scenario(
             phase="gm_beat_surface",
             expects=[
                 "narrate should integrate beat type and surface_as context naturally",
-                "pending_gm_beat should be None after narration consumes it — Python infers disposition from delta state changes, not LLM emission",
+                "pending_gm_beat should be None after storytell clears it — beats persist through extraction phase, not consumed by narration; storyteller decides to replace/clear each turn",
             ],
             asserts=[
                 TurnAssert(stream="state_yaml", field="pending_gm_beat.absent"),

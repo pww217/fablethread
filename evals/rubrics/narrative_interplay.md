@@ -53,7 +53,7 @@ After the table: Does band progression feel too fast, too slow, or appropriate? 
 
 ### 1A.5 — PacingContext Analysis (Two Signals)
 
-The engine passes two distinct pacing signals: `directive` to the Progress Extractor (thread/beat decisions), and `outcome_hint` to the Narrator (scene motion). Evaluate each separately.
+The engine passes two distinct pacing signals: `directive` to the Storyteller (thread/beat decisions), and `outcome_hint` to the Narrator (scene motion). Evaluate each separately.
 
 **Narration → outcome_hint:** For each turn where `pacing_context.outcome_hint` is non-null:
 - Was the scene motion honored? ("hold" → continue current pace, "advance" → narrate through to resolution, "transition" → write arrival at new location)
@@ -61,22 +61,24 @@ The engine passes two distinct pacing signals: `directive` to the Progress Extra
 | Turn | PacingContext.outcome_hint | Honored? | Flag |
 |------|----------------------------|----------|------|
 
-**Progress Extractor → directive:** For each turn where `pacing_context.directive` is non-empty:
-- Did the storyteller's thread/beat choices align with the directive? (e.g., "Breathe" → no new threads, breathing_room beat; "Pressure"/"Overwhelm" → tension-building)
+**Storyteller → directive:** For each turn where `pacing_context.directive` is non-empty:
+- Did the storyteller's thread/beat choices align with the directive? (e.g., "Breathe" → no new threads, breathing_room beat; "Pressure"/"Scene Imperative" → tension-building)
 
 | Turn | PacingContext.directive | Thread Action Aligned? | Flag |
 |------|-------------------------|------------------------|------|
 
 Flag: `DIRECTIVE_IGNORED_BY_NARRATOR` (outcome_hint not honored), `THREAD_DIRECTIVE_IGNORED` (directive contradicts thread/beat choices).
 
-Evaluate actual directive values: `""`, `"Breathe"`, `"Scene Imperative"`, `"Overwhelm"`, `"Resolve a Threat"`, `"Pressure"`, `"Tension"`, `"Threat Pressure"`, `"Scene Pressure"`.
+Evaluate actual directive values: `""`, `"Breathe"`, `"Scene Imperative"`, `"Overwhelm"`, `"Pressure"`, `"Tension"`.
 
 ### 1B — GM Beat→Narrative Effect
 
-| Turn Beat Created | Beat Type | Turn Narrated | Beat Reflected in Prose? | Evidence | Flag |
-|-------------------|-----------|---------------|--------------------------|----------|------|
+| Turn Beat Created | Beat Type | Source | Turn Narrated | Beat Reflected in Prose? | Evidence | Flag |
+|-------------------|-----------|--------|---------------|--------------------------|----------|------|
 
-Flag: `NO_EFFECT` (beat present in state but narration unchanged), `WRONG_EFFECT` (beat type=revelation but narration shows complication).
+The "Source" column distinguishes storyteller-emitted beats from floor-relief-injected breathing_room. Compare `extraction.storytell.output.gm_beat` vs `state_snapshot.meta.pending_gm_beat` — if they differ (storytell emitted null or pressure, state has breathing_room), floor relief fired.
+
+Flag: `NO_EFFECT` (beat present in state but narration unchanged), `WRONG_EFFECT` (beat type=revelation but narration shows complication), `FLOOR_RELIEF_IGNORED` (floor relief injected breathing_room but next turn's narration ignored the recovery tone).
 
 After the table: Are beats creating meaningful story pivots or are they mechanical noise?
 
@@ -94,10 +96,10 @@ surface_as controls how the beat is presented in narration. 'ambient' → backgr
 ### 1B.5 — Beat Generation Quality with Directive Context
 
 For each turn where a beat was generated:
-- Was the beat type appropriate given PacingContext.directive? (e.g., "Breathe" → breathing_room, "Pressure"/"Overwhelm" → complication)
+- Was the beat type appropriate given PacingContext.directive? (Note: floor relief can override the beat post-extraction if beat_locked=True — distinguish storyteller-generated beats from floor-relief-injected breathing_room by comparing extraction.storytell.output.gm_beat vs state_snapshot.meta.pending_gm_beat.)
 
 Assessment method:
-- **Rule-based**: `""`→none/no beat expected, `"Breathe"`→breathing_room, `"Scene Imperative"`→revelation or escalation (strong scene-level signal), `"Overwhelm"`→complication (more severe than Pressure, short-circuits all other directives), `"Resolve a Threat"`→resolution guidance for aged-out threats, `"Pressure"`/`"Threat Pressure"`→complication, `"Tension"`→mild escalation or none, `"Scene Pressure"`→mild scene-level pressure.
+- **Rule-based**: `""`→none/no beat expected, `"Breathe"`→breathing_room, `"Scene Imperative"`→revelation or escalation (strong scene-level signal), `"Overwhelm"`→complication (short-circuits all other directives when beat_locked fires), `"Pressure"`→complication, `"Tension"`→mild escalation or none.
 - **LLM judge**: Let the judge read the beat type + directive and decide if they align. More flexible but subjective.
 
 | Turn Beat Created | Beat Type | PacingContext.directive | Type Matches Directive? | Flag |
@@ -125,6 +127,17 @@ For each resolved thread (in arc.completed_threads[]):
 |-----------|------------|---------------|-------|---------------------|------|
 
 Flag: `EARLY_RESOLUTION` (resolved before narration showed resolution), `LATE_RESOLUTION` (>3 turns after narrative resolution when the thread was still active), `FALSE_RESOLUTION` (removed when tension was still active in narration), `MISSING_RESOLUTION` (tension resolved narratively but thread not resolved).
+
+### 1C.7 — goal_update → Narrative Effect
+
+For each turn where `storytell.output.goal_update` is non-null:
+- Did the visible_goal change produce an observable shift in narration or thread focus in subsequent turns?
+- Was the goal_update reflected in the narrator's context (does narration align with the new visible_goal)?
+
+| Turn | goal_update Text | visible_goal After | Narration Shift? | Thread Focus Aligned? | Flag |
+|------|------------------|--------------------|-----------------|------------------------|------|
+
+Flag: `GOAL_IGNORED` (goal changed but narration continued as if nothing happened), `GOAL_CONFLICT` (narration contradicts the new visible_goal direction).
 
 ### 1D — Condition→Narrative Callback
 For each active condition per turn: was it referenced in narration or did it affect a roll directive?
@@ -165,6 +178,7 @@ Verdict: tight / loose / broken.
 - **High-tension vs breathing turns**: count each. Flag if >4 consecutive high-pressure turns.
 - **Momentum arc**: did the run have a discernible arc? Or random oscillation?
 - **Beat type variety**: count beat types. Flag if >60% are the same type.
+- **recent_beats effectiveness**: the engine tracks last 5 beats in `state.meta.recent_beats` for diversity guidance. Check if beat variety improves over the run (later turns more varied than early turns) — if not, the beat history prompt block may be ineffective.
 - **Intent verb variety**: count distinct `intent_verb` values across the run. Flag if >70% are the same verb. Flag if a verb that is known from the scenario (e.g., "negotiate", "sneak", "climb") never appears.
 - **Skill coverage**: list which of the 6 skills (`strength, dexterity, wits, lore, charisma, resolve`) appeared in dice rolls. Flag if a skill never appeared across the entire run.
 - **Escape paths**: when player was in a bad situation (negative momentum, urgent threads),

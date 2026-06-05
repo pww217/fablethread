@@ -572,7 +572,7 @@ def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
     current_turn = meta.get("turn", 0)
 
     scene_entered = scene.get("turn_entered", 0)
-    scene_age = current_turn - scene_entered if scene_entered > 0 else 0
+    scene_age = current_turn - scene_entered
 
     return {
         "scene_age": scene_age,
@@ -1305,6 +1305,7 @@ async def run_turn(
                 "directive": _pc.directive if _pc else "",
                 "beat_locked": bool(_pc.beat_locked) if _pc else False,
                 "gate": _pc.gate if _pc else "allow",
+                "outcome_hint": _pc.outcome_hint if _pc else None,
                 "summary": _pc.summary if _pc else "",
             },
             # Summary of what was captured in narrate_prompt rendered_user (for meta-eval visibility).
