@@ -841,8 +841,8 @@ def _compare_state_structures(cur_state: dict[str, Any], prev_state: dict[str, A
         })
 
     # NPC compendium: set of NPC IDs
-    cur_npc_ids = set(((cur_state.get("npcs") or {}).get("compendium") or {}).keys())
-    prev_npc_ids = set(((prev_state.get("npcs") or {}).get("compendium") or {}).keys())
+    cur_npc_ids = set(((cur_state.get("compendium") or {}).get("npcs") or {}).keys())
+    prev_npc_ids = set(((prev_state.get("compendium") or {}).get("npcs") or {}).keys())
     added_npcs = cur_npc_ids - prev_npc_ids
     removed_npcs = prev_npc_ids - cur_npc_ids
     if added_npcs or removed_npcs:
