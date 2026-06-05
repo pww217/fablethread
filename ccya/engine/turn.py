@@ -1029,6 +1029,17 @@ async def run_turn(
             else:
                 state.get("meta", {}).pop("pending_gm_beat", None)
 
+            # Floor relief injection — runs BEFORE apply_delta so breathing_room persists through the deep copy. Post-apply block was moved here and removed from its original location.
+            if _pc.beat_locked:
+                _current_beat = state.get("meta", {}).get("pending_gm_beat")
+                if _current_beat is None or _current_beat.get("type") in PRESSURE_BEAT_TYPES:
+                    meta = state.setdefault("meta", {})
+                    meta["pending_gm_beat"] = {
+                        "type": "breathing_room",
+                        "surface_as": "ambient",
+                        "beat_expires_turn": turn_no + 2,
+                    }
+
         if is_cancel_requested(str(save_dir)):
             return
         yield ("phase", {"phase": "extract_done"})
@@ -1111,16 +1122,6 @@ async def run_turn(
             state = apply_delta(
                 state, delta,
             )
-            # Inject floor relief beat via PacingContext.beat_locked
-            if _pc.beat_locked:
-                _current_beat = state.get("meta", {}).get("pending_gm_beat")
-                if _current_beat is None or _current_beat.get("type") in PRESSURE_BEAT_TYPES:
-                    meta = state.setdefault("meta", {})
-                    meta["pending_gm_beat"] = {
-                        "type": "breathing_room",
-                        "surface_as": "ambient",
-                        "beat_expires_turn": (state.get("meta") or {}).get("turn", 0) + 3,
-                    }
             # Beat history: snapshot pending_gm_beat after floor relief override
             _history_beat = state.get("meta", {}).get("pending_gm_beat")
             meta = state.setdefault("meta", {})
