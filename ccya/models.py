@@ -27,6 +27,8 @@ class NpcPresence(str, Enum):
 
 
 class ArcThread(BaseModel):
+    model_config = {"extra": "ignore"}
+
     id: str
     summary: str
     scope: Literal["scene", "arc"]
@@ -42,10 +44,13 @@ class ArcThread(BaseModel):
     def _coerce_progress(cls, v: Any, handler: Any) -> Any:
         if isinstance(v, str):
             return [v]
+        if not v or (isinstance(v, int) and v == 0):
+            return []
         return handler(v)
 
 
 class CampaignArc(BaseModel):
+    model_config = {"extra": "ignore"}
     visible_goal: str = ""
     goal_context: str = ""
     threads: list[ArcThread] = Field(default_factory=list)
