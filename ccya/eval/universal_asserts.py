@@ -604,7 +604,8 @@ def check_thread_update_id_valid(event: dict[str, Any]) -> dict[str, Any]:
         t.get("id") for t in ((event.get("state_snapshot") or {}).get("arc") or {}).get("threads") or []
         if isinstance(t, dict) and t.get("id")
     }
-    bad = [tid for tid in thread_updates if tid not in state_thread_ids]
+    bad = [t.get("id") for t in thread_updates if isinstance(t, dict) and t.get("id") not in state_thread_ids] or \
+          [t.id for t in thread_updates if hasattr(t, "id") and t.id not in state_thread_ids]
     if bad:
         return {
             "assertion": "universal.thread_update.valid_id",
