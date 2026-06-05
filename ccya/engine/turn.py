@@ -532,6 +532,8 @@ def _compute_pacing_context(
         outcome_hint = "transition"
     elif scene_motion == "advance":
         outcome_hint = "advance"
+    elif directive.startswith("Scene Imperative"):
+        outcome_hint = "transition"
     elif impossible:
         outcome_hint = "advance"
     else:

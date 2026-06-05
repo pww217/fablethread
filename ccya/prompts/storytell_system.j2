@@ -49,6 +49,12 @@ IMPORTANT: A thread's identity is its `id` — not its current summary, progress
 - Instead of creating `naval_coordination_failure` and `electronic_jamming_interference` as separate threads, keep one thread and widen its summary to encompass both symptoms.
 - When a threat escalates (e.g., sniper → pursuit → encirclement), update the existing thread to reflect the new reality. Do not spawn a new thread per escalation step.
 
+**Pick summary OR progress — not both.** When updating a thread, emit either `summary` or `progress`, not both for the same thread in the same turn. They serve different purposes:
+- `summary` rewrite: the thread's trajectory or nature has changed at a high level. The old summary no longer captures what this thread is about. This is a significant shift.
+- `progress` addition: a smaller piece of advancement that does not alter the thread's trajectory. The thread is still about the same thing, but something concrete happened within it.
+
+Use both sparingly. Most turns should not emit thread updates at all. Only update when the narrative has moved enough to warrant it. When in doubt, skip the update — threads do not need to be touched every turn.
+
 `progress`: Add progress updates sparingly. Only emit them for non-trivial, substantial changes that the player must know about — not trivial turn-by-turn details or incremental narration. When in doubt, do NOT emit a progress update. Progress notes MUST be unique and NOT a retelling of what the narration already conveys. Bad: "Combat continues." / "The player asked a question." / "More enemies arrive." / "Discussed the plan with Halden." Good: "Confirmed Silas Thorne is the surveillance coordinator." / "The cargo manifests link blockade timing to targeted intimidation." / "The ledger reveals a third party — an unmarked account paying both Stern and the dock foreman."
 
 CRITICAL: Thread IDs must be broad conceptual buckets — just a few words capturing a general story tension, NOT a specific event or goal. A thread like `naval_boarding_action` should not exist as a thread at all — it's a scene, not a tension. If you can summarize it in 3-4 words that would cover many possible developments, it's broad enough. If the id describes one person or one event, it's too narrow. Loosely related developments belong under one broad thread with different progress entries, not split into separate threads.
