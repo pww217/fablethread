@@ -1116,12 +1116,23 @@ async def run_turn(
                 )
                 narrative += f"\n\n*That action didn't resolve as expected. Trace `{trace_id}` — try rephrasing.*"
 
-            delta, reconcile_warnings = reconcile_delta(state, delta)
-            for w in reconcile_warnings:
-                _log.warning("[reconcile] turn %s: %s", state.get("meta", {}).get("turn", "?"), w, extra={"trace_id": trace_id})
-            state = apply_delta(
-                state, delta,
-            )
+            else:
+                delta, reconcile_warnings = reconcile_delta(state, delta)
+                for w in reconcile_warnings:
+                    _log.warning("[reconcile] turn %s: %s", state.get("meta", {}).get("turn", "?"), w, extra={"trace_id": trace_id})
+                state = apply_delta(
+                    state, delta,
+                )
+
+                applied = delta.model_dump(exclude_none=True)
+                for r in rejected:
+                    if r.get("kind") == "warn_overdraw":
+                        _log.warning(
+                            "inventory over-draw clamped: %s",
+                            r.get("reason"),
+                            extra={"trace_id": trace_id},
+                        )
+
             # Beat history: snapshot pending_gm_beat after floor relief override
             _history_beat = state.get("meta", {}).get("pending_gm_beat")
             meta = state.setdefault("meta", {})
@@ -1134,14 +1145,6 @@ async def run_turn(
             max_beats = config.recent_beats_max if config else 5
             if len(meta["recent_beats"]) > max_beats:
                 meta["recent_beats"] = meta["recent_beats"][-max_beats:]
-            applied = delta.model_dump(exclude_none=True)
-            for r in rejected:
-                if r.get("kind") == "warn_overdraw":
-                    _log.warning(
-                        "inventory over-draw clamped: %s",
-                        r.get("reason"),
-                        extra={"trace_id": trace_id},
-                    )
 
             # Stamp last_seen on touched NPCs
             comp = state.get("compendium", {}).get("npcs", {})
@@ -1452,10 +1455,12 @@ def _validate(state: dict[str, Any], delta: StateDelta) -> list[dict[str, Any]]:
     for rem in delta.inventory_remove:
         canonical = resolve_inventory_remove_target(inv_list, rem.id)
         if canonical is None:
-            _log.debug(
-                "inventory_remove target %r not found in inventory (turn %s) — skipping",
-                rem.id, state.get("meta", {}).get("turn", 0),
-            )
+            rejections.append({
+                "field": "inventory_remove",
+                "kind": "missing_target",
+                "value": rem.id,
+                "reason": f"Item '{rem.id}' not found in inventory",
+            })
             continue
         item = inv_by_id.get(canonical)
         if item and int(item.get("amount") or 0) == 0:
