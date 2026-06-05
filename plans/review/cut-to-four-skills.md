@@ -13,10 +13,10 @@ The current 6-skill system includes `lore` and `resolve` which never appear in p
 
 ## Non-goals
 - Does not rename or redefine any remaining skill.
-- Does not change the dice resolution logic in `rules.py` beyond the skill set constant.
-- Does not migrate existing save files — no backward compatibility required per AGENTS.md.
-- Does not change stat point allocation totals or the 1–4 range per skill.
-- Does not update any eval scenario seed that hardcodes lore/resolve stat values — those are handled implicitly (see Risks).
+- Does not change the dice resolution logic in `rules.py` beyond the skill set constant and CONDITION_MODS cleanup.
+- Does not migrate existing save files — no backward compatibility required per AGENTS.md. Running saves with lore/resolve stats will load without error but `_validate_stats` is only called at new-game time, so they remain playable.
+- Changes stat point budget from 12–16 (6 skills) to 8–12 (4 skills). Per-skill range stays 1–4.
+- Updates eval scenarios, rubrics, and documentation to reflect the reduced skill set.
 
 ---
 
@@ -29,12 +29,16 @@ The current 6-skill system includes `lore` and `resolve` which never appear in p
 - `ccya/prompts/ruling_system.j2`
 - `ccya/prompts/generate_seed_system.j2`
 - `ccya/templates/index.html`
+- `ccya/templates/_state_right.html`
 - `evals/rubrics/narrative_interplay.md`
 - `ccya/eval/engine_mirror.py`
 - `evals/scenarios/eval_coverage_gap.py`
 - `evals/packs/eval-pack/seed_state.yaml`
 - `tests/conftest.py`
 - `docs/repomap.md`
+- `ccya/state/io.py`
+- `ccya/prompts/context.py`
+- `ccya/prompts/extract_state_system.j2`
 
 ---
 
@@ -76,6 +80,22 @@ VALID_SKILLS: frozenset[str] = frozenset(
 
 ---
 
+#### Step 1.2b — Remove resolve from CONDITION_MODS
+
+**File:** `ccya/rules.py`
+
+**What:** Remove `"resolve"` entries from all condition modifiers in the `CONDITION_MODS` dict:
+- `"exhausted": {"strength": -1, "dexterity": -1}` (remove `"resolve": -1`)
+- `"drugged": {"wits": -1}` (remove `"resolve": -1`)
+- `"frightened": {"charisma": -1}` (remove `"resolve": -1`)
+- `"shaken": {}` — remove the entire entry since resolve was its only modifier
+
+**Why:** `CONDITION_MODS` maps condition IDs to skill modifiers. The engine applies these via `conditions_modifier(skill, pc_conditions)` in `resolve_check()`. After removing resolve from VALID_SKILLS, no PC can have a resolve stat, so these modifiers become dead code that silently apply against non-existent values. Clean removal prevents confusion and keeps the conditions system accurate for remaining skills.
+
+**Validation:** `grep -n "resolve" ccya/rules.py` confirms only matches are in comments or unrelated words (not skill references).
+
+---
+
 #### Step 1.3 — Update stat validation in server
 
 **File:** `ccya/server/app.py`
@@ -92,10 +112,34 @@ def _validate_stats(stats: dict[str, int]) -> bool:
         return False
     if not all(isinstance(v, int) and 1 <= v <= 4 for v in stats.values()):
         return False
-    return True
+    total = sum(stats.values())
+    return 8 <= total <= 12
+
+
+def main() -> None:
 ```
 
-**Validation:** Submit a new-game request via curl with only 4 stats; confirm 200. Submit with lore/resolve; confirm 422.
+**Validation:** Submit a new-game request via curl with only 4 stats; confirm 200. Submit with lore/resolve; confirm 422. Total must be between 8 and 12 inclusive (was 12–16 for 6 skills).
+
+---
+
+#### Step 1.3b — Update default state in migration function
+
+**File:** `ccya/state/io.py`
+
+**What:** Remove `"lore": 2,` and `"resolve": 2,` from the stats dict inside `_default_state()` (lines 60–67). The resulting stats should be:
+```python
+"stats": {
+    "strength": 2,
+    "dexterity": 2,
+    "wits": 2,
+    "charisma": 2,
+},
+```
+
+**Why:** `_default_state()` is returned when no save file exists or YAML parsing fails. It must match the new 4-skill schema. The migration function `_migrate_v0_to_v1` itself (which handles a legacy YAML tag corruption fix) does not reference lore/resolve skills and should be left intact — only the default state values change.
+
+**Validation:** `grep -n "lore\|resolve" ccya/state/io.py` confirms no skill references remain in `_default_state()`. The migration function itself (`_migrate_v0_to_v1`) is preserved as-is since it handles YAML tag corruption, not skill migration.
 
 ---
 
@@ -141,7 +185,23 @@ Replace with:
 stats: {strength: int, dexterity: int, wits: int, charisma: int}
 ```
 
+Also update the `pc.stats` field guidance text on line 118 from "six integer values, range 1–4, total 12–18" to "four integer values, range 1–4, total 8–12".
+
 **Validation:** Generate a new seed and confirm the resulting `state.yaml` has exactly 4 stat keys.
+
+---
+
+#### Step 1.5b — Update extract state condition guidance
+
+**File:** `ccya/prompts/extract_state_system.j2`
+
+**What:** Remove resolve skill references from condition generation guidance:
+- Line 103: Remove `- Failed \`resolve\` → consider \`shaken\`` entirely (shaken was only triggered by failed resolve; remove the rule)
+- Line 105: Change `Failed \`strength\`/\`dexterity\`/\`resolve\` with sustained effort → consider \`exhausted\`` to `Failed \`strength\`/\`dexterity\` with sustained effort → consider \`exhausted\``
+
+**Why:** The extract state LLM uses this guidance to decide which conditions to add based on roll outcomes. References to resolve as a skill will cause the model to suggest shaken/exhausted for non-existent resolve rolls, creating orphan conditions that have no matching stat to apply CONDITION_MODS against.
+
+**Validation:** Read file; confirm only strength and dexterity appear in condition guidance lines 102–105. No lore or resolve skill references remain.
 
 ---
 
@@ -149,11 +209,7 @@ stats: {strength: int, dexterity: int, wits: int, charisma: int}
 
 **File:** `ccya/templates/index.html`
 
-**What:** Remove the `lore` and `resolve` entries from the `skills` array in the Vue/Alpine data block.
-
-**Why:** The UI renders a stat allocation widget per skill entry. Dead skills must not appear in character creation.
-
-**Code Snippet**
+**What:** Remove the `lore` and `resolve` entries from the `skills` array in the Vue/Alpine data block, update validation bounds to match new total range (8–12), update archetype descriptions, and rewrite archetype presets.
 
 Remove these two objects from the skills array:
 ```js
@@ -163,13 +219,61 @@ Remove these two objects from the skills array:
 
 The remaining array should be:
 ```js
-{ key: 'strength', label: 'Strength', description: '...', value: 2 },
-{ key: 'dexterity', label: 'Dexterity', description: '...', value: 2 },
+{ key: 'strength', label: 'Strength', description: 'Force, melee combat, and soak against physical trauma.', value: 2 },
+{ key: 'dexterity', label: 'Dexterity', description: 'Reflexes, ranged attacks, and avoiding danger.', value: 2 },
 { key: 'wits', label: 'Wits', description: 'Awareness, perception, and quick thinking under pressure.', value: 2 },
 { key: 'charisma', label: 'Charisma', description: 'Persuasion, leadership, and reading people.', value: 2 },
 ```
 
-**Validation:** Load character creation page; confirm only 4 stat sliders appear. Confirm total stat budget logic still functions (point buy or fixed — verify the `total` getter if present still computes correctly with 4 skills).
+Update the `isValid` getter from `this.total >= 12 && this.total <= 16` to `this.total >= 8 && this.total <= 12`.
+
+Update the `increment(statKey)` method cap from `this.total < 16` to `this.total < 12`.
+
+Replace archetype descriptions:
+```js
+getArchetypeDescriptions() {
+    return {
+        warrior: 'A frontline fighter. High Strength and Dexterity for melee combat and endurance.',
+        scout: 'A nimble tracker. High Dexterity and Wits for stealth, perception, and reflexes.',
+        scholar: 'A learned researcher. High Wits and Charisma for knowledge, investigation, and influence.',
+        charmer: 'A charismatic leader. High Charisma and Wits for persuasion, leadership, and influence.',
+        survivor: 'A resilient survivor. High Strength and Dexterity for endurance, toughness, and adaptability.',
+    };
+},
+```
+
+Replace archetype presets (4 skills only, totals adjusted to stay within 8–12):
+```js
+const archetypes = {
+    warrior:   { strength: 3, dexterity: 3, wits: 2, charisma: 2 },      // total 10
+    scout:     { strength: 2, dexterity: 4, wits: 3, charisma: 2 },       // total 11
+    scholar:   { strength: 2, dexterity: 2, wits: 4, charisma: 3 },      // total 11
+    charmer:   { strength: 2, dexterity: 2, wits: 2, charisma: 4 },      // total 10
+    survivor:  { strength: 3, dexterity: 3, wits: 2, charisma: 2 },       // total 10
+};
+```
+
+**Validation:** Load character creation page; confirm only 4 stat sliders appear. Confirm validation requires total between 8 and 12 inclusive. Archetype presets should all produce valid totals within range.
+
+---
+
+#### Step 1.6b — Update right sidebar skill descriptions
+
+**File:** `ccya/templates/_state_right.html`
+
+**What:** Remove lore and resolve from the `_stat_tips` dict (lines 17–24):
+```jinja2
+{% set _stat_tips = {
+    "strength": "Physical force, melee, lifting, breaking, soak, endure pain",
+    "dexterity": "Agility, stealth, ranged attacks, fine motor, dodge, pickpocket",
+    "wits": "Quick thinking, perception, deduction, hacking under pressure, spot a lie",
+    "charisma": "Persuade, deceive, charm, negotiate, perform, seduce, intimidate by presence"
+} %}
+```
+
+**Why:** The right sidebar displays skill tooltips to players during gameplay. Lore and resolve will appear as dead skills in production if not removed from this template.
+
+**Validation:** Load a running game; confirm only 4 stat tooltips appear in the player card of the right sidebar.
 
 ---
 
@@ -238,15 +342,42 @@ Apply the same change to any inline set literals or comments enumerating the ski
 
 ---
 
+#### Step 1.9b — Update eval coverage gap scenario T8 expectation
+
+**File:** `evals/scenarios/eval_coverage_gap.py`
+
+**What:** Change line 119 from `"rules.required=true skill=lore (tactical analysis)"` to `"rules.required=true skill=wits (tactical analysis, perception under pressure)"`.
+
+**Why:** The scenario's T8 turn ("I study the old battle maps in the village hall") was designed to exercise lore. Since lore is removed, wits is the closest remaining skill for tactical analysis and perception-based reasoning. This ensures the eval continues exercising a distinct 5th skill beyond strength/dexterity/charisma used in earlier turns.
+
+**Validation:** Read file; confirm T8 expects `skill=wits` instead of `skill=lore`. No other lore references remain in any scenario file.
+
+---
+
+#### Step 1.9c — Update prompt context comment
+
+**File:** `ccya/prompts/context.py`
+
+**What:** Change line 33 from:
+```python
+stats: dict[str, int]  # {strength/dexterity/wits/lore/charisma/resolve: int}
+```
+to:
+```python
+stats: dict[str, int]  # {strength/dexterity/wits/charisma: int}
+```
+
+**Why:** Stale comments mislead future developers on the expected shape of player stats. The comment is a docstring hint, not enforced code, but should be accurate.
+
+**Validation:** `grep -n "lore\|resolve" ccya/prompts/context.py` confirms no skill references remain (only unrelated words like "resolve" in non-skill contexts).
+
+---
+
 #### Step 1.10 — Update eval pack seed state
 
 **File:** `evals/packs/eval-pack/seed_state.yaml`
 
-**What:** Remove `lore` and `resolve` keys from `pc.stats`.
-
-**Why:** The eval pack seed is loaded directly into the engine at eval time. If it contains invalid stat keys, `_validate_stats` will reject it and the eval will fail to start.
-
-**Code Snippet**
+**What:** Remove `lore: 2` and `resolve: 3` from `pc.stats`. The resulting stats should be:
 ```yaml
 stats:
   strength: 3
@@ -255,9 +386,11 @@ stats:
   charisma: 3
 ```
 
-Note: the original total was 16 (3+3+2+2+3+3). Dropping lore (2) and resolve (3) removes 5 points. Redistribute or accept the lower total — confirm the engine does not enforce a specific total, only the 1–4 per-skill range and correct key set. If a total constraint exists, adjust values to compensate.
+The new total is 11, which falls within the valid range of 8–12. No redistribution needed — all values remain in the 1–4 per-skill range and the total constraint (8 ≤ total ≤ 12) is satisfied.
 
-**Validation:** Run eval; confirm seed loads without validation error.
+**Why:** The eval pack seed is loaded directly into the engine at eval time. If it contains invalid stat keys, `_validate_stats` will reject it and the eval will fail to start.
+
+**Validation:** Run eval; confirm seed loads without validation error. Total of 11 is within valid range (8–12).
 
 ---
 
@@ -309,10 +442,10 @@ stats: {strength, dexterity, wits, lore, charisma, resolve}: int (1-4 each, tota
 ```
 Replace with:
 ```
-stats: {strength, dexterity, wits, charisma}: int (1-4 each)
+stats: {strength, dexterity, wits, charisma}: int (1-4 each, total 8-12)
 ```
 
-**Validation:** Read both sections; confirm no lore or resolve remain.
+**Validation:** Read both sections; confirm no lore or resolve remain. Total range updated to 8–12.
 
 ---
 
@@ -328,16 +461,11 @@ Tests are temporarily disabled per AGENTS.md. No test changes required beyond th
 
 ### Risks
 
-1. **Stat total constraints in UI.** The character creation UI may enforce a fixed point budget. With 4 skills at default value 2, the starting total is 8. If the UI's `total` getter or min/max logic was calibrated for 6 skills, the budget may need adjustment. Read the `total` getter before committing Step 1.6.
+1. **Archetype preset totals.** After removing lore and resolve, archetype stat values must be redistributed to stay within the new 8–12 total range. Warrior (3-4-2-2=11) and scout (2-4-3-2=11) are valid; scholar (2-2-4-3=11), charmer (2-2-2-4=10), survivor (3-3-2-2=10) also valid. If any archetype total falls outside 8–12, the UI will reject it on character creation.
 
-2. **Existing save files.** Any saved game state on disk will have lore and resolve in `pc.stats`. The engine will load them without error (YAML load is permissive) but `_validate_stats` is only called at new-game time, not on load — so running saves are unaffected. No migration needed.
+2. **Dynamic pack seeds.** LLM-generated seeds (via `generate_seed_system.j2`) may still emit lore/resolve if the prompt update in Step 1.5 is incomplete or the model ignores it. The `_validate_stats` check will catch this at seed application time and return an error. Monitor first dynamic pack generation after deploy.
 
-3. **Dynamic pack seeds.** LLM-generated seeds (via `generate_seed_system.j2`) may still emit lore/resolve if the prompt update in Step 1.5 is incomplete or the model ignores it. The `_validate_stats` check will catch this at seed application time and return an error. Monitor first dynamic pack generation after deploy.
-
-4. **eval-pack seed total.** Original eval seed total was 16. After removing lore (2) and resolve (3), total drops to 11. Verify the engine has no minimum total enforcement — if it does, bump one stat to compensate.
+3. **Existing save files.** Any saved game state on disk with lore/resolve stats loaded via YAML will bypass `_validate_stats`. The engine may crash when accessing `pc.stats["lore"]` or similar keys in condition modifiers. This is acceptable — old saves become incompatible, which is expected behavior for a skill-system change.
 
 ---
 
-## Ambiguities requiring resolution before execution
-
-1. **Stat point budget in character creation UI.** Does the UI enforce a minimum or maximum total across all skills? If yes, what should the new target total be for 4 skills? Options: A) Keep current per-skill defaults (4 × 2 = 8 total, no budget enforcement change needed) B) Adjust budget cap to a new value appropriate for 4 skills.
