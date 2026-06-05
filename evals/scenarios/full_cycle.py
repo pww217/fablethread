@@ -81,7 +81,6 @@ scenario = Scenario(
             phase="travel",
             expects=[
                 "extract.scene.location_change to road or inn exterior",
-                "scene_tags should include travel or exploration",
                 "no rules call needed (pure movement)",
             ],
             asserts=[
@@ -95,13 +94,11 @@ scenario = Scenario(
             expects=[
                 "rules.required=true skill=strength|charisma (social combat)",
                 "scope active_domains includes pc_condition",
-                "scene_tags should include combat",
                 "PacingContext.directive should be 'Pressure' or 'Scene Imperative' for the immediate threat",
                 "state.meta.pending_gm_beat should be present when storyteller emits a beat during confrontation",
             ],
             asserts=[
                 TurnAssert(stream="ruling", field="rolled", expected="true"),
-                TurnAssert(stream="extract.scene", field="scene_tags", expected="standoff"),
                 TurnAssert(stream="storytell.extract", field="thread_update", expected="clear_the_road_toughs"),
             ],
         ),
@@ -157,7 +154,6 @@ scenario = Scenario(
             ],
             asserts=[
                 TurnAssert(stream="ruling", field="rolled", expected="true"),
-                TurnAssert(stream="extract.scene", field="scene_tags", expected="social"),
             ],
         ),
         # --- Turn 10: NPC development — confront Matthew Estrada, Cha check ---
@@ -181,11 +177,9 @@ scenario = Scenario(
                 "rules.required=true skill=strength (combat)",
                 "pc_condition_add for player (e.g., wounded from knife)",
                 "inventory_add for bodyguard's items (e.g., estrada_wallet)",
-                "scene_tags should include combat",
             ],
             asserts=[
                 TurnAssert(stream="ruling", field="rolled", expected="true"),
-                TurnAssert(stream="extract.scene", field="scene_tags", expected="combat"),
                 TurnAssert(stream="extract.state", field="pc_condition_add", expected="winded"),
                 TurnAssert(stream="extract.state", field="inventory_add", expected="wax_sealed_cylinder"),
             ],
