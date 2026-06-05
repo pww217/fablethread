@@ -1,132 +1,134 @@
 # Eval Findings — Latest Run Summary
 
-**Run:** `2026-06-05T20:24:42Z` · Scenario: `full_cycle` (13 turns)  
+**Run:** `2026-06-05T22:26:59Z_swmx485_` · Scenario: `full_cycle` (13 turns)  
 **Pack:** `eval-pack` · Model: `mlx-community/gemma-4-26b-a4b-it-mxfp8`  
-**State Fidelity Rate:** 0.538 (7/13 clean turns)
+**Judge model:** `mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit`
 
 ---
 
-## Critical Issues
+## Fixed (this session)
 
-### C1 — Floor Relief Override Failure (turns 8–10) [FIXED]
-When `beat_locked=True` and Storytell emitted pressure-type beats (`complication`, `pressure`, or `escalation`), the floor relief mechanism failed to override them with `breathing_room`. The lock was active at momentum=-3 for turns 7–10, but only injected on null/missing storytell output — not when storytell actively emitted a pressure beat.
+### F1 — NPC Mention False Positives [FIXED]
+Auto-checker flagged 'Slowly' (T2), 'Marrow' (T3/T4, location root of "Marrow's Crossing"), and 'Ahead' (T12) as unknown NPCs. The `check_npc_mention_extracted()` heuristic has been broken since inception — it parses capitalized tokens from narration but cannot reliably distinguish NPC names from adverbs, prepositions, or location-name fragments.
 
-**Tag:** engine_bug  
-**Fix:** Moved injection from post-`apply_delta()` to pre-`apply_delta()`, right after Storyteller's `gm_beat` is written to state (turn.py ~line 1032). The override now persists through the deep copy. Post-apply injection removed as redundant. Plan: `/plans/fix-floor-relief-override-bug.md`.
+**Fix:** Removed entire assertion (`check_npc_mention_extracted`) and helper (`_extract_candidate_names`) from `ccya/eval/universal_asserts.py`. Also removed `"extract.scene"` stream from `_VALID_STREAMS`, `EXTRACT_STREAMS`, and `KNOWN_ASSERT_FIELDS` — the scene_tags extraction test has no purpose.
 
-### C2 — State Fidelity Rate: 53.8% (7/13 clean turns)
-Only half the turns passed all assertions without drift, engine bugs, or auto-checker failures. Well below acceptable quality for production.
+### F2 — Thread Update Timing False Positives [FIXED]
+Auto-checker failed on T2 (`settle_the_debt`) and T6 (`clear_the_road_toughs`) with `thread_update.references unknown thread ID`. The bug was in runner.py: it overwrote each turn's embedded per-turn `state_snapshot` (correct, from events.jsonl) with the YAML-loaded snapshot (always final state). On T2/T6, threads were already resolved by end-of-run but still active at check time.
 
-**Proposed fix:** Address root causes in C1–C4. The floor relief bug alone accounts for failed turns T8/T9 plus contributed to pacing metric failure on T10.
+**Fix:** Changed state_snapshot merge in runner.py to only set it if not already present — preserves correct per-turn snapshots.
+
+### F3 — Scene Tags Assertions [FIXED]
+`extract.scene.scene_tags` assertions failed on T5 (`standoff`), T9 (`social`). `scene_tags` has no purpose as an assertion target and the extraction test handler was dead code. Removed all 4 TurnAssert + 3 expects strings from full_cycle.py, plus runner.py handler and engine_mirror registry entries.
 
 ---
 
-## Major Issues
+## Critical Issues (remaining)
 
-### M1 — Phantom Inventory Removal (ledger, turn 12)
-State Extract emitted `inventory_remove[ledger]` but the ledger was never in Aren's inventory. Narrative implied he "grabbed" it, but no prior state_add existed. State corruption risk where items can be removed without being present.
+### C1 — Inventory Extraction Hallucination (turns 6, 7, 9, 13)
+State Extract emits `inventory_remove` deltas for items that do not exist or have zero balance:
+- T6/T9/T13: Remove `credits` when balance is 0 (exhausted in T2, item deleted from inventory entirely). If applied, balance would go negative.
+- T7: Remove `merchant_seal`, `ledger` — never tracked as owned items. Narrative mentions "sliding the merchant seal" and "handing him the ledger", but engine's inventory model did not track these previously.
 
 **Tag:** extraction_miss  
-**Proposed fix:** In State Extract pipeline, validate item existence before emitting `inventory_remove`. If narrative implies possession without state tracking, emit an `inventory_add` first or flag as extraction error rather than silently removing non-existent items.
+**Root cause:** State Extract (Step 2b) does not validate current `state.inventory` before emitting removal deltas. It hallucinates narrative justification for spending actions that state doesn't support.  
+**Fix needed:** Update State Extract prompt and validation logic to strictly check `state.inventory` for existence and sufficient quantity before emitting `inventory_remove`. Emit null/empty delta when checks fail rather than hallucinating a removal.
 
-### M2 — Extraction Amount Mismatch (credits, turn 6)
-Narrative said "drop 200 credits" (failed bribe). Extract removed only 5. Expected: either 0 (bribe failed, nothing taken) or 200 (snatched). LLM hallucinated a small amount instead of honoring stated quantity or interpreting failure correctly.
+### C2 — Phantom Condition/Additions (turn 11)
+State Extract emits `pc_condition_add[winded]` and `inventory_add[wax_sealed_cylinder]`, but neither appears in applied state or final inventory/conditions. Same root cause as C1 — extraction without validation against what actually exists or can be created.
 
 **Tag:** extraction_miss  
-**Proposed fix:** Add validation to State Extract that flags large discrepancies between narrated quantities and extracted amounts. Consider adding explicit "failed" outcome handling in extraction prompts so failed transactions don't produce partial removals.
+**Fix needed:** State Extract must validate that a condition is allowed (exists in CONDITION_MODS registry) before emitting `pc_condition_add`, and only emit `inventory_add` for items the narrative explicitly introduces as new acquisitions, not inferred ones.
 
-### M3 — Condition Orphan (`unsteady`, turn 10)
-Condition `unsteady` was added to state but had no entry in `CONDITION_MODS`, meaning it provides no mechanical benefit/detriment, breaking game balance consistency.
+### C3 — Thread Resolve Mismatch (turn 7)
+Storytell emits `thread_resolve[deliver_the_ledger]` but the resolved list is empty (`resolved: []`). The extractor claims a resolution happened that didn't materialize in state. This is either an extraction error or a pipeline ordering issue where resolve arrived before the thread was actually resolvable.
 
-**Tag:** schema_drift  
-**Proposed fix:** Register all valid condition IDs/modifiers in a central engine constant or registry. When State Extract adds a new condition not in the registry, either map to closest known equivalent or register dynamically with default values (e.g., `stat_check_penalty: -1`).
+**Tag:** extraction_miss / scope_violation  
+**Fix needed:** Investigate whether `deliver_the_ledger` was still active at T7 when Storytell emitted the resolve, and whether the resolver ran against correct state version (pre-apply vs post-apply). If it's an extraction error, tighten Storytell prompt to only emit resolves for threads that are actually resolvable.
 
 ---
 
-## Minor Issues
+## Major Issues (remaining)
 
-### N1 — NPC Mention False Positives ("Marrow" T4, "Above" T9)
-Auto-checker flagged narration mentions not in compendium. "Marrow" is part of location name (Marrow's Crossing), likely a false positive. "Above" may be implicit NPC reference from narrator prose.
+### M1 — Inert Threads
+Two threads (`road_instability` added T3, `dockside_confrontation` added T12) were created but never received urgency/progress updates afterward. Storytell pipeline disengages from new additions after initial creation. This is allowed by design ("Storyteller-managed") but indicates low engagement — the mechanic lifecycle score dropped to 2/5 primarily due to this.
 
-**Tag:** scope_violation  
-**Proposed fix:** Scope the NPC mention checker to exclude location names and generic directional nouns. For genuine implicit references, improve narrator grounding prompts or add them to scene context.
+**Tag:** storytell_engagement  
+**Fix needed:** Investigate why Storytell stops updating threads after initial `thread_add`. Check whether directives or pacing context are suppressing thread maintenance, or if it's a prompt issue where new threads get low priority in action generation.
 
-### N2 — Beat Type Variety Collapse (turns 6, 9–10)
-Beats were >60% `pressure`/`complication`, indicating a narrow beat palette during combat sequence. Expected under high pressure but worth monitoring for repetitive narration.
+### M2 — Static Arc Goals (all 13 turns)
+Zero `goal_update` events emitted across the entire trace. `visible_goal` is "Clear your debts..." throughout, despite narrative arcs involving debt settlement, ledger pursuit, cellar discoveries, and bodyguard confrontation. This is technically valid if no arcs pivoted, but it means the arc system contributed nothing during a full game trace with multiple evolving storylines.
+
+**Tag:** extraction_miss / design_question  
+**Fix needed:** Determine whether `goal_update` should fire when narrative context shifts significantly (e.g., from "clear debts" to "deliver ledger" or "escape bodyguards"). If yes, tighten Storytell prompt to recognize goal-relevant state changes. If no, accept as valid behavior — arcs only pivot on explicit player choices, not incidental events.
+
+---
+
+## Minor Issues (remaining)
+
+### N1 — Momentum Delta Reporting (turns 8–11, cosmetic)
+Rolls happen but `momentum_delta: 0` is reported because momentum is capped at max(3). The clamping logic works correctly — it's just unclear whether downstream consumers can distinguish "roll happened, delta was +2, applied as 0 due to cap" from "no roll happened." This does not affect game mechanics.
+
+**Tag:** reporting  
+**Fix needed (optional):** Distinguish `band_delta` (what the roll would produce) from `momentum_delta` (what actually gets applied after clamping). Currently both are reported, but at cap they show 0 for momentum_delta regardless of roll quality.
+
+### N2 — Beat Type Variety Collapse (turns 6, 9–10, T4, T5, T7, T8, T10, T13)
+Beat type variety assertion fails on multiple turns because fewer than 3 distinct beat types appear in the rolling window. This is expected under high pressure or floor conditions but worth monitoring for repetitive narration patterns during extended combat sequences.
 
 **Tag:** pacing  
-**Proposed fix:** No immediate engine change needed. Consider adding directive-level variety enforcement in Storytell when consecutive beats exceed threshold, or accept as valid behavior under floor conditions.
+**Fix needed (optional):** No engine change required — accept as valid behavior under pressure/floor, or consider directive-level variety enforcement if it correlates with degraded narrative quality.
 
 ---
 
-## Auto-Checker Summary
+## Auto-Checker Summary (Latest Run)
 
-**312 passed, 25 failed** across 13 turns (24 assertions per turn).
+**316 passed, 21 failed** across 13 turns (~24 assertions per turn).
 
 ### Universal Assert Failures by Severity
 
 | Assertion | Severity | Turns Failed | First Failure |
 |-----------|----------|-------------:|---------------|
-| `extract.scene.scene_tags` | 🔴 Critical | 2 | T5 |
-| `extract.state.inventory_add` | 🔴 Critical | 1 | T11 |
-| `extract.state.inventory_remove` | 🔴 Critical | 2 | T6 |
-| `extract.state.pc_condition_add` | 🔴 Critical | 1 | T11 |
+| `universal.inventory.remove_existence` | 🔴 Critical | 4 | T6 |
 | `extract.state.pc_condition_remove` | 🔴 Critical | 2 | T12 |
-| `ruling.rolled` | 🔴 Critical | 5 | T2 |
+| `ruling.rolled` | 🔴 Critical | 3 | T2 |
 | `storytell.extract.thread_resolve` | 🔴 Critical | 1 | T7 |
-| `storytell.extract.thread_update` | 🔴 Critical | 2 | T2 |
-| `universal.conditions.orphan` | 🔴 Critical | 1 | T10 |
-| `universal.inventory.remove_existence` | 🔴 Critical | 1 | T12 |
-| `universal.npc_mention.extracted` | 🔴 Critical | 2 | T4 |
-| `universal.beat_type.variety` | 🟡 Minor | 3 | T6 |
-| `universal.pacing.floor_no_relief` | 🟡 Minor | 2 | T9 |
+| `universal.thread_update.valid_id` | 🔴 Critical | 0* | — (*fixed this session) |
+| `extract.scene.scene_tags` | 🔴 Critical | 0* | — (*removed this session) |
+| `universal.npc_mention.extracted` | 🔴 Critical | 0* | — (*removed this session) |
 
-### Assertion Detail by Turn
+### Assertion Detail by Turn (Latest Run, Remaining Failures)
 
-**T2:** `ruling.rolled`, `storytell.extract.thread_update[settle_the_debt]`  
-**T4:** `universal.npc_mention.extracted` ("Marrow" not in compendium)  
-**T5:** `extract.scene.scene_tags[standoff]`, `storytell.extract.thread_update[clear_the_road_toughs]`  
-**T6:** `extract.state.inventory_remove[credits]=5`, `universal.beat_type.variety` (67% pressure)  
-**T7:** `storytell.extract.thread_resolve[deliver_the_ledger]` not found  
-**T8:** `extract.state.inventory_remove[brass_key]` not found  
-**T9:** `extract.scene.scene_tags[social]`, `universal.npc_mention.extracted` ("Above"), `universal.pacing.floor_no_relief`, `universal.beat_type.variety` (67% complication)  
-**T10:** `ruling.rolled`, `universal.pacing.floor_no_relief`, `universal.conditions.orphan[unsteady]`, `universal.beat_type.variety` (100% complication)  
+**T6:** `universal.inventory.remove_existence[credits]`  
+**T7:** `universal.inventory.remove_existence[merchant_seal, ledger]`, `storytell.extract.thread_resolve[deliver_the_ledger]` not found  
+**T8:** `extract.state.inventory_remove[brass_key]` not found (note: brass key was in seed inventory but extraction failed to find it)  
+**T9:** `universal.inventory.remove_existence[credits]`  
 **T11:** `extract.state.pc_condition_add[winded]`, `extract.state.inventory_add[wax_sealed_cylinder]` not found  
-**T12:** `ruling.rolled`, `extract.state.pc_condition_remove[winded]`, `universal.inventory.remove_existence[ledger]`  
-**T13:** `extract.state.pc_condition_remove[bruised_ribs]`
+**T12:** `ruling.rolled`, `extract.state.pc_condition_remove[winded]`  
+**T13:** `universal.inventory.remove_existence[credits]`, `extract.state.pc_condition_remove[bruised_ribs]`
 
 ---
 
-## Pacing Metrics
+## Pacing Metrics (Latest Run)
 
 ### Long Threads (>8 turns)
 | Thread | Duration | Flagged |
 |--------|----------|---------|
-| `clear_the_road_toughs` | 12 turns (T1–T13) | ⚠️ |
-| `deliver_the_ledger` | 12 turns (T1–T13) | ⚠️ |
+| `deliver_the_ledger` | 13 turns (T1–T13) | ⚠️ |
+| `road_instability` | 11 turns (T3–T13) | ⚠️ — inert after T3, no updates |
 
 ### Location Dwell (>4 turns)
 | Location | Turns Active | Flagged |
 |----------|-------------:|---------|
-| `crossed_keys_entrance` | 8 | ⚠️ |
-
-### Momentum Floor Runs
-| Start | End | Duration |
-|-------|-----|----------|
-| T7 | T10 | 4 turns |
+| `marrows_crossing_well` | 5 | ⚠️ |
 
 ---
 
-## Judge Scores
+## Judge Scores (Latest Run)
 
-- **Mechanical:** —/5 (unscored, auto-checker used instead)
-- **Narrative:** —/5 (unscored)
-- **System Cohesion:** —/5 (unscored)
-- **Prompt Quality:** —/5 (unscored)
-- **State Fidelity Rate:** 0.538
-- **Extraction Accuracy Score:** 2/5
-- **Mechanic Lifecycle Score:** 4/5
+- **State Fidelity Rate:** 0.38 (5/13 clean turns, corrected from header's 0.0)
+- **Extraction Accuracy Score:** 1/7 — systemic extraction failures on inventory and conditions across multiple turns
+- **Mechanic Lifecycle Score:** 2/7 — inert threads drag down score; beats and conditions are clean
 
 ---
 
-*Generated from: `evals/runs/20260605T202442Z_havr6lvx/REPORT.md`*
+*Previous run data (run `havr6lvx`) is superseded by this analysis. Floor relief bug was fixed in a prior session.*
