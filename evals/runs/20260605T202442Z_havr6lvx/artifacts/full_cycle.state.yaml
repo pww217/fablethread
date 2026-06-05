@@ -1,0 +1,292 @@
+arc:
+  completed_threads:
+  - active: false
+    id: settle_the_debt
+    outcome: The debt was paid in full with 500 credits.
+    progress: []
+    resolution_state: resolved
+    resolved_turn: 2
+    scope: arc
+    summary: Settle the 500-credit debt with Caron.
+    urgency: normal
+  goal_context: ''
+  last_thread_created_turn: 0
+  resolution: null
+  threads:
+  - active: false
+    id: deliver_the_ledger
+    progress:
+    - 'Negotiated terms for delivery: 100 credits upfront, 100 on completion.'
+    scope: arc
+    summary: Deliver Halden's ledger to the merchant at the Crossed Keys Inn.
+    urgency: normal
+  - active: false
+    id: clear_the_road_toughs
+    progress:
+    - Confronted the thugs blocking the inn entrance.
+    - Bribe failed; combat is now imminent.
+    - Combat has transitioned from a failed bribe to an active physical assault.
+    - The failed lock attempt has alerted someone inside the inn.
+    - The failed bribe and botched lock attempt have escalated to a direct physical
+      assault.
+    - The physical assault has escalated to a direct melee engagement.
+    - The combat has shifted location from the entrance to the inn's interior.
+    - The pursuit has moved from the inn entrance to the rear alleyway.
+    - The thugs have exited the inn and are pursuing Aren into the rear alleyway.
+    scope: arc
+    summary: Deal with the toughs blocking the inn entrance.
+    urgency: urgent
+  visible_goal: Clear your debts and deliver the ledger — two obligations binding
+    you to Marrow's Crossing.
+compendium:
+  npcs:
+    caron:
+      bio: A portly man in his sixties with a merchant's ledger and a patient demeanor.
+        You owe him 500 credits from a failed venture three years ago.
+      bond: null
+      fear: null
+      last_seen:
+        location_id: marrows_crossing
+        location_name: Marrow's Crossing
+        turn: 2
+      leverage: null
+      motivation: null
+      name: Caron
+      presence: known
+      title: Old creditor
+    dock_boy:
+      bio: A small child around twelve years old with grease-stained hands and a quiet
+        demeanor. Used to working the docks, he is observant and knows how to move
+        through the fog without being noticed.
+      first_seen_turn: 12
+      last_seen:
+        location_id: inn_alleyway
+        location_name: Inn Alleyway
+        turn: 13
+      name: Dock Boy
+      notes: mending a fraying net nearby before slipping away into the fog
+      presence: present
+    halden:
+      bio: A road merchant in his fifties who hires couriers when his usual runners
+        are spoken for. Honest by reputation, careful with money.
+      bond: null
+      fear: null
+      last_seen:
+        location_id: marrows_crossing
+        location_name: Marrow's Crossing
+        turn: 3
+      leverage: null
+      motivation: null
+      name: Halden
+      presence: known
+      title: Merchant
+    innkeeper:
+      bio: Runs the inn alone since her husband died. Knows every traveler by face
+        if not by name. Stays out of trouble unless it walks through her door.
+      bond: null
+      fear: null
+      leverage: null
+      motivation: null
+      name: Edda
+      notes: null
+      presence: null
+      title: Innkeeper at the Crossed Keys
+    matthew_estrada:
+      bio: A tall, broad-shoulded man in a stained leather jerkin carrying a heavy
+        rucksack. Looks like a road runner but moves with military precision.
+      bond: null
+      fear: null
+      last_seen:
+        location_id: crossed_keys_entrance
+        location_name: Crossed Keys Entrance
+        turn: 11
+      leverage: null
+      motivation: null
+      name: Matthew Estrada
+      presence: known
+      title: Traveler
+    tough_a:
+      bio: Hired muscle. No personal stake in this — he'll back off if the price is
+        right or the fight goes bad.
+      bond: null
+      fear: null
+      last_seen:
+        location_id: inn_alleyway
+        location_name: Inn Alleyway
+        turn: 13
+      leverage: null
+      motivation: null
+      name: Bald Tough
+      notes: emerging from the shadows of the doorway to close the distance
+      presence: present
+      title: Road thug
+    tough_b:
+      bio: Same outfit as the other — hired by the same person. Quicker to violence;
+        not the brains.
+      bond: null
+      fear: null
+      last_seen:
+        location_id: inn_alleyway
+        location_name: Inn Alleyway
+        turn: 13
+      leverage: null
+      motivation: null
+      name: Scarred Tough
+      notes: emerging from the shadows of the doorway to close the distance
+      presence: present
+      title: Road thug
+inventory:
+- amount: 102
+  id: credits
+  name: Credits
+  notes: A heavy, clinking pouch found on Matthew Estrada
+- aliases: []
+  amount: 1
+  id: iron_dagger
+  name: Iron dagger
+  notes: Plain crossguard, edge worn from honing. Belt-carried.
+- aliases: []
+  amount: 3
+  id: bandages
+  name: Linen bandages
+  notes: Three rolls. Field-grade — won't replace a healer.
+- aliases:
+  - cloak
+  - travel cloak
+  amount: 1
+  id: traveler_cloak
+  name: Traveler's cloak
+  notes: Oiled wool, road-stained, hood deep enough to hide a face.
+- aliases: []
+  amount: 1
+  id: brass_key
+  name: Brass key
+  notes: A small brass key Halden gave you with the ledger.
+location:
+  description: The splintered docks loom through the mist, where the rhythmic slapping
+    of river water against rotting pilings punctuates the silence.
+  id: inn_alleyway
+  name: Inn Alleyway
+meta:
+  compendium_touch_order:
+  - caron
+  - halden
+  - matthew_estrada
+  - dock_boy
+  - tough_a
+  - tough_b
+  consecutive_pressure_turns: 0
+  game_name: eval
+  model: ''
+  prior_history:
+  - '- [T1] Aren Voss sat across from Caron to confront his outstanding debt of 500
+    credits.'
+  - '- [T2] Aren Voss settled his 500-credit debt by paying Caron in full, officially
+    clearing his slate.'
+  - '- [T3] Aren Voss negotiated a courier contract with Halden, agreeing to a split
+    payment of 100 credits upfront and 100 upon successful delivery of the ledger.'
+  - '- [T4] Aren Voss approached the Crossed Keys Inn and found his path blocked by
+    two hired toughs.'
+  - '- [T5] Aren Voss demanded an explanation from the thugs, causing the Scarred
+    Tough to draw his knife and the Bald Tough to flank him.'
+  - '- [T6] Aren Voss attempted to bribe the thugs with 200 credits but failed, leaving
+    him with only a small handful of coins as the Scarred Tough lunges and the Bald
+    Tough flanks him.'
+  - '- [T7] Aren Voss failed to present the ledger or bribe the thugs, resulting in
+    an immediate physical assault by the Scarred and Bald Toughs.'
+  - '- [T8] Aren Voss failed to unlock the inn door with the brass key, alerting someone
+    inside while being cornered by both thugs.'
+  - '- [T9] Aren Voss attempted to bribe someone inside the inn, but the Bald Tough
+    pinned him against the wall while the Scarred Tough lunged with a blade.'
+  - '- [T10] Aren Voss was wrenched away from the inn entrance by the Bald Tough and
+    narrowly avoided a midsection strike from the Scarred Tough.'
+  - '- [T11] Aren Voss tackled Matthew Estrada into the bar wreckage, successfully
+    looting a heavy pouch of credits from his jerkin while drawing the attention of
+    the thugs.'
+  - '- [T12] Aren Voss failed to find the ledger while fleeing into the alleyway and
+    found the back exit barred by a pantry door.'
+  - '- [T13] Aren Voss bandaged his wounds, sent a message to Caron via a dock boy,
+    and was cornered in the alleyway by the Bald and Scarred Toughs.'
+  recent_beats:
+  - surface_as: ambient
+    turn: 9
+    type: breathing_room
+  - surface_as: ambient
+    turn: 10
+    type: breathing_room
+  - surface_as: ambient
+    turn: 11
+    type: breathing_room
+  - surface_as: environmental
+    turn: 12
+    type: opportunity
+  - surface_as: null
+    turn: 13
+    type: null
+  setting_pack: eval-pack
+  turn: 13
+pc:
+  actions:
+  - Draw my iron dagger and stand to face them.
+  - Throw a handful of coins to distract them and flee.
+  - Dive into the dark river water to escape pursuit.
+  - Try to reason with the Bald Tough to stop.
+  bio: 'Mid-thirties, broad shoulders, careful with words. Took on a courier contract
+
+    to clear an old debt. Just arrived in Marrow''s Crossing with a heavy pack and
+
+    a heavier obligation.
+
+    '
+  conditions:
+  - added_turn: 12
+    description: stinging lacerations on your side from a recent struggle
+    id: wounded
+    label: wounded
+    turns_remaining: 5
+  drive: ''
+  momentum: -2
+  name: Aren Voss
+  stats:
+    charisma: 3
+    dexterity: 3
+    lore: 2
+    resolve: 3
+    strength: 3
+    wits: 2
+  tagline: Reluctant courier on the merchant road
+scene:
+  location_entered_turn: 11
+  tagline: The Thugs Emerge from Shadows
+  tags:
+  - tense
+  - stealth
+  - pursuit
+  turn_entered: 11
+  world_state:
+  - Marrow's Crossing is a market town at the confluence of two rivers, known for
+    its mills and the annual river festival.
+  - Iron coin (credits) is the universal currency on the merchant road; barter is
+    acceptable but slower.
+  - The road has been quieter than usual this season — fewer caravans, more independent
+    runners, more opportunists.
+  - id: debt_cleared_caron
+    text: Aren Voss has successfully settled his 500-credit debt with Caron.
+    tier: persistent
+  - id: settle_the_debt
+    text: The debt was paid in full with 500 credits.
+    tier: persistent
+  - id: halden_courier_contract
+    text: Aren Voss is under contract to deliver Halden's ledger to the Crossed Keys
+      for a total of 200 credits.
+    tier: persistent
+  - id: matthew_estrada_looted
+    text: Aren Voss has acquired a heavy pouch of credits from Matthew Estrada.
+    tier: persistent
+  - id: pursuit_in_alleyway
+    text: The thugs have successfully cornered Aren Voss in the inn's rear alleyway.
+    tier: persistent
+  - id: message_to_caron_sent
+    text: Aren Voss sent a frantic message to Caron regarding the intercepted courier.
+    tier: persistent
+schema_version: 1
