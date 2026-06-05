@@ -77,11 +77,11 @@
         {% if _active %}
         {% for thread in _active %}
         {% set _urg = thread.get('urgency', 'normal') %}
-        {% set _progress = thread.get('progress', '') %}
+        {% set _progress = thread.get('progress', []) %}
         <div class="arc-thread{% if _urg == 'immediate' %} arc-thread-urgent{% elif _urg == 'building' %} arc-thread-building{% endif %}{% if _progress %} has-tooltip{% endif %}">
             <span class="arc-thread-summary" data-md>{{ thread.get('summary', '') | striptags }}</span>
             {% if _progress %}
-            <div class="tooltip-body" data-md>{{ _progress }}</div>
+            <div class="tooltip-body">{% for p in _progress %}<p style="margin:0 0 4px 0;">{{ (p[0] | upper) + p[1:] }}</p>{% endfor %}</div>
             {% endif %}
         </div>
         {% endfor %}

@@ -165,19 +165,6 @@ def apply_delta(
                     fuzzy_id,
                 )
             else:
-                # Durability gate: brand-new items must have loot gain context
-                item_name = d.get("name", item.id) or item.id
-                has_loot_context = False
-                for action_text in (delta.actions or []):
-                    if item.id.lower() in action_text.lower() or item_name.lower() in action_text.lower():
-                        has_loot_context = True
-                        break
-                if not has_loot_context:
-                    _log.warning(
-                        "inventory_add durability gate blocked: '%s' (id=%s) at turn %s — no loot gain context in actions",
-                        item_name, item.id, state.get("meta", {}).get("turn", 0),
-                    )
-                    continue
                 d["amount"] = amt
                 d["id"] = target_id
                 inv.append(d)

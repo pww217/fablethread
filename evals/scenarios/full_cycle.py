@@ -96,7 +96,7 @@ scenario = Scenario(
                 "rules.required=true skill=strength|charisma (social combat)",
                 "scope active_domains includes pc_condition",
                 "scene_tags should include combat",
-                "PacingContext.directive should be 'Pressure' or 'Escalate' for the immediate threat",
+                "PacingContext.directive should be 'Pressure' or 'Scene Imperative' for the immediate threat",
                 "state.meta.pending_gm_beat should be present when storyteller emits a beat during confrontation",
             ],
             asserts=[

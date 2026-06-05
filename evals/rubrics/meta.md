@@ -46,7 +46,7 @@ For each pair of judges that touch overlapping concerns:
 - **state_correctness vs prompt_pipeline**: state_correctness says extraction is failing but prompt_pipeline rates the extraction prompts highly — contradiction? Why?
 - **narrative_interplay vs prompt_pipeline**: narrative says directives are ignored but prompt_pipeline says narrate prompt adherence is good — check if both PacingContext signals (outcome_hint for narrator, directive for storytell) are being passed correctly. Is the issue with data flow or LLM behavior?
 - **state_correctness vs narrative_interplay (unified threads)**: state_correctness says unified thread lifecycle is clean (no flags) but narrative_interplay says threads produce no story consequence — contradiction? Check if arc.threads[] scope-aware rules are being evaluated correctly.
-- **narrative_interplay vs state_correctness (PacingContext)**: state_correctness says PacingContext inputs are correct but narrative_interplay says tone doesn't match — check which signal is involved. Narrator receives `outcome_hint` (3 values: `"hold"` | `"advance"` | `"transition"`) for scene motion; Progress Extractor still receives `directive` (9 values) for thread/beat decisions. Verify the rubric evaluator is checking the right signal against the right LLM's output.
+- **narrative_interplay vs state_correctness (PacingContext)**: state_correctness says PacingContext inputs are correct but narrative_interplay says tone doesn't match — check which signal is involved. Narrator receives `outcome_hint` (3 values: `"hold"` | `"advance"` | `"transition"`) for scene motion; Storyteller receives `directive` (6 values: `""`, `"Breathe"`, `"Scene Imperative"`, `"Overwhelm"`, `"Pressure"`, `"Tension"`) for thread/beat decisions. Verify the rubric evaluator is checking the right signal against the right LLM's output.
 
 If no contradiction: write `None.`
 
@@ -61,10 +61,13 @@ Based on domain judge findings, provide explicit top-level assessments for EACH 
 3. **Unified thread chains** — Do threads create consequences and resolve properly? Are thread_update, thread_add, and thread_resolve functioning as intended?
 4. **Condition deduplication** — Are conditions properly deduplicated and resolved?
 5. **Arc thread progression** — Do unified threads progress via storyteller directives (thread_update, thread_add, thread_resolve)? Or stall/orphan?
-6. **Inventory extraction accuracy** — Are inventory deltas accurate? Any hallucinations or overdraw?
-7. **Location change application** — Do location deltas correctly update state, triggering scene-scoped thread expiration?
-8. **NPC mention extraction** — Are NPC mentions in narration captured by scene extractor?
-9. **Storyteller pipeline** — Does the storyteller emit actionable thread_update/thread_add/thread_resolve signals?
+6. **Floor relief injection** — When beat_locked fires, does breathing_room get injected? Does the counter properly track beat types (not directives)?
+7. **goal_update application** — Does goal_update correctly overwrite arc.visible_goal? Does narration respond to visible_goal changes?
+8. **recent_beats tracking** — Is recent_beats populated correctly (capped at 5)? Does beat history improve diversity in later turns?
+9. **Inventory extraction accuracy** — Are inventory deltas accurate? Any hallucinations or overdraw?
+10. **Location change application** — Do location deltas correctly update state, triggering scene-scoped thread expiration?
+11. **NPC mention extraction** — Are NPC mentions in narration captured by scene extractor?
+12. **Storyteller pipeline** — Does the storyteller emit actionable thread_update/thread_add/thread_resolve signals?
 
 For each: state whether it is working, degraded, or broken, citing specific turns and domain judge sources.
 

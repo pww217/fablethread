@@ -33,6 +33,13 @@ Surface: `{{ pending_beat.surface_as | default('ambient') }}`
 Expires: Turn {{ pending_beat.beat_expires_turn }}
 
 This beat is active in the scene. The narrator integrated it into this turn's narration. Consider it when selecting this turn's beat — avoid repeating the same type unless the narrative momentum demands it.
+{% else %}
+## GM Beat
+No beat currently carried over from the previous turn. Choose freely.
+{% endif %}{% if recent_beats %}
+## Recent Beats
+{% for b in recent_beats %}T{{ b.turn }}: {% if b.type %}{{ b.type | replace('_', ' ') | upper }}{% if b.surface_as %} ({{ b.surface_as }}){% endif %}{% else %}No beat emitted this turn{% endif %}
+{% endfor %}
 {% endif %}{% if band %}
 ## rules_outcome
 Band: {{ band | upper }}. Apply thread advancement freely on success/crit_success. On fail/setback/partial, do NOT mark threads as advanced for the attempted action; prefer breathing_room/null beats on fail.

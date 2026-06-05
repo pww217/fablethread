@@ -56,7 +56,7 @@ EXTRACT_STREAMS: tuple[str, ...] = (
 # Keep in sync with runner._check_asserts handler names.
 KNOWN_ASSERT_FIELDS: dict[str, set[str]] = {
     "ruling": {"rolled", "skill", "difficulty", "band", "intent_verb"},
-    "storytell.extract": {"thread_update", "arc_resolve", "thread_resolve", "thread_add"},
+    "storytell.extract": {"thread_update", "arc_resolve", "thread_resolve", "thread_add", "goal_update"},
     "extract.scene": {"scene_tags"},
     "extract.state": {"inventory_remove", "inventory_add", "pc_condition_add", "pc_condition_remove"},
     "extract": {"attempts:scene", "attempts:state", "skipped:scene", "skipped:state"},
@@ -81,10 +81,33 @@ def constants_block() -> str:
         f"- Intent verb hints: {', '.join(INTENT_VERBS_HINT)}\n"
         f"- PC condition cap: {PC_CONDITION_CAP}\n"
         f"- Scene named NPC cap: {SCENE_NAMED_NPC_CAP}\n"
-        f"- Consecutive pressure threshold (relief trigger): {_defaults.consecutive_pressure_threshold} turns\n"
+        f"- Consecutive pressure threshold (relief trigger): {CONSECUTIVE_PRESSURE_THRESHOLD} turns\n"
+        f"- Consecutive pressure counter tracks storyteller gm_beat types: pressure/escalation/complication (not directives)\n"
+        f"- GM beat type validation: {', '.join(GM_BEAT_TYPES)}\n"
+        f"- Pressure beat types (counter-incrementing): {', '.join(PRESSURE_BEAT_TYPES)}\n"
+        f"- Beat TTL: storyteller-emitted = {BEAT_TTL} turns; floor-relief breathing_room = {FLOOR_RELIEF_BEAT_TTL} turns\n"
+        f"- Floor relief: injects breathing_room when beat_locked=True and pending_gm_beat is None or a pressure type\n"
+        f"- goal_update: storyteller field that directly overwrites arc.visible_goal (mid-arc goal change, separate from arc_resolve)\n"
         f"- Combat scene effective age boost: +2 to scene_age for directive thresholds when 'combat' in scene tags\n\n"
     )
 
+
+# Beat types that increment the consecutive_pressure counter (mirrors turn.py PRESSURE_BEAT_TYPES)
+PRESSURE_BEAT_TYPES: tuple[str, ...] = ("pressure", "escalation", "complication")
+
+# All valid GM beat types (mirrors GMBeat model type Literal)
+GM_BEAT_TYPES: tuple[str, ...] = (
+    "complication", "revelation", "opportunity", "breathing_room",
+    "pressure", "twist", "setback", "escalation", "callback",
+)
+
+# Beat lifecycle TTLs (turns)
+BEAT_TTL: int = 2               # Storyteller-emitted beats expire after 2 turns (turn_no + 2)
+FLOOR_RELIEF_BEAT_TTL: int = 3  # Floor-relief breathing_room beats expire after 3 turns (turn_no + 3)
+
+# Config defaults exposed for universal asserts
+CONSECUTIVE_PRESSURE_THRESHOLD: int = _defaults.consecutive_pressure_threshold
+MOMENTUM_FLOOR: int = _defaults.momentum_floor
 
 # Known seed_override dotpaths — used by test_eval_schema.py to validate
 # scenario seed_overrides before running a full eval.

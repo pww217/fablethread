@@ -15,7 +15,13 @@ import re
 from collections import Counter
 from typing import Any
 
-from ccya.eval.engine_mirror import MOMENTUM_DELTA, MOMENTUM_MIN
+from ccya.eval.engine_mirror import (
+    MOMENTUM_DELTA,
+    MOMENTUM_MIN,
+    PRESSURE_BEAT_TYPES,
+    CONSECUTIVE_PRESSURE_THRESHOLD,
+    MOMENTUM_FLOOR,
+)
 
 
 _log = logging.getLogger(__name__)
@@ -108,7 +114,7 @@ def check_pending_gm_beat_lifecycle_respected(
             "severity": "red",
         }
 
-    # No new gm_beat — pending_gm_beat should be None (consumed) or carried from previous turn
+    # No new gm_beat — pending_gm_beat should be None (cleared) or floor-relief-injected breathing_room
     if prev_beat is not None and cur_beat == prev_beat:
         return {
             "assertion": "universal.pending_gm_beat.lifecycle_respected",
@@ -127,11 +133,23 @@ def check_pending_gm_beat_lifecycle_respected(
             "severity": "red",
         }
 
-    # Beat persisted but no carry/replacement logic — this is acceptable as a yellow
+    # Floor relief may have injected breathing_room — that's valid
+    if isinstance(cur_beat, dict) and cur_beat.get("type") == "breathing_room" and (
+        not storytell_gm_beat or not isinstance(storytell_gm_beat, dict) or not storytell_gm_beat.get("type")
+    ):
+        return {
+            "assertion": "universal.pending_gm_beat.lifecycle_respected",
+            "passed": True,
+            "detail": "beat injected by floor relief (breathing_room) — storytell emitted no beat",
+            "scope": "universal",
+            "severity": "yellow",
+        }
+
+    # A beat exists that wasn't from storytell and isn't floor-relief — suspicious
     return {
         "assertion": "universal.pending_gm_beat.lifecycle_respected",
         "passed": True,
-        "detail": f"beat state unchanged (no disposition field to enforce): type={cur_beat.get('type')}",
+        "detail": f"beat present but source unclear: type={cur_beat.get('type') if isinstance(cur_beat, dict) else cur_beat}",
         "scope": "universal",
         "severity": "yellow",
     }
@@ -687,49 +705,37 @@ def check_directive_rendered_storytell(event: dict[str, Any]) -> dict[str, Any]:
 def check_consecutive_pressure_tracking(
     event: dict[str, Any], prev_event: dict[str, Any] | None = None
 ) -> dict[str, Any]:
-    """Validate the two-pass consecutive pressure counter works correctly.
+    """Validate consecutive pressure counter tracks storyteller gm_beat types (not directives).
 
-    Increments when directive was Pressure/Overwhelm AND no thread_update occurred; resets to 0 otherwise.
+    Counter increments when storytell gm_beat.type is in PRESSURE_BEAT_TYPES
+    (pressure, escalation, complication); resets to 0 otherwise. Floor relief
+    injection (breathing_room) does NOT affect the counter — it reads from the
+    raw storyteller result, not from the post-relief pending_gm_beat.
     """
-    pacing_ctx = event.get("pacing_context") or {}
-    directive = pacing_ctx.get("directive", "")
-    # Strip "; Resolve a Threat" suffix for base value comparison
-    base_directive = re.sub(r"\s*;\s*Resolve a Threat\s*$", "", directive).strip() if directive else ""
+    storytell_output = ((event.get("extraction") or {}).get("storytell") or {}).get("output") or {}
+    gm_beat = storytell_output.get("gm_beat")
+    gm_beat_type = gm_beat.get("type") if isinstance(gm_beat, dict) else None
 
     meta = (event.get("state_snapshot") or {}).get("meta") or {}
     counter = meta.get("consecutive_pressure_turns", 0)
 
-    # Check whether any thread_update occurred in this turn's extraction results
-    storytell_output = ((event.get("extraction") or {}).get("storytell") or {}).get("output") or {}
-    thread_updates = storytell_output.get("thread_update") or []
-    has_thread_update = bool(thread_updates)
+    is_pressure = gm_beat_type in PRESSURE_BEAT_TYPES if gm_beat_type else False
 
-    is_pressure_directive = base_directive in ("Pressure", "Overwhelm")
-
-    if prev_event:
-        prev_pacing_ctx = prev_event.get("pacing_context") or {}
-        prev_base = re.sub(r"\s*;\s*Resolve a Threat\s*$", "", prev_pacing_ctx.get("directive", "")).strip() if prev_pacing_ctx.get("directive") else ""
-
-    # If directive is Pressure/Overwhelm AND no thread_update: counter should be >= 1 (or incrementing)
-    if is_pressure_directive and not has_thread_update:
+    if is_pressure:
         if counter < 1:
             return {
                 "assertion": "universal.pacing.consecutive_pressure_tracking",
                 "passed": False,
-                "detail": f"directive={base_directive!r}, no thread_update but consecutive_pressure_turns={counter} (expected >= 1)",
+                "detail": f"gm_beat.type={gm_beat_type!r} (pressure type) but consecutive_pressure_turns={counter} (expected >= 1)",
                 "scope": "universal",
                 "severity": "red",
             }
-
-    # If any thread_update occurred OR directive changed to non-pressure value: counter should reset to 0
-    if has_thread_update or not is_pressure_directive and prev_event:
-        prev_base = re.sub(r"\s*;\s*Resolve a Threat\s*$", "", (prev_event.get("pacing_context") or {}).get("directive", "")).strip() if prev_event else ""
-        if base_directive != prev_base and counter > 0:
-            # Directive changed from pressure to non-pressure — should have reset
+    else:
+        if counter != 0:
             return {
                 "assertion": "universal.pacing.consecutive_pressure_tracking",
                 "passed": False,
-                "detail": f"directive changed from {prev_base!r} to {base_directive!r}, consecutive_pressure_turns={counter} (expected 0)",
+                "detail": f"gm_beat.type={gm_beat_type!r} (not pressure) but consecutive_pressure_turns={counter} (expected 0)",
                 "scope": "universal",
                 "severity": "red",
             }
@@ -737,7 +743,7 @@ def check_consecutive_pressure_tracking(
     return {
         "assertion": "universal.pacing.consecutive_pressure_tracking",
         "passed": True,
-        "detail": f"directive={base_directive!r}, thread_update={has_thread_update}, counter={counter}",
+        "detail": f"gm_beat.type={gm_beat_type!r}, counter={counter}",
         "scope": "universal",
         "severity": "yellow",
     }
@@ -748,7 +754,8 @@ def check_beat_locked_dual_trigger(
 ) -> dict[str, Any]:
     """Validate the dual-trigger beat_locked condition works correctly.
 
-    beat_locked should be True when either momentum <= config.momentum_floor (-3 default) OR consecutive_pressure_turns >= config.consecutive_pressure_threshold (3 default).
+    beat_locked should be True when either momentum <= MOMENTUM_FLOOR
+    OR consecutive_pressure_turns >= CONSECUTIVE_PRESSURE_THRESHOLD.
     """
     pacing_ctx = event.get("pacing_context") or {}
     beat_locked = bool(pacing_ctx.get("beat_locked", False))
@@ -757,17 +764,16 @@ def check_beat_locked_dual_trigger(
     momentum = meta.get("momentum", 0)
     consecutive_pressure_turns = meta.get("consecutive_pressure_turns", 0)
 
-    # Config defaults from EngineConfig
-    config_momentum_floor = -3
-    config_consecutive_threshold = 3
-
-    expected_beat_locked = (momentum <= config_momentum_floor or consecutive_pressure_turns >= config_consecutive_threshold)
+    expected_beat_locked = (
+        momentum <= MOMENTUM_FLOOR
+        or consecutive_pressure_turns >= CONSECUTIVE_PRESSURE_THRESHOLD
+    )
 
     if beat_locked != expected_beat_locked:
         return {
             "assertion": "universal.pacing.beat_locked_dual_trigger",
             "passed": False,
-            "detail": f"beat_locked={beat_locked} but expected {expected_beat_locked} (momentum={momentum}, floor={config_momentum_floor}, consecutive_pressure_turns={consecutive_pressure_turns}, threshold={config_consecutive_threshold})",
+            "detail": f"beat_locked={beat_locked} but expected {expected_beat_locked} (momentum={momentum}, floor={MOMENTUM_FLOOR}, consecutive_pressure_turns={consecutive_pressure_turns}, threshold={CONSECUTIVE_PRESSURE_THRESHOLD})",
             "scope": "universal",
             "severity": "red",
         }
@@ -776,6 +782,70 @@ def check_beat_locked_dual_trigger(
         "assertion": "universal.pacing.beat_locked_dual_trigger",
         "passed": True,
         "detail": f"beat_locked={beat_locked} (momentum={momentum}, consecutive_pressure_turns={consecutive_pressure_turns})",
+        "scope": "universal",
+        "severity": "yellow",
+    }
+
+
+def check_floor_relief_injection(
+    event: dict[str, Any], prev_event: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """When beat_locked=True and storytell produced no non-pressure beat, floor relief must inject breathing_room.
+
+    Floor relief fires after delta apply: if beat_locked=True AND pending_gm_beat is
+    None or a pressure type (pressure/escalation/complication), it injects a breathing_room
+    beat. This assert verifies:
+    - beat_locked=True + storytell emitted null/pressure beat → pending_gm_beat is breathing_room
+    - beat_locked=False + storytell emitted null → pending_gm_beat is None (no injection)
+    """
+    pacing_ctx = event.get("pacing_context") or {}
+    beat_locked = bool(pacing_ctx.get("beat_locked", False))
+
+    storytell_output = ((event.get("extraction") or {}).get("storytell") or {}).get("output") or {}
+    storytell_gm_beat = storytell_output.get("gm_beat")
+    storytell_type = storytell_gm_beat.get("type") if isinstance(storytell_gm_beat, dict) else None
+
+    cur_snap = event.get("state_snapshot") or {}
+    cur_beat = (cur_snap.get("meta") or {}).get("pending_gm_beat")
+    cur_type = cur_beat.get("type") if isinstance(cur_beat, dict) else None
+
+    if not beat_locked:
+        return {
+            "assertion": "universal.pacing.floor_relief",
+            "passed": True,
+            "detail": "beat_locked=False, no floor relief expected",
+            "scope": "universal",
+            "severity": "yellow",
+        }
+
+    # beat_locked is True -- floor relief should fire if no non-pressure beat exists
+    storytell_is_pressure = storytell_type in PRESSURE_BEAT_TYPES if storytell_type else False
+    storytell_is_non_pressure = bool(storytell_type) and not storytell_is_pressure
+
+    if storytell_is_non_pressure:
+        # Storyteller produced a non-pressure beat -- floor relief lets it stand
+        return {
+            "assertion": "universal.pacing.floor_relief",
+            "passed": True,
+            "detail": f"beat_locked=True, storytell emitted non-pressure beat '{storytell_type}' — floor relief did not override",
+            "scope": "universal",
+            "severity": "yellow",
+        }
+
+    # Storyteller emitted null or pressure-type beat -- floor relief must inject breathing_room
+    if cur_type != "breathing_room":
+        return {
+            "assertion": "universal.pacing.floor_relief",
+            "passed": False,
+            "detail": f"beat_locked=True, storytell_type={storytell_type!r} but pending_gm_beat.type={cur_type!r} (expected 'breathing_room')",
+            "scope": "universal",
+            "severity": "red",
+        }
+
+    return {
+        "assertion": "universal.pacing.floor_relief",
+        "passed": True,
+        "detail": f"beat_locked=True, storytell_type={storytell_type!r} → floor relief injected breathing_room",
         "scope": "universal",
         "severity": "yellow",
     }
@@ -938,6 +1008,49 @@ def check_thread_add_applied(
     }
 
 
+def check_goal_update_applied(
+    event: dict[str, Any],
+) -> dict[str, Any]:
+    """If storytell emitted goal_update, verify it appears in state.arc.visible_goal.
+
+    goal_update is an optional storyteller field that directly overwrites
+    arc.visible_goal mid-arc (separate from arc_resolve). This assert verifies
+    that when the storyteller emits a goal_update, the state snapshot reflects
+    the new visible_goal value.
+    """
+    storytell_output = ((event.get("extraction") or {}).get("storytell") or {}).get("output") or {}
+    goal_update = storytell_output.get("goal_update")
+
+    if not goal_update or not isinstance(goal_update, str):
+        return {
+            "assertion": "universal.goal_update.applied",
+            "passed": True,
+            "detail": "(no goal_update emitted)",
+            "scope": "universal",
+            "severity": "yellow",
+        }
+
+    arc = (event.get("state_snapshot") or {}).get("arc") or {}
+    visible_goal = arc.get("visible_goal", "")
+
+    if goal_update == visible_goal:
+        return {
+            "assertion": "universal.goal_update.applied",
+            "passed": True,
+            "detail": f"goal_update='{goal_update}' → arc.visible_goal='{visible_goal}'",
+            "scope": "universal",
+            "severity": "yellow",
+        }
+
+    return {
+        "assertion": "universal.goal_update.applied",
+        "passed": False,
+        "detail": f"storytell emitted goal_update='{goal_update}' but arc.visible_goal='{visible_goal}'",
+        "scope": "universal",
+        "severity": "red",
+    }
+
+
 def check_beat_type_variety(
     event: dict[str, Any],
     event_window: list[dict[str, Any]] | None = None,
@@ -1059,6 +1172,8 @@ def run_all_universal_asserts(
         check_directive_rendered_storytell(event),
         check_consecutive_pressure_tracking(event, prev_event),
         check_beat_locked_dual_trigger(event, prev_event),
+        check_floor_relief_injection(event, prev_event),
+        check_goal_update_applied(event),
         check_no_removed_directives(event),
         check_no_removed_npc_states(event),
         check_momentum_floor_no_relief(event, prev_event, event_window=event_window),

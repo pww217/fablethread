@@ -21,11 +21,11 @@ flowchart TD
     STEP1 -- "narrative: str" --> STEP2A["Step 2a<br>Scene"]:::stageScene
     STEP2A -- "location_change<br>npc_roster" --> STEP2B["Step 2b<br>State"]:::stageState
     STEP1 -- "narrative" --> STEP2B
-    STEP2A -- "location_change<br>npc_roster" --> STEP2C["Step 2c<br>Progress"]:::stageProgress
+    STEP2A -- "location_change<br>npc_roster" --> STEP2C["Step 2c<br>Storytell"]:::stageProgress
     STEP1 -- "narrative" --> STEP2C
     STEP2A & STEP2B & STEP2C -- "merge" --> DELTA["StateDelta"]:::mergeNode
     DELTA -- "validate + apply" --> STATE
     DELTA -- "event record" --> EVENTS
     DELTA -- "narrative" --> CHRONICLE
-    STEP2C -- "thread_update/arc_resolve/resolve/add<br>gm_beat" --> STATE
+    STEP2C -- "thread_update/goal_update/arc_resolve/resolve/add<br>gm_beat" --> STATE
 ```

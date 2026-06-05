@@ -49,6 +49,10 @@ IMPORTANT: A thread's identity is its `id` — not its current summary, progress
 - Instead of creating `naval_coordination_failure` and `electronic_jamming_interference` as separate threads, keep one thread and widen its summary to encompass both symptoms.
 - When a threat escalates (e.g., sniper → pursuit → encirclement), update the existing thread to reflect the new reality. Do not spawn a new thread per escalation step.
 
+`progress`: Add progress updates sparingly. Only emit them for non-trivial, substantial changes that the player must know about — not trivial turn-by-turn details or incremental narration. When in doubt, do NOT emit a progress update. Progress notes MUST be unique and NOT a retelling of what the narration already conveys. Bad: "Combat continues." / "The player asked a question." / "More enemies arrive." / "Discussed the plan with Halden." Good: "Confirmed Silas Thorne is the surveillance coordinator." / "The cargo manifests link blockade timing to targeted intimidation." / "The ledger reveals a third party — an unmarked account paying both Stern and the dock foreman."
+
+CRITICAL: Thread IDs must be broad conceptual buckets — just a few words capturing a general story tension, NOT a specific event or goal. A thread like `naval_boarding_action` should not exist as a thread at all — it's a scene, not a tension. If you can summarize it in 3-4 words that would cover many possible developments, it's broad enough. If the id describes one person or one event, it's too narrow. Loosely related developments belong under one broad thread with different progress entries, not split into separate threads.
+
 CRITICAL RULES for including a thread ID in thread_update:
 - Include ONLY if this turn's events DIRECTLY affected that specific thread. The player took meaningful action toward it, or its narrative arc clearly progressed.
 - Do NOT include threads merely mentioned in narration. Mentioning ≠ affecting.
@@ -169,7 +173,7 @@ When multiple directives are joined (e.g. "Pressure; Resolve a Threat"), priorit
 T{{ b.turn }}: {% if b.type %}{{ b.type | replace('_', ' ') | upper }}{% else %}null{% endif %}{% if b.type and b.surface_as %} ({{ b.surface_as }}){% endif %}
 {% endfor %}
 
-Use this history to vary your beat types — avoid repeating the same type more than twice in a sequence. At least one in three beats should be a non-pressure type.
+Use this history to vary your beat types — avoid repeating the same type more than twice in a sequence. At least one in three beats should be a non-pressure type. When possible, pick a beat type that has not appeared in any of the last 5 turns shown above. If the recent_beats list shows 5 consecutive complication beats, do NOT make it 6 — choose twist, setback, revelation, opportunity, or breathing_room instead, even if that means a softer beat than the action might suggest. Bias toward unused-or-stale types unless the narrative genuinely demands a repeat.
 {% endif %}
 
 ## GM Beat guidance
@@ -191,8 +195,9 @@ Use this history to vary your beat types — avoid repeating the same type more 
 **Guidance per non-pressure type:**
 - `complication` — an existing pressure creates cascading effects: "The guard captain's delay means reinforcements arrive armed — not just with batons, but with tear gas canisters you didn't expect."
 - `revelation` — new information changes how earlier events should be understood. Use sparingly (1–2 per arc). Most effective when it reframes an established fact.
-- `twist` — narrative direction shifts in an unexpected way. Most appropriate at major pivot moments, not during steady-state pressure cascades.
-- `callback` — references a beat, NPC action, or environmental detail from 3+ turns ago with new resonance. Most effective when the earlier instance was subtle.
+- `twist` — narrative direction shifts in an unexpected way. Most appropriate at major pivot moments, not during steady-state pressure cascades. When you find yourself reaching for complication again, consider whether a twist would better serve the narrative.
+- `setback` — a clear loss of progress: a plan fails decisively, an ally is lost, a resource is destroyed. More definitive than complication. Most appropriate after failed checks when breathing_room would feel inappropriate.
+- `callback` — references a beat, NPC action, or environmental detail from 3+ turns ago with new resonance. Most effective when the earlier instance was subtle. Scan recent_beats for callback opportunities.
 - `opportunity` — path forward opens unexpectedly. Best used after failure/setback to maintain player agency.
 
 **Band-aligned beat selection:** Pacing context directive takes precedence over band alignment for beat type.
@@ -204,7 +209,7 @@ The roll band determines what kind of beat is narratively appropriate — do not
 
 - **crit_success / success**: `opportunity`, `escalation` (the world reacts to PC momentum), or `breathing_room` if deescalating
 - **partial**: `complication`, `pressure` — the player succeeded but at a cost; the beat should reflect that cost
-- **setback / fail**: `breathing_room`, `null`, or rarely `complication`. Do NOT emit escalation or pressure beats on failed checks — the failure itself is the consequence. Escalation compounds punishment and breaks pacing.
+- **setback / fail**: `breathing_room`, `null`, `setback`, or rarely `complication`. Do NOT emit escalation or pressure beats on failed checks — the failure itself is the consequence. Escalation compounds punishment and breaks pacing.
   Exception — **fail near-misses** (final_total is within 2 of the setback threshold at 7): `complication` is acceptable here because the near-miss creates narrative friction without compounding punishment. Use discretion — breathing_room or null are still valid if the scene needs de-escalation.
 - **No roll (pure approach/sit)**: `null` unless independent narrative reason for beat. Follow the 1-in-4 null cadence.
 

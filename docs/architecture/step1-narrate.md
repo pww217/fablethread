@@ -40,19 +40,14 @@ flowchart LR
 
 The narrator receives `current_arc` in both system and user prompts. Key fields:
 
-- **`goal_context`**: A seed-time field (2–3 sentences) explaining why `visible_goal` matters to the character specifically — inner cost or pressure that makes it emotionally loaded. When present, `_arc.j2` presents it alongside other arc context in the user prompt for early-turn narrative guidance: ground the player in personal stakes before broad exposition.
+- **`goal_context`**: A seed-time field (2–3 sentences) explaining why `visible_goal` matters to the character specifically — inner cost or pressure that makes it emotionally loaded. UI-only (surfaced as tooltip on the arc goal in the sidebar). NOT rendered in prompt context — the narrator works from general early-turn behavioral guidance in the system prompt, not from the raw `goal_context` value.
 - **`visible_goal`**: The player-facing objective.
 - **`threads[]`**: Unified thread collection filtered by `active` flag. Scene-scope threads provide immediate pressure; arc-scope threads provide medium-term tension.
 - **`resolved_arc`**: TTL-filtered list of previously resolved arcs, providing narrative continuity across arc transitions.
 
 ### Opening-turn narrative mode
 
-When `goal_context` is present (always true after seed), the narrator treats early turns as a distinct onboarding mode:
-1. Personal stakes before broad exposition
-2. One NPC moment with emotional charge (driven by `relation` fields on seed NPCs)
-3. One immediately actionable pressure
-
-The presence of `goal_context` itself is the signal — no turn-counting dependency needed. The guidance is most impactful in the first few turns and persists as background context throughout the campaign.
+The seed embeds emotional stakes in the initial state — NPC `relation` fields, `motivation/fear/leverage`, and a `goal_context` sidebar entry. The narrator does NOT receive special early-turn prompt guidance or `goal_context` in its context. Instead, the initial scene's NPCs (with rich behavioral drivers), the opening narrative's tone, and the player-facing sidebar create the onboarding experience. The narrator works from its standard behavioral guidance and the richness of seed-generated state.
 
 ## Key forward dependency
 
@@ -60,4 +55,4 @@ The presence of `goal_context` itself is the signal — no turn-counting depende
 
 ### GM Beat consumption
 
-The narrator receives a pending GM beat from `state.meta.pending_gm_beat` (set by Storytell in the previous turn). The beat's `type` and `surface_as` metadata are passed alongside the pacing directive as creative guidance for the narrative. After narration completes, the pending beat is cleared from state. Full beat lifecycle is documented in [step2c-progress](./step2c-progress.md#gm-beat).
+The narrator receives a pending GM beat from `state.meta.pending_gm_beat` (set by Storytell in the previous turn). The beat's `type` and `surface_as` metadata are passed alongside the pacing directive as creative guidance for the narrative. The beat is NOT cleared after narration — it persists through the extraction phase. After extraction completes, Storytell replaces it with a new beat or pops it on null output. Full beat lifecycle is documented in [step2c-storytell](./step2c-storytell.md#gm-beat).

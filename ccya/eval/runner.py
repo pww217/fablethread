@@ -275,6 +275,11 @@ def _check_asserts(
                 passed = a.expected == tid
                 detail = f"thread_add[{a.expected}] {'found' if passed else 'not found'} (actual: {tid})"
 
+            elif a.field == "goal_update":
+                goal = output.get("goal_update") or ""
+                passed = (a.expected or "").lower() in goal.lower()
+                detail = f"goal_update='{goal}' (expected ~'{a.expected}')"
+
         elif a.stream == "extract":
             extraction = event.get("extraction") or {}
             if a.field.startswith("attempts:"):
