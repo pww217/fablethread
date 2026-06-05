@@ -541,7 +541,7 @@ def check_momentum_floor_no_relief(
     window: list[dict[str, Any]] = event_window or ([prev_event, event] if prev_event else [event])
     floor_count = 0
     for ev in reversed(window):
-        m = ((ev.get("state_snapshot") or {}).get("meta") or {}).get("momentum")
+        m = ((ev.get("state_snapshot") or {}).get("pc") or {}).get("momentum", 0)
         if m is not None and m <= MOMENTUM_MIN:
             floor_count += 1
         else:
@@ -600,12 +600,15 @@ def check_thread_update_id_valid(event: dict[str, Any]) -> dict[str, Any]:
     thread_updates = storytell_output.get("thread_update") or []
     if not thread_updates:
         return {"assertion": "universal.thread_update.valid_id", "passed": True, "detail": "no thread_updates", "scope": "universal", "severity": "red"}
+    def _is_hashable(v: Any) -> bool:
+        return isinstance(v, (str, int, float, bool)) or v is None
+
     state_thread_ids = {
         t.get("id") for t in ((event.get("state_snapshot") or {}).get("arc") or {}).get("threads") or []
-        if isinstance(t, dict) and t.get("id")
+        if isinstance(t, dict) and _is_hashable(t.get("id")) and t.get("id")
     }
-    bad = [t.get("id") for t in thread_updates if isinstance(t, dict) and t.get("id") not in state_thread_ids] or \
-          [t.id for t in thread_updates if hasattr(t, "id") and t.id not in state_thread_ids]
+    bad = [t.get("id") for t in thread_updates if isinstance(t, dict) and _is_hashable(t.get("id")) and t.get("id") not in state_thread_ids] or \
+          [t.id for t in thread_updates if hasattr(t, "id") and _is_hashable(t.id) and t.id not in state_thread_ids]
     if bad:
         return {
             "assertion": "universal.thread_update.valid_id",
@@ -758,12 +761,14 @@ def check_beat_locked_dual_trigger(
     beat_locked should be True when either momentum <= MOMENTUM_FLOOR
     OR consecutive_pressure_turns >= CONSECUTIVE_PRESSURE_THRESHOLD.
     """
+    snap = (event.get("state_snapshot") or {})
+    pc_momentum = (snap.get("pc") or {}).get("momentum", 0)
+
     pacing_ctx = event.get("pacing_context") or {}
     beat_locked = bool(pacing_ctx.get("beat_locked", False))
 
-    meta = (event.get("state_snapshot") or {}).get("meta") or {}
-    momentum = meta.get("momentum", 0)
-    consecutive_pressure_turns = meta.get("consecutive_pressure_turns", 0)
+    momentum = pc_momentum
+    consecutive_pressure_turns = snap.get("meta", {}).get("consecutive_pressure_turns", 0)
 
     expected_beat_locked = (
         momentum <= MOMENTUM_FLOOR

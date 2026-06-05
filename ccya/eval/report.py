@@ -721,7 +721,7 @@ def _compute_pacing_metrics(events: list[dict[str, Any]]) -> str:
     for ev in events:
         meta = (ev.get("state_snapshot") or {}).get("meta") or {}
         cur_turn = int(meta.get("turn") or 0) if isinstance(meta, dict) else 0
-        m = ((ev.get("state_snapshot") or {}).get("meta") or {}).get("momentum")
+        m = ((ev.get("state_snapshot") or {}).get("pc") or {}).get("momentum", 0)
         if m is not None and m <= MOMENTUM_MIN:
             if current_run_start is None:
                 current_run_start = cur_turn
