@@ -17,9 +17,7 @@ from typing import Any
 
 from ccya.eval.engine_mirror import (
     MOMENTUM_DELTA,
-    MOMENTUM_MIN,
     PRESSURE_BEAT_TYPES,
-    CONSECUTIVE_PRESSURE_THRESHOLD,
     MOMENTUM_FLOOR,
 )
 
@@ -537,12 +535,17 @@ def check_momentum_floor_no_relief(
     prev_event: dict[str, Any] | None,
     event_window: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Momentum at floor for >= 3 consecutive turns without a success band is a pacing failure."""
+    """Momentum at floor for >= 3 consecutive turns without a success band is a pacing failure.
+
+    Timing note: momentum values in state_snapshot are post-delta-apply, but delta does not
+    contain momentum fields — momentum only changes via apply_momentum() during ruling phase.
+    So the momentum read here matches what _compute_pacing_context used at narrate setup time.
+    """
     window: list[dict[str, Any]] = event_window or ([prev_event, event] if prev_event else [event])
     floor_count = 0
     for ev in reversed(window):
         m = ((ev.get("state_snapshot") or {}).get("pc") or {}).get("momentum", 0)
-        if m is not None and m <= MOMENTUM_MIN:
+        if m is not None and m <= MOMENTUM_FLOOR:
             floor_count += 1
         else:
             break
@@ -756,10 +759,22 @@ def check_consecutive_pressure_tracking(
 def check_beat_locked_dual_trigger(
     event: dict[str, Any], prev_event: dict[str, Any] | None = None
 ) -> dict[str, Any]:
-    """Validate the dual-trigger beat_locked condition works correctly.
+    """Validate beat_locked is consistent with momentum floor.
 
-    beat_locked should be True when either momentum <= MOMENTUM_FLOOR
-    OR consecutive_pressure_turns >= CONSECUTIVE_PRESSURE_THRESHOLD.
+    The engine computes beat_locked at narrate setup time using post-ruling momentum
+    and the consecutive_pressure_turns counter from before this turn's extraction.
+    The eval reads state_snapshot which has the *post-update* counter (incremented after
+    extraction based on storytell's beat type). This causes a one-turn lag mismatch:
+    if pressure beats fire exactly at threshold, engine sees N-1 turns and sets
+    beat_locked=False while post-update snapshot shows N+1.
+
+    We only validate the momentum floor branch here (no lag issue) since that is the
+    primary pacing safety valve. The consecutive counter branch is structurally unverifiable
+    from state_snapshot alone — a future assert could use pre-extraction counter values if
+    those are preserved in events, or flag when post-update counter >= threshold+2 and
+    beat_locked=False as a heuristic (accounts for the one-turn lag).
+
+    See check_momentum_floor_no_relief for related validation.
     """
     snap = (event.get("state_snapshot") or {})
     pc_momentum = (snap.get("pc") or {}).get("momentum", 0)
@@ -768,18 +783,14 @@ def check_beat_locked_dual_trigger(
     beat_locked = bool(pacing_ctx.get("beat_locked", False))
 
     momentum = pc_momentum
-    consecutive_pressure_turns = snap.get("meta", {}).get("consecutive_pressure_turns", 0)
 
-    expected_beat_locked = (
-        momentum <= MOMENTUM_FLOOR
-        or consecutive_pressure_turns >= CONSECUTIVE_PRESSURE_THRESHOLD
-    )
+    expected_beat_locked_from_momentum = momentum <= MOMENTUM_FLOOR
 
-    if beat_locked != expected_beat_locked:
+    if expected_beat_locked_from_momentum and not beat_locked:
         return {
             "assertion": "universal.pacing.beat_locked_dual_trigger",
             "passed": False,
-            "detail": f"beat_locked={beat_locked} but expected {expected_beat_locked} (momentum={momentum}, floor={MOMENTUM_FLOOR}, consecutive_pressure_turns={consecutive_pressure_turns}, threshold={CONSECUTIVE_PRESSURE_THRESHOLD})",
+            "detail": f"momentum={momentum} at floor {MOMENTUM_FLOOR}, but beat_locked=False — engine should have fired floor relief",
             "scope": "universal",
             "severity": "red",
         }
@@ -787,7 +798,7 @@ def check_beat_locked_dual_trigger(
     return {
         "assertion": "universal.pacing.beat_locked_dual_trigger",
         "passed": True,
-        "detail": f"beat_locked={beat_locked} (momentum={momentum}, consecutive_pressure_turns={consecutive_pressure_turns})",
+        "detail": f"beat_locked={beat_locked} (momentum={momentum}, floor={MOMENTUM_FLOOR})",
         "scope": "universal",
         "severity": "yellow",
     }
