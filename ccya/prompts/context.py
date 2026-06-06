@@ -20,6 +20,7 @@ from ccya.models import (
     InventoryItem,
     IntentEnvelope,
     NpcPresence,
+    ProgressEntry,
     RulesOutcome,
 )
 
@@ -85,29 +86,31 @@ class ArcThreadSummary(BaseModel):
     last_updated_turn: int | None = None
 
 
+def _fmt_progress(progress: Any) -> list[str]:
+    if not progress:
+        return []
+    result: list[str] = []
+    for entry in progress:
+        if isinstance(entry, str):
+            result.append(entry)
+        elif isinstance(entry, dict):
+            kind = entry.get("kind", "advancement")
+            text = entry.get("text", "")
+            result.append(f"[{kind.upper()}] {text}")
+        elif isinstance(entry, ProgressEntry):
+            result.append(f"[{entry.kind.upper()}] {entry.text}")
+        else:
+            result.append(str(entry))
+    return result
+
+
 class ArcThreadBlock(BaseModel):
-    """Campaign arc snapshot for prompt rendering."""
+    """Arc status + thread overview for prompt rendering."""
 
     visible_goal: str
     resolution: str | None = None
     threads: list[ArcThreadSummary]  # simplified thread view for prompts
     completed_threads: list[ArcThreadSummary] = Field(default_factory=list)
-
-    @staticmethod
-    def _fmt_progress(progress: Any) -> list[str]:
-        if not progress:
-            return []
-        result: list[str] = []
-        for entry in progress:
-            if isinstance(entry, str):
-                result.append(entry)
-            elif isinstance(entry, dict):
-                kind = entry.get("kind", "advancement")
-                text = entry.get("text", "")
-                result.append(f"[{kind.upper()}] {text}")
-            else:
-                result.append(str(entry))
-        return result
 
     @classmethod
     def from_state(cls, state: dict[str, Any]) -> ArcThreadBlock:
@@ -123,7 +126,7 @@ class ArcThreadBlock(BaseModel):
                         summary=t.get("summary", ""),
                         scope=t.get("scope", "arc"),
                         urgency=t.get("urgency", "normal"),
-                        progress=cls._fmt_progress(t.get("progress")),
+                        progress=_fmt_progress(t.get("progress")),
                         active=bool(t.get("active", True)),
                         last_updated_turn=t.get("last_updated_turn"),
                     )
@@ -135,7 +138,7 @@ class ArcThreadBlock(BaseModel):
                         summary=t.summary,
                         scope=t.scope,
                         urgency=t.urgency,
-                        progress=cls._fmt_progress(t.progress),
+                        progress=_fmt_progress(t.progress),
                         active=bool(t.active),
                         last_updated_turn=getattr(t, "last_updated_turn", None),
                     )

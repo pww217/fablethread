@@ -170,7 +170,7 @@ def _apply_thread_updates(
     remaining_threads = list(arc.threads)
     for update in storyteller_result.thread_update:
         found_idx = None
-        for i, t in enumerate(arc.threads):
+        for i, t in enumerate(remaining_threads):
             if getattr(t, "id", "") == update.id:
                 found_idx = i
                 break
@@ -182,7 +182,7 @@ def _apply_thread_updates(
             continue
 
         updates: dict[str, Any] = {}
-        thread = arc.threads[found_idx]
+        thread = remaining_threads[found_idx]
         if update.active is not None:
             updates["active"] = update.active
         if update.urgency is not None:

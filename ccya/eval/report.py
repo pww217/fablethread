@@ -602,9 +602,9 @@ def _render_auto_checker_block(run_result: RunResult) -> str:
     failed = sum(1 for t in run_result.turns for r in t.assert_results if not r["passed"])
 
     parts: list[str] = [f"**{passed} passed, {failed} failed**", ""]
+    parts.append("> **Legend:** `[PASS]` = assertion passed · `[FAIL]` = assertion failed  ")
     parts.append("| Turn | Assertion | Result | Detail |")
     parts.append("|---|---|---|---|")
-    parts.append("> **Legend:** `[PASS]` = assertion passed · `[FAIL]` = assertion failed  ")
     for t in run_result.turns:
         for r in t.assert_results:
             status = "[PASS]" if r["passed"] else "[FAIL]"
@@ -640,9 +640,9 @@ def _render_assert_summary_table(run_result: RunResult) -> str:
         return ""
 
     lines: list[str] = ["## Universal Assert Results", ""]
+    lines.append("> **Legend:** `[SYSTEM]` = system integrity failure (red severity) · `[PACING]` = pacing/perfection concern (yellow severity)  ")
     lines.append("| Assertion | Severity | Turns Failed | Turns Checked | First Failure Turn |")
     lines.append("|---|---|---:|---:|---:|")
-    lines.append("> **Legend:** `[SYSTEM]` = system integrity failure (red severity) · `[PACING]` = pacing/perfection concern (yellow severity)  ")
 
     for name, stats in sorted(assertion_stats.items()):
         sev = stats["severity"]
