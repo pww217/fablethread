@@ -25,7 +25,11 @@
         {% set tip = _stat_tips.get(k) %}
         <div class="stat-row{% if tip %} has-tooltip{% endif %}" style="margin:0;">
             <span class="stat-label">{{ k | capitalize }}</span>
-            <span class="stat-value">{{ v }}</span>
+            <span class="stat-pips" style="gap:2px;">
+                {% for p in range(4) %}
+                <span class="stat-pip{% if p < v %} stat-pip-filled{% else %} stat-pip-empty{% endif %}"></span>
+                {% endfor %}
+            </span>
             {% if tip %}<div class="tooltip-body">{{ tip }}</div>{% endif %}
         </div>
         {% endfor %}
