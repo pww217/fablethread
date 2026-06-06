@@ -66,6 +66,17 @@ CRITICAL RULES for including a thread ID in thread_update:
 - If uncertain whether a thread was affected — do not include it.
 - Only emit `thread_update` when you are changing a thread's state. Do not emit updates with all-null or empty fields.
 
+NEVER FORGET: Thread updates are for pivotal, important moments only. Not every event gets one. It's not a diary. When in doubt, do NOT update — the default is no change.
+
+Near-shot examples of what to do vs skip:
+- Curtis found the ledger's missing page in Halden's desk → GOOD: `thread_update` for `missing_ledger_pages` with progress note
+- The dockworkers refused to sail unless paid double → GOOD: broadens `crew_morale` from logistical concern to mutiny threat
+- Silas Thorne was killed by the ambushers → GOOD: resolves `surveillance_coordinator`, promotes outcome to world state
+- Curtis ate a meal and made small talk with Halden → BAD: not a thread update, just scene flavor
+- The crew sailed through calm waters overnight → BAD: routine travel, no narrative shift
+- Curtis checked his weapons inventory → BAD: maintenance action, doesn't advance any tension
+- An NPC mentioned the blockade in passing conversation → BAD: mentioning ≠ affecting
+
 `thread_resolve`: A list of objects to mark individual threads as resolved, failed, or abandoned — independent of arc resolution. Use this when a thread has run its course, was superseded by events, or merged into a broader concern. THIS IS VALID — not every thread needs a dramatic completion.
 
 Thread urgency should decay over time. If a thread has been updated once without the player addressing it, consider lowering urgency. If it's been inactive for 3+ turns, lower urgency to background or mark it inactive via `thread_update {active: false}`.
@@ -136,7 +147,16 @@ CRITICAL: Before emitting `thread_add`, check all active and latent thread summa
 
 **Does NOT qualify:** scene-local observations (pipe burst in current room, flooding corridor, alarms blaring, NPCs currently panicking), temporary conditions that resolve within 1-2 turns, atmospheric flavor or "mood" facts, anything the player would only know about while standing in this room.
 
-Each entry: `{"id": "snake_case_id", "text": "fact description", "tier": "persistent"}`. The tier must always be `"persistent"` — permanent facts are seed-authored and never written by the LLM. Emit at most 2 world_state_add entries per turn to avoid bloat.
+NEVER FORGET: World state is for long-term, immutable changes that permanently affect what the player faces going forward. Not every observation belongs here. When in doubt, do NOT add — the default is no change.
+
+Near-shot examples of what to do vs skip:
+- The port authority declared martial law after the riot → GOOD: faction disposition change, persists across locations and turns
+- Curtis lost use of his left arm in the explosion → GOOD: permanent NPC injury, changes future options permanently
+- The only bridge out was destroyed by retreating forces → GOOD: permanently altered route, affects all future travel plans
+- The captain's cabin has bloodstains on the floor → BAD: scene-local observation, goes away when you leave this room
+- Alarms are blaring through the ship → BAD: temporary condition lasting 1-2 turns max
+- NPCs in this room are panicking about the fire → BAD: atmospheric/mood fact, not durable reality
+- Curtis noticed a strange symbol carved into the wall → BAD: one-time discovery that doesn't change how factions behave later. The tier must always be `"persistent"` — permanent facts are seed-authored and never written by the LLM. Emit at most 2 world_state_add entries per turn to avoid bloat.
 
 **Thread vs world_state:** Threads track narrative tension, story arcs, and character goals. World state tracks durable reality — what is permanently true about the world regardless of story direction. If the fact would change a faction's behavior in a future scene, it belongs in world_state, not a thread.
 

@@ -8,8 +8,8 @@
 |---|---|---|
 | 01 | Data layer | Define `NpcPersonality` dataclass, archetype registry, and seed assignment logic in `ccya/personality.py` |
 | 02 | Model + state integration | Add `personality` field to `CompendiumNpcUpdate`, wire into `apply_npc_scene_management`, protect it from overwrite |
-| 03 | Seed generation | Assign personality in `build_seed` before the LLM call; inject into `generate_seed_system.j2` |
-| 04 | Narrator prompt | Expose personality in `narrate_user.j2` NPC context block |
+| 03 | Seed generation + static seeds | Assign personality on all seed paths (dynamic LLM and static YAML); update schema comment in `generate_seed_system.j2` |
+| 04 | Narrator prompt | Look up archetype data at render time via `build_npc_roster`; expose in `_npc_roster.j2` template |
 
 ## Objective
 NPCs currently have identity fields (`name`, `title`, `bio`, `motivation`, `fear`, `leverage`) but no behavioural style descriptor that shapes *how* they express those traits. A personality system adds a discrete, immutable `personality` field to each compendium NPC entry. Rather than letting the LLM invent freeform personality text (which regresses to blandness) or randomly sampling from a flat trait list (which breaks tonal coherence), the approach defines a small registry of named archetypes in Python. Each archetype is a coherent bundle of traits, a speech style hint, and a set of narrative roles it is valid for. At NPC creation time the engine — not the narrator LLM — picks the archetype that is most coherent with the NPC's existing `motivation` and `fear` fields, using a deterministic scoring function. The narrator then receives the archetype's trait list and speech hint as part of the NPC context block, giving it a concrete signal to act against.
@@ -29,7 +29,7 @@ NPCs currently have identity fields (`name`, `title`, `bio`, `motivation`, `fear
 ### Files to pull for context
 - `ccya/models.py` — existing Pydantic models (no changes this phase)
 - `ccya/state/npcs.py` — understand compendium entry structure
-- `docs/REPOMAP/` — check if a personality module is already mapped
+- `docs/repomap.md` — check if a personality module is already mapped
 
 ### Detailed steps
 
@@ -37,9 +37,9 @@ NPCs currently have identity fields (`name`, `title`, `bio`, `motivation`, `fear
 
 **File:** `ccya/personality.py`
 
-**What:** New module. Define `NpcPersonality` (a frozen dataclass), the archetype registry `ARCHETYPES`, and `assign_personality` (the scoring function).
+**What:** New module. Define `NpcPersonality` (a frozen dataclass), the archetype registry `ARCHETYPES`, and `assign_personality` (the scoring function). Also define a validation helper that checks whether an arbitrary string is a valid archetype id, logging a warning if not and returning the fallback default.
 
-**Why:** All personality logic must live at a module boundary with no side-effects. Keeping it in its own file means the narrator, seed builder, and test suite can each import it without importing engine internals.
+**Why:** All personality logic must live at a module boundary with no side-effects. Keeping it in its own file means the narrator, seed builder, and test suite can each import it without importing engine internals. The validation helper covers the edge case where a seed LLM emits an invalid archetype id (e.g., a typo or hallucinated name).
 
 ```python
 """NPC personality archetype registry and assignment."""
@@ -58,8 +58,6 @@ class NpcPersonality:
     label: str
     traits: tuple[str, ...]  # 2-4 short descriptors surfaced in narrator context
     speech_hint: str          # one-line style note; e.g. "clipped, transactional"
-    # Keywords that score positively when found in motivation or fear text.
-    # Used by assign_personality to rank archetypes without an LLM call.
     motivation_keywords: tuple[str, ...] = field(default_factory=tuple)
     fear_keywords: tuple[str, ...] = field(default_factory=tuple)
 
@@ -133,6 +131,8 @@ ARCHETYPES: dict[str, NpcPersonality] = {
     ]
 }
 
+_DEFAULT_ID = "wary_opportunist"
+
 
 def _score_archetype(
     archetype: NpcPersonality,
@@ -160,7 +160,7 @@ def assign_personality(
 
     Scores each archetype against the NPC's motivation and fear text using
     keyword matching. Ties are broken by archetype registry insertion order.
-    Falls back to ``wary_opportunist`` if both fields are empty.
+    Falls back to ``wary_opportunist`` if both fields are empty or all scores are zero.
 
     Args:
         motivation: NPC motivation string (may be None).
@@ -172,9 +172,10 @@ def assign_personality(
     """
     if not motivation and not fear:
         _log.debug(
-            "assign_personality npc=%s no_mf_fields fallback=wary_opportunist", npc_id
+            "assign_personality npc=%s no_mf_fields fallback=%s",
+            npc_id, _DEFAULT_ID,
         )
-        return ARCHETYPES["wary_opportunist"]
+        return ARCHETYPES[_DEFAULT_ID]
 
     scored = [
         (_score_archetype(arch, motivation or "", fear or ""), arch)
@@ -184,14 +185,37 @@ def assign_personality(
     best_score, best_arch = scored[0]
     _log.debug(
         "assign_personality npc=%s best=%s score=%d",
-        npc_id,
-        best_arch.id,
-        best_score,
+        npc_id, best_arch.id, best_score,
     )
     return best_arch
+
+
+def validate_and_resolve(personality_id: str | None) -> NpcPersonality | None:
+    """Validate a personality archetype id against the registry.
+
+    Returns the resolved NpcPersonality if valid and non-None, otherwise logs
+    a warning (for invalid ids) or returns None (for missing). Callers should
+    fall back to ARCHETYPES[_DEFAULT_ID] when they receive None for an invalid id.
+
+    Args:
+        personality_id: An archetype id string from state or LLM output.
+
+    Returns:
+        NpcPersonality if valid, None otherwise.
+    """
+    if not personality_id:
+        return None
+    arch = ARCHETYPES.get(personality_id)
+    if arch is None:
+        _log.warning(
+            "personality unknown id=%s for npc; falling back to %s",
+            personality_id, _DEFAULT_ID,
+        )
+        return None
+    return arch
 ```
 
-**Validation:** Run `python -c "from ccya.personality import assign_personality, ARCHETYPES; p = assign_personality('wants to control the city', 'fears exposure', 'test_npc'); assert p.id == 'cold_pragmatist', p.id; print('ok')"`
+**Validation:** Run `python -c "from ccya.personality import assign_personality, ARCHETYPES, validate_and_resolve; p = assign_personality('wants to control the city', 'fears exposure'); assert p.id == 'cold_pragmatist'; v = validate_and_resolve('nonexistent'); assert v is None; print('ok')"`
 
 ### Tests to write or update
 
@@ -199,7 +223,7 @@ def assign_personality(
 
 ```python
 import pytest
-from ccya.personality import assign_personality, ARCHETYPES, NpcPersonality
+from ccya.personality import assign_personality, ARCHETYPES, NpcPersonality, validate_and_resolve
 
 
 def test_all_archetypes_present():
@@ -221,6 +245,13 @@ def test_fallback_on_empty_fields():
     assert p.id == "wary_opportunist"
 
 
+def test_fallback_on_zero_score():
+    # Both fields present but contain no matching keywords for any archetype
+    p = assign_personality("likes cheese", "fears Mondays", "cheese_eater")
+    # Should still return something (first arch by insertion order due to tie)
+    assert p.id in ARCHETYPES
+
+
 def test_personality_is_frozen():
     arch = ARCHETYPES["cold_pragmatist"]
     with pytest.raises((AttributeError, TypeError)):
@@ -233,10 +264,26 @@ def test_all_archetypes_have_required_fields():
         assert arch.label
         assert len(arch.traits) >= 2
         assert arch.speech_hint
+
+
+def test_validate_valid_id():
+    v = validate_and_resolve("cold_pragmatist")
+    assert v is not None and v.id == "cold_pragmatist"
+
+
+def test_validate_invalid_id_logs_warning():
+    import logging
+    with pytest.warns(UserWarning):  # or check log output via caplog in real tests
+        result = validate_and_resolve("nonexistent_archetype")
+    assert result is None
+
+
+def test_validate_none_returns_none():
+    assert validate_and_resolve(None) is None
 ```
 
 ### REPOMAP and architecture updates
-- Add `ccya/personality.py` entry to `docs/REPOMAP/` in whichever file covers NPC state (likely `npcs.md`). Document `assign_personality(motivation, fear, npc_id) -> NpcPersonality` and the `ARCHETYPES` registry.
+- Add `ccya/personality.py` entry to `docs/repomap.md`. Document `assign_personality(motivation, fear, npc_id) -> NpcPersonality`, `validate_and_resolve(personality_id) -> NpcPersonality | None`, and the `ARCHETYPES` registry.
 
 ### Risks
 1. Keyword scoring is coarse — an NPC whose motivation and fear use unusual phrasing may land on the wrong archetype. Mitigation: the narrator prompt uses personality as *hint*, not hard rule; mismatches degrade gracefully.
@@ -257,7 +304,7 @@ def test_all_archetypes_have_required_fields():
 
 **File:** `ccya/models.py`
 
-**What:** Add one optional field to `CompendiumNpcUpdate`.
+**What:** Add one optional field to `CompendiumNpcUpdate`. Place it after the existing fields (after `first_seen_turn`).
 
 **Why:** The LLM scene extractor must be able to set personality on NPC creation (it will only ever do so when the seed builder sets it — the field is not in the narrator prompt as writable). Keeping it on the model means the JSON wire format is consistent with all other compendium fields.
 
@@ -272,21 +319,21 @@ class CompendiumNpcUpdate(BaseModel):
     motivation: str | None = None
     fear: str | None = None
     leverage: str | None = None
-    presence: str | None = None
-    notes: str | None = None
-    first_seen_turn: int | None = None
+    presence: str | None = None  # "present" | "nearby" | "known" — scene extractor sets this
+    notes: str | None = None      # scene-specific attitude, cleared on departure
+    first_seen_turn: int | None = None  # set by engine on initial entry creation
     personality: str | None = None  # archetype id; immutable once set
 ```
 
-**Validation:** `python -m pytest tests/test_models.py -x -q` (or equivalent); confirm no existing tests break.
+**Validation:** Confirm no existing tests break (`python -m pytest tests/test_models.py -x -q` or equivalent).
 
 #### Step 2.2 — Protect and persist `personality` in `apply_npc_scene_management`
 
 **File:** `ccya/state/npcs.py`
 
-**What:** In the `apply_npc_scene_management` loop, after the `leverage` assignment block, add a personality write block that is **only applied when the entry has no existing personality value**.
+**What:** In the `apply_npc_scene_management` loop, after the `leverage` assignment block (line ~148), add a personality write block that is **only applied when the entry has no existing personality value**. Store only the archetype id — denormalized fields are resolved at render time by `build_npc_roster()`.
 
-**Why:** Personality is immutable once assigned. The narrator LLM must never be able to overwrite it by emitting a `compendium_npc_update` with a different `personality` value mid-game.
+**Why:** Personality is immutable once assigned. The narrator LLM must never be able to overwrite it by emitting a `compendium_npc_update` with a different `personality` value mid-game. Only storing the archetype id avoids duplication — template rendering resolves label/traits/speech_hint from ARCHETYPES at render time via build_npc_roster (Phase 04).
 
 ```python
 # Inside the for-loop in apply_npc_scene_management, after:
@@ -297,8 +344,7 @@ if comp_upd.personality is not None and not entry.get("personality"):
     entry["personality"] = comp_upd.personality
     _log.debug(
         "apply_npc_scene_management npc=%s personality=%s",
-        resolved_id,
-        comp_upd.personality,
+        resolved_id, comp_upd.personality,
     )
 ```
 
@@ -322,11 +368,8 @@ def test_personality_written_on_first_update():
     result = SceneExtractResult(
         compendium_npc_update=[
             CompendiumNpcUpdate(
-                id="guard",
-                name="Guard",
-                title="Town Guard",
-                personality="cold_pragmatist",
-                presence="present",
+                id="guard", name="Guard", title="Town Guard",
+                personality="cold_pragmatist", presence="present",
             )
         ]
     )
@@ -339,159 +382,244 @@ def test_personality_immutable_once_set():
     first = SceneExtractResult(
         compendium_npc_update=[
             CompendiumNpcUpdate(
-                id="guard",
-                name="Guard",
-                title="Town Guard",
-                personality="cold_pragmatist",
-                presence="present",
+                id="guard", name="Guard", title="Town Guard",
+                personality="cold_pragmatist", presence="present",
             )
         ]
     )
     second = SceneExtractResult(
         compendium_npc_update=[
-            CompendiumNpcUpdate(
-                id="guard",
-                personality="charming_manipulator",
-            )
+            CompendiumNpcUpdate(id="guard", personality="charming_manipulator")
         ]
     )
     apply_npc_scene_management(state, first, current_turn_no=1)
     apply_npc_scene_management(state, second, current_turn_no=2)
     assert state["compendium"]["npcs"]["guard"]["personality"] == "cold_pragmatist"
+
+
+def test_personality_none_does_not_overwrite():
+    """A scene update with personality=None should not clear an existing value."""
+    state = _make_state()
+    first = SceneExtractResult(
+        compendium_npc_update=[
+            CompendiumNpcUpdate(id="guard", name="Guard", presence="present")
+        ]
+    )
+    second = SceneExtractResult(
+        compendium_npc_update=[
+            CompendiumNpcUpdate(id="guard", personality="cold_pragmatist")
+        ]
+    )
+    third = SceneExtractResult(
+        compendium_npc_update=[CompendiumNpcUpdate(id="guard")]  # no personality field
+    )
+    apply_npc_scene_management(state, first, current_turn_no=1)
+    assert "personality" not in state["compendium"]["npcs"].get("guard", {})
+    apply_npc_scene_management(state, second, current_turn_no=2)
+    assert state["compendium"]["npcs"]["guard"]["personality"] == "cold_pragmatist"
+    apply_npc_scene_management(state, third, current_turn_no=3)
+    # Should still be cold_pragmatist — no update means no overwrite
+    assert state["compendium"]["npcs"]["guard"]["personality"] == "cold_pragmatist"
 ```
 
 ### REPOMAP and architecture updates
-- Update `CompendiumNpcUpdate` signature in REPOMAP to note `personality: str | None` field.
-- Note in REPOMAP that `personality` is write-once: set on creation, ignored on subsequent updates.
+- Update `CompendiumNpcUpdate` signature in repomap to note `personality: str | None` field.
+- Note that `personality` is write-once: set on creation, ignored on subsequent updates.
+- Note that denormalized personality fields (label/traits/speech_hint) are resolved at render time by build_npc_roster from ARCHETYPES — they do not persist in state.
 
 ### Risks
-1. Old saved game states have no `personality` key. Mitigation: all reads of `personality` from the compendium dict must use `.get("personality")` — it will return `None` and the narrator will simply omit the block. No migration needed.
+1. Old saved game states have no `personality` key. Mitigation: all reads of `personality` from the compendium dict use `.get("personality")` which returns `None`; build_npc_roster skips archetype lookup when personality is None, so old saves render without a personality block and new saves get it automatically. No migration needed.
 
 ---
 
-## Implementation — Phase 03: Seed generation
+## Implementation — Phase 03: Seed generation + static seeds
 
 **Depends on:** Phase 01, Phase 02
 
 ### Files to pull for context
-- `ccya/personality.py` — `assign_personality`, `ARCHETYPES`
-- `ccya/models.py` — `CompendiumNpcUpdate`
-- The seed builder entry point (wherever `SeedEnvelope` / `build_seed` is constructed — likely `ccya/engine.py` or `ccya/seed.py`; executor must locate this before starting)
-- `ccya/state/npcs.py` — `apply_npc_scene_management`
-- `ccya/prompts/generate_seed_system.j2` — for schema update only
+- `ccya/personality.py` — `assign_personality`, `validate_and_resolve`, `ARCHETYPES`
+- `ccya/pack.py` — `CompendiumEntry`, `SeedState`, `SeedEnvelope` (Pydantic models)
+- `ccya/engine/seed.py` — dynamic seed generation (`generate_seed()`)
+- `ccya/state/io.py` — static seed loading and save initialization (`init_save_dir()`)
+- `ccya/prompts/generate_seed_system.j2` — schema comment update
 
 ### Detailed steps
 
-#### Step 3.1 — Assign personality to all seed NPCs after seed LLM call
+#### Step 3.1 — Assign personality in dynamic seed builder (engine/seed.py)
 
-**File:** The seed builder module (locate by searching for `SeedEnvelope` construction and `compendium.npcs` write).
+**File:** `ccya/engine/seed.py`
 
-**What:** After the seed LLM response is parsed and `seed_state.compendium.npcs` is populated but before the state is finalised, iterate over all NPC entries and call `assign_personality` for any that lack a `personality` key. Write the archetype id back into the entry dict.
+**What:** After the seed LLM response is parsed and validated (`envelope = SeedEnvelope(**j)` at line ~296), iterate over all NPC entries in `envelope.seed_state.compendium.npcs` (which are Pydantic CompendiumEntry objects) and call `assign_personality` for any that lack a `personality` attribute. Write only the archetype id back onto each entry. Validate against ARCHETYPES; if an invalid id is present, log warning and fall back to default — do not overwrite with a new assignment (preserve whatever the LLM produced).
 
-**Why:** Phase 01 established the scoring function. Phase 02 established the write path. This phase calls both at the moment NPC state is created, so every NPC born from a seed has a personality before the first narrator turn.
+**Why:** Phase 01 established the scoring function and validation helper. This phase calls both at the moment NPC state is created from dynamic seeds, so every NPC born from a seed has a personality before the first narrator turn. Only storing the archetype id avoids duplication — denormalized fields are resolved by build_npc_roster (Phase 04).
 
 ```python
-from ccya.personality import assign_personality
+# In generate_seed(), after line ~298 (_validate_seed_envelope(envelope)),
+# and before any other post-processing:
 
-# After seed LLM parse, before state is returned:
-for npc_id, npc_entry in seed_state["compendium"]["npcs"].items():
-    if not isinstance(npc_entry, dict):
-        continue
-    if npc_entry.get("personality"):
-        continue  # already set; skip
-    arch = assign_personality(
-        motivation=npc_entry.get("motivation"),
-        fear=npc_entry.get("fear"),
-        npc_id=npc_id,
-    )
-    npc_entry["personality"] = arch.id
-    _log.info(
-        "seed.assign_personality npc=%s personality=%s",
-        npc_id,
-        arch.id,
-    )
+from ccya.personality import assign_personality, validate_and_resolve, ARCHETYPES, _DEFAULT_ID
+
+for npc_id, npc_entry in envelope.seed_state.compendium.npcs.items():
+    if not hasattr(npc_entry, "personality") or not getattr(npc_entry, "personality"):
+        # No personality set — assign one from motivation/fear
+        arch = assign_personality(
+            motivation=getattr(npc_entry, "motivation", None),
+            fear=getattr(npc_entry, "fear", None),
+            npc_id=npc_id,
+        )
+        object.__setattr__(npc_entry, "personality", arch.id)
+    else:
+        # LLM already set a personality — validate it
+        resolved = validate_and_resolve(getattr(npc_entry, "personality"))
+        if resolved is None:
+            _log.warning(
+                "seed npc=%s has unknown personality '%s'; keeping as-is (LLM may have produced freeform text)",
+                npc_id, getattr(npc_entry, "personality"),
+            )
+
+_log.info("seed.assign_personality complete pack=%s", pack.manifest.id)
 ```
 
-**Validation:** Run the seed builder in test mode (or use an integration test fixture) and assert that every NPC in the returned seed state dict has a non-empty `personality` key.
+**Note on Pydantic objects:** `CompendiumEntry` has `extra: "allow"` (`pack.py:38`). We use `object.__setattr__()` to set the personality attribute directly since it's not a declared field. It will be included when `.model_dump(mode="json")` is called later in routes.py (lines 362/382).
 
-#### Step 3.2 — Update `generate_seed_system.j2` schema comment
+**Validation:** Run the seed builder and assert that every NPC in the returned envelope has a non-empty `personality` attribute set to a valid archetype id.
+
+#### Step 3.2 — Assign personality for static seeds (state/io.py)
+
+**File:** `ccya/state/io.py`
+
+**What:** Add a helper function `_assign_seed_personalities(state: dict[str, Any]) -> None` that iterates over all NPCs in the state's compendium and assigns personalities where missing. Call this from both `init_save_dir()` (after loading seed data) and any other path that initializes game state from seeds.
+
+**Why:** Static seeds loaded via YAML (`__main__.py --new-game`) or eval harness go directly into `init_save_dir()` without passing through the dynamic seed builder's post-parse hook. This ensures all NPCs — whether born from LLM-generated seeds or hand-authored static packs — get personalities at game start time.
+
+```python
+# Add to ccya/state/io.py (near top, after imports):
+
+from typing import Any
+
+
+def _assign_seed_personalities(state: dict[str, Any]) -> None:
+    """Assign personality archetype ids to any NPCs missing one in the seed state."""
+    from ccya.personality import assign_personality
+    
+    npcs = (state.get("compendium") or {}).get("npcs", {})
+    for npc_id, entry in npcs.items():
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("personality"):
+            continue  # already set; skip
+        arch = assign_personality(
+            motivation=entry.get("motivation"),
+            fear=entry.get("fear"),
+            npc_id=npc_id,
+        )
+        entry["personality"] = arch.id
+
+
+# Modify init_save_dir() to call this after seed data is loaded:
+
+def init_save_dir(save_dir: Path, seed: dict[str, Any]) -> None:
+    save_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Assign personalities to any NPCs missing one (static seeds only; dynamic seeds already have them)
+    _assign_seed_personalities(seed)
+    
+    save_state(save_dir, seed)
+    (save_dir / "chronicle.md").write_text("")
+    (save_dir / "events.jsonl").write_text("")
+    # Remove stale snapshot from a previous game
+    (save_dir / "state_snapshot.yaml").unlink(missing_ok=True)
+```
+
+**Validation:** Load a static seed pack with `--new-game` and verify all NPCs in the resulting state.yaml have a personality field. Check eval harness runs similarly produce seeded personalities for static seeds.
+
+#### Step 3.3 — Update `generate_seed_system.j2` schema comment
 
 **File:** `ccya/prompts/generate_seed_system.j2`
 
-**What:** In the TypeScript-style output schema comment, add `personality?: string` as a read-only documentation note on the compendium NPC entry. Do **not** instruct the LLM to populate it — the engine sets it post-parse.
+**What:** In the TypeScript-style output schema comment (line ~106), add a note that `personality` is assigned by the engine post-parse and should not be set by the LLM. Do **not** instruct the LLM to populate it — keep it as documentation only for future prompt authors who reference this template.
 
-**Why:** The schema comment is what the seed LLM references when deciding which fields to emit. Adding it as a comment-only note prevents the LLM from trying to set it to a freeform value while still making the field's existence visible to future prompt authors.
-
+Update line 106 from:
+```ts
+compendium: {npcs: {snake_case: {name: string, title: string, bio: string, allegiance?: string, bond?: string, motivation?: string, fear?: string, leverage?: string}}},
 ```
-// In the compendium.npcs entry TypeScript comment:
-compendium: {
-  npcs: {
-    snake_case: {
-      name: string,
-      title: string,
-      bio: string,
-      allegiance?: string,
-      bond?: string,
-      motivation?: string,
-      fear?: string,
-      leverage?: string,
-      // personality is assigned by the engine post-parse; do not set it
-    }
-  }
-}
+to:
+```ts
+compendium: {npcs: {snake_case: {name: string, title: string, bio: string, allegiance?: string, bond?: string, motivation?: string, fear?: string, leverage?: string /* personality assigned by engine post-parse */}}},
 ```
 
 **Validation:** Grep for `personality` in the template to confirm no instruction asks the LLM to populate the field.
 
 ### Tests to write or update
 
-**File:** `tests/test_seed.py` or `tests/test_engine.py` (extend existing)
-
-Add a test that:
-1. Constructs a minimal fake `seed_state` dict with 2–3 NPCs containing `motivation` and `fear` values.
-2. Runs the personality assignment loop from Step 3.1 directly (extract the loop into a helper `assign_seed_personalities(seed_state: dict) -> None` if the executor finds it cleaner to test).
-3. Asserts every NPC has `personality` set to a valid archetype id.
+**File:** `tests/test_personality.py` already covers unit tests for assign_personality and validate_and_resolve (Phase 01). Add integration-style tests here:
 
 ```python
-from ccya.personality import ARCHETYPES, assign_personality
+from ccya.personality import ARCHETYPES, _DEFAULT_ID
 
 
-def _run_personality_assignment(seed_state: dict) -> None:
-    """Extracted helper — mirrors the loop added to the seed builder."""
-    for npc_id, npc_entry in seed_state["compendium"]["npcs"].items():
-        if not isinstance(npc_entry, dict) or npc_entry.get("personality"):
-            continue
-        arch = assign_personality(
-            motivation=npc_entry.get("motivation"),
-            fear=npc_entry.get("fear"),
-            npc_id=npc_id,
-        )
-        npc_entry["personality"] = arch.id
-
-
-def test_all_seed_npcs_get_personality():
+def test_assign_seed_personalities_static():
+    """Simulates what _assign_seed_personalities does in state/io.py."""
+    from ccya.state.io import _assign_seed_personalities
+    
     seed_state = {
         "compendium": {
             "npcs": {
                 "captain": {"name": "Captain", "motivation": "seeks order", "fear": "chaos"},
                 "merchant": {"name": "Merchant", "motivation": "profit above all", "fear": "debt"},
-                "beggar": {"name": "Beggar"},  # no MF fields
+                "beggar": {"name": "Beggar"},  # no MF fields -> fallback
             }
         }
     }
-    _run_personality_assignment(seed_state)
+    _assign_seed_personalities(seed_state)
     npcs = seed_state["compendium"]["npcs"]
-    for npc_id, entry in npcs.items():
-        assert entry.get("personality") in ARCHETYPES, f"{npc_id} missing valid personality"
+    
+    assert npcs["captain"]["personality"] in ARCHETYPES
+    assert npcs["merchant"]["personality"] in ARCHETYPES
+    # Beggar with no MF fields should get fallback archetype
+    assert npcs["beggar"]["personality"] == _DEFAULT_ID
+
+
+def test_assign_seed_personalities_skips_existing():
+    """Should not overwrite an already-set personality."""
+    from ccya.state.io import _assign_seed_personalities
+    
+    seed_state = {
+        "compendium": {
+            "npcs": {
+                "guard": {"name": "Guard", "personality": "cold_pragmatist"},
+            }
+        }
+    }
+    _assign_seed_personalities(seed_state)
+    
+    assert seed_state["compendium"]["npcs"]["guard"]["personality"] == "cold_pragmatist"
+
+
+def test_assign_seed_personalities_ignores_non_dict_entries():
+    """Should not crash on malformed entries."""
+    from ccya.state.io import _assign_seed_personalities
+    
+    seed_state = {
+        "compendium": {
+            "npcs": {
+                "broken": "not a dict",  # malformed entry
+                "good_npc": {"name": "Good NPC"},
+            }
+        }
+    }
+    _assign_seed_personalities(seed_state)  # should not raise
+    
+    assert seed_state["compendium"]["npcs"]["good_npc"]["personality"] in ARCHETYPES
 ```
 
 ### REPOMAP and architecture updates
-- Document the personality assignment step in the seed builder section of REPOMAP.
-- Note that `assign_seed_personalities` (or the inline loop) runs post-LLM-parse, pre-state-write.
+- Document the personality assignment step in both dynamic seeds (engine/seed.py, post-parse) and static seeds (state/io.py, init_save_dir).
+- Note that `_assign_seed_personalities` runs on all seed paths — it is idempotent (skips NPCs with existing personality).
 
 ### Risks
-1. Executor must locate the exact file/function where `seed_state.compendium.npcs` is finalised — the plan cannot name it without risking an incorrect guess. Executor must read the seed builder source before inserting code.
-2. If the seed LLM emits a `personality` field despite the schema comment, the `if npc_entry.get("personality"): continue` guard preserves it rather than overwriting — acceptable behaviour.
+1. If the seed LLM emits a `personality` field despite the schema comment, validation logs a warning but preserves whatever the LLM produced rather than overwriting — acceptable behaviour since we don't want to silently discard LLM output even if it's unusual.
+2. Static seeds loaded via YAML go through `_assign_seed_personalities` in init_save_dir which imports `ccya.personality`. This is a new import dependency on state/io.py but personality has no side-effects so there are no circular import concerns (personality only uses stdlib + logging).
 
 ---
 
@@ -500,95 +628,139 @@ def test_all_seed_npcs_get_personality():
 **Depends on:** Phase 01, Phase 02, Phase 03
 
 ### Files to pull for context
-- `ccya/prompts/narrate_user.j2` — the NPC context block
-- `ccya/personality.py` — `ARCHETYPES` (to verify field names match template tokens)
-- `ccya/state/npcs.py` — confirm how `notes` and other per-NPC fields are rendered into the prompt
+- `ccya/engine/npc_roster.py` — build_npc_roster() (merges compendium into npc_roster list)
+- `ccya/prompts/sections/_npc_roster.j2` — NPC rendering template
+- `ccya/personality.py` — ARCHETYPES registry
 
 ### Detailed steps
 
-#### Step 4.1 — Expose personality in the NPC context block
+#### Step 4.0 — Update `build_npc_roster()` to resolve personality at render time
 
-**File:** `ccya/prompts/narrate_user.j2`
+**File:** `ccya/engine/npc_roster.py`
 
-**What:** In the existing NPC rendering loop (where `motivation`, `fear`, `leverage`, `notes` are output), add a conditional block that emits the personality label, traits, and speech hint when `npc.personality` resolves to a known archetype.
+**What:** Add an optional `personality_registry: dict[str, Any] | None = None` parameter (defaulting to None for backward compat). When provided and a compendium entry has a `personality` key that resolves in the registry, add three resolved fields (`personality_label`, `personality_traits`, `personality_speech_hint`) to each NPC dict in the output roster.
 
-**Why:** The personality data is only useful if the narrator sees it. The speech hint is the highest-signal element — it directly shapes dialogue. Traits give the narrator vocabulary for NPC actions and reactions.
-
-Locate the NPC loop in the template (it iterates over `compendium.npcs` for present NPCs). The executor must read the current template to find the exact anchor point and indentation. The addition should be inserted after the existing `leverage` line and before `notes`.
-
-The template does not have access to the Python `ARCHETYPES` registry at render time, so the personality data must be pre-resolved into the context dict passed to the template, or the archetype fields must be stored on the compendium entry itself.
-
-**Decision for executor:** The simplest approach is to store `personality_label`, `personality_traits`, and `personality_speech_hint` directly on the compendium entry dict when personality is assigned in Phase 03 (alongside the `personality` id). This avoids adding a Jinja global or template filter. The Phase 03 loop should be updated accordingly:
+**Why:** This is how personality data reaches the template without denormalization or duplication. The archetype id persists in state; label/traits/speech_hint are looked up from ARCHETYPES at render time and added only to the npc_roster list passed to Jinja templates. Old saves with no `personality` key simply skip the lookup — no error, no personality block rendered.
 
 ```python
-# Updated Phase 03 assignment loop — store denormalized fields for template use
-from ccya.personality import assign_personality, ARCHETYPES
+# Update build_npc_roster() signature:
 
-for npc_id, npc_entry in seed_state["compendium"]["npcs"].items():
-    if not isinstance(npc_entry, dict):
-        continue
-    if npc_entry.get("personality"):
-        # If personality id is already set but denormalized fields are missing, backfill.
-        arch = ARCHETYPES.get(npc_entry["personality"])
-        if arch and not npc_entry.get("personality_traits"):
-            npc_entry["personality_label"] = arch.label
-            npc_entry["personality_traits"] = ", ".join(arch.traits)
-            npc_entry["personality_speech_hint"] = arch.speech_hint
-        continue
-    arch = assign_personality(
-        motivation=npc_entry.get("motivation"),
-        fear=npc_entry.get("fear"),
-        npc_id=npc_id,
-    )
-    npc_entry["personality"] = arch.id
-    npc_entry["personality_label"] = arch.label
-    npc_entry["personality_traits"] = ", ".join(arch.traits)
-    npc_entry["personality_speech_hint"] = arch.speech_hint
-    _log.info(
-        "seed.assign_personality npc=%s personality=%s",
-        npc_id,
-        arch.id,
-    )
+def build_npc_roster(
+    comp: dict[str, Any],
+    *,
+    presence_filter: str | None = None,
+    max_entries: int = 10,
+    sort_by_lru: bool = False,
+    lru_order: list[str] | None = None,
+    personality_registry: dict[str, Any] | None = None,  # NEW
+) -> list[dict[str, Any]]:
+
+# In the seen[nid] = {...} block (around line ~38), add after last_seen:
+            "last_seen": entry.get("last_seen") or None,
+        }
+        
+        if personality_registry and isinstance(entry, dict):
+            arch_id = entry.get("personality")
+            if arch_id and arch_id in personality_registry:
+                arch = personality_registry[arch_id]
+                seen[nid]["personality_label"] = getattr(arch, "label", arch_id)
+                seen[nid]["personality_traits"] = ", ".join(getattr(arch, "traits", ())) if hasattr(arch, "traits") else ""
+                seen[nid]["personality_speech_hint"] = getattr(arch, "speech_hint", "")
+
+# In narrate.py _narrate_messages(), pass ARCHETYPES when building npc_roster:
+    # At line ~40-42 where npc_roster is built if None:
+    from ccya.personality import ARCHETYPES
+    
+    if npc_roster is None:
+        comp = (state.get("compendium") or {}).get("npcs") or {}
+        npc_roster = build_npc_roster(comp, personality_registry=ARCHETYPES)
+
+# In eval harness and any other callers of build_npc_roster that pass a custom roster, they can omit the parameter for backward compat.
 ```
 
-The same denormalization should be applied in `apply_npc_scene_management` in Phase 02's write block (replace `entry["personality"] = comp_upd.personality` with the full three-field write, looking up the archetype from `ARCHETYPES`).
+**Validation:** Run narrator prompt rendering with a seed that has NPCs and confirm the personality block appears in rendered output for present NPCs. Confirm old saves (no personality key) render without error or crash.
 
-**Template addition** (find exact anchor, insert after `leverage` line):
+#### Step 4.1 — Add personality rendering to `_npc_roster.j2` template
+
+**File:** `ccya/prompts/sections/_npc_roster.j2`
+
+**What:** In the existing NPC rendering loop, add a conditional block that emits the personality label, traits, and speech hint when resolved fields are present in the npc dict. Insert after the `bond` line (line ~12) and before the blank line separator.
 
 ```jinja
-{% if npc.personality_traits %}
-- Personality: {{ npc.personality_label }} — {{ npc.personality_traits }}. Speech: {{ npc.personality_speech_hint }}.
+{# sections/_npc_roster.j2 #}
+{# npc_roster: list[dict], ordered PRESENT → NEARBY → KNOWN #}
+{% if npc_roster -%}
+## Characters
+
+{% for n in npc_roster -%}
+- `{{ n.id }}` | {% if n.name %}**{{ n.name }}**{% else %}[Unnamed]{% endif %}{% if n.title %} ({{ n.title }}){% endif %} [{{ n.presence | upper }}]{% if n.bio %} — {{ n.bio }}{% endif %}
+{%- if n.notes %} | {{ n.notes }}{% endif %}
+{%- if n.motivation %} | wants: {{ n.motivation }}{% endif %}
+{%- if n.fear %} | fears: {{ n.fear }}{% endif %}
+{%- if n.leverage %} | leverage: {{ n.leverage }}{% endif %}
+{%- if n.bond %} | bond: {{ n.bond }}{% endif %}
+{# Personality block — resolved from archetype id at render time #}
+{%- if n.personality_traits -%}
+| personality: **{{ n.personality_label }}** ({% raw %}{{ {% endraw %}n.personality_traits{% raw %}}}){% endraw %}. Speech: {{ n.personality_speech_hint }}.
+{%- endif %}
+{%- set _ls = n.last_seen %}{% if _ls is mapping and _ls.location_name %} | last seen: {{ _ls.location_name }}{% elif _ls and not (_ls is mapping) %} | last seen: {{ _ls }}{% endif %}
+
+{% endfor -%}
 {% endif %}
 ```
 
+Wait — the above Jinja has a syntax issue with `{% raw %}` inside conditionals. Let me write it correctly:
+
+```jinja
+{# sections/_npc_roster.j2 #}
+{# npc_roster: list[dict], ordered PRESENT → NEARBY → KNOWN #}
+{% if npc_roster -%}
+## Characters
+
+{% for n in npc_roster -%}
+- `{{ n.id }}` | {% if n.name %}**{{ n.name }}**{% else %}[Unnamed]{% endif %}{% if n.title %} ({{ n.title }}){% endif %} [{{ n.presence | upper }}]{% if n.bio %} — {{ n.bio }}{% endif %}
+{%- if n.notes %} | {{ n.notes }}{% endif %}
+{%- if n.motivation %} | wants: {{ n.motivation }}{% endif %}
+{%- if n.fear %} | fears: {{ n.fear }}{% endif %}
+{%- if n.leverage %} | leverage: {{ n.leverage }}{% endif %}
+{%- if n.bond %} | bond: {{ n.bond }}{% endif %}
+{# Personality block — resolved from archetype id at render time #}
+{%- if n.personality_traits -%}
+| personality: **{{ n.personality_label }}** ({{ n.personality_traits }}). Speech: {{ n.personality_speech_hint }}.
+{%- endif %}
+{%- set _ls = n.last_seen %}{% if _ls is mapping and _ls.location_name %} | last seen: {{ _ls.location_name }}{% elif _ls and not (_ls is mapping) %} | last seen: {{ _ls }}{% endif %}
+
+{% endfor -%}
+{% endif %}
+```
+
+**Why:** The personality data is only useful if the narrator sees it. The speech hint is the highest-signal element — it directly shapes dialogue. Traits give the narrator vocabulary for NPC actions and reactions. Since build_npc_roster now resolves archetype fields at render time (Step 4.0), these three keys (`personality_label`, `personality_traits`, `personality_speech_hint`) will be present on npc dicts that have a valid personality id, and absent on old saves or NPCs without personalities — making the `{% if n.personality_traits %}` guard sufficient for backward compat.
+
 **Validation:**
 1. Run the narrator prompt rendering in test mode with a seed that has NPCs, and confirm the personality block appears for present NPCs.
-2. Confirm that NPCs with no `personality_traits` key (old saves) render without error.
-
-### Tests to write or update
-
-**File:** `tests/test_prompt_render.py` or equivalent template render test (locate existing template tests first).
-
-Add a test that:
-1. Constructs a minimal state dict with one present NPC that has `personality_label`, `personality_traits`, and `personality_speech_hint` populated.
-2. Renders `narrate_user.j2` against it.
-3. Asserts the personality line appears in the rendered output.
-4. Constructs a second state with an NPC missing those fields (simulating an old save).
-5. Asserts rendering does not raise.
+2. Confirm that NPCs with no `personality` key (old saves) render without error or crash — they simply won't have any of the three resolved fields so the `{% if %}` guard prevents rendering.
 
 ### REPOMAP and architecture updates
-- Update `docs/REPOMAP/` narrator prompt section to note the new personality block and its three fields.
-- Update the NPC entry schema note to include `personality`, `personality_label`, `personality_traits`, `personality_speech_hint` as engine-managed fields.
+- Update `docs/repomap.md` narrator prompt section to note: build_npc_roster now accepts optional `personality_registry` parameter; when provided, resolves archetype data into npc dict keys (`personality_label`, `personality_traits`, `personality_speech_hint`) for template rendering.
+- Note that `_npc_roster.j2` renders a personality block using those resolved fields.
 
 ### Risks
-1. The narrator template structure is not known to this plan author without reading it. Executor **must** read `narrate_user.j2` before making changes.
-2. If the NPC loop only runs for `presence == "present"` NPCs, personality will not render for `nearby` NPCs. Executor should confirm and match existing behaviour (do not expand scope beyond present).
-3. Denormalized fields stored on the compendium entry dict will be serialised to saved game state — this is intentional but adds ~3 short strings per NPC to storage size, which is acceptable.
+1. If the NPC loop only runs for `presence == "present"` NPCs, personality will not render for `nearby` or `known` NPCs. This matches existing behaviour (the template already only shows present/nearby/known based on presence_filter). Do not expand scope beyond what build_npc_roster already does.
+2. No duplication: archetype data is resolved fresh from ARCHETYPES at each roster-build call, so if archetypes are ever updated in code, new games immediately get the updated values while old saves simply won't have a personality key and render without it (graceful degradation).
 
 ---
 
 ## Ambiguities requiring resolution before execution
 
-1. **Seed builder location.** This plan cannot name the exact file where `seed_state.compendium.npcs` is finalised after the seed LLM call. Options: A) It is in `ccya/engine.py`. B) It is in a dedicated `ccya/seed.py`. C) It is elsewhere. Executor must locate it before starting Phase 03.
+1. **Seed builder location.** Resolved: `ccya/engine/seed.py`, function `generate_seed()`. The post-parse hook goes after line ~298 (`_validate_seed_envelope(envelope)`) and before the arc/world_state processing that starts at line 316.
 
-2. **Narrator template NPC loop structure.** The exact Jinja block that renders present NPC fields in `narrate_user.j2` is unknown to this plan. Executor must read the file and find the loop anchor before making Phase 04 changes. If the NPC section renders fields differently than assumed (e.g. using a macro, not inline conditionals), the executor must adapt the template addition accordingly without changing the surrounding structure.
+2. **Narrator template NPC loop structure.** Resolved: `_npc_roster.j2` iterates over `npc_roster` list (not directly over compendium). The anchor point for personality insertion is after the `bond` conditional on line ~12 and before the last_seen block. build_npc_roster() in engine/npc_roster.py builds this list from compendium entries — it must be updated to pass archetype data into each npc dict (Step 4.0).
+
+3. **Static seeds path.** Resolved: `_assign_seed_personalities()` called inside `init_save_dir()` in state/io.py covers both CLI --new-game and eval harness paths for static YAML seeds. Dynamic seeds get personality assignment in engine/seed.py after parsing. Both paths are idempotent (skip NPCs that already have a personality).
+
+---
+
+## Summary of changes from initial review
+- **Denormalization removed.** Only `personality` (archetype id) persists in state. Label, traits, and speech_hint are resolved at render time by build_npc_roster() looking up ARCHETYPES — no duplication, no staleness risk on old saves.
+- **Static seeds covered.** `_assign_seed_personalities()` added to state/io.py init_save_dir() so static YAML seeds get personalities too (not just dynamic LLM-generated ones).
+- **Validation + warning logging.** `validate_and_resolve()` in personality.py checks archetype ids against the registry and logs a WARNING for unknown ids. Seed builder preserves whatever invalid id the LLM produced rather than silently overwriting it.
