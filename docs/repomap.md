@@ -6,12 +6,12 @@
 |---|---|
 | `ccya/__main__.py` | CLI entry: argparse + uvicorn.run |
 | `ccya/cli.py` | CLI commands |
-| `ccya/models.py` | All Pydantic models, TurnResult dataclass, load_config() |
+| `ccya/models.py` | All Pydantic models including ProgressEntry, TurnResult dataclass, load_config() |
 | `ccya/errors.py` | ErrorKind string constants (LLM_TIMEOUT, LLM_RATE_LIMIT, etc.) + LlmcError exception hierarchy (LlmcTimeout, LlmcRateLimit, LlmcApiError) |
 | `ccya/engine/__init__.py` | Re-exports public APIs; internal helpers for tests; LLM client re-exports (llm_chat, llm_chat_stream) |
-| `ccya/engine/config.py` | EngineConfig dataclass, _EventLock, is_turn_in_progress(), Jinja env setup |
-| `ccya/engine/turn.py` | run_turn() async orchestrator (thin — imports from submodules), _validate(), warmup() |
-| `ccya/engine/narrate.py` | _narrate_messages(), NPC name helpers for prompt building |
+| `ccya/engine/config.py` | EngineConfig dataclass (including thread_stale_threshold, thread_max_active), _EventLock, is_turn_in_progress(), Jinja env setup |
+| `ccya/engine/turn.py` | run_turn() async orchestrator (thin — imports from submodules), _validate(), warmup(), _apply_thread_updates() with content dedup + auto-latent + thread cap eviction |
+| `ccya/engine/narrate.py` | _narrate_messages(), _get_resolved_arcs(), _fmt_progress(), NPC name helpers for prompt building |
 | `ccya/engine/pack_gen.py` | generate_pack() — LLM-generated ScenarioBrief, writes to packs/custom/<slug>/ |
 | `ccya/engine/names.py` | Name pool generation via Faker (pc, npc, location) |
 | `ccya/engine/ruling.py` | _ruling_messages(), _call_ruling() with retry logic (NOT ccya/rules.py — that's the dice engine) |
@@ -106,8 +106,14 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - Engine owns thread creation (id-based dedup only — no key or fuzzy merge); storyteller owns urgency/active/progress state
 - TTL-based cleanup: completed threads and resolved arcs are pruned from prompt context after `completed_thread_ttl` / `resolved_arc_ttl` turns (default 3)
 - ArcThread.resolution_state: str | None — set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads for narrative context
-- ArcThread.outcome: str | None — set from ThreadResolution.outcome when moved to completed_threads
-- ArcThread.resolved_turn: int | None — turn when thread was resolved; used for TTL filtering in prompts
+
+  - ArcThread.outcome: str | None — set from ThreadResolution.outcome when moved to completed_threads
+
+  - ArcThread.resolved_turn: int | None — turn when thread was resolved; used for TTL filtering in prompts
+
+  - ArcThread.last_updated_turn: int | None — turn when thread was last updated (active, urgency, summary, or progress change); persisted to state; used for auto-latent demotion and staleness display in prompts
+
+  - ProgressEntry model: {kind: "advancement"|"setback"|"shift", text: str} — structured progress replacing bare strings; ArcThread.progress: list[ProgressEntry]; ThreadUpdate.progress_kind tags each emitted progress entry
 - `_merge_arc_update` unconditionally replaces `arc["threads"]` and `arc["completed_threads"]` on every call
 
 ### Storyteller system prompt (`ccya/prompts/storytell_system.j2`)
@@ -166,7 +172,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - **Seed emotional framing contract**: The seed generation prompt enforces `goal_context` (2-3 sentences of personal stakes for the PC), NPC `relation` field, and character-shaped action text. This emotional data is embedded in the initial state and the sidebar, not reintroduced per-turn via prompts.
 
 ### EngineConfig field naming (Phase 06b)
-- Config fields: thread_deescalate_on_success, resolved_arc_ttl (default 3), completed_thread_ttl (default 3) — YAML keys match Python field names directly.
+- Config fields: thread_deescalate_on_success, resolved_arc_ttl (default 3), completed_thread_ttl (default 3), thread_stale_threshold (default 3), thread_max_active (default 5) — YAML keys match Python field names directly.
 - Sampling parameters: ruling_temperature/ruling_top_p, extract_temperature/extract_top_p/extract_frequency_penalty, narrate_temperature/narrate_top_p/narrate_frequency_penalty, generate_seed_temperature/generate_seed_top_p, pack_generation_temperature/pack_generation_top_p; stub fields always null until mlx-lm SDK support: seed, top_k, min_p, rep_penalty, rep_penalty_window. Config structure migrated from flat keys to nested `llm.<stage>.<param>` format (Phase 08).
 
 ### Computation functions (Phase 06b)
@@ -180,7 +186,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### Extraction field routing
 - **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, compendium_npc_update (no pressure fields); CompendiumEntry now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes
 - **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
-- **StorytellerResult**: thread_update (list[ThreadUpdate] with id/urgency/active/summary/progress), goal_update (str | None, applied directly to arc dict — NOT through _merge_arc_update), arc_resolve (ArcResolution with resolution/visible_goal/goal_context/drop_threads/new_threads), thread_resolve (list[ThreadResolution] with id/resolution_state/outcome), thread_add (ArcThread | None), world_state_add: list[WorldStateFact], world_state_remove: list[str], actions, outcome_summary, gm_beat; thread_add validated by id-based dedup only (no key, no fuzzy merge); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
+  - **StorytellerResult**: thread_update (list[ThreadUpdate] with id/urgency/active/summary/progress/progress_kind), goal_update (str | None, applied directly to arc dict — NOT through _merge_arc_update), arc_resolve (ArcResolution with resolution/visible_goal/goal_context/drop_threads/new_threads), thread_resolve (list[ThreadResolution] with id/resolution_state/outcome), thread_add (ArcThread | None), world_state_add: list[WorldStateFact], world_state_remove: list[str], actions, outcome_summary, gm_beat; thread_add validated by id-based dedup only (no key, no fuzzy merge); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
 - **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions, persisted to state["pc"]["actions"] as rolling window by apply_delta()
 
 ### Cross-stream data flow (minimal by design)

@@ -292,6 +292,14 @@ def summarize_changes(
                     changes.append("reactivated" if po.get("active") else "dormant")
                 if po.get("summary") and po.get("summary") != pr.get("summary"):
                     changes.append("summary updated")
+                pre_progress = pr.get("progress") or []
+                post_progress = po.get("progress") or []
+                if len(post_progress) > len(pre_progress):
+                    changes.append("progress added")
+                elif len(post_progress) < len(pre_progress):
+                    changes.append("progress consolidated")
+                elif post_progress and pre_progress and post_progress[-1] != pre_progress[-1]:
+                    changes.append("progress updated")
                 if changes:
                     threads.append({
                         "kind": "updated",

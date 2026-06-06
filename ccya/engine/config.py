@@ -158,6 +158,10 @@ class EngineConfig:
     # TTL for completed threads and resolved arcs in narration context (turns)
     thread_memory_ttl: int = 3
     arc_memory_ttl: int = 3
+    # Auto-latent threshold: threads untouched for N turns go active: false
+    thread_stale_threshold: int = 3
+    # Max active threads before eviction of oldest
+    thread_max_active: int = 5
 
     def _resolve_difficulty_modifiers(self) -> dict[str, int]:
         curves = {
@@ -257,6 +261,8 @@ def build_engine_config(
         near_miss_softening=bool(game.get("near_miss_softening", True)),
         thread_memory_ttl=int(game.get("thread_memory_ttl", 3)),
         arc_memory_ttl=int(game.get("arc_memory_ttl", 3)),
+        thread_stale_threshold=int(game.get("thread_stale_threshold", 3)),
+        thread_max_active=int(game.get("thread_max_active", 5)),
     )
 
 

@@ -26,6 +26,11 @@ class NpcPresence(str, Enum):
     KNOWN = "known"
 
 
+class ProgressEntry(BaseModel):
+    kind: Literal["advancement", "setback", "shift"] = "advancement"
+    text: str
+
+
 class ArcThread(BaseModel):
     model_config = {"extra": "ignore"}
 
@@ -34,18 +39,23 @@ class ArcThread(BaseModel):
     scope: Literal["scene", "arc"]
     active: bool = True
     urgency: Literal["background", "normal", "urgent"] = "normal"
-    progress: list[str] = []
+    progress: list[ProgressEntry] = Field(default_factory=list)
     resolution_state: str | None = None
     outcome: str | None = None
     resolved_turn: int | None = None
+    last_updated_turn: int | None = None
 
     @field_validator("progress", mode="wrap")
     @classmethod
     def _coerce_progress(cls, v: Any, handler: Any) -> Any:
         if isinstance(v, str):
-            return [v]
+            return handler([{"text": v, "kind": "advancement"}])
         if not v or (isinstance(v, int) and v == 0):
             return []
+        if isinstance(v, list):
+            if v and all(isinstance(item, str) for item in v):
+                return handler([{"text": item, "kind": "advancement"} for item in v])
+            return handler(v)
         return handler(v)
 
 
@@ -390,6 +400,7 @@ class ThreadUpdate(BaseModel):
     urgency: Literal["background", "normal", "urgent"] | None = None
     summary: str | None = None
     progress: str | None = None
+    progress_kind: Literal["advancement", "setback", "shift"] | None = None
 
 
 class ArcResolution(BaseModel):
