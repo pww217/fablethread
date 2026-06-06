@@ -59,7 +59,10 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
-html { font-size: clamp(15px, 1.5vw, 20px); }
+/* ── Fluid base: tiered by viewport width ── */
+@media (min-width: 769px) and (max-width: 1400px) { html { font-size: clamp(15px, 1vw, 17px); } }
+@media (min-width: 1401px) and (max-width: 2560px) { html { font-size: clamp(17px, 1.2vw, 20px); } }
+@media (min-width: 2561px) { html { font-size: clamp(20px, 1vw, 24px); } }
 
 body {
   background: var(--bg-base);
