@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Any
 
 from ccya.engine.config import _render
 from ccya.engine.npc_roster import build_npc_roster
-
 from ccya.models import RulesOutcome
+
 
 _log = logging.getLogger(__name__)
 

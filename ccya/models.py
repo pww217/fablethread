@@ -180,6 +180,30 @@ class RulesOutcome(BaseModel):
     impossible: bool = False
     impossible_reason: str = ""
 
+    @property
+    def roll_display(self) -> str:
+        """Format the dice roll with modifiers for display in narration."""
+        die = self.dice[0] if self.dice else "?"
+        parts = [f"d12: {die}"]
+        
+        # Stat modifier (skill bonus/penalty), shown first if applicable
+        if self.stat_mod != 0:
+            sign = "+" if self.stat_mod > 0 else "-"
+            parts.append(f"{sign} {abs(self.stat_mod)} ({self.skill.capitalize()})")
+        
+        # Difficulty modifier, shown second if not normal (normal=0)
+        diff_labels = {"hard": "Hard", "extreme": "Extreme"}
+        if self.diff_mod != 0:
+            label = diff_labels.get(self.difficulty, self.difficulty.capitalize())
+            sign = "+" if self.diff_mod > 0 else "-"
+            parts.append(f"{sign} {abs(self.diff_mod)} ({label})")
+        
+        # If no modifiers shown and stat is zero, still show +0 for clarity
+        if len(parts) == 1:
+            parts.append("+ 0")
+        
+        return " ".join(parts) + f" → {self.final_total}"
+
 
 class InventoryItem(BaseModel):
     id: str
