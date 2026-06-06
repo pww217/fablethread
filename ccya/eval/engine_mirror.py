@@ -8,9 +8,11 @@ unless overridden in EvalConfig).
 from __future__ import annotations
 
 import logging
+import typing as _typing
 
 from ccya.engine.config import EngineConfig
-from ccya.models import ArcThread
+from ccya.engine.turn import PRESSURE_BEAT_TYPES as _PRESSURE_BEAT_TYPES
+from ccya.models import ArcThread, GMBeat
 from ccya.state.delta_builder import PC_CONDITIONS_MAX, DEFAULT_CONDITION_TTL
 from ccya.state.momentum import MOMENTUM_MIN as _MOMENTUM_MIN, MOMENTUM_MAX as _MOMENTUM_MAX
 from ccya.rules import MOMENTUM_DELTA as _RULES_MOMENTUM_DELTA, VALID_SKILLS
@@ -95,16 +97,21 @@ def constants_block() -> str:
     )
 
 
-# Beat types that increment the consecutive_pressure counter (mirrors turn.py PRESSURE_BEAT_TYPES)
-PRESSURE_BEAT_TYPES: tuple[str, ...] = ("pressure", "escalation", "complication")
+# Beat types that increment the consecutive_pressure counter (imported from turn.py)
+PRESSURE_BEAT_TYPES: tuple[str, ...] = _PRESSURE_BEAT_TYPES
 
-# All valid GM beat types (mirrors GMBeat model type Literal)
-GM_BEAT_TYPES: tuple[str, ...] = (
-    "complication", "revelation", "opportunity", "breathing_room",
-    "pressure", "twist", "setback", "escalation", "callback",
+# All valid GM beat types — derived from GMBeat.type Literal annotation at runtime
+_GM_Beat_annotation = GMBeat.model_fields['type'].annotation  # Pydantic v2 — Literal[...] | None
+_GM_Beat_args: tuple[str, ...] = (
+    _GM_Beat_annotation.__args__ if hasattr(_GM_Beat_annotation, '__args__') else ()  # type: ignore[union-attr]
 )
+# Extract string values from the Literal wrapper, filtering out NoneType
+_literal_type = next((t for t in _GM_Beat_args if _typing.get_origin(t) is not None), None)  # pyright: ignore[reportUnknownVariableType]
+assert _literal_type is not None, "GMBeat.type should always have a Literal annotation"
+# After assert, mypy knows _literal_type is the Literal type — but still doesn't know it has __args__
+GM_BEAT_TYPES: tuple[str, ...] = _typing.get_args(_literal_type)  # pyright: ignore[reportUnknownArgumentType]
 
-# Beat lifecycle TTLs (turns)
+# Beat lifecycle TTLs (turns) — hardcoded because no EngineConfig fields exist yet
 BEAT_TTL: int = 2               # Storyteller-emitted beats expire after 2 turns (turn_no + 2)
 FLOOR_RELIEF_BEAT_TTL: int = 3  # Floor-relief breathing_room beats expire after 3 turns (turn_no + 3)
 
