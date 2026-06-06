@@ -236,7 +236,6 @@ def _storytell_messages(
     recent_turns: list[dict[str, Any]] | None = None,
     turn_no: int = 0,
     band: str = "",
-    arc_ttl: int = 3,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 3 (thread signals + facts + actions + outcome_summary)."""
     scene = state.get("scene") or {}
@@ -274,7 +273,7 @@ def _storytell_messages(
             "current_arc": arc,
             "all_threads": all_threads,
             "world_state": world_state,
-            "resolved_arcs": _get_resolved_arcs(state, turn_no, ttl=arc_ttl),
+            "resolved_arcs": _get_resolved_arcs(state, turn_no, ttl=3),
             "intent": intent,
             "pacing_context": pacing_context,
             "recent_turns": recent_turns or [],
@@ -543,7 +542,6 @@ async def _run_extraction_pipeline(
         recent_turns=(recent_turns or [])[-10:],
         turn_no=turn_no,
         band=_band,
-        arc_ttl=config.arc_memory_ttl,
     )
     # Capture pre-trim content for context_meta so the judge sees original sizes
     rendered_storytell_system = storytell_msgs[0]["content"] if storytell_msgs else ""

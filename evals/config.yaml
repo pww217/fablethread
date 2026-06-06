@@ -1,7 +1,7 @@
 # Eval harness configuration. Loaded by ccya.eval.config.load_eval_config().
 
 default_pack: eval-pack
-default_scenario: full_cycle
+default_scenario: baseline
 pack_dirs:
   - evals/packs
   - packs/default

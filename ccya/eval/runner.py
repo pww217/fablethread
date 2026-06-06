@@ -92,6 +92,7 @@ class RunResult:
     judge_md_path: str = ""
     turns: list[TurnRecord] = field(default_factory=list)
     total_errors: int = 0
+    track: str = "adversarial"
 
 
 # ---------------------------------------------------------------------------
@@ -562,6 +563,7 @@ async def run_scenario(
         state_yaml_path="",
         turns=turn_records,
         total_errors=total_errors,
+        track=scenario.track,
     )
 
     (artifacts_dir / f"{scenario.id}.run.json").write_text(

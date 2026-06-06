@@ -216,7 +216,7 @@ def build_trace_for_judge(
         auto_checker_failures=None,
         metrics_rows=None,
         redundancy_signals=None,
-        arch_context="",
+        arch_context=arch_context,
     )
 
 
@@ -1034,6 +1034,7 @@ async def run_judges(
     previous_run_dir: Path | None = None,
     game_config_path: Path | None = None,
     resume: bool = False,
+    track: str = "adversarial",
 ) -> list["JudgeResult"]:
     """Run domain judges sequentially, then meta judge.
 
@@ -1085,6 +1086,8 @@ async def run_judges(
         arch_context = load_architecture_context()
     except ImportError:
         arch_context = ""
+
+    arch_context = arch_context.rstrip() + f"\n\n**Track:** {track}" if track != "adversarial" else arch_context
 
     # Load previous scores per judge_id if previous run exists
     prev_scores_by_id: dict[str, dict[str, Any]] = {}

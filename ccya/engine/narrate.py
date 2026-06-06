@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from ccya.engine.config import _render
 from ccya.engine.npc_roster import build_npc_roster
-from ccya.models import ProgressEntry, RulesOutcome
+from ccya.models import RulesOutcome
 
 
 _log = logging.getLogger(__name__)
@@ -23,8 +23,6 @@ def _fmt_progress(progress: Any) -> list[str]:
             kind = entry.get("kind", "advancement")
             text = entry.get("text", "")
             result.append(f"[{kind.upper()}] {text}")
-        elif isinstance(entry, ProgressEntry):
-            result.append(f"[{entry.kind.upper()}] {entry.text}")
         else:
             result.append(str(entry))
     return result

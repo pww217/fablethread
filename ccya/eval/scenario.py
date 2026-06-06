@@ -55,6 +55,7 @@ class Scenario:
     description: str
     turns: list[Turn]
     seed_overrides: dict[str, Any] = field(default_factory=dict)
+    track: str = "adversarial"
 
 
 def load_scenario(path: str | Path) -> Scenario:
@@ -73,7 +74,7 @@ def load_scenario(path: str | Path) -> Scenario:
             f"{p} must define module-level `scenario: Scenario` (got {type(sc).__name__})"
         )
     total_asserts = sum(len(t.asserts) for t in sc.turns)
-    _log.info("load_scenario id=%s turns=%d asserts=%d seed_overrides=%s", sc.id, len(sc.turns), total_asserts, bool(sc.seed_overrides))
+    _log.info("load_scenario id=%s turns=%d asserts=%d seed_overrides=%s track=%s", sc.id, len(sc.turns), total_asserts, bool(sc.seed_overrides), sc.track)
     return sc
 
 

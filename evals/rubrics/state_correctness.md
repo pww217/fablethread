@@ -20,6 +20,14 @@ Scoring philosophy:
 - 1–2/5: Repeated extraction failures, state fields diverging from narrated events,
   or a mechanic class entirely absent.
 
+## Baseline Track Scoring
+
+Use these thresholds when the active track is "baseline":
+- **5/5**: Extraction consistently accurate (±1 miss across 13 turns), state tracking correct, all mechanics fire logically. Minor LLM stochasticity (field ordering, phrasing) is expected and ignored.
+- **4/5**: Good mechanical fidelity despite 2-3 extraction misses. No critical state corruption. Engine responds correctly to mechanic triggers.
+- **3/5**: Functional run with typical LLM noise — scattered extraction misses, minor field drift across 1-2 mechanics. No engine breakage.
+- **1-2/5**: Repeated extraction failures, state fields diverging from narrated events, or a mechanic class entirely absent.
+
 ---
 
 ## HOW TO READ YOUR TRACE

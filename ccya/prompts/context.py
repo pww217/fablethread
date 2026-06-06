@@ -20,7 +20,6 @@ from ccya.models import (
     InventoryItem,
     IntentEnvelope,
     NpcPresence,
-    ProgressEntry,
     RulesOutcome,
 )
 
@@ -106,8 +105,6 @@ class ArcThreadBlock(BaseModel):
                 kind = entry.get("kind", "advancement")
                 text = entry.get("text", "")
                 result.append(f"[{kind.upper()}] {text}")
-            elif isinstance(entry, ProgressEntry):
-                result.append(f"[{entry.kind.upper()}] {entry.text}")
             else:
                 result.append(str(entry))
         return result

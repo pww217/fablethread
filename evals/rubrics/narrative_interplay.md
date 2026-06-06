@@ -24,6 +24,14 @@ Scoring philosophy:
 - 1–2/5: Directives routinely ignored, tone disconnected from momentum band, mechanics
   create no story consequence.
 
+## Baseline Track Scoring
+
+Use these thresholds when the active track is "baseline":
+- **5/5**: Narration consistently honors directives, tone matches momentum, beats create story consequence. Stray prose imperfections (minor anachronisms, slightly repetitive phrasing) are expected and ignored.
+- **4/5**: Good narrative-mechanic coupling. Occasional directive drift (1-2 turns) or a beat that lands without narrative effect. Overall experience is coherent.
+- **3/5**: Functional storytelling with typical LLM noise — 3+ directive misses, periodic tone-band disconnects, but no systematic breakdown.
+- **1-2/5**: Directives routinely ignored, tone disconnected from momentum band, mechanics produce no story consequence.
+
 ---
 
 ## HOW TO READ YOUR TRACE
