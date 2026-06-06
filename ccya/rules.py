@@ -41,7 +41,7 @@ GM_MOVES: dict[str, list[str]] = {
     "crit_fail": [
         "Something precious is lost, damaged, or turned against you.",
         "An enemy or hazard makes an immediate hard move.",
-        "Gain a condition: wounded, shaken, or exhausted.",
+        "Gain a condition: wounded, bleeding, or exhausted.",
     ],
     "fail": [
         "The attempt fails outright — what you tried to do does not happen.",

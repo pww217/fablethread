@@ -1,7 +1,9 @@
 # Cut Skill System to Four Core Skills
 
 ## Status
-`open`
+`completed`
+
+Committed: 149b3a7
 
 ## Phase Guide
 | Phase | Name | Summary |
