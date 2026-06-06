@@ -7,7 +7,7 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
 ```json
 {
   "thread_resolve": [{"id": "...", "resolution_state": "resolved|failed|abandoned", "outcome": "...", "promote_to_world_state": true}],
-  "thread_update": [{"id": "...", "summary": "...", "progress": "...", "urgency": "background|normal|urgent", "active": true}],
+  "thread_update": [{"id": "...", "summary": "...", "progress": "...", "progress_kind": "advancement|setback|shift", "urgency": "background|normal|urgent", "active": true}],
   "thread_add": {"id": "...", "summary": "...", "scope": "scene|arc", "urgency": "normal"},
   "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "drop_threads": ["..."], "new_threads": [{"id": "...", "summary": "...", "scope": "arc", "urgency": "normal"}]},
   "goal_update": "...",
@@ -21,17 +21,17 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
 
 ## Threads
 
-**Default: emit nothing.** Most turns should produce zero thread operations. Only emit when this turn's events directly and unambiguously affected a thread. Mentioned in passing does not count. When in doubt, skip.
+**Default: emit nothing.** Most turns produce zero thread operations. Do NOT emit an update because a thread was mentioned in the narration. Only emit when this turn's events changed the thread's trajectory — the tension advanced, pivoted, or resolved. A character acting within a thread is not a change. If the same tension would exist without this turn's events, omit.
 
-**Thread IDs are broad conceptual buckets** — general story tension, not specific events or people. `enemy_contact_advance` ✓ — `naval_boarding_action` ✗ (that's a scene). If an ID describes one event or one person, it's too narrow.
+**Thread IDs are 2–4 word broad conceptual buckets.** No proper nouns. If your ID contains a character name, location, or object name, it is too narrow. `enemy_contact_advance` ✓ — `naval_boarding_action` ✗ (it is a scene), `the_missing_ledger` ✗ (one object).
 
-**`thread_resolve`:** Use when a thread concluded, failed, was absorbed into a broader thread, or urgency fully decayed. `promote_to_world_state: true` only when the outcome is a permanent world fact (faction turned hostile, character died, route destroyed). Do NOT resolve threads still meaningfully active — prefer `active: false` for threads that might resurface.
+**`thread_resolve`:** Use when a thread concluded, failed, was absorbed into a broader thread, or urgency fully decayed. `promote_to_world_state: true` only when the outcome is a permanent world fact. Do NOT resolve threads still meaningfully active — prefer `active: false` for threads that might resurface. If a thread went unaddressed for 3+ turns, resolve or demote rather than update.
 
-**`thread_update`:** `summary` OR `progress` — not both. `summary` when the thread's nature or direction changed significantly. `progress` for smaller advancement (must be unique, not a retelling of narration). Urgency decays: if a thread was unaddressed last turn, consider lowering urgency; if inactive 3+ turns, set `active: false`.
+**`thread_update`:** `summary` OR `progress` — not both. `summary` (4–7 words) when the thread's nature or direction changed, describing a broad SITUATION — not an objective or action. `progress` (one sentence) explaining HOW the thread's trajectory evolved beyond what the narration shows, with an optional `progress_kind` classifying the change. Do NOT emit `progress` that restates what happened — if a reader would learn nothing new about the thread's trajectory, omit it. Urgency decays one step per turn unaddressed. If inactive 2+ turns without new progress, set `active: false`.
 
-**Before emitting `thread_add`:** scan all active and latent threads for conceptual overlap. If any existing thread covers the same tension, use `thread_update` instead. Only create a new thread for genuinely distinct tension.
+**Before emitting `thread_add`:** scan all active AND latent threads for conceptual overlap. If the same tension is already tracked, use `thread_update` instead. Only create a new thread for genuinely distinct tension. Maximum 5 active threads at any time — if you are at the cap, resolve an existing thread first.
 
-**Scope:** `scene` threads auto-delete on location change. `arc` threads persist until arc resolution or explicit resolve. Choose deliberately.
+**Scope:** `scene` threads auto-delete on location change. `arc` threads persist until arc resolution or explicit resolve. Choose deliberately. Broad buckets only — if your thread would resolve after one scene, it belongs in `scene` scope or in the narration, not in the arc.
 
 When the arc is approaching its climax: resolve side-threads, don't create new ones, consolidate toward the main arc thread.
 

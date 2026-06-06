@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import difflib
 import logging
 import uuid
 from dataclasses import dataclass, field
@@ -36,6 +37,7 @@ from ccya.models import (
     Band,
     CampaignArc,
     IntentEnvelope,
+    ProgressEntry,
     SceneExtractResult,
     StorytellerResult,
     RulesOutcome,
@@ -141,12 +143,9 @@ class PacingContext:
 def _apply_thread_updates(
     state: dict[str, Any],
     storyteller_result: StorytellerResult,
+    config: EngineConfig | None = None,
 ) -> CampaignArc | None:
-    """Apply explicit thread updates from the storyteller.
-
-    Does NOT enforce caps, cooldowns, or silent timers. Purely applies
-    the storyteller's explicit ThreadUpdate operations.
-    """
+    """Apply explicit thread updates from the storyteller."""
     if not storyteller_result.thread_update:
         return None
 
@@ -192,19 +191,50 @@ def _apply_thread_updates(
             updates["summary"] = update.summary
         if update.progress is not None:
             current_progress = list(thread.progress)
-            current_progress.append(update.progress)
-            updates["progress"] = current_progress
+            kind = update.progress_kind or "advancement"
+            entry = ProgressEntry(text=update.progress, kind=kind)
+            if current_progress:
+                last_text = current_progress[-1].text if isinstance(current_progress[-1], ProgressEntry) else str(current_progress[-1])
+                ratio = difflib.SequenceMatcher(None, last_text, entry.text).ratio()
+                if ratio >= 0.50:
+                    _log.warning(
+                        "thread_updates.dedup trace_id=%d thread %s — progress %.2f overlap with last entry, rejecting",
+                        turn_no, update.id, ratio, extra={"turn": turn_no},
+                    )
+                else:
+                    current_progress.append(entry)
+                    updates["progress"] = current_progress
+            else:
+                current_progress.append(entry)
+                updates["progress"] = current_progress
+
+        if updates:
+            updates["last_updated_turn"] = turn_no
+            mutated = True
 
         updated_thread = thread.model_copy(update=updates)
         remaining_threads = [t for i2, t in enumerate(remaining_threads) if i2 != found_idx]
         remaining_threads.insert(found_idx, updated_thread)
 
-        if updates:
-            updates["last_updated_turn"] = turn_no
-            mutated = True
+        if mutated:
             _log.info(
                 "thread_updates.applied trace_id=%d thread %s changes=%s", turn_no, update.id, updates, extra={"turn": turn_no},
             )
+
+    if config and mutated:
+        stale_threshold = config.thread_stale_threshold
+        for i, t in enumerate(remaining_threads):
+            if (
+                t.last_updated_turn is not None
+                and (turn_no - t.last_updated_turn) >= stale_threshold
+                and t.active
+            ):
+                updated = t.model_copy(update={"active": False, "last_updated_turn": turn_no})
+                remaining_threads[i] = updated
+                _log.info(
+                    "thread_updates.auto_latent trace_id=%d thread %s — untouched for %d turns",
+                    turn_no, t.id, turn_no - t.last_updated_turn, extra={"turn": turn_no},
+                )
 
     return arc.model_copy(update={
         "threads": remaining_threads,
@@ -1161,7 +1191,7 @@ async def run_turn(
 
             # Arc director: process thread updates and arc resolution
             if state.get("arc") and storyteller_result:
-                thread_delta = _apply_thread_updates(state, storyteller_result)
+                thread_delta = _apply_thread_updates(state, storyteller_result, config)
                 if thread_delta is not None:
                     _merge_arc_update(
                         state.setdefault("arc", {}), thread_delta
@@ -1231,6 +1261,19 @@ async def run_turn(
                                         update={"threads": list(_existing_arc.threads) + [_updated_t],
                                                 "last_thread_created_turn": turn_no_for_add}
                                     )
+                                    if config:
+                                        active = [t for t in arc_with_new_thread.threads if t.active]
+                                        if len(active) > config.thread_max_active:
+                                            evict = min(active, key=lambda t: t.last_updated_turn or 0)
+                                            evicted = evict.model_copy(update={"active": False, "last_updated_turn": turn_no_for_add})
+                                            arc_with_new_thread = arc_with_new_thread.model_copy(
+                                                update={"threads": [evicted if t.id == evict.id else t for t in arc_with_new_thread.threads]}
+                                            )
+                                            _log.info(
+                                                "thread_cap.evict trace_id=%d evicted=%s active_count=%d max=%d",
+                                                trace_id, evict.id, len(active), config.thread_max_active,
+                                                extra={"trace_id": trace_id},
+                                            )
                                     _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
                                     state.setdefault("meta", {})["last_thread_created_turn"] = turn_no_for_add
                                     delta = delta.model_copy(update={"arc_update": arc_with_new_thread})

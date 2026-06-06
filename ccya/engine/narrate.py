@@ -7,10 +7,27 @@ from typing import TYPE_CHECKING, Any
 
 from ccya.engine.config import _render
 from ccya.engine.npc_roster import build_npc_roster
-from ccya.models import RulesOutcome
+from ccya.models import ProgressEntry, RulesOutcome
 
 
 _log = logging.getLogger(__name__)
+
+def _fmt_progress(progress: Any) -> list[str]:
+    if not progress:
+        return []
+    result: list[str] = []
+    for entry in progress:
+        if isinstance(entry, str):
+            result.append(entry)
+        elif isinstance(entry, dict):
+            kind = entry.get("kind", "advancement")
+            text = entry.get("text", "")
+            result.append(f"[{kind.upper()}] {text}")
+        elif isinstance(entry, ProgressEntry):
+            result.append(f"[{entry.kind.upper()}] {entry.text}")
+        else:
+            result.append(str(entry))
+    return result
 
 if TYPE_CHECKING:
     from ccya.engine.turn import PacingContext
@@ -60,7 +77,7 @@ def _narrate_messages(
                     "scope": t.get("scope", "arc") if isinstance(t, dict) else getattr(t, "scope", "arc"),
                     "id": t.get("id", "") if isinstance(t, dict) else getattr(t, "id", ""),
                     "active": t.get("active", True) if isinstance(t, dict) else getattr(t, "active", True),
-                    "progress": t.get("progress", []) if isinstance(t, dict) else (t.progress if hasattr(t, "progress") else []),
+                    "progress": _fmt_progress(t.get("progress")) if isinstance(t, dict) else (_fmt_progress(t.progress) if hasattr(t, "progress") else []),
                     "last_updated_turn": t.get("last_updated_turn") if isinstance(t, dict) else getattr(t, "last_updated_turn", None),
                 }
                 for t in all_threads if not (isinstance(t, dict) and t.get("active") is False) or not hasattr(t, "active") or getattr(t, "active", True)
