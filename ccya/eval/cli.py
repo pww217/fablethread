@@ -144,6 +144,7 @@ async def _run_one_scenario(
             on_judge_complete=_on_judge_complete,
             previous_run_dir=prev_run_dir,
             resume=args.resume,
+            track=scenario.track,
         )
 
         merged = merge_judge_scores(judge_results)
@@ -236,6 +237,7 @@ async def _cmd_judge_only(args: argparse.Namespace) -> int:
         scenario_id=rr.scenario_id,
         previous_run_dir=prev_run_dir,
         resume=args.resume,
+        track=rr.track,
     )
 
     merged = merge_judge_scores(judge_results)
@@ -276,7 +278,7 @@ def _cmd_list(args: argparse.Namespace) -> int:
     for p in scenarios:
         try:
             sc = load_scenario(p)
-            print(f"  {sc.id:20s} pack={sc.pack:14s} turns={len(sc.turns)}  ({p.name})")
+            print(f"  {sc.id:20s} track={sc.track:10s} pack={sc.pack:14s} turns={len(sc.turns)}  ({p.name})")
         except Exception as exc:
             print(f"  {p.name}  ERROR: {exc}")
     return 0

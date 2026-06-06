@@ -736,8 +736,8 @@ body {
 #tooltip-portal .tooltip-body {
   position: absolute;
   width: min(280px, 92vw);
-  max-height: 220px;
-  overflow-y: auto;
+  max-height: none;
+  overflow-y: visible;
   padding: 8px 10px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);

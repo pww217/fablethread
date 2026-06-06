@@ -604,9 +604,10 @@ def _render_auto_checker_block(run_result: RunResult) -> str:
     parts: list[str] = [f"**{passed} passed, {failed} failed**", ""]
     parts.append("| Turn | Assertion | Result | Detail |")
     parts.append("|---|---|---|---|")
+    parts.append("> **Legend:** `[PASS]` = assertion passed · `[FAIL]` = assertion failed  ")
     for t in run_result.turns:
         for r in t.assert_results:
-            status = "✅" if r["passed"] else "❌"
+            status = "[PASS]" if r["passed"] else "[FAIL]"
             parts.append(f"| {t.engine_turn_number} | `{r['assertion']}` | {status} | {r['detail']} |")
     parts.append("")
     return "\n".join(parts)
@@ -641,10 +642,11 @@ def _render_assert_summary_table(run_result: RunResult) -> str:
     lines: list[str] = ["## Universal Assert Results", ""]
     lines.append("| Assertion | Severity | Turns Failed | Turns Checked | First Failure Turn |")
     lines.append("|---|---|---:|---:|---:|")
+    lines.append("> **Legend:** `[SYSTEM]` = system integrity failure (red severity) · `[PACING]` = pacing/perfection concern (yellow severity)  ")
 
     for name, stats in sorted(assertion_stats.items()):
         sev = stats["severity"]
-        sev_mark = "🔴" if sev == "red" else "🟡"
+        sev_mark = "[SYSTEM]" if sev == "red" else "[PACING]"
         failed = stats["failed"]
         total = stats["total"]
         first_fail = f"T{stats['first_failure']}" if stats["first_failure"] is not None else "—"
@@ -910,10 +912,15 @@ def write_full_report(
         f"**Started:** {run_result.started_at} · **Finished:** {run_result.finished_at}  "
     )
     parts.append(f"**Output dir:** `{run_result.output_dir}`  ")
+    parts.append(f"**Track:** {run_result.track}  ")
     parts.append(
         f"**Compared against:** `{prev_run_path}`" if prev_run_path is not None
         else "**Compared against:** _(no prior run found)_"
     )
+    if run_result.track == "baseline":
+        parts.append("**Scoring philosophy:** aggregate quality (baseline)  ")
+    else:
+        parts.append("**Scoring philosophy:** per-turn deterministic correctness (adversarial)  ")
     parts.append("")
 
     # Judge Summary block (only when judges provided and non-empty)

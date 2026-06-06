@@ -60,6 +60,7 @@ Scenario:
   description: str
   turns: list[Turn]
   seed_overrides: dict          # dotpath overrides to seed state
+  track: str                    # "adversarial" (default) or "baseline"
 
 Turn:
   input: str                    # player command
@@ -173,6 +174,19 @@ Scores normalized via `_normalize_scores`: integer scores clamped to [1,5], rate
 
 Domain judges run sequentially (not parallel — likely to change). Meta judge always runs last.
 
+### Track Propagation
+
+The `track` field on `Scenario` controls which scoring rubric sections judges apply:
+
+1. `cli.py` reads `scenario.track` and passes it to `run_judges(track=...)`
+2. `run_judges()` injects track into `arch_context` as `**Track:** {track}` (omitted for `"adversarial"` to minimize diff)
+3. `arch_context` is appended to each domain judge's system prompt after the rubric
+4. Judges receive track context: `state_correctness`, `narrative_interplay`. Judges that don't: `prompt_pipeline`, `meta`
+
+Track is a scenario property, not a CLI flag — `python -m ccya.eval run scenario_name` automatically uses the scenario's declared track.
+
+Rubrics use `## Baseline Track Scoring` sections for per-track thresholds. The default `"adversarial"` track uses existing scoring.
+
 ## Phase 03 — Report (`report.py`)
 
 The report is written in a single pass after judges complete:
@@ -183,7 +197,7 @@ The report is written in a single pass after judges complete:
 
 ```
 # Eval Report — <scenario_id>
-Metadata (pack, model, temp, time, previous run)
+Metadata (pack, model, temp, track, time, previous run, scoring philosophy)
 
 ## Judge Summary
   - Merged scores (all 7 final scores)
