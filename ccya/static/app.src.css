@@ -59,7 +59,7 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
-html { font-size: clamp(12px, 1.5vw, 17px); }
+html { font-size: clamp(15px, 1.5vw, 20px); }
 
 body {
   background: var(--bg-base);
