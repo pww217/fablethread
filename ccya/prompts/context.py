@@ -30,7 +30,7 @@ class PlayerBlock(BaseModel):
     name: str
     tagline: str | None = None
     concept: str | None = None
-    stats: dict[str, int]  # {strength/dexterity/wits/lore/charisma/resolve: int}
+    stats: dict[str, int]  # {strength/dexterity/wits/charisma: int}
     conditions: list[Condition]
 
     @classmethod

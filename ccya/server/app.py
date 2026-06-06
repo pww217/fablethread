@@ -162,13 +162,13 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR.parent / "static")), nam
 
 
 def _validate_stats(stats: dict[str, int]) -> bool:
-    SKILLS = {"strength", "dexterity", "wits", "lore", "charisma", "resolve"}
+    SKILLS = {"strength", "dexterity", "wits", "charisma"}
     if set(stats.keys()) != SKILLS:
         return False
     if not all(isinstance(v, int) and 1 <= v <= 4 for v in stats.values()):
         return False
     total = sum(stats.values())
-    return 12 <= total <= 16
+    return 8 <= total <= 12
 
 
 def main() -> None:

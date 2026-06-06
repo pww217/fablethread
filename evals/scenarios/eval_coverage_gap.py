@@ -116,7 +116,7 @@ scenario = Scenario(
             input="I study the old battle maps in the village hall, looking for tactical advantages.",
             phase="different_skill_roll",
             expects=[
-                "rules.required=true skill=lore (tactical analysis)",
+                "rules.required=true skill=wits (tactical analysis, perception under pressure)",
                 "uses a different skill than previous turns for skill variety coverage",
             ],
             asserts=[

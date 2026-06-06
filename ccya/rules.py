@@ -31,10 +31,9 @@ DIFFICULTY_MOD: dict[str, int] = {
 
 CONDITION_MODS: dict[str, dict[str, int]] = {
     "wounded": {"strength": -1, "dexterity": -1},
-    "exhausted": {"strength": -1, "dexterity": -1, "resolve": -1},
-    "drugged": {"wits": -1, "resolve": -1},
-    "frightened": {"resolve": -1, "charisma": -1},
-    "shaken": {"resolve": -1},
+    "exhausted": {"strength": -1, "dexterity": -1},
+    "drugged": {"wits": -1},
+    "frightened": {"charisma": -1},
     "bleeding": {"strength": -1},
 }
 
@@ -108,7 +107,7 @@ def _verb_category(intent_verb: str | None) -> str:
     return _VERB_CATEGORY.get(intent_verb.lower() if intent_verb else "", "default")
 
 VALID_SKILLS: frozenset[str] = frozenset(
-    ["strength", "dexterity", "wits", "lore", "charisma", "resolve"]
+    ["strength", "dexterity", "wits", "charisma"]
 )
 
 

@@ -189,7 +189,7 @@ _MINIMAL_STATE: dict[str, Any] = {
         "name": "Test PC",
         "tagline": "The Brave",
         "bio": "A brave adventurer.",
-        "stats": {"strength": 3, "dexterity": 2, "wits": 1, "lore": 1, "charisma": 1, "resolve": 1},
+        "stats": {"strength": 3, "dexterity": 2, "wits": 1, "charisma": 1},
         "conditions": [],
     },
     "location": {

@@ -180,7 +180,7 @@ Verdict: tight / loose / broken.
 - **Beat type variety**: count beat types. Flag if >60% are the same type.
 - **recent_beats effectiveness**: the engine tracks last 5 beats in `state.meta.recent_beats` for diversity guidance. Check if beat variety improves over the run (later turns more varied than early turns) — if not, the beat history prompt block may be ineffective.
 - **Intent verb variety**: count distinct `intent_verb` values across the run. Flag if >70% are the same verb. Flag if a verb that is known from the scenario (e.g., "negotiate", "sneak", "climb") never appears.
-- **Skill coverage**: list which of the 6 skills (`strength, dexterity, wits, lore, charisma, resolve`) appeared in dice rolls. Flag if a skill never appeared across the entire run.
+- **Skill coverage**: list which of the 4 skills (`strength, dexterity, wits, charisma`) appeared in dice rolls. Flag if a skill never appeared across the entire run.
 - **Escape paths**: when player was in a bad situation (negative momentum, urgent threads),
   were there viable choices to improve it? Assess from narration content.
 
