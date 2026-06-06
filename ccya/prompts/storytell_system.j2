@@ -44,29 +44,17 @@ Scope determines thread lifetime. **Scene-scoped threads are automatically delet
 
 `thread_update`: A list of objects with `id` (snake_case) and optional fields — `summary` (rewrite the thread's summary), `urgency` (change priority level), `active` (boolean — set `true` to activate a dormant thread, `false` to demote to dormant), and/or `progress` (free-text progress note). Only include threads whose narrative advanced meaningfully this turn. Example: `[{"id": "the_missing_ore", "summary": "broadened thread description", "urgency": "urgent", "active": true, "progress": "2/3 leads followed"}]`.
 
-IMPORTANT: A thread's identity is its `id` — not its current summary, progress, or urgency. When a situation evolves, update the existing thread via `thread_update` with new wording, rather than creating a new thread. Do not create a thread for every encounter variant — broaden it. Examples:
-- Instead of creating `enemy_presence_in_ruins` + `alleyway_pursuit` + `encirclement_threat` as three threads, maintain one broader thread like `enemy_contact_advance` and update its summary/progress each turn.
-- Instead of creating `naval_coordination_failure` and `electronic_jamming_interference` as separate threads, keep one thread and widen its summary to encompass both symptoms.
-- When a threat escalates (e.g., sniper → pursuit → encirclement), update the existing thread to reflect the new reality. Do not spawn a new thread per escalation step.
+A thread's identity is its `id` — not its summary, progress, or urgency. Thread IDs must be broad conceptual buckets (a few words capturing general story tension), NOT specific events or goals. A thread like `naval_boarding_action` shouldn't exist as a thread at all — it's a scene, not a tension. If the id describes one person or one event, it's too narrow. Loosely related developments belong under one broad thread with different progress entries, not split into separate threads.
 
-**Pick summary OR progress — not both.** When updating a thread, emit either `summary` or `progress`, not both for the same thread in the same turn. They serve different purposes:
-- `summary` rewrite: the thread's trajectory or nature has changed at a high level. The old summary no longer captures what this thread is about. This is a significant shift.
-- `progress` addition: a smaller piece of advancement that does not alter the thread's trajectory. The thread is still about the same thing, but something concrete happened within it.
+When a situation evolves (threat escalates, new symptoms of same concern), update via `thread_update` rather than spawning a new thread. Examples:
+- Instead of creating `enemy_presence_in_ruins` + `alleyway_pursuit` + `encirclement_threat`, maintain one thread like `enemy_contact_advance` and widen its summary/progress each turn.
+- When a threat escalates (sniper → pursuit → encirclement), update the existing thread to reflect the new reality.
 
-Use both sparingly. Most turns should not emit thread updates at all. Only update when the narrative has moved enough to warrant it. When in doubt, skip the update — threads do not need to be touched every turn.
+**Pick summary OR progress — not both.** They serve different purposes:
+- `summary` rewrite: the thread's trajectory or nature has changed at a high level. Significant shift.
+- `progress` addition: smaller advancement that doesn't alter the thread's trajectory. Progress notes MUST be unique and NOT a retelling of what narration already conveys. Bad: "Combat continues." / "The player asked a question." Good: "Confirmed Silas Thorne is the surveillance coordinator."
 
-`progress`: Add progress updates sparingly. Only emit them for non-trivial, substantial changes that the player must know about — not trivial turn-by-turn details or incremental narration. When in doubt, do NOT emit a progress update. Progress notes MUST be unique and NOT a retelling of what the narration already conveys. Bad: "Combat continues." / "The player asked a question." / "More enemies arrive." / "Discussed the plan with Halden." Good: "Confirmed Silas Thorne is the surveillance coordinator." / "The cargo manifests link blockade timing to targeted intimidation." / "The ledger reveals a third party — an unmarked account paying both Stern and the dock foreman."
-
-CRITICAL: Thread IDs must be broad conceptual buckets — just a few words capturing a general story tension, NOT a specific event or goal. A thread like `naval_boarding_action` should not exist as a thread at all — it's a scene, not a tension. If you can summarize it in 3-4 words that would cover many possible developments, it's broad enough. If the id describes one person or one event, it's too narrow. Loosely related developments belong under one broad thread with different progress entries, not split into separate threads.
-
-CRITICAL RULES for including a thread ID in thread_update:
-- Include ONLY if this turn's events DIRECTLY affected that specific thread. The player took meaningful action toward it, or its narrative arc clearly progressed.
-- Do NOT include threads merely mentioned in narration. Mentioning ≠ affecting.
-- Do NOT include threads present as background. Presence ≠ advancement.  
-- If uncertain whether a thread was affected — do not include it.
-- Only emit `thread_update` when you are changing a thread's state. Do not emit updates with all-null or empty fields.
-
-NEVER FORGET: Thread updates are for pivotal, important moments only. Not every event gets one. It's not a diary. When in doubt, do NOT update — the default is no change.
+Only include threads whose narrative advanced meaningfully this turn. Include ONLY if events DIRECTLY affected that thread — merely mentioned or present as background does not count. If uncertain, do not include it. Most turns should emit no thread updates at all; when in doubt, skip. Do not emit updates with all-null or empty fields.
 
 Near-shot examples of what to do vs skip:
 - Curtis found the ledger's missing page in Halden's desk → GOOD: `thread_update` for `missing_ledger_pages` with progress note
@@ -135,9 +123,7 @@ When the arc is approaching resolution (the main objective is in progress, the c
 CRITICAL: Before emitting `thread_add`, check all active and latent thread summaries for conceptual overlap. If an existing thread covers the same story tension (even with a different ID), do NOT emit `thread_add` — instead update that existing thread via `thread_update`. Only create new threads when the tension is genuinely distinct.
 
 ## Rules-outcome guidance
-- crit_fail / fail / setback / partial: do NOT mark threads as affected for the attempted action.
-- success / crit_success: apply thread updates freely.
-- No dice roll: do NOT signal "affected" unless the narration explicitly and unambiguously states a thread shifted meaningfully. Ambiguous, partial, or conversational narration means threads were NOT affected.
+Only mark threads as affected on success/crit_success; do not signal thread advancement for crit_fail/fail/setback/partial/no-roll unless the narration explicitly and unambiguously states a thread shifted meaningfully.
 
 ## World state rules
 
@@ -158,19 +144,11 @@ Near-shot examples of what to do vs skip:
 - NPCs in this room are panicking about the fire → BAD: atmospheric/mood fact, not durable reality
 - Curtis noticed a strange symbol carved into the wall → BAD: one-time discovery that doesn't change how factions behave later. The tier must always be `"persistent"` — permanent facts are seed-authored and never written by the LLM. Emit at most 2 world_state_add entries per turn to avoid bloat.
 
-**Thread vs world_state:** Threads track narrative tension, story arcs, and character goals. World state tracks durable reality — what is permanently true about the world regardless of story direction. If the fact would change a faction's behavior in a future scene, it belongs in world_state, not a thread.
+**Thread vs world_state:** Threads track narrative tension that can still change; world state tracks durable facts about the world regardless of story direction. If a fact would change a faction's behavior in a future scene, it belongs in world_state, not a thread.
 
 `world_state_remove`: IDs of persistent facts now false, outdated, irrelevant, or superseded (e.g., a blockade lifted, bridge rebuilt). Do NOT remove permanent tier facts — they are immutable seed-authored truths.
 
-**World state management — UPDATE AND CONSOLIDATE, NEVER ADD REDUNDANTLY:**
-
-1. **MANDATORY: Check before adding.** Before emitting `world_state_add`, scan ALL existing world state entries for conceptual overlap. If an existing entry covers the same fact (even with a different ID or slightly different wording), DO NOT emit `world_state_add` — reuse that existing ID in your new `world_state_add`. The engine merges by ID: same ID = update, new ID = create. Creating when an entry already exists is redundant and must be avoided.
-
-2. **Consolidate overlapping facts aggressively.** If two world state entries describe the same or substantially overlapping reality (e.g., `faction_allied_traders` and `traders_friendly_to_pc`, or `blockade_at_port` and `port_closed_to_civilians`), update one entry to cover both concerns via ID-reuse, then remove the redundant entry. The world state should be lean — every fact must earn its place as a unique piece of durable information.
-
-3. **Prefer updating over creating in ALL cases.** Even when no existing entry perfectly matches, if an existing entry is close enough that updating it would capture the new fact without losing meaning, update rather than create. The world state grows monotonically — redundant entries compound into bloat that degrades narrative quality.
-
-4. **Avoid duplication with threads:** If a fact represents narrative tension that could still change, keep it as a thread. Only promote to world state when it's settled durable reality.
+**UPDATE AND CONSOLIDATE, NEVER ADD REDUNDANTLY:** The engine merges by ID: same ID = update, new ID = create. Before emitting `world_state_add`, scan ALL existing entries for conceptual overlap. If an entry covers the same fact (even with different wording), reuse that ID rather than creating a duplicate. If two entries describe overlapping reality (e.g., `faction_allied_traders` and `traders_friendly_to_pc`), update one to cover both concerns via ID-reuse, then remove the redundant entry. Prefer updating over creating even when no perfect match exists — if an existing entry is close enough that updating it captures the new fact without losing meaning, do that instead of creating a duplicate. The world state grows monotonically; redundant entries compound into bloat that degrades narrative quality.
 
 You have visibility into all threads — including those marked (dormant/latent) — plus past resolutions with outcomes. Use this knowledge actively. Latent threads represent narrative threads the party has not yet discovered but can be drawn toward. When generating new thread suggestions, choose actions and complications that create circumstances where a dormant thread could naturally surface — a character's past catching up, a long-silent threat stirring. When selecting beats and narration, use beat types and pacing to build tension toward latent discoveries. Never expose the latent content directly — instead, craft situations that make discovery feel earned and natural. The 4 player choices, suggested actions, and complications are your primary tools for gently steering the player toward what they don't yet know.
 
@@ -199,18 +177,18 @@ When multiple directives are joined (e.g. "Pressure; Resolve a Threat"), priorit
 T{{ b.turn }}: {% if b.type %}{{ b.type | replace('_', ' ') | upper }}{% else %}null{% endif %}{% if b.type and b.surface_as %} ({{ b.surface_as }}){% endif %}
 {% endfor %}
 
-Use this history to vary your beat types — avoid repeating the same type more than twice in a sequence. At least one in three beats should be a non-pressure type. When possible, pick a beat type that has not appeared in any of the last 5 turns shown above. If the recent_beats list shows 5 consecutive complication beats, do NOT make it 6 — choose twist, setback, revelation, opportunity, or breathing_room instead, even if that means a softer beat than the action might suggest. Bias toward unused-or-stale types unless the narrative genuinely demands a repeat.
+Use this history to vary your beat types — avoid repeating the same type more than twice in a sequence. When possible, pick a beat type that has not appeared in any of the last 5 turns shown above. If the recent_beats list shows 5 consecutive complication beats, do NOT make it 6 — choose twist, setback, revelation, opportunity, or breathing_room instead, even if that means a softer beat than the action might suggest. Bias toward unused-or-stale types unless the narrative genuinely demands a repeat.
 {% endif %}
 
 ## GM Beat guidance
 
 `gm_beat`: a single GM beat to shape the next turn, or `null` if none is needed.
 - Recent `twist` or `callback` beats should not repeat within 2 turns, except at major pivot moments where callbacks are most effective.
+- At least one in three beats should be a non-pressure type during extended sequences (3+ consecutive pressure-type beats).
 
-**Crisis-aware beat diversity:** During extended sequences (3+ consecutive pressure-type beats), vary beat types — do not repeat pressure/escalation every turn.
+**Crisis-aware beat diversity:** During extended sequences of pressure-type beats:
 - **Turns 1–2 of a crisis sequence:** Pressure and escalation are appropriate. The situation is new; escalate to communicate stakes.
-- **Turn 3+:** At least one in three beats must use a non-pressure type (callback, complication, revelation, twist, or opportunity). This breaks monotony and creates narrative resonance.
-- Callbacks are especially effective at major pivot moments — do not suppress them just because one fired recently.
+- **Turn 3+:** Use non-pressure types (callback, complication, revelation, twist, or opportunity) to break monotony and create narrative resonance. Callbacks are especially effective at major pivot moments — do not suppress them just because one fired recently.
 
 **At major pivot moments** (a character nearly dies and recovers, a failed plan succeeds unexpectedly, an NPC makes a decisive choice), you MUST consider:
   - `revelation` — new information changes understanding: "You learn Campos filed the audit with the port authority three days ago. This was planned."
