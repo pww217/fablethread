@@ -807,7 +807,7 @@ function charCreation() {
         },
 
         get isValid() {
-            return this.total >= 8 && this.total <= 12
+            return this.total >= 8 && this.total <= 10
                 && this.stats.every(s => s.value >= 1 && s.value <= 4);
         },
 
@@ -817,13 +817,12 @@ function charCreation() {
                 scout: 'A nimble tracker. High Dexterity and Wits for stealth, perception, and reflexes.',
                 scholar: 'A learned researcher. High Wits and Charisma for knowledge, investigation, and influence.',
                 charmer: 'A charismatic leader. High Charisma and Wits for persuasion, leadership, and influence.',
-                survivor: 'A resilient survivor. High Strength and Dexterity for endurance, toughness, and adaptability.',
             };
         },
 
         increment(statKey) {
             const stat = this.stats.find(s => s.key === statKey);
-            if (stat && stat.value < 4 && this.total < 12) {
+            if (stat && stat.value < 4 && this.total < 10) {
                 stat.value++;
             }
         },
@@ -837,11 +836,10 @@ function charCreation() {
 
         applyPreset(name) {
             const archetypes = {
-                warrior:   { strength: 4, dexterity: 4, wits: 2, charisma: 2 }, // total 12,
-                scout:     { strength: 2, dexterity: 4, wits: 4, charisma: 2 }, // total 12,
-                scholar:   { strength: 2, dexterity: 2, wits: 4, charisma: 4 }, // total 12,
-                charmer:   { strength: 2, dexterity: 3, wits: 3, charisma: 4 }, // total 12,
-                survivor:  { strength: 3, dexterity: 3, wits: 2, charisma: 2 }, // total 10,
+                warrior:   { strength: 3, dexterity: 3, wits: 2, charisma: 2 }, // total 10,
+                scout:     { strength: 2, dexterity: 3, wits: 3, charisma: 2 }, // total 10,
+                scholar:   { strength: 2, dexterity: 2, wits: 3, charisma: 3 }, // total 10,
+                charmer:   { strength: 2, dexterity: 2, wits: 2, charisma: 4 }, // total 10,
             };
             const a = archetypes[name];
             if (a) {
