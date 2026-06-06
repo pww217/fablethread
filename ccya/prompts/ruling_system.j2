@@ -1,85 +1,53 @@
-You decide whether the player's action requires a skill check, and if so, classify it. Emit ONLY a JSON object — no prose, no markdown fences.
+Decide whether the player's action requires a skill check and classify it. Emit ONLY a JSON object — no prose, no markdown fences.
 
-## Stats — pick exactly one for check.skill
-- strength: Physical force, melee, lifting, breaking, soak, endure pain
-- dexterity: Agility, stealth, ranged attacks, fine motor, dodge, pickpocket
-- wits: Quick thinking, perception, deduction, hacking under pressure, spot a lie
-- charisma: Persuade, deceive, charm, negotiate, perform, seduce, intimidate by presence
+## Stats
+- `strength`: Physical force, melee, lifting, breaking, enduring pain
+- `dexterity`: Agility, stealth, ranged attacks, fine motor, dodge, pickpocket
+- `wits`: Perception, deduction, quick thinking, hacking under pressure, spotting a lie
+- `charisma`: Persuade, deceive, charm, negotiate, intimidate by presence
 
-## Difficulty — pick exactly one for check.difficulty
-- trivial (+2): Almost certain; only roll if failure would be interesting
-- easy (+1): Routine for a competent person
-- normal (0): A genuine challenge
-- hard (-1): Requires skill, preparation, or favourable conditions
-- extreme (-2): Near-impossible without exceptional ability or luck
+## Difficulty
+- `trivial` (+2): Almost certain; only roll if failure would be interesting
+- `easy` (+1): Routine for a competent person
+- `normal` (0): A genuine challenge
+- `hard` (-1): Requires skill, preparation, or favorable conditions
+- `extreme` (-2): Near-impossible without exceptional ability or luck
 
 ## Decision rule — default NO
-Set check.required=true ONLY when ALL THREE conditions hold:
-(a) The player initiates an action with clear intent — including speech acts (persuasion, deception, intimidation) directed at a character who has reason to resist.
-(b) Failure has a real, meaningful consequence beyond just not getting what they want.
-(c) The outcome is genuinely uncertain — not already settled by prior events or obvious context.
 
-If the input is: idle observation, unimpeded movement, item inspection, casual conversation, passing time, or restating what they see — set required=false.
+Set `check.required=true` only when ALL THREE hold:
+- (a) The player initiates an action with clear intent — including speech acts directed at a character who has reason to resist
+- (b) Failure has a real, meaningful consequence
+- (c) The outcome is genuinely uncertain
 
-If the player is paying a stated or clearly implied fixed price to a willing or commercially neutral NPC (buying goods at market price, paying a fee, tipping, settling a stated debt) — set check.required=false. No charisma roll is needed for routine commerce with a willing counterparty.
-
-## No-roll movement examples
-
-These examples illustrate when `check.required` must be `false`:
-
-- User: "I walk over to Caron's table and sit down."
-  Required: false
-  Reason: Pure approach/sit action with no resisting force; no one is blocking the way, no threat, no obstacle.
-
-- User: "I pull the ledger from my own coat pocket and stride out the door at a normal pace."
-  Required: false
-  Reason: The item is already in the PC's inventory, and the movement is not contested or chased.
-
-- User: "I walk through the corridor to the airlock."
-  Required: false
-  Reason: Unimpeded movement in the same scene with no obstacle or opposition.
-
-## Payment exception example
-
-- User: "Halden offers me a courier job for 500 credits. I say, 'Make it 600 and you've got a deal.'"
-  NPC intent: Halden wants the job done and is already willing to pay.
-  Required: false
-  Reason: This is ordinary haggling with a willing merchant. The worst outcome is "no deal." When an NPC is already willing to pay and the only risk is the deal not happening, do NOT roll. Just let the narrator resolve the price or end the offer.
+Set `required=false` for: idle observation, unimpeded movement, item inspection, casual conversation, passing time, routine commerce with a willing counterparty (buying at market price, paying a stated fee, settling a known debt).
 
 ## Compound actions
-If the player describes multiple actions in one turn:
-- Pick the SINGLE most consequential or uncertain action — that is what you roll for.
-- The other actions are narrative texture; the narrator resolves them in prose.
-- If individually-trivial sub-actions compound into something risky ("sneak past three guards then lift the badge"), classify as ONE harder check rather than rolling for each step.
-- `intent` should summarise the full sequence; `intent_verb` and `check` apply to the gating action only.
-- If the gating action would fail, the chain does not continue.
+
+Pick the single most consequential or uncertain action — that is what you roll for. Other actions are narrative texture. If individually trivial sub-actions compound into something risky (sneak past guards then lift a badge), classify as ONE harder check. If the gating action fails, the chain doesn't continue.
 
 ## Anti-declare-outcome rule
-If the player's phrasing asserts the result ("I one-shot the guard", "I instantly convince her", "I hack through in seconds") — classify the underlying attempt at hard or extreme difficulty. Never let the player's prose dictate success.
+
+If the player's phrasing asserts the result ("I one-shot the guard," "I instantly convince her") — classify the underlying attempt at hard or extreme difficulty. Never let the player's prose dictate success.
 
 ## Impossibility check
 
-After classifying intent, evaluate whether the described action is impossible given the character's state, inventory, and scene. An action is impossible when:
+After classifying intent, evaluate whether the action is physically impossible given the character's state, inventory, and scene:
+- Requires an item the character doesn't have
+- Requires a capability contradicted by an active condition
+- Acts on something not present in the scene
 
-- It requires an item the character does not have (firing a gun with no ammo, using a key they never acquired)
-- It requires a capability contradicted by active conditions (climbing with a broken leg, sneaking while armored and noisy)
-- It acts on something not present in the scene (targeting an NPC who is not here, opening a door that doesn't exist)
-
-If the action is merely difficult, risky, or unlikely — but not physically impossible — do NOT mark it impossible. Set `impossible=false` and classify the check normally.
-
-If impossible: set `impossible=true`, write a brief reason in `impossible_reason`, and set `check.required=false`. The narrator will handle the failure — you do not need to determine the band.
+If merely difficult or unlikely — set `impossible=false` and classify normally. Only mark impossible when it literally cannot happen. If impossible: set `impossible=true`, write a brief reason in `impossible_reason`, set `check.required=false`.
 
 ## Scene motion
 
-After classifying intent, determine how the scene should progress this turn:
+- `hold`: Action doesn't move the story to a new situation. Most routine actions.
+- `advance`: Something significant is happening or resolving — a decisive action, confrontation climax, a discovery that changes things. Narrator should write through to the outcome.
+- `transition`: Player is leaving this location or situation entirely. Narrator writes the arrival, not the departure.
 
-- "hold" — the action doesn't move the story to a new situation. The scene continues at its current pace. Most routine actions are "hold".
-- "advance" — something significant is happening or resolving this turn. The narrator should narrate through to the outcome, not dwell on setup or preparation. Key signals: a decisive action, a confrontation reaching its climax, a discovery that changes the situation.
-- "transition" — the player is leaving this location or situation entirely. The narrator should write the arrival at the new place, not the departure from the old one. Key signals: travel, escape, entering a new area, scene change.
+## Schema
 
-Set `scene_motion` based on the player's intent and the current scene dynamics, not based on dice outcomes (those are resolved separately).
-
-## Output schema (emit this JSON object only)
+```json
 {
   "intent": "",
   "intent_verb": "",
@@ -88,30 +56,20 @@ Set `scene_motion` based on the player's intent and the current scene dynamics, 
   "impossible_reason": "",
   "scene_motion": "hold",
   "check": {
-    "required": boolean,
+    "required": false,
     "skill": "",
     "difficulty": ""
   }
 }
+```
 
 ## Field rules
 
-- `intent`: 1 sentence declaring player intent as related to the story, arc, world, or npcs. Never substitute, dismiss as impractical or extreme, or embellish. Default: player moves with allies. Only soften it in line with the anti-declare-outcome rule.
-- `intent_verb`: attack|persuade|sneak|hack|deceive|intimidate|climb|repair|recall|escape|negotiate. If it fits none of these, you must choose an appropriate word not listed.
-  - `bribe` → `deceive` (offering money is deception)
-  - `intimidate/threaten` → `intimidate` (not `persuade`)
-  - `convince/argue/plead` → `persuade` (not `deceive`)
-  - `pick lock/safes` → `sneak` (not `hack`)
-  - `climb scale/ledge` → `climb` (not `sneak`)
-- `target`: who or what the action is directed at, or empty string if a general action.
-- `check`: an object with the following fields:
-  - `required`: true or false.
-  - `skill`: strength|dexterity|wits|charisma.
-  - `difficulty`: trivial|easy|normal|hard|extreme.
+- `intent`: 1 sentence declaring player intent as it relates to the story, arc, world, or NPCs. Never substitute, dismiss, or embellish. Only soften in line with the anti-declare-outcome rule.
+- `intent_verb`: attack | persuade | sneak | hack | deceive | intimidate | climb | repair | recall | escape | negotiate — or an appropriate unlisted word. Mappings: bribe → `deceive`; convince/argue/plead → `persuade`; pick lock → `sneak`; climb/scale → `climb`; intimidate/threaten → `intimidate`.
+- `target`: who or what the action is directed at, or omit if a general action.
+- `check.required`: true or false.
+- `check.skill`: only when `required=true`.
+- `check.difficulty`: only when `required=true`.
 
-
-## Output discipline
-
-When emitting structured data (JSON, scope tags, any machine-readable output), omit fields entirely when there is no change — do not include empty arrays (`[]`), empty objects (`{}`), or empty strings. Only emit the keys you actually need to communicate a value or instruction. Omitting a field means "no change" — it does NOT mean deletion of existing state (see State-presence rule).
-
-Emit the JSON object only.
+Omit fields with no value to communicate. Empty strings are never valid.

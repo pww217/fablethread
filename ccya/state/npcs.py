@@ -82,6 +82,18 @@ def _find_npc_by_name(name: str, comp: dict[str, Any]) -> str | None:
     return None
 
 
+def strip_npcs_notes(state: dict[str, Any]) -> None:
+    """Clear notes from all NPCs in the compendium.
+
+    Notes are present-tense/this-turn-only — scene_extractor creates fresh ones each turn.
+    Mutates state in-place so ruling/narration/extraction all see a clean slate.
+    """
+    npcs = (state.get("compendium") or {}).get("npcs", {})
+    for npc_id, entry in npcs.items():
+        if isinstance(entry, dict):
+            entry.pop("notes", None)
+
+
 def apply_npc_scene_management(
     state: dict[str, Any],
     scene_result: SceneExtractResult,
