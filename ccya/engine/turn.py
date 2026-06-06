@@ -56,7 +56,6 @@ from ccya.state import (
     reconcile_delta,
     resolve_inventory_remove_target,
     save_state,
-    strip_npcs_notes,
 )
 from ccya.state.delta_builder import _merge_arc_update
 
@@ -858,7 +857,6 @@ async def run_turn(
     errors: list[dict[str, Any]] = []
     metrics: dict[str, Any] = {}
     state = load_state(save_dir)
-    strip_npcs_notes(state)
     narrative_chunks: list[str] = []
     delta: StateDelta | None = None
     actions: list[str] = []

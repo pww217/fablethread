@@ -31,28 +31,30 @@ If the narration states a specific number, use it exactly. If no number is state
 
 ```json
 {
-  "inventory_add": [],
-  "inventory_remove": [],
-  "inventory_update": [],
-  "pc_condition_add": [],
-  "pc_condition_remove": []
+  "inventory_update": [{"id": "...", "name": "...", "notes": "..."}],
+  "inventory_remove": [{"id": "..."}],
+  "inventory_add": [{"id": "...", "name": "...", "notes": "...", "amount": 1}],
+  "pc_condition_remove": [{"id": "..."}],
+  "pc_condition_add": [{"id": "...", "label": "...", "description": "...", "turns_remaining": 3}]
 }
 ```
 
 ## Field rules
 
-`inventory_add`: items explicitly received by the player character. Each: `{"id": "snake_case", "name": "Display Name", "notes": "optional", "amount": 1}`.
+`inventory_update`: patches to existing items — amount changes, name changes, notes updates, damage, upgrades. `name` and `notes` are optional within an update entry.
+
+`inventory_remove`: items lost, used up, destroyed, or spent. Omit `amount` to remove the entire stack.
+- If narration describes spending, giving away, or parting with an item — even if the amount is vague — emit the remove. If the recipient later rejects it or the action fails, still emit the remove.
+- Using a reusable item (unlocking a door with a key, reading a book) does NOT consume it. Only emit remove when the item is actually lost or used up.
+
+`inventory_add`: items explicitly received by the player character.
 - Do not cap items explicitly received. Items found incidentally (e.g. "searched the crates") are limited to ≤2 per turn.
 - Firearms and finite-use items always come with ammo or uses. Infer a realistic starting amount from context. If compatible ammo already exists in inventory, use `inventory_update` instead.
 - Never emit `inventory_add` and `inventory_remove` for the same ID in one turn.
 
-`inventory_remove`: items lost, used up, destroyed, or spent. Each: `{"id": "exact_existing_id", "amount": N}` or omit `amount` to remove the entire stack.
-- If narration describes spending, giving away, or parting with an item — even if the amount is vague — emit the remove. If the recipient later rejects it or the action fails, still emit the remove.
-- Using a reusable item (unlocking a door with a key, reading a book) does NOT consume it. Only emit remove when the item is actually lost or used up.
+`pc_condition_remove`: conditions resolved this turn. Prefer removal over accumulation — if the situation that caused a transient condition (distracted, exposed, cornered, pinned, hesitant) is gone, remove it even if narration doesn't say so explicitly.
 
-`inventory_update`: patches to existing items — amount changes, name changes, notes updates, damage, upgrades. Each: `{"id": "exact_existing_id", "name": "optional new name", "notes": "optional"}`.
-
-`pc_condition_add`: new conditions with a clear, substantial cause in the narration. Each: `{"id": "snake_case", "label": "1-4 word lowercase tag", "description": "one-sentence cause and effect", "turns_remaining": N}`. Max 2 per turn. Total active conditions must not exceed 5 — if at cap, remove the least relevant before adding.
+`pc_condition_add`: new conditions with a clear, substantial cause in the narration. Max 2 per turn. Total active conditions must not exceed 5 — if at cap, remove the least relevant before adding.
 
 Only add a condition if it would plausibly affect at least one future dice roll. Do not add flavor conditions with no mechanical relevance.
 
@@ -68,8 +70,6 @@ Only add a condition if it would plausibly affect at least one future dice roll.
 - Failed wits under pressure → consider `frightened` or `drugged`
 - Failed strength/dexterity with sustained effort → consider `exhausted`
 - Clean success or crit_success → no negative conditions
-
-`pc_condition_remove`: conditions resolved this turn. Each: `{"id": "existing_condition_id"}`. Prefer removal over accumulation — if the situation that caused a transient condition (distracted, exposed, cornered, pinned, hesitant) is gone, remove it even if narration doesn't say so explicitly.
 
 ## State-presence rule
 

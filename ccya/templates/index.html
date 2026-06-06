@@ -71,6 +71,8 @@
                     <button type="button" class="gear-menu-item" @click="menuOpen = false; window.location.href='/turn_viewer'">
                         Turn Viewer
                     </button>
+                    <div class="gear-menu-divider"></div>
+                    <button type="button" class="gear-menu-item" @click="menuOpen = false; resetSidebars()">Reset Sidebars</button>
                 </div>
             </div>
 
@@ -950,14 +952,14 @@ function game() {
         leftW: (() => {
             const c = localStorage.getItem('ccya_panel_left_collapsed');
             if (c === '1') return null;
-            const w = parseInt(localStorage.getItem('ccya_panel_left_w') || '320', 10);
+            const w = parseInt(localStorage.getItem('ccya_panel_left_w'), 10);
             return isNaN(w) ? null : Math.max(180, w);
         })(),
 
         rightW: (() => {
             const c = localStorage.getItem('ccya_panel_right_collapsed');
             if (c === '1') return null;
-            const w = parseInt(localStorage.getItem('ccya_panel_right_w') || '320', 10);
+            const w = parseInt(localStorage.getItem('ccya_panel_right_w'), 10);
             return isNaN(w) ? null : Math.max(180, w);
         })(),
 
@@ -1022,6 +1024,19 @@ function game() {
             } else if (side === 'right' && this.rightW !== null) {
                 try { localStorage.setItem(wKey, String(this.rightW)); } catch {}
             }
+        },
+
+        _sidebarDefault() {
+            return window.innerWidth >= 2561 ? 512 : 320;
+        },
+
+        resetSidebars() {
+            try { localStorage.removeItem('ccya_panel_left_w'); localStorage.removeItem('ccya_panel_right_w'); } catch {}
+            const d = this._sidebarDefault();
+            this.leftW = d;
+            this.rightW = d;
+            this.leftCollapsed = false;
+            this.rightCollapsed = false;
         },
 
         onSidebarClick(side, e) {
@@ -1122,6 +1137,18 @@ function game() {
                     document.body.style.overflow = '';
                 }
             });
+            // Adjust sidebar defaults when crossing ultrawide boundary (only if user hasn't manually resized)
+            this._ultraBoundary = window.matchMedia('(min-width: 2561px)');
+            const adjustSidebarsOnResize = () => {
+                const def = window.innerWidth >= 2561 ? 512 : 320;
+                ['left', 'right'].forEach((side) => {
+                    const wKey = side + 'W';
+                    if (!localStorage.getItem('ccya_panel_' + side + '_w')) {
+                        this[wKey] = def;
+                    }
+                });
+            };
+            this._ultraBoundary.addEventListener('change', adjustSidebarsOnResize);
             // Touch swipe: edge open + drawer dismiss
             this._swipeStartX = 0;
             this._swipeStartY = 0;
