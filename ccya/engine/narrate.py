@@ -8,24 +8,10 @@ from typing import TYPE_CHECKING, Any
 from ccya.engine.config import _render
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.models import RulesOutcome
+from ccya.prompts.context import _fmt_progress
 
 
 _log = logging.getLogger(__name__)
-
-def _fmt_progress(progress: Any) -> list[str]:
-    if not progress:
-        return []
-    result: list[str] = []
-    for entry in progress:
-        if isinstance(entry, str):
-            result.append(entry)
-        elif isinstance(entry, dict):
-            kind = entry.get("kind", "advancement")
-            text = entry.get("text", "")
-            result.append(f"[{kind.upper()}] {text}")
-        else:
-            result.append(str(entry))
-    return result
 
 if TYPE_CHECKING:
     from ccya.engine.turn import PacingContext

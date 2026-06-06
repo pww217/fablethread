@@ -49,7 +49,7 @@ class ArcThread(BaseModel):
     @classmethod
     def _coerce_progress(cls, v: Any, handler: Any) -> Any:
         if isinstance(v, str):
-            return handler([v])
+            return handler([{"text": v, "kind": "advancement"}])
         if not v or (isinstance(v, int) and v == 0):
             return []
         if isinstance(v, list):
