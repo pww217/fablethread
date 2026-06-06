@@ -10,7 +10,8 @@ from __future__ import annotations
 import logging
 
 from ccya.engine.config import EngineConfig
-from ccya.state.delta_builder import PC_CONDITIONS_MAX
+from ccya.models import ArcThread
+from ccya.state.delta_builder import PC_CONDITIONS_MAX, DEFAULT_CONDITION_TTL
 from ccya.state.momentum import MOMENTUM_MIN as _MOMENTUM_MIN, MOMENTUM_MAX as _MOMENTUM_MAX
 from ccya.rules import MOMENTUM_DELTA as _RULES_MOMENTUM_DELTA, VALID_SKILLS
 
@@ -18,12 +19,17 @@ _log = logging.getLogger(__name__)
 
 _defaults = EngineConfig()
 
-# Thread TTL defaults (matches config defaults)
-THREAD_RESOLVED_ARC_TTL: int = 3
-THREAD_COMPLETED_THREAD_TTL: int = 3
+# Thread TTL defaults — imported from EngineConfig to prevent drift
+THREAD_RESOLVED_ARC_TTL: int = _defaults.arc_memory_ttl
+THREAD_COMPLETED_THREAD_TTL: int = _defaults.thread_memory_ttl
 
 # For trace injection into judge prompts — maps from ArcThread.urgency values (background/normal/urgent)
 URGENCY_LEVELS: tuple[str, ...] = ("background", "normal", "urgent")
+
+# Validate URGENCY_LEVELS stays in sync with ArcThread urgency Literal annotation
+_urgency_annotation = ArcThread.model_fields['urgency'].annotation  # Pydantic v2 — Literal["background", "normal", "urgent"]
+_urgency_args: tuple[str, ...] = _urgency_annotation.__args__ if hasattr(_urgency_annotation, '__args__') else ()  # type: ignore[union-attr]
+assert set(URGENCY_LEVELS) == set(_urgency_args), f"URGENCY_LEVELS mismatch: {URGENCY_LEVELS} vs {_urgency_args}"
 
 # Momentum
 MOMENTUM_MIN: int = _MOMENTUM_MIN
@@ -38,8 +44,8 @@ INTENT_VERBS_HINT: tuple[str, ...] = (
     "attack", "persuade", "sneak", "hack", "deceive", "intimidate",
     "climb", "repair", "recall", "escape", "negotiate",
 )
-SCENE_NAMED_NPC_CAP: int = 10  # see ccya/prompts/extract_scene_system.j2 "## NPC scene cap"
 PC_CONDITION_CAP: int = PC_CONDITIONS_MAX
+CONDITION_TTL: int = DEFAULT_CONDITION_TTL
 
 # Extraction stream names — used in TurnAssert.stream validation
 EXTRACT_STREAMS: tuple[str, ...] = (
@@ -78,7 +84,6 @@ def constants_block() -> str:
         f"- Difficulties (ordered): {', '.join(DIFFICULTIES)}\n"
         f"- Intent verb hints: {', '.join(INTENT_VERBS_HINT)}\n"
         f"- PC condition cap: {PC_CONDITION_CAP}\n"
-        f"- Scene named NPC cap: {SCENE_NAMED_NPC_CAP}\n"
         f"- Consecutive pressure threshold (relief trigger): {CONSECUTIVE_PRESSURE_THRESHOLD} turns\n"
         f"- Consecutive pressure counter tracks storyteller gm_beat types: pressure/escalation/complication (not directives)\n"
         f"- GM beat type validation: {', '.join(GM_BEAT_TYPES)}\n"
@@ -116,5 +121,5 @@ KNOWN_SEED_PATHS: frozenset[str] = frozenset((
     "pc.credits",
 ))
 
-_log.debug("engine_mirror initialized: MOMENTUM_RANGE=[%d,%d] CAPS=(thread=N/A,condition=%d,npc=%d) STREAMS=%d",
-            MOMENTUM_MIN, MOMENTUM_MAX, PC_CONDITION_CAP, SCENE_NAMED_NPC_CAP, len(EXTRACT_STREAMS))
+_log.debug("engine_mirror initialized: MOMENTUM_RANGE=[%d,%d] CAPS=(thread=N/A,condition=%d) STREAMS=%d",
+            MOMENTUM_MIN, MOMENTUM_MAX, PC_CONDITION_CAP, len(EXTRACT_STREAMS))
