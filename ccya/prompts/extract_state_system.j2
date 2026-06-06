@@ -100,9 +100,8 @@ Before you output any `inventory_add` or `inventory_remove` with an amount:
 Add conditions only for significant changes in player state that have practical application given the narrative. Infer from the narration:
 
 - Combat failure with `strength` or `dexterity` verbs → consider `wounded`, `bleeding`
-- Failed `resolve` → consider `shaken`
 - Failed `wits` under pressure → consider `frightened` or `drugged` (if substance involved)
-- Failed `strength`/`dexterity`/`resolve` with sustained effort → consider `exhausted`
+- Failed `strength`/`dexterity` with sustained effort → consider `exhausted`
 - Do NOT add negative conditions on a clean success or crit_success
 
 `pc_condition_remove`: conditions that resolved this turn. Each: `{"id": "existing_condition_id"}`. Prefer removal over accumulation — if narration implies resolution or enough time has passed, remove even when not stated explicitly.

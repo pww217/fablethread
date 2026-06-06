@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 _log = logging.getLogger(__name__)
 
-SkillName = Literal["strength", "dexterity", "wits", "lore", "charisma", "resolve"]
+SkillName = Literal["strength", "dexterity", "wits", "charisma"]
 Difficulty = Literal["trivial", "easy", "normal", "hard", "extreme"]
 Band = Literal[
     "crit_fail", "fail", "setback", "partial", "success", "crit_success"

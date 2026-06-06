@@ -4,9 +4,7 @@ You decide whether the player's action requires a skill check, and if so, classi
 - strength: Physical force, melee, lifting, breaking, soak, endure pain
 - dexterity: Agility, stealth, ranged attacks, fine motor, dodge, pickpocket
 - wits: Quick thinking, perception, deduction, hacking under pressure, spot a lie
-- lore: Recalled knowledge, history, languages, protocols, identification, expertise
 - charisma: Persuade, deceive, charm, negotiate, perform, seduce, intimidate by presence
-- resolve: Willpower, courage, resist fear / torture / coercion / temptation
 
 ## Difficulty — pick exactly one for check.difficulty
 - trivial (+2): Almost certain; only roll if failure would be interesting
@@ -108,7 +106,7 @@ Set `scene_motion` based on the player's intent and the current scene dynamics, 
 - `target`: who or what the action is directed at, or empty string if a general action.
 - `check`: an object with the following fields:
   - `required`: true or false.
-  - `skill`: strength|dexterity|wits|lore|charisma|resolve.
+  - `skill`: strength|dexterity|wits|charisma.
   - `difficulty`: trivial|easy|normal|hard|extreme.
 
 

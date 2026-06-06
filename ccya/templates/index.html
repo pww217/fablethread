@@ -799,9 +799,7 @@ function charCreation() {
             { key: 'strength', label: 'Strength', description: 'Force, melee combat, and soak against physical trauma.', value: 2 },
             { key: 'dexterity', label: 'Dexterity', description: 'Reflexes, ranged attacks, and avoiding danger.', value: 2 },
             { key: 'wits', label: 'Wits', description: 'Awareness, perception, and quick thinking under pressure.', value: 2 },
-            { key: 'lore', label: 'Lore', description: 'Knowledge, investigation, and recalling information.', value: 2 },
             { key: 'charisma', label: 'Charisma', description: 'Persuasion, leadership, and reading people.', value: 2 },
-            { key: 'resolve', label: 'Resolve', description: 'Mental fortitude, resisting fear, and pushing through pain.', value: 2 },
         ],
 
         get total() {
@@ -809,23 +807,23 @@ function charCreation() {
         },
 
         get isValid() {
-            return this.total >= 12 && this.total <= 16
+            return this.total >= 8 && this.total <= 12
                 && this.stats.every(s => s.value >= 1 && s.value <= 4);
         },
 
         getArchetypeDescriptions() {
             return {
-                warrior: 'A frontline fighter. High Strength and Resolve for melee combat and endurance.',
+                warrior: 'A frontline fighter. High Strength and Dexterity for melee combat and endurance.',
                 scout: 'A nimble tracker. High Dexterity and Wits for stealth, perception, and reflexes.',
-                scholar: 'A learned researcher. High Lore and Wits for knowledge, investigation, and analysis.',
+                scholar: 'A learned researcher. High Wits and Charisma for knowledge, investigation, and influence.',
                 charmer: 'A charismatic leader. High Charisma and Wits for persuasion, leadership, and influence.',
-                survivor: 'A resilient survivor. High Resolve and Strength for endurance, toughness, and adaptability.',
+                survivor: 'A resilient survivor. High Strength and Dexterity for endurance, toughness, and adaptability.',
             };
         },
 
         increment(statKey) {
             const stat = this.stats.find(s => s.key === statKey);
-            if (stat && stat.value < 4 && this.total < 16) {
+            if (stat && stat.value < 4 && this.total < 12) {
                 stat.value++;
             }
         },
@@ -839,11 +837,11 @@ function charCreation() {
 
         applyPreset(name) {
             const archetypes = {
-                warrior:   { strength: 4, dexterity: 3, wits: 2, lore: 2, charisma: 2, resolve: 3 },
-                scout:     { strength: 2, dexterity: 4, wits: 3, lore: 2, charisma: 2, resolve: 3 },
-                scholar:   { strength: 3, dexterity: 2, wits: 4, lore: 4, charisma: 2, resolve: 1 },
-                charmer:   { strength: 2, dexterity: 2, wits: 3, lore: 2, charisma: 4, resolve: 3 },
-                survivor:  { strength: 3, dexterity: 3, wits: 2, lore: 2, charisma: 2, resolve: 4 },
+                warrior:   { strength: 3, dexterity: 3, wits: 2, charisma: 2 }, // total 10,
+                scout:     { strength: 2, dexterity: 4, wits: 3, charisma: 2 }, // total 11,
+                scholar:   { strength: 2, dexterity: 2, wits: 4, charisma: 3 }, // total 11,
+                charmer:   { strength: 2, dexterity: 2, wits: 2, charisma: 4 }, // total 10,
+                survivor:  { strength: 3, dexterity: 3, wits: 2, charisma: 2 }, // total 10,
             };
             const a = archetypes[name];
             if (a) {

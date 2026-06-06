@@ -95,7 +95,7 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
 {
   seed_state: {
     meta: {turn: 0, model: string, setting_pack: string},
-    pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, lore: int, charisma: int, resolve: int}, conditions: []},
+    pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, charisma: int}, conditions: []},
     location: {id: snake_case, name: string, description: string},
     inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
     scene: {
@@ -115,7 +115,7 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
 
 ## Field guidance
 - `pc.name`: Full name with a **given name and family name** (e.g. "Mira Sovak", "Dren Calloway"). Single-word names are not permitted. The name must fit the world's cultural tone.
-- `pc.stats`: six integer values, range 1–4, total 12–18.
+- `pc.stats`: four integer values, range 1-4, total 8-12.
 - `pc.tagline`: 5–10 words — role + defining trait (e.g. "Structural engineer, nine months sober").
 - `pc.bio`: 2–4 sentences — pre-event history, what shaped this person, what they want now.
 - `scene.world_state`: 3–4 consolidated global facts that directly shape the current situation, arc tension, NPC relationships, or player's immediate circumstances. Immutable for the entire game. Don't make a separate fact per faction or vocabulary word — consolidate. Each must be something that actively constrains what can happen right now.

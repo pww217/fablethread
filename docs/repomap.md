@@ -40,7 +40,7 @@
 | `ccya/eval/universal_asserts.py` | Auto-checkers (condition dedup, consecutive_pressure_tracking beat-type-based counter, beat_locked dual-trigger from momentum_floor/consecutive_pressure_threshold, floor relief injection verification, no_removed_directives/npc_states negative assertions, exact directive value rendering via word-boundary regex, orphan condition detection, thread_add→state application verification, inventory remove existence, thread_update ID validity, beat type variety warning, surface_as consistency check) — red/yellow severity |
 | `ccya/eval/report.py` | write_full_report(run_result, eval_cfg, judge_results=None): single-pass REPORT.md with metadata, optional judge summary + verdicts, flags, auto-checker table, pacing metrics, turn metrics; atomic write via tmp.replace() |
 | `ccya/eval/scenario.py` | Scenario (with seed_overrides), Turn, TurnAssert (with stream_id) |
-| `ccya/eval/engine_mirror.py` | Live engine constants for scenarios: BANDS, SKILLS, DIFFICULTIES, PC_CONDITION_CAP, CONDITION_TTL; pacing config mirror (momentum_floor=-3, consecutive_pressure_threshold=3, combat +2 scene_age boost) via EngineConfig defaults — THREAD_RESOLVED_ARC_TTL/THREAD_COMPLETED_THREAD_TTL imported from _defaults.arc_memory_ttl/_defaults.thread_memory_ttl |
+| `ccya/eval/engine_mirror.py` | Live engine constants for scenarios: BANDS, SKILLS, DIFFICULTIES, PC_CONDITION_CAP, CONDITION_TTL; pacing config mirror (momentum_floor=-3, consecutive_pressure_threshold=3, combat +2 scene_age boost) via EngineConfig defaults — THREAD_RESOLVED_ARC_TTL/THREAD_COMPLETED_THREAD_TTL imported from _defaults.arc_memory_ttl/_defaults.thread_memory_ttl, PRESSURE_BEAT_TYPES imported from turn.py, GM_BEAT_TYPES derived at runtime from GMBeat.type Literal annotation |
 | `ccya/eval/test_eval_schema.py` | KNOWN_ASSERT_FIELDS validation against runner._check_asserts handler field names, KNOWN_SEED_PATHS dotpath format check, engine_mirror import sanity test |
 | `evals/scenarios/eval_coverage_gap.py` | 8-turn scenario exercising ev1 findings: band-beat conflict, thread progress, orphan conditions, surface_as drift, skill variety |
 | `ccya/pack.py` | load_pack(), list_packs() — validates pack has seed (static) or scenario (generated) |
@@ -206,7 +206,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 
 | Alias | Values |
 |---|---|
-| `SkillName` | 6 skills (strength, dexterity, wits, lore, charisma, resolve) |
+| `SkillName` | 4 skills (strength, dexterity, wits, charisma) |
 | `Difficulty` | 5 difficulty levels with modifiers in DIFFICULTY_MOD |
 | `Band` | crit_fail, fail, setback, partial, success, crit_success (1d12 natural: 1=crit_fail, 12=crit_success) |
 
@@ -231,7 +231,7 @@ pc:
   name: str
   tagline: str
   bio: str
-  stats: {strength, dexterity, wits, lore, charisma, resolve}: int (1-4 each, total 12-16)
+  stats: {strength, dexterity, wits, charisma}: int (1-4 each, total 8-12)
   conditions: list[Condition] — id-based dedup, FIFO cap 5; TTL via turns_remaining (default 10 when None)
     - id: str, label: str, description: str, added_turn: int, turns_remaining: int | None
   momentum: int                # [-3, +3], engine-computed from roll bands

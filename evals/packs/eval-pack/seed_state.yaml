@@ -15,9 +15,7 @@ pc:
     strength: 3
     dexterity: 3
     wits: 2
-    lore: 2
     charisma: 3
-    resolve: 3
   conditions: []
   momentum: 0
 
