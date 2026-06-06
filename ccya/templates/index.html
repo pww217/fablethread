@@ -164,10 +164,21 @@
                     <div class="roll-badge roll-badge--{{ r.band }}">
                         <div class="roll-header">🎲 <strong>{{ (r.skill | default('') | upper) }}</strong> &nbsp;·&nbsp; {{ r.difficulty | default('') | lower }}</div>
                         <div class="roll-math">
-                            {% if total_mod == 0 %}
-                            Roll = <strong>{{ r.final_total }}</strong>
+                            {% set mods = '' %}
+                            {% if r.stat_mod != 0 %}
+                                {% set sign = '+' if r.stat_mod > 0 else '-' %}
+                                {% set mods = mods ~ sign ~ ' ' ~ (r.stat_mod | abs) ~ ' (' ~ (r.skill | capitalize) ~ ')' %}
+                            {% endif %}
+                            {% if r.diff_mod != 0 %}
+                                {% set diff_labels = {'hard': 'Hard', 'extreme': 'Extreme'} %}
+                                {% set label = diff_labels.get(r.difficulty, r.difficulty | capitalize) %}
+                                {% set sign = '+' if r.diff_mod > 0 else '-' %}
+                                {% set mods = mods ~ sign ~ ' ' ~ (r.diff_mod | abs) ~ ' (' ~ label ~ ')' %}
+                            {% endif %}
+                            {% if mods %}
+                            Roll = {{ die_val }} {{ mods }} = <strong>{{ r.final_total }}</strong>
                             {% else %}
-                            Roll = {{ die_val }} + {{ total_mod }} = <strong>{{ r.final_total }}</strong>
+                            Roll = <strong>{{ r.final_total }}</strong>
                             {% endif %}
                         </div>
                         {% set BAND_LABELS = {
@@ -674,12 +685,18 @@ function _buildRollBadge(payload) {
     // Line 2: dice + labeled modifiers + total
     const dieVal = (payload.dice || [])[0] || 0;
     const totalMod = (payload.stat_mod || 0) + (payload.diff_mod || 0) + (payload.cond_mod || 0);
-    let parts;
-    if (totalMod === 0) {
-        parts = ['Roll = <strong>' + payload.final_total + '</strong>'];
-    } else {
-        parts = ['Roll = ' + dieVal + ' + ' + totalMod + ' = <strong>' + payload.final_total + '</strong>'];
+    const diffLabels = {hard: 'Hard', extreme: 'Extreme'};
+    let parts = ['Roll = ' + dieVal];
+    if (payload.stat_mod !== 0) {
+        const sign = payload.stat_mod > 0 ? '+' : '-';
+        parts[0] += ' ' + sign + ' ' + Math.abs(payload.stat_mod) + ' (' + (payload.skill || '').charAt(0).toUpperCase() + (payload.skill || '').slice(1) + ')';
     }
+    if (payload.diff_mod !== 0) {
+        const label = diffLabels[payload.difficulty] || (payload.difficulty || '').charAt(0).toUpperCase() + (payload.difficulty || '').slice(1);
+        const sign = payload.diff_mod > 0 ? '+' : '-';
+        parts[0] += ' ' + sign + ' ' + Math.abs(payload.diff_mod) + ' (' + label + ')';
+    }
+    parts[0] += ' = <strong>' + payload.final_total + '</strong>';
     const math = document.createElement('div');
     math.className = 'roll-math';
     math.innerHTML = parts.join(' &thinsp;·&thinsp; ');
