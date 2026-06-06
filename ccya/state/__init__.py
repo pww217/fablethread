@@ -25,6 +25,7 @@ from ccya.state.io import (
 )
 from ccya.state.npcs import (
     build_npc_alias_map,
+    strip_npcs_notes,
     touch_compendium_order,
 )
 from ccya.state.momentum import apply_momentum
@@ -47,5 +48,6 @@ __all__ = [
     "resolve_inventory_canonical_id",
     "resolve_inventory_remove_target",
     "save_state",
+    "strip_npcs_notes",
     "touch_compendium_order",
 ]

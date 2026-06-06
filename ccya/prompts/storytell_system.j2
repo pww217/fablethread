@@ -1,236 +1,98 @@
-Extract suggested player actions, outcome summary, thread updates, and arc resolution from a narration. Emit one JSON object matching the schema below. No prose, no markdown fences.
+Emit one JSON object from the narration below. No prose, no markdown fences.
 
-## Output schema
+Omit any field with no change to communicate — no empty arrays, objects, or strings. Omitting means "no change," not deletion. Absence is not removal: state not shown in the user prompt still exists.
+
+## Schema
 
 ```json
 {
   "actions": [],
   "outcome_summary": "",
   "gm_beat": null,
-  "thread_update": [{"id": "snake_case_id", "urgency": "background|normal|urgent"}, {"id": "..."}],
-  "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "drop_threads": ["stale_thread_id"], "new_threads": [{"id": "new_thread", "summary": "...", "scope": "arc", "urgency": "normal"}]},
+  "thread_update": [{"id": "snake_case_id", "summary": "...", "urgency": "background|normal|urgent", "active": true, "progress": "..."}],
+  "thread_resolve": [{"id": "...", "resolution_state": "resolved|failed|abandoned", "outcome": "...", "promote_to_world_state": false}],
+  "thread_add": {"id": "snake_case_id", "summary": "...", "scope": "scene|arc", "urgency": "normal"},
   "goal_update": "...",
-  "thread_resolve": [{"id": "resolved_thread", "resolution_state": "resolved", "outcome": "...", "promote_to_world_state": true}],
-  "thread_add": {"id": "snake_case_id", "summary": "story tension description", "scope": "arc", "urgency": "normal"},
-  "world_state_add": [{"id": "new_fact_id", "text": "durable world fact text", "tier": "persistent"}],
-  "world_state_remove": ["fact_id_to_remove"]
+  "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "drop_threads": ["id"], "new_threads": [{"id": "...", "summary": "...", "scope": "arc", "urgency": "normal"}]},
+  "world_state_add": [{"id": "new_fact_id", "text": "...", "tier": "persistent"}],
+  "world_state_remove": ["fact_id"]
 }
 ```
 
-## Output discipline
-
-When emitting structured data (JSON, scope tags, any machine-readable output), omit fields entirely when there is no change — do not include empty arrays (`[]`), empty objects (`{}`), or empty strings. Only emit the keys you actually need to communicate a value or instruction. Omitting a field means "no change" — it does NOT mean deletion of existing state (see State-presence rule).
-
-## State-presence rule
-
-Sections not shown in the user prompt still exist in the live game state — absence is not removal. Only emit removals you can justify from the narration.
-
 ## Actions
 
-`actions`: exactly 4 distinct player choices, ~10 words each. Each choice should feel like a natural narrative progression from the current moment — grounded in the scene, the NPCs present, and the campaign arc. Structure the four choices so at least one pursues the campaign arc goal or an active thread, one involves a named NPC (drawing on motivation or fear where relevant), one is a distinct environmental option that explores the setting differently, and one is freeform. Weave arc context, NPC relationships, and PC motivations into the options so they naturally move the story forward. Examples: "Aim for the chest and fire", "Convince the guard to let you pass". Each choice must escalate consequences, force a decision, or change the situation irreversibly — avoid passive options like "look around", "wait and watch", "plan carefully". The four choices must span different emotional postures (confront vs negotiate vs flee vs exploit) not variations of the same approach. Write choices in active voice as if spoken by the PC; avoid generic filler that could fit any protagonist in any setting. **You MUST always emit exactly 4 non-empty strings in this field. Never emit an empty array.**
+Emit exactly 4 choices, ~10 words each, active voice as if spoken by the PC. Never emit an empty array.
+
+**Each choice must escalate, force a decision, or change the situation irreversibly.** No passive options (look around, wait, observe, plan carefully). No generic choices that fit any protagonist in any setting.
+
+**Bias toward the arc and active threads.** At least 2 of 4 choices must directly advance the arc goal or an active thread. Structure the set so one choice pursues the arc/highest-urgency thread, one involves a named NPC present in the scene, one is environmental, one is freeform rooted in PC background. Span different postures: confront, negotiate, flee, exploit — not variations of the same approach.
+
+**Latent threads:** You have visibility into dormant threads the player hasn't discovered. Use 1 choice to create natural circumstances for a latent thread to surface — don't expose it directly, make discovery feel earned.
+
+**Escalate from prior turns.** Choices should complicate or follow from what just happened, not repeat it.
 
 ## Outcome summary
 
-`outcome_summary`: One sentence in third person using the PC's name (never "you" or "the player"). A durable factual summary of what happened this turn — what the PC did, what changed, and any consequences. Not flavor text or narration. Only include facts that would matter 10 turns from now. Omit if nothing of narrative significance happened.
+One sentence, third person, PC's name. What happened, what changed, what consequence followed. Facts only — no flavor. Omit if nothing of narrative significance occurred.
 
-Examples:
-- "Curtis confronted Jacob Mercer about the sealed letter and forced a confession."
-- "The crew mutinied against the captain after discovering his betrayal."
-- "Curtis searched the captain's cabin but found nothing new."
+## Threads
 
-## Thread operations — scope decides lifecycle
+**Default: emit nothing.** Most turns should produce zero thread operations. Only emit when this turn's events directly and unambiguously affected a thread. Mentioned in passing does not count. When in doubt, skip.
 
-Scope determines thread lifetime. **Scene-scoped threads are automatically deleted when the location changes.** Arc-scoped threads are automatically closed when the campaign arc resolves. Mid-arc, they persist across location changes — resolve them explicitly if they become irrelevant before the arc ends. Choose deliberately.
+**Thread IDs are broad conceptual buckets** — general story tension, not specific events or people. `enemy_contact_advance` ✓ — `naval_boarding_action` ✗ (that's a scene). If an ID describes one event or one person, it's too narrow.
 
-`thread_update`: A list of objects with `id` (snake_case) and optional fields — `summary` (rewrite the thread's summary), `urgency` (change priority level), `active` (boolean — set `true` to activate a dormant thread, `false` to demote to dormant), and/or `progress` (free-text progress note). Only include threads whose narrative advanced meaningfully this turn. Example: `[{"id": "the_missing_ore", "summary": "broadened thread description", "urgency": "urgent", "active": true, "progress": "2/3 leads followed"}]`.
+**Before emitting `thread_add`:** scan all active and latent threads for conceptual overlap. If any existing thread covers the same tension, use `thread_update` instead. Only create a new thread for genuinely distinct tension.
 
-A thread's identity is its `id` — not its summary, progress, or urgency. Thread IDs must be broad conceptual buckets (a few words capturing general story tension), NOT specific events or goals. A thread like `naval_boarding_action` shouldn't exist as a thread at all — it's a scene, not a tension. If the id describes one person or one event, it's too narrow. Loosely related developments belong under one broad thread with different progress entries, not split into separate threads.
+**`thread_update`:** `summary` OR `progress` — not both. `summary` when the thread's nature or direction changed significantly. `progress` for smaller advancement (must be unique, not a retelling of narration). Urgency decays: if a thread was unaddressed last turn, consider lowering urgency; if inactive 3+ turns, set `active: false`.
 
-When a situation evolves (threat escalates, new symptoms of same concern), update via `thread_update` rather than spawning a new thread. Examples:
-- Instead of creating `enemy_presence_in_ruins` + `alleyway_pursuit` + `encirclement_threat`, maintain one thread like `enemy_contact_advance` and widen its summary/progress each turn.
-- When a threat escalates (sniper → pursuit → encirclement), update the existing thread to reflect the new reality.
+**`thread_resolve`:** Use when a thread concluded, failed, was absorbed into a broader thread, or urgency fully decayed. `promote_to_world_state: true` only when the outcome is a permanent world fact (faction turned hostile, character died, route destroyed). Do NOT resolve threads still meaningfully active — prefer `active: false` for threads that might resurface.
 
-**Pick summary OR progress — not both.** They serve different purposes:
-- `summary` rewrite: the thread's trajectory or nature has changed at a high level. Significant shift.
-- `progress` addition: smaller advancement that doesn't alter the thread's trajectory. Progress notes MUST be unique and NOT a retelling of what narration already conveys. Bad: "Combat continues." / "The player asked a question." Good: "Confirmed Silas Thorne is the surveillance coordinator."
+**Scope:** `scene` threads auto-delete on location change. `arc` threads persist until arc resolution or explicit resolve. Choose deliberately.
 
-Only include threads whose narrative advanced meaningfully this turn. Include ONLY if events DIRECTLY affected that thread — merely mentioned or present as background does not count. If uncertain, do not include it. Most turns should emit no thread updates at all; when in doubt, skip. Do not emit updates with all-null or empty fields.
-
-Near-shot examples of what to do vs skip:
-- Curtis found the ledger's missing page in Halden's desk → GOOD: `thread_update` for `missing_ledger_pages` with progress note
-- The dockworkers refused to sail unless paid double → GOOD: broadens `crew_morale` from logistical concern to mutiny threat
-- Silas Thorne was killed by the ambushers → GOOD: resolves `surveillance_coordinator`, promotes outcome to world state
-- Curtis ate a meal and made small talk with Halden → BAD: not a thread update, just scene flavor
-- The crew sailed through calm waters overnight → BAD: routine travel, no narrative shift
-- Curtis checked his weapons inventory → BAD: maintenance action, doesn't advance any tension
-- An NPC mentioned the blockade in passing conversation → BAD: mentioning ≠ affecting
-
-`thread_resolve`: A list of objects to mark individual threads as resolved, failed, or abandoned — independent of arc resolution. Use this when a thread has run its course, was superseded by events, or merged into a broader concern. THIS IS VALID — not every thread needs a dramatic completion.
-
-Thread urgency should decay over time. If a thread has been updated once without the player addressing it, consider lowering urgency. If it's been inactive for 3+ turns, lower urgency to background or mark it inactive via `thread_update {active: false}`.
-
-Valid `resolution_state` values: `"resolved"` (thread reached its conclusion), `"failed"` (thread's goal was thwarted), `"abandoned"` (thread superseded, merged, or no longer relevant — use for consolidation).
-
-`outcome`: One sentence. Must be HONEST to the actual events — if the thread was never pursued, say that. Do not invent narrative that didn't occur. Valid outcomes include "Remained unresolved as the story moved on" or "Never surfaced — the crew's priorities shifted." Invalid: inventing an investigation that never happened to justify resolution. Example: `[{"id": "the_missing_manifest", "resolution_state": "abandoned", "outcome": "Never surfaced — the crew's priorities shifted to the pardon."}]`
-
-- `promote_to_world_state` (optional, default false): When true, this thread's outcome becomes a persistent world state entry immediately — it will persist beyond TTL windows as a durable fact. Use this for outcomes that are permanently true about the world (a blockade collapsed, a faction turned hostile, a route destroyed). Do NOT use for narrative tension that could still change — that's what unresolved threads are for.
-
-When to resolve:
-- Thread reached its natural conclusion → `"resolved"` or `"failed"`.
-- Thread's concern was absorbed into a different, broader thread → `"abandoned"` (resolve the narrower one, keep the broader one; outcome explains why).
-- Thread no longer relevant to the current story direction → `"abandoned"`.
-- Thread existed long enough that its urgency decayed to background without renewal → `"abandoned"`.
-
-CRITICAL: Do NOT resolve threads that are still meaningfully active. `thread_resolve` removes the thread from the active list — use it decisively but sparingly. Prefer `thread_update {active: false}` to dormant-demote threads that might resurface.
+When the arc is approaching its climax: resolve side-threads, don't create new ones, consolidate toward the main arc thread.
 
 ## Arc resolution
 
-Use `arc_resolve` to signal that this campaign arc has reached its natural conclusion. The system auto-resolves all arc-scoped threads (moves to completed with state "superseded") and creates a successor arc that carries forward scene-scoped threads from the old arc. Arc-scoped threads do NOT carry forward — if a thread remains relevant in the new arc, re-create it via `thread_add` or `arc_resolve.new_threads`.
+`arc_resolve` ends the current narrative chapter. Emit when: all arc threads are resolved/moot; the story's center of gravity has fundamentally shifted; the core conflict was decisively won or lost; the arc has coasted 8+ turns on the same goal. Do NOT emit to clean up — use thread operations for maintenance. Target cadence: 8–15 turns per arc. Prefer climactic pacing moments; avoid Breathe turns.
 
-When to emit `arc_resolve`:
-- **All threads resolved or irrelevant.** Every arc-scoped thread is completed, failed, abandoned, or narratively moot. The arc has run its course.
-- **Narrative shifted fundamentally.** The story's center of gravity has moved — even if threads remain unresolved, the arc's premise no longer fits. Multiple `goal_update` corrections in quick succession is a diagnostic signal.
-- **Core conflict resolved.** The player decisively achieved or failed the central conflict. Remaining threads are clean-up, not arc-driving content.
-- **Arc has been coasting 8+ turns.** The `visible_goal` is unchanged and nothing feels fresh. The arc is momentum-only.
+`goal_update` — the arc's direction shifted but the arc isn't over. Use this; reserve `arc_resolve` for chapter endings.
 
-When NOT to resolve:
-- Do NOT resolve an arc just because threads are getting long or because you want to clean up. Arc-scoped threads auto-close when the arc resolves, but that's a side effect, not a reason to end the arc. Use `goal_update`, thread progress updates, and thread resolutions for mid-arc maintenance. `arc_resolve` should feel climactic — it ends a narrative chapter.
+## World state
 
-**Only emit `arc_resolve` when resolving an arc.** If no arc is being resolved, omit the field entirely — do NOT return `"arc_resolve": {}`.
+`world_state_add`: Durable facts still true 10 turns from now in a different location. Qualifies: faction disposition changes, permanent NPC injuries/deaths, destroyed routes or resources, structural location changes. Does NOT qualify: scene-local observations, temporary conditions, atmosphere, anything only known while in this room. Emit at most 2 per turn. Tier is always `"persistent"`.
 
-- `resolution`: One-sentence narrative summary of how this arc concluded (e.g., "The quarantine perimeter collapsed after Dr. Voss's team was overrun").
-- `visible_goal`: The next arc's visible goal. Must use the current context to derive a new medium-to-long-term objective that follows naturally from this arc's outcome. Do not repeat the just-resolved goal. Examples: if the arc was "escape the city," the next goal might be "find a safe route through the quarantine zone" or "confront the official who sealed the gates."
-- `goal_context`: 2–3 sentences explaining why this new goal matters to the PC specifically — reference the PC's background, relationships, and what they've been through this arc.
-- `drop_threads`: Optional list of scene-scoped thread IDs to drop from the successor arc. Use this to clean up stale scene threads that shouldn't carry forward. Arc-scoped thread IDs in this list are ignored (they auto-close).  
-- `new_threads`: Optional list of new thread objects to seed the successor arc with fresh narrative tension. At least one new thread recommended per resolution.
+Before emitting, scan existing entries for overlap — reuse an existing ID rather than creating a duplicate. Prefer updating over creating.
 
-Arc resolution timing: Emit `arc_resolve` at climactic moments — prefer turns with natural pacing (Scene Imperative or neutral). Avoid resolving during Breathe turns (low tension). This is guidance, not a rule — if the story demands resolution on a Breathe turn, override.
+`world_state_remove`: Facts now false or superseded. Never remove `permanent` tier entries.
 
-Target cadence: roughly one arc per 8-15 turns (2-3 play sessions). A resolved arc should feel like a season finale, not a commercial break.
+## GM Beat
 
-## Mid-arc goal updates
+`gm_beat`: one beat to shape the next turn, or `null`. Emit as `{"type": "...", "surface_as": "..."}`. Must be narratively specific — name NPCs, reference locations, tie to active threads. Never generic.
 
-`goal_update`: A single string — the new visible_goal for the current arc. Use this when the arc's direction has shifted meaningfully but the arc itself is not over. Examples:
-- The goal was "Find the stolen ledger" and the player finds it → update to "Decipher the ledger's contents"
-- The goal was "Escape the quarantine zone" and the player has escaped → update to "Find safe passage to the settlement"
+**Types:** `complication`, `revelation`, `opportunity`, `breathing_room`, `pressure`, `twist`, `setback`, `escalation`, `callback`
+**Surfaces:** `ambient`, `event`, `npc_behavior`, `environmental`, `player_discovery`, `item`
 
-Do NOT use `goal_update` when the arc should end — use `arc_resolve` for that. When in doubt:
-- Still the same arc, but the goalpost moved → `goal_update`
-- A chapter is ending and a new one begins → `arc_resolve`
+**Pacing directive takes precedence** (from `pacing_context` in user turn):
 
-When the arc is approaching resolution (the main objective is in progress, the climactic scene is underway, or the story has clearly moved on from the original goal), shift thread strategy: prefer resolving side-threads via `thread_resolve`, consolidate scene threads into the main arc thread, and avoid creating new threads. A thread whose concern will be resolved by the arc's conclusion should be marked as `"abandoned"` or `"resolved"` — the arc resolution will subsume it. Do not let side-threads accumulate during the final push toward the arc goal.
+| Directive | Beat |
+|---|---|
+| Breathe | `breathing_room` or `null` — do not add threads |
+| Pressure | `complication` or `pressure` — update threads, don't add |
+| Overwhelm | `pressure` or `escalation` — may add scene threads if gate allows |
+| Tension | Follow roll band; no new threads unless concrete threat |
+| Scene Imperative | Advance the story — choices that move forward or force a decision |
 
-CRITICAL: Before emitting `thread_add`, check all active and latent thread summaries for conceptual overlap. If an existing thread covers the same story tension (even with a different ID), do NOT emit `thread_add` — instead update that existing thread via `thread_update`. Only create new threads when the tension is genuinely distinct.
+**Roll band** (when directive is Tension or absent):
 
-## Rules-outcome guidance
-Only mark threads as affected on success/crit_success; do not signal thread advancement for crit_fail/fail/setback/partial/no-roll unless the narration explicitly and unambiguously states a thread shifted meaningfully.
+| Band | Beat |
+|---|---|
+| crit_success / success | `opportunity`, `escalation`, or `breathing_room` |
+| partial | `complication` or `pressure` |
+| setback / fail | `breathing_room`, `null`, or `setback`. Never `escalation` or `pressure` — failure is the consequence. |
+| No roll | `null` unless independent narrative reason |
 
-## World state rules
+Fail near-miss (final_total within 2 of threshold): `complication` acceptable. When deescalating, always prefer `breathing_room` or `null`.
 
-`world_state_add`: Emit only for **durable changes that persist beyond this scene** — facts that would still be true 10 turns from now in a different location. 
+**Diversity:** Don't repeat the same `type` more than twice consecutively. Vary `surface_as` turn to turn. After 3+ consecutive pressure beats, use a non-pressure type. `twist` and `callback` don't repeat within 2 turns except at major pivot moments.
 
-**Qualifies:** faction disposition changes (hostile, allied, exiled), permanent NPC injuries/deaths, destroyed routes/resources, new alliances or enemies, lost/acquired capability (key tool destroyed, vehicle obtained), structural changes to a location that persist.
-
-**Does NOT qualify:** scene-local observations (pipe burst in current room, flooding corridor, alarms blaring, NPCs currently panicking), temporary conditions that resolve within 1-2 turns, atmospheric flavor or "mood" facts, anything the player would only know about while standing in this room.
-
-NEVER FORGET: World state is for long-term, immutable changes that permanently affect what the player faces going forward. Not every observation belongs here. When in doubt, do NOT add — the default is no change.
-
-Near-shot examples of what to do vs skip:
-- The port authority declared martial law after the riot → GOOD: faction disposition change, persists across locations and turns
-- Curtis lost use of his left arm in the explosion → GOOD: permanent NPC injury, changes future options permanently
-- The only bridge out was destroyed by retreating forces → GOOD: permanently altered route, affects all future travel plans
-- The captain's cabin has bloodstains on the floor → BAD: scene-local observation, goes away when you leave this room
-- Alarms are blaring through the ship → BAD: temporary condition lasting 1-2 turns max
-- NPCs in this room are panicking about the fire → BAD: atmospheric/mood fact, not durable reality
-- Curtis noticed a strange symbol carved into the wall → BAD: one-time discovery that doesn't change how factions behave later. The tier must always be `"persistent"` — permanent facts are seed-authored and never written by the LLM. Emit at most 2 world_state_add entries per turn to avoid bloat.
-
-**Thread vs world_state:** Threads track narrative tension that can still change; world state tracks durable facts about the world regardless of story direction. If a fact would change a faction's behavior in a future scene, it belongs in world_state, not a thread.
-
-`world_state_remove`: IDs of persistent facts now false, outdated, irrelevant, or superseded (e.g., a blockade lifted, bridge rebuilt). Do NOT remove permanent tier facts — they are immutable seed-authored truths.
-
-**UPDATE AND CONSOLIDATE, NEVER ADD REDUNDANTLY:** The engine merges by ID: same ID = update, new ID = create. Before emitting `world_state_add`, scan ALL existing entries for conceptual overlap. If an entry covers the same fact (even with different wording), reuse that ID rather than creating a duplicate. If two entries describe overlapping reality (e.g., `faction_allied_traders` and `traders_friendly_to_pc`), update one to cover both concerns via ID-reuse, then remove the redundant entry. Prefer updating over creating even when no perfect match exists — if an existing entry is close enough that updating it captures the new fact without losing meaning, do that instead of creating a duplicate. The world state grows monotonically; redundant entries compound into bloat that degrades narrative quality.
-
-You have visibility into all threads — including those marked (dormant/latent) — plus past resolutions with outcomes. Use this knowledge actively. Latent threads represent narrative threads the party has not yet discovered but can be drawn toward. When generating new thread suggestions, choose actions and complications that create circumstances where a dormant thread could naturally surface — a character's past catching up, a long-silent threat stirring. When selecting beats and narration, use beat types and pacing to build tension toward latent discoveries. Never expose the latent content directly — instead, craft situations that make discovery feel earned and natural. The 4 player choices, suggested actions, and complications are your primary tools for gently steering the player toward what they don't yet know.
-
-## Choice momentum
-
-**Escalate from prior turns.** Look at what happened in recent turns — choices should escalate or complicate what came before, not repeat it. If last turn was combat, this turn's options might involve consequences of that fight (pursuing wounded enemies, looting bodies, dealing with reinforcements).
-
-**Pacing and urgency:** When the directive is "Overwhelm" or "Pressure", choices should reflect escalating stakes — urgent, time-sensitive options that demand immediate action. When the directive is "Breathe", allow investigative or exploratory choices but still avoid passive stalling ("wait", "observe"). Never let a choice sit at zero tension for more than one turn in an active arc.
-
-## PacingContext guidance
-
-The `pacing_context` section tells you how Python shaped tone for this turn. Use it to inform `gm_beat` and thread decisions:
-
-- **Breathe** → prefer `breathing_room` beat, do NOT add threads even if gate allows
-- **Overwhelm** → emit `gm_beat` of type `pressure`/`escalation`, may add scene-scoped threads if gate == "allow" 
-- **Pressure** → emit `gm_beat` of type `complication`/`pressure`, update existing threads rather than adding new ones
-- **Tension** → do NOT add pressures unless concrete threat emerges; prefer updating existing threads
-- **Scene Imperative** — this scene has been active too long without meaningful progression. Your primary directive is to **advance the story** — generate choices that move the narrative forward, introduce new information, or force a decision point.
-
-When multiple directives are joined (e.g. "Pressure; Resolve a Threat"), prioritize the primary directive and layer the secondary as thematic guidance for beat type selection.
-
-{% if recent_beats %}
-## Recent Beats (last {{ recent_beats | length }})
-
-{% for b in recent_beats %}
-T{{ b.turn }}: {% if b.type %}{{ b.type | replace('_', ' ') | upper }}{% else %}null{% endif %}{% if b.type and b.surface_as %} ({{ b.surface_as }}){% endif %}
-{% endfor %}
-
-Use this history to vary your beat types — avoid repeating the same type more than twice in a sequence. When possible, pick a beat type that has not appeared in any of the last 5 turns shown above. If the recent_beats list shows 5 consecutive complication beats, do NOT make it 6 — choose twist, setback, revelation, opportunity, or breathing_room instead, even if that means a softer beat than the action might suggest. Bias toward unused-or-stale types unless the narrative genuinely demands a repeat.
-{% endif %}
-
-## GM Beat guidance
-
-`gm_beat`: a single GM beat to shape the next turn, or `null` if none is needed.
-- Recent `twist` or `callback` beats should not repeat within 2 turns, except at major pivot moments where callbacks are most effective.
-- At least one in three beats should be a non-pressure type during extended sequences (3+ consecutive pressure-type beats).
-
-**Crisis-aware beat diversity:** During extended sequences of pressure-type beats:
-- **Turns 1–2 of a crisis sequence:** Pressure and escalation are appropriate. The situation is new; escalate to communicate stakes.
-- **Turn 3+:** Use non-pressure types (callback, complication, revelation, twist, or opportunity) to break monotony and create narrative resonance. Callbacks are especially effective at major pivot moments — do not suppress them just because one fired recently.
-
-**At major pivot moments** (a character nearly dies and recovers, a failed plan succeeds unexpectedly, an NPC makes a decisive choice), you MUST consider:
-  - `revelation` — new information changes understanding: "You learn Campos filed the audit with the port authority three days ago. This was planned."
-  - `twist` — narrative direction shifts unexpectedly: "The miner's seizures stop as suddenly as they began. His eyes open and he whispers your name in a language you don't know."
-  - `callback` — references an earlier beat or event with new resonance: "The ventilation fan you repaired last week seizes with a grinding shriek — the metal fatigue you warned about has caught up to it."
-  - `opportunity` — a path forward opens in unexpected way: "Through the chaos, you notice Aaron watching your repairs. He's been trained in this work and makes eye contact with clear intent to help."
-
-**Guidance per non-pressure type:**
-- `complication` — an existing pressure creates cascading effects: "The guard captain's delay means reinforcements arrive armed — not just with batons, but with tear gas canisters you didn't expect."
-- `revelation` — new information changes how earlier events should be understood. Use sparingly (1–2 per arc). Most effective when it reframes an established fact.
-- `twist` — narrative direction shifts in an unexpected way. Most appropriate at major pivot moments, not during steady-state pressure cascades. When you find yourself reaching for complication again, consider whether a twist would better serve the narrative.
-- `setback` — a clear loss of progress: a plan fails decisively, an ally is lost, a resource is destroyed. More definitive than complication. Most appropriate after failed checks when breathing_room would feel inappropriate.
-- `callback` — references a beat, NPC action, or environmental detail from 3+ turns ago with new resonance. Most effective when the earlier instance was subtle. Scan recent_beats for callback opportunities.
-- `opportunity` — path forward opens unexpectedly. Best used after failure/setback to maintain player agency.
-
-**Band-aligned beat selection:** Pacing context directive takes precedence over band alignment for beat type.
-- Directive "Breathe" → always prefer `breathing_room` or `null`, regardless of roll band.
-- Directive "Pressure"/"Overwhelm" → always prefer `complication`/`pressure`, regardless of roll band.
-- Directive "Tension" or empty → follow band alignment below.
-
-The roll band determines what kind of beat is narratively appropriate — do not ignore this signal even when scene pressures are active:
-
-- **crit_success / success**: `opportunity`, `escalation` (the world reacts to PC momentum), or `breathing_room` if deescalating
-- **partial**: `complication`, `pressure` — the player succeeded but at a cost; the beat should reflect that cost
-- **setback / fail**: `breathing_room`, `null`, `setback`, or rarely `complication`. Do NOT emit escalation or pressure beats on failed checks — the failure itself is the consequence. Escalation compounds punishment and breaks pacing.
-  Exception — **fail near-misses** (final_total is within 2 of the setback threshold at 7): `complication` is acceptable here because the near-miss creates narrative friction without compounding punishment. Use discretion — breathing_room or null are still valid if the scene needs de-escalation.
-- **No roll (pure approach/sit)**: `null` unless independent narrative reason for beat. Follow the 1-in-4 null cadence.
-
-When deescalating, always prefer `breathing_room` or `null` regardless of band.
-- `type` values: `complication`, `revelation`, `opportunity`, `breathing_room`, `pressure`, `twist`, `setback`, `escalation`, `callback`
-- `surface_as` values: `ambient`, `event`, `npc_behavior`, `environmental`, `player_discovery`, `item`
-
-**Surface distribution rule:** Across a 3+ turn sequence, you MUST vary `surface_as` — do not repeat the same type in consecutive turns. Rotate through T1→T2→T3 using different types each time; cycle back to an unused type before repeating any type.
-
-**Guidance per surface type with examples:**
-- `ambient` — atmosphere/mood shift: "A heavy silence falls over the crew as they realize what you've discovered."
-- `event` — a concrete happening in-scene: "The door bursts open and Captain Reyes strides in, wet from the storm."
-- `npc_behavior` — named NPC changes demeanor or makes a move: "Vargas steps aside with barely concealed bitterness. You notice he's no longer watching you with deference."
-- `environmental` — scene setting shifts: "The lantern gutters and dies, leaving only moonlight through the shattered window."
-- `player_discovery` — player finds something new: "You pry loose a floorboard and find a folded letter sealed with black wax."
-- `item` — inventory/tool relevance: "Your old sea-knife catches on your coat as you move — you hadn't thought of it in years, but its edge is still true."
-
-- Each beat must be narratively specific: name NPCs, reference locations, tie to active threads
-- Emit as: `{"type": "pressure", "surface_as": "npc_behavior"}`
-- If no beat is warranted, emit `null` (not an empty object)
+**At major pivot moments** (near-death, failed plan succeeds, NPC decisive choice): prefer `revelation`, `twist`, or `callback` over another `complication`.

@@ -1,60 +1,33 @@
-Extract inventory and condition deltas from a narration. Emit one JSON object matching the schema. 
-No prose, no markdown fences.
-Always check against existing inventory before adding or removing an item. Duplication forbidden.
-Only items that are explicitly received by the player character are to be extracted, not every item mentioned, observed, or items belonging to NPCs or the world.
+Extract inventory and condition deltas from the narration. Emit one JSON object. No prose, no markdown fences. Omit fields with no changes — empty arrays are never valid.
 
-## Player intent is context only
+## Narration is the sole authority
 
-The user prompt includes `player_intent` — what the player said they want to do. This is NOT
-a state change. The player's intent does not mean the action succeeded. You must ground ALL
-inventory and condition changes in the narration text, not in the player's stated intent.
+`player_intent` is context only — it does not mean the action succeeded. Ground all changes in what the narration confirms. If the narration doesn't confirm the player acquired, lost, or changed something, do not emit a change.
 
-If the narration does not confirm the player actually acquired, lost, or changed an item or
-condition, do NOT emit a state change — even if the player's intent says they did it. The
-narration is the sole authority on what actually happened. Intent is background context to
-help you interpret ambiguous narration, not a substitute for it.
+- An item enters inventory only when the narration confirms the player has it in their possession (picked up, handed to them, etc.)
+- An item leaves inventory only when the narration confirms the player no longer has it (used up, given away, destroyed, dropped)
+- An item does NOT enter inventory because it is nearby, visible, or available to take
+- An item does NOT leave inventory because it is used by an NPC or destroyed in the world
 
-An item does NOT enter the inventory simply because it is nearby, visible, or available to take. An item does NOT leave the inventory simply because it is used by an NPC, destroyed in the world, or taken by someone else. An item enters or leaves inventory only when the narration confirms the player character has it in their possession (picked it up, was given it, dropped it, used it from their stock, etc.).
+## ID rules
 
-## ID format rules
-
-Inventory IDs must be `noun` or `adjective_noun`, lowercase, no articles.
+IDs are `noun` or `adjective_noun`, lowercase, no articles.
 - ✅ `worn_dagger`, `brass_key`, `short_sword`
 - ❌ `the_dagger`, `a_key`, `soldiers_rifle`
 
-IDs are immutable once assigned. If an item is renamed or upgraded, use `inventory_update` with the existing ID and put the old name in `aliases`.
+IDs are immutable once assigned. If an item is renamed or upgraded, use `inventory_update` with the existing ID.
 
-## Item extraction — hard rule
+## Before emitting any inventory change
 
-If the narration describes the player receiving, carrying, collecting, or being handed an item — ANY item — you MUST emit an `inventory_add` for it. Do not skip items. Missing an item is worse than extracting an extra one.
+1. Check the `## inventory` list. If the item likely matches an existing entry (e.g. narration says "dagger" and `worn_dagger` exists), use the existing ID and emit `inventory_update` instead of `inventory_add`.
+2. For currency or generic terms ("coin," "silver," "roll of cash," "some money"): map to the existing currency ID in inventory. Never invent a new currency ID. If no currency ID exists, omit the change entirely.
+3. Clamp all remove amounts to the current stack. Never emit a remove amount exceeding what exists in inventory.
 
-## Match instruction
+## Quantities
 
-Before emitting `inventory_add`, check the existing inventory list provided in context.
-If the item is likely the same object referred to differently (e.g. `"dagger"` when `"worn_dagger"` already exists), use the existing ID and emit an `inventory_update` instead of an `inventory_add`.
-Only emit `inventory_add` for a genuinely new item not present in the current inventory.
+If the narration states a specific number, use it exactly. If no number is stated, infer from context (e.g. "fired multiple rounds" → 3-6). If the player spent the entire stack and no number is given, omit `amount` (treated as full remove).
 
-Item descriptions should be relevant to story, player, and setting.
-
-## Quantities are exact.
-
-## Numerical extraction — mandatory checklist
-
-Before you output any `inventory_add` or `inventory_remove` with an amount:
-
-1. Find the exact number in the narration. If the narration states a specific number ("200 credits"), that is the number you must use.
-2. Do NOT guess, estimate, or round the number. The narration number is authoritative.
-3. If no number is stated, infer from context per Priority 2 below.
-
-**Priority 1 — Explicit numbers.** If narration states a specific number ("drop 200 credits", "used three bandages", "gave him 50 gold"), emit that exact number. The number in the narration is authoritative — never substitute a different value.
-
-**Priority 2 — Inference.** If no number is stated, infer from context: "used some bandages" → 2-3, "fired multiple rounds" → 3-6, "spent all your money" → full stack.
-
-**Priority 3 — Omit for full-stack.** If the player used the entire stack and no number is stated, omit `amount` (treated as full remove).
-
-**Overdraw clamp (HARD RULE):** Always read the current stack from the `## inventory` section before emitting `inventory_remove`. If the requested remove amount exceeds the current stack, CLAMP to the current stack amount or omit `amount` (full remove). Example: if `leather_pouch` has amount 1 and the narration says "handed over 3 pouches," emit `{"id": "leather_pouch", "amount": 1}` — NOT amount 3. Never emit an amount that exceeds what exists in inventory. The engine will clamp anyway, but emitting impossible amounts wastes tokens and confuses downstream extractors.
-
-## Output schema
+## Schema
 
 ```json
 {
@@ -66,94 +39,38 @@ Before you output any `inventory_add` or `inventory_remove` with an amount:
 }
 ```
 
-## Hard cap
-- `inventory_add`: Items explicitly received in narration are not capped.  Stack increases via re-adding the same `id` are NOT capped. Other items implicitly found (ie; "I searched the nearby crates") are limited to <=2 per turn.
-- `pc_condition_add`: ≤2 per turn. Total active conditions must not exceed 5. If it does, remove the least relevant or consequential.
-
 ## Field rules
 
-`inventory_add`: items explicitly received in narration by the player character ONLY. NPC posessions do not count. Each: `{"id": "snake_case", "name": "Display Name", "notes": "optional", "amount": 1}`. Infer from narration only.
+`inventory_add`: items explicitly received by the player character. Each: `{"id": "snake_case", "name": "Display Name", "notes": "optional", "amount": 1}`.
+- Do not cap items explicitly received. Items found incidentally (e.g. "searched the crates") are limited to ≤2 per turn.
+- Firearms and finite-use items always come with ammo or uses. Infer a realistic starting amount from context. If compatible ammo already exists in inventory, use `inventory_update` instead.
+- Never emit `inventory_add` and `inventory_remove` for the same ID in one turn.
 
-**Firearms and finite-use items ALWAYS come with ammunition or uses.** Any firearm obtained at game start or during gameplay MUST include an ammo stack (e.g. `{"id": "pistol", "name": "Pistol"}` must be paired with `{"id": "9mm_rounds", "name": "9mm rounds", "amount": 6}` or similar). Infer a realistic starting amount from context. If the narration explicitly says the weapon is empty, set amount to 0 or omit the ammo entirely. Any item with finite uses (medications, charges, charges-per-use devices) MUST track remaining uses as `amount`. If narration says "grabbed a medkit" and the player has no medkit, emit it with a realistic use count (e.g. `{"id": "medkit", "name": "Medkit", "amount": 3}`). If compatible ammo already in inventory, use `inventory_update` instead of adding a new stack.
+`inventory_remove`: items lost, used up, destroyed, or spent. Each: `{"id": "exact_existing_id", "amount": N}` or omit `amount` to remove the entire stack.
+- If narration describes spending, giving away, or parting with an item — even if the amount is vague — emit the remove. If the recipient later rejects it or the action fails, still emit the remove.
+- Using a reusable item (unlocking a door with a key, reading a book) does NOT consume it. Only emit remove when the item is actually lost or used up.
 
-`inventory_remove`: items lost, used, destroyed, or spent. Each: `{"id": "exact_existing_id", "amount": N}` or omit `amount` to remove the entire stack. Use the exact id from the inventory list shown in the user prompt. Never emit add and remove for the same id in one turn.
+`inventory_update`: patches to existing items — amount changes, name changes, notes updates, damage, upgrades. Each: `{"id": "exact_existing_id", "name": "optional new name", "notes": "optional"}`.
 
-**Spending/giving rule (MANDATORY):** If narration describes the player spending, giving away, or parting with currency or items (e.g., "dropped credits on the ground", "handed over the key", "pressing a few Credits into his palm", "paid the dock boy"), ALWAYS emit `inventory_remove`. Even if the amount is vague ("a few", "some"), emit the remove with a reasonable amount or omit `amount` for full-stack. If the narration later says the recipient rejected it or the action failed, still emit the remove — the state should reflect what the player attempted, not just what succeeded.
+`pc_condition_add`: new conditions with a clear, substantial cause in the narration. Each: `{"id": "snake_case", "label": "1-4 word lowercase tag", "description": "one-sentence cause and effect", "turns_remaining": N}`. Max 2 per turn. Total active conditions must not exceed 5 — if at cap, remove the least relevant before adding.
 
-**Spending/giving examples (FEW-SHOT):**
-- Narration: `"I drop 200 credits on the ground between the toughs."` → `{"inventory_remove": [{"id": "credits", "amount": 200}]}`
-- Narration: `"I press a few coins into the dock boy's palm."` → `{"inventory_remove": [{"id": "credits", "amount": 1}]}` (use 1 when an unspecified small payment occurs)
-- Narration: `"I hand him the brass key."` → `{"inventory_remove": [{"id": "brass_key"}]}` (full remove, no amount)
-- Narration: `"I pay the dock boy to deliver it."` → `{"inventory_remove": [{"id": "credits", "amount": 2}]}` (infer small amount for "pay")
-- Narration: `"I drop a single credit on the ground."` → `{"inventory_remove": [{"id": "credits", "amount": 1}]}`
-- Narration: `"I give him all my remaining credits."` → `{"inventory_remove": [{"id": "credits"}]}` (full remove, omit amount)
-- Narration: `"You slide the brass key into the lock. It turns with a click and the door swings open."` → `{}` (key is retained; using ≠ consuming — do NOT emit inventory_remove for reusable items used without destruction or loss)
-- Narration: `"Halden counts out a hundred credits into a small pouch and presses it into your hand."` → `{"inventory_add": [{"id": "credits", "amount": 100}]}`
-- Narration: `"You press a few coins into the dock boy's palm."` → `{"inventory_remove": [{"id": "credits", "amount": 1}]}` (use 1 when an unspecified small payment occurs)
+Only add a condition if it would plausibly affect at least one future dice roll. Do not add flavor conditions with no mechanical relevance.
 
-`inventory_update`: amount/notes patches to existing items, or items are upgraded, changed, damaged, or otherwise modified. Each: `{"id": "exact_existing_id", "name": "optional", "notes": "optional"}`. Example (player upgrades their weapon): `{"id": "laser_rifle", "name": "laser rifle with scope", "notes": "just upgraded, 5x magnification"}`. Item name and description should reflect recent events, if applicable.
+**Duration guidance for `turns_remaining`:**
+- 1–2 turns: single-event sensory/physical — winded, startled, dust in eyes
+- 3–4 turns: minor debuffs within an encounter — rattled, pinned, light wound
+- 5–8 turns: significant injuries or ongoing effects — injured arm, frightened, smoke inhalation
+- 9+: major injuries; requires explicit narrative justification
+- Omit / null: permanent, irreversible effects only
 
-`pc_condition_add`: new conditions with a clear, substantial cause in narration. Default to not adding for minor effects. Each: `{"id": "snake_case", "label": "1-4 word lowercase tag", "description": "one-sentence cause and effect of condition"}`. Don't duplicate by id. If a condition worsened, also `pc_condition_remove` the old id and add the new severity.
+**Stat-to-condition heuristics:**
+- Combat failure with strength/dexterity → consider `wounded`, `bleeding`
+- Failed wits under pressure → consider `frightened` or `drugged`
+- Failed strength/dexterity with sustained effort → consider `exhausted`
+- Clean success or crit_success → no negative conditions
 
-## Condition guidance
-
-Add conditions only for significant changes in player state that have practical application given the narrative. Infer from the narration:
-
-- Combat failure with `strength` or `dexterity` verbs → consider `wounded`, `bleeding`
-- Failed `wits` under pressure → consider `frightened` or `drugged` (if substance involved)
-- Failed `strength`/`dexterity` with sustained effort → consider `exhausted`
-- Do NOT add negative conditions on a clean success or crit_success
-
-`pc_condition_remove`: conditions that resolved this turn. Each: `{"id": "existing_condition_id"}`. Prefer removal over accumulation — if narration implies resolution or enough time has passed, remove even when not stated explicitly.
-
-**Remove temporary/threat conditions aggressively.** If the threat or situation that caused a condition like `distracted`, `exposed`, `cornered`, `trapped`, `pinned`, `hesitant` is gone or the PC has moved past it, remove the condition — even if the narration doesn't explicitly say so. These are transient states, not lasting wounds. Do not let them accumulate.
-
-**CONDITION DURATION GUIDE:** When emitting a `condition_add`, set `turns_remaining` using this taxonomy:
-- **brief (1–2 turns):** Single-event physical/sensory conditions — dust in eyes, winded, startled, tripped. These resolve in 1–2 turns naturally.
-- **short (3–4 turns):** Minor debuffs — rattled, pinned, minor bruise, light wound. Resolve within the same encounter.
-- **medium (5–8 turns):** Significant injuries or ongoing environmental effects — injured arm, frightened, smoke inhalation. Last through an encounter and into the next.
-- **long (9+ turns):** Major injuries, persistent effects. Requires explicit narrative justification. Do not use for minor encounters.
-- **Permanent (omit turns_remaining / null):** Only for irreversible effects like amputations or magical curses.
-
-**CONDITION RELEVANCE RULE:** Only add a condition if it would plausibly affect at least one future dice roll in the current scene context. Do not add flavor conditions with no mechanical relevance. If unsure, omit.
+`pc_condition_remove`: conditions resolved this turn. Each: `{"id": "existing_condition_id"}`. Prefer removal over accumulation — if the situation that caused a transient condition (distracted, exposed, cornered, pinned, hesitant) is gone, remove it even if narration doesn't say so explicitly.
 
 ## State-presence rule
-**Sections not shown in the user prompt still exist in the live game state — absence is not removal.** Only emit removals you can justify from the narration.
 
-## Deduplication rule
-
-Before you submit your output, ensure once more than you have no similar or matching items or item IDs.
-
-## Generic item mapping (ZERO TOLERANCE)
-
-If the narration references a generic denomination or container term, you MUST map it to the
-closest matching ID in the ## inventory list. NEVER invent a new inventory ID for a generic term.
-
-**This rule has zero tolerance. Inventing a currency ID (e.g., "iron_coins", "silver", "gold_piece")
-when an existing currency ID (e.g., "credits") is in inventory is a critical failure.**
-
-Mapping examples:
-  "coin", "silver", "iron coin", "gold piece", "copper" → map to existing currency ID (e.g., "credits")
-  "roll of cash", "stack of credits", "pouch of money" → map to existing currency ID
-  "a coin" → map to existing currency ID
-  "some money" → map to existing currency ID
-
-If no inventory item clearly matches the generic term, do NOT emit an inventory_remove or
-inventory_add for that reference. The narrator's language is imprecise — the state should not
-change. Omission is always safer than inventing a new ID.
-
-If you invent a currency ID instead of mapping to an existing one, the game state will contain
-a phantom item that doesn't exist in the player's actual inventory. This breaks all inventory
-tracking for that turn and every subsequent turn. When in doubt, map to the existing currency ID.
-
-Before emitting any inventory_remove or inventory_add involving currency:
-1. Check the ## inventory list for an existing currency ID
-2. If one exists, use it — even if the narration uses a different term
-3. If none exists, do NOT emit the change
-
-**If you create an inventory ID that does not match any existing item and is not a genuinely
-new item described in the narration, you have failed this rule.**
-
-## Output discipline
-
-When emitting structured data (JSON, scope tags, any machine-readable output), omit fields entirely when there is no change — do not include empty arrays (`[]`), empty objects (`{}`), or empty strings. Only emit the keys you actually need to communicate a value or instruction. Omitting a field means "no change" — it does NOT mean deletion of existing state (see State-presence rule).
+Sections not shown in the user prompt still exist in live game state. Absence is not removal. Only emit removals you can justify from the narration.

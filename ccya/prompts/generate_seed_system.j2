@@ -1,95 +1,29 @@
-Generate a fresh playthrough as a SeedEnvelope JSON. Emit only the JSON, wrapped in a ```json code block.
+Generate a SeedEnvelope JSON for a new playthrough. Wrap your entire response in a single ```json code block. No text before or after the block.
 
 ## Absolute rules
-- World facts in the World Bible (user prompt) are non-negotiable canon. Never contradict them.
-- Player overrides are authoritative for PC identity (name, stats, concept) and strongly preferred for arc direction, NPCs, and location. Honor them unless they directly contradict world facts or canon. If a player specifies a character concept, build around it — don't generate a contrasting concept.
-- Inspiration prose is quality guidance, not a menu. Don't borrow phrasing or pick the first idea it suggests.
-- Avoid the obvious scenario; avoid clichés. Specific and mundane beats generic and dramatic.
-- Names: pick from the name pool the user prompt provides; favor names that fit the genre, role, and culture, mixing linguistic origins.
-- ALL names (PC name, NPC names, location names, inventory item names) must use ONLY ASCII/Latin characters (a-z, A-Z, 0-9, spaces, hyphens, apostrophes). No Cyrillic, no CJK, no Arabic, no non-Latin scripts. This is non-negotiable.
-- Established facts must teach the player something they could not infer from the setting alone. World state, factions, recent events — not character traits.
-- Generate 4–5 named NPCs total, typically ~2 present in the opening scene (exact count may be overridden by player preference) with presence="present" in compendium.npcs and the remaining 2–3 with presence="known". The "known" NPCs exist "out there in the world" — known to the PC but not present in the opening scene. Their bios should establish them as real people with roles in the world, not as future quest-givers. Do NOT set meta.compendium_touch_order — engine manages that.
+- World Bible facts are non-negotiable canon. Never contradict them.
+- Player overrides are authoritative for PC identity and strongly preferred for arc direction, NPCs, and location. Honor them unless they directly contradict world facts.
+- Inspiration prose is quality guidance, not a menu. Don't borrow its phrasing or take its first suggestion.
+- Avoid the obvious scenario. Specific and mundane beats generic and dramatic.
+- ALL names must use only ASCII/Latin characters (a-z, A-Z, 0-9, spaces, hyphens, apostrophes). No exceptions.
+- Names: pick from the name pool provided; favor fit over prominence — prefer the second or third most plausible option for variance across runs (use `name_seed` to guide selection).
+- Established facts must teach the player something they could not infer from the setting alone.
 
-## JSON output discipline (CRITICAL)
-- Wrap your entire response in a single ```json code block. Do NOT include any thinking, reasoning, or explanatory text outside the code block.
-- All string values must use normal spaces between words — never hyphens or dashes as word separators. Hyphenated compound words are fine when grammatically correct (e.g., "well-known"), but DO NOT replace spaces with hyphens or insert hyphens between every word.
-- Do not include any text before or after the ```json block. The engine will fail to parse your response if you do.
+## JSON output rules
+- All string values use normal spaces — never hyphens as word separators. Hyphenated compound words are fine when grammatically correct.
+- Do not set `meta.compendium_touch_order` — engine-managed.
 
 {% if pool_selection %}
-## Seeded context (pre-selected before generation)
+## Seeded context
+Four independently selected narrative dimensions. They are NOT a menu — weave them into something coherent. Tension between them is expected.
 
-The following elements were independently selected from genre pools by the engine. They are NOT a menu — they are four independent narrative dimensions that you must weave into something coherent:
-
-- **SITUATION ARCHETYPE** (`{{ pool_selection.situation.id }}`): Shapes your opening moment. Let it influence what kind of pressure or tension the player walks into, not specific details.
-- **ARC CATEGORY** (`{{ pool_selection.arc.id }}`): Shapes longer-term narrative direction. The visible_goal should build on this pattern over multiple turns, not resolve in one action. Arc threads must have escalation paths — each thread describes a situation with inherent tension capable of sustaining 5–10 turns, not single events or scripted sequences.
-- **CHARACTER DYNAMIC** (`{{ pool_selection.character_dynamic.id }}`): Shapes who the PC is relative to power structures and other people in this world. Let it influence social positioning, relationships, and what authority/leverage they have (or lack). The PC bio must be consistent with this dynamic (e.g., if trusted_insider, show community ties; if free_agent, show independence).
-- **MORAL PRESSURE** (`{{ pool_selection.moral_pressure.id }}`): Shapes the ethical dilemma driving immediate personal stakes.
-
-These were chosen independently. Tension between them is expected and desirable. Weave them into something coherent — don't force artificial connections.
+- **SITUATION ARCHETYPE** (`{{ pool_selection.situation.id }}`): The pressure or tension the player walks into.
+- **ARC CATEGORY** (`{{ pool_selection.arc.id }}`): Longer-term narrative direction. The visible_goal builds on this pattern over multiple turns — not resolved in one action.
+- **CHARACTER DYNAMIC** (`{{ pool_selection.character_dynamic.id }}`): The PC's position relative to power structures. PC bio must be consistent with this (trusted_insider → show community ties; free_agent → show independence).
+- **MORAL PRESSURE** (`{{ pool_selection.moral_pressure.id }}`): The ethical dilemma driving immediate personal stakes.
 {% endif %}
 
-{% if pool_selection %}
-## Generation order (generate from wide scope to narrow)
-
-Build your output in this order, using everything already established before generating what comes next:
-
-1. **PC** (bio, stats, tagline): Who the character is
-2. **World state** (3 immutable facts): Permanent pressures of the world — must establish forces relevant to arc_category (not nebulous lore; each fact affects gameplay choices like border closures, banned technologies, faction blockades)
-
-3. **Campaign arc** (visible_goal, goal_context, threads): Generate after PC and world state, informed by everything established so far — PC bio, world_state pressures, situation_archetype opening moment, character_dynamic social positioning:
-    - **visible_goal**: Multi-stage objective emerging from ALL prior context (not just arc_category alone). What happens after the first step succeeds? After it fails? Why does someone care enough to keep going when things get hard?
-    - **goal_context**: 2–3 sentences explaining why visible_goal matters to this character specifically — inner cost or pressure that makes it emotionally loaded. Connect character motive, story stakes, and emotional cost without restating visible_goal or leaking hidden truths.
-       - **threads** (scope="arc"): unified list of medium-term sustained tensions where each thread has `{id, summary, urgency, scope}`. Thread fields must use these exact values: `scope` is `"scene"` (immediate, local tension — auto-deleted on location change) or `"arc"` (longer-term campaign thread); `urgency` is `"background"`, `"normal"`, or `"urgent"`; `active` is `true` for threads the narrator should track now, `false` for latent/dormant ones.
-
-Thread count constraints (HARD LIMITS):
-- Exactly 1–2 threads start as `active: true` — pick the single most urgent/important tension only. Never exceed 2 active at game start. If you can't narrow it down to one, generate exactly 1.
-- All other new threads MUST be `"active": false`. Do NOT set any thread beyond those 1–2 as `true`, even if they feel important. They become active later when conditions are met or the player engages with them.
-- Generate up to 3 latent threads (`"active": false`) that unlock when conditions are met. These represent future story hooks.
-- Total new thread count: typically 4–5 (1–2 active + 3 latent). Minimum 3 total, maximum 6.
-
-Urgency rules for new threads at game start:
-- Active threads may use `"urgent"` or `"normal"`. Never generate a new thread with `"urgent"` urgency unless the situation archetype explicitly demands it — prefer `"normal"` instead.
-- All `active: false` threads MUST be `"background"` or `"normal"` urgency. Never set latent threads to `"urgent"`.
-
-Do not generate `scope="scene"` threads at game start — all new threads should be `scope="arc"`.
-
-4. **Opening scene / NPCs**: Instantiates the situation_archetype concretely — who's present, what they're doing, how character_dynamic shapes their relationship to power structures
-5. **Inventory**: Items appropriate to the opening scene and PC concept
-
-## Cross-field consistency rules (MANDATORY)
-
-These constraints prevent logical contradictions across generated fields:
-
-1. **world_state vs arc_category:** world_state facts must establish pressures consistent with the arc category. Cannot state "all factions cooperate peacefully" when arc is power_struggle. Each of the 3 world_state facts must directly affect gameplay choices (border closures, banned technologies, faction blockades). No nebulous lore — no historical backstory older than one generation unless it's an active constraint right now.
-
-2. **character_dynamic vs PC bio:** character dynamic shapes who the PC is relative to power structures. If trusted_insider, bio must show community ties and authority; if free_agent, bio must show independence from institutions (not embedded connections).
-
-{% endif %}
-
-
-## Name selection
-A name_seed integer appears in the user prompt. Use it as follows: mentally hash each candidate name against the seed to pick less-obvious selections. Avoid defaulting to the most culturally prominent name for each locale — prefer the second or third most plausible option. This creates variance across runs.
-
-## NPC role alignment
-{% if scenario and scenario.factions %}
-**NPC ROLE ALIGNMENT RULE (MANDATORY):** All generated NPCs must have roles, occupations, titles, and implied demographics consistent with the world pack's cultural and historical context provided below. Specifically:
-- Do not assign occupations that are anachronistic or culturally inconsistent with the world pack period.
-- Use the name pool provided in the user prompt. For historical combat genres (ww2, noir, pirate, sengoku japan), both the pc and npc candidates lists contain male names only — use these names for all characters including the player character. Do not invent names outside the provided pools.
-- Cross-reference the factions provided below: NPCs affiliated with a faction must have a role consistent with that faction's description.
-- If the narrator_rules include tone or cultural guidance, apply it to NPC role assignment.
-{% endif %}
-
-## Hard constraints
-{% if scenario and scenario.constraints %}
-{% set c = scenario.constraints %}
-- inventory: {{ c.inventory_size_range[0] }}–{{ c.inventory_size_range[1] }} items
-- pc.stats values: {{ c.pc_stat_range[0] }}–{{ c.pc_stat_range[1] }}; total: {{ c.pc_stat_total_range[0] }}–{{ c.pc_stat_total_range[1] }}
-- opening_narrative: {{ c.prose_word_range[0] }}–{{ c.prose_word_range[1] }} words
-{% if c.required_inventory_kinds %}- inventory must include kinds: {{ c.required_inventory_kinds | join(", ") }}
-{% endif %}{% if c.forbid_cliches %}- forbidden tropes: {{ c.forbid_cliches | join("; ") }}
-{% endif %}{% endif %}
-
-## Output schema (TypeScript-style)
+## Schema
 
 ```ts
 {
@@ -98,128 +32,146 @@ A name_seed integer appears in the user prompt. Use it as follows: mentally hash
     pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, charisma: int}, conditions: []},
     location: {id: snake_case, name: string, description: string},
     inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
-    scene: {
-      tagline: string,
-      tags: string[],
-      world_state: string[],
-    },
+    scene: {tagline: string, tags: string[], world_state: string[]},
     compendium: {npcs: {snake_case: {name: string, title: string, bio: string, allegiance?: string, bond?: string, motivation?: string, fear?: string, leverage?: string}}},
-    arc: {visible_goal: string, goal_context: string, threads: ArcThread[], completed_threads: ArcThread[] | null}
+    arc: {visible_goal: string, goal_context: string, threads: ArcThread[], completed_threads: null}
   },
   opening_narrative: string,
   actions: string[],
   outcome_summary: string,
-  arc: {visible_goal: string, goal_context: string, threads: ArcThread[], completed_threads: ArcThread[] | null},
+  arc: {visible_goal: string, goal_context: string, threads: ArcThread[], completed_threads: null},
 }
 ```
 
-## Field guidance
-- `pc.name`: Full name with a **given name and family name** (e.g. "Mira Sovak", "Dren Calloway"). Single-word names are not permitted. The name must fit the world's cultural tone.
-- `pc.stats`: four integer values, range 1-4, total 8-12.
-- `pc.tagline`: 5–10 words — role + defining trait (e.g. "Structural engineer, nine months sober").
-- `pc.bio`: 2–4 sentences — pre-event history, what shaped this person, what they want now.
-- `scene.world_state`: 3–4 consolidated global facts that directly shape the current situation, arc tension, NPC relationships, or player's immediate circumstances. Immutable for the entire game. Don't make a separate fact per faction or vocabulary word — consolidate. Each must be something that actively constrains what can happen right now.
+## Hard constraints
+{% if scenario and scenario.constraints %}
+{% set c = scenario.constraints %}
+- inventory: {{ c.inventory_size_range }}–{{ c.inventory_size_range }} items
+- pc.stats values: {{ c.pc_stat_range }}–{{ c.pc_stat_range }}; total: {{ c.pc_stat_total_range }}–{{ c.pc_stat_total_range }}
+- opening_narrative: {{ c.prose_word_range }}–{{ c.prose_word_range }} words
+{% if c.required_inventory_kinds %}- inventory must include kinds: {{ c.required_inventory_kinds | join(", ") }}
+{% endif %}{% if c.forbid_cliches %}- forbidden tropes: {{ c.forbid_cliches | join("; ") }}
+{% endif %}{% endif %}
 
-## world_state — Hard Constraints Only
-`world_state` is a list of **immutable hard constraints** that govern what is physically, legally, or politically possible in this world.
+{% if pool_selection %}
+## Generation order — wide to narrow
 
-Rules:
-- Each entry states a constraint that will *directly affect gameplay choices*: border closures, active martial law, banned technologies, faction blockades, economic collapse.
-- No historical backstory older than 1 generation unless it is an active hard constraint right now. Treat "treaties from year XXXX" or "ancient ruins" as flavor prose — not world_state.
-- No flavor lore, legends, myths, or distant history — those belong in prose, not world_state.
-- Maximum 4 entries (including baseline_facts prepended by engine). Each is one sentence. Fewer high-quality facts > many generic ones. Every fact must relate directly to the current situation, arc tension, NPC dynamics, or player's immediate circumstances.
-- BAD: "The old empire fell three centuries ago and its ruins dot the landscape." / "A peace treaty was signed in 2147 between the factions." (historical flavor with no present-day impact)
-- GOOD: "Travel between the Northern and Southern districts requires a valid faction pass." / "All firearms are banned under penalty of immediate detention by the Wardens."
+Build in this order, using everything already established before generating what comes next:
 
-## inventory — Starter Inventory Rules
-- Generate 3–6 starting items appropriate to the opening scene.
-- **Every item must have a proper, specific name.** Not generic descriptors like "standard issue rifle" or "random book." Give it an actual name: a gun model (e.g., "Kestrel M4"), a tool with identity. Books, lore artifacts, and sentimental items must carry narrative weight — their names should tie to the story world (a known text, a faction publication) or reflect emotional attachment (an heirloom, something left behind by someone important). The name itself should hint at why this item matters.
-- **Firearms ALWAYS come with ammunition.** Any firearm in starter inventory MUST be paired with an ammo stack (e.g. `{"id": "pistol", "name": "Pistol"}` must also include `{"id": "9mm_rounds", "name": "9mm rounds", "amount": 6}`). Infer a realistic starting amount. If the narration says the weapon is empty, set amount to 0.
-- **Items with finite uses MUST track remaining uses as `amount`.** Medications, charges, devices with limited uses — all must have an explicit `amount`. If you add a medkit, give it 2–4 uses. If you add a charge-cell, give it a realistic count.
-- Ammo amount is the single source of truth — never put loaded counts in the weapon's `notes`. Melee/single-shot thrown items are exempt.
-- Do not add items for skills the PC has no investment in.
-- Quantities must be realistic and not overpowered for turn 1.
-- No exotic/legendary weapons at start.
-- Inventory items start with capital letters.
+1. **PC** — bio, stats, tagline. Must be consistent with `character_dynamic`.
+2. **World state** — 3 immutable hard constraints that directly affect gameplay choices now (border closures, martial law, banned technologies, faction blockades). No historical backstory older than one generation unless it's an active constraint today. No flavor lore. Fewer high-quality facts beats many generic ones.
+3. **Campaign arc** — informed by PC, world state, situation archetype, and character dynamic:
+   - `visible_goal`: multi-stage objective. What happens after the first step succeeds? After it fails?
+   - `goal_context`: 2–3 sentences on why this goal matters to this character specifically — inner cost, emotional stakes. Don't restate visible_goal or leak hidden truths.
+   - `threads`: see Thread rules below.
+4. **Opening scene + NPCs** — instantiates the situation archetype concretely.
+5. **Inventory** — appropriate to scene and PC concept.
 
-## opening_narrative
-~700 words. Second person, present tense.
-
-Structure the opening in three movements — these are loose beats, not word-count quotas:
-
-1. **Close-up** (1–3 sentences): Start with one live sensory detail that matters. Orients the player in the character's immediate physical reality. No summary, no biography.
-
-2. **Exposition** (the middle): What is around the PC to see, examine, or potentially interact with — weave 1–2 environmental details into the scene. These aren't a checklist; every detail should imply recent action, conflict, or presence.
-
-   Optional ingredients — use what fits, ignore what doesn't:
-   {% if pool_selection and pool_selection.scene_bundle -%}
-   {% if pool_selection["scene_bundle"]["items"] %}Objects: {{ pool_selection["scene_bundle"]["items"] | join(", ") }}.{% endif %}
-   {% if pool_selection["scene_bundle"]["conditions"] %}Conditions: {{ pool_selection["scene_bundle"]["conditions"] | join(", ") }}.{% endif %}
-   {% if pool_selection["scene_bundle"]["sensory"] %}Sensory details: {{ pool_selection["scene_bundle"]["sensory"] | join(", ") }}.{% endif %}
-   {% endif -%}
-
-3. **Crisis/gameplay moment** (the bulk): The tension arrives or is revealed. Present NPCs act. The moment the player must respond to. This is where the "mid-scene" feel belongs — earned after the orientation.
-
-   Spend most of your words on the crisis/gameplay moment — the close-up and exposition are setup, not the main event.
-
-Movement guidance:
-- The close-up and exposition together should feel like chapter one, building atmosphere and place before revealing danger.
-- Bold NPC names on first introduction. Bold inventory item names on first use.
-- Let the campaign arc tension surface through what the player observes rather than what the narrator announces.
-- NPCs should appear in action, not be introduced.
-- The opening should feel like chapter one, not a mid-chapter drop.
-
-## actions
-4 distinct meaningful choices (7-10 words each), valid given the opening situation. Actions must: be written from the PC's point of view or voice; be grounded in a present NPC, immediate risk, active thread, or character motive; differ in emotional posture (confront, deflect, investigate, protect, exploit, withdraw, etc.); avoid generic verbs that could fit any protagonist in any setting. At least two should reveal something about the character's priorities or relationships.
-
-## outcome_summary
-One sentence (~10–20 words) summarizing the opening situation in-universe, as if a quest log or journal entry. Example: "A stranded freighter drifts in the outer reach with no response from its crew." NOT an instruction or "you must" phrasing — just the state of things.
-
-## Compendium NPCs (in compendium.npcs with presence="present")
-{% if npc_count_override and npc_count_override > 0 %}
-Generate exactly {{ npc_count_override }} NPCs placed in compendium.npcs with `presence: "present"`, `notes: "current attitude or situation"`, and the standard compendium fields (id, name, title, bio). These are the characters the player meets immediately. Aim for 1–4 present NPCs — this is ideal scene density. If you generate more than 4, give narrative reasons why some should leave (shift change, dismissed, running an errand) so their absence feels natural on turn 2+. Present NPCs must have `name`, `title`, and `bio` populated; also fill `allegiance` when faction affiliation is relevant. Most other fields (`bond`, `motivation`, `fear`, `leverage`) should be filled for present characters — only omit MFL for background extras who play no narrative role in this scene.
-{% else %}
-Generate 4–5 named NPCs total, typically ~2 present in the opening scene (exact count may be overridden by player preference). Aim for 1–4 present NPCs — this is ideal scene density. If you generate more than 4, give narrative reasons why some should leave (shift change, dismissed, running an errand) so their absence feels natural on turn 2+. Present NPCs must have `name`, `title`, and `bio` populated; also fill `allegiance` when faction affiliation is relevant. Most other fields (`bond`, `motivation`, `fear`, `leverage`) should be filled for present characters — only omit MFL for background extras who play no narrative role in this scene.
+**Cross-field consistency (mandatory):**
+- `world_state` facts must establish pressures consistent with `arc_category`. No "all factions cooperate peacefully" in a power_struggle arc.
+- PC bio must reflect `character_dynamic` positioning.
 {% endif %}
 
-Of the in-scene NPCs, assign `motivation`, `fear`, and `leverage` to **all present NPCs who play a narrative role** — anyone with dialogue, agency, or tension-creating behavior gets all three fields populated (motivation = what they fundamentally want; fear = what they dread most; leverage = what they can offer/threaten/withhold). Background extras standing silently at the edge of the scene may omit them.
+## NPC rules
 
-At least half of present NPCs should have a `bond` field — this is not optional for narrative characters. Bonds describe durable personal history and can be:
-- A bond to the PC (e.g., "Owes the PC after they pulled them from enemy fire.")
-- A bond between two NPCs in this scene (e.g., "Siblings who haven't spoken since the incident at the mill." — explicitly name both parties)
+Generate 4–5 named NPCs total:
+- **~2 present** (`presence: "present"`) — in the opening scene
+- **2–3 known** (`presence: "known"`) — exist in the world, known to the PC, not in the scene. Bios tie them to factions/locations/pressures, not to the immediate opening. They are real people, not future quest-givers.
 
-If `pool_selection.npc_bond` is provided, use it as inspiration but CONVERT IT INTO NARRATIVE PROSE for the bond field. Never emit raw seed ids or bare descriptions — always adapt into player-facing flavor text that ties to the opening situation and character motives. Reference the PC by name in their bio where shared history demands it.
+{% if npc_count_override and npc_count_override > 0 %}Override: generate exactly {{ npc_count_override }} present NPCs.{% endif %}
 
-## compendium.npcs
-Generate exactly 2-3 additional NPCs in compendium.npcs (keyed by snake_case id, with {name, title, bio}). These are characters the PC knows of or has encountered before — they exist in the world but are not present in the opening scene. Their bios should tie them to the world's factions, locations, or pressures rather than to the immediate opening situation. They may become allies, antagonists, sources of information, or neutral parties as the story unfolds.
+Aim for 1–4 present NPCs (ideal scene density). If you generate more than 4, give narrative reasons for some to be absent on turn 2+ (shift change, dismissed, errand).
 
-Do NOT add `relation` or `notes` to compendium entries (deprecated field and scene-specific attitude cleared on departure; engine-managed at runtime). At seed time, assign motivation, fear, and leverage to whichever NPCs feel important — those with personal ties to the PC or central roles in the opening situation. Compendium entries get: `name`, `title`, `bio` (and optional `allegiance` if relevant, and optional `bond` for durable personal ties). `allegiance` is a faction id from the world pack.
+**For all present NPCs with narrative roles** (dialogue, agency, tension): populate `motivation`, `fear`, `leverage`, and `bond`. Background extras may omit them.
+- `motivation`: what they fundamentally want
+- `fear`: what they dread most
+- `leverage`: what they can offer, threaten, or withhold
+- `bond`: durable personal history — to the PC, or between two NPCs in the scene (name both parties)
 
-## Campaign Arc Generation
-Generate a `CampaignArc` with:
-- `visible_goal`: one sentence, affirmative, player-visible (e.g. "Find the cure before the quarantine collapses")
-- `goal_context`: 2–3 sentences explaining why visible_goal matters to this character specifically — inner cost or pressure that makes it emotionally loaded; must connect character motive, story stakes, and emotional cost without restating visible_goal. Deepen, don't summarize.
-- `threads`: single unified list (not split into active/latent) where each thread has `{id, summary, urgency, scope}`. HARD LIMITS: Exactly 1–2 threads start as `active: true` — never more than 2 at game start; prefer exactly 1 if unsure. All other new threads MUST be `"active": false`. Up to 3 latent threads total. Total typically 4–5 (minimum 3, maximum 6). New active threads may use urgency `"urgent"` or `"normal"`, but prefer `"normal"` — never set `active: false` threads to `"urgent"`; they must be `"background"` or `"normal"`. All new threads should use `scope="arc"`; do not generate `scope="scene"` threads at game start.
-- `completed_threads`: separate list for resolved/failed threads (leave empty at seed time)
+If `pool_selection.npc_bond` is provided, convert it into narrative prose. Never emit raw seed IDs.
 
-Thread IDs must be broad conceptual buckets — just 2-4 words capturing a general story tension, NOT a specific event, person, or goal. A thread ID like `the_council_conspiracy` is good (covers many possible developments). `the_missing_ledger` is too narrow (one object, one lead). `moss_confrontation` is too narrow (one NPC, one scene). When developing the story, the LLM will add progress entries within the bucket to capture specific developments. If you find yourself wanting two similar thread IDs, make one broader bucket instead — e.g., instead of `the_missing_ledger` + `stern_political_web`, use one `the_council_conspiracy` and put both specific leads under it as progress entries. Loosely related developments belong under one broad thread with different progress entries, not split into separate threads.
+{% if scenario and scenario.factions %}
+**NPC role alignment (mandatory):** Roles, occupations, and titles must be consistent with the world pack's cultural and historical context. Do not assign anachronistic occupations. NPCs affiliated with a faction must have roles consistent with that faction's description. Use the name pool provided — do not invent names outside it.
+{% endif %}
 
-Thread summaries should be **seeds for the narrator, not dictated plot**. They should describe a situation, not specify exact events. The narrator should always have creative latitude in how a thread manifests.
+Do NOT add `relation` or `notes` to compendium entries — engine-managed at runtime.
 
-Thread quality rules:
-- Threads must be substantial medium-term goals capable of sustaining 5–10 turns. They represent ongoing narrative arcs, not single events or observations.
-- Each thread should describe a situation with inherent tension and stakes — something that naturally escalates over time. Not a static fact.
-- Non-present NPCs (presence="known") can and should be referenced in narration and arc threads when relevant to the opening scene or campaign arc. Being "not present" means they're not physically in the current location, NOT that they cannot appear in dialogue, backstory references, or plot-relevant mentions. Mentions of known NPCs add depth — a mentor calling for help, an antagonist making moves elsewhere, an ally providing information remotely.
-- Do NOT generate threads from incidental narration details (a character's cough, dust in the air, passing weather). These are atmospheric, not narrative.
-- DO generate threads from plot-relevant developments: threats emerging, alliances forming, discoveries made, consequences of player actions.
-- Threads must have clear advancement criteria — what would make progress on this thread? If you can't describe what "advancing" looks like for a thread, it's not ready to be one.
+## PC field rules
+- `pc.name`: given name + family name (e.g. "Mira Sovak"). No single-word names.
+- `pc.tagline`: 5–10 words — role + defining trait (e.g. "Structural engineer, nine months sober").
+- `pc.bio`: 2–4 sentences — pre-event history, what shaped this person, what they want now.
+- `pc.stats`: four integers, range per hard constraints, total per hard constraints.
 
-Example thread summary (good):
-"A hospital records clerk may know where the convoy was rerouted before the quarantine collapse. The archive floor is accessible but the building has been increasingly dangerous. Time is working against this lead."
+## World state rules
+- Each fact states a constraint that directly affects gameplay choices: border closures, martial law, banned technologies, faction blockades, economic collapse.
+- One sentence each. Maximum 4 entries (including any engine-prepended baseline facts).
+- BAD: "The old empire fell three centuries ago." / "A peace treaty was signed in 2147." (historical flavor, no present impact)
+- GOOD: "Travel between districts requires a valid faction pass." / "All firearms are banned under penalty of immediate detention."
 
-Example thread summary (bad):
-"Go to Saint Mercy Hospital. Find Mara. She will give you Ledger B-7. Return to the checkpoint."
+## Inventory rules
+- 3–6 items appropriate to the opening scene and PC concept.
+- Every item has a specific, proper name — not "standard issue rifle" or "random book." Names should hint at why the item matters.
+- Firearms always come paired with an ammo item at a realistic starting count. Never put loaded counts in weapon `notes`.
+- Items with finite uses must have an explicit `amount`. Melee and single-shot thrown items are exempt.
+- No exotic or legendary weapons at start. No items for skills the PC hasn't invested in.
+- Inventory item names start with a capital letter.
 
-## Output discipline
+## Thread rules
 
-When emitting structured data (JSON, scope tags, any machine-readable output), omit fields entirely when there is no change — do not include empty arrays (`[]`), empty objects (`{}`), or empty strings. Only emit the keys you actually need to communicate a value or instruction. Omitting a field means "no change" — it does NOT mean deletion of existing state (see State-presence rule).
+**Thread IDs are broad conceptual buckets** — 2–4 words capturing general story tension, not a specific event, person, or goal. If you find yourself wanting two similar IDs, make one broader bucket instead.
+- GOOD: `council_conspiracy`, `enemy_contact_advance`
+- BAD: `the_missing_ledger` (one object), `moss_confrontation` (one NPC, one scene)
+
+**Thread count (hard limits at game start):**
+- Exactly 1–2 threads `active: true` — prefer 1 if unsure. Never more than 2.
+- All other threads `active: false`.
+- Up to 3 latent threads (`active: false`).
+- Total: 4–5 threads (minimum 3, maximum 6).
+- All new threads use `scope: "arc"`. Do not generate `scope: "scene"` threads at game start.
+- Active threads: urgency `"normal"` or `"urgent"` (prefer `"normal"`).
+- Inactive threads: urgency `"background"` or `"normal"`. Never `"urgent"`.
+
+**Thread quality:**
+- Each thread must be a medium-term tension capable of sustaining 5–10 turns — a situation with inherent escalation, not a single event or observation.
+- Thread summaries are seeds for the narrator, not scripted plot. Describe a situation; don't specify events.
+- Do not generate threads from incidental narration details (a character's cough, passing weather).
+- Every thread must have clear advancement criteria — if you can't describe what "progressing" looks like, it's not a thread.
+
+Good summary: "A hospital records clerk may know where the convoy was rerouted before the quarantine collapse. The archive is accessible but increasingly dangerous, and time is working against this lead."
+Bad summary: "Go to Saint Mercy Hospital. Find Mara. She will give you Ledger B-7. Return to the checkpoint."
+
+## Opening narrative
+
+~700 words. Second person, present tense. Three movements:
+
+1. **Close-up** (1–3 sentences): One live sensory detail that orients the player in the character's immediate physical reality. No summary, no biography.
+2. **Exposition** (middle): What is around the PC — weave in 1–2 environmental details that imply recent action, conflict, or presence. Every detail should do work.
+   {% if pool_selection and pool_selection.scene_bundle -%}
+   Optional ingredients (use what fits):
+   {% if pool_selection["scene_bundle"]["items"] %}Objects: {{ pool_selection["scene_bundle"]["items"] | join(", ") }}.{% endif %}
+   {% if pool_selection["scene_bundle"]["conditions"] %}Conditions: {{ pool_selection["scene_bundle"]["conditions"] | join(", ") }}.{% endif %}
+   {% if pool_selection["scene_bundle"]["sensory"] %}Sensory: {{ pool_selection["scene_bundle"]["sensory"] | join(", ") }}.{% endif %}
+   {%- endif %}
+3. **Crisis moment** (the bulk): The tension arrives. Present NPCs act. The moment the player must respond to. Spend most of your words here.
+
+- Bold NPC names on first introduction. Bold inventory item names on first use.
+- NPCs appear in action, not in introduction.
+- Let arc tension surface through what the player observes, not what the narrator announces.
+
+## Actions
+
+Exactly 4 choices, 7–10 words each, active voice from the PC's point of view.
+
+- At least 2 must directly advance the arc goal or an active thread
+- One involves a named NPC present in the scene
+- One is environmental
+- One is freeform rooted in PC background or motivation
+- Span different postures: confront, deflect, investigate, protect, exploit, withdraw
+- No generic verbs fitting any protagonist in any setting
+- At least 2 should reveal something about the character's priorities or relationships
+
+## Outcome summary
+
+One sentence (~10–20 words) summarizing the opening situation as a quest-log or journal entry. Third person, factual state of things. Not an instruction or "you must" phrasing.
+
+Example: "A stranded freighter drifts in the outer reach with no response from its crew."
