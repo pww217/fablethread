@@ -49,16 +49,15 @@ If merely difficult or unlikely — set `impossible=false` and classify normally
 
 ```json
 {
-  "intent": "",
-  "intent_verb": "",
-  "target": "",
-  "impossible": false,
-  "impossible_reason": "",
-  "scene_motion": "hold",
+  "intent": "...",
+  "intent_verb": "...",
+  "target": "...",
+  "impossible": true,
+  "scene_motion": "hold|advance|transition",
   "check": {
-    "required": false,
-    "skill": "",
-    "difficulty": ""
+    "required": true,
+    "skill": "...",
+    "difficulty": "trivial|easy|normal|hard|extreme"
   }
 }
 ```
@@ -68,6 +67,8 @@ If merely difficult or unlikely — set `impossible=false` and classify normally
 - `intent`: 1 sentence declaring player intent as it relates to the story, arc, world, or NPCs. Never substitute, dismiss, or embellish. Only soften in line with the anti-declare-outcome rule.
 - `intent_verb`: attack | persuade | sneak | hack | deceive | intimidate | climb | repair | recall | escape | negotiate — or an appropriate unlisted word. Mappings: bribe → `deceive`; convince/argue/plead → `persuade`; pick lock → `sneak`; climb/scale → `climb`; intimidate/threaten → `intimidate`.
 - `target`: who or what the action is directed at, or omit if a general action.
+- `impossible_reason`: only when `impossible=true`.
+- `scene_motion`: hold | advance | transition.
 - `check.required`: true or false.
 - `check.skill`: only when `required=true`.
 - `check.difficulty`: only when `required=true`.

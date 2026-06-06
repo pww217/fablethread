@@ -6,11 +6,11 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 
 ```json
 {
-  "scene_tags": [],
-  "scene_tagline": null,
-  "location_change": null,
-  "location_description": null,
-  "compendium_npc_update": []
+  "scene_tags": ["..."],
+  "scene_tagline": "...",
+  "location_change": {"id": "...", "name": "...", "description": "..."},
+  "location_description": "...",
+  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "presence": "present|known", "notes": "..."}]
 }
 ```
 
@@ -20,7 +20,7 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 
 `scene_tagline`: 3–6 words summarizing the scene for the UI header. Grounded in what just happened. Examples: `"A Toll Paid In Blood"`, `"Whispers in the Dark"`, `"The Guard Raises the Alarm"`.
 
-`location_change`: emitted only when the player moves to a new location (the location ID differs from the current one). Each: `{"id": "snake_case_id", "name": "Display Name", "description": "one-sentence description of the new space"}`. Do NOT emit if the player is still in the same location with added spatial detail — use `location_description` instead.
+`location_change`: emitted only when the player moves to a new location (the location ID differs from the current one). Do NOT emit if the player is still in the same location with added spatial detail — use `location_description` instead.
 
 `location_description`: Location description — new physical/spatial detail about the current space. Only emit when the narration introduces genuinely new details not already in the stored description. Do not restate or paraphrase existing description. One to two sentences.
 

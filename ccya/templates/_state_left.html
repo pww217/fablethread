@@ -44,11 +44,11 @@
 <details class="sidebar-card" id="card-location" data-card="location" open>
     <summary>Location</summary>
     <div class="sidebar-card-body">
-        <div style="color: var(--text-primary); font-size: 13px; font-weight: 500; margin-bottom: 6px;">
+        <div style="color: var(--text-primary); font-size: 1rem; font-weight: 500; margin-bottom: 6px;">
             {{ state.location.name or '—' }}
         </div>
         {% if state.location.description %}
-        <p class="card-desc" style="margin: 0; font-size: 12px;" data-md>{{ state.location.description }}</p>
+        <p class="card-desc" style="margin: 0;" data-md>{{ state.location.description }}</p>
         {% endif %}
     </div>
 </details>

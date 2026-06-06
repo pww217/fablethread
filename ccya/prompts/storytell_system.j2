@@ -6,34 +6,18 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
 
 ```json
 {
-  "actions": [],
-  "outcome_summary": "",
-  "gm_beat": null,
-  "thread_update": [{"id": "snake_case_id", "summary": "...", "urgency": "background|normal|urgent", "active": true, "progress": "..."}],
-  "thread_resolve": [{"id": "...", "resolution_state": "resolved|failed|abandoned", "outcome": "...", "promote_to_world_state": false}],
-  "thread_add": {"id": "snake_case_id", "summary": "...", "scope": "scene|arc", "urgency": "normal"},
+  "thread_resolve": [{"id": "...", "resolution_state": "resolved|failed|abandoned", "outcome": "...", "promote_to_world_state": true}],
+  "thread_update": [{"id": "...", "summary": "...", "progress": "...", "urgency": "background|normal|urgent", "active": true}],
+  "thread_add": {"id": "...", "summary": "...", "scope": "scene|arc", "urgency": "normal"},
+  "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "drop_threads": ["..."], "new_threads": [{"id": "...", "summary": "...", "scope": "arc", "urgency": "normal"}]},
   "goal_update": "...",
-  "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "drop_threads": ["id"], "new_threads": [{"id": "...", "summary": "...", "scope": "arc", "urgency": "normal"}]},
-  "world_state_add": [{"id": "new_fact_id", "text": "...", "tier": "persistent"}],
-  "world_state_remove": ["fact_id"]
+  "world_state_remove": ["..."],
+  "world_state_add": [{"id": "...", "text": "...", "tier": "persistent"}],
+  "gm_beat": {"type": "...", "surface_as": "..."},
+  "outcome_summary": "...",
+  "actions": ["...", "...", "...", "..."]
 }
 ```
-
-## Actions
-
-Emit exactly 4 choices, ~10 words each, active voice as if spoken by the PC. Never emit an empty array.
-
-**Each choice must escalate, force a decision, or change the situation irreversibly.** No passive options (look around, wait, observe, plan carefully). No generic choices that fit any protagonist in any setting.
-
-**Bias toward the arc and active threads.** At least 2 of 4 choices must directly advance the arc goal or an active thread. Structure the set so one choice pursues the arc/highest-urgency thread, one involves a named NPC present in the scene, one is environmental, one is freeform rooted in PC background. Span different postures: confront, negotiate, flee, exploit — not variations of the same approach.
-
-**Latent threads:** You have visibility into dormant threads the player hasn't discovered. Use 1 choice to create natural circumstances for a latent thread to surface — don't expose it directly, make discovery feel earned.
-
-**Escalate from prior turns.** Choices should complicate or follow from what just happened, not repeat it.
-
-## Outcome summary
-
-One sentence, third person, PC's name. What happened, what changed, what consequence followed. Facts only — no flavor. Omit if nothing of narrative significance occurred.
 
 ## Threads
 
@@ -41,11 +25,11 @@ One sentence, third person, PC's name. What happened, what changed, what consequ
 
 **Thread IDs are broad conceptual buckets** — general story tension, not specific events or people. `enemy_contact_advance` ✓ — `naval_boarding_action` ✗ (that's a scene). If an ID describes one event or one person, it's too narrow.
 
-**Before emitting `thread_add`:** scan all active and latent threads for conceptual overlap. If any existing thread covers the same tension, use `thread_update` instead. Only create a new thread for genuinely distinct tension.
+**`thread_resolve`:** Use when a thread concluded, failed, was absorbed into a broader thread, or urgency fully decayed. `promote_to_world_state: true` only when the outcome is a permanent world fact (faction turned hostile, character died, route destroyed). Do NOT resolve threads still meaningfully active — prefer `active: false` for threads that might resurface.
 
 **`thread_update`:** `summary` OR `progress` — not both. `summary` when the thread's nature or direction changed significantly. `progress` for smaller advancement (must be unique, not a retelling of narration). Urgency decays: if a thread was unaddressed last turn, consider lowering urgency; if inactive 3+ turns, set `active: false`.
 
-**`thread_resolve`:** Use when a thread concluded, failed, was absorbed into a broader thread, or urgency fully decayed. `promote_to_world_state: true` only when the outcome is a permanent world fact (faction turned hostile, character died, route destroyed). Do NOT resolve threads still meaningfully active — prefer `active: false` for threads that might resurface.
+**Before emitting `thread_add`:** scan all active and latent threads for conceptual overlap. If any existing thread covers the same tension, use `thread_update` instead. Only create a new thread for genuinely distinct tension.
 
 **Scope:** `scene` threads auto-delete on location change. `arc` threads persist until arc resolution or explicit resolve. Choose deliberately.
 
@@ -96,3 +80,19 @@ Fail near-miss (final_total within 2 of threshold): `complication` acceptable. W
 **Diversity:** Don't repeat the same `type` more than twice consecutively. Vary `surface_as` turn to turn. After 3+ consecutive pressure beats, use a non-pressure type. `twist` and `callback` don't repeat within 2 turns except at major pivot moments.
 
 **At major pivot moments** (near-death, failed plan succeeds, NPC decisive choice): prefer `revelation`, `twist`, or `callback` over another `complication`.
+
+## Outcome summary
+
+One sentence, third person, PC's name. What happened, what changed, what consequence followed. Facts only — no flavor. Omit if nothing of narrative significance occurred.
+
+## Actions
+
+Emit exactly 4 choices, ~10 words each, active voice as if spoken by the PC. Never emit an empty array.
+
+**Each choice must escalate, force a decision, or change the situation irreversibly.** No passive options (look around, wait, observe, plan carefully). No generic choices that fit any protagonist in any setting.
+
+**Bias toward the arc and active threads.** At least 2 of 4 choices must directly advance the arc goal or an active thread. Structure the set so one choice pursues the arc/highest-urgency thread, one involves a named NPC present in the scene, one is environmental, one is freeform rooted in PC background. Span different postures: confront, negotiate, flee, exploit — not variations of the same approach.
+
+**Latent threads:** You have visibility into dormant threads the player hasn't discovered. Use 1 choice to create natural circumstances for a latent thread to surface — don't expose it directly, make discovery feel earned.
+
+**Escalate from prior turns.** Choices should complicate or follow from what just happened, not repeat it.
