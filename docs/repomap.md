@@ -10,7 +10,7 @@
 | `ccya/errors.py` | ErrorKind string constants (LLM_TIMEOUT, LLM_RATE_LIMIT, etc.) + LlmcError exception hierarchy (LlmcTimeout, LlmcRateLimit, LlmcApiError) |
 | `ccya/engine/__init__.py` | Re-exports public APIs; internal helpers for tests; LLM client re-exports (llm_chat, llm_chat_stream) |
 | `ccya/engine/config.py` | EngineConfig dataclass (including thread_stale_threshold, thread_max_active), _EventLock, is_turn_in_progress(), Jinja env setup |
-| `ccya/engine/turn.py` | run_turn() async orchestrator (thin — imports from submodules), _validate(), warmup(), _apply_thread_updates() with content dedup + auto-latent + thread cap eviction |
+| `ccya/engine/turn.py` | run_turn() async orchestrator (thin — imports from submodules), _validate(), warmup(), _apply_thread_updates(config) with content dedup + auto-latent + thread cap eviction |
 | `ccya/engine/narrate.py` | _narrate_messages(), _get_resolved_arcs(), _fmt_progress(), NPC name helpers for prompt building |
 | `ccya/engine/pack_gen.py` | generate_pack() — LLM-generated ScenarioBrief, writes to packs/custom/<slug>/ |
 | `ccya/engine/names.py` | Name pool generation via Faker (pc, npc, location) |
@@ -24,7 +24,7 @@
 | `ccya/state/io.py` | load_state, save_state (atomic), init_save_dir, _migrate_state |
 | `ccya/state/delta.py` | apply_delta(), reconcile_delta() — condition dedup, cross-turn dedup |
 | `ccya/state/inventory.py` | normalize_inventory_id, resolve/fuzzy match helpers; resolve_inventory_remove_target() uses fuzzy matching (threshold 0.6) as final fallback |
-| `ccya/state/npcs.py` | build_npc_alias_map, touch_compendium_order (LRU) |
+| `ccya/state/npcs.py` | build_npc_alias_map, touch_compendium_order (LRU), strip_npcs_notes (clears this-turn NPC notes at start of each turn) |
 | `ccya/state/chronicle.py` | append_event (events.jsonl), append_chronicle (chronicle.md), load_last_narration() |
 | `ccya/state/momentum.py` | apply_momentum() — deterministic from rules band, clamped to [-3,+3] |
 | `ccya/server/__init__.py` | Re-exports: app, main, config, SAVE_DIR, _validate_stats |

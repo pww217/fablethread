@@ -44,11 +44,11 @@
 <details class="sidebar-card" id="card-location" data-card="location" open>
     <summary>Location</summary>
     <div class="sidebar-card-body">
-        <div style="color: var(--text-primary); font-size: 1rem; font-weight: 500; margin-bottom: 6px;">
+        <div class="location-name" style="color: var(--text-primary); font-weight: 500; margin-bottom: 6px;">
             {{ state.location.name or '—' }}
         </div>
         {% if state.location.description %}
-        <p class="card-desc" style="margin: 0;" data-md>{{ state.location.description }}</p>
+        <p class="card-desc" style="margin: 0; font-size: clamp(13px, 0.7rem, 15px);" data-md>{{ state.location.description }}</p>
         {% endif %}
     </div>
 </details>
@@ -81,7 +81,7 @@
         <div class="arc-thread{% if _urg == 'immediate' %} arc-thread-urgent{% elif _urg == 'building' %} arc-thread-building{% endif %}{% if _progress %} has-tooltip{% endif %}">
             <span class="arc-thread-summary" data-md>{{ thread.get('summary', '') | striptags }}</span>
             {% if _progress %}
-            <div class="tooltip-body">{% for p in _progress %}<p style="margin:0 0 4px 0;">{{ (p[0] | upper) + p[1:] }}</p>{% endfor %}</div>
+            <div class="tooltip-body">{% for p in _progress %}<p style="margin:0 0 4px 0;">{% if p is mapping %}[{{ (p.get('kind', 'advancement') | upper) }}] {{ p.text or p.get('text', '') }}{% else %}{{ p }}{% endif %}</p>{% endfor %}</div>
             {% endif %}
         </div>
         {% endfor %}
