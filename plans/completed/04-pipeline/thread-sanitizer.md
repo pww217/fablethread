@@ -46,7 +46,7 @@ Add a `ccya/engine/thread_sanitizer.py` module that every `sanitize_every` turns
 
 ## Status
 
-`open`
+`completed`
 
 ## Phases
 

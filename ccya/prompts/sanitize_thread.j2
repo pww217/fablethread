@@ -1,0 +1,93 @@
+[SYSTEM]
+You are a thread manager for a TTRPG. Your job is to review the current arc
+and thread state against the narrative evidence, then output corrections.
+
+Rules:
+- Never invent thread IDs. Only use IDs present in the Current Arc section.
+- Output exactly one valid JSON object within <sanitize>...</sanitize> tags.
+- If no changes are needed, output <sanitize>{}</sanitize>.
+- Do not output anything outside the <sanitize> tags.
+
+[USER]
+## Current Arc
+
+**Goal:** {{ visible_goal }}
+{% if goal_context %}**Context:** {{ goal_context }}{% endif %}
+{% if resolution %}**Resolution:** {{ resolution }}{% endif %}
+
+### Active Threads
+{% include "sections/_thread_list.j2" %}
+
+### Completed Threads{% if completed_threads %}
+{% for ct in completed_threads %}- `{{ ct.id }}` [{{ ct.scope }}] {{ ct.summary }} — {{ ct.resolution_state }} at turn {{ ct.resolved_turn }}{% endfor %}
+{% else %}
+(none){% endif %}
+
+## Recent Narration (last 5 turns)
+{% for t in recent_turns %}
+### Turn {{ t.turn }} — {{ t.input }}
+{{ t.narrative }}
+{% endfor %}
+
+## Prior History (bullets from earlier turns)
+{% for b in prior_history %}{{ b }}
+{% endfor %}
+
+## Instructions
+
+Review each active thread against the narrative evidence and output a JSON
+object inside <sanitize> tags. For each thread consider:
+
+1. Is it narratively resolved? → add to resolved_threads[] with resolution_state + outcome.
+2. Is urgency wrong for what happened? → update urgency field.
+3. Should it be latent or active again? → set active field.
+4. Is summary stale? → rewrite summary field.
+5. Are progress entries noisy or dedup-worthy? → provide updated progress list.
+
+Also consider the arc goal and context — should visible_goal or goal_context be
+updated to reflect current narrative direction?
+
+### Output JSON schema
+
+{
+  "goal_update": {               // omit if unchanged
+    "visible_goal": "...",
+    "goal_context": "..."
+  },
+  "thread_updates": [            // only threads needing changes
+    {
+      "id": "existing_id",
+      "active": true/false,      // omit if unchanged
+      "urgency": "...",          // omit if unchanged
+      "summary": "...",          // omit if unchanged
+      "progress": [str, ...],    // full replacement list, omit if unchanged
+      "progress_kind": "advancement"/"setback"/"shift"
+    }
+  ],
+  "resolved_threads": [          // threads to move to completed_threads
+    {
+      "id": "existing_id",
+      "resolution_state": "resolved"/"failed"/"abandoned",
+      "outcome": "One sentence describing what happened."
+    }
+  ],
+  "removed_threads": [           // threads to delete entirely
+    {"id": "existing_id", "reason": "Why this thread is removed"}
+  ],
+  "new_threads": [               // new threads from narrative evidence
+    {
+      "id": "new_unique_id",
+      "summary": "Thread summary",
+      "urgency": "normal",
+      "scope": "arc",
+      "active": true
+    }
+  ],
+  "_checklist": {                // MANDATORY — forces model to check each category
+    "thread_count": "Reviewed N active threads",
+    "resolved": "N threads narratively resolved",
+    "removed": "N threads removed (reason)",
+    "new": "N new threads added from narrative evidence",
+    "goal": "Goal unchanged or updated (why)"
+  }
+}

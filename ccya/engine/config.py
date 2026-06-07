@@ -163,6 +163,10 @@ class EngineConfig:
     # Max active threads before eviction of oldest
     thread_max_active: int = 5
 
+    # Thread sanitizer: batch arc/thread cleanup every N turns
+    sanitize_every: int = 5       # 0 = disabled
+    sanitize_temperature: float = 0.3
+
     def _resolve_difficulty_modifiers(self) -> dict[str, int]:
         curves = {
             "forgiving": {"trivial": 3, "easy": 1, "normal": 0, "hard": -1, "extreme": -2},
@@ -263,6 +267,11 @@ def build_engine_config(
         arc_memory_ttl=int(game.get("arc_memory_ttl", 3)),
         thread_stale_threshold=int(game.get("thread_stale_threshold", 3)),
         thread_max_active=int(game.get("thread_max_active", 5)),
+
+        sanitize_every=int(game.get("sanitize_every", 5)),   # 0 = disabled
+        sanitize_temperature=float(
+            llm.get("sanitize", {}).get("temperature", 0.3)
+        ),
     )
 
 

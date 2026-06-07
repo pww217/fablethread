@@ -24,6 +24,7 @@ from ccya.engine.extraction import (
 from ccya.engine.names import generate_npc_names_split
 from ccya.engine.narrate import _narrate_messages
 from ccya.engine.npc_roster import build_npc_roster
+from ccya.engine.thread_sanitizer import sanitize_threads
 
 from ccya.engine.ruling import _call_ruling, _log_ruling_outcome, _ruling_messages
 from ccya.llm_client import (
@@ -1412,6 +1413,19 @@ async def run_turn(
             prior.append(bullet)
             if len(prior) > 20:
                 meta["prior_history"] = prior[-20:]
+            save_state(save_dir, state)
+
+        # === Thread sanitizer (after prior_history, before yield complete) ===
+        if config.sanitize_every > 0:
+            t_sanitize = asyncio.get_running_loop().time()
+            state, sanitize_ran = await sanitize_threads(
+                save_dir, state, config, trace_id=trace_id,
+            )
+            if sanitize_ran:
+                yield ("phase", {"phase": "sanitize_start", "expected_ms": 0})
+                yield ("phase", {"phase": "sanitize_done", "ms": round(
+                    (asyncio.get_running_loop().time() - t_sanitize) * 1000, 1
+                )})
             save_state(save_dir, state)
 
         result_obj = TurnResult(
