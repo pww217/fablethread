@@ -1,0 +1,2401 @@
+{
+  "scenario_id": "baseline",
+  "pack": "eval-pack",
+  "model": "mlx-community/gemma-4-26b-a4b-it-mxfp8",
+  "temperature_override": null,
+  "started_at": "2026-06-07T07:34:32.851813+00:00",
+  "finished_at": "2026-06-07T07:40:28.218264+00:00",
+  "save_dir": "/Users/pwilson/.cache/ccya-eval/20260607T073432Z/save",
+  "output_dir": "/Users/pwilson/Repos/ccya/evals/runs/20260607T073432Z_ncub80ru",
+  "events_jsonl_path": "/Users/pwilson/Repos/ccya/evals/runs/20260607T073432Z_ncub80ru/artifacts/baseline.events.jsonl",
+  "state_yaml_path": "",
+  "trace_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260607T073432Z_ncub80ru/baseline.meta.trace.md",
+  "judge_md_path": "/Users/pwilson/Repos/ccya/evals/runs/20260607T073432Z_ncub80ru/baseline.meta.judge.md",
+  "turns": [
+    {
+      "turn_number": 1,
+      "input": "I ride into Dustfall and tie my horse at the livery. The sun is hot and the main street is quiet. I head for the saloon.",
+      "phase": "arrival",
+      "expects": [
+        "rules.required=false (pure narration)",
+        "extract.scene should establish the Dustfall setting"
+      ],
+      "duration_s": 29.31049704097677,
+      "error": null,
+      "engine_turn_number": 1,
+      "outcome_summary": "The PC arrives in Dustfall and approaches the saloon to escape the midday heat.",
+      "narrative_chars": 840,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "ruling.rolled",
+          "passed": true,
+          "detail": "rolled=False"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(first turn)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.lifecycle_respected",
+          "passed": true,
+          "detail": "beat consumed (cleared) - no gm_beat emitted this turn",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(first turn)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "(first turn)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.outcome_hint_rendered",
+          "passed": true,
+          "detail": "outcome_hint 'transition' rendered in narrate prompt",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.directive_rendered",
+          "passed": true,
+          "detail": "(no directive computed)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.consecutive_pressure_tracking",
+          "passed": false,
+          "detail": "gm_beat.type='pressure' (pressure type) but consecutive_pressure_turns=0 (expected >= 1)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pacing.beat_locked_dual_trigger",
+          "passed": true,
+          "detail": "beat_locked=False (momentum=0, floor=-3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_relief",
+          "passed": true,
+          "detail": "beat_locked=False, no floor relief expected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.goal_update.applied",
+          "passed": true,
+          "detail": "(no goal_update emitted)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.directives.no_removed",
+          "passed": true,
+          "detail": "no removed directives in rendered prompts",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.npc_states.no_removed",
+          "passed": true,
+          "detail": "no removed NPC states detected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.remove_existence",
+          "passed": true,
+          "detail": "(first turn)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_update.valid_id",
+          "passed": true,
+          "detail": "checked 1 thread_updates",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.conditions.orphan",
+          "passed": true,
+          "detail": "all conditions have CONDITION_MODS entries",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_add.applied",
+          "passed": true,
+          "detail": "all thread_add signals produced state mutations",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.beat_type.variety",
+          "passed": true,
+          "detail": "only 1 beat(s) in window (need >= 3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.beat_type.surface_as_consistency",
+          "passed": true,
+          "detail": "no surface_as drift detected",
+          "scope": "universal",
+          "severity": "yellow"
+        }
+      ]
+    },
+    {
+      "turn_number": 2,
+      "input": "I step up to the bar and ask for a glass of water and whatever news there is. The bartender is wiping a glass and eyeing me.",
+      "phase": "social",
+      "expects": [
+        "rules.required=false (casual conversation)",
+        "storytell introduces at least one thread or beat about the town"
+      ],
+      "duration_s": 21.14625900000101,
+      "error": null,
+      "engine_turn_number": 2,
+      "outcome_summary": "The player approached the bar for water and news, prompting Edda to warn them about the men loitering outside.",
+      "narrative_chars": 902,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.lifecycle_respected",
+          "passed": true,
+          "detail": "beat present but source unclear: type=pressure",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "band=setback delta=0 (expected -1, engine may clamp)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 1 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.outcome_hint_rendered",
+          "passed": true,
+          "detail": "outcome_hint 'hold' rendered in narrate prompt",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.directive_rendered",
+          "passed": true,
+          "detail": "(no directive computed)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.consecutive_pressure_tracking",
+          "passed": true,
+          "detail": "gm_beat.type='complication', counter=1",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.beat_locked_dual_trigger",
+          "passed": true,
+          "detail": "beat_locked=False (momentum=0, floor=-3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_relief",
+          "passed": true,
+          "detail": "beat_locked=False, no floor relief expected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.goal_update.applied",
+          "passed": true,
+          "detail": "(no goal_update emitted)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.directives.no_removed",
+          "passed": true,
+          "detail": "no removed directives in rendered prompts",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.npc_states.no_removed",
+          "passed": true,
+          "detail": "no removed NPC states detected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.remove_existence",
+          "passed": true,
+          "detail": "checked 1 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_update.valid_id",
+          "passed": true,
+          "detail": "checked 1 thread_updates",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.conditions.orphan",
+          "passed": false,
+          "detail": "conditions with no CONDITION_MODS entry: ['heat_exhaustion']",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_add.applied",
+          "passed": true,
+          "detail": "all thread_add signals produced state mutations",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.beat_type.variety",
+          "passed": true,
+          "detail": "only 2 beat(s) in window (need >= 3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.beat_type.surface_as_consistency",
+          "passed": true,
+          "detail": "no surface_as drift detected",
+          "scope": "universal",
+          "severity": "yellow"
+        }
+      ]
+    },
+    {
+      "turn_number": 3,
+      "input": "I lean on the bar and ask what happened to Old Man Harker. The bartender seems reluctant but starts talking.",
+      "phase": "investigation",
+      "expects": [
+        "rules.required=false (listening, no obstacle)",
+        "storytell.quest_updates introduces a quest or thread"
+      ],
+      "duration_s": 22.645578083000146,
+      "error": null,
+      "engine_turn_number": 3,
+      "outcome_summary": "Edda whispered that Harker was taken by the thugs waiting outside, causing the patrons to react with sudden tension.",
+      "narrative_chars": 959,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "ruling.rolled",
+          "passed": true,
+          "detail": "rolled=False"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.lifecycle_respected",
+          "passed": true,
+          "detail": "beat present but source unclear: type=pressure",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.actions_quality",
+          "passed": false,
+          "detail": "actions has 0 entries (expected 4)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.outcome_hint_rendered",
+          "passed": true,
+          "detail": "(no outcome_hint computed)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.directive_rendered",
+          "passed": true,
+          "detail": "(no directive computed)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.consecutive_pressure_tracking",
+          "passed": false,
+          "detail": "gm_beat.type=None (not pressure) but consecutive_pressure_turns=3 (expected 0)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pacing.beat_locked_dual_trigger",
+          "passed": true,
+          "detail": "beat_locked=False (momentum=-2, floor=-3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_relief",
+          "passed": true,
+          "detail": "beat_locked=False, no floor relief expected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.goal_update.applied",
+          "passed": true,
+          "detail": "(no goal_update emitted)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.directives.no_removed",
+          "passed": true,
+          "detail": "no removed directives in rendered prompts",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.npc_states.no_removed",
+          "passed": true,
+          "detail": "no removed NPC states detected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.remove_existence",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_update.valid_id",
+          "passed": true,
+          "detail": "no thread_updates",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.conditions.orphan",
+          "passed": false,
+          "detail": "conditions with no CONDITION_MODS entry: ['rattled']",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_add.applied",
+          "passed": true,
+          "detail": "all thread_add signals produced state mutations",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.beat_type.variety",
+          "passed": true,
+          "detail": "only 2 beat(s) in window (need >= 3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.beat_type.surface_as_consistency",
+          "passed": true,
+          "detail": "no surface_as drift detected",
+          "scope": "universal",
+          "severity": "yellow"
+        }
+      ]
+    },
+    {
+      "turn_number": 4,
+      "input": "I head over to the assay office to see if Harker filed any claims recently. I knock on the door and introduce myself.",
+      "phase": "investigation",
+      "expects": [
+        "rules.required=true skill=wits (investigation)",
+        "extract.state should include evidence or documents found"
+      ],
+      "duration_s": 24.807771084015258,
+      "error": null,
+      "engine_turn_number": 4,
+      "outcome_summary": "The PC approached the Assay Office to find Harker, only for the clerk to reveal that Harker was acting suspiciously before his disappearance.",
+      "narrative_chars": 1091,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "ruling.rolled",
+          "passed": true,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.lifecycle_respected",
+          "passed": true,
+          "detail": "beat present but source unclear: type=complication",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": false,
+          "detail": "band=fail expected delta -1 but got +1 (prev=-2 cur=-1)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.outcome_hint_rendered",
+          "passed": true,
+          "detail": "outcome_hint 'hold' rendered in narrate prompt",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.directive_rendered",
+          "passed": true,
+          "detail": "directive 'Breathe' rendered in storytell prompt",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.consecutive_pressure_tracking",
+          "passed": true,
+          "detail": "gm_beat.type='pressure', counter=2",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.beat_locked_dual_trigger",
+          "passed": true,
+          "detail": "beat_locked=False (momentum=-1, floor=-3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_relief",
+          "passed": true,
+          "detail": "beat_locked=False, no floor relief expected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.goal_update.applied",
+          "passed": true,
+          "detail": "(no goal_update emitted)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.directives.no_removed",
+          "passed": true,
+          "detail": "no removed directives in rendered prompts",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.npc_states.no_removed",
+          "passed": true,
+          "detail": "no removed NPC states detected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.remove_existence",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_update.valid_id",
+          "passed": true,
+          "detail": "checked 1 thread_updates",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.conditions.orphan",
+          "passed": false,
+          "detail": "conditions with no CONDITION_MODS entry: ['heat_exhaustion']",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_add.applied",
+          "passed": true,
+          "detail": "all thread_add signals produced state mutations",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.beat_type.variety",
+          "passed": true,
+          "detail": "only 2 beat(s) in window (need >= 3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.beat_type.surface_as_consistency",
+          "passed": true,
+          "detail": "no surface_as drift detected",
+          "scope": "universal",
+          "severity": "yellow"
+        }
+      ]
+    },
+    {
+      "turn_number": 5,
+      "input": "I walk to the sheriff's office and ask if he's filed a missing person report for Harker. I want to see if the law is involved.",
+      "phase": "social",
+      "expects": [
+        "rules.required=true skill=charisma (convincing the sheriff to share info)",
+        "extract.scene should show the sheriff's office interior"
+      ],
+      "duration_s": 32.31014579103794,
+      "error": null,
+      "engine_turn_number": 5,
+      "outcome_summary": "The PC learned from Sheriff Vance that no official missing person report has been filed for Harker.",
+      "narrative_chars": 1080,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "ruling.rolled",
+          "passed": false,
+          "detail": "rolled=False"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.lifecycle_respected",
+          "passed": true,
+          "detail": "beat present but source unclear: type=pressure",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": false,
+          "detail": "location_change emitted but state.location.id unchanged: dustfall_main_street",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.outcome_hint_rendered",
+          "passed": true,
+          "detail": "outcome_hint 'transition' rendered in narrate prompt",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.directive_rendered",
+          "passed": true,
+          "detail": "directive 'Breathe; Resolve a Threat' rendered in storytell prompt",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.consecutive_pressure_tracking",
+          "passed": false,
+          "detail": "gm_beat.type='revelation' (not pressure) but consecutive_pressure_turns=3 (expected 0)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pacing.beat_locked_dual_trigger",
+          "passed": true,
+          "detail": "beat_locked=True (momentum=-2, floor=-3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_relief",
+          "passed": true,
+          "detail": "beat_locked=True, storytell emitted non-pressure beat 'revelation' \u2014 floor relief did not override",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.goal_update.applied",
+          "passed": true,
+          "detail": "(no goal_update emitted)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.directives.no_removed",
+          "passed": true,
+          "detail": "no removed directives in rendered prompts",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.npc_states.no_removed",
+          "passed": true,
+          "detail": "no removed NPC states detected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.remove_existence",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_update.valid_id",
+          "passed": true,
+          "detail": "checked 1 thread_updates",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.conditions.orphan",
+          "passed": false,
+          "detail": "conditions with no CONDITION_MODS entry: ['rattled']",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_add.applied",
+          "passed": true,
+          "detail": "all thread_add signals produced state mutations",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.beat_type.variety",
+          "passed": true,
+          "detail": "only 2 beat(s) in window (need >= 3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.beat_type.surface_as_consistency",
+          "passed": true,
+          "detail": "no surface_as drift detected",
+          "scope": "universal",
+          "severity": "yellow"
+        }
+      ]
+    },
+    {
+      "turn_number": 6,
+      "input": "The sheriff gives me Harker's cabin key. I walk to the edge of town and let myself in. The place is dusty and cold.",
+      "phase": "exploration",
+      "expects": [
+        "extract.scene.location_change from town to cabin",
+        "rules.required=false (searching an empty cabin)"
+      ],
+      "duration_s": 24.588465707958676,
+      "error": null,
+      "engine_turn_number": 6,
+      "outcome_summary": "The player used the rusted key provided by Sheriff Vance to enter Harker's abandoned, dust-covered cabin.",
+      "narrative_chars": 947,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "ruling.rolled",
+          "passed": true,
+          "detail": "rolled=False"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.lifecycle_respected",
+          "passed": true,
+          "detail": "beat present but source unclear: type=revelation",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "dustfall_main_street -> assay_office",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.outcome_hint_rendered",
+          "passed": true,
+          "detail": "outcome_hint 'transition' rendered in narrate prompt",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.directive_rendered",
+          "passed": true,
+          "detail": "directive 'Breathe' rendered in storytell prompt",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.consecutive_pressure_tracking",
+          "passed": true,
+          "detail": "gm_beat.type=None, counter=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.beat_locked_dual_trigger",
+          "passed": true,
+          "detail": "beat_locked=False (momentum=-2, floor=-3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_relief",
+          "passed": true,
+          "detail": "beat_locked=False, no floor relief expected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.goal_update.applied",
+          "passed": true,
+          "detail": "(no goal_update emitted)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.directives.no_removed",
+          "passed": true,
+          "detail": "no removed directives in rendered prompts",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.npc_states.no_removed",
+          "passed": true,
+          "detail": "no removed NPC states detected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.remove_existence",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_update.valid_id",
+          "passed": true,
+          "detail": "checked 1 thread_updates",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.conditions.orphan",
+          "passed": true,
+          "detail": "all conditions have CONDITION_MODS entries",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_add.applied",
+          "passed": true,
+          "detail": "all thread_add signals produced state mutations",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.beat_type.variety",
+          "passed": true,
+          "detail": "only 2 beat(s) in window (need >= 3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.beat_type.surface_as_consistency",
+          "passed": true,
+          "detail": "no surface_as drift detected",
+          "scope": "universal",
+          "severity": "yellow"
+        }
+      ]
+    },
+    {
+      "turn_number": 7,
+      "input": "I look through Harker's desk and find a locked tin box. I pry it open with my knife and find a map with markings near Red Canyon.",
+      "phase": "discovery",
+      "expects": [
+        "rules.required=true skill=wits (finding and opening the box)",
+        "extract.state.inventory_add includes tin box contents or map"
+      ],
+      "duration_s": 26.6937721670256,
+      "error": null,
+      "engine_turn_number": 7,
+      "outcome_summary": "The PC successfully pried open the tin box to find a map of Red Canyon, only to be startled by a shadow moving outside the cabin.",
+      "narrative_chars": 1003,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "ruling.rolled",
+          "passed": false,
+          "detail": "rolled=False"
+        },
+        {
+          "assertion": "extract.state.inventory_add",
+          "passed": false,
+          "detail": "inventory_add[torn_map] not found"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.lifecycle_respected",
+          "passed": true,
+          "detail": "beat present but source unclear: type=complication",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.actions_quality",
+          "passed": false,
+          "detail": "actions has 0 entries (expected 4)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.outcome_hint_rendered",
+          "passed": true,
+          "detail": "(no outcome_hint computed)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.directive_rendered",
+          "passed": true,
+          "detail": "(no directive computed)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.consecutive_pressure_tracking",
+          "passed": false,
+          "detail": "gm_beat.type=None (not pressure) but consecutive_pressure_turns=1 (expected 0)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pacing.beat_locked_dual_trigger",
+          "passed": true,
+          "detail": "beat_locked=False (momentum=-1, floor=-3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_relief",
+          "passed": true,
+          "detail": "beat_locked=False, no floor relief expected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.goal_update.applied",
+          "passed": true,
+          "detail": "(no goal_update emitted)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.directives.no_removed",
+          "passed": true,
+          "detail": "no removed directives in rendered prompts",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.npc_states.no_removed",
+          "passed": true,
+          "detail": "no removed NPC states detected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.remove_existence",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_update.valid_id",
+          "passed": true,
+          "detail": "no thread_updates",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.conditions.orphan",
+          "passed": false,
+          "detail": "conditions with no CONDITION_MODS entry: ['startled']",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_add.applied",
+          "passed": true,
+          "detail": "all thread_add signals produced state mutations",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.beat_type.variety",
+          "passed": true,
+          "detail": "only 1 beat(s) in window (need >= 3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.beat_type.surface_as_consistency",
+          "passed": true,
+          "detail": "no surface_as drift detected",
+          "scope": "universal",
+          "severity": "yellow"
+        }
+      ]
+    },
+    {
+      "turn_number": 8,
+      "input": "I head back to the general store to buy supplies \u2014 dried meat, water canteen, rope. The clerk rings me up.",
+      "phase": "preparation",
+      "expects": [
+        "rules.required=false (shopping, pure narration)",
+        "extract.state.inventory_remove includes credits payment"
+      ],
+      "duration_s": 30.3684274579864,
+      "error": null,
+      "engine_turn_number": 8,
+      "outcome_summary": "The PC returns to the general store for supplies, only to be cornered by the thugs they previously observed near the inn.",
+      "narrative_chars": 1087,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "extract.state.inventory_remove",
+          "passed": false,
+          "detail": "inventory_remove[credits] not found"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.lifecycle_respected",
+          "passed": true,
+          "detail": "beat consumed (cleared) - no gm_beat emitted this turn",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "isolated_cabin -> sheriff_station",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.outcome_hint_rendered",
+          "passed": true,
+          "detail": "outcome_hint 'transition' rendered in narrate prompt",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.directive_rendered",
+          "passed": true,
+          "detail": "directive 'Breathe' rendered in storytell prompt",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.consecutive_pressure_tracking",
+          "passed": true,
+          "detail": "gm_beat.type='breathing_room', counter=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.beat_locked_dual_trigger",
+          "passed": true,
+          "detail": "beat_locked=False (momentum=-2, floor=-3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_relief",
+          "passed": true,
+          "detail": "beat_locked=False, no floor relief expected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.goal_update.applied",
+          "passed": true,
+          "detail": "(no goal_update emitted)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.directives.no_removed",
+          "passed": true,
+          "detail": "no removed directives in rendered prompts",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.npc_states.no_removed",
+          "passed": true,
+          "detail": "no removed NPC states detected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.remove_existence",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_update.valid_id",
+          "passed": true,
+          "detail": "checked 1 thread_updates",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.conditions.orphan",
+          "passed": true,
+          "detail": "all conditions have CONDITION_MODS entries",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_add.applied",
+          "passed": true,
+          "detail": "all thread_add signals produced state mutations",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.beat_type.variety",
+          "passed": true,
+          "detail": "only 1 beat(s) in window (need >= 3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.beat_type.surface_as_consistency",
+          "passed": true,
+          "detail": "no surface_as drift detected",
+          "scope": "universal",
+          "severity": "yellow"
+        }
+      ]
+    },
+    {
+      "turn_number": 9,
+      "input": "I saddle up and ride out to Red Canyon. The trail is rough and the sun is starting to set. I keep an eye on the canyon walls.",
+      "phase": "travel",
+      "expects": [
+        "extract.scene.location_change to red_canyon",
+        "rules.required=false (travel, narration)"
+      ],
+      "duration_s": 26.216805332980584,
+      "error": null,
+      "engine_turn_number": 9,
+      "outcome_summary": "The PC escapes Dustfall and enters the narrowing Red Canyon, noticing suspicious metallic glints in the cliffside shadows.",
+      "narrative_chars": 925,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "ruling.rolled",
+          "passed": false,
+          "detail": "rolled=True"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "(no prior beat)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.lifecycle_respected",
+          "passed": true,
+          "detail": "beat injected by floor relief (breathing_room) \u2014 storytell emitted no beat",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "band=success delta=0 (expected +1, engine may clamp)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.outcome_hint_rendered",
+          "passed": true,
+          "detail": "outcome_hint 'advance' rendered in narrate prompt",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.directive_rendered",
+          "passed": true,
+          "detail": "(no directive computed)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.consecutive_pressure_tracking",
+          "passed": false,
+          "detail": "gm_beat.type='complication' (pressure type) but consecutive_pressure_turns=0 (expected >= 1)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pacing.beat_locked_dual_trigger",
+          "passed": true,
+          "detail": "beat_locked=False (momentum=-2, floor=-3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_relief",
+          "passed": true,
+          "detail": "beat_locked=False, no floor relief expected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.goal_update.applied",
+          "passed": true,
+          "detail": "(no goal_update emitted)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.directives.no_removed",
+          "passed": true,
+          "detail": "no removed directives in rendered prompts",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.npc_states.no_removed",
+          "passed": true,
+          "detail": "no removed NPC states detected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.remove_existence",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_update.valid_id",
+          "passed": true,
+          "detail": "checked 1 thread_updates",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.conditions.orphan",
+          "passed": true,
+          "detail": "all conditions have CONDITION_MODS entries",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_add.applied",
+          "passed": true,
+          "detail": "all thread_add signals produced state mutations",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.beat_type.variety",
+          "passed": true,
+          "detail": "only 2 beat(s) in window (need >= 3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.beat_type.surface_as_consistency",
+          "passed": true,
+          "detail": "no surface_as drift detected",
+          "scope": "universal",
+          "severity": "yellow"
+        }
+      ]
+    },
+    {
+      "turn_number": 10,
+      "input": "I find a camp at the base of the canyon wall. Two men are sitting by a fire, and I see Harker's hat on one of them. I step into the firelight.",
+      "phase": "confrontation",
+      "expects": [
+        "rules.required=true skill=charisma|strength (confrontation)",
+        "pc_condition_add possible if combat breaks out"
+      ],
+      "duration_s": 35.58931029197993,
+      "error": null,
+      "engine_turn_number": 10,
+      "outcome_summary": "The PC confronts the thugs at their campfire and discovers Harker's hat among their belongings.",
+      "narrative_chars": 1085,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "ruling.rolled",
+          "passed": false,
+          "detail": "rolled=False"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.lifecycle_respected",
+          "passed": true,
+          "detail": "beat present but source unclear: type=complication",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": false,
+          "detail": "location_change emitted but state.location.id unchanged: isolated_cabin",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 1 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.outcome_hint_rendered",
+          "passed": true,
+          "detail": "outcome_hint 'transition' rendered in narrate prompt",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.directive_rendered",
+          "passed": true,
+          "detail": "(no directive computed)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.consecutive_pressure_tracking",
+          "passed": true,
+          "detail": "gm_beat.type='pressure', counter=1",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.beat_locked_dual_trigger",
+          "passed": true,
+          "detail": "beat_locked=False (momentum=-1, floor=-3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_relief",
+          "passed": true,
+          "detail": "beat_locked=False, no floor relief expected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.goal_update.applied",
+          "passed": true,
+          "detail": "(no goal_update emitted)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.directives.no_removed",
+          "passed": true,
+          "detail": "no removed directives in rendered prompts",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.npc_states.no_removed",
+          "passed": true,
+          "detail": "no removed NPC states detected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.remove_existence",
+          "passed": true,
+          "detail": "checked 1 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_update.valid_id",
+          "passed": true,
+          "detail": "checked 1 thread_updates",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.conditions.orphan",
+          "passed": false,
+          "detail": "conditions with no CONDITION_MODS entry: ['startled']",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_add.applied",
+          "passed": true,
+          "detail": "all thread_add signals produced state mutations",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.beat_type.variety",
+          "passed": true,
+          "detail": "beat variety OK: {'breathing_room': 1, 'complication': 1, 'pressure': 1}",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.beat_type.surface_as_consistency",
+          "passed": true,
+          "detail": "no surface_as drift detected",
+          "scope": "universal",
+          "severity": "yellow"
+        }
+      ]
+    },
+    {
+      "turn_number": 11,
+      "input": "The men surrender. I find Harker tied up in a nearby cave. He's bruised but alive. I cut him loose and give him water.",
+      "phase": "resolution",
+      "expects": [
+        "rules.required=false (aftermath, narration)",
+        "storytell.quest_updates resolves the missing prospector thread",
+        "pc_condition_remove for any conditions from the confrontation"
+      ],
+      "duration_s": 29.193324125022627,
+      "error": null,
+      "engine_turn_number": 11,
+      "outcome_summary": "The PC successfully persuaded the thugs to stand down and freed Old Man Harker from his bindings in the canyon cave.",
+      "narrative_chars": 1176,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "extract.state.pc_condition_remove",
+          "passed": false,
+          "detail": "pc_condition_remove[bruised_ribs] not found"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.lifecycle_respected",
+          "passed": true,
+          "detail": "beat present but source unclear: type=pressure",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "isolated_cabin -> general_store",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.outcome_hint_rendered",
+          "passed": true,
+          "detail": "outcome_hint 'transition' rendered in narrate prompt",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.directive_rendered",
+          "passed": true,
+          "detail": "directive 'Pressure' rendered in storytell prompt",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.consecutive_pressure_tracking",
+          "passed": true,
+          "detail": "gm_beat.type='pressure', counter=2",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.beat_locked_dual_trigger",
+          "passed": true,
+          "detail": "beat_locked=False (momentum=-1, floor=-3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_relief",
+          "passed": true,
+          "detail": "beat_locked=False, no floor relief expected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.goal_update.applied",
+          "passed": true,
+          "detail": "(no goal_update emitted)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.directives.no_removed",
+          "passed": true,
+          "detail": "no removed directives in rendered prompts",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.npc_states.no_removed",
+          "passed": true,
+          "detail": "no removed NPC states detected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.remove_existence",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_update.valid_id",
+          "passed": true,
+          "detail": "checked 1 thread_updates",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.conditions.orphan",
+          "passed": false,
+          "detail": "conditions with no CONDITION_MODS entry: ['threatened']",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_add.applied",
+          "passed": true,
+          "detail": "all thread_add signals produced state mutations",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.beat_type.variety",
+          "passed": false,
+          "detail": "beats are 67% 'pressure' (threshold: 60%): {'complication': 1, 'pressure': 2}",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.beat_type.surface_as_consistency",
+          "passed": true,
+          "detail": "no surface_as drift detected",
+          "scope": "universal",
+          "severity": "yellow"
+        }
+      ]
+    },
+    {
+      "turn_number": 12,
+      "input": "Harker and I ride back to Dustfall together. He's quiet but grateful. The town lights come into view as dusk settles.",
+      "phase": "travel",
+      "expects": [
+        "extract.scene.location_change back to Dustfall",
+        "rules.required=false (travel, narration)"
+      ],
+      "duration_s": 28.10261324996827,
+      "error": null,
+      "engine_turn_number": 12,
+      "outcome_summary": "Aren Voss successfully escorts the injured Harker back to Dustfall, only to find mysterious watchers waiting at the town limits.",
+      "narrative_chars": 1187,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.lifecycle_respected",
+          "passed": true,
+          "detail": "beat present but source unclear: type=pressure",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "binding directive included",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.actions_quality",
+          "passed": true,
+          "detail": "4 distinct actions",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "band=success delta=0 (expected +1, engine may clamp)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.outcome_hint_rendered",
+          "passed": true,
+          "detail": "outcome_hint 'advance' rendered in narrate prompt",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.directive_rendered",
+          "passed": true,
+          "detail": "directive 'Pressure; Resolve a Threat' rendered in storytell prompt",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.consecutive_pressure_tracking",
+          "passed": true,
+          "detail": "gm_beat.type='complication', counter=3",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.beat_locked_dual_trigger",
+          "passed": true,
+          "detail": "beat_locked=True (momentum=-1, floor=-3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_relief",
+          "passed": false,
+          "detail": "beat_locked=True, storytell_type='complication' but pending_gm_beat.type='pressure' (expected 'breathing_room')",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.goal_update.applied",
+          "passed": true,
+          "detail": "(no goal_update emitted)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.directives.no_removed",
+          "passed": true,
+          "detail": "no removed directives in rendered prompts",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.npc_states.no_removed",
+          "passed": true,
+          "detail": "no removed NPC states detected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.remove_existence",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_update.valid_id",
+          "passed": true,
+          "detail": "checked 1 thread_updates",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.conditions.orphan",
+          "passed": true,
+          "detail": "all conditions have CONDITION_MODS entries",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_add.applied",
+          "passed": true,
+          "detail": "all thread_add signals produced state mutations",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.beat_type.variety",
+          "passed": false,
+          "detail": "beats are 67% 'pressure' (threshold: 60%): {'pressure': 2, 'complication': 1}",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.beat_type.surface_as_consistency",
+          "passed": true,
+          "detail": "no surface_as drift detected",
+          "scope": "universal",
+          "severity": "yellow"
+        }
+      ]
+    },
+    {
+      "turn_number": 13,
+      "input": "I walk Harker to the doc's office and then head to the saloon. The bartender sets a whiskey on the bar and nods. I drink it slow.",
+      "phase": "epilogue",
+      "expects": [
+        "rules.required=false (epilogue, pure narration)",
+        "storytell resolves remaining threads"
+      ],
+      "duration_s": 24.32894837501226,
+      "error": "engine_errors: [{\"trace_id\": \"fab673cd\", \"message\": \"Delta validation failed (1 rejection(s)).\"}]",
+      "engine_turn_number": 13,
+      "outcome_summary": "The PC delivers Harker to the healer and retreats to the saloon for whiskey, only to find themselves being watched by newcomers.",
+      "narrative_chars": 1000,
+      "rules_parse_failures": 0,
+      "extract_parse_failures": 0,
+      "assert_results": [
+        {
+          "assertion": "universal.pending_gm_beat.consumed",
+          "passed": true,
+          "detail": "beat consumed or replaced",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pending_gm_beat.lifecycle_respected",
+          "passed": true,
+          "detail": "beat present but source unclear: type=pressure",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.location_change.applied",
+          "passed": true,
+          "detail": "(no change)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.binding_present",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.actions_quality",
+          "passed": false,
+          "detail": "actions has 0 entries (expected 4)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.momentum.band_delta",
+          "passed": true,
+          "detail": "(no roll)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.no_overdraw",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.narrate.outcome_hint_rendered",
+          "passed": true,
+          "detail": "(no outcome_hint computed)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.storytell.directive_rendered",
+          "passed": true,
+          "detail": "(no directive computed)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.consecutive_pressure_tracking",
+          "passed": false,
+          "detail": "gm_beat.type=None (not pressure) but consecutive_pressure_turns=3 (expected 0)",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.pacing.beat_locked_dual_trigger",
+          "passed": true,
+          "detail": "beat_locked=False (momentum=0, floor=-3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_relief",
+          "passed": true,
+          "detail": "beat_locked=False, no floor relief expected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.goal_update.applied",
+          "passed": true,
+          "detail": "(no goal_update emitted)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.directives.no_removed",
+          "passed": true,
+          "detail": "no removed directives in rendered prompts",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.npc_states.no_removed",
+          "passed": true,
+          "detail": "no removed NPC states detected",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.pacing.floor_no_relief",
+          "passed": true,
+          "detail": "floor_count=0",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.inventory.no_negative_amount",
+          "passed": true,
+          "detail": "no negative amounts",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.inventory.remove_existence",
+          "passed": true,
+          "detail": "checked 0 removes",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_update.valid_id",
+          "passed": true,
+          "detail": "no thread_updates",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.conditions.orphan",
+          "passed": false,
+          "detail": "conditions with no CONDITION_MODS entry: ['watched']",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.thread_add.applied",
+          "passed": true,
+          "detail": "all thread_add signals produced state mutations",
+          "scope": "universal",
+          "severity": "red"
+        },
+        {
+          "assertion": "universal.beat_type.variety",
+          "passed": true,
+          "detail": "only 2 beat(s) in window (need >= 3)",
+          "scope": "universal",
+          "severity": "yellow"
+        },
+        {
+          "assertion": "universal.beat_type.surface_as_consistency",
+          "passed": true,
+          "detail": "no surface_as drift detected",
+          "scope": "universal",
+          "severity": "yellow"
+        }
+      ]
+    }
+  ],
+  "total_errors": 1,
+  "track": "baseline"
+}

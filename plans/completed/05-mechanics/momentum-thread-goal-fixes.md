@@ -47,7 +47,7 @@ Add depth-based momentum recovery at -3 (`apply_momentum` returns +2 for success
 
 ## Status
 
-`open`
+`completed — both Phase 01 (momentum systemic) and Phase 02 (sanitizer prompt fixes) executed.`
 
 ---
 

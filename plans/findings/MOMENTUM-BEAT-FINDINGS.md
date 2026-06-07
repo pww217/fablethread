@@ -1,6 +1,7 @@
 # Momentum & Beat System — Root-Cause Analysis
 
-> Game: noir--1930s (25 turns). Covers I1 and I2 from [FINDINGS-JUNE-6.md](FINDINGS-JUNE-6.md).
+> Game: noir--1930s (25 turns). Covers G1 and G2 (formerly I1/I2) from [FINDINGS-JUNE-6.md](FINDINGS-JUNE-6.md).
+> General observations at [BUGS-OBSERVATIONS.md](BUGS-OBSERVATIONS.md).
 >
 > Confidence: **H**=high (data supports), **M**=medium (pattern suggests, needs
 > cross-game), **L**=low (hypothesis only).
@@ -342,22 +343,103 @@ scene threads AND roll well (happened ~4-5 times, always temporary)**.
 
 ---
 
-## Appendix: Key Source Locations
+## Proposed Solutions (ordered by effort/impact)
 
-| Component | File | Lines |
-|-----------|------|-------|
-| Velocity computation | `ccya/engine/turn.py` | 423-455 |
-| Directive priority stack | `ccya/engine/turn.py` | 458-522 |
-| Pacing context (beat_locked) | `ccya/engine/turn.py` | 525-597 |
-| Ages computation | `ccya/engine/turn.py` | 600-611 |
-| Effective scene age (combat boost) | `ccya/engine/turn.py` | 742-746 |
-| Scope-scene thread filtering | `ccya/engine/turn.py` | 827-838 |
-| Pacing context call site | `ccya/engine/turn.py` | 843-850 |
-| Floor relief injection | `ccya/engine/turn.py` | 1064-1072 |
-| Pressure counter | `ccya/engine/turn.py` | 1289-1301 |
-| Momentum application | `ccya/state/momentum.py` | 12-16 |
-| Momentum deltas | `ccya/rules.py` | 79 |
-| Band computation | `ccya/rules.py` | 119-131 |
-| Difficulty mods | `ccya/rules.py` | 26-28 |
-| Resolve check | `ccya/rules.py` | 171-223 |
-| Config (momentum_floor, etc.) | `ccya/engine/config.py` | 139-155 |
+### Quick fixes (~3 lines each)
+
+**MB-2: Don't append "; Resolve a Threat" to Breathe directive [FIXED — step 01.2]**
+
+File: `ccya/engine/turn.py`, lines 554-557
+```python
+# Current code (adds "; Resolve a Threat" to ANY directive when beat_locked):
+directive_parts = [directive] if directive else []
+directive_parts.append("Resolve a Threat")
+directive = "; ".join(directive_parts) or ""
+
+# Fix: skip append when directive is Breathe
+if beat_locked:
+    if not directive.startswith("Breathe"):  # ← add this guard
+        directive_parts = [directive] if directive else []
+        directive_parts.append("Resolve a Threat")
+        directive = "; ".join(directive_parts) or ""
+```
+
+Impact: Eliminates the contradictory "Breathe; Resolve a Threat" signal on ~7 turns per game. Simple, no behavioral side effects beyond removing the contradiction.
+
+**MB-3: Only fire floor relief from consecutive_pressure, not momentum floor [FIXED — step 01.3]**
+
+File: `ccya/engine/turn.py`, line 1064
+```python
+# Current condition (fires when beat_locked OR momentum at minimum):
+if _pc.beat_locked:
+    # ... injects breathing_room regardless of why beat_locked fired
+
+# Fix: only fire from consecutive_pressure, not momentum floor
+# Check what triggered beat_locked by examining the source:
+#   - consecutive_pressure_turns >= config.consecutive_pressure_threshold → fire relief
+#   - momentum <= config.momentum_floor → do NOT fire (crisis mode needs pressure)
+```
+
+Impact: Prevents calming beats from being injected during low-momentum crisis. 15/16 floor relief activations in baseline were from momentum floor — this would eliminate them, keeping the scene's natural escalation intact when it matters most.
+
+### Medium fix (~20 lines)
+
+**MB-4: Depth-based momentum recovery at -3 [FIXED — step 01.1]**
+
+File: `ccya/state/momentum.py`, function `apply_momentum` (lines 16-27)
+```python
+# Current code (uniform delta regardless of depth):
+def apply_momentum(state, band):
+    current = int(pc.get("momentum", 0))
+    delta = MOMENTUM_DELTA.get(band, 0)  # success=+1 always
+    new_val = max(MOMENTUM_MIN, min(MOMENTUM_MAX, current + delta))
+
+# Fix: increase delta magnitude at deep negatives (depth -3):
+def apply_momentum(state, band):
+    pc = state.setdefault("pc", {})
+    current = int(pc.get("momentum", 0))
+    delta = MOMENTUM_DELTA.get(band, 0)
+    
+    # Depth-based recovery: successes at -3 give +2 instead of +1
+    if current <= momentum_floor and band in ("success", "crit_success"):
+        depth_penalty = abs(current - momentum_floor)
+        if depth_penalty >= 2:  # at -2 or -3 when floor is -3
+            delta *= (1 + depth_penalty // 2)  # success at -3 → +2
+    
+    new_val = max(MOMENTUM_MIN, min(MOMENTUM_MAX, current + delta))
+```
+
+Impact: Breaks the death spiral by making recovery from deep negatives statistically viable. At -3, a single success brings momentum to -1 instead of -2 (a 2-step jump vs 1-step). Reduces expected turns to escape from ~20 to ~8-10 at observed roll rates.
+
+### Lower priority (pacing/design tweaks)
+
+**MB-6: Scene Imperative timing [FIXED — step 01.4]** — Threshold lowered from 5 to 4 in config.py, giving one extra turn of pacing recovery before forcing scene advancement.
+
+**MB-7: Difficulty frequency** — Cap hard difficulty at 25% of rolls per session, OR let momentum ≤ -2 shift one step easier (hard → normal). Would reduce 42% hard rate to ~20%, improving success rates for +2-max characters without changing core mechanics.
+
+---
+
+## Appendix: Key Source Locations (validated against source)
+
+| Component | File | Lines | Status |
+|-----------|------|-------|--------|
+| Velocity computation | `ccya/engine/turn.py` | 423-455 | Confirmed — momentum ≤ -2 → velocity < -0.3 → Breathe fires |
+| Directive priority stack | `ccya/engine/turn.py` | 458-522 | Confirmed — Breathe at top priority when velocity < -0.3, no urgent threads |
+| Pacing context (beat_locked) | `ccya/engine/turn.py` | 525-597 | **FIXED** — MB-2: Breathe no longer appends "; Resolve a Threat" (step 01.2) |
+| Ages computation | `ccya/engine/turn.py` | 600-611 | Confirmed |
+| Effective scene age (combat boost) | `ccya/engine/turn.py` | 742-746 | **FIXED** — MB-6: threshold lowered from 5 to 4 in config.py (step 01.4) |
+| Scope-scene thread filtering | `ccya/engine/turn.py` | 827-838 | Confirmed — only scope=scene threads used for directive computation |
+| Pacing context call site | `ccya/engine/turn.py` | 843-850 | Confirmed |
+| Floor relief injection | `ccya/engine/turn.py` | 1064-1072 | **FIXED** — MB-3: only fires from consecutive_pressure, not momentum floor (step 01.3) |
+| Pressure counter | `ccya/engine/turn.py` | 1074-1082 | **FIXED** — reads from pending_gm_beat after floor relief (findings referenced stale lines 1291-1301) |
+| Momentum application | `ccya/state/momentum.py` | 16-27 | **FIXED** — MB-4: depth-based catch-up at -3 (success=+2, crit_success=+3) added to apply_momentum() (step 01.1) |
+| Momentum deltas | `ccya/rules.py` | 79-86 | Confirmed — success=+1, fail=-1 regardless of current momentum |
+| Band computation | `ccya/rules.py` | 119-131 | Confirmed |
+| Difficulty mods | `ccya/rules.py` | 24-30 | Confirmed — MB-7: hard=-1 mod assigned 42% of rolls |
+| Resolve check | `ccya/rules.py` | 171-223 | Confirmed |
+| Config (momentum_floor, etc.) | `ccya/engine/config.py` | 139-155 | Confirmed — floor=-3, ceiling=3, pacing_factor=0.5 |
+| Auto-latent demotion | `ccya/engine/turn.py` | 224-240 | **FIXED** — fires every turn (not gated on mutation), updated last_updated_turn for all active threads each turn so stale threshold check reliably triggers (step 01.3a) |
+
+## Appendix: Auto-Checker Bug (Momentum Sign Inversion)
+
+The momentum sign inversion reported as #4 in PRIORITIES.md was caused by `runner.py` enrichment logic (`lines 503-505`) using **index-based matching** between turn_events and state_snapshots. Auxiliary events like condition_expired don't have state_snapshot written by the engine, so they get enriched with snapshots from different pipeline stages — causing false positive auto-checker failures comparing misaligned prev_ev/curr_ev pairs. The actual momentum code handles deltas correctly when called directly from the engine.
