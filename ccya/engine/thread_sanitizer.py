@@ -101,13 +101,11 @@ async def _sanitize_threads_impl(
         "tokens_in": int(usage.get("prompt_tokens", 0)),
         "tokens_out": int(usage.get("completion_tokens", 0)),
         "threads_updated": list(cd.get("updated_ids") or []),
-        "threads_removed": list(cd.get("removed_ids") or []),
         "threads_resolved": list(cd.get("resolved_ids") or []),
         "threads_added": list(cd.get("added_ids") or []),
         "goal_changed": cd.get("goal_before") != cd.get("goal_after"),
         "changes_detail": {
             "updated": dict(cd.get("updates_dict") or {}),
-            "removed": list(cd.get("removed_list") or []),
             "resolved": [dict(r) for r in cd.get("resolved_list") or []],
             "added": [dict(t) for t in cd.get("added_list") or []],
             "goal": {
@@ -260,16 +258,6 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
     if validated_rts:
         result["resolved_threads"] = validated_rts
 
-    # removed_threads — must have id + reason (both strings)
-    rm_list = raw.get("removed_threads", [])
-    validated_rm: list[dict[str, str]] = []
-    for _rm in rm_list or []:
-        if isinstance(_rm, dict) and _rm.get("id") and _rm.get("reason"):
-            validated_rm.append({"id": str(_rm["id"]), "reason": str(_rm["reason"])})
-
-    if validated_rm:
-        result["removed_threads"] = validated_rm
-
     # new_threads — validate against ArcThread model
     nt_list = raw.get("new_threads", [])
     validated_nts: list[dict[str, Any]] = []
@@ -303,8 +291,7 @@ def _apply_sanitization(
     1. goal_update: replace visible_goal/goal_context if non-null
     2. thread_updates: find by ID in threads[], apply non-null fields
     3. resolved_threads: move from threads[] to completed_threads[]
-    4. removed_threads: remove from both lists
-    5. new_threads: validate as ArcThread, append to threads[]
+    4. new_threads: validate as ArcThread, append to threads[]
 
     Returns (has_changes, changes_detail).
     """
@@ -322,9 +309,6 @@ def _apply_sanitization(
         "updated": {},
         "updated_ids": [],
         "updates_dict": {},
-        "removed": [],
-        "removed_ids": [],
-        "removed_list": [],
         "resolved": [],
         "resolved_ids": [],
         "resolved_list": [],
@@ -336,7 +320,6 @@ def _apply_sanitization(
         "goal_after": None,
     }
     updated_ids: list[str] = []
-    removed_ids: list[str] = []
     resolved_ids: list[str] = []
     added_ids: list[str] = []
 
@@ -450,21 +433,6 @@ def _apply_sanitization(
     changes_detail["resolved_ids"] = resolved_ids
     changes_detail["resolved_list"] = changes_detail["resolved"]
 
-    # 4. removed_threads — remove from both lists entirely
-    for _rm in parsed.get("removed_threads") or []:
-        tid = _rm.get("id", "")
-        reason = str(_rm.get("reason", ""))
-        if not tid:
-            continue
-
-        arc.threads = [t for t in arc.threads if t.id != tid]
-        arc.completed_threads = [t for t in arc.completed_threads if t.id != tid]
-        removed_ids.append(tid)
-        entry = {"id": tid, "reason": reason}
-        changes_detail["removed"].append(entry)
-
-    changes_detail["removed_ids"] = removed_ids
-    changes_detail["removed_list"] = changes_detail["removed"]
 
     # 5. new_threads — validate and append to threads[]
     for _nt in parsed.get("new_threads") or []:
@@ -497,7 +465,7 @@ def _apply_sanitization(
         arc.last_thread_created_turn = current_turn
 
     # Write back mutated arc (only if something changed)
-    has_changes = bool(updated_ids or removed_ids or resolved_ids or added_ids or changes_detail["goal"]["before"] != changes_detail["goal"]["after"])
+    has_changes = bool(updated_ids or resolved_ids or added_ids or changes_detail["goal"]["before"] != changes_detail["goal"]["after"])
 
     if has_changes:
         state["arc"] = {**_dump_arc(arc), "threads": [t.model_dump() for t in arc.threads], "completed_threads": [t.model_dump() for t in arc.completed_threads]}

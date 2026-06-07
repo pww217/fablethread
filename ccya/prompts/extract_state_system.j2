@@ -41,15 +41,15 @@ If the narration states a specific number, use it exactly. If no number is state
 
 ## Field rules
 
-`inventory_update`: patches to existing items — amount changes, name changes, notes updates, damage, upgrades. `name` and `notes` are optional within an update entry.
+`inventory_update`: patches to existing items — name changes, notes updates, damage, upgrades. Does not support amount changes — use `inventory_remove` instead. `name` and `notes` are optional within an update entry.
 
-`inventory_remove`: items lost, used up, destroyed, or spent. Omit `amount` to remove the entire stack.
+`inventory_remove`: items lost, used up, destroyed, or spent. Set `amount` to the count consumed (e.g. `"amount": 1` for one pistol_round). Omit `amount` to remove the entire stack.
 - If narration describes spending, giving away, or parting with an item — even if the amount is vague — emit the remove. If the recipient later rejects it or the action fails, still emit the remove.
 - Using a reusable item (unlocking a door with a key, reading a book) does NOT consume it. Only emit remove when the item is actually lost or used up.
 
 `inventory_add`: items explicitly received by the player character.
 - Do not cap items explicitly received. Items found incidentally (e.g. "searched the crates") are limited to ≤2 per turn.
-- Firearms and finite-use items always come with ammo or uses. Infer a realistic starting amount from context. If compatible ammo already exists in inventory, use `inventory_update` instead.
+- Firearms and finite-use items always come with ammo or uses. Infer a realistic starting amount from context. If compatible ammo already exists in inventory, use `inventory_add` — it merges with the existing stack.
 - Never emit `inventory_add` and `inventory_remove` for the same ID in one turn.
 
 `pc_condition_remove`: conditions resolved this turn. Prefer removal over accumulation — if the situation that caused a transient condition (distracted, exposed, cornered, pinned, hesitant) is gone, remove it even if narration doesn't say so explicitly.
