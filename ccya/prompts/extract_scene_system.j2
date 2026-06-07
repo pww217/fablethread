@@ -111,7 +111,7 @@ Before you emit `compendium_npc_update` for ANY NPC:
 ## Constraints
 
 - **NPC presence:** There MUST always be at least 1 NPC with `presence: "present"`. If no named NPCs are present, emit ambient presence (e.g., "crowd", "bystanders", "inn_patrons") with a generic ID. **HARD RULE: Do NOT emit ambient presence when any named NPC is already marked present.** Named NPCs are sufficient — this prevents hallucinated background characters.
-- **Never invent location IDs.** Only use location IDs from the current location section or well-known locations.
+- **Location IDs:** For `location_change`, derive a stable snake_case ID from narration context (e.g., "perimeter_ruins", "trench_area"). Do NOT invent new IDs for other purposes — only use existing location IDs from the current section or well-known locations.
 - **Keep scene_tags to at most 5.** Prefer the most salient descriptors.
 - **Limit new NPCs to at most 3 per turn.** Background extras go in ambient presence.
 
