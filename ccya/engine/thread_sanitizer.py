@@ -375,13 +375,17 @@ def _apply_sanitization(
             continue
 
         updates_dict: dict[str, Any] = {}
-        field_changes: list[str] = []
+        delta: dict[str, Any] = {"fields": [], "progress": None}
 
         for field in ("active", "urgency"):
             val = _tu.get(field)
             if val is not None and val != getattr(arc.threads[found_idx], field):
                 updates_dict[field] = val
-                field_changes.append(f"{field}={val}")
+                delta["fields"].append({
+                    "field": field,
+                    "before": getattr(arc.threads[found_idx], field),
+                    "after": val,
+                })
 
         # Progress: full replacement list from LLM (array of strings)
         prog_list = _tu.get("progress")
@@ -389,12 +393,16 @@ def _apply_sanitization(
             kind = _tu.get("progress_kind", "advancement") or "advancement"
             new_entries = [ProgressEntry(text=str(p), kind=kind) for p in prog_list]
             updates_dict["progress"] = new_entries
-            field_changes.append(f"progress=[{len(new_entries)} entries]")
+            old_progress = [p.text for p in arc.threads[found_idx].progress]
+            delta["progress"] = {
+                "before": old_progress,
+                "after": prog_list,
+            }
 
         if updates_dict:
             arc.threads[found_idx] = arc.threads[found_idx].model_copy(update=updates_dict)
             updated_ids.append(tid)
-            changes_detail["updated"][tid] = {"changes": field_changes}
+            changes_detail["updated"][tid] = delta
 
     changes_detail["updated_ids"] = updated_ids
     changes_detail["updates_dict"] = changes_detail["updated"]

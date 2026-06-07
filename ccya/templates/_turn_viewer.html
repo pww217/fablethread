@@ -74,58 +74,24 @@
                             <span class="tv-compaction-icon">⟳</span>
                             <span class="tv-compaction-title">Thread Sanitizer</span>
                             <span class="tv-compaction-range" x-text="'Turn ' + t.turn"></span>
-                            <span class="tv-compaction-bullets" x-text="(t.threads_updated.length + t.threads_resolved.length + t.threads_removed.length + t.threads_added.length) + ' changes'"></span>
+                            <span class="tv-compaction-bullets" x-text="t.san_diffs.length + ' changes'"></span>
                             <span x-show="t.has_changes" class="tv-compaction-san-badge">sanitized</span>
                             <span class="tv-stage-chevron" :class="{ open: !isTurnCollapsed('s-' + t.turn) }">▶</span>
                         </div>
                         <div class="tv-compaction-body" x-show="!isTurnCollapsed('s-' + t.turn)">
                             <div class="tv-compaction-label">Latency</div>
                             <div class="tv-compaction-more" x-text="t.ms + 's / ' + (t.tokens_in + t.tokens_out) + ' tokens'"></div>
-                            <template x-if="t.has_changes && t.changes_detail">
-                                <div class="tv-compaction-san">
-                                    <template x-if="t.changes_detail.removed && t.changes_detail.removed.length">
-                                        <div class="tv-compaction-san-row">
-                                            Threads removed:
-                                            <template x-for="r in t.changes_detail.removed" :key="r">
-                                                <div class="tv-compaction-san-item" x-text="r.id + ': ' + r.reason"></div>
-                                            </template>
-                                        </div>
-                                    </template>
-                                    <template x-if="t.changes_detail.resolved && t.changes_detail.resolved.length">
-                                        <div class="tv-compaction-san-row">
-                                            Threads resolved:
-                                            <template x-for="r in t.changes_detail.resolved" :key="r.id">
-                                                <div class="tv-compaction-san-item" x-text="r.id + ' [' + r.resolution_state + '] ' + r.outcome"></div>
-                                            </template>
-                                        </div>
-                                    </template>
-                                    <template x-if="t.changes_detail.updated && Object.keys(t.changes_detail.updated).length">
-                                        <div class="tv-compaction-san-row">
-                                            Threads updated:
-                                            <template x-for="(fields, tid) in t.changes_detail.updated" :key="tid">
-                                                <div class="tv-compaction-san-item" x-text="tid + ': ' + Object.keys(fields).join(', ')"></div>
-                                            </template>
-                                        </div>
-                                    </template>
-                                    <template x-if="t.changes_detail.added && t.changes_detail.added.length">
-                                        <div class="tv-compaction-san-row">
-                                            Threads added:
-                                            <template x-for="a in t.changes_detail.added" :key="a.id">
-                                                <div class="tv-compaction-san-item" x-text="a.id + ' [' + a.urgency + '] ' + a.summary"></div>
-                                            </template>
-                                        </div>
-                                    </template>
-                                    <template x-if="t.changes_detail.goal && (t.changes_detail.goal.before !== t.changes_detail.goal.after)">
-                                        <div class="tv-compaction-san-row">
-                                            Arc goal updated:
-                                            <div class="tv-compaction-san-item" x-text="t.changes_detail.goal.before + ' → ' + t.changes_detail.goal.after"></div>
-                                        </div>
-                                    </template>
-                                </div>
-                            </template>
-                            <template x-if="!t.has_changes">
-                                <div class="tv-compaction-no-san">No thread changes needed.</div>
-                            </template>
+                            <div class="tv-diff-section" x-show="t.san_diffs.length">
+                                <div class="tv-diff-section-label">Sanitizer changes</div>
+                                <template x-for="(d, di) in t.san_diffs" :key="di">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-op" :class="'tv-diff-op--' + d.op" x-text="d.op_sym"></span>
+                                        <span class="tv-diff-field" x-text="d.field"></span>
+                                        <span class="tv-diff-value" x-text="d.value"></span>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="tv-compaction-no-san" x-show="!t.san_diffs.length">No thread changes needed.</div>
                         </div>
                     </div>
                 </template>
