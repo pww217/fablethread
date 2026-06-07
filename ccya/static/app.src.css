@@ -3884,40 +3884,34 @@ body {
     cursor: not-allowed;
 }
 
-/* ── Sidebar text ~25% smaller on ultrawide only ── */
-@media (min-width: 2561px) {
-   .sidebar-meta-footer         { font-size: 0.59rem; }
-   .sidebar-card-header,
-   .sidebar-card > summary      { font-size: 0.59rem; }
-   .card-count                  { font-size: 0.53rem; }
-   .sidebar-card > summary::after { font-size: 0.53rem; }
-   .stat-row                    { font-size: 0.69rem; }
-   .stat-label                  { font-size: 0.64rem; }
-   .stat-tagline                { font-size: 0.64rem; }
-   .npc-notes-inline,
-   .npc-notes-inline *          { font-size: 0.59rem !important; }
-   .scene-pill                  { font-size: 0.59rem; }
-   .condition-pill              { font-size: 0.59rem; }
-   .npc-name                    { font-size: 0.64rem; }
-   .npc-title                   { font-size: 0.59rem; }
-   .inventory-item              { font-size: 0.59rem; }
-   .inventory-item-amount       { font-size: 0.64rem; }
-   .compendium-line             { font-size: 0.64rem; }
-   .compendium-last-seen        { font-size: 0.59rem !important; }
-   .fact-item                   { font-size: 0.64rem; }
-   .arc-goal                    { font-size: 0.69rem; }
-   .arc-thread                  { font-size: 0.64rem; }
-   .arc-section-summary         { font-size: 0.53rem; }
-   .arc-section-count           { font-size: 0.48rem; }
-   .arc-eye                     { font-size: 0.59rem; }
-   .arc-truth                   { font-size: 0.56rem; }
-   .arc-empty                   { font-size: 0.56rem; }
-   .error-trace-id              { font-size: 0.59rem; }
-   .error-message               { font-size: 0.64rem; }
-   .debug-section-header        { font-size: 0.53rem; }
-   .debug-clear-btn             { font-size: 0.59rem; }
-   .debug-copy-trace            { font-size: 0.69rem; }
-   .debug-turn-table            { font-size: 0.53rem; }
-   .debug-hint-inline           { font-size: 0.53rem; }
-   .debug-hint-inline code      { font-size: 0.53rem; }
+/* ── Sidebar text — consistent across all non-laptop sizes, smaller tooltips ── */
+@media (min-width: 769px) {
+    .sidebar-meta-footer         { font-size: 0.59rem; }
+    .sidebar-card-header,
+    .sidebar-card > summary      { font-size: 0.59rem; }
+    .card-count                  { font-size: 0.53rem; }
+    .sidebar-card > summary::after { font-size: 0.53rem; }
+    .stat-row                    { font-size: 0.69rem; }
+    .stat-label                  { font-size: 0.64rem; }
+    .stat-tagline                { font-size: 0.64rem; }
+    .npc-notes-inline,
+    .npc-notes-inline *          { font-size: 0.59rem !important; }
+    .scene-pill                  { font-size: 0.59rem; }
+    .condition-pill              { font-size: 0.59rem; }
+    .npc-name                    { font-size: 0.64rem; }
+    .npc-title                   { font-size: 0.59rem; }
+    .inventory-item              { font-size: 0.59rem; }
+    .inventory-item-amount       { font-size: 0.64rem; }
+    .compendium-line             { font-size: 0.64rem; }
+    .compendium-last-seen        { font-size: 0.59rem !important; }
+    .fact-item                   { font-size: 0.64rem; }
+    .arc-goal                    { font-size: 0.69rem; }
+    .arc-thread                  { font-size: 0.64rem; }
+    .arc-section-summary         { font-size: 0.53rem; }
+    .arc-section-count           { font-size: 0.48rem; }
+    .arc-eye                     { font-size: 0.59rem; }
+    .arc-truth                   { font-size: 0.56rem; }
+    .arc-empty                   { font-size: 0.56rem; }
+    #tooltip-portal .tooltip-body  { font-size: clamp(12px, 0.7rem, 14px); }
+    .location-name               { font-size: clamp(13px, 0.7rem, 16px); }
 }

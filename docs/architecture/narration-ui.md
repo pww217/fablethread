@@ -110,6 +110,8 @@ Alpine.js `x-data="game()"` manages:
 - Drag gutters with mousedown/mousemove handlers
 - Widths saved to `localStorage` (`ccya_sidebar_left`, `ccya_sidebar_right`)
 - Minimum width enforcement (240px left, 220px right)
+- **Reset button** in sidebar footer: restores viewport-aware defaults (left 320px, right 280px) on click
+- **Ultrawide override** (≥2561px viewport): `--sidebar-w: min(512px, 38vw)` — sidebar defaults to 2x standard width. Sidebar text scaled ~25% smaller via explicit `.sidebar-card-header`, `.stat-row`, `.npc-notes-inline`, `.inventory-item`, etc. overrides in the ultrawide media query.
 
 ### Collapsible cards
 Each sidebar section has a collapse toggle; open/closed state persisted per-card to `localStorage` via `ccya_card_<name>` key.
@@ -138,7 +140,7 @@ Grouped by category via emoji prefix:
 
 ## CSS Architecture
 
-- **`app.src.css`** — Tailwind + custom styles split by region (lines 1–2101):
+- **`app.src.css`** — Tailwind + custom styles split by region:
   - App shell layout (CSS Grid: header + body with sidebar-gutter-main-gutter-sidebar)
   - Narrative blocks (`.narrative-block`, `.narrative-text`)
   - Sidebar cards (`.card`, `.card-header`, `.card-body`)
@@ -149,6 +151,14 @@ Grouped by category via emoji prefix:
   - New Game modal (`.modal-overlay`, `.pack-card`)
   - Progress strip, tooltips, scrollbar styling
   - Design tokens via CSS custom properties (`--text-primary`, `--bg-card`, `--status-*`)
+- **Fluid typography**: 3-tier `@media` breakpoints set `html { font-size: clamp(...) }`:
+  | Viewport | Font size clamp | Applicable to |
+  |---|---|---|
+  | 769–1400px | `clamp(15px, 1vw, 17px)` | Tablet/small desktop |
+  | 1401–2560px | `clamp(22px, 1.56vw, 26px)` | Standard desktop |
+  | ≥2561px | `clamp(24px, 1.5vw, 27px)` | Ultrawide (also sets `--sidebar-w: min(512px, 38vw)`) |
+  - Font sizes throughout are in `rem` units, scaling proportionally with the base.
+- **Location panel fix**: Hardcoded `px` font sizes replaced with `rem` units to respect fluid base.
 - Compiled to **`app.css`** with cache-busting via `css_v` query param
 
 ## Server Entry Point
