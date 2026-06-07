@@ -189,8 +189,6 @@ def _apply_thread_updates(
             updates["active"] = update.active
         if update.urgency is not None:
             updates["urgency"] = update.urgency
-        if update.summary is not None:
-            updates["summary"] = update.summary
         if update.progress is not None:
             current_progress = list(thread.progress)
             kind = update.progress_kind or "advancement"

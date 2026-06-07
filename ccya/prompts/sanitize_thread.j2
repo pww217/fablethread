@@ -7,6 +7,7 @@ Rules:
 - Output exactly one valid JSON object within <sanitize>...</sanitize> tags.
 - If no changes are needed, output <sanitize>{}</sanitize>.
 - Do not output anything outside the <sanitize> tags.
+- Progress entries must be 5–7 words max, factual, and describe only what the narrative evidence confirms.
 
 [USER]
 ## Current Arc
@@ -41,8 +42,7 @@ object inside <sanitize> tags. For each thread consider:
 1. Is it narratively resolved? → add to resolved_threads[] with resolution_state + outcome.
 2. Is urgency wrong for what happened? → update urgency field.
 3. Should it be latent or active again? → set active field.
-4. Is summary stale? → rewrite summary field.
-5. Are progress entries noisy or dedup-worthy? → provide updated progress list.
+4. Are progress entries noisy, dedup-worthy, or too long? → provide updated progress list (5–7 words per entry, factual).
 
 Also consider the arc goal and context — should visible_goal or goal_context be
 updated to reflect current narrative direction?
@@ -59,7 +59,6 @@ updated to reflect current narrative direction?
       "id": "existing_id",
       "active": true/false,      // omit if unchanged
       "urgency": "...",          // omit if unchanged
-      "summary": "...",          // omit if unchanged
       "progress": [str, ...],    // full replacement list, omit if unchanged
       "progress_kind": "advancement"/"setback"/"shift"
     }

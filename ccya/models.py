@@ -396,7 +396,6 @@ class ThreadUpdate(BaseModel):
     id: str
     active: bool | None = None
     urgency: Literal["background", "normal", "urgent"] | None = None
-    summary: str | None = None
     progress: str | None = None
     progress_kind: Literal["advancement", "setback", "shift"] | None = None
 
