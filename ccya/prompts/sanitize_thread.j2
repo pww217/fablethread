@@ -42,7 +42,24 @@ object inside <sanitize> tags. For each thread consider:
 1. Is it narratively resolved? → add to resolved_threads[] with resolution_state + outcome.
 2. Is urgency wrong for what happened? → update urgency field.
 3. Should it be latent or active again? → set active field.
-4. Are progress entries noisy, dedup-worthy, or too long? → provide updated progress list (5–7 words per entry, factual).
+ 4. Are progress entries noisy, dedup-worthy, or too long? → provide updated progress list (5–7 words per entry, factual).
+
+# Temporal decay cleanup:
+# If a thread is inactive (active=false) and has not been updated for 3+ turns,
+# it was likely auto-demoted to latent by the engine. Check whether it still has
+# narrative relevance — if no new progress entries since its last_updated_turn AND
+# there's no ongoing narrative reason to keep it alive, move it to resolved_threads[]
+# or remove from active threads entirely. Do NOT immediately remove a thread that was
+# just demoted this turn (it may have 1-2 more turns of relevance). Use judgment:
+# background threads with no progress_updates for multiple sanitizer cycles should be removed.
+
+# Goal pivot — must update visible_goal when narrative direction fundamentally changed:
+# If a major event occurred that changes what the PC is trying to accomplish
+# (witness escapes/is killed, ally falls in combat, location shifts dramatically,
+#  debt settled/lost, new critical information discovered), you MUST update
+# visible_goal to reflect current reality. Do NOT keep goals about objectives
+# that no longer exist or are no longer relevant. The goal should always point
+# forward to what the PC needs to do NOW, not what they were trying to do 3 turns ago.
 
 Also consider the arc goal and context — should visible_goal or goal_context be
 updated to reflect current narrative direction?
@@ -81,8 +98,8 @@ updated to reflect current narrative direction?
   ],
   "_checklist": {                // MANDATORY — forces model to check each category
     "thread_count": "Reviewed N active threads",
-    "resolved": "N threads narratively resolved",
+    "resolved": "N threads narratively resolved or decayed to completed",
     "new": "N new threads added from narrative evidence",
-    "goal": "Goal unchanged or updated (why)"
+    "goal": "Goal updated (why) OR confirmed current and relevant"
   }
 }
