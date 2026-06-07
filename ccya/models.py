@@ -285,8 +285,6 @@ class StateDelta(BaseModel):
     )
     actions: list[str] = Field(default_factory=list, max_length=10)
     arc_update: CampaignArc | None = None
-    world_state_add: list[WorldStateFact] = Field(default_factory=list)
-    world_state_remove: list[str] = Field(default_factory=list)
 
     @field_validator("pc_condition_add", mode="before")
     @classmethod
@@ -461,8 +459,6 @@ class StorytellerResult(BaseModel):
     thread_add: ArcThread | None = None
     thread_update: list[ThreadUpdate] = Field(default_factory=list)
     arc_resolve: ArcResolution | None = None
-    world_state_add: list[WorldStateFact] = Field(default_factory=list)
-    world_state_remove: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _nullify_invalid_gm_beat(self) -> "StorytellerResult":

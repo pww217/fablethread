@@ -1,6 +1,6 @@
 # Step 2c — Storytell
 
-Extracts thread updates, arc actions, world state changes, and durable NPC compendium changes.
+Extracts thread updates, arc actions, and durable NPC compendium changes. World state changes happen only via thread resolution `promote_to_world_state`.
 
 ## Flowchart
 
@@ -33,11 +33,9 @@ flowchart LR
         O1c["arc_resolve: ArcResolution | None<br>  resolution, visible_goal,<br>goal_context, drop_threads, new_threads"]:::outNode
         O2["thread_resolve: list[ThreadResolution]<br>  id + resolution_state<br>(resolved/failed/abandoned)"]:::outNode
         O3["thread_add: ArcThread | None<br>  new thread, gated by PacingContext.gate"]:::outNode
-        O4["world_state_add: list[WorldStateFact]<br>  id, text, tier"]:::outNode
-        O5["world_state_remove: list[str]<br>  ids to remove from persistent tier"]:::outNode
-        O6["actions: list[str]<br>  exactly 4 suggested player choices"]:::outNode
-        O7["outcome_summary: str<br>  1–2 sentence narrative recap"]:::outNode
-        O8["gm_beat: GMBeat | None<br>  forward-facing storytelling beat"]:::outNode
+        O4["actions: list[str]<br>  exactly 4 suggested player choices"]:::outNode
+        O5["outcome_summary: str<br>  1–2 sentence narrative recap"]:::outNode
+        O6["gm_beat: GMBeat | None<br>  forward-facing storytelling beat"]:::outNode
     end
 
     IN --> LLM2C
@@ -46,7 +44,7 @@ flowchart LR
 
 ## Always runs
 
-Storytell is the post-narration storytelling brain. It always executes every turn (never skipped) and feeds next turn's rules call via `world_state_add/remove` (persistent world facts), `thread_update/goal_update/arc_resolve/thread_resolve/thread_add` (storyteller-managed thread lifecycle), and `gm_beat` (forward-facing beats stored in `state.meta.pending_gm_beat`).
+Storytell is the post-narration storytelling brain. It always executes every turn (never skipped) and feeds next turn's rules call via `thread_update/goal_update/arc_resolve/thread_resolve/thread_add` (storyteller-managed thread lifecycle), and `gm_beat` (forward-facing beats stored in `state.meta.pending_gm_beat`). World state changes are promotion-only — emitted via `thread_resolve[].promote_to_world_state`.
 
 ## GM Beat
 

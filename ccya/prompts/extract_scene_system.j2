@@ -38,7 +38,7 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
   "fear": "what this NPC is most afraid of",
   "leverage": "what this NPC can offer, threaten, or withhold",
   "presence": "present|known",
-  "notes": "ONE SHORT SENTENCE about what this NPC is doing right now that matters — their current stance, action, or motivation as it relates to the last round of narration. Still flavor text; not plot-critical information."
+  "notes": "5–8 words max describing the NPC's current stance or action in this scene. No clauses, no conjunctions. Not plot-critical — quick situational cue only."
 }
 
 ### How to use compendium_npc_update
@@ -66,14 +66,16 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 - Narration: "A merchant approaches your table with a smile." → `bio: "Is a traveling trader who sells various goods."` ❌ Missing appearance entirely; second sentence is just restating their role, not giving personality or tangible facts.
 
 **Correct notes extraction:**
-- Narration: Caron slides into the seat across from you and taps his fingers on the table. → `notes: "tapping his fingers against the table — restless, waiting for you to make a move."`
-- Narration: The guard steps between you and the door, hand resting on his baton. → `notes: "blocking your exit with his body angled toward the door handle."`
+- Narration: Caron slides into the seat across from you and taps his fingers on the table. → `notes: "tapping table — restless, waiting for move."`
+- Narration: The guard steps between you and the door, hand resting on his baton. → `notes: "blocking exit with body angled toward handle."`
 
 **Incorrect notes extraction (too long):**
 - ❌ `"He noticed that you were looking at him suspiciously so he crossed his arms defensively and looked away for a moment before turning back to watch you closely as you talked to Caron about what was going on."` — multi-clause narration transcript, not a quick situational cue.
 
 **Incorrect notes extraction (generic):**
 - ❌ `"is suspicious of the player"` — vague attitude without any scene context or action reference. Does not tell the player anything useful about what is happening right now.
+
+**Maximum 8 words for notes. Count them.**
 
 **NPC ENTER/EXIT RULE (MANDATORY):**
 - Emit `compendium_npc_update { presence: "present" }` for every named NPC who appears in the narration for the first time this turn and is not already marked as present.
