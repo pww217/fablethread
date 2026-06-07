@@ -221,15 +221,9 @@ def _apply_thread_updates(
                 "thread_updates.applied trace_id=%d thread %s changes=%s", turn_no, update.id, updates, extra={"turn": turn_no},
             )
 
-    # Update last_updated_turn for all active threads every turn so the
-    # stale threshold check below fires reliably regardless of mutation state.
-    if config and remaining_threads:
-        for i, t in enumerate(remaining_threads):
-            if t.active:
-                updated = t.model_copy(update={"last_updated_turn": turn_no})
-                remaining_threads[i] = updated
-
     # Auto-latent demotion — fire every turn (not gated on mutated).
+    # Threads updated this turn already have last_updated_turn set to turn_no at line ~212,
+    # so they won't trigger the stale threshold. Only untouched threads age and eventually get demoted.
     if config and remaining_threads:
         stale_threshold = config.thread_stale_threshold
         for i, t in enumerate(remaining_threads):
