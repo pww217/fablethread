@@ -41,7 +41,7 @@ The old compactor tried to fix this with pressure-level cleanup and bulletin ded
 
 **Per turn:** storyteller emits `thread_update` (urgency/active/summary/progress), `thread_add` (new thread), `thread_resolve` (moves thread to `completed_threads[]`). Applied immediately by `_apply_thread_updates()` (`turn.py:144`) and `_apply_thread_resolutions()` (`turn.py:332`).
 
-**Batch fixer:** none. `thread_stale_threshold` (default 3) sets `active: false` on threads untouched for N turns, applied in `_apply_thread_updates()`. Blind TTL — no narrative judgment.
+**Batch fixer:** none. `thread_stale_threshold` (default 3) sets `active: false` on threads untouched for N turns, applied in `_apply_thread_updates()`. Blind TTL — no narrative judgment. Fires every turn after thread_updates loop completes (not gated on mutation).
 
 ### Data the sanitizer needs
 
@@ -179,6 +179,8 @@ object inside <sanitize> tags. For each thread consider:
 3. Should it be latent or active again? → set active field.
 4. Is summary stale? → rewrite summary field.
 5. Are progress entries noisy or dedup-worthy? → provide updated progress list.
+
+**Temporal decay cleanup:** Remove inactive latent threads that have had no `progress_updates` for multiple sanitizer cycles — they represent resolved or abandoned narrative elements with no current relevance to the story.
 
 Also consider the arc goal and context — should visible_goal or goal_context be
 updated to reflect current narrative direction?
