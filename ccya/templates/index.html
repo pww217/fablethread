@@ -776,6 +776,12 @@ function _setProgressFromPhase(strip, payload) {
     } else if (p === 'persist') {
         label.textContent = 'Saving…';
         if (eta) eta.textContent = '';
+    } else if (p === 'sanitize_start') {
+        label.textContent = 'Sanitizing state…';
+        if (eta) eta.textContent = '';
+    } else if (p === 'sanitize_done') {
+        label.textContent = 'Saving…';
+        if (eta) eta.textContent = '';
     }
 }
 

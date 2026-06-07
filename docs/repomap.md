@@ -16,6 +16,7 @@
 | `ccya/engine/names.py` | Name pool generation via Faker (pc, npc, location) |
 | `ccya/engine/ruling.py` | _ruling_messages(), _call_ruling() with retry logic (NOT ccya/rules.py — that's the dice engine) |
 | `ccya/engine/extraction.py` | _run_extraction_pipeline(): 3 streams (scene/state/storytell), _call_stream() with retry |
+| `ccya/engine/thread_sanitizer.py` | sanitize_threads() — batch arc/thread cleanup every N turns; LLM-driven delta output (update/add/resolve/remove threads, goal updates); event logging to events.jsonl; SSE phase events (sanitize_start/sanitize_done) |
 | `ccya/engine/seed.py` | generate_seed() for dynamic packs, soft validation |
 | `ccya/engine/changes.py` | summarize_changes(), format_change_lines() — diff pre vs post state → emoji display lines |
 | `ccya/engine/npc_roster.py` | build_npc_roster() — merges present/known NPCs with presence tags |
@@ -61,6 +62,7 @@
 - **generate_pack_from_brief(inputs, packs_root, config, template_dir, trace_id, max_retries=1)** → AsyncIterator[dict] — SSE-driven ephemeral pack generation; receives full EngineConfig instead of individual host/model args (Phase 08)
 - **generate_pack(brief, config)** → Pack — LLM generates ScenarioBrief from WorldBrief (via `ccya/engine/pack_gen.py`)
 - **format_change_lines(changes)** → list[str] — emoji display lines for UI
+- **sanitize_threads(save_dir, state, config, trace_id="")** → (state, sanitize_ran) — batch arc/thread cleanup; runs every N turns per EngineConfig.sanitize_every; returns True when changes were applied
 
 ### ccya/state (via __init__.py)
 - **load_state(save_dir)** → dict — loads YAML with _migrate_state() normalization
@@ -90,6 +92,10 @@
 5. **Storytell** (JSON→StorytellerResult) — thread_update, goal_update (str | None, direct dict assignment), arc_resolve, thread_resolve, thread_add (gated by PacingContext.gate), actions, gm_beat
 
 Steps 3–5 merge into StateDelta → _validate() → apply_delta() → summarize_changes() → persist (atomic writes).
+
+### Thread sanitizer phase (post-extraction)
+
+After extraction and before `yield("complete")`, if `config.sanitize_every > 0` and current turn is a multiple, the thread sanitizer runs: calls LLM with arc state + recent narration evidence, applies delta changes to threads/goal, logs event record. SSE events: `sanitize_start` (expected_ms=0), `sanitize_done` (ms elapsed). Module: `ccya/engine/thread_sanitizer.py`.
 
 ## Cross-module contracts
 

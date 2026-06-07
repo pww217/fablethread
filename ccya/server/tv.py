@@ -382,6 +382,30 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
             _log.warning("Skipping malformed events.jsonl line: %s", e)
             continue
 
+        if ev.get("kind") == "sanitizer":
+            chg = ev.get("changes_detail") or {}
+            rows.append({
+                "row_kind": "sanitizer",
+                "turn": int(ev.get("turn") or 0),
+                "ms": round(float(ev.get("ms", 0)), 1),
+                "tokens_in": int(ev.get("tokens_in", 0)),
+                "tokens_out": int(ev.get("tokens_out", 0)),
+                "threads_updated": list(ev.get("threads_updated", [])),
+                "threads_removed": list(ev.get("threads_removed", [])),
+                "threads_resolved": list(ev.get("threads_resolved", [])),
+                "threads_added": list(ev.get("threads_added", [])),
+                "goal_changed": bool(ev.get("goal_changed")),
+                "changes_detail": chg,
+                "has_changes": bool(
+                    chg.get("updated")
+                    or chg.get("removed")
+                    or chg.get("resolved")
+                    or chg.get("added")
+                    or chg.get("goal")
+                ),
+            })
+            continue
+
         def _fmt_ms(ms: Any) -> str:
             if ms is None:
                 return "\u2014"
