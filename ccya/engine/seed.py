@@ -328,12 +328,22 @@ async def generate_seed(
                 for t in excess_active:
                     object.__setattr__(t, "active", False)
                     object.__setattr__(t, "urgency", "background")
+                    # Ensure urgency_set_turn is set so urgency decay can track this thread's age
+                    if getattr(t, "urgency_set_turn") is None:
+                        object.__setattr__(t, "urgency_set_turn", envelope.seed_state.meta.get("turn", 1))
+                    if getattr(t, "added_turn") is None:
+                        object.__setattr__(t, "added_turn", envelope.seed_state.meta.get("turn", 1))
 
                 # Force all non-active threads to background/normal urgency (never urgent)
                 for t in non_active_threads + excess_active:
                     current_urgency = getattr(t, "urgency", "normal") or "normal"
                     if current_urgency == "urgent":
                         object.__setattr__(t, "urgency", "background")
+                    # Ensure turn tracking is set so decay/expiration passes can age this thread correctly
+                    if getattr(t, "urgency_set_turn") is None:
+                        object.__setattr__(t, "urgency_set_turn", envelope.seed_state.meta.get("turn", 1))
+                    if getattr(t, "added_turn") is None:
+                        object.__setattr__(t, "added_turn", envelope.seed_state.meta.get("turn", 1))
 
                 _log.info(
                     "enforce_thread_limits active=%d non_active=%d excess_capped=%d pack=%s",

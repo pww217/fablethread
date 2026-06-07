@@ -44,6 +44,8 @@ class ArcThread(BaseModel):
     outcome: str | None = None
     resolved_turn: int | None = None
     last_updated_turn: int | None = None
+    added_turn: int | None = None
+    urgency_set_turn: int | None = None
 
     @field_validator("progress", mode="wrap")
     @classmethod

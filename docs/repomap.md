@@ -104,13 +104,13 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 
 ### Scene thread lifecycle (unified arc.threads[])
 - All scene_pressure functionality migrated to arc.threads[] with `scope: scene` — ccya/engine/pressure.py module deleted in phase 06 validation sweep
-- Thread state is storyteller-managed via `thread_update` directives — no Python-side age-based demotion or urgency decay
+- **Three-layer engine governance:** (1) Auto-latent demotion at `thread_stale_threshold=3` turns, (2) Urgency decay stepwise urgent→normal→background after `thread_urgency_max_age=8` turns at same level (Python-side floor), (3) Scene-scoped two-stage expiration: active→latent after 5 silent turns (`active: false`, urgency handled by decay pass above); latent→removed entirely after 10 total unsurfaced turns
 - **Scene-scoped threads purged on location change:** `apply_delta()` in delta_builder.py removes all threads with `scope: "scene"` from `arc.threads[]` when `location_change` is present in the delta, since they are localized to the prior location
 
 ### Arc thread state machine
-- States: LATENT → ACTIVE (via thread_update with active=True) → COMPLETE/FAILED (via thread_resolve from StorytellerResult) / DORMANT (via thread_update with active=False)
-- Storyteller controls all thread state transitions via `thread_update` — engine applies them without cap/cooldown enforcement
-- Engine owns thread creation (id-based dedup only — no key or fuzzy merge); storyteller owns urgency/active/progress state
+- States: LATENT → ACTIVE (via thread_update with active=True) → COMPLETE/FAILED (via thread_resolve from StorytellerResult) / DORMANT (via thread_update with active=False). **Additional transitions:** urgent→normal→background via Python urgency decay pass; scene-scoped threads auto-latent after 5 silent turns, removed at 10 unsurfaced
+- Storyteller controls all thread state transitions via `thread_update` — engine applies them without cap/cooldown enforcement. Engine also enforces urgency decay (stepwise demotion) and scene-scoped expiration as structural floors above LLM control.
+- Engine owns thread creation (`added_turn`, `urgency_set_turn` set at creation time in turn.py thread_add path); storyteller owns urgency/active/progress state
 - TTL-based cleanup: completed threads and resolved arcs are pruned from prompt context after `completed_thread_ttl` / `resolved_arc_ttl` turns (default 3)
 - ArcThread.resolution_state: str | None — set when thread_resolve processes resolved/failed/abandoned; preserved on completed threads for narrative context
 
@@ -119,6 +119,10 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
   - ArcThread.resolved_turn: int | None — turn when thread was resolved; used for TTL filtering in prompts
 
   - ArcThread.last_updated_turn: int | None — turn when thread was last updated (active, urgency, or progress change); persisted to state; used for auto-latent demotion and staleness display in prompts
+
+  - ArcThread.added_turn: int | None — turn when thread was created (thread_add or seed); enables age calculations for decay/expiration passes
+
+  - ArcThread.urgency_set_turn: int | None — turn when urgency was last set; enables Python-side urgency decay pass to measure how long a thread has been at its current level
 
   - ProgressEntry model: {kind: "advancement"|"setback"|"shift", text: str} — structured progress replacing bare strings; ArcThread.progress: list[ProgressEntry]; ThreadUpdate.progress_kind tags each emitted progress entry
 - `_merge_arc_update` unconditionally replaces `arc["threads"]` and `arc["completed_threads"]` on every call
@@ -177,9 +181,9 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - **`goal_context` is UI-only**: Rendered in the sidebar tooltip (`_state_left.html`). NOT rendered in narrator or storyteller prompt context — the LLM never reads the raw `goal_context` value during gameplay. The system prompt provides general early-turn behavioral guidance instead.
 - **Sidebar surfaces**: `goal_context` as a hover/focus tooltip on the arc goal (`_state_left.html`), using the existing `has-tooltip`/`tooltip-body` nesting convention.
 - **Seed emotional framing contract**: The seed generation prompt enforces `goal_context` (2-3 sentences of personal stakes for the PC), NPC `relation` field, and character-shaped action text. This emotional data is embedded in the initial state and the sidebar, not reintroduced per-turn via prompts.
-
 ### EngineConfig field naming (Phase 06b)
-- Config fields: thread_deescalate_on_success, resolved_arc_ttl (default 3), completed_thread_ttl (default 3), thread_stale_threshold (default 3), thread_max_active (default 5) — YAML keys match Python field names directly.
+
+- Config fields: thread_deescalate_on_success, resolved_arc_ttl (default 3), completed_thread_ttl (default 3), thread_stale_threshold (default 3), thread_max_active (default 5), sanitize_every (default 5, 0=disabled). **Thread lifecycle enforcement:** thread_urgency_max_age (default 8, stepwise urgency decay threshold), scene_thread_expire_silent_turns (default 5, two-stage scene expiration threshold), track_scene_thread_progress (default True, enables progress tracking for scene-scoped threads). YAML keys match Python field names directly.
 - Sampling parameters: ruling_temperature/ruling_top_p, extract_temperature/extract_top_p/extract_frequency_penalty, narrate_temperature/narrate_top_p/narrate_frequency_penalty, generate_seed_temperature/generate_seed_top_p, pack_generation_temperature/pack_generation_top_p; stub fields always null until mlx-lm SDK support: seed, top_k, min_p, rep_penalty, rep_penalty_window. Config structure migrated from flat keys to nested `llm.<stage>.<param>` format (Phase 08).
 
 ### Computation functions (Phase 06b)
@@ -193,7 +197,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### Extraction field routing
 - **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, compendium_npc_update (no pressure fields); CompendiumEntry now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes
 - **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
-  - **StorytellerResult**: thread_update (list[ThreadUpdate] with id/urgency/active/progress/progress_kind), goal_update (str | None, applied directly to arc dict — NOT through _merge_arc_update), arc_resolve (ArcResolution with resolution/visible_goal/goal_context/drop_threads/new_threads), thread_resolve (list[ThreadResolution] with id/resolution_state/outcome + promote_to_world_state flag for promotion-only world state changes), thread_add (ArcThread | None), actions, outcome_summary, gm_beat; thread_add validated by id-based dedup only (no key, no fuzzy merge); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
+  - **StorytellerResult**: thread_update (list[ThreadUpdate] with id/urgency/active/progress/progress_kind), goal_update (str | None, applied directly to arc dict — NOT through _merge_arc_update), arc_resolve (ArcResolution with resolution/visible_goal/goal_context/drop_threads/new_threads), thread_resolve (list[ThreadResolution] with id/resolution_state/outcome + promote_to_world_state flag for promotion-only world state changes), thread_add (ArcThread | None, `added_turn` and `urgency_set_turn` set at creation time in turn.py); thread_add validated by id-based dedup only (no key, no fuzzy merge); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
 - **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions, persisted to state["pc"]["actions"] as rolling window by apply_delta()
 
 ### Cross-stream data flow (minimal by design)
