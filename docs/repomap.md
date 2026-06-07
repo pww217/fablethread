@@ -118,13 +118,13 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 
   - ArcThread.resolved_turn: int | None — turn when thread was resolved; used for TTL filtering in prompts
 
-  - ArcThread.last_updated_turn: int | None — turn when thread was last updated (active, urgency, summary, or progress change); persisted to state; used for auto-latent demotion and staleness display in prompts
+  - ArcThread.last_updated_turn: int | None — turn when thread was last updated (active, urgency, or progress change); persisted to state; used for auto-latent demotion and staleness display in prompts
 
   - ProgressEntry model: {kind: "advancement"|"setback"|"shift", text: str} — structured progress replacing bare strings; ArcThread.progress: list[ProgressEntry]; ThreadUpdate.progress_kind tags each emitted progress entry
 - `_merge_arc_update` unconditionally replaces `arc["threads"]` and `arc["completed_threads"]` on every call
 
 ### Storyteller system prompt (`ccya/prompts/storytell_system.j2`)
-- JSON schema example shows ArcThread without `key` or `tags`; `thread_update` supports `active`, `urgency`, and `progress`; `thread_add` no longer includes `tags` or `key`
+- JSON schema example shows ArcThread without `key` or `tags`; `thread_update` supports `active`, `urgency`, `progress`, and `progress_kind`; `thread_add` no longer includes `tags` or `key`
 - CRITICAL instruction added: storyteller must check all active/latent thread summaries for conceptual overlap before emitting new threads; update existing threads via `thread_update` instead of creating duplicates when tension is the same
 - Band-aligned beat selection section: directive/band priority rule added (directive takes precedence over band — Breathe→breathing_room, Pressure/Overwhelm→complication/pressure, Tension→follow band); near-miss exception: fail near-misses within 2 of threshold at 7 may use complication; null cadence: emit null at least 1 of every 4 turns regardless of directive
 - Choice momentum section added: instructs LLM to escalate from prior turns, connect pacing context to choice urgency, and avoid passive options

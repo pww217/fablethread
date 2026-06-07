@@ -49,7 +49,7 @@ The arc and thread systems exist but produce zero useful output across both game
 
 `CampaignArc`: visible_goal (str), goal_context (str — UI-only, never rendered in prompts), threads (list[ArcThread]), completed_threads (list[ArcThread]), resolution, last_thread_created_turn.
 
-`ThreadUpdate`: id, active (optional), urgency (optional), summary (optional), progress (optional).
+`ThreadUpdate`: id, active (optional), urgency (optional), progress (optional).
 
 `ArcResolution`: resolution, visible_goal, goal_context, drop_threads, new_threads.
 
@@ -162,6 +162,7 @@ The `PacingContext.gate` is `"block_escalate"` when `deescalate >= 0.5` (high de
 | thread_add gate feedback is prompt-only | Render gate status in thread section | No code change needed; gives storyteller the awareness to avoid wasted emissions |
 | scope guidance + soft cap in prompt | Explicit rules + target: 2-3 arc-scoped, 1-2 scene-scoped, ~5 total max; broad thread domains; progress log for granularity | 100% misclassification rate is structural; soft cap renders constraint visibly for self-regulation |
 | no-op thread_updates discouraged via prompt | Guidance: only emit when changing state | Fixes excessive null-field updates with zero code change |
+| ThreadUpdate.summary removed | `ThreadUpdate` no longer has a `summary` field. Threads are statically summarized after creation. Replace via resolve+add, not update. | Enforces static-summary contract at the model level; old saves with summary in JSON are silently ignored |
 
 ## Failure Modes and Risks
 
@@ -192,6 +193,7 @@ These questions from the original design have been resolved during review:
 - `CampaignArc` — `thematic_question` removed. `goal_context` now UI-only (not rendered in prompts).
 - `_apply_arc_resolve` — arc-scoped threads auto-resolve to `completed_threads[]` (state `"superseded"`) instead of carrying forward. Successor arc starts with empty `threads[]`.
 - `_apply_thread_updates` — progress is always appended (`list[str]`). No boolean, no replace mechanism.
+- `ThreadUpdate.summary` removed — threads are static after creation. Use resolve+add instead of updating summary.
 
 ## What Is Unchanged
 
@@ -219,8 +221,8 @@ class ThreadUpdate(BaseModel):
     id: str
     active: bool | None = None
     urgency: str | None = None
-    summary: str | None = None
     progress: str | None = None
+    progress_kind: Literal["advancement", "setback", "shift"] | None = None
 ```
 
 `progress` is always appended to `ArcThread.progress`. No boolean, no replace — natural-language corrections in the appended text handle invalidation. Migration: old saves with `progress_replace` in JSON are silently ignored (extra keys don't break Pydantic).
