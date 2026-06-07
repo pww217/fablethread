@@ -221,7 +221,16 @@ def _apply_thread_updates(
                 "thread_updates.applied trace_id=%d thread %s changes=%s", turn_no, update.id, updates, extra={"turn": turn_no},
             )
 
-    if config and mutated:
+    # Update last_updated_turn for all active threads every turn so the
+    # stale threshold check below fires reliably regardless of mutation state.
+    if config and remaining_threads:
+        for i, t in enumerate(remaining_threads):
+            if t.active:
+                updated = t.model_copy(update={"last_updated_turn": turn_no})
+                remaining_threads[i] = updated
+
+    # Auto-latent demotion — fire every turn (not gated on mutated).
+    if config and remaining_threads:
         stale_threshold = config.thread_stale_threshold
         for i, t in enumerate(remaining_threads):
             if (
@@ -553,7 +562,9 @@ def _compute_pacing_context(
     if consecutive_pressure_turns >= config.consecutive_pressure_threshold or momentum <= config.momentum_floor:
         beat_locked = True
         directive_parts = [directive] if directive else []
-        directive_parts.append("Resolve a Threat")
+        # MB-2: never append threat resolution to Breathe — it's de-escalation, not escalation
+        if directive != "Breathe":
+            directive_parts.append("Resolve a Threat")
         directive = "; ".join(directive_parts) or ""
 
     # Compute outcome_hint from scene_motion and PacingContext escalation signals
@@ -1061,15 +1072,21 @@ async def run_turn(
                 state.get("meta", {}).pop("pending_gm_beat", None)
 
             # Floor relief injection — runs BEFORE apply_delta so breathing_room persists through the deep copy. Post-apply block was moved here and removed from its original location.
+            # MB-3: only inject floor relief when beat_locked is caused by consecutive pressure, not momentum crisis
             if _pc.beat_locked:
-                _current_beat = state.get("meta", {}).get("pending_gm_beat")
-                if _current_beat is None or _current_beat.get("type") in PRESSURE_BEAT_TYPES:
-                    meta = state.setdefault("meta", {})
-                    meta["pending_gm_beat"] = {
-                        "type": "breathing_room",
-                        "surface_as": "ambient",
-                        "beat_expires_turn": turn_no + 2,
-                    }
+                cur_momentum = int((state.get("pc") or {}).get("momentum", 0))
+                triggered_by_momentum = (cur_momentum <= config.momentum_floor)
+
+                # Don't inject ambient beats during momentum crisis — player needs escalation, not breathing room
+                if not triggered_by_momentum:
+                    _current_beat = state.get("meta", {}).get("pending_gm_beat")
+                    if _current_beat is None or _current_beat.get("type") in PRESSURE_BEAT_TYPES:
+                        meta = state.setdefault("meta", {})
+                        meta["pending_gm_beat"] = {
+                            "type": "breathing_room",
+                            "surface_as": "ambient",
+                            "beat_expires_turn": turn_no + 2,
+                        }
 
             # Consecutive pressure counter: reads post-floor-relief pending_gm_beat
             _current_beat = state.get("meta", {}).get("pending_gm_beat")

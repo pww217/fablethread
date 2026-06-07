@@ -304,6 +304,17 @@ def check_momentum_band_delta(
             "severity": "red",
         }
     prev_snap = prev_event.get("state_snapshot") or {}
+
+    # MB-4: account for depth-based catch-up at -3 or below
+    prev_momentum_for_delta = int(prev_snap.get("pc", {}).get("momentum") or 0)
+    delta = MOMENTUM_DELTA.get(band, 0)
+    if band in ("success", "crit_success") and prev_momentum_for_delta < -2:
+        deeper_delta = 2 if band == "success" else 3
+        expected = deeper_delta
+    else:
+        expected = delta
+
+    # Use the same prev_snap for actual momentum computation (already defined above)
     prev_m = (prev_snap.get("pc") or {}).get("momentum") or 0
     actual = (cur_m or 0) - prev_m
     # Engine clamps to [-3, 3] so an "expected +2" can show as +1 or 0 if at edge.
