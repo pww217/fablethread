@@ -384,25 +384,39 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
 
         if ev.get("kind") == "sanitizer":
             chg = ev.get("changes_detail") or {}
+            san_diffs: list[dict[str, Any]] = []
+            for _tid, _delta in (chg.get("updated") or {}).items():
+                for _f in _delta.get("fields") or []:
+                    san_diffs.append({
+                        "op": "update",
+                        "op_sym": "~",
+                        "field": f"{_tid}.{_f['field']}",
+                        "value": f"{_f['before']} → {_f['after']}",
+                    })
+                if _delta.get("progress"):
+                    pd = _delta["progress"]
+                    old_str = "[" + ", ".join(str(p) for p in pd["before"]) + "]"
+                    new_str = "[" + ", ".join(str(p) for p in pd["after"]) + "]"
+                    san_diffs.append({"op": "remove", "op_sym": "-", "field": f"{_tid}.progress", "value": old_str})
+                    san_diffs.append({"op": "add", "op_sym": "+", "field": f"{_tid}.progress", "value": new_str})
+            for _r in chg.get("removed") or []:
+                san_diffs.append({"op": "remove", "op_sym": "-", "field": _r["id"], "value": _r.get("reason", "")})
+            for _r in chg.get("resolved") or []:
+                san_diffs.append({"op": "update", "op_sym": "~", "field": _r["id"], "value": f"[{_r.get('resolution_state', 'resolved')}] {_r.get('outcome', '')}"})
+            for _a in chg.get("added") or []:
+                san_diffs.append({"op": "add", "op_sym": "+", "field": _a.get("id", ""), "value": f"[{_a.get('urgency', 'normal')}] {_a.get('summary', '')}"})
+            goal = chg.get("goal") or {}
+            if goal.get("before") != goal.get("after"):
+                san_diffs.append({"op": "update", "op_sym": "~", "field": "visible_goal", "value": f"{goal.get('before', '')} → {goal.get('after', '')}"})
+
             rows.append({
                 "row_kind": "sanitizer",
                 "turn": int(ev.get("turn") or 0),
                 "ms": round(float(ev.get("ms", 0)), 1),
                 "tokens_in": int(ev.get("tokens_in", 0)),
                 "tokens_out": int(ev.get("tokens_out", 0)),
-                "threads_updated": list(ev.get("threads_updated", [])),
-                "threads_removed": list(ev.get("threads_removed", [])),
-                "threads_resolved": list(ev.get("threads_resolved", [])),
-                "threads_added": list(ev.get("threads_added", [])),
-                "goal_changed": bool(ev.get("goal_changed")),
-                "changes_detail": chg,
-                "has_changes": bool(
-                    chg.get("updated")
-                    or chg.get("removed")
-                    or chg.get("resolved")
-                    or chg.get("added")
-                    or chg.get("goal")
-                ),
+                "san_diffs": san_diffs,
+                "has_changes": bool(san_diffs),
             })
             continue
 
