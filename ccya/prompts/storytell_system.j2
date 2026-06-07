@@ -39,14 +39,6 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 `goal_update` — the arc's direction shifted but the arc isn't over. Use this; reserve `arc_resolve` for chapter endings.
 
-## World state
-
-`world_state_add`: Durable facts still true 10 turns from now in a different location. Qualifies: faction disposition changes, permanent NPC injuries/deaths, destroyed routes or resources, structural location changes. Does NOT qualify: scene-local observations, temporary conditions, atmosphere, anything only known while in this room. Emit at most 2 per turn. Tier is always `"persistent"`.
-
-Before emitting, scan existing entries for overlap — reuse an existing ID rather than creating a duplicate. Prefer updating over creating.
-
-`world_state_remove`: Facts now false or superseded. Never remove `permanent` tier entries.
-
 ## GM Beat
 
 `gm_beat`: one beat to shape the next turn, or `null`. Emit as `{"type": "...", "surface_as": "..."}`. Must be narratively specific — name NPCs, reference locations, tie to active threads. Never generic.
