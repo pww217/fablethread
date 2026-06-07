@@ -1071,6 +1071,16 @@ async def run_turn(
                         "beat_expires_turn": turn_no + 2,
                     }
 
+            # Consecutive pressure counter: reads post-floor-relief pending_gm_beat
+            _current_beat = state.get("meta", {}).get("pending_gm_beat")
+            _beat_type = _current_beat.get("type") if _current_beat else None
+            meta = state.setdefault("meta", {})
+            current_pressure = meta.get("consecutive_pressure_turns", 0)
+            if _beat_type in PRESSURE_BEAT_TYPES:
+                meta["consecutive_pressure_turns"] = current_pressure + 1
+            else:
+                meta["consecutive_pressure_turns"] = 0
+
         if is_cancel_requested(str(save_dir)):
             return
         yield ("phase", {"phase": "extract_done"})
@@ -1286,19 +1296,7 @@ async def run_turn(
 
         narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
 
-        # Consecutive pressure counter: tracks storyteller beat types, not directives.
-        if _extract_result is not None and _pc is not None:
-            last_gm_beat_type = (
-                storyteller_result.gm_beat.type
-                if storyteller_result and storyteller_result.gm_beat
-                else None
-            )
-            meta = state.setdefault("meta", {})
-            current_pressure = meta.get("consecutive_pressure_turns", 0)
-            if last_gm_beat_type in PRESSURE_BEAT_TYPES:
-                meta["consecutive_pressure_turns"] = current_pressure + 1
-            else:
-                meta["consecutive_pressure_turns"] = 0
+
 
         diff_lines = _summarize_applied(applied)
         changes = summarize_changes(state_pre_apply, state, applied, rejected)
