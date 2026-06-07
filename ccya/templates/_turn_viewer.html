@@ -380,7 +380,7 @@ function tvRoot() {
         _collapseTurns() {
             var self = this;
             this.turns.forEach(function(t, i) {
-            var key = t.row_kind === 'seed' ? 'seed' : t.turn;
+                var key = t.row_kind === 'seed' ? 'seed' : t.row_kind === 'sanitizer' ? 's-' + t.turn : t.turn;
                 self.turnCollapsed[key] = i > 0;
             });
             this.$nextTick(function() { self.hlAllVisibleJson(); });
@@ -446,7 +446,7 @@ function tvRoot() {
             idx = Math.max(0, Math.min(idx, vt.length - 1));
             this.focusedTurnIdx = idx;
             var t = vt[idx];
-            var key = t.row_kind === 'seed' ? 'seed' : t.turn;
+            var key = t.row_kind === 'seed' ? 'seed' : t.row_kind === 'sanitizer' ? 's-' + t.turn : t.turn;
             this.turns.forEach(function(tr) {
                 if (tr.row_kind !== 'seed') {
                     this.turnCollapsed[tr.turn] = true;
