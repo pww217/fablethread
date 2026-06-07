@@ -10,7 +10,7 @@
 | `ccya/errors.py` | ErrorKind string constants (LLM_TIMEOUT, LLM_RATE_LIMIT, etc.) + LlmcError exception hierarchy (LlmcTimeout, LlmcRateLimit, LlmcApiError) |
 | `ccya/engine/__init__.py` | Re-exports public APIs; internal helpers for tests; LLM client re-exports (llm_chat, llm_chat_stream) |
 | `ccya/engine/config.py` | EngineConfig dataclass (including thread_stale_threshold, thread_max_active), _EventLock, is_turn_in_progress(), Jinja env setup |
-| `ccya/engine/turn.py` | run_turn() async orchestrator (thin — imports from submodules), _validate(), warmup(), _apply_thread_updates(config) with content dedup + auto-latent + thread cap eviction |
+| `ccya/engine/turn.py` | run_turn() async orchestrator (thin — imports from submodules), _validate(), warmup(), _apply_thread_updates(config) with content dedup + auto-latent demotion every turn (not gated on mutation) + thread cap eviction, _compute_pacing_context() with Breathe threat-append exception |
 | `ccya/engine/narrate.py` | _narrate_messages(), _get_resolved_arcs(), _fmt_progress(), NPC name helpers for prompt building |
 | `ccya/engine/pack_gen.py` | generate_pack() — LLM-generated ScenarioBrief, writes to packs/custom/<slug>/ |
 | `ccya/engine/names.py` | Name pool generation via Faker (pc, npc, location) |
@@ -27,7 +27,7 @@
 | `ccya/state/inventory.py` | normalize_inventory_id, resolve/fuzzy match helpers; resolve_inventory_remove_target() uses fuzzy matching (threshold 0.6) as final fallback |
 | `ccya/state/npcs.py` | build_npc_alias_map, touch_compendium_order (LRU), strip_npcs_notes (clears this-turn NPC notes at start of each turn) |
 | `ccya/state/chronicle.py` | append_event (events.jsonl), append_chronicle (chronicle.md), load_last_narration() |
-| `ccya/state/momentum.py` | apply_momentum() — deterministic from rules band, clamped to [-3,+3] |
+| `ccya/state/momentum.py` | apply_momentum() — deterministic from rules band, clamped to [-3,+3], with depth-based catch-up acceleration at -3 or below (success=+2, crit_success=+3) |
 | `ccya/server/__init__.py` | Re-exports: app, main, config, SAVE_DIR, _validate_stats |
 | `ccya/server/app.py` | FastAPI app bootstrap, Jinja env, pack loading, startup event; server error persistence + exception middleware → server_errors.jsonl |
 | `ccya/server/routes.py` | All @app.get / @app.post route handlers |
@@ -38,7 +38,7 @@
 | `ccya/eval/__init__.py` | Re-exports: EvalConfig, JudgeResult, RunResult (with track), Scenario, build_trace, run_scenario, etc. |
 | `ccya/eval/config.py` | EvalConfig, JudgesSpec (per-judge rubric/model/temp), load_eval_config() |
 | `ccya/eval/judge.py` | run_judges(track="adversarial"): parallel domain judges + sequential meta judge; parse_judge_response() YAML front matter; _build_metrics_rows(turn, tok_in per phase, pacing_directive, beat_generated/consumed from pending_gm_beat lifecycle) |
-| `ccya/eval/universal_asserts.py` | Auto-checkers (condition dedup, consecutive_pressure_tracking beat-type-based counter, beat_locked dual-trigger from momentum_floor/consecutive_pressure_threshold, floor relief injection verification, no_removed_directives/npc_states negative assertions, exact directive value rendering via word-boundary regex, orphan condition detection, thread_add→state application verification, inventory remove existence, thread_update ID validity, beat type variety warning, surface_as consistency check) — red/yellow severity |
+| `ccya/eval/universal_asserts.py` | Auto-checkers (condition dedup, consecutive_pressure_tracking beat-type-based counter, beat_locked dual-trigger from momentum_floor/consecutive_pressure_threshold, floor relief injection verification, no_removed_directives/npc_states negative assertions, exact directive value rendering via word-boundary regex, orphan condition detection, thread_add→state application verification, inventory remove existence, thread_update ID validity, beat type variety warning, surface_as consistency check, MB-4 momentum delta awareness for depth-based recovery at -3) — red/yellow severity |
 | `ccya/eval/report.py` | write_full_report(run_result, eval_cfg, judge_results=None): single-pass REPORT.md with metadata (including track + scoring philosophy), optional judge summary + verdicts, flags, auto-checker table (`[PASS]`/`[FAIL]` labels), pacing metrics, turn metrics; atomic write via tmp.replace() |
 | `ccya/eval/scenario.py` | Scenario (with seed_overrides, track="adversarial"/"baseline"), Turn, TurnAssert (with stream_id) |
 | `ccya/eval/engine_mirror.py` | Live engine constants for scenarios: BANDS, SKILLS, DIFFICULTIES, PC_CONDITION_CAP, CONDITION_TTL; pacing config mirror (momentum_floor=-3, consecutive_pressure_threshold=3, combat +2 scene_age boost) via EngineConfig defaults — THREAD_RESOLVED_ARC_TTL/THREAD_COMPLETED_THREAD_TTL imported from _defaults.arc_memory_ttl/_defaults.thread_memory_ttl, PRESSURE_BEAT_TYPES imported from turn.py, GM_BEAT_TYPES derived at runtime from GMBeat.type Literal annotation |
@@ -167,7 +167,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - **events.jsonl fields**: `momentum_before`, `momentum_after`, `momentum_delta` written as top-level event keys on every turn (turn.py ~1501-1503), not only in the conditional ruling_event. Available for all turns including no-roll turns where momentum carries over unchanged from previous turn. Ruling dict includes `raw_total` (sum of dice + modifiers) alongside `final_total` for dice math verification.
 
 ### Pacing context and beat lifecycle (Phase 03 pacing overhaul)
-- `_compute_pacing_context()` dual-trigger beat_locked: fires when either `consecutive_pressure_turns >= config.consecutive_pressure_threshold` OR `momentum <= config.momentum_floor`; appends "Resolve a Threat" to directive whenever locked
+- `_compute_pacing_context()` dual-trigger beat_locked: fires when either `consecutive_pressure_turns >= config.consecutive_pressure_threshold` OR `momentum <= config.momentum_floor`; appends "Resolve a Threat" to directive (except Breathe, which is de-escalation)
 - `_compute_pacing_context()` gains `scene_motion` and `impossible` inputs from ruling LLM; computes `outcome_hint` (`hold`/`advance`/`transition`) from ruling's `scene_motion` and PacingContext escalation signals. `outcome_hint` replaces `directive` as narrator's primary scene-motion signal.
 - Consecutive pressure counter (`state["meta"]["consecutive_pressure_turns"]`) updated at turn end: increments when storyteller's `gm_beat.type` is `"pressure"`, `"escalation"`, or `"complication"`; resets to 0 on any other beat type or null beat (re-keyed from directive-based tracking, which never fired)
 - `pending_gm_beat` lifecycle: null-clear on null storytell output (key popped from meta); replaced on valid storytell emittion (beat_expires_turn = turn_no + 2); expires when turn_no > beat_expires_turn at narrate setup. Floor relief injects breathing_room when beat_locked AND (pending_gm_beat is None or pressure-type)
