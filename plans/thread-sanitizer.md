@@ -96,7 +96,7 @@ Add a `ccya/engine/thread_sanitizer.py` module that every `sanitize_every` turns
 **What:** After line 265 (`thread_max_active=int(game.get(...))`), before the closing `)` on line 266, add:
 
 ```python
-        sanitize_every=int(game.get("sanitize_every", 5)),
+        sanitize_every=int(game.get("sanitize_every", 5)),   # 0 = disabled
         sanitize_temperature=float(
             llm.get("sanitize", {}).get("temperature", 0.3)
         ),

@@ -286,7 +286,7 @@ sanitize_temperature = float(sanitize_cfg.get("temperature", 0.3))
 #   sanitize:
 #     temperature: 0.3
 # game:
-#   sanitize_every: 5
+#   sanitize_every: 5        # 0 = disabled entirely
 ```
 
 ## UI — phase labels (exact old compactor shape)
