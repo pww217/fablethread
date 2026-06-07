@@ -83,6 +83,7 @@ Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, publi
 
 ## Execution rules
 
+- **Always activate the venv before running Python directly:** `source .venv/bin/activate`. System Python (3.9) is too old — project requires 3.11+.
 - Feel free to `curl` against a running server (assume it's running on `localhost:8000`) to pull rendered templates or live state.
 - When stumped by a bug: form one hypothesis, write a minimal `/tmp/` script to test it in isolation, confirm or refute, then act. Do not go in circles.
 - When making a commit, write a detailed commit message covering all major and key changes.

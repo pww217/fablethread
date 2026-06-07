@@ -6,6 +6,8 @@
 > Severity: **H**=high, **M**=medium, **L**=low  
 > Confidence (for new/eval-only findings): **H**=data supports, **M**=pattern suggests needs cross-game validation, **L**=hypothesis only
 
+> **Eval system gaps**: See [EVAL-FIXES.md](../EVAL-FIXES.md) for auto-checker additions needed to detect sanitizer lag (issue #3), thread accumulation (issue #5), and other eval blind spots.
+
 ---
 
 ## Confirmed Bugs
@@ -53,9 +55,15 @@ When the player leaves a location, scene-scoped threads from that location are s
 
 Current `thread_max_active` config is monolithic. Should split: max 2 arc-scoped active threads + 1 scene-scoped active thread. Any more is overwhelming for both the LLM and the player. Exceeding the cap should demote the least-recently-updated active thread to background.
 
-### O4. Auto-demote arc threads to latent
+### O4. Auto-demote arc threads to latent [FIXED — step 01.3a + step 02.1]
 
 Arc threads that haven't been updated in N turns should auto-demote: normal → background after 5 turns without progress, background → latent after 10. Urgency should decay the same way. Currently no decay mechanism exists. **BZ1 (Byzantium) confirms this is still happening in production** — `broken_defense`, `looting_scourge`, `coinage_panic` accumulated progress entries across all 31 turns without any demotion or resolution. The decay mechanisms in `02-thread-lifecycle.md` Steps 2.5–2.6 may not be wired correctly or are insufficient.
+
+**Root cause**: Sanitizer template (`sanitize_thread.j2`) does not explicitly instruct cleanup of stale background threads — it only asks about narrative resolution, urgency, active status, and progress entries. The LLM keeps inactive threads because they're "still relevant to the war." No temporal decay instruction exists in the sanitizer prompt.
+
+**FIXED**: Step 01.3a updated `_apply_thread_updates()` to fire auto-latent demotion every turn (not gated on mutation) so stale active threads reliably get `active=false` set after 3 turns of no updates. Step 02.1 added explicit temporal decay cleanup instruction to sanitizer template (`sanitize_thread.j2`) instructing the LLM to remove inactive latent threads with no progress_updates for multiple sanitizer cycles.
+
+**Eval gap**: No auto-checker validates thread accumulation or decay behavior. See [EVAL-FIXES.md](../EVAL-FIXES.md#issue-5-background-thread-accumulation) for specific checks needed (`check_inactive_thread_age`, `check_accumulating_threads`).
 
 ### O5. Thread ordering by most recently updated
 
