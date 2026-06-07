@@ -33,15 +33,6 @@ def _summarize_applied(applied: dict[str, Any]) -> list[str]:
     for it in applied.get("inventory_update") or []:
         if isinstance(it, dict) and it.get("id"):
             lines.append(f"~ {it['id']} updated")
-    for f in applied.get("world_state_add") or []:
-        if isinstance(f, dict):
-            text = f.get("text") or f.get("id", "?")
-            short = str(text)[:56]
-            lines.append(f"+ {short}{'…' if len(short) > 56 else ''}")
-    for f in applied.get("world_state_remove") or []:
-        if isinstance(f, str):
-            short = f[:40] + ("…" if len(f) > 40 else "")
-            lines.append(f"- {short}")
     for c in applied.get("pc_condition_add") or []:
         label = c.get("label") or c.get("id") or str(c) if isinstance(c, dict) else str(c)
         lines.append(f"+ {label}")

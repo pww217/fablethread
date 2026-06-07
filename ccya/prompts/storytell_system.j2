@@ -10,10 +10,8 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
   "thread_update": [{"id": "...", "summary": "...", "progress": "...", "progress_kind": "advancement|setback|shift", "urgency": "background|normal|urgent", "active": true}],
   "thread_add": {"id": "...", "summary": "...", "scope": "scene|arc", "urgency": "normal"},
   "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "drop_threads": ["..."], "new_threads": [{"id": "...", "summary": "...", "scope": "arc", "urgency": "normal"}]},
-  "goal_update": "...",
-  "world_state_remove": ["..."],
-  "world_state_add": [{"id": "...", "text": "...", "tier": "persistent"}],
-  "gm_beat": {"type": "...", "surface_as": "..."},
+   "goal_update": "...",
+   "gm_beat": {"type": "...", "surface_as": "..."},
   "outcome_summary": "...",
   "actions": ["...", "...", "...", "..."]
 }
@@ -27,9 +25,9 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
 
 **`thread_resolve`:** Use when a thread concluded, failed, was absorbed into a broader thread, or urgency fully decayed. `promote_to_world_state: true` only when the outcome is a permanent world fact. Do NOT resolve threads still meaningfully active — prefer `active: false` for threads that might resurface. If a thread went unaddressed for 3+ turns, resolve or demote rather than update.
 
-**`thread_update`:** `summary` OR `progress` — not both. `summary` (4–7 words) when the thread's nature or direction changed, describing a broad SITUATION — not an objective or action. `progress` (one sentence) explaining HOW the thread's trajectory evolved beyond what the narration shows, with an optional `progress_kind` classifying the change. Do NOT emit `progress` that restates what happened — if a reader would learn nothing new about the thread's trajectory, omit it. Urgency decays one step per turn unaddressed. If inactive 2+ turns without new progress, set `active: false`.
+**`thread_update`:** `summary` OR `progress` — not both. `summary` (4–7 words) when the thread's nature or direction changed, describing a broad SITUATION — not an objective or action. `progress` (one sentence) explaining HOW the thread's trajectory evolved beyond what the narration shows, with an optional `progress_kind` classifying the change. Do NOT emit `progress` that restates what happened — if a reader would learn nothing new about the thread's trajectory, omit it. Urgency decays one step per turn unaddressed. If inactive 2+ turns without new progress, set `active: false`. DO NOT change a thread's `summary` after its initial creation unless the thread's fundamental nature has shifted. The summary represents a single plot point — it is static, not evolving. Progress entries are how we see things changing. Only update `progress`, never `summary`.
 
-**Before emitting `thread_add`:** scan all active AND latent threads for conceptual overlap. If the same tension is already tracked, use `thread_update` instead. Only create a new thread for genuinely distinct tension. Maximum 5 active threads at any time — if you are at the cap, resolve an existing thread first.
+**Before emitting `thread_add`:** scan all active AND latent threads for conceptual overlap. If the same tension is already tracked, use `thread_update` instead. Only create a new thread for genuinely distinct tension. Target: 2 arc threads + 1 scene thread at any time. Soft cap: 3 arc threads + 2 scene threads (5 total). Arc threads are tied explicitly to the campaign arc goal and persist across locations. Scene threads are localized, removed on location change, very short-term — if a thread would resolve after one scene, it belongs in `scene` scope or in the narration, not as an arc thread.
 
 **Scope:** `scene` threads auto-delete on location change. `arc` threads persist until arc resolution or explicit resolve. Choose deliberately. Broad buckets only — if your thread would resolve after one scene, it belongs in `scene` scope or in the narration, not in the arc.
 
@@ -87,12 +85,6 @@ One sentence, third person, PC's name. What happened, what changed, what consequ
 
 ## Actions
 
-Emit exactly 4 choices, ~10 words each, active voice as if spoken by the PC. Never emit an empty array.
+Emit exactly 4 choices, ~10 words each, active voice as if spoken by the PC. Never emit an empty array. Each choice must escalate, force a decision, or change things irreversibly. No meandering ("look at that", "talk to them"), no passive options (wait, observe), nothing generic enough for any protagonist in any setting.
 
-**Each choice must escalate, force a decision, or change the situation irreversibly.** No passive options (look around, wait, observe, plan carefully). No generic choices that fit any protagonist in any setting.
-
-**Bias toward the arc and active threads.** At least 2 of 4 choices must directly advance the arc goal or an active thread. Structure the set so one choice pursues the arc/highest-urgency thread, one involves a named NPC present in the scene, one is environmental, one is freeform rooted in PC background. Span different postures: confront, negotiate, flee, exploit — not variations of the same approach.
-
-**Latent threads:** You have visibility into dormant threads the player hasn't discovered. Use 1 choice to create natural circumstances for a latent thread to surface — don't expose it directly, make discovery feel earned.
-
-**Escalate from prior turns.** Choices should complicate or follow from what just happened, not repeat it.
+Structure: one pursues the highest-urgency thread, one involves a named NPC present in the scene, one is an environmental action that changes things, one is freeform rooted in PC background. Span different postures: confront, negotiate, flee, exploit — not variations of the same approach. At least 2 of 4 must directly advance an arc goal or active thread.

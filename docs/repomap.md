@@ -87,7 +87,7 @@
 2. **Narrate** (streaming→SSE→chronicle.md) — prose narrative with narration directive from velocity/threads
 3. **Scene Extract** (JSON→SceneExtractResult) — scene tags, location change, compendium updates
 4. **State Extract** (JSON→StateExtractResult) — inventory deltas, condition add/remove
-5. **Storytell** (JSON→StorytellerResult) — thread_update, goal_update (str | None, direct dict assignment), arc_resolve, thread_resolve, thread_add (gated by PacingContext.gate), world_state_add/remove, actions, gm_beat
+5. **Storytell** (JSON→StorytellerResult) — thread_update, goal_update (str | None, direct dict assignment), arc_resolve, thread_resolve, thread_add (gated by PacingContext.gate), actions, gm_beat
 
 Steps 3–5 merge into StateDelta → _validate() → apply_delta() → summarize_changes() → persist (atomic writes).
 
@@ -187,7 +187,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### Extraction field routing
 - **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, compendium_npc_update (no pressure fields); CompendiumEntry now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes
 - **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
-  - **StorytellerResult**: thread_update (list[ThreadUpdate] with id/urgency/active/summary/progress/progress_kind), goal_update (str | None, applied directly to arc dict — NOT through _merge_arc_update), arc_resolve (ArcResolution with resolution/visible_goal/goal_context/drop_threads/new_threads), thread_resolve (list[ThreadResolution] with id/resolution_state/outcome), thread_add (ArcThread | None), world_state_add: list[WorldStateFact], world_state_remove: list[str], actions, outcome_summary, gm_beat; thread_add validated by id-based dedup only (no key, no fuzzy merge); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
+  - **StorytellerResult**: thread_update (list[ThreadUpdate] with id/urgency/active/summary/progress/progress_kind), goal_update (str | None, applied directly to arc dict — NOT through _merge_arc_update), arc_resolve (ArcResolution with resolution/visible_goal/goal_context/drop_threads/new_threads), thread_resolve (list[ThreadResolution] with id/resolution_state/outcome + promote_to_world_state flag for promotion-only world state changes), thread_add (ArcThread | None), actions, outcome_summary, gm_beat; thread_add validated by id-based dedup only (no key, no fuzzy merge); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
 - **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions, persisted to state["pc"]["actions"] as rolling window by apply_delta()
 
 ### Cross-stream data flow (minimal by design)
@@ -201,7 +201,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - `beat_expires_turn`: turn number at which pending beat expires (set to `turn_no + 2` in turn.py)
 
 ### WorldStateFact
-- Pydantic model with id: str, text: str, tier: Literal["permanent", "persistent"] = "persistent" — permanent facts are seed-authored and never written or removed by the LLM; persistent facts are runtime-discovered durable environmental changes added via world_state_add (LLM must always emit "persistent")
+- Pydantic model with id: str, text: str, tier: Literal["permanent", "persistent"] = "persistent" — permanent facts are seed-authored and never written or removed by the LLM; persistent facts are runtime-added durable environmental changes promoted from thread/arc resolution outcomes
 
 ### ThreadResolution
 - Pydantic model with id: str, resolution_state: Literal["resolved", "failed", "abandoned"], outcome: str = "" — one past-tense sentence written at resolution time; persisted on completed ArcThread by _apply_thread_resolutions() alongside resolution_state (Phase 05e)
