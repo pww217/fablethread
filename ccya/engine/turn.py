@@ -239,6 +239,71 @@ def _apply_thread_updates(
                     turn_no, t.id, turn_no - t.last_updated_turn, extra={"turn": turn_no},
                 )
 
+    # Urgency decay: demote threads that have been at their urgency level for
+    # >= thread_urgency_max_age turns. Demotes stepwise: urgent → normal → background.
+    if config and remaining_threads:
+        _decay_threshold = config.thread_urgency_max_age
+        for i, t in enumerate(remaining_threads):
+            _set_turn = getattr(t, "urgency_set_turn", None)
+            if _set_turn is None or not t.active:
+                continue  # skip threads without urgency tracking; decay only affects active threads
+            _age = turn_no - _set_turn
+            if _age >= _decay_threshold:
+                _current_urgency = getattr(t, "urgency", "background")
+                new_urgency = None
+                if _current_urgency == "urgent":
+                    new_urgency = "normal"
+                elif _current_urgency == "normal":
+                    new_urgency = "background"
+
+                if new_urgency is not None:
+                    updated_t = t.model_copy(update={"urgency": new_urgency, "urgency_set_turn": turn_no})
+                    remaining_threads[i] = updated_t
+                    mutated = True
+                    _log.info(
+                        "thread_updates.urgency_decay trace_id=%d thread %s urgency %s→%s (age=%d turns)",
+                        turn_no, t.id, _current_urgency, new_urgency, _age, extra={"turn": turn_no},
+                    )
+
+    # Scene-scoped two-stage lifecycle: active→latent after silent threshold, latent→removed after 2x threshold.
+    if config and remaining_threads:
+        _expire_threshold = config.scene_thread_expire_silent_turns
+        scene_threads_to_remove = []
+        for i, t in enumerate(remaining_threads):
+            if getattr(t, "scope", "arc") != "scene":
+                continue
+
+            _last_seen = getattr(t, "last_seen_turn", None) or getattr(t, "added_turn", None)
+            if _last_seen is None:
+                continue  # no turn context — skip this thread
+
+            _turns_since_last_activity = turn_no - _last_seen
+
+            if t.active:
+                # Active → latent: scene thread silent for threshold turns without being advanced.
+                # Only set active=False — urgency was already updated by the decay pass above (if applicable).
+                if _turns_since_last_activity >= _expire_threshold:
+                    updated_t = t.model_copy(update={"active": False})
+                    remaining_threads[i] = updated_t
+                    mutated = True
+                    _log.info(
+                        "thread_updates.scene_latent trace_id=%d scene_thread %s silent_for=%d turns",
+                        turn_no, t.id, _turns_since_last_activity, extra={"turn": turn_no},
+                    )
+            else:
+                # Latent → remove: unsurfaced for 2x threshold total (silent since creation/last_seen)
+                if _turns_since_last_activity >= _expire_threshold * 2:
+                    scene_threads_to_remove.append(i)
+
+        # Remove latent scene threads that have been unsurfaced too long (iterate backwards to preserve indices).
+        for idx in reversed(scene_threads_to_remove):
+            removed_t = remaining_threads.pop(idx)
+            mutated = True
+            _log.info(
+                "thread_updates.scene_removed trace_id=%d scene_thread %s unsurfaced_for=%d turns",
+                turn_no, getattr(removed_t, 'id', '?'), turn_no - (getattr(removed_t, 'last_seen_turn', None) or 0), extra={"turn": turn_no},
+            )
+
     return arc.model_copy(update={
         "threads": remaining_threads,
     }) if mutated else None
@@ -1278,7 +1343,10 @@ async def run_turn(
                                 _existing_arc = CampaignArc.model_validate(arc_raw)
                                 existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
                                 if _new_thread.id not in existing_ids:
-                                    _updated_t = _new_thread.model_copy()
+                                    _updated_t = _new_thread.model_copy(update={
+                                        "added_turn": turn_no_for_add,
+                                        "urgency_set_turn": turn_no_for_add,
+                                    })
                                     arc_with_new_thread = _existing_arc.model_copy(
                                         update={"threads": list(_existing_arc.threads) + [_updated_t],
                                                 "last_thread_created_turn": turn_no_for_add}
