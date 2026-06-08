@@ -30,6 +30,18 @@ Instruct extractors not to emit schema fields that are entirely null (no-op chan
 
 ---
 
+## Thread & Arc Management
+
+### DQ03. Threads vs arcs decoupling — cognitive load [Design Question]
+
+Threads are overloaded as both a fact sheet (tracking world state/events) and an objective list (player goals). This creates high cognitive load for the player: they see threads with sub-objectives, arc visible_goals, and sometimes overlapping content. Possible division:
+- **Arcs/threads should be objectives only** — guidance to storyteller that arcs define what the player is trying to accomplish.
+- **Thread updates should be factual journal entries** — not goals but records of events (e.g., "Found wounded ally at [location]", "Discovered enemy patrol route").
+
+May already be sufficiently differentiated via `visible_goal` vs thread progress, but worth testing whether this explicit distinction reduces confusion and cognitive load.
+
+---
+
 ## Scene Mechanics
 
 ### F-N06. Interactive inventory items in scenes [Net New]
@@ -48,13 +60,9 @@ Close bonds (family, spouse) are referred to generically as "kin" or "family" in
 
 The initial seed JSON sets up world state (locations, factions, relationships) but turn 1 narration doesn't actively USE it — it lists things rather than weaving them into narrative choices and arc setup. The opening should be driven by seed data where relevant to existing threads/arcs.
 
-### F-I03. Hints disable seed JSON [Improvement]
+### F-I09. Bonds generate arc objectives at start [Net New]
 
-When player provides hints through character creation flow, the seed JSON should be entirely disabled (toggled off). Both mechanisms introduce randomness/variability; using both together confuses the narrator about what world state is real vs overridden. Simple config toggle: if `hints` field has any populated values → disable all seed-based world generation.
-
-### F-I04. Narrator relevance for scene items [Improvement]
-
-The opening narration (which receives seed data with scene items) mentions everything regardless of whether it's relevant to the current scene or arc. The narrator should only mention interactable/nearby items when they're actually relevant to what's happening, not as a laundry list from seed state.
+Close bonds (family, spouse) should not just improve narration labels but actually seed concrete arc objectives at game start. Example: "find my lost brother" instead of generic "secure family safety." The bond data needs to be used by the storyteller/sanitizer to create specific, named-person arcs that give the player clear narrative direction from turn 1. This is about world-building depth in bonds — using them as a source for actionable story hooks rather than just improving how characters are referred to.
 
 ---
 
@@ -68,12 +76,9 @@ NPCs who are dead, incapacitated, or no longer relevant need structured removal:
 - **Backend TTL**: On the backend, character persists for ~10 turns so engine can still understand callbacks/references to recently deceased characters. By turn 10, callback probability is slim.
 - **Key NPC exception**: Named/key NPCs marked with a `key_npc` flag are exempt from automatic removal — they stay until explicitly removed by narrative events.
 
-### F-N04. Party designation [Net New]
+### F-N07. Left-behind tracking on location change [Net New]
 
-NPCs who should follow the player (family allies, squad mates) need explicit party membership tracking:
-- **Assignment**: Both seed-configured at start AND dynamically assigned by narrator when characters join up mid-game ("both" approach).
-- **Scene retention**: Narrator prompt explicitly keeps party members together in scene descriptions — they shouldn't be left behind or separated without a strong narrative reason.
-- **Enhanced treatment**: Party members get the same bond/narrative depth as key NPCs (motivations, fears, named relationships) even if introduced mid-game. They're not "random faceless guards."
+When the player changes locations (which may be fixed via B7 prompt fix), characters who should logically stay behind aren't tracked as such. Example: a companion stays at home while the PC goes across town — they shouldn't magically appear in the new scene. Need explicit state for "left behind" NPCs with their last known location, so the narrator can reference them appropriately ("your sister is still back at the safehouse") rather than either teleporting them or forgetting them entirely. This complements F-N03 (death/removal) and F-N04 (party designation) — party members should be exempt from left-behind logic unless explicitly separated by narrative events, while non-party NPCs who were in a previous scene should have their location tracked separately.
 
 ---
 
@@ -133,8 +138,9 @@ Should these be unified (scene direction comes from active threads) or separate 
 |----------|-----------------|-------------------|------------------|
 | Compendium | F-N01, F-N02 | — | — |
 | Scene Mechanics | F-N06 | — | — |
-| Narrative Setup | F-I02 | F-I01, F-I03, F-I04 | DQ01 (tentative) |
-| NPC Mechanics | F-N03, F-N04 | — | — |
+| Thread & Arc Management | — | — | DQ03 (cognitive load) |
+| Narrative Setup | F-I02, F-I09 | F-I01, F-I03, F-I04 | DQ01 (tentative) |
+| NPC Mechanics | F-N03, F-N04, F-N07 | — | — |
 | Storytelling Pipeline | F-N05 | — | DQ02 |
 | UI Improvements | F-I07 | F-I06 | — |
 | Pipeline Efficiency | — | F-I08 (needs verification) | — |
