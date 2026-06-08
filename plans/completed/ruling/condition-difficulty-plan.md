@@ -42,7 +42,16 @@ Remove `CONDITION_MODS` entirely from `ccya/rules.py`, rename `impossible_reason
 - **HTML templates compute total_mod using cond_mod.** Three template locations need updating: index.html lines 165 and 689, _turn_log.html line 10. These are UI display calculations that must drop the `cond_mod` term from their sums.
 
 ## Status
-`open`
+`completed`
+---
+
+# Phases (executed)
+
+All 4 phases completed:
+- Phase 1: Schema rename + prompt update — done
+- Phase 2: Python cleanup + wiring — done
+- Phase 3: Eval + tooling updates — done
+- Phase 4: UI template cleanup — done
 
 ---
 
