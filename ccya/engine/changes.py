@@ -71,7 +71,6 @@ def _inv_amount_map(st: dict[str, Any]) -> dict[str, dict[str, Any]]:
 def summarize_changes(
     pre: dict[str, Any],
     post: dict[str, Any],
-    _applied: dict[str, Any],
     rejected: list[dict[str, Any]],
 ) -> dict[str, list[dict[str, Any]]]:
     _log.debug("summarize_changes pre_keys=%d post_keys=%d", len(pre), len(post))
@@ -292,13 +291,17 @@ def summarize_changes(
                 elif post_progress and pre_progress and post_progress[-1] != pre_progress[-1]:
                     changes.append("progress updated")
                 if changes:
-                    threads.append({
+                    new_entries = post_progress[len(pre_progress):] if len(post_progress) > len(pre_progress) else []
+                    entry: dict[str, Any] = {
                         "kind": "updated",
                         "id": tid,
                         "summary": po.get("summary", ""),
                         "detail": "; ".join(changes),
-                    })
-
+                    }
+                    if new_entries:
+                        progress_texts = [f"[{p.get('kind', 'advancement').upper()}] {p.get('text') or p}" if isinstance(p, dict) else str(p) for p in new_entries]
+                        entry["new_progress"] = "; ".join(progress_texts)
+                    threads.append(entry)
         pre_resolved = len(pre.get("resolved_arcs") or [])
         post_resolved = len(post.get("resolved_arcs") or [])
         if post_resolved > pre_resolved:

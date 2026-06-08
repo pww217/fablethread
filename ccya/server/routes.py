@@ -217,6 +217,10 @@ async def get_turn(input: str = ""):
                                 "metrics": result.metrics,
                                 "ruling": result.ruling,
                                 "outcome_summary": result.outcome_summary,
+                                "debug_mode": _app_mod.engine_config.debug_mode,
+                                "narrative_velocity": result.narrative_velocity,
+                                "gm_beat": result.gm_beat,
+                                "outcome_hint": result.outcome_hint,
                                 "ts": _ts_display,
                             }
                         ),

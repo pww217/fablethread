@@ -1733,6 +1733,31 @@ function game() {
                 const changes = _buildTurnChanges(result.change_lines || []);
                     if (changes) { lastInserted.after(changes); lastInserted = changes; }
 
+                // Thread progress lines from new_progress field on thread entries.
+                const threadsResult = result.changes?.threads || [];
+                for (const t of threadsResult) {
+                    if (!t.new_progress) continue;
+                    const progDiv = document.createElement('div');
+                    progDiv.className = 'thread-progress-line';
+                    progDiv.textContent = '\u{1F9F5} ' + t.new_progress;
+                    lastInserted.after(progDiv);
+                    lastInserted = progDiv;
+                }
+
+                // Debug-mode metadata row.
+                if (result.debug_mode) {
+                    const debugDiv = document.createElement('div');
+                    debugDiv.className = 'debug-metadata-row';
+
+                    const momentumVal = result.ruling?.momentum_delta ?? (result.state?.pc?.momentum ?? '—');
+                    const nvVal = result.narrative_velocity != null ? result.narrative_velocity.toFixed(2) : '—';
+                    const gmBeatText = result.gm_beat ? `${result.gm_beat.type} (${result.gm_beat.surface_as})` : '\u2014';
+
+                    debugDiv.innerHTML = `<span class="debug-label">Momentum:</span> ${momentumVal}&ensp;|&ensp;<span class="debug-label">Velocity:</span> ${nvVal}&ensp;|&ensp;<span class="debug-label">GM Beat:</span> ${gmBeatText}&ensp;|&ensp;<span class="debug-label">Hint:</span> ${result.outcome_hint || '\u2014'}`;
+                    lastInserted.after(debugDiv);
+                    lastInserted = debugDiv;
+                }
+
                 _applyMarkdown(block);
 
                 if (result.rejected && result.rejected.length > 0) {
