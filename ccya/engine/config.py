@@ -96,7 +96,7 @@ class EngineConfig:
     #                      config panels (future use). Currently none.
     #
     host: str = "http://localhost:8080/v1"
-    model: str = "mlx-community/Qwen3.6-27B-4bit"
+    model: str = "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit-thinking"
     request_timeout_s: int = 180
     ruling_temperature: float = 0.2
     extract_temperature: float = 0.4

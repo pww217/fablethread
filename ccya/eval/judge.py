@@ -996,7 +996,7 @@ async def _run_single_judge(
         messages=messages,
         temperature=spec.temperature,
         max_tokens=spec.max_tokens,
-        timeout=spec.timeout_s or 180.0,
+        timeout=spec.timeout_s or 900.0,
     )
     elapsed = time.monotonic() - t0
     _log.info("judge[%s]: complete in %.1fs", spec.id, elapsed)
