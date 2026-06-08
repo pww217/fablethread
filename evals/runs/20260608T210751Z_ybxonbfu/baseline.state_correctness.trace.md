@@ -1560,12 +1560,12 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "intent_verb": "transition",
-  "intent": "The player travels to a new location and enters a specific establishment.",
+  "intent": "The player moves from the livery to the saloon in Dustfall.",
   "rolled": false,
-  "total_ms": 11494.5,
+  "total_ms": 10479.5,
   "tokens_in": 1117,
-  "tokens_out": 75,
-  "outcome_summary": ""
+  "tokens_out": 74,
+  "outcome_summary": "The PC enters the Dustfall Saloon to escape the midday heat."
 }
 ```
 
@@ -1583,24 +1583,33 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "scene_tags": [
-    "tense_atmosphere",
-    "discovery"
+    "quiet",
+    "oppressive_heat",
+    "weary_atmosphere"
   ],
-  "scene_tagline": "A Quiet Arrival in Dustfall",
+  "scene_tagline": "Seeking Refuge from the Heat",
   "location_change": {
     "id": "dustfall_saloon",
     "name": "Dustfall Saloon",
-    "description": "A dim taproom filled with the scent of stale ale and unwashed wool. Patrons sit hunched over small tables in the shadows."
+    "description": "A dim, cool taproom smelling of stale ale and sawdust, providing a stark contrast to the sun-scorched streets outside."
   },
-  "location_description": "The main street is unusually quiet, lacking the typical bustle of a waypoint town.",
+  "location_description": "The interior is dimly lit, offering relief from the midday glare, with several patrons seated at scarred wooden tables.",
   "compendium_npc_update": [
+    {
+      "id": "innkeeper",
+      "name": "Edda",
+      "bio": "Graying hair and a sharp, observant gaze; moves with methodical, slow precision. Runs the inn alone since her husband died and stays out of trouble unless it walks through her door.",
+      "aliases": [],
+      "presence": "present",
+      "notes": "methodically wiping a glass behind the bar"
+    },
     {
       "id": "saloon_patrons",
       "name": "Saloon Patrons",
-      "bio": "A small group of locals huddled over drinks in the dim light. They are wary of strangers and maintain a watchful silence.",
+      "bio": "A small group of weary-looking locals sitting at wooden tables. They possess a sense of indifference and exhaustion from the heat.",
       "aliases": [],
       "presence": "present",
-      "notes": "watching player with cautious interest"
+      "notes": "watching entrance with weary indifference"
     }
   ]
 }
@@ -1615,9 +1624,9 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "inventory_update": [],
   "pc_condition_add": [
     {
-      "id": "dusty_throat",
-      "label": "Dusty Throat",
-      "description": "The dust from the merchant road has coated your throat, making it scratchy.",
+      "id": "heat_exhaustion",
+      "label": "Heat Exhaustion",
+      "description": "The punishing midday sun has left you feeling drained and overheated.",
       "turns_remaining": 2
     }
   ],
@@ -1630,30 +1639,23 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "actions": [
-    "Order a drink to soothe your dusty throat.",
-    "Scan the patrons for news of the road.",
-    "Approach the bar to find Edda's information.",
-    "Keep your hood low and watch the room."
+    "Order a cold drink to combat the mounting heat exhaustion.",
+    "Question Edda about the current state of the merchant road.",
+    "Scan the weary patrons for news regarding Caron's whereabouts.",
+    "Search for any sign of the hired thugs near the entrance."
   ],
-  "outcome_summary": "",
+  "outcome_summary": "The PC enters the Dustfall Saloon to escape the midday heat.",
   "gm_beat": {
-    "type": "pressure",
+    "type": "opportunity",
     "surface_as": "npc_behavior"
   },
-  "thread_resolve": [
-    {
-      "id": "clear_the_road_toughs",
-      "resolution_state": "abandoned",
-      "outcome": "The player has entered the town, bypassing the road blockade.",
-      "promote_to_world_state": false
-    }
-  ],
+  "thread_resolve": [],
   "thread_update": [
     {
       "id": "deliver_the_ledger",
       "active": true,
       "urgency": "normal",
-      "progress": "Arrived in Dustfall toward destination",
+      "progress": "Arrived in Dustfall to find the innkeeper.",
       "progress_kind": "advancement"
     }
   ]
@@ -1670,38 +1672,47 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "location_change": {
     "id": "dustfall_saloon",
     "name": "Dustfall Saloon",
-    "description": "A dim taproom filled with the scent of stale ale and unwashed wool. Patrons sit hunched over small tables in the shadows."
+    "description": "A dim, cool taproom smelling of stale ale and sawdust, providing a stark contrast to the sun-scorched streets outside."
   },
-  "location_description": "The main street is unusually quiet, lacking the typical bustle of a waypoint town.",
+  "location_description": "The interior is dimly lit, offering relief from the midday glare, with several patrons seated at scarred wooden tables.",
   "pc_condition_add": [
     {
-      "id": "dusty_throat",
-      "label": "Dusty Throat",
-      "description": "The dust from the merchant road has coated your throat, making it scratchy.",
+      "id": "heat_exhaustion",
+      "label": "Heat Exhaustion",
+      "description": "The punishing midday sun has left you feeling drained and overheated.",
       "turns_remaining": 2
     }
   ],
   "pc_condition_remove": [],
   "scene_tags": [
-    "tense_atmosphere",
-    "discovery"
+    "quiet",
+    "oppressive_heat",
+    "weary_atmosphere"
   ],
-  "scene_tagline": "A Quiet Arrival in Dustfall",
+  "scene_tagline": "Seeking Refuge from the Heat",
   "compendium_npc_update": [
+    {
+      "id": "innkeeper",
+      "name": "Edda",
+      "bio": "Graying hair and a sharp, observant gaze; moves with methodical, slow precision. Runs the inn alone since her husband died and stays out of trouble unless it walks through her door.",
+      "aliases": [],
+      "presence": "present",
+      "notes": "methodically wiping a glass behind the bar"
+    },
     {
       "id": "saloon_patrons",
       "name": "Saloon Patrons",
-      "bio": "A small group of locals huddled over drinks in the dim light. They are wary of strangers and maintain a watchful silence.",
+      "bio": "A small group of weary-looking locals sitting at wooden tables. They possess a sense of indifference and exhaustion from the heat.",
       "aliases": [],
       "presence": "present",
-      "notes": "watching player with cautious interest"
+      "notes": "watching entrance with weary indifference"
     }
   ],
   "actions": [
-    "Order a drink to soothe your dusty throat.",
-    "Scan the patrons for news of the road.",
-    "Approach the bar to find Edda's information.",
-    "Keep your hood low and watch the room."
+    "Order a cold drink to combat the mounting heat exhaustion.",
+    "Question Edda about the current state of the merchant road.",
+    "Scan the weary patrons for news regarding Caron's whereabouts.",
+    "Search for any sign of the hired thugs near the entrance."
   ]
 }
 ```
@@ -1966,12 +1977,12 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "intent_verb": "persuade",
-  "intent": "The player seeks information from the bartender while ordering a drink.",
+  "intent": "The player seeks refreshment and information from the innkeeper.",
   "rolled": false,
-  "total_ms": 2221.1,
-  "tokens_in": 1278,
-  "tokens_out": 68,
-  "outcome_summary": "The player learns from Elara Vance that caravans are increasingly fleeing the crossing."
+  "total_ms": 3076.9,
+  "tokens_in": 1313,
+  "tokens_out": 67,
+  "outcome_summary": "The PC purchased water from Edda and learned of restless travelers on the northern road."
 }
 ```
 
@@ -1992,17 +2003,18 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
     "tense_conversation",
     "investigation"
   ],
-  "scene_tagline": "Bad News at the Bar",
-  "location_description": "The bar is made of scarred, heavy wood, and a chipped ceramic mug sits prominently on its surface.",
+  "scene_tagline": "Water and Whispers",
+  "location_description": "The bar counter is scarred from years of use, and a chipped earthenware mug sits before you.",
   "compendium_npc_update": [
     {
-      "id": "elara_vance",
-      "name": "Elara Vance",
-      "title": "Bartender",
-      "bio": "A woman with calloused hands and a sharp, discerning gaze. Her voice is raspy from years of breathing dust and shouting over tavern din.",
+      "id": "innkeeper",
       "aliases": [],
-      "presence": "present",
-      "notes": "leaning in to whisper secrets"
+      "notes": "leaning on counter, watching entrance"
+    },
+    {
+      "id": "saloon_patrons",
+      "aliases": [],
+      "notes": "shifting nervously at a nearby table"
     }
   ]
 }
@@ -2012,16 +2024,13 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 
 ```json
 {
-  "inventory_add": [
+  "inventory_add": [],
+  "inventory_remove": [
     {
-      "id": "ceramic_mug",
-      "name": "ceramic mug",
-      "notes": "chipped",
-      "amount": 1,
-      "aliases": []
+      "id": "credits",
+      "amount": 1
     }
   ],
-  "inventory_remove": [],
   "inventory_update": [],
   "pc_condition_add": [],
   "pc_condition_remove": []
@@ -2033,14 +2042,14 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "actions": [
-    "Pay Elara extra credits for more specific road news.",
-    "Inquire if any specific caravans have gone missing lately.",
-    "Scan the saloon patrons for anyone looking particularly nervous.",
-    "Finish the water and head toward the Crossed Keys."
+    "Pay Edda for the water and ask about the restless travelers.",
+    "Question the nervous patron about why they are watching the door.",
+    "Offer a copper more to see if Edda knows who is blocking the inn.",
+    "Scan the saloon patrons for anyone matching the description of restless travelers."
   ],
-  "outcome_summary": "The player learns from Elara Vance that caravans are increasingly fleeing the crossing.",
+  "outcome_summary": "The PC purchased water from Edda and learned of restless travelers on the northern road.",
   "gm_beat": {
-    "type": "complication",
+    "type": "opportunity",
     "surface_as": "npc_behavior"
   },
   "thread_resolve": [],
@@ -2049,7 +2058,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       "id": "deliver_the_ledger",
       "active": true,
       "urgency": "normal",
-      "progress": "Arrived in Dustfall to find news of trouble",
+      "progress": "Seeking information from Edda at the saloon",
       "progress_kind": "advancement"
     }
   ]
@@ -2060,41 +2069,39 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 
 ```json
 {
-  "inventory_add": [
+  "inventory_add": [],
+  "inventory_remove": [
     {
-      "id": "ceramic_mug",
-      "name": "Ceramic mug",
-      "notes": "chipped",
-      "amount": 1,
-      "aliases": []
+      "id": "credits",
+      "amount": 1
     }
   ],
-  "inventory_remove": [],
   "inventory_update": [],
-  "location_description": "The bar is made of scarred, heavy wood, and a chipped ceramic mug sits prominently on its surface.",
+  "location_description": "The bar counter is scarred from years of use, and a chipped earthenware mug sits before you.",
   "pc_condition_add": [],
   "pc_condition_remove": [],
   "scene_tags": [
     "tense_conversation",
     "investigation"
   ],
-  "scene_tagline": "Bad News at the Bar",
+  "scene_tagline": "Water and Whispers",
   "compendium_npc_update": [
     {
-      "id": "elara_vance",
-      "name": "Elara Vance",
-      "title": "Bartender",
-      "bio": "A woman with calloused hands and a sharp, discerning gaze. Her voice is raspy from years of breathing dust and shouting over tavern din.",
+      "id": "innkeeper",
       "aliases": [],
-      "presence": "present",
-      "notes": "leaning in to whisper secrets"
+      "notes": "leaning on counter, watching entrance"
+    },
+    {
+      "id": "saloon_patrons",
+      "aliases": [],
+      "notes": "shifting nervously at a nearby table"
     }
   ],
   "actions": [
-    "Pay Elara extra credits for more specific road news.",
-    "Inquire if any specific caravans have gone missing lately.",
-    "Scan the saloon patrons for anyone looking particularly nervous.",
-    "Finish the water and head toward the Crossed Keys."
+    "Pay Edda for the water and ask about the restless travelers.",
+    "Question the nervous patron about why they are watching the door.",
+    "Offer a copper more to see if Edda knows who is blocking the inn.",
+    "Scan the saloon patrons for anyone matching the description of restless travelers."
   ]
 }
 ```
@@ -2118,38 +2125,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "arc": {
-    "completed_threads": {
-      "added": [
-        {
-          "active": false,
-          "id": "clear_the_road_toughs",
-          "outcome": "The player has entered the town, bypassing the road blockade.",
-          "progress": [],
-          "resolution_state": "abandoned",
-          "resolved_turn": 1,
-          "scope": "arc",
-          "summary": "Deal with the toughs blocking the inn entrance.",
-          "urgency": "background"
-        }
-      ]
-    },
     "threads": {
-      "removed": [
-        {
-          "active": false,
-          "added_turn": null,
-          "id": "clear_the_road_toughs",
-          "last_updated_turn": null,
-          "outcome": null,
-          "progress": [],
-          "resolution_state": null,
-          "resolved_turn": null,
-          "scope": "arc",
-          "summary": "Deal with the toughs blocking the inn entrance.",
-          "urgency": "background",
-          "urgency_set_turn": null
-        }
-      ],
       "changed": [
         {
           "from": {
@@ -2197,12 +2173,36 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall to find the innkeeper."
               }
             ],
             "scope": "arc",
             "summary": "Deliver Halden's ledger to the merchant at the Crossed Keys Inn.",
             "urgency": "normal"
+          }
+        },
+        {
+          "from": {
+            "active": false,
+            "added_turn": null,
+            "id": "clear_the_road_toughs",
+            "last_updated_turn": null,
+            "outcome": null,
+            "progress": [],
+            "resolution_state": null,
+            "resolved_turn": null,
+            "scope": "arc",
+            "summary": "Deal with the toughs blocking the inn entrance.",
+            "urgency": "background",
+            "urgency_set_turn": null
+          },
+          "to": {
+            "active": false,
+            "id": "clear_the_road_toughs",
+            "progress": [],
+            "scope": "arc",
+            "summary": "Deal with the toughs blocking the inn entrance.",
+            "urgency": "background"
           }
         }
       ]
@@ -2210,10 +2210,32 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   },
   "compendium": {
     "npcs": {
+      "innkeeper": {
+        "bio": {
+          "from": "Runs the inn alone since her husband died. Knows every traveler by face if not by name. Stays out of trouble unless it walks through her door.",
+          "to": "Graying hair and a sharp, observant gaze; moves with methodical, slow precision. Runs the inn alone since her husband died and stays out of trouble unless it walks through her door."
+        },
+        "last_seen": {
+          "from": null,
+          "to": {
+            "location_id": "dustfall_saloon",
+            "location_name": "Dustfall Saloon",
+            "turn": 1
+          }
+        },
+        "notes": {
+          "from": null,
+          "to": "methodically wiping a glass behind the bar"
+        },
+        "presence": {
+          "from": null,
+          "to": "present"
+        }
+      },
       "saloon_patrons": {
         "from": null,
         "to": {
-          "bio": "A small group of locals huddled over drinks in the dim light. They are wary of strangers and maintain a watchful silence.",
+          "bio": "A small group of weary-looking locals sitting at wooden tables. They possess a sense of indifference and exhaustion from the heat.",
           "first_seen_turn": 0,
           "last_seen": {
             "location_id": "dustfall_saloon",
@@ -2221,7 +2243,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "turn": 1
           },
           "name": "Saloon Patrons",
-          "notes": "watching player with cautious interest",
+          "notes": "watching entrance with weary indifference",
           "presence": "present"
         }
       }
@@ -2230,7 +2252,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "location": {
     "description": {
       "from": "A market town built around the confluence of two rivers. Cobblestone streets,\ntimber-framed buildings, and the constant sound of water from the mills. The\ntown square has a stone well and a statue of the founder. Most shops are closing\nfor the evening.\n",
-      "to": "A dim taproom filled with the scent of stale ale and unwashed wool. Patrons sit hunched over small tables in the shadows."
+      "to": "A dim, cool taproom smelling of stale ale and sawdust, providing a stark contrast to the sun-scorched streets outside."
     },
     "id": {
       "from": "marrows_crossing",
@@ -2245,20 +2267,27 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
     "compendium_touch_order": {
       "from": null,
       "to": [
+        "innkeeper",
         "saloon_patrons"
       ]
     },
     "consecutive_pressure_turns": {
       "from": null,
-      "to": 1
+      "to": 0
     },
     "pending_gm_beat": {
       "from": null,
       "to": {
         "beat_expires_turn": 3,
         "surface_as": "npc_behavior",
-        "type": "pressure"
+        "type": "opportunity"
       }
+    },
+    "prior_history": {
+      "from": null,
+      "to": [
+        "- [T1] The PC enters the Dustfall Saloon to escape the midday heat."
+      ]
     },
     "recent_beats": {
       "from": null,
@@ -2266,7 +2295,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         {
           "surface_as": "npc_behavior",
           "turn": 1,
-          "type": "pressure"
+          "type": "opportunity"
         }
       ]
     },
@@ -2279,19 +2308,19 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
     "actions": {
       "from": null,
       "to": [
-        "Order a drink to soothe your dusty throat.",
-        "Scan the patrons for news of the road.",
-        "Approach the bar to find Edda's information.",
-        "Keep your hood low and watch the room."
+        "Order a cold drink to combat the mounting heat exhaustion.",
+        "Question Edda about the current state of the merchant road.",
+        "Scan the weary patrons for news regarding Caron's whereabouts.",
+        "Search for any sign of the hired thugs near the entrance."
       ]
     },
     "conditions": {
       "added": [
         {
           "added_turn": 0,
-          "description": "The dust from the merchant road has coated your throat, making it scratchy.",
-          "id": "dusty_throat",
-          "label": "Dusty Throat",
+          "description": "The punishing midday sun has left you feeling drained and overheated.",
+          "id": "heat_exhaustion",
+          "label": "Heat Exhaustion",
           "turns_remaining": 2
         }
       ]
@@ -2304,12 +2333,13 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
     },
     "tagline": {
       "from": "Market town at dusk",
-      "to": "A Quiet Arrival in Dustfall"
+      "to": "Seeking Refuge from the Heat"
     },
     "tags": {
       "added": [
-        "discovery",
-        "tense_atmosphere"
+        "quiet",
+        "weary_atmosphere",
+        "oppressive_heat"
       ],
       "removed": [
         "start",
@@ -2429,7 +2459,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall to find the innkeeper."
               }
             ],
             "scope": "arc",
@@ -2443,11 +2473,15 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall to find the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Gathering local rumors about Harker's disappearance"
+                "text": "Seeking information from Edda at the saloon"
+              },
+              {
+                "kind": "advancement",
+                "text": "Gathering intel on Harker's disappearance"
               }
             ],
             "scope": "arc",
@@ -2460,77 +2494,79 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   },
   "compendium": {
     "npcs": {
-      "elara_vance": {
-        "from": null,
-        "to": {
-          "bio": "A woman with calloused hands and a sharp, discerning gaze. Her voice is raspy from years of breathing dust and shouting over tavern din.",
-          "first_seen_turn": 1,
-          "last_seen": {
-            "location_id": "dustfall_saloon",
-            "location_name": "Dustfall Saloon",
-            "turn": 3
-          },
-          "name": "Elara Vance",
-          "notes": "leaning closer, whispering nervously",
-          "presence": "present",
-          "title": "Bartender"
+      "innkeeper": {
+        "last_seen": {
+          "turn": {
+            "from": 1,
+            "to": 3
+          }
+        },
+        "notes": {
+          "from": "methodically wiping a glass behind the bar",
+          "to": "leaning in, waiting for payment"
         }
       },
       "saloon_patrons": {
+        "last_seen": {
+          "turn": {
+            "from": 1,
+            "to": 3
+          }
+        },
         "notes": {
-          "from": "watching player with cautious interest",
-          "to": null
+          "from": "watching entrance with weary indifference",
+          "to": "falling into uneasy silence"
         }
       }
     }
   },
   "inventory": {
-    "added": [
+    "changed": [
       {
-        "amount": 1,
-        "id": "ceramic_mug",
-        "name": "Ceramic mug",
-        "notes": "chipped"
+        "from": {
+          "aliases": [],
+          "amount": 500,
+          "id": "credits",
+          "name": "Credits",
+          "notes": "Common coin, accepted at any inn or stall on the merchant road."
+        },
+        "to": {
+          "aliases": [],
+          "amount": 499,
+          "id": "credits",
+          "name": "Credits",
+          "notes": "Common coin, accepted at any inn or stall on the merchant road."
+        }
       }
     ]
   },
   "location": {
     "description": {
-      "from": "A dim taproom filled with the scent of stale ale and unwashed wool. Patrons sit hunched over small tables in the shadows.",
-      "to": "The atmosphere in the saloon grows heavy as Elara's frantic wiping rhythm breaks the silence."
+      "from": "A dim, cool taproom smelling of stale ale and sawdust, providing a stark contrast to the sun-scorched streets outside.",
+      "to": "The dim light of the saloon catches the dust motes dancing between you and the bar, emphasizing the heavy silence that has fallen over the room."
     }
   },
   "meta": {
-    "compendium_touch_order": {
-      "added": [
-        "elara_vance"
-      ],
-      "removed": []
-    },
     "consecutive_pressure_turns": {
-      "from": 1,
-      "to": 0
+      "from": 0,
+      "to": 1
     },
     "pending_gm_beat": {
       "beat_expires_turn": {
         "from": 3,
         "to": 5
       },
-      "surface_as": {
-        "from": "npc_behavior",
-        "to": "ambient"
-      },
       "type": {
-        "from": "pressure",
-        "to": "revelation"
+        "from": "opportunity",
+        "to": "pressure"
       }
     },
     "prior_history": {
-      "from": null,
-      "to": [
-        "- [T2] The player learns from Elara Vance that caravans are increasingly fleeing the crossing.",
-        "- [T3] Elara reveals that Old Man Harker's wagon was found empty near the river crossing, leaving behind his coin pouch."
-      ]
+      "added": [
+        "- [T2] The PC purchased water from Edda and learned of restless travelers on the northern road.",
+        "- [T3] Edda reveals Harker likely traveled north with suspicious travelers but demands payment for the information."
+      ],
+      "removed": []
     },
     "recent_beats": {
       "added": [
@@ -2545,13 +2581,13 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "complication"
+            "opportunity"
           ]
         ],
         [
           [
             "surface_as",
-            "ambient"
+            "npc_behavior"
           ],
           [
             "turn",
@@ -2559,7 +2595,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "revelation"
+            "pressure"
           ]
         ]
       ],
@@ -2573,47 +2609,48 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "pc": {
     "actions": {
       "added": [
-        "Offer Elara extra credits for more specific details.",
-        "Question the patrons in the corner about the wagon.",
-        "Search the saloon for anyone looking too interested.",
-        "Investigate the river crossing where the wagon was found."
+        "Threaten Edda to reveal what she knows for free.",
+        "Question the silent patrons about the suspicious travelers.",
+        "Leave the saloon to scout the north road.",
+        "Offer Edda extra credits for more specific details."
       ],
       "removed": [
-        "Order a drink to soothe your dusty throat.",
-        "Scan the patrons for news of the road.",
-        "Approach the bar to find Edda's information.",
-        "Keep your hood low and watch the room."
+        "Question Edda about the current state of the merchant road.",
+        "Scan the weary patrons for news regarding Caron's whereabouts.",
+        "Search for any sign of the hired thugs near the entrance.",
+        "Order a cold drink to combat the mounting heat exhaustion."
       ]
     },
     "conditions": {
       "removed": [
         {
           "added_turn": 0,
-          "description": "The dust from the merchant road has coated your throat, making it scratchy.",
-          "id": "dusty_throat",
-          "label": "Dusty Throat",
+          "description": "The punishing midday sun has left you feeling drained and overheated.",
+          "id": "heat_exhaustion",
+          "label": "Heat Exhaustion",
           "turns_remaining": 2
         }
       ]
     },
     "momentum": {
       "from": 0,
-      "to": 2
+      "to": -1
     }
   },
   "scene": {
     "tagline": {
-      "from": "A Quiet Arrival in Dustfall",
-      "to": "Whispers of a Vanishing"
+      "from": "Seeking Refuge from the Heat",
+      "to": "Information Comes At A Price"
     },
     "tags": {
       "added": [
-        "mystery",
-        "tense_conversation"
+        "tense_conversation",
+        "investigation"
       ],
       "removed": [
-        "discovery",
-        "tense_atmosphere"
+        "quiet",
+        "weary_atmosphere",
+        "oppressive_heat"
       ]
     }
   }
@@ -2662,26 +2699,26 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "intent_verb": "persuade",
-  "intent": "The player seeks information regarding the disappearance or status of Old Man Harker from Elara Vance.",
+  "intent": "The player seeks information regarding the whereabouts or fate of Old Man Harker from Edda.",
   "rolled": true,
-  "total_ms": 2718.3,
+  "total_ms": 3361.6,
   "tokens_in": 1356,
-  "tokens_out": 93,
-  "outcome_summary": "Elara reveals that Old Man Harker's wagon was found empty near the river crossing, leaving behind his coin pouch.",
+  "tokens_out": 91,
+  "outcome_summary": "Edda reveals Harker likely traveled north with suspicious travelers but demands payment for the information.",
   "skill": "charisma",
   "difficulty": "normal",
   "dice": [
-    11
+    5
   ],
   "stat_mod": 1,
   "diff_mod": 0,
   "cond_mod": 0,
-  "raw_total": 11,
-  "final_total": 12,
-  "band": "crit_success",
+  "raw_total": 5,
+  "final_total": 6,
+  "band": "setback",
   "momentum_before": 0,
-  "momentum_after": 2,
-  "momentum_delta": 2
+  "momentum_after": -1,
+  "momentum_delta": -1
 }
 ```
 
@@ -2700,15 +2737,20 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 {
   "scene_tags": [
     "tense_conversation",
-    "mystery"
+    "investigation"
   ],
-  "scene_tagline": "Whispers of a Vanishing",
-  "location_description": "The atmosphere in the saloon grows heavy as Elara's frantic wiping rhythm breaks the silence.",
+  "scene_tagline": "Information Comes At A Price",
+  "location_description": "The dim light of the saloon catches the dust motes dancing between you and the bar, emphasizing the heavy silence that has fallen over the room.",
   "compendium_npc_update": [
     {
-      "id": "elara_vance",
+      "id": "innkeeper",
       "aliases": [],
-      "notes": "leaning closer, whispering nervously"
+      "notes": "leaning in, waiting for payment"
+    },
+    {
+      "id": "saloon_patrons",
+      "aliases": [],
+      "notes": "falling into uneasy silence"
     }
   ]
 }
@@ -2724,7 +2766,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "pc_condition_add": [],
   "pc_condition_remove": [
     {
-      "id": "dusty_throat"
+      "id": "heat_exhaustion"
     }
   ]
 }
@@ -2735,15 +2777,15 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "actions": [
-    "Offer Elara extra credits for more specific details.",
-    "Question the patrons in the corner about the wagon.",
-    "Investigate the river crossing where the wagon was found.",
-    "Search the saloon for anyone looking too interested."
+    "Offer Edda extra credits for more specific details.",
+    "Threaten Edda to reveal what she knows for free.",
+    "Question the silent patrons about the suspicious travelers.",
+    "Leave the saloon to scout the north road."
   ],
-  "outcome_summary": "Elara reveals that Old Man Harker's wagon was found empty near the river crossing, leaving behind his coin pouch.",
+  "outcome_summary": "Edda reveals Harker likely traveled north with suspicious travelers but demands payment for the information.",
   "gm_beat": {
-    "type": "revelation",
-    "surface_as": "ambient"
+    "type": "pressure",
+    "surface_as": "npc_behavior"
   },
   "thread_resolve": [],
   "thread_update": [
@@ -2751,7 +2793,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       "id": "deliver_the_ledger",
       "active": true,
       "urgency": "normal",
-      "progress": "Gathering local rumors about Harker's disappearance",
+      "progress": "Gathering intel on Harker's disappearance",
       "progress_kind": "advancement"
     }
   ]
@@ -2765,30 +2807,35 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "inventory_add": [],
   "inventory_remove": [],
   "inventory_update": [],
-  "location_description": "The atmosphere in the saloon grows heavy as Elara's frantic wiping rhythm breaks the silence.",
+  "location_description": "The dim light of the saloon catches the dust motes dancing between you and the bar, emphasizing the heavy silence that has fallen over the room.",
   "pc_condition_add": [],
   "pc_condition_remove": [
     {
-      "id": "dusty_throat"
+      "id": "heat_exhaustion"
     }
   ],
   "scene_tags": [
     "tense_conversation",
-    "mystery"
+    "investigation"
   ],
-  "scene_tagline": "Whispers of a Vanishing",
+  "scene_tagline": "Information Comes At A Price",
   "compendium_npc_update": [
     {
-      "id": "elara_vance",
+      "id": "innkeeper",
       "aliases": [],
-      "notes": "leaning closer, whispering nervously"
+      "notes": "leaning in, waiting for payment"
+    },
+    {
+      "id": "saloon_patrons",
+      "aliases": [],
+      "notes": "falling into uneasy silence"
     }
   ],
   "actions": [
-    "Offer Elara extra credits for more specific details.",
-    "Question the patrons in the corner about the wagon.",
-    "Investigate the river crossing where the wagon was found.",
-    "Search the saloon for anyone looking too interested."
+    "Offer Edda extra credits for more specific details.",
+    "Threaten Edda to reveal what she knows for free.",
+    "Question the silent patrons about the suspicious travelers.",
+    "Leave the saloon to scout the north road."
   ]
 }
 ```
@@ -2822,11 +2869,15 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall to find the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Gathering local rumors about Harker's disappearance"
+                "text": "Seeking information from Edda at the saloon"
+              },
+              {
+                "kind": "advancement",
+                "text": "Gathering intel on Harker's disappearance"
               }
             ],
             "scope": "arc",
@@ -2840,7 +2891,11 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall to find the innkeeper."
+              },
+              {
+                "kind": "advancement",
+                "text": "Seeking information from Edda at the saloon"
               }
             ],
             "scope": "arc",
@@ -2853,7 +2908,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   },
   "compendium": {
     "npcs": {
-      "elara_vance": {
+      "innkeeper": {
         "last_seen": {
           "turn": {
             "from": 3,
@@ -2861,41 +2916,49 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           }
         },
         "notes": {
-          "from": "leaning closer, whispering nervously",
-          "to": "leaning in to whisper secrets"
+          "from": "leaning in, waiting for payment",
+          "to": "leaning on counter, watching entrance"
+        }
+      },
+      "saloon_patrons": {
+        "last_seen": {
+          "turn": {
+            "from": 3,
+            "to": 2
+          }
+        },
+        "notes": {
+          "from": "falling into uneasy silence",
+          "to": "shifting nervously at a nearby table"
         }
       }
     }
   },
   "location": {
     "description": {
-      "from": "The atmosphere in the saloon grows heavy as Elara's frantic wiping rhythm breaks the silence.",
-      "to": "The bar is made of scarred, heavy wood, and a chipped ceramic mug sits prominently on its surface."
+      "from": "The dim light of the saloon catches the dust motes dancing between you and the bar, emphasizing the heavy silence that has fallen over the room.",
+      "to": "The bar counter is scarred from years of use, and a chipped earthenware mug sits before you."
     }
   },
   "meta": {
     "consecutive_pressure_turns": {
-      "from": 0,
-      "to": 2
+      "from": 1,
+      "to": 0
     },
     "pending_gm_beat": {
       "beat_expires_turn": {
         "from": 5,
         "to": 4
       },
-      "surface_as": {
-        "from": "ambient",
-        "to": "npc_behavior"
-      },
       "type": {
-        "from": "revelation",
-        "to": "complication"
+        "from": "pressure",
+        "to": "opportunity"
       }
     },
     "prior_history": {
       "added": [],
       "removed": [
-        "- [T3] Elara reveals that Old Man Harker's wagon was found empty near the river crossing, leaving behind his coin pouch."
+        "- [T3] Edda reveals Harker likely traveled north with suspicious travelers but demands payment for the information."
       ]
     },
     "recent_beats": {
@@ -2904,7 +2967,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         [
           [
             "surface_as",
-            "ambient"
+            "npc_behavior"
           ],
           [
             "turn",
@@ -2912,7 +2975,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "revelation"
+            "pressure"
           ]
         ]
       ]
@@ -2925,46 +2988,38 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "pc": {
     "actions": {
       "added": [
-        "Scan the saloon patrons for anyone looking particularly nervous.",
-        "Pay Elara extra credits for more specific road news.",
-        "Finish the water and head toward the Crossed Keys.",
-        "Inquire if any specific caravans have gone missing lately."
+        "Pay Edda for the water and ask about the restless travelers.",
+        "Question the nervous patron about why they are watching the door.",
+        "Offer a copper more to see if Edda knows who is blocking the inn.",
+        "Scan the saloon patrons for anyone matching the description of restless travelers."
       ],
       "removed": [
-        "Offer Elara extra credits for more specific details.",
-        "Question the patrons in the corner about the wagon.",
-        "Search the saloon for anyone looking too interested.",
-        "Investigate the river crossing where the wagon was found."
+        "Threaten Edda to reveal what she knows for free.",
+        "Question the silent patrons about the suspicious travelers.",
+        "Leave the saloon to scout the north road.",
+        "Offer Edda extra credits for more specific details."
       ]
     },
     "conditions": {
       "added": [
         {
           "added_turn": 0,
-          "description": "The dust from the merchant road has coated your throat, making it scratchy.",
-          "id": "dusty_throat",
-          "label": "Dusty Throat",
+          "description": "The punishing midday sun has left you feeling drained and overheated.",
+          "id": "heat_exhaustion",
+          "label": "Heat Exhaustion",
           "turns_remaining": 1
         }
       ]
     },
     "momentum": {
-      "from": 2,
+      "from": -1,
       "to": 0
     }
   },
   "scene": {
     "tagline": {
-      "from": "Whispers of a Vanishing",
-      "to": "Bad News at the Bar"
-    },
-    "tags": {
-      "added": [
-        "investigation"
-      ],
-      "removed": [
-        "mystery"
-      ]
+      "from": "Information Comes At A Price",
+      "to": "Water and Whispers"
     }
   }
 }
@@ -3011,27 +3066,13 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 **Parsed (engine):**
 ```json
 {
-  "intent_verb": "persuade",
-  "intent": "The player seeks information about Old Man Harker by visiting the assay office and introducing themselves.",
-  "rolled": true,
-  "total_ms": 2752.4,
-  "tokens_in": 1358,
-  "tokens_out": 93,
-  "outcome_summary": "The player discovered a discarded ledger page with a familiar signature near the Assay Office entrance.",
-  "skill": "charisma",
-  "difficulty": "easy",
-  "dice": [
-    12
-  ],
-  "stat_mod": 1,
-  "diff_mod": 1,
-  "cond_mod": 0,
-  "raw_total": 12,
-  "final_total": 14,
-  "band": "crit_success",
-  "momentum_before": 2,
-  "momentum_after": 3,
-  "momentum_delta": 1
+  "intent_verb": "recall",
+  "intent": "The player seeks to investigate Old Man Harker's recent activities by checking for any newly filed claims at the assay office.",
+  "rolled": false,
+  "total_ms": 3011.2,
+  "tokens_in": 1388,
+  "tokens_out": 81,
+  "outcome_summary": "Aren Voss enters the Assay Office to investigate Old Man Harker's disappearance through official claims, facing Silas Vance's suspicion."
 }
 ```
 
@@ -3050,27 +3091,26 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 {
   "scene_tags": [
     "investigation",
-    "discovery"
+    "tense_conversation"
   ],
-  "scene_tagline": "A Clue in the Dust",
+  "scene_tagline": "A Suspicious Welcome",
   "location_change": {
     "id": "assay_office",
     "name": "Assay Office",
-    "description": "A squat stone structure with heavy iron bars over its single window, resembling a small fortress."
+    "description": "A squat stone building with a cramped, paper-choked interior that smells of old ink and dry parchment."
   },
-  "location_description": "The entrance features a thick oak door with a narrow viewing slit and a threshold partially buried in silt.",
   "compendium_npc_update": [
     {
-      "id": "assay_clerk",
-      "name": "Assay Clerk",
-      "title": "Office Attendant",
-      "bio": "A weary individual with bloodshot eyes peering through a viewing port. Speaks with a raspy, disinterested tone.",
+      "id": "silas_vance",
+      "name": "Silas Vance",
+      "title": "Assay Clerk",
+      "bio": "Thin frame with ink-stained fingers and eyes perpetually squinted against the light. Wears a heavy leather apron and speaks with a raspy, suspicious tone.",
       "aliases": [],
       "presence": "present",
-      "notes": "peering through door slit"
+      "notes": "gestures inward with a suspicious gaze"
     },
     {
-      "id": "elara_vance",
+      "id": "innkeeper",
       "aliases": [],
       "presence": "known"
     },
@@ -3087,17 +3127,15 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 
 ```json
 {
-  "inventory_add": [
+  "inventory_add": [],
+  "inventory_remove": [],
+  "inventory_update": [
     {
-      "id": "ledger_page",
-      "name": "ledger page",
-      "notes": "A discarded scrap of parchment with a frantic signature.",
-      "amount": 1,
-      "aliases": []
+      "id": "iron_dagger",
+      "name": "Iron dagger",
+      "notes": "Plain crossguard, edge worn from honing. Belt-carried."
     }
   ],
-  "inventory_remove": [],
-  "inventory_update": [],
   "pc_condition_add": [],
   "pc_condition_remove": []
 }
@@ -3108,15 +3146,15 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "actions": [
-    "Show the signed ledger page to the clerk through the slit.",
-    "Wait for sunset to confront the clerk about the signature.",
-    "Search the silt around the threshold for more discarded documents.",
-    "Confront the clerk about Harker's disappearance using the page."
+    "Bribe Silas Vance to access private claim records",
+    "Demand access using Halden's ledger as leverage",
+    "Search for Harker's name among public filings",
+    "Inquire about recent suspicious deaths or missing persons"
   ],
-  "outcome_summary": "The player discovered a discarded ledger page with a familiar signature near the Assay Office entrance.",
+  "outcome_summary": "Aren Voss enters the Assay Office to investigate Old Man Harker's disappearance through official claims, facing Silas Vance's suspicion.",
   "gm_beat": {
-    "type": "revelation",
-    "surface_as": "item"
+    "type": "complication",
+    "surface_as": "npc_behavior"
   },
   "thread_resolve": [],
   "thread_update": [
@@ -3124,7 +3162,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       "id": "deliver_the_ledger",
       "active": true,
       "urgency": "normal",
-      "progress": "Found a signed ledger page near Assay Office",
+      "progress": "Investigating Harker's disappearance via assay records",
       "progress_kind": "advancement"
     }
   ]
@@ -3135,42 +3173,39 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 
 ```json
 {
-  "inventory_add": [
+  "inventory_add": [],
+  "inventory_remove": [],
+  "inventory_update": [
     {
-      "id": "ledger_page",
-      "name": "Ledger page",
-      "notes": "A discarded scrap of parchment with a frantic signature.",
-      "amount": 1,
-      "aliases": []
+      "id": "iron_dagger",
+      "name": "Iron dagger",
+      "notes": "Plain crossguard, edge worn from honing. Belt-carried."
     }
   ],
-  "inventory_remove": [],
-  "inventory_update": [],
   "location_change": {
     "id": "assay_office",
     "name": "Assay Office",
-    "description": "A squat stone structure with heavy iron bars over its single window, resembling a small fortress."
+    "description": "A squat stone building with a cramped, paper-choked interior that smells of old ink and dry parchment."
   },
-  "location_description": "The entrance features a thick oak door with a narrow viewing slit and a threshold partially buried in silt.",
   "pc_condition_add": [],
   "pc_condition_remove": [],
   "scene_tags": [
     "investigation",
-    "discovery"
+    "tense_conversation"
   ],
-  "scene_tagline": "A Clue in the Dust",
+  "scene_tagline": "A Suspicious Welcome",
   "compendium_npc_update": [
     {
-      "id": "assay_clerk",
-      "name": "Assay Clerk",
-      "title": "Office Attendant",
-      "bio": "A weary individual with bloodshot eyes peering through a viewing port. Speaks with a raspy, disinterested tone.",
+      "id": "silas_vance",
+      "name": "Silas Vance",
+      "title": "Assay Clerk",
+      "bio": "Thin frame with ink-stained fingers and eyes perpetually squinted against the light. Wears a heavy leather apron and speaks with a raspy, suspicious tone.",
       "aliases": [],
       "presence": "present",
-      "notes": "peering through door slit"
+      "notes": "gestures inward with a suspicious gaze"
     },
     {
-      "id": "elara_vance",
+      "id": "innkeeper",
       "aliases": [],
       "presence": "known"
     },
@@ -3181,10 +3216,10 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
     }
   ],
   "actions": [
-    "Show the signed ledger page to the clerk through the slit.",
-    "Wait for sunset to confront the clerk about the signature.",
-    "Search the silt around the threshold for more discarded documents.",
-    "Confront the clerk about Harker's disappearance using the page."
+    "Bribe Silas Vance to access private claim records",
+    "Demand access using Halden's ledger as leverage",
+    "Search for Harker's name among public filings",
+    "Inquire about recent suspicious deaths or missing persons"
   ]
 }
 ```
@@ -3218,7 +3253,11 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall to find the innkeeper."
+              },
+              {
+                "kind": "advancement",
+                "text": "Seeking information from Edda at the saloon"
               }
             ],
             "scope": "arc",
@@ -3232,11 +3271,15 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall to find the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Gathering local rumors about Harker's disappearance"
+                "text": "Seeking information from Edda at the saloon"
+              },
+              {
+                "kind": "advancement",
+                "text": "Gathering intel on Harker's disappearance"
               }
             ],
             "scope": "arc",
@@ -3249,7 +3292,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   },
   "compendium": {
     "npcs": {
-      "elara_vance": {
+      "innkeeper": {
         "last_seen": {
           "turn": {
             "from": 2,
@@ -3257,40 +3300,48 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           }
         },
         "notes": {
-          "from": "leaning in to whisper secrets",
-          "to": "leaning closer, whispering nervously"
+          "from": "leaning on counter, watching entrance",
+          "to": "leaning in, waiting for payment"
+        }
+      },
+      "saloon_patrons": {
+        "last_seen": {
+          "turn": {
+            "from": 2,
+            "to": 3
+          }
+        },
+        "notes": {
+          "from": "shifting nervously at a nearby table",
+          "to": "falling into uneasy silence"
         }
       }
     }
   },
   "location": {
     "description": {
-      "from": "The bar is made of scarred, heavy wood, and a chipped ceramic mug sits prominently on its surface.",
-      "to": "The atmosphere in the saloon grows heavy as Elara's frantic wiping rhythm breaks the silence."
+      "from": "The bar counter is scarred from years of use, and a chipped earthenware mug sits before you.",
+      "to": "The dim light of the saloon catches the dust motes dancing between you and the bar, emphasizing the heavy silence that has fallen over the room."
     }
   },
   "meta": {
     "consecutive_pressure_turns": {
-      "from": 2,
-      "to": 0
+      "from": 0,
+      "to": 1
     },
     "pending_gm_beat": {
       "beat_expires_turn": {
         "from": 4,
         "to": 5
       },
-      "surface_as": {
-        "from": "npc_behavior",
-        "to": "ambient"
-      },
       "type": {
-        "from": "complication",
-        "to": "revelation"
+        "from": "opportunity",
+        "to": "pressure"
       }
     },
     "prior_history": {
       "added": [
-        "- [T3] Elara reveals that Old Man Harker's wagon was found empty near the river crossing, leaving behind his coin pouch."
+        "- [T3] Edda reveals Harker likely traveled north with suspicious travelers but demands payment for the information."
       ],
       "removed": []
     },
@@ -3299,7 +3350,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         [
           [
             "surface_as",
-            "ambient"
+            "npc_behavior"
           ],
           [
             "turn",
@@ -3307,7 +3358,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "revelation"
+            "pressure"
           ]
         ]
       ],
@@ -3321,46 +3372,38 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "pc": {
     "actions": {
       "added": [
-        "Offer Elara extra credits for more specific details.",
-        "Question the patrons in the corner about the wagon.",
-        "Search the saloon for anyone looking too interested.",
-        "Investigate the river crossing where the wagon was found."
+        "Threaten Edda to reveal what she knows for free.",
+        "Question the silent patrons about the suspicious travelers.",
+        "Leave the saloon to scout the north road.",
+        "Offer Edda extra credits for more specific details."
       ],
       "removed": [
-        "Scan the saloon patrons for anyone looking particularly nervous.",
-        "Pay Elara extra credits for more specific road news.",
-        "Finish the water and head toward the Crossed Keys.",
-        "Inquire if any specific caravans have gone missing lately."
+        "Pay Edda for the water and ask about the restless travelers.",
+        "Question the nervous patron about why they are watching the door.",
+        "Offer a copper more to see if Edda knows who is blocking the inn.",
+        "Scan the saloon patrons for anyone matching the description of restless travelers."
       ]
     },
     "conditions": {
       "removed": [
         {
           "added_turn": 0,
-          "description": "The dust from the merchant road has coated your throat, making it scratchy.",
-          "id": "dusty_throat",
-          "label": "Dusty Throat",
+          "description": "The punishing midday sun has left you feeling drained and overheated.",
+          "id": "heat_exhaustion",
+          "label": "Heat Exhaustion",
           "turns_remaining": 1
         }
       ]
     },
     "momentum": {
       "from": 0,
-      "to": 2
+      "to": -1
     }
   },
   "scene": {
     "tagline": {
-      "from": "Bad News at the Bar",
-      "to": "Whispers of a Vanishing"
-    },
-    "tags": {
-      "added": [
-        "mystery"
-      ],
-      "removed": [
-        "investigation"
-      ]
+      "from": "Water and Whispers",
+      "to": "Information Comes At A Price"
     }
   }
 }
@@ -3408,12 +3451,12 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "intent_verb": "persuade",
-  "intent": "The player wants to inquire at the sheriff's office regarding whether a missing person report has been filed for Harker to determine if law enforcement is investigating his disappearance.",
+  "intent": "The player wants to inquire at the sheriff's office regarding whether a missing person report has been filed for Harker to determine the level of official investigation.",
   "rolled": true,
-  "total_ms": 2964.3,
-  "tokens_in": 1372,
-  "tokens_out": 106,
-  "outcome_summary": "Silas Thorne informs the player that no official report has been filed for Harker's disappearance.",
+  "total_ms": 3341.4,
+  "tokens_in": 1384,
+  "tokens_out": 104,
+  "outcome_summary": "Thomas Miller dismisses Aren Voss's inquiry about Harker, stating no official report exists without a body or theft.",
   "skill": "charisma",
   "difficulty": "easy",
   "dice": [
@@ -3425,8 +3468,8 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "raw_total": 1,
   "final_total": 3,
   "band": "fail",
-  "momentum_before": 3,
-  "momentum_after": 2,
+  "momentum_before": -1,
+  "momentum_after": -2,
   "momentum_delta": -1
 }
 ```
@@ -3448,21 +3491,26 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
     "investigation",
     "tense_conversation"
   ],
-  "scene_tagline": "No Report for Harker",
+  "scene_tagline": "A Dismissive Deputy",
   "location_change": {
-    "id": "sheriffs_office",
-    "name": "Sheriff's Office",
-    "description": "An imposing timber and stone structure located near the town square, centered around a high wooden desk."
+    "id": "sheriffs_station",
+    "name": "Sheriff's Station",
+    "description": "A low-slung building of gray timber and iron reinforcements, dimly lit and smelling of old ink."
   },
   "compendium_npc_update": [
     {
-      "id": "silas_thorne",
-      "name": "Silas Thorne",
-      "title": "Sheriff's Officer",
-      "bio": "A stern-faced veteran with eyes as hard and unimpressed as his demeanor. Speaks with a voice like grinding gravel and maintains a no-nonsense, bureaucratic attitude.",
+      "id": "thomas_miller",
+      "name": "Thomas Miller",
+      "title": "Deputy",
+      "bio": "Weary-eyed man with bloodshot eyes from long hours of ledger work. Carries himself with a cynical, irritated demeanor and shows little patience for trivial inquiries.",
       "aliases": [],
       "presence": "present",
-      "notes": "leaning over desk, dismissive of inquiry"
+      "notes": "leaning back dismissively in chair"
+    },
+    {
+      "id": "silas_vance",
+      "aliases": [],
+      "presence": "known"
     }
   ]
 }
@@ -3475,7 +3523,14 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "inventory_add": [],
   "inventory_remove": [],
   "inventory_update": [],
-  "pc_condition_add": [],
+  "pc_condition_add": [
+    {
+      "id": "rattled",
+      "label": "Rattled",
+      "description": "The deputy's hostility and dismissiveness have left you feeling unsettled.",
+      "turns_remaining": 2
+    }
+  ],
   "pc_condition_remove": []
 }
 ```
@@ -3485,23 +3540,19 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "actions": [
-    "Press Silas Thorne for any recent suspicious traveler reports.",
-    "Show him the signed ledger page found near the assay office.",
-    "Search the town square for witnesses to Harker's last known location.",
-    "Leave the office to find Caron and discuss your debts."
+    "Offer credits to bribe Miller for access to records",
+    "Demand to see the ledger of recent missing persons",
+    "Search the station for clues while Miller is distracted",
+    "Leave the station to find witnesses near the assay office"
   ],
-  "outcome_summary": "Silas Thorne informs the player that no official report has been filed for Harker's disappearance.",
-  "gm_beat": {
-    "type": "complication",
-    "surface_as": "npc_behavior"
-  },
+  "outcome_summary": "Thomas Miller dismisses Aren Voss's inquiry about Harker, stating no official report exists without a body or theft.",
   "thread_resolve": [],
   "thread_update": [
     {
       "id": "deliver_the_ledger",
       "active": true,
       "urgency": "normal",
-      "progress": "Inquired with law enforcement regarding Harker",
+      "progress": "Official investigation into Harker is non-existent",
       "progress_kind": "shift"
     }
   ]
@@ -3516,33 +3567,45 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "inventory_remove": [],
   "inventory_update": [],
   "location_change": {
-    "id": "sheriffs_office",
-    "name": "Sheriff's Office",
-    "description": "An imposing timber and stone structure located near the town square, centered around a high wooden desk."
+    "id": "sheriffs_station",
+    "name": "Sheriff's Station",
+    "description": "A low-slung building of gray timber and iron reinforcements, dimly lit and smelling of old ink."
   },
-  "pc_condition_add": [],
+  "pc_condition_add": [
+    {
+      "id": "rattled",
+      "label": "Rattled",
+      "description": "The deputy's hostility and dismissiveness have left you feeling unsettled.",
+      "turns_remaining": 2
+    }
+  ],
   "pc_condition_remove": [],
   "scene_tags": [
     "investigation",
     "tense_conversation"
   ],
-  "scene_tagline": "No Report for Harker",
+  "scene_tagline": "A Dismissive Deputy",
   "compendium_npc_update": [
     {
-      "id": "silas_thorne",
-      "name": "Silas Thorne",
-      "title": "Sheriff's Officer",
-      "bio": "A stern-faced veteran with eyes as hard and unimpressed as his demeanor. Speaks with a voice like grinding gravel and maintains a no-nonsense, bureaucratic attitude.",
+      "id": "thomas_miller",
+      "name": "Thomas Miller",
+      "title": "Deputy",
+      "bio": "Weary-eyed man with bloodshot eyes from long hours of ledger work. Carries himself with a cynical, irritated demeanor and shows little patience for trivial inquiries.",
       "aliases": [],
       "presence": "present",
-      "notes": "leaning over desk, dismissive of inquiry"
+      "notes": "leaning back dismissively in chair"
+    },
+    {
+      "id": "silas_vance",
+      "aliases": [],
+      "presence": "known"
     }
   ],
   "actions": [
-    "Press Silas Thorne for any recent suspicious traveler reports.",
-    "Show him the signed ledger page found near the assay office.",
-    "Search the town square for witnesses to Harker's last known location.",
-    "Leave the office to find Caron and discuss your debts."
+    "Offer credits to bribe Miller for access to records",
+    "Demand to see the ledger of recent missing persons",
+    "Search the station for clues while Miller is distracted",
+    "Leave the station to find witnesses near the assay office"
   ]
 }
 ```
@@ -3576,11 +3639,15 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall to find the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Gathering local rumors about Harker's disappearance"
+                "text": "Seeking information from Edda at the saloon"
+              },
+              {
+                "kind": "advancement",
+                "text": "Gathering intel on Harker's disappearance"
               }
             ],
             "scope": "arc",
@@ -3594,15 +3661,15 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall to find the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Gathering local rumors about Harker's disappearance"
+                "text": "Seeking information from Edda at the saloon"
               },
               {
                 "kind": "advancement",
-                "text": "Found a signed ledger page near Assay Office"
+                "text": "Gathering intel on Harker's disappearance"
               }
             ],
             "scope": "arc",
@@ -3615,23 +3682,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   },
   "compendium": {
     "npcs": {
-      "assay_clerk": {
-        "from": null,
-        "to": {
-          "bio": "A weary individual with bloodshot eyes peering through a viewing port. Speaks with a raspy, disinterested tone.",
-          "first_seen_turn": 3,
-          "last_seen": {
-            "location_id": "assay_office",
-            "location_name": "Assay Office",
-            "turn": 4
-          },
-          "name": "Assay Clerk",
-          "notes": "peering through door slit",
-          "presence": "present",
-          "title": "Office Attendant"
-        }
-      },
-      "elara_vance": {
+      "innkeeper": {
         "last_seen": {
           "location_id": {
             "from": "dustfall_saloon",
@@ -3647,7 +3698,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           }
         },
         "notes": {
-          "from": "leaning closer, whispering nervously",
+          "from": "leaning in, waiting for payment",
           "to": null
         },
         "presence": {
@@ -3666,31 +3717,41 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "to": "Assay Office"
           },
           "turn": {
-            "from": 1,
+            "from": 3,
             "to": 4
           }
+        },
+        "notes": {
+          "from": "falling into uneasy silence",
+          "to": null
         },
         "presence": {
           "from": "present",
           "to": "known"
         }
+      },
+      "silas_vance": {
+        "from": null,
+        "to": {
+          "bio": "Thin frame with ink-stained fingers and eyes perpetually squinted against the light. Wears a heavy leather apron and speaks with a raspy, suspicious tone.",
+          "first_seen_turn": 3,
+          "last_seen": {
+            "location_id": "assay_office",
+            "location_name": "Assay Office",
+            "turn": 4
+          },
+          "name": "Silas Vance",
+          "notes": "gestures inward with a suspicious gaze",
+          "presence": "present",
+          "title": "Assay Clerk"
+        }
       }
     }
   },
-  "inventory": {
-    "added": [
-      {
-        "amount": 1,
-        "id": "ledger_page",
-        "name": "Ledger page",
-        "notes": "A discarded scrap of parchment with a frantic signature."
-      }
-    ]
-  },
   "location": {
     "description": {
-      "from": "The atmosphere in the saloon grows heavy as Elara's frantic wiping rhythm breaks the silence.",
-      "to": "A squat stone structure with heavy iron bars over its single window, resembling a small fortress."
+      "from": "The dim light of the saloon catches the dust motes dancing between you and the bar, emphasizing the heavy silence that has fallen over the room.",
+      "to": "A squat stone building with a cramped, paper-choked interior that smells of old ink and dry parchment."
     },
     "id": {
       "from": "dustfall_saloon",
@@ -3704,23 +3765,27 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "meta": {
     "compendium_touch_order": {
       "added": [
-        "assay_clerk"
+        "silas_vance"
       ],
       "removed": []
+    },
+    "consecutive_pressure_turns": {
+      "from": 1,
+      "to": 2
     },
     "pending_gm_beat": {
       "beat_expires_turn": {
         "from": 5,
         "to": 6
       },
-      "surface_as": {
-        "from": "ambient",
-        "to": "item"
+      "type": {
+        "from": "pressure",
+        "to": "complication"
       }
     },
     "prior_history": {
       "added": [
-        "- [T4] The player discovered a discarded ledger page with a familiar signature near the Assay Office entrance."
+        "- [T4] Aren Voss enters the Assay Office to investigate Old Man Harker's disappearance through official claims, facing Silas Vance's suspicion."
       ],
       "removed": []
     },
@@ -3729,7 +3794,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         [
           [
             "surface_as",
-            "item"
+            "npc_behavior"
           ],
           [
             "turn",
@@ -3737,7 +3802,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "revelation"
+            "complication"
           ]
         ]
       ],
@@ -3751,21 +3816,17 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "pc": {
     "actions": {
       "added": [
-        "Show the signed ledger page to the clerk through the slit.",
-        "Wait for sunset to confront the clerk about the signature.",
-        "Confront the clerk about Harker's disappearance using the page.",
-        "Search the silt around the threshold for more discarded documents."
+        "Search for Harker's name among public filings",
+        "Bribe Silas Vance to access private claim records",
+        "Demand access using Halden's ledger as leverage",
+        "Inquire about recent suspicious deaths or missing persons"
       ],
       "removed": [
-        "Offer Elara extra credits for more specific details.",
-        "Question the patrons in the corner about the wagon.",
-        "Search the saloon for anyone looking too interested.",
-        "Investigate the river crossing where the wagon was found."
+        "Threaten Edda to reveal what she knows for free.",
+        "Question the silent patrons about the suspicious travelers.",
+        "Leave the saloon to scout the north road.",
+        "Offer Edda extra credits for more specific details."
       ]
-    },
-    "momentum": {
-      "from": 2,
-      "to": 3
     }
   },
   "scene": {
@@ -3774,19 +3835,10 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       "to": 3
     },
     "tagline": {
-      "from": "Whispers of a Vanishing",
-      "to": "A Clue in the Dust"
+      "from": "Information Comes At A Price",
+      "to": "A Suspicious Welcome"
     },
-    "tags": {
-      "added": [
-        "discovery",
-        "investigation"
-      ],
-      "removed": [
-        "mystery",
-        "tense_conversation"
-      ]
-    },
+    "tags": {},
     "turn_entered": {
       "from": 0,
       "to": 3
@@ -3903,15 +3955,15 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           "progress": [
             {
               "kind": "setback",
-              "text": "Officer Thorne denies any official missing person report"
+              "text": "Official law enforcement refuses to investigate"
             },
             {
-              "kind": "advancement",
-              "text": "Found map of Red Canyon cliffs"
+              "kind": "setback",
+              "text": "failed to find clues in station"
             }
           ],
           "scope": "arc",
-          "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+          "summary": "Find out what happened to Old Man Harker.",
           "urgency": "normal"
         }
       ],
@@ -3924,15 +3976,15 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall to find the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Gathering local rumors about Harker's disappearance"
+                "text": "Seeking information from Edda at the saloon"
               },
               {
                 "kind": "advancement",
-                "text": "Found a signed ledger page near Assay Office"
+                "text": "Gathering intel on Harker's disappearance"
               }
             ],
             "scope": "arc",
@@ -3946,19 +3998,19 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall for the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Learned Harker's wagon was found empty"
+                "text": "Learned Harker went north with travelers."
               },
               {
                 "kind": "advancement",
-                "text": "Found signed ledger page near Assay Office"
+                "text": "Assay office refused to share claims."
               },
               {
                 "kind": "advancement",
-                "text": "Confirmed no missing person report filed"
+                "text": "Sheriff's office has no missing report."
               }
             ],
             "scope": "arc",
@@ -3971,9 +4023,37 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   },
   "compendium": {
     "npcs": {
-      "assay_clerk": {
+      "abandoned_cabin_presence": {
+        "from": null,
+        "to": {
+          "bio": "A silent, grit-covered structure on the edge of town. It sits isolated against the treeline, offering no immediate signs of life.",
+          "first_seen_turn": 5,
+          "last_seen": {
+            "location_id": "outskirts_cabin",
+            "location_name": "Abandoned Cabin",
+            "turn": 6
+          },
+          "name": "Abandoned Cabin",
+          "presence": "present"
+        }
+      },
+      "silas_vance": {
+        "last_seen": {
+          "location_id": {
+            "from": "assay_office",
+            "to": "sheriffs_station"
+          },
+          "location_name": {
+            "from": "Assay Office",
+            "to": "Sheriff's Station"
+          },
+          "turn": {
+            "from": 4,
+            "to": 5
+          }
+        },
         "notes": {
-          "from": "peering through door slit",
+          "from": "gestures inward with a suspicious gaze",
           "to": null
         },
         "presence": {
@@ -3981,83 +4061,118 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           "to": "known"
         }
       },
-      "silas_thorne": {
+      "thomas_miller": {
         "from": null,
         "to": {
-          "bio": "A stern-faced veteran with eyes as hard and unimpressed as his demeanor. Speaks with a voice like grinding gravel and maintains a no-nonsense, bureaucratic attitude.",
+          "bio": "Weary-eyed man with bloodshot eyes from long hours of ledger work. Carries himself with a cynical, irritated demeanor and shows little patience for trivial inquiries.",
           "first_seen_turn": 4,
           "last_seen": {
-            "location_id": "sheriffs_office",
-            "location_name": "Sheriff's Office",
+            "location_id": "outskirts_cabin",
+            "location_name": "Abandoned Cabin",
             "turn": 7
           },
-          "name": "Silas Thorne",
-          "notes": "rising from chair with cold command",
+          "name": "Thomas Miller",
+          "notes": "watching you struggle with the box",
           "presence": "present",
-          "title": "Sheriff's Officer"
+          "title": "Deputy"
         }
       }
     }
   },
   "inventory": {
-    "added": [
+    "changed": [
       {
-        "amount": 1,
-        "id": "hand_drawn_map",
-        "name": "Hand-drawn map",
-        "notes": "A thick parchment with charcoal markings concentrated near the Red Canyon cliffs."
+        "from": {
+          "aliases": [],
+          "amount": 1,
+          "id": "iron_dagger",
+          "name": "Iron dagger",
+          "notes": "Plain crossguard, edge worn from honing. Belt-carried."
+        },
+        "to": {
+          "aliases": [],
+          "amount": 1,
+          "id": "iron_dagger",
+          "name": "Iron dagger",
+          "notes": "blunt tip scratched from prying at a lock"
+        }
       }
     ]
   },
   "location": {
     "description": {
-      "from": "A squat stone structure with heavy iron bars over its single window, resembling a small fortress.",
-      "to": "The desk is cluttered with stacks of tax receipts and various bureaucratic tools, now disturbed by your theft."
+      "from": "A squat stone building with a cramped, paper-choked interior that smells of old ink and dry parchment.",
+      "to": "The desk is cluttered with inkwells and half-finished ledgers, acting as a barrier between you and the deputy."
     },
     "id": {
       "from": "assay_office",
-      "to": "sheriffs_office"
+      "to": "outskirts_cabin"
     },
     "name": {
       "from": "Assay Office",
-      "to": "Sheriff's Office"
+      "to": "Abandoned Cabin"
     }
   },
   "meta": {
     "compendium_touch_order": {
       "added": [
-        "silas_thorne"
+        "abandoned_cabin_presence",
+        "thomas_miller"
       ],
       "removed": []
     },
     "consecutive_pressure_turns": {
-      "from": 0,
-      "to": 3
+      "from": 2,
+      "to": 1
     },
     "pending_gm_beat": {
       "beat_expires_turn": {
         "from": 6,
         "to": 9
       },
-      "surface_as": {
-        "from": "item",
-        "to": "npc_behavior"
-      },
       "type": {
-        "from": "revelation",
-        "to": "escalation"
+        "from": "complication",
+        "to": "pressure"
       }
     },
     "prior_history": {
       "added": [
-        "- [T5] Silas Thorne informs the player that no official report has been filed for Harker's disappearance.",
-        "- [T7] The player successfully stole a map of Red Canyon from Thorne's desk but was caught in the act.",
-        "- [T6] Silas Thorne rebuffs the attempt to obtain a key and threatens the player with arrest for harassment."
+        "- [T5] Thomas Miller dismisses Aren Voss's inquiry about Harker, stating no official report exists without a body or theft.",
+        "- [T7] Aren Voss failed to pry open the locked tin box in the deputy's desk.",
+        "- [T6] Aren Voss failed to obtain any official information regarding Harker's disappearance from Deputy Miller."
       ],
       "removed": []
     },
     "recent_beats": {
       "added": [
+        [
+          [
+            "surface_as",
+            null
+          ],
+          [
+            "turn",
+            5
+          ],
+          [
+            "type",
+            null
+          ]
+        ],
+        [
+          [
+            "surface_as",
+            "environmental"
+          ],
+          [
+            "turn",
+            6
+          ],
+          [
+            "type",
+            "breathing_room"
+          ]
+        ],
         [
           [
             "surface_as",
@@ -4069,35 +4184,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "escalation"
-          ]
-        ],
-        [
-          [
-            "surface_as",
-            "ambient"
-          ],
-          [
-            "turn",
-            6
-          ],
-          [
-            "type",
             "pressure"
-          ]
-        ],
-        [
-          [
-            "surface_as",
-            "npc_behavior"
-          ],
-          [
-            "turn",
-            5
-          ],
-          [
-            "type",
-            "complication"
           ]
         ]
       ],
@@ -4109,11 +4196,11 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "turn",
-            1
+            2
           ],
           [
             "type",
-            "pressure"
+            "opportunity"
           ]
         ],
         [
@@ -4123,11 +4210,11 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "turn",
-            2
+            1
           ],
           [
             "type",
-            "complication"
+            "opportunity"
           ]
         ]
       ]
@@ -4140,44 +4227,43 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "pc": {
     "actions": {
       "added": [
-        "Grab the tin box and bolt toward the office exit.",
-        "Stand your ground and claim you were searching for a quill.",
-        "Drop the dagger and apologize profusely to de-escalate Thorne's anger.",
-        "Conceal the map quickly and feign accidental contact with the desk."
+        "Demand Miller explain why a locked box is hidden.",
+        "Attempt to bribe the deputy for the brass key.",
+        "Surrender the dagger and apologize to Thomas Miller immediately.",
+        "Leave the station to search the abandoned cabin instead."
       ],
       "removed": [
-        "Show the signed ledger page to the clerk through the slit.",
-        "Wait for sunset to confront the clerk about the signature.",
-        "Confront the clerk about Harker's disappearance using the page.",
-        "Search the silt around the threshold for more discarded documents."
+        "Search for Harker's name among public filings",
+        "Bribe Silas Vance to access private claim records",
+        "Demand access using Halden's ledger as leverage",
+        "Inquire about recent suspicious deaths or missing persons"
       ]
     },
     "momentum": {
-      "from": 3,
-      "to": 2
+      "from": -1,
+      "to": -3
     }
   },
   "scene": {
     "location_entered_turn": {
       "from": 3,
-      "to": 4
+      "to": 5
     },
     "tagline": {
-      "from": "A Clue in the Dust",
-      "to": "Caught Red-Handed"
+      "from": "A Suspicious Welcome",
+      "to": "A Stubbornly Sealed Box"
     },
     "tags": {
       "added": [
-        "tense_interaction",
-        "stealth_fail"
+        "tense_moment"
       ],
       "removed": [
-        "investigation"
+        "tense_conversation"
       ]
     },
     "turn_entered": {
       "from": 3,
-      "to": 4
+      "to": 5
     }
   }
 }
@@ -4224,13 +4310,13 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 **Parsed (engine):**
 ```json
 {
-  "intent_verb": "persuade",
-  "intent": "The player attempts to obtain a key from Silas Thorne and then enter Harker's cabin.",
+  "intent_verb": "sneak",
+  "intent": "The player attempts to enter Harker's cabin using a key provided by the deputy.",
   "rolled": false,
-  "total_ms": 3272.7,
-  "tokens_in": 1372,
-  "tokens_out": 122,
-  "outcome_summary": "Silas Thorne rebuffs the attempt to obtain a key and threatens the player with arrest for harassment."
+  "total_ms": 3491.8,
+  "tokens_in": 1373,
+  "tokens_out": 111,
+  "outcome_summary": "Aren Voss failed to obtain any official information regarding Harker's disappearance from Deputy Miller."
 }
 ```
 
@@ -4248,16 +4334,31 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "scene_tags": [
-    "tense_conversation",
-    "confrontation"
+    "investigation",
+    "frustration",
+    "discovery"
   ],
-  "scene_tagline": "A Warning from the Desk",
-  "location_description": "The air in the office feels heavy and stagnant, thick with the scent of old parchment and drying ink.",
+  "scene_tagline": "No Leads in the Dust",
+  "location_change": {
+    "id": "outskirts_cabin",
+    "name": "Abandoned Cabin",
+    "description": "A small, isolated structure huddled against the treeline with grit-coated windows and a heavy silence."
+  },
+  "location_description": "The settlement gives way to scrubland and tall, dry grass surrounding a quiet, abandoned cabin.",
   "compendium_npc_update": [
     {
-      "id": "silas_thorne",
+      "id": "thomas_miller",
       "aliases": [],
-      "notes": "leaning forward with a dangerous growl"
+      "presence": "known",
+      "notes": "dismissive and uncooperative"
+    },
+    {
+      "id": "abandoned_cabin_presence",
+      "name": "Abandoned Cabin",
+      "bio": "A silent, grit-covered structure on the edge of town. It sits isolated against the treeline, offering no immediate signs of life.",
+      "aliases": [],
+      "presence": "present",
+      "notes": "silent and obscured by grit"
     }
   ]
 }
@@ -4270,15 +4371,12 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "inventory_add": [],
   "inventory_remove": [],
   "inventory_update": [],
-  "pc_condition_add": [
+  "pc_condition_add": [],
+  "pc_condition_remove": [
     {
-      "id": "rattled",
-      "label": "Rattled",
-      "description": "The officer's sudden aggression and threat has left you feeling unsettled.",
-      "turns_remaining": 3
+      "id": "rattled"
     }
-  ],
-  "pc_condition_remove": []
+  ]
 }
 ```
 
@@ -4287,15 +4385,15 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "actions": [
-    "Apologize profusely to de-escalate Thorne's immediate hostility.",
-    "Demand to know why no report was filed for Harker.",
-    "Search the office quietly while Thorne is distracted by paperwork.",
-    "Leave the office and seek information from other town officials."
+    "Pick the lock on the cabin door quietly.",
+    "Search the perimeter for fresh tracks or signs.",
+    "Peer through the grit-covered windows for clues.",
+    "Check the surrounding scrubland for hidden caches."
   ],
-  "outcome_summary": "Silas Thorne rebuffs the attempt to obtain a key and threatens the player with arrest for harassment.",
+  "outcome_summary": "Aren Voss failed to obtain any official information regarding Harker's disappearance from Deputy Miller.",
   "gm_beat": {
-    "type": "pressure",
-    "surface_as": "ambient"
+    "type": "breathing_room",
+    "surface_as": "environmental"
   },
   "thread_resolve": [],
   "thread_update": [
@@ -4303,7 +4401,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       "id": "investigate_harker_disappearance",
       "active": true,
       "urgency": "normal",
-      "progress": "Officer Thorne denies any official missing person report",
+      "progress": "Official law enforcement refuses to investigate",
       "progress_kind": "setback"
     }
   ]
@@ -4317,33 +4415,45 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "inventory_add": [],
   "inventory_remove": [],
   "inventory_update": [],
-  "location_description": "The air in the office feels heavy and stagnant, thick with the scent of old parchment and drying ink.",
-  "pc_condition_add": [
+  "location_change": {
+    "id": "outskirts_cabin",
+    "name": "Abandoned Cabin",
+    "description": "A small, isolated structure huddled against the treeline with grit-coated windows and a heavy silence."
+  },
+  "location_description": "The settlement gives way to scrubland and tall, dry grass surrounding a quiet, abandoned cabin.",
+  "pc_condition_add": [],
+  "pc_condition_remove": [
     {
-      "id": "rattled",
-      "label": "Rattled",
-      "description": "The officer's sudden aggression and threat has left you feeling unsettled.",
-      "turns_remaining": 3
+      "id": "rattled"
     }
   ],
-  "pc_condition_remove": [],
   "scene_tags": [
-    "tense_conversation",
-    "confrontation"
+    "investigation",
+    "frustration",
+    "discovery"
   ],
-  "scene_tagline": "A Warning from the Desk",
+  "scene_tagline": "No Leads in the Dust",
   "compendium_npc_update": [
     {
-      "id": "silas_thorne",
+      "id": "thomas_miller",
       "aliases": [],
-      "notes": "leaning forward with a dangerous growl"
+      "presence": "known",
+      "notes": "dismissive and uncooperative"
+    },
+    {
+      "id": "abandoned_cabin_presence",
+      "name": "Abandoned Cabin",
+      "bio": "A silent, grit-covered structure on the edge of town. It sits isolated against the treeline, offering no immediate signs of life.",
+      "aliases": [],
+      "presence": "present",
+      "notes": "silent and obscured by grit"
     }
   ],
   "actions": [
-    "Apologize profusely to de-escalate Thorne's immediate hostility.",
-    "Demand to know why no report was filed for Harker.",
-    "Search the office quietly while Thorne is distracted by paperwork.",
-    "Leave the office and seek information from other town officials."
+    "Pick the lock on the cabin door quietly.",
+    "Search the perimeter for fresh tracks or signs.",
+    "Peer through the grit-covered windows for clues.",
+    "Check the surrounding scrubland for hidden caches."
   ]
 }
 ```
@@ -4367,37 +4477,6 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "arc": {
-    "completed_threads": {
-      "changed": [
-        {
-          "from": {
-            "active": false,
-            "id": "clear_the_road_toughs",
-            "outcome": "The player has entered the town, bypassing the road blockade.",
-            "progress": [],
-            "resolution_state": "abandoned",
-            "resolved_turn": 1,
-            "scope": "arc",
-            "summary": "Deal with the toughs blocking the inn entrance.",
-            "urgency": "background"
-          },
-          "to": {
-            "active": false,
-            "added_turn": null,
-            "id": "clear_the_road_toughs",
-            "last_updated_turn": null,
-            "outcome": "The player has entered the town, bypassing the road blockade.",
-            "progress": [],
-            "resolution_state": "abandoned",
-            "resolved_turn": 1,
-            "scope": "arc",
-            "summary": "Deal with the toughs blocking the inn entrance.",
-            "urgency": "background",
-            "urgency_set_turn": null
-          }
-        }
-      ]
-    },
     "threads": {
       "changed": [
         {
@@ -4432,19 +4511,19 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall for the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Learned Harker's wagon was found empty"
+                "text": "Learned Harker went north with travelers."
               },
               {
                 "kind": "advancement",
-                "text": "Found signed ledger page near Assay Office"
+                "text": "Assay office refused to share claims."
               },
               {
                 "kind": "advancement",
-                "text": "Confirmed no missing person report filed"
+                "text": "Sheriff's office has no missing report."
               }
             ],
             "scope": "arc",
@@ -4460,19 +4539,19 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall for the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Learned Harker's wagon was found empty"
+                "text": "Learned Harker went north with travelers."
               },
               {
                 "kind": "advancement",
-                "text": "Found signed ledger page near Assay Office"
+                "text": "Assay office refused to share claims."
               },
               {
                 "kind": "advancement",
-                "text": "Confirmed no missing person report filed"
+                "text": "Sheriff's office has no missing report."
               }
             ],
             "resolution_state": null,
@@ -4485,21 +4564,45 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         },
         {
           "from": {
+            "active": false,
+            "id": "clear_the_road_toughs",
+            "progress": [],
+            "scope": "arc",
+            "summary": "Deal with the toughs blocking the inn entrance.",
+            "urgency": "background"
+          },
+          "to": {
+            "active": false,
+            "added_turn": null,
+            "id": "clear_the_road_toughs",
+            "last_updated_turn": null,
+            "outcome": null,
+            "progress": [],
+            "resolution_state": null,
+            "resolved_turn": null,
+            "scope": "arc",
+            "summary": "Deal with the toughs blocking the inn entrance.",
+            "urgency": "background",
+            "urgency_set_turn": null
+          }
+        },
+        {
+          "from": {
             "active": true,
             "id": "investigate_harker_disappearance",
             "last_updated_turn": 7,
             "progress": [
               {
                 "kind": "setback",
-                "text": "Officer Thorne denies any official missing person report"
+                "text": "Official law enforcement refuses to investigate"
               },
               {
-                "kind": "advancement",
-                "text": "Found map of Red Canyon cliffs"
+                "kind": "setback",
+                "text": "failed to find clues in station"
               }
             ],
             "scope": "arc",
-            "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+            "summary": "Find out what happened to Old Man Harker.",
             "urgency": "normal"
           },
           "to": {
@@ -4512,7 +4615,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "resolution_state": null,
             "resolved_turn": null,
             "scope": "arc",
-            "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+            "summary": "Find out what happened to Old Man Harker.",
             "urgency": "normal",
             "urgency_set_turn": null
           }
@@ -4522,56 +4625,100 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   },
   "compendium": {
     "npcs": {
-      "silas_thorne": {
+      "abandoned_cabin_presence": {
+        "from": {
+          "bio": "A silent, grit-covered structure on the edge of town. It sits isolated against the treeline, offering no immediate signs of life.",
+          "first_seen_turn": 5,
+          "last_seen": {
+            "location_id": "outskirts_cabin",
+            "location_name": "Abandoned Cabin",
+            "turn": 6
+          },
+          "name": "Abandoned Cabin",
+          "presence": "present"
+        },
+        "to": null
+      },
+      "thomas_miller": {
         "last_seen": {
+          "location_id": {
+            "from": "outskirts_cabin",
+            "to": "sheriffs_station"
+          },
+          "location_name": {
+            "from": "Abandoned Cabin",
+            "to": "Sheriff's Station"
+          },
           "turn": {
             "from": 7,
             "to": 5
           }
         },
         "notes": {
-          "from": "rising from chair with cold command",
-          "to": "leaning over desk, dismissive of inquiry"
+          "from": "watching you struggle with the box",
+          "to": "leaning back dismissively in chair"
         }
       }
     }
   },
   "inventory": {
-    "removed": [
+    "changed": [
       {
-        "amount": 1,
-        "id": "hand_drawn_map",
-        "name": "Hand-drawn map",
-        "notes": "A thick parchment with charcoal markings concentrated near the Red Canyon cliffs."
+        "from": {
+          "aliases": [],
+          "amount": 1,
+          "id": "iron_dagger",
+          "name": "Iron dagger",
+          "notes": "blunt tip scratched from prying at a lock"
+        },
+        "to": {
+          "aliases": [],
+          "amount": 1,
+          "id": "iron_dagger",
+          "name": "Iron dagger",
+          "notes": "Plain crossguard, edge worn from honing. Belt-carried."
+        }
       }
     ]
   },
   "location": {
     "description": {
-      "from": "The desk is cluttered with stacks of tax receipts and various bureaucratic tools, now disturbed by your theft.",
-      "to": "An imposing timber and stone structure located near the town square, centered around a high wooden desk."
+      "from": "The desk is cluttered with inkwells and half-finished ledgers, acting as a barrier between you and the deputy.",
+      "to": "A low-slung building of gray timber and iron reinforcements, dimly lit and smelling of old ink."
+    },
+    "id": {
+      "from": "outskirts_cabin",
+      "to": "sheriffs_station"
+    },
+    "name": {
+      "from": "Abandoned Cabin",
+      "to": "Sheriff's Station"
     }
   },
   "meta": {
+    "compendium_touch_order": {
+      "added": [],
+      "removed": [
+        "abandoned_cabin_presence"
+      ]
+    },
     "consecutive_pressure_turns": {
-      "from": 3,
-      "to": 1
+      "from": 1,
+      "to": 0
     },
     "pending_gm_beat": {
-      "beat_expires_turn": {
-        "from": 9,
-        "to": 7
+      "from": {
+        "beat_expires_turn": 9,
+        "surface_as": "npc_behavior",
+        "type": "pressure"
       },
-      "type": {
-        "from": "escalation",
-        "to": "complication"
-      }
+      "to": null
     },
     "prior_history": {
       "added": [],
       "removed": [
-        "- [T7] The player successfully stole a map of Red Canyon from Thorne's desk but was caught in the act.",
-        "- [T6] Silas Thorne rebuffs the attempt to obtain a key and threatens the player with arrest for harassment."
+        "- [T7] Aren Voss failed to pry open the locked tin box in the deputy's desk.",
+        "- [T6] Aren Voss failed to obtain any official information regarding Harker's disappearance from Deputy Miller."
       ]
     },
     "recent_beats": {
@@ -4583,11 +4730,11 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "turn",
-            1
+            2
           ],
           [
             "type",
-            "pressure"
+            "opportunity"
           ]
         ],
         [
@@ -4597,15 +4744,29 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "turn",
-            2
+            1
           ],
           [
             "type",
-            "complication"
+            "opportunity"
           ]
         ]
       ],
       "removed": [
+        [
+          [
+            "surface_as",
+            "environmental"
+          ],
+          [
+            "turn",
+            6
+          ],
+          [
+            "type",
+            "breathing_room"
+          ]
+        ],
         [
           [
             "surface_as",
@@ -4614,20 +4775,6 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           [
             "turn",
             7
-          ],
-          [
-            "type",
-            "escalation"
-          ]
-        ],
-        [
-          [
-            "surface_as",
-            "ambient"
-          ],
-          [
-            "turn",
-            6
           ],
           [
             "type",
@@ -4644,34 +4791,54 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "pc": {
     "actions": {
       "added": [
-        "Show him the signed ledger page found near the assay office.",
-        "Leave the office to find Caron and discuss your debts.",
-        "Press Silas Thorne for any recent suspicious traveler reports.",
-        "Search the town square for witnesses to Harker's last known location."
+        "Search the station for clues while Miller is distracted",
+        "Offer credits to bribe Miller for access to records",
+        "Leave the station to find witnesses near the assay office",
+        "Demand to see the ledger of recent missing persons"
       ],
       "removed": [
-        "Grab the tin box and bolt toward the office exit.",
-        "Stand your ground and claim you were searching for a quill.",
-        "Drop the dagger and apologize profusely to de-escalate Thorne's anger.",
-        "Conceal the map quickly and feign accidental contact with the desk."
+        "Demand Miller explain why a locked box is hidden.",
+        "Attempt to bribe the deputy for the brass key.",
+        "Surrender the dagger and apologize to Thomas Miller immediately.",
+        "Leave the station to search the abandoned cabin instead."
       ]
+    },
+    "conditions": {
+      "added": [
+        {
+          "added_turn": 4,
+          "description": "The deputy's hostility and dismissiveness have left you feeling unsettled.",
+          "id": "rattled",
+          "label": "Rattled",
+          "turns_remaining": 2
+        }
+      ]
+    },
+    "momentum": {
+      "from": -3,
+      "to": -2
     }
   },
   "scene": {
+    "location_entered_turn": {
+      "from": 5,
+      "to": 4
+    },
     "tagline": {
-      "from": "Caught Red-Handed",
-      "to": "No Report for Harker"
+      "from": "A Stubbornly Sealed Box",
+      "to": "A Dismissive Deputy"
     },
     "tags": {
       "added": [
-        "investigation",
         "tense_conversation"
       ],
       "removed": [
-        "discovery",
-        "tense_interaction",
-        "stealth_fail"
+        "tense_moment"
       ]
+    },
+    "turn_entered": {
+      "from": 5,
+      "to": 4
     }
   }
 }
@@ -4719,26 +4886,26 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "intent_verb": "sneak",
-  "intent": "The player attempts to surreptitiously search the desk and force open a locked container while being watched by the Sheriff's Officer.",
+  "intent": "The player attempts to force open a locked tin box using an iron dagger to search for information.",
   "rolled": true,
-  "total_ms": 2965.8,
-  "tokens_in": 1377,
-  "tokens_out": 107,
-  "outcome_summary": "The player successfully stole a map of Red Canyon from Thorne's desk but was caught in the act.",
-  "skill": "dexterity",
-  "difficulty": "hard",
+  "total_ms": 3169.4,
+  "tokens_in": 1369,
+  "tokens_out": 98,
+  "outcome_summary": "Aren Voss failed to pry open the locked tin box in the deputy's desk.",
+  "skill": "strength",
+  "difficulty": "normal",
   "dice": [
-    10
+    2
   ],
   "stat_mod": 1,
-  "diff_mod": -1,
+  "diff_mod": 0,
   "cond_mod": 0,
-  "raw_total": 10,
-  "final_total": 10,
-  "band": "success",
-  "momentum_before": 1,
-  "momentum_after": 2,
-  "momentum_delta": 1
+  "raw_total": 2,
+  "final_total": 3,
+  "band": "fail",
+  "momentum_before": -3,
+  "momentum_after": -3,
+  "momentum_delta": 0
 }
 ```
 
@@ -4756,18 +4923,17 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "scene_tags": [
-    "tense_interaction",
-    "stealth_fail",
-    "discovery"
+    "investigation",
+    "tense_moment"
   ],
-  "scene_tagline": "Caught Red-Handed",
-  "location_description": "The desk is cluttered with stacks of tax receipts and various bureaucratic tools, now disturbed by your theft.",
+  "scene_tagline": "A Stubbornly Sealed Box",
+  "location_description": "The desk is cluttered with inkwells and half-finished ledgers, acting as a barrier between you and the deputy.",
   "compendium_npc_update": [
     {
-      "id": "silas_thorne",
+      "id": "thomas_miller",
       "aliases": [],
       "presence": "present",
-      "notes": "rising from chair with cold command"
+      "notes": "watching you struggle with the box"
     }
   ]
 }
@@ -4777,23 +4943,17 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 
 ```json
 {
-  "inventory_add": [
+  "inventory_add": [],
+  "inventory_remove": [],
+  "inventory_update": [
     {
-      "id": "hand_drawn_map",
-      "name": "Hand-drawn map",
-      "notes": "A thick parchment with charcoal markings concentrated near the Red Canyon cliffs.",
-      "amount": 1,
-      "aliases": []
+      "id": "iron_dagger",
+      "name": "iron dagger",
+      "notes": "blunt tip scratched from prying at a lock"
     }
   ],
-  "inventory_remove": [],
-  "inventory_update": [],
   "pc_condition_add": [],
-  "pc_condition_remove": [
-    {
-      "id": "rattled"
-    }
-  ]
+  "pc_condition_remove": []
 }
 ```
 
@@ -4802,14 +4962,14 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "actions": [
-    "Conceal the map quickly and feign accidental contact with the desk.",
-    "Stand your ground and claim you were searching for a quill.",
-    "Grab the tin box and bolt toward the office exit.",
-    "Drop the dagger and apologize profusely to de-escalate Thorne's anger."
+    "Surrender the dagger and apologize to Thomas Miller immediately.",
+    "Demand Miller explain why a locked box is hidden.",
+    "Attempt to bribe the deputy for the brass key.",
+    "Leave the station to search the abandoned cabin instead."
   ],
-  "outcome_summary": "The player successfully stole a map of Red Canyon from Thorne's desk but was caught in the act.",
+  "outcome_summary": "Aren Voss failed to pry open the locked tin box in the deputy's desk.",
   "gm_beat": {
-    "type": "escalation",
+    "type": "pressure",
     "surface_as": "npc_behavior"
   },
   "thread_resolve": [],
@@ -4818,8 +4978,8 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       "id": "investigate_harker_disappearance",
       "active": true,
       "urgency": "normal",
-      "progress": "Found map of Red Canyon cliffs",
-      "progress_kind": "advancement"
+      "progress": "failed to find clues in station",
+      "progress_kind": "setback"
     }
   ]
 }
@@ -4829,43 +4989,36 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 
 ```json
 {
-  "inventory_add": [
-    {
-      "id": "hand_drawn_map",
-      "name": "Hand-drawn map",
-      "notes": "A thick parchment with charcoal markings concentrated near the Red Canyon cliffs.",
-      "amount": 1,
-      "aliases": []
-    }
-  ],
+  "inventory_add": [],
   "inventory_remove": [],
-  "inventory_update": [],
-  "location_description": "The desk is cluttered with stacks of tax receipts and various bureaucratic tools, now disturbed by your theft.",
-  "pc_condition_add": [],
-  "pc_condition_remove": [
+  "inventory_update": [
     {
-      "id": "rattled"
+      "id": "iron_dagger",
+      "name": "Iron dagger",
+      "notes": "blunt tip scratched from prying at a lock"
     }
   ],
+  "location_description": "The desk is cluttered with inkwells and half-finished ledgers, acting as a barrier between you and the deputy.",
+  "pc_condition_add": [],
+  "pc_condition_remove": [],
   "scene_tags": [
-    "tense_interaction",
-    "stealth_fail",
-    "discovery"
+    "investigation",
+    "tense_moment"
   ],
-  "scene_tagline": "Caught Red-Handed",
+  "scene_tagline": "A Stubbornly Sealed Box",
   "compendium_npc_update": [
     {
-      "id": "silas_thorne",
+      "id": "thomas_miller",
       "aliases": [],
       "presence": "present",
-      "notes": "rising from chair with cold command"
+      "notes": "watching you struggle with the box"
     }
   ],
   "actions": [
-    "Conceal the map quickly and feign accidental contact with the desk.",
-    "Stand your ground and claim you were searching for a quill.",
-    "Grab the tin box and bolt toward the office exit.",
-    "Drop the dagger and apologize profusely to de-escalate Thorne's anger."
+    "Surrender the dagger and apologize to Thomas Miller immediately.",
+    "Demand Miller explain why a locked box is hidden.",
+    "Attempt to bribe the deputy for the brass key.",
+    "Leave the station to search the abandoned cabin instead."
   ]
 }
 ```
@@ -4889,37 +5042,6 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "arc": {
-    "completed_threads": {
-      "changed": [
-        {
-          "from": {
-            "active": false,
-            "added_turn": null,
-            "id": "clear_the_road_toughs",
-            "last_updated_turn": null,
-            "outcome": "The player has entered the town, bypassing the road blockade.",
-            "progress": [],
-            "resolution_state": "abandoned",
-            "resolved_turn": 1,
-            "scope": "arc",
-            "summary": "Deal with the toughs blocking the inn entrance.",
-            "urgency": "background",
-            "urgency_set_turn": null
-          },
-          "to": {
-            "active": false,
-            "id": "clear_the_road_toughs",
-            "outcome": "The player has entered the town, bypassing the road blockade.",
-            "progress": [],
-            "resolution_state": "abandoned",
-            "resolved_turn": 1,
-            "scope": "arc",
-            "summary": "Deal with the toughs blocking the inn entrance.",
-            "urgency": "background"
-          }
-        }
-      ]
-    },
     "threads": {
       "changed": [
         {
@@ -4956,19 +5078,19 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall for the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Learned Harker's wagon was found empty"
+                "text": "Learned Harker went north with travelers."
               },
               {
                 "kind": "advancement",
-                "text": "Found signed ledger page near Assay Office"
+                "text": "Assay office refused to share claims."
               },
               {
                 "kind": "advancement",
-                "text": "Confirmed no missing person report filed"
+                "text": "Sheriff's office has no missing report."
               }
             ],
             "resolution_state": null,
@@ -4985,24 +5107,48 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall for the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Learned Harker's wagon was found empty"
+                "text": "Learned Harker went north with travelers."
               },
               {
                 "kind": "advancement",
-                "text": "Found signed ledger page near Assay Office"
+                "text": "Assay office refused to share claims."
               },
               {
                 "kind": "advancement",
-                "text": "Confirmed no missing person report filed"
+                "text": "Sheriff's office has no missing report."
               }
             ],
             "scope": "arc",
             "summary": "Deliver Halden's ledger to the merchant at the Crossed Keys Inn.",
             "urgency": "normal"
+          }
+        },
+        {
+          "from": {
+            "active": false,
+            "added_turn": null,
+            "id": "clear_the_road_toughs",
+            "last_updated_turn": null,
+            "outcome": null,
+            "progress": [],
+            "resolution_state": null,
+            "resolved_turn": null,
+            "scope": "arc",
+            "summary": "Deal with the toughs blocking the inn entrance.",
+            "urgency": "background",
+            "urgency_set_turn": null
+          },
+          "to": {
+            "active": false,
+            "id": "clear_the_road_toughs",
+            "progress": [],
+            "scope": "arc",
+            "summary": "Deal with the toughs blocking the inn entrance.",
+            "urgency": "background"
           }
         },
         {
@@ -5016,7 +5162,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "resolution_state": null,
             "resolved_turn": null,
             "scope": "arc",
-            "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+            "summary": "Find out what happened to Old Man Harker.",
             "urgency": "normal",
             "urgency_set_turn": null
           },
@@ -5027,11 +5173,11 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "setback",
-                "text": "Officer Thorne denies any official missing person report"
+                "text": "Official law enforcement refuses to investigate"
               }
             ],
             "scope": "arc",
-            "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+            "summary": "Find out what happened to Old Man Harker.",
             "urgency": "normal"
           }
         }
@@ -5040,48 +5186,79 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   },
   "compendium": {
     "npcs": {
-      "silas_thorne": {
+      "abandoned_cabin_presence": {
+        "from": null,
+        "to": {
+          "bio": "A silent, grit-covered structure on the edge of town. It sits isolated against the treeline, offering no immediate signs of life.",
+          "first_seen_turn": 5,
+          "last_seen": {
+            "location_id": "outskirts_cabin",
+            "location_name": "Abandoned Cabin",
+            "turn": 6
+          },
+          "name": "Abandoned Cabin",
+          "notes": "silent and obscured by grit",
+          "presence": "present"
+        }
+      },
+      "thomas_miller": {
         "last_seen": {
+          "location_id": {
+            "from": "sheriffs_station",
+            "to": "outskirts_cabin"
+          },
+          "location_name": {
+            "from": "Sheriff's Station",
+            "to": "Abandoned Cabin"
+          },
           "turn": {
             "from": 5,
             "to": 6
           }
         },
         "notes": {
-          "from": "leaning over desk, dismissive of inquiry",
-          "to": "leaning forward with a dangerous growl"
+          "from": "leaning back dismissively in chair",
+          "to": "dismissive and uncooperative"
+        },
+        "presence": {
+          "from": "present",
+          "to": "known"
         }
       }
     }
   },
   "location": {
     "description": {
-      "from": "An imposing timber and stone structure located near the town square, centered around a high wooden desk.",
-      "to": "The air in the office feels heavy and stagnant, thick with the scent of old parchment and drying ink."
+      "from": "A low-slung building of gray timber and iron reinforcements, dimly lit and smelling of old ink.",
+      "to": "A small, isolated structure huddled against the treeline with grit-coated windows and a heavy silence."
+    },
+    "id": {
+      "from": "sheriffs_station",
+      "to": "outskirts_cabin"
+    },
+    "name": {
+      "from": "Sheriff's Station",
+      "to": "Abandoned Cabin"
     }
   },
   "meta": {
-    "consecutive_pressure_turns": {
-      "from": 1,
-      "to": 2
+    "compendium_touch_order": {
+      "added": [
+        "abandoned_cabin_presence"
+      ],
+      "removed": []
     },
     "pending_gm_beat": {
-      "beat_expires_turn": {
-        "from": 7,
-        "to": 8
-      },
-      "surface_as": {
-        "from": "npc_behavior",
-        "to": "ambient"
-      },
-      "type": {
-        "from": "complication",
-        "to": "pressure"
+      "from": null,
+      "to": {
+        "beat_expires_turn": 8,
+        "surface_as": "environmental",
+        "type": "breathing_room"
       }
     },
     "prior_history": {
       "added": [
-        "- [T6] Silas Thorne rebuffs the attempt to obtain a key and threatens the player with arrest for harassment."
+        "- [T6] Aren Voss failed to obtain any official information regarding Harker's disappearance from Deputy Miller."
       ],
       "removed": []
     },
@@ -5090,7 +5267,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         [
           [
             "surface_as",
-            "ambient"
+            "environmental"
           ],
           [
             "turn",
@@ -5098,7 +5275,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "pressure"
+            "breathing_room"
           ]
         ]
       ],
@@ -5114,7 +5291,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "pressure"
+            "opportunity"
           ]
         ]
       ]
@@ -5127,46 +5304,55 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "pc": {
     "actions": {
       "added": [
-        "Demand to know why no report was filed for Harker.",
-        "Apologize profusely to de-escalate Thorne's immediate hostility.",
-        "Leave the office and seek information from other town officials.",
-        "Search the office quietly while Thorne is distracted by paperwork."
+        "Peer through the grit-covered windows for clues.",
+        "Search the perimeter for fresh tracks or signs.",
+        "Pick the lock on the cabin door quietly.",
+        "Check the surrounding scrubland for hidden caches."
       ],
       "removed": [
-        "Show him the signed ledger page found near the assay office.",
-        "Leave the office to find Caron and discuss your debts.",
-        "Press Silas Thorne for any recent suspicious traveler reports.",
-        "Search the town square for witnesses to Harker's last known location."
+        "Search the station for clues while Miller is distracted",
+        "Offer credits to bribe Miller for access to records",
+        "Leave the station to find witnesses near the assay office",
+        "Demand to see the ledger of recent missing persons"
       ]
     },
     "conditions": {
-      "added": [
+      "removed": [
         {
-          "added_turn": 5,
-          "description": "The officer's sudden aggression and threat has left you feeling unsettled.",
+          "added_turn": 4,
+          "description": "The deputy's hostility and dismissiveness have left you feeling unsettled.",
           "id": "rattled",
           "label": "Rattled",
-          "turns_remaining": 3
+          "turns_remaining": 2
         }
       ]
     },
     "momentum": {
-      "from": 2,
-      "to": 1
+      "from": -2,
+      "to": -3
     }
   },
   "scene": {
+    "location_entered_turn": {
+      "from": 4,
+      "to": 5
+    },
     "tagline": {
-      "from": "No Report for Harker",
-      "to": "A Warning from the Desk"
+      "from": "A Dismissive Deputy",
+      "to": "No Leads in the Dust"
     },
     "tags": {
       "added": [
-        "confrontation"
+        "frustration",
+        "discovery"
       ],
       "removed": [
-        "investigation"
+        "tense_conversation"
       ]
+    },
+    "turn_entered": {
+      "from": 4,
+      "to": 5
     }
   }
 }
@@ -5213,13 +5399,13 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 **Parsed (engine):**
 ```json
 {
-  "intent_verb": "transition",
-  "intent": "The player attempts to leave the Sheriff's Office and purchase survival supplies at a general store.",
+  "intent_verb": "negotiate",
+  "intent": "The player intends to purchase essential survival supplies from a merchant.",
   "rolled": false,
-  "total_ms": 2489.3,
-  "tokens_in": 1365,
-  "tokens_out": 80,
-  "outcome_summary": "The player enters the general store to buy supplies but is immediately targeted by two aggressive men."
+  "total_ms": 2762.5,
+  "tokens_in": 1363,
+  "tokens_out": 74,
+  "outcome_summary": "Aren Voss purchased dried meat, a water canteen, and hemp rope from Silas Vance."
 }
 ```
 
@@ -5237,39 +5423,22 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "scene_tags": [
-    "tense_confrontation",
-    "suspense"
+    "investigation",
+    "tense_interaction"
   ],
-  "scene_tagline": "Predators in the Market District",
+  "scene_tagline": "A Transaction in Marrow's Crossing",
   "location_change": {
     "id": "general_store",
     "name": "General Store",
-    "description": "A cramped shop filled with the scent of cured leather and dust, featuring a counter stacked with iron pots."
+    "description": "A cramped shop filled with the scent of dried goods and hemp, where a bell chimes upon entry."
   },
-  "location_description": "The air is thick with the smell of dried goods and old dust; a small bell hangs above the entrance.",
+  "location_description": "The store is cluttered with bundles of dried meat, leather canteens, and coils of rope behind a wooden counter.",
   "compendium_npc_update": [
     {
-      "id": "silas_thorne",
-      "aliases": [],
-      "presence": "known"
-    },
-    {
-      "id": "assay_clerk",
+      "id": "silas_vance",
       "aliases": [],
       "presence": "present",
-      "notes": "watching with wide-eyed alarm"
-    },
-    {
-      "id": "tough_a",
-      "aliases": [],
-      "presence": "present",
-      "notes": "scanning you with predatory focus"
-    },
-    {
-      "id": "tough_b",
-      "aliases": [],
-      "presence": "present",
-      "notes": "scanning you with predatory focus"
+      "notes": "ringing up supplies \u2014 restless, watching door."
     }
   ]
 }
@@ -5283,40 +5452,28 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
     {
       "id": "dried_meat",
       "name": "Dried meat",
-      "notes": "",
-      "amount": 1,
+      "notes": "Bundles of preserved meat",
+      "amount": 2,
       "aliases": []
     },
     {
       "id": "water_canteen",
-      "name": "Water canteen",
-      "notes": "",
+      "name": "Leather water canteen",
+      "notes": "Filled with fresh water",
       "amount": 1,
       "aliases": []
     },
     {
-      "id": "hempen_rope",
-      "name": "Hempen rope",
+      "id": "hemp_rope",
+      "name": "Coil of hemp rope",
       "notes": "",
       "amount": 1,
       "aliases": []
     }
   ],
-  "inventory_remove": [
-    {
-      "id": "credits",
-      "amount": 60
-    }
-  ],
+  "inventory_remove": [],
   "inventory_update": [],
-  "pc_condition_add": [
-    {
-      "id": "threatened",
-      "label": "Threatened",
-      "description": "Two aggressive men are staring you down with predatory focus.",
-      "turns_remaining": 3
-    }
-  ],
+  "pc_condition_add": [],
   "pc_condition_remove": []
 }
 ```
@@ -5326,31 +5483,23 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "actions": [
-    "Pay the clerk quickly and exit through the side door.",
-    "Draw your iron dagger and face the thugs directly.",
-    "Attempt to de-escalate by offering credits to the men.",
-    "Grab the heavy iron pot to use as a weapon."
+    "Question Silas about his restless behavior near the door.",
+    "Offer extra credits to bribe Silas for local gossip.",
+    "Scan the street through the window for suspicious figures.",
+    "Leave quickly to avoid further scrutiny from the clerk."
   ],
-  "outcome_summary": "The player enters the general store to buy supplies but is immediately targeted by two aggressive men.",
+  "outcome_summary": "Aren Voss purchased dried meat, a water canteen, and hemp rope from Silas Vance.",
   "gm_beat": {
-    "type": "pressure",
+    "type": "complication",
     "surface_as": "npc_behavior"
   },
   "thread_resolve": [],
-  "thread_add": {
-    "id": "street_confrontation",
-    "summary": "Avoid or resolve sudden roadside aggression",
-    "scope": "scene",
-    "active": true,
-    "urgency": "urgent",
-    "progress": []
-  },
   "thread_update": [
     {
       "id": "deliver_the_ledger",
       "active": true,
       "urgency": "normal",
-      "progress": "Arrived in Dustfall toward destination",
+      "progress": "Gathering supplies for the journey ahead",
       "progress_kind": "advancement"
     }
   ]
@@ -5365,82 +5514,53 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
     {
       "id": "dried_meat",
       "name": "Dried meat",
-      "notes": "",
-      "amount": 1,
+      "notes": "Bundles of preserved meat",
+      "amount": 2,
       "aliases": []
     },
     {
       "id": "water_canteen",
-      "name": "Water canteen",
-      "notes": "",
+      "name": "Leather water canteen",
+      "notes": "Filled with fresh water",
       "amount": 1,
       "aliases": []
     },
     {
-      "id": "hempen_rope",
-      "name": "Hempen rope",
+      "id": "hemp_rope",
+      "name": "Coil of hemp rope",
       "notes": "",
       "amount": 1,
       "aliases": []
     }
   ],
-  "inventory_remove": [
-    {
-      "id": "credits",
-      "amount": 60
-    }
-  ],
+  "inventory_remove": [],
   "inventory_update": [],
   "location_change": {
     "id": "general_store",
     "name": "General Store",
-    "description": "A cramped shop filled with the scent of cured leather and dust, featuring a counter stacked with iron pots."
+    "description": "A cramped shop filled with the scent of dried goods and hemp, where a bell chimes upon entry."
   },
-  "location_description": "The air is thick with the smell of dried goods and old dust; a small bell hangs above the entrance.",
-  "pc_condition_add": [
-    {
-      "id": "threatened",
-      "label": "Threatened",
-      "description": "Two aggressive men are staring you down with predatory focus.",
-      "turns_remaining": 3
-    }
-  ],
+  "location_description": "The store is cluttered with bundles of dried meat, leather canteens, and coils of rope behind a wooden counter.",
+  "pc_condition_add": [],
   "pc_condition_remove": [],
   "scene_tags": [
-    "tense_confrontation",
-    "suspense"
+    "investigation",
+    "tense_interaction"
   ],
-  "scene_tagline": "Predators in the Market District",
+  "scene_tagline": "A Transaction in Marrow's Crossing",
   "compendium_npc_update": [
     {
-      "id": "silas_thorne",
-      "aliases": [],
-      "presence": "known"
-    },
-    {
-      "id": "assay_clerk",
+      "id": "silas_vance",
       "aliases": [],
       "presence": "present",
-      "notes": "watching with wide-eyed alarm"
-    },
-    {
-      "id": "tough_a",
-      "aliases": [],
-      "presence": "present",
-      "notes": "scanning you with predatory focus"
-    },
-    {
-      "id": "tough_b",
-      "aliases": [],
-      "presence": "present",
-      "notes": "scanning you with predatory focus"
+      "notes": "ringing up supplies \u2014 restless, watching door."
     }
   ],
   "actions": [
-    "Pay the clerk quickly and exit through the side door.",
-    "Draw your iron dagger and face the thugs directly.",
-    "Attempt to de-escalate by offering credits to the men.",
-    "Grab the heavy iron pot to use as a weapon."
+    "Question Silas about his restless behavior near the door.",
+    "Offer extra credits to bribe Silas for local gossip.",
+    "Scan the street through the window for suspicious figures.",
+    "Leave quickly to avoid further scrutiny from the clerk."
   ]
 }
 ```
@@ -5474,11 +5594,11 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "setback",
-                "text": "Officer Thorne denies any official missing person report"
+                "text": "Official law enforcement refuses to investigate"
               }
             ],
             "scope": "arc",
-            "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+            "summary": "Find out what happened to Old Man Harker.",
             "urgency": "normal"
           },
           "to": {
@@ -5488,15 +5608,15 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "setback",
-                "text": "Officer Thorne denies any official missing person report"
+                "text": "Official law enforcement refuses to investigate"
               },
               {
-                "kind": "advancement",
-                "text": "Found map of Red Canyon cliffs"
+                "kind": "setback",
+                "text": "failed to find clues in station"
               }
             ],
             "scope": "arc",
-            "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+            "summary": "Find out what happened to Old Man Harker.",
             "urgency": "normal"
           }
         }
@@ -5505,7 +5625,13 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   },
   "compendium": {
     "npcs": {
-      "silas_thorne": {
+      "abandoned_cabin_presence": {
+        "notes": {
+          "from": "silent and obscured by grit",
+          "to": null
+        }
+      },
+      "thomas_miller": {
         "last_seen": {
           "turn": {
             "from": 6,
@@ -5513,32 +5639,47 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           }
         },
         "notes": {
-          "from": "leaning forward with a dangerous growl",
-          "to": "rising from chair with cold command"
+          "from": "dismissive and uncooperative",
+          "to": "watching you struggle with the box"
+        },
+        "presence": {
+          "from": "known",
+          "to": "present"
         }
       }
     }
   },
   "inventory": {
-    "added": [
+    "changed": [
       {
-        "amount": 1,
-        "id": "hand_drawn_map",
-        "name": "Hand-drawn map",
-        "notes": "A thick parchment with charcoal markings concentrated near the Red Canyon cliffs."
+        "from": {
+          "aliases": [],
+          "amount": 1,
+          "id": "iron_dagger",
+          "name": "Iron dagger",
+          "notes": "Plain crossguard, edge worn from honing. Belt-carried."
+        },
+        "to": {
+          "aliases": [],
+          "amount": 1,
+          "id": "iron_dagger",
+          "name": "Iron dagger",
+          "notes": "blunt tip scratched from prying at a lock"
+        }
       }
     ]
   },
   "location": {
     "description": {
-      "from": "The air in the office feels heavy and stagnant, thick with the scent of old parchment and drying ink.",
-      "to": "The desk is cluttered with stacks of tax receipts and various bureaucratic tools, now disturbed by your theft."
+      "from": "A small, isolated structure huddled against the treeline with grit-coated windows and a heavy silence.",
+      "to": "The desk is cluttered with inkwells and half-finished ledgers, acting as a barrier between you and the deputy."
     }
   },
   "meta": {
+    "compendium_touch_order": {},
     "consecutive_pressure_turns": {
-      "from": 2,
-      "to": 3
+      "from": 0,
+      "to": 1
     },
     "pending_gm_beat": {
       "beat_expires_turn": {
@@ -5546,17 +5687,17 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         "to": 9
       },
       "surface_as": {
-        "from": "ambient",
+        "from": "environmental",
         "to": "npc_behavior"
       },
       "type": {
-        "from": "pressure",
-        "to": "escalation"
+        "from": "breathing_room",
+        "to": "pressure"
       }
     },
     "prior_history": {
       "added": [
-        "- [T7] The player successfully stole a map of Red Canyon from Thorne's desk but was caught in the act."
+        "- [T7] Aren Voss failed to pry open the locked tin box in the deputy's desk."
       ],
       "removed": []
     },
@@ -5573,7 +5714,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "escalation"
+            "pressure"
           ]
         ]
       ],
@@ -5589,7 +5730,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "complication"
+            "opportunity"
           ]
         ]
       ]
@@ -5602,48 +5743,31 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "pc": {
     "actions": {
       "added": [
-        "Grab the tin box and bolt toward the office exit.",
-        "Stand your ground and claim you were searching for a quill.",
-        "Drop the dagger and apologize profusely to de-escalate Thorne's anger.",
-        "Conceal the map quickly and feign accidental contact with the desk."
+        "Demand Miller explain why a locked box is hidden.",
+        "Attempt to bribe the deputy for the brass key.",
+        "Surrender the dagger and apologize to Thomas Miller immediately.",
+        "Leave the station to search the abandoned cabin instead."
       ],
       "removed": [
-        "Demand to know why no report was filed for Harker.",
-        "Apologize profusely to de-escalate Thorne's immediate hostility.",
-        "Leave the office and seek information from other town officials.",
-        "Search the office quietly while Thorne is distracted by paperwork."
+        "Peer through the grit-covered windows for clues.",
+        "Search the perimeter for fresh tracks or signs.",
+        "Pick the lock on the cabin door quietly.",
+        "Check the surrounding scrubland for hidden caches."
       ]
-    },
-    "conditions": {
-      "removed": [
-        {
-          "added_turn": 5,
-          "description": "The officer's sudden aggression and threat has left you feeling unsettled.",
-          "id": "rattled",
-          "label": "Rattled",
-          "turns_remaining": 3
-        }
-      ]
-    },
-    "momentum": {
-      "from": 1,
-      "to": 2
     }
   },
   "scene": {
     "tagline": {
-      "from": "A Warning from the Desk",
-      "to": "Caught Red-Handed"
+      "from": "No Leads in the Dust",
+      "to": "A Stubbornly Sealed Box"
     },
     "tags": {
       "added": [
-        "discovery",
-        "tense_interaction",
-        "stealth_fail"
+        "tense_moment"
       ],
       "removed": [
-        "confrontation",
-        "tense_conversation"
+        "frustration",
+        "discovery"
       ]
     }
   }
@@ -5692,12 +5816,12 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "intent_verb": "escape",
-  "intent": "The player attempts to leave the general store and travel toward Red Canyon while remaining vigilant of their surroundings.",
+  "intent": "The player intends to travel from Marrow's Crossing toward Red Canyon while remaining vigilant of their surroundings.",
   "rolled": false,
-  "total_ms": 3310.3,
-  "tokens_in": 1429,
-  "tokens_out": 126,
-  "outcome_summary": "The player escaped the thugs in the market and reached the base of the Red Canyon cliffs."
+  "total_ms": 2999.1,
+  "tokens_in": 1406,
+  "tokens_out": 85,
+  "outcome_summary": "Aren Voss enters Red Canyon and is immediately ambushed by two hired thugs blocking the trail."
 }
 ```
 
@@ -5715,33 +5839,28 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "scene_tags": [
-    "escape",
+    "confrontation",
     "tense",
-    "pursuit",
-    "discovery"
+    "ambush"
   ],
-  "scene_tagline": "Escape to the Red Canyon",
+  "scene_tagline": "Shadows Block the Trail",
   "location_change": {
-    "id": "red_canyon_cliffs",
-    "name": "Red Canyon Cliffs",
-    "description": "Jagged canyon walls loom overhead like teeth against a bruised purple sky, with long shadows stretching across an uneven trail."
+    "id": "red_canyon",
+    "name": "Red Canyon",
+    "description": "A narrow, jagged gorge with rising walls of bruised-purple stone and a floor of loose shale. The air is biting and cold, echoing with the whistle of wind through cliff cracks."
   },
-  "location_description": "The terrain is uneven and rocky, filled with darkening crevices and looming cliffs under a twilight sky.",
   "compendium_npc_update": [
-    {
-      "id": "assay_clerk",
-      "aliases": [],
-      "presence": "known"
-    },
     {
       "id": "tough_a",
       "aliases": [],
-      "presence": "known"
+      "presence": "present",
+      "notes": "hand on blade hilt"
     },
     {
       "id": "tough_b",
       "aliases": [],
-      "presence": "known"
+      "presence": "present",
+      "notes": "glinting eyes, blocking path"
     }
   ]
 }
@@ -5756,17 +5875,13 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "inventory_update": [],
   "pc_condition_add": [
     {
-      "id": "exhausted",
-      "label": "exhausted",
-      "description": "Breathless from a frantic escape through market alleys.",
+      "id": "chilled",
+      "label": "Chilled",
+      "description": "The biting temperature of the canyon makes movement difficult and focus harder.",
       "turns_remaining": 3
     }
   ],
-  "pc_condition_remove": [
-    {
-      "id": "threatened"
-    }
-  ]
+  "pc_condition_remove": []
 }
 ```
 
@@ -5775,35 +5890,32 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "actions": [
-    "Climb the canyon walls to find a vantage point.",
-    "Search the nearby crevices for signs of Harker's wagon.",
-    "Set up a concealed camp before total darkness falls.",
-    "Follow the charcoal markings on the hand-drawn map."
+    "Draw your iron dagger and demand their purpose.",
+    "Attempt to ride past them through the narrow gap.",
+    "Offer credits to bribe them for safe passage.",
+    "Search the high ridges for a third hidden attacker."
   ],
-  "outcome_summary": "The player escaped the thugs in the market and reached the base of the Red Canyon cliffs.",
-  "thread_resolve": [
-    {
-      "id": "street_confrontation",
-      "resolution_state": "abandoned",
-      "outcome": "The player successfully evaded the thugs by fleeing through market alleys.",
-      "promote_to_world_state": false
-    }
-  ],
+  "outcome_summary": "Aren Voss enters Red Canyon and is immediately ambushed by two hired thugs blocking the trail.",
+  "gm_beat": {
+    "type": "pressure",
+    "surface_as": "npc_behavior"
+  },
+  "thread_resolve": [],
   "thread_add": {
-    "id": "canyon_exploration_danger",
-    "summary": "Navigate hazards of the Red Canyon cliffs",
+    "id": "canyon_ambush",
+    "summary": "Survive the road thugs' ambush",
     "scope": "scene",
     "active": true,
-    "urgency": "normal",
+    "urgency": "urgent",
     "progress": []
   },
   "thread_update": [
     {
-      "id": "investigate_harker_disappearance",
+      "id": "deliver_the_ledger",
       "active": true,
       "urgency": "normal",
-      "progress": "Reached Red Canyon cliffs near disappearance site",
-      "progress_kind": "advancement"
+      "progress": "Traveling through Red Canyon toward destination",
+      "progress_kind": "shift"
     }
   ]
 }
@@ -5817,53 +5929,44 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "inventory_remove": [],
   "inventory_update": [],
   "location_change": {
-    "id": "red_canyon_cliffs",
-    "name": "Red Canyon Cliffs",
-    "description": "Jagged canyon walls loom overhead like teeth against a bruised purple sky, with long shadows stretching across an uneven trail."
+    "id": "red_canyon",
+    "name": "Red Canyon",
+    "description": "A narrow, jagged gorge with rising walls of bruised-purple stone and a floor of loose shale. The air is biting and cold, echoing with the whistle of wind through cliff cracks."
   },
-  "location_description": "The terrain is uneven and rocky, filled with darkening crevices and looming cliffs under a twilight sky.",
   "pc_condition_add": [
     {
-      "id": "exhausted",
-      "label": "exhausted",
-      "description": "Breathless from a frantic escape through market alleys.",
+      "id": "chilled",
+      "label": "Chilled",
+      "description": "The biting temperature of the canyon makes movement difficult and focus harder.",
       "turns_remaining": 3
     }
   ],
-  "pc_condition_remove": [
-    {
-      "id": "threatened"
-    }
-  ],
+  "pc_condition_remove": [],
   "scene_tags": [
-    "escape",
+    "confrontation",
     "tense",
-    "pursuit",
-    "discovery"
+    "ambush"
   ],
-  "scene_tagline": "Escape to the Red Canyon",
+  "scene_tagline": "Shadows Block the Trail",
   "compendium_npc_update": [
-    {
-      "id": "assay_clerk",
-      "aliases": [],
-      "presence": "known"
-    },
     {
       "id": "tough_a",
       "aliases": [],
-      "presence": "known"
+      "presence": "present",
+      "notes": "hand on blade hilt"
     },
     {
       "id": "tough_b",
       "aliases": [],
-      "presence": "known"
+      "presence": "present",
+      "notes": "glinting eyes, blocking path"
     }
   ],
   "actions": [
-    "Climb the canyon walls to find a vantage point.",
-    "Search the nearby crevices for signs of Harker's wagon.",
-    "Set up a concealed camp before total darkness falls.",
-    "Follow the charcoal markings on the hand-drawn map."
+    "Draw your iron dagger and demand their purpose.",
+    "Attempt to ride past them through the narrow gap.",
+    "Offer credits to bribe them for safe passage.",
+    "Search the high ridges for a third hidden attacker."
   ]
 }
 ```
@@ -5887,23 +5990,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "arc": {
-    "last_thread_created_turn": {
-      "from": 5,
-      "to": 8
-    },
     "threads": {
-      "added": [
-        {
-          "active": true,
-          "added_turn": 8,
-          "id": "street_confrontation",
-          "progress": [],
-          "scope": "scene",
-          "summary": "Avoid or resolve sudden roadside aggression",
-          "urgency": "urgent",
-          "urgency_set_turn": 8
-        }
-      ],
       "changed": [
         {
           "from": {
@@ -5913,19 +6000,19 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall for the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Learned Harker's wagon was found empty"
+                "text": "Learned Harker went north with travelers."
               },
               {
                 "kind": "advancement",
-                "text": "Found signed ledger page near Assay Office"
+                "text": "Assay office refused to share claims."
               },
               {
                 "kind": "advancement",
-                "text": "Confirmed no missing person report filed"
+                "text": "Sheriff's office has no missing report."
               }
             ],
             "scope": "arc",
@@ -5939,23 +6026,23 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "progress": [
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall for the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Learned Harker's wagon was found empty"
+                "text": "Learned Harker went north with travelers."
               },
               {
                 "kind": "advancement",
-                "text": "Found signed ledger page near Assay Office"
+                "text": "Assay office refused to share claims."
               },
               {
                 "kind": "advancement",
-                "text": "Confirmed no missing person report filed"
+                "text": "Sheriff's office has no missing report."
               },
               {
                 "kind": "advancement",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Gathering supplies for the journey ahead"
               }
             ],
             "scope": "arc",
@@ -5968,88 +6055,44 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   },
   "compendium": {
     "npcs": {
-      "assay_clerk": {
+      "abandoned_cabin_presence": {
+        "presence": {
+          "from": "present",
+          "to": "known"
+        }
+      },
+      "silas_vance": {
         "last_seen": {
           "location_id": {
-            "from": "assay_office",
+            "from": "sheriffs_station",
             "to": "general_store"
           },
           "location_name": {
-            "from": "Assay Office",
+            "from": "Sheriff's Station",
             "to": "General Store"
           },
           "turn": {
-            "from": 4,
+            "from": 5,
             "to": 8
           }
         },
         "notes": {
           "from": null,
-          "to": "watching with wide-eyed alarm"
+          "to": "ringing up supplies \u2014 restless, watching door."
         },
         "presence": {
           "from": "known",
           "to": "present"
         }
       },
-      "silas_thorne": {
-        "last_seen": {
-          "location_id": {
-            "from": "sheriffs_office",
-            "to": "general_store"
-          },
-          "location_name": {
-            "from": "Sheriff's Office",
-            "to": "General Store"
-          },
-          "turn": {
-            "from": 7,
-            "to": 8
-          }
-        },
+      "thomas_miller": {
         "notes": {
-          "from": "rising from chair with cold command",
+          "from": "watching you struggle with the box",
           "to": null
         },
         "presence": {
           "from": "present",
           "to": "known"
-        }
-      },
-      "tough_a": {
-        "last_seen": {
-          "from": null,
-          "to": {
-            "location_id": "general_store",
-            "location_name": "General Store",
-            "turn": 8
-          }
-        },
-        "notes": {
-          "from": null,
-          "to": "scanning you with predatory focus"
-        },
-        "presence": {
-          "from": null,
-          "to": "present"
-        }
-      },
-      "tough_b": {
-        "last_seen": {
-          "from": null,
-          "to": {
-            "location_id": "general_store",
-            "location_name": "General Store",
-            "turn": 8
-          }
-        },
-        "notes": {
-          "from": null,
-          "to": "scanning you with predatory focus"
-        },
-        "presence": {
-          "from": null,
-          "to": "present"
         }
       }
     }
@@ -6057,90 +6100,58 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "inventory": {
     "added": [
       {
-        "amount": 1,
+        "amount": 2,
         "id": "dried_meat",
         "name": "Dried meat",
-        "notes": ""
+        "notes": "Bundles of preserved meat"
       },
       {
         "amount": 1,
         "id": "water_canteen",
-        "name": "Water canteen",
-        "notes": ""
+        "name": "Leather water canteen",
+        "notes": "Filled with fresh water"
       },
       {
         "amount": 1,
-        "id": "hempen_rope",
-        "name": "Hempen rope",
+        "id": "hemp_rope",
+        "name": "Coil of hemp rope",
         "notes": ""
-      }
-    ],
-    "changed": [
-      {
-        "from": {
-          "aliases": [],
-          "amount": 500,
-          "id": "credits",
-          "name": "Credits",
-          "notes": "Common coin, accepted at any inn or stall on the merchant road."
-        },
-        "to": {
-          "aliases": [],
-          "amount": 440,
-          "id": "credits",
-          "name": "Credits",
-          "notes": "Common coin, accepted at any inn or stall on the merchant road."
-        }
       }
     ]
   },
   "location": {
     "description": {
-      "from": "The desk is cluttered with stacks of tax receipts and various bureaucratic tools, now disturbed by your theft.",
-      "to": "A cramped shop filled with the scent of cured leather and dust, featuring a counter stacked with iron pots."
+      "from": "The desk is cluttered with inkwells and half-finished ledgers, acting as a barrier between you and the deputy.",
+      "to": "A cramped shop filled with the scent of dried goods and hemp, where a bell chimes upon entry."
     },
     "id": {
-      "from": "sheriffs_office",
+      "from": "outskirts_cabin",
       "to": "general_store"
     },
     "name": {
-      "from": "Sheriff's Office",
+      "from": "Abandoned Cabin",
       "to": "General Store"
     }
   },
   "meta": {
-    "compendium_touch_order": {
-      "added": [
-        "tough_a",
-        "tough_b"
-      ],
-      "removed": []
-    },
+    "compendium_touch_order": {},
     "consecutive_pressure_turns": {
-      "from": 3,
-      "to": 0
-    },
-    "last_thread_created_turn": {
-      "from": null,
-      "to": 8
+      "from": 1,
+      "to": 2
     },
     "pending_gm_beat": {
       "beat_expires_turn": {
         "from": 9,
         "to": 10
       },
-      "surface_as": {
-        "from": "npc_behavior",
-        "to": "ambient"
-      },
       "type": {
-        "from": "escalation",
-        "to": "breathing_room"
+        "from": "pressure",
+        "to": "complication"
       }
     },
     "prior_history": {
       "added": [
-        "- [T8] The player enters the general store to buy supplies but is immediately targeted by two aggressive men."
+        "- [T8] Aren Voss purchased dried meat, a water canteen, and hemp rope from Silas Vance."
       ],
       "removed": []
     },
@@ -6149,7 +6160,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         [
           [
             "surface_as",
-            "ambient"
+            "npc_behavior"
           ],
           [
             "turn",
@@ -6157,7 +6168,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "breathing_room"
+            "complication"
           ]
         ]
       ],
@@ -6165,7 +6176,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         [
           [
             "surface_as",
-            "ambient"
+            "npc_behavior"
           ],
           [
             "turn",
@@ -6173,7 +6184,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "revelation"
+            "pressure"
           ]
         ]
       ]
@@ -6186,52 +6197,38 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "pc": {
     "actions": {
       "added": [
-        "Attempt to de-escalate by offering credits to the men.",
-        "Grab the heavy iron pot to use as a weapon.",
-        "Draw your iron dagger and face the thugs directly.",
-        "Pay the clerk quickly and exit through the side door."
+        "Scan the street through the window for suspicious figures.",
+        "Offer extra credits to bribe Silas for local gossip.",
+        "Question Silas about his restless behavior near the door.",
+        "Leave quickly to avoid further scrutiny from the clerk."
       ],
       "removed": [
-        "Grab the tin box and bolt toward the office exit.",
-        "Stand your ground and claim you were searching for a quill.",
-        "Drop the dagger and apologize profusely to de-escalate Thorne's anger.",
-        "Conceal the map quickly and feign accidental contact with the desk."
-      ]
-    },
-    "conditions": {
-      "added": [
-        {
-          "added_turn": 7,
-          "description": "Two aggressive men are staring you down with predatory focus.",
-          "id": "threatened",
-          "label": "Threatened",
-          "turns_remaining": 3
-        }
+        "Demand Miller explain why a locked box is hidden.",
+        "Attempt to bribe the deputy for the brass key.",
+        "Surrender the dagger and apologize to Thomas Miller immediately.",
+        "Leave the station to search the abandoned cabin instead."
       ]
     }
   },
   "scene": {
     "location_entered_turn": {
-      "from": 4,
+      "from": 5,
       "to": 7
     },
     "tagline": {
-      "from": "Caught Red-Handed",
-      "to": "Predators in the Market District"
+      "from": "A Stubbornly Sealed Box",
+      "to": "A Transaction in Marrow's Crossing"
     },
     "tags": {
       "added": [
-        "suspense",
-        "tense_confrontation"
+        "tense_interaction"
       ],
       "removed": [
-        "discovery",
-        "tense_interaction",
-        "stealth_fail"
+        "tense_moment"
       ]
     },
     "turn_entered": {
-      "from": 4,
+      "from": 5,
       "to": 7
     }
   }
@@ -6280,12 +6277,12 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "intent_verb": "persuade",
-  "intent": "The player approaches a campfire where two men are resting, one of whom appears to be wearing Harker's hat.",
+  "intent": "The player approaches the campfire to confront or interact with the two men, noticing an item belonging to Harker.",
   "rolled": true,
-  "total_ms": 3267.0,
-  "tokens_in": 1368,
-  "tokens_out": 108,
-  "outcome_summary": "The player confronts two suspicious men at a campfire, one of whom appears to be wearing Harker's hat.",
+  "total_ms": 3364.2,
+  "tokens_in": 1402,
+  "tokens_out": 106,
+  "outcome_summary": "Aren Voss successfully negotiated passage through the canyon thugs and recovered Old Man Harker's hat.",
   "skill": "charisma",
   "difficulty": "normal",
   "dice": [
@@ -6297,9 +6294,9 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "raw_total": 9,
   "final_total": 10,
   "band": "success",
-  "momentum_before": 1,
-  "momentum_after": 2,
-  "momentum_delta": 1
+  "momentum_before": -3,
+  "momentum_after": -1,
+  "momentum_delta": 2
 }
 ```
 
@@ -6317,23 +6314,22 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "scene_tags": [
-    "tense_confrontation",
+    "tense_negotiation",
+    "confrontation",
     "discovery"
   ],
-  "scene_tagline": "Shadows by the Campfire",
-  "location_description": "A small campfire flickers at the base of the cliffs, casting dancing orange light against the surrounding rocks.",
+  "scene_tagline": "A Tense Standoff Broken",
+  "location_description": "The base of the canyon wall features a small, flickering campfire that casts long, dancing shadows against the bruised-purple stone.",
   "compendium_npc_update": [
     {
       "id": "tough_a",
       "aliases": [],
-      "presence": "present",
-      "notes": "coiled like a spring"
+      "notes": "standing aside after reluctant agreement"
     },
     {
       "id": "tough_b",
       "aliases": [],
-      "presence": "present",
-      "notes": "watching player's belt"
+      "notes": "spitting into fire, glancing at cliffs"
     }
   ]
 }
@@ -6349,7 +6345,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "pc_condition_add": [],
   "pc_condition_remove": [
     {
-      "id": "exhausted"
+      "id": "chilled"
     }
   ]
 }
@@ -6360,23 +6356,26 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "actions": [
-    "Demand they return the hat and explain their presence",
-    "Offer credits to learn about the man who owned it",
-    "Draw your iron dagger and threaten them for answers",
-    "Attempt to de-escalate by claiming you are just passing through"
+    "Seize the salt-stained hat from the campfire shadows.",
+    "Demand information about Harker's fate from the toughs.",
+    "Threaten the Bald Tough to reveal their employer.",
+    "Search the campsite for remaining supplies or clues."
   ],
-  "outcome_summary": "The player confronts two suspicious men at a campfire, one of whom appears to be wearing Harker's hat.",
-  "gm_beat": {
-    "type": "pressure",
-    "surface_as": "npc_behavior"
-  },
-  "thread_resolve": [],
+  "outcome_summary": "Aren Voss successfully negotiated passage through the canyon thugs and recovered Old Man Harker's hat.",
+  "thread_resolve": [
+    {
+      "id": "canyon_ambush",
+      "resolution_state": "resolved",
+      "outcome": "Negotiated passage by leveraging presence and avoiding combat.",
+      "promote_to_world_state": false
+    }
+  ],
   "thread_update": [
     {
       "id": "investigate_harker_disappearance",
       "active": true,
       "urgency": "normal",
-      "progress": "Located men wearing Harker's hat",
+      "progress": "Recovered Harker's hat at the canyon camp.",
       "progress_kind": "advancement"
     }
   ]
@@ -6390,37 +6389,36 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "inventory_add": [],
   "inventory_remove": [],
   "inventory_update": [],
-  "location_description": "A small campfire flickers at the base of the cliffs, casting dancing orange light against the surrounding rocks.",
+  "location_description": "The base of the canyon wall features a small, flickering campfire that casts long, dancing shadows against the bruised-purple stone.",
   "pc_condition_add": [],
   "pc_condition_remove": [
     {
-      "id": "exhausted"
+      "id": "chilled"
     }
   ],
   "scene_tags": [
-    "tense_confrontation",
+    "tense_negotiation",
+    "confrontation",
     "discovery"
   ],
-  "scene_tagline": "Shadows by the Campfire",
+  "scene_tagline": "A Tense Standoff Broken",
   "compendium_npc_update": [
     {
       "id": "tough_a",
       "aliases": [],
-      "presence": "present",
-      "notes": "coiled like a spring"
+      "notes": "standing aside after reluctant agreement"
     },
     {
       "id": "tough_b",
       "aliases": [],
-      "presence": "present",
-      "notes": "watching player's belt"
+      "notes": "spitting into fire, glancing at cliffs"
     }
   ],
   "actions": [
-    "Demand they return the hat and explain their presence",
-    "Offer credits to learn about the man who owned it",
-    "Draw your iron dagger and threaten them for answers",
-    "Attempt to de-escalate by claiming you are just passing through"
+    "Seize the salt-stained hat from the campfire shadows.",
+    "Demand information about Harker's fate from the toughs.",
+    "Threaten the Bald Tough to reveal their employer.",
+    "Search the campsite for remaining supplies or clues."
   ]
 }
 ```
@@ -6445,7 +6443,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 {
   "arc": {
     "last_thread_created_turn": {
-      "from": 8,
+      "from": 5,
       "to": 9
     },
     "threads": {
@@ -6453,66 +6451,78 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         {
           "active": true,
           "added_turn": 9,
-          "id": "canyon_exploration_danger",
+          "id": "canyon_ambush",
           "progress": [],
           "scope": "scene",
-          "summary": "Navigate hazards of the Red Canyon cliffs",
-          "urgency": "normal",
-          "urgency_set_turn": 9
-        }
-      ],
-      "removed": [
-        {
-          "active": true,
-          "added_turn": 8,
-          "id": "street_confrontation",
-          "progress": [],
-          "scope": "scene",
-          "summary": "Avoid or resolve sudden roadside aggression",
+          "summary": "Survive the road thugs' ambush",
           "urgency": "urgent",
-          "urgency_set_turn": 8
+          "urgency_set_turn": 9
         }
       ],
       "changed": [
         {
           "from": {
             "active": true,
-            "id": "investigate_harker_disappearance",
-            "last_updated_turn": 7,
+            "id": "deliver_the_ledger",
+            "last_updated_turn": 8,
             "progress": [
               {
-                "kind": "setback",
-                "text": "Officer Thorne denies any official missing person report"
+                "kind": "advancement",
+                "text": "Arrived in Dustfall for the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Found map of Red Canyon cliffs"
+                "text": "Learned Harker went north with travelers."
+              },
+              {
+                "kind": "advancement",
+                "text": "Assay office refused to share claims."
+              },
+              {
+                "kind": "advancement",
+                "text": "Sheriff's office has no missing report."
+              },
+              {
+                "kind": "advancement",
+                "text": "Gathering supplies for the journey ahead"
               }
             ],
             "scope": "arc",
-            "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+            "summary": "Deliver Halden's ledger to the merchant at the Crossed Keys Inn.",
             "urgency": "normal"
           },
           "to": {
             "active": true,
-            "id": "investigate_harker_disappearance",
+            "id": "deliver_the_ledger",
             "last_updated_turn": 9,
             "progress": [
               {
-                "kind": "setback",
-                "text": "Officer Thorne denies any official missing person report"
+                "kind": "advancement",
+                "text": "Arrived in Dustfall for the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Found map of Red Canyon cliffs"
+                "text": "Learned Harker went north with travelers."
               },
               {
                 "kind": "advancement",
-                "text": "Reached Red Canyon cliffs near disappearance site"
+                "text": "Assay office refused to share claims."
+              },
+              {
+                "kind": "advancement",
+                "text": "Sheriff's office has no missing report."
+              },
+              {
+                "kind": "advancement",
+                "text": "Gathering supplies for the journey ahead"
+              },
+              {
+                "kind": "shift",
+                "text": "Traveling through Red Canyon toward destination"
               }
             ],
             "scope": "arc",
-            "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+            "summary": "Deliver Halden's ledger to the merchant at the Crossed Keys Inn.",
             "urgency": "normal"
           }
         }
@@ -6521,23 +6531,9 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   },
   "compendium": {
     "npcs": {
-      "assay_clerk": {
-        "last_seen": {
-          "location_id": {
-            "from": "general_store",
-            "to": "red_canyon_cliffs"
-          },
-          "location_name": {
-            "from": "General Store",
-            "to": "Red Canyon Cliffs"
-          },
-          "turn": {
-            "from": 8,
-            "to": 9
-          }
-        },
+      "silas_vance": {
         "notes": {
-          "from": "watching with wide-eyed alarm",
+          "from": "ringing up supplies \u2014 restless, watching door.",
           "to": null
         },
         "presence": {
@@ -6547,84 +6543,85 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       },
       "tough_a": {
         "last_seen": {
-          "location_id": {
-            "from": "general_store",
-            "to": "red_canyon_cliffs"
-          },
-          "location_name": {
-            "from": "General Store",
-            "to": "Red Canyon Cliffs"
-          },
-          "turn": {
-            "from": 8,
-            "to": 9
+          "from": null,
+          "to": {
+            "location_id": "red_canyon",
+            "location_name": "Red Canyon",
+            "turn": 9
           }
         },
         "notes": {
-          "from": "scanning you with predatory focus",
-          "to": null
+          "from": null,
+          "to": "hand on blade hilt"
         },
         "presence": {
-          "from": "present",
-          "to": "known"
+          "from": null,
+          "to": "present"
         }
       },
       "tough_b": {
         "last_seen": {
-          "location_id": {
-            "from": "general_store",
-            "to": "red_canyon_cliffs"
-          },
-          "location_name": {
-            "from": "General Store",
-            "to": "Red Canyon Cliffs"
-          },
-          "turn": {
-            "from": 8,
-            "to": 9
+          "from": null,
+          "to": {
+            "location_id": "red_canyon",
+            "location_name": "Red Canyon",
+            "turn": 9
           }
         },
         "notes": {
-          "from": "scanning you with predatory focus",
-          "to": null
+          "from": null,
+          "to": "glinting eyes, blocking path"
         },
         "presence": {
-          "from": "present",
-          "to": "known"
+          "from": null,
+          "to": "present"
         }
       }
     }
   },
   "location": {
     "description": {
-      "from": "A cramped shop filled with the scent of cured leather and dust, featuring a counter stacked with iron pots.",
-      "to": "Jagged canyon walls loom overhead like teeth against a bruised purple sky, with long shadows stretching across an uneven trail."
+      "from": "A cramped shop filled with the scent of dried goods and hemp, where a bell chimes upon entry.",
+      "to": "A narrow, jagged gorge with rising walls of bruised-purple stone and a floor of loose shale. The air is biting and cold, echoing with the whistle of wind through cliff cracks."
     },
     "id": {
       "from": "general_store",
-      "to": "red_canyon_cliffs"
+      "to": "red_canyon"
     },
     "name": {
       "from": "General Store",
-      "to": "Red Canyon Cliffs"
+      "to": "Red Canyon"
     }
   },
   "meta": {
+    "compendium_touch_order": {
+      "added": [
+        "tough_a",
+        "tough_b"
+      ],
+      "removed": []
+    },
+    "consecutive_pressure_turns": {
+      "from": 2,
+      "to": 3
+    },
     "last_thread_created_turn": {
-      "from": 8,
+      "from": null,
       "to": 9
     },
     "pending_gm_beat": {
-      "from": {
-        "beat_expires_turn": 10,
-        "surface_as": "ambient",
-        "type": "breathing_room"
+      "beat_expires_turn": {
+        "from": 10,
+        "to": 11
       },
-      "to": null
+      "type": {
+        "from": "complication",
+        "to": "pressure"
+      }
     },
     "prior_history": {
       "added": [
-        "- [T9] The player escaped the thugs in the market and reached the base of the Red Canyon cliffs."
+        "- [T9] Aren Voss enters Red Canyon and is immediately ambushed by two hired thugs blocking the trail."
       ],
       "removed": []
     },
@@ -6633,7 +6630,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         [
           [
             "surface_as",
-            null
+            "npc_behavior"
           ],
           [
             "turn",
@@ -6641,7 +6638,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            null
+            "pressure"
           ]
         ]
       ],
@@ -6649,7 +6646,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         [
           [
             "surface_as",
-            "item"
+            "npc_behavior"
           ],
           [
             "turn",
@@ -6657,7 +6654,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "revelation"
+            "complication"
           ]
         ]
       ]
@@ -6670,41 +6667,28 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "pc": {
     "actions": {
       "added": [
-        "Set up a concealed camp before total darkness falls.",
-        "Follow the charcoal markings on the hand-drawn map.",
-        "Climb the canyon walls to find a vantage point.",
-        "Search the nearby crevices for signs of Harker's wagon."
+        "Offer credits to bribe them for safe passage.",
+        "Attempt to ride past them through the narrow gap.",
+        "Draw your iron dagger and demand their purpose.",
+        "Search the high ridges for a third hidden attacker."
       ],
       "removed": [
-        "Attempt to de-escalate by offering credits to the men.",
-        "Grab the heavy iron pot to use as a weapon.",
-        "Draw your iron dagger and face the thugs directly.",
-        "Pay the clerk quickly and exit through the side door."
+        "Scan the street through the window for suspicious figures.",
+        "Offer extra credits to bribe Silas for local gossip.",
+        "Question Silas about his restless behavior near the door.",
+        "Leave quickly to avoid further scrutiny from the clerk."
       ]
     },
     "conditions": {
       "added": [
         {
           "added_turn": 8,
-          "description": "Breathless from a frantic escape through market alleys.",
-          "id": "exhausted",
-          "label": "exhausted",
-          "turns_remaining": 3
-        }
-      ],
-      "removed": [
-        {
-          "added_turn": 7,
-          "description": "Two aggressive men are staring you down with predatory focus.",
-          "id": "threatened",
-          "label": "Threatened",
+          "description": "The biting temperature of the canyon makes movement difficult and focus harder.",
+          "id": "chilled",
+          "label": "Chilled",
           "turns_remaining": 3
         }
       ]
-    },
-    "momentum": {
-      "from": 2,
-      "to": 1
     }
   },
   "scene": {
@@ -6713,19 +6697,18 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       "to": 8
     },
     "tagline": {
-      "from": "Predators in the Market District",
-      "to": "Escape to the Red Canyon"
+      "from": "A Transaction in Marrow's Crossing",
+      "to": "Shadows Block the Trail"
     },
     "tags": {
       "added": [
+        "confrontation",
         "tense",
-        "discovery",
-        "escape",
-        "pursuit"
+        "ambush"
       ],
       "removed": [
-        "suspense",
-        "tense_confrontation"
+        "investigation",
+        "tense_interaction"
       ]
     },
     "turn_entered": {
@@ -6834,112 +6817,48 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
     "completed_threads": {
       "added": [
         {
-          "active": false,
-          "id": "settle_the_debt",
-          "outcome": "The player has pivoted focus entirely to the Harker investigation.",
-          "progress": [],
-          "resolution_state": "abandoned",
-          "resolved_turn": 10,
-          "scope": "arc",
-          "summary": "Settle the 500-credit debt with Caron.",
-          "urgency": "normal"
-        },
-        {
           "active": true,
           "added_turn": 9,
-          "id": "canyon_exploration_danger",
-          "outcome": "Thugs intimidated and Harker rescued from cave",
+          "id": "canyon_ambush",
+          "outcome": "Negotiated passage by leveraging presence and avoiding combat.",
           "progress": [],
           "resolution_state": "resolved",
-          "resolved_turn": 11,
+          "resolved_turn": 10,
           "scope": "scene",
-          "summary": "Navigate hazards of the Red Canyon cliffs",
-          "urgency": "normal",
+          "summary": "Survive the road thugs' ambush",
+          "urgency": "urgent",
           "urgency_set_turn": 9
-        },
-        {
-          "active": false,
-          "id": "deliver_the_ledger",
-          "last_updated_turn": 8,
-          "outcome": "Arrived in Dustfall with Harker; ledger delivery pending.",
-          "progress": [
-            {
-              "kind": "shift",
-              "text": "Arrived in Dustfall toward destination"
-            },
-            {
-              "kind": "shift",
-              "text": "Learned Harker's wagon was empty"
-            },
-            {
-              "kind": "shift",
-              "text": "Found signed ledger page near office"
-            },
-            {
-              "kind": "shift",
-              "text": "Confirmed no missing person report filed"
-            }
-          ],
-          "resolution_state": "resolved",
-          "resolved_turn": 12,
-          "scope": "arc",
-          "summary": "Deliver Halden's ledger to the merchant at the Crossed Keys Inn.",
-          "urgency": "normal"
         }
       ]
     },
     "goal_context": {
       "from": "",
-      "to": "The player has moved from town-based investigation to a direct confrontation at Red Canyon."
+      "to": "The PC has found Harker's hat at a canyon camp, suggesting the investigation into his disappearance is now a primary focus alongside existing financial obligations."
+    },
+    "last_thread_created_turn": {
+      "from": 9,
+      "to": 10
     },
     "threads": {
-      "removed": [
-        {
-          "active": false,
-          "id": "settle_the_debt",
-          "progress": [],
-          "scope": "arc",
-          "summary": "Settle the 500-credit debt with Caron.",
-          "urgency": "normal"
-        },
+      "added": [
         {
           "active": true,
-          "id": "deliver_the_ledger",
-          "last_updated_turn": 8,
-          "progress": [
-            {
-              "kind": "advancement",
-              "text": "Arrived in Dustfall toward destination"
-            },
-            {
-              "kind": "advancement",
-              "text": "Learned Harker's wagon was found empty"
-            },
-            {
-              "kind": "advancement",
-              "text": "Found signed ledger page near Assay Office"
-            },
-            {
-              "kind": "advancement",
-              "text": "Confirmed no missing person report filed"
-            },
-            {
-              "kind": "advancement",
-              "text": "Arrived in Dustfall toward destination"
-            }
-          ],
+          "id": "unlock_the_tin_box",
+          "progress": [],
           "scope": "arc",
-          "summary": "Deliver Halden's ledger to the merchant at the Crossed Keys Inn.",
+          "summary": "Find a way to open the locked tin box from the station.",
           "urgency": "normal"
-        },
+        }
+      ],
+      "removed": [
         {
           "active": true,
           "added_turn": 9,
-          "id": "canyon_exploration_danger",
+          "id": "canyon_ambush",
           "progress": [],
           "scope": "scene",
-          "summary": "Navigate hazards of the Red Canyon cliffs",
-          "urgency": "normal",
+          "summary": "Survive the road thugs' ambush",
+          "urgency": "urgent",
           "urgency_set_turn": 9
         }
       ],
@@ -6947,24 +6866,90 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         {
           "from": {
             "active": true,
-            "id": "investigate_harker_disappearance",
+            "id": "deliver_the_ledger",
             "last_updated_turn": 9,
             "progress": [
               {
-                "kind": "setback",
-                "text": "Officer Thorne denies any official missing person report"
+                "kind": "advancement",
+                "text": "Arrived in Dustfall for the innkeeper."
               },
               {
                 "kind": "advancement",
-                "text": "Found map of Red Canyon cliffs"
+                "text": "Learned Harker went north with travelers."
               },
               {
                 "kind": "advancement",
-                "text": "Reached Red Canyon cliffs near disappearance site"
+                "text": "Assay office refused to share claims."
+              },
+              {
+                "kind": "advancement",
+                "text": "Sheriff's office has no missing report."
+              },
+              {
+                "kind": "advancement",
+                "text": "Gathering supplies for the journey ahead"
+              },
+              {
+                "kind": "shift",
+                "text": "Traveling through Red Canyon toward destination"
               }
             ],
             "scope": "arc",
-            "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+            "summary": "Deliver Halden's ledger to the merchant at the Crossed Keys Inn.",
+            "urgency": "normal"
+          },
+          "to": {
+            "active": false,
+            "id": "deliver_the_ledger",
+            "last_updated_turn": 9,
+            "progress": [
+              {
+                "kind": "shift",
+                "text": "Arrived in Dustfall for the innkeeper."
+              },
+              {
+                "kind": "shift",
+                "text": "Learned Harker went north with travelers."
+              },
+              {
+                "kind": "shift",
+                "text": "Assay office refused to share claims."
+              },
+              {
+                "kind": "shift",
+                "text": "Sheriff's office has no missing report."
+              },
+              {
+                "kind": "shift",
+                "text": "Purchased supplies at general store."
+              },
+              {
+                "kind": "shift",
+                "text": "Traveled through Red Canyon."
+              }
+            ],
+            "scope": "arc",
+            "summary": "Deliver Halden's ledger to the merchant at the Crossed Keys Inn.",
+            "urgency": "normal"
+          }
+        },
+        {
+          "from": {
+            "active": true,
+            "id": "investigate_harker_disappearance",
+            "last_updated_turn": 7,
+            "progress": [
+              {
+                "kind": "setback",
+                "text": "Official law enforcement refuses to investigate"
+              },
+              {
+                "kind": "setback",
+                "text": "failed to find clues in station"
+              }
+            ],
+            "scope": "arc",
+            "summary": "Find out what happened to Old Man Harker.",
             "urgency": "normal"
           },
           "to": {
@@ -6973,32 +6958,24 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "last_updated_turn": 13,
             "progress": [
               {
-                "kind": "setback",
-                "text": "Officer Thorne denies any official missing person report"
+                "kind": "advancement",
+                "text": "Official law enforcement refuses to investigate."
               },
               {
                 "kind": "advancement",
-                "text": "Found map of Red Canyon cliffs"
+                "text": "Failed to pry open locked box."
               },
               {
                 "kind": "advancement",
-                "text": "Reached Red Canyon cliffs near disappearance site"
+                "text": "Recovered Harker's hat at canyon camp."
               },
               {
                 "kind": "advancement",
-                "text": "Located men wearing Harker's hat"
-              },
-              {
-                "kind": "advancement",
-                "text": "Rescued Harker from canyon cave"
-              },
-              {
-                "kind": "advancement",
-                "text": "Harker rescued and brought to clinic"
+                "text": "Harker rescued and reveals box motive"
               }
             ],
             "scope": "arc",
-            "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+            "summary": "Find out what happened to Old Man Harker.",
             "urgency": "normal"
           }
         }
@@ -7006,39 +6983,15 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
     },
     "visible_goal": {
       "from": "Clear your debts and deliver the ledger \u2014 two obligations binding you to Marrow's Crossing.",
-      "to": "Investigate Harker's disappearance and survive the canyon encounter."
+      "to": "Investigate Harker's disappearance and settle your debts."
     }
   },
   "compendium": {
     "npcs": {
-      "elara_vance": {
-        "last_seen": {
-          "location_id": {
-            "from": "assay_office",
-            "to": "dustfall_outskirts"
-          },
-          "location_name": {
-            "from": "Assay Office",
-            "to": "Dustfall Outskirts"
-          },
-          "turn": {
-            "from": 4,
-            "to": 13
-          }
-        },
-        "notes": {
-          "from": null,
-          "to": "serving whiskey with a solemn nod"
-        },
-        "presence": {
-          "from": "known",
-          "to": "present"
-        }
-      },
       "old_man_harker": {
         "from": null,
         "to": {
-          "bio": "An elderly man with a face marked by fresh bruises and dried blood. He appears physically weakened and traumatized after being held captive.",
+          "bio": "An elderly man with a face marked by dark bruises and dried blood. He appears physically broken and traumatized, possessing a desperate strength when driven by fear.",
           "first_seen_turn": 10,
           "last_seen": {
             "location_id": "dustfall_outskirts",
@@ -7046,33 +6999,23 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "turn": 13
           },
           "name": "Old Man Harker",
-          "notes": "stumbling toward clinic",
           "presence": "known",
-          "title": "Victim"
+          "title": "Prisoner"
         }
       },
-      "saloon_patrons": {
-        "last_seen": {
-          "location_id": {
-            "from": "assay_office",
-            "to": "dustfall_outskirts"
+      "scarred_traveler": {
+        "from": null,
+        "to": {
+          "bio": "A man with a jagged scar cutting through his eyebrow and an unsettlingly observant gaze. He moves with the quiet stillness of someone accustomed to watching for trouble.",
+          "first_seen_turn": 12,
+          "last_seen": {
+            "location_id": "dustfall_outskirts",
+            "location_name": "Dustfall Outskirts",
+            "turn": 13
           },
-          "location_name": {
-            "from": "Assay Office",
-            "to": "Dustfall Outskirts"
-          },
-          "turn": {
-            "from": 4,
-            "to": 13
-          }
-        },
-        "notes": {
-          "from": null,
-          "to": "whispering warily in the corner"
-        },
-        "presence": {
-          "from": "known",
-          "to": "present"
+          "name": "Scarred Traveler",
+          "notes": "watching player intently from back table",
+          "presence": "present"
         }
       },
       "tough_a": {
@@ -7081,6 +7024,14 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "from": 9,
             "to": 11
           }
+        },
+        "notes": {
+          "from": "hand on blade hilt",
+          "to": null
+        },
+        "presence": {
+          "from": "present",
+          "to": "known"
         }
       },
       "tough_b": {
@@ -7089,6 +7040,14 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "from": 9,
             "to": 11
           }
+        },
+        "notes": {
+          "from": "glinting eyes, blocking path",
+          "to": null
+        },
+        "presence": {
+          "from": "present",
+          "to": "known"
         }
       }
     }
@@ -7098,91 +7057,74 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       {
         "amount": 1,
         "id": "whiskey_glass",
-        "name": "Whiskey glass",
-        "notes": "A single serving of whiskey provided by Elara Vance."
+        "name": "Glass of whiskey",
+        "notes": "A single serving of whiskey from the bartender"
       }
     ],
-    "removed": [
+    "changed": [
       {
-        "amount": 1,
-        "id": "hempen_rope",
-        "name": "Hempen rope",
-        "notes": ""
+        "from": {
+          "amount": 1,
+          "id": "water_canteen",
+          "name": "Leather water canteen",
+          "notes": "Filled with fresh water"
+        },
+        "to": {
+          "amount": 1,
+          "id": "water_canteen",
+          "name": "Leather water canteen",
+          "notes": "Partially empty after sharing with Harker"
+        }
       }
     ]
   },
   "location": {
     "description": {
-      "from": "Jagged canyon walls loom overhead like teeth against a bruised purple sky, with long shadows stretching across an uneven trail.",
-      "to": "The tavern is thick with the scent of stale ale and heat, where dim lighting casts long shadows over scarred wooden surfaces."
+      "from": "A narrow, jagged gorge with rising walls of bruised-purple stone and a floor of loose shale. The air is biting and cold, echoing with the whistle of wind through cliff cracks.",
+      "to": "The saloon interior is thick with the scent of stale ale and pipe smoke, dimly lit by hanging lanterns that leave the corners in twisting shadow."
     },
     "id": {
-      "from": "red_canyon_cliffs",
+      "from": "red_canyon",
       "to": "dustfall_outskirts"
     },
     "name": {
-      "from": "Red Canyon Cliffs",
+      "from": "Red Canyon",
       "to": "Dustfall Outskirts"
     }
   },
   "meta": {
     "compendium_touch_order": {
       "added": [
+        "scarred_traveler",
         "old_man_harker"
       ],
       "removed": []
     },
     "consecutive_pressure_turns": {
-      "from": 0,
-      "to": 2
+      "from": 3,
+      "to": 0
     },
     "pending_gm_beat": {
-      "from": null,
-      "to": {
-        "beat_expires_turn": 15,
-        "surface_as": "npc_behavior",
-        "type": "complication"
+      "beat_expires_turn": {
+        "from": 11,
+        "to": 15
+      },
+      "type": {
+        "from": "pressure",
+        "to": "revelation"
       }
     },
     "prior_history": {
       "added": [
-        "- [T11] The player intimidated the thugs and successfully freed Old Man Harker from his bindings in the canyon cave.",
-        "- [T13] The player delivers Harker to the clinic and seeks refuge in the saloon.",
-        "- [T10] The player confronts two suspicious men at a campfire, one of whom appears to be wearing Harker's hat.",
-        "- [T12] The player successfully guides a traumatized Harker from the Red Canyon cliffs into the outskirts of Dustfall."
+        "- [T10] Aren Voss successfully negotiated passage through the canyon thugs and recovered Old Man Harker's hat.",
+        "- [T12] Aren Voss guides a traumatized Harker back to Dustfall, learning the tin box contains something potentially catastrophic.",
+        "- [T11] Aren Voss rescues Old Man Harker from the cave and learns the thugs were seeking the contents of the tin box.",
+        "- [T13] Aren Voss settles Harker near the deputy's office and enters the saloon, drawing the intense scrutiny of a scarred traveler."
       ],
       "removed": []
     },
     "recent_beats": {
       "added": [
-        [
-          [
-            "surface_as",
-            null
-          ],
-          [
-            "turn",
-            11
-          ],
-          [
-            "type",
-            null
-          ]
-        ],
-        [
-          [
-            "surface_as",
-            "npc_behavior"
-          ],
-          [
-            "turn",
-            10
-          ],
-          [
-            "type",
-            "pressure"
-          ]
-        ],
         [
           [
             "surface_as",
@@ -7194,7 +7136,35 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "pressure"
+            "revelation"
+          ]
+        ],
+        [
+          [
+            "surface_as",
+            "ambient"
+          ],
+          [
+            "turn",
+            10
+          ],
+          [
+            "type",
+            "breathing_room"
+          ]
+        ],
+        [
+          [
+            "surface_as",
+            "npc_behavior"
+          ],
+          [
+            "turn",
+            11
+          ],
+          [
+            "type",
+            "revelation"
           ]
         ],
         [
@@ -7208,7 +7178,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "complication"
+            "revelation"
           ]
         ]
       ],
@@ -7216,25 +7186,25 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         [
           [
             "surface_as",
-            "npc_behavior"
+            null
           ],
           [
             "turn",
-            7
+            5
           ],
           [
             "type",
-            "escalation"
+            null
           ]
         ],
         [
           [
             "surface_as",
-            "ambient"
+            "environmental"
           ],
           [
             "turn",
-            8
+            6
           ],
           [
             "type",
@@ -7244,11 +7214,11 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         [
           [
             "surface_as",
-            "ambient"
+            "npc_behavior"
           ],
           [
             "turn",
-            6
+            7
           ],
           [
             "type",
@@ -7262,7 +7232,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "turn",
-            5
+            8
           ],
           [
             "type",
@@ -7279,32 +7249,32 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "pc": {
     "actions": {
       "added": [
-        "Question Elara about any suspicious activity near the canyon.",
-        "Listen to the patrons' whispers for rumors of the thugs.",
-        "Order another whiskey to observe the room more closely.",
-        "Search for a local healer willing to treat Harker."
+        "Search for Edda to report Harker's condition.",
+        "Confront the scarred traveler about his sudden silence.",
+        "Question the travelers huddled over the map.",
+        "Order another whiskey to observe the room quietly."
       ],
       "removed": [
-        "Set up a concealed camp before total darkness falls.",
-        "Follow the charcoal markings on the hand-drawn map.",
-        "Climb the canyon walls to find a vantage point.",
-        "Search the nearby crevices for signs of Harker's wagon."
+        "Offer credits to bribe them for safe passage.",
+        "Attempt to ride past them through the narrow gap.",
+        "Draw your iron dagger and demand their purpose.",
+        "Search the high ridges for a third hidden attacker."
       ]
     },
     "conditions": {
       "removed": [
         {
           "added_turn": 8,
-          "description": "Breathless from a frantic escape through market alleys.",
-          "id": "exhausted",
-          "label": "exhausted",
+          "description": "The biting temperature of the canyon makes movement difficult and focus harder.",
+          "id": "chilled",
+          "label": "Chilled",
           "turns_remaining": 3
         }
       ]
     },
     "momentum": {
-      "from": 1,
-      "to": 3
+      "from": -3,
+      "to": -1
     }
   },
   "scene": {
@@ -7313,19 +7283,19 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       "to": 11
     },
     "tagline": {
-      "from": "Escape to the Red Canyon",
-      "to": "A Drink in the Gloom"
+      "from": "Shadows Block the Trail",
+      "to": "A Brittle Silence"
     },
     "tags": {
       "added": [
-        "social_interaction",
-        "tense_atmosphere"
+        "investigation",
+        "tense_atmosphere",
+        "suspicion"
       ],
       "removed": [
+        "confrontation",
         "tense",
-        "discovery",
-        "escape",
-        "pursuit"
+        "ambush"
       ]
     },
     "turn_entered": {
@@ -7377,27 +7347,27 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 **Parsed (engine):**
 ```json
 {
-  "intent_verb": "intimidate",
-  "intent": "The player attempts to force the thugs into surrendering and then rescues Old Man Harker from a cave.",
+  "intent_verb": "repair",
+  "intent": "Aren Voss finds the captive Old Man Harker in a nearby cave, frees him from his bonds, and provides medical aid.",
   "rolled": true,
-  "total_ms": 2914.1,
-  "tokens_in": 1394,
-  "tokens_out": 98,
-  "outcome_summary": "The player intimidated the thugs and successfully freed Old Man Harker from his bindings in the canyon cave.",
-  "skill": "charisma",
-  "difficulty": "hard",
+  "total_ms": 3439.3,
+  "tokens_in": 1413,
+  "tokens_out": 107,
+  "outcome_summary": "Aren Voss rescues Old Man Harker from the cave and learns the thugs were seeking the contents of the tin box.",
+  "skill": "dexterity",
+  "difficulty": "easy",
   "dice": [
-    10
+    6
   ],
   "stat_mod": 1,
-  "diff_mod": -1,
+  "diff_mod": 1,
   "cond_mod": 0,
-  "raw_total": 10,
-  "final_total": 10,
-  "band": "success",
-  "momentum_before": 2,
-  "momentum_after": 3,
-  "momentum_delta": 1
+  "raw_total": 6,
+  "final_total": 8,
+  "band": "partial",
+  "momentum_before": -1,
+  "momentum_after": -1,
+  "momentum_delta": 0
 }
 ```
 
@@ -7415,30 +7385,33 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "scene_tags": [
+    "discovery",
     "tense_rescue",
-    "discovery"
+    "investigation"
   ],
-  "scene_tagline": "A Fragile Rescue in the Dark",
-  "location_description": "The mouth of a narrow cave, where damp stone walls provide a cold contrast to the flickering campfire outside.",
+  "scene_tagline": "A Prisoner in the Dark",
+  "location_description": "The cave interior is damp and claustrophobic, with jagged stone walls that swallow the light from the dying campfire outside.",
   "compendium_npc_update": [
+    {
+      "id": "old_man_harker",
+      "name": "Old Man Harker",
+      "title": "Prisoner",
+      "bio": "An elderly man with a face marked by dark bruises and dried blood. He appears physically broken and traumatized, possessing a desperate strength when driven by fear.",
+      "aliases": [],
+      "presence": "present",
+      "notes": "clutching sleeve with trembling hands"
+    },
     {
       "id": "tough_a",
       "aliases": [],
-      "notes": "backing away toward shadows"
+      "presence": "known",
+      "notes": ""
     },
     {
       "id": "tough_b",
       "aliases": [],
-      "notes": "exchanging wary looks"
-    },
-    {
-      "id": "old_man_harker",
-      "name": "Old Man Harker",
-      "title": "Victim",
-      "bio": "An elderly man with a face marked by fresh bruises and dried blood. He appears physically weakened and traumatized after being held captive.",
-      "aliases": [],
-      "presence": "present",
-      "notes": "clinging to canteen greedily"
+      "presence": "known",
+      "notes": ""
     }
   ]
 }
@@ -7449,13 +7422,14 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "inventory_add": [],
-  "inventory_remove": [
+  "inventory_remove": [],
+  "inventory_update": [
     {
-      "id": "hempen_rope",
-      "amount": 1
+      "id": "water_canteen",
+      "name": "Leather water canteen",
+      "notes": "Partially empty after sharing with Harker"
     }
   ],
-  "inventory_update": [],
   "pc_condition_add": [],
   "pc_condition_remove": []
 }
@@ -7466,26 +7440,23 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "actions": [
-    "Question Harker about what specifically the thugs were searching for.",
-    "Threaten the retreating thugs to reveal their employer's identity.",
-    "Secure the cave entrance to protect the wounded Harker.",
-    "Search the surrounding campsite for any stolen goods or ledgers."
+    "Question Harker about the specific contents of the box",
+    "Search the thugs' camp for any remaining clues",
+    "Tend to Harker's wounds using the linen bandages",
+    "Move quickly toward Dustfall before the thugs return"
   ],
-  "outcome_summary": "The player intimidated the thugs and successfully freed Old Man Harker from his bindings in the canyon cave.",
-  "thread_resolve": [
-    {
-      "id": "canyon_exploration_danger",
-      "resolution_state": "resolved",
-      "outcome": "Thugs intimidated and Harker rescued from cave",
-      "promote_to_world_state": false
-    }
-  ],
+  "outcome_summary": "Aren Voss rescues Old Man Harker from the cave and learns the thugs were seeking the contents of the tin box.",
+  "gm_beat": {
+    "type": "revelation",
+    "surface_as": "npc_behavior"
+  },
+  "thread_resolve": [],
   "thread_update": [
     {
       "id": "investigate_harker_disappearance",
       "active": true,
       "urgency": "normal",
-      "progress": "Located and freed Old Man Harker",
+      "progress": "Harker rescued and reveals box motive",
       "progress_kind": "advancement"
     }
   ]
@@ -7497,47 +7468,51 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "inventory_add": [],
-  "inventory_remove": [
+  "inventory_remove": [],
+  "inventory_update": [
     {
-      "id": "hempen_rope",
-      "amount": 1
+      "id": "water_canteen",
+      "name": "Leather water canteen",
+      "notes": "Partially empty after sharing with Harker"
     }
   ],
-  "inventory_update": [],
-  "location_description": "The mouth of a narrow cave, where damp stone walls provide a cold contrast to the flickering campfire outside.",
+  "location_description": "The cave interior is damp and claustrophobic, with jagged stone walls that swallow the light from the dying campfire outside.",
   "pc_condition_add": [],
   "pc_condition_remove": [],
   "scene_tags": [
+    "discovery",
     "tense_rescue",
-    "discovery"
+    "investigation"
   ],
-  "scene_tagline": "A Fragile Rescue in the Dark",
+  "scene_tagline": "A Prisoner in the Dark",
   "compendium_npc_update": [
+    {
+      "id": "old_man_harker",
+      "name": "Old Man Harker",
+      "title": "Prisoner",
+      "bio": "An elderly man with a face marked by dark bruises and dried blood. He appears physically broken and traumatized, possessing a desperate strength when driven by fear.",
+      "aliases": [],
+      "presence": "present",
+      "notes": "clutching sleeve with trembling hands"
+    },
     {
       "id": "tough_a",
       "aliases": [],
-      "notes": "backing away toward shadows"
+      "presence": "known",
+      "notes": ""
     },
     {
       "id": "tough_b",
       "aliases": [],
-      "notes": "exchanging wary looks"
-    },
-    {
-      "id": "old_man_harker",
-      "name": "Old Man Harker",
-      "title": "Victim",
-      "bio": "An elderly man with a face marked by fresh bruises and dried blood. He appears physically weakened and traumatized after being held captive.",
-      "aliases": [],
-      "presence": "present",
-      "notes": "clinging to canteen greedily"
+      "presence": "known",
+      "notes": ""
     }
   ],
   "actions": [
-    "Question Harker about what specifically the thugs were searching for.",
-    "Threaten the retreating thugs to reveal their employer's identity.",
-    "Secure the cave entrance to protect the wounded Harker.",
-    "Search the surrounding campsite for any stolen goods or ledgers."
+    "Question Harker about the specific contents of the box",
+    "Search the thugs' camp for any remaining clues",
+    "Tend to Harker's wounds using the linen bandages",
+    "Move quickly toward Dustfall before the thugs return"
   ]
 }
 ```
@@ -7562,86 +7537,45 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 {
   "arc": {
     "completed_threads": {
-      "removed": [
+      "changed": [
         {
-          "active": true,
-          "added_turn": 9,
-          "id": "canyon_exploration_danger",
-          "outcome": "Thugs intimidated and Harker rescued from cave",
-          "progress": [],
-          "resolution_state": "resolved",
-          "resolved_turn": 11,
-          "scope": "scene",
-          "summary": "Navigate hazards of the Red Canyon cliffs",
-          "urgency": "normal",
-          "urgency_set_turn": 9
-        },
-        {
-          "active": false,
-          "id": "deliver_the_ledger",
-          "last_updated_turn": 8,
-          "outcome": "Arrived in Dustfall with Harker; ledger delivery pending.",
-          "progress": [
-            {
-              "kind": "shift",
-              "text": "Arrived in Dustfall toward destination"
-            },
-            {
-              "kind": "shift",
-              "text": "Learned Harker's wagon was empty"
-            },
-            {
-              "kind": "shift",
-              "text": "Found signed ledger page near office"
-            },
-            {
-              "kind": "shift",
-              "text": "Confirmed no missing person report filed"
-            }
-          ],
-          "resolution_state": "resolved",
-          "resolved_turn": 12,
-          "scope": "arc",
-          "summary": "Deliver Halden's ledger to the merchant at the Crossed Keys Inn.",
-          "urgency": "normal"
+          "from": {
+            "active": true,
+            "added_turn": 9,
+            "id": "canyon_ambush",
+            "outcome": "Negotiated passage by leveraging presence and avoiding combat.",
+            "progress": [],
+            "resolution_state": "resolved",
+            "resolved_turn": 10,
+            "scope": "scene",
+            "summary": "Survive the road thugs' ambush",
+            "urgency": "urgent",
+            "urgency_set_turn": 9
+          },
+          "to": {
+            "active": true,
+            "added_turn": 9,
+            "id": "canyon_ambush",
+            "last_updated_turn": null,
+            "outcome": "Negotiated passage by leveraging presence and avoiding combat.",
+            "progress": [],
+            "resolution_state": "resolved",
+            "resolved_turn": 10,
+            "scope": "scene",
+            "summary": "Survive the road thugs' ambush",
+            "urgency": "urgent",
+            "urgency_set_turn": 9
+          }
         }
-      ],
+      ]
+    },
+    "threads": {
       "changed": [
         {
           "from": {
             "active": false,
-            "id": "clear_the_road_toughs",
-            "outcome": "The player has entered the town, bypassing the road blockade.",
-            "progress": [],
-            "resolution_state": "abandoned",
-            "resolved_turn": 1,
-            "scope": "arc",
-            "summary": "Deal with the toughs blocking the inn entrance.",
-            "urgency": "background"
-          },
-          "to": {
-            "active": false,
-            "added_turn": null,
-            "id": "clear_the_road_toughs",
-            "last_updated_turn": null,
-            "outcome": "The player has entered the town, bypassing the road blockade.",
-            "progress": [],
-            "resolution_state": "abandoned",
-            "resolved_turn": 1,
-            "scope": "arc",
-            "summary": "Deal with the toughs blocking the inn entrance.",
-            "urgency": "background",
-            "urgency_set_turn": null
-          }
-        },
-        {
-          "from": {
-            "active": false,
             "id": "settle_the_debt",
-            "outcome": "The player has pivoted focus entirely to the Harker investigation.",
             "progress": [],
-            "resolution_state": "abandoned",
-            "resolved_turn": 10,
             "scope": "arc",
             "summary": "Settle the 500-credit debt with Caron.",
             "urgency": "normal"
@@ -7651,67 +7585,115 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "added_turn": null,
             "id": "settle_the_debt",
             "last_updated_turn": null,
-            "outcome": "The player has pivoted focus entirely to the Harker investigation.",
+            "outcome": null,
             "progress": [],
-            "resolution_state": "abandoned",
-            "resolved_turn": 10,
+            "resolution_state": null,
+            "resolved_turn": null,
             "scope": "arc",
             "summary": "Settle the 500-credit debt with Caron.",
             "urgency": "normal",
             "urgency_set_turn": null
           }
-        }
-      ]
-    },
-    "threads": {
-      "added": [
-        {
-          "active": false,
-          "added_turn": null,
-          "id": "deliver_the_ledger",
-          "last_updated_turn": 8,
-          "outcome": null,
-          "progress": [
-            {
-              "kind": "shift",
-              "text": "Arrived in Dustfall toward destination"
-            },
-            {
-              "kind": "shift",
-              "text": "Learned Harker's wagon was empty"
-            },
-            {
-              "kind": "shift",
-              "text": "Found signed ledger page near office"
-            },
-            {
-              "kind": "shift",
-              "text": "Confirmed no missing person report filed"
-            }
-          ],
-          "resolution_state": null,
-          "resolved_turn": null,
-          "scope": "arc",
-          "summary": "Deliver Halden's ledger to the merchant at the Crossed Keys Inn.",
-          "urgency": "normal",
-          "urgency_set_turn": null
         },
         {
-          "active": true,
-          "added_turn": 9,
-          "id": "canyon_exploration_danger",
-          "last_updated_turn": null,
-          "outcome": null,
-          "progress": [],
-          "resolution_state": null,
-          "resolved_turn": null,
-          "scope": "scene",
-          "summary": "Navigate hazards of the Red Canyon cliffs",
-          "urgency": "normal",
-          "urgency_set_turn": 9
-        }
-      ],
-      "changed": [
+          "from": {
+            "active": false,
+            "id": "deliver_the_ledger",
+            "last_updated_turn": 9,
+            "progress": [
+              {
+                "kind": "shift",
+                "text": "Arrived in Dustfall for the innkeeper."
+              },
+              {
+                "kind": "shift",
+                "text": "Learned Harker went north with travelers."
+              },
+              {
+                "kind": "shift",
+                "text": "Assay office refused to share claims."
+              },
+              {
+                "kind": "shift",
+                "text": "Sheriff's office has no missing report."
+              },
+              {
+                "kind": "shift",
+                "text": "Purchased supplies at general store."
+              },
+              {
+                "kind": "shift",
+                "text": "Traveled through Red Canyon."
+              }
+            ],
+            "scope": "arc",
+            "summary": "Deliver Halden's ledger to the merchant at the Crossed Keys Inn.",
+            "urgency": "normal"
+          },
+          "to": {
+            "active": false,
+            "added_turn": null,
+            "id": "deliver_the_ledger",
+            "last_updated_turn": 9,
+            "outcome": null,
+            "progress": [
+              {
+                "kind": "shift",
+                "text": "Arrived in Dustfall for the innkeeper."
+              },
+              {
+                "kind": "shift",
+                "text": "Learned Harker went north with travelers."
+              },
+              {
+                "kind": "shift",
+                "text": "Assay office refused to share claims."
+              },
+              {
+                "kind": "shift",
+                "text": "Sheriff's office has no missing report."
+              },
+              {
+                "kind": "shift",
+                "text": "Purchased supplies at general store."
+              },
+              {
+                "kind": "shift",
+                "text": "Traveled through Red Canyon."
+              }
+            ],
+            "resolution_state": null,
+            "resolved_turn": null,
+            "scope": "arc",
+            "summary": "Deliver Halden's ledger to the merchant at the Crossed Keys Inn.",
+            "urgency": "normal",
+            "urgency_set_turn": null
+          }
+        },
+        {
+          "from": {
+            "active": false,
+            "id": "clear_the_road_toughs",
+            "progress": [],
+            "scope": "arc",
+            "summary": "Deal with the toughs blocking the inn entrance.",
+            "urgency": "background"
+          },
+          "to": {
+            "active": false,
+            "added_turn": null,
+            "id": "clear_the_road_toughs",
+            "last_updated_turn": null,
+            "outcome": null,
+            "progress": [],
+            "resolution_state": null,
+            "resolved_turn": null,
+            "scope": "arc",
+            "summary": "Deal with the toughs blocking the inn entrance.",
+            "urgency": "background",
+            "urgency_set_turn": null
+          }
+        },
         {
           "from": {
             "active": true,
@@ -7719,32 +7701,24 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "last_updated_turn": 13,
             "progress": [
               {
-                "kind": "setback",
-                "text": "Officer Thorne denies any official missing person report"
+                "kind": "advancement",
+                "text": "Official law enforcement refuses to investigate."
               },
               {
                 "kind": "advancement",
-                "text": "Found map of Red Canyon cliffs"
+                "text": "Failed to pry open locked box."
               },
               {
                 "kind": "advancement",
-                "text": "Reached Red Canyon cliffs near disappearance site"
+                "text": "Recovered Harker's hat at canyon camp."
               },
               {
                 "kind": "advancement",
-                "text": "Located men wearing Harker's hat"
-              },
-              {
-                "kind": "advancement",
-                "text": "Rescued Harker from canyon cave"
-              },
-              {
-                "kind": "advancement",
-                "text": "Harker rescued and brought to clinic"
+                "text": "Harker rescued and reveals box motive"
               }
             ],
             "scope": "arc",
-            "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+            "summary": "Find out what happened to Old Man Harker.",
             "urgency": "normal"
           },
           "to": {
@@ -7755,26 +7729,46 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "outcome": null,
             "progress": [
               {
-                "kind": "setback",
-                "text": "Officer Thorne denies any official missing person report"
+                "kind": "advancement",
+                "text": "Official law enforcement refuses to investigate."
               },
               {
                 "kind": "advancement",
-                "text": "Found map of Red Canyon cliffs"
+                "text": "Failed to pry open locked box."
               },
               {
                 "kind": "advancement",
-                "text": "Reached Red Canyon cliffs near disappearance site"
-              },
-              {
-                "kind": "advancement",
-                "text": "Located men wearing Harker's hat"
+                "text": "Recovered Harker's hat at canyon camp."
               }
             ],
             "resolution_state": null,
             "resolved_turn": null,
             "scope": "arc",
-            "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+            "summary": "Find out what happened to Old Man Harker.",
+            "urgency": "normal",
+            "urgency_set_turn": null
+          }
+        },
+        {
+          "from": {
+            "active": true,
+            "id": "unlock_the_tin_box",
+            "progress": [],
+            "scope": "arc",
+            "summary": "Find a way to open the locked tin box from the station.",
+            "urgency": "normal"
+          },
+          "to": {
+            "active": true,
+            "added_turn": null,
+            "id": "unlock_the_tin_box",
+            "last_updated_turn": null,
+            "outcome": null,
+            "progress": [],
+            "resolution_state": null,
+            "resolved_turn": null,
+            "scope": "arc",
+            "summary": "Find a way to open the locked tin box from the station.",
             "urgency": "normal",
             "urgency_set_turn": null
           }
@@ -7784,33 +7778,9 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   },
   "compendium": {
     "npcs": {
-      "elara_vance": {
-        "last_seen": {
-          "location_id": {
-            "from": "dustfall_outskirts",
-            "to": "assay_office"
-          },
-          "location_name": {
-            "from": "Dustfall Outskirts",
-            "to": "Assay Office"
-          },
-          "turn": {
-            "from": 13,
-            "to": 4
-          }
-        },
-        "notes": {
-          "from": "serving whiskey with a solemn nod",
-          "to": null
-        },
-        "presence": {
-          "from": "present",
-          "to": "known"
-        }
-      },
       "old_man_harker": {
         "from": {
-          "bio": "An elderly man with a face marked by fresh bruises and dried blood. He appears physically weakened and traumatized after being held captive.",
+          "bio": "An elderly man with a face marked by dark bruises and dried blood. He appears physically broken and traumatized, possessing a desperate strength when driven by fear.",
           "first_seen_turn": 10,
           "last_seen": {
             "location_id": "dustfall_outskirts",
@@ -7818,35 +7788,25 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "turn": 13
           },
           "name": "Old Man Harker",
-          "notes": "stumbling toward clinic",
           "presence": "known",
-          "title": "Victim"
+          "title": "Prisoner"
         },
         "to": null
       },
-      "saloon_patrons": {
-        "last_seen": {
-          "location_id": {
-            "from": "dustfall_outskirts",
-            "to": "assay_office"
+      "scarred_traveler": {
+        "from": {
+          "bio": "A man with a jagged scar cutting through his eyebrow and an unsettlingly observant gaze. He moves with the quiet stillness of someone accustomed to watching for trouble.",
+          "first_seen_turn": 12,
+          "last_seen": {
+            "location_id": "dustfall_outskirts",
+            "location_name": "Dustfall Outskirts",
+            "turn": 13
           },
-          "location_name": {
-            "from": "Dustfall Outskirts",
-            "to": "Assay Office"
-          },
-          "turn": {
-            "from": 13,
-            "to": 4
-          }
+          "name": "Scarred Traveler",
+          "notes": "watching player intently from back table",
+          "presence": "present"
         },
-        "notes": {
-          "from": "whispering warily in the corner",
-          "to": null
-        },
-        "presence": {
-          "from": "present",
-          "to": "known"
-        }
+        "to": null
       },
       "tough_a": {
         "last_seen": {
@@ -7857,7 +7817,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         },
         "notes": {
           "from": null,
-          "to": "coiled like a spring"
+          "to": "standing aside after reluctant agreement"
         },
         "presence": {
           "from": "known",
@@ -7873,7 +7833,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         },
         "notes": {
           "from": null,
-          "to": "watching player's belt"
+          "to": "spitting into fire, glancing at cliffs"
         },
         "presence": {
           "from": "known",
@@ -7883,68 +7843,91 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
     }
   },
   "inventory": {
-    "added": [
-      {
-        "amount": 1,
-        "id": "hempen_rope",
-        "name": "Hempen rope",
-        "notes": ""
-      }
-    ],
     "removed": [
       {
         "amount": 1,
         "id": "whiskey_glass",
-        "name": "Whiskey glass",
-        "notes": "A single serving of whiskey provided by Elara Vance."
+        "name": "Glass of whiskey",
+        "notes": "A single serving of whiskey from the bartender"
+      }
+    ],
+    "changed": [
+      {
+        "from": {
+          "amount": 1,
+          "id": "water_canteen",
+          "name": "Leather water canteen",
+          "notes": "Partially empty after sharing with Harker"
+        },
+        "to": {
+          "amount": 1,
+          "id": "water_canteen",
+          "name": "Leather water canteen",
+          "notes": "Filled with fresh water"
+        }
       }
     ]
   },
   "location": {
     "description": {
-      "from": "The tavern is thick with the scent of stale ale and heat, where dim lighting casts long shadows over scarred wooden surfaces.",
-      "to": "A small campfire flickers at the base of the cliffs, casting dancing orange light against the surrounding rocks."
+      "from": "The saloon interior is thick with the scent of stale ale and pipe smoke, dimly lit by hanging lanterns that leave the corners in twisting shadow.",
+      "to": "The base of the canyon wall features a small, flickering campfire that casts long, dancing shadows against the bruised-purple stone."
     },
     "id": {
       "from": "dustfall_outskirts",
-      "to": "red_canyon_cliffs"
+      "to": "red_canyon"
     },
     "name": {
       "from": "Dustfall Outskirts",
-      "to": "Red Canyon Cliffs"
+      "to": "Red Canyon"
     }
   },
   "meta": {
     "compendium_touch_order": {
       "added": [],
       "removed": [
+        "scarred_traveler",
         "old_man_harker"
       ]
-    },
-    "consecutive_pressure_turns": {
-      "from": 2,
-      "to": 1
     },
     "pending_gm_beat": {
       "beat_expires_turn": {
         "from": 15,
         "to": 12
       },
+      "surface_as": {
+        "from": "npc_behavior",
+        "to": "ambient"
+      },
       "type": {
-        "from": "complication",
-        "to": "pressure"
+        "from": "revelation",
+        "to": "breathing_room"
       }
     },
     "prior_history": {
       "added": [],
       "removed": [
-        "- [T11] The player intimidated the thugs and successfully freed Old Man Harker from his bindings in the canyon cave.",
-        "- [T13] The player delivers Harker to the clinic and seeks refuge in the saloon.",
-        "- [T12] The player successfully guides a traumatized Harker from the Red Canyon cliffs into the outskirts of Dustfall."
+        "- [T12] Aren Voss guides a traumatized Harker back to Dustfall, learning the tin box contains something potentially catastrophic.",
+        "- [T11] Aren Voss rescues Old Man Harker from the cave and learns the thugs were seeking the contents of the tin box.",
+        "- [T13] Aren Voss settles Harker near the deputy's office and enters the saloon, drawing the intense scrutiny of a scarred traveler."
       ]
     },
     "recent_beats": {
       "added": [
+        [
+          [
+            "surface_as",
+            "environmental"
+          ],
+          [
+            "turn",
+            6
+          ],
+          [
+            "type",
+            "breathing_room"
+          ]
+        ],
         [
           [
             "surface_as",
@@ -7956,13 +7939,13 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "escalation"
+            "pressure"
           ]
         ],
         [
           [
             "surface_as",
-            "ambient"
+            "npc_behavior"
           ],
           [
             "turn",
@@ -7970,39 +7953,11 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "breathing_room"
-          ]
-        ],
-        [
-          [
-            "surface_as",
-            "ambient"
-          ],
-          [
-            "turn",
-            6
-          ],
-          [
-            "type",
-            "pressure"
+            "complication"
           ]
         ]
       ],
       "removed": [
-        [
-          [
-            "surface_as",
-            null
-          ],
-          [
-            "turn",
-            11
-          ],
-          [
-            "type",
-            null
-          ]
-        ],
         [
           [
             "surface_as",
@@ -8014,7 +7969,21 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "pressure"
+            "revelation"
+          ]
+        ],
+        [
+          [
+            "surface_as",
+            "npc_behavior"
+          ],
+          [
+            "turn",
+            11
+          ],
+          [
+            "type",
+            "revelation"
           ]
         ],
         [
@@ -8028,7 +7997,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "complication"
+            "revelation"
           ]
         ]
       ]
@@ -8041,21 +8010,17 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "pc": {
     "actions": {
       "added": [
-        "Demand they return the hat and explain their presence",
-        "Attempt to de-escalate by claiming you are just passing through",
-        "Draw your iron dagger and threaten them for answers",
-        "Offer credits to learn about the man who owned it"
+        "Threaten the Bald Tough to reveal their employer.",
+        "Seize the salt-stained hat from the campfire shadows.",
+        "Search the campsite for remaining supplies or clues.",
+        "Demand information about Harker's fate from the toughs."
       ],
       "removed": [
-        "Question Elara about any suspicious activity near the canyon.",
-        "Listen to the patrons' whispers for rumors of the thugs.",
-        "Order another whiskey to observe the room more closely.",
-        "Search for a local healer willing to treat Harker."
+        "Search for Edda to report Harker's condition.",
+        "Confront the scarred traveler about his sudden silence.",
+        "Question the travelers huddled over the map.",
+        "Order another whiskey to observe the room quietly."
       ]
-    },
-    "momentum": {
-      "from": 3,
-      "to": 2
     }
   },
   "scene": {
@@ -8064,17 +8029,19 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       "to": 8
     },
     "tagline": {
-      "from": "A Drink in the Gloom",
-      "to": "Shadows by the Campfire"
+      "from": "A Brittle Silence",
+      "to": "A Tense Standoff Broken"
     },
     "tags": {
       "added": [
-        "discovery",
-        "tense_confrontation"
+        "tense_negotiation",
+        "confrontation",
+        "discovery"
       ],
       "removed": [
-        "social_interaction",
-        "tense_atmosphere"
+        "investigation",
+        "tense_atmosphere",
+        "suspicion"
       ]
     },
     "turn_entered": {
@@ -8127,12 +8094,12 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "intent_verb": "transition",
-  "intent": "The player intends to travel from the Red Canyon Cliffs to the town of Dustfall with Old Man Harker.",
+  "intent": "The player intends to travel from the Red Canyon to the town of Dustfall with Old Man Harker.",
   "rolled": false,
-  "total_ms": 2648.9,
-  "tokens_in": 1440,
-  "tokens_out": 83,
-  "outcome_summary": "The player successfully guides a traumatized Harker from the Red Canyon cliffs into the outskirts of Dustfall."
+  "total_ms": 2790.1,
+  "tokens_in": 1384,
+  "tokens_out": 82,
+  "outcome_summary": "Aren Voss guides a traumatized Harker back to Dustfall, learning the tin box contains something potentially catastrophic."
 }
 ```
 
@@ -8151,22 +8118,21 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 {
   "scene_tags": [
     "travel",
-    "somber",
-    "gloaming"
+    "tense_conversation",
+    "suspense"
   ],
-  "scene_tagline": "Entering the Dim Streets of Dustfall",
+  "scene_tagline": "Whispers of a Burning Secret",
   "location_change": {
     "id": "dustfall_outskirts",
     "name": "Dustfall Outskirts",
-    "description": "The outskirts of a settlement where boarded-up storefronts line the road and flickering lanterns begin to pierce the evening gloom."
+    "description": "The grit-covered streets are lined with saloons casting long, dancing shadows under flickering lanterns as evening settles over the town."
   },
-  "location_description": "The town center near the river crossing is brightly lit, contrasting with the stifled, uneasy atmosphere of the surrounding streets.",
   "compendium_npc_update": [
     {
       "id": "old_man_harker",
       "aliases": [],
       "presence": "present",
-      "notes": "clinging to rider's waist"
+      "notes": "clutching reins with quiet gratitude"
     }
   ]
 }
@@ -8178,15 +8144,14 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 {
   "inventory_add": [],
   "inventory_remove": [],
-  "inventory_update": [],
-  "pc_condition_add": [
+  "inventory_update": [
     {
-      "id": "exhausted",
-      "label": "Exhausted",
-      "description": "The physical strain of guiding a horse through canyon terrain while carrying an extra passenger has left you weary.",
-      "turns_remaining": 3
+      "id": "spare_horse",
+      "name": "spare horse",
+      "notes": "Secured for the trek to Dustfall"
     }
   ],
+  "pc_condition_add": [],
   "pc_condition_remove": []
 }
 ```
@@ -8196,30 +8161,23 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "actions": [
-    "Seek medical aid for Harker at the Crossed Keys inn.",
-    "Confront Elara Vance about the thugs seen near the canyon.",
-    "Search for Caron to settle debts and find information.",
-    "Hide Harker in a dark alley to avoid local scrutiny."
+    "Seek Edda at the Crossed Keys for safe harbor",
+    "Confront Silas Vance about the stolen tin box",
+    "Find Caron to discuss the mounting debt",
+    "Search for the thugs near the saloon entrance"
   ],
-  "outcome_summary": "The player successfully guides a traumatized Harker from the Red Canyon cliffs into the outskirts of Dustfall.",
+  "outcome_summary": "Aren Voss guides a traumatized Harker back to Dustfall, learning the tin box contains something potentially catastrophic.",
   "gm_beat": {
-    "type": "pressure",
+    "type": "revelation",
     "surface_as": "npc_behavior"
   },
-  "thread_resolve": [
-    {
-      "id": "deliver_the_ledger",
-      "resolution_state": "resolved",
-      "outcome": "Arrived in Dustfall with Harker; ledger delivery pending.",
-      "promote_to_world_state": false
-    }
-  ],
+  "thread_resolve": [],
   "thread_update": [
     {
       "id": "investigate_harker_disappearance",
       "active": true,
       "urgency": "normal",
-      "progress": "Rescued Harker from canyon cave",
+      "progress": "Harker reveals box contains dangerous secrets",
       "progress_kind": "advancement"
     }
   ]
@@ -8232,41 +8190,39 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 {
   "inventory_add": [],
   "inventory_remove": [],
-  "inventory_update": [],
+  "inventory_update": [
+    {
+      "id": "spare_horse",
+      "name": "Spare horse",
+      "notes": "Secured for the trek to Dustfall"
+    }
+  ],
   "location_change": {
     "id": "dustfall_outskirts",
     "name": "Dustfall Outskirts",
-    "description": "The outskirts of a settlement where boarded-up storefronts line the road and flickering lanterns begin to pierce the evening gloom."
+    "description": "The grit-covered streets are lined with saloons casting long, dancing shadows under flickering lanterns as evening settles over the town."
   },
-  "location_description": "The town center near the river crossing is brightly lit, contrasting with the stifled, uneasy atmosphere of the surrounding streets.",
-  "pc_condition_add": [
-    {
-      "id": "exhausted",
-      "label": "Exhausted",
-      "description": "The physical strain of guiding a horse through canyon terrain while carrying an extra passenger has left you weary.",
-      "turns_remaining": 3
-    }
-  ],
+  "pc_condition_add": [],
   "pc_condition_remove": [],
   "scene_tags": [
     "travel",
-    "somber",
-    "gloaming"
+    "tense_conversation",
+    "suspense"
   ],
-  "scene_tagline": "Entering the Dim Streets of Dustfall",
+  "scene_tagline": "Whispers of a Burning Secret",
   "compendium_npc_update": [
     {
       "id": "old_man_harker",
       "aliases": [],
       "presence": "present",
-      "notes": "clinging to rider's waist"
+      "notes": "clutching reins with quiet gratitude"
     }
   ],
   "actions": [
-    "Seek medical aid for Harker at the Crossed Keys inn.",
-    "Confront Elara Vance about the thugs seen near the canyon.",
-    "Search for Caron to settle debts and find information.",
-    "Hide Harker in a dark alley to avoid local scrutiny."
+    "Seek Edda at the Crossed Keys for safe harbor",
+    "Confront Silas Vance about the stolen tin box",
+    "Find Caron to discuss the mounting debt",
+    "Search for the thugs near the saloon entrance"
   ]
 }
 ```
@@ -8291,59 +8247,50 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 {
   "arc": {
     "completed_threads": {
-      "added": [
-        {
-          "active": true,
-          "added_turn": 9,
-          "id": "canyon_exploration_danger",
-          "outcome": "Thugs intimidated and Harker rescued from cave",
-          "progress": [],
-          "resolution_state": "resolved",
-          "resolved_turn": 11,
-          "scope": "scene",
-          "summary": "Navigate hazards of the Red Canyon cliffs",
-          "urgency": "normal",
-          "urgency_set_turn": 9
-        }
-      ],
       "changed": [
         {
           "from": {
-            "active": false,
-            "added_turn": null,
-            "id": "clear_the_road_toughs",
+            "active": true,
+            "added_turn": 9,
+            "id": "canyon_ambush",
             "last_updated_turn": null,
-            "outcome": "The player has entered the town, bypassing the road blockade.",
+            "outcome": "Negotiated passage by leveraging presence and avoiding combat.",
             "progress": [],
-            "resolution_state": "abandoned",
-            "resolved_turn": 1,
-            "scope": "arc",
-            "summary": "Deal with the toughs blocking the inn entrance.",
-            "urgency": "background",
-            "urgency_set_turn": null
+            "resolution_state": "resolved",
+            "resolved_turn": 10,
+            "scope": "scene",
+            "summary": "Survive the road thugs' ambush",
+            "urgency": "urgent",
+            "urgency_set_turn": 9
           },
           "to": {
-            "active": false,
-            "id": "clear_the_road_toughs",
-            "outcome": "The player has entered the town, bypassing the road blockade.",
+            "active": true,
+            "added_turn": 9,
+            "id": "canyon_ambush",
+            "outcome": "Negotiated passage by leveraging presence and avoiding combat.",
             "progress": [],
-            "resolution_state": "abandoned",
-            "resolved_turn": 1,
-            "scope": "arc",
-            "summary": "Deal with the toughs blocking the inn entrance.",
-            "urgency": "background"
+            "resolution_state": "resolved",
+            "resolved_turn": 10,
+            "scope": "scene",
+            "summary": "Survive the road thugs' ambush",
+            "urgency": "urgent",
+            "urgency_set_turn": 9
           }
-        },
+        }
+      ]
+    },
+    "threads": {
+      "changed": [
         {
           "from": {
             "active": false,
             "added_turn": null,
             "id": "settle_the_debt",
             "last_updated_turn": null,
-            "outcome": "The player has pivoted focus entirely to the Harker investigation.",
+            "outcome": null,
             "progress": [],
-            "resolution_state": "abandoned",
-            "resolved_turn": 10,
+            "resolution_state": null,
+            "resolved_turn": null,
             "scope": "arc",
             "summary": "Settle the 500-credit debt with Caron.",
             "urgency": "normal",
@@ -8352,58 +8299,43 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           "to": {
             "active": false,
             "id": "settle_the_debt",
-            "outcome": "The player has pivoted focus entirely to the Harker investigation.",
             "progress": [],
-            "resolution_state": "abandoned",
-            "resolved_turn": 10,
             "scope": "arc",
             "summary": "Settle the 500-credit debt with Caron.",
             "urgency": "normal"
           }
-        }
-      ]
-    },
-    "threads": {
-      "removed": [
-        {
-          "active": true,
-          "added_turn": 9,
-          "id": "canyon_exploration_danger",
-          "last_updated_turn": null,
-          "outcome": null,
-          "progress": [],
-          "resolution_state": null,
-          "resolved_turn": null,
-          "scope": "scene",
-          "summary": "Navigate hazards of the Red Canyon cliffs",
-          "urgency": "normal",
-          "urgency_set_turn": 9
-        }
-      ],
-      "changed": [
+        },
         {
           "from": {
             "active": false,
             "added_turn": null,
             "id": "deliver_the_ledger",
-            "last_updated_turn": 8,
+            "last_updated_turn": 9,
             "outcome": null,
             "progress": [
               {
                 "kind": "shift",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall for the innkeeper."
               },
               {
                 "kind": "shift",
-                "text": "Learned Harker's wagon was empty"
+                "text": "Learned Harker went north with travelers."
               },
               {
                 "kind": "shift",
-                "text": "Found signed ledger page near office"
+                "text": "Assay office refused to share claims."
               },
               {
                 "kind": "shift",
-                "text": "Confirmed no missing person report filed"
+                "text": "Sheriff's office has no missing report."
+              },
+              {
+                "kind": "shift",
+                "text": "Purchased supplies at general store."
+              },
+              {
+                "kind": "shift",
+                "text": "Traveled through Red Canyon."
               }
             ],
             "resolution_state": null,
@@ -8416,28 +8348,60 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           "to": {
             "active": false,
             "id": "deliver_the_ledger",
-            "last_updated_turn": 8,
+            "last_updated_turn": 9,
             "progress": [
               {
                 "kind": "shift",
-                "text": "Arrived in Dustfall toward destination"
+                "text": "Arrived in Dustfall for the innkeeper."
               },
               {
                 "kind": "shift",
-                "text": "Learned Harker's wagon was empty"
+                "text": "Learned Harker went north with travelers."
               },
               {
                 "kind": "shift",
-                "text": "Found signed ledger page near office"
+                "text": "Assay office refused to share claims."
               },
               {
                 "kind": "shift",
-                "text": "Confirmed no missing person report filed"
+                "text": "Sheriff's office has no missing report."
+              },
+              {
+                "kind": "shift",
+                "text": "Purchased supplies at general store."
+              },
+              {
+                "kind": "shift",
+                "text": "Traveled through Red Canyon."
               }
             ],
             "scope": "arc",
             "summary": "Deliver Halden's ledger to the merchant at the Crossed Keys Inn.",
             "urgency": "normal"
+          }
+        },
+        {
+          "from": {
+            "active": false,
+            "added_turn": null,
+            "id": "clear_the_road_toughs",
+            "last_updated_turn": null,
+            "outcome": null,
+            "progress": [],
+            "resolution_state": null,
+            "resolved_turn": null,
+            "scope": "arc",
+            "summary": "Deal with the toughs blocking the inn entrance.",
+            "urgency": "background",
+            "urgency_set_turn": null
+          },
+          "to": {
+            "active": false,
+            "id": "clear_the_road_toughs",
+            "progress": [],
+            "scope": "arc",
+            "summary": "Deal with the toughs blocking the inn entrance.",
+            "urgency": "background"
           }
         },
         {
@@ -8449,26 +8413,22 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "outcome": null,
             "progress": [
               {
-                "kind": "setback",
-                "text": "Officer Thorne denies any official missing person report"
+                "kind": "advancement",
+                "text": "Official law enforcement refuses to investigate."
               },
               {
                 "kind": "advancement",
-                "text": "Found map of Red Canyon cliffs"
+                "text": "Failed to pry open locked box."
               },
               {
                 "kind": "advancement",
-                "text": "Reached Red Canyon cliffs near disappearance site"
-              },
-              {
-                "kind": "advancement",
-                "text": "Located men wearing Harker's hat"
+                "text": "Recovered Harker's hat at canyon camp."
               }
             ],
             "resolution_state": null,
             "resolved_turn": null,
             "scope": "arc",
-            "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+            "summary": "Find out what happened to Old Man Harker.",
             "urgency": "normal",
             "urgency_set_turn": null
           },
@@ -8478,24 +8438,48 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
             "last_updated_turn": 11,
             "progress": [
               {
-                "kind": "setback",
-                "text": "Officer Thorne denies any official missing person report"
+                "kind": "advancement",
+                "text": "Official law enforcement refuses to investigate."
               },
               {
                 "kind": "advancement",
-                "text": "Found map of Red Canyon cliffs"
+                "text": "Failed to pry open locked box."
               },
               {
                 "kind": "advancement",
-                "text": "Reached Red Canyon cliffs near disappearance site"
+                "text": "Recovered Harker's hat at canyon camp."
               },
               {
                 "kind": "advancement",
-                "text": "Located men wearing Harker's hat"
+                "text": "Harker rescued and reveals box motive"
               }
             ],
             "scope": "arc",
-            "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+            "summary": "Find out what happened to Old Man Harker.",
+            "urgency": "normal"
+          }
+        },
+        {
+          "from": {
+            "active": true,
+            "added_turn": null,
+            "id": "unlock_the_tin_box",
+            "last_updated_turn": null,
+            "outcome": null,
+            "progress": [],
+            "resolution_state": null,
+            "resolved_turn": null,
+            "scope": "arc",
+            "summary": "Find a way to open the locked tin box from the station.",
+            "urgency": "normal",
+            "urgency_set_turn": null
+          },
+          "to": {
+            "active": true,
+            "id": "unlock_the_tin_box",
+            "progress": [],
+            "scope": "arc",
+            "summary": "Find a way to open the locked tin box from the station.",
             "urgency": "normal"
           }
         }
@@ -8507,17 +8491,17 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       "old_man_harker": {
         "from": null,
         "to": {
-          "bio": "An elderly man with a face marked by fresh bruises and dried blood. He appears physically weakened and traumatized after being held captive.",
+          "bio": "An elderly man with a face marked by dark bruises and dried blood. He appears physically broken and traumatized, possessing a desperate strength when driven by fear.",
           "first_seen_turn": 10,
           "last_seen": {
-            "location_id": "red_canyon_cliffs",
-            "location_name": "Red Canyon Cliffs",
+            "location_id": "red_canyon",
+            "location_name": "Red Canyon",
             "turn": 11
           },
           "name": "Old Man Harker",
-          "notes": "clinging to canteen greedily",
+          "notes": "clutching sleeve with trembling hands",
           "presence": "present",
-          "title": "Victim"
+          "title": "Prisoner"
         }
       },
       "tough_a": {
@@ -8528,8 +8512,12 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           }
         },
         "notes": {
-          "from": "coiled like a spring",
-          "to": "backing away toward shadows"
+          "from": "standing aside after reluctant agreement",
+          "to": ""
+        },
+        "presence": {
+          "from": "present",
+          "to": "known"
         }
       },
       "tough_b": {
@@ -8540,26 +8528,38 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           }
         },
         "notes": {
-          "from": "watching player's belt",
-          "to": "exchanging wary looks"
+          "from": "spitting into fire, glancing at cliffs",
+          "to": ""
+        },
+        "presence": {
+          "from": "present",
+          "to": "known"
         }
       }
     }
   },
   "inventory": {
-    "removed": [
+    "changed": [
       {
-        "amount": 1,
-        "id": "hempen_rope",
-        "name": "Hempen rope",
-        "notes": ""
+        "from": {
+          "amount": 1,
+          "id": "water_canteen",
+          "name": "Leather water canteen",
+          "notes": "Filled with fresh water"
+        },
+        "to": {
+          "amount": 1,
+          "id": "water_canteen",
+          "name": "Leather water canteen",
+          "notes": "Partially empty after sharing with Harker"
+        }
       }
     ]
   },
   "location": {
     "description": {
-      "from": "A small campfire flickers at the base of the cliffs, casting dancing orange light against the surrounding rocks.",
-      "to": "The mouth of a narrow cave, where damp stone walls provide a cold contrast to the flickering campfire outside."
+      "from": "The base of the canyon wall features a small, flickering campfire that casts long, dancing shadows against the bruised-purple stone.",
+      "to": "The cave interior is damp and claustrophobic, with jagged stone walls that swallow the light from the dying campfire outside."
     }
   },
   "meta": {
@@ -8569,21 +8569,23 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       ],
       "removed": []
     },
-    "consecutive_pressure_turns": {
-      "from": 1,
-      "to": 0
-    },
     "pending_gm_beat": {
-      "from": {
-        "beat_expires_turn": 12,
-        "surface_as": "npc_behavior",
-        "type": "pressure"
+      "beat_expires_turn": {
+        "from": 12,
+        "to": 13
       },
-      "to": null
+      "surface_as": {
+        "from": "ambient",
+        "to": "npc_behavior"
+      },
+      "type": {
+        "from": "breathing_room",
+        "to": "revelation"
+      }
     },
     "prior_history": {
       "added": [
-        "- [T11] The player intimidated the thugs and successfully freed Old Man Harker from his bindings in the canyon cave."
+        "- [T11] Aren Voss rescues Old Man Harker from the cave and learns the thugs were seeking the contents of the tin box."
       ],
       "removed": []
     },
@@ -8592,7 +8594,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         [
           [
             "surface_as",
-            null
+            "npc_behavior"
           ],
           [
             "turn",
@@ -8600,7 +8602,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            null
+            "revelation"
           ]
         ]
       ],
@@ -8608,7 +8610,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         [
           [
             "surface_as",
-            "ambient"
+            "environmental"
           ],
           [
             "turn",
@@ -8616,7 +8618,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           ],
           [
             "type",
-            "pressure"
+            "breathing_room"
           ]
         ]
       ]
@@ -8629,34 +8631,32 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "pc": {
     "actions": {
       "added": [
-        "Secure the cave entrance to protect the wounded Harker.",
-        "Question Harker about what specifically the thugs were searching for.",
-        "Threaten the retreating thugs to reveal their employer's identity.",
-        "Search the surrounding campsite for any stolen goods or ledgers."
+        "Question Harker about the specific contents of the box",
+        "Move quickly toward Dustfall before the thugs return",
+        "Search the thugs' camp for any remaining clues",
+        "Tend to Harker's wounds using the linen bandages"
       ],
       "removed": [
-        "Demand they return the hat and explain their presence",
-        "Attempt to de-escalate by claiming you are just passing through",
-        "Draw your iron dagger and threaten them for answers",
-        "Offer credits to learn about the man who owned it"
+        "Threaten the Bald Tough to reveal their employer.",
+        "Seize the salt-stained hat from the campfire shadows.",
+        "Search the campsite for remaining supplies or clues.",
+        "Demand information about Harker's fate from the toughs."
       ]
-    },
-    "momentum": {
-      "from": 2,
-      "to": 3
     }
   },
   "scene": {
     "tagline": {
-      "from": "Shadows by the Campfire",
-      "to": "A Fragile Rescue in the Dark"
+      "from": "A Tense Standoff Broken",
+      "to": "A Prisoner in the Dark"
     },
     "tags": {
       "added": [
+        "investigation",
         "tense_rescue"
       ],
       "removed": [
-        "tense_confrontation"
+        "confrontation",
+        "tense_negotiation"
       ]
     }
   }
@@ -8704,13 +8704,13 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 **Parsed (engine):**
 ```json
 {
-  "intent_verb": "advance",
-  "intent": "The player intends to transport the injured Harker to medical care and then consume alcohol at the saloon.",
+  "intent_verb": "transition",
+  "intent": "The player moves Harker to medical assistance and then seeks leisure at the saloon.",
   "rolled": false,
-  "total_ms": 2561.3,
-  "tokens_in": 1384,
-  "tokens_out": 83,
-  "outcome_summary": "The player delivers Harker to the clinic and seeks refuge in the saloon."
+  "total_ms": 2600.7,
+  "tokens_in": 1391,
+  "tokens_out": 72,
+  "outcome_summary": "Aren Voss settles Harker near the deputy's office and enters the saloon, drawing the intense scrutiny of a scarred traveler."
 }
 ```
 
@@ -8729,28 +8729,24 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 {
   "scene_tags": [
     "tense_atmosphere",
-    "social_interaction"
+    "investigation",
+    "suspicion"
   ],
-  "scene_tagline": "A Drink in the Gloom",
-  "location_description": "The tavern is thick with the scent of stale ale and heat, where dim lighting casts long shadows over scarred wooden surfaces.",
+  "scene_tagline": "A Brittle Silence",
+  "location_description": "The saloon interior is thick with the scent of stale ale and pipe smoke, dimly lit by hanging lanterns that leave the corners in twisting shadow.",
   "compendium_npc_update": [
     {
       "id": "old_man_harker",
       "aliases": [],
-      "presence": "known",
-      "notes": "stumbling toward clinic"
+      "presence": "known"
     },
     {
-      "id": "elara_vance",
+      "id": "scarred_traveler",
+      "name": "Scarred Traveler",
+      "bio": "A man with a jagged scar cutting through his eyebrow and an unsettlingly observant gaze. He moves with the quiet stillness of someone accustomed to watching for trouble.",
       "aliases": [],
       "presence": "present",
-      "notes": "serving whiskey with a solemn nod"
-    },
-    {
-      "id": "saloon_patrons",
-      "aliases": [],
-      "presence": "present",
-      "notes": "whispering warily in the corner"
+      "notes": "watching player intently from back table"
     }
   ]
 }
@@ -8763,8 +8759,8 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "inventory_add": [
     {
       "id": "whiskey_glass",
-      "name": "whiskey glass",
-      "notes": "A single serving of whiskey provided by Elara Vance.",
+      "name": "Glass of whiskey",
+      "notes": "A single serving of whiskey from the bartender",
       "amount": 1,
       "aliases": []
     }
@@ -8772,11 +8768,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "inventory_remove": [],
   "inventory_update": [],
   "pc_condition_add": [],
-  "pc_condition_remove": [
-    {
-      "id": "exhausted"
-    }
-  ]
+  "pc_condition_remove": []
 }
 ```
 
@@ -8785,14 +8777,14 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ```json
 {
   "actions": [
-    "Question Elara about any suspicious activity near the canyon.",
-    "Listen to the patrons' whispers for rumors of the thugs.",
-    "Order another whiskey to observe the room more closely.",
-    "Search for a local healer willing to treat Harker."
+    "Confront the scarred traveler about his sudden silence.",
+    "Question the travelers huddled over the map.",
+    "Order another whiskey to observe the room quietly.",
+    "Search for Edda to report Harker's condition."
   ],
-  "outcome_summary": "The player delivers Harker to the clinic and seeks refuge in the saloon.",
+  "outcome_summary": "Aren Voss settles Harker near the deputy's office and enters the saloon, drawing the intense scrutiny of a scarred traveler.",
   "gm_beat": {
-    "type": "complication",
+    "type": "revelation",
     "surface_as": "npc_behavior"
   },
   "thread_resolve": [],
@@ -8801,7 +8793,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       "id": "investigate_harker_disappearance",
       "active": true,
       "urgency": "normal",
-      "progress": "Harker rescued and brought to clinic",
+      "progress": "Harker reveals box's dangerous contents",
       "progress_kind": "advancement"
     }
   ]
@@ -8815,51 +8807,43 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "inventory_add": [
     {
       "id": "whiskey_glass",
-      "name": "Whiskey glass",
-      "notes": "A single serving of whiskey provided by Elara Vance.",
+      "name": "Glass of whiskey",
+      "notes": "A single serving of whiskey from the bartender",
       "amount": 1,
       "aliases": []
     }
   ],
   "inventory_remove": [],
   "inventory_update": [],
-  "location_description": "The tavern is thick with the scent of stale ale and heat, where dim lighting casts long shadows over scarred wooden surfaces.",
+  "location_description": "The saloon interior is thick with the scent of stale ale and pipe smoke, dimly lit by hanging lanterns that leave the corners in twisting shadow.",
   "pc_condition_add": [],
-  "pc_condition_remove": [
-    {
-      "id": "exhausted"
-    }
-  ],
+  "pc_condition_remove": [],
   "scene_tags": [
     "tense_atmosphere",
-    "social_interaction"
+    "investigation",
+    "suspicion"
   ],
-  "scene_tagline": "A Drink in the Gloom",
+  "scene_tagline": "A Brittle Silence",
   "compendium_npc_update": [
     {
       "id": "old_man_harker",
       "aliases": [],
-      "presence": "known",
-      "notes": "stumbling toward clinic"
+      "presence": "known"
     },
     {
-      "id": "elara_vance",
+      "id": "scarred_traveler",
+      "name": "Scarred Traveler",
+      "bio": "A man with a jagged scar cutting through his eyebrow and an unsettlingly observant gaze. He moves with the quiet stillness of someone accustomed to watching for trouble.",
       "aliases": [],
       "presence": "present",
-      "notes": "serving whiskey with a solemn nod"
-    },
-    {
-      "id": "saloon_patrons",
-      "aliases": [],
-      "presence": "present",
-      "notes": "whispering warily in the corner"
+      "notes": "watching player intently from back table"
     }
   ],
   "actions": [
-    "Question Elara about any suspicious activity near the canyon.",
-    "Listen to the patrons' whispers for rumors of the thugs.",
-    "Order another whiskey to observe the room more closely.",
-    "Search for a local healer willing to treat Harker."
+    "Confront the scarred traveler about his sudden silence.",
+    "Question the travelers huddled over the map.",
+    "Order another whiskey to observe the room quietly.",
+    "Search for Edda to report Harker's condition."
   ]
 }
 ```
@@ -8883,120 +8867,122 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "arc": {
     "completed_threads": [
       {
-        "active": false,
-        "id": "clear_the_road_toughs",
-        "outcome": "The player has entered the town, bypassing the road blockade.",
+        "active": true,
+        "added_turn": 9,
+        "id": "canyon_ambush",
+        "outcome": "Negotiated passage by leveraging presence and avoiding combat.",
         "progress": [],
-        "resolution_state": "abandoned",
-        "resolved_turn": 1,
-        "scope": "arc",
-        "summary": "Deal with the toughs blocking the inn entrance.",
-        "urgency": "background"
-      },
+        "resolution_state": "resolved",
+        "resolved_turn": 10,
+        "scope": "scene",
+        "summary": "Survive the road thugs' ambush",
+        "urgency": "urgent",
+        "urgency_set_turn": 9
+      }
+    ],
+    "goal_context": "The PC has found Harker's hat at a canyon camp, suggesting the investigation into his disappearance is now a primary focus alongside existing financial obligations.",
+    "last_thread_created_turn": 10,
+    "resolution": null,
+    "threads": [
       {
         "active": false,
         "id": "settle_the_debt",
-        "outcome": "The player has pivoted focus entirely to the Harker investigation.",
         "progress": [],
-        "resolution_state": "abandoned",
-        "resolved_turn": 10,
         "scope": "arc",
         "summary": "Settle the 500-credit debt with Caron.",
         "urgency": "normal"
       },
       {
-        "active": true,
-        "added_turn": 9,
-        "id": "canyon_exploration_danger",
-        "outcome": "Thugs intimidated and Harker rescued from cave",
-        "progress": [],
-        "resolution_state": "resolved",
-        "resolved_turn": 11,
-        "scope": "scene",
-        "summary": "Navigate hazards of the Red Canyon cliffs",
-        "urgency": "normal",
-        "urgency_set_turn": 9
-      },
-      {
         "active": false,
         "id": "deliver_the_ledger",
-        "last_updated_turn": 8,
-        "outcome": "Arrived in Dustfall with Harker; ledger delivery pending.",
+        "last_updated_turn": 9,
         "progress": [
           {
             "kind": "shift",
-            "text": "Arrived in Dustfall toward destination"
+            "text": "Arrived in Dustfall for the innkeeper."
           },
           {
             "kind": "shift",
-            "text": "Learned Harker's wagon was empty"
+            "text": "Learned Harker went north with travelers."
           },
           {
             "kind": "shift",
-            "text": "Found signed ledger page near office"
+            "text": "Assay office refused to share claims."
           },
           {
             "kind": "shift",
-            "text": "Confirmed no missing person report filed"
+            "text": "Sheriff's office has no missing report."
+          },
+          {
+            "kind": "shift",
+            "text": "Purchased supplies at general store."
+          },
+          {
+            "kind": "shift",
+            "text": "Traveled through Red Canyon."
           }
         ],
-        "resolution_state": "resolved",
-        "resolved_turn": 12,
         "scope": "arc",
         "summary": "Deliver Halden's ledger to the merchant at the Crossed Keys Inn.",
         "urgency": "normal"
-      }
-    ],
-    "goal_context": "The player has moved from town-based investigation to a direct confrontation at Red Canyon.",
-    "last_thread_created_turn": 9,
-    "resolution": null,
-    "threads": [
+      },
+      {
+        "active": false,
+        "id": "clear_the_road_toughs",
+        "progress": [],
+        "scope": "arc",
+        "summary": "Deal with the toughs blocking the inn entrance.",
+        "urgency": "background"
+      },
       {
         "active": true,
         "id": "investigate_harker_disappearance",
         "last_updated_turn": 12,
         "progress": [
           {
-            "kind": "setback",
-            "text": "Officer Thorne denies any official missing person report"
+            "kind": "advancement",
+            "text": "Official law enforcement refuses to investigate."
           },
           {
             "kind": "advancement",
-            "text": "Found map of Red Canyon cliffs"
+            "text": "Failed to pry open locked box."
           },
           {
             "kind": "advancement",
-            "text": "Reached Red Canyon cliffs near disappearance site"
+            "text": "Recovered Harker's hat at canyon camp."
           },
           {
             "kind": "advancement",
-            "text": "Located men wearing Harker's hat"
-          },
-          {
-            "kind": "advancement",
-            "text": "Rescued Harker from canyon cave"
+            "text": "Harker rescued and reveals box motive"
           }
         ],
         "scope": "arc",
-        "summary": "Investigate the mysterious disappearance of Old Man Harker.",
+        "summary": "Find out what happened to Old Man Harker.",
+        "urgency": "normal"
+      },
+      {
+        "active": true,
+        "id": "unlock_the_tin_box",
+        "progress": [],
+        "scope": "arc",
+        "summary": "Find a way to open the locked tin box from the station.",
         "urgency": "normal"
       }
     ],
-    "visible_goal": "Investigate Harker's disappearance and survive the canyon encounter."
+    "visible_goal": "Investigate Harker's disappearance and settle your debts."
   },
   "compendium": {
     "npcs": {
-      "assay_clerk": {
-        "bio": "A weary individual with bloodshot eyes peering through a viewing port. Speaks with a raspy, disinterested tone.",
-        "first_seen_turn": 3,
+      "abandoned_cabin_presence": {
+        "bio": "A silent, grit-covered structure on the edge of town. It sits isolated against the treeline, offering no immediate signs of life.",
+        "first_seen_turn": 5,
         "last_seen": {
-          "location_id": "red_canyon_cliffs",
-          "location_name": "Red Canyon Cliffs",
-          "turn": 9
+          "location_id": "outskirts_cabin",
+          "location_name": "Abandoned Cabin",
+          "turn": 6
         },
-        "name": "Assay Clerk",
-        "presence": "known",
-        "title": "Office Attendant"
+        "name": "Abandoned Cabin",
+        "presence": "known"
       },
       "caron": {
         "bio": "A portly man in his sixties with a merchant's ledger and a patient demeanor. You owe him 500 credits from a failed venture three years ago.",
@@ -9007,18 +8993,6 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         "name": "Caron",
         "presence": null,
         "title": "Old creditor"
-      },
-      "elara_vance": {
-        "bio": "A woman with calloused hands and a sharp, discerning gaze. Her voice is raspy from years of breathing dust and shouting over tavern din.",
-        "first_seen_turn": 1,
-        "last_seen": {
-          "location_id": "assay_office",
-          "location_name": "Assay Office",
-          "turn": 4
-        },
-        "name": "Elara Vance",
-        "presence": "known",
-        "title": "Bartender"
       },
       "halden": {
         "bio": "A road merchant in his fifties who hires couriers when his usual runners are spoken for. Honest by reputation, careful with money.",
@@ -9031,13 +9005,18 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         "title": "Merchant"
       },
       "innkeeper": {
-        "bio": "Runs the inn alone since her husband died. Knows every traveler by face if not by name. Stays out of trouble unless it walks through her door.",
+        "bio": "Graying hair and a sharp, observant gaze; moves with methodical, slow precision. Runs the inn alone since her husband died and stays out of trouble unless it walks through her door.",
         "bond": null,
         "fear": null,
+        "last_seen": {
+          "location_id": "assay_office",
+          "location_name": "Assay Office",
+          "turn": 4
+        },
         "leverage": null,
         "motivation": null,
         "name": "Edda",
-        "presence": null,
+        "presence": "known",
         "title": "Innkeeper at the Crossed Keys"
       },
       "matthew_estrada": {
@@ -9051,7 +9030,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         "title": "Traveler"
       },
       "old_man_harker": {
-        "bio": "An elderly man with a face marked by fresh bruises and dried blood. He appears physically weakened and traumatized after being held captive.",
+        "bio": "An elderly man with a face marked by dark bruises and dried blood. He appears physically broken and traumatized, possessing a desperate strength when driven by fear.",
         "first_seen_turn": 10,
         "last_seen": {
           "location_id": "dustfall_outskirts",
@@ -9059,12 +9038,12 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
           "turn": 12
         },
         "name": "Old Man Harker",
-        "notes": "clinging to rider's waist",
+        "notes": "clutching reins with quiet gratitude",
         "presence": "present",
-        "title": "Victim"
+        "title": "Prisoner"
       },
       "saloon_patrons": {
-        "bio": "A small group of locals huddled over drinks in the dim light. They are wary of strangers and maintain a watchful silence.",
+        "bio": "A small group of weary-looking locals sitting at wooden tables. They possess a sense of indifference and exhaustion from the heat.",
         "first_seen_turn": 0,
         "last_seen": {
           "location_id": "assay_office",
@@ -9074,25 +9053,37 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         "name": "Saloon Patrons",
         "presence": "known"
       },
-      "silas_thorne": {
-        "bio": "A stern-faced veteran with eyes as hard and unimpressed as his demeanor. Speaks with a voice like grinding gravel and maintains a no-nonsense, bureaucratic attitude.",
-        "first_seen_turn": 4,
+      "silas_vance": {
+        "bio": "Thin frame with ink-stained fingers and eyes perpetually squinted against the light. Wears a heavy leather apron and speaks with a raspy, suspicious tone.",
+        "first_seen_turn": 3,
         "last_seen": {
           "location_id": "general_store",
           "location_name": "General Store",
           "turn": 8
         },
-        "name": "Silas Thorne",
+        "name": "Silas Vance",
         "presence": "known",
-        "title": "Sheriff's Officer"
+        "title": "Assay Clerk"
+      },
+      "thomas_miller": {
+        "bio": "Weary-eyed man with bloodshot eyes from long hours of ledger work. Carries himself with a cynical, irritated demeanor and shows little patience for trivial inquiries.",
+        "first_seen_turn": 4,
+        "last_seen": {
+          "location_id": "outskirts_cabin",
+          "location_name": "Abandoned Cabin",
+          "turn": 7
+        },
+        "name": "Thomas Miller",
+        "presence": "known",
+        "title": "Deputy"
       },
       "tough_a": {
         "bio": "Hired muscle. No personal stake in this \u2014 he'll back off if the price is right or the fight goes bad.",
         "bond": null,
         "fear": null,
         "last_seen": {
-          "location_id": "red_canyon_cliffs",
-          "location_name": "Red Canyon Cliffs",
+          "location_id": "red_canyon",
+          "location_name": "Red Canyon",
           "turn": 11
         },
         "leverage": null,
@@ -9106,8 +9097,8 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
         "bond": null,
         "fear": null,
         "last_seen": {
-          "location_id": "red_canyon_cliffs",
-          "location_name": "Red Canyon Cliffs",
+          "location_id": "red_canyon",
+          "location_name": "Red Canyon",
           "turn": 11
         },
         "leverage": null,
@@ -9121,7 +9112,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   "inventory": [
     {
       "aliases": [],
-      "amount": 440,
+      "amount": 499,
       "id": "credits",
       "name": "Credits",
       "notes": "Common coin, accepted at any inn or stall on the merchant road."
@@ -9131,7 +9122,7 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       "amount": 1,
       "id": "iron_dagger",
       "name": "Iron dagger",
-      "notes": "Plain crossguard, edge worn from honing. Belt-carried."
+      "notes": "blunt tip scratched from prying at a lock"
     },
     {
       "aliases": [],
@@ -9158,98 +9149,88 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
       "notes": "A small brass key Halden gave you with the ledger."
     },
     {
-      "amount": 1,
-      "id": "ceramic_mug",
-      "name": "Ceramic mug",
-      "notes": "chipped"
-    },
-    {
-      "amount": 1,
-      "id": "ledger_page",
-      "name": "Ledger page",
-      "notes": "A discarded scrap of parchment with a frantic signature."
-    },
-    {
-      "amount": 1,
-      "id": "hand_drawn_map",
-      "name": "Hand-drawn map",
-      "notes": "A thick parchment with charcoal markings concentrated near the Red Canyon cliffs."
-    },
-    {
-      "amount": 1,
+      "amount": 2,
       "id": "dried_meat",
       "name": "Dried meat",
-      "notes": ""
+      "notes": "Bundles of preserved meat"
     },
     {
       "amount": 1,
       "id": "water_canteen",
-      "name": "Water canteen",
+      "name": "Leather water canteen",
+      "notes": "Partially empty after sharing with Harker"
+    },
+    {
+      "amount": 1,
+      "id": "hemp_rope",
+      "name": "Coil of hemp rope",
       "notes": ""
     }
   ],
   "location": {
-    "description": "The outskirts of a settlement where boarded-up storefronts line the road and flickering lanterns begin to pierce the evening gloom.",
+    "description": "The grit-covered streets are lined with saloons casting long, dancing shadows under flickering lanterns as evening settles over the town.",
     "id": "dustfall_outskirts",
     "name": "Dustfall Outskirts"
   },
   "meta": {
     "compendium_touch_order": [
+      "innkeeper",
       "saloon_patrons",
-      "elara_vance",
-      "silas_thorne",
-      "assay_clerk",
+      "abandoned_cabin_presence",
+      "thomas_miller",
+      "silas_vance",
       "tough_a",
       "tough_b",
       "old_man_harker"
     ],
-    "consecutive_pressure_turns": 1,
+    "consecutive_pressure_turns": 0,
     "game_name": "eval",
     "last_thread_created_turn": 9,
     "model": "",
     "pending_gm_beat": {
       "beat_expires_turn": 14,
       "surface_as": "npc_behavior",
-      "type": "pressure"
+      "type": "revelation"
     },
     "prior_history": [
-      "- [T2] The player learns from Elara Vance that caravans are increasingly fleeing the crossing.",
-      "- [T3] Elara reveals that Old Man Harker's wagon was found empty near the river crossing, leaving behind his coin pouch.",
-      "- [T4] The player discovered a discarded ledger page with a familiar signature near the Assay Office entrance.",
-      "- [T5] Silas Thorne informs the player that no official report has been filed for Harker's disappearance.",
-      "- [T6] Silas Thorne rebuffs the attempt to obtain a key and threatens the player with arrest for harassment.",
-      "- [T7] The player successfully stole a map of Red Canyon from Thorne's desk but was caught in the act.",
-      "- [T8] The player enters the general store to buy supplies but is immediately targeted by two aggressive men.",
-      "- [T9] The player escaped the thugs in the market and reached the base of the Red Canyon cliffs.",
-      "- [T10] The player confronts two suspicious men at a campfire, one of whom appears to be wearing Harker's hat.",
-      "- [T11] The player intimidated the thugs and successfully freed Old Man Harker from his bindings in the canyon cave.",
-      "- [T12] The player successfully guides a traumatized Harker from the Red Canyon cliffs into the outskirts of Dustfall."
+      "- [T1] The PC enters the Dustfall Saloon to escape the midday heat.",
+      "- [T2] The PC purchased water from Edda and learned of restless travelers on the northern road.",
+      "- [T3] Edda reveals Harker likely traveled north with suspicious travelers but demands payment for the information.",
+      "- [T4] Aren Voss enters the Assay Office to investigate Old Man Harker's disappearance through official claims, facing Silas Vance's suspicion.",
+      "- [T5] Thomas Miller dismisses Aren Voss's inquiry about Harker, stating no official report exists without a body or theft.",
+      "- [T6] Aren Voss failed to obtain any official information regarding Harker's disappearance from Deputy Miller.",
+      "- [T7] Aren Voss failed to pry open the locked tin box in the deputy's desk.",
+      "- [T8] Aren Voss purchased dried meat, a water canteen, and hemp rope from Silas Vance.",
+      "- [T9] Aren Voss enters Red Canyon and is immediately ambushed by two hired thugs blocking the trail.",
+      "- [T10] Aren Voss successfully negotiated passage through the canyon thugs and recovered Old Man Harker's hat.",
+      "- [T11] Aren Voss rescues Old Man Harker from the cave and learns the thugs were seeking the contents of the tin box.",
+      "- [T12] Aren Voss guides a traumatized Harker back to Dustfall, learning the tin box contains something potentially catastrophic."
     ],
     "recent_beats": [
       {
-        "surface_as": "ambient",
+        "surface_as": "npc_behavior",
         "turn": 8,
-        "type": "breathing_room"
-      },
-      {
-        "surface_as": null,
-        "turn": 9,
-        "type": null
+        "type": "complication"
       },
       {
         "surface_as": "npc_behavior",
-        "turn": 10,
+        "turn": 9,
         "type": "pressure"
       },
       {
-        "surface_as": null,
+        "surface_as": "ambient",
+        "turn": 10,
+        "type": "breathing_room"
+      },
+      {
+        "surface_as": "npc_behavior",
         "turn": 11,
-        "type": null
+        "type": "revelation"
       },
       {
         "surface_as": "npc_behavior",
         "turn": 12,
-        "type": "pressure"
+        "type": "revelation"
       }
     ],
     "setting_pack": "eval-pack",
@@ -9257,23 +9238,15 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   },
   "pc": {
     "actions": [
-      "Seek medical aid for Harker at the Crossed Keys inn.",
-      "Confront Elara Vance about the thugs seen near the canyon.",
-      "Search for Caron to settle debts and find information.",
-      "Hide Harker in a dark alley to avoid local scrutiny."
+      "Seek Edda at the Crossed Keys for safe harbor",
+      "Confront Silas Vance about the stolen tin box",
+      "Find Caron to discuss the mounting debt",
+      "Search for the thugs near the saloon entrance"
     ],
     "bio": "Mid-thirties, broad shoulders, careful with words. Took on a courier contract\nto clear an old debt. Just arrived in Marrow's Crossing with a heavy pack and\na heavier obligation.\n",
-    "conditions": [
-      {
-        "added_turn": 11,
-        "description": "The physical strain of guiding a horse through canyon terrain while carrying an extra passenger has left you weary.",
-        "id": "exhausted",
-        "label": "Exhausted",
-        "turns_remaining": 3
-      }
-    ],
+    "conditions": [],
     "drive": "",
-    "momentum": 3,
+    "momentum": -1,
     "name": "Aren Voss",
     "stats": {
       "charisma": 3,
@@ -9285,11 +9258,11 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
   },
   "scene": {
     "location_entered_turn": 11,
-    "tagline": "Entering the Dim Streets of Dustfall",
+    "tagline": "Whispers of a Burning Secret",
     "tags": [
       "travel",
-      "somber",
-      "gloaming"
+      "tense_conversation",
+      "suspense"
     ],
     "turn_entered": 11,
     "world_state": [
@@ -9309,41 +9282,39 @@ A Pydantic `field_validator("progress", mode="wrap")` on `ArcThread` handles all
 ## Auto-Checker Failures
 | Turn | Assertion | Detail |
 |---|---|---|
-| 1 | `universal.pacing.consecutive_pressure_tracking` | gm_beat.type='pressure' (pressure type) but consecutive_pressure_turns=0 (expected >= 1) |
-| 2 | `universal.conditions.orphan` | conditions with no CONDITION_MODS entry: ['dusty_throat'] |
+| 2 | `universal.conditions.orphan` | conditions with no CONDITION_MODS entry: ['heat_exhaustion'] |
 | 3 | `universal.storytell.actions_quality` | actions has 0 entries (expected 4) |
-| 3 | `universal.pacing.consecutive_pressure_tracking` | gm_beat.type='revelation' (not pressure) but consecutive_pressure_turns=2 (expected 0) |
-| 3 | `universal.conditions.orphan` | conditions with no CONDITION_MODS entry: ['dusty_throat'] |
-| 5 | `universal.pacing.consecutive_pressure_tracking` | gm_beat.type='complication' (pressure type) but consecutive_pressure_turns=0 (expected >= 1) |
+| 3 | `universal.pacing.consecutive_pressure_tracking` | gm_beat.type=None (not pressure) but consecutive_pressure_turns=1 (expected 0) |
+| 3 | `universal.conditions.orphan` | conditions with no CONDITION_MODS entry: ['heat_exhaustion'] |
 | 5 | `universal.storytell.actions_quality` | actions has 0 entries (expected 4) |
-| 5 | `universal.pacing.consecutive_pressure_tracking` | gm_beat.type=None (not pressure) but consecutive_pressure_turns=3 (expected 0) |
-| 7 | `universal.conditions.orphan` | conditions with no CONDITION_MODS entry: ['rattled'] |
-| 9 | `universal.conditions.orphan` | conditions with no CONDITION_MODS entry: ['threatened'] |
-| 10 | `universal.pacing.consecutive_pressure_tracking` | gm_beat.type='pressure' (pressure type) but consecutive_pressure_turns=0 (expected >= 1) |
+| 5 | `universal.pacing.consecutive_pressure_tracking` | gm_beat.type=None (not pressure) but consecutive_pressure_turns=1 (expected 0) |
+| 5 | `universal.pacing.beat_locked_dual_trigger` | momentum=-3 at floor -3, but beat_locked=False — engine should have fired floor relief |
+| 6 | `universal.location_change.applied` | location_change emitted but post-turn location.id unchanged: outskirts_cabin |
+| 6 | `universal.conditions.orphan` | conditions with no CONDITION_MODS entry: ['rattled'] |
+| 7 | `universal.pacing.floor_relief` | beat_locked=True, storytell_type='pressure' but pending_gm_beat.type='pressure' (expected 'breathing_room') |
+| 8 | `universal.pacing.floor_relief` | beat_locked=True, storytell_type='complication' but pending_gm_beat.type='complication' (expected 'breathing_room') |
+| 9 | `universal.pacing.floor_relief` | beat_locked=True, storytell_type='pressure' but pending_gm_beat.type='pressure' (expected 'breathing_room') |
+| 10 | `universal.conditions.orphan` | conditions with no CONDITION_MODS entry: ['chilled'] |
 | 10 | `universal.storytell.actions_quality` | actions has 0 entries (expected 4) |
-| 10 | `universal.pacing.consecutive_pressure_tracking` | gm_beat.type=None (not pressure) but consecutive_pressure_turns=2 (expected 0) |
-| 11 | `universal.pacing.consecutive_pressure_tracking` | gm_beat.type=None (not pressure) but consecutive_pressure_turns=1 (expected 0) |
-| 11 | `universal.inventory.remove_existence` | removed non-existent item(s): ['hempen_rope'] |
-| 12 | `universal.pacing.consecutive_pressure_tracking` | gm_beat.type='pressure' (pressure type) but consecutive_pressure_turns=0 (expected >= 1) |
 
 ## Metrics
 | Turn | rules tok_in | narrate tok_in | scene tok_in | state tok_in | progress tok_in | parse_fail | retries | momentum |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 1 | 1289 | 4055 | 3309 | 1848 | 3055 | 0 | 0 | — |
-| 2 | 1501 | 4324 | 3615 | 1958 | 3474 | 0 | 0 | — |
+| 1 | 1289 | 4055 | 3339 | 1874 | 3120 | 0 | 0 | — |
+| 2 | 1542 | 4372 | 3685 | 1973 | 3510 | 0 | 0 | — |
 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | — |
-| 3 | 1587 | 4547 | 3746 | 1974 | 3591 | 0 | 0 | — |
-| 4 | 1583 | 4600 | 3768 | 1970 | 3759 | 0 | 0 | — |
-| 5 | 1615 | 4721 | 3846 | 2015 | 3936 | 0 | 0 | — |
+| 3 | 1604 | 4543 | 3764 | 2000 | 3688 | 0 | 0 | — |
+| 4 | 1623 | 4558 | 3805 | 1985 | 3766 | 0 | 0 | — |
+| 5 | 1625 | 4732 | 3865 | 1998 | 3994 | 0 | 0 | — |
 | 5 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | — |
-| 6 | 1609 | 4856 | 3915 | 1980 | 3958 | 0 | 0 | — |
-| 7 | 1608 | 4920 | 3902 | 2019 | 4073 | 0 | 0 | — |
-| 8 | 1601 | 4912 | 3913 | 2028 | 4144 | 0 | 0 | — |
-| 9 | 1651 | 5101 | 3909 | 2059 | 4180 | 0 | 0 | — |
-| 10 | 1601 | 5101 | 3881 | 2047 | 4184 | 0 | 0 | — |
+| 6 | 1624 | 4815 | 3930 | 1992 | 3964 | 0 | 0 | — |
+| 7 | 1614 | 5003 | 3998 | 1982 | 4145 | 0 | 0 | — |
+| 8 | 1629 | 4977 | 4028 | 1984 | 4197 | 0 | 0 | — |
+| 9 | 1661 | 5064 | 4009 | 2020 | 4294 | 0 | 0 | — |
+| 10 | 1651 | 5234 | 4040 | 2070 | 4407 | 0 | 0 | — |
 | 10 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | — |
-| 11 | 1602 | 5150 | 3937 | 2085 | 4281 | 0 | 0 | — |
-| 12 | 1669 | 5115 | 3964 | 2045 | 4246 | 0 | 0 | — |
-| 13 | 1629 | 5119 | 3972 | 2121 | 4253 | 0 | 0 | — |
+| 11 | 1660 | 5295 | 4015 | 2006 | 4392 | 0 | 0 | — |
+| 12 | 1623 | 5225 | 3983 | 2008 | 4351 | 0 | 0 | — |
+| 13 | 1630 | 5274 | 3998 | 2009 | 4421 | 0 | 0 | — |
 
 **Scope fallback rate:** N/A (not captured in events.jsonl)

@@ -1,3 +1,0 @@
-state_fidelity_rate: 0.6666666666666666
-extraction_accuracy_score: 2
-mechanic_lifecycle_score: 1
