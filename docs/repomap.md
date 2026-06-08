@@ -46,7 +46,7 @@
 | `evals/scenarios/baseline.py` | 13-turn organic narrative arc with track="baseline": Dustfall mystery, town → canyon travel, missing prospector search and rescue. Minimal asserts (7). |
 | `evals/scenarios/eval_coverage_gap.py` | 8-turn scenario exercising ev1 findings: band-beat conflict, thread progress, orphan conditions, surface_as drift, skill variety |
 | `ccya/pack.py` | load_pack(), list_packs() — validates pack has seed (static) or scenario (generated) |
-| `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (1d12+stat+cond−diff→Band), build_directive() near-miss logic |
+| `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (1d12+stat_mod+diff_mod→Band), build_directive() near-miss logic |
 | `ccya/llm_client.py` | chat(), chat_stream() — OpenAI-compatible → mlx_lm.server; trim_messages() token-budget trimming |
 | `ccya/logging_setup.py` | JSONL RotatingFileHandler + _JsonFormatter (extra fields → flat JSON keys); StreamHandler defaults to WARNING via CCYA_LOG_LEVEL env var |
 
@@ -77,7 +77,7 @@
 - **list_packs(packs_dir)** → list[PackManifest] — aggregates from default/ and custom/
 
 ### ccya/rules.py
- - **resolve_check(skill, difficulty, pc_stats, intent_verb)** → RulesOutcome — 1d12+stat_mod→Band (pure Python)
+ - **resolve_check(skill, difficulty, pc_stats, intent_verb)** → RulesOutcome — 1d12+stat_mod+diff_mod→Band (pure Python)
 
 ### ccya/llm_client.py
 - **chat(host, model, messages, *, temperature=None, max_tokens=None, timeout=180.0, top_p=None, frequency_penalty=None, seed=None)** → response dict — non-streaming LLM call with retry; optional sampling params passed conditionally (only when not None)
