@@ -162,7 +162,7 @@
                     {% if ev.ruling and ev.ruling.rolled %}
                     {% set r = ev.ruling %}
                     {% set die_val = (r.dice | default([]))[0] or 0 %}
-                    {% set total_mod = (r.stat_mod or 0) + (r.diff_mod or 0) + (r.cond_mod or 0) %}
+                    {% set total_mod = (r.stat_mod or 0) + (r.diff_mod or 0) %}
                     <div class="roll-badge roll-badge--{{ r.band }}">
                         <div class="roll-header">🎲 <strong>{{ (r.skill | default('') | upper) }}</strong> &nbsp;·&nbsp; {{ r.difficulty | default('') | lower }}</div>
                         <div class="roll-math">
@@ -686,7 +686,7 @@ function _buildRollBadge(payload) {
 
     // Line 2: dice + labeled modifiers + total
     const dieVal = (payload.dice || [])[0] || 0;
-    const totalMod = (payload.stat_mod || 0) + (payload.diff_mod || 0) + (payload.cond_mod || 0);
+    const totalMod = (payload.stat_mod || 0) + (payload.diff_mod || 0);
     const diffLabels = {hard: 'Hard', extreme: 'Extreme'};
     let parts = ['Roll = ' + dieVal];
     if (payload.stat_mod !== 0) {

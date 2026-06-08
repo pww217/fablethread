@@ -77,7 +77,7 @@
 - **list_packs(packs_dir)** → list[PackManifest] — aggregates from default/ and custom/
 
 ### ccya/rules.py
-- **resolve_check(skill, difficulty, pc_stats, pc_conditions, intent_verb, rng)** → RulesOutcome — 1d12+stat_mod+cond_mod→Band (pure Python)
+ - **resolve_check(skill, difficulty, pc_stats, intent_verb)** → RulesOutcome — 1d12+stat_mod→Band (pure Python)
 
 ### ccya/llm_client.py
 - **chat(host, model, messages, *, temperature=None, max_tokens=None, timeout=180.0, top_p=None, frequency_penalty=None, seed=None)** → response dict — non-streaming LLM call with retry; optional sampling params passed conditionally (only when not None)
@@ -85,7 +85,7 @@
 
 ## 5-call turn pipeline (run_turn)
 
-1. **Rules/Intent** (non-streaming) — classifies intent, resolves dice via `rules.resolve_check()` → IntentEnvelope + RulesOutcome. IntentEnvelope gains `impossible` and `impossible_reason` fields; when `impossible=true`, no roll occurs and Python synthesizes a failure outcome.
+1. **Rules/Intent** (non-streaming) — classifies intent, resolves dice via `rules.resolve_check()` → IntentEnvelope + RulesOutcome. IntentEnvelope gains `impossible` and `reason` fields; when `impossible=true`, no roll occurs and Python synthesizes a failure outcome.
 2. **Narrate** (streaming→SSE→chronicle.md) — prose narrative with narration directive from velocity/threads
 3. **Scene Extract** (JSON→SceneExtractResult) — scene tags, location change, compendium updates
 4. **State Extract** (JSON→StateExtractResult) — inventory deltas, condition add/remove

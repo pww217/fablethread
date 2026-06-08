@@ -764,38 +764,55 @@ def check_no_removed_npc_states(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def check_orphan_conditions(event: dict[str, Any]) -> dict[str, Any]:
-    """Conditions in state must each have a corresponding CONDITION_MODS entry.
+def check_conditions_in_reason(event: dict[str, Any]) -> dict[str, Any]:
+    """Conditions present in state should appear meaningfully in ruling reason field.
 
-    Reads pc.conditions from state_snapshot. Flags red if a condition's id
-    does not exist as a key in CONDITION_MODS — it's mechanically inert and
-    creates observability debt.
+    Reads pc.conditions from state_snapshot and checks whether any of those
+    condition ids appear as substrings in the ruling's reason field. Severity
+    stays yellow (warning) because this is guidance, not enforcement. Handles
+    both new 'reason' field and old 'impossible_reason' via .get().
     """
-    from ccya.rules import CONDITION_MODS
-
     snap = event.get("state_snapshot") or {}
     conditions = (snap.get("pc") or {}).get("conditions") or []
-    orphan_ids: list[str] = []
+
+    if not conditions:
+        return {
+            "assertion": "universal.conditions.in_reason",
+            "passed": True,
+            "detail": "no active conditions to check",
+            "scope": "universal",
+            "severity": "yellow",
+        }
+
+    condition_ids = []
     for cond in conditions:
         if isinstance(cond, dict):
             cid = str(cond.get("id") or "").lower()
-            if cid and cid not in CONDITION_MODS and cid not in orphan_ids:
-                orphan_ids.append(cid)
+        else:
+            cid = str(cond or "").lower()
+        if cid:
+            condition_ids.append(cid)
 
-    if orphan_ids:
+    ruling = event.get("ruling_event", {}) or {}
+    reason_text = (ruling.get("reason") or ruling.get("impossible_reason") or "").lower()
+
+    missing = [cid for cid in condition_ids if cid not in reason_text]
+
+    if missing:
         return {
-            "assertion": "universal.conditions.orphan",
+            "assertion": "universal.conditions.in_reason",
             "passed": False,
-            "detail": f"conditions with no CONDITION_MODS entry: {orphan_ids}",
+            "detail": f"conditions present but not mentioned in ruling reason: {missing}",
             "scope": "universal",
-            "severity": "red",
+            "severity": "yellow",
         }
+
     return {
-        "assertion": "universal.conditions.orphan",
+        "assertion": "universal.conditions.in_reason",
         "passed": True,
-        "detail": "all conditions have CONDITION_MODS entries",
+        "detail": "all conditions appear meaningfully in ruling reason",
         "scope": "universal",
-        "severity": "red",
+        "severity": "yellow",
     }
 
 
@@ -1023,7 +1040,7 @@ def run_all_universal_asserts(
         check_no_negative_inventory(event),
         check_inventory_remove_existence(event, prev_event),
         check_thread_update_id_valid(event),
-        check_orphan_conditions(event),
+        check_conditions_in_reason(event),
         check_thread_add_applied(event, prev_event, event_window=event_window),
         check_beat_type_variety(event, event_window=event_window),
         check_surface_as_consistency(event, event_window=event_window),

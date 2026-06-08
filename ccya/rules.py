@@ -1,9 +1,8 @@
 """Pure-Python rules engine. No LLM, no I/O.
 
-Dice system: 1d12 + stat_mod + difficulty_mod + condition_mod.
+Dice system: 1d12 + stat_mod + difficulty_mod.
   stat_mod   = stat_value - 2  (stat range 1–4 → mod -1..+2)
   diff_mod   = DIFFICULTY_MOD[difficulty]
-  cond_mod   = sum of CONDITION_MODS[condition][skill] for active conditions
 
 PbtA 7-band resolution (1d12):
   raw_die 1  → crit_fail  (always, ignores modifiers)
@@ -17,7 +16,7 @@ PbtA 7-band resolution (1d12):
 from __future__ import annotations
 
 import random
-from typing import Any
+
 
 from ccya.models import RulesOutcome
 
@@ -29,13 +28,6 @@ DIFFICULTY_MOD: dict[str, int] = {
     "extreme": -2,
 }
 
-CONDITION_MODS: dict[str, dict[str, int]] = {
-    "wounded": {"strength": -1, "dexterity": -1},
-    "exhausted": {"strength": -1, "dexterity": -1},
-    "drugged": {"wits": -1},
-    "frightened": {"charisma": -1},
-    "bleeding": {"strength": -1},
-}
 
 GM_MOVES: dict[str, list[str]] = {
     "crit_fail": [
@@ -130,20 +122,6 @@ def compute_band(final_total: int, raw_die: int) -> str:
     return "success"
 
 
-def conditions_modifier(skill: str, conditions: list[Any]) -> int:
-    total = 0
-    for cond in conditions:
-        if isinstance(cond, dict):
-            key = str(cond.get("id") or cond.get("label") or "").lower()
-        else:
-            key = str(cond or "").lower()
-        if not key:
-            continue
-        mods = CONDITION_MODS.get(key, {})
-        total += mods.get(skill, 0)
-    return total
-
-
 def build_directive(band: str, intent_verb: str, skill: str, *, near_miss: bool = False) -> str:
     if band in ("setback", "partial"):
         cat = _verb_category(intent_verb)
@@ -173,7 +151,6 @@ def resolve_check(
     skill: str,
     difficulty: str,
     pc_stats: dict[str, int],
-    pc_conditions: list[str],
     intent_verb: str = "",
     intent: str = "",
     rng: random.Random | None = None,
@@ -194,12 +171,11 @@ def resolve_check(
     stat_value = int(pc_stats.get(skill, 2))
     stat_mod = stat_value - 2
     diff_mod = mods[difficulty]
-    cond_mod = conditions_modifier(skill, pc_conditions)
 
     raw_die = roll_1d12(rng)
     dice = [raw_die]
     raw_total = raw_die
-    final_total = raw_total + stat_mod + diff_mod + cond_mod
+    final_total = raw_total + stat_mod + diff_mod
 
     band = compute_band(final_total, raw_die)
     near_miss = near_miss_softening and band == "fail" and final_total >= 5
@@ -212,7 +188,6 @@ def resolve_check(
         difficulty=difficulty,
         stat_mod=stat_mod,
         diff_mod=diff_mod,
-        cond_mod=cond_mod,
         dice=dice,
         raw_total=raw_total,
         final_total=final_total,

@@ -72,7 +72,7 @@
 ## This Turn's (Turn {{ meta.get('turn', '?') if meta is mapping else '?' }}) Result
 {% if rules_outcome and rules_outcome.impossible %}
 
-**IMPOSSIBLE:** This action cannot succeed — {{ rules_outcome.impossible_reason }}.
+**IMPOSSIBLE:** This action cannot succeed — {{ rules_outcome.reason }}.
 Narrate the attempt and its natural failure. Do NOT write a version where the action succeeds.
 {% elif rules_outcome and rules_outcome.rolled %}
 

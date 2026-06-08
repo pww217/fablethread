@@ -536,7 +536,7 @@ def cmd_pacing(ev: dict[str, Any]) -> None:
     # Impossible action flag
     ruling = ev.get("ruling") or {}
     if ruling.get("impossible"):
-        print(f"  impossible: true — {ruling.get('impossible_reason', '')}")
+        print(f"  impossible: true — {ruling.get('reason', '')}")
 
 
 def cmd_connectors(ev: dict[str, Any]) -> None:
@@ -2015,7 +2015,7 @@ def cmd_dice(events: list[dict[str, Any]]) -> None:
     """Display a dice roll summary across all turns.
     
     Reads ruling fields from events.jsonl: skill, difficulty, dice, raw_total,
-    final_total, band, stat_mod, diff_mod, cond_mod.
+    final_total, band, stat_mod, diff_mod.
     """
     rows: list[dict[str, Any]] = []
     band_counts: dict[str, int] = {}
@@ -2034,11 +2034,10 @@ def cmd_dice(events: list[dict[str, Any]]) -> None:
         band = ruling.get("band", "?")
         stat_mod = ruling.get("stat_mod", 0)
         diff_mod = ruling.get("diff_mod", 0)
-        cond_mod = ruling.get("cond_mod", 0)
 
         # Fallback for pre-fix data without raw_total
         if raw_total is None and isinstance(dice, list):
-            raw_total = sum(dice) + (stat_mod or 0) + (diff_mod or 0) + (cond_mod or 0)
+            raw_total = sum(dice) + (stat_mod or 0) + (diff_mod or 0)
 
         rows.append({
             "turn": ev.get("turn", "?"),
@@ -2050,7 +2049,6 @@ def cmd_dice(events: list[dict[str, Any]]) -> None:
             "band": band,
             "stat_mod": stat_mod or 0,
             "diff_mod": diff_mod or 0,
-            "cond_mod": cond_mod or 0,
         })
         total_rolls += 1
         band_counts[str(band)] = band_counts.get(str(band), 0) + 1
@@ -2075,7 +2073,7 @@ def cmd_dice(events: list[dict[str, Any]]) -> None:
             dice_str = "[]"
         raw_s = str(r["raw_total"]) if r["raw_total"] is not None else "?"
         final_s = str(r["final_total"]) if r["final_total"] is not None else "?"
-        mods = f"stat:{r['stat_mod']:+d} diff:{r['diff_mod']:+d} cond:{r['cond_mod']:+d}"
+        mods = f"stat:{r['stat_mod']:+d} diff:{r['diff_mod']:+d}"
         print(
             f"{r['turn']:>4} | {str(r['skill']):<12} | {str(r['difficulty']):<12} | {dice_str:<12} | {raw_s} → {final_s:<9} | {str(r['band']):<14} | {mods}"
         )
