@@ -156,7 +156,7 @@ def check_pending_gm_beat_lifecycle_respected(
 def check_location_change_applied(
     event: dict[str, Any], prev_event: dict[str, Any] | None
 ) -> dict[str, Any]:
-    """If applied.location_change is set, state_snapshot.location.id must differ from prior turn."""
+    """If applied.location_change is set, post-turn location must differ from prior turn."""
     applied = event.get("applied") or {}
     lc = applied.get("location_change")
     if not lc:
@@ -176,19 +176,22 @@ def check_location_change_applied(
             "severity": "red",
         }
     prev_loc = ((prev_event.get("state_snapshot") or {}).get("location") or {}).get("id")
-    cur_loc = ((event.get("state_snapshot") or {}).get("location") or {}).get("id")
-    if cur_loc == prev_loc:
+    post_loc = event.get("post_turn_location_id")
+    if post_loc is None:
+        # Fallback: use state_snapshot (pre-turn, off by one but better than nothing)
+        post_loc = ((event.get("state_snapshot") or {}).get("location") or {}).get("id")
+    if post_loc == prev_loc:
         return {
             "assertion": "universal.location_change.applied",
             "passed": False,
-            "detail": f"location_change emitted but state.location.id unchanged: {cur_loc}",
+            "detail": f"location_change emitted but post-turn location.id unchanged: {post_loc}",
             "scope": "universal",
             "severity": "red",
         }
     return {
         "assertion": "universal.location_change.applied",
         "passed": True,
-        "detail": f"{prev_loc} -> {cur_loc}",
+        "detail": f"{prev_loc} -> {post_loc}",
         "scope": "universal",
         "severity": "red",
     }
@@ -285,40 +288,30 @@ def check_momentum_band_delta(
             "scope": "universal",
             "severity": "red",
         }
-    cur_snap = event.get("state_snapshot") or {}
-    cur_m = (cur_snap.get("pc") or {}).get("momentum")
-    if cur_m is None:
-        return {
-            "assertion": "universal.momentum.band_delta",
-            "passed": True,
-            "detail": "(no pc.momentum field)",
-            "scope": "universal",
-            "severity": "red",
-        }
-    if prev_event is None:
-        return {
-            "assertion": "universal.momentum.band_delta",
-            "passed": True,
-            "detail": "(first turn)",
-            "scope": "universal",
-            "severity": "red",
-        }
-    prev_snap = prev_event.get("state_snapshot") or {}
 
     # MB-4: account for depth-based catch-up at -3 or below
-    prev_momentum_for_delta = int(prev_snap.get("pc", {}).get("momentum") or 0)
-    delta = MOMENTUM_DELTA.get(band, 0)
-    if band in ("success", "crit_success") and prev_momentum_for_delta < -2:
-        deeper_delta = 2 if band == "success" else 3
-        expected = deeper_delta
-    else:
-        expected = delta
+    prev_momentum = event.get("momentum_before") or (
+        (event.get("state_snapshot") or {}).get("pc") or {}
+    ).get("momentum", 0)
+    if band in ("success", "crit_success") and int(prev_momentum) < -2:
+        expected = 2 if band == "success" else 3
 
-    # Use the same prev_snap for actual momentum computation (already defined above)
-    prev_m = (prev_snap.get("pc") or {}).get("momentum") or 0
-    actual = (cur_m or 0) - prev_m
-    # Engine clamps to [-3, 3] so an "expected +2" can show as +1 or 0 if at edge.
-    # We accept actual within [expected - 1, expected] (engine clamp) or exactly expected.
+    # Use the event's own momentum_delta (engine's actual value after clamping and deep recovery)
+    md = event.get("momentum_delta")
+    if md is None:
+        # Fallback for old event files: compute from state_snapshot diffs
+        if prev_event is None:
+            return {"assertion": "universal.momentum.band_delta", "passed": True, "detail": "(first turn)", "scope": "universal", "severity": "red"}
+        cur_snap = event.get("state_snapshot") or {}
+        cur_m = (cur_snap.get("pc") or {}).get("momentum")
+        if cur_m is None:
+            return {"assertion": "universal.momentum.band_delta", "passed": True, "detail": "(no pc.momentum field)", "scope": "universal", "severity": "red"}
+        prev_snap = prev_event.get("state_snapshot") or {}
+        prev_m = (prev_snap.get("pc") or {}).get("momentum") or 0
+        actual = (cur_m or 0) - prev_m
+    else:
+        actual = md
+
     if actual == expected or (expected > 0 and 0 <= actual <= expected) or (expected < 0 and expected <= actual <= 0):
         return {
             "assertion": "universal.momentum.band_delta",
@@ -330,7 +323,7 @@ def check_momentum_band_delta(
     return {
         "assertion": "universal.momentum.band_delta",
         "passed": False,
-        "detail": f"band={band} expected delta {expected:+d} but got {actual:+d} (prev={prev_m} cur={cur_m})",
+        "detail": f"band={band} expected delta {expected:+d} but got {actual:+d} (prev={prev_momentum})",
         "scope": "universal",
         "severity": "red",
     }
@@ -653,7 +646,7 @@ def check_floor_relief_injection(
     storytell_type = storytell_gm_beat.get("type") if isinstance(storytell_gm_beat, dict) else None
 
     cur_snap = event.get("state_snapshot") or {}
-    cur_beat = (cur_snap.get("meta") or {}).get("pending_gm_beat")
+    cur_beat = event.get("post_turn_pending_beat") or (cur_snap.get("meta") or {}).get("pending_gm_beat")
     cur_type = cur_beat.get("type") if isinstance(cur_beat, dict) else None
 
     if not beat_locked:

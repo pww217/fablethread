@@ -39,7 +39,6 @@ from ccya.models import (
     CampaignArc,
     IntentEnvelope,
     ProgressEntry,
-    SceneExtractResult,
     StorytellerResult,
     RulesOutcome,
     StateDelta,
@@ -88,42 +87,12 @@ class TurnContext:
     _ruling_parse_error: str | None = None
     _ruling_trimmed: bool = False
     _ruling_trimmed_chars: int = 0
-    _narr_system: str = ""
-    _narr_user: str = ""
-    _narr_trimmed: bool = False
-    _narr_trimmed_chars: int = 0
-    _rendered_narr_system: str = ""
-    _rendered_narr_user: str = ""
     _avoidance: bool = False
-    _momentum_before: float | None = None
-    _momentum_after: float | None = None
     _ages: dict[str, int] = field(default_factory=dict)  # set by ruling phase before narrate setup reads it
-    _npc_name_pool: dict[str, list[str]] | None = None
-    _pending_gm_beat: dict[str, Any] | None = None
     _deescalate: float = 0.0
 
-    # Phase outputs
-    pending_gm_beat: dict[str, Any] | None = None
     intent: IntentEnvelope | None = None
     outcome: RulesOutcome | None = None
-    pacing_ctx: PacingContext | None = None
-    narrative: str | None = None
-    narrative_chunks: list[str] | None = None
-    extraction_result: Any = None
-    delta: StateDelta | None = None
-    actions: list[str] | None = None
-    outcome_summary: str | None = None
-    extraction_event: dict[str, Any] | None = None
-    storyteller_result: StorytellerResult | None = None
-    scene_result: SceneExtractResult | None = None
-    extraction_ctx: Any = None
-    errors: list[dict[str, Any]] | None = None
-    metrics: dict[str, Any] | None = None
-    ruling_metrics: dict[str, Any] | None = None
-    narr_metrics: dict[str, Any] | None = None
-    ext_metrics: dict[str, Any] | None = None
-    applied: dict[str, Any] | None = None
-    rejected: list[dict[str, Any]] | None = None
 
 @dataclass
 class PacingContext:
@@ -848,8 +817,8 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
     return intent, outcome, ruling_metrics, deescalate, phase_events
 
 
-async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
-    """Build narration context and messages. Returns (pacing_ctx, narr_messages)."""
+async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any, float]:
+    """Build narration context and messages. Returns (pacing_ctx, narr_messages, narrative_velocity)."""
     state = ctx.state
     config = ctx.config
     turn_no = state.get("meta", {}).get("turn", 0) + 1
@@ -874,9 +843,6 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         if _expires is not None and turn_no > _expires:
             _pending_gm_beat = None
             state.setdefault("meta", {})["pending_gm_beat"] = None
-
-    ctx._npc_name_pool = _npc_name_pool
-    ctx._pending_gm_beat = _pending_gm_beat
 
     # PC allegiance and world context
     _pc_allegiance = (state.get("pc") or {}).get("allegiance")
@@ -932,8 +898,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         arc_ttl=config.arc_memory_ttl, thread_ttl=config.thread_memory_ttl,
     )
 
-    ctx.pacing_ctx = _pc
-    return _pc, narr_messages
+    return _pc, narr_messages, narrative_velocity
 
 
 async def run_turn(
@@ -1010,13 +975,11 @@ async def run_turn(
         yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
 
         # Build narration context and messages (extracted phase)
-        _pc, narr_messages = await _narrate_setup(ctx)
+        _pc, narr_messages, narrative_velocity = await _narrate_setup(ctx)
 
         # Trim + log (stays inline for simplicity)
         rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
         rendered_narr_user = narr_messages[-1]["content"] if narr_messages else ""
-        ctx._rendered_narr_system = rendered_narr_system
-        ctx._rendered_narr_user = rendered_narr_user
 
         strip_trace_markers_in_messages(narr_messages)
         narr_messages, narr_trimmed, narr_trimmed_chars = trim_messages(
@@ -1378,7 +1341,7 @@ async def run_turn(
 
 
         diff_lines = _summarize_applied(applied)
-        changes = summarize_changes(state_pre_apply, state, applied, rejected)
+        changes = summarize_changes(state_pre_apply, state, rejected)
 
         # === Turn increment (single source of truth: here) ===
         state.setdefault("meta", {})["turn"] = state.get("meta", {}).get("turn", 0) + 1
@@ -1435,21 +1398,9 @@ async def run_turn(
                 "outcome_hint": _pc.outcome_hint if _pc else None,
                 "summary": _pc.summary if _pc else "",
             },
-            # Summary of what was captured in narrate_prompt rendered_user (for meta-eval visibility).
-            # Full rendered content is captured above but too large to parse efficiently.
-            "narrate_summary": {
-                "rules_outcome_present": bool(_outcome and _outcome.rolled),
-                "rules_outcome_verb": (_outcome.intent_verb if _outcome else ""),
-                "pacing_directive": _pc.directive if _pc else "",
-                "beat_locked": bool(_pc.beat_locked) if _pc else False,
-            },
-            "extraction_context": {
-                "present_npcs_count": sum(1 for e in (_extraction_ctx.comp_this_turn or {}).values() if isinstance(e, dict) and e.get("presence") == "present") if _extraction_ctx else 0,
-                "location_this_turn": dict(_extraction_ctx.location_this_turn) if _extraction_ctx else {},
-                "scene_tags_this_turn": list(_extraction_ctx.scene_tags_this_turn) if _extraction_ctx else [],
-                "inventory_this_turn": list(_extraction_ctx.inventory_this_turn) if _extraction_ctx else [],
-                "conditions_this_turn": list(_extraction_ctx.conditions_this_turn) if _extraction_ctx else [],
-            },
+            "post_turn_pending_beat": state.get("meta", {}).get("pending_gm_beat"),
+            "post_turn_location_id": state.get("location", {}).get("id"),
+            "narrative_velocity": round(narrative_velocity, 2),
             "narrate": narr_metrics,
             "extract": ext_metrics,
             "extraction": extraction_event,
@@ -1518,6 +1469,12 @@ async def run_turn(
             errors=errors,
             ruling=ruling_event or {},
             outcome_summary=outcome_summary,
+            narrative_velocity=narrative_velocity,
+            gm_beat={
+                "type": storyteller_result.gm_beat.type,
+                "surface_as": storyteller_result.gm_beat.surface_as,
+            } if (storyteller_result and storyteller_result.gm_beat) else None,
+            outcome_hint=_pc.outcome_hint if _pc else None,
             ts=_ts,
         )
         yield ("complete", result_obj)
