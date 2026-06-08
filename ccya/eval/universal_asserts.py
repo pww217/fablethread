@@ -546,8 +546,12 @@ def check_consecutive_pressure_tracking(
     gm_beat = storytell_output.get("gm_beat")
     gm_beat_type = gm_beat.get("type") if isinstance(gm_beat, dict) else None
 
-    meta = (event.get("state_snapshot") or {}).get("meta") or {}
-    counter = meta.get("consecutive_pressure_turns", 0)
+    # Use post-extraction counter (captured after all extraction phases including storytell),
+    # falls back to state_snapshot meta for older event files without the new field.
+    counter = event.get("post_extraction_consecutive_pressure_turns")
+    if counter is None:
+        meta = (event.get("state_snapshot") or {}).get("meta") or {}
+        counter = meta.get("consecutive_pressure_turns", 0)
 
     is_pressure = gm_beat_type in PRESSURE_BEAT_TYPES if gm_beat_type else False
 

@@ -26,26 +26,26 @@ judges:
   specs:
     - id: state_correctness
       rubric_path: evals/rubrics/state_correctness.md
-      model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
+      model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit-thinking
       temperature: 0.3
       max_tokens: 32000
 
     - id: narrative_interplay
       rubric_path: evals/rubrics/narrative_interplay.md
-      model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
+      model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit-thinking
       temperature: 0.3
       max_tokens: 32000
 
     - id: prompt_pipeline
       rubric_path: evals/rubrics/prompt_pipeline.md
-      model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
+      model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit-thinking
       temperature: 0.3
       max_tokens: 48000
       timeout_s: 1800
 
     - id: meta
       rubric_path: evals/rubrics/meta.md
-      model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
+      model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit-thinking
       temperature: 0.2
       max_tokens: 8000
 

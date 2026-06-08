@@ -1400,6 +1400,7 @@ async def run_turn(
             },
             "post_turn_pending_beat": state.get("meta", {}).get("pending_gm_beat"),
             "post_turn_location_id": state.get("location", {}).get("id"),
+            "post_extraction_consecutive_pressure_turns": (state.get("meta") or {}).get("consecutive_pressure_turns", 0),
             "narrative_velocity": round(narrative_velocity, 2),
             "narrate": narr_metrics,
             "extract": ext_metrics,

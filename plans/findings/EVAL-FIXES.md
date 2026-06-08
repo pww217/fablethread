@@ -86,6 +86,14 @@ There's no aggregate view of how well the thread system is managing its state ov
 - **Issue #3 root cause**: [PRIORITIES#3](./PRIORITIES.md#3-g3j--goal-stagnation--sanitizer-too-slow-to-pivot-mh) → [FINDINGS-JUNE-6#G3](./FINDINGS-JUNE-6.md#g2---goal-stagnation--sanitizer-too-slow-to-pivot-confidence-h)
 - **Issue #5 root cause**: [PRIORITIES#5](./PRIORITIES.md#5-bz1o4--background-thread-accumulation-without-decay-mh) → [FINDINGS-JUNE-6#BZ1](./FINDINGS-JUNE-6.md#bz1-h-background-threads-accumulate-forever-without-decay) → [BUGS-OBSERVATIONS#O4](./BUGS-OBSERVATIONS.md#o4-auto-demote-arc-threads-to-latent)
 
+## Eval System Bugs (Assertion False Positives)
+
+These are bugs IN the auto-checker itself that produce false-positive failures across all eval runs:
+
+- **B12** — [actions_quality assertion fires on system events](../BUGS-OBSERVATIONS.md#b12-m-actions_quality-assertion-fires-on-system-events-confidence-h): checks ALL events including `kind="condition_expired"` and `kind="sanitizer"` which have no storytell phase → exactly 3 failures/run
+- **B13** — [consecutive_pressure_tracking timing mismatch](../BUGS-OBSERVATIONS.md#b13-m-consecutive_pressure_tracking-timing-mismatch-confidence-h): reads storytell.gm_beat.type from THIS event but meta.counter captures pre-extraction state_snapshot → stale values paired with wrong types on multi-event turns
+- **B11** — [Condition schema drift](../BUGS-OBSERVATIONS.md#b11-m-condition-schema-drift-systemic-across-all-runs-confidence-h): CONDITION_MODS only has 5 entries, LLM-generated conditions become orphaned → 4-5 failures/run (not a checker bug but confirmed by eval)
+
 ## What to fix first (engine vs eval)
 
 The root causes identified here are **in the engine/prompt layer**, not the eval layer:
