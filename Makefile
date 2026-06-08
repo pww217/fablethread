@@ -1,4 +1,4 @@
-.PHONY: install run dev fmt lint test test-v test-x typecheck check css clean new-game vendor llama-swap kill eval eval-fast eval-judge-only eval-pack eval-all full-eval
+.PHONY: install run dev fmt lint test test-v test-x typecheck check css clean new-game vendor llama-swap kill eval eval-fast eval-judge-only eval-pack eval-all full-eval clean-pycache
 
 install:
 	uv sync
@@ -8,6 +8,9 @@ llama-swap:
 
 kill:
 	@lsof -ti:8765 2>/dev/null | xargs -r kill -9 && echo "killed server on 8765" || echo "no server on 8765"
+
+clean-pycache:
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 run: llama-swap
 	uv run ccya --host 0.0.0.0
@@ -60,39 +63,39 @@ vendor:
 clean:
 	rm -rf .venv dist build *.egg-info __pycache__ .pytest_cache
 
-eval: llama-swap
+eval: llama-swap clean-pycache
 	@if [ -n "$(JUDGE)" ]; then \
 		JUDGE_ARGS=""; \
 		for j in $(JUDGE); do JUDGE_ARGS="$$JUDGE_ARGS --judge $$j"; done; \
-		uv run python -m ccya.eval run $$JUDGE_ARGS; \
+		PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval run $$JUDGE_ARGS; \
 	else \
-		uv run python -m ccya.eval run; \
+		PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval run; \
 	fi
 
-eval-fast: llama-swap
+eval-fast: llama-swap clean-pycache
 	@if [ -n "$(JUDGE)" ]; then \
 		JUDGE_ARGS=""; \
 		for j in $(JUDGE); do JUDGE_ARGS="$$JUDGE_ARGS --judge $$j"; done; \
-		uv run python -m ccya.eval run --temp 0 $$JUDGE_ARGS; \
+		PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval run --temp 0 $$JUDGE_ARGS; \
 	else \
-		uv run python -m ccya.eval run --temp 0; \
+		PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval run --temp 0; \
 	fi
 
-eval-judge-only:
+eval-judge-only: clean-pycache
 	@if [ -z "$(RUN)" ]; then echo 'Usage: make eval-judge-only RUN=evals/runs/<ts>'; exit 2; fi
 	@if [ -n "$(JUDGE)" ]; then \
 		JUDGE_ARGS=""; \
 		for j in $(JUDGE); do JUDGE_ARGS="$$JUDGE_ARGS --judge $$j"; done; \
-		uv run python -m ccya.eval judge-only $(RUN) $$JUDGE_ARGS; \
+		PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval judge-only $(RUN) $$JUDGE_ARGS; \
 	else \
-		uv run python -m ccya.eval judge-only $(RUN); \
+		PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval judge-only $(RUN); \
 	fi
 
-eval-pack:
-	uv run python -m ccya.eval pack
+eval-pack: clean-pycache
+	PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval pack
 
-eval-all: llama-swap
-	uv run python -m ccya.eval run --all
+eval-all: llama-swap clean-pycache
+	PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval run --all
 
 full-eval: llama-swap
 	bash scripts/eval/run-cycle.sh
