@@ -147,7 +147,7 @@ def _log_ruling_outcome(
         lines.append(f"stat_mod:     {outcome.stat_mod}")
         lines.append(f"difficulty:   {outcome.difficulty}")
         lines.append(f"diff_mod:     {outcome.diff_mod}")
-        lines.append(f"cond_mod:     {outcome.cond_mod}")
+        lines.append(f"reason:       {intent.reason}")
         lines.append(f"dice:         {outcome.dice}")
         lines.append(f"raw_total:    {outcome.raw_total}")
         lines.append(f"final_total:  {outcome.final_total}")

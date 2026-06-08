@@ -7,7 +7,7 @@
     {% if e.ruling and e.ruling.rolled %}
     {% set r = e.ruling %}
     {% set die_val = (r.dice | default([]))[0] or 0 %}
-    {% set total_mod = (r.stat_mod or 0) + (r.diff_mod or 0) + (r.cond_mod or 0) %}
+    {% set total_mod = (r.stat_mod or 0) + (r.diff_mod or 0) %}
     <div class="roll-badge roll-badge--{{ r.band }}" data-roll-badge>
         <div class="roll-header">🎲 <strong>{{ (r.skill | default('') | upper) }}</strong> &nbsp;·&nbsp; {{ r.difficulty | default('') | lower }}</div>
         <div class="roll-math">

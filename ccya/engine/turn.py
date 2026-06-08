@@ -717,26 +717,21 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
             intent_verb=intent.intent_verb,
             intent=intent.intent,
             impossible=True,
-            impossible_reason=intent.impossible_reason,
+            reason=intent.reason,
         )
         apply_momentum(state, band)
         _log.info(
             "impossible action: %s — %s",
-            intent.intent_verb, intent.impossible_reason,
+            intent.intent_verb, intent.reason,
             extra={"trace_id": trace_id, "turn": turn_no, "pack": "", "kind": "ruling"},
         )
     elif intent.check.required and intent.check.skill:
         # Resolve dice in Python (deterministic)
         try:
-            _pc_conds_struct = list((state.get("pc") or {}).get("conditions") or [])
-            _pc_cond_ids = [
-                c.get("id", "") if isinstance(c, dict) else str(c) for c in _pc_conds_struct
-            ]
             outcome = resolve_check(
                 skill=intent.check.skill,
                 difficulty=intent.check.difficulty,
                 pc_stats=(state.get("pc") or {}).get("stats") or {},
-                pc_conditions=[cid for cid in _pc_cond_ids if cid],
                 intent_verb=intent.intent_verb,
                 intent=intent.intent,
                 difficulty_mods=config._resolve_difficulty_modifiers(),
@@ -808,7 +803,6 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
             "stat_value": outcome.stat_value if outcome.rolled else 0,
             "stat_mod": outcome.stat_mod if outcome.rolled else 0,
             "diff_mod": outcome.diff_mod if outcome.rolled else 0,
-            "cond_mod": outcome.cond_mod if outcome.rolled else 0,
             "directive": outcome.directive if outcome.rolled else "",
             "intent_verb": intent.intent_verb,
         },
@@ -1368,7 +1362,6 @@ async def run_turn(
                 "dice": _outcome.dice,
                 "stat_mod": _outcome.stat_mod,
                 "diff_mod": _outcome.diff_mod,
-                "cond_mod": _outcome.cond_mod,
                 "raw_total": _outcome.raw_total,
                 "final_total": _outcome.final_total,
                 "band": _outcome.band,

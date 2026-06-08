@@ -170,7 +170,7 @@ class IntentEnvelope(BaseModel):
     target: str = ""
     check: RulesCheck = Field(default_factory=RulesCheck)
     impossible: bool = False
-    impossible_reason: str = ""
+    reason: str = ""
     scene_motion: Literal["hold", "advance", "transition"] = "hold"
 
 
@@ -181,7 +181,6 @@ class RulesOutcome(BaseModel):
     difficulty: str = "normal"
     stat_mod: int = 0
     diff_mod: int = 0
-    cond_mod: int = 0
     dice: list[int] = Field(default_factory=list)
     raw_total: int = 0
     final_total: int = 0
@@ -190,7 +189,7 @@ class RulesOutcome(BaseModel):
     intent_verb: str = ""
     intent: str = ""
     impossible: bool = False
-    impossible_reason: str = ""
+    reason: str = ""
 
     @property
     def roll_display(self) -> str:
