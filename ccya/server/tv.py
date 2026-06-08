@@ -569,6 +569,17 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         momentum_after = ev.get("momentum_after")
         band_label = (ev.get("ruling") or {}).get("band", "")
 
+        # Narrative velocity from event data.
+        narrative_velocity = ev.get("narrative_velocity")
+
+        # GM beat type/surface_as from storytell extraction output.
+        gm_beat_dict: dict[str, Any] | None = None
+        storytell_blob = _get_nested(ev, "extraction.storytell") or {}
+        if isinstance(storytell_blob, dict):
+            raw_out = storytell_blob.get("output")
+            parsed_storytell = _tv_parse_json_blob(raw_out) if isinstance(raw_out, str) else (raw_out if isinstance(raw_out, dict) else None)
+            gm_beat_dict = (parsed_storytell or {}).get("gm_beat") if isinstance(parsed_storytell, dict) else None
+
         # ruling_intent for template (parsed from ruling_prompt.output)
         ruling_intent = _tv_parse_json_blob(prompts["ruling"]["output"])
 
@@ -604,6 +615,9 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "momentum_after": momentum_after,
                 "momentum_before": momentum_before,
                 "band_label": band_label,
+                "narrative_velocity": narrative_velocity,
+                "gm_beat_type": gm_beat_dict.get("type") if isinstance(gm_beat_dict, dict) else None,
+                "gm_beat_surface_as": gm_beat_dict.get("surface_as") if isinstance(gm_beat_dict, dict) else None,
                 "inputs_snapshot": inputs_snapshot,
                 "state_diff": state_diff,
                 "failures": row_failures,

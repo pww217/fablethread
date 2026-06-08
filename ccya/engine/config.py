@@ -9,8 +9,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import re
-
 from jinja2 import Environment, FileSystemLoader
 
 _log = logging.getLogger(__name__)
@@ -58,10 +56,6 @@ def register_persist(save_dir: str) -> None:
     _persist_started[save_dir] = True
 
 
-def pop_persist_started(save_dir: str) -> bool:
-    return _persist_started.pop(save_dir, False)
-
-
 def clear_cancel(save_dir: str) -> None:
     _cancel_requested.pop(save_dir, None)
 
@@ -75,7 +69,6 @@ def signal_turn_done(save_dir: str) -> None:
     if event is not None:
         event.set()
     clear_cancel(save_dir)
-    pop_persist_started(save_dir)
 
 
 async def await_turn_done(save_dir: str, timeout: float = 30.0) -> bool:
@@ -173,6 +166,8 @@ class EngineConfig:
     # Thread sanitizer: batch arc/thread cleanup every N turns
     sanitize_every: int = 5       # 0 = disabled
     sanitize_temperature: float = 0.3
+
+    debug_mode: bool = False
 
     def _resolve_difficulty_modifiers(self) -> dict[str, int]:
         curves = {
@@ -284,14 +279,10 @@ def build_engine_config(
         sanitize_temperature=float(
             llm.get("sanitize", {}).get("temperature", 0.3)
         ),
+
+        debug_mode=bool(game.get("debug", {}).get("enabled", False)),
     )
 
-
-
-def _strip_turn_prefix(s: str) -> str:
-    if not s:
-        return s
-    return re.sub(r'^- \[T\d+\] ', '', s).lstrip('- ').strip()
 
 
 def _build_jinja_env(template_dir: str) -> Environment:
@@ -299,7 +290,6 @@ def _build_jinja_env(template_dir: str) -> Environment:
         loader=FileSystemLoader(template_dir),
         keep_trailing_newline=True,
     )
-    env.filters["strip_turn_prefix"] = _strip_turn_prefix
     return env
 
 

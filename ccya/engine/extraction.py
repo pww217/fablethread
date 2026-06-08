@@ -101,17 +101,6 @@ def _build_extraction_context(
         conditions_this_turn=list(post_pc.get("conditions") or []),
     )
 
-
-def _check_npc_ghost_cycle(
-    scene_result: SceneExtractResult,
-    state: dict[str, Any],
-    *,
-    trace_id: str,
-    turn_no: int,
-) -> SceneExtractResult:
-    return scene_result
-
-
 def _context_meta(rendered_system: str, rendered_user: str, was_trimmed: bool, trimmed_chars: int) -> dict[str, Any]:
     """Compute context size signals for telemetry."""
     return {
@@ -230,7 +219,6 @@ def _storytell_messages(
     narration: str,
     state: dict[str, Any],
     *,
-    state_result: StateExtractResult | None = None,
     extraction_ctx: _ExtractionContext,
     intent: IntentEnvelope | None = None,
     pacing_context: Any | None = None,
@@ -454,7 +442,6 @@ async def _run_extraction_pipeline(
         scene_result, scene_usage, scene_attempts, scene_retry_errors = await _call_stream(
             scene_msgs, config, trace_id, "extract_scene", SceneExtractResult
         )
-        scene_result = _check_npc_ghost_cycle(scene_result, state, trace_id=trace_id, turn_no=turn_no)
         extraction_event["scene"] = {
             "rendered_system": rendered_scene_system,
             "rendered_user": rendered_scene_user,
@@ -537,7 +524,6 @@ async def _run_extraction_pipeline(
     extraction_ctx = _build_extraction_context(state, scene_result, state_result)
     storytell_msgs = _storytell_messages(
         env, narration, state,
-        state_result=state_result,
         extraction_ctx=extraction_ctx,
         intent=intent,
         pacing_context=pacing_context,

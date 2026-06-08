@@ -1,0 +1,345 @@
+arc:
+  completed_threads:
+  - active: false
+    id: clear_the_road_toughs
+    last_updated_turn: 4
+    outcome: The PC left town for the canyon, making the inn thugs irrelevant.
+    progress:
+    - kind: advancement
+      text: Approaching the inn entrance
+    resolution_state: abandoned
+    resolved_turn: 10
+    scope: arc
+    summary: Deal with the toughs blocking the inn entrance.
+    urgency: normal
+  - active: false
+    id: deliver_the_ledger
+    last_updated_turn: 9
+    outcome: The ledger's importance is eclipsed by Harker's rescue.
+    progress:
+    - kind: advancement
+      text: Learned of missing caravan rumors
+    - kind: advancement
+      text: Inquired about Harker at station
+    - kind: advancement
+      text: Purchased supplies from general store
+    - kind: advancement
+      text: Traveled through Red Canyon Gorge
+    resolution_state: abandoned
+    resolved_turn: 11
+    scope: arc
+    summary: Deliver Halden's ledger to the merchant at the Crossed Keys Inn.
+    urgency: normal
+  - active: true
+    id: investigate_harker_disappearance
+    last_updated_turn: 11
+    outcome: Harker found alive in the canyon cavern.
+    progress:
+    - kind: setback
+      text: Denied access to official files and cabin key
+    - kind: setback
+      text: Failed to find hidden documents
+    - kind: advancement
+      text: Spotted man wearing Harker's hat
+    - kind: advancement
+      text: found Harker bound in cavern
+    resolution_state: resolved
+    resolved_turn: 12
+    scope: arc
+    summary: Find out what happened to Old Man Harker.
+    urgency: normal
+  goal_context: The PC has tracked Harker's hat to a suspicious camp in Red Canyon
+    Gorge, where a rockfall just occurred.
+  last_thread_created_turn: 12
+  resolution: null
+  threads:
+  - active: true
+    id: settle_the_debt
+    last_updated_turn: 13
+    progress:
+    - kind: shift
+      text: returning to Dustfall with Harker
+    - kind: advancement
+      text: Harker rescued and medical care sought
+    scope: arc
+    summary: Settle the 500-credit debt with Caron.
+    urgency: normal
+  visible_goal: Confront the men at the canyon camp.
+compendium:
+  npcs:
+    caron:
+      bio: A portly man in his sixties with a merchant's ledger and a patient demeanor.
+        You owe him 500 credits from a failed venture three years ago.
+      bond: null
+      fear: null
+      leverage: null
+      motivation: null
+      name: Caron
+      presence: null
+      title: Old creditor
+    elena_vance:
+      bio: A broad-shouldered woman with tired, red-rimmed eyes that suggest chronic
+        exhaustion. She carries herself with a weary authority and keeps her hand
+        near her ironwood baton.
+      first_seen_turn: 4
+      last_seen:
+        location_id: dustfall_perimeter
+        location_name: Dustfall Perimeter
+        turn: 7
+      name: Elena Vance
+      presence: known
+      title: Sheriff's Deputy
+    halden:
+      bio: A road merchant in his fifties who hires couriers when his usual runners
+        are spoken for. Honest by reputation, careful with money.
+      bond: null
+      fear: null
+      leverage: null
+      motivation: null
+      name: Halden
+      presence: null
+      title: Merchant
+    innkeeper:
+      bio: Runs the inn alone since her husband died. Knows every traveler by face
+        if not by name. Stays out of trouble unless it walks through her door.
+      bond: null
+      fear: null
+      last_seen:
+        location_id: dustfall_main_street
+        location_name: Dustfall Main Street
+        turn: 3
+      leverage: null
+      motivation: null
+      name: Edda
+      presence: known
+      title: Innkeeper at the Crossed Keys
+    man_in_battered_hat:
+      bio: A thin, nervous individual wearing a battered felt hat clearly belonging
+        to Old Man Harker. Appears skittish and prone to sudden, panicked movements.
+      first_seen_turn: 9
+      last_seen:
+        location_id: canyon_cavern
+        location_name: Shallow Cavern
+        turn: 11
+      name: Man in Battered Hat
+      presence: known
+      title: Harker's Thief
+    matthew_estrada:
+      bio: A tall, broad-shoulded man in a stained leather jerkin carrying a heavy
+        rucksack. Looks like a road runner but moves with military precision.
+      bond: null
+      fear: null
+      last_seen:
+        location_id: canyon_cavern
+        location_name: Shallow Cavern
+        turn: 11
+      leverage: null
+      motivation: null
+      name: Matthew Estrada
+      presence: known
+      title: Traveler
+    old_man_harker:
+      bio: An elderly man with a face marked by dark bruises and dried blood. He is
+        currently bound to a stone pillar, breathing in ragged, shallow gasps.
+      first_seen_turn: 10
+      last_seen:
+        location_id: dustfall_saloon
+        location_name: Dustfall Saloon
+        turn: 13
+      name: Old Man Harker
+      presence: known
+      title: Victim
+    shadowy_figure:
+      bio: An indistinct silhouette visible through frosted glass. Their presence
+        is fleeting and unidentifiable in the midday glare.
+      first_seen_turn: 0
+      last_seen:
+        location_id: dustfall_main_street
+        location_name: Dustfall Main Street
+        turn: 3
+      name: Shadowy Figure
+      presence: known
+      title: Unknown Presence
+    silas_thorne:
+      bio: A stout man with a no-nonsense demeanor and watchful eyes. He maintains
+        the saloon with a quiet, efficient gravity, rarely speaking more than necessary.
+      first_seen_turn: 3
+      last_seen:
+        location_id: dustfall_saloon
+        location_name: Dustfall Saloon
+        turn: 13
+      name: Silas Thorne
+      notes: sliding whiskey across the bar
+      presence: present
+      title: Bartender
+    tough_a:
+      bio: Hired muscle. No personal stake in this — he'll back off if the price is
+        right or the fight goes bad.
+      bond: null
+      fear: null
+      leverage: null
+      motivation: null
+      name: Bald Tough
+      presence: null
+      title: Road thug
+    tough_b:
+      bio: Same outfit as the other — hired by the same person. Quicker to violence;
+        not the brains.
+      bond: null
+      fear: null
+      leverage: null
+      motivation: null
+      name: Scarred Tough
+      presence: null
+      title: Road thug
+inventory:
+- aliases: []
+  amount: 499
+  id: credits
+  name: Credits
+  notes: Common coin, accepted at any inn or stall on the merchant road.
+- aliases: []
+  amount: 1
+  id: iron_dagger
+  name: Iron dagger
+  notes: Plain crossguard, edge worn from honing. Belt-carried.
+- aliases: []
+  amount: 3
+  id: bandages
+  name: Linen bandages
+  notes: Three rolls. Field-grade — won't replace a healer.
+- aliases:
+  - cloak
+  - travel cloak
+  amount: 1
+  id: traveler_cloak
+  name: Traveler's cloak
+  notes: Oiled wool, road-stained, hood deep enough to hide a face.
+- aliases: []
+  amount: 1
+  id: brass_key
+  name: Brass key
+  notes: A small brass key Halden gave you with the ledger.
+- amount: 1
+  id: dried_meat
+  name: Dried meat
+  notes: A bundle of dried meat for sustenance.
+- amount: 1
+  id: leather_water_canteen
+  name: Leather water canteen
+  notes: A standard leather canteen for carrying water.
+- amount: 1
+  id: hempen_rope
+  name: Hempen rope
+  notes: A coil of hempen rope.
+- amount: 1
+  id: discarded_lantern
+  name: Discarded lantern
+  notes: A lantern found lying in the dirt near overturned crates.
+- amount: 1
+  id: whiskey
+  name: Glass of whiskey
+  notes: A glass of spirits served by the bartender.
+location:
+  description: A dim interior thick with the scent of stale ale and woodsmoke, where
+    low light barely pierces the heavy stillness.
+  id: dustfall_saloon
+  name: Dustfall Saloon
+meta:
+  compendium_touch_order:
+  - shadowy_figure
+  - innkeeper
+  - elena_vance
+  - matthew_estrada
+  - man_in_battered_hat
+  - old_man_harker
+  - silas_thorne
+  consecutive_pressure_turns: 0
+  game_name: eval
+  last_thread_created_turn: 12
+  model: ''
+  prior_history:
+  - '- [T1] The PC arrives at the saloon in Dustfall, noting an unusual silence and
+    a fleeting shadow behind the glass.'
+  - '- [T2] The player learns from Edda that a missing caravan has caused locals to
+    hide indoors.'
+  - '- [T3] Edda refused to discuss Old Man Harker''s fate, citing the danger of eavesdroppers.'
+  - '- [T4] Silas Thorne blocks the entrance to the assay office, refusing entry to
+    the player without formal documentation.'
+  - '- [T5] Elena Vance confirms a thin file exists on Harker but warns against investigating
+    further.'
+  - '- [T6] Elena Vance denied the player access to Harker''s files and cabin, forcing
+    them out of the sheriff''s station.'
+  - '- [T7] The player fails to find any hidden compartments or documents within the
+    assay office desk.'
+  - '- [T8] The player purchased dried meat, a water canteen, and hempen rope from
+    Silas Thorne for 85 credits.'
+  - '- [T9] The player enters the treacherous Red Canyon Gorge, discovering overturned
+    crates and a discarded lantern on the trail.'
+  - '- [T10] Matthew Estrada and the man in Harker''s hat react defensively as a rockfall
+    disrupts their camp.'
+  - '- [T11] The player discovers Old Man Harker bound and injured inside a shallow
+    cavern following a massive rockslide.'
+  - '- [T12] The player successfully rescues Old Man Harker and begins the journey
+    back to Dustfall amidst a rising, unnatural fog.'
+  - '- [T13] The player secures medical treatment for Old Man Harker before retreating
+    to the saloon for whiskey.'
+  recent_beats:
+  - surface_as: environmental
+    turn: 9
+    type: complication
+  - surface_as: environmental
+    turn: 10
+    type: complication
+  - surface_as: environmental
+    turn: 11
+    type: pressure
+  - surface_as: ambient
+    turn: 12
+    type: breathing_room
+  - surface_as: null
+    turn: 13
+    type: null
+  setting_pack: eval-pack
+  turn: 13
+pc:
+  actions:
+  - Question Silas Thorne about the unusual silence in town.
+  - Scan the shadowy patrons for any familiar or suspicious faces.
+  - Inquire with the bartender about the source of the fog.
+  - Pay for the whiskey and exit toward the doctor's office.
+  bio: 'Mid-thirties, broad shoulders, careful with words. Took on a courier contract
+
+    to clear an old debt. Just arrived in Marrow''s Crossing with a heavy pack and
+
+    a heavier obligation.
+
+    '
+  conditions: []
+  drive: ''
+  momentum: 0
+  name: Aren Voss
+  stats:
+    charisma: 3
+    dexterity: 3
+    strength: 3
+    wits: 2
+  tagline: Reluctant courier on the merchant road
+scene:
+  location_entered_turn: 12
+  tagline: Whispers in the Amber Light
+  tags:
+  - tense_atmosphere
+  - discovery
+  turn_entered: 12
+  world_state:
+  - Marrow's Crossing is a market town at the confluence of two rivers, known for
+    its mills and the annual river festival.
+  - Iron coin (credits) is the universal currency on the merchant road; barter is
+    acceptable but slower.
+  - The road has been quieter than usual this season — fewer caravans, more independent
+    runners, more opportunists.
+  - id: investigate_harker_disappearance
+    text: Harker found alive in the canyon cavern.
+    tier: persistent
+schema_version: 1

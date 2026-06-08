@@ -1,0 +1,366 @@
+arc:
+  completed_threads: []
+  goal_context: ''
+  last_thread_created_turn: 10
+  resolution: null
+  threads:
+  - active: true
+    id: settle_the_debt
+    progress: []
+    scope: arc
+    summary: Settle the 500-credit debt with Caron.
+    urgency: normal
+  - active: false
+    id: deliver_the_ledger
+    last_updated_turn: 9
+    progress:
+    - kind: shift
+      text: Investigated the local assay office.
+    - kind: shift
+      text: Traveled toward Red Canyon on foot.
+    scope: arc
+    summary: Deliver Halden's ledger to the merchant at the Crossed Keys Inn.
+    urgency: normal
+  - active: false
+    id: clear_the_road_toughs
+    last_updated_turn: 3
+    progress:
+    - kind: shift
+      text: arrived at Dustfall Saloon
+    - kind: shift
+      text: investigating rumors near the inn
+    scope: arc
+    summary: Deal with the toughs blocking the inn entrance.
+    urgency: normal
+  - active: true
+    id: investigate_harker_disappearance
+    last_updated_turn: 13
+    progress:
+    - kind: advancement
+      text: reached Harker's abandoned cabin
+    - kind: advancement
+      text: found map with canyon markings
+    - kind: advancement
+      text: returned to Dustfall outskirts with Harker
+    - kind: advancement
+      text: found Harker and brought him to town
+    scope: arc
+    summary: Find out what happened to Old Man Harker.
+    urgency: normal
+  visible_goal: Clear your debts and deliver the ledger — two obligations binding
+    you to Marrow's Crossing.
+compendium:
+  npcs:
+    bartender_dustfall:
+      bio: A wiry man with sun-cracked skin and a low, rasping voice. He possesses
+        a calculating gaze and seems well-versed in the local rumors and traveler
+        movements.
+      first_seen_turn: 1
+      last_seen:
+        location_id: dustfall_outskirts
+        location_name: Dustfall Outskirts
+        turn: 13
+      name: Bartender
+      notes: slides whiskey across the bar
+      presence: present
+      title: Saloon Bartender
+    cabin_dweller:
+      bio: A silent presence felt through the stillness of the abandoned room. No
+        physical form is currently visible in the shadows.
+      first_seen_turn: 5
+      last_seen:
+        location_id: weather_beaten_cabin
+        location_name: Weather-Beaten Cabin
+        turn: 7
+      name: Cabin Dweller
+      presence: known
+    caron:
+      bio: A portly man in his sixties with a merchant's ledger and a patient demeanor.
+        You owe him 500 credits from a failed venture three years ago.
+      bond: null
+      fear: null
+      leverage: null
+      motivation: null
+      name: Caron
+      presence: null
+      title: Old creditor
+    drunken_camp_dweller:
+      bio: A man prone to drunken stupors who leans heavily against supply crates.
+        He carries Old Man Harker's distinctive frayed hat on his knee.
+      first_seen_turn: 9
+      last_seen:
+        location_id: red_streaked_canyon_base
+        location_name: Canyon Base Camp
+        turn: 11
+      name: Drunken Camp Dweller
+      presence: known
+      title: Campfire Resident
+    halden:
+      bio: A road merchant in his fifties who hires couriers when his usual runners
+        are spoken for. Honest by reputation, careful with money.
+      bond: null
+      fear: null
+      leverage: null
+      motivation: null
+      name: Halden
+      presence: null
+      title: Merchant
+    innkeeper:
+      bio: Runs the inn alone since her husband died. Knows every traveler by face
+        if not by name. Stays out of trouble unless it walks through her door.
+      bond: null
+      fear: null
+      leverage: null
+      motivation: null
+      name: Edda
+      presence: null
+      title: Innkeeper at the Crossed Keys
+    kaelen_vance:
+      bio: A woman with salt-and-pepper hair pulled into a tight braid and eyes that
+        scan the room with practiced efficiency. She possesses a low, level voice
+        and maintains a steady, unreadable gaze.
+      first_seen_turn: 4
+      last_seen:
+        location_id: weather_beaten_cabin
+        location_name: Weather-Beaten Cabin
+        turn: 6
+      name: Kaelen Vance
+      presence: known
+      title: Sheriff
+    matthew_estrada:
+      bio: A tall, broad-shoulded man in a stained leather jerkin carrying a heavy
+        rucksack. Looks like a road runner but moves with military precision.
+      bond: null
+      fear: null
+      last_seen:
+        location_id: assay_office
+        location_name: Assay Office
+        turn: 4
+      leverage: null
+      motivation: null
+      name: Matthew Estrada
+      presence: known
+      title: Traveler
+    nervous_camp_dweller:
+      bio: A wiry man with a nervous habit of picking at his fingernails. He appears
+        jumpy and hyper-aware of his surroundings.
+      first_seen_turn: 9
+      last_seen:
+        location_id: red_streaked_canyon_base
+        location_name: Canyon Base Camp
+        turn: 11
+      name: Nervous Camp Dweller
+      presence: known
+      title: Campfire Resident
+    old_man_harker:
+      bio: A man of few words with a solemn demeanor and eyes fixed on the horizon.
+        He travels with a quiet dignity and shows gratitude through subtle gestures.
+      first_seen_turn: 11
+      last_seen:
+        location_id: dustfall_outskirts
+        location_name: Dustfall Outskirts
+        turn: 13
+      name: Old Man Harker
+      notes: settled in the clinic
+      presence: known
+      title: Traveling Companion
+    saloon_patrons:
+      bio: A small group of locals and travelers sitting in the shadows. They possess
+        a practiced, wary indifference toward newcomers.
+      first_seen_turn: 0
+      last_seen:
+        location_id: assay_office
+        location_name: Assay Office
+        turn: 4
+      name: Saloon Patrons
+      presence: known
+    silas_vance:
+      bio: A wiry man with ink-stained fingers and a brisk, mechanical manner of movement.
+        He possesses a practiced, wary indifference toward customers and focuses intently
+        on his calculations.
+      first_seen_turn: 3
+      last_seen:
+        location_id: marrows_crossing_general_store
+        location_name: Marrow's Crossing General Store
+        turn: 9
+      name: Silas Vance
+      presence: known
+      title: General Store Clerk
+    tough_a:
+      bio: Hired muscle. No personal stake in this — he'll back off if the price is
+        right or the fight goes bad.
+      bond: null
+      fear: null
+      leverage: null
+      motivation: null
+      name: Bald Tough
+      presence: null
+      title: Road thug
+    tough_b:
+      bio: Same outfit as the other — hired by the same person. Quicker to violence;
+        not the brains.
+      bond: null
+      fear: null
+      leverage: null
+      motivation: null
+      name: Scarred Tough
+      presence: null
+      title: Road thug
+    victor_drax:
+      bio: Tall man with a jagged scar cutting across the bridge of his nose; carries
+        himself with a casual, predatory confidence. He possesses a mocking demeanor
+        and seems to actively seek out targets for intimidation.
+      first_seen_turn: 8
+      last_seen:
+        location_id: marrows_crossing_general_store
+        location_name: Marrow's Crossing General Store
+        turn: 9
+      name: Victor Drax
+      presence: known
+      title: Scarred Rider
+inventory:
+- aliases: []
+  amount: 500
+  id: credits
+  name: Credits
+  notes: Payment for supplies.
+- aliases: []
+  amount: 1
+  id: iron_dagger
+  name: Iron dagger
+  notes: Plain crossguard, edge worn from honing. Belt-carried.
+- aliases: []
+  amount: 3
+  id: bandages
+  name: Linen bandages
+  notes: Three rolls. Field-grade — won't replace a healer.
+- aliases:
+  - cloak
+  - travel cloak
+  amount: 1
+  id: traveler_cloak
+  name: Traveler's cloak
+  notes: Oiled wool, road-stained, covered in fine choking dust.
+- aliases: []
+  amount: 1
+  id: brass_key
+  name: Brass key
+  notes: A small brass key Halden gave you with the ledger.
+- amount: 1
+  id: parchment_map
+  name: Parchment map
+  notes: Hand-drawn map with charcoal markings near Red Canyon and a crimson ink blot
+    over a canyon pass.
+- amount: 1
+  id: whiskey_glass
+  name: Whiskey glass
+  notes: A single glass of whiskey.
+location:
+  description: The saloon interior is filled with a haze of tobacco smoke and dim
+    amber light, smelling strongly of stale ale and woodsmoke.
+  id: dustfall_outskirts
+  name: Dustfall Outskirts
+meta:
+  compendium_touch_order:
+  - saloon_patrons
+  - matthew_estrada
+  - kaelen_vance
+  - cabin_dweller
+  - silas_vance
+  - victor_drax
+  - nervous_camp_dweller
+  - drunken_camp_dweller
+  - old_man_harker
+  - bartender_dustfall
+  consecutive_pressure_turns: 0
+  game_name: eval
+  last_thread_created_turn: 10
+  model: ''
+  prior_history:
+  - '- [T1] Matthew enters the Dustfall Saloon, drawing wary attention from the silent
+    patrons.'
+  - '- [T2] The player inquired about local news and learned of Matthew Estrada''s
+    inquiries and unusual rider activity near the Crossed Keys.'
+  - '- [T3] Matthew learns from the bartender that Old Man Harker disappeared near
+    the Crossed Keys amidst rumors of circling riders.'
+  - '- [T4] Matthew arrives at the Assay Office but is met with defensive hostility
+    from Silas Vance.'
+  - '- [T5] Matthew learns from Sheriff Kaelen Vance that no missing person report
+    has been filed for Harker.'
+  - '- [T6] Matthew reaches Harker''s weather-beaten cabin after being rebuffed by
+    Sheriff Vance.'
+  - '- [T7] Matthew successfully pries open a hidden tin box to find a map marked
+    with crimson ink, only to hear something dragging itself through the shadows behind
+    him.'
+  - '- [T8] Matthew arrives at the general store to purchase supplies just as approaching
+    riders draw Silas Vance''s attention.'
+  - '- [T9] Matthew is cornered in the general store by Victor Drax while attempting
+    to purchase supplies.'
+  - '- [T10] Matthew approaches the campfire and discovers a man wearing Old Man Harker''s
+    distinctive hat, causing the campers to react defensively.'
+  - '- [T11] Matthew''s attempt to intimidate the camp dwellers failed, leaving them
+    defensive and uncooperative.'
+  - '- [T12] Matthew returns to the outskirts of Dustfall accompanied by Old Man Harker.'
+  - '- [T13] Matthew brings Old Man Harker to the doctor''s office before settling
+    into the saloon for a drink.'
+  recent_beats:
+  - surface_as: ambient
+    turn: 9
+    type: pressure
+  - surface_as: ambient
+    turn: 10
+    type: breathing_room
+  - surface_as: ambient
+    turn: 11
+    type: breathing_room
+  - surface_as: null
+    turn: 12
+    type: null
+  - surface_as: null
+    turn: 13
+    type: null
+  setting_pack: eval-pack
+  turn: 13
+pc:
+  actions:
+  - Question the bartender about recent rider activity near the inn.
+  - Scan the saloon patrons for anyone wearing local militia colors.
+  - Search for Caron to discuss the outstanding debt.
+  - Listen for rumors regarding the crimson ink on Harker's map.
+  bio: 'Mid-thirties, broad shoulders, careful with words. Took on a courier contract
+
+    to clear an old debt. Just arrived in Marrow''s Crossing with a heavy pack and
+
+    a heavier obligation.
+
+    '
+  conditions:
+  - added_turn: 12
+    description: The burn of the whiskey has settled the tension in your chest.
+    id: relaxed
+    label: relaxed
+    turns_remaining: 3
+  drive: ''
+  momentum: 0
+  name: Aren Voss
+  stats:
+    charisma: 3
+    dexterity: 3
+    strength: 3
+    wits: 2
+  tagline: Reluctant courier on the merchant road
+scene:
+  location_entered_turn: 11
+  tagline: Whiskey and Smoke in the Saloon
+  tags:
+  - atmosphere
+  - social_interaction
+  turn_entered: 11
+  world_state:
+  - Marrow's Crossing is a market town at the confluence of two rivers, known for
+    its mills and the annual river festival.
+  - Iron coin (credits) is the universal currency on the merchant road; barter is
+    acceptable but slower.
+  - The road has been quieter than usual this season — fewer caravans, more independent
+    runners, more opportunists.
+schema_version: 1
