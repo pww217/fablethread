@@ -81,7 +81,7 @@ Cross-game validation (live data analysis):
 
 T20 sanitizer pivot was correct ("Use manifests to expose council corruption" → "Negotiate with Keith") but proved the mechanism works only when timing aligns. T24 arc_resolve produced incomplete state: `council_corruption_war` resolved (failed) but `visible_goal` remained on a dead objective, leaving UI strand dark.
 
-**Evidence:** [G3](./FINDINGS-JUNE-6.md#g2---goal-stagnation--sanitizer-too-slow-to-pivot-confidence-h) | [G5](./FINDINGS-JUNE-6.md#arc_resolve-produced-incomplete-state-at-t24) | [F4](../BUGS-OBSERVATIONS.md#f4-m-arc_resolve-incomplete-state-on-pivot)
+**Evidence:** [G3](./FINDINGS-JUNE-6.md#g2---goal-stagnation--sanitizer-too-slow-to-pivot-confidence-h) | [G5](./FINDINGS-JUNE-6.md#arc_resolve-produced-incomplete-state-at-t24) | [FEATURE-IDEAS#F-I04](../FEATURE-IDEAS.md#f-i03-arc-resolve-incomplete-state-on-pivot-improvement)
 
 ### Impact
 The visible_goal strand goes stale or shows dead objectives (T25 showed "Negotiate with Sergeant Keith to secure the manifests" after Keith was killed at T22). This breaks player orientation — they don't know what their current priority is because the system's stated goal no longer matches reality.
