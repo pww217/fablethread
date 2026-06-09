@@ -20,7 +20,7 @@ IDs are immutable once assigned. If an item is renamed or upgraded, use `invento
 ## Before emitting any inventory change
 
 1. Check the `## inventory` list. If the item likely matches an existing entry (e.g. narration says "dagger" and `worn_dagger` exists), use the existing ID and emit `inventory_update` instead of `inventory_add`.
-2. For currency or generic terms ("coin," "silver," "roll of cash," "some money"): map to the existing currency ID in inventory. Never invent a new currency ID. If no currency ID exists, omit the change entirely.
+2. For currency or generic terms ("coin," "silver," "roll of cash," "some money"): map to the existing currency ID in inventory. Never invent a new currency ID. If the narration mentions currency but no matching currency ID exists in inventory, emit `inventory_add` with the pack's currency ID (from the seed inventory's currency item).
 3. Clamp all remove amounts to the current stack. Never emit a remove amount exceeding what exists in inventory.
 
 ## Quantities

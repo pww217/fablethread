@@ -89,6 +89,7 @@
 ### ccya/pack.py
 - **load_pack(pack_id)** → Pack — validates pack has seed_state.yaml (static) or scenario.yaml (generated)
 - **list_packs(packs_dir)** → list[PackManifest] — aggregates from default/, custom/, generated/, and eval/
+- **ScenarioBrief** — complete world definition for a generated pack; fields: world_name, constraints, world_facts, narrator_rules, world_rules, factions, name_locales, name_seed, inspiration, situation_archetypes, arc_categories, character_dynamics, moral_pressures, npc_bonds, scene_detail_bundles, currency_id, starting_currency_amount
 
 ### ccya/rules.py
  - **resolve_check(skill, difficulty, pc_stats, intent_verb)** → RulesOutcome — 1d12+stat_mod+diff_mod→Band (pure Python)

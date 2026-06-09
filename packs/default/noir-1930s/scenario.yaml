@@ -1,3 +1,5 @@
+currency_id: dollars
+starting_currency_amount: 50
 constraints:
   # required-presence
   min_objectives_per_quest: 2
