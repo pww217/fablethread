@@ -80,7 +80,7 @@ The monolithic rubrics mean a single LLM call evaluates 6–12 concerns simultan
 
 ### Resolved — `play` temp events file
 
-**Decision: `saves/ev/<session>/`.** Play sessions persist their events to `saves/ev/<session>/events.jsonl` where `<session>` is a timestamped or auto-named directory (e.g., `20260608_ev_debug`). This follows the existing save convention (`saves/default/`, `saves/evals/`) and keeps play artifacts discoverable. The latest session is symlinked as `saves/ev/latest`. Users can clean up old sessions manually or with `ev.py play --clean`.
+**Decision: `saves/ev/<session>/`.** Play sessions persist their events to `saves/ev/<session>/events.jsonl` where `<session>` is a timestamped or auto-named directory (e.g., `20260608_ev_debug`). This follows the existing save convention (`saves/default/`) and keeps play artifacts discoverable. The latest session is symlinked as `saves/ev/latest`. Users can clean up old sessions manually or with `ev.py play --clean`.
 
 ### Resolved — Error handling in `play`
 
@@ -687,7 +687,7 @@ This design document describes a target state. The source code, prompts, event s
 - Read the current `run_turn()` yield types and `TurnResult` fields from `ccya/engine/turn.py` and `ccya/models.py` — they may differ from what this document describes.
 - Read the current thread sanitizer implementation in `ccya/engine/thread_sanitizer.py` — the event shape it writes (`kind: "sanitizer"`) may have changed.
 - Read the current event shapes by running `ev.py turn 1` against a live game or examining `saves/default/events.jsonl` — the fields present may differ from this document.
-- Verify the current model configuration (Gemma 4-26B for engine, Qwen 35B for evaluation) is still what `config.yaml` and `evals/config.yaml` specify.
+- Verify the current model configuration (Gemma 4-26B for engine, Qwen 35B for evaluation) is still what `config.yaml` specifies.
 - Check `ccya/engine/config.py` for any new config fields (especially `sanitize_every`, `sanitize_temperature`) that the EV tool needs to expose.
 - Verify the current `state.yaml` shape against `_default_state()` in `ccya/state/io.py` — any new state fields need checker support.
 

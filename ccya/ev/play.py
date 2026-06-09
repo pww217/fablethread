@@ -191,7 +191,7 @@ def format_play_output(result: dict[str, Any]) -> str:
     mb = result.get("momentum_before", 0)
     ma = result.get("momentum_after", 0)
     md = result.get("momentum_delta", 0)
-    lines.append(f"Momentum:   {mb} -> {ma}  ({md:+d})")
+    lines.append(f"Momentum:   {mb} -> {ma}  ({md:+.1f})")
 
     actions = result.get("actions", [])
     lines.append(f"Actions:   {', '.join(actions) if actions else 'none'}")

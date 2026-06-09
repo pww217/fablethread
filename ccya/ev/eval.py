@@ -143,7 +143,7 @@ def cmd_eval_run(
 def cmd_eval_list() -> None:
     scenarios = discover_scenarios()
     if not scenarios:
-        print("No YAML scenarios found in evals/scenarios/")
+        print("No YAML scenarios found in packs/")
         return
     print("Available scenarios:")
     print()

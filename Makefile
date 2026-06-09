@@ -63,44 +63,5 @@ vendor:
 clean:
 	rm -rf .venv dist build *.egg-info __pycache__ .pytest_cache
 
-eval: llama-swap
-	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true; \
-	if [ -n "$(JUDGE)" ]; then \
-		JUDGE_ARGS=""; \
-		for j in $(JUDGE); do JUDGE_ARGS="$$JUDGE_ARGS --judge $$j"; done; \
-		PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval run $$JUDGE_ARGS; \
-	else \
-		PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval run; \
-	fi
-
-eval-fast: llama-swap
-	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true; \
-	if [ -n "$(JUDGE)" ]; then \
-		JUDGE_ARGS=""; \
-		for j in $(JUDGE); do JUDGE_ARGS="$$JUDGE_ARGS --judge $$j"; done; \
-		PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval run --temp 0 $$JUDGE_ARGS; \
-	else \
-		PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval run --temp 0; \
-	fi
-
-eval-judge-only:
-	@if [ -z "$(RUN)" ]; then echo 'Usage: make eval-judge-only RUN=evals/runs/<ts>'; exit 2; fi
-	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true; \
-	if [ -n "$(JUDGE)" ]; then \
-		JUDGE_ARGS=""; \
-		for j in $(JUDGE); do JUDGE_ARGS="$$JUDGE_ARGS --judge $$j"; done; \
-		PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval judge-only $(RUN) $$JUDGE_ARGS; \
-	else \
-		PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval judge-only $(RUN); \
-	fi
-
-eval-pack:
-	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true; \
-	PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval pack
-
-eval-all: llama-swap
-	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true; \
-	PYTHONDONTWRITEBYTECODE=1 uv run python -m ccya.eval run --all
-
 full-eval: llama-swap
 	bash scripts/eval/run-cycle.sh

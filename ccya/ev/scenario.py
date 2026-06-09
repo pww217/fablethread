@@ -85,7 +85,7 @@ def load_scenario(path: Path) -> Scenario:
     )
 
 
-def discover_scenarios(scenarios_dir: str = "evals/scenarios") -> list[Path]:
+def discover_scenarios(scenarios_dir: str = "packs") -> list[Path]:
     d = Path(scenarios_dir)
     if not d.is_dir():
         return []
