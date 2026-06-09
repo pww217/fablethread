@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 
-_THREAD_EMOJI = "🧵"
+_NOTEBOOK_EMOJI = "📓"
 _ARC_EMOJI = "🏁"
 
 _log = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ def _summarize_applied(applied: dict[str, Any]) -> list[str]:
             lines.append(f"~ Dossier: {u['id']}")
     loc = applied.get("location_change")
     if isinstance(loc, dict) and (loc.get("name") or loc.get("id")):
-        lines.append(f"→ {loc.get('name') or loc.get('id')}")
+        lines.append(f"🗺️ → {loc.get('name') or loc.get('id')}")
     return lines[:18]
 
 
@@ -284,9 +284,7 @@ def summarize_changes(
                     changes.append("summary updated")
                 pre_progress = pr.get("progress") or []
                 post_progress = po.get("progress") or []
-                if len(post_progress) > len(pre_progress):
-                    changes.append("progress added")
-                elif len(post_progress) < len(pre_progress):
+                if len(post_progress) < len(pre_progress):
                     changes.append("progress consolidated")
                 elif post_progress and pre_progress and post_progress[-1] != pre_progress[-1]:
                     changes.append("progress updated")
@@ -299,7 +297,7 @@ def summarize_changes(
                         "detail": "; ".join(changes),
                     }
                     if new_entries:
-                        progress_texts = [f"[{p.get('kind', 'advancement').upper()}] {p.get('text') or p}" if isinstance(p, dict) else str(p) for p in new_entries]
+                        progress_texts = [f"{p.get('text') or p}" if isinstance(p, dict) else str(p) for p in new_entries]
                         entry["new_progress"] = "; ".join(progress_texts)
                     threads.append(entry)
         pre_resolved = len(pre.get("resolved_arcs") or [])
@@ -356,7 +354,7 @@ def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
         elif k == "condition_removed":
             lines.append(f"🩺 − {row.get('value')}")
         elif k == "location_changed":
-            lines.append(f"📍 → {row.get('to')}")
+            lines.append(f"🗺️ → {row.get('to')}")
         elif k == "stat_changed":
             lines.append(f"🩺 {row.get('stat')}: {row.get('from')} → {row.get('to')}")
     for row in ch.get("facts") or []:
@@ -381,19 +379,19 @@ def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
         scope = str(row.get("scope") or "")
         tag = f" [{scope.capitalize()}]" if scope in ("scene", "arc") else ""
         if k == "added":
-            lines.append(f"{_THREAD_EMOJI} + {summary}{tag}")
+            lines.append(f"{_NOTEBOOK_EMOJI} + {summary}{tag}")
         elif k == "updated":
-            lines.append(f"{_THREAD_EMOJI} ↻ {summary} ({detail})")
+            lines.append(f"{_NOTEBOOK_EMOJI} ↻ {summary} ({detail})")
         elif k == "resolved":
             snippet = f" — {detail}" if detail else ""
-            lines.append(f"{_THREAD_EMOJI} ✓ {summary}{snippet}")
+            lines.append(f"{_NOTEBOOK_EMOJI} ✓ {summary}{snippet}")
         elif k == "failed":
             snippet = f" — {detail}" if detail else ""
-            lines.append(f"{_THREAD_EMOJI} ✗ {summary}{snippet}")
+            lines.append(f"{_NOTEBOOK_EMOJI} ✗ {summary}{snippet}")
         elif k == "abandoned":
-            lines.append(f"{_THREAD_EMOJI} ⊘ {summary}")
+            lines.append(f"{_NOTEBOOK_EMOJI} ⊘ {summary}")
         elif k == "removed":
-            lines.append(f"{_THREAD_EMOJI} − {summary}{' (' + detail + ')' if detail else ''}")
+            lines.append(f"{_NOTEBOOK_EMOJI} − {summary}{' (' + detail + ')' if detail else ''}")
         elif k == "arc_resolved":
             snippet = f" — {detail}" if detail else ""
             lines.append(f"{_ARC_EMOJI} {summary}{snippet}")

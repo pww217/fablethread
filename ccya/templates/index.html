@@ -450,7 +450,7 @@ function _headerTaglineFromState(st) {
 }
 
 function _groupChangeLines(lines) {
-    const invGain = [], invLoss = [], pl = [], loc = [], fa = [], th = [], ar = [];
+    const invGain = [], invLoss = [], pl = [], loc = [], fa = [], thAdded = [], thUpdated = [], thResolved = [], thFailed = [], thAbandoned = [], thRemoved = [], ar = [];
     lines.forEach(s => {
         s = String(s);
         if (s.startsWith('🎒')) {
@@ -460,13 +460,20 @@ function _groupChangeLines(lines) {
             else invGain.push(s);
         }
         else if (s.startsWith('🩺')) pl.push(s);
-        else if (s.startsWith('📍')) loc.push(s);
+        else if (s.startsWith('🗺️')) loc.push(s);
         else if (s.startsWith('📜')) fa.push(s);
-        else if (s.startsWith('🧵')) th.push(s);
+        else if (s.startsWith('📓')) {
+            if (s.includes(' ↻ ')) thUpdated.push(s);
+            else if (s.includes(' ✓ ')) thResolved.push(s);
+            else if (s.includes(' ✗ ')) thFailed.push(s);
+            else if (s.includes(' ⊘ ')) thAbandoned.push(s);
+            else if (s.startsWith('📓 −')) thRemoved.push(s);
+            else thAdded.push(s);
+        }
         else if (s.startsWith('🏁')) ar.push(s);
         else invGain.push(s);
     });
-    return { invGain, invLoss, pl, loc, fa, th, ar };
+    return { invGain, invLoss, pl, loc, fa, thAdded, thUpdated, thResolved, thFailed, thAbandoned, thRemoved, ar };
 }
 
 function _buildTurnChanges(changeLines) {
@@ -475,7 +482,12 @@ function _buildTurnChanges(changeLines) {
     const sections = [
         ['tc-inv-gain', g.invGain],
         ['tc-inv-loss', g.invLoss],
-        ['tc-th',       g.th],
+        ['tc-th-added', g.thAdded],
+        ['tc-th-updated', g.thUpdated],
+        ['tc-th-resolved', g.thResolved],
+        ['tc-th-failed', g.thFailed],
+        ['tc-th-abandoned', g.thAbandoned],
+        ['tc-th-removed', g.thRemoved],
         ['tc-ar',       g.ar],
         ['tc-pl',       g.pl],
         ['tc-loc',      g.loc],
@@ -518,9 +530,16 @@ function _prependTurnLogTurn(turn, changeLines, rules) {
         if (s.startsWith('🎒 −')) cls += ' tl-inv-loss';
         else if (s.startsWith('🎒 +') || s.startsWith('🎒 ~') || s.startsWith('🎒 ⚠')) cls += ' tl-inv-gain';
         else if (s.startsWith('🩺')) cls += ' tl-pl';
-        else if (s.startsWith('📍')) cls += ' tl-loc';
+        else if (s.startsWith('🗺️')) cls += ' tl-loc';
         else if (s.startsWith('📜')) cls += ' tl-fa';
-        else if (s.startsWith('🧵')) cls += ' tl-th';
+        else if (s.startsWith('📓')) {
+            if (s.includes(' ↻ ')) cls += ' tl-th-updated';
+            else if (s.includes(' ✓ ')) cls += ' tl-th-resolved';
+            else if (s.includes(' ✗ ')) cls += ' tl-th-failed';
+            else if (s.includes(' ⊘ ')) cls += ' tl-th-abandoned';
+            else if (s.startsWith('📓 −')) cls += ' tl-th-removed';
+            else cls += ' tl-th-added';
+        }
         else if (s.startsWith('🏁')) cls += ' tl-ar';
         row.className = cls;
         row.setAttribute('data-md', '');
