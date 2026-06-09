@@ -205,6 +205,18 @@
                         <div class="roll-outcome roll-outcome--large">{{ ev.ruling.outcome_summary }}</div>
                     </div>
                     {% endif %}
+                    {% if ev.change_groups %}
+                    <div class="turn-changes">
+                        {% for section in [('invGain', 'tc-inv-gain'), ('invLoss', 'tc-inv-loss'), ('thAdded', 'tc-th-added'), ('thUpdated', 'tc-th-updated'), ('thResolved', 'tc-th-resolved'), ('thFailed', 'tc-th-failed'), ('thAbandoned', 'tc-th-abandoned'), ('thRemoved', 'tc-th-removed'), ('ar', 'tc-ar'), ('pl', 'tc-pl'), ('loc', 'tc-loc'), ('fa', 'tc-fa')] %}
+                            {% set lines = ev.change_groups[section[0]] %}
+                            {% if lines %}
+                            {% for line in lines %}
+                            <div class="turn-changes-line {{ section[1] }}" data-md>{{ line }}</div>
+                            {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
                 {% endfor %}
 
