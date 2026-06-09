@@ -90,7 +90,7 @@ def strip_npcs_notes(state: dict[str, Any]) -> None:
     """
     npcs = (state.get("compendium") or {}).get("npcs", {})
     for npc_id, entry in npcs.items():
-        if isinstance(entry, dict):
+        if isinstance(entry, dict) and entry.get("presence") not in ("departed", "archived"):
             entry.pop("notes", None)
 
 
@@ -165,6 +165,17 @@ def apply_npc_scene_management(
                     touch_compendium_order(state, resolved_id)
                 elif comp_upd.presence == "known":
                     entry.pop("notes", None)
+            if comp_upd.presence == "departed":
+                if comp_upd.departed_reason is not None:
+                    entry["departed_reason"] = comp_upd.departed_reason
+                if comp_upd.departed_summary is not None:
+                    entry["departed_summary"] = comp_upd.departed_summary
+                if current_turn_no is not None:
+                    entry["departed_turn"] = entry.get("departed_turn", current_turn_no)
+                entry.pop("notes", None)
+            if comp_upd.presence == "nearby":
+                if current_turn_no is not None:
+                    entry["nearby_since_turn"] = entry.get("nearby_since_turn", current_turn_no)
             if comp_upd.notes is not None:
                 entry["notes"] = comp_upd.notes
 

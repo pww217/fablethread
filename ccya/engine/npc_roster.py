@@ -29,6 +29,8 @@ def build_npc_roster(
     for nid, entry in comp.items():
         if not isinstance(entry, dict):
             continue
+        if entry.get("presence") == "archived":
+            continue
         presence = entry.get("presence") or NpcPresence.KNOWN.value
         if presence_filter is not None and presence != presence_filter:
             continue
@@ -47,12 +49,14 @@ def build_npc_roster(
             "bond": entry.get("bond") or None,
             "notes": entry.get("notes") or None,
             "last_seen": entry.get("last_seen") or None,
+            "departed_reason": entry.get("departed_reason") or None,
         }
 
     order = {
         NpcPresence.PRESENT.value: 0,
         NpcPresence.NEARBY.value: 2,
         NpcPresence.KNOWN.value: 3,
+        NpcPresence.DEPARTED.value: 5,
     }
     if sort_by_lru and lru_order:
         lru_idx = {nid: i for i, nid in enumerate(reversed(lru_order))}

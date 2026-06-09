@@ -219,12 +219,13 @@ def apply_delta(
             "name": _strip_non_ascii(delta.location_change.name),
             "description": delta.location_change.description,
         }
-        # Transition all present NPCs to known on location change.
+        # Transition all present NPCs to nearby on location change.
         # The scene extractor will re-add logically-following NPCs next turn.
         comp = state.setdefault("compendium", {}).setdefault("npcs", {})
         for entry in comp.values():
             if isinstance(entry, dict) and entry.get("presence") == "present":
-                entry["presence"] = "known"
+                entry["presence"] = "nearby"
+                entry["nearby_since_turn"] = state.get("meta", {}).get("turn", 0) + 1
                 entry.pop("notes", None)
         # Purge scene-scoped threads — they are localized to the prior location.
         # The LLM creates arc-scoped threads for persistent story lines.

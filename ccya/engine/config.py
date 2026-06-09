@@ -167,6 +167,10 @@ class EngineConfig:
     sanitize_every: int = 5       # 0 = disabled
     sanitize_temperature: float = 0.3
 
+    # NPC lifecycle TTLs
+    nearby_decay_ttl: int = 2       # turns before nearby → known auto-decay
+    departed_archive_ttl: int = 3  # turns as "departed" before → archived
+
     debug_mode: bool = False
 
     def _resolve_difficulty_modifiers(self) -> dict[str, int]:
