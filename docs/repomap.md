@@ -6,7 +6,7 @@
 |---|---|
 | `ccya/__main__.py` | CLI entry: argparse + uvicorn.run |
 | `ccya/cli.py` | CLI commands |
-| `ccya/models.py` | All Pydantic models including ProgressEntry, TurnResult dataclass, load_config(); NpcPresence enum (PRESENT/NEARBY/KNOWN/DEPARTED); CompendiumNpcUpdate with departed_reason/departed_summary/departed_turn |
+| `ccya/models.py` | All Pydantic models including ProgressEntry, TurnResult dataclass, load_config(); NpcPresence enum (PRESENT/NEARBY/KNOWN/DEPARTED); CompendiumNpcUpdate with departed_reason/departed_summary/departed_turn; StateExtractResult with inventory_change_reason field and model_validator |
 | `ccya/errors.py` | ErrorKind string constants (LLM_TIMEOUT, LLM_RATE_LIMIT, etc.) + LlmcError exception hierarchy (LlmcTimeout, LlmcRateLimit, LlmcApiError) |
 | `ccya/engine/__init__.py` | Re-exports public APIs; internal helpers for tests; LLM client re-exports (llm_chat, llm_chat_stream) |
 | `ccya/engine/config.py` | EngineConfig dataclass (including thread_stale_threshold, thread_max_active, nearby_decay_ttl, departed_archive_ttl), _EventLock, is_turn_in_progress(), Jinja env setup |
@@ -212,7 +212,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 
 ### Extraction field routing
 - **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, compendium_npc_update (no pressure fields); CompendiumEntry now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes
-- **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
+- **StateExtractResult**: inventory_change_reason, inventory_add/remove/update, pc_condition_add/remove (no `failed`)
   - **StorytellerResult**: thread_update (list[ThreadUpdate] with id/urgency/active/progress/progress_kind), goal_update (str | None, applied directly to arc dict — NOT through _merge_arc_update), arc_resolve (ArcResolution with resolution/visible_goal/goal_context/drop_threads/new_threads), thread_resolve (list[ThreadResolution] with id/resolution_state/outcome + promote_to_world_state flag for promotion-only world state changes), thread_add (ArcThread | None, `added_turn` and `urgency_set_turn` set at creation time in turn.py); thread_add validated by id-based dedup only (no key, no fuzzy merge); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
 - **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions, persisted to state["pc"]["actions"] as rolling window by apply_delta()
 
