@@ -382,8 +382,10 @@ def _diff_inventory(section: str, before: list[dict[str, Any]], after: list[dict
     removed = sorted(bid_ids - aid_ids)
     common = bid_ids & aid_ids
 
+    changes = []
+    amt_changes = []
+
     if not added and not removed:
-        amt_changes = []
         for iid in common:
             ba = int((bm[iid].get("amount") or 1))
             aa = int((am[iid].get("amount") or 1))
@@ -393,7 +395,6 @@ def _diff_inventory(section: str, before: list[dict[str, Any]], after: list[dict
         if not amt_changes:
             return {"section": section, "kind": "unchanged", "before_value": before, "after_value": after}
 
-    changes = []
     for iid in added:
         item = am[iid]
         name = item.get("name", "") if isinstance(item, dict) else ""
@@ -465,15 +466,20 @@ def _diff_location(section: str, before: list[dict[str, Any]], after: list[dict[
     if not isinstance(after, list):
         after = []
 
-    b_id = before[0].get("id", "") if len(before) > 0 and isinstance(before[0], dict) else ""
-    b_name = before[0].get("name", "") if len(before) > 0 and isinstance(before[0], dict) else ""
-    a_id = after[0].get("id", "") if len(after) > 0 and isinstance(after[0], dict) else ""
-    a_name = after[0].get("name", "") if len(after) > 0 and isinstance(after[0], dict) else ""
+    if not before and not after:
+        return {"section": section, "kind": "unchanged", "before_value": before, "after_value": after}
+
+    b_obj = before[0] if before and isinstance(before[0], dict) else {}
+    a_obj = after[0] if after and isinstance(after[0], dict) else {}
+    b_id = b_obj.get("id", "")
+    b_name = b_obj.get("name", "")
+    a_id = a_obj.get("id", "")
+    a_name = a_obj.get("name", "")
 
     if b_id == a_id and b_name == a_name:
         return {"section": section, "kind": "unchanged", "before_value": before, "after_value": after}
 
-    label = f"{b_name or b_id} \u2192 {a_name or a_id}"
+    label = f"{b_name or b_id or '?'} \u2192 {a_name or a_id or '?'}"
     return {"section": section, "kind": "changed", "before_value": before, "after_value": after, "changes": [{"kind": "changed", "label": label}]}
 
 
@@ -585,8 +591,8 @@ def _format_diff_output(
             elif expected_section == "Conditions":
                 _print_unchanged_conditions(before_val)
             elif expected_section == "Location":
-                if before_val:
-                    loc = before_val[0] if isinstance(before_val[0], dict) else {}
+                loc = (before_val[0] if before_val and isinstance(before_val[0], dict) else {}) if before_val else {}
+                if loc:
                     print(f"  {loc.get('name', loc.get('id', '?'))}")
             elif expected_section == "Scene Tags":
                 _print_unchanged_tags(before_val)
@@ -632,12 +638,16 @@ def diff_extraction_context(ctx_a: dict[str, Any], ctx_b: dict[str, Any]) -> lis
     }
     results = []
     for key, (section_name, diff_fn) in field_map.items():
-        val_a = ctx_a.get(key) or []
-        val_b = ctx_b.get(key) or []
-        if not isinstance(val_a, list):
+        val_a = ctx_a.get(key)
+        val_b = ctx_b.get(key)
+        if val_a is None:
             val_a = []
-        if not isinstance(val_b, list):
+        elif not isinstance(val_a, list):
+            val_a = [val_a]
+        if val_b is None:
             val_b = []
+        elif not isinstance(val_b, list):
+            val_b = [val_b]
         changed = diff_fn(section_name, val_a, val_b)
         results.append(changed)
     return results
