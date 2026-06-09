@@ -3,7 +3,7 @@
 
 **Stats:** {% for k, v in (pc.stats or {}).items() %}{{ k }}={{ v }}{% if not loop.last %} {% endif %}{% endfor %}
 
-**Conditions:** {% if pc.conditions %}{% for c in pc.conditions %}{{ c.label if c is mapping else c }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}none{% endif %}
+**Conditions:** {% if pc.conditions %}{% for c in pc.conditions %}{{ c.label if c is mapping else c }}{% if c is mapping and c.get('description') %} — {{ c.description }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}none{% endif %}
 
 ## scene
 Location: {{ location.name or location.id or "Unknown" }}
@@ -15,7 +15,7 @@ Location: {{ location.name or location.id or "Unknown" }}
 {%- if inventory %}
 ## Inventory
 {% for item in inventory -%}
-- {{ item.name }} ({{ item.amount }})
+- {{ item.name }} ({{ item.amount }}){% if item.notes %}: {{ item.notes }}{% endif %}
 {% endfor -%}
 {% endif -%}
 {%- if last_outcome %}

@@ -38,6 +38,15 @@ Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, publi
 - No `# noqa` / `# type: ignore` unless absolutely unavoidable (document why inline).
 - **No backwards compatibility required.** If a field, route, config key, or model is unused: delete it. Do not design migration paths and add a bunch of extra code. Just rip out old system, replace with no. Never do backward compatability unless specifically asked.
 
+## Documentation — mandatory update check
+
+Any code change that touches a module, config key, model field, prompt, or public API requires corresponding updates to:
+- **`docs/architecture/`** — if pipeline flow, data shapes, or stage contracts change.
+- **`docs/repomap.md`** — if module boundaries, function signatures, or public APIs change.
+- **`AGENTS.md`** (this file itself) — if build commands, test commands, signposts, or repo conventions change.
+
+These are not optional. Every plan, execution, and code review must include a documentation assessment. Stale docs are bugs.
+
 ---
 
 ## Logging
