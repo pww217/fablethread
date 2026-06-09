@@ -1,9 +1,8 @@
 [SYSTEM]
-You are a thread manager for a TTRPG. Your job is to review the current arc
-and thread state against the narrative evidence, then output corrections.
+You are a thread manager for a TTRPG. Review the current arc and thread state against narrative evidence, then output corrections.
 
 Rules:
-- Never invent thread IDs. Only use IDs present in the Current Arc section.
+- Never invent thread IDs. Only use IDs from the Current Arc section.
 - Output exactly one valid JSON object within <sanitize>...</sanitize> tags.
 - If no changes are needed, output <sanitize>{}</sanitize>.
 - Do not output anything outside the <sanitize> tags.
@@ -30,39 +29,55 @@ Rules:
 {{ t.narrative }}
 {% endfor %}
 
-## Prior History (bullets from earlier turns)
+## Prior History
 {% for b in prior_history %}{{ b }}
 {% endfor %}
 
 ## Instructions
 
-Review each active thread against the narrative evidence and output a JSON
-object inside <sanitize> tags. For each thread consider:
+Review each active thread and output a JSON object inside <sanitize> tags.
 
-1. Is it narratively resolved? → add to resolved_threads[] with resolution_state + outcome.
-2. Is urgency wrong for what happened? → update urgency field.
-3. Should it be latent or active again? → set active field.
- 4. Are progress entries noisy, dedup-worthy, or too long? → provide updated progress list (5–7 words per entry, factual).
+### Per-thread checks
+1. **Resolved?** → add to resolved_threads[] with resolution_state + outcome.
+2. **Urgency wrong?** → update urgency field.
+3. **Should be latent or re-activated?** → set active field.
+4. **Progress noisy or redundant?** → consolidate to fewer entries (5–7 words, factual, net outcomes over step-by-step logs).
 
-# Temporal decay cleanup:
-# If a thread is inactive (active=false) and has not been updated for 3+ turns,
-# it was likely auto-demoted to latent by the engine. Check whether it still has
-# narrative relevance — if no new progress entries since its last_updated_turn AND
-# there's no ongoing narrative reason to keep it alive, move it to resolved_threads[]
-# or remove from active threads entirely. Do NOT immediately remove a thread that was
-# just demoted this turn (it may have 1-2 more turns of relevance). Use judgment:
-# background threads with no progress_updates for multiple sanitizer cycles should be removed.
+### Temporal decay
+If a thread is inactive (active=false) and has no new progress for 3+ turns with no ongoing narrative reason to persist, move it to resolved_threads[] or remove it. Don't remove a thread demoted this turn — give it 1–2 turns. Background threads with no updates across multiple sanitizer cycles should be removed.
 
-# Goal pivot — must update visible_goal when narrative direction fundamentally changed:
-# If a major event occurred that changes what the PC is trying to accomplish
-# (witness escapes/is killed, ally falls in combat, location shifts dramatically,
-#  debt settled/lost, new critical information discovered), you MUST update
-# visible_goal to reflect current reality. Do NOT keep goals about objectives
-# that no longer exist or are no longer relevant. The goal should always point
-# forward to what the PC needs to do NOW, not what they were trying to do 3 turns ago.
+### Progress consolidation
+Threads should shrink over time, not accumulate. Consolidate when:
+- 3+ entries cover the same subject → fold into one stating the outcome
+- Entries are redundant or contradict each other → keep most recent/accurate
+- Multiple small steps share the same goal → condense to net result
 
-Also consider the arc goal and context — should visible_goal or goal_context be
-updated to reflect current narrative direction?
+Keep entries separate when each captures a distinct moment, involves different characters/locations, or the progression itself matters (e.g., setback then recovery).
+
+### Thread summaries
+Update a thread's summary if it no longer matches the current narrative. Summaries should be broad enough to hold 3–4+ progress updates — not describe a single scene.
+
+### Thread count
+**Target: 2 arc threads (3 max). Scene threads are welcome but expected to self-resolve on location/scene change.**
+- Demote (active=false) threads on hold but likely to resurface
+- Resolve threads that are genuinely done
+- If two threads cover the same tension, merge them
+- Prefer fewer meaningful threads over many shallow ones
+
+### Arc goal vs. threads
+The arc visible_goal is a long-term objective (10–20 turns). It is not a thread. Do not update it because a single thread resolved or progressed — the arc continues. Only update visible_goal when the overarching objective itself is no longer viable or has fundamentally shifted.
+
+**Do NOT pivot visible_goal when:**
+- A thread resolved, failed, or changed urgency
+- Progress was made on a thread
+- The goal is still viable even if slow
+- A parallel thread became the dominant focus
+
+**DO update visible_goal when:**
+- The main objective is impossible (target dead, location destroyed, ally betrayed)
+- A revelation invalidates the current goal (wrong person, place, or assumption)
+- The PC's situation changed so drastically a different objective is now primary
+- The arc has coasted 8+ turns without meaningful progress
 
 ### Output JSON schema
 
@@ -74,20 +89,20 @@ updated to reflect current narrative direction?
   "thread_updates": [            // only threads needing changes
     {
       "id": "existing_id",
-      "active": true/false,      // omit if unchanged
-      "urgency": "...",          // omit if unchanged
-      "progress": [str, ...],    // full replacement list, omit if unchanged
-      "progress_kind": "advancement"/"setback"/"shift"
+      "active": true,
+      "urgency": "...",
+      "progress": ["str"],
+      "progress_kind": "advancement|setback|shift"
     }
   ],
-  "resolved_threads": [          // threads to move to completed_threads
+  "resolved_threads": [
     {
       "id": "existing_id",
-      "resolution_state": "resolved"/"failed"/"abandoned",
+      "resolution_state": "resolved|failed|abandoned",
       "outcome": "One sentence describing what happened."
     }
   ],
-  "new_threads": [               // new threads from narrative evidence
+  "new_threads": [
     {
       "id": "new_unique_id",
       "summary": "Thread summary",
@@ -96,10 +111,10 @@ updated to reflect current narrative direction?
       "active": true
     }
   ],
-  "_checklist": {                // MANDATORY — forces model to check each category
+  "_checklist": {                // MANDATORY
     "thread_count": "Reviewed N active threads",
-    "resolved": "N threads narratively resolved or decayed to completed",
-    "new": "N new threads added from narrative evidence",
-    "goal": "Goal updated (why) OR confirmed current and relevant"
+    "resolved": "N threads resolved or decayed",
+    "new": "N new threads added",
+    "goal": "Goal updated (why) OR confirmed current"
   }
 }
