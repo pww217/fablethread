@@ -47,14 +47,24 @@
         {% set cls = cls ~ ' tl-inv-gain' %}
     {% elif ln.startswith('🩺') %}
         {% set cls = cls ~ ' tl-pl' %}
-    {% elif ln.startswith('📍') %}
+    {% elif ln.startswith('🗺️') %}
         {% set cls = cls ~ ' tl-loc' %}
     {% elif ln.startswith('📜') %}
         {% set cls = cls ~ ' tl-fa' %}
-    {% elif ln.startswith('🗺️') %}
-        {% set cls = cls ~ ' tl-qu' %}
-    {% elif ln.startswith('🧵') %}
-        {% set cls = cls ~ ' tl-th' %}
+    {% elif ln.startswith('📓') %}
+        {% if ' ↻ ' in ln %}
+            {% set cls = cls ~ ' tl-th-updated' %}
+        {% elif ' ✓ ' in ln %}
+            {% set cls = cls ~ ' tl-th-resolved' %}
+        {% elif ' ✗ ' in ln %}
+            {% set cls = cls ~ ' tl-th-failed' %}
+        {% elif ' ⊘ ' in ln %}
+            {% set cls = cls ~ ' tl-th-abandoned' %}
+        {% elif ln.startswith('📓 −') %}
+            {% set cls = cls ~ ' tl-th-removed' %}
+        {% else %}
+            {% set cls = cls ~ ' tl-th-added' %}
+        {% endif %}
     {% elif ln.startswith('🏁') %}
         {% set cls = cls ~ ' tl-ar' %}
     {% endif %}
