@@ -42,7 +42,11 @@ If the narration states a specific number, use it exactly. If no number is state
 
 ## Reason field
 
-ONLY when inventory_add or inventory_remove is non-empty, and when a player aquired or loses an item: state why inventory changed this turn. Be very concise — a short phrase, not a sentence. If multiple items were added or removed, explain all changes in one reason covering both adds and removes together.
+`inventory_change_reason`
+
+ONLY when inventory_add or inventory_remove is non-empty, and when a player aquired or loses an item. With a concise phrase, state what *allowed* the change. Why was it possible?
+
+If multiple items were added or removed, explain all changes string covering both all actions.
 
 ## Field rules
 
