@@ -67,28 +67,26 @@ def _call_llm_checker(
     The LLM is instructed to return a JSON object with keys:
     {"passed": bool, "score": float, "reasoning": str, "findings": list[dict]}
     """
-    loop = None
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
     try:
         from ccya.llm_client import chat as llm_chat
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
-        response = loop.run_until_complete(
-            llm_chat(
-                config.host,
-                config.model,
-                messages,
-                temperature=0.3,
-                timeout=float(config.request_timeout_s),
-            ),
-        )
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            response = loop.run_until_complete(
+                llm_chat(
+                    config.host,
+                    config.model,
+                    messages,
+                    temperature=0.3,
+                    timeout=float(config.request_timeout_s),
+                ),
+            )
+        finally:
+            loop.close()
         raw = response.get("response", "")
         parsed = _try_parse_json(raw)
         if parsed is None:
@@ -97,9 +95,6 @@ def _call_llm_checker(
     except Exception as exc:
         _log.warning("LLM checker call failed: %s", exc)
         return {"error": "call_failed", "detail": str(exc)}
-    finally:
-        if loop and asyncio.get_event_loop_policy().get_event_loop() is not loop:
-            loop.close()
 
 
 def _try_parse_json(raw: str) -> dict[str, Any] | None:
