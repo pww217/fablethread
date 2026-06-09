@@ -58,6 +58,10 @@
                         New Game
                     </button>
                     <button type="button" class="gear-menu-item" 
+                            @click="menuOpen = false; openSavePicker()">
+                        Load Save
+                    </button>
+                    <button type="button" class="gear-menu-item" 
                             x-show="turnNum > 0"
                             :disabled="starting || submitting"
                             @click="menuOpen = false; retryTurn()">
@@ -70,12 +74,6 @@
                     </button>
                     <button type="button" class="gear-menu-item" @click="menuOpen = false; window.location.href='/turn_viewer'">
                         Turn Viewer
-                    </button>
-                    <div class="gear-menu-divider"></div>
-                    <button type="button" class="gear-menu-item" 
-                            x-show="turnNum > 0"
-                            @click="menuOpen = false; openSavePicker()">
-                        Load Save
                     </button>
                     <div class="gear-menu-divider"></div>
                     <button type="button" class="gear-menu-item" @click="menuOpen = false; resetSidebars()">Reset Sidebars</button>
@@ -940,10 +938,10 @@ function charCreation() {
 
         applyPreset(name) {
             const archetypes = {
-                warrior:   { strength: 3, dexterity: 3, wits: 2, charisma: 2 }, // total 10,
-                scout:     { strength: 2, dexterity: 3, wits: 3, charisma: 2 }, // total 10,
-                scholar:   { strength: 2, dexterity: 2, wits: 3, charisma: 3 }, // total 10,
-                charmer:   { strength: 2, dexterity: 2, wits: 2, charisma: 4 }, // total 10,
+                warrior:   { strength: 3, dexterity: 3, wits: 2, charisma: 2 },
+                scout:     { strength: 2, dexterity: 3, wits: 3, charisma: 2 },
+                scholar:   { strength: 2, dexterity: 2, wits: 3, charisma: 3 },
+                charmer:   { strength: 2, dexterity: 2, wits: 2, charisma: 4 },
             };
             const a = archetypes[name];
             if (a) {

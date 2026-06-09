@@ -47,30 +47,30 @@
         </div>
 
         <!-- Stat grid -->
-        <div class="stat-grid">
-            <template x-for="stat in stats" :key="stat.key">
-                <div class="stat-row">
-                    <div class="stat-row-name has-tooltip" x-text="stat.label">
-                        <div class="tooltip-body" style="display:none;">
-                            <span data-md x-text="stat.description"></span>
-                        </div>
-                    </div>
-                    <div class="stat-row-controls">
-                        <button type="button" class="stat-btn stat-btn--minus"
-                                x-bind:disabled="stat.value <= 1"
-                                @click="decrement(stat.key)">−</button>
-                        <div class="stat-pips">
-                            <template x-for="pip in 4" :key="pip">
-                                <span class="stat-pip"
-                                      x-bind:class="pip <= stat.value ? 'stat-pip-filled' : 'stat-pip-empty'"></span>
-                            </template>
-                        </div>
-                        <button type="button" class="stat-btn stat-btn--plus"
-                                x-bind:disabled="stat.value >= 4 || total >= 10"
-                                @click="increment(stat.key)">+</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;margin-top:4px;">
+        <template x-for="stat in stats" :key="stat.key">
+            <div class="stat-row" style="margin:0;">
+                <div class="stat-row-name has-tooltip" x-text="stat.label">
+                    <div class="tooltip-body" style="display:none;">
+                        <span data-md x-text="stat.description"></span>
                     </div>
                 </div>
-            </template>
+                <div class="stat-row-controls">
+                    <button type="button" class="stat-btn stat-btn--minus"
+                            x-bind:disabled="stat.value <= 1"
+                            @click="decrement(stat.key)">−</button>
+                    <div class="stat-pips">
+                        <template x-for="pip in 4" :key="pip">
+                            <span class="stat-pip"
+                                  x-bind:class="pip <= stat.value ? 'stat-pip-filled' : 'stat-pip-empty'"></span>
+                        </template>
+                    </div>
+                    <button type="button" class="stat-btn stat-btn--plus"
+                            x-bind:disabled="stat.value >= 4 || total >= 10"
+                            @click="increment(stat.key)">+</button>
+                </div>
+            </div>
+        </template>
         </div>
     </div>
 
