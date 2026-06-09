@@ -49,20 +49,56 @@ The monolithic rubrics mean a single LLM call evaluates 6–12 concerns simultan
 | Documentation in repo only | `scripts/debug/README.md`, `docs/ev/CHECKERS.md` | Single source of truth |
 | Skill is a thin pointer | Reads repo docs instead of inline reference | Eliminates duplication |
 | 13 subcommands | Summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval | Clearly named, no overlap |
-| Markdown output default | `--json` deferred | Both humans and LLMs read it; no concrete JSON consumer |
-| Engine model | Gemma 4-26B for gameplay | Engine runs on Gemma; evaluation/analysis on Qwen |
-| Checker model | Qwen3.6-35B for LLM checkers | Smarter model for reasoning about results |
+| Markdown output default | Human-readable output. `--json` flag on `turn` included in v1 | Both humans and LLMs read it; `turn --json` covers ad-hoc raw JSON inspection |
+| Engine model | Gemma 4-26B for gameplay | Single model loaded at a time |
+| Checker model | Configurable (default: engine model) | `--checker-model` flag overrides to e.g. Qwen 35B for heavy analysis. Both models are never in memory simultaneously |
+| Player LLM | Engine model (Gemma) | Same model as gameplay; no separate player model loaded |
+| turn --json | Included in v1 | Replaces old `outputs` subcommand for raw JSON inspection |
 | `--no-sanitize` flag | Available on `play` to disable thread sanitizer | Keeps debug sessions clean; no mid-session LLM calls |
 | Sanitizer visibility | `deltas` shows sanitizer changes; `mechanics --sanitize` flags runs; `sanitizer_lifecycle` checker | The kind:sanitizer events are no longer invisible |
 | Sanitizer lifecycle checker | `ccya/ev/checkers/` | Deterministic: verifies thread IDs, goal changes, no orphans |
 | YAML scenarios first | Simple human-writable format | No Python expertise needed to author a scenario |
 | Shared data access layer | `ccya/ev/events.py` | Serves both ev.py and TurnViewer; single path for event reading |
+| Checker event filtering | Framework filters to turn events before passing to checkers. Checkers with `needs_non_turn_events=True` get full list | Keeps checkers clean; opt-in for special cases |
+| Checker state access | Checkers with `needs_state=True` receive `save_dir` and load state.yaml directly via `load_current_state()` | Sanitizer lifecycle and other cross-event checks need state outside turn events |
+| Structured assertions in YAML | Optional `asserts` per-turn using stream/field/expected pattern | Bridges gap between reusable checkers and scenario-specific expectations |
+| Checker discovery | Explicit imports in `checkers/__init__.py` | Import errors surface at load time, not runtime; IDE-friendly |
+| Missing-field behavior | Pre-validate, warn, skip | Catches checker bugs without crashing; individual event `None` silently |
+| Play event persistence | `saves/ev/<session>/events.jsonl` | Follows existing save convention; discoverable; latest symlinked |
+| Error handling in play | Always produce structured output + non-zero exit | Scriptable; never crashes with raw traceback |
+| Extraction context | Use engine's existing event field directly | Already computed by engine; `event.get("extraction_context", {})` |
 
 ## Open Questions
 
-[OPEN: Should `play --interactive` also run checkers after each turn, or only on request? Running checkers automatically provides constant feedback but adds latency. A `--check` flag that defaults to off seems right, but the user may want immediate mechanical feedback in interactive mode.]
+### Resolved — Checker discovery
 
-[OPEN: The extraction context data flow (in-turn deltas between scene→state→storytell) — should this be a section within `deltas`, a standalone command, or part of `mechanics`? The current decision puts it in `deltas` since it's about data flow, not behavioral mechanics, but it could reasonably live in `mechanics --extraction-flow`.]
+**Decision: Explicit imports.** Each checker module is listed in `checkers/__init__.py`. A new checker requires editing `__init__.py` to add the import line. This is more robust than auto-discovery because import failures surface at module load time (not silently at checker runtime), and the IDE can find and refactor explicit imports.
+
+### Resolved — Missing-field behavior
+
+**Decision: Pre-validate and warn/skip.** Before running a checker, the framework checks that every required field exists on at least one event. If a required field is entirely absent from the event set, the framework logs a warning and skips that checker. Individual events within the set that lack a field are silently omitted from that checker's view (field returns `None`). This catches checker-authoring bugs without crashing the eval.
+
+### Resolved — `play` temp events file
+
+**Decision: `saves/ev/<session>/`.** Play sessions persist their events to `saves/ev/<session>/events.jsonl` where `<session>` is a timestamped or auto-named directory (e.g., `20260608_ev_debug`). This follows the existing save convention (`saves/default/`, `saves/evals/`) and keeps play artifacts discoverable. The latest session is symlinked as `saves/ev/latest`. Users can clean up old sessions manually or with `ev.py play --clean`.
+
+### Resolved — Error handling in `play`
+
+**Decision: Always produce output, never crash.** When `run_turn()` raises an error (LLM timeout, parse failure, etc.), `play` catches it and produces:
+- A structured `Errors` section in the output (same format as the normal output, with an errors block instead of deltas)
+- The engine's fallback narrative if available (turn.py already produces one)
+- A non-zero exit code
+- No raw traceback to stderr
+
+This makes the tool useful for scripting — you can `ev.py play "x" && echo "ok" || echo "fail"` and always get structured output.
+
+### Resolved — Extraction context
+
+**Decision: Use the engine's existing field directly.** The `extraction_context` field is already computed by the engine during `run_turn()` and stored in every turn event. The shared data access layer just extracts it (`event.get("extraction_context", {})`) — no reconstruction needed. The in-turn data flow display in `deltas` is built from this existing field. No separate `extract_extraction_context()` function is necessary beyond the trivial one-liner.
+
+### Remaining: extraction_context display placement
+
+The extraction context data (NPCs, location, scene tags, inventory, conditions as seen by the storyteller) currently appears as a section within `deltas`. This is correct — it's one part of the turn-to-turn delta picture. No separate command needed.
 
 ## Current State — What Exists
 
@@ -228,7 +264,7 @@ The 16 existing subcommands consolidate to 13 clearly named commands:
 |---|---|---|
 | `summary` | summary | One-line overview of all turns: streams active, tokens, rules intent, deltas |
 | `timing` | timing | Token counts and elapsed time per stream for every turn |
-| `turn` | turn | Full prompts + outputs for all five streams on one turn |
+| `turn` | turn | Full prompts + outputs for all five streams on one turn. `--json` for raw event JSON |
 | `prompt` | props, compact, prompt | Examine prompts for one stream. Shows user prompt by default. `--system` flag to include system prompt. `--stream <name>` to pick stream. `--field <name>` for a single field. |
 | `deltas` | deltas, connectors | State mutations (turn-to-turn) + extraction context data flow (in-turn: what each extractor received from prior extractors) + sanitizer changes (thread updates/resolutions/additions applied between turns). Three sections separated by dividers. |
 | `mechanics` | mechanics, pacing, dice | Rules intent, GM beat, dice summary, pacing context (gate, momentum, band, beat_locked), sanitizer events. Flags: `--pacing`, `--dice`, `--sanitize`. |
@@ -244,14 +280,14 @@ The 16 existing subcommands consolidate to 13 clearly named commands:
 - `prompt` subsumes `props` (shows system+user+output for one stream) and `compact` (user+output only, becomes `prompt --no-system` which is the default anyway) and the old `prompt` (single field, becomes `prompt --field name`)
 - `deltas` subsumes `connectors` — the extraction context flow (what data passed from scene→state→storytell) appears as a section within the deltas output. Sanitizer events (thread updates/resolutions/additions between turns) appear as a third section when the sanitizer ran on that turn.
 - `mechanics` subsumes `pacing` (becomes `mechanics --pacing`) and `dice` (becomes `mechanics --dice` or appears in summary). Sanitizer runs flagged via `mechanics --sanitize` or automatically highlighted when present on a turn.
-- `outputs` is dropped — JSON outputs appear via `turn --json` if needed later
+- `outputs` is dropped — replaced by `turn --json` (included in v1)
 - Total: 13 commands replacing 16
 
 #### 3. `ev.py play <input>`
 
 ```
 ev.py play <input>                          # One turn via in-process engine
-  --save-dir <path>                         # Save dir (fresh if not, uses temp)
+  --save-dir <path>                         # Save dir (default: saves/ev/<session>/)
   --no-sanitize                             # Disable thread sanitizer for this turn
   --check <checker> [--check <checker>]     # Run specific checkers after play
   --model <name>                            # LLM model override
@@ -265,7 +301,7 @@ ev.py play --llm "find the key"             # LLM-driven session
   --no-sanitize                             # Disable sanitizer for entire session
 ```
 
-Output (structure):
+Output (structure) — normal play:
 ```
 Turn 3  |  trace: a1b2c3d4
 ------------------------------------------------------
@@ -285,6 +321,35 @@ Deltas:
 Errors:    none
 Tokens:    in=5241  out=892  ms=3421
 ```
+
+Output (structure) — error:
+```
+Turn 3  |  trace: a1b2c3d4
+------------------------------------------------------
+Errors:
+  - LlmcTimeout: LLM call timed out after 30s
+  - Fallback narrative: "*An error occurred...*"
+
+Tokens:    in=3241  out=0  ms=30000
+```
+
+Error handling: all errors are caught and presented as a structured `Errors` section in the output. The play command never dumps a raw traceback to stderr — it always produces structured output. Exit code is non-zero when errors are present.
+
+##### Event persistence
+
+Play sessions write their events to `saves/ev/<session>/events.jsonl` where `<session>` is a timestamped directory (e.g., `saves/ev/20260608_ev_debug/`). The latest session is symlinked as `saves/ev/latest`. This follows the existing save convention and keeps play artifacts discoverable. Explicit `--save-dir` overrides this default.
+
+##### Async wrapping pattern
+
+`run_turn()` is an async generator yielding `("phase", dict)`, `("token", str)`, and eventually `("complete", TurnResult)`. The `play` command wraps it with a synchronous interface:
+
+- **Single-turn `play`**: A single `asyncio.run(_run(...))` call creates a fresh event loop, iterates the generator, collects all yields, and returns the `TurnResult`.
+- **`--interactive`**: A persistent event loop is maintained across the session. Each call is `loop.run_until_complete(_run(...))` on the same loop.
+- **`--llm`**: Same persistent loop as `--interactive`.
+
+The player LLM that generates inputs in `--llm` mode is the same engine model (Gemma), not a separate model.
+
+Streamed tokens from `("token", str)` yields are collected into a buffer during iteration. After the generator completes, the tokens are summarized in the final output shown above — token counts, timing, and length. The user never sees raw streaming; the output is always the post-turn summary.
 
 #### 4. Checker library (`ccya/ev/checkers/`)
 
@@ -333,6 +398,26 @@ def momentum_lifecycle(events: list[dict]) -> CheckerResult:
     ...
 ```
 
+##### Event filtering
+
+Checkers receive only turn events (no `kind` field, or `kind == "turn"`). Sanitizer, condition_expired, and other auxiliary events are filtered out before checkers run. A checker that needs non-turn events — such as `sanitizer_lifecycle`, which inspects `kind: "sanitizer"` events — declares `needs_non_turn_events=True` in `@register_checker` metadata. The framework then passes the full unfiltered event list to that checker.
+
+##### State access in checkers
+
+`state_snapshot` exists only on turn events. For checkers that need current state outside a turn event (e.g., `sanitizer_lifecycle` verifying thread IDs against state after sanitizer runs), the checker receives the `save_dir` path and loads `state.yaml` directly via `ccya.state.load_state()`. This is declared via `needs_state=True` in `@register_checker` metadata.
+
+```python
+@register_checker(
+    "sanitizer_lifecycle", "deterministic",
+    requires_fields=["threads_updated", "threads_added", "threads_resolved", "changes_detail"],
+    needs_non_turn_events=True,
+    needs_state=True,
+    description="Verify sanitizer thread operations are valid against current state",
+)
+def sanitizer_lifecycle(events: list[dict], state: dict) -> CheckerResult:
+    ...
+```
+
 Initial checkers (deterministic, ported from universal_asserts):
 
 | Checker ID | Fields Required | What It Checks |
@@ -355,11 +440,18 @@ LLM-based checkers (added later, each a focused 20-30 line prompt):
 | `directive_tone_match` | Does narration tone match the rules directive? (per-turn LLM call) |
 | `beat_narrative_chain` | Does the GM beat produce observable narrative consequence? |
 | `state_fidelity` | Does extraction match what narration describes? |
-| `sanitizer_lifecycle` | Verifies that thread_update IDs point to existing threads, thread_add creates valid threads, goal_change actually updates visible_goal, resolved threads have resolution data, no orphan threads after sanitizer runs. Uses the `kind: "sanitizer"` events in addition to regular turn events. |
+| `sanitizer_lifecycle` | Verifies that thread_update IDs point to existing threads, thread_add creates valid threads, goal_change actually updates visible_goal, resolved threads have resolution data, no orphan threads after sanitizer runs. Uses `kind: "sanitizer"` events in addition to regular turn events, plus `state.yaml` for state lookups. |
 
-LLM checkers use Qwen3.6-35B (separate from the engine model which is Gemma 4-26B). The checker model loads on demand for `check --llm` commands; the engine model loads during `play`.
+##### Checker model assignment
 
-Engine model is Gemma 4-26B for actual gameplay runs. Qwen 35B is purely for evaluating and reasoning about results.
+The model used for LLM-based checkers is **configurable**, not hardcoded. Default: the engine model (Gemma 4-26B at 4-bit). A separate evaluation model (e.g., Qwen3-35B at 4-bit) can be specified via `--checker-model` flag or config, but is not required.
+
+This means:
+- `check --all` runs deterministic checkers only (no model loaded)
+- `check --all --llm` runs LLM checkers using the engine model by default
+- `check --all --llm --checker-model qwen3-35b` loads the smarter model for heavy analysis
+- The engine model and checker model are never held in memory simultaneously — the engine model is unloaded after `play` completes before the checker model loads
+- Single-turn `play --check` shares the engine model for both play and deterministic checks (no reload needed)
 
 #### 5. `ev.py check`
 
@@ -414,11 +506,21 @@ seed_overrides:
 turns:
   - input: "Try to kick the door down"
     expects: "roll with strength"
+    asserts:
+      - stream: ruling
+        field: skill
+        expected: strength
+      - stream: extract.state
+        field: inventory_remove
+        expected: lockpick_set
+        min_amount: 1
   - input: "Look around the room"
     expects: "no roll, explore"
   - input: "Climb the rickety ladder"
     expects: "roll with agility, danger"
 ```
+
+Structured assertions (`asserts`) are optional per-turn. They use the same stream/field/expected model as the old `TurnAssert`. At runtime, a built-in `turn_assert` checker validates them against event data — no custom checker needed for scenario-specific assertions. This bridges the gap between reusable mechanic checkers and one-off scenario expectations.
 
 The eval runner iterates turns (same pattern as the old runner.py), runs all requested checkers after all turns, and produces a plain report. No LLM judges, no trace.md, no rubric files — just checker results aggregated into a Markdown document.
 
@@ -438,12 +540,18 @@ def extract_field(event: dict, dotpath: str) -> Any:
 def extract_fields(events: list[dict], dotpaths: list[str]) -> list[dict]:
     """Extract a subset of fields from every event. Used by checkers."""
 
-def compute_extraction_context(event: dict) -> dict:
-    """Reconstruct in-turn data flow between extractors.
-    What did scene pass to state? What did state pass to storytell?"""
+def filter_turn_events(events: list[dict]) -> list[dict]:
+    """Return only turn events (kind absent or 'turn'), excluding sanitizer/condition_expired."""
+
+def extract_extraction_context(event: dict) -> dict:
+    """Return the extraction_context sub-dict from a turn event.
+    Already computed by the engine at turn time — `event.get("extraction_context", {})`."""
 
 def state_diff(before: dict, after: dict) -> list[str]:
     """Compute human-readable diff between two state snapshots."""
+
+def load_current_state(save_dir: Path) -> dict:
+    """Load state.yaml from a save directory. Used by checkers that need state access."""
 ```
 
 TurnViewer continues to consume events.jsonl directly (it's already doing that) but uses `ccya/ev/events.py` for common operations instead of its own parsing. This is a gradual consolidation — not part of this design's immediate implementation, but the library is structured to enable it.
@@ -543,23 +651,30 @@ class CheckerMeta(TypedDict):
     type: Literal["deterministic", "llm"]
     requires_fields: list[str]
     description: str
+    needs_non_turn_events: bool      # Opt-in to receive non-turn events (sanitizer, etc.)
+    needs_state: bool                 # Opt-in to receive save_dir for state.yaml access
 
 # Checker registry
 _checker_registry: dict[str, Callable[[list[dict]], CheckerResult]]
 
 # Registration decorator
-def register_checker(id, type, requires_fields, description) -> Callable: ...
+def register_checker(
+    id, type, requires_fields, description,
+    needs_non_turn_events=False, needs_state=False,
+) -> Callable: ...
 
-# Run a single checker
-def run_checker(checker_id: str, events: list[dict]) -> CheckerResult: ...
+# Run a single checker (framework filters events unless needs_non_turn_events=True)
+def run_checker(checker_id: str, events: list[dict], save_dir: Path | None = None) -> CheckerResult: ...
 
 # Run multiple checkers
-def run_checkers(checker_ids: list[str], events: list[dict]) -> dict[str, CheckerResult]: ...
+def run_checkers(checker_ids: list[str], events: list[dict], save_dir: Path | None = None) -> dict[str, CheckerResult]: ...
 
 # Shared event access
 def load_events(path: Path) -> list[dict]: ...
+def filter_turn_events(events: list[dict]) -> list[dict]: ...
 def extract_fields(events: list[dict], dotpaths: list[str]) -> list[dict]: ...
-def compute_extraction_context(event: dict) -> dict: ...
+def extract_extraction_context(event: dict) -> dict: ...
+def load_current_state(save_dir: Path) -> dict: ...
 def state_diff(before: dict, after: dict) -> list[str]: ...
 ```
 

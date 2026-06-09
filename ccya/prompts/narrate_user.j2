@@ -3,7 +3,7 @@
 
 **Stats:** {% for k, v in (pc.stats or {}).items() %}{{ k }}={{ v }}{% if not loop.last %} {% endif %}{% endfor %}
 
-**Conditions:** {% if pc.conditions %}{% for c in pc.conditions %}{{ c.label if c is mapping else c }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}none{% endif %}
+**Conditions:** {% if pc.conditions %}{% for c in pc.conditions %}{{ c.label if c is mapping else c }}{% if c is mapping and c.get('description') %} — {{ c.description }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}none{% endif %}
 
 ## Inventory
 {% include "sections/_inventory.j2" %}
