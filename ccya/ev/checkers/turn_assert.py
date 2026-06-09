@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from ccya.ev.checkers import CheckerResult, register_checker
+from ccya.ev.scenario import TurnAssert
+
+_log = logging.getLogger(__name__)
 
 STREAM_MAP: dict[str, str] = {
     "ruling": "ruling",
@@ -22,8 +26,9 @@ def _get_assert_field(a: Any, name: str, default: Any = None) -> Any:
     requires_fields=[],
     description="Validate per-turn structured assertions (stream/field/expected)",
 )
-def turn_assert(events: list[dict[str, Any]], asserts: list[Any] | None = None) -> CheckerResult:
+def turn_assert(events: list[dict[str, Any]], asserts: list[TurnAssert] | None = None) -> CheckerResult:
     if not asserts:
+        _log.debug("turn_assert: no assertions to check")
         return CheckerResult(
             checker_id="turn_assert",
             passed=True,
@@ -101,6 +106,7 @@ def turn_assert(events: list[dict[str, Any]], asserts: list[Any] | None = None) 
     total = len(findings)
     score = passed_count / total if total > 0 else 1.0
 
+    _log.debug("turn_assert: %d/%d assertions passed, score=%.2f", passed_count, total, score)
     return CheckerResult(
         checker_id="turn_assert",
         passed=all_passed,

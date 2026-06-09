@@ -31,7 +31,6 @@ If the narration states a specific number, use it exactly. If no number is state
 
 ```json
 {
-  "inventory_change_reason": "Player picked up from ground",
   "inventory_update": [{"id": "...", "name": "...", "notes": "..."}],
   "inventory_remove": [{"id": "..."}],
   "inventory_add": [{"id": "...", "name": "...", "notes": "...", "amount": 1}],
@@ -39,14 +38,6 @@ If the narration states a specific number, use it exactly. If no number is state
   "pc_condition_add": [{"id": "...", "label": "...", "description": "...", "turns_remaining": 3}]
 }
 ```
-
-## Reason field
-
-`inventory_change_reason`
-
-ONLY when inventory_add or inventory_remove is non-empty, and when a player aquired or loses an item. With a concise phrase, state what *allowed* the change. Why was it possible?
-
-If multiple items were added or removed, explain all changes string covering both all actions.
 
 ## Field rules
 

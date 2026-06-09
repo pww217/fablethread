@@ -4,12 +4,12 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from ccya.engine.config import EngineConfig, build_engine_config
-from ccya.ev.checkers import list_checkers, run_checkers
+from ccya.ev.checkers import CheckerResult, list_checkers, run_checkers
 from ccya.ev.checkers.turn_assert import turn_assert as turn_assert_checker
-from ccya.ev.events import load_events
+from ccya.ev.events import find_turn, load_events
 from ccya.ev.play import EV_SAVES_DIR, play_turn
 from ccya.ev.scenario import Scenario, discover_scenarios, load_scenario
 from ccya.models import load_config
@@ -67,20 +67,23 @@ def cmd_eval_run(
     report: Path | None = None,
 ) -> None:
     scenario = load_scenario(scenario_path)
+    _log.info("eval: loading scenario %s (%d turns)", scenario.id, len(scenario.turns))
     config = _build_eval_config(model=model, temp=temp)
     session_dir = _create_eval_session(scenario)
+    _log.info("eval: session dir %s", session_dir)
 
     per_turn_asserts: list[tuple[int, list[Any]]] = []
 
-    for turn_data in scenario.turns:
+    for i, turn_data in enumerate(scenario.turns):
         state = load_state(session_dir)
-        play_turn(
+        _log.info("eval: playing turn %d/%d", i + 1, len(scenario.turns))
+        result = play_turn(
             turn_data.input,
             state,
             config,
             session_dir,
         )
-        turn_num = state.get("meta", {}).get("turn", 0)
+        turn_num = result.get("turn", 0)
         if turn_data.asserts:
             per_turn_asserts.append((turn_num, turn_data.asserts))
 
@@ -96,13 +99,14 @@ def cmd_eval_run(
     outputs.append("")
 
     runner_checkers = checkers or [m["id"] for m in list_checkers(checker_type="deterministic")]
-    checker_results = run_checkers(runner_checkers, events, save_dir=session_dir)
+    checker_results: dict[str, CheckerResult] = run_checkers(runner_checkers, events, save_dir=session_dir)
 
     if checker_results:
         outputs.append("## Checker Results")
-        for cid, result in checker_results.items():
-            status = "PASS" if result.passed else "FAIL"
-            score = result.score or 0.0
+        for cid, result in checker_results.items():  # type: ignore[assignment]
+            cr = cast(CheckerResult, result)
+            status = "PASS" if cr.passed else "FAIL"
+            score = cr.score or 0.0
             outputs.append(f"- **{cid}**: {status} (score: {score})")
         outputs.append("")
 
@@ -110,7 +114,7 @@ def cmd_eval_run(
         outputs.append("## Turn Assertions")
         has_table = False
         for turn_num, asserts in per_turn_asserts:
-            turn_ev = next((ev for ev in events if ev.get("turn") == turn_num and ev.get("kind", "turn") == "turn"), None)
+            turn_ev = find_turn(events, turn_num)
             if turn_ev is None:
                 continue
             result = turn_assert_checker([turn_ev], asserts)
@@ -130,6 +134,7 @@ def cmd_eval_run(
 
     if report:
         report.write_text(report_text)
+        _log.info("eval: report written to %s", report)
         print(f"Report written to {report}")
     else:
         print(report_text)
@@ -151,6 +156,6 @@ def cmd_eval_list() -> None:
             print(f"    description: {sc.description}")
             print(f"    turns: {len(sc.turns)}")
             print()
-        except (ValueError, Exception) as e:
+        except Exception as e:
             print(f"  {sp.name}: error: {e}")
             print()

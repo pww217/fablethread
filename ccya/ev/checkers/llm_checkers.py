@@ -11,7 +11,7 @@ from typing import Any
 
 from ccya.engine.config import EngineConfig
 from ccya.ev.checkers import CheckerResult, register_checker
-from ccya.ev.checkers._llm import _call_llm_checker, _result_from_llm_output, register_prompt_template
+from ccya.ev.checkers._llm import _PROMPT_TEMPLATES, _call_llm_checker, _result_from_llm_output, register_prompt_template
 from ccya.ev.events import extract_field
 
 _log = logging.getLogger(__name__)
@@ -112,8 +112,7 @@ Narration of following turn:
 
 @register_checker(
     "beat_narrative_chain", "llm",
-    requires_fields=["state_snapshot.meta.pending_gm_beat",
-                     "narrate", "extraction.storytell"],
+    requires_fields=["state_snapshot.meta.pending_gm_beat", "narrate"],
     description="Does the GM beat produce observable narrative consequence?",
 )
 def beat_narrative_chain(events: list[dict[str, Any]]) -> CheckerResult:
@@ -248,8 +247,6 @@ def _get_config() -> EngineConfig:
     """
     global _engine_config
     if _engine_config is None:
-        # Default config — will be overridden by check command
-        from ccya.engine.config import EngineConfig
         _engine_config = EngineConfig()
     return _engine_config
 
@@ -258,7 +255,3 @@ def set_checker_config(config: EngineConfig) -> None:
     """Set the engine config for LLM checker calls."""
     global _engine_config
     _engine_config = config
-
-
-# Import template registry after registering templates
-from ccya.ev.checkers._llm import _PROMPT_TEMPLATES  # noqa: E402

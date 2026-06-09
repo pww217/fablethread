@@ -89,7 +89,9 @@ def discover_scenarios(scenarios_dir: str = "evals/scenarios") -> list[Path]:
     d = Path(scenarios_dir)
     if not d.is_dir():
         return []
-    return sorted(p for p in d.glob("*.yaml") if p.name != "__init__.py")
+    scenarios = sorted(p for p in d.glob("*.yaml") if p.name != "__init__.py")
+    _log.info("scenario: discovered %d scenarios in %s", len(scenarios), scenarios_dir)
+    return scenarios
 
 
 def _require(data: dict[str, Any], key: str, expected_type: type, path: Path, context: str = "") -> None:

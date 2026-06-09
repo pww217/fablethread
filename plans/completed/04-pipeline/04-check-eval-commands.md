@@ -39,8 +39,6 @@ Implement `cmd_check()` in `ccya/ev/check.py` and `cmd_eval()` in `ccya/ev/eval.
 
 - `check --all` on all turns could be slow if there are many turns. Each checker iterates all events. With 11 checkers and 25 turns, that's 275 checker-event evaluations, each doing field extraction and logic. Should still be sub-second for deterministic checkers.
 - The `turn_assert` checker needs to understand the event shape and the dotpath extraction system built in phase 1. It must correctly map stream names to event fields.
-- **Pre-existing bug:** `extraction_context` is computed in `extraction.py` but never persisted to `events.jsonl`. The `turn_assert` checker maps `extraction_context` → `event["extraction_context"]` which will always be `{}`. This affects all existing checkers that reference the key — not introduced by this plan.
-- The `_strip_flags` parser uses a flat dict, so `--checkers a --checkers b` keeps only the last value. Use comma-separated (`--checkers a,b`) instead.
 
 ## Status
 
@@ -68,7 +66,7 @@ Implement `cmd_check()` in `ccya/ev/check.py` and `cmd_eval()` in `ccya/ev/eval.
 
 1. Determine which checkers to run:
    - If `checker_ids` provided: use those
-    - If `all_checkers=True`: use `list_checkers(checker_type="deterministic")` (plus LLM if `include_llm=True`)
+   - If `all_checkers=True`: use `list_checkers(type="deterministic")` (plus LLM if `include_llm=True`)
 2. Determine which turns to check:
    - If `turn` provided: filter events to that turn (use `find_turn`)
    - If `turn` is None and `check —all`: iterate all turn events
@@ -100,6 +98,7 @@ $ ev.py check 5 --all
 CLI interface:
 ```
 ev.py check <turn> <checker> [<checker> ...]       # Specific checkers on one turn
+  --events <path>                                   # Events file (default: saves/default/events.jsonl)
 
 ev.py check <turn> --all                            # All deterministic checkers on one turn
   --llm                                             # Include LLM-based checkers
@@ -140,8 +139,8 @@ class Scenario:
     id: str
     pack: str
     description: str
-    turns: list[ScenarioTurn]
     seed_overrides: dict = field(default_factory=dict)
+    turns: list[ScenarioTurn]
 ```
 
 YAML format:
@@ -185,9 +184,10 @@ turns:
 1. Load scenario YAML via `load_scenario(path)`
 2. Create session dir at `saves/ev/eval_<scenario_id>_<timestamp>/`
 3. Initialize state with `seed_overrides` applied
- 4. For each turn in scenario:
-    - Call `play_turn(turn.input, state, config, session_dir)` — events are automatically appended to `events.jsonl` by the pipeline
-    - Store `TurnAssert` list for later checking
+4. For each turn in scenario:
+   - Call `play_turn(turn.input, state, config, session_dir)`
+   - Append event to `events.jsonl`
+   - Store `TurnAssert` list for later checking
 5. After all turns played, load events from session_dir
 6. Run all requested checkers against the events
 7. Also run a built-in `turn_assert` checker against stored assertions
@@ -203,7 +203,7 @@ CLI interface:
 ```
 ev.py eval run <scenario.yaml>                    # Run scenario and check all turns
   --model <name>  --temp <float>
-  --checkers <id1>,<id2>                          # Comma-separated checker IDs (default: all)
+  --checkers <id> [--checkers <id>]               # Run specific checkers (default: all)
   --report <path>                                  # Write report to file
 
 ev.py eval list                                    # List available scenario files
@@ -237,8 +237,8 @@ This checker is not in the default registry — it's called programmatically by 
 #### Step 4.5 — Wire into `ccya/ev/__init__.py` dispatch
 
 Update the `check` and `eval` cases in main dispatch:
-- `check`: parse turn number, checker IDs, --all, --llm. Call `cmd_check()`. Events file path follows existing `ev.py` convention (last positional arg or default `saves/default/events.jsonl`).
-- `eval run`: parse scenario path, --model, --temp, --checkers (comma-separated), --report. Call `cmd_eval_run()`.
+- `check`: parse turn number, checker IDs, --all, --llm, --events path. Call `cmd_check()`.
+- `eval run`: parse scenario path, --model, --temp, --checkers, --report. Call `cmd_eval_run()`.
 - `eval list`: call `cmd_eval_list()`.
 
 Lazy imports: `from ccya.ev.check import cmd_check` and `from ccya.ev.eval import cmd_eval_run, cmd_eval_list`.
@@ -250,8 +250,3 @@ Lazy imports: `from ccya.ev.check import cmd_check` and `from ccya.ev.eval impor
 3. `ev.py eval list` — lists available scenarios
 4. `ev.py eval run evals/scenarios/momentum_basics.yaml` — runs scenario, produces report
 5. Verify that a YAML scenario with intentional assertion failure produces FAIL in report
-
-### Documentation updates required
-
-- `docs/repomap.md`: add entries for new modules (`ccya/ev/check.py`, `ccya/ev/eval.py`, `ccya/ev/scenario.py`, `ccya/ev/checkers/turn_assert.py`), update `ccya/ev/__init__.py` entry to reflect check/eval dispatch
-- `docs/architecture/`: no changes unless extraction/storage contracts are modified
