@@ -173,9 +173,50 @@ def main() -> None:
             from ccya.ev.play import cmd_play
             cmd_play(flags, args)
         case "check":
-            _stub_command("check", 4)
+            from ccya.ev.check import cmd_check
+
+            check_turn: int | None = None
+            check_ids: list[str] | None = None
+            check_all = "all" in flags
+            check_llm = "llm" in flags
+
+            if len(args) > 1:
+                check_turn = int(args[1])
+            if len(args) > 2:
+                check_ids = args[2:]
+
+            if not check_all and not check_ids:
+                print("Error: specify --all or provide checker IDs", file=sys.stderr)
+                sys.exit(1)
+
+            check_save_dir: Path | None = Path(flags["save-dir"]) if "save-dir" in flags else None
+            cmd_check(events, turn=check_turn, checker_ids=check_ids, all_checkers=check_all, include_llm=check_llm, save_dir=check_save_dir)
         case "eval":
-            _stub_command("eval", 4)
+            from ccya.ev.eval import cmd_eval_run, cmd_eval_list
+
+            if len(args) < 2:
+                print("Usage: ev.py eval run <scenario.yaml> [--model] [--temp] [--checkers] [--report]", file=sys.stderr)
+                print("       ev.py eval list", file=sys.stderr)
+                sys.exit(1)
+
+            subcmd = args[1]
+            if subcmd == "run":
+                if len(args) < 3:
+                    print("Usage: ev.py eval run <scenario.yaml> ...", file=sys.stderr)
+                    sys.exit(1)
+                scenario_path = Path(args[2])
+                model = flags.get("model")
+                temp = float(flags["temp"]) if "temp" in flags else None
+                checker_list = flags.get("checkers", "").split(",") if flags.get("checkers") else None
+                if checker_list is not None:
+                    checker_list = [c.strip() for c in checker_list if c.strip()]
+                report_path = Path(flags["report"]) if "report" in flags else None
+                cmd_eval_run(scenario_path, model=model, temp=temp, checkers=checker_list, report=report_path)
+            elif subcmd == "list":
+                cmd_eval_list()
+            else:
+                print(f"Unknown eval subcommand: {subcmd}", file=sys.stderr)
+                sys.exit(1)
         case _:
             print(f"Unknown command: {cmd}", file=sys.stderr)
             print(__doc__.strip())

@@ -42,7 +42,7 @@ Implement `cmd_check()` in `ccya/ev/check.py` and `cmd_eval()` in `ccya/ev/eval.
 
 ## Status
 
-`open`
+`completed`
 
 ## Implementation
 
