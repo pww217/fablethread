@@ -45,6 +45,8 @@
 | `ccya/ev/checkers/npc_presence.py` | `npc_presence` — removed NPC states check |
 | `ccya/ev/checkers/pacing.py` | `pacing_directives` — pressure tracking, outcome hint, directive render, removed directives, beat variety, surface_as consistency; `action_quality` — count/distinct |
 | `ccya/ev/checkers/sanitizer.py` | `sanitizer_lifecycle` — thread operation validity vs state, orphan detection; needs non-turn events + state access |
+| `ccya/ev/play.py` | Play command: `play_turn()` sync wrapper around `run_turn()`, `cmd_play()` dispatch for single-turn/`--interactive`/`--llm` modes, session management (`_create_play_session`), output formatting (`format_play_output`/`format_error_output`) |
+| `ccya/ev/__init__.py` | CLI dispatch: lazy import of `play`, `check`, `eval` subcommands; `_strip_flags()` utility |
 | `ccya/eval/__init__.py` | Re-exports: EvalConfig, JudgeResult, RunResult (with track), Scenario, build_trace, run_scenario, etc. |
 | `ccya/eval/config.py` | EvalConfig, JudgesSpec (per-judge rubric/model/temp), load_eval_config() |
 | `ccya/eval/judge.py` | run_judges(track="adversarial"): parallel domain judges + sequential meta judge; parse_judge_response() YAML front matter; _build_metrics_rows(turn, tok_in per phase, pacing_directive, beat_generated/consumed from pending_gm_beat lifecycle) |

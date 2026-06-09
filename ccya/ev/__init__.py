@@ -170,7 +170,8 @@ def main() -> None:
             from ccya.ev.state_tools import cmd_search
             cmd_search(events, exprs)
         case "play":
-            _stub_command("play", 3)
+            from ccya.ev.play import cmd_play
+            cmd_play(flags, args)
         case "check":
             _stub_command("check", 4)
         case "eval":

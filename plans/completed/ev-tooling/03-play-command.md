@@ -42,7 +42,7 @@ Implement `cmd_play()` in `ccya/ev/play.py` with async wrapper, session manageme
 
 ## Status
 
-`open`
+`completed`
 
 ## Implementation
 
