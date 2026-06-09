@@ -1752,16 +1752,7 @@ function game() {
                 const changes = _buildTurnChanges(result.change_lines || []);
                     if (changes) { lastInserted.after(changes); lastInserted = changes; }
 
-                // Thread progress lines from new_progress field on thread entries.
-                const threadsResult = result.changes?.threads || [];
-                for (const t of threadsResult) {
-                    if (!t.new_progress) continue;
-                    const progDiv = document.createElement('div');
-                    progDiv.className = 'thread-progress-line';
-                    progDiv.textContent = '\u{1F9F5} ' + t.new_progress;
-                    lastInserted.after(progDiv);
-                    lastInserted = progDiv;
-                }
+                // Thread progress is now included in the main change line.
 
                 // Debug-mode metadata row.
                 if (result.debug_mode) {

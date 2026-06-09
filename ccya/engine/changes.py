@@ -381,7 +381,11 @@ def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
         if k == "added":
             lines.append(f"{_NOTEBOOK_EMOJI} + {summary}{tag}")
         elif k == "updated":
-            lines.append(f"{_NOTEBOOK_EMOJI} ↻ {summary} ({detail})")
+            new_progress = row.get("new_progress")
+            if new_progress:
+                lines.append(f"{_NOTEBOOK_EMOJI} + {new_progress}")
+            else:
+                lines.append(f"{_NOTEBOOK_EMOJI} ↻ {summary} ({detail})")
         elif k == "resolved":
             snippet = f" — {detail}" if detail else ""
             lines.append(f"{_NOTEBOOK_EMOJI} ✓ {summary}{snippet}")
