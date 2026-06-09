@@ -268,6 +268,7 @@ class WorldStateFact(BaseModel):
 
 
 class StateDelta(BaseModel):
+    inventory_change_reason: str = ""
     inventory_add: list[InventoryItem] = Field(default_factory=list, max_length=6)
     inventory_remove: list[InventoryRemove] = Field(default_factory=list)
     inventory_update: list[InventoryUpdate] = Field(default_factory=list, max_length=6)
@@ -324,6 +325,7 @@ class SceneExtractResult(BaseModel):
 
 
 class StateExtractResult(BaseModel):
+    inventory_change_reason: str = ""
     inventory_add: list[InventoryItem] = Field(default_factory=list, max_length=6)
     inventory_remove: list[InventoryRemove] = Field(default_factory=list)
     inventory_update: list[InventoryUpdate] = Field(default_factory=list, max_length=6)
@@ -331,6 +333,12 @@ class StateExtractResult(BaseModel):
     pc_condition_remove: list[ConditionRemove] = Field(default_factory=list)
 
     model_config = {"extra": "ignore"}
+
+    @model_validator(mode="after")
+    def _validate_inventory_reason(self) -> "StateExtractResult":
+        if (self.inventory_add or self.inventory_remove) and not self.inventory_change_reason:
+            raise ValueError("inventory_change_reason is required when inventory changes are present")
+        return self
 
     @field_validator("inventory_remove", mode="before")
     @classmethod

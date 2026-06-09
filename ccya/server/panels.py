@@ -51,18 +51,96 @@ def _load_ruling_map(save_dir: Path) -> dict[int, dict[str, Any]]:
     return ruling_map
 
 
+def _group_change_lines(lines: list[str]) -> dict[str, list[str]]:
+    """Group change lines by category, matching the JS _groupChangeLines logic."""
+    groups: dict[str, list[str]] = {
+        'invGain': [], 'invLoss': [], 'pl': [], 'loc': [], 'fa': [],
+        'thAdded': [], 'thUpdated': [], 'thResolved': [], 'thFailed': [],
+        'thAbandoned': [], 'thRemoved': [], 'ar': []
+    }
+    for s in lines:
+        s = str(s)
+        if s.startswith('🎒'):
+            isLoss = s.startswith('🎒 −') or (' − ' in s and ' + ' not in s)
+            if isLoss:
+                groups['invLoss'].append(s)
+            else:
+                groups['invGain'].append(s)
+        elif s.startswith('🩺'):
+            groups['pl'].append(s)
+        elif s.startswith('🗺️'):
+            groups['loc'].append(s)
+        elif s.startswith('📜'):
+            groups['fa'].append(s)
+        elif s.startswith('📓'):
+            if ' ↻ ' in s:
+                groups['thUpdated'].append(s)
+            elif ' ✓ ' in s:
+                groups['thResolved'].append(s)
+            elif ' ✗ ' in s:
+                groups['thFailed'].append(s)
+            elif ' ⊘ ' in s:
+                groups['thAbandoned'].append(s)
+            elif s.startswith('📓 −'):
+                groups['thRemoved'].append(s)
+            else:
+                groups['thAdded'].append(s)
+        elif s.startswith('🏁'):
+            groups['ar'].append(s)
+        else:
+            groups['invGain'].append(s)
+    return groups
+
+
+def _load_changes_map(save_dir: Path) -> dict[int, list[str]]:
+    """Build a turn→change_lines map from events.jsonl."""
+    from ccya.engine.changes import format_change_lines
+    
+    path = save_dir / "events.jsonl"
+    if not path.exists():
+        return {}
+    
+    import json
+    
+    raw = path.read_text().strip()
+    if not raw:
+        return {}
+    
+    changes_map: dict[int, list[str]] = {}
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            ev = json.loads(line)
+        except json.JSONDecodeError as e:
+            _log.warning("Skipping malformed events.jsonl line in _load_changes_map: %s", e)
+            continue
+        turn = int(ev.get("turn") or 0)
+        changes = ev.get("changes")
+        if changes:
+            change_lines = format_change_lines(changes)
+            if change_lines:
+                changes_map[turn] = change_lines
+    _log.debug("_load_changes_map entries=%d", len(changes_map))
+    return changes_map
+
+
 def _load_recent_history(save_dir: Path, n: int = 8) -> list[dict[str, Any]]:
     """Return the last n turns from chronicle.md (excluding turn 0 seed)."""
     all_turns = load_last_narration(save_dir, n + 1)
     turns = [t for t in all_turns if t["turn"] != 0]
     ruling_map = _load_ruling_map(save_dir)
-    _log.debug("_load_recent_history n=%d turns=%d ruling_entries=%d", n, len(turns), len(ruling_map))
+    changes_map = _load_changes_map(save_dir)
+    _log.debug("_load_recent_history n=%d turns=%d ruling_entries=%d changes_entries=%d", n, len(turns), len(ruling_map), len(changes_map))
     return [
         {
             "turn": t["turn"],
             "input": t["input"],
             "narrative": t["narrative"],
             "ruling": ruling_map.get(t["turn"]),
+            "change_lines": changes_map.get(t["turn"], []),
+            "change_groups": _group_change_lines(changes_map.get(t["turn"], [])) if t["turn"] in changes_map else None,
         }
         for t in turns[-n:]
     ]
