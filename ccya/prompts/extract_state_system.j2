@@ -42,7 +42,7 @@ If the narration states a specific number, use it exactly. If no number is state
 
 ## Reason field
 
-State why inventory changed this turn. Be very concise — a short phrase, not a sentence. Examples: "Player picked up from ground", "X NPC gave it to player", "Player lost pistol in a brawl", "Tool was destroyed by electric surge". If multiple items were added or removed, explain all changes in one reason covering both adds and removes together. Required whenever `inventory_add` or `inventory_remove` is non-empty. Not required for `inventory_update` or `pc_condition_*` changes alone.
+ONLY when inventory_add or inventory_remove is non-empty, and when a player aquired or loses an item: state why inventory changed this turn. Be very concise — a short phrase, not a sentence. If multiple items were added or removed, explain all changes in one reason covering both adds and removes together.
 
 ## Field rules
 
