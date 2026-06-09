@@ -6,7 +6,7 @@
 |---|---|
 | `ccya/__main__.py` | CLI entry: argparse + uvicorn.run |
 | `ccya/cli.py` | CLI commands |
-| `ccya/models.py` | All Pydantic models including ProgressEntry, TurnResult dataclass, load_config(); NpcPresence enum (PRESENT/NEARBY/KNOWN/DEPARTED); CompendiumNpcUpdate with departed_reason/departed_summary/departed_turn; StateExtractResult with inventory_change_reason field and model_validator |
+| `ccya/models.py` | All Pydantic models including ProgressEntry, TurnResult dataclass, load_config(); NpcPresence enum (PRESENT/NEARBY/KNOWN/DEPARTED); CompendiumNpcUpdate with departed_reason/departed_summary/departed_turn |
 | `ccya/errors.py` | ErrorKind string constants (LLM_TIMEOUT, LLM_RATE_LIMIT, etc.) + LlmcError exception hierarchy (LlmcTimeout, LlmcRateLimit, LlmcApiError) |
 | `ccya/engine/__init__.py` | Re-exports public APIs; internal helpers for tests; LLM client re-exports (llm_chat, llm_chat_stream) |
 | `ccya/engine/config.py` | EngineConfig dataclass (including thread_stale_threshold, thread_max_active, nearby_decay_ttl, departed_archive_ttl), _EventLock, is_turn_in_progress(), Jinja env setup |
@@ -35,8 +35,10 @@
 | `ccya/server/tv.py` | Turn viewer data from events.jsonl + server_errors.jsonl — unified timeline with row_kind discrimination, per-stream metrics, status colors; `_turn_viewer_data()` returns `(rows, no_events)`; injects a synthetic `row_kind: "seed"` row at index 0 when seed data is present in state.yaml. TV delta rows include pacing metadata keys: narrative_velocity, gm_beat_type, gm_beat_surface_as alongside momentum_before/after/outcome_hint |
 | `ccya/server/metrics.py` | _recent_turn_metrics(), _turn_log_entries() — latency/token formatting |
 | `scripts/debug/ev.py` | CLI tool for inspecting events.jsonl directly; commands: summary, timing, turn, props, compact, prompt, outputs, deltas, dice, mechanics, connectors, pacing (summary/gate/momentum/band/beat_locked from top-level event fields), state, diff, trace, search (supports npc/item/condition/band/momentums_after/momentums_before/momentums_delta/rejected/input) |
-| `ccya/ev/check.py` | `cmd_check()` — run checkers against existing events by turn; supports single turn + specific checkers, single turn + `--all`, or `--all` across all turns. Markdown output. |
-| `ccya/ev/checkers/__init__.py` | Checker framework: `@register_checker` decorator, `CheckerResult` dataclass, `run_checker()`/`run_checkers()`, `list_checkers()`, field validation, event pre-filtering, state access. Registry with explicit imports for 11 deterministic checkers. |
+| `ccya/ev/check.py` | `cmd_check()` — run checkers against existing events by turn; supports single turn + specific checkers, single turn + `--all`, or `--all` across all turns. Markdown output. Supports `--llm` flag to include LLM-based checkers, `--checker-model` to override model name. |
+| `ccya/ev/checkers/__init__.py` | Checker framework: `@register_checker` decorator, `CheckerResult` dataclass, `run_checker()`/`run_checkers()`, `list_checkers()`, field validation, event pre-filtering, state access. Registry with explicit imports for 11 deterministic checkers + 3 LLM checkers. |
+| `ccya/ev/checkers/_llm.py` | LLM checker infrastructure: `_load_checker_model()`, `_unload_checker_model()`, `_call_llm_checker()`, `_result_from_llm_output()`, `_build_checker_prompt()`, template registry. Handles model loading/unloading, prompt rendering, structured output parsing. |
+| `ccya/ev/checkers/llm_checkers.py` | LLM-based narrative checkers: `directive_tone_match` (tone alignment with ruling band), `beat_narrative_chain` (GM beat narrative consequence), `state_fidelity` (extraction vs narration match). Each uses focused 20-30 line prompts. |
 | `ccya/ev/checkers/momentum.py` | `momentum_lifecycle` — band delta, bounds, floor-no-relief |
 | `ccya/ev/checkers/gm_beat.py` | `gm_beat_lifecycle` — beat consumed, lifecycle, floor relief, beat_locked dual-trigger, binding present |
 | `ccya/ev/checkers/inventory.py` | `location_change` — location applied correctly; `inventory_integrity` — overdraw, negatives, remove existence |
@@ -98,6 +100,20 @@
 ### ccya/llm_client.py
 - **chat(host, model, messages, *, temperature=None, max_tokens=None, timeout=180.0, top_p=None, frequency_penalty=None, seed=None)** → response dict — non-streaming LLM call with retry; optional sampling params passed conditionally (only when not None)
 - **chat_stream(...)** → AsyncIterator[str] — streaming tokens; trim_messages() drops oldest non-system msgs on budget overflow
+
+### ccya/ev/checkers/_llm.py
+- **_load_checker_model(config)** → tuple — loads checker model (mlx_lm.load), caches globally
+- **_unload_checker_model()** → None — unloads checker model to free memory
+- **_call_llm_checker(system_prompt, user_prompt, config)** → dict — calls LLM, parses JSON output, returns structured result
+- **_result_from_llm_output(checker_id, llm_output)** → CheckerResult — converts LLM dict to CheckerResult
+- **_build_checker_prompt(checker_id, events)** → tuple[str, str] — renders prompt templates with event data
+- **register_prompt_template(checker_id, system_template, user_template)** → None — registers prompt templates
+
+### ccya/ev/checkers/llm_checkers.py
+- **directive_tone_match(events)** → CheckerResult — evaluates narration tone vs ruling band alignment
+- **beat_narrative_chain(events)** → CheckerResult — evaluates GM beat narrative consequence
+- **state_fidelity(events)** → CheckerResult — evaluates extraction vs narration match
+- **set_checker_config(config)** → None — sets engine config for LLM checker calls
 
 ## 5-call turn pipeline (run_turn)
 
@@ -212,7 +228,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 
 ### Extraction field routing
 - **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, compendium_npc_update (no pressure fields); CompendiumEntry now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes
-- **StateExtractResult**: inventory_change_reason, inventory_add/remove/update, pc_condition_add/remove (no `failed`)
+- **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
   - **StorytellerResult**: thread_update (list[ThreadUpdate] with id/urgency/active/progress/progress_kind), goal_update (str | None, applied directly to arc dict — NOT through _merge_arc_update), arc_resolve (ArcResolution with resolution/visible_goal/goal_context/drop_threads/new_threads), thread_resolve (list[ThreadResolution] with id/resolution_state/outcome + promote_to_world_state flag for promotion-only world state changes), thread_add (ArcThread | None, `added_turn` and `urgency_set_turn` set at creation time in turn.py); thread_add validated by id-based dedup only (no key, no fuzzy merge); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
 - **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions, persisted to state["pc"]["actions"] as rolling window by apply_delta()
 

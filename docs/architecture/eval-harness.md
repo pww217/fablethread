@@ -116,6 +116,8 @@ Two layers:
 
 **2. Universal asserts** (`universal_asserts.py`): 24 deterministic checkers run on every event. Severity: `red` (must fix) or `yellow` (advisory). Cover: turn stamping, GM beat lifecycle, location changes, pacing directive rendering ("directive:" prefix + known value match against Breathe/Scene Imperative/Overwhelm/Pressure/Tension), NPC extraction, ring buffer bounds, scene NPC cap, condition dedup, action count/distinctness, momentum deltas, inventory overdraw, floor relief injection verification, goal_update application verification, ArcThread key deduplication, consecutive pressure tracking (beat-type-based), beat-locked dual trigger validation, removed directive/state detection.
 
+**3. LLM-based checkers** (`llm_checkers.py`): 3 semantic checkers that evaluate narrative quality aspects deterministic checkers cannot catch. Require `--llm` flag to run. Each uses a focused 20-30 line prompt and returns `CheckerResult` with structured JSON from the checker model. Default model is engine model (Gemma 4-26B), override with `--checker-model`. Checkers: `directive_tone_match` (narration tone vs ruling band alignment), `beat_narrative_chain` (GM beat narrative consequence), `state_fidelity` (extraction vs narration match). Model is loaded on demand and unloaded after checkers complete. Malformed LLM output degrades to inconclusive result, not crash.
+
 ## Phase 02 — Judge (`judge.py`)
 
 Domain-specialized LLM judges evaluate different facets of the pipeline output. The meta judge synthesizes domain results.
