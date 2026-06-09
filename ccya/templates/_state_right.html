@@ -20,8 +20,10 @@
             "wits": "Quick thinking, perception, deduction, hacking under pressure, spot a lie",
             "charisma": "Persuade, deceive, charm, negotiate, perform, seduce, intimidate by presence",
         } %}
+        {% set _stat_order = ["strength", "wits", "dexterity", "charisma"] %}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;margin-top:4px;">
-        {% for k, v in (state.pc.stats or {}).items() %}
+        {% for k in _stat_order %}
+        {% set v = state.pc.stats.get(k, 0) %}
         {% set tip = _stat_tips.get(k) %}
         <div class="stat-row{% if tip %} has-tooltip{% endif %}" style="margin:0;">
             <span class="stat-label">{{ k | capitalize }}</span>

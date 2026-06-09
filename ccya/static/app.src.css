@@ -2210,12 +2210,6 @@ body {
     background: var(--accent-error);
 }
 
-.stat-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0 16px;
-}
-
 .stat-row {
     display: flex;
     align-items: center;
