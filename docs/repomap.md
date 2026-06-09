@@ -8,8 +8,8 @@
 | `ccya/cli.py` | CLI commands |
 | `ccya/models.py` | All Pydantic models including ProgressEntry, TurnResult dataclass, load_config(); NpcPresence enum (PRESENT/NEARBY/KNOWN/DEPARTED); CompendiumNpcUpdate with departed_reason/departed_summary/departed_turn |
 | `ccya/errors.py` | ErrorKind string constants (LLM_TIMEOUT, LLM_RATE_LIMIT, etc.) + LlmcError exception hierarchy (LlmcTimeout, LlmcRateLimit, LlmcApiError) |
-| `ccya/engine/__init__.py` | Re-exports public APIs; internal helpers for tests; LLM client re-exports (llm_chat, llm_chat_stream) |
-| `ccya/engine/config.py` | EngineConfig dataclass (including thread_stale_threshold, thread_max_active, nearby_decay_ttl, departed_archive_ttl), _EventLock, is_turn_in_progress(), Jinja env setup |
+| `ccya/engine/__init__.py` | Re-exports public APIs; internal helpers for tests; LLM client re-exports (llm_chat, llm_chat_stream); clear_all_turn_locks() |
+| `ccya/engine/config.py` | EngineConfig dataclass (including thread_stale_threshold, thread_max_active, nearby_decay_ttl, departed_archive_ttl), _EventLock, is_turn_in_progress(), clear_all_turn_locks(), Jinja env setup |
 | `ccya/engine/turn.py` | run_turn() async orchestrator (thin — imports from submodules), _validate(), warmup(), _apply_thread_updates(config) with content dedup + auto-latent demotion every turn (not gated on mutation) + thread cap eviction, _compute_pacing_context() with Breathe threat-append exception |
 | `ccya/engine/narrate.py` | _narrate_messages(), _get_resolved_arcs(), _fmt_progress(), NPC name helpers for prompt building |
 | `ccya/engine/pack_gen.py` | generate_pack() — LLM-generated ScenarioBrief, writes to packs/custom/<slug>/ |
@@ -30,7 +30,7 @@
 | `ccya/state/momentum.py` | apply_momentum() — deterministic from rules band, clamped to [-3,+3], with depth-based catch-up acceleration at -3 or below (success=+2, crit_success=+3) |
 | `ccya/server/__init__.py` | Re-exports: app, main, config, SAVE_DIR, _validate_stats |
 | `ccya/server/app.py` | FastAPI app bootstrap, Jinja env, pack loading, startup event; server error persistence + exception middleware → server_errors.jsonl |
-| `ccya/server/routes.py` | All @app.get / @app.post route handlers |
+| `ccya/server/routes.py` | All @app.get / @app.post route handlers; `_list_saves()` helper (returns [{name, pack, turn_count, last_modified, pc_name, location_name}]); `/api/saves` (GET) → list saves excluding default; `/api/switch-save` (POST) → validates save_name, checks is_turn_in_progress(), clears turn locks, updates SAVE_DIR, returns state |
 | `ccya/server/panels.py` | Panel context builders: _debug_context(), _load_* helpers, _get_opening() |
 | `ccya/server/tv.py` | Turn viewer data from events.jsonl + server_errors.jsonl — unified timeline with row_kind discrimination, per-stream metrics, status colors; `_turn_viewer_data()` returns `(rows, no_events)`; injects a synthetic `row_kind: "seed"` row at index 0 when seed data is present in state.yaml. TV delta rows include pacing metadata keys: narrative_velocity, gm_beat_type, gm_beat_surface_as alongside momentum_before/after/outcome_hint |
 | `ccya/server/metrics.py` | _recent_turn_metrics(), _turn_log_entries() — latency/token formatting |
@@ -61,6 +61,8 @@
 | `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (1d12+stat_mod+diff_mod→Band), build_directive() near-miss logic |
 | `ccya/llm_client.py` | chat(), chat_stream() — OpenAI-compatible → mlx_lm.server; trim_messages() token-budget trimming |
 | `ccya/logging_setup.py` | JSONL RotatingFileHandler + _JsonFormatter (extra fields → flat JSON keys); StreamHandler defaults to WARNING via CCYA_LOG_LEVEL env var |
+| `ccya/templates/index.html` | Main UI template: Alpine.js `game()` component with save picker (openSavePicker, closeSavePicker, confirmSwitchSave), settings panel, turn log, narrative streaming |
+| `ccya/static/app.src.css` | All UI styles including save picker modal (shell, backdrop, panel, cards, footer) |
 
 ## Public APIs (function names + 1-liner purpose)
 

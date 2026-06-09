@@ -72,6 +72,12 @@
                         Turn Viewer
                     </button>
                     <div class="gear-menu-divider"></div>
+                    <button type="button" class="gear-menu-item" 
+                            x-show="turnNum > 0"
+                            @click="menuOpen = false; openSavePicker()">
+                        Load Save
+                    </button>
+                    <div class="gear-menu-divider"></div>
                     <button type="button" class="gear-menu-item" @click="menuOpen = false; resetSidebars()">Reset Sidebars</button>
                 </div>
             </div>
@@ -422,6 +428,60 @@
                 <span x-show="!savingSettings">Save</span>
                 <span x-show="savingSettings">Saving…</span>
             </button>
+        </div>
+    </div>
+
+    <!-- Save Picker Modal -->
+    <div id="save-picker-shell" class="pack-picker-backdrop hidden" aria-hidden="true">
+        <div id="save-picker-modal" class="pack-picker-modal hidden">
+            <div class="pack-picker-head">
+                <span id="save-picker-title" class="pack-picker-title">Load Save</span>
+                <button type="button" class="pack-picker-close" aria-label="Close">×</button>
+            </div>
+            <div id="save-picker-body" class="pack-picker-body">
+                <div class="save-picker-loading" x-show="savePicker.loading">Loading saves…</div>
+                <div class="save-picker-empty" x-show="!savePicker.loading && savePicker.saves.length === 0">
+                    No saves found.
+                </div>
+                <div class="save-picker-list">
+                    <template x-for="save in savePicker.saves" :key="save.name">
+                        <div class="pack-card" 
+                             @click="selectSave(save.name)"
+                             :class="{ 'pack-card--active': savePicker.selectedId === save.name }">
+                            <div class="pack-card-header">
+                                <span class="pack-card-name" x-text="save.name"></span>
+                            </div>
+                            <div class="pack-card-meta">
+                                <span class="pack-card-turn" x-show="save.turn_count > 0">Turn <span x-text="save.turn_count"></span></span>
+                                <span class="pack-card-pack" x-show="save.pack" x-text="save.pack"></span>
+                                <span class="pack-card-pc" x-show="save.pc_name" x-text="save.pc_name"></span>
+                                <span class="pack-card-location" x-show="save.location_name" x-text="save.location_name"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            <div class="pack-picker-foot">
+                <button type="button" 
+                        @click="closeSavePicker(); openPackPicker()" 
+                        class="save-picker-new-game-btn">
+                    + New Game
+                </button>
+                <div class="pack-picker-foot-actions">
+                    <button type="button" 
+                            @click="closeSavePicker()" 
+                            class="pack-picker-cancel-btn">
+                        Cancel
+                    </button>
+                    <button type="button" 
+                            @click="confirmSwitchSave()" 
+                            :disabled="!savePicker.selectedId || savePicker.loading"
+                            class="pack-picker-confirm-btn">
+                        <span x-show="!savePicker.loading">Switch</span>
+                        <span x-show="savePicker.loading">Switching…</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1979,11 +2039,84 @@ function game() {
             document.getElementById('settings-backdrop').classList.add('hidden');
             document.getElementById('settings-modal').classList.add('hidden');
         },
+
+        // Save picker state
+        savePicker: {
+            loading: false,
+            selectedId: null,
+            saves: [],
+        },
+
+        openSavePicker() {
+            this.savePicker.loading = true;
+            this.savePicker.selectedId = null;
+            this.savePicker.saves = [];
+            const shell = document.getElementById('save-picker-shell');
+            const modal = document.getElementById('save-picker-modal');
+            shell.classList.remove('hidden');
+            modal.classList.remove('hidden');
+            this._fetchSaves();
+        },
+
+        closeSavePicker() {
+            const shell = document.getElementById('save-picker-shell');
+            const modal = document.getElementById('save-picker-modal');
+            shell.classList.add('hidden');
+            modal.classList.add('hidden');
+            this.savePicker.loading = false;
+            this.savePicker.selectedId = null;
+            this.savePicker.saves = [];
+        },
+
+        async _fetchSaves() {
+            try {
+                const resp = await fetch('/api/saves');
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const data = await resp.json();
+                this.savePicker.saves = data.saves || [];
+            } catch (e) {
+                console.error('Failed to fetch saves:', e);
+                this.savePicker.saves = [];
+            } finally {
+                this.savePicker.loading = false;
+            }
+        },
+
+        selectSave(id) {
+            this.savePicker.selectedId = id;
+        },
+
+        async confirmSwitchSave() {
+            if (!this.savePicker.selectedId) return;
+            this.savePicker.loading = true;
+            try {
+                const resp = await fetch('/api/switch-save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ save_name: this.savePicker.selectedId }),
+                });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const data = await resp.json();
+                if (data.ok) {
+                    this.closeSavePicker();
+                    // Reload the page to reflect the new save state
+                    window.location.reload();
+                } else {
+                    console.error('Switch save failed:', data);
+                }
+            } catch (e) {
+                console.error('Failed to switch save:', e);
+            } finally {
+                this.savePicker.loading = false;
+            }
+        },
     };
 }
 
 // Settings panel: escape key closes it; backdrop click closes it
+// Save picker: escape key closes it; backdrop click closes it; close button
 document.addEventListener('DOMContentLoaded', () => {
+    // Settings panel
     const settingsBackdrop = document.getElementById('settings-backdrop');
     const settingsModal = document.getElementById('settings-modal');
     if (settingsBackdrop && settingsModal) {
@@ -2000,6 +2133,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Save picker
+    const savePickerBackdrop = document.getElementById('save-picker-shell');
+    const savePickerModal = document.getElementById('save-picker-modal');
+    const savePickerClose = savePickerModal?.querySelector('.pack-picker-close');
+    
+    if (savePickerBackdrop && savePickerModal) {
+        savePickerBackdrop.addEventListener('click', (e) => {
+            if (e.target === savePickerBackdrop) {
+                window._gameInstance?.closeSavePicker();
+            }
+        });
+    }
+    if (savePickerClose) {
+        savePickerClose.addEventListener('click', () => {
+            window._gameInstance?.closeSavePicker();
+        });
+    }
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && savePickerModal && !savePickerModal.classList.contains('hidden')) {
+            e.preventDefault();
+            window._gameInstance?.closeSavePicker();
+        }
+    });
 });
 
 function _escapeHtml(str) {

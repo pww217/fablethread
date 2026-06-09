@@ -3945,3 +3945,105 @@ body {
     #tooltip-portal .tooltip-body  { font-size: clamp(12px, 0.7rem, 14px); }
     .location-name               { font-size: clamp(13px, 0.7rem, 16px); }
 }
+
+/* ── Save Picker Modal (reuses pack-picker classes) ── */
+
+.pack-picker-foot {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-subtle);
+    background: var(--bg-elevated);
+    flex-shrink: 0;
+}
+
+.save-picker-new-game-btn {
+    width: 100%;
+    background: transparent;
+    color: var(--accent-blue);
+    border: 1px solid var(--border-subtle);
+    padding: 10px 16px;
+    font-size: 0.93rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 150ms, border-color 150ms;
+    margin-bottom: 10px;
+}
+
+.save-picker-new-game-btn:hover {
+    background: var(--bg-highlight);
+    border-color: var(--border-strong);
+}
+
+.pack-picker-foot-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.pack-picker-cancel-btn {
+    background: var(--bg-base);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-subtle);
+    padding: 8px 20px;
+    font-size: 0.93rem;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: border-color 150ms, color 150ms;
+}
+
+.pack-picker-cancel-btn:hover {
+    border-color: var(--border-strong);
+    color: var(--text-primary);
+}
+
+.pack-picker-confirm-btn {
+    background: var(--accent);
+    color: #0f0f12;
+    border: none;
+    padding: 8px 20px;
+    font-size: 0.93rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 150ms;
+}
+
+.pack-picker-confirm-btn:hover:not(:disabled) {
+    background: var(--accent-hover);
+}
+
+.pack-picker-confirm-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.save-picker-loading,
+.save-picker-empty {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 24px 0;
+    font-size: 0.93rem;
+}
+
+.save-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pack-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.pack-card-turn,
+.pack-card-pack,
+.pack-card-pc,
+.pack-card-location {
+    color: var(--text-muted);
+}
