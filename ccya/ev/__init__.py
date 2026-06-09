@@ -190,7 +190,8 @@ def main() -> None:
                 sys.exit(1)
 
             check_save_dir: Path | None = Path(flags["save-dir"]) if "save-dir" in flags else None
-            cmd_check(events, turn=check_turn, checker_ids=check_ids, all_checkers=check_all, include_llm=check_llm, save_dir=check_save_dir)
+            checker_model = flags.get("checker-model")
+            cmd_check(events, turn=check_turn, checker_ids=check_ids, all_checkers=check_all, include_llm=check_llm, save_dir=check_save_dir, checker_model=checker_model)
         case "eval":
             from ccya.ev.eval import cmd_eval_run, cmd_eval_list
 
