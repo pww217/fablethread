@@ -80,6 +80,20 @@ Verify that `_load_last_actions()` correctly loads actions from the last event i
 ## Status
 `completed`
 
+## Additional fixes discovered during review
+
+### Change lines/diffs persistence (cc2360c)
+
+**Problem:** After a turn completes, the change lines (inventory added/removed, threads added, etc.) are rendered by JS in `_buildTurnChanges()` during `turn_complete`. On page refresh, these are lost because the server-rendered history only includes `turn/input/narrative/ruling` — not `change_lines`.
+
+**Fix:** 
+- `panels.py`: `_load_changes_map()` builds turn→change_lines from events.jsonl using `format_change_lines()` (same as turn_complete).
+- `panels.py`: `_group_change_lines()` replicates JS `_groupChangeLines()` logic for Jinja template rendering.
+- `panels.py`: `_load_recent_history()` now includes `change_lines` and `change_groups` in each history entry.
+- `index.html`: Template renders `change_groups` as `turn-changes` div after roll badge in each history block.
+
+**Files changed:** `ccya/server/panels.py`, `ccya/templates/index.html`
+
 ## Phases
 
 2 phases: (1) Backend: write seed to chronicle + load opening from chronicle, (2) Frontend: fix empty-state logic.
