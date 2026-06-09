@@ -31,6 +31,7 @@ If the narration states a specific number, use it exactly. If no number is state
 
 ```json
 {
+  "inventory_change_reason": "Player picked up from ground",
   "inventory_update": [{"id": "...", "name": "...", "notes": "..."}],
   "inventory_remove": [{"id": "..."}],
   "inventory_add": [{"id": "...", "name": "...", "notes": "...", "amount": 1}],
@@ -38,6 +39,10 @@ If the narration states a specific number, use it exactly. If no number is state
   "pc_condition_add": [{"id": "...", "label": "...", "description": "...", "turns_remaining": 3}]
 }
 ```
+
+## Reason field
+
+State why inventory changed this turn. Be very concise — a short phrase, not a sentence. Examples: "Player picked up from ground", "X NPC gave it to player", "Player lost pistol in a brawl", "Tool was destroyed by electric surge". If multiple items were added or removed, explain all changes in one reason covering both adds and removes together. Required whenever `inventory_add` or `inventory_remove` is non-empty. Not required for `inventory_update` or `pc_condition_*` changes alone.
 
 ## Field rules
 

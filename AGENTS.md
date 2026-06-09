@@ -8,13 +8,13 @@
 
 Primary development model is **Qwen3 ~25B-4bit on Apple Silicon (MLX backend)**. Treat **8k tokens as your effective working context per session.** Do not load more than you need.
 
-Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, public APIs, cross-module contracts) + `docs/architecture/OVERVIEW.md` (pipeline mechanics, data models, flowcharts) → 3) the relevant plan doc in `/plans/review/` or `/plans/` → 4) source files only for the specific functions you are changing.
+Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, public APIs, cross-module contracts) + `docs/architecture/OVERVIEW.md` (pipeline mechanics, data models, flowcharts) → 3) the relevant plan doc in `plans/review/` or `plans/` → 4) source files only for the specific functions you are changing.
 
 **Context budget per session:** Load AGENTS.md + the relevant `docs/repomap.md` section(s) + one plan doc. Do not read entire source files unless a step requires it. Use `grep` or `curl` against the running server to confirm specific lines rather than reading whole files.
 
-**Plan selection:** If multiple plans are open in `/plans/review/` or `/plans/`, the user specifies which to execute. If not specified, ask before proceeding.
+**Plan selection:** If multiple plans are open in `plans/review/` or `plans/`, the user specifies which to execute. If not specified, ask before proceeding.
 
-> **Completed plans:** Live in `/plans/completed/`. Before loading any doc from there, verify its status line matches implementation state — `open` means implemented but needs status update; `abandoned` means no longer relevant.
+> **Completed plans:** Live in `plans/completed/`. Before loading any doc from there, verify its status line matches implementation state — `open` means implemented but needs status update; `abandoned` means no longer relevant.
 
 **Source vs. plan conflicts:** If source code contradicts a plan doc, trust the source. Note the discrepancy in your commit message and proceed with what source shows.
 
@@ -82,10 +82,10 @@ These are not optional. Every plan, execution, and code review must include a do
 
 ## Plan lifecycle
 
-- Active plans pending review are in `/plans/review/`.
-- Active plans approved for execution are in `/plans/`.
-- Completed plans are in `/plans/completed/` (organized by category).
-- Move completed plans to `/plans/completed/` when done.
+- Active plans pending review are in `plans/review/`.
+- Active plans approved for execution are in `plans/`.
+- Completed plans are in `plans/completed/` (organized by category).
+- Move completed plans to `plans/completed/` when done.
 - Split large jobs into phases. Aim for at most **3500 lines of code read per phase** to stay within context budget.
 
 ---
