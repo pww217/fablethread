@@ -1,3 +1,5 @@
+currency_id: credits
+starting_currency_amount: 0
 constraints:
    # required-presence
   min_objectives_per_quest: 2

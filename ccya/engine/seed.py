@@ -14,7 +14,7 @@ import re
 from ccya.engine.config import EngineConfig, _build_jinja_env, _find_json, _log_llm_io, _log_prompts, _render
 from ccya.engine.names import generate_name_pool, generate_npc_names
 from ccya.llm_client import chat as llm_chat, strip_thinking, trim_messages
-from ccya.models import WorldStateFact
+from ccya.models import InventoryItem, WorldStateFact
 from ccya.pack import Pack, PlayerOverrides, SeedEnvelope
 
 from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
@@ -371,6 +371,19 @@ async def generate_seed(
         # Keep seeded compendium NPCs; clear engine-managed touch_order
         if "compendium_touch_order" in envelope.seed_state.meta:
             del envelope.seed_state.meta["compendium_touch_order"]
+
+        # Inject pack currency into initial inventory
+        if (scenario := pack.scenario) and scenario.currency_id:
+            currency_ids = {item.id for item in envelope.seed_state.inventory}
+            if scenario.currency_id not in currency_ids:
+                envelope.seed_state.inventory.append(
+                    InventoryItem(
+                        id=scenario.currency_id,
+                        name=scenario.currency_id.title(),
+                        amount=scenario.starting_currency_amount,
+                        notes="",
+                    )
+                )
 
         soft_warnings = _soft_validate_seed(envelope, pack, overrides)
         for w in soft_warnings:

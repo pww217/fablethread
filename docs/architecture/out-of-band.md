@@ -56,6 +56,13 @@ flowchart LR
     LLM_GS --> OUT
 ```
 
+### Post-generation processing
+
+After the LLM generates the SeedEnvelope, `generate_seed()` in `seed.py` runs post-generation processing:
+- Merges baseline world facts from `scenario.world_facts` with any existing world state facts from the seed
+- Clears engine-managed `compendium_touch_order` from seeded compendium NPCs
+- **Injects pack currency**: if `scenario.currency_id` is set and no inventory item with that ID exists, appends an `InventoryItem` with the pack's `starting_currency_amount`
+
 ### Seed emotional framing contract
 
 The seed prompt (`generate_seed_system.j2`) enforces these requirements:

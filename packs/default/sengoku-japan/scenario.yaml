@@ -1,3 +1,5 @@
+currency_id: ryō
+starting_currency_amount: 30
 constraints:
    # required-presence
   min_objectives_per_quest: 2

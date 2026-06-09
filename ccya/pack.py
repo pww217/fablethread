@@ -158,6 +158,8 @@ class ScenarioBrief(BaseModel):
     moral_pressures: list[PoolEntry] = Field(default_factory=list, max_length=10)
     npc_bonds: list[PoolEntry] = Field(default_factory=list, max_length=8)
     scene_detail_bundles: list[SceneDetailBundle] = Field(default_factory=list, max_length=8)
+    currency_id: str = ""
+    starting_currency_amount: int = 0
 
 
 class WorldBrief(BaseModel):
