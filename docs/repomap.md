@@ -35,6 +35,16 @@
 | `ccya/server/tv.py` | Turn viewer data from events.jsonl + server_errors.jsonl — unified timeline with row_kind discrimination, per-stream metrics, status colors; `_turn_viewer_data()` returns `(rows, no_events)`; injects a synthetic `row_kind: "seed"` row at index 0 when seed data is present in state.yaml. TV delta rows include pacing metadata keys: narrative_velocity, gm_beat_type, gm_beat_surface_as alongside momentum_before/after/outcome_hint |
 | `ccya/server/metrics.py` | _recent_turn_metrics(), _turn_log_entries() — latency/token formatting |
 | `scripts/debug/ev.py` | CLI tool for inspecting events.jsonl directly; commands: summary, timing, turn, props, compact, prompt, outputs, deltas, dice, mechanics, connectors, pacing (summary/gate/momentum/band/beat_locked from top-level event fields), state, diff, trace, search (supports npc/item/condition/band/momentums_after/momentums_before/momentums_delta/rejected/input) |
+| `ccya/ev/checkers/__init__.py` | Checker framework: `@register_checker` decorator, `CheckerResult` dataclass, `run_checker()`/`run_checkers()`, `list_checkers()`, field validation, event pre-filtering, state access. Registry with explicit imports for 11 deterministic checkers. |
+| `ccya/ev/checkers/momentum.py` | `momentum_lifecycle` — band delta, bounds, floor-no-relief |
+| `ccya/ev/checkers/gm_beat.py` | `gm_beat_lifecycle` — beat consumed, lifecycle, floor relief, beat_locked dual-trigger, binding present |
+| `ccya/ev/checkers/inventory.py` | `location_change` — location applied correctly; `inventory_integrity` — overdraw, negatives, remove existence |
+| `ccya/ev/checkers/conditions.py` | `conditions_lifecycle` — in-reason, dedup, cap |
+| `ccya/ev/checkers/threads.py` | `thread_lifecycle` — thread_add applied, thread_update IDs valid |
+| `ccya/ev/checkers/arc_goals.py` | `arc_goal_updates` — goal_update overwrites visible_goal |
+| `ccya/ev/checkers/npc_presence.py` | `npc_presence` — removed NPC states check |
+| `ccya/ev/checkers/pacing.py` | `pacing_directives` — pressure tracking, outcome hint, directive render, removed directives, beat variety, surface_as consistency; `action_quality` — count/distinct |
+| `ccya/ev/checkers/sanitizer.py` | `sanitizer_lifecycle` — thread operation validity vs state, orphan detection; needs non-turn events + state access |
 | `ccya/eval/__init__.py` | Re-exports: EvalConfig, JudgeResult, RunResult (with track), Scenario, build_trace, run_scenario, etc. |
 | `ccya/eval/config.py` | EvalConfig, JudgesSpec (per-judge rubric/model/temp), load_eval_config() |
 | `ccya/eval/judge.py` | run_judges(track="adversarial"): parallel domain judges + sequential meta judge; parse_judge_response() YAML front matter; _build_metrics_rows(turn, tok_in per phase, pacing_directive, beat_generated/consumed from pending_gm_beat lifecycle) |
