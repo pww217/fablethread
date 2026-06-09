@@ -40,7 +40,7 @@ Create `ccya/ev/` package with `__init__.py` (dispatch), `events.py` (data acces
 
 ## Status
 
-`open`
+`completed`
 
 ## Phases
 
