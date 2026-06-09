@@ -373,7 +373,7 @@ async def generate_seed(
             del envelope.seed_state.meta["compendium_touch_order"]
 
         # Inject pack currency into initial inventory
-        if (scenario := pack.scenario) and scenario.currency_id:
+        if (scenario := pack.scenario) and scenario.currency_id and scenario.starting_currency_amount > 0:
             currency_ids = {item.id for item in envelope.seed_state.inventory}
             if scenario.currency_id not in currency_ids:
                 envelope.seed_state.inventory.append(
