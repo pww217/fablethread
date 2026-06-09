@@ -73,9 +73,11 @@ Build in this order, using everything already established before generating what
 
 ## NPC rules
 
-Generate 4–5 named NPCs total:
+Generate 4–6 named NPCs total:
 - **~2 present** (`presence: "present"`) — in the opening scene
+- **1–2 nearby** (`presence: "nearby"`) — just outside, in the next room, proximate
 - **2–3 known** (`presence: "known"`) — exist in the world, known to the PC, not in the scene. Bios tie them to factions/locations/pressures, not to the immediate opening. They are real people, not future quest-givers.
+- **0–1 departed** (`presence: "departed"`) — permanently gone, referenced in bio/world state
 
 {% if npc_count_override and npc_count_override > 0 %}Override: generate exactly {{ npc_count_override }} present NPCs.{% endif %}
 

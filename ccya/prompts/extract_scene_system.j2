@@ -10,7 +10,7 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
   "scene_tagline": "...",
   "location_change": {"id": "...", "name": "...", "description": "..."},
   "location_description": "...",
-  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "presence": "present|known", "notes": "..."}]
+  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "presence": "present|nearby|known|departed", "notes": "..."}]
 }
 ```
 
@@ -20,7 +20,7 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 
 `scene_tagline`: 3–6 words summarizing the scene for the UI header. Grounded in what just happened. Examples: `"A Toll Paid In Blood"`, `"Whispers in the Dark"`, `"The Guard Raises the Alarm"`.
 
-`location_change`: emitted only when the player moves to a new location (the location ID differs from the current one). Do NOT emit if the player is still in the same location with added spatial detail — use `location_description` instead.
+`location_change`: emitted only when the player moves to a new location (the location ID differs from the current one). Do NOT emit if the player is still in the same location with added spatial detail — use `location_description` instead. A new room is a location change, another part of the same room does not.
 
 `location_description`: Location description — new physical/spatial detail about the current space. Only emit when the narration introduces genuinely new details not already in the stored description. Do not restate or paraphrase existing description. One to two sentences.
 
@@ -37,9 +37,14 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
   "motivation": "what this NPC fundamentally wants",
   "fear": "what this NPC is most afraid of",
   "leverage": "what this NPC can offer, threaten, or withhold",
-  "presence": "present|known",
-  "notes": "5–8 words max describing the NPC's current stance or action in this scene. No clauses, no conjunctions. Not plot-critical — quick situational cue only."
+  "presence": "present|nearby|known|departed",
+  "notes": "5–8 words max describing the NPC's current stance or action in this scene. No clauses, no conjunctions. Not plot-critical — quick situational cue only.",
+  "departed_reason": "short label — required when presence is departed",
+  "departed_summary": "1-2 sentence prose — required when presence is departed",
 }
+
+`departed_reason`: Required when `presence` is `"departed"`. Short label describing the departure. Examples: "killed in battle", "sailed away", "imprisoned for life".
+`departed_summary`: Required when `presence` is `"departed"`. 1-2 sentences describing what happened, for the compendium and UI display.
 
 ### How to use compendium_npc_update
 
@@ -48,6 +53,7 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 - **NPC behavior changes:** Update `notes` with a brief situational cue reflecting their current stance toward the player.
 - **Durable identity updates:** Update `name`, `title`, `bio`, `aliases`, `allegiance`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
 - **NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes.
+- **NPC re-enters scene after location change:** If an NPC was demoted to `"nearby"` by an engine location change but the narration indicates they followed the player, set `presence: "present"` — do NOT create a new compendium entry. Re-promote the existing NPC.
 
 ## NPC ID rules
 
@@ -79,7 +85,9 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 
 **NPC ENTER/EXIT RULE (MANDATORY):**
 - Emit `compendium_npc_update { presence: "present" }` for every named NPC who appears in the narration for the first time this turn and is not already marked as present.
-- Emit `compendium_npc_update { presence: "known" }` for every named NPC who narration indicates has left, fled, died, fainted, or been removed from the scene.
+- Emit `compendium_npc_update { presence: "known" }` for every named NPC who narration indicates has left, fled, fainted, or been removed from the scene.
+- Emit `compendium_npc_update { presence: "departed", departed_reason: "<short label>", departed_summary: "<1-2 sentence prose>" }` for every named NPC who narration indicates is permanently gone — dead, sailed away forever, comatose, imprisoned for life, ascended, or otherwise unreachable. This NPC will be archived after a few turns. The `departed_reason` is a short label (e.g. "killed in battle", "sailed to sea"). The `departed_summary` is 1-2 sentences describing what happened, shown in the compendium UI.
+- Emit `compendium_npc_update { presence: "nearby" }` for NPCs described as being just outside, in the next room, watching from the shadows, or otherwise proximate but not in the immediate scene.
 - Do NOT emit presence changes for NPCs who are simply not mentioned — only remove if narration actively indicates departure.
 - Unnamed ambient characters ("a group of guards," "bystanders") do not require per-turn tracking.
 

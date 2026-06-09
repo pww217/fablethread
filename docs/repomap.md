@@ -6,10 +6,10 @@
 |---|---|
 | `ccya/__main__.py` | CLI entry: argparse + uvicorn.run |
 | `ccya/cli.py` | CLI commands |
-| `ccya/models.py` | All Pydantic models including ProgressEntry, TurnResult dataclass, load_config() |
+| `ccya/models.py` | All Pydantic models including ProgressEntry, TurnResult dataclass, load_config(); NpcPresence enum (PRESENT/NEARBY/KNOWN/DEPARTED); CompendiumNpcUpdate with departed_reason/departed_summary/departed_turn |
 | `ccya/errors.py` | ErrorKind string constants (LLM_TIMEOUT, LLM_RATE_LIMIT, etc.) + LlmcError exception hierarchy (LlmcTimeout, LlmcRateLimit, LlmcApiError) |
 | `ccya/engine/__init__.py` | Re-exports public APIs; internal helpers for tests; LLM client re-exports (llm_chat, llm_chat_stream) |
-| `ccya/engine/config.py` | EngineConfig dataclass (including thread_stale_threshold, thread_max_active), _EventLock, is_turn_in_progress(), Jinja env setup |
+| `ccya/engine/config.py` | EngineConfig dataclass (including thread_stale_threshold, thread_max_active, nearby_decay_ttl, departed_archive_ttl), _EventLock, is_turn_in_progress(), Jinja env setup |
 | `ccya/engine/turn.py` | run_turn() async orchestrator (thin — imports from submodules), _validate(), warmup(), _apply_thread_updates(config) with content dedup + auto-latent demotion every turn (not gated on mutation) + thread cap eviction, _compute_pacing_context() with Breathe threat-append exception |
 | `ccya/engine/narrate.py` | _narrate_messages(), _get_resolved_arcs(), _fmt_progress(), NPC name helpers for prompt building |
 | `ccya/engine/pack_gen.py` | generate_pack() — LLM-generated ScenarioBrief, writes to packs/custom/<slug>/ |
@@ -19,13 +19,13 @@
 | `ccya/engine/thread_sanitizer.py` | sanitize_threads() — batch arc/thread cleanup every N turns; LLM-driven delta output (update/add/resolve/remove threads, goal updates); event logging to events.jsonl; SSE phase events (sanitize_start/sanitize_done) |
 | `ccya/engine/seed.py` | generate_seed() for dynamic packs, soft validation |
 | `ccya/engine/changes.py` | summarize_changes(), format_change_lines() — diff pre vs post state → emoji display lines; thread entries may include `new_progress` field with formatted progress text (e.g., "[ADVANCEMENT] Rescuing the prisoner") for inline UI display |
-| `ccya/engine/npc_roster.py` | build_npc_roster() — merges present/known NPCs with presence tags |
+| `ccya/engine/npc_roster.py` | build_npc_roster() — merges present/nearby/known/departed NPCs with presence tags; pre-filters archived; includes departed_reason in output |
 | `ccya/engine/generate_pack.py` | generate_pack_from_brief(): SSE-driven ephemeral pack generation from world brief |
 | `ccya/state/__init__.py` | Re-exports all state symbols |
 | `ccya/state/io.py` | load_state, save_state (atomic), init_save_dir, _migrate_state |
 | `ccya/state/delta.py` | apply_delta(), reconcile_delta() — condition dedup, cross-turn dedup |
 | `ccya/state/inventory.py` | normalize_inventory_id, resolve/fuzzy match helpers; resolve_inventory_remove_target() uses fuzzy matching (threshold 0.6) as final fallback |
-| `ccya/state/npcs.py` | build_npc_alias_map, touch_compendium_order (LRU), strip_npcs_notes (clears this-turn NPC notes at start of each turn) |
+| `ccya/state/npcs.py` | build_npc_alias_map, touch_compendium_order (LRU), strip_npcs_notes (skips departed/archived NPCs), apply_npc_scene_management (handles departed/nearby presence) |
 | `ccya/state/chronicle.py` | append_event (events.jsonl), append_chronicle (chronicle.md), load_last_narration() |
 | `ccya/state/momentum.py` | apply_momentum() — deterministic from rules band, clamped to [-3,+3], with depth-based catch-up acceleration at -3 or below (success=+2, crit_success=+3) |
 | `ccya/server/__init__.py` | Re-exports: app, main, config, SAVE_DIR, _validate_stats |
@@ -276,7 +276,7 @@ scene:
   location_entered_turn: int   # when location was last changed
   combat_started_turn: int     # set when scene tags include "combat"
 
-compendium.npcs: dict[id] → {name, title, bio, aliases: [str], allegiance: str | None, presence: str | "present"|"nearby"|"known", notes: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), first_seen_turn: int | None}
+compendium.npcs: dict[id] → {name, title, bio, aliases: [str], allegiance: str | None, presence: str | "present"|"nearby"|"known"|"departed"|"archived", notes: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), first_seen_turn: int | None, departed_reason: str | None, departed_summary: str | None, departed_turn: int | None, nearby_since_turn: int | None}
 
 world.factions: [str], world.locations: [str]
 ```

@@ -1330,6 +1330,33 @@ async def run_turn(
                                     turn_no_for_add, getattr(_new_thread, 'id', '?'), exc, extra={"turn": turn_no_for_add},
                                 )
 
+        # --- NPC lifecycle: nearby decay and departed archive ---
+        nearby_ttl = config.nearby_decay_ttl if config else 2
+        comp = state.get("compendium", {}).get("npcs", {})
+        for entry in comp.values():
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("presence") == "nearby":
+                nearby_since = entry.get("nearby_since_turn")
+                if isinstance(nearby_since, int) and turn_no - nearby_since >= nearby_ttl:
+                    entry["presence"] = "known"
+
+        archive_ttl = config.departed_archive_ttl if config else 3
+        archived_ids = []
+        for nid, entry in comp.items():
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("presence") == "departed":
+                dep_turn = entry.get("departed_turn")
+                if isinstance(dep_turn, int) and turn_no - dep_turn >= archive_ttl:
+                    entry["presence"] = "archived"
+                    archived_ids.append(nid)
+        if archived_ids:
+            _log.info(
+                "archived_departed_npcs ids=%s", sorted(archived_ids),
+                extra={"turn": turn_no},
+            )
+
         narrative = _strip_fallback(narrative, trace_id=trace_id, turn=turn_no)
 
 

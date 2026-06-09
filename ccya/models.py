@@ -24,6 +24,7 @@ class NpcPresence(str, Enum):
     PRESENT = "present"
     NEARBY = "nearby"
     KNOWN = "known"
+    DEPARTED = "departed"
 
 
 class ProgressEntry(BaseModel):
@@ -251,9 +252,12 @@ class CompendiumNpcUpdate(BaseModel):
     motivation: str | None = None
     fear: str | None = None
     leverage: str | None = None
-    presence: str | None = None  # "present" | "nearby" | "known" — scene extractor sets this
+    presence: str | None = None  # "present" | "nearby" | "known" | "departed" — scene extractor sets this
     notes: str | None = None      # scene-specific attitude, cleared on departure
     first_seen_turn: int | None = None  # set by engine on initial entry creation
+    departed_reason: str | None = None     # short label, e.g. "killed in battle"
+    departed_summary: str | None = None    # 1-2 sentence prose describing departure
+    departed_turn: int | None = None       # set by engine on first presence:"departed"
 
 
 class WorldStateFact(BaseModel):
