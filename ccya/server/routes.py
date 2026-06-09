@@ -30,6 +30,7 @@ from ccya.pack import PlayerOverrides, load_pack, list_packs, _resolve_pack_dir
 from ccya.state import (
     init_save_dir,
     load_recent_turns,
+    load_state,
     remove_last_chronicle_turn,
     remove_last_event,
     save_state,
@@ -106,6 +107,72 @@ def _format_ts(ts_str: str) -> str:
         return dt.strftime("%d %b · %I:%M %p UTC").lstrip("0")
     except (ValueError, AttributeError):
         return ts_str  # fallback: return raw if unparseable
+
+
+def _list_saves() -> list[dict[str, Any]]:
+    """List all available saves (excluding default)."""
+    saves_dir = Path("saves")
+    if not saves_dir.exists():
+        return []
+
+    result = []
+    for entry in sorted(saves_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
+        if not entry.is_dir():
+            continue
+        # Exclude default save from list
+        if entry.name == "default":
+            continue
+
+        events_file = entry / "events.jsonl"
+        state_file = entry / "state.yaml"
+
+        turn_count = 0
+        last_modified: str | None = None
+        pack_name: str | None = None
+        pc_name: str | None = None
+        location_name: str | None = None
+
+        # Try to get turn count from events file
+        if events_file.exists():
+            try:
+                with open(events_file, "r") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line:
+                            turn_count += 1
+                            try:
+                                evt = json.loads(line)
+                                if evt.get("ts"):
+                                    last_modified = evt.get("ts")
+                            except json.JSONDecodeError:
+                                pass
+            except OSError:
+                pass
+
+        # Try to get metadata from state
+        if state_file.exists():
+            try:
+                from ccya.state.io import load_state
+                state = load_state(entry)
+                meta = state.get("meta", {}) or {}
+                pack_name = meta.get("setting_pack") or meta.get("pack")
+                pc = state.get("pc", {}) or {}
+                pc_name = pc.get("name")
+                loc = state.get("location", {}) or {}
+                location_name = loc.get("name")
+            except Exception:
+                pass
+
+        result.append({
+            "name": entry.name,
+            "pack": pack_name,
+            "turn_count": turn_count,
+            "last_modified": last_modified,
+            "pc_name": pc_name,
+            "location_name": location_name,
+        })
+
+    return result
 
 
 @_app_mod.app.get("/", response_class=HTMLResponse)
@@ -707,3 +774,55 @@ async def post_settings(request: Request):
     _app_mod.engine_config = _build_engine_config(_app_mod.config)
 
     return await get_settings()  # Return updated state
+
+
+@_app_mod.app.get("/api/saves")
+async def list_saves():
+    """List all available saves (excluding default)."""
+    saves = _list_saves()
+    return JSONResponse({"saves": saves})
+
+
+@_app_mod.app.post("/api/switch-save")
+async def switch_save(request: Request):
+    """Switch to a different save directory."""
+    data = await request.json()
+    if not isinstance(data, dict):
+        return JSONResponse({"error": "Expected JSON object"}, status_code=400)
+
+    save_name = str(data.get("save_name", "")).strip()
+    if not save_name:
+        return JSONResponse({"error": "Save name is required"}, status_code=400)
+
+    saves_dir = Path("saves")
+    target = (saves_dir / save_name).resolve()
+
+    # Guard: must be under saves/
+    try:
+        target.relative_to(saves_dir.resolve())
+    except ValueError:
+        return JSONResponse({"error": "Invalid save path"}, status_code=400)
+
+    if not target.is_dir():
+        return JSONResponse({"error": f"Save directory not found: {save_name}"}, status_code=404)
+
+    # Verify no turn is in progress on current save
+    from ccya.engine.config import is_turn_in_progress
+    if is_turn_in_progress(str(_app_mod.SAVE_DIR)):
+        return JSONResponse({"error": "Turn in progress, try again later"}, status_code=409)
+
+    # Load state to verify it's valid
+    try:
+        state = load_state(target)
+    except Exception as exc:
+        _log.error("Failed to load state from %s: %s", save_name, exc)
+        return JSONResponse({"error": f"Failed to load save: {exc}"}, status_code=500)
+
+    # Clear turn locks before switching
+    from ccya.engine import clear_all_turn_locks
+    clear_all_turn_locks(str(_app_mod.SAVE_DIR))
+
+    # Switch
+    _app_mod.SAVE_DIR = target
+    _log.info("Switched save to %s", save_name)
+    return JSONResponse({"ok": True, "save_dir": str(target), "state": state})

@@ -71,6 +71,18 @@ def signal_turn_done(save_dir: str) -> None:
     clear_cancel(save_dir)
 
 
+def clear_all_turn_locks(save_dir: str) -> None:
+    """Clear all turn-related locks/state for a save directory.
+
+    Called before switching to a save to ensure no stale locks
+    from a previous turn in that directory block execution.
+    """
+    _inflight._locks.pop(save_dir, None)
+    _cancel_requested.pop(save_dir, None)
+    _turn_done.pop(save_dir, None)
+    _persist_started.pop(save_dir, None)
+
+
 async def await_turn_done(save_dir: str, timeout: float = 30.0) -> bool:
     event = _turn_done.get(save_dir)
     if event is None:
