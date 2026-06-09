@@ -41,7 +41,7 @@ Create `ccya/ev/checkers/__init__.py` with the registry, decorator, `CheckerResu
 
 ## Status
 
-`open`
+`completed`
 
 ## Implementation
 
