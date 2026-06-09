@@ -42,7 +42,7 @@
 | `ccya/ev/play.py` | Play command: `play_turn()` sync wrapper around `run_turn()`, `cmd_play()` dispatch for single-turn/`--interactive`/`--llm` modes, session management (`_create_play_session`), output formatting (`format_play_output`/`format_error_output`) |
 | `ccya/ev/check.py` | `cmd_check()` — run checkers against existing events by turn; supports single turn + specific checkers, single turn + `--all`, or `--all` across all turns. Markdown output. Supports `--llm` flag to include LLM-based checkers, `--checker-model` to override model name. |
 | `ccya/ev/eval.py` | `cmd_eval_run()` — batch scenario runner: loads YAML scenario, plays each turn via `play_turn()`, runs all checkers, validates TurnAsserts, produces Markdown report. `cmd_eval_list()` — lists available YAML scenarios. |
-| `ccya/ev/scenario.py` | YAML scenario loader: `Scenario`, `ScenarioTurn`, `TurnAssert` dataclasses; `load_scenario()` parses YAML, `discover_scenarios()` finds YAML files in `evals/scenarios/`. |
+| `ccya/ev/scenario.py` | YAML scenario loader: `Scenario`, `ScenarioTurn`, `TurnAssert` dataclasses; `load_scenario()` parses YAML, `discover_scenarios()` finds YAML files in `packs/`. |
 | `ccya/ev/__init__.py` | CLI dispatch: lazy import of `play`, `check`, `eval` subcommands; `_strip_flags()` utility |
 | `ccya/ev/checkers/__init__.py` | Checker framework: `@register_checker` decorator, `CheckerResult` dataclass, `run_checker()`/`run_checkers()`, `list_checkers()`, field validation, event pre-filtering, state access. Registry with explicit imports for 11 deterministic checkers + 3 LLM checkers. |
 | `ccya/ev/checkers/_llm.py` | LLM checker infrastructure: `_load_checker_model()`, `_unload_checker_model()`, `_call_llm_checker()`, `_result_from_llm_output()`, `_build_checker_prompt()`, template registry. Handles model loading/unloading, prompt rendering, structured output parsing. |
@@ -86,7 +86,7 @@
 
 ### ccya/pack.py
 - **load_pack(pack_id)** → Pack — validates pack has seed_state.yaml (static) or scenario.yaml (generated)
-- **list_packs(packs_dir)** → list[PackManifest] — aggregates from default/ and custom/
+- **list_packs(packs_dir)** → list[PackManifest] — aggregates from default/, custom/, generated/, and eval/
 
 ### ccya/rules.py
  - **resolve_check(skill, difficulty, pc_stats, intent_verb)** → RulesOutcome — 1d12+stat_mod+diff_mod→Band (pure Python)

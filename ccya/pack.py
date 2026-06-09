@@ -305,6 +305,7 @@ def list_packs(packs_dir: Path) -> list[PackManifest]:
         packs_dir / "generated",
         packs_dir / "default",
         packs_dir / "custom",
+        packs_dir / "eval",
     ]
     seen: set[str] = set()
     for search in search_dirs:
