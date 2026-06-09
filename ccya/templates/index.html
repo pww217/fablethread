@@ -135,7 +135,7 @@
             <!-- Scrollable narrative area — seeded with server-rendered history on load -->
             <div id="narrative-panel" class="narrative-panel">
 
-                {% if not history and not state.location.id %}
+                {% if not history and not opening and not state.location.id %}
                 <p class="empty-state" id="empty-prompt" style="padding: 8px 0;">
                     No game loaded yet. Click <strong style="color: var(--text-primary)">New Game</strong> to begin.
                 </p>
@@ -443,18 +443,29 @@
                 </div>
                 <div class="save-picker-list">
                     <template x-for="save in savePicker.saves" :key="save.name">
-                        <div class="pack-card" 
-                             @click="selectSave(save.name)"
-                             :class="{ 'pack-card--active': savePicker.selectedId === save.name }">
-                            <div class="pack-card-header">
-                                <span class="pack-card-name" x-text="save.name"></span>
+                        <div class="pack-card-wrapper">
+                            <div class="pack-card" 
+                                 @click="selectSave(save.name)"
+                                 :class="{ 'pack-card--active': savePicker.selectedId === save.name, 'pack-card--current': save.name === activeSaveName }">
+                                <div class="pack-card-header">
+                                    <span class="pack-card-name" x-text="save.name"></span>
+                                    <span class="save-card-current-badge" x-show="save.name === activeSaveName">active</span>
+                                </div>
+                                <div class="pack-card-meta">
+                                    <span class="pack-card-turn" x-show="save.turn_count > 0">Turn <span x-text="save.turn_count"></span></span>
+                                    <span class="pack-card-pack" x-show="save.pack" x-text="save.pack"></span>
+                                    <span class="pack-card-pc" x-show="save.pc_name" x-text="save.pc_name"></span>
+                                    <span class="pack-card-location" x-show="save.location_name" x-text="save.location_name"></span>
+                                    <span class="pack-card-modified" x-show="save.last_modified" x-text="save.last_modified"></span>
+                                </div>
                             </div>
-                            <div class="pack-card-meta">
-                                <span class="pack-card-turn" x-show="save.turn_count > 0">Turn <span x-text="save.turn_count"></span></span>
-                                <span class="pack-card-pack" x-show="save.pack" x-text="save.pack"></span>
-                                <span class="pack-card-pc" x-show="save.pc_name" x-text="save.pc_name"></span>
-                                <span class="pack-card-location" x-show="save.location_name" x-text="save.location_name"></span>
-                            </div>
+                            <button type="button"
+                                    class="pack-card-delete"
+                                    title="Delete this save"
+                                    x-show="save.name !== activeSaveName"
+                                    @click.stop="deleteSave(save.name)">
+                                &times;
+                            </button>
                         </div>
                     </template>
                 </div>
@@ -1030,6 +1041,7 @@ function game() {
         turnNum: {{ state.meta.turn | default(0) }},
         hasNarrative: {{ 'true' if has_narrative else 'false' }},
         characterCreationEnabled: {{ 'true' if character_creation_enabled else 'false' }},
+        activeSaveName: '{{ active_save_name }}',
 
         // Width state (px or null for collapsed/using default).
         leftW: (() => {
@@ -2104,6 +2116,34 @@ function game() {
                 }
             } catch (e) {
                 console.error('Failed to switch save:', e);
+            } finally {
+                this.savePicker.loading = false;
+            }
+        },
+
+        async deleteSave(name) {
+            if (!confirm(`Delete save "${name}"? This cannot be undone.`)) return;
+            this.savePicker.loading = true;
+            try {
+                const resp = await fetch('/api/delete-save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ save_name: name }),
+                });
+                if (!resp.ok) {
+                    const data = await resp.json();
+                    alert(data.error || 'Failed to delete save');
+                    return;
+                }
+                // Re-fetch to update the list
+                await this._fetchSaves();
+                // Clear selection if the deleted save was selected
+                if (this.savePicker.selectedId === name) {
+                    this.savePicker.selectedId = null;
+                }
+            } catch (e) {
+                console.error('Failed to delete save:', e);
+                alert('Failed to delete save');
             } finally {
                 this.savePicker.loading = false;
             }

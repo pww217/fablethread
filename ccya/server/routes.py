@@ -42,6 +42,7 @@ from .panels import (
     _get_opening_outcome_summary,
     _load_current_state,
     _load_last_actions,
+    _load_opening_from_chronicle,
     _load_recent_history,
 )
 from .metrics import _turn_log_entries
@@ -149,19 +150,21 @@ def _list_saves() -> list[dict[str, Any]]:
             except OSError:
                 pass
 
-        # Try to get metadata from state
-        if state_file.exists():
-            try:
-                from ccya.state.io import load_state
-                state = load_state(entry)
-                meta = state.get("meta", {}) or {}
-                pack_name = meta.get("setting_pack") or meta.get("pack")
-                pc = state.get("pc", {}) or {}
-                pc_name = pc.get("name")
-                loc = state.get("location", {}) or {}
-                location_name = loc.get("name")
-            except Exception:
-                pass
+        # Require valid state.yaml — skip non-save directories
+        if not state_file.exists():
+            continue
+        from ccya.state.io import load_state
+        try:
+            state = load_state(entry)
+        except Exception:
+            continue
+
+        meta = state.get("meta", {}) or {}
+        pack_name = meta.get("setting_pack") or meta.get("pack")
+        pc = state.get("pc", {}) or {}
+        pc_name = pc.get("name")
+        loc = state.get("location", {}) or {}
+        location_name = loc.get("name")
 
         result.append({
             "name": entry.name,
@@ -180,10 +183,8 @@ async def index(request: Request):
     history = _load_recent_history(_app_mod.SAVE_DIR)
     last_actions = _load_last_actions(_app_mod.SAVE_DIR) if history else []
     state = _load_current_state()
-    opening = (
-        _get_opening() if not history and state.get("location", {}).get("id") else ""
-    )
-    opening_actions = _get_opening_actions() if not history and opening else []
+    opening = _load_opening_from_chronicle(_app_mod.SAVE_DIR) or _get_opening()
+    opening_actions = _get_opening_actions() if not history and not last_actions else []
     ctx = _debug_context()
     ctx["state"] = state
     ctx["history"] = history
@@ -196,6 +197,7 @@ async def index(request: Request):
     ctx["character_creation_enabled"] = _app_mod.config.get("game", {}).get(
         "character_creation_enabled", True
     )
+    ctx["active_save_name"] = _app_mod.SAVE_DIR.name
     css_path = _app_mod.BASE_DIR / "static" / "app.css"
     ctx["css_v"] = int(css_path.stat().st_mtime) if css_path.exists() else 0
     return _app_mod._render("index.html", ctx)
@@ -826,3 +828,50 @@ async def switch_save(request: Request):
     _app_mod.SAVE_DIR = target
     _log.info("Switched save to %s", save_name)
     return JSONResponse({"ok": True, "save_dir": str(target), "state": state})
+
+
+@_app_mod.app.post("/api/delete-save")
+async def delete_save(request: Request):
+    """Delete a save directory."""
+    data = await request.json()
+    if not isinstance(data, dict):
+        return JSONResponse({"error": "Expected JSON object"}, status_code=400)
+
+    save_name = str(data.get("save_name", "")).strip()
+    if not save_name:
+        return JSONResponse({"error": "Save name is required"}, status_code=400)
+
+    # Prevent deleting default
+    if save_name == "default":
+        return JSONResponse({"error": "Cannot delete the default save"}, status_code=400)
+
+    # Prevent deleting the currently active save
+    if save_name == _app_mod.SAVE_DIR.name:
+        return JSONResponse({"error": "Cannot delete the currently active save"}, status_code=400)
+
+    saves_dir = Path("saves")
+    target = (saves_dir / save_name).resolve()
+
+    # Guard: must be under saves/
+    try:
+        target.relative_to(saves_dir.resolve())
+    except ValueError:
+        return JSONResponse({"error": "Invalid save path"}, status_code=400)
+
+    if not target.is_dir():
+        return JSONResponse({"error": f"Save directory not found: {save_name}"}, status_code=404)
+
+    # Verify no turn is in progress on current save
+    from ccya.engine.config import is_turn_in_progress
+    if is_turn_in_progress(str(_app_mod.SAVE_DIR)):
+        return JSONResponse({"error": "Turn in progress, try again later"}, status_code=409)
+
+    try:
+        import shutil
+        shutil.rmtree(target)
+    except OSError as exc:
+        _log.error("Failed to delete save %s: %s", save_name, exc)
+        return JSONResponse({"error": f"Failed to delete save: {exc}"}, status_code=500)
+
+    _log.info("Deleted save %s", save_name)
+    return JSONResponse({"ok": True})

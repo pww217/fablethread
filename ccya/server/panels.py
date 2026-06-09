@@ -52,8 +52,9 @@ def _load_ruling_map(save_dir: Path) -> dict[int, dict[str, Any]]:
 
 
 def _load_recent_history(save_dir: Path, n: int = 8) -> list[dict[str, Any]]:
-    """Return the last n turns from chronicle.md for page-reload continuity (full narrative)."""
-    turns = load_last_narration(save_dir, n)
+    """Return the last n turns from chronicle.md (excluding turn 0 seed)."""
+    all_turns = load_last_narration(save_dir, n + 1)
+    turns = [t for t in all_turns if t["turn"] != 0]
     ruling_map = _load_ruling_map(save_dir)
     _log.debug("_load_recent_history n=%d turns=%d ruling_entries=%d", n, len(turns), len(ruling_map))
     return [
@@ -63,7 +64,7 @@ def _load_recent_history(save_dir: Path, n: int = 8) -> list[dict[str, Any]]:
             "narrative": t["narrative"],
             "ruling": ruling_map.get(t["turn"]),
         }
-        for t in turns
+        for t in turns[-n:]
     ]
 
 
@@ -85,6 +86,23 @@ def _load_last_actions(save_dir: Path) -> list[str]:
     except (json.JSONDecodeError, KeyError) as e:
         _log.warning("Failed to parse last action from events.jsonl: %s", e)
         return []
+
+
+def _load_opening_from_chronicle(save_dir: Path) -> str | None:
+    """Extract the opening narrative from turn 0 in chronicle.md. Returns None if not found."""
+    from ccya.state.chronicle import _TURN_HEADER
+    
+    path = save_dir / "chronicle.md"
+    if not path.exists():
+        return None
+    
+    text = path.read_text()
+    matches = list(_TURN_HEADER.finditer(text))
+    for m in matches:
+        if int(m.group(1)) == 0:
+            narrative = text[m.end():].strip()
+            return narrative if narrative else None
+    return None
 
 
 def _get_opening() -> str:
