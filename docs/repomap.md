@@ -34,8 +34,16 @@
 | `ccya/server/panels.py` | Panel context builders: _debug_context(), _load_* helpers, _get_opening() |
 | `ccya/server/tv.py` | Turn viewer data from events.jsonl + server_errors.jsonl — unified timeline with row_kind discrimination, per-stream metrics, status colors; `_turn_viewer_data()` returns `(rows, no_events)`; injects a synthetic `row_kind: "seed"` row at index 0 when seed data is present in state.yaml. TV delta rows include pacing metadata keys: narrative_velocity, gm_beat_type, gm_beat_surface_as alongside momentum_before/after/outcome_hint |
 | `ccya/server/metrics.py` | _recent_turn_metrics(), _turn_log_entries() — latency/token formatting |
-| `scripts/debug/ev.py` | CLI tool for inspecting events.jsonl directly; commands: summary, timing, turn, props, compact, prompt, outputs, deltas, dice, mechanics, connectors, pacing (summary/gate/momentum/band/beat_locked from top-level event fields), state, diff, trace, search (supports npc/item/condition/band/momentums_after/momentums_before/momentums_delta/rejected/input) |
+| `scripts/debug/ev.py` | CLI tool for inspecting events.jsonl directly; commands: summary, timing, turn, prompt, outputs, deltas, mechanics, state, diff, trace, search, play, check, eval |
+| `ccya/ev/events.py` | Shared data access layer: `load_events()`, `find_turn()`, `filter_turn_events()`, `extract_field()`, `load_current_state()`. Also consumed by TurnViewer. |
+| `ccya/ev/inspect.py` | Inspection commands: `cmd_summary()`, `cmd_timing()`, `cmd_turn()`, `cmd_prompt()` |
+| `ccya/ev/deltas.py` | Deltas and mechanics commands: `cmd_deltas()`, `cmd_mechanics()` |
+| `ccya/ev/state_tools.py` | State commands: `cmd_state()`, `cmd_diff()`, `cmd_trace()`, `cmd_search()` |
+| `ccya/ev/play.py` | Play command: `play_turn()` sync wrapper around `run_turn()`, `cmd_play()` dispatch for single-turn/`--interactive`/`--llm` modes, session management (`_create_play_session`), output formatting (`format_play_output`/`format_error_output`) |
 | `ccya/ev/check.py` | `cmd_check()` — run checkers against existing events by turn; supports single turn + specific checkers, single turn + `--all`, or `--all` across all turns. Markdown output. Supports `--llm` flag to include LLM-based checkers, `--checker-model` to override model name. |
+| `ccya/ev/eval.py` | `cmd_eval_run()` — batch scenario runner: loads YAML scenario, plays each turn via `play_turn()`, runs all checkers, validates TurnAsserts, produces Markdown report. `cmd_eval_list()` — lists available YAML scenarios. |
+| `ccya/ev/scenario.py` | YAML scenario loader: `Scenario`, `ScenarioTurn`, `TurnAssert` dataclasses; `load_scenario()` parses YAML, `discover_scenarios()` finds YAML files in `evals/scenarios/`. |
+| `ccya/ev/__init__.py` | CLI dispatch: lazy import of `play`, `check`, `eval` subcommands; `_strip_flags()` utility |
 | `ccya/ev/checkers/__init__.py` | Checker framework: `@register_checker` decorator, `CheckerResult` dataclass, `run_checker()`/`run_checkers()`, `list_checkers()`, field validation, event pre-filtering, state access. Registry with explicit imports for 11 deterministic checkers + 3 LLM checkers. |
 | `ccya/ev/checkers/_llm.py` | LLM checker infrastructure: `_load_checker_model()`, `_unload_checker_model()`, `_call_llm_checker()`, `_result_from_llm_output()`, `_build_checker_prompt()`, template registry. Handles model loading/unloading, prompt rendering, structured output parsing. |
 | `ccya/ev/checkers/llm_checkers.py` | LLM-based narrative checkers: `directive_tone_match` (tone alignment with ruling band), `beat_narrative_chain` (GM beat narrative consequence), `state_fidelity` (extraction vs narration match). Each uses focused 20-30 line prompts. |
@@ -49,20 +57,6 @@
 | `ccya/ev/checkers/pacing.py` | `pacing_directives` — pressure tracking, outcome hint, directive render, removed directives, beat variety, surface_as consistency; `action_quality` — count/distinct |
 | `ccya/ev/checkers/sanitizer.py` | `sanitizer_lifecycle` — thread operation validity vs state, orphan detection; needs non-turn events + state access |
 | `ccya/ev/checkers/turn_assert.py` | `turn_assert` — validates per-turn YAML scenario assertions (stream/field/expected/min_amount); called programmatically by eval runner, not in default registry |
-| `ccya/ev/eval.py` | `cmd_eval_run()` — batch scenario runner: loads YAML scenario, plays each turn via `play_turn()`, runs all checkers, validates TurnAsserts, produces Markdown report. `cmd_eval_list()` — lists available YAML scenarios. |
-| `ccya/ev/play.py` | Play command: `play_turn()` sync wrapper around `run_turn()`, `cmd_play()` dispatch for single-turn/`--interactive`/`--llm` modes, session management (`_create_play_session`), output formatting (`format_play_output`/`format_error_output`) |
-| `ccya/ev/scenario.py` | YAML scenario loader: `Scenario`, `ScenarioTurn`, `TurnAssert` dataclasses; `load_scenario()` parses YAML, `discover_scenarios()` finds YAML files in `evals/scenarios/`. |
-| `ccya/ev/__init__.py` | CLI dispatch: lazy import of `play`, `check`, `eval` subcommands; `_strip_flags()` utility |
-| `ccya/eval/__init__.py` | Re-exports: EvalConfig, JudgeResult, RunResult (with track), Scenario, build_trace, run_scenario, etc. |
-| `ccya/eval/config.py` | EvalConfig, JudgesSpec (per-judge rubric/model/temp), load_eval_config() |
-| `ccya/eval/judge.py` | run_judges(track="adversarial"): parallel domain judges + sequential meta judge; parse_judge_response() YAML front matter; _build_metrics_rows(turn, tok_in per phase, pacing_directive, beat_generated/consumed from pending_gm_beat lifecycle) |
-| `ccya/eval/universal_asserts.py` | Auto-checkers (condition dedup, consecutive_pressure_tracking beat-type-based counter, beat_locked dual-trigger from momentum_floor/consecutive_pressure_threshold, floor relief injection verification, no_removed_directives/npc_states negative assertions, exact directive value rendering via word-boundary regex, orphan condition detection, thread_add→state application verification, inventory remove existence, thread_update ID validity, beat type variety warning, surface_as consistency check, MB-4 momentum delta awareness for depth-based recovery at -3) — red/yellow severity |
-| `ccya/eval/report.py` | write_full_report(run_result, eval_cfg, judge_results=None): single-pass REPORT.md with metadata (including track + scoring philosophy), optional judge summary + verdicts, flags, auto-checker table (`[PASS]`/`[FAIL]` labels), pacing metrics, turn metrics; atomic write via tmp.replace() |
-| `ccya/eval/scenario.py` | Scenario (with seed_overrides, track="adversarial"/"baseline"), Turn, TurnAssert (with stream_id). Legacy Python-file loader. New YAML scenario loader at `ccya/ev/scenario.py`. |
-| `ccya/eval/engine_mirror.py` | Live engine constants for scenarios: BANDS, SKILLS, DIFFICULTIES, PC_CONDITION_CAP, CONDITION_TTL; pacing config mirror (momentum_floor=-3, consecutive_pressure_threshold=3, combat +2 scene_age boost) via EngineConfig defaults — THREAD_RESOLVED_ARC_TTL/THREAD_COMPLETED_THREAD_TTL imported from _defaults.arc_memory_ttl/_defaults.thread_memory_ttl, PRESSURE_BEAT_TYPES imported from turn.py, GM_BEAT_TYPES derived at runtime from GMBeat.type Literal annotation |
-| `ccya/eval/test_eval_schema.py` | KNOWN_ASSERT_FIELDS validation against runner._check_asserts handler field names, KNOWN_SEED_PATHS dotpath format check, engine_mirror import sanity test |
-| `evals/scenarios/baseline.py` | 13-turn organic narrative arc with track="baseline": Dustfall mystery, town → canyon travel, missing prospector search and rescue. Minimal asserts (7). |
-| `evals/scenarios/eval_coverage_gap.py` | 8-turn scenario exercising ev1 findings: band-beat conflict, thread progress, orphan conditions, surface_as drift, skill variety |
 | `ccya/pack.py` | load_pack(), list_packs() — validates pack has seed (static) or scenario (generated) |
 | `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (1d12+stat_mod+diff_mod→Band), build_directive() near-miss logic |
 | `ccya/llm_client.py` | chat(), chat_stream() — OpenAI-compatible → mlx_lm.server; trim_messages() token-budget trimming |
@@ -130,6 +124,9 @@ Steps 3–5 merge into StateDelta → _validate() → apply_delta() → summariz
 After extraction and before `yield("complete")`, if `config.sanitize_every > 0` and current turn is a multiple, the thread sanitizer runs: calls LLM with arc state + recent narration evidence, applies delta changes to threads/goal, logs event record. SSE events: `sanitize_start` (expected_ms=0), `sanitize_done` (ms elapsed). Module: `ccya/engine/thread_sanitizer.py`.
 
 ## Cross-module contracts
+
+### EV checker library imports
+`ccya/ev/checkers/` imports directly from `ccya/engine/config` (EngineConfig, PRESSURE_BEAT_TYPES) and `ccya/rules` (MOMENTUM_DELTA, BANDS). This is a deliberate dependency — checkers need engine constants to validate mechanical invariants. The checker library does NOT depend on the turn pipeline; it reads events.jsonl directly.
 
 ### Error propagation path (structured observability)
 LLM failure in extraction → typed LlmcError raised with ErrorKind classification → caught by server middleware → persisted to `server_errors.jsonl` + SSE error event pushed via logging_setup.py. Engine modules use `_log = logging.getLogger(__name__)`; all log calls pass structured fields via `extra={}` (error_kind, trace_id). TurnResult.errors collected as list[dict] with ErrorKind constants. Server middleware catches unhandled exceptions and returns JSON responses instead of raw HTML error pages.

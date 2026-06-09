@@ -3,7 +3,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-
 DEFAULT_SAVE_DIR = Path("saves/default")
 DEFAULT_FILE = DEFAULT_SAVE_DIR / "events.jsonl"
 
@@ -54,7 +53,7 @@ def _stub_command(name: str, phase: int) -> None:
 def main() -> None:
     args = sys.argv[1:]
     if not args:
-        print(__doc__.strip())
+        print(__doc__.strip() if __doc__ else "ev.py — Debug CLI for CCYA events.jsonl")
         sys.exit(0)
 
     flags, args = _strip_flags(args)
@@ -71,6 +70,10 @@ def main() -> None:
     events = load_events(turn_file)
 
     match cmd:
+        case "help":
+            print(__doc__.strip() if __doc__ else "ev.py — Debug CLI for CCYA events.jsonl")
+            print("\nCommands: summary, timing, turn, prompt, outputs, deltas, mechanics, state, diff, trace, search, play, check, eval")
+            sys.exit(0)
         case "summary":
             from ccya.ev.inspect import cmd_summary
             fmt = flags.get("format", "text")
@@ -174,6 +177,20 @@ def main() -> None:
             cmd_play(flags, args)
         case "check":
             from ccya.ev.check import cmd_check
+            from ccya.ev.checkers import list_checkers
+
+            if "help" in flags:
+                print("Usage: ev.py check TURN [CHECKER_ID ...] [--all] [--llm] [--checker-model MODEL] [--save-dir PATH]")
+                print("\nRun checkers against existing events.")
+                print("\nFlags:")
+                print("  --all              Run all registered checkers")
+                print("  --llm              Include LLM-based checkers")
+                print("  --checker-model    Override checker model name")
+                print("  --save-dir         Path to save directory (needed for sanitizer_lifecycle)")
+                print("\nRegistered checkers:")
+                for meta in list_checkers():
+                    print(f"  {meta['id']} ({meta['type']}): {meta['description']}")
+                sys.exit(0)
 
             check_turn: int | None = None
             check_ids: list[str] | None = None
