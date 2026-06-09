@@ -1640,6 +1640,28 @@ body {
   color: var(--accent-red);
   background: var(--accent-red-soft);
 }
+.pack-card--current {
+  border-left: 3px solid var(--accent-success);
+}
+.pack-card-modified {
+  font-size: 0.71rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.save-card-current-badge {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-success);
+  border: 1px solid var(--accent-success);
+  border-radius: 999px;
+  padding: 0 2px 0 6px;
+  line-height: 1.5;
+  margin-left: auto;
+  white-space: nowrap;
+}
 
 /* =========================================================
    PACK PICKER SECTIONS

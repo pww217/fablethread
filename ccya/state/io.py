@@ -129,7 +129,13 @@ def save_state(save_dir: Path, state: dict[str, Any]) -> None:
 def init_save_dir(save_dir: Path, seed: dict[str, Any]) -> None:
     save_dir.mkdir(parents=True, exist_ok=True)
     save_state(save_dir, seed)
-    (save_dir / "chronicle.md").write_text("")
+    chronicle_path = save_dir / "chronicle.md"
+    seed_meta = seed.get("__seed_meta__") or {}
+    opening = seed_meta.get("opening_narrative")
+    if opening:
+        chronicle_path.write_text(f"\n## Turn 0 — Seed\n\n{opening.strip()}")
+    else:
+        chronicle_path.write_text("")
     (save_dir / "events.jsonl").write_text("")
     # Remove stale snapshot from a previous game
     (save_dir / "state_snapshot.yaml").unlink(missing_ok=True)
