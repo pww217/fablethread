@@ -37,7 +37,7 @@ Delete 5 directories/filesets. Write CHECKERS.md documenting every checker with 
 
 ## Status
 
-`open`
+`completed`
 
 ## Implementation
 
