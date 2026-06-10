@@ -13,6 +13,68 @@ No server required (except `play` which needs the LLM backend running).
 > - `source .venv/bin/activate && python3 scripts/debug/ev.py` → same error (activate doesn't work reliably)
 > - `ev.py --help` → fails with `IndexError: list index out of range` (ev.py has no help command)
 
+## Quick start — end-to-end workflow
+
+### 1. Start a new session with a pack
+
+```bash
+# Creates a session in saves/ev/<timestamp>/
+.venv/bin/python scripts/debug/ev.py play --llm --pack eval --turns 10
+```
+
+The session is saved to `saves/ev/<timestamp>/` and a symlink `saves/ev/latest` points to it.
+
+### 2. Play turns one at a time (human input)
+
+```bash
+# Single turn, creates new session
+.venv/bin/python scripts/debug/ev.py play "I approach the merchant." --pack eval
+
+# Continue into an existing session
+.venv/bin/python scripts/debug/ev.py play "I ask about the ledger." --save-dir saves/ev/latest
+```
+
+### 3. Inspect what happened
+
+```bash
+# One-line overview of all turns
+.venv/bin/python scripts/debug/ev.py summary saves/ev/latest/events.jsonl
+
+# Full dump of turn 3
+.venv/bin/python scripts/debug/ev.py turn 3 saves/ev/latest/events.jsonl
+
+# Current game state
+.venv/bin/python scripts/debug/ev.py state --save-dir saves/ev/latest --format compact
+
+# What changed on turn 3
+.venv/bin/python scripts/debug/ev.py deltas 3 saves/ev/latest/events.jsonl
+```
+
+### 4. Run checkers to validate mechanics
+
+```bash
+# All checkers on all turns
+.venv/bin/python scripts/debug/ev.py check --all --save-dir saves/ev/latest
+
+# Specific checkers on a single turn
+.venv/bin/python scripts/debug/ev.py check 3 momentum_lifecycle inventory_integrity --save-dir saves/ev/latest
+```
+
+### 5. Inspect LLM prompts and outputs
+
+```bash
+# What the storytell LLM saw (user prompt)
+.venv/bin/python scripts/debug/ev.py prompt 3 storytell user saves/ev/latest/events.jsonl
+
+# What the storytell LLM returned
+.venv/bin/python scripts/debug/ev.py prompt 3 storytell output saves/ev/latest/events.jsonl
+
+# System prompt for scene extraction
+.venv/bin/python scripts/debug/ev.py prompt 3 scene --system saves/ev/latest/events.jsonl
+```
+
+---
+
 ## Save directory convention
 
 Commands that read events use the **last positional arg** as the `events.jsonl` path.
