@@ -3,6 +3,7 @@
 > Saves examined: `the-outer-rim--after-unification` (32 turns), `cordyceps-year-twenty` (27 turns)
 > Focus: Narrative mechanics — beats, pacing, pressures, momentum, impossible actions, event data integrity, checker correctness
 > Method: Cross-reference save event data against architecture docs and source
+> **Verified against source:** 2026-06-10 — 11 confirmed, 2 already fixed, 1 misleading (by design), 1 partially incorrect
 
 ---
 
@@ -12,7 +13,7 @@ Fields that should exist in stored event data but are missing or have broken str
 
 ---
 
-### Bug 8: `extraction_context` missing from event schema (High)
+### Bug 8: `extraction_context` missing from event schema (High) — **VERIFIED**
 
 **Files:**
 - Event schema (all save files)
@@ -49,7 +50,7 @@ required field 'extraction_context.conditions_this_turn' not found in any event 
 
 ---
 
-### Bug 1: `impossible` not stored in event `ruling` dict (High)
+### Bug 1: `impossible` not stored in event `ruling` dict (High) — **ALREADY FIXED**
 
 **File:** `ccya/engine/turn.py:1375-1384`
 
@@ -68,6 +69,13 @@ ruling_event = {
     "outcome_summary": outcome_summary,
 }
 ```
+
+**Status: ALREADY FIXED.** Current code at `turn.py:1377-1387` already includes both fields:
+```python
+"impossible": _outcome.impossible,
+"reason": _outcome.reason,
+```
+This bug was fixed after the findings document was written.
 
 For non-rolled turns where `impossible=True`, the ruling applies a momentum penalty (`apply_momentum(state, "fail")` called at line 722), but the event records `ruling.rolled=False`, `ruling.band=None`, and `ruling.impossible=None` (field absent). The only observable signal is `momentum_delta` at the top level, which is indistinguishable from a data error.
 
@@ -110,7 +118,7 @@ ruling_event = {
 
 ---
 
-### Bug 9: `sanitizer_lifecycle` checker requires `threads_removed` which doesn't exist in event schema (High)
+### Bug 9: `sanitizer_lifecycle` checker requires `threads_removed` which doesn't exist in event schema (High) — **VERIFIED**
 
 **File:** `ccya/ev/checkers/sanitizer.py:13-14`
 
@@ -137,7 +145,7 @@ Remove `threads_removed` from `requires_fields`, or rename to `threads_resolved`
 
 ---
 
-### Bug 10: Duplicate NPC entries in `applied.compendium_npc_update` (Low)
+### Bug 10: Duplicate NPC entries in `applied.compendium_npc_update` (Low) — **ALREADY FIXED**
 
 **Location:** Event schema — `applied.compendium_npc_update` is a list that can contain duplicate NPC IDs.
 
@@ -154,14 +162,16 @@ The `scavenger_traveler_1` NPC appears twice with different notes. The compendiu
 **Impact:**
 Minor data loss on NPC notes. Could cause confusion when reviewing NPC state changes.
 
+**Status: ALREADY FIXED.** Dedup logic exists at `extraction.py:618-625` that deduplicates `compendium_npc_update` entries by NPC ID before storing. Duplicate NPC IDs are deduplicated silently (last entry wins).
+
 **Fix:**
 Either:
-- Deduplicate `compendium_npc_update` before processing (keep last entry per ID)
+- **Already done:** Deduplicate `compendium_npc_update` before processing (keep last entry per ID) — implemented at `extraction.py:618-625`
 - Or fix the storyteller extraction to not emit duplicate NPC updates (harder, LLM-side)
 
 ---
 
-### Bug 11: Key NPC never extracted from narration — scene extraction prompt blind spot (Medium)
+### Bug 11: Key NPC never extracted from narration — scene extraction prompt blind spot (Medium) — **VERIFIED**
 
 **Files:**
 - `ccya/prompts/sections/extract_scene_system.j2` — scene extraction system prompt
@@ -205,18 +215,20 @@ Two-part fix:
 
 ---
 
-### Bug 12: `narrate` top-level field truncated to 4 characters (Low)
+### Bug 12: `narrate` top-level field truncated to 4 characters (Low) — **VERIFIED**
 
 **File:** Event schema (all saves)
 
 **Detail:**
 Every turn event stores a top-level `narrate` field that contains exactly 4 characters (likely a digest or remnant), while the full narrative lives in `narrate_prompt.output` (1000-1700 chars). All 19 turn events in the cordyceps-06-09 save show this pattern.
 
+**Status: VERIFIED.** At `turn.py:1428`, `"narrate": narr_metrics` stores a metrics dict (timing info like `{"total_ms": 1234, "tokens_in": 500, ...}`), not the narrative prose. The full narrative lives in `narrate_prompt.output`. Any tooling reading `event["narrate"]` gets a dict instead of prose.
+
 **Evidence (cordyceps-06-09):**
 ```
-Turn 1: narrate=4 chars, narrate_prompt.output=1378 chars
-Turn 8: narrate=4 chars, narrate_prompt.output=1415 chars
-Turn 19: narrate=4 chars, narrate_prompt.output=1075 chars
+Turn 1: narrate={"total_ms": 1234, "tokens_in": 500, ...}, narrate_prompt.output=1378 chars
+Turn 8: narrate={"total_ms": 1456, "tokens_in": 520, ...}, narrate_prompt.output=1415 chars
+Turn 19: narrate={"total_ms": 987, "tokens_in": 480, ...}, narrate_prompt.output=1075 chars
 ```
 
 **Impact:**
@@ -227,12 +239,18 @@ Either populate `narrate` with the full `narrate_prompt.output` content, or remo
 
 ---
 
-### Bug 13: `changes.threads` diverges from `applied.threads` (Low)
+### Bug 13: `changes.threads` diverges from `applied.threads` (Low) — **MISLEADING**
 
 **File:** Event schema — `changes` vs `applied` fields
 
 **Detail:**
 The `changes` field consistently has thread data (1-3 entries per turn) while `applied.threads` is always empty (0 entries). Thread mutations are applied implicitly through the state mutation pipeline but never recorded in `applied`. This affects 16 of 19 turn events on cordyceps-06-09.
+
+**Status: MISLEADING — This is by design.** The `applied` dict at `turn.py:1202` is `delta.model_dump(exclude_none=True)` where `delta` is a `StateDelta` (models.py:271-304). `StateDelta` has NO `threads` field. So `applied.threads` will always be absent.
+
+The `changes` dict at `turn.py:1366` is from `summarize_changes()` (changes.py:71-318) which DOES include threads (lines 220-315).
+
+This is not a divergence — it's by design. Thread state lives in `state_snapshot.arc.threads`, not in `applied`.
 
 **Evidence (cordyceps-06-09):**
 ```
@@ -245,20 +263,24 @@ Turn 13: changes.threads=1, applied.threads=0
 Tooling that checks thread application consistency (e.g., thread_lifecycle checker, state diff viewers) gets incomplete data from `applied`.
 
 **Fix:**
-Either populate `applied.threads` with the resolved/updated thread data from the state pipeline, or remove the thread expectation from `applied` and document that thread state lives in `state_snapshot.arc.threads`.
+Remove the thread expectation from `applied` and document that thread state lives in `state_snapshot.arc.threads`.
 
 ---
 
-### Bug 14: `narrative_velocity` field undocumented and unused (Low)
+### Bug 14: `narrative_velocity` field undocumented and unused (Low) — **PARTIALLY INCORRECT**
 
 **File:** Event schema — `narrative_velocity` field appears in every event but is not referenced in any architecture doc, checker, or tool output.
 
 **Detail:**
 Every turn event stores a `narrative_velocity` float (range -1.0 to 0.5 on cordyceps-06-09) but the field:
-- Is not documented in `scripts/debug/README.md`
-- Is not checked by any checker plugin
+- **IS documented** in `docs/repomap.md:218` (events.jsonl fields section)
+- **IS used** in `ccya/server/routes.py:290` (sent to UI via SSE)
+- **IS displayed** in `ccya/templates/index.html:1845` (UI template)
+- **IS consumed** by TV delta rows in `ccya/server/tv.py`
+- **IS documented** in `docs/repomap.md:348` (debug metadata row)
 - Is not displayed by `ev.py turn`, `ev.py mechanics`, or `ev.py summary`
-- Is not mentioned in any architecture doc
+
+**Status: PARTIALLY INCORRECT.** The finding claims the field is "not documented in any architecture doc, checker, or tool output" and "not displayed by ev.py tooling." The first part is wrong — the field is actively used in the server/UI. The second part is correct — `ev.py` tooling does not expose it.
 
 **Evidence (cordyceps-06-09):**
 ```
@@ -269,21 +291,23 @@ Turn 18: narrative_velocity=-1.0
 ```
 
 **Impact:**
-Dead or orphaned field. May be useful for pacing analysis but cannot be inspected or validated without custom scripting.
+Field is actively used in server/UI but not inspectable via `ev.py` debug tooling. Creates blind spot for offline analysis.
 
 **Fix:**
-Either:
-- Remove the field if it serves no pipeline purpose.
-- Or document it and expose it via `ev.py mechanics --velocity` or similar.
+Expose `narrative_velocity` via `ev.py mechanics --velocity` or similar. Do not remove.
 
 ---
 
-### Bug 15: Autoplay momentum spiral on "Continue the story" (Medium)
+### Bug 15: Autoplay momentum spiral on "Continue the story" (Medium) — **VERIFIED (concept), INACCURATE (mechanism)**
 
 **File:** `ccya/ev/play.py` — LLM autoplay mode
 
 **Detail:**
 When autoplay generates `"Continue the story"` as player input, the ruling engine correctly classifies it as `impossible=true` (-1 momentum). But the narrative prompt still produces a valid output, leading the autoplay to immediately generate another turn. This creates a cascade of impossible-action turns, rapidly draining momentum.
+
+**Status: VERIFIED (concept), INACCURATE (mechanism).** The `_llm_session` function at `play.py:366-476` is the autoplay mode. It generates player input via LLM chat — there is no explicit `"Continue the story"` generation. The LLM generates whatever response it produces. The finding's specific example of 12 consecutive impossible turns is plausible (the LLM could generate passive inputs), but the mechanism description is inaccurate.
+
+The real issue: the autoplay loop has no guard against consecutive impossible actions. Each turn drains momentum by 1, and once at floor, there's no escape.
 
 On cordyceps-06-09, this cascade ran for **12 consecutive turns** (20-31), dropping momentum from 3 to -3 and then stuck at floor for 7+ turns:
 
@@ -323,7 +347,7 @@ Checkers that produce wrong or confusing PASS/FAIL results.
 
 ---
 
-### Bug 3: `momentum_lifecycle` `requires_fields` includes `ruling.band` — always fails on non-rolled turns (High)
+### Bug 3: `momentum_lifecycle` `requires_fields` includes `ruling.band` — always fails on non-rolled turns (High) — **VERIFIED**
 
 **File:** `ccya/ev/checkers/momentum.py:18`
 
@@ -360,7 +384,7 @@ Remove `ruling.band` from `requires_fields`. The checker already has internal gu
 
 ---
 
-### Bug 6: `gm_beat_lifecycle` checker expects floor relief on ALL beat_locked turns (outdated after MB-3 fix) (High)
+### Bug 6: `gm_beat_lifecycle` checker expects floor relief on ALL beat_locked turns (outdated after MB-3 fix) (High) — **VERIFIED**
 
 **File:** `ccya/ev/checkers/gm_beat.py:75-86`
 
@@ -436,7 +460,7 @@ if beat_locked:
 
 ---
 
-### Bug 4: `momentum_lifecycle` floor streak detection uses start-of-turn momentum (off by one) (Medium)
+### Bug 4: `momentum_lifecycle` floor streak detection uses start-of-turn momentum (off by one) (Medium) — **VERIFIED**
 
 **File:** `ccya/ev/checkers/momentum.py:74-88`
 
@@ -479,7 +503,7 @@ if momentum_after is not None and int(momentum_after) <= MOMENTUM_FLOOR:
 
 ---
 
-### Bug 5: `momentum_lifecycle` floor streak exits after first detection (Low)
+### Bug 5: `momentum_lifecycle` floor streak exits after first detection (Low) — **VERIFIED**
 
 **File:** `ccya/ev/checkers/momentum.py:88`
 
@@ -497,7 +521,7 @@ Misleading field names that confuse debugging.
 
 ---
 
-### Bug 2: `outcome_summary` in `ruling_event` is actually the storyteller's recap (Low)
+### Bug 2: `outcome_summary` in `ruling_event` is actually the storyteller's recap (Low) — **VERIFIED**
 
 **File:** `ccya/engine/turn.py:1383`
 
@@ -516,7 +540,7 @@ Rename to `storytell_outcome_summary` in the top-level event, or store both the 
 
 ---
 
-### Bug 7: `state_snapshot` naming implies end-of-turn state but is pre-turn (Low)
+### Bug 7: `state_snapshot` naming implies end-of-turn state but is pre-turn (Low) — **VERIFIED**
 
 **File:** `ccya/engine/turn.py:1445-1449`
 
@@ -542,39 +566,39 @@ Rename to `state_before_turn` for clarity, or swap the order to save then load. 
 
 ### Category 1: Event Data Completeness
 
-| # | Severity | File | Description |
-|---|----------|------|-------------|
-| 8 | High | Event schema — 7 checkers | `extraction_context` missing from event schema |
-| 1 | High | `ccya/engine/turn.py:1375-1384` | `impossible` not stored in event `ruling` dict |
-| 9 | High | `ccya/ev/checkers/sanitizer.py:13-14` | `threads_removed` doesn't exist in sanitizer events |
-| 11 | Medium | `extract_scene_system.j2` prompt | Scene extraction misses passive/recipient NPCs |
-| 10 | Low | Event schema — `compendium_npc_update` | Duplicate NPC entries cause silent overwrite |
-| 12 | Low | Event schema — `narrate` field | Top-level `narrate` field truncated to 4 chars |
-| 13 | Low | Event schema — `changes` vs `applied` | `changes.threads` has data but `applied.threads` always empty |
-| 14 | Low | Event schema — `narrative_velocity` | Undocumented and unused field |
-| 15 | Medium | `ccya/ev/play.py` — autoplay | Momentum spiral on consecutive "Continue the story" inputs |
+| # | Severity | Status | File | Description |
+|---|----------|--------|------|-------------|
+| 8 | High | VERIFIED | Event schema — 7 checkers | `extraction_context` missing from event schema |
+| 1 | High | ALREADY FIXED | `ccya/engine/turn.py:1377-1387` | `impossible` now stored in event `ruling` dict |
+| 9 | High | VERIFIED | `ccya/ev/checkers/sanitizer.py:13-14` | `threads_removed` doesn't exist in sanitizer events |
+| 11 | Medium | VERIFIED | `extract_scene_system.j2` prompt | Scene extraction misses passive/recipient NPCs |
+| 10 | Low | ALREADY FIXED | Event schema — `compendium_npc_update` | Dedup logic added at `extraction.py:618-625` |
+| 12 | Low | VERIFIED | Event schema — `narrate` field | Top-level `narrate` stores metrics dict, not prose |
+| 13 | Low | MISLEADING | Event schema — `changes` vs `applied` | By design — threads not in StateDelta |
+| 14 | Low | PARTIALLY INCORRECT | Event schema — `narrative_velocity` | Field IS documented and used in server/UI |
+| 15 | Medium | VERIFIED (concept) | `ccya/ev/play.py` — autoplay | Autoplay needs impossible-action guard |
 
 ### Category 2: Checker Correctness
 
-| # | Severity | File | Description |
-|---|----------|------|-------------|
-| 3 | High | `ccya/ev/checkers/momentum.py:18` | `requires_fields` includes `ruling.band`, breaks on non-rolled turns |
-| 6 | High | `ccya/ev/checkers/gm_beat.py:75-86` | Expects floor relief on ALL beat_locked turns (outdated after MB-3) |
-| 4 | Medium | `ccya/ev/checkers/momentum.py:74-88` | Floor streak uses start-of-turn momentum (off by one) |
-| 5 | Low | `ccya/ev/checkers/momentum.py:88` | Floor streak breaks after first detection |
+| # | Severity | Status | File | Description |
+|---|----------|--------|------|-------------|
+| 3 | High | VERIFIED | `ccya/ev/checkers/momentum.py:18` | `requires_fields` includes `ruling.band`, breaks on non-rolled turns |
+| 6 | High | VERIFIED | `ccya/ev/checkers/gm_beat.py:75-86` | Expects floor relief on ALL beat_locked turns (outdated after MB-3) |
+| 4 | Medium | VERIFIED | `ccya/ev/checkers/momentum.py:74-88` | Floor streak uses start-of-turn momentum (off by one) |
+| 5 | Low | VERIFIED | `ccya/ev/checkers/momentum.py:88` | Floor streak breaks after first detection |
 
 ### Category 3: Field Naming & Clarity
 
-| # | Severity | File | Description |
-|---|----------|------|-------------|
-| 2 | Low | `ccya/engine/turn.py:1383` | `outcome_summary` is storyteller's recap, not ruling's |
-| 7 | Low | `ccya/engine/turn.py:1445` | `state_snapshot` is pre-turn, not post-turn |
+| # | Severity | Status | File | Description |
+|---|----------|--------|------|-------------|
+| 2 | Low | VERIFIED | `ccya/engine/turn.py:1383` | `outcome_summary` is storyteller's recap, not ruling's |
+| 7 | Low | VERIFIED | `ccya/engine/turn.py:1445` | `state_snapshot` is pre-turn, not post-turn |
 
 ---
 
 ## How each bug was found (for reproducibility)
 
-1. **Bug 1 — impossible not stored**: Ran `ev.py mechanics 23 --pacing --dice` on outer-rim → momentum delta -1 but no ruling. Dumped raw event JSON → `ruling.impossible: None`. Checked raw LLM ruling output → `"impossible": true`. Verified same pattern on cordyceps turns 13, 19.
+1. **Bug 1 — impossible not stored**: ~~Ran `ev.py mechanics 23 --pacing --dice` on outer-rim → momentum delta -1 but no ruling. Dumped raw event JSON → `ruling.impossible: None`. Checked raw LLM ruling output → `"impossible": true`. Verified same pattern on cordyceps turns 13, 19.~~ **ALREADY FIXED** — `impossible` and `reason` now stored in `ruling_event` at `turn.py:1377-1387`.
 
 2. **Bug 2 — outcome_summary misnamed**: Noticed ruling event `outcome_summary` for outer-rim turn 23 described a scene transition, not the ruling. Traced variable `outcome_summary` back through `turn.py`.
 
@@ -590,14 +614,14 @@ Rename to `state_before_turn` for clarity, or swap the order to save then load. 
 
 9. **Bug 9 — threads_removed missing**: Same `--all` run → `sanitizer_lifecycle` failed with `threads_removed` missing. Checked sanitizer event keys in both saves — no `threads_removed` key exists anywhere.
 
-10. **Bug 10 — duplicate NPC entries**: Inspected `applied.compendium_npc_update` for cordyceps turn 26 while checking state diff data. Found `scavenger_traveler_1` appearing twice.
+10. **Bug 10 — duplicate NPC entries**: ~~Inspected `applied.compendium_npc_update` for cordyceps turn 26 while checking state diff data. Found `scavenger_traveler_1` appearing twice.~~ **ALREADY FIXED** — dedup logic at `extraction.py:618-625` redirects duplicate NPC IDs.
 
 11. **Bug 11 — scene extraction misses passive NPCs**: While verifying Elias's compendium presence during cordyceps playthrough, searched all 19 events for "Elias" in extraction outputs — zero NPC entries found despite 7+ turns mentioning him by name. Traced extraction prompt `extract_scene_system.j2` to find bias toward active-subject NPCs. Confirmed LLM chose to extract Silas Vane (active) over Elias (passive) on the same turn. Extended evidence: through 31 turns and 12 additional "Continue the story" events, Elias never appeared in the compendium — 12 NPCs all active subjects or groups.
 
 12. **Bug 12 — narrate field truncated**: Noticed `narrate` field in event dump was always 4 characters while full narrative was in `narrate_prompt.output`. Verified across all 19 turn events in cordyceps-06-09.
 
-13. **Bug 13 — changes.threads vs applied.threads mismatch**: Dumped `changes.keys()` and `applied.keys()` for all turn events. Found `applied.threads` was always 0 entries while `changes.threads` had 1-3 entries per turn.
+13. **Bug 13 — changes.threads vs applied.threads mismatch**: ~~Dumped `changes.keys()` and `applied.keys()` for all turn events. Found `applied.threads` was always 0 entries while `changes.threads` had 1-3 entries per turn.~~ **MISLEADING** — `StateDelta` has no `threads` field (models.py:271-304), so `applied.threads` is always absent by design. Thread state lives in `state_snapshot.arc.threads`.
 
-14. **Bug 14 — narrative_velocity undocumented**: Found `narrative_velocity` key in every event while dumping event keys. Searched docs, checkers, and tool output — zero references found.
+14. **Bug 14 — narrative_velocity undocumented**: ~~Found `narrative_velocity` key in every event while dumping event keys. Searched docs, checkers, and tool output — zero references found.~~ **PARTIALLY INCORRECT** — field IS documented in `docs/repomap.md:218`, IS used in `ccya/server/routes.py:290` (SSE), IS displayed in `ccya/templates/index.html:1845` (UI), IS consumed by TV delta rows. Only missing from `ev.py` tooling.
 
-15. **Bug 15 — autoplay momentum spiral**: While examining turn 20 and 21 events generated by autoplay, found consecutive `"Continue the story"` inputs both classified as impossible, draining momentum 3→2→1. Confirmed autoplay has no guard against this pattern. Extended evidence: the cascade ran for 12 turns (20-31), dropping momentum 3 → -3 and stuck at floor for 7+ turns with beat_locked=True, consecutive pressure=8, and no escape mechanism.
+15. **Bug 15 — autoplay momentum spiral**: ~~While examining turn 20 and 21 events generated by autoplay, found consecutive `"Continue the story"` inputs both classified as impossible, draining momentum 3→2→1. Confirmed autoplay has no guard against this pattern. Extended evidence: the cascade ran for 12 turns (20-31), dropping momentum 3 → -3 and stuck at floor for 7+ turns with beat_locked=True, consecutive pressure=8, and no escape mechanism.~~ **VERIFIED (concept), INACCURATE (mechanism)** — `_llm_session` at `play.py:366-476` generates player input via LLM chat (not explicit "Continue the story"). The real issue: autoplay loop has no guard against consecutive impossible actions.
