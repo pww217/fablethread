@@ -18,6 +18,7 @@ from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.engine.narrate import _get_resolved_arcs
 from ccya.prompts.context import _fmt_progress
 from ccya.engine.npc_roster import build_npc_roster
+from ccya.personality import ARCHETYPES
 from ccya.llm_client import (
     chat as llm_chat,
     strip_thinking,
@@ -163,7 +164,7 @@ def _extract_scene_messages(
     """Build [system, user] messages for stream 1 (NPC presence, location, tags)."""
     location = state.get("location") or {}
     comp = (state.get("compendium") or {}).get("npcs") or {}
-    npc_roster = build_npc_roster(comp)
+    npc_roster = build_npc_roster(comp, personality_registry=ARCHETYPES)
 
     system_text = _render(env, "extract_scene_system.j2", {})
     user_text = _render(
@@ -248,7 +249,7 @@ def _storytell_messages(
             "recent_beats": list((state.get("meta") or {}).get("recent_beats", [])),
         }
     )
-    npc_roster = build_npc_roster(extraction_ctx.comp_this_turn)
+    npc_roster = build_npc_roster(extraction_ctx.comp_this_turn, personality_registry=ARCHETYPES)
     user_text = _render(
         env,
         "storytell_user.j2",

@@ -1,3 +1,13 @@
+"""ev.py — CCYA event debug CLI.
+
+See scripts/debug/README.md for full docs, especially the Play command
+section for running game turns into existing saves.
+
+Quick start — play a turn:
+    .venv/bin/python scripts/debug/ev.py play "my action" \\
+        --no-sanitize --save-dir saves/my-save saves/my-save/events.jsonl
+"""
+
 from __future__ import annotations
 
 import sys

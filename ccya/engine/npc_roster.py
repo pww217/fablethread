@@ -53,12 +53,12 @@ def build_npc_roster(
             "departed_reason": entry.get("departed_reason") or None,
         }
 
-        if personality_registry and isinstance(entry, dict):
+        if personality_registry:
             arch_id = entry.get("personality")
             if arch_id and arch_id in personality_registry:
                 arch = personality_registry[arch_id]
                 seen[nid]["personality_label"] = getattr(arch, "label", arch_id)
-                seen[nid]["personality_traits"] = ", ".join(getattr(arch, "traits", ())) if hasattr(arch, "traits") else ""
+                seen[nid]["personality_traits"] = ", ".join(arch.traits)
                 seen[nid]["personality_speech_hint"] = getattr(arch, "speech_hint", "")
 
     order = {

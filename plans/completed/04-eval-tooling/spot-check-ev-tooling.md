@@ -1,5 +1,9 @@
 # Spot Check: EV Tooling Design Verification
 
+## Status
+
+`completed`
+
 ## Purpose
 
 Verify that all 6 plans from the ev-tooling design (`docs/design/ev-tooling-design.md`) are fully realized by testing each primary capability against the rim save (`saves/the-outer-rim--after-unification-2026-06-08/`, 32 turns) and a live engine play session.

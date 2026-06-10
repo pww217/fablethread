@@ -1,5 +1,9 @@
 # Save Management
 
+## Status
+
+`completed`
+
 ## Purpose
 
 Add a "Load Save" modal to the gear menu that lists all available saves with metadata (name, pack, turn count, last modified) and lets users switch between them seamlessly without server restart.
