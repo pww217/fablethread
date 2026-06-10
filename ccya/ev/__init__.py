@@ -13,6 +13,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+if sys.version_info < (3, 13):
+    print(f"Error: ev.py requires Python 3.13+. You are using {sys.version.split()[0]}.", file=sys.stderr)
+    print("Use: .venv/bin/python scripts/debug/ev.py <command>", file=sys.stderr)
+    sys.exit(1)
+
 DEFAULT_SAVE_DIR = Path("saves/default")
 DEFAULT_FILE = DEFAULT_SAVE_DIR / "events.jsonl"
 
@@ -67,6 +72,12 @@ def main() -> None:
         sys.exit(0)
 
     flags, args = _strip_flags(args)
+    if not args:
+        print("Error: no command specified.", file=sys.stderr)
+        print("Commands: summary, timing, turn, prompt, outputs, deltas, mechanics, state, diff, trace, search, play, check, eval", file=sys.stderr)
+        print("\nUsage: .venv/bin/python scripts/debug/ev.py <command> [args...]", file=sys.stderr)
+        sys.exit(1)
+
     cmd = args[0]
 
     from ccya.ev.events import load_events, find_turn

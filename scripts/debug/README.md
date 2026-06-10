@@ -4,9 +4,14 @@ Inspect turn data, run game turns, and validate mechanics — all from the CLI.
 No server required (except `play` which needs the LLM backend running).
 
 ```bash
-# Always use the venv's Python
+# Always use the venv's Python — no exceptions
 .venv/bin/python scripts/debug/ev.py <command> [args...]
 ```
+
+> **Common mistakes:**
+> - `python3 scripts/debug/ev.py` → fails with `SyntaxError: invalid syntax` (system Python is 3.9, ev.py requires 3.13+)
+> - `source .venv/bin/activate && python3 scripts/debug/ev.py` → same error (activate doesn't work reliably)
+> - `ev.py --help` → fails with `IndexError: list index out of range` (ev.py has no help command)
 
 ## Save directory convention
 
