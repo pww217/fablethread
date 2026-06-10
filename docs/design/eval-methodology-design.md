@@ -15,6 +15,108 @@ The tooling (`ccya/ev/` with play/check/eval) is built. What does not exist is:
 5. **No feedback loop** — there is no mechanism to surface "this mechanic fails most often" or suggest improvement targets.
 6. **No Makefile targets** — there is no `make eval-full` or `make eval-{name}` workflow. Every eval requires manual command construction.
 7. **Event fields exist but are unchecked** — 40+ fields in the event schema have no checker reading them (pacing_context, narrate_summary, rejected, changes.*, most ruling.* sub-fields).
+8. **No CLI defaults** — `ev.py play --llm --turns 20 --pack zombie-survival --persona "weary survivor" --no-sanitize` is repetitive. Every run requires the same flag chain.
+9. **No persona system** — the `--llm` mode has a generic system prompt that produces boring, repetitive player behavior. No way to define "villain," "hero," "reckless," etc.
+
+## CLI Defaults and Personas
+
+### Problem
+
+The `ev.py play` command requires repetitive flag chains:
+```bash
+ev.py play --llm --turns 20 --pack zombie-survival --persona "weary survivor" --no-sanitize
+```
+
+Every eval run or manual test session requires the same flags. There is no way to define named personas (villain, hero, cautious, reckless) that change the LLM player's system prompt.
+
+### Design: `ev:` section in config.yaml
+
+Merge CLI defaults into the existing `config.yaml` under an `ev:` section. No new config file. No new infrastructure module — the loader lives in `ccya/ev/__init__.py` alongside `_strip_flags()`.
+
+```yaml
+# config.yaml additions
+
+ev:
+  # Default pack for new sessions (overrides --pack flag if absent)
+  default_pack: zombie-survival
+
+  # Default turn count for --llm mode
+  default_turns: 20
+
+  # Default persona name (resolved from personas registry below)
+  default_persona: weary_survivor
+
+  # Whether to skip sanitization (default false = sanitize enabled)
+  # Mirrors --no-sanitize CLI flag semantics
+  no_sanitize: false
+
+  # Default model override (for --llm mode; engine model is separate)
+  model: mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit-thinking
+
+  # Default temperature for all LLM calls in --llm mode
+  temperature: 0.9
+
+  # Named persona registry — each has a description and system prompt
+  personas:
+    weary_survivor:
+      description: "A weary survivor trying to find safety in a desolate wasteland"
+      prompt: "You are a weary survivor in a hostile world. You are desperate, cautious, and driven by self-preservation. You take risks when necessary but prefer to find shelter and supplies. You react to danger with fear but push forward when cornered."
+
+    villain:
+      description: "A ruthless antagonist who manipulates and exploits"
+      prompt: "You are a cunning villain in a text adventure. You manipulate NPCs, exploit weaknesses, and pursue your own agenda. You are calculating, cruel when useful, and always thinking several steps ahead. You do not act heroically."
+
+    hero:
+      description: "A brave hero who protects others and seeks justice"
+      prompt: "You are a brave hero in a text adventure. You protect the weak, seek justice, and face danger head-on. You are courageous, compassionate, and willing to sacrifice for others. You do not back down from a fight."
+
+    reckless:
+      description: "A reckless thrill-seeker who lives on the edge"
+      prompt: "You are a reckless thrill-seeker. You take dangerous risks, charge into danger without thinking, and live for the adrenaline. You are impulsive, bold, and often reckless. You do not play it safe."
+
+    cautious:
+      description: "A cautious survivor who plans carefully"
+      prompt: "You are a cautious survivor. You plan carefully, avoid unnecessary risks, and scout ahead before acting. You are methodical, patient, and strategic. You prefer information over action."
+```
+
+### Usage
+
+```bash
+# Uses defaults from config.yaml (pack, turns, persona, model, temp)
+ev.py play --llm --turns 10
+
+# CLI flags override config
+ev.py play --llm --pack space-western --persona villain --turns 5
+
+# Single-turn play uses defaults
+ev.py play "I search the room."
+```
+
+### Config merge priority
+
+1. **Defaults** (hardcoded in `_strip_flags()` / `_build_play_config()`)
+2. **Config file** (`config.yaml` → `ev:` section)
+3. **CLI flags** (always win)
+
+### Persona resolution
+
+When `--persona NAME` is provided, the loader looks up `NAME` in `ev.personas` and uses that persona's `prompt` as the system prompt for the LLM player. If `--persona` is absent, uses `ev.default_persona`. If neither exists, falls back to the generic system prompt (current behavior).
+
+### Eval integration
+
+Eval scenarios can optionally use personas for `--llm` mode testing:
+```yaml
+id: eval-llm-player-persona
+pack: zombie-survival
+description: "Test that villain persona produces manipulative behavior"
+llm_mode: true
+persona: villain
+turns:
+  - input: "I approach the merchant."
+  - input: "I try to scam the guard."
+```
+
+This is orthogonal to deterministic eval scenarios (fixed inputs, checker validation). Persona-based eval is for testing the LLM player behavior itself, not engine mechanics.
 
 ## Constraints
 
@@ -49,6 +151,9 @@ The tooling (`ccya/ev/` with play/check/eval) is built. What does not exist is:
 | Improvement suggestions filter to failures | Only checkers with pass_rate < 0.8 (configurable) trigger suggestion calls. | Prevents wasted LLM calls on healthy mechanics. Threshold is high enough to catch real problems, low enough to avoid noise. |
 | Unchecked event fields documented but not required | `docs/ev/UNCHECKED_FIELDS.md` lists every event field and whether a checker reads it | Prevents future developers from duplicating or assuming coverage that doesn't exist |
 | TurnViewer adopts `ccya/ev/events.py` later | Same access layer, different output format | Already documented in ev-tooling-design.md. Enforced here. |
+| CLI defaults merge into config.yaml under `ev:` section | `config.yaml` gains `ev:` section with `default_pack`, `default_turns`, `default_persona`, `no_sanitize`, `model`, `temperature`. No separate `ev-config.yaml`. | Keeps all config in one file. Avoids the "single YAML config" rejection (this is CLI defaults, not scenario definitions). Persona registry is data, not an abstraction layer. |
+| Personas are defined in config.yaml under `ev.personas` | Named persona registry with `description` and `prompt` fields. Resolved by name at runtime. | Personas change the LLM player's system prompt, directly affecting behavior. Registry is a simple dict lookup — no classes, no inheritance, no framework. |
+| `no_sanitize` defaults to `false` (sanitize enabled) | Config has `no_sanitize: false`. CLI `--no-sanitize` sets it to `true`. Mirrors current CLI semantics. | Sanitization is important for testing. Defaulting to enabled ensures eval runs catch sanitizer issues. |
 
 ## Resolved Questions
 
@@ -63,6 +168,18 @@ The tooling (`ccya/ev/` with play/check/eval) is built. What does not exist is:
 ### Confidence metric — yes, but only as an annotation
 
 **Decision: Include `confidence: str` on the ScenarioReport:** `"high"` (≥30 turns with deterministic results), `"medium"` (≥10 turns or LLM-sampled), `"low"` (<10 turns or heavy sampling). This is trivially computed from turn_count and llm_sample_rate. It's a single-line annotation in the report, not a weighting factor in the score.
+
+### CLI defaults — merge into config.yaml under `ev:` section
+
+**Decision: All CLI defaults live in `config.yaml` under `ev:` section.** No separate `ev-config.yaml`. The `ev:` section contains `default_pack`, `default_turns`, `default_persona`, `no_sanitize`, `model`, `temperature`. Config merge priority: defaults < config file < CLI flags.
+
+### Personas — registry in config.yaml, resolved by name at runtime
+
+**Decision: Personas are defined in `ev.personas` as a dict of `{name: {description, prompt}}`.** No persona classes, no inheritance. The `--persona NAME` flag resolves `NAME` from the registry and uses `prompt` as the LLM player's system prompt. If `--persona` is absent, uses `ev.default_persona`. If neither exists, falls back to the generic system prompt (current behavior).
+
+### `no_sanitize` — defaults to `false` (sanitize enabled)
+
+**Decision: `no_sanitize: false` in config. CLI `--no-sanitize` sets it to `true`.** Mirrors current CLI flag semantics. Sanitization is important for testing; defaulting to enabled ensures eval runs catch sanitizer issues.
 
 ## Current State — What Exists
 
@@ -356,7 +473,10 @@ eval-stage:
    Rejected: 3 LLM checkers × 12 scenarios × avg 8 turns = 288 calls × ~30s = 2.4 hours. Sampling at 0.25 brings this to ~35 minutes of inference, or ~15 minutes with deterministic-only scenarios running first.
 
 4. **Single YAML config for all scenarios.**
-   Rejected: Each scenario is independently useful (`ev.py eval run scenarios/ruling-momentum-basics.yaml`). A central config file would split the scenario definition from the scenario file, creating a two-step workflow for what should be a single command.
+    Rejected: Each scenario is independently useful (`ev.py eval run scenarios/ruling-momentum-basics.yaml`). A central config file would split the scenario definition from the scenario file, creating a two-step workflow for what should be a single command.
+
+4b. **Separate `ev-config.yaml` for CLI defaults.**
+    Rejected: Merging into `config.yaml` under `ev:` section keeps all config in one file. The `ev:` section is for CLI defaults (pack, turns, persona, sanitize, model, temp), not scenario definitions. This is orthogonal to the scenario rejection in #4. Persona registry is a simple dict lookup — data, not an abstraction layer.
 
 5. **One big checker that reads every available field.**
    Rejected: This recreates the monolithic rubric problem. Narrow checkers with clean inputs produce actionable results. A "momentum arithmetic failed on turn 3: stat_mod -1 not applied" is useful. "Your game is 68% correct" is not.
@@ -461,3 +581,38 @@ class CrossScenarioStats:
 - Group ordering is a soft gate — nothing in code prevents running narration before ruling; the ordering is a Makefile convention that reflects the engine pipeline's data flow. Any scenario can be run standalone via `ev.py eval run scenarios/ruling-momentum-basics.yaml`.
 - `--sample-rate` CLI flag on `ev.py eval run` overrides `llm_sample_rate` at runtime, enabling fast iteration without editing YAML.
 - `--report-dir` flag on `ev.py eval run` writes the scenario's Markdown report to a subdirectory, which `aggregate.py` then reads. No centralized state needed — each eval target writes independent files.
+- `ccya/ev/__init__.py` — Add `load_ev_config()` function that reads `config.yaml` and extracts the `ev:` section. Called by `_build_play_config()` in `play.py` to merge defaults before CLI flags.
+- `config.yaml` — Gains `ev:` section with `default_pack`, `default_turns`, `default_persona`, `no_sanitize`, `model`, `temperature`, and `personas` registry.
+- Persona resolution: `--persona NAME` looks up `NAME` in `ev.personas` dict. Uses `prompt` field as LLM player system prompt. Falls back to `ev.default_persona` if `--persona` absent. Falls back to generic prompt if neither exists.
+- Eval scenarios can optionally use `llm_mode: true` and `persona: NAME` for testing LLM player behavior (separate from deterministic eval scenarios).
+
+### Nice to Have: Live UI Streaming for Evals
+
+Eval saves land in `saves/ev/{timestamp}-{hash}/events.jsonl`. The UI's existing infrastructure already supports viewing them:
+
+- **Save listing:** `GET /api/saves` scans `saves/` and excludes only `default`. Eval saves would appear automatically if the exclusion list includes `ev/`.
+- **TurnViewer:** Reads `events.jsonl` generically. No eval-specific code needed. Switching to an eval save displays it like any other game.
+- **Live streaming:** `/turn_viewer/stream` polls `events.jsonl` mtime every 1s via SSE. `/turn_viewer/data` returns full turn JSON. The client merges updates into the UI.
+
+**How it works:** Start an eval run (`ev.py eval run ...`). The file gets written incrementally — new lines appended as each turn completes. Start the TurnViewer, select the eval save, and watch it populate in real-time. No new streaming infrastructure needed. The mtime polling picks up new lines as they're written.
+
+**Changes required:**
+1. Add `ev/` to the save directory exclusion list in `/api/saves` (routes.py:113-178) so eval saves appear in the save picker
+2. Add a save picker dropdown to the TurnViewer page so the user can switch between normal saves and eval saves
+3. When an eval save is selected, point the streaming endpoint to `saves/ev/{name}/events.jsonl` instead of the default save
+
+No new SSE endpoint. No new streaming infrastructure. Reuses the existing TurnViewer streaming mechanism entirely. The "live streaming during an eval run" works because the file is appended to incrementally — the polling picks up new lines as they're written.
+
+**What you see:** Completed turns populate one-by-one as each turn finishes. Each turn appears fully rendered with ruling, narrative, extraction, and state all done.
+
+**What you don't see:** Mid-turn pipeline phases (ruling → narrate → extract → state). The SSE streaming (`/turn?input=`) that shows `phase` events in real-time is for the human-in-the-loop gameplay path. Eval runs the pipeline programmatically — it doesn't hit the SSE endpoint. The events.jsonl gets written after each turn completes, not during.
+
+### Even Nicer to Have: Mid-Turn Pipeline Visibility
+
+Showing ruling phases, narrate streaming, moodlet updates, and in-flight state diffs during an eval run would require:
+
+1. **New streaming endpoint** — either a separate SSE endpoint that exposes in-flight turn state, or a debug endpoint that the UI polls for the current turn's pipeline progress
+2. **Pipeline phase logging** — the eval runner would need to log phase transitions to a file or in-memory state that the UI can read
+3. **UI changes** — the TurnViewer would need a "live mode" that shows partial turn data (ruling band, beat surface, streaming narrative) before the turn is complete
+
+This is a separate feature from the "nice to have" above. It requires new infrastructure: a new endpoint, new logging hooks in the eval runner, and new UI components for partial turn display. Not required for the eval system to be useful. If it's worth building, it should be scoped as its own design.
