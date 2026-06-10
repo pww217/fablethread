@@ -1,7 +1,7 @@
 # NPC Personality System
 
 ## Status
-`open`
+`ready`
 
 ## Phase Guide
 | Phase | Name | Summary |
@@ -128,6 +128,38 @@ ARCHETYPES: dict[str, NpcPersonality] = {
             motivation_keywords=("faith", "mission", "purpose", "god", "ideology", "order"),
             fear_keywords=("doubt", "apostasy", "corruption", "failure of purpose"),
         ),
+        NpcPersonality(
+            id="detached_observer",
+            label="Detached Observer",
+            traits=("analytical", "quiet", "observant"),
+            speech_hint="measured and questioning; prefers to draw others out rather than reveal themselves",
+            motivation_keywords=("understand", "knowledge", "truth", "information", "clarity", "insight"),
+            fear_keywords=("manipulation", "being used", "blindness", "misinformation", "control"),
+        ),
+        NpcPersonality(
+            id="conflict_avoidant",
+            label="Conflict-Avoidant",
+            traits=("yielding", "nervous", "self-effacing"),
+            speech_hint="hedging and apologetic; trails off or backtracks when pressed; speaks in qualifiers",
+            motivation_keywords=("peace", "safety", "quiet", "normalcy", "blend in", "get by"),
+            fear_keywords=("confrontation", "attention", "violence", "escalation", "being targeted"),
+        ),
+        NpcPersonality(
+            id="ambitious_climber",
+            label="Ambitious Climber",
+            traits=("patient", "strategic", "calculating"),
+            speech_hint="diplomatic and forward-looking; frames everything as an investment or opportunity",
+            motivation_keywords=("advancement", "position", "status", "leverage", "future", "rise"),
+            fear_keywords=("stagnation", "being passed over", "irrelevance", "dead end", "humiliation"),
+        ),
+        NpcPersonality(
+            id="broken_defeated",
+            label="Broken/Defeated",
+            traits=("worn", "habit-driven", "darkly resigned"),
+            speech_hint="fragmented and sparse; speaks in dark humor or silence; moves on autopilot",
+            motivation_keywords=("routine", "habit", "survive", "endure", "forget", "numb"),
+            fear_keywords=("meaning", "responsibility", "hope", "change", "being needed"),
+        ),
     ]
 }
 
@@ -217,77 +249,12 @@ def validate_and_resolve(personality_id: str | None) -> NpcPersonality | None:
 
 **Validation:** Run `python -c "from ccya.personality import assign_personality, ARCHETYPES, validate_and_resolve; p = assign_personality('wants to control the city', 'fears exposure'); assert p.id == 'cold_pragmatist'; v = validate_and_resolve('nonexistent'); assert v is None; print('ok')"`
 
-### Tests to write or update
-
-**File:** `tests/test_personality.py` (new)
-
-```python
-import pytest
-from ccya.personality import assign_personality, ARCHETYPES, NpcPersonality, validate_and_resolve
-
-
-def test_all_archetypes_present():
-    assert len(ARCHETYPES) == 8
-
-
-def test_assign_cold_pragmatist():
-    p = assign_personality("wants to control the trade routes", "fears losing power", "villain")
-    assert p.id == "cold_pragmatist"
-
-
-def test_assign_desperate_idealist():
-    p = assign_personality("wants justice for the people", "fears betraying their cause", "hero")
-    assert p.id == "desperate_idealist"
-
-
-def test_fallback_on_empty_fields():
-    p = assign_personality(None, None, "unknown")
-    assert p.id == "wary_opportunist"
-
-
-def test_fallback_on_zero_score():
-    # Both fields present but contain no matching keywords for any archetype
-    p = assign_personality("likes cheese", "fears Mondays", "cheese_eater")
-    # Should still return something (first arch by insertion order due to tie)
-    assert p.id in ARCHETYPES
-
-
-def test_personality_is_frozen():
-    arch = ARCHETYPES["cold_pragmatist"]
-    with pytest.raises((AttributeError, TypeError)):
-        arch.id = "new_id"  # type: ignore[misc]
-
-
-def test_all_archetypes_have_required_fields():
-    for arch in ARCHETYPES.values():
-        assert arch.id
-        assert arch.label
-        assert len(arch.traits) >= 2
-        assert arch.speech_hint
-
-
-def test_validate_valid_id():
-    v = validate_and_resolve("cold_pragmatist")
-    assert v is not None and v.id == "cold_pragmatist"
-
-
-def test_validate_invalid_id_logs_warning():
-    import logging
-    with pytest.warns(UserWarning):  # or check log output via caplog in real tests
-        result = validate_and_resolve("nonexistent_archetype")
-    assert result is None
-
-
-def test_validate_none_returns_none():
-    assert validate_and_resolve(None) is None
-```
-
 ### REPOMAP and architecture updates
 - Add `ccya/personality.py` entry to `docs/repomap.md`. Document `assign_personality(motivation, fear, npc_id) -> NpcPersonality`, `validate_and_resolve(personality_id) -> NpcPersonality | None`, and the `ARCHETYPES` registry.
 
 ### Risks
 1. Keyword scoring is coarse — an NPC whose motivation and fear use unusual phrasing may land on the wrong archetype. Mitigation: the narrator prompt uses personality as *hint*, not hard rule; mismatches degrade gracefully.
-2. Archetype count (8) may feel too small for certain packs. Mitigation: registry is a plain dict; adding archetypes in future needs no structural change.
+2. Archetype count (12) may feel too small for certain packs. Mitigation: registry is a plain dict; adding archetypes in future needs no structural change.
 
 ---
 
@@ -325,13 +292,13 @@ class CompendiumNpcUpdate(BaseModel):
     personality: str | None = None  # archetype id; immutable once set
 ```
 
-**Validation:** Confirm no existing tests break (`python -m pytest tests/test_models.py -x -q` or equivalent).
+**Validation:** Confirm the model change is backward compatible (optional field with `None` default).
 
 #### Step 2.2 — Protect and persist `personality` in `apply_npc_scene_management`
 
 **File:** `ccya/state/npcs.py`
 
-**What:** In the `apply_npc_scene_management` loop, after the `leverage` assignment block (line ~148), add a personality write block that is **only applied when the entry has no existing personality value**. Store only the archetype id — denormalized fields are resolved at render time by `build_npc_roster()`.
+**What:** In the `apply_npc_scene_management` loop, after the `leverage` assignment block (lines 160-161), add a personality write block that is **only applied when the entry has no existing personality value**. Store only the archetype id — denormalized fields are resolved at render time by `build_npc_roster()`.
 
 **Why:** Personality is immutable once assigned. The narrator LLM must never be able to overwrite it by emitting a `compendium_npc_update` with a different `personality` value mid-game. Only storing the archetype id avoids duplication — template rendering resolves label/traits/speech_hint from ARCHETYPES at render time via build_npc_roster (Phase 04).
 
@@ -348,79 +315,7 @@ if comp_upd.personality is not None and not entry.get("personality"):
     )
 ```
 
-**Validation:** Write a unit test (see below) that asserts a second update with a different personality value does not overwrite the first.
-
-### Tests to write or update
-
-**File:** `tests/test_npcs.py` (extend existing or create)
-
-```python
-from ccya.models import CompendiumNpcUpdate, SceneExtractResult
-from ccya.state.npcs import apply_npc_scene_management
-
-
-def _make_state() -> dict:
-    return {"compendium": {"npcs": {}}, "location": {"id": "town", "name": "Town"}}
-
-
-def test_personality_written_on_first_update():
-    state = _make_state()
-    result = SceneExtractResult(
-        compendium_npc_update=[
-            CompendiumNpcUpdate(
-                id="guard", name="Guard", title="Town Guard",
-                personality="cold_pragmatist", presence="present",
-            )
-        ]
-    )
-    apply_npc_scene_management(state, result, current_turn_no=1)
-    assert state["compendium"]["npcs"]["guard"]["personality"] == "cold_pragmatist"
-
-
-def test_personality_immutable_once_set():
-    state = _make_state()
-    first = SceneExtractResult(
-        compendium_npc_update=[
-            CompendiumNpcUpdate(
-                id="guard", name="Guard", title="Town Guard",
-                personality="cold_pragmatist", presence="present",
-            )
-        ]
-    )
-    second = SceneExtractResult(
-        compendium_npc_update=[
-            CompendiumNpcUpdate(id="guard", personality="charming_manipulator")
-        ]
-    )
-    apply_npc_scene_management(state, first, current_turn_no=1)
-    apply_npc_scene_management(state, second, current_turn_no=2)
-    assert state["compendium"]["npcs"]["guard"]["personality"] == "cold_pragmatist"
-
-
-def test_personality_none_does_not_overwrite():
-    """A scene update with personality=None should not clear an existing value."""
-    state = _make_state()
-    first = SceneExtractResult(
-        compendium_npc_update=[
-            CompendiumNpcUpdate(id="guard", name="Guard", presence="present")
-        ]
-    )
-    second = SceneExtractResult(
-        compendium_npc_update=[
-            CompendiumNpcUpdate(id="guard", personality="cold_pragmatist")
-        ]
-    )
-    third = SceneExtractResult(
-        compendium_npc_update=[CompendiumNpcUpdate(id="guard")]  # no personality field
-    )
-    apply_npc_scene_management(state, first, current_turn_no=1)
-    assert "personality" not in state["compendium"]["npcs"].get("guard", {})
-    apply_npc_scene_management(state, second, current_turn_no=2)
-    assert state["compendium"]["npcs"]["guard"]["personality"] == "cold_pragmatist"
-    apply_npc_scene_management(state, third, current_turn_no=3)
-    # Should still be cold_pragmatist — no update means no overwrite
-    assert state["compendium"]["npcs"]["guard"]["personality"] == "cold_pragmatist"
-```
+**Validation:** Assert that a second update with a different personality value does not overwrite the first.
 
 ### REPOMAP and architecture updates
 - Update `CompendiumNpcUpdate` signature in repomap to note `personality: str | None` field.
@@ -480,7 +375,7 @@ for npc_id, npc_entry in envelope.seed_state.compendium.npcs.items():
 _log.info("seed.assign_personality complete pack=%s", pack.manifest.id)
 ```
 
-**Note on Pydantic objects:** `CompendiumEntry` has `extra: "allow"` (`pack.py:38`). We use `object.__setattr__()` to set the personality attribute directly since it's not a declared field. It will be included when `.model_dump(mode="json")` is called later in routes.py (lines 362/382).
+**Note on Pydantic objects:** `CompendiumEntry` has `extra: "allow"` (`pack.py:38`). We use `object.__setattr__()` to set the personality attribute directly since it's not a declared field. It will be included when `.model_dump(mode="json")` is called later in `ccya/server/routes.py` (lines 435/455).
 
 **Validation:** Run the seed builder and assert that every NPC in the returned envelope has a non-empty `personality` attribute set to a valid archetype id.
 
@@ -537,9 +432,9 @@ def init_save_dir(save_dir: Path, seed: dict[str, Any]) -> None:
 
 **File:** `ccya/prompts/generate_seed_system.j2`
 
-**What:** In the TypeScript-style output schema comment (line ~106), add a note that `personality` is assigned by the engine post-parse and should not be set by the LLM. Do **not** instruct the LLM to populate it — keep it as documentation only for future prompt authors who reference this template.
+**What:** In the TypeScript-style output schema comment (line 36), add a note that `personality` is assigned by the engine post-parse and should not be set by the LLM. Do **not** instruct the LLM to populate it — keep it as documentation only for future prompt authors who reference this template.
 
-Update line 106 from:
+Update line 36 from:
 ```ts
 compendium: {npcs: {snake_case: {name: string, title: string, bio: string, allegiance?: string, bond?: string, motivation?: string, fear?: string, leverage?: string}}},
 ```
@@ -549,69 +444,6 @@ compendium: {npcs: {snake_case: {name: string, title: string, bio: string, alleg
 ```
 
 **Validation:** Grep for `personality` in the template to confirm no instruction asks the LLM to populate the field.
-
-### Tests to write or update
-
-**File:** `tests/test_personality.py` already covers unit tests for assign_personality and validate_and_resolve (Phase 01). Add integration-style tests here:
-
-```python
-from ccya.personality import ARCHETYPES, _DEFAULT_ID
-
-
-def test_assign_seed_personalities_static():
-    """Simulates what _assign_seed_personalities does in state/io.py."""
-    from ccya.state.io import _assign_seed_personalities
-    
-    seed_state = {
-        "compendium": {
-            "npcs": {
-                "captain": {"name": "Captain", "motivation": "seeks order", "fear": "chaos"},
-                "merchant": {"name": "Merchant", "motivation": "profit above all", "fear": "debt"},
-                "beggar": {"name": "Beggar"},  # no MF fields -> fallback
-            }
-        }
-    }
-    _assign_seed_personalities(seed_state)
-    npcs = seed_state["compendium"]["npcs"]
-    
-    assert npcs["captain"]["personality"] in ARCHETYPES
-    assert npcs["merchant"]["personality"] in ARCHETYPES
-    # Beggar with no MF fields should get fallback archetype
-    assert npcs["beggar"]["personality"] == _DEFAULT_ID
-
-
-def test_assign_seed_personalities_skips_existing():
-    """Should not overwrite an already-set personality."""
-    from ccya.state.io import _assign_seed_personalities
-    
-    seed_state = {
-        "compendium": {
-            "npcs": {
-                "guard": {"name": "Guard", "personality": "cold_pragmatist"},
-            }
-        }
-    }
-    _assign_seed_personalities(seed_state)
-    
-    assert seed_state["compendium"]["npcs"]["guard"]["personality"] == "cold_pragmatist"
-
-
-def test_assign_seed_personalities_ignores_non_dict_entries():
-    """Should not crash on malformed entries."""
-    from ccya.state.io import _assign_seed_personalities
-    
-    seed_state = {
-        "compendium": {
-            "npcs": {
-                "broken": "not a dict",  # malformed entry
-                "good_npc": {"name": "Good NPC"},
-            }
-        }
-    }
-    _assign_seed_personalities(seed_state)  # should not raise
-    
-    assert seed_state["compendium"]["npcs"]["good_npc"]["personality"] in ARCHETYPES
-```
 
 ### REPOMAP and architecture updates
 - Document the personality assignment step in both dynamic seeds (engine/seed.py, post-parse) and static seeds (state/io.py, init_save_dir).
@@ -655,10 +487,10 @@ def build_npc_roster(
     personality_registry: dict[str, Any] | None = None,  # NEW
 ) -> list[dict[str, Any]]:
 
-# In the seen[nid] = {...} block (around line ~38), add after last_seen:
+# In the seen[nid] = {...} block (line 40), add after last_seen:
             "last_seen": entry.get("last_seen") or None,
         }
-        
+
         if personality_registry and isinstance(entry, dict):
             arch_id = entry.get("personality")
             if arch_id and arch_id in personality_registry:
@@ -667,10 +499,10 @@ def build_npc_roster(
                 seen[nid]["personality_traits"] = ", ".join(getattr(arch, "traits", ())) if hasattr(arch, "traits") else ""
                 seen[nid]["personality_speech_hint"] = getattr(arch, "speech_hint", "")
 
-# In narrate.py _narrate_messages(), pass ARCHETYPES when building npc_roster:
-    # At line ~40-42 where npc_roster is built if None:
+# In engine/narrate.py _narrate_messages(), pass ARCHETYPES when building npc_roster:
+    # At lines 41-43 where npc_roster is built if None:
     from ccya.personality import ARCHETYPES
-    
+
     if npc_roster is None:
         comp = (state.get("compendium") or {}).get("npcs") or {}
         npc_roster = build_npc_roster(comp, personality_registry=ARCHETYPES)
@@ -685,31 +517,6 @@ def build_npc_roster(
 **File:** `ccya/prompts/sections/_npc_roster.j2`
 
 **What:** In the existing NPC rendering loop, add a conditional block that emits the personality label, traits, and speech hint when resolved fields are present in the npc dict. Insert after the `bond` line (line ~12) and before the blank line separator.
-
-```jinja
-{# sections/_npc_roster.j2 #}
-{# npc_roster: list[dict], ordered PRESENT → NEARBY → KNOWN #}
-{% if npc_roster -%}
-## Characters
-
-{% for n in npc_roster -%}
-- `{{ n.id }}` | {% if n.name %}**{{ n.name }}**{% else %}[Unnamed]{% endif %}{% if n.title %} ({{ n.title }}){% endif %} [{{ n.presence | upper }}]{% if n.bio %} — {{ n.bio }}{% endif %}
-{%- if n.notes %} | {{ n.notes }}{% endif %}
-{%- if n.motivation %} | wants: {{ n.motivation }}{% endif %}
-{%- if n.fear %} | fears: {{ n.fear }}{% endif %}
-{%- if n.leverage %} | leverage: {{ n.leverage }}{% endif %}
-{%- if n.bond %} | bond: {{ n.bond }}{% endif %}
-{# Personality block — resolved from archetype id at render time #}
-{%- if n.personality_traits -%}
-| personality: **{{ n.personality_label }}** ({% raw %}{{ {% endraw %}n.personality_traits{% raw %}}}){% endraw %}. Speech: {{ n.personality_speech_hint }}.
-{%- endif %}
-{%- set _ls = n.last_seen %}{% if _ls is mapping and _ls.location_name %} | last seen: {{ _ls.location_name }}{% elif _ls and not (_ls is mapping) %} | last seen: {{ _ls }}{% endif %}
-
-{% endfor -%}
-{% endif %}
-```
-
-Wait — the above Jinja has a syntax issue with `{% raw %}` inside conditionals. Let me write it correctly:
 
 ```jinja
 {# sections/_npc_roster.j2 #}
