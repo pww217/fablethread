@@ -159,6 +159,12 @@ def apply_npc_scene_management(
                 entry["fear"] = comp_upd.fear
             if comp_upd.leverage is not None:
                 entry["leverage"] = comp_upd.leverage
+            if comp_upd.personality is not None and not entry.get("personality"):
+                entry["personality"] = comp_upd.personality
+                _log.debug(
+                    "apply_npc_scene_management npc=%s personality=%s",
+                    resolved_id, comp_upd.personality,
+                )
             if comp_upd.presence is not None:
                 entry["presence"] = comp_upd.presence
                 if comp_upd.presence == "present":

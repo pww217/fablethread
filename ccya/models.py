@@ -255,6 +255,7 @@ class CompendiumNpcUpdate(BaseModel):
     presence: str | None = None  # "present" | "nearby" | "known" | "departed" — scene extractor sets this
     notes: str | None = None      # scene-specific attitude, cleared on departure
     first_seen_turn: int | None = None  # set by engine on initial entry creation
+    personality: str | None = None  # archetype id; immutable once set
     departed_reason: str | None = None     # short label, e.g. "killed in battle"
     departed_summary: str | None = None    # 1-2 sentence prose describing departure
     departed_turn: int | None = None       # set by engine on first presence:"departed"

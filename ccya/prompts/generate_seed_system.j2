@@ -33,7 +33,7 @@ Four independently selected narrative dimensions. They are NOT a menu — weave 
     location: {id: snake_case, name: string, description: string},
     inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
     scene: {tagline: string, tags: string[], world_state: string[]},
-    compendium: {npcs: {snake_case: {name: string, title: string, bio: string, allegiance?: string, bond?: string, motivation?: string, fear?: string, leverage?: string}}},
+    compendium: {npcs: {snake_case: {name: string, title: string, bio: string, allegiance?: string, bond?: string, motivation?: string, fear?: string, leverage?: string /* personality assigned by engine post-parse */}}},
     arc: {visible_goal: string, goal_context: string, threads: ArcThread[], completed_threads: null}
   },
   opening_narrative: string,

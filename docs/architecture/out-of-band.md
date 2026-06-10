@@ -62,6 +62,11 @@ After the LLM generates the SeedEnvelope, `generate_seed()` in `seed.py` runs po
 - Merges baseline world facts from `scenario.world_facts` with any existing world state facts from the seed
 - Clears engine-managed `compendium_touch_order` from seeded compendium NPCs
 - **Injects pack currency**: if `scenario.currency_id` is set and no inventory item with that ID exists, appends an `InventoryItem` with the pack's `starting_currency_amount`
+- **Assigns NPC personalities**: iterates over all NPCs in `envelope.seed_state.compendium.npcs`; for any without a `personality` attribute, calls `ccya.personality.assign_personality()` using the NPC's `motivation` and `fear` fields; validates any LLM-provided personality ids via `validate_and_resolve()` (logs WARNING for unknown ids, preserves as-is)
+
+### Static seed personality assignment
+
+Static seeds loaded via YAML (`--new-game` with a static pack) go through `init_save_dir()` in `state/io.py`, which calls `_assign_seed_personalities()` to assign personality archetype ids to NPCs missing one. This ensures all NPCs — whether born from LLM-generated seeds or hand-authored static packs — get personalities at game start time. The assignment is idempotent (skips NPCs that already have a `personality` key).
 
 ### Seed emotional framing contract
 

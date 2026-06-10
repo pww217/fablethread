@@ -39,8 +39,10 @@ def _narrate_messages(
     thread_ttl: int = 3,
 ) -> list[dict[str, str]]:
     if npc_roster is None:
+        from ccya.personality import ARCHETYPES
+
         comp = (state.get("compendium") or {}).get("npcs") or {}
-        npc_roster = build_npc_roster(comp)
+        npc_roster = build_npc_roster(comp, personality_registry=ARCHETYPES)
     _log.debug(
         "narrate entry turn=%d npc_roster_len=%d",
         turn_no, len(npc_roster),
