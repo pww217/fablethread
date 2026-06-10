@@ -296,6 +296,25 @@ async def generate_seed(
             envelope = SeedEnvelope(**j)
             envelope = _sanitize_envelope(envelope)
             _validate_seed_envelope(envelope)
+
+            from ccya.personality import assign_personality, validate_and_resolve
+
+            for npc_id, npc_entry in envelope.seed_state.compendium.npcs.items():
+                if not hasattr(npc_entry, "personality") or not getattr(npc_entry, "personality"):
+                    arch = assign_personality(
+                        motivation=getattr(npc_entry, "motivation", None),
+                        fear=getattr(npc_entry, "fear", None),
+                        npc_id=npc_id,
+                    )
+                    object.__setattr__(npc_entry, "personality", arch.id)
+                else:
+                    resolved = validate_and_resolve(getattr(npc_entry, "personality"))
+                    if resolved is None:
+                        _log.warning(
+                            "seed npc=%s has unknown personality '%s'; keeping as-is (LLM may have produced freeform text)",
+                            npc_id, getattr(npc_entry, "personality"),
+                        )
+
         except Exception as exc:
             parse_error = str(exc)
             _log.warning(

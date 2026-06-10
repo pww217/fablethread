@@ -10,6 +10,9 @@
 {%- if n.fear %} | fears: {{ n.fear }}{% endif %}
 {%- if n.leverage %} | leverage: {{ n.leverage }}{% endif %}
 {%- if n.bond %} | bond: {{ n.bond }}{% endif %}
+{%- if n.personality_traits -%}
+| personality: **{{ n.personality_label }}** ({{ n.personality_traits }}). Speech: {{ n.personality_speech_hint }}.
+{%- endif %}
 {%- set _ls = n.last_seen %}{% if _ls is mapping and _ls.location_name %} | last seen: {{ _ls.location_name }}{% elif _ls and not (_ls is mapping) %} | last seen: {{ _ls }}{% endif %}
 
 {% endfor -%}

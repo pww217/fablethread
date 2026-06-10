@@ -6,7 +6,7 @@
 |---|---|
 | `ccya/__main__.py` | CLI entry: argparse + uvicorn.run |
 | `ccya/cli.py` | CLI commands |
-| `ccya/models.py` | All Pydantic models including ProgressEntry, TurnResult dataclass, load_config(); NpcPresence enum (PRESENT/NEARBY/KNOWN/DEPARTED); CompendiumNpcUpdate with departed_reason/departed_summary/departed_turn |
+| `ccya/models.py` | All Pydantic models including ProgressEntry, TurnResult dataclass, load_config(); NpcPresence enum (PRESENT/NEARBY/KNOWN/DEPARTED); CompendiumNpcUpdate with departed_reason/departed_summary/departed_turn/personality (archetype id; write-once, immutable) |
 | `ccya/errors.py` | ErrorKind string constants (LLM_TIMEOUT, LLM_RATE_LIMIT, etc.) + LlmcError exception hierarchy (LlmcTimeout, LlmcRateLimit, LlmcApiError) |
 | `ccya/engine/__init__.py` | Re-exports public APIs; internal helpers for tests; LLM client re-exports (llm_chat, llm_chat_stream); clear_all_turn_locks() |
 | `ccya/engine/config.py` | EngineConfig dataclass (including thread_stale_threshold, thread_max_active, nearby_decay_ttl, departed_archive_ttl), _EventLock, is_turn_in_progress(), clear_all_turn_locks(), Jinja env setup |
@@ -17,12 +17,12 @@
 | `ccya/engine/ruling.py` | _ruling_messages(), _call_ruling() with retry logic (NOT ccya/rules.py — that's the dice engine) |
 | `ccya/engine/extraction.py` | _run_extraction_pipeline(): 3 streams (scene/state/storytell), _call_stream() with retry |
 | `ccya/engine/thread_sanitizer.py` | sanitize_threads() — batch arc/thread cleanup every N turns; LLM-driven delta output (update/add/resolve/remove threads, goal updates); event logging to events.jsonl; SSE phase events (sanitize_start/sanitize_done) |
-| `ccya/engine/seed.py` | generate_seed() for dynamic packs, soft validation |
+| `ccya/engine/seed.py` | generate_seed() for dynamic packs, soft validation; post-parse hook assigns personality archetype ids to NPCs via `ccya.personality.assign_personality()` (writes `personality` attribute on CompendiumEntry objects using `object.__setattr__()`); validates any LLM-provided personality ids via `validate_and_resolve()` |
 | `ccya/engine/changes.py` | summarize_changes(), format_change_lines() — diff pre vs post state → emoji display lines; thread entries may include `new_progress` field with formatted progress text (e.g., "[ADVANCEMENT] Rescuing the prisoner") for inline UI display |
-| `ccya/engine/npc_roster.py` | build_npc_roster() — merges present/nearby/known/departed NPCs with presence tags; pre-filters archived; includes departed_reason in output |
+| `ccya/engine/npc_roster.py` | build_npc_roster() — merges present/nearby/known/departed NPCs with presence tags; pre-filters archived; includes departed_reason in output; optional `personality_registry` parameter resolves archetype data into npc dict keys (`personality_label`, `personality_traits`, `personality_speech_hint`) for template rendering |
 | `ccya/engine/generate_pack.py` | generate_pack_from_brief(): SSE-driven ephemeral pack generation from world brief |
 | `ccya/state/__init__.py` | Re-exports all state symbols |
-| `ccya/state/io.py` | load_state, save_state (atomic), init_save_dir (writes seed narration to chronicle.md as `## Turn 0 — Seed`), _migrate_state |
+| `ccya/state/io.py` | load_state, save_state (atomic), init_save_dir (writes seed narration to chronicle.md as `## Turn 0 — Seed`; calls `_assign_seed_personalities()` to assign personality archetype ids to NPCs in static seeds), _migrate_state |
 | `ccya/state/delta.py` | apply_delta(), reconcile_delta() — condition dedup, cross-turn dedup |
 | `ccya/state/inventory.py` | normalize_inventory_id, resolve/fuzzy match helpers; resolve_inventory_remove_target() uses fuzzy matching (threshold 0.6) as final fallback |
 | `ccya/state/npcs.py` | build_npc_alias_map, touch_compendium_order (LRU), strip_npcs_notes (skips departed/archived NPCs), apply_npc_scene_management (handles departed/nearby presence) |
@@ -57,6 +57,7 @@
 | `ccya/ev/checkers/pacing.py` | `pacing_directives` — pressure tracking, outcome hint, directive render, removed directives, beat variety, surface_as consistency; `action_quality` — count/distinct |
 | `ccya/ev/checkers/sanitizer.py` | `sanitizer_lifecycle` — thread operation validity vs state, orphan detection; needs non-turn events + state access |
 | `ccya/ev/checkers/turn_assert.py` | `turn_assert` — validates per-turn YAML scenario assertions (stream/field/expected/min_amount); called programmatically by eval runner, not in default registry |
+| `ccya/personality.py` | NpcPersonality frozen dataclass (id, label, traits, speech_hint, motivation_keywords, fear_keywords); ARCHETYPES registry (12 archetypes); assign_personality(motivation, fear, npc_id) → NpcPersonality (deterministic scoring); validate_and_resolve(personality_id) → NpcPersonality | None (logs WARNING for unknown ids); _DEFAULT_ID = "wary_opportunist" |
 | `ccya/pack.py` | load_pack(), list_packs() — validates pack has seed (static) or scenario (generated) |
 | `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (1d12+stat_mod+diff_mod→Band), build_directive() near-miss logic |
 | `ccya/llm_client.py` | chat(), chat_stream() — OpenAI-compatible → mlx_lm.server; trim_messages() token-budget trimming |
@@ -185,6 +186,8 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - Renders ALL threads (active + latent/dormant, scene-scoped + arc-scoped) with scope tags and (latent) markers; completed_threads rendered as "### Past Resolutions" section after _arc.j2 include for full narrative continuity
 - Impossible action block: when `rules_outcome.impossible=true`, renders `**IMPOSSIBLE:**` fact with reason before the band/no-roll section
 - `outcome_hint` replaces `directive` as narrator's scene-motion signal: renders `**Outcome:** hold/advance/transition` with value-specific guidance
+### NPC roster template (`ccya/prompts/sections/_npc_roster.j2`)
+- Shared include rendered by narrate_user.j2, storytell_user.j2, extract_scene_user.j2; renders personality block (`| personality: **Label** (traits). Speech: hint.`) when `build_npc_roster()` resolves archetype data via `personality_registry` parameter; backward compatible — old saves without `personality` key render without the block
 ### Storyteller system prompt (`ccya/prompts/storytell_system.j2`)
 - Restructured into 4-section hierarchy: (1) Task/role, (2) Hard rules (Output schema, Output discipline, State-presence rule), (3) Behavioral guidance (Actions, Outcome summary, Thread operations, Rules-outcome, World state rules, Latent threads, PacingContext), (4) GM Beat guidance (longest section, placed last for recency benefit)
 - Contradiction fixed: "empty arrays for fields with no changes" removed from task line (conflicted with Output discipline "omit null or empty fields")
@@ -308,7 +311,7 @@ scene:
   location_entered_turn: int   # when location was last changed
   combat_started_turn: int     # set when scene tags include "combat"
 
-compendium.npcs: dict[id] → {name, title, bio, aliases: [str], allegiance: str | None, presence: str | "present"|"nearby"|"known"|"departed"|"archived", notes: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), first_seen_turn: int | None, departed_reason: str | None, departed_summary: str | None, departed_turn: int | None, nearby_since_turn: int | None}
+compendium.npcs: dict[id] → {name, title, bio, aliases: [str], allegiance: str | None, presence: str | "present"|"nearby"|"known"|"departed"|"archived", notes: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), personality: str | None (archetype id; write-once, immutable), first_seen_turn: int | None, departed_reason: str | None, departed_summary: str | None, departed_turn: int | None, nearby_since_turn: int | None}
 
 world.factions: [str], world.locations: [str]
 ```

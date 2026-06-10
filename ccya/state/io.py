@@ -16,6 +16,24 @@ _log = logging.getLogger(__name__)
 CURRENT_SCHEMA_VERSION = 1
 
 
+def _assign_seed_personalities(state: dict[str, Any]) -> None:
+    """Assign personality archetype ids to any NPCs missing one in the seed state."""
+    from ccya.personality import assign_personality
+    
+    npcs = (state.get("compendium") or {}).get("npcs", {})
+    for npc_id, entry in npcs.items():
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("personality"):
+            continue
+        arch = assign_personality(
+            motivation=entry.get("motivation"),
+            fear=entry.get("fear"),
+            npc_id=npc_id,
+        )
+        entry["personality"] = arch.id
+
+
 def _migrate_v0_to_v1(content: str, raw: dict[str, Any]) -> dict[str, Any]:
     """Migrate a legacy (v0) state to v1.
 
@@ -128,6 +146,7 @@ def save_state(save_dir: Path, state: dict[str, Any]) -> None:
 
 def init_save_dir(save_dir: Path, seed: dict[str, Any]) -> None:
     save_dir.mkdir(parents=True, exist_ok=True)
+    _assign_seed_personalities(seed)
     save_state(save_dir, seed)
     chronicle_path = save_dir / "chronicle.md"
     seed_meta = seed.get("__seed_meta__") or {}

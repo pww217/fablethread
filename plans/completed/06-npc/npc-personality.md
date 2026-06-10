@@ -1,7 +1,7 @@
 # NPC Personality System
 
 ## Status
-`ready`
+`completed`
 
 ## Phase Guide
 | Phase | Name | Summary |
