@@ -3,7 +3,7 @@
 > Saves examined: `the-outer-rim--after-unification` (32 turns), `cordyceps-year-twenty` (27 turns)
 > Focus: Narrative mechanics — beats, pacing, pressures, momentum, impossible actions, event data integrity, checker correctness
 > Method: Cross-reference save event data against architecture docs and source
-> **Verified against source:** 2026-06-10 — 11 confirmed, 2 already fixed, 1 misleading (by design), 1 partially incorrect
+> **Verified against source:** 2026-06-10 — 11 confirmed, 2 already fixed, 1 misleading (by design), 1 partially incorrect. **Audit update 2026-06-10:** All bugs verified against current source. 2 already fixed (Bug 1, Bug 10). 11 eval checkers still broken. 4 engine bugs confirmed open or partially fixed.
 
 ---
 
@@ -568,31 +568,31 @@ Rename to `state_before_turn` for clarity, or swap the order to save then load. 
 
 | # | Severity | Status | File | Description |
 |---|----------|--------|------|-------------|
-| 8 | High | VERIFIED | Event schema — 7 checkers | `extraction_context` missing from event schema |
-| 1 | High | ALREADY FIXED | `ccya/engine/turn.py:1377-1387` | `impossible` now stored in event `ruling` dict |
-| 9 | High | VERIFIED | `ccya/ev/checkers/sanitizer.py:13-14` | `threads_removed` doesn't exist in sanitizer events |
-| 11 | Medium | VERIFIED | `extract_scene_system.j2` prompt | Scene extraction misses passive/recipient NPCs |
+| 8 | High | VERIFIED | Event schema — 7 checkers | `extraction_context` missing from event schema. 7 checkers require it but it may not exist in older saves. |
+| 1 | High | ALREADY FIXED | `ccya/engine/turn.py:1377-1387` | `impossible` now stored in event `ruling` dict (commit `430016d9`) |
+| 9 | High | VERIFIED | `ccya/ev/checkers/sanitizer.py:13-14` | `threads_removed` doesn't exist in sanitizer events. Events use `threads_resolved` instead. |
+| 11 | Medium | VERIFIED | `extract_scene_system.j2` prompt | Scene extraction misses passive/recipient NPCs. LLM biases toward active-subject NPCs. |
 | 10 | Low | ALREADY FIXED | Event schema — `compendium_npc_update` | Dedup logic added at `extraction.py:618-625` |
-| 12 | Low | VERIFIED | Event schema — `narrate` field | Top-level `narrate` stores metrics dict, not prose |
+| 12 | Low | VERIFIED | Event schema — `narrate` field | Top-level `narrate` stores metrics dict, not prose (turn.py:1428) |
 | 13 | Low | MISLEADING | Event schema — `changes` vs `applied` | By design — threads not in StateDelta |
 | 14 | Low | PARTIALLY INCORRECT | Event schema — `narrative_velocity` | Field IS documented and used in server/UI |
-| 15 | Medium | VERIFIED (concept) | `ccya/ev/play.py` — autoplay | Autoplay needs impossible-action guard |
+| 15 | Medium | VERIFIED (concept) | `ccya/ev/play.py` — autoplay | Autoplay has no guard against consecutive impossible actions (play.py:366-476) |
 
 ### Category 2: Checker Correctness
 
 | # | Severity | Status | File | Description |
 |---|----------|--------|------|-------------|
-| 3 | High | VERIFIED | `ccya/ev/checkers/momentum.py:18` | `requires_fields` includes `ruling.band`, breaks on non-rolled turns |
-| 6 | High | VERIFIED | `ccya/ev/checkers/gm_beat.py:75-86` | Expects floor relief on ALL beat_locked turns (outdated after MB-3) |
-| 4 | Medium | VERIFIED | `ccya/ev/checkers/momentum.py:74-88` | Floor streak uses start-of-turn momentum (off by one) |
-| 5 | Low | VERIFIED | `ccya/ev/checkers/momentum.py:88` | Floor streak breaks after first detection |
+| 3 | High | VERIFIED | `ccya/ev/checkers/momentum.py:18` | `requires_fields` includes `ruling.band`, breaks on non-rolled turns. Internal guard at line 27 skips them but `requires_fields` fails first. |
+| 6 | High | VERIFIED | `ccya/ev/checkers/gm_beat.py:75-86` | Expects floor relief on ALL beat_locked turns (outdated after MB-3). Missing `triggered_by_momentum` guard that engine has at `turn.py:1091-1106`. |
+| 4 | Medium | VERIFIED | `ccya/ev/checkers/momentum.py:74-88` | Floor streak uses `state_snapshot` (pre-turn) instead of `momentum_after` (post-turn). Off by one. |
+| 5 | Low | VERIFIED | `ccya/ev/checkers/momentum.py:88` | Floor streak `break` exits after first detection instead of `continue` to track all floor episodes. |
 
 ### Category 3: Field Naming & Clarity
 
 | # | Severity | Status | File | Description |
 |---|----------|--------|------|-------------|
-| 2 | Low | VERIFIED | `ccya/engine/turn.py:1383` | `outcome_summary` is storyteller's recap, not ruling's |
-| 7 | Low | VERIFIED | `ccya/engine/turn.py:1445` | `state_snapshot` is pre-turn, not post-turn |
+| 2 | Low | VERIFIED | `ccya/engine/turn.py:1383` | `outcome_summary` is storyteller's recap, not ruling's. Variable initialized empty at line 1046, set from extraction result at line 1077. |
+| 7 | Low | VERIFIED | `ccya/engine/turn.py:1445` | `state_snapshot` is pre-turn (load_state before save_state). Comment at line 1447 confirms: "Snapshot pre-turn state before overwriting". |
 
 ---
 

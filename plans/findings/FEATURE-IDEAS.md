@@ -8,13 +8,25 @@
 
 ---
 
+## Game Setup
+
+### F-N08. Seed JSON vs hints conflict [Net New] — **Priority #1**
+
+When both seed JSON and player hints are provided at game creation, they can conflict — both inject into the same initial state, causing compendium duplication, missing NPCs, bond issues, and location never changing. The seed JSON should be disabled when hints are provided, or there should be merge/override semantics defined. Currently both may be active simultaneously causing conflicts.
+
+### F-N09. Disable seed JSON when hints given [Net New] — **Priority #1**
+
+Closely related to F-N08. If hints are provided at game creation, seed JSON should be skipped entirely rather than running in parallel. Running both creates competing state injections.
+
+---
+
 ## Compendium
 
-### F-N01. Alias consolidation [Net New]
+### F-N01. Alias consolidation [Net New] — **Priority #2**
 
 Compendium sometimes introduces characters with aliases/descriptions ("Scarred Soldier") without mapping them to their proper name when revealed later. Result: two entries for the same person — one under alias, one under real name. Need a mechanism to detect and consolidate duplicate identities across turns.
 
-### F-N02. Stale character cleanup [Net New]
+### F-N02. Stale character cleanup [Net New] — **Priority #2**
 
 Compendium accumulates characters that are no longer relevant (unnamed guards killed/passed through) because there's no removal mechanism. Two sub-problems:
 - **Too many chars introduced**: Not a hard-cap problem but related to lack of cleanup — see F-N03 below.
@@ -28,11 +40,15 @@ Compendium accumulates characters that are no longer relevant (unnamed guards ki
 
 Instruct extractors not to emit schema fields that are entirely null (no-op changes). Don't just emit a schema that changes nothing — saves output tokens and reduces noise in events.jsonl. Schema changes may have largely addressed this already; verify against recent runs before treating as active issue.
 
+### F-I10. Ruling agent condition system [Net New]
+
+The existing condition system (B11, CONDITION_MODS) is being replaced by a ruling agent-driven approach. New design: conditions should live in the ruling extractor, which determines difficulty and whether an action is impossible based on current state. TTLs and gameplay effects handled by ruling agent rather than a separate condition subsystem. This supersedes the old CONDITION_MODS approach entirely.
+
 ---
 
 ## Thread & Arc Management
 
-### DQ03. Threads vs arcs decoupling — cognitive load [Design Question]
+### DQ03. Threads vs arcs decoupling — cognitive load [Design Question] — **Priority #9**
 
 Threads are overloaded as both a fact sheet (tracking world state/events) and an objective list (player goals). This creates high cognitive load for the player: they see threads with sub-objectives, arc visible_goals, and sometimes overlapping content. Possible division:
 - **Arcs/threads should be objectives only** — guidance to storyteller that arcs define what the player is trying to accomplish.
@@ -44,7 +60,11 @@ May already be sufficiently differentiated via `visible_goal` vs thread progress
 
 ## Scene Mechanics
 
-### F-N06. Interactive inventory items in scenes [Net New]
+### F-N04. Grounded location descriptions + nearby POIs [Net New] — **Priority #8**
+
+Location descriptions feel generic and abstract. Should be more grounded and spatial — include nearby locations or points of interest (POIs) to give players a sense of the wider area. This makes the world feel alive beyond the immediate scene and gives players more context for exploration decisions.
+
+### F-N06. Interactive inventory items in scenes [Net New] — **Priority #5**
 
 Inventory items should be interactive within scene mechanics, not just mentioned in narration. The state extractor needs to handle item interactions (pick up, use, examine) as first-class actions that affect the scene — similar to how NPCs can act independently but for objects rather than characters. This would make inventory feel more integrated into gameplay rather than being a passive list tracked behind the scenes.
 
@@ -52,15 +72,15 @@ Inventory items should be interactive within scene mechanics, not just mentioned
 
 ## Narrative Setup
 
-### F-I01. Bond naming fix [Improvement]
+### F-I01. Bond naming fix [Improvement] — **Priority #3**
 
 Close bonds (family, spouse) are referred to generically as "kin" or "family" instead of by proper name/role ("wife", "daughter"). This happens mid-game too — e.g., player travels across town and doesn't run into family until T3+, but when they do appear the narrator still uses generic terms. The bond system needs explicit instruction to use named relationships, not abstract kinship labels.
 
-### F-I02. Turn 1 seed integration [Net New]
+### F-I02. Turn 1 seed integration [Net New] — **Priority #6**
 
 The initial seed JSON sets up world state (locations, factions, relationships) but turn 1 narration doesn't actively USE it — it lists things rather than weaving them into narrative choices and arc setup. The opening should be driven by seed data where relevant to existing threads/arcs.
 
-### F-I09. Bonds generate arc objectives at start [Net New]
+### F-I09. Bonds generate arc objectives at start [Net New] — **Priority #3**
 
 Close bonds (family, spouse) should not just improve narration labels but actually seed concrete arc objectives at game start. Example: "find my lost brother" instead of generic "secure family safety." The bond data needs to be used by the storyteller/sanitizer to create specific, named-person arcs that give the player clear narrative direction from turn 1. This is about world-building depth in bonds — using them as a source for actionable story hooks rather than just improving how characters are referred to.
 
@@ -68,7 +88,7 @@ Close bonds (family, spouse) should not just improve narration labels but actual
 
 ## NPC Mechanics
 
-### F-N03. NPC death/removal lifecycle [Net New]
+### F-N03. NPC death/removal lifecycle [Net New] — **Priority #4**
 
 NPCs who are dead, incapacitated, or no longer relevant need structured removal:
 - **Marking**: Narrator/ruling agent marks character as `dead`, `incapacitated`, or `gone_from_scene`.
@@ -76,7 +96,7 @@ NPCs who are dead, incapacitated, or no longer relevant need structured removal:
 - **Backend TTL**: On the backend, character persists for ~10 turns so engine can still understand callbacks/references to recently deceased characters. By turn 10, callback probability is slim.
 - **Key NPC exception**: Named/key NPCs marked with a `key_npc` flag are exempt from automatic removal — they stay until explicitly removed by narrative events.
 
-### F-N07. Left-behind tracking on location change [Net New]
+### F-N07. Left-behind tracking on location change [Net New] — **Priority #7**
 
 When the player changes locations (which may be fixed via B7 prompt fix), characters who should logically stay behind aren't tracked as such. Example: a companion stays at home while the PC goes across town — they shouldn't magically appear in the new scene. Need explicit state for "left behind" NPCs with their last known location, so the narrator can reference them appropriately ("your sister is still back at the safehouse") rather than either teleporting them or forgetting them entirely. This complements F-N03 (death/removal) and F-N04 (party designation) — party members should be exempt from left-behind logic unless explicitly separated by narrative events, while non-party NPCs who were in a previous scene should have their location tracked separately.
 
@@ -84,7 +104,17 @@ When the player changes locations (which may be fixed via B7 prompt fix), charac
 
 ## Storytelling Pipeline
 
-### F-N05. Proactive NPC agency [Net New — Tentative]
+### Bug 15. Autoplay momentum spiral [Net New — Verified] — **Priority #7**
+
+Autoplay loop has no guard against consecutive impossible actions. Each turn drains momentum by 1, and once at floor, there's no escape mechanism. Verified across two saves (outer-rim, cordyceps-06-09). On cordyceps-06-09, cascade ran for 12 consecutive turns (20-31), dropping momentum from 3 to -3 and then stuck at floor for 7+ turns with beat_locked=True, consecutive pressure=8, and no escape mechanism.
+
+**Fix:** Add detection in `play.py` autoplay mode: if 2+ consecutive impossible-action turns are generated, inject a proactive input suggestion or pause for intervention. Consider a "momentum floor escape hatch" for beat_locked: after 3+ turns at floor with beat_locked, force a breathing_room regardless of triggered_by_momentum.
+
+**See also:** [Bug 15](./EVAL-FINDINGS-2026-06-09.md#bug-15-autoplay-momentum-spiral-on-continue-the-story-medium) | [MB-3](./MOMENTUM-BEAT-FINDINGS.md#finding-mb-3-floor-relief-beats-deepen-de-escalation-during-momentum-crisis)
+
+---
+
+### F-N05. Proactive NPC agency [Net New — Tentative] — **Priority #12**
 
 Current turn flow is player-centric: "I do a thing → world/NPCs respond." This makes NPCs reactive and the world feel static around only the protagonist. Want to add opportunities for NPCs to drive scenes independently:
 - **Storytell→Ruling→Narrate pass-through**: Storyteller identifies an NPC with reason to act this turn, passes that intent to ruling extractor (which determines likely action type), then narrator improvises from there. Turn starts with "This NPC does X" instead of "Player does Y → world responds."
@@ -98,11 +128,11 @@ Current GM beat system provides pacing direction but reads as "player-centric co
 
 ## UI Improvements
 
-### F-I06. Turn number display [Improvement]
+### F-I06. Turn number display [Improvement] — **Priority #10**
 
 Add turn number `()` after thread updates in the UI. Also fix this in narration UI. Currently missing context about where you are in the game flow.
 
-### F-I07. Debug/developer panel toggle [Net New]
+### F-I07. Debug/developer panel toggle [Net New] — **Priority #10**
 
 Two-part improvement:
 - **Developer mode**: When enabled, show debug information directly in UI — turn numbers, state snapshots, extraction outputs (things currently only visible via Turn Viewer or `ev` pipeline). Useful for development and troubleshooting.
@@ -126,6 +156,18 @@ Should these be unified (scene direction comes from active threads) or separate 
 
 ---
 
+## Low Priority / Nice-to-Have
+
+### F-I11. Cached universal system prompt [Maybe] — **Priority #13**
+
+Investigate whether any stage-agnostic base system prompt could be cached. Unlikely to be feasible given how much system prompts content varies by pipeline stage, but worth a look if it saves tokens without degrading quality.
+
+### F-I12. PC point total: 11 not 10 [Improvement] — **Priority #14**
+
+Character creation gives PC 10 points but should be 11 for better balance. Simple balance tweak, verify against current rules before implementing.
+
+---
+
 ## Previously Cross-Referenced Features (Moved Here)
 
 > Items F1–F8 moved from BUGS-OBSERVATIONS.md "Feature Ideas & Improvements" section. These are low-priority meta-items (thread activation cap maps to O3/O6 in BUGS-OBSERVATIONS, sanitizer naming convention cleanup, impossible-action pathway design question, arc_resolve state management maps to F-I01 narrative continuity, storyteller actions documentation need, thread resolution milestone feedback) — retained as cross-references but not actionable feature items.
@@ -136,11 +178,13 @@ Should these be unified (scene direction comes from active threads) or separate 
 
 | Category | Net New Features | Improvements/Bugs | Design Questions |
 |----------|-----------------|-------------------|------------------|
+| Game Setup | F-N08, F-N09 | — | — |
 | Compendium | F-N01, F-N02 | — | — |
-| Scene Mechanics | F-N06 | — | — |
+| Scene Mechanics | F-N04, F-N06 | — | — |
 | Thread & Arc Management | — | — | DQ03 (cognitive load) |
 | Narrative Setup | F-I02, F-I09 | F-I01, F-I03, F-I04 | DQ01 (tentative) |
-| NPC Mechanics | F-N03, F-N04, F-N07 | — | — |
-| Storytelling Pipeline | F-N05 | — | DQ02 |
+| NPC Mechanics | F-N03, F-N07 | — | — |
+| Storytelling Pipeline | F-N05, Bug 15 | — | DQ02 |
 | UI Improvements | F-I07 | F-I06 | — |
-| Pipeline Efficiency | — | F-I08 (needs verification) | — |
+| Pipeline Efficiency | — | F-I08, F-I10 | — |
+| Low Priority | — | F-I11, F-I12 | — |
