@@ -475,9 +475,25 @@ def panel_state(request: Request):
     return _app_mod._render("_state.html", _debug_context())
 
 
+def _resolve_npc_personalities(state: dict[str, Any]) -> None:
+    """Resolve archetype ids to human-readable label/traits for the UI."""
+    from ccya.personality import ARCHETYPES
+
+    npcs = (state.get("compendium") or {}).get("npcs") or {}
+    for entry in npcs.values():
+        if not isinstance(entry, dict):
+            continue
+        arch_id = entry.get("personality")
+        if arch_id and arch_id in ARCHETYPES:
+            arch = ARCHETYPES[arch_id]
+            entry["personality_label"] = arch.label
+            entry["personality_traits"] = ", ".join(arch.traits)
+
+
 @_app_mod.app.get("/panels/state-left")
 def panel_state_left(request: Request):
     state = _load_current_state()
+    _resolve_npc_personalities(state)
     return _app_mod._render("_state_left.html", {"state": state})
 
 

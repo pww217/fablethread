@@ -1,5 +1,9 @@
 # Plan 05 — LLM-based checkers
 
+## Status
+
+`completed`
+
 ## Purpose
 
 Implement LLM-based narrative checkers (`directive_tone_match`, `beat_narrative_chain`, `state_fidelity`) and the model loading/orchestration for the `--checker-model` flag.

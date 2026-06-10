@@ -24,6 +24,7 @@ from ccya.engine.extraction import (
 from ccya.engine.names import generate_npc_names_split
 from ccya.engine.narrate import _narrate_messages
 from ccya.engine.npc_roster import build_npc_roster
+from ccya.personality import ARCHETYPES
 from ccya.engine.thread_sanitizer import sanitize_threads
 
 from ccya.engine.ruling import _call_ruling, _log_ruling_outcome, _ruling_messages
@@ -680,7 +681,7 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
     ruling_messages = _ruling_messages(
         ctx._env, state, ctx.user_input,
         turn_no=turn_no,
-        npc_roster=build_npc_roster(_comp),
+        npc_roster=build_npc_roster(_comp, personality_registry=ARCHETYPES),
         inventory=state.get("inventory") or None,
         recent_turns=ctx.recent_turns[-1:],
     )
@@ -888,7 +889,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any, float]:
         momentum=(state.get("pc") or {}).get("momentum", 0), pending_beat=_pending_gm_beat,
         pacing_context=_pc, ages=ctx._ages, pc_allegiance=_pc_allegiance, turn_no=turn_no,
         world_factions=_world_factions,
-        npc_roster=build_npc_roster(_comp),
+        npc_roster=build_npc_roster(_comp, personality_registry=ARCHETYPES),
         arc_ttl=config.arc_memory_ttl, thread_ttl=config.thread_memory_ttl,
     )
 

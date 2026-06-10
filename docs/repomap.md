@@ -30,7 +30,7 @@
 | `ccya/state/momentum.py` | apply_momentum() — deterministic from rules band, clamped to [-3,+3], with depth-based catch-up acceleration at -3 or below (success=+2, crit_success=+3) |
 | `ccya/server/__init__.py` | Re-exports: app, main, config, SAVE_DIR, _validate_stats |
 | `ccya/server/app.py` | FastAPI app bootstrap, Jinja env, pack loading, startup event; server error persistence + exception middleware → server_errors.jsonl |
-| `ccya/server/routes.py` | All @app.get / @app.post route handlers; `_list_saves()` helper (returns [{name, pack, turn_count, last_modified, pc_name, location_name}]); `GET /` → loads opening from chronicle.md (turn 0) with in-memory fallback; `/api/saves` (GET) → list saves excluding default; `/api/switch-save` (POST) → validates save_name, checks is_turn_in_progress(), clears turn locks, updates SAVE_DIR, returns state |
+| `ccya/server/routes.py` | All @app.get / @app.post route handlers; `_list_saves()` helper (returns [{name, pack, turn_count, last_modified, pc_name, location_name}]); `_resolve_npc_personalities()` resolves archetype ids to label/traits for UI templates; `GET /` → loads opening from chronicle.md (turn 0) with in-memory fallback; `/api/saves` (GET) → list saves excluding default; `/api/switch-save` (POST) → validates save_name, checks is_turn_in_progress(), clears turn locks, updates SAVE_DIR, returns state |
 | `ccya/server/panels.py` | Panel context builders: _debug_context(), _load_* helpers, _get_opening(), _load_opening_from_chronicle() (extracts turn 0 from chronicle.md); _load_recent_history() excludes turn 0 (seed) |
 | `ccya/server/tv.py` | Turn viewer data from events.jsonl + server_errors.jsonl — unified timeline with row_kind discrimination, per-stream metrics, status colors; `_turn_viewer_data()` returns `(rows, no_events)`; injects a synthetic `row_kind: "seed"` row at index 0 when seed data is present in state.yaml. TV delta rows include pacing metadata keys: narrative_velocity, gm_beat_type, gm_beat_surface_as alongside momentum_before/after/outcome_hint |
 | `ccya/server/metrics.py` | _recent_turn_metrics(), _turn_log_entries() — latency/token formatting |
@@ -63,7 +63,19 @@
 | `ccya/llm_client.py` | chat(), chat_stream() — OpenAI-compatible → mlx_lm.server; trim_messages() token-budget trimming |
 | `ccya/logging_setup.py` | JSONL RotatingFileHandler + _JsonFormatter (extra fields → flat JSON keys); StreamHandler defaults to WARNING via CCYA_LOG_LEVEL env var |
 | `ccya/templates/index.html` | Main UI template: Alpine.js `game()` component with save picker (openSavePicker, closeSavePicker, confirmSwitchSave), settings panel, turn log, narrative streaming |
+| `ccya/templates/_state_left.html` | Left sidebar: Scene NPCs (present NPCs with name/title/bio/personality/motivation/bond/notes/last_seen), Location (name, description), Arc (visible_goal, goal_context, active threads, completed threads, resolved arcs), Compendium (all NPCs with same fields + last_seen) |
+| `ccya/templates/_state_right.html` | Right sidebar: Player (name, tagline, stats as pip grid, conditions as pills), Inventory (items with name/amount/notes), World State (non-permanent + permanent facts), Debug panel, footer (turn number, model name) |
 | `ccya/static/app.src.css` | All UI styles including save picker modal (shell, backdrop, panel, cards, footer) |
+
+### UI Panel Fields
+
+Three main visual panels compose the browser UI. All NPC data in left/right panels comes from raw `state.yaml` dict (personality ids resolved server-side via `_resolve_npc_personalities()` in `routes.py`). The narrative panel is server-rendered from turn history then JS-streamed.
+
+| Panel | Template | HTMX endpoint | Fields rendered |
+|---|---|---|---|
+| **Left sidebar** | `_state_left.html` | `GET /panels/state-left` | **Scene card** (open): present NPCs — name, title, inline notes, tooltip: bio → personality (Label — Traits) → motivation → bond → last_seen. **Location card** (open): location name, description. **Arc card** (open): visible_goal (+ tooltip: goal_context), active threads (summary, urgency, progress tooltip), arc resolution, resolved arcs, completed threads. **Compendium card** (closed): all NPCs — name, title, tooltip: bio → personality → motivation → bond → last_seen. |
+| **Narrative panel** | `index.html` (inline) | `GET /` (initial) + SSE `/turn?input=` | Opening narrative (`.narrative-text`), turn history blocks — player input echo (`>`), narration text, roll badge (skill, difficulty, dice math, band result, outcome_summary), change lines (emoji-prefixed: inventory, player, location, faction, threads, arc resolution). Action pills below history. Input bar at bottom. |
+| **Right sidebar** | `_state_right.html` | `GET /panels/state-right` | **Player card** (open): name (+ bio tooltip), tagline, stats grid (strength/wits/dexterity/charisma as 4-pip rows with tooltip descriptions), condition pills (label, description tooltip). **Inventory card** (open): items (name, amount, notes tooltip; credits highlighted). **World State card** (open): non-permanent facts (reverse order), permanent facts. **Debug card** (closed): raw debug info. **Footer**: turn number, model name. |
 
 ## Public APIs (function names + 1-liner purpose)
 

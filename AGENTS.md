@@ -25,6 +25,17 @@ Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, publi
 - **Do not alter prompts unless explicitly asked to.** If you must, preserve the spirit of the existing wording and intent.
 - Prompt templates shared among multiple files should be made in `ccya/prompts/sections/` and included as subtemplates.
 
+### Template disambiguation
+
+Two entirely separate template systems exist — do not conflate them:
+
+| System | Location | Purpose | Engine |
+|---|---|---|---|
+| **Prompt templates** | `ccya/prompts/` (`.j2`) | Render LLM messages (system/user prompts) | Jinja2 via `_render()` in `narrate.py` / `extraction.py` |
+| **UI templates** | `ccya/templates/` (`.html`) | Render browser HTML (sidebars, modals, character sheets) | Jinja2 via FastAPI `_render()` in `server/routes.py` |
+
+NPC data reaches prompt templates via `build_npc_roster()` (resolved dicts with personality_label/traits). NPC data reaches UI templates directly from raw state dict — personality ids are resolved server-side in `_resolve_npc_personalities()` in `routes.py` before rendering. See `docs/repomap.md` for routing details.
+
 ---
 
 ## Clean code rules
