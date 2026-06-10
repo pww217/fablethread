@@ -1,6 +1,8 @@
 # EV Tooling & Eval System — Bugs & Issues
 
 > Findings from spot check verification (rim save, 32 turns), eval command verification (phases 4-5), and prior game data analysis (noir 25 turns, byzantium 31 turns).
+>
+> **Audit 2026-06-10:** All eval checker bugs verified against current source. 11 eval checkers still broken. 2 eval bugs already fixed (Bug 1, Bug 10).
 
 ---
 
@@ -231,22 +233,30 @@ The eval system was planned around a specific event schema. As the engine evolve
 
 ## What to Fix First
 
-### EV Tooling (high priority)
-1. **EV-1:** Fix `prompt --system` data contamination — critical reliability issue
-2. **EV-10:** Fix play command `:+d` format bug on line 185 — crashes on float momentum_delta
-3. **EV-2:** Fix `source .venv/bin/activate` workaround — document `.venv/bin/python` usage
-4. **EV-3:** Fix `location_change` checker — align event emission with checker expectations
-5. **EV-4:** Fix `sanitizer_lifecycle` checker — align event emission with checker expectations
-6. **EV-9:** Install `mlx_lm` to enable LLM checker testing
+### Eval Checkers (high priority — break testing infrastructure)
+1. **Bug 6:** Fix `gm_beat_lifecycle` — add `triggered_by_momentum` guard to match engine at `turn.py:1091-1106`
+2. **Bug 3:** Remove `ruling.band` from `momentum_lifecycle` requires_fields — internal guard already skips non-rolled turns
+3. **Bug 9:** Remove `threads_removed` from `sanitizer_lifecycle` requires_fields — events use `threads_resolved` instead
+4. **Bug 8:** Add `extraction_context` to events or remove from requires_fields in 7 affected checkers
+5. **Bug 4:** Use `momentum_after` instead of `state_snapshot` for floor streak detection in `momentum_lifecycle`
+6. **Bug 5:** Replace `break` with `continue` in floor streak loop to track all floor episodes
+7. **EV-4:** Fix `sanitizer_lifecycle` checker — align event emission with checker expectations
 
-### Engine/Prompt (medium priority)
-7. **EV-5:** Update ruling pipeline to mention conditions present in state
-8. **EV-6:** Investigate beat locking consistency between `beat_locked` and `pending_gm_beat`
-9. **EV-7:** Align consecutive pressure counter with gm_beat type timing
+### EV Tooling (medium priority)
+8. **EV-1:** Fix `prompt --system` data contamination — critical reliability issue
+9. **EV-10:** Fix play command `:+d` format bug on line 185 — crashes on float momentum_delta
+10. **EV-2:** Fix `source .venv/bin/activate` workaround — document `.venv/bin/python` usage
+11. **EV-3:** Fix `location_change` checker — align event emission with checker expectations
+12. **EV-9:** Install `mlx_lm` to enable LLM checker testing
+
+### Engine/Prompt (low priority)
+13. **EV-5:** Update ruling pipeline to mention conditions present in state
+14. **EV-6:** Investigate beat locking consistency between `beat_locked` and `pending_gm_beat`
+15. **EV-7:** Align consecutive pressure counter with gm_beat type timing
 
 ### Eval Gaps (low priority — evaluate against new framework)
-10. Add goal stagnation detection (new checker or enhancement to existing)
-11. Add background thread age/accumulation checks (new checker or enhancement to existing)
+16. Add goal stagnation detection (new checker or enhancement to existing)
+17. Add background thread age/accumulation checks (new checker or enhancement to existing)
 
 ---
 
