@@ -552,6 +552,9 @@ async def _run_extraction_pipeline(
         if not storytell_result.actions:
             narr_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', narration.strip()) if len(s.strip().split()) > 5]
             present_npc_names = [entry.get("name", "") for entry in extraction_ctx.comp_this_turn.values() if isinstance(entry, dict) and entry.get("presence") == "present"]
+            inventory_items = [item.get("name", item.get("id", "")) if isinstance(item, dict) else str(item) for item in (state.get("inventory") or [])]
+            arc_goal = (state.get("arc") or {}).get("visible_goal", "")
+
             actions = []
             # Action from narration summary
             if narr_sentences:
@@ -564,15 +567,17 @@ async def _run_extraction_pipeline(
                 actions.append(f"Speak with {npc} about what just happened.")
             else:
                 actions.append("Survey your surroundings for useful information.")
-            # Stat-based action (generic)
-            stats = state.get("pc", {}).get("stats") or {}
-            if stats:
-                highest_stat = max(stats, key=lambda k: stats[k])
-                actions.append(f"Use your {highest_stat} to assess the situation further.")
+            # Inventory-based action
+            if inventory_items:
+                item = inventory_items[0]
+                actions.append(f"Check your {item} for anything useful.")
             else:
-                actions.append("Plan your next move carefully before acting.")
-            # Exploration action
-            actions.append("Search for any hidden threats or opportunities nearby.")
+                actions.append("Pat down your gear for anything you might have missed.")
+            # Arc goal action
+            if arc_goal:
+                actions.append(f"Focus on {arc_goal[:60]} to advance your goal.")
+            else:
+                actions.append("Decide what matters most and pursue it.")
             storytell_result = storytell_result.model_copy(update={"actions": actions})
         extraction_event["storytell"] = {
             "rendered_system": rendered_storytell_system,

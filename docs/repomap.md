@@ -39,7 +39,7 @@
 | `ccya/ev/inspect.py` | Inspection commands: `cmd_summary()`, `cmd_timing()`, `cmd_turn()`, `cmd_prompt()` |
 | `ccya/ev/deltas.py` | Deltas and mechanics commands: `cmd_deltas()`, `cmd_mechanics()` |
 | `ccya/ev/state_tools.py` | State commands: `cmd_state()`, `cmd_diff()`, `cmd_trace()`, `cmd_search()` |
-| `ccya/ev/play.py` | Play command: `play_turn()` sync wrapper around `run_turn()`, `cmd_play()` dispatch for single-turn/`--interactive`/`--llm` modes, session management (`_create_play_session`), output formatting (`format_play_output`/`format_error_output`) |
+| `ccya/ev/play.py` | Play command: `play_turn()` sync wrapper around `run_turn()`, `cmd_play()` dispatch for single-turn/`--interactive`/`--llm` modes (requires --pack for new sessions), session management (`_create_play_session`, `_load_pack_params`), LLM player loop (`_llm_session` with scenario context), output formatting (`format_play_output`/`format_error_output`) |
 | `ccya/ev/check.py` | `cmd_check()` — run checkers against existing events by turn; supports single turn + specific checkers, single turn + `--all`, or `--all` across all turns. Markdown output. Supports `--llm` flag to include LLM-based checkers, `--checker-model` to override model name. |
 | `ccya/ev/eval.py` | `cmd_eval_run()` — batch scenario runner: loads YAML scenario, plays each turn via `play_turn()`, runs all checkers, validates TurnAsserts, produces Markdown report. `cmd_eval_list()` — lists available YAML scenarios. |
 | `ccya/ev/scenario.py` | YAML scenario loader: `Scenario`, `ScenarioTurn`, `TurnAssert` dataclasses; `load_scenario()` parses YAML, `discover_scenarios()` finds YAML files in `packs/`. |
@@ -100,9 +100,10 @@ Three main visual panels compose the browser UI. All NPC data in left/right pane
 - **app** — FastAPI instance with ~25 routes (GET/POST for panels, turn SSE stream, new-game, healthz)
 
 ### ccya/pack.py
-- **load_pack(pack_id)** → Pack — validates pack has seed_state.yaml (static) or scenario.yaml (generated)
+- **load_pack(pack_id)** → Pack — validates pack has seed_state.yaml (static) or scenario.yaml (generated); also loads opening_scene.md and style.md if present
 - **list_packs(packs_dir)** → list[PackManifest] — aggregates from default/, custom/, generated/, and eval/
 - **ScenarioBrief** — complete world definition for a generated pack; fields: world_name, constraints, world_facts, narrator_rules, world_rules, factions, name_locales, name_seed, inspiration, situation_archetypes, arc_categories, character_dynamics, moral_pressures, npc_bonds, scene_detail_bundles, currency_id, starting_currency_amount
+- **Pack** — Pydantic model; fields: manifest, seed, scenario, opening_scene (str|None), style (str|None)
 
 ### ccya/rules.py
  - **resolve_check(skill, difficulty, pc_stats, intent_verb)** → RulesOutcome — 1d12+stat_mod+diff_mod→Band (pure Python)

@@ -26,7 +26,7 @@ flowchart LR
 
     subgraph OUT["Outputs — SceneExtractResult"]
         O1["scene_tags: list[str]"]:::outNode
-        O2["scene_tagline: str (3–6 words for UI header)"]:::outNode
+        O2["scene_tagline: str (3–6 words describing location/situation, NOT event summary)"]:::outNode
         O3["location_change: LocationRef | None<br>  id, name, description"]:::outNode
         O4["location_description: str | None"]:::outNode
         O5["compendium_npc_update<br>  durable identity changes (presence, notes, bio upserts, personality on creation)"]:::outNode

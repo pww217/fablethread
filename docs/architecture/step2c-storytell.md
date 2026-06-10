@@ -33,7 +33,7 @@ flowchart LR
         O1c["arc_resolve: ArcResolution | None<br>  resolution, visible_goal,<br>goal_context, drop_threads, new_threads"]:::outNode
         O2["thread_resolve: list[ThreadResolution]<br>  id + resolution_state<br>(resolved/failed/abandoned)"]:::outNode
         O3["thread_add: ArcThread | None<br>  new thread, gated by PacingContext.gate"]:::outNode
-        O4["actions: list[str]<br>  exactly 4 suggested player choices"]:::outNode
+        O4["actions: list[str]<br>  exactly 4 suggested player choices, grounded in game state (NPCs, inventory, location)"]:::outNode
         O5["outcome_summary: str<br>  1–2 sentence narrative recap"]:::outNode
         O6["gm_beat: GMBeat | None<br>  forward-facing storytelling beat"]:::outNode
     end
