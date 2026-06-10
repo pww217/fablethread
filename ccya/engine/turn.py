@@ -1378,6 +1378,8 @@ async def run_turn(
             "intent_verb": _intent.intent_verb,
             "intent": _intent.intent,
             "rolled": _outcome.rolled,
+            "impossible": _outcome.impossible,
+            "reason": _outcome.reason,
             "total_ms": ruling_metrics.get("total_ms"),
             "tokens_in": ruling_metrics.get("tokens_in", 0),
             "tokens_out": ruling_metrics.get("tokens_out", 0),

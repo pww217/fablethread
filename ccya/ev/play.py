@@ -363,7 +363,13 @@ def _interactive_session(config: EngineConfig, pack: str | None = None) -> None:
     print(f"Events: {session_dir / 'events.jsonl'}")
 
 
-def _llm_session(config: EngineConfig, max_turns: int = 20, pack: str | None = None) -> None:
+def _llm_session(
+    config: EngineConfig,
+    max_turns: int = 20,
+    pack: str | None = None,
+    persona: str | None = None,
+    eval_: bool = False,
+) -> None:
     seed_dict, name_locales, narrator_rules, world_rules, factions = _load_pack_params(pack)
     session_dir = _create_play_session(pack=pack)
     state = load_state(session_dir)
@@ -371,35 +377,37 @@ def _llm_session(config: EngineConfig, max_turns: int = 20, pack: str | None = N
     trace_ids: list[str] = []
 
     system_prompt = (
-        "You are roleplaying as a player in a text adventure game. "
-        "Given the current scene, your recent actions, and the available options, "
+        "You are roleplaying as a character in a text adventure game. "
+        "Given the current scene and your character's motivation, "
         "decide what to do next. Respond with a short, natural language action. "
         "Do not narrate. Do not use meta-language. Just say what your character does."
     )
+    if persona:
+        system_prompt = (
+            f"You are roleplaying as a character in a text adventure game. "
+            f"Your character's persona: {persona}. "
+            f"Decide what to do next. Respond with a short, natural language action. "
+            f"Do not narrate. Do not use meta-language. Just say what your character does."
+        )
 
-    recent_summaries: list[str] = []
+    # Player LLM conversation history — maintains context across turns
+    player_messages: list[dict[str, str]] = []
 
     for turn_i in range(max_turns):
-        scene = state.get("scene", {})
-        scene_tags = scene.get("tags", [])
-        scene_tagline = scene.get("tagline", "")
-        location = state.get("location", {})
-        location_name = location.get("name", "")
+        arc = state.get("arc") or {}
+        arc_goal = arc.get("visible_goal", "")
 
-        context_parts = [f"Location: {location_name or 'unknown'}"]
-        if scene_tagline:
-            context_parts.append(f"Scene: {scene_tagline}")
-        if scene_tags:
-            context_parts.append(f"Tags: {', '.join(scene_tags)}")
-        if recent_summaries:
-            context_parts.append("Recent events:")
-            context_parts.extend(f"  {s}" for s in recent_summaries[-3:])
+        # Build initial prompt with arc goal
+        initial_prompt = ""
+        if arc_goal:
+            initial_prompt = f"Current Goal: {arc_goal}\n\nWhat do you do?"
+        else:
+            initial_prompt = "What do you do?"
 
-        user_prompt = "\n".join(context_parts) + "\n\nWhat do you do?"
-
-        messages = [
+        # First message: arc goal + question
+        player_messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
+            {"role": "user", "content": initial_prompt},
         ]
 
         from ccya.llm_client import chat as llm_chat
@@ -410,7 +418,7 @@ def _llm_session(config: EngineConfig, max_turns: int = 20, pack: str | None = N
                 llm_chat(
                     config.host,
                     config.model,
-                    messages,
+                    player_messages,
                     temperature=config.narrate_temperature,
                     timeout=float(config.request_timeout_s),
                 ),
@@ -440,9 +448,11 @@ def _llm_session(config: EngineConfig, max_turns: int = 20, pack: str | None = N
         else:
             print(format_play_output(result))
 
+        # Feed narration back to player LLM for next turn
         narrative = result.get("narrative", "")
         if narrative:
-            recent_summaries.append(narrative[:200])
+            player_messages.append({"role": "assistant", "content": player_input})
+            player_messages.append({"role": "user", "content": f"Narrative:\n\n{narrative}\n\nWhat do you do?"})
 
         state = load_state(session_dir)
 
@@ -450,6 +460,15 @@ def _llm_session(config: EngineConfig, max_turns: int = 20, pack: str | None = N
     print(f"Session ended. Turns: {turns_played}")
     print(f"Traces: {', '.join(trace_ids)}")
     print(f"Events: {session_dir / 'events.jsonl'}")
+
+    if eval_ and turns_played > 0:
+        print()
+        print("Running checkers on all turns...")
+        from ccya.ev.events import load_events
+        from ccya.ev.check import cmd_check
+
+        events = load_events(session_dir / "events.jsonl")
+        cmd_check(events, all_checkers=True, save_dir=session_dir)
 
 
 def cmd_play(flags: dict[str, str], args: list[str]) -> None:

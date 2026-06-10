@@ -36,8 +36,8 @@ required field 'extraction_context.conditions_this_turn' not found in any event 
 ...
 ```
 
-**Evidence (both saves):**
-- `extraction_context` is absent from EVERY event in both saves
+**Evidence (all saves):**
+- `extraction_context` is absent from EVERY event in all examined saves
 - `extraction` field exists with keys `scene`, `state`, `storytell` — but none is the expected context dict
 
 **Impact:**
@@ -192,6 +192,9 @@ The "bio is mandatory" constraint amplifies this: the LLM has concrete descripti
 **Impact:**
 Characters central to the story remain invisible in the compendium if they're never the grammatical subject of narrative action. This corrupts any downstream system that depends on the compendium (NPC presence tracking, relationship maps, state diff reports).
 
+**Extended evidence (cordyceps-06-09, turns 20-31):**
+Even after the autoplay cascade generated 12 additional "Continue the story" turns (turns 20-31), Elias never appeared in the compendium. The NPC count stayed at 12 throughout, the same 12 extracted in turns 1-19: Blake Webb, Grease-Smeared Scavenger, Leo Vance, three dead motorcycle riders, Paul Wyatt, Raider Group, Scavengers Alcove, Silas Vane, Terror-Stricken Scavenger, Tyler Walker. All NPCs are active subjects or group descriptions. Elias — the driving plot element — remains invisible at turn 31.
+
 **Fix:**
 Two-part fix:
 
@@ -199,6 +202,118 @@ Two-part fix:
 
 2. **Prompt fix** (belt-and-suspenders): Add to `extract_scene_system.j2`:
    > "If a named character enters the scene for the first time as the recipient of a major action (rescue, capture, healing, transport, medical aid), create an NPC entry for them with whatever information is available from context — including details from recent narration history if needed for the bio."
+
+---
+
+### Bug 12: `narrate` top-level field truncated to 4 characters (Low)
+
+**File:** Event schema (all saves)
+
+**Detail:**
+Every turn event stores a top-level `narrate` field that contains exactly 4 characters (likely a digest or remnant), while the full narrative lives in `narrate_prompt.output` (1000-1700 chars). All 19 turn events in the cordyceps-06-09 save show this pattern.
+
+**Evidence (cordyceps-06-09):**
+```
+Turn 1: narrate=4 chars, narrate_prompt.output=1378 chars
+Turn 8: narrate=4 chars, narrate_prompt.output=1415 chars
+Turn 19: narrate=4 chars, narrate_prompt.output=1075 chars
+```
+
+**Impact:**
+Any tooling that reads `event["narrate"]` directly (e.g., state_fidelity checker, summary displays) gets junk instead of the actual narrative prose.
+
+**Fix:**
+Either populate `narrate` with the full `narrate_prompt.output` content, or remove the field entirely if it serves no purpose.
+
+---
+
+### Bug 13: `changes.threads` diverges from `applied.threads` (Low)
+
+**File:** Event schema — `changes` vs `applied` fields
+
+**Detail:**
+The `changes` field consistently has thread data (1-3 entries per turn) while `applied.threads` is always empty (0 entries). Thread mutations are applied implicitly through the state mutation pipeline but never recorded in `applied`. This affects 16 of 19 turn events on cordyceps-06-09.
+
+**Evidence (cordyceps-06-09):**
+```
+Turn 1: changes.threads=2, applied.threads=0
+Turn 8: changes.threads=2, applied.threads=0
+Turn 13: changes.threads=1, applied.threads=0
+```
+
+**Impact:**
+Tooling that checks thread application consistency (e.g., thread_lifecycle checker, state diff viewers) gets incomplete data from `applied`.
+
+**Fix:**
+Either populate `applied.threads` with the resolved/updated thread data from the state pipeline, or remove the thread expectation from `applied` and document that thread state lives in `state_snapshot.arc.threads`.
+
+---
+
+### Bug 14: `narrative_velocity` field undocumented and unused (Low)
+
+**File:** Event schema — `narrative_velocity` field appears in every event but is not referenced in any architecture doc, checker, or tool output.
+
+**Detail:**
+Every turn event stores a `narrative_velocity` float (range -1.0 to 0.5 on cordyceps-06-09) but the field:
+- Is not documented in `scripts/debug/README.md`
+- Is not checked by any checker plugin
+- Is not displayed by `ev.py turn`, `ev.py mechanics`, or `ev.py summary`
+- Is not mentioned in any architecture doc
+
+**Evidence (cordyceps-06-09):**
+```
+Turn 1: narrative_velocity=0.17
+Turn 4: narrative_velocity=-0.6
+Turn 11: narrative_velocity=-1.0
+Turn 18: narrative_velocity=-1.0
+```
+
+**Impact:**
+Dead or orphaned field. May be useful for pacing analysis but cannot be inspected or validated without custom scripting.
+
+**Fix:**
+Either:
+- Remove the field if it serves no pipeline purpose.
+- Or document it and expose it via `ev.py mechanics --velocity` or similar.
+
+---
+
+### Bug 15: Autoplay momentum spiral on "Continue the story" (Medium)
+
+**File:** `ccya/ev/play.py` — LLM autoplay mode
+
+**Detail:**
+When autoplay generates `"Continue the story"` as player input, the ruling engine correctly classifies it as `impossible=true` (-1 momentum). But the narrative prompt still produces a valid output, leading the autoplay to immediately generate another turn. This creates a cascade of impossible-action turns, rapidly draining momentum.
+
+On cordyceps-06-09, this cascade ran for **12 consecutive turns** (20-31), dropping momentum from 3 to -3 and then stuck at floor for 7+ turns:
+
+```
+Turn 20: momentum 3→2 (-1, impossible)
+Turn 21: momentum 2→1 (-1, impossible)
+Turn 22: momentum 1→0 (-1, impossible, beat_locked=True, breathing_room injected by MB-3)
+Turn 23: momentum 0→-1 (-1, impossible)
+Turn 24: momentum -1→-2 (-1, impossible)
+Turn 25: momentum -2→-3 (-1, impossible, beat_locked=True, hit floor)
+Turn 26: momentum -3→-3 (0, floor cap, beat_locked=True)
+...
+Turn 31: momentum -3→-3 (0, floor cap, beat_locked=True, pressure=8)
+```
+
+**Cascade mechanics:**
+- Turns 20-25: momentum drops by 1 each turn (impossible penalty), from 3 down to -3
+- Turn 22: MB-3 floor relief injects breathing_room (triggered by consecutive pressure = 3, not momentum floor)
+- Turn 25: momentum hits floor (-3). MB-3 skips floor relief (triggered_by_momentum = True). beat_locked stays True.
+- Turns 25-31: momentum stuck at floor. beat_locked=True continuously. Storyteller outputs "escalation" every turn despite pending beat being something else. Consecutive pressure climbs to 8.
+- No new NPCs created during the cascade (NPC count stays at 12).
+- The storyteller overrides MB-3's breathing_room injection on turn 25+, outputting escalation regardless.
+
+**Impact:**
+Autoplay sessions can spiral into momentum death spirals if the LLM generates passive inputs. The engine correctly penalizes non-actions, but the autoplay loop doesn't detect this pattern and adjust behavior. Once at floor, the system has no mechanism to break out: MB-3 prevents floor relief (correctly) but the storyteller overrides any remaining relief signals with escalation, and beat_locked prevents scene progression.
+
+**Fix:**
+Add detection in `play.py` autoplay mode:
+- If 2+ consecutive impossible-action turns are generated, inject a proactive input suggestion or pause for intervention.
+- Consider a "momentum floor escape hatch" for beat_locked: after 3+ turns at floor with beat_locked, force a breathing_room regardless of triggered_by_momentum.
 
 ---
 
@@ -286,6 +401,16 @@ $ ev.py check 4 gm_beat_lifecycle
 $ ev.py check 17 gm_beat_lifecycle
 ## gm_beat_lifecycle: PASS (score: 1.0)
 ```
+
+**Extended evidence (cordyceps-06-09, turns 25-31):**
+With the autoplay cascade hitting momentum floor, Bug 6 now triggers across 7 consecutive turns (25-31):
+```
+$ ev.py check 25 gm_beat_lifecycle
+beat_locked=True, storytell_type='escalation' but pending_gm_beat.type='escalation' (expected 'breathing_room')
+$ ev.py check 30 gm_beat_lifecycle
+beat_locked=True, storytell_type='escalation' but pending_gm_beat.type='escalation' (expected 'breathing_room')
+```
+All turns from 25-31 fail with the same pattern: momentum at floor (-3), beat_locked=True, storyteller emits escalation, checker expects breathing_room. This confirms the MB-3 fix is correctly implemented at `turn.py:1091-1106` (preventing floor relief when triggered_by_momentum=True) but the checker hasn't been updated to match.
 
 **Pattern:** checker only fails when beat_locked is from momentum floor AND storyteller emits a pressure-type beat. When storyteller emits a non-pressure beat (like "Breathe" on turn 17), the checker correctly skips the expectation.
 
@@ -422,8 +547,12 @@ Rename to `state_before_turn` for clarity, or swap the order to save then load. 
 | 8 | High | Event schema — 7 checkers | `extraction_context` missing from event schema |
 | 1 | High | `ccya/engine/turn.py:1375-1384` | `impossible` not stored in event `ruling` dict |
 | 9 | High | `ccya/ev/checkers/sanitizer.py:13-14` | `threads_removed` doesn't exist in sanitizer events |
-| 10 | Low | Event schema — `compendium_npc_update` | Duplicate NPC entries cause silent overwrite |
 | 11 | Medium | `extract_scene_system.j2` prompt | Scene extraction misses passive/recipient NPCs |
+| 10 | Low | Event schema — `compendium_npc_update` | Duplicate NPC entries cause silent overwrite |
+| 12 | Low | Event schema — `narrate` field | Top-level `narrate` field truncated to 4 chars |
+| 13 | Low | Event schema — `changes` vs `applied` | `changes.threads` has data but `applied.threads` always empty |
+| 14 | Low | Event schema — `narrative_velocity` | Undocumented and unused field |
+| 15 | Medium | `ccya/ev/play.py` — autoplay | Momentum spiral on consecutive "Continue the story" inputs |
 
 ### Category 2: Checker Correctness
 
@@ -453,9 +582,9 @@ Rename to `state_before_turn` for clarity, or swap the order to save then load. 
 
 4-5. **Bugs 4, 5 — floor streak bugs**: Dumped cordyceps turn 14 event → `momentum_after: -3, state_snapshot.momentum: -2`. The discrepancy between post-turn momentum and `state_snapshot` revealed the off-by-one. Traced the streak loop to find the `break` bug.
 
-6. **Bug 6 — gm_beat checker outdated after MB-3**: Ran `ev.py check --all --save-dir` on cordyceps turn 3 → `gm_beat_lifecycle` failed with "expected breathing_room but got complication". Read `gm_beat.py:75-86` against the MB-3 fix in `turn.py:1091-1106`. Confirmed same pattern on outer-rim turns 30-32.
+6. **Bug 6 — gm_beat checker outdated after MB-3**: Ran `ev.py check --all --save-dir` on cordyceps turn 3 → `gm_beat_lifecycle` failed with "expected breathing_room but got complication". Read `gm_beat.py:75-86` against the MB-3 fix in `turn.py:1091-1106`. Confirmed same pattern on outer-rim turns 30-32. Extended evidence: cordyceps-06-09 turns 25-31 now also trigger this (momentum floor + escalation beats).
 
-7. **Bug 7 — state_snapshot naming**: Traced `event["state_snapshot"]` at `turn.py:1445` → `load_state` before `save_state` at line 1449.
+7. **Bug 7 — state_snapshot naming**: Traced `event["state_snapshot"]` at `turn.py:1445` → `load_state` before `save_state` at line 1449. State snapshot grows 8.5K (turn 1) → 18.8K (turn 31), about 2.2x over 31 turns.
 
 8. **Bug 8 — extraction_context missing**: Ran `ev.py check 3 --all --save-dir` → 7 checkers failed with `extraction_context` missing. Verified the field doesn't exist in any event in either save by dumping event keys.
 
@@ -463,4 +592,12 @@ Rename to `state_before_turn` for clarity, or swap the order to save then load. 
 
 10. **Bug 10 — duplicate NPC entries**: Inspected `applied.compendium_npc_update` for cordyceps turn 26 while checking state diff data. Found `scavenger_traveler_1` appearing twice.
 
-11. **Bug 11 — scene extraction misses passive NPCs**: While verifying Elias's compendium presence during cordyceps playthrough, searched all 19 events for "Elias" in extraction outputs — zero NPC entries found despite 7+ turns mentioning him by name. Traced extraction prompt `extract_scene_system.j2` to find bias toward active-subject NPCs. Confirmed LLM chose to extract Silas Vane (active) over Elias (passive) on the same turn.
+11. **Bug 11 — scene extraction misses passive NPCs**: While verifying Elias's compendium presence during cordyceps playthrough, searched all 19 events for "Elias" in extraction outputs — zero NPC entries found despite 7+ turns mentioning him by name. Traced extraction prompt `extract_scene_system.j2` to find bias toward active-subject NPCs. Confirmed LLM chose to extract Silas Vane (active) over Elias (passive) on the same turn. Extended evidence: through 31 turns and 12 additional "Continue the story" events, Elias never appeared in the compendium — 12 NPCs all active subjects or groups.
+
+12. **Bug 12 — narrate field truncated**: Noticed `narrate` field in event dump was always 4 characters while full narrative was in `narrate_prompt.output`. Verified across all 19 turn events in cordyceps-06-09.
+
+13. **Bug 13 — changes.threads vs applied.threads mismatch**: Dumped `changes.keys()` and `applied.keys()` for all turn events. Found `applied.threads` was always 0 entries while `changes.threads` had 1-3 entries per turn.
+
+14. **Bug 14 — narrative_velocity undocumented**: Found `narrative_velocity` key in every event while dumping event keys. Searched docs, checkers, and tool output — zero references found.
+
+15. **Bug 15 — autoplay momentum spiral**: While examining turn 20 and 21 events generated by autoplay, found consecutive `"Continue the story"` inputs both classified as impossible, draining momentum 3→2→1. Confirmed autoplay has no guard against this pattern. Extended evidence: the cascade ran for 12 turns (20-31), dropping momentum 3 → -3 and stuck at floor for 7+ turns with beat_locked=True, consecutive pressure=8, and no escape mechanism.

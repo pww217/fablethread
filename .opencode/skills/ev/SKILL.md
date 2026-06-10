@@ -8,6 +8,19 @@ Read these repo files before using this skill:
 - `docs/ev/CHECKERS.md` — checker library documentation
 - `docs/architecture/ev-tooling.md` — architecture overview
 
+## CRITICAL: Python invocation
+
+**Always use this exact form — no exceptions:**
+
+```bash
+.venv/bin/python scripts/debug/ev.py <command> [args...]
+```
+
+- **Never** use `python3 scripts/debug/ev.py` — system Python is 3.9, ev.py requires 3.13+
+- **Never** use `source .venv/bin/activate && python3` — the activate script doesn't work reliably in this environment
+- **Never** use `--help` — ev.py has no help command. See `scripts/debug/README.md` for the full command reference.
+- **Always** run from the repo root (`/Users/pwilson/Repos/ccya`)
+
 ## Capabilities
 
 - **Inspect**: `summary`, `turn`, `prompt`, `outputs`, `timing` — see what happened in any turn
