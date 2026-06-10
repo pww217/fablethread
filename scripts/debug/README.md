@@ -101,8 +101,8 @@ Commands that need full state also accept `--save-dir DIR`.
 The `play` command feeds a player action through the full engine pipeline (ruling → narrate → extraction → storytell) and saves the result into a save directory. The LLM backend needs to be operational.
 
 ```bash
-# Single turn into a new default game
-.venv/bin/python scripts/debug/ev.py play "I search the room."
+# Single turn into a new default game (requires --pack)
+.venv/bin/python scripts/debug/ev.py play "I search the room." --pack zombie-survival
 
 # Play into an EXISTING save (most common pattern)
 .venv/bin/python scripts/debug/ev.py play "My action." --no-sanitize --save-dir saves/my-game saves/my-game/events.jsonl
@@ -111,7 +111,13 @@ The `play` command feeds a player action through the full engine pipeline (rulin
 .venv/bin/python scripts/debug/ev.py play --interactive --pack zombie-survival
 
 # Let the LLM play (automated testing, up to 20 turns)
-.venv/bin/python scripts/debug/ev.py play --llm --turns 10
+.venv/bin/python scripts/debug/ev.py play --llm --turns 10 --pack zombie-survival
+
+# LLM plays with a persona
+.venv/bin/python scripts/debug/ev.py play --llm --persona "aggressive mercenary" --pack zombie-survival
+
+# LLM plays with persona + auto-eval on all turns
+.venv/bin/python scripts/debug/ev.py play --llm --persona "nice guy" --eval --pack zombie-survival
 ```
 
 **Flags:**
@@ -122,7 +128,11 @@ The `play` command feeds a player action through the full engine pipeline (rulin
 | `--no-sanitize` | Skip thread sanitizer (~5-10s faster per turn) |
 | `--model NAME` | Override LLM model |
 | `--temp N` | Override temperature for all LLM calls |
-| `--pack NAME` | Start with a pack from `packs/` |
+| `--pack NAME` | Start with a pack from `packs/` (required for new sessions) |
+| `--persona TEXT` | Persona for the LLM player (replaces generic prompt) |
+| `--eval` | Run checkers on all turns after session ends |
+
+> **Note:** `--pack` is required when creating a new session (no `--save-dir`). When `--save-dir` is provided, the pack is loaded from the save's stored state.
 
 **Output anatomy:**
 

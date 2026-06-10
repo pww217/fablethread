@@ -13,7 +13,7 @@ from ccya.engine.config import EngineConfig, build_engine_config
 from ccya.engine.turn import run_turn
 from ccya.errors import LlmcError, LlmcTimeout
 from ccya.models import TurnResult, load_config
-from ccya.pack import load_pack
+from ccya.pack import load_pack, list_packs
 from ccya.state.io import _default_state, init_save_dir, load_state
 
 _log = logging.getLogger(__name__)
@@ -271,6 +271,10 @@ def _create_play_session(pack: str | None = None, packs_dir: Path | None = None)
             state_dict = p.seed.model_dump()
         else:
             state_dict = _default_state()
+
+        # Inject opening_scene as opening_narrative when __seed_meta__ is absent
+        if p.opening_scene and not state_dict.get("__seed_meta__", {}).get("opening_narrative"):
+            state_dict.setdefault("__seed_meta__", {})["opening_narrative"] = p.opening_scene
     else:
         state_dict = _default_state()
 
@@ -301,9 +305,9 @@ def _build_play_config(flags: dict[str, str]) -> EngineConfig:
     return config
 
 
-def _load_pack_params(pack_id: str | None, packs_dir: Path | None = None) -> tuple[dict[str, Any] | None, list[dict[str, Any]], list[str], list[str], list[dict[str, str]]]:
+def _load_pack_params(pack_id: str | None, packs_dir: Path | None = None) -> tuple[dict[str, Any] | None, list[dict[str, Any]], list[str], list[str], list[dict[str, str]], str | None, str | None]:
     if not pack_id:
-        return None, [], [], [], []
+        return None, [], [], [], [], None, None
 
     packs_dir = packs_dir or Path("packs")
     p = load_pack(pack_id, packs_dir)
@@ -314,11 +318,13 @@ def _load_pack_params(pack_id: str | None, packs_dir: Path | None = None) -> tup
         scenario.narrator_rules if scenario else [],
         scenario.world_rules if scenario else [],
         [f.model_dump() for f in (scenario.factions if scenario else [])],
+        p.opening_scene,
+        p.style,
     )
 
 
 def _interactive_session(config: EngineConfig, pack: str | None = None) -> None:
-    seed_dict, name_locales, narrator_rules, world_rules, factions = _load_pack_params(pack)
+    seed_dict, name_locales, narrator_rules, world_rules, factions, _, _ = _load_pack_params(pack)
     session_dir = _create_play_session(pack=pack)
     state = load_state(session_dir)
     turns_played = 0
@@ -370,7 +376,7 @@ def _llm_session(
     persona: str | None = None,
     eval_: bool = False,
 ) -> None:
-    seed_dict, name_locales, narrator_rules, world_rules, factions = _load_pack_params(pack)
+    seed_dict, name_locales, narrator_rules, world_rules, factions, opening_scene, style = _load_pack_params(pack)
     session_dir = _create_play_session(pack=pack)
     state = load_state(session_dir)
     turns_played = 0
@@ -390,25 +396,87 @@ def _llm_session(
             f"Do not narrate. Do not use meta-language. Just say what your character does."
         )
 
-    # Player LLM conversation history — maintains context across turns
-    player_messages: list[dict[str, str]] = []
+    # Store recent turns for context (turn input + narrative)
+    recent_turns: list[dict[str, str]] = []
+
+    def _build_scenario_context(state: dict[str, Any], opening_scene: str | None, turn_num: int) -> str:
+        location = state.get("location") or {}
+        scene = state.get("scene") or {}
+        inventory = state.get("inventory") or []
+        npcs = (state.get("compendium") or {}).get("npcs") or {}
+
+        present_npcs = []
+        for npc_id, npc in npcs.items():
+            if npc.get("present"):
+                name = npc.get("name", npc_id)
+                title = npc.get("title", "")
+                note = npc.get("notes", "")
+                if title:
+                    present_npcs.append(f"{name} ({title})")
+                elif note:
+                    present_npcs.append(f"{name} ({note[:40]})")
+                else:
+                    present_npcs.append(name)
+
+        inventory_items: list[str] = []
+        for item in inventory:
+            if isinstance(item, dict):
+                inventory_items.append(str(item.get("name") or item.get("id") or ""))
+            else:
+                inventory_items.append(str(item))
+
+        location_name = location.get("name", "")
+        location_desc = location.get("description", "")
+        scene_tagline = scene.get("tagline", "")
+
+        has_data = location_name or present_npcs or inventory_items or scene_tagline
+
+        if not has_data:
+            return "Scenario: No scenario data loaded"
+
+        lines = []
+        if location_name:
+            desc_part = f" — {location_desc}" if location_desc else ""
+            lines.append(f"  Location: {location_name}{desc_part}")
+        if present_npcs:
+            lines.append(f"  Present: {', '.join(present_npcs[:5])}")
+        if inventory_items:
+            lines.append(f"  Inventory: {', '.join(inventory_items[:8])}")
+        if scene_tagline:
+            lines.append(f"  Scene: {scene_tagline}")
+
+        context = "\n".join(lines)
+
+        if turn_num <= 1 and opening_scene:
+            context = f"{opening_scene.strip()}\n\n{context}"
+
+        return f"Scenario:\n{context}"
 
     for turn_i in range(max_turns):
         arc = state.get("arc") or {}
         arc_goal = arc.get("visible_goal", "")
 
-        # Build initial prompt with arc goal
-        initial_prompt = ""
-        if arc_goal:
-            initial_prompt = f"Current Goal: {arc_goal}\n\nWhat do you do?"
-        else:
-            initial_prompt = "What do you do?"
+        # Build prompt: scenario context + arc goal + recent bullets + current narrative
+        context_parts = []
 
-        # First message: arc goal + question
-        player_messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": initial_prompt},
-        ]
+        # Scenario context (location, NPCs, inventory, scene)
+        scenario_context = _build_scenario_context(state, opening_scene, turn_i)
+        context_parts.append(scenario_context)
+
+        if arc_goal:
+            context_parts.append(f"Current Goal: {arc_goal}")
+
+        # 2-3 turns before as short bullets (player input only)
+        if recent_turns:
+            context_parts.append("Recent:")
+            for rt in recent_turns[-3:]:
+                context_parts.append(f"  - {rt['input']}")
+
+        # Current turn narrative (full)
+        if recent_turns and recent_turns[-1].get("narrative"):
+            context_parts.append(f"\nNarrative:\n\n{recent_turns[-1]['narrative']}")
+
+        user_prompt = "\n".join(context_parts) + "\n\nWhat do you do?"
 
         from ccya.llm_client import chat as llm_chat
 
@@ -418,7 +486,10 @@ def _llm_session(
                 llm_chat(
                     config.host,
                     config.model,
-                    player_messages,
+                    [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
                     temperature=config.narrate_temperature,
                     timeout=float(config.request_timeout_s),
                 ),
@@ -448,11 +519,9 @@ def _llm_session(
         else:
             print(format_play_output(result))
 
-        # Feed narration back to player LLM for next turn
+        # Store this turn for next iteration
         narrative = result.get("narrative", "")
-        if narrative:
-            player_messages.append({"role": "assistant", "content": player_input})
-            player_messages.append({"role": "user", "content": f"Narrative:\n\n{narrative}\n\nWhat do you do?"})
+        recent_turns.append({"input": player_input, "narrative": narrative})
 
         state = load_state(session_dir)
 
@@ -471,16 +540,42 @@ def _llm_session(
         cmd_check(events, all_checkers=True, save_dir=session_dir)
 
 
+def _print_missing_pack_error(flags: dict[str, str]) -> None:
+    packs_dir = Path("packs")
+    available = list_packs(packs_dir)
+    pack_names = [p.name for p in available]
+    msg = "Error: --pack is required when creating a new session (no --save-dir).\n"
+    if pack_names:
+        msg += f"Available packs: {', '.join(pack_names)}"
+    else:
+        msg += "No packs found in packs/ directory."
+    print(msg, file=sys.stderr)
+
+
 def cmd_play(flags: dict[str, str], args: list[str]) -> None:
     if "interactive" in flags:
         config = _build_play_config(flags)
-        _interactive_session(config, pack=flags.get("pack"))
+        pack_id = flags.get("pack")
+        if not pack_id and "save-dir" not in flags:
+            _print_missing_pack_error(flags)
+            sys.exit(1)
+        _interactive_session(config, pack=pack_id)
         sys.exit(0)
 
     if "llm" in flags:
         config = _build_play_config(flags)
         max_turns = int(flags.get("turns", "20"))
-        _llm_session(config, max_turns=max_turns, pack=flags.get("pack"))
+        pack_id = flags.get("pack")
+        if not pack_id and "save-dir" not in flags:
+            _print_missing_pack_error(flags)
+            sys.exit(1)
+        _llm_session(
+            config,
+            max_turns=max_turns,
+            pack=pack_id,
+            persona=flags.get("persona"),
+            eval_="eval" in flags,
+        )
         sys.exit(0)
 
     if len(args) < 2:
@@ -490,7 +585,11 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
     input_text = args[1]
 
     pack_id = flags.get("pack")
-    seed_dict, name_locales, narrator_rules, world_rules, factions = _load_pack_params(pack_id)
+    if not pack_id and "save-dir" not in flags:
+        _print_missing_pack_error(flags)
+        sys.exit(1)
+
+    seed_dict, name_locales, narrator_rules, world_rules, factions, _, _ = _load_pack_params(pack_id)
 
     if "save-dir" in flags:
         save_dir = Path(flags["save-dir"])

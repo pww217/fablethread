@@ -220,6 +220,8 @@ class Pack(BaseModel):
     manifest: PackManifest
     seed: SeedState | None = None
     scenario: ScenarioBrief | None = None
+    opening_scene: str | None = None
+    style: str | None = None
 
     @model_validator(mode="after")
     def _check_playable(self) -> "Pack":
@@ -292,10 +294,23 @@ def load_pack(pack_id: str, packs_dir: Path) -> Pack:
         if scenario_data:
             scenario = ScenarioBrief(**scenario_data)
 
+    # Load optional text files (opening scene and style guide)
+    opening_scene = None
+    opening_scene_path = pack_dir / "opening_scene.md"
+    if opening_scene_path.exists():
+        opening_scene = opening_scene_path.read_text(encoding="utf-8")
+
+    style = None
+    style_path = pack_dir / "style.md"
+    if style_path.exists():
+        style = style_path.read_text(encoding="utf-8")
+
     return Pack(
         manifest=manifest,
         seed=seed,
         scenario=scenario,
+        opening_scene=opening_scene,
+        style=style,
     )
 
 
