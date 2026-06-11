@@ -118,7 +118,7 @@ If it's deferred, track it in `TODO.md` or `plans/`; don't leave it sitting in a
 
 **Why they exist.** This is the only non-extractor prompt — it outputs fiction, not a structured JSON object. Everything else in this prompt is style and behavior guidance.
 
-**Unique sections:** Style (spatial clarity, tropes, dialogue, visceral detail), items/inventory (bolding rules, hard constraint on inventory verification), player intent is truth, pragmatic interpretation, NPCs in scene, mortal stakes + agency, gender-aware naming, NPC naming (given + family name required), quests, markdown rules, world consistency, genre tone, universe rules.
+**Unique sections:** Style (spatial clarity, tropes, dialogue, visceral detail), items/inventory (hard constraint on inventory verification), player intent is truth, pragmatic interpretation, NPCs in scene, mortal stakes + agency, gender-aware naming, NPC naming (given + family name required), quests, markdown rules, world consistency, genre tone, universe rules.
 
 ---
 

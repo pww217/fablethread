@@ -4063,3 +4063,12 @@ body {
 .pack-card-location {
     color: var(--text-muted);
 }
+
+/* =========================================================
+   ENTITY HIGHLIGHTING — narration entity class colors
+   ========================================================= */
+
+.entity-npc    { color: var(--accent-npc, #e06c75); }
+.entity-item   { color: var(--accent-item, #61afef); }
+.entity-pc     { color: var(--accent-pc, #98c379); }
+.entity-location { color: var(--accent-location, #d19a66); }
