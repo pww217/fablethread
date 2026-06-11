@@ -10,11 +10,15 @@
 
 ## Game Setup
 
-### F-N08. Seed JSON vs hints conflict [Net New] — **Priority #1**
+### F-N08. Seed JSON vs hints conflict [Net New] — **Priority #1** — **FIXED**
+
+**Status:** FIXED — `01-seed-fixes.md` plan: when hints are provided, LLM seed generation is skipped entirely and the static pack's `seed_state.yaml` is used instead.
 
 When both seed JSON and player hints are provided at game creation, they can conflict — both inject into the same initial state, causing compendium duplication, missing NPCs, bond issues, and location never changing. The seed JSON should be disabled when hints are provided, or there should be merge/override semantics defined. Currently both may be active simultaneously causing conflicts.
 
-### F-N09. Disable seed JSON when hints given [Net New] — **Priority #1**
+### F-N09. Disable seed JSON when hints given [Net New] — **Priority #1** — **FIXED**
+
+**Status:** FIXED — `01-seed-fixes.md` plan: hints presence triggers static pack seed fallback, skipping LLM seed generation entirely.
 
 Closely related to F-N08. If hints are provided at game creation, seed JSON should be skipped entirely rather than running in parallel. Running both creates competing state injections.
 
@@ -22,11 +26,15 @@ Closely related to F-N08. If hints are provided at game creation, seed JSON shou
 
 ## Compendium
 
-### F-N01. Alias consolidation [Net New] — **Priority #2**
+### F-N01. Alias consolidation [Net New] — **Priority #2** — **FIXED**
+
+**Status:** FIXED — `02-npc-compendium-hardening.md` plan: alias-first naming instruction in extraction prompt (aliases for descriptive labels, name for proper names, keep historical aliases on promotion). Dedup handled by existing `_dedup_compendium_update()`; no Python dedup logic needed.
 
 Compendium sometimes introduces characters with aliases/descriptions ("Scarred Soldier") without mapping them to their proper name when revealed later. Result: two entries for the same person — one under alias, one under real name. Need a mechanism to detect and consolidate duplicate identities across turns.
 
-### F-N02. Stale character cleanup [Net New] — **Priority #2**
+### F-N02. Stale character cleanup [Net New] — **Priority #2** — **PARTIALLY FIXED**
+
+**Status:** PARTIALLY FIXED — F-N01 (alias consolidation) is fixed by `02-npc-compendium-hardening.md`. TTL-based removal of unnamed non-key NPCs is still open — see F-N03 for death/removal lifecycle.
 
 Compendium accumulates characters that are no longer relevant (unnamed guards killed/passed through) because there's no removal mechanism. Two sub-problems:
 - **Too many chars introduced**: Not a hard-cap problem but related to lack of cleanup — see F-N03 below.
@@ -76,7 +84,9 @@ May already be sufficiently differentiated via `visible_goal` vs thread progress
 
 Close bonds (family, spouse) are referred to generically as "kin" or "family" instead of by proper name/role ("wife", "daughter"). This happens mid-game too — e.g., player travels across town and doesn't run into family until T3+, but when they do appear the narrator still uses generic terms. The bond system needs explicit instruction to use named relationships, not abstract kinship labels.
 
-### F-I02. Turn 1 seed integration [Net New] — **Priority #6**
+### F-I02. Turn 1 seed integration [Net New] — **Priority #6** — **FIXED**
+
+**Status:** FIXED — `01-seed-fixes.md` plan phase 3: updated `generate_seed_system.j2` opening narrative instructions to weave world state facts, NPC relationships, and compendium NPCs naturally into the narration rather than listing them.
 
 The initial seed JSON sets up world state (locations, factions, relationships) but turn 1 narration doesn't actively USE it — it lists things rather than weaving them into narrative choices and arc setup. The opening should be driven by seed data where relevant to existing threads/arcs.
 

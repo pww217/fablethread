@@ -62,14 +62,13 @@ class SeedState(BaseModel):
     """Full validated game state shape — used for static load and dynamic seed writing.
 
     NOTE: StateDelta.inventory_add has max_length=6 (per-turn add cap).
-    SeedState allows up to 12 — scenario.yaml inventory_size_range is the soft
-    generator guidance; 12 is the hard ceiling for any hand-authored static pack.
+    Inventory is empty at seed time — PCs acquire items through gameplay.
     """
 
     meta: dict[str, Any]
     pc: SeedPC
     location: SeedLocation
-    inventory: list[InventoryItem] = Field(min_length=1, max_length=12)
+    inventory: list[InventoryItem] = Field(default_factory=list)
     scene: SeedScene
     compendium: SeedCompendium = Field(default_factory=SeedCompendium)
     arc: CampaignArc | None = None

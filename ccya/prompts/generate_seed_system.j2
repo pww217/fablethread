@@ -45,11 +45,9 @@ Four independently selected narrative dimensions. They are NOT a menu — weave 
 ## Hard constraints
 {% if scenario and scenario.constraints %}
 {% set c = scenario.constraints %}
-- inventory: {{ c.inventory_size_range }}–{{ c.inventory_size_range }} items
 - pc.stats values: {{ c.pc_stat_range }}–{{ c.pc_stat_range }}; total: {{ c.pc_stat_total_range }}–{{ c.pc_stat_total_range }}
 - opening_narrative: {{ c.prose_word_range }}–{{ c.prose_word_range }} words
-{% if c.required_inventory_kinds %}- inventory must include kinds: {{ c.required_inventory_kinds | join(", ") }}
-{% endif %}{% if c.forbid_cliches %}- forbidden tropes: {{ c.forbid_cliches | join("; ") }}
+{% if c.forbid_cliches %}- forbidden tropes: {{ c.forbid_cliches | join("; ") }}
 {% endif %}{% endif %}
 
 {% if pool_selection %}

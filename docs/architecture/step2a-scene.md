@@ -35,6 +35,16 @@ flowchart LR
     LLM2A --> OUT
 ```
 
+## Extraction prompt (`extract_scene_system.j2`) — NPC quality rules
+
+Three additions prevent common NPC compendium quality issues:
+
+1. **Alias-first naming**: Descriptive labels ("Scarred Soldier", "Unknown Visitor") go in `aliases`, not `name`. Proper names ("Leo Vance") go in `name`. When narration later reveals a proper name for an alias NPC, the LLM updates `name` and preserves the descriptive label in `aliases` — preventing duplicate entries. The existing `_dedup_compendium_update()` in Python handles name-matching dedup.
+
+2. **NPC field requirements by tier**: Named NPCs (proper name in `name`) must have `bio` + at least 2 of `motivation`/`fear`/`leverage`/`bond`. Unnamed NPCs (descriptive label) need only `bio`. Ambient presence (crowds, bystanders) need only a 1-2 sentence `bio` describing the group. This ensures named NPCs get personality depth while reducing output bloat for transient characters.
+
+3. **Passive NPC extraction**: When a named character enters the scene as the recipient of a major action (rescue, capture, healing, transport, medical aid), the LLM must create a compendium entry for them even if they don't perform visible actions. Belt-and-suspenders coverage — the primary alias-first naming naturally captures passive NPCs through descriptive aliases.
+
 ## Key forward dependency
 
 `location_change` flows into `extraction_ctx` (built by `_build_extraction_context`). Step 2c also receives `npc_roster` (from build_npc_roster()) built from comp_this_turn. No forward-facing mechanics (`thread_add`, `gm_beat`) are emitted by this stream — they go through the unified thread lifecycle via Storytell (Step 2c).
