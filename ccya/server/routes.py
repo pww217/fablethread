@@ -424,18 +424,29 @@ async def new_game(request: Request):
             )
 
     try:
-        envelope, pool_selection = await generate_seed(
-            _app_mod._active_pack,
-            _app_mod.engine_config,
-            template_dir=str(_app_mod.PROMPTS_DIR),
-            overrides=overrides if not overrides.is_empty() else None,
-        )
-        seed = envelope.seed_state.model_dump(mode="json")
-        seed["meta"]["setting_pack"] = _app_mod._pack_id
-        _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, outcome_summary=envelope.outcome_summary, pack_type="dynamic", pack_source=_app_mod._pack_id, pool_selection=pool_selection)
+        if overrides.is_empty():
+            # No hints — generate seed via LLM
+            envelope, pool_selection = await generate_seed(
+                _app_mod._active_pack,
+                _app_mod.engine_config,
+                template_dir=str(_app_mod.PROMPTS_DIR),
+                overrides=None,
+            )
+            seed = envelope.seed_state.model_dump(mode="json")
+            seed["meta"]["setting_pack"] = _app_mod._pack_id
+            _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, outcome_summary=envelope.outcome_summary, pack_type="dynamic", pack_source=_app_mod._pack_id, pool_selection=pool_selection)
+        else:
+            # Hints provided — use static pack seed as fallback
+            _log.info("new_game hints provided, using static pack seed pack=%s", _app_mod._pack_id)
+            pack = _app_mod._active_pack
+            if pack.seed is None:
+                return HTMLResponse("<p class='text-red-400'>This pack has no static seed state. Provide no hints to generate a custom game.</p>")
+            seed = pack.seed.model_dump(mode="json")
+            seed["meta"]["setting_pack"] = _app_mod._pack_id
+            _apply_seed_to_save_dir(seed, None, None, pack_type="static", pack_source=_app_mod._pack_id)
     except Exception as exc:
-        _app_mod.logger.exception("generate_seed failed")
-        return HTMLResponse(f"<p class='text-red-400'>Seed generation failed: {exc}</p>")
+        _app_mod.logger.exception("new_game failed")
+        return HTMLResponse(f"<p class='text-red-400'>Game creation failed: {exc}</p>")
 
     _log.info("new_game pack=%s", _app_mod._pack_id)
     ctx = _debug_context()
