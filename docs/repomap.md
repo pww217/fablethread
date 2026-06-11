@@ -130,7 +130,7 @@ Three main visual panels compose the browser UI. All NPC data in left/right pane
 
 1. **Rules/Intent** (non-streaming) — classifies intent, resolves dice via `rules.resolve_check()` → IntentEnvelope + RulesOutcome. IntentEnvelope gains `impossible` and `reason` fields; when `impossible=true`, no roll occurs and Python synthesizes a failure outcome.
 2. **Narrate** (streaming→SSE→chronicle.md) — prose narrative with narration directive from velocity/threads
-3. **Scene Extract** (JSON→SceneExtractResult) — scene tags, location change, compendium updates
+3. **Scene Extract** (JSON→SceneExtractResult) — scene tagline, location change, compendium updates
 4. **State Extract** (JSON→StateExtractResult) — inventory deltas, condition add/remove
 5. **Storytell** (JSON→StorytellerResult) — thread_update, goal_update (str | None, direct dict assignment), arc_resolve, thread_resolve, thread_add (gated by PacingContext.gate), actions, gm_beat
 
@@ -237,7 +237,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### Computation functions (Phase 06b)
 - `_compute_narration_directive()` derives urgency counts from unified ArcThread objects with scope=scene; reads `ages.get("effective_scene_age", 0)` for Scene Imperative (≥4 effective age, short-circuits all directives) and Scene Pressure (≥3 effective age, secondary append); priority order: Breathe → Scene Imperative → Overwhelm → Pressure → Tension → Scene Pressure
 - `_compute_pacing_context()` passes derived `arc.threads[] scope=scene` list to `_compute_narration_directive()`; signature includes new `consecutive_pressure_turns: int = 0` parameter for dual-trigger beat_locked condition
-- `_compute_ages(state)` returns only `{"scene_age": scene_age}` — location_age and combat_age removed in Phase 03 pacing overhaul; effective_scene_age pre-computed into ctx._ages dict before pacing context computation (turn.py ~821-826) with +2 boost when "combat" in scene tags
+- `_compute_ages(state)` returns only `{"scene_age": scene_age}` — location_age and combat_age removed in Phase 03 pacing overhaul; effective_scene_age pre-computed into ctx._ages dict before pacing context computation (turn.py ~821-826)
 
 ### Token budget cascade
 `config.context_window` (default 32768): `llm_client.trim_messages()` drops/truncates oldest non-system messages when budget exceeded. Priority: system prompts retained first, then most recent user/context blocks. This affects all pipeline stages — if budget is tight, older turns in chronicle tail get truncated before narration/extraction contexts.
@@ -318,13 +318,12 @@ arc:                           # managed by engine/turn.py (_apply_thread_update
 resolved_arcs: list[dict]     # stored at state level, TTL-pruned in prompts; each entry has visible_goal, resolution, goal_context, resolved_turn
 
 scene:
-  tags: [str], tagline: str
+  tagline: str
   world_state: list[WorldStateFact]   # permanent tier = seed-authored; persistent tier = LLM-added at runtime
   turn_entered: int            # when the current scene was entered (set on location change, used by _compute_ages())
   location_entered_turn: int   # when location was last changed
-  combat_started_turn: int     # set when scene tags include "combat"
 
-compendium.npcs: dict[id] → {name, title, bio, aliases: [str], allegiance: str | None, presence: str | "present"|"nearby"|"known"|"departed"|"archived", notes: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), personality: str | None (archetype id; write-once, immutable), first_seen_turn: int | None, departed_reason: str | None, departed_summary: str | None, departed_turn: int | None, nearby_since_turn: int | None}
+compendium.npcs: dict[id] → {name, title, bio, aliases: [str], allegiance: str | None, presence: str | "present"|"nearby"|"known"|"departed"|"archived", notes: str | None, position: str | None, motivation: str | None (UI-visible), fear: str | None (hidden from UI), leverage: str | None (hidden from UI), personality: str | None (archetype id; write-once, immutable), first_seen_turn: int | None, departed_reason: str | None, departed_summary: str | None, departed_turn: int | None, nearby_since_turn: int | None}
 
 world.factions: [str], world.locations: [str]
 ```

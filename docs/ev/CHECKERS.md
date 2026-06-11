@@ -110,10 +110,10 @@ Checkers are organized by domain:
 ### directive_tone_match
 
 - **Type:** llm
-- **Fields:** `ruling.band`, `ruling.intent`, `narrate`, `extraction_context.scene_tags_this_turn`
+- **Fields:** `ruling.band`, `ruling.intent`, `narrate`
 - **What it checks:** Narration tone aligns with ruling band (success→positive, fail→tense, crit_fail→severe)
 - **CLI:** `ev.py check TURN directive_tone_match --llm`
-- **Caveats:** Uses the configured checker model. Evaluates the first event only. Scene tags may modify expected tone. Returns JSON with passed/score/reasoning/finding.
+- **Caveats:** Uses the configured checker model. Evaluates the first event only. Returns JSON with passed/score/reasoning/finding.
 
 ### beat_narrative_chain
 

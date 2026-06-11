@@ -518,15 +518,7 @@ def _print_unchanged_conditions(items: list[dict[str, Any]]) -> None:
             print(f"  {label}")
 
 
-def _print_unchanged_tags(items: list[dict[str, Any]]) -> None:
-    if not items:
-        print("  (none)")
-        return
-    names = [item.get("name", "") or item.get("id", "") for item in items if isinstance(item, dict)]
-    print(f"  {', '.join(names)}")
-
-
-def _format_diff_output(
+def _print_unchanged_inventory(
     diff_results: list[dict[str, Any]],
     intermediate_changes: list[dict[str, Any]],
     turn_a: int,
@@ -541,10 +533,10 @@ def _format_diff_output(
             print("(no changes detected between turn {} and turn {})".format(turn_a, turn_b))
             return
 
-    sections_order = ["Inventory", "Conditions", "Location", "Scene Tags"]
+    sections_order = ["Inventory", "Conditions", "Location"]
     for expected_section in sections_order:
         if section_filter is not None:
-            filter_map = {"npcs": "NPCs", "inventory": "Inventory", "conditions": "Conditions", "location": "Location", "tags": "Scene Tags", "applied": None}
+            filter_map = {"npcs": "NPCs", "inventory": "Inventory", "conditions": "Conditions", "location": "Location", "applied": None}
             if filter_map.get(section_filter) != expected_section:
                 continue
 
@@ -564,11 +556,6 @@ def _format_diff_output(
             elif expected_section == "Conditions":
                 _print_unchanged_conditions(before_val)
             elif expected_section == "Location":
-                loc = (before_val[0] if before_val and isinstance(before_val[0], dict) else {}) if before_val else {}
-                if loc:
-                    print(f"  {loc.get('name', loc.get('id', '?'))}")
-            elif expected_section == "Scene Tags":
-                _print_unchanged_tags(before_val)
 
         elif result["kind"] == "changed":
             changes = result.get("changes", [])
