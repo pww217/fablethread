@@ -19,7 +19,7 @@
     <div class="char-creation-section">
         <div class="char-creation-section-header">
             <span class="char-creation-section-title">Stats</span>
-            <span class="point-budget" x-text="'Total: ' + total + ' / 10'"></span>
+            <span class="point-budget" x-text="'Total: ' + total + ' / 11'"></span>
         </div>
 
         <!-- Archetypes -->
@@ -37,12 +37,12 @@
         <!-- Point budget bar -->
         <div class="point-budget-bar">
             <progress class="point-budget-progress"
-                      x-bind:max="10"
+                      x-bind:max="11"
                       x-bind:value="total"
                       x-bind:class="{
-                          'point-budget-progress--low': total < 10,
-                           'point-budget-progress--ok': total === 10,
-                           'point-budget-progress--high': total > 10
+                          'point-budget-progress--low': total < 11,
+                           'point-budget-progress--ok': total === 11,
+                           'point-budget-progress--high': total > 11
                       }"></progress>
         </div>
 
@@ -66,7 +66,7 @@
                         </template>
                     </div>
                     <button type="button" class="stat-btn stat-btn--plus"
-                            x-bind:disabled="stat.value >= 4 || total >= 10"
+                            x-bind:disabled="stat.value >= 4 || total >= 11"
                             @click="increment(stat.key)">+</button>
                 </div>
             </div>
