@@ -184,5 +184,7 @@ def apply_npc_scene_management(
                     entry["nearby_since_turn"] = entry.get("nearby_since_turn", current_turn_no)
             if comp_upd.notes is not None:
                 entry["notes"] = comp_upd.notes
+            if comp_upd.position is not None:
+                entry["position"] = comp_upd.position
 
     return state

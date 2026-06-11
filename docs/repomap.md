@@ -81,7 +81,7 @@ Three main visual panels compose the browser UI. All NPC data in left/right pane
 
 ### ccya/models.py
 - **load_config(path)** → dict — loads config.yaml
-- **TurnResult** dataclass — returned from run_turn(): turn, trace_id, narrative, state_delta, applied, rejected, actions, scene_tags, diff, changes, metrics, errors, ruling, outcome_summary, narrative_velocity, gm_beat, outcome_hint, ts
+- **TurnResult** dataclass — returned from run_turn(): turn, trace_id, narrative, state_delta, applied, rejected, actions, diff, changes, metrics, errors, ruling, outcome_summary, narrative_velocity, gm_beat, outcome_hint, ts
 
 ### ccya/engine (via __init__.py)
 - **run_turn(...)** → AsyncIterator — 5-call pipeline: rules→narrate→scene/state/storytell extract; yields ("token"), ("phase"), ("complete", TurnResult)
@@ -243,7 +243,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 `config.context_window` (default 32768): `llm_client.trim_messages()` drops/truncates oldest non-system messages when budget exceeded. Priority: system prompts retained first, then most recent user/context blocks. This affects all pipeline stages — if budget is tight, older turns in chronicle tail get truncated before narration/extraction contexts.
 
 ### Extraction field routing
-- **SceneExtractResult**: scene_tags, scene_tagline, location_change, location_description, compendium_npc_update (no pressure fields); CompendiumEntry now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes
+- **SceneExtractResult**: scene_tagline, location_change, location_description, compendium_npc_update (no pressure fields); CompendiumNpcUpdate has position field for NPC spatial positioning; CompendiumEntry now has explicit motivation/fear/leverage optional string fields alongside existing name/title/bio/bond/presence/notes
 - **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
   - **StorytellerResult**: thread_update (list[ThreadUpdate] with id/urgency/active/progress/progress_kind), goal_update (str | None, applied directly to arc dict — NOT through _merge_arc_update), arc_resolve (ArcResolution with resolution/visible_goal/goal_context/drop_threads/new_threads), thread_resolve (list[ThreadResolution] with id/resolution_state/outcome + promote_to_world_state flag for promotion-only world state changes), thread_add (ArcThread | None, `added_turn` and `urgency_set_turn` set at creation time in turn.py); thread_add validated by id-based dedup only (no key, no fuzzy merge); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
 - **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions, persisted to state["pc"]["actions"] as rolling window by apply_delta()
@@ -348,3 +348,26 @@ world.factions: [str], world.locations: [str]
 - **Thread progress strings:** After turn completion, inline divs with class `thread-progress-line` are inserted below narrative text. Each thread entry in `changes["threads"]` may carry a `new_progress` field (formatted as "[KIND] text") populated by `summarize_changes()` when new progress entries appear on threads.
 - **Debug metadata row:** When `EngineConfig.debug_mode` is true, a formatted div with class `debug-metadata-row` shows momentum_delta/narrative_velocity/gm_beat/outcome_hint inline after turn completion. Parsed from `result.narrative_velocity`, `result.gm_beat`, and `result.outcome_hint` on the TurnResult object.
 - **Sidebar thread ordering:** `_state_left.html` reverses active threads (`| reverse`) so most recently active appear first; completed_threads also reversed (top 20).
+
+## Design documents
+
+| Document | Path | Purpose |
+|---|---|---|
+| Eval methodology | `docs/design/eval-methodology-design.md` | Scenario taxonomy, checker suites, aggregation pipeline, Makefile targets |
+| CLI defaults and personas | `docs/design/cli-defaults-and-personas-design.md` | Config system, persona registry, CLI flag conventions |
+| UI streaming improvements | `docs/design/eval-ui-streaming-design.md` | SSE streaming, live eval progress, mid-turn pipeline visibility |
+| EV tooling (completed) | `docs/design/complete/ev-tooling-design.md` | Original EV tooling architecture (play/check/eval commands) |
+| Dual-track eval | `docs/design/complete/dual-track-eval-design.md` | Parallel eval strategy |
+| Observability | `docs/design/complete/observability-design.md` | Logging, metrics, debugging infrastructure |
+| Pacing beat system | `docs/design/complete/pacing-beat-system-design.md` | GM beat lifecycle, pacing directives |
+| Narration simplification | `docs/design/complete/narration-simplification-design.md` | Narrator prompt overhaul |
+| Narration prompt overhaul | `docs/design/complete/narration-prompt-overhaul-design.md` | Narrator system/user prompt restructuring |
+| NPC death purge | `docs/design/complete/npc-death-purge-design.md` | NPC departure/archival lifecycle |
+| GM signals | `docs/design/complete/gm-signals-design.md` | GM beat signals and pacing context |
+| Thread sanitizer | `docs/design/complete/thread-sanitizer-design.md` | Thread cleanup and arc resolution |
+| Condition difficulty | `docs/design/complete/condition-difficulty-design.md` | Condition system and difficulty modifiers |
+| Arc thread system | `docs/design/complete/arc-thread-system-design.md` | Arc thread lifecycle and state machine |
+| Arc system | `docs/design/complete/arc-system-design.md` | Arc goal system and resolution |
+| Arc resolution redesign | `docs/design/complete/arc-resolution-redesign-design.md` | Arc resolution improvements |
+| Prompt testing and schema discipline | `docs/design/complete/prompt-testing-and-schema-discipline.md` | Prompt testing methodology |
+| Impossible action pacing outcome | `docs/design/complete/impossible-action-pacing-outcome.md` | Impossible action handling |

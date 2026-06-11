@@ -11,7 +11,7 @@ flowchart LR
 
     subgraph IN["Inputs"]
         P1["state (post-apply)"]
-        P2["event dict<br>(turn, input, applied, rejected,<br>actions, scene_tags, rules,<br>narrate/extract metrics, extraction<br>with per-stream prompts + attempts,<br>rules_prompt, narrate_prompt,<br>engine_expired_conditions, changes)"]
+        P2["event dict<br>(turn, input, applied, rejected,<br>actions, rules,<br>narrate/extract metrics, extraction<br>with per-stream prompts + attempts,<br>rules_prompt, narrate_prompt,<br>engine_expired_conditions, changes)"]
         P3["narrative: str"]
         P4["turn number"]
     end

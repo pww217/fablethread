@@ -38,8 +38,6 @@ Return JSON:
   Band: {band}
   Intent: {intent}
 
-Scene tags: {scene_tags}
-
 Narration:
 {narrate}""",
 )
@@ -47,7 +45,7 @@ Narration:
 
 @register_checker(
     "directive_tone_match", "llm",
-    requires_fields=["ruling.band", "ruling.intent", "narrate", "extraction_context.scene_tags_this_turn"],
+    requires_fields=["ruling.band", "ruling.intent", "narrate"],
     description="Does narration tone match the rules directive? (per-turn LLM call)",
 )
 def directive_tone_match(events: list[dict[str, Any]]) -> CheckerResult:
@@ -62,13 +60,10 @@ def directive_tone_match(events: list[dict[str, Any]]) -> CheckerResult:
     band = ruling.get("band", "")
     intent = ruling.get("intent", "")
     narrate = extract_field(ev, "narrate") or ""
-    scene_tags = extract_field(ev, "extraction_context.scene_tags_this_turn") or []
 
     user_prompt = f"""Ruling:
   Band: {band}
   Intent: {intent}
-
-Scene tags: {', '.join(scene_tags) if scene_tags else '(none)'}
 
 Narration:
 {narrate}"""

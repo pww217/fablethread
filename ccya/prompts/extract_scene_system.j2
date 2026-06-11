@@ -6,23 +6,20 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 
 ```json
 {
-  "scene_tags": ["..."],
   "scene_tagline": "...",
   "location_change": {"id": "...", "name": "...", "description": "..."},
   "location_description": "...",
-  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "presence": "present|nearby|known|departed", "notes": "..."}]
+  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "presence": "present|nearby|known|departed", "notes": "...", "position": "..."}]
 }
 ```
 
 ## Field rules
 
-`scene_tags`: mood/genre descriptors for the scene. Up to 5. Use concise noun or adjective phrases. Examples: `"combat"`, `"tense_conversation"`, `"investigation"`, `"stealth"`, `"discovery"`.
-
 `scene_tagline`: 3–6 words describing the current location and situation. Grounded in physical reality — where the PC is, what the environment is like, what the immediate stakes are. NOT a dramatic summary of events. Examples: `"Crossed Keys Inn — hearth low, toughs at door"`, `"Marrow's Crossing square — dusk, shops closing"`, `"Behind the inn — narrow alley, locked door"`.
 
 `location_change`: emitted only when the player moves to a new location (the location ID differs from the current one). Do NOT emit if the player is still in the same location with added spatial detail — use `location_description` instead. New room = change. New part of same room = no change.
 
-`location_description`: Location description — new physical/spatial detail about the current space. Only emit when the narration introduces genuinely new details not already in the stored description. Do not restate or paraphrase existing description. One to two sentences.
+`location_description`: Complete description of the current location. What the space IS — physical layout, visual details, atmosphere. Include tangible details (materials, lighting, sounds, smells) and spatial relationships. Infer from narration but don't repeat it. Narration tells what happened; this field tells what exists. Rewrite the full description each turn, informed by what's already stored. Two to four sentences.
 
 `compendium_npc_update`: **UNIVERSAL NPC CHANNEL** — use for ALL NPC changes. Each update carries the full set of fields that have new information:
 
@@ -39,6 +36,7 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
   "leverage": "what this NPC can offer, threaten, or withhold",
   "presence": "present|nearby|known|departed",
   "notes": "5–8 words max describing the NPC's current stance or action in this scene. No clauses, no conjunctions. Not plot-critical — quick situational cue only.",
+  "position": "Where the NPC is in the scene. One short phrase. Only update when narration moves the NPC or implies movement.",
   "departed_reason": "short label — required when presence is departed",
   "departed_summary": "1-2 sentence prose — required when presence is departed",
 }
@@ -100,13 +98,17 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 EXAMPLE — NPC enters (correct):
 Narration: "A red-haired man in boiled leather steps through the door and locks eyes with you."
 Known NPCs in scene: [caron (present)]
-→ Emit: `compendium_npc_update: { id: "red_haired_man", name: "Red-Haired Man", presence: "present", notes: "locks eyes aggressively", bio: "..." }`
+→ Emit: `compendium_npc_update: { id: "red_haired_man", name: "Red-Haired Man", presence: "present", notes: "locks eyes aggressively", position: "standing in doorway", bio: "..." }`
 
 EXAMPLE — NPC exits (correct):
 Narration: "Caron spits on the floor and shoves through the crowd, disappearing into the street."
 → Emit: `compendium_npc_update: { id: "caron", presence: "known" }`
 
-EXAMPLE — NPC not mentioned, no change (correct):
+EXAMPLE — NPC moves (correct):
+Narration: "Caron slides into the seat across from you."
+→ Emit: `compendium_npc_update: { id: "caron", position: "seated across from PC" }`
+
+EXAMPLE — NPC not mentioned (correct):
 Narration does not mention Halden this turn.
 → Do NOT emit any update for Halden — absence ≠ departure.
 
@@ -126,7 +128,6 @@ Before you emit `compendium_npc_update` for ANY NPC:
 
 - **NPC presence:** There MUST always be at least 1 NPC with `presence: "present"`. If no named NPCs are present, emit ambient presence (e.g., "crowd", "bystanders", "inn_patrons") with a generic ID. **HARD RULE: Do NOT emit ambient presence when any named NPC is already marked present.** Named NPCs are sufficient — this prevents hallucinated background characters.
 - **Location IDs:** For `location_change`, derive a stable snake_case ID from narration context (e.g., "perimeter_ruins", "trench_area"). Do NOT invent new IDs for other purposes — only use existing location IDs from the current section or well-known locations.
-- **Keep scene_tags to at most 5.** Prefer the most salient descriptors.
 - **Limit new NPCs to at most 3 per turn.** Background extras go in ambient presence.
 
 ## Output discipline

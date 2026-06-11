@@ -124,9 +124,9 @@ If it's deferred, track it in `TODO.md` or `plans/`; don't leave it sitting in a
 
 ### `extract_scene_system.j2` — NPC presence + location + scene classification
 
-**Unique fields:** `scene_tags`, `scene_tagline`, `location_change`, `location_description`, `npc_add/remove/update`, `compendium_npc_update`
+**Unique fields:** `scene_tagline`, `location_change`, `location_description`, `npc_add/remove/update`, `compendium_npc_update`
 
-**Why they exist.** This is the lightest extractor — it captures the "scene layer" of state without touching inventory, conditions, or quests. `scene_tags` and `scene_tagline` are UI-facing metadata. `location_change` and `location_description` are split because a location ID change is a different event from new spatial detail in the same room. `npc_add/remove/update` track who's in the scene and their attitude. `compendium_npc_update` is the bridge to durable NPC identity — separate from scene updates because compendium changes persist across the entire game.
+**Why they exist.** This is the lightest extractor — it captures the "scene layer" of state without touching inventory, conditions, or quests. `scene_tagline` is UI-facing metadata. `location_change` and `location_description` are split because a location ID change is a different event from new spatial detail in the same room. `npc_add/remove/update` track who's in the scene and their attitude. `compendium_npc_update` is the bridge to durable NPC identity — separate from scene updates because compendium changes persist across the entire game.
 
 **Unique sections:** NPC ID rules, NPC grounding rule (names/titles/bios must come from narration or compendium, never invented), ambient NPC must-emit constraint.
 

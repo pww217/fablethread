@@ -221,7 +221,7 @@ def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
             parsed = raw_out
         if not parsed:
             continue
-        _SKIP_FIELDS = {"actions", "location_description", "scene_tags", "scene_tagline"}
+        _SKIP_FIELDS = {"actions", "location_description", "scene_tagline"}
         for field_key, val in parsed.items():
             if field_key in _SKIP_FIELDS:
                 continue

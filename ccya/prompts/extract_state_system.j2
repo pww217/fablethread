@@ -57,6 +57,8 @@ State why inventory changed this turn. Be very concise — a short phrase, not a
 - Firearms and finite-use items always come with ammo or uses. Infer a realistic starting amount from context. If compatible ammo already exists in inventory, use `inventory_add` — it merges with the existing stack.
 - Never emit `inventory_add` and `inventory_remove` for the same ID in one turn.
 
+**Inventory notes:** End with spatial position. Prefix is freeform — condition, narrative role, quest status, device metadata. Examples: `"quest item, in locked safe"`, `"handheld screen, in backpack"`, `"worn, in right holster"`. On-person only.
+
 `pc_condition_remove`: conditions resolved this turn. Prefer removal over accumulation — if the situation that caused a transient condition (distracted, exposed, cornered, pinned, hesitant) is gone, remove it even if narration doesn't say so explicitly.
 
 `pc_condition_add`: new conditions with a clear, substantial cause in the narration. Max 2 per turn. Total active conditions must not exceed 5 — if at cap, remove the least relevant before adding.

@@ -14,7 +14,6 @@ _MOCK_NARRATE = (
 
 _MOCK_EXTRACT_NARRATE = {
     "state_delta": {
-        "scene_tags": ["exploration"],
     },
     "actions": [
         "Open the encrypted pinger",
@@ -26,7 +25,6 @@ _MOCK_EXTRACT_NARRATE = {
 
 _MOCK_EXTRACT_EXAMINE = {
     "state_delta": {
-        "scene_tags": ["dialogue"],
     },
     "actions": [
         "Trace the shell company",
@@ -43,7 +41,6 @@ _MOCK_EXTRACT_CARGO = {
             "name": "Cargo Bay 7",
             "description": "Open cargo bay, crates stacked along the walls, smelling of lubricant.",
         },
-        "scene_tags": ["travel"],
     },
     "actions": [
         "Accept the hauler's offer",
