@@ -12,6 +12,7 @@ No server required (except `play` which needs the LLM backend running).
 > - `python3 scripts/debug/ev.py` → fails with `SyntaxError: invalid syntax` (system Python is 3.9, ev.py requires 3.13+)
 > - `source .venv/bin/activate && python3 scripts/debug/ev.py` → same error (activate doesn't work reliably)
 > - `ev.py --help` → fails with `IndexError: list index out of range` (ev.py has no help command)
+> - `ev.py play --llm --turns N` → times out if shell timeout isn't set to at least N×60000ms (~1 minute per turn)
 
 ## Quick start — end-to-end workflow
 
@@ -162,6 +163,20 @@ Commands that need full state also accept `--save-dir DIR`.
 
 The `play` command feeds a player action through the full engine pipeline (ruling → narrate → extraction → storytell) and saves the result into a save directory. The LLM backend needs to be operational.
 
+> **Timeout:** Each turn takes ~1 minute (5 LLM calls). Set shell timeout to at least `turns × 60000` ms. For 20 turns, use `--timeout 1200000` or longer.
+
+**Flags:**
+
+| Flag | Effect |
+|------|--------|
+| `--save-dir DIR` | Use DIR for state.yaml (required for existing saves) |
+| `--no-sanitize` | Skip thread sanitizer (~5-10s faster per turn) |
+| `--model NAME` | Override LLM model |
+| `--temp N` | Override temperature for all LLM calls |
+| `--pack NAME` | Start with a pack from `packs/` (required for new sessions) |
+| `--persona TEXT` | Persona for the LLM player (replaces generic prompt) |
+| `--eval` | Run checkers on all turns after session ends |
+
 ```bash
 # Single turn into a new default game (requires --pack)
 .venv/bin/python scripts/debug/ev.py play "I search the room." --pack zombie-survival
@@ -181,18 +196,6 @@ The `play` command feeds a player action through the full engine pipeline (rulin
 # LLM plays with persona + auto-eval on all turns
 .venv/bin/python scripts/debug/ev.py play --llm --persona "nice guy" --eval --pack zombie-survival
 ```
-
-**Flags:**
-
-| Flag | Effect |
-|------|--------|
-| `--save-dir DIR` | Use DIR for state.yaml (required for existing saves) |
-| `--no-sanitize` | Skip thread sanitizer (~5-10s faster per turn) |
-| `--model NAME` | Override LLM model |
-| `--temp N` | Override temperature for all LLM calls |
-| `--pack NAME` | Start with a pack from `packs/` (required for new sessions) |
-| `--persona TEXT` | Persona for the LLM player (replaces generic prompt) |
-| `--eval` | Run checkers on all turns after session ends |
 
 > **Note:** `--pack` is required when creating a new session (no `--save-dir`). When `--save-dir` is provided, the pack is loaded from the save's stored state.
 
@@ -222,6 +225,13 @@ Tokens:    in=15487  out=1077  ms=31700.0
 2. Wrong Python → Use `.venv/bin/python` directly
 3. Sanitizer is slow → Use `--no-sanitize` during testing
 4. Full narrative not shown → `ev.py prompt <N> narrate output <save-path>`
+
+**LLM play process notes:**
+- `ev.py summary` without a path reads `saves/default/events.jsonl`, not the latest EV run. Always pass the path explicitly.
+- The `latest` symlink uses a relative path. If it breaks, `--save-dir saves/ev/latest` will fail. Verify with `ls -la saves/ev/latest/`.
+- LLM players produce repetitive thread updates (tiny progress increments like 0.50, 0.53, 0.56) that trigger dedup rejections. This is EV-specific — human players make more varied updates.
+- `extraction.state.empty` messages and `inventory_change_reason` parse failures cascade: if the LLM adds inventory without a reason, retries fail, and the turn gets no state deltas. Check for this pattern when a turn looks narratively fine but has no mechanical impact.
+- `thread_sanitizer: skipping invalid thread_update` means phantom threads from failed extractions. These are artifacts, not real game state.
 
 ### Validate — checker & eval infrastructure
 

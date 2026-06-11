@@ -20,6 +20,7 @@ Read these repo files before using this skill:
 - **Never** use `source .venv/bin/activate && python3` — the activate script doesn't work reliably in this environment
 - **Never** use `--help` — ev.py has no help command. See `scripts/debug/README.md` for the full command reference.
 - **Always** run from the repo root (`/Users/pwilson/Repos/ccya`)
+- **Always** set bash timeout to at least `turns × 60000` ms when running `ev.py play --llm --turns N`. Each turn takes ~1 minute (5 LLM calls). For 20 turns, use `--timeout 1200000` or longer.
 
 ## Capabilities
 
