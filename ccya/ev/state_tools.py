@@ -518,7 +518,7 @@ def _print_unchanged_conditions(items: list[dict[str, Any]]) -> None:
             print(f"  {label}")
 
 
-def _print_unchanged_inventory(
+def _format_diff_output(
     diff_results: list[dict[str, Any]],
     intermediate_changes: list[dict[str, Any]],
     turn_a: int,
@@ -556,6 +556,7 @@ def _print_unchanged_inventory(
             elif expected_section == "Conditions":
                 _print_unchanged_conditions(before_val)
             elif expected_section == "Location":
+                print("  (unchanged)")
 
         elif result["kind"] == "changed":
             changes = result.get("changes", [])

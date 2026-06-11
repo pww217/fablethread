@@ -31,7 +31,7 @@ Four independently selected narrative dimensions. They are NOT a menu — weave 
     meta: {turn: 0, model: string, setting_pack: string},
     pc: {name: string, tagline: string, bio: string, stats: {strength: int, dexterity: int, wits: int, charisma: int}, conditions: []},
     location: {id: snake_case, name: string, description: string},
-    inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
+    // inventory: removed — PCs acquire items through gameplay
     scene: {tagline: string, tags: string[], world_state: string[]},
     compendium: {npcs: {snake_case: {name: string, title: string, bio: string, allegiance?: string, bond?: string, motivation?: string, fear?: string, leverage?: string /* personality assigned by engine post-parse */}}},
     arc: {visible_goal: string, goal_context: string, threads: ArcThread[], completed_threads: null}
@@ -64,7 +64,6 @@ Build in this order, using everything already established before generating what
    - `goal_context`: 2–3 sentences on why this goal matters to this character specifically — inner cost, emotional stakes. Don't restate visible_goal or leak hidden truths.
    - `threads`: see Thread rules below.
 4. **Opening scene + NPCs** — instantiates the situation archetype concretely.
-5. **Inventory** — appropriate to scene and PC concept.
 
 **Cross-field consistency (mandatory):**
 - `world_state` facts must establish pressures consistent with `arc_category`. No "all factions cooperate peacefully" in a power_struggle arc.
@@ -109,14 +108,6 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 - BAD: "The old empire fell three centuries ago." / "A peace treaty was signed in 2147." (historical flavor, no present impact)
 - GOOD: "Travel between districts requires a valid faction pass." / "All firearms are banned under penalty of immediate detention."
 
-## Inventory rules
-- 3–6 items appropriate to the opening scene and PC concept.
-- Every item has a specific, proper name — not "standard issue rifle" or "random book." Names should hint at why the item matters.
-- Firearms always come paired with an ammo item at a realistic starting count. Never put loaded counts in weapon `notes`.
-- Items with finite uses must have an explicit `amount`. Melee and single-shot thrown items are exempt.
-- No exotic or legendary weapons at start. No items for skills the PC hasn't invested in.
-- Inventory item names start with a capital letter.
-
 ## Thread rules
 
 **Thread IDs are 2–4 word broad conceptual buckets.** No proper nouns. `council_conspiracy` ✓ — `the_missing_ledger` ✗ (one object), `moss_confrontation` ✗ (one NPC).
@@ -151,9 +142,12 @@ Bad summary: "Go to Saint Mercy Hospital and find the ledger."
    {%- endif %}
 3. **Crisis moment** (the bulk): The tension arrives. Present NPCs act. The moment the player must respond to. Spend most of your words here.
 
-- Bold NPC names on first introduction. Bold inventory item names on first use.
+- Bold NPC names on first introduction.
 - NPCs appear in action, not in introduction.
 - Let arc tension surface through what the player observes, not what the narrator announces.
+- Weave in world state facts naturally — don't list them. If a border closure is a world fact, show its effect (a checkpoint, a denied passage) rather than stating it.
+- If a present NPC has a personal tie to the PC (shared history, debt, emotional bond), show it through action or dialogue — not exposition.
+- If there's a compendium NPC known to the PC but not present, reference them naturally in narration (a phone call, a rumor, a memory).
 
 ## Actions
 

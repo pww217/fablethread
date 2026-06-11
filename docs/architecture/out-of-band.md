@@ -4,23 +4,31 @@ These run only at new-game time or are non-engine concerns. They are excluded fr
 
 ## Character Creation Pipeline
 
-Triggered by `POST /new-game`. All packs use the Generate Seed pipeline (dynamic). Static packs with pre-built seed_state.yaml exist but are not used by new_game.
+Triggered by `POST /new-game`. Behavior depends on player hints: if no hints provided, uses Generate Seed pipeline (dynamic LLM generation); if hints provided, uses static pack's seed_state.yaml as fallback (shows error if pack has no static seed).
 
 ```mermaid
 flowchart LR
     FORM["New Game Form<br>──────────────────<br>pack_id<br>pc_name, pc_tagline, pc_stats<br>pc_hints, npc_hints<br>location_hints, arc_hints<br>free_form, npc_count"]
 
-    subgraph DYNAMIC["Dynamic Pack — generate_seed()"]
-        DS["Build PlayerOverrides<br>  (pc_hints, npc_hints, location_hints,<br>  arc_hints, free_form, npc_count)<br>Pass to generate_seed() LLM pipeline"]
+    subgraph CHECK["Hint Detection"]
+        H["Build PlayerOverrides<br>  (pc_hints, npc_hints, location_hints,<br>  arc_hints, free_form, npc_count)<br>Check overrides.is_empty()"]
     end
 
-    INIT["init_save_dir(SAVE_DIR, seed)<br>Writes state.yaml<br>Clears chronicle.md + events.jsonl"]
+    subgraph DYNAMIC["Dynamic Pack — generate_seed()"]
+        DS["No hints — LLM generates<br>SeedEnvelope with seed_state,<br>opening_narrative, actions"]
+    end
 
-    OPENING["envelope.opening_narrative<br>envelope.actions (suggested first moves)"]
+    subgraph STATIC["Static Pack — seed_state.yaml"]
+        SS["Hints provided — load<br>pack.seed from seed_state.yaml<br>no opening_narrative or actions"]
+    end
 
-    FORM --> DYNAMIC
+    INIT["init_save_dir(SAVE_DIR, seed)<br>Writes state.yaml<br>Clears chronicle.md + events.jsonl<br>_seed_type: 'dynamic' or 'static'"]
+
+    FORM --> CHECK
+    CHECK --> |"empty"| DYNAMIC
+    CHECK --> |"non-empty"| STATIC
     DYNAMIC --> INIT
-    INIT --> OPENING
+    STATIC --> INIT
 ```
 
 ## Generate Seed Pipeline (Dynamic Packs Only)
@@ -46,7 +54,7 @@ flowchart LR
     end
 
     subgraph OUT["Outputs — SeedEnvelope"]
-        O1["seed_state: GameState<br>  pc (name, tagline, bio, stats)<br>  location (id, name, description)<br>  scene (world_state: list[WorldStateFact])<br>  inventory: list[InventoryItem]<br>  compendium.npcs: dict[id] CompendiumEntry<br>    (presence='present' for in-scene NPCs,<br>     presence='known' otherwise)<br>  meta (model, setting_pack, turn=0,<br>       recent_beats: list[dict])"]:::outNode
+        O1["seed_state: GameState<br>  pc (name, tagline, bio, stats)<br>  location (id, name, description)<br>  scene (world_state: list[WorldStateFact])<br>  compendium.npcs: dict[id] CompendiumEntry<br>    (presence='present' for in-scene NPCs,<br>     presence='known' otherwise)<br>  meta (model, setting_pack, turn=0,<br>       recent_beats: list[dict])"]:::outNode
         O2["arc: CampaignArc<br>  visible_goal, goal_context (personal stakes),<br>  threads[] (unified, with active flag),<br>  completed_threads[]"]:::outNode
         O3["opening_narrative: str<br>(prose intro shown before turn 1)"]:::outNode
         O4["actions: list[str]<br>(4 distinct, character-shaped,<br>scene-grounded choices)"]:::outNode
