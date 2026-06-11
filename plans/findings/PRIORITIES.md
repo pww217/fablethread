@@ -3,7 +3,7 @@
 > Top priorities selected from [FINDINGS-JUNE-6.md](FINDINGS-JUNE-6.md), [MOMENTUM-BEAT-FINDINGS.md](MOMENTUM-BEAT-FINDINGS.md), [BUGS-OBSERVATIONS.md](BUGS-OBSERVATIONS.md), [EVAL-FINDINGS-2026-06-09.md](EVAL-FINDINGS-2026-06-09.md), and [FEATURE-IDEAS.md](FEATURE-IDEAS.md).
 > Ranking criteria: severity × confidence × cross-game validation × fidelity impact.
 >
-> **Status:** Audited 2026-06-10 against source. 11 items confirmed FIXED, 4 PARTIALLY FIXED, 18 still OPEN (4 engine, 11 eval checkers, 3 features). See audit report below.
+> **Status:** Audited 2026-06-10 against source. 14 items confirmed FIXED, 7 PARTIALLY FIXED, 15 still OPEN (4 engine, 11 eval checkers, 3 features). See audit report below.
 
 ---
 
@@ -313,6 +313,7 @@ Minor balance improvement. Verify against current rules before implementing.
 | B11 | Condition schema drift | **SUPERSEDED** | Ruling agent replaces CONDITION_MODS entirely (commit `bbbf7d41`) | [BUGS-OBSERVATIONS#B11](./BUGS-OBSERVATIONS.md#b11-condition-schema-drift-systemic-across-all-runs---confirmed) |
 | B8 | Momentum sign inversion | **ELIMINATED** | False positive from auto-checker artifact (index-based matching). Actual momentum code is correct. | [MOMENTUM-BEAT-FINDINGS.md](./MOMENTUM-BEAT-FINDINGS.md) |
 | B1 | Ammo decrement wrong operation | **FIXED** | `InventoryRemove` model at `models.py:228-233`; validation at `turn.py:1563-615`; prompt uses `inventory_remove` with `amount` | [BUGS-OBSERVATIONS#B1](./BUGS-OBSERVATIONS.md#b1) |
+| B5 | Scene tag volatility | **FIXED** | `grounded-state-extraction` plan (commits `f93b6740` + `02c6a91a`) removed `scene_tags` entirely from pipeline | [BUGS-OBSERVATIONS#B5](./BUGS-OBSERVATIONS.md#b5-m-scene-tags-reset-between-consecutive-turns-confidence-h) |
 | B12 | actions_quality on system events | **OBSOLESCED** | New ev.py checkers handle this differently | [EVAL-FINDINGS-2026-06-09.md](./EVAL-FINDINGS-2026-06-09.md) |
 | B13 | consecutive_pressure_tracking mismatch | **OBSOLESCED** | New `pacing_directives` checker uses `post_extraction_consecutive_pressure_turns` (written at `turn.py:1426`) | [EVAL-FINDINGS-2026-06-09.md](./EVAL-FINDINGS-2026-06-09.md) |
 | Bug 1 (EVAL-FINDINGS) | impossible not stored | **FIXED** | Commit `430016d9` adds `impossible` and `reason` to ruling_event | [EVAL-FINDINGS-2026-06-09.md](./EVAL-FINDINGS-2026-06-09.md) |
@@ -322,7 +323,6 @@ Minor balance improvement. Verify against current rules before implementing.
 
 ## What was excluded
 
-- **B5** (scene tag volatility): LLM quality problem — scene extraction wholesale replaces tags each turn. No accumulation logic in `extract_scene_system.j2`. Lower ROI than engine state bugs. [B5](./BUGS-OBSERVATIONS.md#b5-m-scene-tags-reset-between-consecutive-turns-confidence-h)
 - **B6** (non-deterministic beats): LLM quality problem — storytell sometimes emits `null` instead of explicit `breathing_room`. No engine-level guarantee. [B6](./BUGS-OBSERVATIONS.md#b6-m-beat-generation-is-non-deterministic--not-every-turn-emits-a-gm_beat-confidence-h)
 - **B10** (inventory extraction hallucination): Validation at `turn.py:1563-615` blocks damage (missing targets, zero balances). LLM still emits garbage into events.jsonl — quality issue. [B10](./BUGS-OBSERVATIONS.md#b10-m-inventory-extraction-hallucination-persists-across-all-runs---confirmed)
 - **B4** (pressure counter desync): Engine is FIXED (reads post-floor-relief beat at `turn.py:1108-1116`). But `pacing_directives` checker has fallback to stale `state_snapshot` when `post_extraction_consecutive_pressure_turns` is missing. Eval-only issue. [B4](./BUGS-OBSERVATIONS.md#b4-m-mb-5-pressure-counter-desyncs-when-storytell-emits-no-beat-confidence-h)

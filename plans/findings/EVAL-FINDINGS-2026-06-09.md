@@ -3,7 +3,7 @@
 > Saves examined: `the-outer-rim--after-unification` (32 turns), `cordyceps-year-twenty` (27 turns)
 > Focus: Narrative mechanics — beats, pacing, pressures, momentum, impossible actions, event data integrity, checker correctness
 > Method: Cross-reference save event data against architecture docs and source
-> **Verified against source:** 2026-06-10 — 11 confirmed, 2 already fixed, 1 misleading (by design), 1 partially incorrect. **Audit update 2026-06-10:** All bugs verified against current source. 2 already fixed (Bug 1, Bug 10). 11 eval checkers still broken. 4 engine bugs confirmed open or partially fixed.
+> **Verified against source:** 2026-06-10 — 11 confirmed, 2 already fixed, 1 misleading (by design), 1 partially incorrect. **Audit update 2026-06-10:** All bugs verified against current source. 2 already fixed (Bug 1, Bug 10). 11 eval checkers still broken. 4 engine bugs confirmed open or partially fixed. **Audit update 2026-06-10:** `grounded-state-extraction` plan (commits `f93b6740` + `02c6a91a`) removed `scene_tags` entirely — this obviates Bug 8 (`extraction_context` missing, which included `scene_tags_this_turn`) and Bug 6 (`directive_tone_match` checker no longer requires `extraction_context.scene_tags_this_turn`).
 
 ---
 

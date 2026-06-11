@@ -8,6 +8,8 @@
 | [FEATURE-IDEAS.md](./FEATURE-IDEAS.md) | Net-new features, improvements/bugs to implement, design questions — organized by subsystem (Game Setup, Compendium, Scene Mechanics, Narrative Setup, NPC Mechanics, Storytelling Pipeline, UI, Pipeline Efficiency, Low Priority) |
 | [EVAL-FIXES.md](../EVAL-FIXES.md) | Eval system auto-checker additions needed to detect sanitizer lag (#3), thread accumulation (#5), and other eval blind spots |
 | [PRIORITIES.md](./PRIORITIES.md) | Ranked priorities — critical fixes ordered by impact (13 items, most original priorities FIXED) |
+| [EVAL-FINDINGS-2026-06-09.md](./EVAL-FINDINGS-2026-06-09.md) | Eval system bugs and findings from 2026-06-09 baseline run |
+| [EVAL-EV-BUGS.md](./EVAL-EV-BUGS.md) | EV tooling and eval system bugs (EV-1 through EV-10, B11-B13) |
 
 **Route future findings:**
 
@@ -17,6 +19,7 @@
 - Deep-dives into specific systems → new `<SYSTEM>-FINDINGS.md` (like `MOMENTUM-BEAT-FINDINGS.md`)
 - Eval system improvements → [EVAL-FIXES.md](../EVAL-FIXES.md)
 - Priority assessments → [PRIORITIES.md](./PRIORITIES.md)
+- Completed plans affecting findings → `plans/completed/` (e.g., `grounded-state-extraction.md` fixed B5, F-N04, F-N06, F-N07)
 
 **Cross-links:**
 - Goal stagnation (FIXED): [PRIORITIES#Previously Fixed](./PRIORITIES.md#previously-fixed-for-reference) → [FINDINGS-JUNE-6#G3](./FINDINGS-JUNE-6.md#g2---goal-stagnation--sanitizer-too-slow-to-pivot-confidence-h)
