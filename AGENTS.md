@@ -103,7 +103,7 @@ These are not optional. Every plan, execution, and code review must include a do
 
 ## Execution rules
 
-- **For ev.py:** Always use `.venv/bin/python scripts/debug/ev.py <command> [args...]`. Never use `python3` or `source .venv/bin/activate` — neither works reliably.
+- **For ev.py:** Always use `.venv/bin/python scripts/debug/ev.py <command> [args...]`. Never use `python3` or `source .venv/bin/activate` — neither works reliably. For `play --llm --turns N`, set bash timeout to at least `N × 60000` ms (~1 minute per turn). Always pass the events path explicitly to `summary` — it defaults to `saves/default/`, not the latest EV run. Verify `saves/ev/latest` symlink resolves correctly before using `--save-dir saves/ev/latest`.
 - **For other Python:** Use `.venv/bin/python` directly. `source .venv/bin/activate` does not work reliably in this environment.
 - Feel free to `curl` against a running server (assume it's running on `localhost:8000`) to pull rendered templates or live state.
 - When stumped by a bug: form one hypothesis, write a minimal `/tmp/` script to test it in isolation, confirm or refute, then act. Do not go in circles.
@@ -115,7 +115,11 @@ These are not optional. Every plan, execution, and code review must include a do
 
 - Server route handlers use untyped FastAPI decorators (`@app.get`, `@app.post`). Mypy overrides disable `untyped-decorator`, `no-untyped-def`, `no-untyped-call`, `attr-defined`, and `no-any-return` for `ccya.server`.
 - Tests are temporarily removed during refactor; this note is deferred until they return.
----
+
+## Known LLM extraction issues
+
+- **`inventory_change_reason` required** — When the LLM adds/removes inventory items, it must include `inventory_change_reason`. If omitted, `extract_state` fails validation, retries exhaust, and the turn gets no state deltas. This is a prompt/model issue in the state extraction step.
+- **Opening narrative word count** — The seed generator can produce openings below the 530-word minimum (observed 492). Not critical but worth monitoring.
 
 ---
 
