@@ -233,29 +233,18 @@ def summarize_changes(
             pc = post_c.get(tid)
 
             if pr and not po and not pc:
-                thread = pr
-                reason = "removed"
-                if thread.get("scope") == "scene":
-                    pre_loc = (pre.get("location") or {}).get("id", "")
-                    post_loc = (post.get("location") or {}).get("id", "")
-                    if pre_loc != post_loc:
-                        reason = "removed (location changed)"
-                    else:
-                        reason = "dropped via arc directive"
                 threads.append({
                     "kind": "removed",
                     "id": tid,
-                    "summary": thread.get("summary", ""),
-                    "scope": thread.get("scope", ""),
-                    "urgency": thread.get("urgency", "normal"),
-                    "detail": reason,
+                    "summary": pr.get("summary", ""),
+                    "urgency": pr.get("urgency", "normal"),
+                    "detail": "removed",
                 })
             elif not pr and po:
                 threads.append({
                     "kind": "added",
                     "id": tid,
                     "summary": po.get("summary", ""),
-                    "scope": po.get("scope", "arc"),
                     "urgency": po.get("urgency", "normal"),
                 })
             elif pr and pc and tid not in pre_c:
@@ -263,7 +252,6 @@ def summarize_changes(
                     "kind": pc.get("resolution_state", "resolved"),
                     "id": tid,
                     "summary": pc.get("summary", pr.get("summary", "")),
-                    "scope": pc.get("scope", pr.get("scope", "arc")),
                     "detail": pc.get("outcome", ""),
                 })
             elif pc and not pr and not po and tid not in pre_c:
@@ -271,7 +259,6 @@ def summarize_changes(
                     "kind": pc.get("resolution_state", "resolved"),
                     "id": tid,
                     "summary": pc.get("summary", ""),
-                    "scope": pc.get("scope", "arc"),
                     "detail": pc.get("outcome", ""),
                 })
             elif po and pr:
@@ -376,10 +363,8 @@ def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
         k = row.get("kind")
         summary = str(row.get("summary") or row.get("id") or "")
         detail = str(row.get("detail") or "")
-        scope = str(row.get("scope") or "")
-        tag = f" [{scope.capitalize()}]" if scope in ("scene", "arc") else ""
         if k == "added":
-            lines.append(f"{_NOTEBOOK_EMOJI} + {summary}{tag}")
+            lines.append(f"{_NOTEBOOK_EMOJI} + {summary}")
         elif k == "updated":
             new_progress = row.get("new_progress")
             if new_progress:

@@ -302,7 +302,7 @@ def _coerce_scene_json(j: dict[str, Any]) -> dict[str, Any]:
     if isinstance(j.get("thread_add"), list):
         del j["thread_add"]
     elif isinstance(j.get("thread_add"), dict):
-        required = {"id", "summary", "scope"}
+        required = {"id", "summary"}
         if not required.issubset(j["thread_add"].keys()):
             del j["thread_add"]
 
