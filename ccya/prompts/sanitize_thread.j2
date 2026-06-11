@@ -19,7 +19,7 @@ Rules:
 {% include "sections/_thread_list.j2" %}
 
 ### Completed Threads{% if completed_threads %}
-{% for ct in completed_threads %}- `{{ ct.id }}` [{{ ct.scope }}] {{ ct.summary }} — {{ ct.resolution_state }} at turn {{ ct.resolved_turn }}{% endfor %}
+{% for ct in completed_threads %}- `{{ ct.id }}` {{ ct.summary }} — {{ ct.resolution_state }} at turn {{ ct.resolved_turn }}{% endfor %}
 {% else %}
 (none){% endif %}
 
@@ -55,9 +55,8 @@ Threads should shrink over time, not accumulate. Consolidate when:
 ### Thread summaries
 Update a thread's summary if it no longer matches the current narrative; keep it broad enough for 3–4+ progress updates, not a single scene.
 
-### Thread count — arc vs scene
-**Arc threads:** 2–3 target, 3 hard max. Demote on-hold ones (active=false), merge overlapping ones, prefer fewer meaningful threads.
-**Scene threads:** 1 target, 2 max. Resolve aggressively within 1–2 turns — don't let them linger. Scene threads are short-lived by nature.
+### Thread count
+Target: 3–4 threads. Ensure threads are not redundant or stale. Demote on-hold ones (active=false), merge overlapping ones, prefer fewer meaningful threads.
 
 ### Arc goal vs. threads
 **Do NOT pivot visible_goal when:**
@@ -100,7 +99,6 @@ Update a thread's summary if it no longer matches the current narrative; keep it
       "id": "new_unique_id",
       "summary": "Thread summary",
       "urgency": "normal",
-      "scope": "arc",
       "active": true
     }
   ],

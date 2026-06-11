@@ -8,8 +8,8 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
 {
   "thread_resolve": [{"id": "...", "resolution_state": "resolved|failed|abandoned", "outcome": "...", "promote_to_world_state": true}],
   "thread_update": [{"id": "...", "progress": "...", "progress_kind": "advancement|setback|shift", "urgency": "background|normal|urgent", "active": true}],
-  "thread_add": {"id": "...", "summary": "...", "scope": "scene|arc", "urgency": "normal"},
-  "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "drop_threads": ["..."], "new_threads": [{"id": "...", "summary": "...", "scope": "arc", "urgency": "normal"}]},
+  "thread_add": {"id": "...", "summary": "...", "urgency": "normal"},
+   "arc_resolve": {"resolution": "...", "visible_goal": "...", "goal_context": "...", "drop_threads": ["..."], "new_threads": [{"id": "...", "summary": "...", "urgency": "normal"}]},
    "goal_update": "...",
    "gm_beat": {"type": "...", "surface_as": "..."},
   "outcome_summary": "...",
@@ -29,9 +29,7 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
 
 **Include location in thread summaries when relevant:** `"rescue hostages from warehouse district"` not `"rescue hostages"`.
 
-**Before emitting `thread_add`:** scan all active AND latent threads for conceptual overlap. If the same tension is already tracked, use `thread_update` instead. Only create a new thread for genuinely distinct tension. Target: 2–3 arc threads + 1 scene thread (~4 total). Hard cap: 5. If you would add a thread but are at 4–5, first resolve or demote an existing one. Arc threads are tied explicitly to the campaign arc goal and persist across locations. Scene threads are localized, removed on location change, very short-term — if a thread would resolve after one scene, it belongs in `scene` scope or in the narration, not as an arc thread.
-
-**Scope:** `scene` threads auto-delete on location change; `arc` threads persist until arc resolution or explicit resolve. Choose deliberately — broad buckets only, not single scenes.
+**Before emitting `thread_add`:** scan all active AND latent threads for conceptual overlap. If the same tension is already tracked, use `thread_update` instead. Only create a new thread for genuinely distinct tension. Target: 3–4 threads (~4 total). Hard cap: 5. If you would add a thread but are at 4–5, first resolve or demote an existing one.
 
 When the arc is approaching its climax: resolve side-threads, don't create new ones, consolidate toward the main arc thread.
 
@@ -54,7 +52,7 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 |---|---|
 | Breathe | `breathing_room` or `null` — do not add threads |
 | Pressure | `complication` or `pressure` — update threads, don't add |
-| Overwhelm | `pressure` or `escalation` — may add scene threads if gate allows |
+| Overwhelm | `pressure` or `escalation` — may add threads if gate allows |
 | Tension | Follow roll band; no new threads unless concrete threat |
 | Scene Imperative | Advance the story — choices that move forward or force a decision |
 

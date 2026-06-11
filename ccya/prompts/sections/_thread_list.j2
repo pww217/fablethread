@@ -1,6 +1,6 @@
 {% if threads %}
-### Active Threads ({{ threads | length }} active — target: 2-3 arc, 1-2 scene, ~5 total){% if gate and gate == "block_escalate" %} **Gate: blocked** — new threads will not be added this turn{% endif %}
-{% for t in threads %}{% set scope_tag = "[SCENE]" if t.scope == "scene" else "[ARC]" %}- `{{ t.id }}` {{ scope_tag }}{% if not t.active %} (latent){% endif %} [{{ t.urgency | upper }}] {{ t.summary }}
+### Active Threads ({{ threads | length }} active — target: 3-4, ~5 total){% if gate and gate == "block_escalate" %} **Gate: blocked** — new threads will not be added this turn{% endif %}
+{% for t in threads %}- `{{ t.id }}`{% if not t.active %} (latent){% endif %} [{{ t.urgency | upper }}] {{ t.summary }}
 {%- if t.last_updated_turn is not none %} ({{ turn_no - t.last_updated_turn }} turns ago){% endif %}
 {%- for entry in t.progress %}   - {{ entry }}{% endfor %}
 {% endfor %}{% else %}No active threads.
