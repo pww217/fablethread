@@ -16,7 +16,7 @@ Read these repo files before using this skill:
 linearis <command> [args...]
 ```
 
-- **Never** use `linear` — the wrapper is unreliable. The actual binary is `linearis`.
+- **Never** use `linear` — the wrapper is unreliable. The actual binary is `linearis`, installed globally at `/opt/homebrew/bin/linearis`.
 - **Always** run from the repo root.
 
 ## CRITICAL: Descriptions with inline code
