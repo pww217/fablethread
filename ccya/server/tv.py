@@ -258,8 +258,7 @@ def _tv_state_diff(ev: dict[str, Any]) -> list[dict[str, Any]]:
                 if isinstance(val, dict):
                     tid = val.get("id", "?")
                     tsummary = val.get("summary", "")[:80]
-                    scope_tag = f"[{val.get('scope', '?')}]"
-                    value_str = f"{tid} {scope_tag}: {tsummary}"
+                    value_str = f"{tid}: {tsummary}"
                 else:
                     value_str = "null (gate blocked)"
                 op = "add"
