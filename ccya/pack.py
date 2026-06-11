@@ -200,7 +200,6 @@ class PlayerOverrides(BaseModel):
                 self.npc_hints,
                 self.location_hints,
                 self.free_form,
-                self.npc_count,
                 self.arc_hints,
             ]
         )
