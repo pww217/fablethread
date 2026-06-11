@@ -932,7 +932,7 @@ function charCreation() {
         },
 
         get isValid() {
-            return this.total >= 8 && this.total <= 10
+            return this.total >= 8 && this.total <= 11
                 && this.stats.every(s => s.value >= 1 && s.value <= 4);
         },
 
@@ -947,7 +947,7 @@ function charCreation() {
 
         increment(statKey) {
             const stat = this.stats.find(s => s.key === statKey);
-            if (stat && stat.value < 4 && this.total < 10) {
+            if (stat && stat.value < 4 && this.total < 11) {
                 stat.value++;
             }
         },
@@ -961,10 +961,10 @@ function charCreation() {
 
         applyPreset(name) {
             const archetypes = {
-                warrior:   { strength: 3, dexterity: 3, wits: 2, charisma: 2 },
-                scout:     { strength: 2, dexterity: 3, wits: 3, charisma: 2 },
-                scholar:   { strength: 2, dexterity: 2, wits: 3, charisma: 3 },
-                charmer:   { strength: 2, dexterity: 2, wits: 2, charisma: 4 },
+                warrior:   { strength: 4, dexterity: 3, wits: 2, charisma: 2 },
+                scout:     { strength: 2, dexterity: 4, wits: 3, charisma: 2 },
+                scholar:   { strength: 2, dexterity: 2, wits: 4, charisma: 3 },
+                charmer:   { strength: 2, dexterity: 2, wits: 3, charisma: 4 },
             };
             const a = archetypes[name];
             if (a) {
@@ -1851,6 +1851,7 @@ function game() {
                 }
 
                 _applyMarkdown(block);
+                _highlightEntities(block, result.state);
 
                 if (result.rejected && result.rejected.length > 0) {
                     const note = document.createElement('div');
@@ -2281,6 +2282,76 @@ function _applyMarkdown(root) {
 }
 
 // ---------------------------------------------------------------------------
+// Entity highlighting — wraps known NPC/item/PC/location names in colored
+// <span> tags after markdown rendering.
+// ---------------------------------------------------------------------------
+function _highlightEntities(container, state) {
+    if (!state || !container) return;
+    const names = [];
+
+    // Collect NPC names
+    const npcs = (state.compendium && state.compendium.npcs) || {};
+    for (const id in npcs) {
+        const entry = npcs[id];
+        if (entry && entry.name) names.push({ name: entry.name, cls: 'entity-npc' });
+    }
+
+    // Collect inventory item names
+    const inv = state.inventory || [];
+    for (const item of inv) {
+        if (item && item.name) names.push({ name: item.name, cls: 'entity-item' });
+    }
+
+    // Collect PC name
+    if (state.pc && state.pc.name) names.push({ name: state.pc.name, cls: 'entity-pc' });
+
+    // Collect location name
+    if (state.location && state.location.name) names.push({ name: state.location.name, cls: 'entity-location' });
+
+    if (!names.length) return;
+
+    // Sort descending by length to match longest first
+    names.sort((a, b) => b.name.length - a.name.length);
+
+    // Walk text nodes
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+
+    for (const textNode of textNodes) {
+        // Skip if parent is already an entity or formatting tag
+        const p = textNode.parentNode;
+        if (p && (p.tagName === 'STRONG' || p.tagName === 'EM' || p.tagName === 'A'
+            || (p.tagName === 'SPAN' && p.className && p.className.startsWith('entity-')))) {
+            continue;
+        }
+
+        const text = textNode.textContent;
+        const lower = text.toLowerCase();
+
+        for (const { name, cls } of names) {
+            const idx = lower.indexOf(name.toLowerCase());
+            if (idx === -1) continue;
+
+            const before = text.slice(0, idx);
+            const match = text.slice(idx, idx + name.length);
+            const after = text.slice(idx + name.length);
+
+            const frag = document.createDocumentFragment();
+            if (before) frag.appendChild(document.createTextNode(before));
+            const span = document.createElement('span');
+            span.className = cls;
+            span.textContent = match;
+            frag.appendChild(span);
+            if (after) frag.appendChild(document.createTextNode(after));
+
+            textNode.parentNode.replaceChild(frag, textNode);
+            break; // one entity match per text node — avoids nesting
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tooltip portal — per-anchor mouseenter/mouseleave (no hover bridge)
 // ---------------------------------------------------------------------------
 const TT_MARGIN = 8;
@@ -2459,6 +2530,18 @@ function initTurnLogUi() {
 document.addEventListener('DOMContentLoaded', () => {
     _configureMarked();
     _applyMarkdown();
+
+    // Highlight known entity names in server-rendered history blocks
+    const stateScript = document.getElementById('initial-state');
+    if (stateScript) {
+        try {
+            const initState = JSON.parse(stateScript.textContent);
+            document.querySelectorAll('.narrative-block .narrative-text').forEach(el => {
+                _highlightEntities(el, initState);
+            });
+        } catch (e) { /* state JSON parse failure — skip highlighting */ }
+    }
+
     _bindTooltips(document);
     initTurnLogUi();
 
@@ -2591,6 +2674,9 @@ document.addEventListener('DOMContentLoaded', () => {
 <!-- Panel resize hints -->
 <div id="hint-left" class="gutter-hint gutter-hint--left"></div>
 <div id="hint-right" class="gutter-hint gutter-hint--right"></div>
+
+<!-- Initial game state for client-side entity highlighting -->
+<script id="initial-state" type="application/json">{{ state | tojson }}</script>
 
 </body>
 </html>
