@@ -27,6 +27,8 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
 
 **`thread_update`:** Only `progress` (5–7 words max) — factual, confirmed by this turn's events, no speculation. `progress_kind` classifies the change. If the thread is no longer relevant, resolve it (thread_resolve) or set active: false, then create a new thread via thread_add — do not repurpose with progress that contradicts the summary.
 
+**Include location in thread summaries when relevant:** `"rescue hostages from warehouse district"` not `"rescue hostages"`.
+
 **Before emitting `thread_add`:** scan all active AND latent threads for conceptual overlap. If the same tension is already tracked, use `thread_update` instead. Only create a new thread for genuinely distinct tension. Target: 2–3 arc threads + 1 scene thread (~4 total). Hard cap: 5. If you would add a thread but are at 4–5, first resolve or demote an existing one. Arc threads are tied explicitly to the campaign arc goal and persist across locations. Scene threads are localized, removed on location change, very short-term — if a thread would resolve after one scene, it belongs in `scene` scope or in the narration, not as an arc thread.
 
 **Scope:** `scene` threads auto-delete on location change; `arc` threads persist until arc resolution or explicit resolve. Choose deliberately — broad buckets only, not single scenes.

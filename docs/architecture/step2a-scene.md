@@ -25,11 +25,10 @@ flowchart LR
     end
 
     subgraph OUT["Outputs — SceneExtractResult"]
-        O1["scene_tags: list[str]"]:::outNode
-        O2["scene_tagline: str (3–6 words describing location/situation, NOT event summary)"]:::outNode
-        O3["location_change: LocationRef | None<br>  id, name, description"]:::outNode
-        O4["location_description: str | None"]:::outNode
-        O5["compendium_npc_update<br>  durable identity changes (presence, notes, bio upserts, personality on creation)"]:::outNode
+        O1["scene_tagline: str (3–6 words describing location/situation, NOT event summary)"]:::outNode
+        O2["location_change: LocationRef | None<br>  id, name, description"]:::outNode
+        O3["location_description: str | None"]:::outNode
+        O4["compendium_npc_update<br>  durable identity changes (presence, notes, bio upserts, personality on creation, position)"]:::outNode
     end
 
     IN --> LLM2A

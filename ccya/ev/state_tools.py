@@ -483,33 +483,6 @@ def _diff_location(section: str, before: list[dict[str, Any]], after: list[dict[
     return {"section": section, "kind": "changed", "before_value": before, "after_value": after, "changes": [{"kind": "changed", "label": label}]}
 
 
-def _diff_scene_tags(section: str, before: list[dict[str, Any]], after: list[dict[str, Any]]) -> dict[str, Any]:
-    if not isinstance(before, list):
-        before = []
-    if not isinstance(after, list):
-        after = []
-
-    def _tag_names(items: list[dict[str, Any]]) -> list[str]:
-        return sorted([str(item.get("name", "") or item.get("id", "")) for item in items if isinstance(item, dict)])
-
-    bt = set(_tag_names(before))
-    at = set(_tag_names(after))
-
-    added_tags = sorted(at - bt)
-    removed_tags = sorted(bt - at)
-
-    if not added_tags and not removed_tags:
-        return {"section": section, "kind": "unchanged", "before_value": before, "after_value": after}
-
-    changes = []
-    for t in added_tags:
-        changes.append({"kind": "added", "label": f"+{t}"})
-    for t in removed_tags:
-        changes.append({"kind": "removed", "label": f"-{t}"})
-
-    return {"section": section, "kind": "changed", "before_value": before, "after_value": after, "changes": changes}
-
-
 def _print_unchanged_inventory(before: list[dict[str, Any]], after: list[dict[str, Any]]) -> None:
     def _item_map(items: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
         return {(str(item.get("id", ""))): item for item in items if isinstance(item, dict) and item.get("id")}
@@ -634,7 +607,6 @@ def diff_extraction_context(ctx_a: dict[str, Any], ctx_b: dict[str, Any]) -> lis
         "inventory_this_turn": ("Inventory", _diff_inventory),
         "conditions_this_turn": ("Conditions", _diff_conditions),
         "location_this_turn": ("Location", _diff_location),
-        "scene_tags_this_turn": ("Scene Tags", _diff_scene_tags),
     }
     results = []
     for key, (section_name, diff_fn) in field_map.items():

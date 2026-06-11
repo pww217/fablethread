@@ -254,6 +254,7 @@ class CompendiumNpcUpdate(BaseModel):
     leverage: str | None = None
     presence: str | None = None  # "present" | "nearby" | "known" | "departed" — scene extractor sets this
     notes: str | None = None      # scene-specific attitude, cleared on departure
+    position: str | None = None   # spatial position in current scene
     first_seen_turn: int | None = None  # set by engine on initial entry creation
     personality: str | None = None  # archetype id; immutable once set
     departed_reason: str | None = None     # short label, e.g. "killed in battle"
@@ -283,7 +284,6 @@ class StateDelta(BaseModel):
     location_description: str | None = None
     pc_condition_add: list[ConditionAdd] = Field(default_factory=list, max_length=6)
     pc_condition_remove: list[ConditionRemove] = Field(default_factory=list)
-    scene_tags: list[str] = Field(default_factory=list)
     scene_tagline: str | None = (
         None  # 3–6 words for UI header; persisted to state.scene.tagline
     )
@@ -305,7 +305,6 @@ class StateDelta(BaseModel):
 
 
 class SceneExtractResult(BaseModel):
-    scene_tags: list[str] = Field(default_factory=list)
     scene_tagline: str | None = None
     location_change: LocationRef | None = None
     location_description: str | None = None
@@ -525,7 +524,6 @@ class TurnResult:
     applied: dict[str, Any] = field(default_factory=dict)
     rejected: list[dict[str, Any]] = field(default_factory=list)
     actions: list[str] = field(default_factory=list)
-    scene_tags: list[str] = field(default_factory=list)
     diff: list[str] = field(
         default_factory=list
     )  # short human-readable delta lines for UI toast

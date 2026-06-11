@@ -50,8 +50,6 @@ class _ExtractionContext:
     """Reference to post-delta compendium.npcs dict (not a copy)."""
     location_this_turn: dict[str, Any] = field(default_factory=dict)
     """Location dict after applying location_change from scene result (or state's if no change)."""
-    scene_tags_this_turn: list[str] = field(default_factory=list)
-    """scene.tags after scene stream."""
 
     # State stream outputs (stream 2)
     inventory_this_turn: list[dict[str, Any]] = field(default_factory=list)
@@ -77,7 +75,6 @@ def _build_extraction_context(
     combined_delta = StateDelta(
         compendium_npc_update=list(scene_result.compendium_npc_update or []),
         location_change=scene_result.location_change,
-        scene_tags=list(scene_result.scene_tags or []),
         inventory_add=list(state_result.inventory_add or []),
         inventory_remove=list(state_result.inventory_remove or []),
         inventory_update=list(state_result.inventory_update or []),
@@ -97,7 +94,6 @@ def _build_extraction_context(
     return _ExtractionContext(
         comp_this_turn=post_state.setdefault("compendium", {}).setdefault("npcs", {}),
         location_this_turn=location_this_turn,
-        scene_tags_this_turn=list(post_state.get("scene", {}).get("tags") or []),
         inventory_this_turn=list(post_state.get("inventory") or []),
         conditions_this_turn=list(post_pc.get("conditions") or []),
     )
@@ -464,9 +460,7 @@ async def _run_extraction_pipeline(
         )
         extraction_event["scene"] = {**_SKIPPED, "error": str(exc)}
 
-    if not scene_result.scene_tags:
-        _log.warning("extraction.scene.empty trace_id=%s turn_no=%d scene has no tags or NPC changes after retries", trace_id, turn_no)
-    _log.debug("extraction.scene.done trace_id=%s result_type=%s tags=%d tokens_in=%d tokens_out=%d", trace_id, type(scene_result).__name__, len(scene_result.scene_tags), scene_usage.get("prompt_tokens", 0), scene_usage.get("completion_tokens", 0))
+    _log.debug("extraction.scene.done trace_id=%s result_type=%s tokens_in=%d tokens_out=%d", trace_id, type(scene_result).__name__, scene_usage.get("prompt_tokens", 0), scene_usage.get("completion_tokens", 0))
     yield ("phase", {"phase": "extract_stream_done", "stream": "scene"})
 
     # --- Stream 2: State ---
@@ -634,12 +628,11 @@ async def _run_extraction_pipeline(
     _capitalize_inventory_names(state_result.inventory_update)
 
     _log.debug(
-        "extraction.merge.start trace_id=%s scene_tags=%d inv_add=%d", trace_id, len(scene_result.scene_tags or []), len(state_result.inventory_add or [])
+        "extraction.merge.start trace_id=%s inv_add=%d", trace_id, len(state_result.inventory_add or [])
     )
     # --- Merge into single StateDelta ---
     merged = StateDelta(
         inventory_change_reason=state_result.inventory_change_reason,
-        scene_tags=scene_result.scene_tags,
         scene_tagline=scene_result.scene_tagline,
         location_change=scene_result.location_change,
         location_description=scene_result.location_description,

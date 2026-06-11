@@ -271,15 +271,6 @@ def apply_delta(
         existing_ids.add(cid)
     state["pc"]["conditions"] = existing_conds[-PC_CONDITIONS_MAX:]
 
-    if delta.scene_tags:
-        state["scene"]["tags"] = delta.scene_tags
-        new_tags = set(delta.scene_tags)
-        old_tags = set(state.get("scene", {}).get("tags") or [])
-        if "combat" in new_tags and "combat" not in old_tags:
-            state["scene"]["combat_started_turn"] = state.get("meta", {}).get("turn", 0)
-        elif "combat" not in new_tags and "combat" in old_tags:
-            state["scene"].pop("combat_started_turn", None)
-
     if delta.scene_tagline is not None:
         state.setdefault("scene", {})["tagline"] = _strip_non_ascii(delta.scene_tagline)
 
@@ -287,7 +278,6 @@ def apply_delta(
     from ccya.state.npcs import apply_npc_scene_management
     state = apply_npc_scene_management(state, SceneExtractResult(
         compendium_npc_update=delta.compendium_npc_update or [],
-        scene_tags=delta.scene_tags or [],
         scene_tagline=delta.scene_tagline,
         location_change=delta.location_change,
         location_description=delta.location_description,
