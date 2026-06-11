@@ -9,7 +9,7 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
   "scene_tagline": "...",
   "location_change": {"id": "...", "name": "...", "description": "..."},
   "location_description": "...",
-  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "presence": "present|nearby|known|departed", "notes": "...", "position": "..."}]
+  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "aliases": ["..."], "allegiance": "...", "motivation": "...", "fear": "...", "leverage": "...", "presence": "present|nearby|known|departed", "notes": "...", "position": "..."}]
 }
 ```
 
@@ -58,6 +58,24 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 - For new NPCs, generate a stable `snake_case` ID from their name/title. Examples: `"scarred_tough"`, `"guard_captain_renn"`.
 - If an NPC is known from the compendium, use their existing compendium ID — do NOT create a new ID.
 - When adding a new NPC, include `name`, `title`, and `bio` so the engine can populate the compendium. **Bio is mandatory for every NPC — even ambient presence like "crowd" or "bystanders" needs a bio.**
+
+## Alias-first naming (MANDATORY)
+
+When creating or updating an NPC entry:
+- **Named NPCs (proper name known):** Set `name` to the proper name (e.g., "Leo Vance"). Do NOT put proper names in `aliases`.
+- **Unnamed NPCs (descriptive label only):** Set `name` to a descriptive label (e.g., "Scarred Soldier") AND add that label to `aliases`. The `name` field is a display fallback — it shows when no proper name is known.
+- **Name revealed later:** When narration reveals a proper name for an NPC previously known by description, update `name` to the proper name. Keep the descriptive label in `aliases` so the history is preserved. Do NOT create a new compendium entry.
+- **Placeholder names:** Labels like "Unknown Visitor", "Frantic Stranger", "Mysterious Figure", "Scarred Soldier", "Young Man" are descriptive aliases, not proper names. Put them in `aliases`, not `name`.
+
+## NPC field requirements
+
+- **Named NPCs (proper name in `name`):** Must have `bio` (mandatory) plus at least 2 of these 4 fields: `motivation`, `fear`, `leverage`, `bond`. Pick the 2-3 that are most relevant to the story. On first compendium entry, assign all required fields.
+- **Unnamed NPCs (descriptive label only):** Must have `bio` (mandatory). No personality fields required — they may be assigned later when/if the NPC gets a proper name.
+- **Ambient/ambient presence (crowd, bystanders, inn_patrons):** Must have `bio` (mandatory, 1-2 sentences describing the group). No other fields required.
+
+## Passive NPC extraction
+
+If a named character enters the scene as the **recipient** of a major action (rescue, capture, healing, transport, medical aid), create a compendium entry for them even if they don't perform visible actions. Use whatever information is available from context — including details from recent narration history if needed for the bio. This is belt-and-suspenders: the primary mechanism is alias-first naming (above), but this ensures central plot characters are never missed.
 
 ### Bio and notes examples (READ CAREFULLY)
 

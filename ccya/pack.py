@@ -45,6 +45,7 @@ class CompendiumEntry(BaseModel):
     motivation: str | None = None  # what NPC fundamentally wants (UI-visible in compendium tooltip)
     fear: str | None = None        # what NPC is most afraid of (state-only, not UI-visible)
     leverage: str | None = None   # what NPC can offer/threaten/withhold (state-only, not UI-visible)
+    personality: str | None = None  # archetype id; write-once, engine-assigned
 
 
 class SeedCompendium(BaseModel):
