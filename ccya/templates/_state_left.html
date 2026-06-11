@@ -150,10 +150,12 @@
             {% set _mot = entry.motivation if entry is mapping else '' %}
             {% set npc_pl = entry.get('personality_label', '') if entry is mapping else '' %}
             {% set npc_pt = entry.get('personality_traits', '') if entry is mapping else '' %}
+            {% set _aliases = entry.aliases if entry is mapping and entry.aliases else [] %}
             <div class="compendium-item has-tooltip">
                 <span class="compendium-line">{{ nm or nid }}{% if ttl %}<span class="compendium-title"> — {{ ttl }}</span>{% endif %}</span>
                 <div class="tooltip-body" data-md-compendium>
                     {% if bio %}<p>{{ bio }}</p>{% else %}—{% endif %}{% set _has = false %}
+                    {% if _aliases and not nm %}<p><em>Previously known as: {{ _aliases[0] }}</em></p>{% set _has = true %}{% endif %}
                     {% if npc_pl %}<p><strong>Personality:</strong> {{ npc_pl }}{% if npc_pt %} — {{ npc_pt }}{% endif %}</p>{% set _has = true %}{% endif %}
                     {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% set _has = true %}{% endif %}
                     {% if npc_bond %}<p><strong>Bond:</strong> {{ npc_bond }}</p>{% set _has = true %}{% endif %}
