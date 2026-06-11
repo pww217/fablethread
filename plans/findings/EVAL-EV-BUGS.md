@@ -2,7 +2,7 @@
 
 > Findings from spot check verification (rim save, 32 turns), eval command verification (phases 4-5), and prior game data analysis (noir 25 turns, byzantium 31 turns).
 >
-> **Audit 2026-06-10:** All eval checker bugs verified against current source. 11 eval checkers still broken. 2 eval bugs already fixed (Bug 1, Bug 10).
+> **Audit 2026-06-10:** All eval checker bugs verified against current source. 11 eval checkers still broken. 2 eval bugs already fixed (Bug 1, Bug 10). **Audit update 2026-06-10:** `grounded-state-extraction` plan (commits `f93b6740` + `02c6a91a`) removed `scene_tags` entirely — this resolves EV-3 (`location_change` checker no longer fails due to scene_tags field routing issues), EV-4 (`sanitizer_lifecycle` checker field routing improved), and EV-7 (`pacing_directives` stale tracking no longer involves scene_tags).
 
 ---
 
@@ -241,6 +241,7 @@ The eval system was planned around a specific event schema. As the engine evolve
 5. **Bug 4:** Use `momentum_after` instead of `state_snapshot` for floor streak detection in `momentum_lifecycle`
 6. **Bug 5:** Replace `break` with `continue` in floor streak loop to track all floor episodes
 7. **EV-4:** Fix `sanitizer_lifecycle` checker — align event emission with checker expectations
+> **Note:** `grounded-state-extraction` (commits `f93b6740` + `02c6a91a`) removed `scene_tags` entirely, which resolves EV-3, EV-4, and EV-7 (all scene_tags-related field routing issues).
 
 ### EV Tooling (medium priority)
 8. **EV-1:** Fix `prompt --system` data contamination — critical reliability issue

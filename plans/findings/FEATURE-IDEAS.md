@@ -60,13 +60,13 @@ May already be sufficiently differentiated via `visible_goal` vs thread progress
 
 ## Scene Mechanics
 
-### F-N04. Grounded location descriptions + nearby POIs [Net New] — **Priority #8**
+### F-N04. Grounded location descriptions + nearby POIs [Net New] — **PARTIALLY FIXED** — **Priority #8**
 
-Location descriptions feel generic and abstract. Should be more grounded and spatial — include nearby locations or points of interest (POIs) to give players a sense of the wider area. This makes the world feel alive beyond the immediate scene and gives players more context for exploration decisions.
+**PARTIALLY FIXED** — `grounded-state-extraction` plan (commits `f93b6740` + `02c6a91a`) rewrote `location_description` to be a complete rewrite each turn (not just new details), with explicit guidance for tangible details (materials, lighting, sounds, smells) and spatial relationships. Location descriptions are now grounded and spatial. **NOT FIXED:** Nearby/POI system deferred to separate feature per the plan constraints.
 
-### F-N06. Interactive inventory items in scenes [Net New] — **Priority #5**
+### F-N06. Interactive inventory items in scenes [Net New] — **PARTIALLY FIXED** — **Priority #5**
 
-Inventory items should be interactive within scene mechanics, not just mentioned in narration. The state extractor needs to handle item interactions (pick up, use, examine) as first-class actions that affect the scene — similar to how NPCs can act independently but for objects rather than characters. This would make inventory feel more integrated into gameplay rather than being a passive list tracked behind the scenes.
+**PARTIALLY FIXED** — `grounded-state-extraction` plan (commits `f93b6740` + `02c6a91a`) tightened inventory notes to end with spatial position (e.g., `"quest item, in locked safe"`, `"worn, in right holster"`). Inventory is now tracked with spatial context. **NOT FIXED:** First-class item interaction mechanics (pick up, use, examine as scene actions) deferred — inventory remains a passive list tracked behind the scenes.
 
 ---
 
@@ -96,9 +96,9 @@ NPCs who are dead, incapacitated, or no longer relevant need structured removal:
 - **Backend TTL**: On the backend, character persists for ~10 turns so engine can still understand callbacks/references to recently deceased characters. By turn 10, callback probability is slim.
 - **Key NPC exception**: Named/key NPCs marked with a `key_npc` flag are exempt from automatic removal — they stay until explicitly removed by narrative events.
 
-### F-N07. Left-behind tracking on location change [Net New] — **Priority #7**
+### F-N07. Left-behind tracking on location change [Net New] — **PARTIALLY FIXED** — **Priority #7**
 
-When the player changes locations (which may be fixed via B7 prompt fix), characters who should logically stay behind aren't tracked as such. Example: a companion stays at home while the PC goes across town — they shouldn't magically appear in the new scene. Need explicit state for "left behind" NPCs with their last known location, so the narrator can reference them appropriately ("your sister is still back at the safehouse") rather than either teleporting them or forgetting them entirely. This complements F-N03 (death/removal) and F-N04 (party designation) — party members should be exempt from left-behind logic unless explicitly separated by narrative events, while non-party NPCs who were in a previous scene should have their location tracked separately.
+**PARTIALLY FIXED** — `grounded-state-extraction` plan (commits `f93b6740` + `02c6a91a`) added `position` field to `CompendiumNpcUpdate` for explicit NPC spatial positioning in scenes. NPCs now track where they are in the scene. **NOT FIXED:** Explicit "left behind" state tracking (last known location when PC changes scenes) deferred — NPC departure/known status handles some of this via F-N03 (NPC death/removal lifecycle), but dedicated left-behind tracking is not implemented.
 
 ---
 
@@ -180,10 +180,10 @@ Character creation gives PC 10 points but should be 11 for better balance. Simpl
 |----------|-----------------|-------------------|------------------|
 | Game Setup | F-N08, F-N09 | — | — |
 | Compendium | F-N01, F-N02 | — | — |
-| Scene Mechanics | F-N04, F-N06 | — | — |
+| Scene Mechanics | F-N04, F-N06 (partial) | — | — |
 | Thread & Arc Management | — | — | DQ03 (cognitive load) |
 | Narrative Setup | F-I02, F-I09 | F-I01, F-I03, F-I04 | DQ01 (tentative) |
-| NPC Mechanics | F-N03, F-N07 | — | — |
+| NPC Mechanics | F-N03, F-N07 (partial) | — | — |
 | Storytelling Pipeline | F-N05, Bug 15 | — | DQ02 |
 | UI Improvements | F-I07 | F-I06 | — |
 | Pipeline Efficiency | — | F-I08, F-I10 | — |

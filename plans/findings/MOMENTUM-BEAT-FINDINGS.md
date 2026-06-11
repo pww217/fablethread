@@ -419,18 +419,18 @@ Impact: Breaks the death spiral by making recovery from deep negatives statistic
 
 ---
 
-## Appendix: Key Source Locations (validated against source 2026-06-10)
+## Appendix: Key Source Locations (validated against source 2026-06-10, updated 2026-06-10 post-grounded-state-extraction)
 
 | Component | File | Lines | Status |
 |-----------|------|-------|--------|
-| Velocity computation | `ccya/engine/turn.py` | 423-455 | Confirmed — momentum ≤ -2 → velocity < -0.3 → Breathe fires |
-| Directive priority stack | `ccya/engine/turn.py` | 458-522 | Confirmed — Breathe at top priority when velocity < -0.3, no urgent threads |
-| Pacing context (beat_locked) | `ccya/engine/turn.py` | 585-637 | **FIXED** — MB-2: Breathe no longer appends "; Resolve a Threat" (lines 594-596) |
-| Ages computation | `ccya/engine/turn.py` | 640-644 | Confirmed |
-| Effective scene age (combat boost) | `ccya/engine/turn.py` | 647-651 | **FIXED** — MB-6: threshold lowered from 5 to 4 in config.py (step 01.4) |
-| Scope-scene thread filtering | `ccya/engine/turn.py` | 827-838 | Confirmed — only scope=scene threads used for directive computation |
-| Pacing context call site | `ccya/engine/turn.py` | 843-850 | Confirmed |
-| Floor relief injection | `ccya/engine/turn.py` | 1091-1106 | **FIXED** — MB-3: only fires from consecutive_pressure, not momentum floor (lines 1095-1098) |
+| Velocity computation | `ccya/engine/turn.py` | 465-495 | Confirmed — momentum ≤ -2 → velocity < -0.3 → Breathe fires |
+| Directive priority stack | `ccya/engine/turn.py` | 496-568 | Confirmed — Breathe at top priority when velocity < -0.3, no urgent threads |
+| Pacing context (beat_locked) | `ccya/engine/turn.py` | 570-634 | **FIXED** — MB-2: Breathe no longer appends "; Resolve a Threat" (lines 627-631) |
+| Ages computation | `ccya/engine/turn.py` | 770-785 | Confirmed |
+| Effective scene age (combat boost) | `ccya/engine/turn.py` | 778-782 | **FIXED** — MB-6: threshold lowered from 5 to 4 in config.py (step 01.4) |
+| Scope-scene thread filtering | `ccya/engine/turn.py` | 820-835 | Confirmed — only scope=scene threads used for directive computation |
+| Pacing context call site | `ccya/engine/turn.py` | 840-855 | Confirmed |
+| Floor relief injection | `ccya/engine/turn.py` | 1091-1106 | **FIXED** — MB-3: only fires from consecutive_pressure, not momentum floor (lines 1092-1098) |
 | Pressure counter | `ccya/engine/turn.py` | 1108-1116 | **FIXED** — reads from pending_gm_beat after floor relief (post-floor-relief beat) |
 | Momentum application | `ccya/state/momentum.py` | 16-37 | **FIXED** — MB-4: depth-based catch-up at -3 (success=+2, crit_success=+3) at lines 27-33 |
 | Momentum deltas | `ccya/rules.py` | 79-86 | Confirmed — success=+1, fail=-1 regardless of current momentum |
