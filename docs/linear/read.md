@@ -13,6 +13,9 @@ linearis issues list --team PW --status "Backlog,New,Accepted,Up Next,In Progres
 
 # All tickets for a project
 linearis issues list --project "CCYA"
+
+# All tickets in Scoping status
+linearis issues list --team PW --status Scoping
 ```
 
 ### By label
@@ -69,23 +72,23 @@ Get full issue details including description:
 
 ```bash
 # Read a ticket by identifier
-linearis issues read PW-6
+linearis issues read TICK-6
 
 # Read with attachments
-linearis issues read PW-6 --with-attachments
+linearis issues read TICK-6 --with-attachments
 
 # Read with comments
-linearis issues read PW-6 --with-comments
+linearis issues read TICK-6 --with-comments
 
 # Read with discussion threads
-linearis issues read PW-6 --with-comment-threads
+linearis issues read TICK-6 --with-comment-threads
 ```
 
 ## List discussion threads on an issue
 
 ```bash
 # List root discussion threads on a ticket
-linearis issues discussions PW-6
+linearis issues discussions TICK-6
 ```
 
 ## Discover dynamic state

@@ -6,35 +6,35 @@
 
 ```bash
 # New → Accepted (after validation)
-linearis issues update PW-6 --status "Accepted"
+linearis issues update TICK-6 --status "Accepted"
 
 # Accepted → Up Next
-linearis issues update PW-6 --status "Up Next"
+linearis issues update TICK-6 --status "Up Next"
 
 # Up Next → In Progress
-linearis issues update PW-6 --status "In Progress"
+linearis issues update TICK-6 --status "In Progress"
 
-# In Progress → Complete
-linearis issues update PW-6 --status "Complete"
+# In Progress → Completed
+linearis issues update TICK-6 --status "Completed"
 ```
 
 ### Non-bug ticket lifecycle
 
 ```bash
 # Backlog → Up Next
-linearis issues update PW-10 --status "Up Next"
+linearis issues update TICK-10 --status "Up Next"
 
 # Up Next → In Progress
-linearis issues update PW-10 --status "In Progress"
+linearis issues update TICK-10 --status "In Progress"
 
-# In Progress → Complete
-linearis issues update PW-10 --status "Complete"
+# In Progress → Completed
+linearis issues update TICK-10 --status "Completed"
 ```
 
 ### Cancel at any stage
 
 ```bash
-linearis issues update PW-6 --status "Canceled"
+linearis issues update TICK-6 --status "Canceled"
 ```
 
 ## Label changes
@@ -42,19 +42,19 @@ linearis issues update PW-6 --status "Canceled"
 ### Add labels (without removing existing)
 
 ```bash
-linearis issues update PW-6 --labels "Bug,plan" --label-mode add
+linearis issues update TICK-6 --labels "Bug,plan" --label-mode add
 ```
 
 ### Overwrite labels
 
 ```bash
-linearis issues update PW-6 --labels "Feature" --label-mode overwrite
+linearis issues update TICK-6 --labels "Feature" --label-mode overwrite
 ```
 
 ### Remove all labels
 
 ```bash
-linearis issues update PW-6 --clear-labels
+linearis issues update TICK-6 --clear-labels
 ```
 
 ## Resolution comments
@@ -62,7 +62,7 @@ linearis issues update PW-6 --clear-labels
 After completing work on a ticket, add a resolution comment to the discussion thread:
 
 ```bash
-linearis issues discuss PW-6 --body "## Resolution\n\nFixed by removing `ruling.band` from `requires_fields`, using `extract_field(ev, momentum_after)` for floor streak detection, and replacing `break` with `continue` at line 88."
+linearis issues discuss TICK-6 --body "## Resolution\n\nFixed by removing `ruling.band` from `requires_fields`, using `extract_field(ev, momentum_after)` for floor streak detection, and replacing `break` with `continue` at line 88."
 ```
 
 The resolution comment should:
@@ -74,7 +74,7 @@ The resolution comment should:
 ### Updating status after resolution
 
 ```bash
-linearis issues update PW-6 --status "Complete"
+linearis issues update TICK-6 --status "Completed"
 ```
 
 ## Discussion thread management
@@ -82,7 +82,7 @@ linearis issues update PW-6 --status "Complete"
 ### List threads on a ticket
 
 ```bash
-linearis issues discussions PW-6
+linearis issues discussions TICK-6
 ```
 
 ### Reply to a thread
@@ -103,38 +103,38 @@ linearis issues resolve <thread-id>
 ### Change priority
 
 ```bash
-linearis issues update PW-6 --priority 3
+linearis issues update TICK-6 --priority 3
 ```
 
 ### Change assignee
 
 ```bash
-linearis issues update PW-6 --assignee "Peter"
+linearis issues update TICK-6 --assignee "Peter"
 ```
 
 ### Add to project
 
 ```bash
-linearis issues update PW-6 --project "CCYA"
+linearis issues update TICK-6 --project "CCYA"
 ```
 
 ### Set parent ticket (sub-issue)
 
 ```bash
-linearis issues update PW-7 --parent-ticket PW-6
+linearis issues update TICK-7 --parent-ticket TICK-6
 ```
 
 ### Add relation
 
 ```bash
 # This issue blocks another
-linearis issues update PW-6 --blocks PW-8
+linearis issues update TICK-6 --blocks TICK-8
 
 # This issue is blocked by another
-linearis issues update PW-8 --blocked-by PW-6
+linearis issues update TICK-8 --blocked-by TICK-6
 
 # This issue relates to another
-linearis issues update PW-6 --relates-to PW-10
+linearis issues update TICK-6 --relates-to TICK-10
 ```
 
 ## Archiving
@@ -142,7 +142,7 @@ linearis issues update PW-6 --relates-to PW-10
 Archive a completed ticket to remove it from active views:
 
 ```bash
-linearis issues archive PW-6
+linearis issues archive TICK-6
 ```
 
 ## Key files

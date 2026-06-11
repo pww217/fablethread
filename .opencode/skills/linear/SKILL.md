@@ -69,13 +69,14 @@ linearis issues create "Ticket title" --team PW --labels Feature --priority 3 --
 | `Backlog` | New tickets, untriaged, non-bug ideas |
 | `New` | Bug reported, needs validation (Bug label only) |
 | `Accepted` | Bug validated against current source, ready to work on (Bug label only) |
+| `Scoping` | Feature/improvement needs more detail before being ready for Up Next |
 | `Up Next` | Queued for work |
 | `In Progress` | Actively being worked on |
-| `Complete` | Done |
+| `Completed` | Done |
 | `Canceled` | No longer relevant |
 
-**Bug tickets:** Backlog → New → Accepted → Up Next → In Progress → Complete
-**Non-bug tickets:** Backlog → Up Next → In Progress → Complete
+**Bug tickets:** Backlog → New → Accepted → Up Next → In Progress → Completed
+**Non-bug tickets:** Backlog → Scoping → Up Next → In Progress → Completed
 **All tickets:** Can be canceled at any stage
 
 ## Key files
