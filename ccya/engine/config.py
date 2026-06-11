@@ -109,7 +109,7 @@ class EngineConfig:
     #
     host: str = "http://localhost:8080/v1"
     model: str = "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit-thinking"
-    request_timeout_s: int = 180
+    request_timeout_s: int = 1200
     ruling_temperature: float = 0.2
     extract_temperature: float = 0.4
     narrate_temperature: float = 0.9
@@ -244,7 +244,7 @@ def build_engine_config(
         host=str(llm.get("host", "http://localhost:8080/v1")),
         model=str(llm.get("model", "")),
         context_window=int(llm.get("context_window", 32768)),
-        request_timeout_s=int(llm.get("request_timeout_s", 180)),
+        request_timeout_s=int(llm.get("request_timeout_s", 1200)),
         narrate_temperature=narrate_t,
         extract_temperature=extract_t,
         ruling_temperature=ruling_t,
