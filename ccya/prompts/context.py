@@ -79,7 +79,6 @@ class ArcThreadSummary(BaseModel):
 
     id: str
     summary: str
-    scope: Literal["scene", "arc"]
     urgency: Literal["background", "normal", "urgent"]
     progress: list[str] = Field(default_factory=list)
     active: bool
@@ -124,7 +123,6 @@ class ArcThreadBlock(BaseModel):
                     ArcThreadSummary(
                         id=t.get("id", ""),
                         summary=t.get("summary", ""),
-                        scope=t.get("scope", "arc"),
                         urgency=t.get("urgency", "normal"),
                         progress=_fmt_progress(t.get("progress")),
                         active=bool(t.get("active", True)),
@@ -136,7 +134,6 @@ class ArcThreadBlock(BaseModel):
                     ArcThreadSummary(
                         id=t.id,
                         summary=t.summary,
-                        scope=t.scope,
                         urgency=t.urgency,
                         progress=_fmt_progress(t.progress),
                         active=bool(t.active),

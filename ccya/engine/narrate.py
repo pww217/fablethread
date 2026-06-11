@@ -60,7 +60,6 @@ def _narrate_messages(
                 {
                     "summary": t.get("summary", "") if isinstance(t, dict) else getattr(t, "summary", ""),
                     "urgency": t.get("urgency", "normal") if isinstance(t, dict) else getattr(t, "urgency", "normal"),
-                    "scope": t.get("scope", "arc") if isinstance(t, dict) else getattr(t, "scope", "arc"),
                     "id": t.get("id", "") if isinstance(t, dict) else getattr(t, "id", ""),
                     "active": t.get("active", True) if isinstance(t, dict) else getattr(t, "active", True),
                     "progress": _fmt_progress(t.get("progress")) if isinstance(t, dict) else (_fmt_progress(t.progress) if hasattr(t, "progress") else []),

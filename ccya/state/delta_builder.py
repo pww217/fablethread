@@ -227,13 +227,6 @@ def apply_delta(
                 entry["presence"] = "nearby"
                 entry["nearby_since_turn"] = state.get("meta", {}).get("turn", 0) + 1
                 entry.pop("notes", None)
-        # Purge scene-scoped threads — they are localized to the prior location.
-        # The LLM creates arc-scoped threads for persistent story lines.
-        arc = state.get("arc")
-        if arc:
-            threads = arc.get("threads") or []
-            arc["threads"] = [t for t in threads if not (isinstance(t, dict) and t.get("scope") == "scene")]
-
         _stamp_turn = state.get("meta", {}).get("turn", 0)
         state["scene"]["turn_entered"] = _stamp_turn
         state["scene"]["location_entered_turn"] = _stamp_turn

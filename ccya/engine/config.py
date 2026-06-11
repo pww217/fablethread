@@ -170,10 +170,6 @@ class EngineConfig:
 
     # Urgency decay: demote urgent→normal→background after N turns at same urgency level
     thread_urgency_max_age: int = 8
-    # Scene-scoped thread expiration: active→latent threshold and latent removal multiplier
-    scene_thread_expire_silent_turns: int = 5
-    # Whether to track progress for scene-scoped threads (enables completion via Python)
-    track_scene_thread_progress: bool = True
 
     # Thread sanitizer: batch arc/thread cleanup every N turns
     sanitize_every: int = 5       # 0 = disabled
@@ -288,8 +284,6 @@ def build_engine_config(
 
         # Thread lifecycle enforcement
         thread_urgency_max_age=int(game.get("thread_urgency_max_age", 8)),
-        scene_thread_expire_silent_turns=int(game.get("scene_thread_expire_silent_turns", 5)),
-        track_scene_thread_progress=bool(game.get("track_scene_thread_progress", True)),
 
         sanitize_every=int(game.get("sanitize_every", 5)),   # 0 = disabled
         sanitize_temperature=float(

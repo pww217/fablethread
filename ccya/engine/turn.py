@@ -235,45 +235,6 @@ def _apply_thread_updates(
                         turn_no, t.id, _current_urgency, new_urgency, _age, extra={"turn": turn_no},
                     )
 
-    # Scene-scoped two-stage lifecycle: active→latent after silent threshold, latent→removed after 2x threshold.
-    if config and remaining_threads:
-        _expire_threshold = config.scene_thread_expire_silent_turns
-        scene_threads_to_remove = []
-        for i, t in enumerate(remaining_threads):
-            if getattr(t, "scope", "arc") != "scene":
-                continue
-
-            _last_seen = getattr(t, "last_seen_turn", None) or getattr(t, "added_turn", None)
-            if _last_seen is None:
-                continue  # no turn context — skip this thread
-
-            _turns_since_last_activity = turn_no - _last_seen
-
-            if t.active:
-                # Active → latent: scene thread silent for threshold turns without being advanced.
-                # Only set active=False — urgency was already updated by the decay pass above (if applicable).
-                if _turns_since_last_activity >= _expire_threshold:
-                    updated_t = t.model_copy(update={"active": False})
-                    remaining_threads[i] = updated_t
-                    mutated = True
-                    _log.info(
-                        "thread_updates.scene_latent trace_id=%d scene_thread %s silent_for=%d turns",
-                        turn_no, t.id, _turns_since_last_activity, extra={"turn": turn_no},
-                    )
-            else:
-                # Latent → remove: unsurfaced for 2x threshold total (silent since creation/last_seen)
-                if _turns_since_last_activity >= _expire_threshold * 2:
-                    scene_threads_to_remove.append(i)
-
-        # Remove latent scene threads that have been unsurfaced too long (iterate backwards to preserve indices).
-        for idx in reversed(scene_threads_to_remove):
-            removed_t = remaining_threads.pop(idx)
-            mutated = True
-            _log.info(
-                "thread_updates.scene_removed trace_id=%d scene_thread %s unsurfaced_for=%d turns",
-                turn_no, getattr(removed_t, 'id', '?'), turn_no - (getattr(removed_t, 'last_seen_turn', None) or 0), extra={"turn": turn_no},
-            )
-
     return arc.model_copy(update={
         "threads": remaining_threads,
     }) if mutated else None
@@ -312,23 +273,11 @@ def _apply_arc_resolve(
 
     resolution = storyteller_result.arc_resolve
 
-    # Partition threads into arc-scoped and scene-scoped
-    arc_scoped = [t for t in old_arc.threads if t.scope == "arc"]
-    scene_scoped = [t for t in old_arc.threads if t.scope != "arc"]
+    # All threads carry forward; apply drop_threads filter
+    drop_ids = set(resolution.drop_threads)
+    surviving_threads = [t for t in old_arc.threads if t.id not in drop_ids]
 
-    # Auto-close arc-scoped threads: move to completed_threads with superseded state
-    closed_arc_threads = []
-    for t in arc_scoped:
-        closed_arc_threads.append(t.model_copy(update={
-            "resolution_state": "superseded",
-            "resolved_turn": turn_no,
-        }))
-
-    # Scene-scoped threads carry forward; apply drop_threads filter
-    surviving_scene_ids = set(resolution.drop_threads)
-    surviving_scene_threads = [t for t in scene_scoped if t.id not in surviving_scene_ids]
-
-    # Warn about arc-scoped IDs in drop_threads (no-op — already auto-closed)
+    # Warn about dropped threads
     for tid in resolution.drop_threads:
         _log.info(
             "arc_resolve.drop trace_id=%d thread %s", turn_no, tid, extra={"turn": turn_no},
@@ -340,19 +289,19 @@ def _apply_arc_resolve(
         "resolution": resolution.resolution,
         "goal_context": resolution.goal_context,
         "resolved_turn": turn_no,
-        "closed_threads": [t.model_dump(exclude_none=True) for t in closed_arc_threads],
+        "closed_threads": [],
     }
 
     state.setdefault("resolved_arcs", []).append(resolved_arc_entry)
 
     _log.info(
-        "arc_resolve.applied trace_id=%d goal='%s' arc_scoped_closed=%d scene_surviving=%d drop_count=%d new_threads=%d",
-        turn_no, resolution.visible_goal, len(arc_scoped), len(surviving_scene_threads), len(resolution.drop_threads), len(resolution.new_threads),
+        "arc_resolve.applied trace_id=%d goal='%s' surviving=%d drop_count=%d new_threads=%d",
+        turn_no, resolution.visible_goal, len(surviving_threads), len(resolution.drop_threads), len(resolution.new_threads),
         extra={"turn": turn_no},
     )
 
-    # Create new successor arc with surviving scene threads + new threads
-    all_thread = surviving_scene_threads + list(resolution.new_threads)
+    # Create new successor arc with surviving threads + new threads
+    all_thread = surviving_threads + list(resolution.new_threads)
     new_arc = CampaignArc(
         visible_goal=resolution.visible_goal,
         goal_context=resolution.goal_context,
@@ -495,16 +444,15 @@ def _compute_narrative_velocity(
 
 def _compute_narration_directive(
     narrative_velocity: float,
-    scope_scene_threads: list["ArcThread"],
+    active_threads: list["ArcThread"],
     ages: dict[str, int],
     scene_pressure_threshold: int = 3,
     scene_imperative_threshold: int = 5,
 ) -> str:
     """Compute the narration directive string using a priority stack.
 
-    Derives urgency counts from unified arc.threads[] with scope=scene.
-    ArcThread.urgency values map to directives: urgent→Pressure/Overwhelm,
-    background→Tension.
+    Derives urgency counts from arc.threads[]. ArcThread.urgency values map
+    to directives: urgent→Pressure/Overwhelm, background→Tension.
 
     Returns the highest-priority directive. Secondary directives are appended
     only when they do not contradict the primary (i.e., no escalation labels
@@ -521,7 +469,7 @@ def _compute_narration_directive(
     # Priority 1: breathe (de-escalation wins unconditionally)
     if narrative_velocity < -0.3:
         urgent_count = sum(
-            1 for t in scope_scene_threads
+            1 for t in active_threads
             if getattr(t, "urgency", "") == "urgent"
         )
         if urgent_count == 0:
@@ -535,7 +483,7 @@ def _compute_narration_directive(
     secondary: list[str] = []
 
     # Overwhelm (3+ urgent threads)
-    immediate_count = sum(1 for t in scope_scene_threads if getattr(t, "urgency", "") == "urgent")
+    immediate_count = sum(1 for t in active_threads if getattr(t, "urgency", "") == "urgent")
     if immediate_count >= 3:
         primary = "Overwhelm"
     else:
@@ -547,7 +495,7 @@ def _compute_narration_directive(
 
     # Tension (background only)
     if not primary:
-        building_count = sum(1 for t in scope_scene_threads if getattr(t, "urgency", "") == "background")
+        building_count = sum(1 for t in active_threads if getattr(t, "urgency", "") == "background")
         if building_count > 0:
             primary = "Tension"
 
@@ -563,7 +511,7 @@ def _compute_narration_directive(
 def _compute_pacing_context(
     deescalate: float,
     narrative_velocity: float,
-    scope_scene_threads: list["ArcThread"],
+    active_threads: list["ArcThread"],
     ages: dict[str, int],
     momentum: int,
     config: "EngineConfig",
@@ -573,14 +521,13 @@ def _compute_pacing_context(
 ) -> PacingContext:
     """Compute unified pacing context for Narrate and Progress steps.
 
-    Derives urgency from unified arc.threads[] with scope=scene. Replaces separate
-    deescalate/narrative_velocity signals with a single authoritative struct containing
-    directive, beat_locked, gate, summary.
+    Derives urgency from arc.threads[]. Replaces separate deescalate/narrative_velocity
+    signals with a single authoritative struct containing directive, beat_locked, gate, summary.
     """
     # Compute directive using existing logic
     directive = _compute_narration_directive(
         narrative_velocity=narrative_velocity,
-        scope_scene_threads=scope_scene_threads,
+        active_threads=active_threads,
         ages=ages,
         scene_pressure_threshold=config.scene_pressure_threshold,
         scene_imperative_threshold=config.scene_imperative_threshold,
@@ -613,7 +560,7 @@ def _compute_pacing_context(
         elif beat_locked:
             outcome_hint = "advance"
         else:
-            urgent_count = sum(1 for t in scope_scene_threads if getattr(t, "urgency", "normal") == "urgent")
+            urgent_count = sum(1 for t in active_threads if getattr(t, "urgency", "normal") == "urgent")
             if directive in ("Overwhelm", "Pressure") and urgent_count >= 1:
                 outcome_hint = "advance"
 
@@ -764,9 +711,8 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
     deescalate: float = 0.0
     if config.thread_deescalate_on_success and outcome.rolled and outcome.band in ("success", "crit_success"):
         if any(
-            t.get("urgency") in ("urgent",)
+            isinstance(t, dict) and t.get("urgency") == "urgent"
             for t in ((state.get("arc") or {}).get("threads") or [])
-            if isinstance(t, dict) and t.get("scope") == "scene"
         ):
             deescalate = 1.0 if outcome.band == "crit_success" else 0.6
 
@@ -855,25 +801,24 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any, float]:
         pacing_factor=config.momentum_pacing_factor,
     )
 
-    _raw_thread_dicts = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict) and t.get("scope") == "scene"]
-
-    # Convert raw thread dicts to ArcThread objects for computation functions
-    _scope_scene_threads: list[ArcThread] = []
+    # Build active thread list from all arc threads for pacing context
+    _raw_thread_dicts = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict)]
+    _active_threads: list[ArcThread] = []
     for td in _raw_thread_dicts:
         try:
-            _scope_scene_threads.append(ArcThread.model_validate(td))
+            _active_threads.append(ArcThread.model_validate(td))
         except Exception:
             _log.warning(
                 "Malformed ArcThread entry: %s", td,
                 extra={"turn": turn_no, "trace_id": ctx.trace_id},
             )
 
-    # Compute unified pacing context (replaces separate directive computation)
+    # Compute unified pacing context
     _scene_motion = ctx.intent.scene_motion if ctx.intent else "hold"
     _impossible = ctx.intent.impossible if ctx.intent else False
     _pc = _compute_pacing_context(
         deescalate=ctx._deescalate, narrative_velocity=narrative_velocity,
-        scope_scene_threads=_scope_scene_threads, ages=ctx._ages,
+        active_threads=_active_threads, ages=ctx._ages,
         momentum=(state.get("pc") or {}).get("momentum", 0), config=config,
         consecutive_pressure_turns=(state.get("meta") or {}).get("consecutive_pressure_turns", 0),
         scene_motion=_scene_motion,

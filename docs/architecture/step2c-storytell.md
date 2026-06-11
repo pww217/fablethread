@@ -188,8 +188,7 @@ ProgressEntry
 ArcThread
   id: str                    — Unique identifier
   summary: str               — What this thread is about
-  scope: Literal["scene", "arc"]  # scene = short-lived, purged on location change; arc = persistent story tension
-  active: bool = True        # Storyteller-controlled via thread_update; engine may auto-demote via auto-latent or decay to latent/removed
+  active: bool = True        # Storyteller-controlled via thread_update; engine may auto-demote via auto-latent
   urgency: Literal["background", "normal", "urgent"] = "normal"  # Storyteller-controlled; Python enforces stepwise decay (urgent→normal→background) after N turns at same level
   progress: list[ProgressEntry] = []   — Append-only log of structured progress updates
   resolution_state: str | None # Set when thread_resolve processes resolved/failed/abandoned
@@ -215,7 +214,6 @@ flowchart TD
         U1["For each ThreadUpdate:<br>Find thread by id → apply<br>active/urgency/summary/progress changes<br>progress is append-only (list[ProgressEntry])<br>Progress dedup via difflib (≥50% overlap → reject)<br>Sets last_updated_turn = current turn"]
         U2["Auto-latent demotion:<br>threads untouched for thread_stale_threshold turns<br>→ active: false"]
         U3["Urgency decay pass:<br>for each active thread with urgency_set_turn,<br>If age >= thread_urgency_max_age:<br>  urgent → normal, then normal → background<br>Sets urgency_set_turn = current turn on demotion"]
-        U4["Scene-scoped two-stage lifecycle:<br>(a) Active scene threads silent ≥ threshold turns → latent (active: false; urgency handled by decay pass above)<br>(b) Latent scene threads unsurfaced ≥ 2× threshold turns → removed from arc.threads[]<br>Only applies to scope=scene threads"]
     end
 
     subgraph GOAL["goal_update (direct dict assignment)"]
@@ -228,9 +226,9 @@ flowchart TD
 
     subgraph RESOLVE["_apply_arc_resolve()"]
         R1["Store current arc in resolved_arcs<br>with resolved_turn for TTL tracking"]
-        R2["Auto-close arc-scoped threads with 'superseded' state<br>Carry forward scene-scoped threads (minus drop_threads)"]
+        R2["Carry forward all threads (minus drop_threads)"]
         R3["Add new_threads from resolution"]
-        R4["Create successor arc with<br>new visible_goal, goal_context,<br>surviving scene-scoped + new threads"]
+        R4["Create successor arc with<br>new visible_goal, goal_context,<br>surviving + new threads"]
     end
 
     subgraph RESOLUTIONS["_apply_thread_resolutions()"]
@@ -251,16 +249,14 @@ flowchart TD
 **Pipeline order:** thread updates → goal_update (dict assignment) → conflict detection → arc resolution → thread resolutions → thread_add gate.
 
 **Key rules:**
-- **Engine-enforced thread governance:** The engine enforces five controls that constrain storyteller thread management:
+- **Engine-enforced thread governance:** The engine enforces four controls that constrain storyteller thread management:
   - **Auto-latent demotion:** Threads untouched for `config.thread_stale_threshold` turns (default 3) are automatically set to `active: false`. This prevents stale threads from lingering as active prompts. Fires every turn after thread_updates loop completes (not gated on mutation).
   - **Thread cap eviction:** After thread_add, if active thread count exceeds `config.thread_max_active` (default 5), the oldest active thread (by `last_updated_turn`) is evicted to `active: false`. This prevents unbounded thread accumulation.
   - **Progress dedup:** New progress entries are compared against the last entry via `difflib.SequenceMatcher`. ≥50% textual overlap causes rejection with a WARNING log. This filters out near-duplicate LLM output.
   - **Urgency decay (Python-side floor):** Threads that have been at their current urgency level for >= `thread_urgency_max_age` turns (default 8) are demoted stepwise: urgent → normal, then normal → background. Only applies to active threads with `urgency_set_turn` set. Does not send signals to the LLM — it is a structural floor preventing indefinite stagnation at any urgency level.
-   - **Scene-scoped two-stage expiration:** Scene-scoped (`scope=scene`) threads follow an additional lifecycle: (a) after `scene_thread_expire_silent_turns` turns (default 5) without being advanced, they go latent (`active: false`; urgency handled by the decay pass above). (b) If a latent scene thread remains unsurfaced for another `scene_thread_expire_silent_turns` turns (total 2× threshold), it is removed entirely from `arc.threads[]`. This gives scene threads a soft landing — visible to prompts while latent, then purged if never discovered.
 - **goal_update:** A bare string applied directly to `state["arc"]["visible_goal"]` via dict assignment. Does NOT route through `_merge_arc_update` (which replaces `threads[]` unconditionally — passing a bare CampaignArc would wipe the thread list). Applied before arc_resolve; if both fire on the same turn, arc_resolve wins (ending the arc supersedes a mid-arc update).
 - **Same-turn conflict detection:** When the same thread id appears in both `thread_update` and `thread_resolve` in a single output, a WARNING is logged. The processing order (update before resolve) means resolution takes precedence — correct behavior, but this is always an LLM error worth monitoring.
-- **Arc resolution:** When `arc_resolve` is emitted, the current arc is stored in `state["resolved_arcs"]` with `resolved_turn` for TTL tracking. Arc-scoped threads are auto-closed with 'superseded' state; scene-scoped threads carry forward (minus any in drop_threads). The successor arc starts with empty `threads[]`.
-- **Scene-scoped threads:** Purged from state on location change (delta_builder.py) before the arc director re-derives.
+- **Arc resolution:** When `arc_resolve` is emitted, the current arc is stored in `state["resolved_arcs"]` with `resolved_turn` for TTL tracking. All threads carry forward (minus any in drop_threads), plus any new_threads from the resolution.
 - **TTL-based cleanup:** Completed threads and resolved arcs are pruned from prompt context after `completed_thread_ttl` / `resolved_arc_ttl` turns (default 3). The `arc_ttl` is wired from `config.arc_memory_ttl` (not hardcoded).
 
 ### Arc Context in Narration
@@ -306,19 +302,10 @@ flowchart TD
 
 ### Thread Mechanics
 
-#### Two Thread Scopes
-
-Threads have a `scope` field (`"scene"` or `"arc"`) that determines narrative treatment:
-
-| Scope | Narrative role | Engine lifecycle |
-|---|---|---|
-| `scene` | Short-lived tension tied to current location/NPCs | **Purged on location change** — removed from `arc.threads[]` when player moves to a new location (delta_builder.py). **Two-stage expiration:** active→latent after 5 silent turns (`active: false`; urgency handled by decay pass above); latent→removed entirely after 10 total unsurfaced turns. |
-| `arc` | Persistent story tension across scenes | Persists across location changes. Only removed via `thread_resolve` or auto-closed on arc_resolve (state `"superseded"`). Subject to auto-latent demotion and urgency decay like all threads. |
-
 #### Entry Points
 
 Seven call sites in `run_turn()` process arc/thread operations in order:
-1. **`_apply_thread_updates()`** — apply storyteller's explicit state changes; progress is append-only (`list[ProgressEntry]`); sets `last_updated_turn`; auto-latent demotion when untouched past threshold; urgency decay (stepwise urgent→normal→background after N turns at same level); scene-scoped two-stage expiration (active→latent, latent→removed). Progress dedup via SequenceMatcher
+1. **`_apply_thread_updates()`** — apply storyteller's explicit state changes; progress is append-only (`list[ProgressEntry]`); sets `last_updated_turn`; auto-latent demotion when untouched past threshold; urgency decay (stepwise urgent→normal→background after N turns at same level). Progress dedup via SequenceMatcher
 2. **`goal_update`** — direct dict assignment to `state["arc"]["visible_goal"]`
 3. **Same-turn conflict detection** — warn if same thread id in both update and resolve
 4. **`_apply_arc_resolve()`** — resolve arc, store in resolved_arcs, create successor
@@ -342,7 +329,6 @@ For each ThreadUpdate:
  4. Log applied changes at INFO level
  5. **Auto-latent demotion** (post-loop, after every thread_updates loop): For each active thread whose `last_updated_turn` is ≥ `config.thread_stale_threshold` turns ago, set `active: false`.
  6. **Urgency decay pass**: For each active thread with `urgency_set_turn` set, if age (`turn_no - urgency_set_turn`) >= `thread_urgency_max_age`, demote stepwise (urgent→normal, normal→background). Sets `urgency_set_turn = current turn` on demotion. Skips threads without `urgency_set_turn` (pre-existing data degrades gracefully).
-  7. **Scene-scoped two-stage expiration**: For each scene-scoped (`scope=scene`) thread: (a) If active and silent for >= `scene_thread_expire_silent_turns` turns, set `active=False`. Urgency is handled by the urgency decay pass above — this step does not override it. (b) If latent and unsurfaced for >= 2× threshold total, remove from `arc.threads[]`. Skips threads without turn context (`last_seen_turn` or `added_turn`).
 
 **Progress model:** Every progress entry is a `ProgressEntry` with `kind` field (`"advancement"`, `"setback"`, or `"shift"`) and `text`. The `progress_kind` field on `ThreadUpdate` tags each emitted progress entry; default is `"advancement"`. Progress is rendered to prompts as `[KIND] text` by `_fmt_progress()` (module-level function in `ccya/prompts/context.py` — relocated from a static method on `ArcThreadBlock` and from `ccya/engine/narrate.py`).
 
@@ -357,11 +343,10 @@ Processes `storyteller_result.arc_resolve` (optional `ArcResolution` with `resol
 1. If `arc_resolve` is None → return None
 2. Validate arc from state; if missing/invalid → log WARNING, return None
 3. Store current arc in `state["resolved_arcs"]` with `resolved_turn` for TTL tracking
-4. Auto-close all arc-scoped threads: move to completed_threads with resolution_state="superseded"
-5. Carry forward scene-scoped threads minus any IDs listed in drop_threads
-6. Add new_threads from the ArcResolution model
-7. Create successor arc with new `visible_goal`, `goal_context`, and combined surviving + new threads
-8. Replace `state["arc"]` with successor
+4. Carry forward all threads minus any IDs listed in drop_threads
+5. Add new_threads from the ArcResolution model
+6. Create successor arc with new `visible_goal`, `goal_context`, and combined surviving + new threads
+7. Replace `state["arc"]` with successor
 
 #### Thread Creation (gated in `run_turn()` with cap eviction)
 
@@ -402,8 +387,6 @@ The gate blocks thread creation. The LLM is instructed not to emit `thread_add` 
 | `config.thread_stale_threshold` | 3 | Turns of inactivity before auto-latent demotion (`active: false`) |
 | `config.thread_max_active` | 5 | Max active threads; oldest evicted when exceeded on thread_add |
 | `config.thread_urgency_max_age` | 8 | Turns at same urgency level before Python-side stepwise decay (urgent→normal→background) |
-| `config.scene_thread_expire_silent_turns` | 5 | Scene-scoped thread expiration threshold: active→latent after this many silent turns; latent→removed after 2× this value unsurfaced |
-| `config.track_scene_thread_progress` | True | Whether scene-scoped threads receive progress tracking (enables completion via Python) |
 
 #### Validation Edge Cases
 

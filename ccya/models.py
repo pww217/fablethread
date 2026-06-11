@@ -37,7 +37,6 @@ class ArcThread(BaseModel):
 
     id: str
     summary: str
-    scope: Literal["scene", "arc"]
     active: bool = True
     urgency: Literal["background", "normal", "urgent"] = "normal"
     progress: list[ProgressEntry] = Field(default_factory=list)
