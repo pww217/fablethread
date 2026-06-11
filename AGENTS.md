@@ -119,6 +119,22 @@ These are not optional. Every plan, execution, and code review must include a do
 
 ---
 
+## Linear issue tracking
+
+Project: CCYA | Team: PW (Peter)
+
+Labels: Bug | Feature | Improvement
+Priority: 1=urgent, 2=high, 3=medium, 4=low
+
+Status lifecycle:
+- Bugs: Backlog → New → Accepted → Up Next → In Progress → Complete
+- Non-bugs: Backlog → Up Next → In Progress → Complete
+- All: Can be canceled at any stage
+
+Use `linearis` (not `linear`) for all CLI operations. Load the `linear` skill for commands and workflow guidance. Always search for existing tickets before creating new ones. Always associate tickets with the CCYA project.
+
+---
+
 ## Skills — when to load each
 
 - **create-design** → produce a design doc for a CCYA feature/refactor/problem (no plan/code)
