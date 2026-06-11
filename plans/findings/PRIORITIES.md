@@ -7,11 +7,13 @@
 
 ---
 
-## 1. F-N08/F-N09 — Seed JSON vs hints conflict [H/H]
+## 1. F-N08/F-N09 — Seed JSON vs hints conflict [H/H] — **FIXED**
 
 **Severity:** High | **Confidence:** High (root cause of multiple downstream issues) | **Scope:** Game setup/pack generation
 
-**See also:** [F-N08](./FEATURE-IDEAS.md#f-n08-seed-json-vs-hints-conflict-net-new) | [F-N09](./FEATURE-IDEAS.md#f-n09-disable-seed-json-when-hints-given-net-new) | [F-N01](./FEATURE-IDEAS.md#f-n01-alias-consolidation-net-new) | [F-N02](./FEATURE-IDEAS.md#f-n02-stale-character-cleanup-net-new) | [F-I01](./FEATURE-IDEAS.md#f-i01-bond-naming-fix-improvement) | [F-I09](./FEATURE-IDEAS.md#f-i09-bonds-generate-arc-objectives-at-start-net-new) | [F-I02](./FEATURE-IDEAS.md#f-i02-turn-1-seed-integration-net-new) | [B11 (Elias)](./EVAL-FINDINGS-2026-06-09.md#bug-11-key-npc-never-extracted-from-narration--scene-extraction-prompt-blind-spot-medium) | [B7](./BUGS-OBSERVATIONS.md#b7-h-location-changes-silently-dropped-from-canonical-state---confirmed-in-baseline)
+**Status:** FIXED — `01-seed-fixes.md` plan: when hints are provided, LLM seed generation is skipped entirely and the static pack's `seed_state.yaml` is used instead. Inventory removed from seed instructions. Opening narrative instructions sharpened to weave seed data naturally.
+
+**See also:** [F-N08](./FEATURE-IDEAS.md#f-n08-seed-json-vs-hints-conflict-net-new--priority-1--fixed) | [F-N09](./FEATURE-IDEAS.md#f-n09-disable-seed-json-when-hints-given-net-new--priority-1--fixed) | [F-N01](./FEATURE-IDEAS.md#f-n01-alias-consolidation-net-new--priority-2--fixed) | [F-N02](./FEATURE-IDEAS.md#f-n02-stale-character-cleanup-net-new--priority-2--partially-fixed) | [F-I01](./FEATURE-IDEAS.md#f-i01-bond-naming-fix-improvement) | [F-I09](./FEATURE-IDEAS.md#f-i09-bonds-generate-arc-objectives-at-start-net-new) | [F-I02](./FEATURE-IDEAS.md#f-i02-turn-1-seed-integration-net-new--priority-6--fixed) | [B11 (Elias)](./EVAL-FINDINGS-2026-06-09.md#bug-11-key-npc-never-extracted-from-narration--scene-extraction-prompt-blind-spot-medium) | [B7](./BUGS-OBSERVATIONS.md#b7-h-location-changes-silently-dropped-from-canonical-state---confirmed-in-baseline) | [01-seed-fixes.md](../completed/01-narration/01-seed-fixes.md)
 
 ### Evidence
 
@@ -39,7 +41,9 @@ This is the root cause of multiple compendium, narrative, and fidelity issues. F
 
 **Severity:** High | **Confidence:** High (confirmed across multiple games) | **Scope:** Compendium lifecycle
 
-**See also:** [F-N01](./FEATURE-IDEAS.md#f-n01-alias-consolidation-net-new) | [F-N02](./FEATURE-IDEAS.md#f-n02-stale-character-cleanup-net-new) | [F-N03](./FEATURE-IDEAS.md#f-n03-npc-deathremoval-lifecycle-net-new) | [B11 (Elias)](./EVAL-FINDINGS-2026-06-09.md#bug-11-key-npc-never-extracted-from-narration--scene-extraction-prompt-blind-spot-medium)
+**Status:** F-N01 (alias consolidation) FIXED — `02-npc-compendium-hardening.md` plan: alias-first naming instruction in extraction prompt prevents duplicate entries. F-N02 (stale character cleanup) still open — TTL-based removal of unnamed non-key NPCs not yet addressed.
+
+**See also:** [F-N01](./FEATURE-IDEAS.md#f-n01-alias-consolidation-net-new--priority-2--fixed) | [F-N02](./FEATURE-IDEAS.md#f-n02-stale-character-cleanup-net-new--priority-2--partially-fixed) | [F-N03](./FEATURE-IDEAS.md#f-n03-npc-deathremoval-lifecycle-net-new) | [B11 (Elias)](./EVAL-FINDINGS-2026-06-09.md#bug-11-key-npc-never-extracted-from-narration--scene-extraction-prompt-blind-spot-medium) | [02-npc-compendium-hardening.md](../completed/06-npc/02-npc-compendium-hardening.md)
 
 ### Evidence
 
@@ -51,7 +55,7 @@ UI fidelity degrades over time — by turn 20+, compendium is cluttered with sta
 
 ### Fix direction
 
-- **Alias consolidation:** Detect and consolidate duplicate identities across turns (F-N01)
+- **Alias consolidation** — **FIXED** (02-npc-compendium-hardening.md)
 - **Stale character cleanup:** TTL-based removal for non-key NPCs who aren't named/key (F-N02)
 - **NPC death/removal lifecycle:** Mark dead/incapacitated, UI retention for 2-3 turns, backend TTL ~10 turns (F-N03)
 - **Key NPC exception:** Named/key NPCs exempt from auto-removal (F-N03)
@@ -102,11 +106,13 @@ Inventory feels disconnected from gameplay. Players can't meaningfully interact 
 
 ---
 
-## 5. F-I02 — Turn 1 seed integration [M/M]
+## 5. F-I02 — Turn 1 seed integration [M/M] — **FIXED**
 
 **Severity:** Medium | **Confidence:** Medium (design question) | **Scope:** Narrative setup
 
-**See also:** [F-I02](./FEATURE-IDEAS.md#f-i02-turn-1-seed-integration-net-new) | [F-N08](./FEATURE-IDEAS.md#f-n08-seed-json-vs-hints-conflict-net-new) | [F-I01](./FEATURE-IDEAS.md#f-i01-bond-naming-fix-improvement) | [F-I09](./FEATURE-IDEAS.md#f-i09-bonds-generate-arc-objectives-at-start-net-new)
+**Status:** FIXED — `01-seed-fixes.md` plan phase 3: updated `generate_seed_system.j2` opening narrative instructions to weave world state facts, NPC relationships, and compendium NPCs naturally into the narration rather than listing them. Seed data is now woven into turn 1 narration.
+
+**See also:** [F-I02](./FEATURE-IDEAS.md#f-i02-turn-1-seed-integration-net-new--priority-6--fixed) | [F-N08](./FEATURE-IDEAS.md#f-n08-seed-json-vs-hints-conflict-net-new--priority-1--fixed) | [F-I01](./FEATURE-IDEAS.md#f-i01-bond-naming-fix-improvement) | [F-I09](./FEATURE-IDEAS.md#f-i09-bonds-generate-arc-objectives-at-start-net-new) | [01-seed-fixes.md](../completed/01-narration/01-seed-fixes.md)
 
 ### Evidence
 
@@ -318,6 +324,10 @@ Minor balance improvement. Verify against current rules before implementing.
 | B13 | consecutive_pressure_tracking mismatch | **OBSOLESCED** | New `pacing_directives` checker uses `post_extraction_consecutive_pressure_turns` (written at `turn.py:1426`) | [EVAL-FINDINGS-2026-06-09.md](./EVAL-FINDINGS-2026-06-09.md) |
 | Bug 1 (EVAL-FINDINGS) | impossible not stored | **FIXED** | Commit `430016d9` adds `impossible` and `reason` to ruling_event | [EVAL-FINDINGS-2026-06-09.md](./EVAL-FINDINGS-2026-06-09.md) |
 | Bug 10 (EVAL-FINDINGS) | duplicate NPC entries | **FIXED** | Dedup logic at `extraction.py:618-625` | [EVAL-FINDINGS-2026-06-09.md](./EVAL-FINDINGS-2026-06-09.md) |
+| F-N08/F-N09 | Seed JSON vs hints conflict | **FIXED** | `01-seed-fixes.md` plan: skip LLM seed on hints, use static pack fallback. Inventory removed from seed instructions. Opening narrative sharpened. | [FEATURE-IDEAS.md](./FEATURE-IDEAS.md) |
+| F-N01 | Alias consolidation | **FIXED** | `02-npc-compendium-hardening.md` plan: alias-first naming in extraction prompt (descriptive labels → aliases, proper names → name, keep historical aliases on promotion). | [FEATURE-IDEAS.md](./FEATURE-IDEAS.md) |
+| F-I02 | Turn 1 seed integration | **FIXED** | `01-seed-fixes.md` plan phase 3: updated `generate_seed_system.j2` opening narrative instructions to weave world state, NPC relationships, and compendium NPCs naturally. | [FEATURE-IDEAS.md](./FEATURE-IDEAS.md) |
+| Bug 11 (EVAL-FINDINGS) | Key NPC never extracted (Elias) | **FIXED** | `02-npc-compendium-hardening.md` plan: passive NPC extraction instruction + alias-first naming prevents passive/recipient NPCs from being missed. | [EVAL-FINDINGS-2026-06-09.md](./EVAL-FINDINGS-2026-06-09.md) |
 
 ---
 

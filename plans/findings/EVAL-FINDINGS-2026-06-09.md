@@ -171,7 +171,7 @@ Either:
 
 ---
 
-### Bug 11: Key NPC never extracted from narration — scene extraction prompt blind spot (Medium) — **VERIFIED**
+### Bug 11: Key NPC never extracted from narration — scene extraction prompt blind spot (Medium) — **FIXED**
 
 **Files:**
 - `ccya/prompts/sections/extract_scene_system.j2` — scene extraction system prompt
@@ -205,13 +205,7 @@ Characters central to the story remain invisible in the compendium if they're ne
 **Extended evidence (cordyceps-06-09, turns 20-31):**
 Even after the autoplay cascade generated 12 additional "Continue the story" turns (turns 20-31), Elias never appeared in the compendium. The NPC count stayed at 12 throughout, the same 12 extracted in turns 1-19: Blake Webb, Grease-Smeared Scavenger, Leo Vance, three dead motorcycle riders, Paul Wyatt, Raider Group, Scavengers Alcove, Silas Vane, Terror-Stricken Scavenger, Tyler Walker. All NPCs are active subjects or group descriptions. Elias — the driving plot element — remains invisible at turn 31.
 
-**Fix:**
-Two-part fix:
-
-1. **Seed fix** (proper): Include all named seed-narrative characters in the seed pack's compendium, even if their presence is initially `known` or `archived`. Elias should have been in the starting compendium.
-
-2. **Prompt fix** (belt-and-suspenders): Add to `extract_scene_system.j2`:
-   > "If a named character enters the scene for the first time as the recipient of a major action (rescue, capture, healing, transport, medical aid), create an NPC entry for them with whatever information is available from context — including details from recent narration history if needed for the bio."
+**Status: FIXED** — `02-npc-compendium-hardening.md` plan: alias-first naming instruction (descriptive labels → `aliases`, proper names → `name`) prevents duplicate entries on name revelation. Passive NPC extraction instruction added to `extract_scene_system.j2` instructs the LLM to create entries for NPCs who enter as recipients of major actions (rescue, capture, healing, transport, medical aid). NPC field requirements section ensures named NPCs always get `bio` + 2-3 personality fields. The primary fix (alias-first naming) naturally captures passive NPCs through descriptive aliases; the passive NPC extraction section is belt-and-suspenders coverage.
 
 ---
 
@@ -571,7 +565,7 @@ Rename to `state_before_turn` for clarity, or swap the order to save then load. 
 | 8 | High | VERIFIED | Event schema — 7 checkers | `extraction_context` missing from event schema. 7 checkers require it but it may not exist in older saves. |
 | 1 | High | ALREADY FIXED | `ccya/engine/turn.py:1377-1387` | `impossible` now stored in event `ruling` dict (commit `430016d9`) |
 | 9 | High | VERIFIED | `ccya/ev/checkers/sanitizer.py:13-14` | `threads_removed` doesn't exist in sanitizer events. Events use `threads_resolved` instead. |
-| 11 | Medium | VERIFIED | `extract_scene_system.j2` prompt | Scene extraction misses passive/recipient NPCs. LLM biases toward active-subject NPCs. |
+| 11 | Medium | FIXED — `02-npc-compendium-hardening.md` | `extract_scene_system.j2` prompt | Scene extraction prompt now includes alias-first naming, passive NPC extraction instruction, and NPC field requirements for named NPCs. |
 | 10 | Low | ALREADY FIXED | Event schema — `compendium_npc_update` | Dedup logic added at `extraction.py:618-625` |
 | 12 | Low | VERIFIED | Event schema — `narrate` field | Top-level `narrate` stores metrics dict, not prose (turn.py:1428) |
 | 13 | Low | MISLEADING | Event schema — `changes` vs `applied` | By design — threads not in StateDelta |

@@ -136,7 +136,7 @@ Grouped by category via emoji prefix:
 `POST /turn/delete` removes last event from `events.jsonl` and `chronicle.md`, returns previous actions for re-submission.
 
 ### New Game
-`POST /new-game` with optional `pack_id`, `pc_name`, `pc_stats`, `hints`. For dynamic packs, triggers `generate_seed()` LLM pipeline. Full page reload on success. Reroll (`POST /new-game/reroll`) HTMX-swaps the opening narrative + actions.
+`POST /new-game` with optional `pack_id`, `pc_name`, `pc_stats`, `hints`. If no hints provided, triggers `generate_seed()` LLM pipeline (dynamic pack); if hints provided, loads static pack's `seed_state.yaml` as fallback. Full page reload on success. Reroll (`POST /new-game/reroll`) HTMX-swaps the opening narrative + actions.
 
 ## CSS Architecture
 
