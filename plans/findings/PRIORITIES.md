@@ -285,7 +285,7 @@ Minor token savings if feasible, unlikely to be worth the complexity.
 
 ---
 
-## 13. F-I12 — PC point total: 11 not 10 [L/L]
+## 13. F-I12 — PC point total: 11 not 10 [L/L] — **FIXED**
 
 **Severity:** Low | **Confidence:** High (balance issue) | **Scope:** Character creation
 
@@ -297,12 +297,11 @@ Character creation gives PC 10 points but should be 11 for better balance. Simpl
 
 ### Impact
 
-Minor balance improvement. Verify against current rules before implementing.
+Minor balance improvement.
 
-### Fix direction
+### Fix
 
-- Change PC point total from 10 to 11
-- Verify against current rules/character creation flow
+UI budget display, validation (isValid, increment guard), progress bar, and archetype presets updated from 10 to 11. Backend already allowed 8--12 range — no backend change needed.
 
 ---
 
@@ -313,6 +312,7 @@ Minor balance improvement. Verify against current rules before implementing.
 | MB-1 through MB-6 | Momentum death spiral | **FIXED** | momentum-thread-goal-fixes plan (steps 01.1-01.4). Verified: `momentum.py:27-33` (depth catch-up), `turn.py:594-596` (Breathe guard), `turn.py:1091-1106` (momentum guard on floor relief), `turn.py:1108-1116` (counter reads post-floor-relief beat) | [MOMENTUM-BEAT-FINDINGS.md](./MOMENTUM-BEAT-FINDINGS.md) |
 | MB-7 | Difficulty assignment (42% hard) | **CONFIRMED** | Outside scope of momentum plan | [MOMENTUM-BEAT-FINDINGS#MB-7](./MOMENTUM-BEAT-FINDINGS.md#finding-mb-7-difficulty-assignment-produces-42-hard-checks-against-a-2-max-character) |
 | F-N03 | NPC death/removal lifecycle | **FIXED** | departed presence + TTL archive (turn.py:1334, npc_roster.py, config.py). Commit `f9f09576` | [FEATURE-IDEAS.md#f-n03](./FEATURE-IDEAS.md#f-n03-npc-deathremoval-lifecycle-net-new) |
+| F-I12 | PC point total: 11 not 10 | **FIXED** | UI budget display, validation, archetypes updated to 11. Backend already allowed 8--12. | [FEATURE-IDEAS.md#f-i12](./FEATURE-IDEAS.md#f-i12-pc-point-total-11-not-10-improvement--priority-14) |
 | G3 | Goal stagnation | **FIXED** | Step 02.2 explicit trigger events | [PRIORITIES (old)](./PRIORITIES.md#3-g3j--goal-stagnation--sanitizer-too-slow-to-pivot-mh) |
 | B7 | Location changes dropped | **PARTIALLY FIXED** | Engine path at `delta_builder.py:216-241` correctly applies location changes; prompt tightened. No engine bug. | [BUGS-OBSERVATIONS#B7](./BUGS-OBSERVATIONS.md#b7-h-location-changes-silently-dropped-from-canonical-state---confirmed-in-baseline) |
 | O4 | Thread accumulation | **FIXED** | Steps 01.3a (auto-latent, commit `e484ee44`) + 02.1 (temporal decay, commit `3912f779`) | [BUGS-OBSERVATIONS#O4](./BUGS-OBSERVATIONS.md#o4-auto-demote-arc-threads-to-latent-fixed--step-013a--step-021) |

@@ -148,6 +148,10 @@ Two-part improvement:
 - **Developer mode**: When enabled, show debug information directly in UI — turn numbers, state snapshots, extraction outputs (things currently only visible via Turn Viewer or `ev` pipeline). Useful for development and troubleshooting.
 - **Player mode** (default): Clean, polished view with minimal verbosity. Show what's immediately relevant to the current scene without exposing engine internals.
 
+### F-I13. Entity highlighting in narration [Improvement] — **FIXED**
+
+**Status:** FIXED — replaced LLM-driven `**bold**` for NPC names and inventory items with client-side `_highlightEntities()` JS function. After markdown rendering, the function walks text nodes and wraps known entity names in colored `<span>` tags. CSS classes: `.entity-npc` (#e06c75), `.entity-item` (#61afef), `.entity-pc` (#98c379), `.entity-location` (#d19a66). Plan at `plans/completed/11-ui/entity-highlighting.md`.
+
 ---
 
 ## Design Questions
@@ -172,9 +176,9 @@ Should these be unified (scene direction comes from active threads) or separate 
 
 Investigate whether any stage-agnostic base system prompt could be cached. Unlikely to be feasible given how much system prompts content varies by pipeline stage, but worth a look if it saves tokens without degrading quality.
 
-### F-I12. PC point total: 11 not 10 [Improvement] — **Priority #14**
+### F-I12. PC point total: 11 not 10 [Improvement] — **Priority #14** — **FIXED**
 
-Character creation gives PC 10 points but should be 11 for better balance. Simple balance tweak, verify against current rules before implementing.
+**Status:** FIXED — UI budget display, validation, and archetype presets updated from 10 to 11. Backend already allowed 8--12 range, no change needed.
 
 ---
 
@@ -195,6 +199,6 @@ Character creation gives PC 10 points but should be 11 for better balance. Simpl
 | Narrative Setup | F-I02, F-I09 | F-I01, F-I03, F-I04 | DQ01 (tentative) |
 | NPC Mechanics | F-N03, F-N07 (partial) | — | — |
 | Storytelling Pipeline | F-N05, Bug 15 | — | DQ02 |
-| UI Improvements | F-I07 | F-I06 | — |
+| UI Improvements | F-I07 | F-I06, F-I13 | — |
 | Pipeline Efficiency | — | F-I08, F-I10 | — |
 | Low Priority | — | F-I11, F-I12 | — |

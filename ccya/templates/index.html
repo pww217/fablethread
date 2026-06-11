@@ -2676,7 +2676,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <div id="hint-right" class="gutter-hint gutter-hint--right"></div>
 
 <!-- Initial game state for client-side entity highlighting -->
-<script id="initial-state" type="application/json">{{ state | tojson }}</script>
+<script id="initial-state" type="application/json">{{ state | tojson | safe }}</script>
 
 </body>
 </html>
