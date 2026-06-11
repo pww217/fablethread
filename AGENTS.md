@@ -131,7 +131,7 @@ Status lifecycle:
 - Non-bugs: Backlog → Scoping → Up Next → In Progress → Completed
 - All: Can be canceled at any stage
 
-Use `linearis` (not `linear`) for all CLI operations. Load the `linear` skill for commands and workflow guidance. Always search for existing tickets before creating new ones. Always associate tickets with the CCYA project.
+`linearis` is installed globally at `/opt/homebrew/bin/linearis` — available in PATH, not in the venv. Use it (not `linear`) for all CLI operations. Load the `linear` skill for commands and workflow guidance. Always search for existing tickets before creating new ones. Always associate tickets with the CCYA project.
 
 ---
 
