@@ -9,7 +9,7 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
   "scene_tagline": "...",
   "location_change": {"id": "...", "name": "...", "description": "..."},
   "location_description": "...",
-  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "aliases": ["..."], "allegiance": "...", "motivation": "...", "fear": "...", "leverage": "...", "presence": "present|nearby|known|departed", "notes": "...", "position": "..."}]
+  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "aliases": ["..."], "allegiance": "...", "motivation": "...", "fear": "...", "leverage": "...", "bond": "...", "personality": "...", "presence": "present|nearby|known|departed", "notes": "...", "position": "..."}]
 }
 ```
 
@@ -34,6 +34,8 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
   "motivation": "what this NPC fundamentally wants",
   "fear": "what this NPC is most afraid of",
   "leverage": "what this NPC can offer, threaten, or withhold",
+  "bond": "durable personal history — to the PC, or between two NPCs (name both parties)",
+  "personality": "archetype_id — see archetype reference below; required for named NPCs, omit for unnamed",
   "presence": "present|nearby|known|departed",
   "notes": "5–8 words max describing the NPC's current stance or action in this scene. No clauses, no conjunctions. Not plot-critical — quick situational cue only.",
   "position": "Where the NPC is in the scene. One short phrase. Only update when narration moves the NPC or implies movement.",
@@ -69,9 +71,12 @@ When creating or updating an NPC entry:
 
 ## NPC field requirements
 
-- **Named NPCs (proper name in `name`):** Must have `bio` (mandatory) plus at least 2 of these 4 fields: `motivation`, `fear`, `leverage`, `bond`. Pick the 2-3 that are most relevant to the story. On first compendium entry, assign all required fields.
-- **Unnamed NPCs (descriptive label only):** Must have `bio` (mandatory). No personality fields required — they may be assigned later when/if the NPC gets a proper name.
-- **Ambient/ambient presence (crowd, bystanders, inn_patrons):** Must have `bio` (mandatory, 1-2 sentences describing the group). No other fields required.
+- **Named NPCs (proper name in `name`):** Must have `bio` + `personality` + at least 2 of {motivation, fear, leverage, bond} = 4 fields minimum. On first entry, aim for all fields.
+- **Unnamed NPCs (descriptive label only; name goes in `aliases`, not `name`):** `bio` only. Do NOT add personality, motivation, fear, leverage, bond, or any other personality-related fields.
+- **Promotion to named:** When narration reveals a proper name for an NPC previously known by description, set `name` to the proper name AND add `personality` + 2 of {motivation, fear, leverage, bond}. Keep the old descriptor in `aliases`.
+- **Group NPCs:** If the entry represents multiple people, the `name` or `notes` must always state the exact count. We must always know how many people are in any scene or grouping.
+
+Valid personality archetype IDs: cold_pragmatist, desperate_idealist, wary_opportunist, resigned_functionary, volatile_loyalist, charming_manipulator, blunt_survivor, true_believer, detached_observer, conflict_avoidant, ambitious_climber, broken_defeated. Do not invent archetypes outside this list.
 
 ## Passive NPC extraction
 

@@ -165,6 +165,18 @@ def apply_npc_scene_management(
                     "apply_npc_scene_management npc=%s personality=%s",
                     resolved_id, comp_upd.personality,
                 )
+            # Engine fallback: assign personality for named NPCs that still lack one.
+            # Unnamed NPCs (alias-only, no proper name) are intentionally skipped.
+            if not entry.get("personality") and entry.get("name"):
+                entry_aliases = [a.lower() for a in (entry.get("aliases") or [])]
+                if entry["name"].lower().strip() not in entry_aliases:
+                    from ccya.personality import assign_personality
+                    arch = assign_personality(
+                        motivation=entry.get("motivation"),
+                        fear=entry.get("fear"),
+                        npc_id=resolved_id,
+                    )
+                    entry["personality"] = arch.id
             if comp_upd.presence is not None:
                 entry["presence"] = comp_upd.presence
                 if comp_upd.presence == "present":
