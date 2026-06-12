@@ -73,7 +73,14 @@ def _extract_connectors(ev: dict[str, Any]) -> list[dict[str, Any]]:
     return connectors
 
 
-def cmd_deltas(ev: dict[str, Any], events: list[dict[str, Any]] | None = None) -> None:
+def cmd_deltas(ev: dict[str, Any], events: list[dict[str, Any]] | None = None, compact: bool = False) -> None:
+    if compact:
+        _cmd_deltas_compact(ev, events)
+    else:
+        _cmd_deltas_full(ev, events)
+
+
+def _cmd_deltas_full(ev: dict[str, Any], events: list[dict[str, Any]] | None = None) -> None:
     turn_num = ev.get("turn", "?")
     print(f"=== Turn {turn_num} {EM_DASH} State Deltas ===\n")
 
@@ -120,6 +127,86 @@ def cmd_deltas(ev: dict[str, Any], events: list[dict[str, Any]] | None = None) -
                 print(f"  {r.get('field', '?')}: {r.get('reason', '')}")
     else:
         print("  (none)")
+
+
+def _cmd_deltas_compact(ev: dict[str, Any], events: list[dict[str, Any]] | None = None) -> None:
+    """Compact delta view showing only thread/inventory/condition/gm_beat changes."""
+    turn_num = ev.get("turn", "?")
+
+    print(f"=== Turn {turn_num} {EM_DASH} Deltas (compact) ===\n")
+
+    # Threads from sanitizer
+    threads = []
+    if events:
+        sanitizer_events = [e for e in events if e.get("kind") == "sanitizer" and e.get("turn") == ev.get("turn")]
+        for se in sanitizer_events:
+            for tid in (se.get("threads_updated") or []):
+                threads.append(f"+{tid}")
+            for tid in (se.get("threads_added") or []):
+                threads.append(f"++{tid}")
+            for tid in (se.get("threads_resolved") or []):
+                threads.append(f"--{tid}")
+
+    # Inventory changes from applied
+    inventory = []
+    applied = ev.get("applied") or {}
+    for item in (applied.get("inventory_add") or []):
+        if isinstance(item, dict):
+            inventory.append(f"+{item.get('id', '?')}")
+    for item in (applied.get("inventory_remove") or []):
+        if isinstance(item, dict):
+            inventory.append(f"-{item.get('id', '?')}")
+
+    # Condition changes from applied
+    conditions = []
+    for item in (applied.get("pc_condition_add") or []):
+        if isinstance(item, dict):
+            conditions.append(f"+{item.get('id', '?')}")
+    for item in (applied.get("pc_condition_remove") or []):
+        if isinstance(item, dict):
+            conditions.append(f"-{item.get('id', '?')}")
+
+    # GM Beat from storytell extraction
+    gm_beat = ""
+    extraction = ev.get("extraction") or {}
+    storytell = extraction.get("storytell") or {}
+    st_output = storytell.get("output") or {}
+    if isinstance(st_output, dict):
+        gm_beat_data = st_output.get("gm_beat") or {}
+        if gm_beat_data and isinstance(gm_beat_data, dict) and gm_beat_data.get("type"):
+            gm_beat = f"beat:{gm_beat_data.get('type', '')}/{gm_beat_data.get('surface_as', '')}"
+
+    # Print compact table
+    has_data = threads or inventory or conditions or gm_beat or ev.get("rejected")
+
+    if not has_data:
+        print("  (no notable changes)")
+    else:
+        if threads:
+            print(f"  Threads: {', '.join(threads)}")
+        if inventory:
+            print(f"  Inventory: {', '.join(inventory)}")
+        if conditions:
+            print(f"  Conditions: {', '.join(conditions)}")
+        if gm_beat:
+            print(f"  GM Beat: {gm_beat}")
+        if ev.get("rejected"):
+            print(f"  Rejected: {len(ev['rejected'])} field(s)")
+
+    # Momentum
+    momentum_before = ev.get("momentum_before")
+    momentum_after = ev.get("momentum_after")
+    if momentum_before is not None or momentum_after is not None:
+        mb = momentum_before if momentum_before is not None else "?"
+        ma = momentum_after if momentum_after is not None else "?"
+        delta = (momentum_after - momentum_before) if (momentum_before is not None and momentum_after is not None) else None
+        delta_str = f" ({delta:+d})" if delta is not None else ""
+        print(f"  Momentum: {mb} {ARROW} {ma}{delta_str}")
+
+    # Band
+    ruling = ev.get("ruling") or {}
+    if ruling.get("band"):
+        print(f"  Band: {ruling['band']}")
 
 
 def cmd_mechanics(
@@ -287,6 +374,10 @@ def _show_pacing(ev: dict[str, Any]) -> None:
     beat_locked = pacing_ctx.get("beat_locked", False)
     if beat_locked:
         print("  beat_locked: true")
+
+    consec = ev.get("post_extraction_consecutive_pressure_turns")
+    if consec is not None and consec > 0:
+        print(f"  consecutive_pressure: {consec}")
 
     if band_label:
         print(f"  band: {band_label}")

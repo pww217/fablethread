@@ -87,6 +87,10 @@ async def _sanitize_threads_impl(
     changes_made, changes_detail = _apply_sanitization(state, parsed, current_turn)
 
     if not changes_made:
+        _log.warning(
+            "thread_sanitizer: LLM returned no changes at turn %d, skipping",
+            current_turn,
+        )
         return state, False
 
     elapsed_ms = (asyncio.get_running_loop().time() - t_sanitize) * 1000

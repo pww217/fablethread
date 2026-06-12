@@ -60,7 +60,7 @@ def cmd_check(
             if turn_ev is None:
                 print(f"Turn {turn} not found", file=sys.stderr)
                 sys.exit(1)
-            results = run_checkers(checker_list, [turn_ev], save_dir=save_dir)
+            results = run_checkers(checker_list, events, save_dir=save_dir)
             _print_results({turn: results})
         else:
             per_turn: dict[int, dict[str, Any]] = {}
@@ -71,7 +71,7 @@ def cmd_check(
                     seen.add(t)
                     turn_ev = find_turn(events, t)
                     if turn_ev is not None:
-                        per_turn[t] = run_checkers(checker_list, [turn_ev], save_dir=save_dir)
+                        per_turn[t] = run_checkers(checker_list, events, save_dir=save_dir)
             _print_results(per_turn)
     finally:
         if include_llm:

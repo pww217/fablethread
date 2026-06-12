@@ -161,6 +161,302 @@ def cmd_search(events: list[dict[str, Any]], expressions: list[str]) -> None:
         print()
 
 
+def cmd_threads(events: list[dict[str, Any]]) -> None:
+    """Show thread lifecycle across all turns in compact table."""
+    # Gather thread state at each turn from state_snapshots and sanitizer events
+    turn_threads: dict[int, list[dict[str, Any]]] = {}
+    seen_turns: set[int] = set()
+
+    for ev in events:
+        t = ev.get("turn")
+        if t is None or not isinstance(t, int):
+            continue
+        if t in seen_turns:
+            continue
+
+        threads = []
+        # From state_snapshot
+        ss = ev.get("state_snapshot") or {}
+        arc = ss.get("arc") or {}
+        for th in (arc.get("threads") or []):
+            if isinstance(th, dict) and th.get("id"):
+                threads.append({
+                    "id": th["id"],
+                    "active": th.get("active", True),
+                    "urgency": th.get("urgency", "normal"),
+                    "progress": (th.get("progress") or [])[-1] if th.get("progress") else "",
+                })
+
+        if threads:
+            turn_threads[t] = threads
+            seen_turns.add(t)
+
+        # From sanitizer events (thread additions/updates)
+        if ev.get("kind") == "sanitizer":
+            st = ev.get("turn")
+            if st and st not in seen_turns:
+                st_threads = []
+                for tid in (ev.get("threads_added") or []):
+                    st_threads.append({"id": tid, "active": True, "urgency": "normal", "progress": "(new)"})
+                for tid in (ev.get("threads_updated") or []):
+                    st_threads.append({"id": tid, "active": True, "urgency": "(updated)", "progress": ""})
+                if st_threads:
+                    turn_threads[st] = st_threads
+                    seen_turns.add(st)
+
+    if not turn_threads:
+        print("(no thread data found)")
+        return
+
+    sorted_turns = sorted(turn_threads.keys())
+
+    # Build thread ID list for columns
+    all_thread_ids: set[str] = set()
+    for threads in turn_threads.values():
+        for th in threads:
+            all_thread_ids.add(th["id"])
+    thread_ids = sorted(all_thread_ids)
+
+    if not thread_ids:
+        print("(no threads)")
+        return
+
+    # Print header
+    turn_col = max(4, len(str(sorted_turns[-1])))
+    header = f"{'Turn':>{turn_col}}"
+    for tid in thread_ids:
+        header += f"  {tid[:16]:<16}"
+    print(header)
+    print("\u2500" * len(header))
+
+    # Print rows
+    for t in sorted_turns:
+        row = f"{t:>{turn_col}}"
+        threads_at_turn = {th["id"]: th for th in turn_threads[t]}
+        for tid in thread_ids:
+            if tid in threads_at_turn:
+                th = threads_at_turn[tid]
+                status = "active" if th.get("active") else "latent"
+                urgency = th.get("urgency", "")
+                if isinstance(urgency, str) and urgency not in ("normal", "high", "background"):
+                    status = urgency
+                progress = th.get("progress", "")
+                if progress:
+                    row += f"  {status[:3]:<3} {str(progress)[:13]:<13}"
+                else:
+                    row += f"  {status[:3]:<3} {'':<13}"
+            else:
+                row += "  " + " " * 16
+        print(row)
+
+
+def cmd_beats(events: list[dict[str, Any]]) -> None:
+    """Show turn-by-turn beat type + surface_as + beat_locked status."""
+    # Gather beat data from storytell extraction and pacing_context
+    beat_data: list[dict[str, Any]] = []
+
+    for ev in events:
+        t = ev.get("turn")
+        if t is None or not isinstance(t, int):
+            continue
+
+        beat_entry = {
+            "turn": t,
+            "type": "",
+            "surface": "",
+            "beat_locked": False,
+            "directive": "",
+        }
+
+        # From storytell extraction output
+        extraction = ev.get("extraction") or {}
+        storytell = extraction.get("storytell") or {}
+        st_output = storytell.get("output") or {}
+        if isinstance(st_output, dict):
+            gm_beat = st_output.get("gm_beat") or {}
+            if gm_beat and isinstance(gm_beat, dict) and gm_beat.get("type"):
+                beat_entry["type"] = gm_beat.get("type", "")
+                beat_entry["surface"] = gm_beat.get("surface_as", "")
+
+        # From pacing_context in event (overrides/adds beat_locked and directive)
+        pacing = ev.get("pacing_context") or {}
+        if pacing:
+            beat_entry["beat_locked"] = pacing.get("beat_locked", False)
+            beat_entry["directive"] = pacing.get("directive", "")
+
+        beat_data.append(beat_entry)
+
+    # Deduplicate by turn — keep the entry with more data (prefer storytell gm_beat)
+    seen_turns: dict[int, dict[str, Any]] = {}
+    for bd in beat_data:
+        t = bd["turn"]
+        if t not in seen_turns:
+            seen_turns[t] = bd
+        else:
+            # Keep the one with more non-empty fields
+            existing = seen_turns[t]
+            existing_score = sum(1 for v in existing.values() if v and v is not False)
+            new_score = sum(1 for v in bd.values() if v and v is not False)
+            if new_score > existing_score:
+                seen_turns[t] = bd
+    beat_data = sorted(seen_turns.values(), key=lambda x: x["turn"])
+
+    if not beat_data:
+        print("(no beat data found)")
+        return
+
+    # Print table
+    print(f"{'Turn':>5} | {'Beat Type':<14} | {'Surface':<14} | {'Locked':<6} | {'Directive'}")
+    print("\u2500" * 70)
+    for bd in beat_data:
+        locked = "Y" if bd.get("beat_locked") else "N"
+        directive = bd.get("directive", "")
+        print(f"{bd['turn']:>5} | {bd.get('type', ''):<14} | {bd.get('surface', ''):<14} | {locked:<6} | {directive}")
+
+
+def cmd_momentum_check(events: list[dict[str, Any]]) -> None:
+    """Show momentum + band + expected delta in one table."""
+    ARROW = "\u2192"
+
+    rows: list[dict[str, Any]] = []
+    for ev in events:
+        ruling = ev.get("ruling") or {}
+        if not ruling.get("rolled"):
+            continue
+        t = ev.get("turn")
+        if t is None:
+            continue
+        momentum_before = ev.get("momentum_before")
+        momentum_after = ev.get("momentum_after")
+        band = ruling.get("band", "?")
+        momentum_delta = ev.get("momentum_delta")
+
+        rows.append({
+            "turn": t,
+            "momentum_before": momentum_before if momentum_before is not None else "?",
+            "momentum_after": momentum_after if momentum_after is not None else "?",
+            "delta": momentum_delta if momentum_delta is not None else "?",
+            "band": band,
+        })
+
+    if not rows:
+        print("(no dice rolls found)")
+        return
+
+    # Print table
+    print(f"{'Turn':>5} | {'Momentum':<12} | {'Band':<10} | {'Delta':<6}")
+    print("\u2500" * 40)
+    for r in rows:
+        mb = r['momentum_before']
+        ma = r['momentum_after']
+        delta = r['delta']
+        delta_str = f"{delta:+d}" if isinstance(delta, int) else str(delta)
+        print(f"{r['turn']:>5} | {mb} {ARROW} {ma:<7} | {r['band']:<10} | {delta_str:<6}")
+
+
+def cmd_goals(events: list[dict[str, Any]]) -> None:
+    """Show goal changes over time from sanitizer events."""
+    goal_changes: list[dict[str, Any]] = []
+    for ev in events:
+        if ev.get("kind") != "sanitizer":
+            continue
+        sev_turn = ev.get("turn")
+        changes_detail = ev.get("changes_detail") or {}
+        goal = changes_detail.get("goal") or {}
+        if goal:
+            before = goal.get("before", "")
+            after = goal.get("after", "")
+            if before != after:
+                goal_changes.append({
+                    "turn": sev_turn,
+                    "before": before,
+                    "after": after,
+                })
+
+    if not goal_changes:
+        print("(no goal changes found)")
+        return
+
+    print(f"{'Turn':>5} | Goal Change")
+    print("\u2500" * 60)
+    for gc in goal_changes:
+        print(f"{gc['turn']:>5} | {gc['before']}")
+        print(f"      \u2192 {gc['after']}")
+        print()
+
+
+def cmd_effective_age(events: list[dict[str, Any]]) -> None:
+    """Show effective_scene_age over time."""
+    ages: list[dict[str, Any]] = []
+    for ev in events:
+        t = ev.get("turn")
+        if t is None or not isinstance(t, int):
+            continue
+        extraction = ev.get("extraction") or {}
+        scene = extraction.get("scene") or {}
+        scene_output = scene.get("output") or {}
+        if isinstance(scene_output, dict):
+            age = scene_output.get("effective_scene_age")
+            if age is not None:
+                ages.append({"turn": t, "age": age})
+
+    if not ages:
+        print("(no effective_scene_age data found)")
+        return
+
+    print(f"{'Turn':>5} | {'Effective Scene Age':<20}")
+    print("\u2500" * 30)
+    for a in ages:
+        print(f"{a['turn']:>5} | {a['age']}")
+
+
+def cmd_beat_ttl(events: list[dict[str, Any]]) -> None:
+    """Show beat TTL expiration over time."""
+    ttl_data: list[dict[str, Any]] = []
+    for ev in events:
+        t = ev.get("turn")
+        if t is None or not isinstance(t, int):
+            continue
+
+        # From pending_gm_beat in state_snapshot or meta
+        ss = ev.get("state_snapshot") or {}
+        meta = ss.get("meta") or {}
+        pending_beat = meta.get("pending_gm_beat") or {}
+        if pending_beat and pending_beat.get("beat_expires_turn"):
+            ttl_data.append({
+                "turn": t,
+                "expires_at": pending_beat.get("beat_expires_turn"),
+                "beat_type": pending_beat.get("type", ""),
+            })
+
+        # From post_turn_pending_beat in event
+        post_beat = ev.get("post_turn_pending_beat") or {}
+        if post_beat and isinstance(post_beat, dict) and post_beat.get("beat_expires_turn"):
+            ttl_data.append({
+                "turn": t,
+                "expires_at": post_beat.get("beat_expires_turn"),
+                "beat_type": post_beat.get("type", ""),
+            })
+
+    if not ttl_data:
+        print("(no beat TTL data found)")
+        return
+
+    # Deduplicate by turn — keep the entry with more recent expires_at
+    seen_turns: dict[int, dict[str, Any]] = {}
+    for td in ttl_data:
+        t = td["turn"]
+        if t not in seen_turns or td["expires_at"] > seen_turns[t]["expires_at"]:
+            seen_turns[t] = td
+    ttl_data = sorted(seen_turns.values(), key=lambda x: x["turn"])
+
+    print(f"{'Turn':>5} | {'Expires At':<10} | {'Beat Type'}")
+    print("\u2500" * 35)
+    for td in ttl_data:
+        print(f"{td['turn']:>5} | {td['expires_at']:<10} | {td['beat_type']}")
+
+
+
 # Internal helpers
 
 
