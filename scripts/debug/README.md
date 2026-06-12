@@ -65,7 +65,7 @@ The session is saved to `saves/ev/<timestamp>/` and a symlink `saves/ev/latest` 
 .venv/bin/python scripts/debug/ev.py check 3 momentum_lifecycle inventory_integrity --save-dir saves/ev/latest
 ```
 
-### 5. Inspect LLM prompts and outputs
+### 5. Inspect LLM prompts and turn JSON
 
 ```bash
 # What the storytell LLM saw (user prompt)
@@ -143,7 +143,7 @@ Personality presets shape the LLM player's system prompt:
 | Full timing + token breakdown | `ev.py timing [save-path]` |
 | See everything for one turn | `ev.py turn <N> [save-path]` |
 | Just a single stream's prompt/output | `ev.py prompt <N> <stream> [--system] [--field FIELD] [save-path]` |
-| See all JSON outputs for a turn | `ev.py outputs <N> [save-path]` |
+| See all JSON outputs for a turn | `ev.py turn <N> --json [save-path]` |
 
 **Stream names:** `ruling` (or `rules`), `narrate`, `scene`, `state`, `storytell` (or `progress`).
 
@@ -361,18 +361,23 @@ Tokens:    in=15487  out=1077  ms=31700.0
 
 **Registered checkers** (see `docs/ev/CHECKERS.md` for full docs):
 
-| Checker ID | What it validates |
-|---|---|
-| `momentum_lifecycle` | Momentum tracking, floor streaks, band correctness |
-| `gm_beat_lifecycle` | GM beat type transitions, pressure compliance |
-| `inventory_integrity` | Inventory add/remove balance |
-| `conditions_lifecycle` | Condition apply/expire timing |
-| `npc_presence` | NPC presence field consistency |
-| `location_change` | Location transition continuity |
-| `sanitizer_lifecycle` | Thread sanitization events |
-| `pacing_directives` | Pacing directive formatting |
-| `directive_tone_match` | Narrative tone vs pacing directive |
-| `state_fidelity` | State snapshot vs active state consistency |
+| Checker ID | Type | What it validates |
+|---|---|---|
+| `momentum_lifecycle` | deterministic | Momentum delta matches roll band, floor streaks |
+| `gm_beat_lifecycle` | deterministic | GM beat type transitions, pressure compliance |
+| `inventory_integrity` | deterministic | Inventory add/remove balance |
+| `conditions_lifecycle` | deterministic | Condition apply/expire timing |
+| `npc_presence` | deterministic | NPC extraction, presence tags, scene cap |
+| `location_change` | deterministic | Location transition continuity |
+| `sanitizer_lifecycle` | deterministic | Thread sanitization events |
+| `pacing_directives` | deterministic | Pacing directive rendering, known values |
+| `directive_tone_match` | llm | Narrative tone vs ruling directive |
+| `state_fidelity` | llm | State snapshot vs active state consistency |
+| `arc_goal_updates` | deterministic | goal_update overwrites visible_goal |
+| `thread_lifecycle` | deterministic | thread_add applied, thread_update IDs valid |
+| `beat_narrative_chain` | llm | GM beat produces observable narrative consequence |
+| `action_quality` | deterministic | Action count, distinctness, variety |
+| `turn_assert` | deterministic | Per-turn structured assertions (stream/field/expected) |
 
 ---
 
@@ -470,3 +475,50 @@ Embedded in `.extraction.storytell.rendered_user`:
 A symlink `saves/ev/latest` points to the most recent session.
 
 Each session directory may contain `ev.yaml` for default configuration. Use `ev.py init` to create a session with config, or `ev.py status` to inspect the current session.
+
+---
+
+## Data sources
+
+Different commands read from different event fields. Understanding which fields are used helps diagnose check failures and format mismatches.
+
+| Source | Events field | Used by |
+|--------|-------------|---------|
+| **Turn data** | `.turn`, `.input`, `.ruling_prompt`, `.narrate_prompt`, `.extraction.*` | summary, timing, turn, prompt |
+| **State deltas** | `.applied`, `.rejected` | deltas, mechanics, diff, trace, search |
+| **Active state** | `state.yaml` in save dir | state |
+| **Thread lifecycle** | `.extraction.storytell.output.thread_add`, `.extraction.storytell.output.thread_update`, `.extraction.storytell.output.thread_remove`, sanitizer events | threads, thread-audit |
+| **Beat data** | `.extraction.storytell.output.gm_beat`, `.pacing_context` | beats, mechanics |
+| **Momentum** | `.momentum_before`, `.momentum_after`, `.momentum_delta`, `.ruling.band` | momentum-check, mechanics |
+| **Conditions** | `.applied.pc_condition_add`, `.applied.pc_condition_remove`, `.extraction_context.conditions_this_turn` | active-conditions, conditions checker |
+| **Inventory** | `.applied.inventory_add`, `.applied.inventory_remove`, `.extraction_context.inventory_this_turn` | state-history, inventory checker |
+| **NPC presence** | `.state_snapshot.compendium.npcs`, `.extraction_context` | npc-ghosting, npc_presence checker |
+| **Goals** | `.extraction.storytell.output.goal_update`, `.state_snapshot.visible_goal` | goals, arc_goal_updates checker |
+| **Pacing** | `.pacing_context.directive`, `.pacing_context.beat_locked`, `.extraction_context.pacing` | beats, pacing checker |
+| **Sanitizer** | `kind="sanitizer"` events, `.threads_added`, `.threads_removed` | thread-audit, sanitizer_lifecycle checker |
+| **Extraction format** | `.extraction.changes` vs `.extraction.extraction_context` | compat |
+
+> **Critical:** Older saves may use `.extraction.changes` instead of `.extraction.extraction_context`. Checkers that read `extraction_context` will find no data in those saves. Use `ev.py compat` to diagnose format mismatches.
+
+---
+
+## Rubric quick reference
+
+When evaluating a game against the eval rubric, use these commands in priority order:
+
+| Rubric area | Commands | What to look for |
+|-------------|----------|-----------------|
+| **1. Momentum** | `momentum-check`, `mechanics <N> --dice` | Momentum never drops below 0, band deltas match |
+| **2. GM Beats** | `beats`, `mechanics <N> --pacing` | No 3+ consecutive pressure, beat types transition correctly |
+| **3. Inventory** | `state-history`, `deltas <N>` | Add/remove balance, no phantom items |
+| **4. Conditions** | `active-conditions`, `deltas <N>` | Max 5 concurrent, cap violations flagged |
+| **5. NPC Presence** | `npc-ghosting`, `diff <A> <B> --section npcs` | NPCs don't disappear without departure tracking |
+| **6. Location** | `trace pc.location`, `diff <A> <B> --section location` | Location transitions are continuous |
+| **7. Sanitizer** | `thread-audit`, `check <N> sanitizer_lifecycle` | Thread IDs match between storyteller and sanitizer |
+| **8. Pacing** | `beats`, `check <N> pacing_directives` | Directives match narrative tone |
+| **9. State Fidelity** | `state`, `check <N> state_fidelity` | Snapshot matches active state |
+| **10. Arc Goals** | `goals`, `check <N> arc_goal_updates` | Goal updates are structured, not free-form text |
+| **11. Rulings** | `ruling-audit`, `mechanics <N>` | ruling.reason is non-empty, condition IDs present |
+| **12. Format** | `compat` | extraction_context present, not just changes |
+
+For detailed checker docs, see `docs/ev/CHECKERS.md`. For the full rubric, see `docs/ev/RUBRIC.md`.

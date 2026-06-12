@@ -313,6 +313,47 @@ def cmd_beats(events: list[dict[str, Any]]) -> None:
         directive = bd.get("directive", "")
         print(f"{bd['turn']:>5} | {bd.get('type', ''):<14} | {bd.get('surface', ''):<14} | {locked:<6} | {directive}")
 
+    # Streak analysis — consecutive same-type beats
+    streaks: list[dict[str, Any]] = []
+    current_type = ""
+    current_start = 0
+    current_count = 0
+    current_turns: list[int] = []
+
+    for bd in beat_data:
+        bt = bd.get("type", "")
+        if bt == current_type and bt:
+            current_count += 1
+            current_turns.append(bd["turn"])
+        else:
+            if current_count >= 3:
+                streaks.append({
+                    "type": current_type,
+                    "start": current_start,
+                    "count": current_count,
+                    "turns": current_turns,
+                })
+            current_type = bt
+            current_start = bd["turn"]
+            current_count = 1
+            current_turns = [bd["turn"]]
+
+    # Check last streak
+    if current_count >= 3:
+        streaks.append({
+            "type": current_type,
+            "start": current_start,
+            "count": current_count,
+            "turns": current_turns,
+        })
+
+    if streaks:
+        print()
+        print("Consecutive streaks (3+ same type):")
+        for s in streaks:
+            turns_str = ", ".join(str(t) for t in s["turns"])
+            print(f"  '{s['type']}' x{s['count']}: turns {turns_str}")
+
 
 def cmd_momentum_check(events: list[dict[str, Any]]) -> None:
     """Show momentum + band + expected delta in one table."""

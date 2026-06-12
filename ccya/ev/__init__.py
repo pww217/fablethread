@@ -79,7 +79,7 @@ def main() -> None:
     flags, args = _strip_flags(args)
     if not args:
         print("Error: no command specified.", file=sys.stderr)
-        print("Commands: summary, timing, turn, prompt, outputs, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status", file=sys.stderr)
+        print("Commands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats", file=sys.stderr)
         print("\nUsage: .venv/bin/python scripts/debug/ev.py <command> [args...]", file=sys.stderr)
         sys.exit(1)
 
@@ -98,12 +98,12 @@ def main() -> None:
     else:
         turn_file = DEFAULT_FILE
 
-    events = load_events(turn_file) if cmd not in ("play", "init", "status") else []
+    events = load_events(turn_file) if cmd not in ("play", "init", "status", "help") else []
 
     match cmd:
         case "help":
             print(__doc__.strip() if __doc__ else "ev.py — Debug CLI for CCYA events.jsonl")
-            print("\nCommands: summary, timing, turn, prompt, outputs, deltas, mechanics, state, diff, trace, search, play, check, eval")
+            print("\nCommands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats")
             sys.exit(0)
         case "summary":
             from ccya.ev.inspect import cmd_summary
@@ -222,6 +222,27 @@ def main() -> None:
         case "beat-ttl":
             from ccya.ev.state_tools import cmd_beat_ttl
             cmd_beat_ttl(events)
+        case "state-history":
+            from ccya.ev.audit import cmd_state_history
+            cmd_state_history(events)
+        case "active-conditions":
+            from ccya.ev.audit import cmd_active_conditions
+            cmd_active_conditions(events)
+        case "npc-ghosting":
+            from ccya.ev.audit import cmd_npc_ghosting
+            cmd_npc_ghosting(events)
+        case "storyteller-audit":
+            from ccya.ev.audit import cmd_storyteller_audit
+            cmd_storyteller_audit(events)
+        case "thread-audit":
+            from ccya.ev.audit import cmd_thread_audit
+            cmd_thread_audit(events)
+        case "ruling-audit":
+            from ccya.ev.audit import cmd_ruling_audit
+            cmd_ruling_audit(events)
+        case "compat":
+            from ccya.ev.compat import cmd_compat
+            cmd_compat(events)
         case "play":
             from ccya.ev.play import cmd_play
             cmd_play(flags, args)
