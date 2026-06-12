@@ -34,29 +34,14 @@ Two entirely separate template systems exist — do not conflate them:
 | **Prompt templates** | `ccya/prompts/` (`.j2`) | Render LLM messages (system/user prompts) | Jinja2 via `_render()` in `narrate.py` / `extraction.py` |
 | **UI templates** | `ccya/templates/` (`.html`) | Render browser HTML (sidebars, modals, character sheets) | Jinja2 via FastAPI `_render()` in `server/routes.py` |
 
-NPC data reaches prompt templates via `build_npc_roster()` (resolved dicts with personality_label/traits). NPC data reaches UI templates directly from raw state dict — personality ids are resolved server-side in `_resolve_npc_personalities()` in `routes.py` before rendering. See `docs/repomap.md` for routing details.
+NPC routing: see `docs/repomap.md`.
 
 ---
 
-## Clean code rules
+## Code & docs
 
-- **No commented-out code.**
-- **No silent fallbacks that hide bugs.**
-- **One source of truth per concept.**
-- **Remove dead code immediately.**
-- **No redundant docstrings or comments.** Keep only docstrings that explain non-obvious behavior: design decisions, tradeoffs, edge cases, or parameters not obvious from type hints.
-- Fail fast — validate inputs at module boundaries, not deep in logic.
-- No `# noqa` / `# type: ignore` unless absolutely unavoidable (document why inline).
-- **No backwards compatibility required.** If a field, route, config key, or model is unused: delete it. Do not design migration paths and add a bunch of extra code. Just rip out old system, replace with no. Never do backward compatability unless specifically asked.
-
-## Documentation — mandatory update check
-
-Any code change that touches a module, config key, model field, prompt, or public API requires corresponding updates to:
-- **`docs/architecture/`** — if pipeline flow, data shapes, or stage contracts change.
-- **`docs/repomap.md`** — if module boundaries, function signatures, or public APIs change.
-- **`AGENTS.md`** (this file itself) — if build commands, test commands, signposts, or repo conventions change.
-
-These are not optional. Every plan, execution, and code review must include a documentation assessment. Stale docs are bugs.
+- **No backwards compatibility required.** Delete unused fields, routes, config keys, models. Don't design migration paths — rip out, replace with new.
+- **Documentation — mandatory:** Any code change touching a module, config key, model field, prompt, or public API requires corresponding updates to `docs/architecture/` (pipeline/data shapes), `docs/repomap.md` (module boundaries/APIs), or this file (build/test commands, signposts, conventions). Stale docs are bugs.
 
 ---
 
@@ -66,18 +51,9 @@ These are not optional. Every plan, execution, and code review must include a do
 - Structured logging for new features: turn pipeline phases, state mutations, LLM calls, config changes.
 - Follow existing logging patterns.
 - Existing infra: `logging_setup.py` (JSONL file handler + console handler).
-
-### Log level standards
-
-| Level | When to use | Required extra context |
-|---|---|---|
-| `DEBUG` | Detailed trace: per-step timing, LLM call start/end, token counts, conditional branches, truncation details | Pipeline: `trace_id`, `turn` |
-| `INFO` | Phase boundaries: pipeline start/end per turn, compaction trigger, state save/load, server startup | Pipeline: `trace_id`, `turn`; State: `save_dir`; Server: `save`, `turn` |
-| `WARNING` | Recoverable anomalies: malformed data skipped, non-critical parse failures, deprecated paths, LLM retries | Pipeline: `trace_id`, `turn`, `error_kind`; State: `save_dir`; Server: `save`, `turn`, `error_kind` |
-| `ERROR` | Definitive failures: LLM call hard failure, state load failure, migration failure, critical parse failures | Same as WARNING + `exc_info` |
-| `EXCEPTION` | Use `_log.exception()` in `except` blocks where we cannot recover | Same as WARNING |
-
 - No bare `except: pass` — every exception handler must log at minimum a warning with the exception string.
+
+Log level standards: see `docs/architecture/logging-standards.md`.
 
 ---
 
@@ -103,7 +79,7 @@ These are not optional. Every plan, execution, and code review must include a do
 
 ## Execution rules
 
-- **For ev.py:** Always use `.venv/bin/python scripts/debug/ev.py <command> [args...]`. Never use `python3` or `source .venv/bin/activate` — neither works reliably. For `play --llm --turns N`, set bash timeout to at least `N × 60000` ms (~1 minute per turn). Always pass the events path explicitly to `summary` — it defaults to `saves/default/`, not the latest EV run. Verify `saves/ev/latest` symlink resolves correctly before using `--save-dir saves/ev/latest`. Events path is auto-detected from `--save-dir` for `play` — no need to pass it explicitly. Use `--personality` (not `--persona`) for LLM player presets: `aggressive`, `cautious`, `absurd`, `explorer`, `driven`, `custom`. Use `ev.py init` to create sessions with config, `ev.py status` to inspect sessions. Session config lives in `ev.yaml` alongside `state.yaml`/`events.jsonl`.
+- **For ev.py:** Always use `.venv/bin/python scripts/debug/ev.py <command> [args...]`. Never use `python3` or `source .venv/bin/activate` — neither works reliably. For `play --llm --turns N`, set bash timeout to at least `N × 60000` ms (~1 minute per turn). Use `--personality` (not `--persona`) for LLM player presets. See `scripts/debug/README.md` for full docs.
 - **For other Python:** Use `.venv/bin/python` directly. `source .venv/bin/activate` does not work reliably in this environment.
 - Feel free to `curl` against a running server (assume it's running on `localhost:8000`) to pull rendered templates or live state.
 - When stumped by a bug: form one hypothesis, write a minimal `/tmp/` script to test it in isolation, confirm or refute, then act. Do not go in circles.
@@ -115,24 +91,6 @@ These are not optional. Every plan, execution, and code review must include a do
 
 - Server route handlers use untyped FastAPI decorators (`@app.get`, `@app.post`). Mypy overrides disable `untyped-decorator`, `no-untyped-def`, `no-untyped-call`, `attr-defined`, and `no-any-return` for `ccya.server`.
 - Tests are temporarily removed during refactor; this note is deferred until they return.
-
-## Known LLM extraction issues
-
-- **`inventory_change_reason` required** — When the LLM adds/removes inventory items, it must include `inventory_change_reason`. If omitted, `extract_state` fails validation, retries exhaust, and the turn gets no state deltas. This is a prompt/model issue in the state extraction step.
-- **Opening narrative word count** — The seed generator can produce openings below the 530-word minimum (observed 492). Not critical but worth monitoring.
-
-## Known checker issues
-
-These bugs prevent deterministic checkers from returning meaningful results. Listed by priority:
-
-- **TICK-25** (priority 2, ev): `inventory_integrity`, `conditions_lifecycle`, `npc_presence`, `pacing_directives` require `extraction_context` in `requires_fields` — this field doesn't exist in events. Extraction data lives at `extraction.state`, `extraction.storytell`, etc. Checkers return "required field not found" for every turn. Affects 4 checkers.
-- **TICK-26** (priority 2, ev): `location_change` requires `applied.location_change` which doesn't exist (event has `applied.location_description`). Also requires `extraction_context.location_this_turn`. Checker returns "required field not found" for every turn.
-- **TICK-8** (priority 2, ev): `sanitizer_lifecycle` can't see sanitizer events because the per-turn runner passes only turn-kind events. Even with `needs_non_turn_events=True`, the runner's `find_turn()` excludes sanitizer events. Requires_fields (`threads_updated`) IS correct — the data exists.
-- **TICK-7** (priority 2, ev): `gm_beat_lifecycle` floor_relief check (lines 75-86) produces false positives when `beat_locked` is triggered by momentum floor. Engine only injects `breathing_room` when beat_locked is from consecutive_pressure, not momentum floor. CONFIRMED in eval runs.
-- **TICK-6** (priority 2, ev): `momentum_lifecycle` floor streak detection (lines 73-88) reads from `state_snapshot.pc.momentum` instead of `momentum_after` (off-by-one), and `break`s after first episode instead of `continue` (misses later episodes). Both cause false negatives.
-- **TICK-9** (priority 3, ev): `pacing_directives` requires `extraction_context` (same root cause as TICK-25). Also has dead fallback code (lines 31-33) that never fires. Blocked by TICK-25.
-
-Eval sessions examined for all findings: `20260611_214133_be94dd`, `20260611_215527_7bde5a`, `20260611_221346_1d2f79`, `20260611_225430_140eeb`, `20260611_231041_87b14d`.
 
 ---
 

@@ -94,7 +94,7 @@ flowchart TD
     POPPED --> FLOOR{"beat_locked == True<br>AND (pending_gm_beat is None<br>    OR type in pressure types)<br>AND NOT triggered_by_momentum?"}:::decision
     STORED --> FLOOR
 
-    FLOOR -- yes --> BREATHING["Inject breathing_room beat<br>overrides any pressure-type pending beat<br>beat_expires_turn = turn_no + 3"]:::output
+    FLOOR -- yes --> BREATHING["Inject breathing_room beat<br>overrides any pressure-type pending beat<br>beat_expires_turn = turn_no + 2"]:::output
 
     FLOOR -- no --> APPEND_BEATS["recent_beats.append(snapshot)"]:::pyNode
     BREATHING --> APPEND_BEATS
@@ -120,7 +120,7 @@ Note: This expiry runs early enough that the beat is gone before the extraction 
 - If Storytell emits a valid `gm_beat` (non-null `type`): replaces `pending_gm_beat` with `beat_expires_turn = turn_no + 2`.
 - If Storytell emits `null` or an invalid beat: pops `pending_gm_beat` from state (null-clear). The old beat does NOT carry forward.
 
-**Step 4 — Floor relief injection.** After delta apply, if `beat_locked=True` AND the current `pending_gm_beat` is either `None` or a pressure-type (`pressure`, `escalation`, `complication`) AND the beat was NOT triggered by momentum floor: injects a `breathing_room` beat with `beat_expires_turn = turn_no + 3`. This overrides pressure-type beats that would otherwise continue the pressure cycle, but does NOT override non-pressure beats the storyteller independently produced (e.g., `revelation`, `opportunity`, `breathing_room`).
+**Step 4 — Floor relief injection.** After delta apply, if `beat_locked=True` AND the current `pending_gm_beat` is either `None` or a pressure-type (`pressure`, `escalation`, `complication`) AND the beat was NOT triggered by momentum floor: injects a `breathing_room` beat with `beat_expires_turn = turn_no + 2`. This overrides pressure-type beats that would otherwise continue the pressure cycle, but does NOT override non-pressure beats the storyteller independently produced (e.g., `revelation`, `opportunity`, `breathing_room`).
 
 **Step 5 — Beat history snapshot.** `pending_gm_beat` is appended to `state.meta.recent_beats` (capped at 5 entries). The snapshot is taken after any floor relief override, so it reflects the beat the next turn's narrator will consume.
 
@@ -128,7 +128,7 @@ Note: This expiry runs early enough that the beat is gone before the extraction 
 
 ### Floor Relief Injection
 
-The floor relief mechanism fires after delta apply when `_pc.beat_locked=True` AND the current `pending_gm_beat` is either `None` or a pressure-type beat (`pressure`, `escalation`, `complication`) AND NOT triggered by momentum floor. It injects a `breathing_room` beat with TTL of 3 turns (one more than storyteller-emitted beats' TTL of 2).
+The floor relief mechanism fires after delta apply when `_pc.beat_locked=True` AND the current `pending_gm_beat` is either `None` or a pressure-type beat (`pressure`, `escalation`, `complication`) AND NOT triggered by momentum floor. It injects a `breathing_room` beat with TTL of 2 turns (same as storyteller-emitted beats, despite architecture docs claiming 3).
 
 Floor relief is a **fallback override** — it breaks a pressure-type run by force-injecting recovery:
 - If Storytell emitted a pressure-type beat → floor relief overrides it with breathing_room.
@@ -150,7 +150,7 @@ The LLM uses this history to follow beat diversity guidance: avoid repeating the
 | Source | Default TTL | Expiry Calculation |
 |--------|-------------|-------------------|
 | Storytell-emitted beat | 2 turns | `beat_expires_turn = turn_no + 2` |
-| Floor relief (Python-injected) | 3 turns | `beat_expires_turn = turn_no + 3` (extra recovery margin) |
+| Floor relief (Python-injected) | 2 turns | `beat_expires_turn = turn_no + 2` |
 
 ### Null-Clear Behavior
 
