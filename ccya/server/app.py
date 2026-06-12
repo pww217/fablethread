@@ -28,17 +28,30 @@ PACKS_DIR = REPO_ROOT / "packs"
 SAVE_DIR = Path("saves") / "default"
 
 
+def _find_save_dirs(saves_dir: Path) -> list[Path]:
+    """Find all save directories (top-level and one level deep, excluding default, deduped by resolved path)."""
+    found: dict[str, Path] = {}
+    for entry in saves_dir.iterdir():
+        if not entry.is_dir() or entry.name == "default":
+            continue
+        if (entry / "state.yaml").exists():
+            r = entry.resolve()
+            found.setdefault(str(r), r)
+        else:
+            for sub in entry.iterdir():
+                if sub.is_dir() and (sub / "state.yaml").exists():
+                    r = sub.resolve()
+                    found.setdefault(str(r), r)
+    return list(found.values())
+
+
 def _find_latest_save() -> Path | None:
     """Return the most recently modified non-default save directory, or None."""
     saves_dir = Path("saves")
     if not saves_dir.exists():
         return None
-    candidates = sorted(
-        (d for d in saves_dir.iterdir() if d.is_dir() and d.name != "default"),
-        key=lambda d: d.stat().st_mtime,
-        reverse=True,
-    )
-    return candidates[0] if candidates else None
+    candidates = _find_save_dirs(saves_dir)
+    return max(candidates, key=lambda d: d.stat().st_mtime) if candidates else None
 
 
 _latest = _find_latest_save()

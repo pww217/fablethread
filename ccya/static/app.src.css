@@ -1649,6 +1649,13 @@ body {
   color: var(--text-muted);
   margin-left: auto;
 }
+.pack-card-dir {
+  font-size: 0.71rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  opacity: 0.6;
+  margin-bottom: 6px;
+}
 .save-card-current-badge {
   font-size: 0.65rem;
   font-family: var(--font-mono);
@@ -1808,6 +1815,20 @@ body {
 .retry-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ── Save picker EV toggle ── */
+.save-picker-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.save-picker-toggle input[type="checkbox"] {
+  accent-color: var(--accent-blue);
 }
 
 /* =========================================================
