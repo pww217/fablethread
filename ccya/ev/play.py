@@ -318,7 +318,7 @@ def _create_play_session(pack: str | None = None, packs_dir: Path | None = None)
     latest_link = EV_SAVES_DIR / "latest"
     if latest_link.is_symlink() or latest_link.exists():
         latest_link.unlink()
-    latest_link.symlink_to(session_dir)
+    latest_link.symlink_to(session_dir.name)
 
     return session_dir
 
@@ -423,10 +423,16 @@ def _llm_session(
     custom_persona: str | None = None,
     eval_: bool = False,
     until_error: bool = False,
+    save_dir: Path | None = None,
 ) -> None:
-    _, name_locales, narrator_rules, world_rules, factions, opening_scene, style = _load_pack_params(pack)
-    session_dir = _create_play_session(pack=pack)
-    state = _ensure_seed_generated(session_dir, pack, config)
+    _, name_locales, narrator_rules, world_rules, factions, _, style = _load_pack_params(pack)
+
+    if save_dir is not None:
+        state = load_state(save_dir)
+    else:
+        session_dir = _create_play_session(pack=pack)
+        state = _ensure_seed_generated(session_dir, pack, config)
+        save_dir = session_dir
 
     turns_played = 0
     trace_ids: list[str] = []
@@ -436,84 +442,34 @@ def _llm_session(
     # Store recent turns for context (turn input + narrative)
     recent_turns: list[dict[str, str]] = []
 
-    def _build_scenario_context(state: dict[str, Any], opening_scene: str | None, turn_num: int) -> str:
-        location = state.get("location") or {}
-        scene = state.get("scene") or {}
-        inventory = state.get("inventory") or []
-        npcs = (state.get("compendium") or {}).get("npcs") or {}
-
-        present_npcs = []
-        for npc_id, npc in npcs.items():
-            if npc.get("present"):
-                name = npc.get("name", npc_id)
-                title = npc.get("title", "")
-                note = npc.get("notes", "")
-                if title:
-                    present_npcs.append(f"{name} ({title})")
-                elif note:
-                    present_npcs.append(f"{name} ({note[:40]})")
-                else:
-                    present_npcs.append(name)
-
-        inventory_items: list[str] = []
-        for item in inventory:
-            if isinstance(item, dict):
-                inventory_items.append(str(item.get("name") or item.get("id") or ""))
-            else:
-                inventory_items.append(str(item))
-
-        location_name = location.get("name", "")
-        location_desc = location.get("description", "")
-        scene_tagline = scene.get("tagline", "")
-
-        has_data = location_name or present_npcs or inventory_items or scene_tagline
-
-        if not has_data:
-            return "Scenario: No scenario data loaded"
-
-        lines = []
-        if location_name:
-            desc_part = f" — {location_desc}" if location_desc else ""
-            lines.append(f"  Location: {location_name}{desc_part}")
-        if present_npcs:
-            lines.append(f"  Present: {', '.join(present_npcs[:5])}")
-        if inventory_items:
-            lines.append(f"  Inventory: {', '.join(inventory_items[:8])}")
-        if scene_tagline:
-            lines.append(f"  Scene: {scene_tagline}")
-
-        context = "\n".join(lines)
-
-        if turn_num <= 1 and opening_scene:
-            context = f"{opening_scene.strip()}\n\n{context}"
-
-        return f"Scenario:\n{context}"
-
     for turn_i in range(max_turns):
-        arc = state.get("arc") or {}
-        arc_goal = arc.get("visible_goal", "")
-
-        # Build prompt: scenario context + arc goal + recent bullets + current narrative
         context_parts = []
 
-        # Scenario context (location, NPCs, inventory, scene)
-        scenario_context = _build_scenario_context(state, opening_scene, turn_i)
-        context_parts.append(scenario_context)
+        # Inventory (mechanical state for decision-making)
+        inv = state.get("inventory") or []
+        if inv:
+            items = []
+            for item in inv:
+                if isinstance(item, dict):
+                    items.append(str(item.get("name") or item.get("id") or ""))
+                else:
+                    items.append(str(item))
+            context_parts.append(f"Inventory: {', '.join(items)}")
 
-        if arc_goal:
-            context_parts.append(f"Current Goal: {arc_goal}")
+        # Arc goal + threads (narrative direction)
+        arc = state.get("arc") or {}
+        goal = arc.get("visible_goal", "")
+        if goal:
+            context_parts.append(f"Goal: {goal}")
 
-        # 2-3 turns before as short bullets (player input only)
-        if recent_turns:
-            context_parts.append("Recent:")
-            for rt in recent_turns[-3:]:
-                context_parts.append(f"  - {rt['input']}")
-
-        # Current turn narrative (full)
+        # Current narrative (what just happened)
         if recent_turns and recent_turns[-1].get("narrative"):
-            context_parts.append(f"\nNarrative:\n\n{recent_turns[-1]['narrative']}")
+            context_parts.append(recent_turns[-1]["narrative"])
 
-        user_prompt = "\n".join(context_parts) + "\n\nWhat do you do?"
+        if context_parts:
+            user_prompt = "\n\n".join(context_parts) + "\n\nWhat do you do?"
+        else:
+            user_prompt = "What do you do?"
 
         from ccya.llm_client import chat as llm_chat
 
@@ -542,7 +498,7 @@ def _llm_session(
         print(f"\n[Player] {player_input}")
 
         result = play_turn(
-            player_input, state, config, session_dir,
+            player_input, state, config, save_dir,
             pack_name_locales=name_locales,
             pack_narrator_rules=narrator_rules,
             pack_world_rules=world_rules,
@@ -564,12 +520,12 @@ def _llm_session(
         narrative = result.get("narrative", "")
         recent_turns.append({"input": player_input, "narrative": narrative})
 
-        state = load_state(session_dir)
+        state = load_state(save_dir)
 
     print()
     print(f"Session ended. Turns: {turns_played}")
     print(f"Traces: {', '.join(trace_ids)}")
-    print(f"Events: {session_dir / 'events.jsonl'}")
+    print(f"Events: {save_dir / 'events.jsonl'}")
 
     if eval_ and turns_played > 0:
         print()
@@ -577,8 +533,8 @@ def _llm_session(
         from ccya.ev.events import load_events
         from ccya.ev.check import cmd_check
 
-        events = load_events(session_dir / "events.jsonl")
-        cmd_check(events, all_checkers=True, save_dir=session_dir)
+        events = load_events(save_dir / "events.jsonl")
+        cmd_check(events, all_checkers=True, save_dir=save_dir)
 
 
 def _print_missing_pack_error(flags: dict[str, str]) -> None:
@@ -649,6 +605,7 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
             custom_persona=player_cfg["custom_persona"],
             eval_="eval" in flags,
             until_error="until-error" in flags,
+            save_dir=save_dir if "resume" in flags else None,
         )
         sys.exit(0)
 

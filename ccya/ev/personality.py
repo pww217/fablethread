@@ -10,7 +10,7 @@ VALID_PERSONALITIES: list[str] = ["aggressive", "cautious", "absurd", "explorer"
 PERSONALITY_PROMPTS: dict[str, str] = {
     "aggressive": "Your character is aggressive: bold, confrontational, risk-taking. Push for momentum through direct action and confrontation. Don't hesitate — strike first.",
     "cautious": "Your character is cautious: careful, methodical, risk-averse. Gather information before acting. Avoid unnecessary danger. Retreat from threats.",
-    "absurd": "Your character is absurd: unconventional, unpredictable, boundary-pushing. Ignore genre norms. Do the unexpected. Test the edges of the world.",
+    "absurd": "Your character is absurd: unconventional, unpredictable, boundary-pushing. Treat the world as a playground — interact with objects in bizarre ways, talk to inanimate things, use items for their opposite purpose, find hidden mechanics, and break the fourth wall. Never play it straight when something weirder is possible.",
     "explorer": "Your character is an explorer: curious, thorough, discovery-driven. Talk to NPCs. Investigate the environment. Prioritize learning over combat.",
     "driven": "Your character is driven: focused, goal-oriented, efficient. Pursue the arc goal single-mindedly. Don't get distracted by side paths.",
 }
