@@ -1766,6 +1766,14 @@ function game() {
                 _configureMarked();
                 const html = _renderMarkdown(currentDisplayBuf.replace(/\s+$/, ''));
                 textDiv.innerHTML = html + '<span class="streaming-cursor"></span>';
+                // Highlight known entities as they appear during streaming
+                const stateScript = document.getElementById('initial-state');
+                if (stateScript) {
+                    try {
+                        const initState = JSON.parse(stateScript.textContent);
+                        _highlightEntities(textDiv, initState);
+                    } catch (e) { /* skip */ }
+                }
                 // Smooth scroll so textDiv top stays near top of narrative-panel.
                 // Uses a fresh scroll animation each call — no state carried across calls.
                 if (currentDisplayBuf.length > 0) {
@@ -1810,6 +1818,7 @@ function game() {
                 if (cursor.parentNode) cursor.remove();
                 textDiv.classList.remove('streaming');
                 textDiv.innerHTML = _renderMarkdown(result.narrative || '');
+                if (result.state) _highlightEntities(textDiv, result.state);
 
                 const met = document.createElement('div');
                 met.className = 'turn-metrics';
@@ -2293,7 +2302,14 @@ function _highlightEntities(container, state) {
     const npcs = (state.compendium && state.compendium.npcs) || {};
     for (const id in npcs) {
         const entry = npcs[id];
-        if (entry && entry.name) names.push({ name: entry.name, cls: 'entity-npc' });
+        if (entry && entry.name) {
+            names.push({ name: entry.name, cls: 'entity-npc' });
+            const parts = entry.name.split(/\s+/);
+            if (parts.length > 1) {
+                names.push({ name: parts[0], cls: 'entity-npc' });
+                names.push({ name: parts[parts.length - 1], cls: 'entity-npc' });
+            }
+        }
     }
 
     // Collect inventory item names
@@ -2303,7 +2319,15 @@ function _highlightEntities(container, state) {
     }
 
     // Collect PC name
-    if (state.pc && state.pc.name) names.push({ name: state.pc.name, cls: 'entity-pc' });
+    if (state.pc && state.pc.name) {
+        const pcName = state.pc.name;
+        names.push({ name: pcName, cls: 'entity-pc' });
+        const pcParts = pcName.split(/\s+/);
+        if (pcParts.length > 1) {
+            names.push({ name: pcParts[0], cls: 'entity-pc' });
+            names.push({ name: pcParts[pcParts.length - 1], cls: 'entity-pc' });
+        }
+    }
 
     // Collect location name
     if (state.location && state.location.name) names.push({ name: state.location.name, cls: 'entity-location' });
@@ -2566,6 +2590,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (id === 'turn-log-body') {
             _applyMarkdown(e.target);
+        }
+        if (e.target && e.target.matches && e.target.matches('#opening-block .narrative-text')) {
+            _applyMarkdown(e.target);
+            const stateScript = document.getElementById('initial-state');
+            if (stateScript) {
+                try {
+                    const initState = JSON.parse(stateScript.textContent);
+                    _highlightEntities(e.target, initState);
+                } catch (e) { /* skip */ }
+            }
         }
     });
 

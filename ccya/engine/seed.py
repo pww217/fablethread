@@ -410,6 +410,16 @@ async def generate_seed(
                 "generate_seed soft-check: %s", w, extra={"trace_id": trace_id}
             )
 
+        # Hard validation: at least 1 NPC must have presence="present"
+        present_count = sum(
+            1 for npc in envelope.seed_state.compendium.npcs.values()
+            if npc.presence == "present"
+        )
+        if present_count == 0:
+            raise ValueError(
+                "Seed must include at least 1 NPC with presence='present' in opening scene"
+            )
+
         opening_len = len(envelope.opening_narrative) if envelope.opening_narrative else 0
         _log.info(
             "generate_seed complete opening_len=%d pack=%s pool_selection=%s",
