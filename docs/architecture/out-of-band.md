@@ -70,7 +70,7 @@ After the LLM generates the SeedEnvelope, `generate_seed()` in `seed.py` runs po
 - Merges baseline world facts from `scenario.world_facts` with any existing world state facts from the seed
 - Clears engine-managed `compendium_touch_order` from seeded compendium NPCs
 - **Injects pack currency**: if `scenario.currency_id` is set and no inventory item with that ID exists, appends an `InventoryItem` with the pack's `starting_currency_amount`
-- **Assigns NPC personalities**: iterates over all NPCs in `envelope.seed_state.compendium.npcs`; for any without a `personality` attribute, calls `ccya.personality.assign_personality()` using the NPC's `motivation` and `fear` fields; validates any LLM-provided personality ids via `validate_and_resolve()` (logs WARNING for unknown ids, preserves as-is)
+- **Assigns NPC personalities**: iterates over all NPCs in `envelope.seed_state.compendium.npcs`; for any without a `personality` attribute, calls `ccya.personality.assign_personality()` using the NPC's `motivation` and `fear` fields; validates any LLM-provided personality ids via `validate_and_resolve()`; unknown ids fall back to `assign_personality()`
 
 ### Static seed personality assignment
 

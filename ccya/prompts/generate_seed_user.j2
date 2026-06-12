@@ -54,14 +54,8 @@ Factions (use these for NPC role assignment):
 {% endfor %}{% endif %}
 {% endif %}
 {% if scenario and scenario.factions %}
-## compendium_generation (for the 2-3 NPCs not in the opening scene)
-Use the faction context and world facts listed above to create NPCs that feel organic to this world. Compendium NPCs should fill roles that the world needs: faction members, civilians, power figures, or people caught between the forces the world facts describe. Their bios should establish what they want and why they matter — not as explicit agendas, but as subtext a player would infer from knowing them.
-
-At least one compendium NPC should have a loose connection to a faction or to the pressures implied by the world facts above — not as a plot hook, but as a person whose life is visibly shaped by that force.
-{% endif %}
-{% if npc_count_override and npc_count_override > 0 %}
-## npc_count
-The player requested {{ npc_count_override }} NPCs for the opening scene. Generate exactly that many NPCs with presence="present" in compendium.npcs.
+## compendium_generation (only if narratively essential)
+Only generate compendium NPCs when they serve a necessary narrative function tied to the arc: arc goal, rescue target, deal-maker, family reunion, or faction anchor. Max 2 compendium-only NPCs. Their bios should establish what they want and why they matter.
 {% endif %}
 
 {% if pool_selection %}

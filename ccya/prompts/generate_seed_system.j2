@@ -33,7 +33,7 @@ Four independently selected narrative dimensions. They are NOT a menu — weave 
     location: {id: snake_case, name: string, description: string},
     inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
     scene: {tagline: string, tags: string[], world_state: string[]},
-    compendium: {npcs: {snake_case: {name: string, title: string, bio: string, allegiance?: string, bond?: string, motivation?: string, fear?: string, leverage?: string /* personality assigned by engine post-parse */}}},
+    compendium: {npcs: {snake_case: {name: string, title: string, bio: string, allegiance?: string, bond?: string, motivation?: string, fear?: string, leverage?: string, personality?: archetype_id  /* see Personality archetypes table below — required for named NPCs, omit for unnamed */}}},
     arc: {visible_goal: string, goal_context: string, threads: ArcThread[], completed_threads: null}
   },
   opening_narrative: string,
@@ -71,29 +71,43 @@ Build in this order, using everything already established before generating what
 - PC bio must reflect `character_dynamic` positioning.
 {% endif %}
 
-## NPC rules
-
-Generate 4–6 named NPCs total:
-- **~2 present** (`presence: "present"`) — in the opening scene
-- **1–2 nearby** (`presence: "nearby"`) — just outside, in the next room, proximate
-- **2–3 known** (`presence: "known"`) — exist in the world, known to the PC, not in the scene. Bios tie them to factions/locations/pressures, not to the immediate opening. They are real people, not future quest-givers.
-- **0–1 departed** (`presence: "departed"`) — permanently gone, referenced in bio/world state
-
-{% if npc_count_override and npc_count_override > 0 %}Override: generate exactly {{ npc_count_override }} present NPCs.{% endif %}
-
-Aim for 1–4 present NPCs (ideal scene density). If you generate more than 4, give narrative reasons for some to be absent on turn 2+ (shift change, dismissed, errand).
-
-**For all present NPCs with narrative roles** (dialogue, agency, tension): populate `motivation`, `fear`, `leverage`, and `bond`. Background extras may omit them.
-- `motivation`: what they fundamentally want
-- `fear`: what they dread most
-- `leverage`: what they can offer, threaten, or withhold
-- `bond`: durable personal history — to the PC, or between two NPCs in the scene (name both parties)
-
-If `pool_selection.npc_bond` is provided, convert it into narrative prose. Never emit raw seed IDs.
-
 {% if scenario and scenario.factions %}
 **NPC role alignment (mandatory):** Roles, occupations, and titles must be consistent with the world pack's cultural and historical context. Do not assign anachronistic occupations. NPCs affiliated with a faction must have roles consistent with that faction's description. Use the name pool provided — do not invent names outside it.
 {% endif %}
+
+## NPC field requirements
+
+NPCs have 5 personality-related fields: `personality`, `motivation`, `fear`, `leverage`, `bond`.
+How many depends on the NPC's role:
+
+- **Unnamed NPCs (descriptive label in `name` + same string in `aliases`; no proper name):**
+  `bio` only. Do NOT add any personality fields until the NPC gets a proper name.
+- **Named NPCs (proper name in `name`):** Must have `bio`, `personality` (from the table below),
+  and at least 2 more of {motivation, fear, leverage, bond} — aim for 3 personality-relevant fields total.
+- **Important NPCs (seed characters, arc goal characters, faction leaders):** 4-5 of the 5 fields.
+  These are the characters the story revolves around — give them depth.
+
+**Group NPCs:** If an entry represents multiple people ("three armed guards", "dockworkers"),
+the `name` or `notes` must always state the exact count. We must know how many people are in any scene.
+
+## Personality archetypes (choose from this fixed list)
+
+| ID | Label | Traits |
+|---|---|---|
+| `cold_pragmatist` | Cold Pragmatist | calculating, direct, emotionally distant |
+| `desperate_idealist` | Desperate Idealist | principled, anxious, self-sacrificing |
+| `wary_opportunist` | Wary Opportunist | adaptive, self-interested, quick to read angles |
+| `resigned_functionary` | Resigned Functionary | bureaucratic, weary, procedurally polite |
+| `volatile_loyalist` | Volatile Loyalist | fiercely loyal, short-fused, protective |
+| `charming_manipulator` | Charming Manipulator | persuasive, socially fluid, rarely direct |
+| `blunt_survivor` | Blunt Survivor | unsentimental, pragmatic, darkly humorous |
+| `true_believer` | True Believer | zealous, certain, morally inflexible |
+| `detached_observer` | Detached Observer | analytical, quiet, observant |
+| `conflict_avoidant` | Conflict-Avoidant | yielding, nervous, self-effacing |
+| `ambitious_climber` | Ambitious Climber | patient, strategic, calculating |
+| `broken_defeated` | Broken/Defeated | worn, habit-driven, darkly resigned |
+
+Choose the archetype that best fits the NPC's motivation, fear, and narrative role. Be specific — `wary_opportunist` is the default only when no other archetype clearly fits. Do not invent archetypes outside this list.
 
 Do NOT add `relation` or `notes` to compendium entries — engine-managed at runtime.
 

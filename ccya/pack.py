@@ -190,7 +190,6 @@ class PlayerOverrides(BaseModel):
     npc_hints: str = ""
     location_hints: str = ""
     free_form: str = ""
-    npc_count: int = 0
     arc_hints: str = ""
 
     def is_empty(self) -> bool:
@@ -201,9 +200,6 @@ class PlayerOverrides(BaseModel):
                 self.location_hints,
                 self.free_form,
                 self.arc_hints,
-                # Intentionally NOT npc_count — default npc_count=2 from char
-                # creation is a game setting, not a player hint. Including it
-                # here would send all default characters to the static seed path.
             ]
         )
 

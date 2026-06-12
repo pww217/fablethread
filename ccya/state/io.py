@@ -18,13 +18,13 @@ CURRENT_SCHEMA_VERSION = 1
 
 def _assign_seed_personalities(state: dict[str, Any]) -> None:
     """Assign personality archetype ids to any NPCs missing one in the seed state."""
-    from ccya.personality import assign_personality
+    from ccya.personality import ARCHETYPES, assign_personality
     
     npcs = (state.get("compendium") or {}).get("npcs", {})
     for npc_id, entry in npcs.items():
         if not isinstance(entry, dict):
             continue
-        if entry.get("personality"):
+        if entry.get("personality") and entry["personality"] in ARCHETYPES:
             continue
         arch = assign_personality(
             motivation=entry.get("motivation"),

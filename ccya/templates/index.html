@@ -923,7 +923,6 @@ function charCreation() {
         npc_hints: '',
         arc_hints: '',
         free_form: '',
-        npc_count: 2,
         selectedPackId: '',
         stats: [
             { key: 'strength', label: 'Strength', description: 'Force, melee combat, and soak against physical trauma.', value: 2 },
@@ -1517,9 +1516,7 @@ function game() {
 
                 if (nameInput?.value) body.append('pc_name', nameInput.value.trim());
                 if (pcHintsInput?.value) body.append('pc_hints', pcHintsInput.value.trim());
-                const npcCountInput = bodyEl?.querySelector('input[name="npc_count"]');
                 if (npcHintsInput?.value) body.append('npc_hints', npcHintsInput.value.trim());
-                if (npcCountInput?.value) body.append('npc_count', npcCountInput.value);
                 if (arcHintsInput?.value) body.append('arc_hints', arcHintsInput.value.trim());
                 if (freeFormInput?.value) body.append('free_form', freeFormInput.value.trim());
                 if (statsInput?.value) body.append('pc_stats', statsInput.value);

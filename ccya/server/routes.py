@@ -188,6 +188,7 @@ async def index(request: Request):
     history = _load_recent_history(_app_mod.SAVE_DIR)
     last_actions = _load_last_actions(_app_mod.SAVE_DIR) if history else []
     state = _load_current_state()
+    _resolve_npc_personalities(state)
     opening = _load_opening_from_chronicle(_app_mod.SAVE_DIR) or _get_opening()
     opening_actions = _get_opening_actions() if not history and not last_actions else []
     ctx = _debug_context()
@@ -400,19 +401,12 @@ async def new_game(request: Request):
     arc_hints = str(form.get("arc_hints", "")).strip()
     free_form = str(form.get("free_form", "")).strip()
 
-    npc_count_raw = str(form.get("npc_count", "")).strip()
-    try:
-        npc_count = max(0, int(npc_count_raw)) if npc_count_raw else 0
-    except ValueError:
-        npc_count = 0
-
     overrides = PlayerOverrides(
         pc_hints=pc_hints,
         npc_hints=npc_hints,
         location_hints=location_hints,
         arc_hints=arc_hints,
         free_form=free_form,
-        npc_count=npc_count,
     )
 
     # Must capture BEFORE hint construction below — pc_stats/tagline/name get
@@ -460,6 +454,7 @@ async def new_game(request: Request):
 
     _log.info("new_game pack=%s", _app_mod._pack_id)
     ctx = _debug_context()
+    _resolve_npc_personalities(ctx["state"])
     return _app_mod._render("_state.html", ctx)
 
 
@@ -491,7 +486,9 @@ async def new_game_reroll(request: Request):
 @_app_mod.app.get("/panels/state")
 def panel_state(request: Request):
     _log.debug("panel_state called")
-    return _app_mod._render("_state.html", _debug_context())
+    ctx = _debug_context()
+    _resolve_npc_personalities(ctx["state"])
+    return _app_mod._render("_state.html", ctx)
 
 
 def _resolve_npc_personalities(state: dict[str, Any]) -> None:

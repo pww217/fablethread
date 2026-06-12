@@ -164,9 +164,6 @@ def _build_generate_seed_messages(
     ctx = {
         "scenario": scenario,
         "overrides": overrides if (overrides and not overrides.is_empty()) else None,
-        "npc_count_override": overrides.npc_count
-        if (overrides and overrides.npc_count > 0)
-        else 0,
         "name_pool": name_pool,
         "name_seed": name_seed,
         "pool_selection": pool_selection,
@@ -311,9 +308,15 @@ async def generate_seed(
                     resolved = validate_and_resolve(getattr(npc_entry, "personality"))
                     if resolved is None:
                         _log.warning(
-                            "seed npc=%s has unknown personality '%s'; keeping as-is (LLM may have produced freeform text)",
+                            "seed npc=%s has unknown personality '%s'; falling back to assign_personality",
                             npc_id, getattr(npc_entry, "personality"),
                         )
+                        arch = assign_personality(
+                            motivation=getattr(npc_entry, "motivation", None),
+                            fear=getattr(npc_entry, "fear", None),
+                            npc_id=npc_id,
+                        )
+                        object.__setattr__(npc_entry, "personality", arch.id)
 
         except Exception as exc:
             parse_error = str(exc)
