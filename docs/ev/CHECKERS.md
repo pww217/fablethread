@@ -17,6 +17,10 @@ Checkers are organized by domain:
 - **LLM-based**: `directive_tone_match`, `beat_narrative_chain`, `state_fidelity`
 - **Scenario assertions**: `turn_assert` (called programmatically by eval runner, not in default registry)
 
+## Eval Rubric
+
+When inspecting a game, check one area at a time rather than running all checkers at once. See [RUBRIC.md](RUBRIC.md) for the prioritized checklist with what to look for, commands, and red flags per mechanic area.
+
 ## Checkers
 
 ### momentum_lifecycle
@@ -42,7 +46,6 @@ Checkers are organized by domain:
 - **What it checks:** When a location change is emitted, the post-turn location ID differs from the previous turn's location ID
 - **CLI:** `ev.py check TURN location_change`
 - **Caveats:** Only checks turns where `applied.location_change` is present. First turn is skipped (no previous location to compare).
-- **Known bug (TICK-26):** `applied.location_change` does not exist in events — field is `applied.location_description`. Also requires `extraction_context.location_this_turn` which doesn't exist. Checker returns "required field not found" for every turn.
 
 ### inventory_integrity
 
@@ -51,7 +54,6 @@ Checkers are organized by domain:
 - **What it checks:** No negative inventory amounts, no overdraw (removing from zero-quantity items), no removal of non-existent items
 - **CLI:** `ev.py check TURN inventory_integrity`
 - **Caveats:** Checks state_snapshot inventory for negative amounts. Compares previous turn's inventory against current turn's removals to detect overdraw and removal of items that didn't exist.
-- **Known bug (TICK-25):** Requires `extraction_context.inventory_this_turn` which doesn't exist. Checker returns "required field not found" for every turn.
 
 ### conditions_lifecycle
 
@@ -60,7 +62,6 @@ Checkers are organized by domain:
 - **What it checks:** Conditions present in ruling reason, no duplicate condition IDs, condition count respects cap
 - **CLI:** `ev.py check TURN conditions_lifecycle`
 - **Caveats:** Checks that condition IDs appear in the ruling's reason text (lowercase comparison). Dedup check is case-insensitive. Cap check compares against `PC_CONDITIONS_MAX` (5).
-- **Known bug (TICK-25):** Requires `extraction_context.conditions_this_turn` which doesn't exist. Also used in cap check logic (lines 70-79). Checker returns "required field not found" for every turn.
 
 ### thread_lifecycle
 
@@ -85,7 +86,6 @@ Checkers are organized by domain:
 - **What it checks:** No removed NPC states (`recently_left` in scene, `JUST_LEFT` tag in narrator prompt)
 - **CLI:** `ev.py check TURN npc_presence`
 - **Caveats:** Checks for removed fields that should not appear in current state. `JUST_LEFT` check is case-insensitive regex match on rendered narrator user prompt.
-- **Known bug (TICK-25):** Requires `extraction_context` which doesn't exist. Checker returns "required field not found" for every turn.
 
 ### pacing_directives
 
@@ -94,7 +94,6 @@ Checkers are organized by domain:
 - **What it checks:** Consecutive pressure tracking matches beat type, outcome_hint rendered in narrator prompt, directive rendered in storyteller prompt, removed directives not present, beat type variety maintained, surface_as consistency across consecutive same-type beats
 - **CLI:** `ev.py check TURN pacing_directives`
 - **Caveats:** Consecutive pressure counter must increment on pressure/escalation/complication beats and reset on others. Removed directives: "location pressure", "location imperative", "combat fatigue". Beat type variety warns if a single type exceeds 60% of all beats (requires 3+ beats). Surface_as consistency checks that consecutive same-type beats don't flip between "ambient" and "environmental" without a directive change.
-- **Known bug (TICK-9):** Requires `extraction_context` which doesn't exist. Checker returns "required field not found" for every turn. Falls under TICK-25 root cause.
 
 ### action_quality
 

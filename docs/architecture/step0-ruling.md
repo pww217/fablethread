@@ -88,7 +88,7 @@ flowchart TD
 
     V --> D1{"velocity < -0.3<br>(deescalation)"}:::decision
     D1 -- yes --> B1["directive='Breathe'"]:::output
-    D1 -- no --> D2{"effective_age ≥ 5?"}:::decision
+    D1 -- no --> D2{"effective_age ≥ 4?"}:::decision
     D2 -- yes --> B2["directive='Scene Imperative'<br>(short-circuits all)"]:::output
     D2 -- no --> D3{"≥ 3 urgent<br>threads?"}:::decision
     D3 -- yes --> B3["directive='Overwhelm'"]:::output
@@ -98,7 +98,7 @@ flowchart TD
     D5 -- yes --> B5["directive='Tension'"]:::output
     D5 -- no --> D6["empty directive"]
 
-    SEC2["Scene Pressure (secondary,<br>3 ≤ effective_age < 5)"]
+    SEC2["Scene Pressure (secondary,<br>3 ≤ effective_age < 4)"]
 
     FINAL["PacingContext<br>directive · outcome_hint · beat_locked · gate"]:::output
 
@@ -120,8 +120,8 @@ Priority order (highest to lowest): **Breathe > Scene Imperative > Overwhelm > P
 #### Age computation
 
 `_compute_ages(state)` returns only `{"scene_age": scene_age}` — location_age and combat_age removed in Phase 03 pacing overhaul. The ruling phase pre-computes `effective_scene_age = scene_age + 2` when `"combat"` is in scene tags, stored in `ctx._ages["effective_scene_age"]`. This single-age signal drives all directive thresholds:
-- Scene Imperative (≥5 effective age): high-priority directive forcing story advancement
-- Scene Pressure (3 ≤ effective_age < 5): secondary append to wind down or shift focus
+- Scene Imperative (≥4 effective age, configurable via `scene_imperative_threshold`): high-priority directive forcing story advancement
+- Scene Pressure (3 ≤ effective_age < 4, configurable): secondary append to wind down or shift focus
 
 ### Wiring
 
@@ -151,11 +151,11 @@ flowchart LR
 | Directive | Thread action | Gate |
 |-----------|---------------|-------|
 | **"Breathe"** (de-escalation, velocity < -0.3) | Do NOT add new threads. Allow existing scene threads to persist without escalation. | `block_escalate` (set by deescalate ≥ 0.5; beat_locked does NOT force-close gate) |
-| **"Scene Imperative"** (effective_age ≥ 5) | Story must advance — introduce new development forcing resolution or movement; do not linger | Varies by context |
+| **"Scene Imperative"** (effective_age ≥ 4, configurable) | Story must advance — introduce new development forcing resolution or movement; do not linger | Varies by context |
 | **"Overwhelm"** (3+ urgent threads) | May add threads if gate allows; emit pressure/escalation beat | `allow` |
 | **"Pressure"** (1-2 urgent threads) | Advance relevant scene/arc threads. Add new thread only if gate permits. | Varies by context |
 | **"Tension"** (background urgency only) | Do NOT add pressures unless concrete threat emerges; prefer advancing existing threads | Allow |
-| **"Scene Pressure"** (3 ≤ effective_age < 5, secondary append) | Begin winding down or introduce reason to shift focus: development elsewhere, closing window | Varies by context |
+| **"Scene Pressure"** (3 ≤ effective_age < 4, secondary append, configurable) | Begin winding down or introduce reason to shift focus: development elsewhere, closing window | Varies by context |
 | **"" (empty)** | No action required beyond normal aging of silent threads. | Allow |
 
 **Note:** Directives may include secondary modifiers joined by semicolons (e.g., "Pressure; Resolve a Threat" when beat_locked). The primary directive drives thread/beat logic; the secondary (`; Resolve a Threat`) acts as thematic guidance for beat type selection. "Resolve a Threat" never appears as a standalone primary directive — it is only appended by the `beat_locked` mechanism (except Breathe, which never receives this append regardless of beat_locked state).
