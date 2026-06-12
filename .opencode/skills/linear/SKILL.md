@@ -1,6 +1,6 @@
 ---
 name: linear
-description: Create and manage Linear tickets for the CCYA project. Team: PW (Peter). Labels: Bug, Feature, Improvement.
+description: "Create and manage Linear tickets for the CCYA project."
 ---
 
 Read these repo files before using this skill:

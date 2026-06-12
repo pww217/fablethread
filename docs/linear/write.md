@@ -5,15 +5,19 @@
 ### Basic creation
 
 ```bash
-linearis issues create "Ticket title" --team PW --labels Bug --priority 2 --project "CCYA" --description "$(cat /tmp/ticketN.txt)"
+linearis issues create "Ticket title" --team PW --labels "Engine,Bug" --priority 2 --project "CCYA" --description "$(cat /tmp/ticketN.txt)"
 ```
 
 - `--team PW` — required, team key is `PW`
-- `--labels` — comma-separated: `Bug`, `Feature`, `Improvement`
+- `--labels` — area + type, comma-separated: area (`Engine`, `UI`, `EV`, `TV`, `Docs`, `Config`) + type (`Bug`, `Feature`, `Improvement`)
 - `--priority` — 1=urgent, 2=high, 3=medium, 4=low
 - `--project "CCYA"` — always associate with the CCYA project
 - `--status` — set initial status (see status lifecycle in skill)
 - Ticket IDs auto-increment as TICK- (e.g., TICK-1, TICK-2)
+
+Area labels categorize by subsystem. Create them in Settings → Labels if they don't exist (see `read.md` for color codes). Always use area + type together (e.g., `--labels "UI,Bug"`).
+
+**Status convention:** Bug tickets start as `New` (unverified, awaiting validation). Feature/Improvement tickets start as `Backlog`. `Accepted` means validated — only move bugs there after confirming the bug still exists in source.
 
 ### Heredoc pattern (for inline code)
 
@@ -31,7 +35,7 @@ ccya/ev/checkers/momentum.py
 2. Floor streak detection uses `state_snapshot` instead of `momentum_after`
 3. `break` at line 88 exits early
 ENDOFFILE
-linearis issues create "Fix momentum_lifecycle checker — 3 bugs" --team PW --labels Bug --priority 2 --project "CCYA" --description "$(cat /tmp/ticketN.txt)"
+linearis issues create "Fix momentum_lifecycle checker — 3 bugs" --team PW --labels "EV,Bug" --priority 2 --project "CCYA" --description "$(cat /tmp/ticketN.txt)"
 rm /tmp/ticketN.txt
 ```
 
@@ -40,7 +44,7 @@ rm /tmp/ticketN.txt
 Use when the description has no inline code or special characters:
 
 ```bash
-linearis issues create "NPC left-behind tracking on location change" --team PW --labels Feature --priority 3 --project "CCYA" --description "## Detail\n\nWhen player changes locations, characters who should logically stay behind aren't tracked."
+linearis issues create "NPC left-behind tracking on location change" --team PW --labels "Engine,Feature" --priority 3 --project "CCYA" --description "## Detail\n\nWhen player changes locations, characters who should logically stay behind aren't tracked."
 ```
 
 ### Checking for duplicates
@@ -69,12 +73,12 @@ Create with appropriate status based on type:
 **Bug tickets:**
 ```bash
 # Use heredoc if inline code needed
-linearis issues create "Fix momentum_lifecycle checker — 3 bugs" --team PW --labels Bug --priority 2 --project "CCYA" --status "New" --description "$(cat /tmp/ticketN.txt)"
+linearis issues create "Fix momentum_lifecycle checker — 3 bugs" --team PW --labels "EV,Bug" --priority 2 --project "CCYA" --status "New" --description "$(cat /tmp/ticketN.txt)"
 ```
 
 **Non-bug tickets:**
 ```bash
-linearis issues create "NPC left-behind tracking on location change" --team PW --labels Feature --priority 3 --project "CCYA" --status "Backlog" --description "## Detail\n\n..."
+linearis issues create "NPC left-behind tracking on location change" --team PW --labels "Engine,Feature" --priority 3 --project "CCYA" --status "Backlog" --description "## Detail\n\n..."
 ```
 
 Record the ticket ID (e.g., `TICK-6`) for later reference.
