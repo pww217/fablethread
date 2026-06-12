@@ -1798,6 +1798,10 @@ function game() {
                     textDiv.classList.remove('streaming');
                     _configureMarked();
                     textDiv.innerHTML = _renderMarkdown(streamBuf);
+                    const stateScript = document.getElementById('initial-state');
+                    if (stateScript) {
+                        try { _highlightEntities(textDiv, JSON.parse(stateScript.textContent)); } catch (e) { /* skip */ }
+                    }
                 }
                 _setProgressFromPhase(strip, payload);
             });
@@ -2345,7 +2349,7 @@ function _highlightEntities(container, state) {
     for (const textNode of textNodes) {
         // Skip if parent is already an entity or formatting tag
         const p = textNode.parentNode;
-        if (p && (p.tagName === 'STRONG' || p.tagName === 'EM' || p.tagName === 'A'
+        if (p && (p.tagName === 'STRONG' || p.tagName === 'A'
             || (p.tagName === 'SPAN' && p.className && p.className.startsWith('entity-')))) {
             continue;
         }
