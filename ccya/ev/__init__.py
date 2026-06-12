@@ -74,7 +74,7 @@ def main() -> None:
     flags, args = _strip_flags(args)
     if not args:
         print("Error: no command specified.", file=sys.stderr)
-        print("Commands: summary, timing, turn, prompt, outputs, deltas, mechanics, state, diff, trace, search, play, check, eval", file=sys.stderr)
+        print("Commands: summary, timing, turn, prompt, outputs, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status", file=sys.stderr)
         print("\nUsage: .venv/bin/python scripts/debug/ev.py <command> [args...]", file=sys.stderr)
         sys.exit(1)
 
@@ -82,7 +82,8 @@ def main() -> None:
 
     from ccya.ev.events import load_events, find_turn
 
-    if len(args) > 1 and args[-1].startswith("saves/"):
+    # Skip events path extraction for play command — events are written by play_turn()
+    if cmd != "play" and len(args) > 1 and args[-1].startswith("saves/"):
         turn_file = Path(args[-1])
         args = args[:-1]
     else:
@@ -230,6 +231,12 @@ def main() -> None:
             check_save_dir: Path | None = Path(flags["save-dir"]) if "save-dir" in flags else None
             checker_model = flags.get("checker-model")
             cmd_check(events, turn=check_turn, checker_ids=check_ids, all_checkers=check_all, include_llm=check_llm, save_dir=check_save_dir, checker_model=checker_model)
+        case "init":
+            from ccya.ev.init import cmd_init
+            cmd_init(flags, args)
+        case "status":
+            from ccya.ev.status import cmd_status
+            cmd_status(flags)
         case "eval":
             from ccya.ev.eval import cmd_eval_run, cmd_eval_list
 

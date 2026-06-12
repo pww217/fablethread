@@ -13,13 +13,17 @@ No server required (except `play` which needs the LLM backend running).
 > - `source .venv/bin/activate && python3 scripts/debug/ev.py` → same error (activate doesn't work reliably)
 > - `ev.py --help` → fails with `IndexError: list index out of range` (ev.py has no help command)
 > - `ev.py play --llm --turns N` → times out if shell timeout isn't set to at least N×60000ms (~1 minute per turn)
+> - `ev.py play "action" --save-dir saves/ev/latest` → works without trailing events.jsonl path
 
 ## Quick start — end-to-end workflow
 
 ### 1. Start a new session with a pack
 
 ```bash
-# Creates a session in saves/ev/<timestamp>/
+# Create session + config
+.venv/bin/python scripts/debug/ev.py init --pack eval --personality explorer
+
+# Or start playing immediately
 .venv/bin/python scripts/debug/ev.py play --llm --pack eval --turns 10
 ```
 
@@ -86,6 +90,46 @@ Commands that need full state also accept `--save-dir DIR`.
 | Default save | `ev.py turn 5` → reads `saves/default/events.jsonl` |
 | Specific save | `ev.py turn 5 saves/my-game/events.jsonl` |
 | State access | Add `--save-dir saves/my-game` |
+
+---
+
+## Session config (ev.yaml)
+
+Every session directory can contain an `ev.yaml` file that stores default configuration. It travels with the save directory and is committed by default.
+
+**Format:**
+
+```yaml
+pack: zombie-survival
+model: some-model-name
+temp: 0.7
+no_sanitize: true
+player:
+  personality: aggressive
+```
+
+**Resolution order:** CLI flags > `ev.yaml` > `ccya/config.yaml`.
+
+**Fields:**
+
+| Field | Effect |
+|-------|--------|
+| `pack` | Default pack for the session |
+| `model` | Default LLM model |
+| `temp` | Default temperature |
+| `no_sanitize` | Skip thread sanitizer |
+| `player.personality` | Personality preset (`aggressive`, `cautious`, `absurd`, `explorer`, `driven`, `custom`) |
+
+Personality presets shape the LLM player's system prompt:
+
+| Preset | Behavior |
+|--------|----------|
+| `aggressive` | Bold, confrontational, risk-taking. Strike first. |
+| `cautious` | Careful, methodical, risk-averse. Gather info before acting. |
+| `absurd` | Unconventional, unpredictable, boundary-pushing. |
+| `explorer` | Curious, thorough, discovery-driven. Talk to NPCs. |
+| `driven` | Focused, goal-oriented. Pursue the arc goal single-mindedly. |
+| `custom` | Use `--custom-persona` or `player.custom_persona` in ev.yaml |
 
 ---
 
@@ -174,7 +218,11 @@ The `play` command feeds a player action through the full engine pipeline (rulin
 | `--model NAME` | Override LLM model |
 | `--temp N` | Override temperature for all LLM calls |
 | `--pack NAME` | Start with a pack from `packs/` (required for new sessions) |
-| `--persona TEXT` | Persona for the LLM player (replaces generic prompt) |
+| `--personality NAME` | Personality preset: `aggressive`, `cautious`, `absurd`, `explorer`, `driven`, `custom` |
+| `--custom-persona TEXT` | Custom persona text (used with `--personality custom`) |
+| `--resume` | Resume the latest session (or `--save-dir` if specified) |
+| `--until-error` | Stop LLM mode on first error turn |
+| `--turns N` | Max turns for `--llm` mode (default 20) |
 | `--eval` | Run checkers on all turns after session ends |
 
 ```bash
@@ -182,7 +230,7 @@ The `play` command feeds a player action through the full engine pipeline (rulin
 .venv/bin/python scripts/debug/ev.py play "I search the room." --pack zombie-survival
 
 # Play into an EXISTING save (most common pattern)
-.venv/bin/python scripts/debug/ev.py play "My action." --no-sanitize --save-dir saves/my-game saves/my-game/events.jsonl
+.venv/bin/python scripts/debug/ev.py play "My action." --no-sanitize --save-dir saves/my-game
 
 # Interactive mode (prompts in a loop)
 .venv/bin/python scripts/debug/ev.py play --interactive --pack zombie-survival
@@ -190,14 +238,28 @@ The `play` command feeds a player action through the full engine pipeline (rulin
 # Let the LLM play (automated testing, up to 20 turns)
 .venv/bin/python scripts/debug/ev.py play --llm --turns 10 --pack zombie-survival
 
-# LLM plays with a persona
-.venv/bin/python scripts/debug/ev.py play --llm --persona "aggressive mercenary" --pack zombie-survival
+# LLM plays with a personality preset
+.venv/bin/python scripts/debug/ev.py play --llm --personality aggressive --pack zombie-survival
 
-# LLM plays with persona + auto-eval on all turns
-.venv/bin/python scripts/debug/ev.py play --llm --persona "nice guy" --eval --pack zombie-survival
+# LLM plays with custom persona
+.venv/bin/python scripts/debug/ev.py play --llm --personality custom --custom-persona "a paranoid botanist" --pack zombie-survival
+
+# Resume latest session
+.venv/bin/python scripts/debug/ev.py play --llm --resume
+
+# Resume with specific save dir
+.venv/bin/python play --llm --resume --save-dir saves/ev/my-session
+
+# Play until first error
+.venv/bin/python scripts/debug/ev.py play --llm --until-error --resume
+
+# LLM plays with personality + auto-eval on all turns
+.venv/bin/python scripts/debug/ev.py play --llm --personality explorer --eval --pack zombie-survival
 ```
 
 > **Note:** `--pack` is required when creating a new session (no `--save-dir`). When `--save-dir` is provided, the pack is loaded from the save's stored state.
+
+> **Events path:** The events file path is auto-detected from `--save-dir`. You no longer need to pass `saves/my-game/events.jsonl` as the last positional argument.
 
 **Output anatomy:**
 
@@ -221,10 +283,11 @@ Tokens:    in=15487  out=1077  ms=31700.0
 ```
 
 **Common pitfalls:**
-1. `Error: saves/default/events.jsonl not found` → Always pass the events file path as the last positional arg
+1. `Error: saves/default/events.jsonl not found` → Events path is auto-detected from `--save-dir`; no need to pass it explicitly
 2. Wrong Python → Use `.venv/bin/python` directly
 3. Sanitizer is slow → Use `--no-sanitize` during testing
 4. Full narrative not shown → `ev.py prompt <N> narrate output <save-path>`
+5. `--resume` with broken `latest` symlink → Verify with `ls -la saves/ev/latest/`; specify `--save-dir` to bypass
 
 **LLM play process notes:**
 - `ev.py summary` without a path reads `saves/default/events.jsonl`, not the latest EV run. Always pass the path explicitly.
@@ -232,6 +295,19 @@ Tokens:    in=15487  out=1077  ms=31700.0
 - LLM players produce repetitive thread updates (tiny progress increments like 0.50, 0.53, 0.56) that trigger dedup rejections. This is EV-specific — human players make more varied updates.
 - `extraction.state.empty` messages and `inventory_change_reason` parse failures cascade: if the LLM adds inventory without a reason, retries fail, and the turn gets no state deltas. Check for this pattern when a turn looks narratively fine but has no mechanical impact.
 - `thread_sanitizer: skipping invalid thread_update` means phantom threads from failed extractions. These are artifacts, not real game state.
+
+### Session management
+
+```bash
+# Create a new session with config
+.venv/bin/python scripts/debug/ev.py init --pack zombie-survival --personality cautious
+
+# Check current session status
+.venv/bin/python scripts/debug/ev.py status
+
+# Check specific session
+.venv/bin/python scripts/debug/ev.py status --save-dir saves/ev/my-session
+```
 
 ### Validate — checker & eval infrastructure
 
@@ -361,3 +437,5 @@ Embedded in `.extraction.storytell.rendered_user`:
 
 `ev.py play` without `--save-dir` creates sessions in `saves/ev/<timestamp>_<rand>/`.
 A symlink `saves/ev/latest` points to the most recent session.
+
+Each session directory may contain `ev.yaml` for default configuration. Use `ev.py init` to create a session with config, or `ev.py status` to inspect the current session.
