@@ -17,6 +17,9 @@ from ccya.models import TurnResult, load_config
 from ccya.pack import load_pack, list_packs
 from ccya.state.io import _default_state, init_save_dir, load_state
 
+from ccya.ev.personality import resolve_personality
+from ccya.ev.session_config import load_session_config, resolve_player_config
+
 _log = logging.getLogger(__name__)
 
 EV_SAVES_DIR = Path("saves/ev")
@@ -320,12 +323,18 @@ def _create_play_session(pack: str | None = None, packs_dir: Path | None = None)
     return session_dir
 
 
-def _build_play_config(flags: dict[str, str]) -> EngineConfig:
+def _build_play_config(flags: dict[str, str], session_config: dict[str, Any] | None = None) -> EngineConfig:
     raw_cfg = load_config()
     if "model" in flags:
         raw_cfg.setdefault("llm", {})["model"] = flags["model"]
+    elif session_config is not None and "model" in session_config:
+        raw_cfg.setdefault("llm", {})["model"] = str(session_config["model"])
     if "temp" in flags:
         temp = float(flags["temp"])
+        for section in ("ruling", "extract", "narrate", "generate_seed"):
+            raw_cfg.setdefault("llm", {}).setdefault(section, {})["temperature"] = temp
+    elif session_config is not None and "temp" in session_config:
+        temp = float(session_config["temp"])
         for section in ("ruling", "extract", "narrate", "generate_seed"):
             raw_cfg.setdefault("llm", {}).setdefault(section, {})["temperature"] = temp
 
@@ -333,6 +342,10 @@ def _build_play_config(flags: dict[str, str]) -> EngineConfig:
 
     if "no-sanitize" in flags:
         config.sanitize_every = 0
+    elif session_config is not None:
+        no_sanitize = session_config.get("no_sanitize", session_config.get("no-sanitize"))
+        if no_sanitize:
+            config.sanitize_every = 0
 
     return config
 
@@ -406,8 +419,10 @@ def _llm_session(
     config: EngineConfig,
     max_turns: int = 20,
     pack: str | None = None,
-    persona: str | None = None,
+    personality: str | None = None,
+    custom_persona: str | None = None,
     eval_: bool = False,
+    until_error: bool = False,
 ) -> None:
     _, name_locales, narrator_rules, world_rules, factions, opening_scene, style = _load_pack_params(pack)
     session_dir = _create_play_session(pack=pack)
@@ -416,19 +431,7 @@ def _llm_session(
     turns_played = 0
     trace_ids: list[str] = []
 
-    system_prompt = (
-        "You are roleplaying as a character in a text adventure game. "
-        "Given the current scene and your character's motivation, "
-        "decide what to do next. Respond with a short, natural language action. "
-        "Do not narrate. Do not use meta-language. Just say what your character does."
-    )
-    if persona:
-        system_prompt = (
-            f"You are roleplaying as a character in a text adventure game. "
-            f"Your character's persona: {persona}. "
-            f"Decide what to do next. Respond with a short, natural language action. "
-            f"Do not narrate. Do not use meta-language. Just say what your character does."
-        )
+    system_prompt = resolve_personality(personality or "custom", custom_persona)
 
     # Store recent turns for context (turn input + narrative)
     recent_turns: list[dict[str, str]] = []
@@ -553,6 +556,10 @@ def _llm_session(
         else:
             print(format_play_output(result))
 
+        if until_error and result.get("errors"):
+            print(f"Stopped due to errors on turn {turn_i + 1}.")
+            break
+
         # Store this turn for next iteration
         narrative = result.get("narrative", "")
         recent_turns.append({"input": player_input, "narrative": narrative})
@@ -588,6 +595,9 @@ def _print_missing_pack_error(flags: dict[str, str]) -> None:
 
 def cmd_play(flags: dict[str, str], args: list[str]) -> None:
     if "interactive" in flags:
+        if "resume" in flags:
+            print("--resume is not supported with --interactive mode", file=sys.stderr)
+            sys.exit(1)
         config = _build_play_config(flags)
         pack_id = flags.get("pack")
         if not pack_id and "save-dir" not in flags:
@@ -603,12 +613,42 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
         if not pack_id and "save-dir" not in flags:
             _print_missing_pack_error(flags)
             sys.exit(1)
+
+        # Handle --resume
+        save_dir: Path | None = None
+        if "resume" in flags:
+            if "save-dir" in flags:
+                save_dir = Path(flags["save-dir"])
+            else:
+                save_dir = EV_SAVES_DIR / "latest"
+            if not (save_dir / "state.yaml").exists():
+                print(f"Error: --resume: no valid session at {save_dir}", file=sys.stderr)
+                print("Available sessions:", file=sys.stderr)
+                if EV_SAVES_DIR.exists():
+                    for d in sorted(EV_SAVES_DIR.iterdir()):
+                        if d.is_dir() or d.is_symlink():
+                            print(f"  {d}", file=sys.stderr)
+                else:
+                    print("  (saves/ev/ does not exist)", file=sys.stderr)
+                sys.exit(1)
+            state = load_state(save_dir)
+            session_config = load_session_config(save_dir)
+            player_cfg = resolve_player_config(flags, session_config)
+            max_turns = state.get("meta", {}).get("turn", 0) + 20
+            if "turns" in flags:
+                max_turns = state.get("meta", {}).get("turn", 0) + int(flags["turns"])
+        else:
+            session_config = None
+            player_cfg = {"personality": "custom", "custom_persona": None}
+
         _llm_session(
             config,
             max_turns=max_turns,
             pack=pack_id,
-            persona=flags.get("persona"),
+            personality=player_cfg["personality"],
+            custom_persona=player_cfg["custom_persona"],
             eval_="eval" in flags,
+            until_error="until-error" in flags,
         )
         sys.exit(0)
 
