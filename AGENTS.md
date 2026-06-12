@@ -121,6 +121,19 @@ These are not optional. Every plan, execution, and code review must include a do
 - **`inventory_change_reason` required** — When the LLM adds/removes inventory items, it must include `inventory_change_reason`. If omitted, `extract_state` fails validation, retries exhaust, and the turn gets no state deltas. This is a prompt/model issue in the state extraction step.
 - **Opening narrative word count** — The seed generator can produce openings below the 530-word minimum (observed 492). Not critical but worth monitoring.
 
+## Known checker issues
+
+These bugs prevent deterministic checkers from returning meaningful results. Listed by priority:
+
+- **TICK-25** (priority 2, ev): `inventory_integrity`, `conditions_lifecycle`, `npc_presence`, `pacing_directives` require `extraction_context` in `requires_fields` — this field doesn't exist in events. Extraction data lives at `extraction.state`, `extraction.storytell`, etc. Checkers return "required field not found" for every turn. Affects 4 checkers.
+- **TICK-26** (priority 2, ev): `location_change` requires `applied.location_change` which doesn't exist (event has `applied.location_description`). Also requires `extraction_context.location_this_turn`. Checker returns "required field not found" for every turn.
+- **TICK-8** (priority 2, ev): `sanitizer_lifecycle` can't see sanitizer events because the per-turn runner passes only turn-kind events. Even with `needs_non_turn_events=True`, the runner's `find_turn()` excludes sanitizer events. Requires_fields (`threads_updated`) IS correct — the data exists.
+- **TICK-7** (priority 2, ev): `gm_beat_lifecycle` floor_relief check (lines 75-86) produces false positives when `beat_locked` is triggered by momentum floor. Engine only injects `breathing_room` when beat_locked is from consecutive_pressure, not momentum floor. CONFIRMED in eval runs.
+- **TICK-6** (priority 2, ev): `momentum_lifecycle` floor streak detection (lines 73-88) reads from `state_snapshot.pc.momentum` instead of `momentum_after` (off-by-one), and `break`s after first episode instead of `continue` (misses later episodes). Both cause false negatives.
+- **TICK-9** (priority 3, ev): `pacing_directives` requires `extraction_context` (same root cause as TICK-25). Also has dead fallback code (lines 31-33) that never fires. Blocked by TICK-25.
+
+Eval sessions examined for all findings: `20260611_214133_be94dd`, `20260611_215527_7bde5a`, `20260611_221346_1d2f79`, `20260611_225430_140eeb`, `20260611_231041_87b14d`.
+
 ---
 
 ## Linear issue tracking
