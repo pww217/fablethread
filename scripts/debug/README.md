@@ -201,6 +201,37 @@ Personality presets shape the LLM player's system prompt:
 
 # Full mechanics breakdown with pacing context
 .venv/bin/python scripts/debug/ev.py mechanics 12 --pacing --dice saves/my-game/events.jsonl
+
+# Compact delta view (threads, inventory, conditions, beats only)
+.venv/bin/python scripts/debug/ev.py deltas 8 --compact saves/my-game/events.jsonl
+```
+
+### Thread, beat, and momentum analysis
+
+| If you want... | Command |
+|---|---|
+| Thread lifecycle across all turns | `ev.py threads [save-path]` |
+| Beat type + surface + locked status | `ev.py beats [save-path]` |
+| Momentum + band + delta table | `ev.py momentum-check [save-path]` |
+| Goal changes over time | `ev.py goals [save-path]` |
+| Beat TTL expiration over time | `ev.py beat-ttl [save-path]` |
+| Effective scene age (if available) | `ev.py effective-age [save-path]` |
+
+```bash
+# How did threads evolve across the session?
+.venv/bin/python scripts/debug/ev.py threads saves/my-game/events.jsonl
+
+# What beats were generated and when?
+.venv/bin/python scripts/debug/ev.py beats saves/my-game/events.jsonl
+
+# Momentum trajectory with roll bands
+.venv/bin/python scripts/debug/ev.py momentum-check saves/my-game/events.jsonl
+
+# When did the arc goal change?
+.venv/bin/python scripts/debug/ev.py goals saves/my-game/events.jsonl
+
+# When do pending beats expire?
+.venv/bin/python scripts/debug/ev.py beat-ttl saves/my-game/events.jsonl
 ```
 
 ### Play — run game turns

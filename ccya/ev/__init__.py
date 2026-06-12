@@ -41,6 +41,8 @@ def _resolve_stream(name: str) -> str:
 
 
 def _strip_flags(args: list[str]) -> tuple[dict[str, str], list[str]]:
+    # Boolean flags that don't take values
+    _BOOL_FLAGS = {"pacing", "dice", "sanitize", "all", "llm", "show-unchanged", "system", "compact"}
     flags: dict[str, str] = {}
     positional: list[str] = []
     i = 0
@@ -48,7 +50,10 @@ def _strip_flags(args: list[str]) -> tuple[dict[str, str], list[str]]:
         a = args[i]
         if a.startswith("--"):
             name = a[2:]
-            if i + 1 < len(args) and not args[i + 1].startswith("--"):
+            if name in _BOOL_FLAGS:
+                flags[name] = "true"
+                i += 1
+            elif i + 1 < len(args) and not args[i + 1].startswith("--"):
                 flags[name] = args[i + 1]
                 i += 2
             else:
@@ -84,7 +89,11 @@ def main() -> None:
 
     # Skip events path extraction for play command — events are written by play_turn()
     if cmd != "play" and len(args) > 1 and args[-1].startswith("saves/"):
-        turn_file = Path(args[-1])
+        candidate = Path(args[-1])
+        if candidate.is_dir():
+            turn_file = candidate / "events.jsonl"
+        else:
+            turn_file = candidate
         args = args[:-1]
     else:
         turn_file = DEFAULT_FILE
@@ -135,15 +144,16 @@ def main() -> None:
             cmd_prompt(ev, stream, field=field, include_system=include_system)
         case "deltas":
             if len(args) < 2:
-                print("Usage: ev.py deltas TURN", file=sys.stderr)
+                print("Usage: ev.py deltas TURN [--compact]", file=sys.stderr)
                 sys.exit(1)
             turn = int(args[1])
             ev = find_turn(events, turn)
             if not ev:
-                print(f"Turn {turn} not found")
+                print(f"Turn {turn} not found (or is a compaction entry)")
                 sys.exit(1)
             from ccya.ev.deltas import cmd_deltas
-            cmd_deltas(ev, events)
+            compact = "compact" in flags
+            cmd_deltas(ev, events, compact=compact)
         case "mechanics":
             if len(args) < 2:
                 print("Usage: ev.py mechanics TURN [--pacing] [--dice] [--sanitize]", file=sys.stderr)
@@ -194,6 +204,24 @@ def main() -> None:
             exprs = args[1:]
             from ccya.ev.state_tools import cmd_search
             cmd_search(events, exprs)
+        case "threads":
+            from ccya.ev.state_tools import cmd_threads
+            cmd_threads(events)
+        case "beats":
+            from ccya.ev.state_tools import cmd_beats
+            cmd_beats(events)
+        case "momentum-check":
+            from ccya.ev.state_tools import cmd_momentum_check
+            cmd_momentum_check(events)
+        case "goals":
+            from ccya.ev.state_tools import cmd_goals
+            cmd_goals(events)
+        case "effective-age":
+            from ccya.ev.state_tools import cmd_effective_age
+            cmd_effective_age(events)
+        case "beat-ttl":
+            from ccya.ev.state_tools import cmd_beat_ttl
+            cmd_beat_ttl(events)
         case "play":
             from ccya.ev.play import cmd_play
             cmd_play(flags, args)

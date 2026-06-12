@@ -10,11 +10,12 @@ _log = logging.getLogger(__name__)
 
 @register_checker(
     "sanitizer_lifecycle", "deterministic",
-    requires_fields=["threads_updated", "threads_removed", "threads_resolved",
+    requires_fields=["threads_updated", "threads_resolved",
                     "threads_added", "goal_changed", "changes_detail"],
+    # Note: engine never emits 'threads_removed' — it moves threads to completed_threads[] instead
     needs_non_turn_events=True,
     needs_state=True,
-    description="Verify sanitizer thread operations are valid against current state",
+    description="Verify sanitizer thread operations are valid against state at each sanitizer turn",
 )
 def sanitizer_lifecycle(events: list[dict[str, Any]], state: dict[str, Any]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
@@ -28,50 +29,53 @@ def sanitizer_lifecycle(events: list[dict[str, Any]], state: dict[str, Any]) -> 
             detail="no sanitizer events found (inconclusive)",
         )
 
-    state_threads = {}
-    state_arc = state.get("arc") or {}
-    for t in state_arc.get("threads") or []:
-        if isinstance(t, dict) and t.get("id"):
-            state_threads[t["id"]] = t
+    # Build turn number → state snapshot map from turn events
+    turn_states: dict[int, dict[str, Any]] = {}
+    for ev in events:
+        ts = ev.get("turn")
+        if ts is not None and "state_snapshot" in ev:
+            turn_states[ts] = ev["state_snapshot"]
 
     for sev in sanitizer_events:
-        # threads_updated IDs exist in state.arc.threads
+        sev_turn = sev.get("turn")
+        # Get state at this sanitizer's turn, or fall back to END state
+        if sev_turn and sev_turn in turn_states:
+            arc = (turn_states[sev_turn].get("arc") or {})
+        else:
+            arc = state.get("arc") or {}
+
+        state_threads: dict[str, dict[str, Any]] = {}
+        for t in arc.get("threads") or []:
+            if isinstance(t, dict) and t.get("id"):
+                state_threads[t["id"]] = t
+
+        # threads_updated IDs exist in state.arc.threads at this turn
         for tid in (sev.get("threads_updated") or []):
             if tid not in state_threads:
                 findings.append({
                     "check": "threads_updated_exist",
                     "detail": f"threads_updated references non-existent thread ID: {tid}",
-                    "event_index": sev.get("turn"),
+                    "event_index": sev_turn,
                 })
                 all_passed = False
 
-        # threads_removed IDs exist in state.arc.threads (before removal)
-        for tid in (sev.get("threads_removed") or []):
-            if tid not in state_threads:
-                findings.append({
-                    "check": "threads_removed_exist",
-                    "detail": f"threads_removed references non-existent thread ID: {tid}",
-                    "event_index": sev.get("turn"),
-                })
-                all_passed = False
-
-        # threads_resolved threads have resolution data
+        # threads_resolved threads exist in state.arc.threads at this turn
         for tid in (sev.get("threads_resolved") or []):
             if tid not in state_threads:
                 findings.append({
                     "check": "threads_resolved_exist",
                     "detail": f"threads_resolved references non-existent thread ID: {tid}",
-                    "event_index": sev.get("turn"),
+                    "event_index": sev_turn,
                 })
                 all_passed = False
 
-        # threads_added IDs don't conflict with existing threads
+        # threads_added IDs don't conflict with existing threads at this turn
         for tid in (sev.get("threads_added") or []):
             if tid in state_threads:
                 findings.append({
                     "check": "threads_added_conflict",
                     "detail": f"threads_added ID '{tid}' conflicts with existing thread",
-                    "event_index": sev.get("turn"),
+                    "event_index": sev_turn,
                 })
                 all_passed = False
 
@@ -83,34 +87,18 @@ def sanitizer_lifecycle(events: list[dict[str, Any]], state: dict[str, Any]) -> 
                 findings.append({
                     "check": "goal_changed_noop",
                     "detail": "goal_changed=True but after == before",
-                    "event_index": sev.get("turn"),
+                    "event_index": sev_turn,
                 })
                 all_passed = False
-
-    # Check for orphan threads — threads in state that aren't referenced by any sanitizer event
-    referenced_ids: set[str] = set()
-    for sev in sanitizer_events:
-        referenced_ids.update(sev.get("threads_updated") or [])
-        referenced_ids.update(sev.get("threads_removed") or [])
-        referenced_ids.update(sev.get("threads_resolved") or [])
-
-    orphan_ids = set(state_threads.keys()) - referenced_ids
 
     if not all_passed:
         result = CheckerResult(
             checker_id="sanitizer_lifecycle", passed=False, score=0.0,
             detail=f"{len(findings)} issue(s) found", findings=findings,
         )
-        if orphan_ids:
-            result.findings.append({
-                "check": "orphan_threads",
-                "detail": f"threads in state never referenced by sanitizer events: {sorted(orphan_ids)}",
-            })
         return result
 
     return CheckerResult(
         checker_id="sanitizer_lifecycle", passed=True, score=1.0,
-        detail=f"all {len(sanitizer_events)} sanitizer events passed" + (
-            f"; {len(orphan_ids)} unreferenced threads" if orphan_ids else ""
-        ),
+        detail=f"all {len(sanitizer_events)} sanitizer events passed",
     )

@@ -2,6 +2,14 @@
 
 Atomic writes to disk. No LLM calls.
 
+## Event field notes
+
+- `narrate_prompt` is saved at the event level (with `rendered_system`, `rendered_user`, `output`, `context_meta`)
+- `ruling_prompt` is saved at the event level (with `rendered_system`, `rendered_user`, `output`, `parse_error`, `context_meta`)
+- `storytell_prompt` is NOT saved at the event level — it's available in `extraction.storytell.rendered_user` and `extraction.storytell.rendered_system`
+- `pacing_context` is saved at the event level (with `directive`, `beat_locked`, `gate`, `outcome_hint`, `summary`)
+- `state_snapshot` is saved at the event level (full state at end of turn, used by checkers for state-at-turn verification)
+
 ## Flowchart
 
 ```mermaid
@@ -11,7 +19,7 @@ flowchart LR
 
     subgraph IN["Inputs"]
         P1["state (post-apply)"]
-        P2["event dict<br>(turn, input, applied, rejected,<br>actions, rules,<br>narrate/extract metrics, extraction<br>with per-stream prompts + attempts,<br>rules_prompt, narrate_prompt,<br>engine_expired_conditions, changes)"]
+        P2["event dict<br>(turn, input, applied, rejected,<br>actions, rules,<br>narrate/extract metrics, extraction<br>with per-stream prompts + attempts,<br>rules_prompt, narrate_prompt,<br>engine_expired_conditions, changes,<br>pacing_context, state_snapshot)"]
         P3["narrative: str"]
         P4["turn number"]
     end
