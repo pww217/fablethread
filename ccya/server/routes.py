@@ -110,22 +110,29 @@ def _format_ts(ts_str: str) -> str:
         return ts_str  # fallback: return raw if unparseable
 
 
+def _save_rel_name(save_dir: Path) -> str:
+    """Return save directory name relative to saves/ for UI display/comparison."""
+    saves_dir = Path("saves").resolve()
+    try:
+        return str(save_dir.resolve().relative_to(saves_dir))
+    except ValueError:
+        return save_dir.name
+
+
 def _list_saves() -> list[dict[str, Any]]:
     """List all available saves (excluding default)."""
     saves_dir = Path("saves")
     if not saves_dir.exists():
         return []
 
-    result = []
-    for entry in sorted(saves_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
-        if not entry.is_dir():
-            continue
-        # Exclude default save from list
-        if entry.name == "default":
-            continue
+    save_dirs = _app_mod._find_save_dirs(saves_dir)
+    save_dirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    resolved_saves = saves_dir.resolve()
 
+    result = []
+    for entry in save_dirs:
+        name = str(entry.relative_to(resolved_saves))
         events_file = entry / "events.jsonl"
-        state_file = entry / "state.yaml"
 
         turn_count = 0
         last_modified: str | None = None
@@ -150,9 +157,6 @@ def _list_saves() -> list[dict[str, Any]]:
             except OSError:
                 pass
 
-        # Require valid state.yaml — skip non-save directories
-        if not state_file.exists():
-            continue
         from ccya.state.io import load_state
         try:
             state = load_state(entry)
@@ -167,7 +171,8 @@ def _list_saves() -> list[dict[str, Any]]:
         location_name = loc.get("name")
 
         result.append({
-            "name": entry.name,
+            "name": name,
+            "display_name": entry.name,
             "pack": pack_name,
             "turn_count": turn_count,
             "last_modified": last_modified,
@@ -197,7 +202,7 @@ async def index(request: Request):
     ctx["character_creation_enabled"] = _app_mod.config.get("game", {}).get(
         "character_creation_enabled", True
     )
-    ctx["active_save_name"] = _app_mod.SAVE_DIR.name
+    ctx["active_save_name"] = _save_rel_name(_app_mod.SAVE_DIR)
     css_path = _app_mod.BASE_DIR / "static" / "app.css"
     ctx["css_v"] = int(css_path.stat().st_mtime) if css_path.exists() else 0
     return _app_mod._render("index.html", ctx)
@@ -876,7 +881,7 @@ async def delete_save(request: Request):
         return JSONResponse({"error": "Cannot delete the default save"}, status_code=400)
 
     # Prevent deleting the currently active save
-    if save_name == _app_mod.SAVE_DIR.name:
+    if save_name == _save_rel_name(_app_mod.SAVE_DIR):
         return JSONResponse({"error": "Cannot delete the currently active save"}, status_code=400)
 
     saves_dir = Path("saves")

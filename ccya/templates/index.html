@@ -450,19 +450,24 @@
             </div>
             <div id="save-picker-body" class="pack-picker-body">
                 <div class="save-picker-loading" x-show="savePicker.loading">Loading saves…</div>
-                <div class="save-picker-empty" x-show="!savePicker.loading && savePicker.saves.length === 0">
+                <div class="save-picker-empty" x-show="!savePicker.loading && filteredSaves().length === 0">
                     No saves found.
                 </div>
+                <label class="save-picker-toggle" x-show="!savePicker.loading">
+                    <input type="checkbox" x-model="savePicker.showEvGames">
+                    <span>Show EV games</span>
+                </label>
                 <div class="save-picker-list">
-                    <template x-for="save in savePicker.saves" :key="save.name">
+                    <template x-for="save in filteredSaves()" :key="save.name">
                         <div class="pack-card-wrapper">
                             <div class="pack-card" 
                                  @click="selectSave(save.name)"
                                  :class="{ 'pack-card--active': savePicker.selectedId === save.name, 'pack-card--current': save.name === activeSaveName }">
                                 <div class="pack-card-header">
-                                    <span class="pack-card-name" x-text="save.visible_goal || save.name"></span>
+                                    <span class="pack-card-name" x-text="save.visible_goal || save.display_name || save.name"></span>
                                     <span class="save-card-current-badge" x-show="save.name === activeSaveName">active</span>
                                 </div>
+                                <div class="pack-card-dir" x-show="save.display_name && save.display_name !== save.name" x-text="save.name"></div>
                                 <div class="pack-card-tags">
                                     <span class="pack-card-tag" x-show="save.turn_count > 0">Turn <span x-text="save.turn_count"></span></span>
                                     <span class="pack-card-tag" x-show="save.pack" x-text="save.pack"></span>
@@ -2081,6 +2086,7 @@ function game() {
             loading: false,
             selectedId: null,
             saves: [],
+            showEvGames: false,
         },
 
         openSavePicker() {
@@ -2189,6 +2195,12 @@ function game() {
             if (diffHrs < 24) return `${diffHrs}h ago`;
             if (diffDays < 7) return `${diffDays}d ago`;
             return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        },
+
+        filteredSaves() {
+            const saves = this.savePicker.saves;
+            if (this.savePicker.showEvGames) return saves;
+            return saves.filter(s => !s.name.startsWith('ev/'));
         },
     };
 }
