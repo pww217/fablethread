@@ -257,6 +257,40 @@ def format_error_output(result: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _ensure_seed_generated(
+    save_dir: Path,
+    pack_id: str | None,
+    config: EngineConfig,
+    *,
+    packs_dir: Path | None = None,
+) -> dict[str, Any]:
+    if pack_id is None:
+        return load_state(save_dir)
+
+    packs_dir = packs_dir or Path("packs")
+    p = load_pack(pack_id, packs_dir)
+    if p.scenario is not None:
+        loop = _get_play_loop()
+        envelope, pool_selection = loop.run_until_complete(
+            generate_seed(p, config, template_dir=str(Path(__file__).parent.parent / "prompts")),
+        )
+        seed_dict = envelope.seed_state.model_dump(mode="json")
+        seed_dict.setdefault("meta", {})["setting_pack"] = pack_id
+        seed_dict.setdefault("meta", {})["_seed_type"] = "dynamic"
+        seed_dict.setdefault("meta", {})["_pack_source"] = pack_id
+        if envelope.opening_narrative:
+            seed_dict["__seed_meta__"] = {
+                "opening_narrative": envelope.opening_narrative,
+                "actions": envelope.actions or [],
+                "outcome_summary": envelope.outcome_summary or "",
+            }
+        if pool_selection:
+            seed_dict["__seed_pools__"] = pool_selection
+        init_save_dir(save_dir, seed_dict)
+
+    return load_state(save_dir)
+
+
 def _create_play_session(pack: str | None = None, packs_dir: Path | None = None) -> Path:
     now = datetime.now()
     rand_suffix = uuid.uuid4().hex[:6]
@@ -267,18 +301,16 @@ def _create_play_session(pack: str | None = None, packs_dir: Path | None = None)
     if pack:
         packs_dir = packs_dir or Path("packs")
         p = load_pack(pack, packs_dir)
-        if p.seed:
-            state_dict = p.seed.model_dump()
-        else:
-            state_dict = _default_state()
-
-        # Inject opening_scene as opening_narrative when __seed_meta__ is absent
-        if p.opening_scene and not state_dict.get("__seed_meta__", {}).get("opening_narrative"):
-            state_dict.setdefault("__seed_meta__", {})["opening_narrative"] = p.opening_scene
+        if p.scenario is None:
+            if p.seed:
+                state_dict = p.seed.model_dump()
+            else:
+                state_dict = _default_state()
+            if p.opening_scene and not state_dict.get("__seed_meta__", {}).get("opening_narrative"):
+                state_dict.setdefault("__seed_meta__", {})["opening_narrative"] = p.opening_scene
+            init_save_dir(session_dir, state_dict)
     else:
-        state_dict = _default_state()
-
-    init_save_dir(session_dir, state_dict)
+        init_save_dir(session_dir, _default_state())
 
     latest_link = EV_SAVES_DIR / "latest"
     if latest_link.is_symlink() or latest_link.exists():
@@ -324,36 +356,9 @@ def _load_pack_params(pack_id: str | None, packs_dir: Path | None = None) -> tup
 
 
 def _interactive_session(config: EngineConfig, pack: str | None = None) -> None:
-    seed_dict, name_locales, narrator_rules, world_rules, factions, _, _ = _load_pack_params(pack)
+    _, name_locales, narrator_rules, world_rules, factions, _, _ = _load_pack_params(pack)
     session_dir = _create_play_session(pack=pack)
-
-    # Generate seed for dynamic packs (scenario.yaml but no static seed)
-    if pack and not seed_dict:
-        packs_dir = Path("packs")
-        p = load_pack(pack, packs_dir)
-        if p.scenario is not None:
-            loop = _get_play_loop()
-            envelope, pool_selection = loop.run_until_complete(
-                generate_seed(p, config, template_dir=str(Path(__file__).parent.parent / "prompts")),
-            )
-            seed_dict = envelope.seed_state.model_dump(mode="json")
-            seed_dict.setdefault("meta", {})["setting_pack"] = pack
-            seed_dict.setdefault("meta", {})["_seed_type"] = "dynamic"
-            seed_dict.setdefault("meta", {})["_pack_source"] = pack
-            if envelope.opening_narrative:
-                seed_dict["__seed_meta__"] = {
-                    "opening_narrative": envelope.opening_narrative,
-                    "actions": envelope.actions or [],
-                    "outcome_summary": envelope.outcome_summary or "",
-                }
-            if pool_selection:
-                seed_dict["__seed_pools__"] = pool_selection
-            init_save_dir(session_dir, seed_dict)
-            state = load_state(session_dir)
-        else:
-            state = load_state(session_dir)
-    else:
-        state = load_state(session_dir)
+    state = _ensure_seed_generated(session_dir, pack, config)
 
     turns_played = 0
     trace_ids: list[str] = []
@@ -404,37 +409,9 @@ def _llm_session(
     persona: str | None = None,
     eval_: bool = False,
 ) -> None:
-    seed_dict, name_locales, narrator_rules, world_rules, factions, opening_scene, style = _load_pack_params(pack)
+    _, name_locales, narrator_rules, world_rules, factions, opening_scene, style = _load_pack_params(pack)
     session_dir = _create_play_session(pack=pack)
-
-    # Generate seed for dynamic packs (scenario.yaml but no static seed)
-    if pack and not seed_dict:
-        packs_dir = Path("packs")
-        p = load_pack(pack, packs_dir)
-        if p.scenario is not None:
-            loop = _get_play_loop()
-            envelope, pool_selection = loop.run_until_complete(
-                generate_seed(p, config, template_dir=str(Path(__file__).parent.parent / "prompts")),
-            )
-            seed_dict = envelope.seed_state.model_dump(mode="json")
-            seed_dict.setdefault("meta", {})["setting_pack"] = pack
-            seed_dict.setdefault("meta", {})["_seed_type"] = "dynamic"
-            seed_dict.setdefault("meta", {})["_pack_source"] = pack
-            if envelope.opening_narrative:
-                seed_dict["__seed_meta__"] = {
-                    "opening_narrative": envelope.opening_narrative,
-                    "actions": envelope.actions or [],
-                    "outcome_summary": envelope.outcome_summary or "",
-                }
-            if pool_selection:
-                seed_dict["__seed_pools__"] = pool_selection
-            # Re-init save dir with the generated seed
-            init_save_dir(session_dir, seed_dict)
-            state = load_state(session_dir)
-        else:
-            state = load_state(session_dir)
-    else:
-        state = load_state(session_dir)
+    state = _ensure_seed_generated(session_dir, pack, config)
 
     turns_played = 0
     trace_ids: list[str] = []
@@ -646,7 +623,7 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
         _print_missing_pack_error(flags)
         sys.exit(1)
 
-    seed_dict, name_locales, narrator_rules, world_rules, factions, _, _ = _load_pack_params(pack_id)
+    _, name_locales, narrator_rules, world_rules, factions, _, _ = _load_pack_params(pack_id)
     config = _build_play_config(flags)
 
     if "save-dir" in flags:
@@ -655,34 +632,7 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
     elif pack_id:
         session_dir = _create_play_session(pack=pack_id)
         save_dir = session_dir
-
-        # Generate seed for dynamic packs (scenario.yaml but no static seed)
-        if not seed_dict:
-            packs_dir = Path("packs")
-            p = load_pack(pack_id, packs_dir)
-            if p.scenario is not None:
-                loop = _get_play_loop()
-                envelope, pool_selection = loop.run_until_complete(
-                    generate_seed(p, config, template_dir=str(Path(__file__).parent.parent / "prompts")),
-                )
-                seed_dict = envelope.seed_state.model_dump(mode="json")
-                seed_dict.setdefault("meta", {})["setting_pack"] = pack_id
-                seed_dict.setdefault("meta", {})["_seed_type"] = "dynamic"
-                seed_dict.setdefault("meta", {})["_pack_source"] = pack_id
-                if envelope.opening_narrative:
-                    seed_dict["__seed_meta__"] = {
-                        "opening_narrative": envelope.opening_narrative,
-                        "actions": envelope.actions or [],
-                        "outcome_summary": envelope.outcome_summary or "",
-                    }
-                if pool_selection:
-                    seed_dict["__seed_pools__"] = pool_selection
-                init_save_dir(save_dir, seed_dict)
-                state = load_state(save_dir)
-            else:
-                state = load_state(save_dir)
-        else:
-            state = load_state(save_dir)
+        state = _ensure_seed_generated(session_dir, pack_id, config)
     else:
         session_dir = _create_play_session()
         save_dir = session_dir

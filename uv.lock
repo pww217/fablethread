@@ -67,6 +67,12 @@ dev = [
     { name = "types-pyyaml" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "ruff" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "faker" },
@@ -89,7 +95,10 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
-dev = []
+dev = [
+    { name = "mypy", specifier = ">=1.20.2" },
+    { name = "ruff", specifier = ">=0.15.12" },
+]
 
 [[package]]
 name = "certifi"

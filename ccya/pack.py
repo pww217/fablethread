@@ -201,6 +201,9 @@ class PlayerOverrides(BaseModel):
                 self.location_hints,
                 self.free_form,
                 self.arc_hints,
+                # Intentionally NOT npc_count — default npc_count=2 from char
+                # creation is a game setting, not a player hint. Including it
+                # here would send all default characters to the static seed path.
             ]
         )
 

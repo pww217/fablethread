@@ -410,6 +410,9 @@ async def new_game(request: Request):
         npc_count=npc_count,
     )
 
+    # Must capture BEFORE hint construction below — pc_stats/tagline/name get
+    # folded into pc_hints, which would make is_empty() always return False and
+    # skip dynamic seed generation for default char-creation submissions.
     has_hints = not overrides.is_empty()
 
     if (pc_name or pc_tagline or pc_stats_raw) and overrides:
