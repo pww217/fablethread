@@ -29,7 +29,27 @@ linearis issues list --team PW --label Feature
 
 # All improvement tickets
 linearis issues list --team PW --label Improvement
+
+# Area-filtered (combine area + type labels)
+linearis issues list --team PW --label "UI,Bug"
+linearis issues list --team PW --label "Engine,Feature"
+linearis issues list --team PW --label "EV,Bug"
 ```
+
+### Area labels
+
+Six area labels categorize tickets by subsystem. Create these in Settings → Labels if they don't exist:
+
+| Label | Color | Scope |
+|---|---|---|
+| Engine | #F177C3 | State, extraction, narration, rules, sanitization, momentum, location, inventory, conditions, arc/thread system |
+| UI | #F5A623 | Templates, CSS, panels, chronicle, tooltips, mobile, highlighting, styling |
+| EV | #333333 | Checkers, eval tooling, test infrastructure, ev.py commands |
+| TV | #333333 | Turn Viewer (separate from main UI) |
+| Docs | #7ED321 | Architecture docs, repomap, linear docs, any documentation |
+| Config | #B4B4B4 | Settings, engine config, prompt templates, defaults |
+
+Tickets use area + type labels together (e.g., `UI, Bug`, `Engine, Feature`).
 
 ### By priority
 
@@ -61,6 +81,9 @@ linearis issues search "sanitizer" --team PW
 
 # Search with team and label filters
 linearis issues search "dead code" --team PW --label Bug
+
+# Search with area + type filter
+linearis issues search "NPC" --team PW --label "Engine,Bug"
 
 # Search with status filter
 linearis issues search "NPC" --team PW --status "Backlog,Up Next"

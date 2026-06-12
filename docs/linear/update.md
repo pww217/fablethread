@@ -42,13 +42,18 @@ linearis issues update TICK-6 --status "Canceled"
 ### Add labels (without removing existing)
 
 ```bash
-linearis issues update TICK-6 --labels "Bug,plan" --label-mode add
+# Add area label to existing ticket
+linearis issues update TICK-6 --labels "Engine,plan" --label-mode add
+
+# Add area + type labels
+linearis issues update TICK-6 --labels "UI,Feature" --label-mode add
 ```
 
 ### Overwrite labels
 
 ```bash
-linearis issues update TICK-6 --labels "Feature" --label-mode overwrite
+# Replace all labels with area + type
+linearis issues update TICK-6 --labels "Engine,Bug" --label-mode overwrite
 ```
 
 ### Remove all labels
