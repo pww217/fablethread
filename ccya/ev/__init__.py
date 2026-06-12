@@ -89,7 +89,7 @@ def main() -> None:
     else:
         turn_file = DEFAULT_FILE
 
-    events = load_events(turn_file)
+    events = load_events(turn_file) if cmd not in ("play", "init", "status") else []
 
     match cmd:
         case "help":

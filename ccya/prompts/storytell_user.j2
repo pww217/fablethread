@@ -22,9 +22,10 @@ None currently. Generate actions that could introduce new story directions or ex
 {% for f in world_state %}{% if f is string %}- {{ f }}{% else -%}- [{% if "tier" in f and f["tier"] == "permanent" %}permanent{% else %}persistent{% endif %}] {% if "text" in f %}{{ f["text"] }}{% else %}(no text){% endif %}
 {%- endif %}{% endfor -%}
 <<<TRACE_IMMUTABLE_END>>>
-{% endif %}{% if pacing_context and (pacing_context.directive or pacing_context.gate) %}
+{% endif %}{% if pacing_context and (pacing_context.directive or pacing_context.gate or pacing_context.outcome_hint) %}
 ## pacing_context
 Directive: {{ pacing_context.directive or "none" }}
+Outcome: {{ pacing_context.outcome_hint or "hold" }}
 Gate: {{ pacing_context.gate }}
 {% endif %}{% if pending_beat and pending_beat.type %}
 ## GM Beat
