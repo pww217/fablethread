@@ -213,10 +213,7 @@ _MINIMAL_STATE: dict[str, Any] = {
         "tagline": None,
         "world_state": [],
         "recent_events": [],
-        "recently_left": [],
-        "recently_left_turns": 2,
         "turn_entered": 1,
-        "location_entered_turn": 1,
     },
 }
 

@@ -221,7 +221,7 @@ class TestNPCRosterEntryBlock:
     def test_full_data_with_mfl(self):
         npc = NPCRosterEntryBlock(
             id="n02", name="Bram", title="Blacksmith", bio="A gruff but kind soul.",
-            presence=NpcPresence.JUST_LEFT, motivation="Protect his family",
+            presence=NpcPresence.DEPARTED, motivation="Protect his family",
             fear="Losing everything", leverage="Forging skills", notes="", last_seen=None,
         )
         assert npc.motivation == "Protect his family"

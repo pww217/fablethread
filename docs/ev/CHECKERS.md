@@ -83,9 +83,9 @@ When inspecting a game, check one area at a time rather than running all checker
 
 - **Type:** deterministic
 - **Fields:** `extraction_context`, `applied.compendium_npc_update`
-- **What it checks:** No removed NPC states (`recently_left` in scene, `JUST_LEFT` tag in narrator prompt)
+- **What it checks:** All NPC presence values in compendium are valid (`present`, `nearby`, `known`, `departed`, `archived`). Departed NPCs have required `departed_reason` and `departed_summary` fields.
 - **CLI:** `ev.py check TURN npc_presence`
-- **Caveats:** Checks for removed fields that should not appear in current state. `JUST_LEFT` check is case-insensitive regex match on rendered narrator user prompt.
+- **Caveats:** Only checks state_snapshot compendium entries, not extraction output.
 
 ### pacing_directives
 

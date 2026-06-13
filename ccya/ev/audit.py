@@ -8,12 +8,25 @@ from ccya.state.delta_builder import PC_CONDITIONS_MAX
 def _detect_npc_ghosting(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Detect NPC disappearance without departure tracking.
 
+    Ghosting = an NPC that exists in the compendium at turn N, is completely
+    missing from the compendium at turn N+1, and has no compendium_npc_update
+    entry in this turn's extraction output.
+
+    Presence changes (present→known, present→nearby, present→departed) are NOT
+    ghosting — they're tracked in compendium_npc_update and the NPC remains in
+    the compendium.
+
     Returns a list of dicts with keys: turn, left, has_departure_tracking, departure_type.
     """
-    prev_present: set[str] = set()
+    prev_npc_ids: set[str] | None = None
     ghosting: list[dict[str, Any]] = []
 
     for ev in events:
+        # Skip side events (condition_expired, sanitizer, etc.) — they have
+        # empty state_snapshots and would break the comparison.
+        if ev.get("kind"):
+            continue
+
         t = ev.get("turn")
         if t is None or not isinstance(t, int):
             continue
@@ -25,39 +38,42 @@ def _detect_npc_ghosting(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not isinstance(npcs, dict):
             continue
 
-        present = set(n for n, data in npcs.items() if isinstance(data, dict) and data.get("presence") == "present")
-        left = prev_present - present
+        current_npc_ids = set(npcs.keys())
 
-        if left:
-            scene = ev.get("extraction") or {}
-            scene = scene.get("scene") or {}
-            scene_output = scene.get("output") or {}
-            scene_npcs = scene_output.get("compendium") or {} if isinstance(scene_output, dict) else {}
-            scene_tags = scene_output.get("scene_tags") or [] if isinstance(scene_output, dict) else []
+        if prev_npc_ids is None:
+            prev_npc_ids = current_npc_ids
+            continue
+
+        missing = prev_npc_ids - current_npc_ids
+
+        if missing:
+            # Check compendium_npc_update in extraction output for departure tracking
+            extraction = ev.get("extraction") or {}
+            scene_extraction = extraction.get("scene") or {}
+            scene_output = scene_extraction.get("output") or {}
 
             has_departure = False
             departure_type = ""
-            if isinstance(scene_npcs, dict):
-                for v in scene_npcs.values():
-                    if isinstance(v, dict) and v.get("presence") in ("recently_left", "JUST_LEFT"):
-                        has_departure = True
-                        departure_type = v.get("presence", "")
-                        break
-            if scene_tags:
-                for tag in scene_tags:
-                    if "recently_left" in str(tag).lower():
-                        has_departure = True
-                        departure_type = "recently_left"
-                        break
+
+            if isinstance(scene_output, dict):
+                comp_updates = scene_output.get("compendium_npc_update") or []
+                if isinstance(comp_updates, list):
+                    for cu in comp_updates:
+                        if isinstance(cu, dict):
+                            cu_id = cu.get("id", "")
+                            if cu_id in missing:
+                                has_departure = True
+                                departure_type = cu.get("presence", "")
+                                break
 
             ghosting.append({
                 "turn": t,
-                "left": sorted(left),
+                "left": sorted(missing),
                 "has_departure_tracking": has_departure,
                 "departure_type": departure_type,
             })
 
-        prev_present = present
+        prev_npc_ids = current_npc_ids
 
     return ghosting
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any
 
 from ccya.ev.checkers import CheckerResult, register_checker
@@ -9,37 +8,58 @@ from ccya.ev.events import extract_field
 
 _log = logging.getLogger(__name__)
 
+VALID_PRESENCE = {"present", "nearby", "known", "departed", "archived"}
+
 
 @register_checker(
     "npc_presence", "deterministic",
     requires_fields=["extraction_context", "applied.compendium_npc_update"],
-    description="NPC extraction, presence tags, scene cap",
+    description="NPC presence validity, departed field compliance, scene cap",
 )
 def npc_presence(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 
     for ev in events:
+        turn = ev.get("turn")
         snap = extract_field(ev, "state_snapshot") or {}
+        compendium = snap.get("compendium") or {}
+        npcs = compendium.get("npcs") or {}
 
-        # no removed NPC states
-        scene = snap.get("scene") or {}
-        if "recently_left" in scene:
-            findings.append({
-                "turn": ev.get("turn"),
-                "check": "no_removed_npc_states",
-                "detail": "removed field 'recently_left' found in state_snapshot.scene",
-            })
-            all_passed = False
+        if not isinstance(npcs, dict):
+            continue
 
-        narr_user = (extract_field(ev, "narrate_prompt") or {}).get("rendered_user") or ""
-        if re.search(r"\bJUST_LEFT\b", narr_user, re.IGNORECASE):
-            findings.append({
-                "turn": ev.get("turn"),
-                "check": "no_removed_npc_states",
-                "detail": "removed NPC presence tag 'JUST_LEFT' found in rendered narrator prompt",
-            })
-            all_passed = False
+        for npc_id, npc in npcs.items():
+            if not isinstance(npc, dict):
+                continue
+
+            presence = npc.get("presence")
+
+            # Check for invalid presence values
+            if presence not in VALID_PRESENCE:
+                findings.append({
+                    "turn": turn,
+                    "check": "valid_presence",
+                    "detail": f"NPC '{npc_id}' has invalid presence '{presence}'",
+                })
+                all_passed = False
+
+            # Check departed NPCs have required fields
+            if presence == "departed":
+                if not npc.get("departed_reason"):
+                    findings.append({
+                        "turn": turn,
+                        "check": "departed_reason",
+                        "detail": f"NPC '{npc_id}' is departed but missing departed_reason",
+                    })
+                    all_passed = False
+                if not npc.get("departed_summary"):
+                    findings.append({
+                        "turn": turn,
+                        "check": "departed_summary",
+                        "detail": f"NPC '{npc_id}' is departed but missing departed_summary",
+                    })
+                    all_passed = False
 
     if not all_passed:
         return CheckerResult(
