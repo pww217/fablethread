@@ -45,7 +45,9 @@
 {% set threads = state.arc.threads %}
 {% include "sections/_thread_list.j2" %}
 {% endif %}
-
+{% if state and state.scene and state.scene.scene_phase %}
+## Scene phase: {{ state.scene.scene_phase }}
+{% endif %}
 
 ## Prior History
 {% if prior_history and prior_history | length > 0 -%}
