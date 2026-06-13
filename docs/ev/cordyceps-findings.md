@@ -1,12 +1,16 @@
 # Cordyceps Year — Mechanic Check Findings (v2)
 
+> **NOTE:** This analysis was performed before the Scene Phase & Pacing Redesign (Plan 4). The momentum system, beat_locked, and related fields described below were removed. Findings are preserved for historical reference.
+
 Session: `saves/cordyceps-year-twenty-2026-06-11` (27 turns)
 Checked against: `docs/ev/RUBRIC.md`
 Analysis dates: Initial + review (2026-06-12)
 
 ---
 
-## 1. Momentum Lifecycle
+## 1. Phase Engine (formerly Momentum Lifecycle)
+
+> **Historical note:** This session used the old momentum-based pacing system. The phase engine replaced momentum, narrative_velocity, and consecutive_pressure_turns.
 
 **Result: PASS** | Confidence: **HIGH**
 
@@ -19,8 +23,8 @@ Momentum trajectory: 0→2→3→2→3→3→2→1→1→3→3→1→0→-1→1�
   - T11: crit_fail → -2 ✓
   - T13: setback → -1 ✓
   - T14: crit_success → +2 ✓
-- Values stay within [-3, +3] bounds ✓
-- Recovery from low momentum (T13=-1 → T18=3) works correctly ✓
+- Values stayed within [-3, +3] bounds ✓
+- Recovery from low momentum (T13=-1 → T18=3) worked correctly ✓
 - No momentum lifecycle bugs in this session.
 
 ---
@@ -53,18 +57,20 @@ Previous analysis claimed "Arc goal 'Smuggle grain to David Fisher' persists thr
 
 ## 3. GM Beat Lifecycle
 
+> **Historical note:** This analysis used the old beat_locked + momentum floor system. Floor relief is now driven by enforce_relief (phase + consecutive_pressure_beats).
+
 **Result: FAIL** | Confidence: **MEDIUM**
 
 Beat emissions from extraction.storytell.output:
 - T1: pressure, T2: opportunity, T3: complication, T4: pressure, T5: pressure, T6: pressure, T8: opportunity, T10: escalation, T12: escalation, T13: escalation, T16: complication, T18: pressure, T19: complication, T20: complication, T21: pressure, T27: opportunity
 
-- beat_locked fires correctly at T6 (consecutive pressure: T3-T5 = 3, threshold=3) ✓
-- beat_locked fires correctly at T21 (consecutive pressure: T18-T21 = 4) ✓
+- beat_locked fired correctly at T6 (consecutive pressure: T3-T5 = 3, threshold=3) ✓
+- beat_locked fired correctly at T21 (consecutive pressure: T18-T21 = 4) ✓
 - **3 consecutive escalation beats at T10, T12, T13** — exceeds the 2-consecutive-same-type limit in the rubric ✓ (flagged)
-- Beat variety: pressure=7, escalation=3, complication=3, opportunity=3, null=13 — no single type exceeds 60% ✓
-- Null beats (13/33 = 39%) are common — storyteller not emitting beats on most turns
+- Beat variety: pressure=7, escalation=3, complication=3, opportunity=3, null=13 — no single type exceeded 60% ✓
+- Null beats (13/33 = 39%) were common — storyteller not emitting beats on most turns
 
-**Note:** Beat type distribution from `ev.py beats` matches extraction output, confirming the 3-consecutive-escalation finding.
+**Note:** Beat type distribution from `ev.py beats` matched extraction output, confirming the 3-consecutive-escalation finding.
 
 ---
 

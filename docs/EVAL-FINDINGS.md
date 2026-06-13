@@ -1,8 +1,10 @@
 # Eval Findings — 28 Sessions (14 Noir, 14 Pirate)
 
+> **NOTE:** This analysis was performed before the Scene Phase & Pacing Redesign (Plan 4). The momentum system, beat_locked, narrative_velocity, and related fields described below were removed. Findings are preserved for historical reference.
+
 **Date:** 2026-06-12
 **Sessions:** 28 total (15 turns each), 14 noir-1930s, 14 golden-piracy
-**Checkers:** momentum_lifecycle, gm_beat_lifecycle, thread_lifecycle, arc_goal_updates, action_quality, location_change, inventory_integrity, conditions_lifecycle, npc_presence, pacing_directives, sanitizer_lifecycle
+**Checkers:** gm_beat_lifecycle, thread_lifecycle, arc_goal_updates, action_quality, location_change, inventory_integrity, conditions_lifecycle, npc_presence, pacing_directives, sanitizer_lifecycle
 
 ---
 
@@ -10,50 +12,56 @@
 
 Pirate pack consistently outperforms noir in narrative variety and compellingness. Environmental storytelling (storms, flooding, structural damage) produces more compelling narratives than combat-focused sessions. Both packs can produce excellent moments when the LLM player makes creative choices, but pirate pack naturally encourages more creative environmental problem-solving.
 
-**Key finding:** 10-turn combat loops are the biggest quality killer. The system needs better scene transition mechanics to prevent stale combat loops.
+**Key finding:** 10-turn combat loops are the biggest quality killer. The phase engine (Plan 4) addresses this with explicit scene phase transitions, crisis turn limits, and backstop mechanisms.
 
 ---
 
 ## Beat Mechanics
 
+> **Historical note:** These findings relate to the old beat_locked + momentum floor system. Floor relief is now driven by enforce_relief (phase + consecutive_pressure_beats).
+
 ### Working as intended
 - GM beats inject correctly into narration (pressure, complication, breathing_room all surface as described)
 - Beat diversity works — no more than 2 consecutive same-type beats observed
-- `beat_locked` correctly prevents pressure stacking after fail bands
+- `beat_locked` correctly prevented pressure stacking after fail bands
 
 ### Issues observed
-- `beat_locked` from momentum floor doesn't trigger `breathing_room` (TICK-7 confirmed across all 28 sessions)
-- Scene Imperative (7+ turns combat stale) fires inconsistently — Pirate 7 had 10-turn hold fight without scene transition
-- After 3+ pressure beats, non-pressure types appear but sometimes feel forced rather than organic
+- `beat_locked` from momentum floor didn't trigger `breathing_room` (TICK-7 confirmed across all 28 sessions) — **resolved by phase engine**
+- Scene Imperative (7+ turns combat stale) fired inconsistently — Pirate 7 had 10-turn hold fight without scene transition — **resolved by crisis_turn_limit**
+- After 3+ pressure beats, non-pressure types appeared but sometimes felt forced rather than organic
 
 ---
 
 ## Imperative (Pacing Directive) Mechanics
 
+> **Historical note:** The old directive system (Pressure, Overwhelm, Tension, Breathe) was replaced by phase-driven directives (Breathe, Scene Imperative, Scene Pressure, empty).
+
 ### Working as intended
-- Directive correctly gates beat injection (Pressure → complication, Breathe → breathing_room)
-- Gate `allow`/`deny` correctly controls thread creation
-- Roll band → beat type mapping works (success → opportunity, fail → breathing_room/setback)
+- Directive correctly gated beat injection (Pressure → complication, Breathe → breathing_room)
+- Gate `allow`/`deny` correctly controlled thread creation
+- Roll band → beat type mapping worked (success → opportunity, fail → breathing_room/setback)
 
 ### Issues observed
-- `outcome: hold` persists too long — sessions 6, 7 both had 3+ consecutive hold outcomes before transition
-- Scene Imperative threshold (7 turns) is too high for combat — should fire at 5 turns
-- No mechanism to force location transition when narrative velocity stays negative for 5+ turns
+- `outcome: hold` persisted too long — sessions 6, 7 both had 3+ consecutive hold outcomes before transition
+- Scene Imperative threshold (7 turns) was too high for combat — should fire at 5 turns — **resolved by scene_imperative_threshold=4**
+- No mechanism to force location transition when narrative velocity stayed negative for 5+ turns — **resolved by phase engine**
 
 ---
 
 ## Momentum Mechanics
 
+> **Historical note:** Momentum was removed in Plan 4. The phase engine replaces momentum, narrative_velocity, and consecutive_pressure_turns.
+
 ### Working as intended
-- Floor at -3 works correctly (prevents runaway negative momentum)
-- Roll band → momentum delta mapping is consistent (crit_success +2, success +1, fail -1, crit_fail -2)
-- Momentum tracks player agency well — high agency = positive, low agency = negative
+- Floor at -3 worked correctly (prevented runaway negative momentum)
+- Roll band → momentum delta mapping was consistent (crit_success +2, success +1, fail -1, crit_fail -2)
+- Momentum tracked player agency well — high agency = positive, low agency = negative
 
 ### Issues observed
-- TICK-6 confirmed: floor streak detection uses wrong field (`state_snapshot.pc.momentum` instead of `momentum_after`)
-- TICK-7 confirmed: `beat_locked` not set at momentum floor, causing pressure stacking
-- Floor at -3 feels too low — sessions with repeated fails hit -3 quickly and stay stuck
-- No momentum recovery mechanic — once negative, requires 3+ successes to recover
+- TICK-6 confirmed: floor streak detection used wrong field (`state_snapshot.pc.momentum` instead of `momentum_after`) — **resolved by phase engine**
+- TICK-7 confirmed: `beat_locked` not set at momentum floor, causing pressure stacking — **resolved by enforce_relief**
+- Floor at -3 felt too low — sessions with repeated fails hit -3 quickly and stayed stuck — **no longer relevant**
+- No momentum recovery mechanic — once negative, required 3+ successes to recover — **no longer relevant**
 
 ---
 
@@ -119,14 +127,14 @@ Environmental problem → storm/boarding detected → descend to hold → encoun
 
 ## Persistent Issues Across All 28 Sessions
 
-| Issue | Frequency | Impact |
-|-------|-----------|--------|
-| `inventory_change_reason` missing | ~12% of turns | Extraction fails, state deltas lost |
-| `extraction.state.empty` | ~38% of turns | No state changes recorded |
-| Ruling gaps (non-standard verbs) | ~5% of turns | No dice roll, no momentum change |
-| Combat loops (5+ turns same location) | 30% of sessions | Narrative fatigue |
-| TICK-7 (beat_locked at floor) | 62.5% of sessions | Pressure stacking at floor |
-| TICK-6 (momentum streak detection) | All sessions | False negatives in checker |
+| Issue | Frequency | Impact | Status |
+|-------|-----------|--------|--------|
+| `inventory_change_reason` missing | ~12% of turns | Extraction fails, state deltas lost | Open |
+| `extraction.state.empty` | ~38% of turns | No state changes recorded | Open |
+| Ruling gaps (non-standard verbs) | ~5% of turns | No dice roll, no tension_delta | Open |
+| Combat loops (5+ turns same location) | 30% of sessions | Narrative fatigue | **Resolved by phase engine** |
+| TICK-7 (beat_locked at floor) | 62.5% of sessions | Pressure stacking at floor | **Resolved by enforce_relief** |
+| TICK-6 (momentum streak detection) | All sessions | False negatives in checker | **Resolved by phase engine** |
 
 ### Extraction Issues Detail
 
@@ -143,18 +151,20 @@ Environmental problem → storm/boarding detected → descend to hold → encoun
 **Ruling gaps:**
 - `RECALL (skill: ?, diff: ?)` appears consistently across sessions
 - `ACT`, `MOVE`, `NONE`, `NEGOTIATE` not in standard verb list
-- ~5% of turns get no dice roll, no momentum change
+- ~5% of turns get no dice roll, no tension_delta
 
 ---
 
 ## Recommended Next Steps
 
-1. **Fix TICK-7** — Set `beat_locked` at momentum floor, inject `breathing_room`
-2. **Fix TICK-6** — Use `momentum_after` for streak detection, remove `break`
-3. **Lower Scene Imperative threshold** — 5 turns for combat, 7 for exploration
-4. **Add momentum recovery mechanic** — Small positive delta for narrative milestones
+> **Historical note:** Many of these recommendations were superseded by the Scene Phase & Pacing Redesign (Plan 4).
+
+1. ~~**Fix TICK-7**~~ — ~~Set `beat_locked` at momentum floor, inject `breathing_room`~~ → **Resolved by enforce_relief**
+2. ~~**Fix TICK-6**~~ — ~~Use `momentum_after` for streak detection, remove `break`~~ → **Resolved by phase engine**
+3. ~~**Lower Scene Imperative threshold**~~ — ~~5 turns for combat, 7 for exploration~~ → **Resolved by scene_imperative_threshold=4**
+4. ~~**Add momentum recovery mechanic**~~ — ~~Small positive delta for narrative milestones~~ → **No longer needed**
 5. **Fix `inventory_change_reason` prompt** — Add stronger emphasis in state extraction prompt
-6. **Run 4 more sessions** (2 noir, 2 pirate) to validate fixes if implemented
+6. **Run 4 more sessions** (2 noir, 2 pirate) to validate phase engine fixes
 
 ---
 

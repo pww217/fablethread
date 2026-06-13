@@ -9,7 +9,7 @@ Design authority for how CCYA evaluations are structured, what mechanics they te
 The tooling (`ccya/ev/` with play/check/eval) is built. What does not exist is:
 
 1. **No evaluation scenarios** — `ev.py eval list` returns empty. Scenarios are the executable tests; without them the eval system does nothing.
-2. **No checker-to-scenario mapping** — all 11 deterministic + 3 LLM checkers run on every scenario by default, polluting signals (a momentum scenario should not run `npc_presence`).
+2. **No checker-to-scenario mapping** — all deterministic + LLM checkers run on every scenario by default, polluting signals (a phase engine scenario should not run `npc_presence`).
 3. **No aggregation methodology** — checker results are individual pass/fail with no framework for combining into a per-scenario or cross-scenario verdict.
 4. **No LLM sampling strategy** — running all 3 LLM checkers on every turn of every scenario costs 8+ hours of inference time.
 5. **No feedback loop** — there is no mechanism to surface "this mechanic fails most often" or suggest improvement targets.
@@ -193,11 +193,12 @@ Fully implemented per ev-tooling-design.md:
 - Data access layer (events.py)
 - Scenario loader (YAML → Scenario dataclass)
 
-### Checker inventory (14 total)
+### Checker inventory (13 total)
+
+> **Note:** `momentum_lifecycle` was removed in Plan 4. The phase engine replaces momentum, narrative_velocity, and consecutive_pressure_turns.
 
 | Checker | Type | Pipeline Stage |
 |---|---|---|
-| `momentum_lifecycle` | deterministic | Ruling |
 | `action_quality` | deterministic | Ruling |
 | `gm_beat_lifecycle` | deterministic | Narration |
 | `pacing_directives` | deterministic | Narration |
@@ -256,14 +257,14 @@ Fully implemented per ev-tooling-design.md:
 Every eval YAML scenario declares which checkers it needs and whether to sample for LLM judges:
 
 ```yaml
-id: ruling-momentum-basics
+id: ruling-tension-delta-basics
 pack: some-pack
-description: "Momentum moves correctly through success/fail/crit sequences"
+description: "tension_delta follows band/intent, phase transitions work correctly"
 seed_overrides:
-  meta.momentum: 0
+  scene.scene_phase: SETUP
 checker_suite:
-  - momentum_lifecycle
   - action_quality
+  - pacing_directives
 llm_checkers:
   - directive_tone_match
 llm_sample_rate: 0.25
@@ -361,15 +362,17 @@ Since scenarios are focused by design, a group's failures are scoped to one pipe
 
 #### 6. Scenario taxonomy — 5 groups, 12 scenarios
 
+> **Note:** The ruling group scenarios below reference the old momentum system. They should be updated to test tension_delta and phase transitions instead.
+
 **Group 1: Ruling (3 scenarios)**
 
-Tests: dice resolution, momentum arithmetic, action surface.
+Tests: dice resolution, tension_delta, action surface.
 
 | Scenario | Turns | Checkers | What It Exercises |
 |---|---|---|---|
-| `ruling-momentum-basics` | 8 | momentum_lifecycle, action_quality, ruling_arithmetic | Momentum follows band, floor/ceiling, no overdraw |
-| `ruling-difficulty-curve` | 6 | momentum_lifecycle, ruling_arithmetic | Difficulty modifiers, stat mods, cond mods all apply |
-| `ruling-streak-recov` | 8 | momentum_lifecycle | Floor relief, streak detection, band clamping |
+| `ruling-tension-delta-basics` | 8 | action_quality, ruling_arithmetic, pacing_directives | tension_delta follows band/intent, phase transitions work |
+| `ruling-difficulty-curve` | 6 | action_quality, ruling_arithmetic | Difficulty modifiers, stat mods, cond mods all apply |
+| `ruling-phase-transitions` | 8 | pacing_directives, gm_beat_lifecycle | Phase transitions from thread urgency, tension_delta, scene age |
 
 No LLM checkers in this group. All mechanical, all deterministic.
 
@@ -387,12 +390,12 @@ Optional LLM: `state_fidelity` at 0.25 sample rate.
 
 **Group 3: Narration (3 scenarios)**
 
-Tests: GM beats, pacing directives, narrative tone.
+Tests: GM beats, pacing directives, narrative tone, phase constraints.
 
 | Scenario | Turns | Checkers | What It Exercises |
 |---|---|---|---|
-| `narration-beat-lifecycle` | 8 | gm_beat_lifecycle, pacing_integrity | Beat types, surface_as, floor relief, beat_locked consistency |
-| `narration-pacing-directives` | 8 | pacing_directives, pacing_integrity | Directive rendering, gate alignment, outcome_hint correctness |
+| `narration-beat-lifecycle` | 8 | gm_beat_lifecycle, pacing_directives | Beat types, surface_as, enforce_relief, phase constraints |
+| `narration-pacing-directives` | 8 | pacing_directives, gm_beat_lifecycle | Directive rendering, outcome_hint correctness, phase alignment |
 | `narration-beat-consequences` | 6 | gm_beat_lifecycle | Beats produce observable consequences |
 
 LLM checkers: `directive_tone_match` (0.25), `beat_narrative_chain` (0.25).

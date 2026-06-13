@@ -8,11 +8,11 @@ LLM checkers use the configured checker model.
 
 Checkers are organized by domain:
 
-- **Momentum & beats**: `momentum_lifecycle`, `gm_beat_lifecycle`
+- **Beats**: `gm_beat_lifecycle`
 - **Inventory & conditions**: `location_change`, `inventory_integrity`, `conditions_lifecycle`
 - **Threads & arcs**: `thread_lifecycle`, `arc_goal_updates`
 - **NPCs**: `npc_presence`
-- **Pacing**: `pacing_directives`, `action_quality`
+- **Pacing**: `pacing_directives`, `action_quality`, `phase_transition`, `tension_delta`, `recent_beats`
 - **Sanitizer**: `sanitizer_lifecycle`
 - **LLM-based**: `directive_tone_match`, `beat_narrative_chain`, `state_fidelity`
 - **Scenario assertions**: `turn_assert` (called programmatically by eval runner, not in default registry)
@@ -23,21 +23,13 @@ When inspecting a game, check one area at a time rather than running all checker
 
 ## Checkers
 
-### momentum_lifecycle
-
-- **Type:** deterministic
-- **Fields:** `ruling.band`, `momentum_before`, `momentum_after`, `applied`
-- **What it checks:** Momentum delta matches roll band mapping, values stay within [MOMENTUM_MIN, MOMENTUM_MAX], floor relief respects constraints
-- **CLI:** `ev.py check TURN momentum_lifecycle`
-- **Caveats:** Skips turns where no roll occurred (`ruling.rolled == false`). At momentum -2 or below, success/crit_success give +2/+3 instead of the standard band delta. Reports a failure if momentum stays at floor (-3) for 3+ consecutive turns without relief.
-
 ### gm_beat_lifecycle
 
 - **Type:** deterministic
-- **Fields:** `state_snapshot`, `momentum_before`, `momentum_after`, `ruling`, `narrate_prompt`
-- **What it checks:** Pending GM beat is consumed across turns, beat lifecycle is respected, floor relief injected when beat_locked, binding block present on rolled turns, beat_locked dual-trigger fires at momentum floor
+- **Fields:** `state_snapshot`, `ruling`, `narrate_prompt`, `pacing_context`
+- **What it checks:** Pending GM beat is consumed across turns, beat lifecycle is respected, floor relief injected when enforce_relief, binding block present on rolled turns, enforce_relief fires at CRISIS with consecutive pressure beats
 - **CLI:** `ev.py check TURN gm_beat_lifecycle`
-- **Caveats:** Checks that `pending_gm_beat` from one turn is consumed or updated in the next. Verifies that when storyteller emits a GM beat, the state's `pending_gm_beat` matches its type. When `beat_locked` is true and storyteller did not emit a non-pressure beat, floor relief must inject `breathing_room`.
+- **Caveats:** Checks that `pending_gm_beat` from one turn is consumed or updated in the next. Verifies that when storyteller emits a GM beat, the state's `pending_gm_beat` matches its type. When `enforce_relief=True` (CRISIS phase + consecutive_pressure_beats ≥ threshold) and storyteller did not emit a breathing_room beat, floor relief must inject `breathing_room`.
 
 ### location_change
 
@@ -93,7 +85,31 @@ When inspecting a game, check one area at a time rather than running all checker
 - **Fields:** `ruling`, `narrate_prompt`, `extraction_context`
 - **What it checks:** Consecutive pressure tracking matches beat type, outcome_hint rendered in narrator prompt, directive rendered in storyteller prompt, removed directives not present, beat type variety maintained, surface_as consistency across consecutive same-type beats
 - **CLI:** `ev.py check TURN pacing_directives`
-- **Caveats:** Consecutive pressure counter must increment on pressure/escalation/complication beats and reset on others. Removed directives: "location pressure", "location imperative", "combat fatigue". Beat type variety warns if a single type exceeds 60% of all beats (requires 3+ beats). Surface_as consistency checks that consecutive same-type beats don't flip between "ambient" and "environmental" without a directive change.
+- **Caveats:** Consecutive pressure counter must increment on pressure/escalation/complication beats and reset on others. Removed directives: "Overwhelm", "Pressure", "location pressure", "location imperative", "combat fatigue". Beat type variety warns if a single type exceeds 60% of all beats (requires 3+ beats). Surface_as consistency checks that consecutive same-type beats don't flip between "ambient" and "environmental" without a directive change. Phase constraint check verifies beat types are allowed for the current scene_phase per BEAT_PHASE_MAP.
+
+### phase_transition
+
+- **Type:** deterministic
+- **Fields:** `pacing_context`
+- **What it checks:** Phase engine transitions follow the state machine (SETUP→RISING, RISING→CRISIS, CRISIS→RESOLUTION, RESOLUTION→BREATHER, BREATHER→RISING, any→SETUP on location_change), crisis_turn_count monotonicity, outcome_hint consistency during crisis limit
+- **CLI:** `ev.py check TURN phase_transition`
+- **Caveats:** Any→SETUP is always valid (location_change). Crisis turn count must increment by 1 within CRISIS phase. When crisis_turn_count >= 4 (default limit), outcome_hint must be "transition".
+
+### tension_delta
+
+- **Type:** deterministic
+- **Fields:** `ruling`, `pacing_context`
+- **What it checks:** tension_delta field present in ruling event, valid values (escalates/maintains/de-escalates), breathe directive consistency
+- **CLI:** `ev.py check TURN tension_delta`
+- **Caveats:** When tension_delta is "de-escalates" and directive is "Scene Imperative" or "Scene Pressure", this is a consistency failure. Cannot check thread urgency from events alone.
+
+### recent_beats
+
+- **Type:** deterministic
+- **Fields:** `state_snapshot`
+- **What it checks:** recent_beats exists in state, capped at 5 entries, entry structure (turn/type/surface_as), monotonic turn numbers
+- **CLI:** `ev.py check TURN recent_beats`
+- **Caveats:** Default cap is 5 entries per config.recent_beats_max. Each entry must have turn, type, and surface_as fields.
 
 ### action_quality
 
@@ -148,7 +164,7 @@ When inspecting a game, check one area at a time rather than running all checker
 ### Single turn, specific checkers
 
 ```bash
-ev.py check 5 momentum_lifecycle gm_beat_lifecycle
+ev.py check 5 gm_beat_lifecycle
 ```
 
 ### Single turn, all checkers

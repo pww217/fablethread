@@ -27,7 +27,7 @@ Every bug ticket MUST include three sections:
 
 | Label | Scope |
 |---|---|
-| Engine | State, extraction, narration, rules, sanitization, momentum, location, inventory, conditions, arc/thread system |
+| Engine | State, extraction, narration, rules, sanitization,  location, inventory, conditions, arc/thread system |
 | UI | Templates, CSS, panels, chronicle, tooltips, mobile, highlighting, styling |
 | EV | Checkers, eval tooling, test infrastructure, ev.py commands |
 | TV | Turn Viewer (separate from main UI) |

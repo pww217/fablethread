@@ -1,8 +1,12 @@
 # Pacing / Beat System Design
 
+> **NOTE:** This document was superseded by `docs/design/major-narrative-mechanic-overhaul.md` (Scene Phase & Pacing Redesign). The momentum system, beat_locked, pacing_gate, and related fields described here were removed in Plan 4. This document is preserved for historical reference only.
+
 ## Purpose
 
-Design authority for plans that overhaul the pacing computation and GM beat lifecycle. Covers: directive computation, consecutive_pressure counter signal, beat_locked trigger, floor relief mechanism, beat diversity tracking, beat history in prompt, pending_gm_beat null-clear, beat diversity enforcement, Scene Imperative behavioral weight, and Breathe directive sensitivity.
+> **Superseded by:** `docs/design/major-narrative-mechanic-overhaul.md`
+
+Design authority for plans that overhauled the pacing computation and GM beat lifecycle. Covers: directive computation, consecutive_pressure counter signal, beat_locked trigger, floor relief mechanism, beat diversity tracking, beat history in prompt, pending_gm_beat null-clear, beat diversity enforcement, Scene Imperative behavioral weight, and Breathe directive sensitivity. All of these were implemented and the old system was removed in Plan 4.
 
 ## Problem Statement
 

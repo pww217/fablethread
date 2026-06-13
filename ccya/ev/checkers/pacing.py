@@ -85,7 +85,7 @@ def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
         narr_user = (extract_field(ev, "narrate_prompt") or {}).get("rendered_user") or ""
         storytell_rendered = storytell_level.get("rendered_user") or ""
 
-        removed_directives = ["location pressure", "location imperative", "combat fatigue"]
+        removed_directives = ["Overwhelm", "Pressure", "location pressure", "location imperative", "combat fatigue"]
         found_removed: list[str] = []
         for directive in removed_directives:
             if directive.lower() in narr_user.lower():
@@ -97,6 +97,28 @@ def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
                 "turn": ev.get("turn"),
                 "check": "no_removed_directives",
                 "detail": f"Removed directives found: {'; '.join(found_removed)}",
+            })
+            all_passed = False
+
+    # Phase constraint: beat types must be allowed for current scene_phase
+    from ccya.engine._pacing import derive_allowed_beat_types
+
+    for ev in events:
+        storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
+        gm_beat = storytell_output.get("gm_beat")
+        if not isinstance(gm_beat, dict) or not gm_beat.get("type"):
+            continue
+
+        pacing_ctx = extract_field(ev, "pacing_context") or {}
+        scene_phase = pacing_ctx.get("scene_phase", "SETUP")
+        allowed = derive_allowed_beat_types(scene_phase)
+        beat_type = gm_beat["type"]
+
+        if beat_type not in allowed:
+            findings.append({
+                "turn": ev.get("turn"),
+                "check": "phase_constraint",
+                "detail": f"beat type '{beat_type}' not allowed in phase '{scene_phase}' (allowed: {allowed})",
             })
             all_passed = False
 

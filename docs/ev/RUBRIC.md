@@ -4,42 +4,44 @@ Use this rubric when inspecting a game session with `ev.py`. Check one area at a
 
 ## Priority Order
 
-### 1. Momentum Lifecycle
+### 1. Phase Engine
 
-**What it validates:** Momentum tracking, floor streaks, band correctness
+**What it validates:** Scene phase transitions, crisis limits, breather backstops, thread urgency integration
 
 **What to look for:**
-- Roll band maps correctly to momentum delta (crit_success +2, success +1, fail -1, crit_fail -2)
-- Values stay within [-3, +3] bounds
-- At momentum -2 or below, success gives +2, crit_success gives +3 (floor relief scaling)
-- Floor streak: momentum at -3 for 3+ consecutive turns without relief is a failure
-- Momentum delta in events matches the computed delta from band mapping
+- `scene_phase` transitions follow the state machine: SETUP→RISING→CRISIS→RESOLUTION/BREATHER
+- CRISIS phase respects `crisis_turn_limit` (default 4) before transitioning to RESOLUTION
+- BREATHER phase respects `breather_max_turns` (default 3) backstop when no urgent threads appear
+- Phase transitions align with thread urgency counts and tension_delta signals
+- `outcome_hint` is "transition" when CRISIS hits turn limit
 
 **Commands:**
 ```bash
-ev.py check 5 momentum_lifecycle --save-dir saves/my-game
-ev.py trace pc.momentum saves/my-game/events.jsonl          # trajectory
-ev.py mechanics 12 --dice saves/my-game/events.jsonl        # ruling + band context
+ev.py check 5 phase_transition --save-dir saves/my-game
+ev.py check 5 pacing_directives --save-dir saves/my-game
+ev.py trace scene_phase saves/my-game/events.jsonl          # phase trajectory
+ev.py mechanics 12 --pacing saves/my-game/events.jsonl      # phase + directive context
 ```
 
 **Red flags:**
-- Delta doesn't match band mapping (e.g., success giving +1 at floor when it should be +2)
-- Momentum drops below -3 or exceeds +3
-- 3+ consecutive turns at -3 with no `breathing_room` beat injected
+- Phase stuck in CRISIS beyond turn limit without RESOLUTION transition
+- BREATHER soft-locked (no urgent thread, exceeds breather_max_turns)
+- Phase transitions contradict thread urgency signals
+- `outcome_hint` missing or wrong during crisis resolution
 
 ---
 
 ### 2. GM Beat Lifecycle
 
-**What it validates:** GM beat type transitions, pressure compliance, floor relief
+**What it validates:** GM beat type transitions, pressure compliance, floor relief, phase constraints
 
 **What to look for:**
 - `pending_gm_beat` from one turn is consumed or updated in the next
 - When storyteller emits a GM beat, state's `pending_gm_beat` matches its type
-- `beat_locked` prevents pressure stacking after fail bands
-- Floor relief: when `beat_locked` is true AND pending beat is None or pressure-type AND beat_locked was NOT triggered by momentum floor, `breathing_room` must be injected (intentional: momentum crisis requires escalation, not breathing room — MB-3)
-- Beat TTL: storyteller-emitted beats expire after 2 turns (`beat_expires_turn = turn_no + 2`), floor relief beats also get 2 turns (architecture docs claim 3, but code uses 2)
+- Floor relief: when `enforce_relief=True` (CRISIS phase + consecutive_pressure_beats ≥ threshold) AND pending beat is None or pressure-type, `breathing_room` must be injected
+- Beat TTL: storyteller-emitted beats expire after 2 turns (`beat_expires_turn = turn_no + 2`), floor relief beats also get 2 turns
 - Beat type variety: no more than 2 consecutive same-type beats; at least 1 in 3 beats should be non-pressure
+- Beat types respect phase constraints (e.g., no escalation in BREATHER, no breathing_room in CRISIS unless enforce_relief)
 
 **Commands:**
 ```bash
@@ -50,8 +52,9 @@ ev.py mechanics 8 --pacing saves/my-game/events.jsonl       # beat + pacing cont
 
 **Red flags:**
 - Pending beat persists across 3+ turns without consumption
-- `beat_locked` at momentum floor without `breathing_room` injection (TICK-7)
-- 3+ consecutive pressure/escalation/complication beats
+- enforce_relief=True without `breathing_room` injection
+- 3+ consecutive pressure/escalation/complication beats without relief
+- Beat types violate phase constraints (e.g., escalation in BREATHER)
 
 ---
 
@@ -83,24 +86,27 @@ ev.py deltas 7 saves/my-game/events.jsonl                   # find thread mutati
 
 ### 4. Pacing Directives
 
-**What it validates:** Consecutive pressure tracking, outcome hints, beat variety, directive rendering
+**What it validates:** Consecutive pressure tracking, outcome hints, beat variety, directive rendering, phase constraints
 
 **What to look for:**
-- Consecutive pressure counter increments on pressure/escalation/complication beats, resets on others
+- Consecutive pressure counter (`consecutive_pressure_beats`) increments on pressure/escalation/complication beats, resets on others
 - `outcome_hint` rendered in narrator prompt
 - Pacing directive rendered in storyteller prompt
-- Removed directives ("location pressure", "location imperative", "combat fatigue") not lingering
-- Scene Imperative fires at 4 effective turns (3 actual scene turns, 0 if combat tags present)
+- Removed directives ("location pressure", "location imperative", "combat fatigue", "Overwhelm", "Pressure") not lingering
+- Scene Imperative fires at `scene_imperative_threshold` effective turns (default 4) or when CRISIS hits turn limit
+- Scene Pressure fires at `scene_pressure_threshold` effective turns (default 3)
+- Breathe fires when `tension_delta == "de-escalates"` AND no urgent threads exist
 - Beat type variety: no single type exceeds 60% of all beats (requires 3+ beats)
 - `surface_as` consistency: consecutive same-type beats don't flip between "ambient" and "environmental" without directive change
+- Beat types respect phase constraints (allowed_beat_types per phase)
 
 **Commands:**
 ```bash
+ev.py check 5 tension_delta --save-dir saves/my-game
 ev.py check 5 pacing_directives --save-dir saves/my-game
 ev.py trace pacing_context saves/my-game/events.jsonl       # directive state over time
 ev.py mechanics 10 --pacing saves/my-game/events.jsonl      # beat + directive context
-ev.py beats saves/my-game/events.jsonl                      # beat type + surface + locked
-ev.py momentum-check saves/my-game/events.jsonl             # momentum + band + delta
+ev.py beats saves/my-game/events.jsonl                      # beat type + surface
 ```
 
 > **Note:** `outcome_hint` is rendered in both `narrate_prompt.rendered_user` and `storytell.rendered_user` (in extraction). The `narrate_prompt` is saved at the event level, not in the `extraction` dict. To verify `pacing_context` rendering, check `storytell.rendered_user` in extraction events or `narrate_prompt.rendered_user` at the event level.
@@ -110,10 +116,35 @@ ev.py momentum-check saves/my-game/events.jsonl             # momentum + band + 
 - `outcome_hint` missing from narrator prompt
 - Single beat type exceeds 60% of total beats
 - Removed directives still rendered in prompts
+- Beat types violate phase constraints (e.g., escalation in BREATHER)
 
 ---
 
-### 5. Inventory & Conditions
+### 5. Recent Beats History
+
+**What it validates:** recent_beats list structure, cap enforcement, monotonic turn numbers
+
+**What to look for:**
+- `recent_beats` exists in `state_snapshot.meta`
+- List capped at 5 entries (configurable via `recent_beats_max`)
+- Each entry has `turn`, `type`, and `surface_as` fields
+- Turn numbers are monotonically increasing
+
+**Commands:**
+```bash
+ev.py check 5 recent_beats --save-dir saves/my-game
+ev.py trace meta.recent_beats saves/my-game/events.jsonl    # recent beats over time
+```
+
+**Red flags:**
+- recent_beats missing from state
+- More than 5 entries in recent_beats
+- Missing type or surface_as fields in entries
+- Turn numbers not monotonically increasing
+
+---
+
+### 6. Inventory & Conditions
 
 **What it validates:** Inventory balance, condition lifecycle, cap enforcement
 
@@ -141,7 +172,7 @@ ev.py deltas 11 saves/my-game/events.jsonl                  # find inventory/con
 
 ---
 
-### 6. NPC Presence & Compendium
+### 7. NPC Presence & Compendium
 
 **What it validates:** NPC lifecycle, compendium consistency, no ghosting
 
@@ -169,7 +200,7 @@ ev.py npc-ghosting saves/my-game/events.jsonl               # detect NPC ghostin
 
 ---
 
-### 7. Location & Scene Transitions
+### 8. Location & Scene Transitions
 
 **What it validates:** Location continuity, scene tag evolution, no teleporting
 
@@ -196,7 +227,7 @@ ev.py diff 5 10 --section location saves/my-game/events.jsonl
 
 ---
 
-### 8. Sanitizer Lifecycle
+### 9. Sanitizer Lifecycle
 
 **What it validates:** Thread sanitization correctness, no orphan threads, no goal noops
 
@@ -224,7 +255,7 @@ ev.py goals saves/my-game/events.jsonl                      # goal changes over 
 
 ---
 
-### 9. LLM-Based Quality Checks (optional, slower)
+### 10. LLM-Based Quality Checks (optional, slower)
 
 **What they validate:** Narrative alignment, beat consequences, extraction fidelity
 
@@ -251,11 +282,11 @@ ev.py check 5 state_fidelity --llm --save-dir saves/my-game
 
 | If you want... | Command |
 |---|---|
-| Momentum trajectory | `ev.py trace pc.momentum saves/my-game/events.jsonl` |
+| Phase trajectory | `ev.py trace scene_phase saves/my-game/events.jsonl` |
 | Beat type over time | `ev.py trace compendium.meta.pending_gm_beat saves/my-game/events.jsonl` |
 | Thread mutations | `ev.py deltas <N> saves/my-game/events.jsonl` |
 | NPC changes between turns | `ev.py diff 3 10 --section npcs saves/my-game/events.jsonl` |
 | Inventory snapshot | `ev.py state --save-dir saves/my-game --format inventory` |
 | Full mechanics breakdown | `ev.py mechanics 12 --pacing --dice saves/my-game/events.jsonl` |
 | All checkers on all turns | `ev.py check --all --save-dir saves/my-game` |
-| Single checker on single turn | `ev.py check 5 momentum_lifecycle --save-dir saves/my-game` |
+| Single checker on single turn | `ev.py check 5 gm_beat_lifecycle --save-dir saves/my-game` |
