@@ -1,17 +1,3 @@
-Before I write, quick answers to your new questions, then the doc.
-
-**Ruling engine additional tasks:** Beyond tension delta, it could emit `player_intent_type` (aggressive/evasive/investigative/social) — that's a clean taxonomy it already implicitly knows. Could also flag `impossible_action` more explicitly as a pacing signal (player is flailing = stuck scene). Deferring thread assessment is right for now.
-
-**G1 — Phase as parent of beat:** Phase is the parent. Certain beat types are gated by phase — you can't emit `opportunity` in CRISIS without override, you can't emit `escalation` in BREATHER without triggering a re-entry to RISING. They don't work as equals — that's what created the original contradiction problem. Phase leads, beat follows, beat textures within the constraints phase sets.
-
-**G2 — Ruling intent signal:** Yes, "I shoot everyone" vs "I run" has value — not as a phase *decider* but as a phase transition *accelerant*. Aggressive player action in RISING should push toward CRISIS faster. It's a weight, not a veto.
-
-**G3 — Beats as BREATHER engine:** Exactly right. BREATHER beats surface opportunities, new threads, hazards. The beat system *is* the exit mechanism from BREATHER. Phase says "you're resting," beats say "but look over there." Smart beat selection here requires good context — this is where `recent_beats` history and thread state earn their keep.
-
-**Arc phase field:** Noted as an explicit integration callout, marked open/future scope.
-
-***
-
 # Scene Phase & Pacing Redesign
 
 ## Purpose
@@ -63,6 +49,7 @@ The current pacing system produces unresolvable scenes — combat encounters run
 | Beat history stored in `state["meta"]["recent_beats"]` | List of last 5 beats: `{turn: int, type: str, surface_as: str \| null}`. Null entries on storytell null turns. | Storyteller currently generates beats blind to prior turns. History is the minimum context needed to make diversity guidance testable by the LLM. 5 entries ≈ 100 tokens. |
 | `pending_gm_beat` cleared on null storytell output | Explicit pop when storytell returns null. No unconditional clear after narration. | Stale beats from prior turns were persisting through null turns and shaping narration incorrectly. Lifecycle: write on non-null, pop on null, expire on TTL. |
 | RESOLUTION triggered by `location_change` from extractor | Phase transitions to RESOLUTION when extractor emits `location_change`, or when CRISIS turn limit is exceeded (Python-enforced). | `location_change` is already extracted, binary, and requires no new surface. Acknowledged limitation: "won but stayed" edge case. Revisit with storytell `scene_resolved` field if this proves insufficient in play. |
+| `location_change` always routes to SETUP, never RESOLUTION | RESOLUTION is entered only via `crisis_turn_count >= crisis_turn_limit`. A `location_change` mid-crisis routes directly to SETUP. | Clean split between physical scene end (`location_change` → SETUP) and narrative scene end (crisis limit → RESOLUTION). Player escaping a crisis gets a SETUP turn in the new location; the crisis resolves implicitly in narration. No ambiguity when both signals fire simultaneously. |
 | BREATHER exit driven by new urgent thread | BREATHER → RISING when thread urgency count rises above 0. Beats in BREATHER are weighted toward `opportunity`, `revelation`, `hazard` to surface new threads organically. | BREATHER needs an active exit mechanism or it soft-locks. Beat weighting makes the exit organic — the storyteller surfaces new tension rather than the engine forcing a transition. |
 | Crisis turn limit is pack-configurable | `crisis_turn_limit: int` in pack-level config. Default 4. | Different genres need different crisis pacing. Horror: 6. Action: 3. One field, no logic change. |
 | BREATHER max turns backstop | `breather_max_turns: int = 3` in pack config. After 3 turns in BREATHER with no urgent thread, force RISING. | Prevents BREATHER soft-lock when beats fail to surface new threads. Independent safety net, not reliant on storyteller compliance. |
@@ -176,7 +163,7 @@ Phase transition inputs and their roles:
 |---|---|---|---|
 | `thread_urgency_count` | `state["arc"]["threads"]` (updated end of last turn) | Primary driver. Count of urgent scene-scoped threads. |
 | `tension_delta` | Ruling engine output (new field) | Accelerant. Aggressive player action pushes transitions faster. |
-| `consecutive_pressure_beats` | `state["meta"]` (rename of existing counter) | Confirmatory. 3 consecutive pressure beats during CRISIS trigger `enforce_relief`. |
+| `consecutive_pressure_beats` | `state["meta"]` (new counter, replaces `consecutive_pressure_turns`) | Confirmatory. 3 consecutive pressure beats during CRISIS trigger `enforce_relief`. |
 | `effective_scene_age` | `_compute_ages()` (existing) | Backstop. Prevents phase stalling if thread signals go quiet. |
 | `crisis_turn_count` | `state["scene"]` (new, int) | CRISIS duration counter. Enforces turn limit. |
 | `breather_turn_count` | `state["scene"]` (new, int) | BREATHER duration counter. Enforces backstop transition. |
@@ -216,7 +203,7 @@ Phase gates which beat types the storyteller may emit. This is enforced in the s
 | `RESOLUTION` | breathing_room, callback, revelation | escalation, complication |
 | `BREATHER` | opportunity, revelation, callback, breathing_room, hazard | escalation, pressure, complication |
 
-`enforce_relief` fires when `consecutive_pressure_beats >= 3` during CRISIS. Tracked via an independent `consecutive_pressure_beats: int` counter in `state["meta"]` (rename of existing `consecutive_pressure_turns`), not derived from `recent_beats`. This ensures `enforce_relief` is robust against storytell null turns padding `recent_beats` with null entries that would break streak integrity.
+`enforce_relief` fires when `consecutive_pressure_beats >= 3` during CRISIS. Tracked via an independent `consecutive_pressure_beats: int` counter in `state["meta"]` (replaces `consecutive_pressure_turns`), not derived from `recent_beats`. This ensures `enforce_relief` is robust against storytell null turns padding `recent_beats` with null entries that would break streak integrity.
 
 #### 4. Ruling Engine `tension_delta` Signal
 
@@ -256,7 +243,8 @@ Replaces the current 6-level priority stack with a 4-level stack driven by phase
 
 ```
 1. Breathe     — tension_delta == "de-escalates" AND thread_urgency == 0
-2. Scene Imperative — phase == CRISIS AND crisis_turn_count >= crisis_turn_limit
+2. Scene Imperative — (phase == CRISIS AND crisis_turn_count >= crisis_turn_limit)
+                      OR effective_scene_age >= scene_imperative_threshold
 3. Scene Pressure   — effective_scene_age >= scene_pressure_threshold (pack config)
 4. Tension / empty  — default
 ```
@@ -295,9 +283,9 @@ flowchart LR
     recent_beats list
     enforce_relief flag"]
 
-    BE -->|"BREATHER beats
-    surface opportunity/hazard/revelation
-    → new threads organically"| TH
+    BE -->|"BREATHER beats surface latent threads
+    as narrative context — player awareness
+    may promote them to urgent"| TH
 
     BE -->|"beat context
     (last turn's beat)"| NA
@@ -358,10 +346,10 @@ flowchart LR
 |---|---|---|
 | `narrative_velocity` | `turn.py` (`_compute_narrative_velocity()`), `PacingContext`, all consumers | Deleted with no replacement. Signal covered by `tension_delta` + thread urgency. |
 | `momentum` | `turn.py`, `state["meta"]`, `PacingContext`, narrator prompt context | Deleted with no replacement. Scene phase is the explicit state signal. |
-| `consecutive_pressure_turns` | `turn.py` end-of-turn counter, `state["meta"]` | Renamed to `consecutive_pressure_beats`. Tracks consecutive pressure-type beats for `enforce_relief`. |
+| `consecutive_pressure_turns` | `turn.py` end-of-turn counter, `state["meta"]` | Deleted. Replaced by new `consecutive_pressure_beats: int` counter in `state["meta"]` tracking consecutive pressure-type beat emissions from storytell. Not a rename — the old counter tracked directives; the new counter tracks beat types. Semantics are different. |
 | `beat_locked` | `PacingContext`, `_compute_pacing_context()` | Replaced by `enforce_relief` flag derived from `recent_beats`. |
 | `momentum_floor` config field | `EngineConfig` | Deleted with no replacement. |
-| `pacing_gate` (`block_escalate`/`allow`) | `PacingContext`, `turn.py`, `storytell_user.j2` | Redundant. Phase-constrained `allowed_beat_types` gates `thread_add`-type beats. |
+| `pacing_gate` (`block_escalate`/`allow`) | `PacingContext`, `turn.py`, `storytell_system.j2` (verify — may be `storytell_user.j2`) | Redundant. Phase-constrained `allowed_beat_types` gates `thread_add`-type beats by phase. Explicit post-facto thread-add blocking removed — phase self-corrects next turn. Confirm exact file location before removing from prompt templates. |
 | `Pressure` directive | `_compute_narration_directive()`, `narrate_system.j2` | Replaced by phase. Phase = RISING/CRISIS is more expressive. |
 | `Overwhelm` directive | `_compute_narration_directive()`, `narrate_system.j2` | Replaced by phase. |
 | `narrative_velocity` Breathe trigger | `_compute_narration_directive()` | Replaced by `tension_delta == "de-escalates" AND thread_urgency == 0`. |
@@ -388,7 +376,7 @@ flowchart LR
 # state["scene"] additions
 scene_phase: Literal["SETUP", "RISING", "CRISIS", "RESOLUTION", "BREATHER"] = "SETUP"
 crisis_turn_count: int = 0  # resets to 0 on each fresh CRISIS entry
-breather_turn_count: int = 0  # counts turns in BREATHER, resets on exit
+breather_turn_count: int = 0  # counts turns in BREATHER. Resets to 0 on each entry into BREATHER. Bounce-back (BREATHER → RISING → BREATHER) starts fresh.
 ```
 
 ```python
@@ -397,7 +385,7 @@ recent_beats: list[dict] = []
 # Each entry: {"turn": int, "type": str | None, "surface_as": str | None}
 # Capped at 5 entries. Null entries appended on storytell null turns.
 
-consecutive_pressure_beats: int = 0  # rename of existing consecutive_pressure_turns
+consecutive_pressure_beats: int = 0  # replaces consecutive_pressure_turns — tracks beat types, not directives
 ```
 
 ```python
@@ -407,11 +395,19 @@ tension_delta: Literal["escalates", "maintains", "de-escalates"]
 ```
 
 ```python
+# models.py — outcome_hint enum update
+# outcome_hint gains a new valid value: "transition"
+# Signals narrator to wrap the current crisis and hand off to next phase.
+# Requires adding "transition" to the outcome_hint Literal or enum in models.py.
+# Existing values ("advance", "setback", etc.) are unchanged.
+```
+
+```python
 # EngineConfig additions
 crisis_urgency_threshold: int = 2   # urgent threads needed for SETUP/RISING → CRISIS transition
 crisis_turn_limit: int = 4          # max turns in CRISIS before forced RESOLUTION
 scene_pressure_threshold: int = 3   # effective_scene_age to fire Scene Pressure (existing)
-scene_imperative_threshold: int = 4 # effective_scene_age to fire Scene Imperative (existing)
+scene_imperative_threshold: int = 4 # effective_scene_age to fire Scene Imperative. Intentional tightening from prior value of 5. Pack authors may adjust.
 breather_max_turns: int = 3         # max turns in BREATHER before forced RISING transition
 ```
 
@@ -420,4 +416,15 @@ breather_max_turns: int = 3         # max turns in BREATHER before forced RISING
 allowed_beat_types: list[str]       # derived from scene_phase, passed to storytell
 enforce_relief: bool                # derived from consecutive_pressure_beats during CRISIS
 ```
+
+## Context for Implementing LLMs
+
+- `ccya/engine/turn.py` — Primary implementation file. Contains `_compute_ages()`, `_compute_narration_directive()`, `_compute_pacing_context()`, `run_turn()`, and the beat lifecycle blocks. All phase computation, directive changes, beat lifecycle fixes, and ruling signal consumption happen here.
+- `ccya/models.py` — `ArcThread`, `IntentEnvelope`, `RulesOutcome` (ruling output model). Read before touching any field names. New fields (`tension_delta` on ruling output, `outcome_hint` enum update) must be added here first. Note: `EngineConfig` is in `ccya/engine/config.py`; `PacingContext` is in `ccya/engine/turn.py`.
+- `ccya/engine/ruling.py` — Ruling engine implementation. `tension_delta` is a new output field. Understand what the ruling engine currently emits before adding to its output schema.
+- `ccya/prompts/storytell_system.j2` — Receives `scene_phase` and `allowed_beat_types`. Beat constraint table is enforced here via prompt context. Directive→beat mapping table must be updated: remove `Pressure` and `Overwhelm` rows, add rows keyed to `RISING` and `CRISIS` phase values. Verify whether `pacing_gate` lives here or in `storytell_user.j2` before removing it.
+- `ccya/prompts/storytell_user.j2` — Per-turn user context for storytell. Verify whether `pacing_gate` lives here before removing it. `recent_beats` in `state["meta"]` — verify whether this field already exists before adding it. It was observed rendered in `storytell_user.j2` lines 40–43. If present, this design changes write/pop semantics only and adds null-entry appending on storytell null turns. Do not re-create it as a new field if it already exists.
+- `ccya/prompts/narrate_system.j2` — Directive definitions. `Pressure` and `Overwhelm` are removed. `Breathe` trigger description changes. Read current directive section before modifying.
+- `docs/design/complete/pacing-beat-system-design.md` — Prior design authority. Beat lifecycle null-clear logic and `recent_beats` history approach originated here. Read for context; this document supersedes it where they conflict.
+- `docs/design/complete/gm-signals-design.md` — Prior design authority. `effective_scene_age` combat boost, beat carryover fix, and `consecutive_pressure_turns` approach originated here. Read for context; this document supersedes it where they conflict.
 
