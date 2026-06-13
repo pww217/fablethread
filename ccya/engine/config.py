@@ -156,6 +156,10 @@ class EngineConfig:
     # Scene pacing thresholds (turns before directive triggers)
     scene_pressure_threshold: int = 3
     scene_imperative_threshold: int = 4
+    # Scene phase thresholds
+    crisis_urgency_threshold: int = 2   # urgent threads needed for SETUP/RISING → CRISIS transition
+    crisis_turn_limit: int = 4          # max turns in CRISIS before forced RESOLUTION
+    breather_max_turns: int = 3         # max turns in BREATHER before forced RISING transition
     # Momentum influence on narrative direction (scaling factor, capped at ±factor)
     momentum_pacing_factor: float = 0.5
     # Near-miss softening: whether near-fails get softer narration directive text
@@ -275,6 +279,9 @@ def build_engine_config(
         difficulty_curve=game.get("difficulty_curve", "balanced"),
         scene_pressure_threshold=int(game.get("scene_pressure_threshold", 3)),
         scene_imperative_threshold=int(game.get("scene_imperative_threshold", 4)),
+        crisis_urgency_threshold=int(game.get("crisis_urgency_threshold", 2)),
+        crisis_turn_limit=int(game.get("crisis_turn_limit", 4)),
+        breather_max_turns=int(game.get("breather_max_turns", 3)),
         momentum_pacing_factor=float(game.get("momentum_pacing_factor", 0.5)),
         near_miss_softening=bool(game.get("near_miss_softening", True)),
         thread_memory_ttl=int(game.get("thread_memory_ttl", 3)),
