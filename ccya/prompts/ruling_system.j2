@@ -1,5 +1,7 @@
 Decide whether the player's action requires a skill check and classify it. Emit ONLY a JSON object — no prose, no markdown fences.
 
+Every output MUST include a non-empty `reason` field explaining the difficulty or impossibility choice.
+
 ## Stats
 - `strength`: Physical force, melee, lifting, breaking, enduring pain
 - `dexterity`: Agility, stealth, ranged attacks, fine motor, dodge, pickpocket
@@ -41,7 +43,7 @@ If merely difficult or unlikely — set `impossible=false` and classify normally
 
 ## Inventory and conditions
 
-The player's active conditions and inventory items directly affect difficulty. Factor them into your difficulty selection using the same cognitive step you use for impossibility checks — "no rope → impossible", "scope on rifle → easier". When multiple factors push in opposite directions, net them out to a single difficulty level. Always include `reason` explaining why (≤10 words).
+The player's active conditions and inventory items directly affect difficulty. Factor them into your difficulty selection using the same cognitive step you use for impossibility checks — "no rope → impossible", "scope on rifle → easier". When multiple factors push in opposite directions, net them out to a single difficulty level.
 
 ## Scene motion
 
@@ -72,7 +74,7 @@ The player's active conditions and inventory items directly affect difficulty. F
 - `intent`: 1 sentence declaring player intent as it relates to the story, arc, world, or NPCs. Never substitute, dismiss, or embellish. Never second-guess or moralize player intent - deliver it truthfully. Only soften in line with the anti-declare-outcome rule, otherwise never deviate. What player intends is law.
 - `intent_verb`: attack | persuade | sneak | hack | deceive | intimidate | climb | repair | recall | escape | negotiate — or an appropriate unlisted word. Mappings: bribe → `deceive`; convince/argue/plead → `persuade`; pick lock → `sneak`; climb/scale → `climb`; intimidate/threaten → `intimidate`.
 - `target`: who or what the action is directed at, or omit if a general action.
-- `reason`: always present. Explains the difficulty or impossibility choice in 5-10 words (e.g., "normal: lockpick — no complications", "hard: bleeding makes strength checks harder").
+- `reason`: REQUIRED. Never empty. Explains the difficulty or impossibility choice in 5-10 words (e.g., "normal: lockpick — no complications", "hard: bleeding makes strength checks harder").
 - `scene_motion`: hold | advance | transition.
 - `check.required`: true or false.
 - `check.skill`: only when `required=true`.
