@@ -14,7 +14,7 @@ flowchart LR
         S1["narrative (from Step 1)"]:::xstream
         S2["_ExtractionContext<br>(comp_this_turn, location,<br>inventory, conditions)<br>built by _build_extraction_context()"]:::xstream
         S3["npc_roster<br>(from build_npc_roster())"]:::xstream
-        S4["pacing_context<br>(directive · beat_locked)"]:::xstream
+        S4["pacing_context<br>(directive · outcome_hint)"]:::xstream
         S4b["scene_phase<br>(SETUP/RISING/CRISIS/RESOLUTION/BREATHER)"]:::xstream
         S4c["allowed_beat_types<br>(phase-derived list of permitted beat types)"]:::xstream
         S5["arc.threads[]<br>(unified scope=scene + scope=arc)"]:::xstream
@@ -63,16 +63,15 @@ GMBeat
 
 **Validation:** Only `type` is validated by `StorytellerResult._nullify_invalid_gm_beat` — nullified if type is falsy or not in the valid set. No validation on `surface_as`. Python accepts whatever gm_beat the LLM emits with no correction or override.
 
-### PacingContext Beat Fields
+### PacingContext Fields
 
-The beat system intersects with pacing via two fields in `PacingContext` (see [step0-ruling](./step0-ruling.md#pacing-context)):
+The beat system intersects with pacing via the `directive` field in `PacingContext` (see [step0-ruling](./step0-ruling.md#pacing-context)):
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `directive` | str | May include secondary modifier `"; Resolve a Threat"` when `beat_locked=True` (except Breathe). Drives storytell guidance for beat type selection. |
-| `beat_locked` | bool | True when either `consecutive_pressure_turns >= threshold` OR `momentum <= momentum_floor`. When locked, `"Resolve a Threat"` is appended to the directive (except Breathe). Enables floor relief to inject a breathing_room beat if the storyteller is stuck in a pressure-type loop (only when not from momentum floor). |
+| `directive` | str | Narration directive (e.g., "Breathe", "Scene Imperative", "Scene Pressure", or empty). Drives storytell guidance for beat type selection. |
 
-> **Note:** `gate` field on `PacingContext` is always `"allow"` after Plan 2. Templates no longer render it. Phase-derived `allowed_beat_types` is the gating mechanism for beat type selection.
+> **Note:** `beat_locked` and `gate` fields were removed from `PacingContext` in the phase engine overhaul. Floor relief is now driven by `enforce_relief` derived from `scene_phase` and `consecutive_pressure_beats`. Phase-derived `allowed_beat_types` is the gating mechanism for beat type selection.
 
 ### Beat Lifecycle — Turn Sequence
 
@@ -95,7 +94,7 @@ flowchart TD
     STORYLLM -- "yes" --> STORED["state.meta.pending_gm_beat = storyteller beat<br>beat_expires_turn = turn_no + 2 (TTL: 2 turns)"]:::output
 
     STORYLLM -- "no / null" --> POPPED["state.meta.pending_gm_beat = None<br>(key popped from meta)"]:::pyNode
-    POPPED --> FLOOR{"beat_locked == True<br>AND (pending_gm_beat is None<br>    OR type in pressure types)<br>AND NOT triggered_by_momentum?"}:::decision
+    POPPED --> FLOOR{"enforce_relief == True<br>AND (pending_gm_beat is None<br>    OR type in pressure types)"}:::decision
     STORED --> FLOOR
 
     FLOOR -- yes --> BREATHING["Inject breathing_room beat<br>overrides any pressure-type pending beat<br>beat_expires_turn = turn_no + 2"]:::output
@@ -103,7 +102,7 @@ flowchart TD
     FLOOR -- no --> APPEND_BEATS["recent_beats.append(snapshot)"]:::pyNode
     BREATHING --> APPEND_BEATS
 
-    APPEND_BEATS --> COUNTER["consecutive_pressure counter<br>updated from gm_beat.type"]:::pyNode
+    APPEND_BEATS -->     COUNTER["consecutive_pressure_beats counter<br>updated from gm_beat.type"]:::pyNode
     COUNTER --> DONE["Turn ends"]:::pyNode
 
     STORED -. "next turn" .-> START
@@ -116,7 +115,7 @@ flowchart TD
 
 **Step 1 — Pre-narration expiry check.** At the start of each turn, the engine reads `state.meta.pending_gm_beat` from the previous turn. If `beat_expires_turn` is set and the current turn number exceeds it, the beat is nullified (key set to None). Otherwise it proceeds to narration.
 
-Note: This expiry runs early enough that the beat is gone before the extraction phase begins. This is intentional — it creates clean state for floor relief to inject breathing_room if `beat_locked` is active and storyteller doesn't provide its own non-pressure beat. Without the pre-narration expiry, a stale expired beat could block floor relief's null check.
+Note: This expiry runs early enough that the beat is gone before the extraction phase begins. This is intentional — it creates clean state for floor relief to inject breathing_room if `enforce_relief` is active and storyteller doesn't provide its own non-pressure beat. Without the pre-narration expiry, a stale expired beat could block floor relief's null check.
 
 **Step 2 — Narration consumption.** The beat is passed to the narrator via `_narrate_messages(pending_gm_beat=...)`. The narrator uses the beat's `type` and `surface_as` metadata as creative guidance alongside the pacing directive. The beat is NOT cleared after narration — it persists through the extraction phase.
 
@@ -124,20 +123,20 @@ Note: This expiry runs early enough that the beat is gone before the extraction 
 - If Storytell emits a valid `gm_beat` (non-null `type`): replaces `pending_gm_beat` with `beat_expires_turn = turn_no + 2`.
 - If Storytell emits `null` or an invalid beat: pops `pending_gm_beat` from state (null-clear). The old beat does NOT carry forward.
 
-**Step 4 — Floor relief injection.** After delta apply, if `beat_locked=True` AND the current `pending_gm_beat` is either `None` or a pressure-type (`pressure`, `escalation`, `complication`) AND the beat was NOT triggered by momentum floor: injects a `breathing_room` beat with `beat_expires_turn = turn_no + 2`. This overrides pressure-type beats that would otherwise continue the pressure cycle, but does NOT override non-pressure beats the storyteller independently produced (e.g., `revelation`, `opportunity`, `breathing_room`).
+**Step 4 — Floor relief injection.** After delta apply, if `enforce_relief=True` (phase is CRISIS and `consecutive_pressure_beats >= config.consecutive_pressure_threshold`) AND the current `pending_gm_beat` is either `None` or a pressure-type (`pressure`, `escalation`, `complication`): injects a `breathing_room` beat with `beat_expires_turn = turn_no + 2`. This overrides pressure-type beats that would otherwise continue the pressure cycle, but does NOT override non-pressure beats the storyteller independently produced (e.g., `revelation`, `opportunity`, `breathing_room`).
 
 **Step 5 — Beat history snapshot.** `pending_gm_beat` is appended to `state.meta.recent_beats` (capped at 5 entries). The snapshot is taken after any floor relief override, so it reflects the beat the next turn's narrator will consume.
 
-**Step 6 — Consecutive pressure counter update.** The counter increments on pressure-type beats and resets to 0 otherwise.
+**Step 6 — Consecutive pressure beats counter update.** The counter increments on pressure-type beats and resets to 0 otherwise.
 
 ### Floor Relief Injection
 
-The floor relief mechanism fires after delta apply when `_pc.beat_locked=True` AND the current `pending_gm_beat` is either `None` or a pressure-type beat (`pressure`, `escalation`, `complication`) AND NOT triggered by momentum floor. It injects a `breathing_room` beat with TTL of 2 turns (same as storyteller-emitted beats, despite architecture docs claiming 3).
+Floor relief is now driven by the phase engine, not the old momentum system. It fires after delta apply when `enforce_relief=True` (phase is CRISIS and `consecutive_pressure_beats >= config.consecutive_pressure_threshold`) AND the current `pending_gm_beat` is either `None` or a pressure-type beat (`pressure`, `escalation`, `complication`). It injects a `breathing_room` beat with TTL of 2 turns (same as storyteller-emitted beats, despite architecture docs claiming 3).
 
 Floor relief is a **fallback override** — it breaks a pressure-type run by force-injecting recovery:
 - If Storytell emitted a pressure-type beat → floor relief overrides it with breathing_room.
 - If Storytell emitted a non-pressure beat (revelation, opportunity, breathing_room, etc.) → floor relief lets it stand. Relief is already being achieved.
-- If Storytell emitted nothing (null) → floor relief injects breathing_room. This is appropriate: after a null turn with beat_locked active, relief is needed.
+- If Storytell emitted nothing (null) → floor relief injects breathing_room. This is appropriate: after a null turn with enforce_relief active, relief is needed.
 
 ### Phase-Beat Constraints
 
