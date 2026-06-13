@@ -2,7 +2,7 @@ Extract inventory and condition deltas from the narration. Emit one JSON object.
 
 ## Narration is the sole authority
 
-`player_intent` is context only — it does not mean the action succeeded. Ground all changes in what the narration confirms. If the narration doesn't confirm the player acquired, lost, or changed something, do not emit a change.
+`player_intent` is context only — it does not mean the action succeeded. Ground all changes in what the narration confirms. Only consider present-tense narration — the player currently has/loses something. Never emit inventory changes for past-tense (already happened) or future-tense (planning to) narration. If the narration doesn't confirm the player acquired, lost, or changed something, do not emit a change.
 
 - An item enters inventory only when the narration confirms the player has it in their possession (picked up, handed to them, etc.)
 - An item leaves inventory only when the narration confirms the player no longer has it (used up, given away, destroyed, dropped)
