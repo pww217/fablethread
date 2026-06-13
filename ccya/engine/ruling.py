@@ -96,6 +96,8 @@ async def _call_ruling(
             if j is None:
                 raise ValueError("No JSON found in ruling response")
             intent = IntentEnvelope(**j)
+            if not intent.reason.strip():
+                raise ValueError(f"reason is empty — must explain the difficulty or impossibility choice in 5-10 words (got reason={j.get('reason', '')!r})")
             if intent.check.required and not intent.check.skill:
                 raise ValueError(f"check.required=true but check.skill is missing/empty (got {j.get('check', {}).get('skill', None)})")
             return intent, {
