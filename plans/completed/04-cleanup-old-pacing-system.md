@@ -1,5 +1,8 @@
 # Plan 4: Cleanup — Delete Old Pacing System
 
+## Status
+`completed`
+
 ## Purpose
 
 Remove all references to the deleted pacing system (`momentum`, `narrative_velocity`, `consecutive_pressure_turns`, `beat_locked`, `pacing_gate`, `momentum_floor`, `momentum_pacing_factor`, `momentum_ceiling`, `Pressure`/`Overwhelm` directives) from every file in the codebase. After Plans 1-3 are implemented, these fields and signals have no consumers and no behavioral effect — they are dead code and stale state. Note: `consecutive_pressure_threshold` is kept — it's repurposed by the new phase engine.
