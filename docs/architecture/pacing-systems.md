@@ -1,8 +1,10 @@
 # Pacing Systems — Interconnected Mechanics
 
-CCYA's pacing is not a single mechanism but four interlocking systems that share state, trigger each other, and produce emergent scene rhythm. This document maps every connection, variable, and code path.
+> **NOTE:** The old momentum-based pacing system was removed in Plan 4. This document now describes the current phase engine system only.
 
-## 1. The Four Systems
+CCYA's pacing is driven by a phase engine that computes scene rhythm from thread urgency, tension_delta, and scene age.
+
+## 1. The Phase Engine
 
 ```mermaid
 flowchart TD
@@ -10,71 +12,61 @@ flowchart TD
     classDef shared fill:#1f2937,color:#9ca3af,stroke:#4b5563,strokeWidth:1px
     classDef output fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
 
-    M["Momentum<br>state.pc.momentum<br>[-3, +3]"]:::system
-    B["GM Beats<br>state.meta.pending_gm_beat<br>type + surface_as + TTL"]:::system
-    P["Pacing Context<br>PacingContext struct<br>directive · gate · beat_locked"]:::system
-    T["Thread Lifecycle<br>arc.threads[]<br>urgency + active + progress"]:::system
+    S["Scene State<br>scene_phase, tension_delta, thread_urgency"]:::system
+    PE["Phase Engine<br>derive_enforce_relief, derive_allowed_beat_types"]:::system
+    PC["PacingContext<br>directive · outcome_hint · summary"]:::system
+    N["Narrator<br>prose generation"]:::output
+    SB["Storytell<br>beat/thread selection"]:::output
 
-    M --- shared1["state.pc.momentum"]:::shared
-    B --- shared2["state.meta.pending_gm_beat"]:::shared
-    B --- shared3["state.meta.consecutive_pressure_turns"]:::shared
-    B --- shared4["state.meta.recent_beats"]:::shared
-    P --- shared5["ctx._deescalate"]:::shared
-    P --- shared6["ctx._ages"]:::shared
-    T --- shared7["arc.threads[] urgency counts"]:::shared
+    S --- shared1["scene_phase"]:::shared
+    S --- shared2["consecutive_pressure_beats"]:::shared
+    S --- shared3["arc.threads[] urgency counts"]:::shared
 
-    M -. "triggers" .-> B
-    M -. "triggers" .-> P
-    T -. "feeds urgency counts" .-> P
-    B -. "feeds consecutive_pressure" .-> P
-    P -. "feeds directive" .-> T
-    P -. "feeds outcome_hint" .-> N["Narrator<br>prose generation"]:::output
-    B -. "feeds pending_gm_beat" .-> N
-    T -. "feeds arc context" .-> N
+    S --> PE --> PC
+    PC -. "feeds outcome_hint" .-> N
+    PC -. "feeds directive" .-> SB
+    SB -. "feeds pending_gm_beat" .-> N
 ```
 
-## 2. Momentum
+## 2. Phase Engine
 
 ### Definition
 
-`state.pc.momentum` is an integer in `[-3, +3]` representing narrative fortune. It shifts based on dice roll outcomes and drives urgency, beat injection, and floor relief.
+The phase engine tracks `state["scene"]["scene_phase"]` through five states: SETUP, RISING, CRISIS, RESOLUTION, BREATHER. Transitions are driven by thread urgency, scene age, and tension_delta.
 
-### How it changes
+### Phase transitions
 
-| Source | Condition | Effect |
-|--------|-----------|--------|
-| Ruling phase (turn.py) | `band == "crit_success"` | `+2` |
-| Ruling phase | `band == "success"` | `+1` |
-| Ruling phase | `band == "partial"` | `0` (no change) |
-| Ruling phase | `band == "setback"` | `-1` |
-| Ruling phase | `band == "fail"` | `-1` |
-| Ruling phase | `band == "crit_fail"` | `-2` |
-| Ruling phase | `impossible=true` | `-1` (forced fail, no roll) |
-| Ruling phase | `avoidance` detected | `-1` |
+| From | To | Condition |
+|------|-----|-----------|
+| SETUP | RISING | Urgent thread appears |
+| RISING | CRISIS | ≥threshold urgent threads OR escalates+urgent OR age≥pressure_threshold |
+| CRISIS | RESOLUTION | crisis_turn_count≥limit |
+| RESOLUTION | SETUP | Location change |
+| RESOLUTION | BREATHER | No location change |
+| BREATHER | RISING | Urgent thread appears OR breather_max_turns elapsed |
 
-Momentum is clamped to `[-3, +3]` after each modification.
+### Consecutive pressure counter
 
-### How momentum is consumed
+`state["meta"]["consecutive_pressure_beats"]` tracks how many consecutive turns have had pressure-type storyteller beats.
 
-Momentum feeds into three downstream systems:
+- **Increments** when `storyteller_result.gm_beat.type` is `"pressure"`, `"escalation"`, or `"complication"`.
+- **Resets to 0** on any other beat type, null beat, or missing storyteller output.
 
-```mermaid
-flowchart LR
-    MOM["momentum<br>[-3, +3]"] --> NVE["narrative_velocity<br>normalized_momentum × 0.5"]
-    MOM --> BL1{"momentum ≤ -3?"}
-    BL1 -- yes --> BL2["beat_locked = True"]
-    BL1 -- no --> BL3["beat_locked = False<br>(unless pressure counter fires)"]
-    MOM --> DEE["deescalate check<br>in _compute_pacing_context"]
+When this counter reaches `config.consecutive_pressure_threshold` (default 3), it contributes to `enforce_relief=True` which forces breathing_room beats during CRISIS phase.
 
-    style MOM fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
-    style BL2 fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
-```
+### Floor relief
+
+When `enforce_relief=True` (derived from scene phase and consecutive_pressure_beats), the system injects `breathing_room` beats to prevent pressure fatigue. This replaces the old momentum-floor-based relief injection.
+
+---
+
+> **NOTE:** The following sections describe the old momentum-based pacing system, which was removed in Plan 4. They are preserved for historical reference only.
 
 - **Narrative velocity** (for directive computation): if `deescalate > 0`, returns `-deescalate`; if `avoidance`, returns `-0.4`; otherwise normalizes momentum to `[-1.0, 1.0]` range and scales by `pacing_factor` (default 0.5)
 - **Beat locking**: `momentum <= -3` is one of two triggers for `beat_locked`
 - **Deescalate**: momentum itself doesn't directly set deescalate, but low momentum makes failure more likely, which prevents deescalate from firing (deescalate requires success)
 
-### Code locations
+### Code locations (old)
 
 | File | Line(s) | What |
 |------|---------|------|

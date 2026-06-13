@@ -10,7 +10,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, AsyncIterator, Literal
+from typing import Any, AsyncIterator
 
 
 from ccya.engine.changes import _summarize_applied, summarize_changes
@@ -52,7 +52,6 @@ from ccya.errors import ErrorKind, LlmcTimeout, LlmcError
 from ccya.rules import resolve_check, build_directive
 from ccya.state import (
     apply_delta,
-    apply_momentum,
     append_chronicle,
     append_event,
     load_last_narration,
@@ -99,16 +98,14 @@ class TurnContext:
 @dataclass
 class PacingContext:
     """Consolidated pacing decision for Narrate and Progress steps."""
-    directive: str  # "Breathe" | "Scene Imperative" | "Overwhelm" | "Pressure" | "Tension" | "Scene Pressure" | "" (may include "; Resolve a Threat" secondary when beat_locked)
+    directive: str  # "Breathe" | "Scene Imperative" | "Tension" | "Scene Pressure" | ""
     outcome_hint: str | None  # narrator's primary scene motion instruction
-    beat_locked: bool  # True: floor relief fired — Progress MUST emit breathing_room beat; gate is unaffected (controlled by deescalate independently)
-    gate: Literal["block_escalate", "allow"]  # Progress may only add threads when allow
     summary: str  # human-readable log string, never sent to LLM
 
     @staticmethod
     def neutral() -> PacingContext:
         """Default pacing context for turns without special conditions."""
-        return PacingContext(directive="", outcome_hint="hold", beat_locked=False, gate="allow", summary="neutral")
+        return PacingContext(directive="", outcome_hint="hold", summary="neutral")
 
 
 
@@ -408,41 +405,6 @@ def _apply_thread_resolutions(
     })
 
 
-def _compute_narrative_velocity(
-    deescalate: float,
-    momentum: int,
-    avoidance: bool,
-    momentum_floor: int = -3,
-    momentum_ceiling: int = 3,
-    pacing_factor: float = 0.5,
-) -> float:
-    """Compute a signed pacing scalar in [-1.0, 1.0].
-
-    Negative values signal de-escalation (breathe, slow down).
-    Positive values signal escalation (pressure, urgency).
-    Zero is neutral.
-
-    Priority:
-      1. Explicit de-escalation from a successful check beats everything.
-      2. Avoidance keyword in player input nudges negative.
-      3. Momentum outside floor/ceiling normalizes toward +/-0.5.
-      4. Default: 0.0 (neutral, let pressure/beat directives govern).
-    """
-    if deescalate > 0:
-        return -deescalate
-
-    if avoidance:
-        return -0.4
-
-    span = momentum_ceiling - momentum_floor
-    if span <= 0:
-        return 0.0
-    midpoint = (momentum_ceiling + momentum_floor) / 2.0
-    normalized = (momentum - midpoint) / (span / 2.0)
-    # Scale down -- momentum alone shouldn't dominate; caps at +/-pacing_factor
-    return max(-pacing_factor, min(pacing_factor, normalized * pacing_factor))
-
-
 def _compute_narration_directive(
     scene_phase: str,
     tension_delta: TensionDelta,
@@ -495,7 +457,6 @@ def _compute_pacing_context(
     """Compute unified pacing context for Narrate and Progress steps.
 
     Driven by scene_phase, tension_delta, thread urgency, and age.
-    Old fields (beat_locked, gate) remain until Plan 4 — set to defaults.
     """
     # Compute directive using new signal set
     directive = _compute_narration_directive(
@@ -508,12 +469,6 @@ def _compute_pacing_context(
         scene_pressure_threshold=scene_pressure_threshold,
         scene_imperative_threshold=scene_imperative_threshold,
     )
-
-    # beat_locked: set to False (old trigger conditions no longer exist, enforce_relief replaces it)
-    beat_locked = False
-
-    # gate: set to "allow" (old deescalate-gate logic removed)
-    gate: Literal["block_escalate", "allow"] = "allow"
 
     # outcome_hint: driven by scene_motion from intent + existing fallbacks
     # Add: when phase CRISIS hits turn limit, override to "transition"
@@ -529,8 +484,6 @@ def _compute_pacing_context(
     return PacingContext(
         directive=directive or "",
         outcome_hint=outcome_hint,
-        beat_locked=beat_locked,
-        gate=gate,
         summary=summary,
     )
 
@@ -700,7 +653,6 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
             impossible=True,
             reason=intent.reason,
         )
-        apply_momentum(state, band)
         _log.info(
             "impossible action: %s — %s",
             intent.intent_verb, intent.reason,
@@ -735,10 +687,6 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
         outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
 
     ctx.outcome = outcome
-
-    # Apply momentum deterministically from band (never from LLM)
-    if outcome.rolled:
-        apply_momentum(state, outcome.band)
 
     # De-escalation magnitude
     deescalate: float = 0.0
@@ -791,8 +739,8 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
     return intent, outcome, ruling_metrics, deescalate, phase_events
 
 
-async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any, float]:
-    """Build narration context and messages. Returns (pacing_ctx, narr_messages, narrative_velocity)."""
+async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
+    """Build narration context and messages. Returns (pacing_ctx, narr_messages)."""
     state = ctx.state
     config = ctx.config
     turn_no = state.get("meta", {}).get("turn", 0) + 1
@@ -823,9 +771,6 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any, float]:
     _pack_narrator_rules = ctx.packing.get("narrator_rules", [])
     _pack_world_rules = ctx.packing.get("world_rules", [])
     _world_factions = ctx.packing.get("factions", [])
-
-    # narrative_velocity placeholder — old signal computation removed, set to 0.0
-    narrative_velocity = 0.0
 
     # Phase engine: compute scene_phase before directive computation
     tension_delta = ctx.intent.tension_delta if ctx.intent else "maintains"
@@ -873,14 +818,14 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any, float]:
         recent_turns=ctx.recent_turns[-1:],
         narrator_rules=_pack_narrator_rules, world_rules=_pack_world_rules,
         rules_outcome=ctx.outcome, npc_name_pool=_npc_name_pool,
-        momentum=(state.get("pc") or {}).get("momentum", 0), pending_beat=_pending_gm_beat,
+        pending_beat=_pending_gm_beat,
         pacing_context=_pc, ages=ctx._ages, pc_allegiance=_pc_allegiance, turn_no=turn_no,
         world_factions=_world_factions,
         npc_roster=build_npc_roster(_comp, personality_registry=ARCHETYPES),
         arc_ttl=config.arc_memory_ttl, thread_ttl=config.thread_memory_ttl,
     )
 
-    return _pc, narr_messages, narrative_velocity
+    return _pc, narr_messages
 
 
 async def run_turn(
@@ -931,14 +876,12 @@ async def run_turn(
         )
 
         # === Call 0: Rules / intent classification (extracted phase) ===
-        momentum_before = state.get("pc", {}).get("momentum", 0.0)
         _intent, _outcome, ruling_metrics, deescalate, ruling_phase_events = await _ruling_phase(ctx)
         if is_cancel_requested(str(save_dir)):
             return
         for evt in ruling_phase_events:
             yield evt
         ctx._deescalate = deescalate
-        momentum_after = state.get("pc", {}).get("momentum", 0.0)
 
         # Capture ruling context for event logging (from ctx where ruling phase stored them)
         rendered_ruling_system = ctx._rendered_ruling_system or ""
@@ -957,7 +900,7 @@ async def run_turn(
         yield ("phase", {"phase": "narrate_start", "expected_ms": exp_narrate_ms})
 
         # Build narration context and messages (extracted phase)
-        _pc, narr_messages, narrative_velocity = await _narrate_setup(ctx)
+        _pc, narr_messages = await _narrate_setup(ctx)
 
         # Trim + log (stays inline for simplicity)
         rendered_narr_system = narr_messages[0]["content"] if narr_messages else ""
@@ -1075,22 +1018,20 @@ async def run_turn(
             else:
                 state.get("meta", {}).pop("pending_gm_beat", None)
 
-            # Floor relief injection — runs BEFORE apply_delta so breathing_room persists through the deep copy. Post-apply block was moved here and removed from its original location.
-            # MB-3: only inject floor relief when beat_locked is caused by consecutive pressure, not momentum crisis
-            if _pc.beat_locked:
-                cur_momentum = int((state.get("pc") or {}).get("momentum", 0))
-                triggered_by_momentum = (cur_momentum <= config.momentum_floor)
-
-                # Don't inject ambient beats during momentum crisis — player needs escalation, not breathing room
-                if not triggered_by_momentum:
-                    _current_beat = state.get("meta", {}).get("pending_gm_beat")
-                    if _current_beat is None or _current_beat.get("type") in PRESSURE_BEAT_TYPES:
-                        meta = state.setdefault("meta", {})
-                        meta["pending_gm_beat"] = {
-                            "type": "breathing_room",
-                            "surface_as": "ambient",
-                            "beat_expires_turn": turn_no + 2,
-                        }
+            # Floor relief injection — runs BEFORE apply_delta so breathing_room persists through the deep copy.
+            # Inject breathing_room when CRISIS phase has enough consecutive pressure beats
+            scene_phase = (state.get("scene") or {}).get("scene_phase", "SETUP")
+            consecutive_pressure = (state.get("meta") or {}).get("consecutive_pressure_beats", 0)
+            enforce_relief = scene_phase == "CRISIS" and consecutive_pressure >= config.consecutive_pressure_threshold
+            if enforce_relief:
+                _current_beat = state.get("meta", {}).get("pending_gm_beat")
+                if _current_beat is None or _current_beat.get("type") in PRESSURE_BEAT_TYPES:
+                    meta = state.setdefault("meta", {})
+                    meta["pending_gm_beat"] = {
+                        "type": "breathing_room",
+                        "surface_as": "ambient",
+                        "beat_expires_turn": turn_no + 2,
+                    }
 
             # Consecutive pressure beats counter: tracks beat type streaks, not directive types
             _current_beat = state.get("meta", {}).get("pending_gm_beat")
@@ -1274,45 +1215,40 @@ async def run_turn(
                             update={"arc_update": resolved_arc}
                         )
 
-                # Enforce PacingContext gate on thread_add
                 if storyteller_result.thread_add:
                     _new_thread = storyteller_result.thread_add
                     turn_no_for_add = state.get("meta", {}).get("turn", 0) + 1
-                    gate_ok = _pc is None or _pc.gate == "allow"
-                    if not gate_ok:
-                        _log.debug("thread_add blocked by pacing gate %s at T%d", getattr(_pc, 'gate', 'unknown'), turn_no_for_add)
-                    else:
-                        arc_raw = state.get("arc")
-                        if arc_raw and delta is not None:
-                            try:
-                                _existing_arc = CampaignArc.model_validate(arc_raw)
-                                existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
-                                if _new_thread.id not in existing_ids:
-                                    _updated_t = _new_thread.model_copy(update={
-                                        "added_turn": turn_no_for_add,
-                                        "urgency_set_turn": turn_no_for_add,
-                                    })
-                                    arc_with_new_thread = _existing_arc.model_copy(
-                                        update={"threads": list(_existing_arc.threads) + [_updated_t],
-                                                "last_thread_created_turn": turn_no_for_add}
-                                    )
-                                    if config:
-                                        active = [t for t in arc_with_new_thread.threads if t.active]
-                                        if len(active) > config.thread_max_active:
-                                            evict = min(active, key=lambda t: t.last_updated_turn or 0)
-                                            evicted = evict.model_copy(update={"active": False, "last_updated_turn": turn_no_for_add})
-                                            arc_with_new_thread = arc_with_new_thread.model_copy(
-                                                update={"threads": [evicted if t.id == evict.id else t for t in arc_with_new_thread.threads]}
-                                            )
-                                            _log.info(
-                                                "thread_cap.evict trace_id=%d evicted=%s active_count=%d max=%d",
-                                                trace_id, evict.id, len(active), config.thread_max_active,
-                                                extra={"trace_id": trace_id},
-                                            )
-                                    _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
-                                    state.setdefault("meta", {})["last_thread_created_turn"] = turn_no_for_add
-                                    delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
-                            except Exception as exc:
+                    arc_raw = state.get("arc")
+                    if arc_raw and delta is not None:
+                        try:
+                            _existing_arc = CampaignArc.model_validate(arc_raw)
+                            existing_ids = {t.id for t in _existing_arc.threads} | {t.id for t in _existing_arc.completed_threads}
+                            if _new_thread.id not in existing_ids:
+                                _updated_t = _new_thread.model_copy(update={
+                                    "added_turn": turn_no_for_add,
+                                    "urgency_set_turn": turn_no_for_add,
+                                })
+                                arc_with_new_thread = _existing_arc.model_copy(
+                                    update={"threads": list(_existing_arc.threads) + [_updated_t],
+                                            "last_thread_created_turn": turn_no_for_add}
+                                )
+                                if config:
+                                    active = [t for t in arc_with_new_thread.threads if t.active]
+                                    if len(active) > config.thread_max_active:
+                                        evict = min(active, key=lambda t: t.last_updated_turn or 0)
+                                        evicted = evict.model_copy(update={"active": False, "last_updated_turn": turn_no_for_add})
+                                        arc_with_new_thread = arc_with_new_thread.model_copy(
+                                            update={"threads": [evicted if t.id == evict.id else t for t in arc_with_new_thread.threads]}
+                                        )
+                                        _log.info(
+                                            "thread_cap.evict trace_id=%d evicted=%s active_count=%d max=%d",
+                                            trace_id, evict.id, len(active), config.thread_max_active,
+                                            extra={"trace_id": trace_id},
+                                        )
+                                _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
+                                state.setdefault("meta", {})["last_thread_created_turn"] = turn_no_for_add
+                                delta = delta.model_copy(update={"arc_update": arc_with_new_thread})
+                        except Exception as exc:
                                 _log.warning(
                                     "thread_add: failed to validate arc at T%d for thread %s: %s",
                                     turn_no_for_add, getattr(_new_thread, 'id', '?'), exc, extra={"turn": turn_no_for_add},
@@ -1382,9 +1318,6 @@ async def run_turn(
                 "raw_total": _outcome.raw_total,
                 "final_total": _outcome.final_total,
                 "band": _outcome.band,
-                "momentum_before": momentum_before,
-                "momentum_after": momentum_after,
-                "momentum_delta": momentum_after - momentum_before,
             })
 
         _ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1397,13 +1330,8 @@ async def run_turn(
             "rejected": rejected,
             "actions": actions,
             "ruling": ruling_event,
-            "momentum_before": momentum_before,
-            "momentum_after": momentum_after,
-            "momentum_delta": momentum_after - momentum_before,
             "pacing_context": {
                 "directive": _pc.directive if _pc else "",
-                "beat_locked": bool(_pc.beat_locked) if _pc else False,
-                "gate": _pc.gate if _pc else "allow",
                 "outcome_hint": _pc.outcome_hint if _pc else None,
                 "summary": _pc.summary if _pc else "",
                 "scene_phase": state.get("scene", {}).get("scene_phase", "SETUP"),
@@ -1412,8 +1340,6 @@ async def run_turn(
             },
             "post_turn_pending_beat": state.get("meta", {}).get("pending_gm_beat"),
             "post_turn_location_id": state.get("location", {}).get("id"),
-            "post_extraction_consecutive_pressure_turns": (state.get("meta") or {}).get("consecutive_pressure_turns", 0),
-            "narrative_velocity": round(narrative_velocity, 2),
             "scene_phase": state.get("scene", {}).get("scene_phase", "SETUP"),
             "narrate": narr_metrics,
             "extract": ext_metrics,
@@ -1482,7 +1408,6 @@ async def run_turn(
             errors=errors,
             ruling=ruling_event or {},
             outcome_summary=outcome_summary,
-            narrative_velocity=narrative_velocity,
             gm_beat={
                 "type": storyteller_result.gm_beat.type,
                 "surface_as": storyteller_result.gm_beat.surface_as,

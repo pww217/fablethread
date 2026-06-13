@@ -251,7 +251,7 @@ def cmd_threads(events: list[dict[str, Any]]) -> None:
 
 
 def cmd_beats(events: list[dict[str, Any]]) -> None:
-    """Show turn-by-turn beat type + surface_as + beat_locked status."""
+    """Show turn-by-turn beat type + surface_as status."""
     # Gather beat data from storytell extraction and pacing_context
     beat_data: list[dict[str, Any]] = []
 
@@ -264,7 +264,6 @@ def cmd_beats(events: list[dict[str, Any]]) -> None:
             "turn": t,
             "type": "",
             "surface": "",
-            "beat_locked": False,
             "directive": "",
         }
 
@@ -278,10 +277,9 @@ def cmd_beats(events: list[dict[str, Any]]) -> None:
                 beat_entry["type"] = gm_beat.get("type", "")
                 beat_entry["surface"] = gm_beat.get("surface_as", "")
 
-        # From pacing_context in event (overrides/adds beat_locked and directive)
+        # From pacing_context in event (adds directive)
         pacing = ev.get("pacing_context") or {}
         if pacing:
-            beat_entry["beat_locked"] = pacing.get("beat_locked", False)
             beat_entry["directive"] = pacing.get("directive", "")
 
         beat_data.append(beat_entry)
@@ -306,12 +304,11 @@ def cmd_beats(events: list[dict[str, Any]]) -> None:
         return
 
     # Print table
-    print(f"{'Turn':>5} | {'Beat Type':<14} | {'Surface':<14} | {'Locked':<6} | {'Directive'}")
-    print("\u2500" * 70)
+    print(f"{'Turn':>5} | {'Beat Type':<14} | {'Surface':<14} | {'Directive'}")
+    print("\u2500" * 64)
     for bd in beat_data:
-        locked = "Y" if bd.get("beat_locked") else "N"
         directive = bd.get("directive", "")
-        print(f"{bd['turn']:>5} | {bd.get('type', ''):<14} | {bd.get('surface', ''):<14} | {locked:<6} | {directive}")
+        print(f"{bd['turn']:>5} | {bd.get('type', ''):<14} | {bd.get('surface', ''):<14} | {directive}")
 
     # Streak analysis — consecutive same-type beats
     streaks: list[dict[str, Any]] = []
@@ -353,46 +350,6 @@ def cmd_beats(events: list[dict[str, Any]]) -> None:
         for s in streaks:
             turns_str = ", ".join(str(t) for t in s["turns"])
             print(f"  '{s['type']}' x{s['count']}: turns {turns_str}")
-
-
-def cmd_momentum_check(events: list[dict[str, Any]]) -> None:
-    """Show momentum + band + expected delta in one table."""
-    ARROW = "\u2192"
-
-    rows: list[dict[str, Any]] = []
-    for ev in events:
-        ruling = ev.get("ruling") or {}
-        if not ruling.get("rolled"):
-            continue
-        t = ev.get("turn")
-        if t is None:
-            continue
-        momentum_before = ev.get("momentum_before")
-        momentum_after = ev.get("momentum_after")
-        band = ruling.get("band", "?")
-        momentum_delta = ev.get("momentum_delta")
-
-        rows.append({
-            "turn": t,
-            "momentum_before": momentum_before if momentum_before is not None else "?",
-            "momentum_after": momentum_after if momentum_after is not None else "?",
-            "delta": momentum_delta if momentum_delta is not None else "?",
-            "band": band,
-        })
-
-    if not rows:
-        print("(no dice rolls found)")
-        return
-
-    # Print table
-    print(f"{'Turn':>5} | {'Momentum':<12} | {'Band':<10} | {'Delta':<6}")
-    print("\u2500" * 40)
-    for r in rows:
-        mb = r['momentum_before']
-        ma = r['momentum_after']
-        delta = r['delta']
-        delta_str = f"{delta:+d}" if isinstance(delta, int) else str(delta)
-        print(f"{r['turn']:>5} | {mb} {ARROW} {ma:<7} | {r['band']:<10} | {delta_str:<6}")
 
 
 def cmd_goals(events: list[dict[str, Any]]) -> None:
@@ -574,9 +531,6 @@ def _render_pc_section(state: dict[str, Any]) -> None:
     if isinstance(stats, dict) and stats:
         stat_parts = ", ".join(f"{k}: {v}" for k, v in sorted(stats.items()))
         print(f"  Stats: {stat_parts}")
-    momentum = pc.get("momentum")
-    if momentum is not None:
-        print(f"  Momentum: {momentum:+d}")
     conditions = pc.get("conditions", []) or []
     if conditions:
         for c in conditions:
@@ -1055,33 +1009,6 @@ def _match_single_query(
             return bool(band_val == value)
         return False
 
-    elif field == "momentum_after":
-        mom = ev.get("momentum_after")
-        if mom is None:
-            return False
-        try:
-            return bool(mom is not None and value is not None and int(mom) == int(value))
-        except (ValueError, TypeError):
-            return False
-
-    elif field == "momentum_before":
-        mom = ev.get("momentum_before")
-        if mom is None:
-            return False
-        try:
-            return bool(mom is not None and value is not None and int(mom) == int(value))
-        except (ValueError, TypeError):
-            return False
-
-    elif field == "momentum_delta":
-        delta = ev.get("momentum_delta")
-        if delta is None:
-            return False
-        try:
-            return bool(delta is not None and value is not None and int(delta) == int(value))
-        except (ValueError, TypeError):
-            return False
-
     elif field == "rejected":
         return bool(ev.get("rejected"))
 
@@ -1140,15 +1067,6 @@ def _get_context_line(
 
     elif field == "band":
         return f"band={value}" if value else "(match)"
-
-    elif field == "momentum_after":
-        return f"momentum_after={value}"
-
-    elif field == "momentum_before":
-        return f"momentum_before={value}"
-
-    elif field == "momentum_delta":
-        return f"momentum_delta={value}"
 
     elif field == "rejected":
         return "rejected"

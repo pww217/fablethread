@@ -271,7 +271,6 @@ def _storytell_messages(
             "recent_beats": list((state.get("meta") or {}).get("recent_beats", [])),
             "turn_no": turn_no,
             "band": band,
-            "gate": pacing_context.gate if pacing_context else None,
             "scene_phase": scene.get("scene_phase", "SETUP"),
             "allowed_beat_types": derive_allowed_beat_types(
                 scene.get("scene_phase", "SETUP"),

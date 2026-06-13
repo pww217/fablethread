@@ -82,7 +82,6 @@ def _default_state() -> dict[str, Any]:
                 "charisma": 2,
             },
             "conditions": [],
-            "momentum": 0,
             "allegiance": None,
         },
         "location": {"id": "", "name": "", "description": ""},

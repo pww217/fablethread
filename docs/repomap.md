@@ -28,18 +28,17 @@
 | `ccya/state/inventory.py` | normalize_inventory_id, resolve/fuzzy match helpers; resolve_inventory_remove_target() uses fuzzy matching (threshold 0.6) as final fallback |
 | `ccya/state/npcs.py` | build_npc_alias_map, touch_compendium_order (LRU), strip_npcs_notes (skips departed/archived NPCs), apply_npc_scene_management (handles departed/nearby presence) |
 | `ccya/state/chronicle.py` | append_event (events.jsonl), append_chronicle (chronicle.md), load_last_narration() |
-| `ccya/state/momentum.py` | apply_momentum() — deterministic from rules band, clamped to [-3,+3], with depth-based catch-up acceleration at -3 or below (success=+2, crit_success=+3) |
 | `ccya/server/__init__.py` | Re-exports: app, main, config, SAVE_DIR, _validate_stats |
 | `ccya/server/app.py` | FastAPI app bootstrap, Jinja env, pack loading, startup event; server error persistence + exception middleware → server_errors.jsonl |
 | `ccya/server/routes.py` | All @app.get / @app.post route handlers; `_list_saves()` helper (returns [{name, pack, turn_count, last_modified, pc_name, location_name}]); `_resolve_npc_personalities()` resolves archetype ids to label/traits for UI templates; `GET /` → loads opening from chronicle.md (turn 0) with in-memory fallback; `/api/saves` (GET) → list saves excluding default; `/api/switch-save` (POST) → validates save_name, checks is_turn_in_progress(), clears turn locks, updates SAVE_DIR, returns state; `POST /new-game` → builds PlayerOverrides from form fields, checks `overrides.is_empty()`: if empty, generates seed via LLM; if non-empty, uses static pack's seed_state.yaml as fallback (shows error if pack has no static seed) |
 | `ccya/server/panels.py` | Panel context builders: _debug_context(), _load_* helpers, _get_opening(), _load_opening_from_chronicle() (extracts turn 0 from chronicle.md); _load_recent_history() excludes turn 0 (seed) |
-| `ccya/server/tv.py` | Turn viewer data from events.jsonl + server_errors.jsonl — unified timeline with row_kind discrimination, per-stream metrics, status colors; `_turn_viewer_data()` returns `(rows, no_events)`; injects a synthetic `row_kind: "seed"` row at index 0 when seed data is present in state.yaml. TV delta rows include pacing metadata keys: narrative_velocity, gm_beat_type, gm_beat_surface_as alongside momentum_before/after/outcome_hint |
+| `ccya/server/tv.py` | Turn viewer data from events.jsonl + server_errors.jsonl — unified timeline with row_kind discrimination, per-stream metrics, status colors; `_turn_viewer_data()` returns `(rows, no_events)`; injects a synthetic `row_kind: "seed"` row at index 0 when seed data is present in state.yaml. TV delta rows include pacing metadata keys: gm_beat_type, gm_beat_surface_as alongside outcome_hint |
 | `ccya/server/metrics.py` | _recent_turn_metrics(), _turn_log_entries() — latency/token formatting |
 | `scripts/debug/ev.py` | CLI tool for inspecting events.jsonl directly; commands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats |
 | `ccya/ev/events.py` | Shared data access layer: `load_events()`, `find_turn()`, `filter_turn_events()`, `extract_field()`, `load_current_state()`. Also consumed by TurnViewer. |
 | `ccya/ev/inspect.py` | Inspection commands: `cmd_summary()`, `cmd_timing()`, `cmd_turn()`, `cmd_prompt()` |
 | `ccya/ev/deltas.py` | Deltas and mechanics commands: `cmd_deltas()`, `cmd_mechanics()`, `_cmd_deltas_compact()` |
-| `ccya/ev/state_tools.py` | State commands: `cmd_state()`, `cmd_diff()`, `cmd_trace()`, `cmd_search()`, `cmd_threads()`, `cmd_beats()` (with streak analysis for 3+ consecutive same-type beats), `cmd_momentum_check()`, `cmd_goals()`, `cmd_effective_age()`, `cmd_beat_ttl()` |
+| `ccya/ev/state_tools.py` | State commands: `cmd_state()`, `cmd_diff()`, `cmd_trace()`, `cmd_search()`, `cmd_threads()`, `cmd_beats()` (with streak analysis for 3+ consecutive same-type beats), `cmd_goals()`, `cmd_effective_age()`, `cmd_beat_ttl()` |
 | `ccya/ev/play.py` | Play command: `play_turn()` sync wrapper around `run_turn()`, `cmd_play()` dispatch for single-turn/`--interactive`/`--llm` modes (requires --pack for new sessions), session management (`_create_play_session`, `_load_pack_params`), LLM player loop (`_llm_session` with scenario context, `personality`/`custom_persona` params, `until_error` flag), output formatting (`format_play_output`/`format_error_output`), session config integration (`_build_play_config` with ev.yaml resolution) |
 | `ccya/ev/personality.py` | Personality presets: `VALID_PERSONALITIES`, `PERSONALITY_PROMPTS`, `resolve_personality()` → system prompt string |
 | `ccya/ev/session_config.py` | Session config: `load_session_config()` reads ev.yaml, `resolve_flag()` CLI>config>default resolution, `resolve_player_config()` personality resolution |
@@ -54,8 +53,7 @@
 | `ccya/ev/checkers/__init__.py` | Checker framework: `@register_checker` decorator, `CheckerResult` dataclass, `run_checker()`/`run_checkers()`, `list_checkers()`, field validation, event pre-filtering, state access. Registry with explicit imports for 14 deterministic checkers + 3 LLM checkers. |
 | `ccya/ev/checkers/_llm.py` | LLM checker infrastructure: `_load_checker_model()`, `_unload_checker_model()`, `_call_llm_checker()`, `_result_from_llm_output()`, `_build_checker_prompt()`, template registry. Handles model loading/unloading, prompt rendering, structured output parsing. |
 | `ccya/ev/checkers/llm_checkers.py` | LLM-based narrative checkers: `directive_tone_match` (tone alignment with ruling band), `beat_narrative_chain` (GM beat narrative consequence), `state_fidelity` (extraction vs narration match). Each uses focused 20-30 line prompts. |
-| `ccya/ev/checkers/momentum.py` | `momentum_lifecycle` — band delta, bounds, floor-no-relief |
-| `ccya/ev/checkers/gm_beat.py` | `gm_beat_lifecycle` — beat consumed, lifecycle, floor relief, beat_locked dual-trigger, binding present |
+| `ccya/ev/checkers/gm_beat.py` | `gm_beat_lifecycle` — beat consumed, lifecycle, floor relief, binding present |
 | `ccya/ev/checkers/inventory.py` | `location_change` — location applied correctly; `inventory_integrity` — overdraw, negatives, remove existence |
 | `ccya/ev/checkers/conditions.py` | `conditions_lifecycle` — in-reason, dedup, cap |
 | `ccya/ev/checkers/threads.py` | `thread_lifecycle` — thread_add applied, thread_update IDs valid |
@@ -88,7 +86,7 @@ Three main visual panels compose the browser UI. All NPC data in left/right pane
 
 ### ccya/models.py
 - **load_config(path)** → dict — loads config.yaml
-- **TurnResult** dataclass — returned from run_turn(): turn, trace_id, narrative, state_delta, applied, rejected, actions, diff, changes, metrics, errors, ruling, outcome_summary, narrative_velocity, gm_beat, outcome_hint, ts
+- **TurnResult** dataclass — returned from run_turn(): turn, trace_id, narrative, state_delta, applied, rejected, actions, diff, changes, metrics, errors, ruling, outcome_summary, gm_beat, outcome_hint, ts
 
 ### ccya/engine (via __init__.py)
 - **run_turn(...)** → AsyncIterator — 5-call pipeline: rules→narrate→scene/state/storytell extract; yields ("token"), ("phase"), ("complete", TurnResult)
@@ -224,16 +222,10 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - narrate_system.j2: instructs narrator to push players toward latent threads through narration, environmental detail, NPC behaviour — show don't tell (NPC glancing at locked door, torchlight from tunnel, curious sounds); build 4 choices toward discovery; increase pressure for unsurfaced threads
 - storytell_system.j2: instructs storyteller to use dormant/latent thread knowledge when generating suggestions and beats — craft situations where dormant threads naturally surface (character's past catching up, long-silent threat stirring); steer player via choices/suggestions/complications without exposing latent content directly
 
-### Momentum lifecycle
-- `apply_momentum(state, band)` in ccya/state/momentum.py mutates `state["pc"]["momentum"]` deterministically from rules band delta, clamped to [-3, +3]
-- Pre-ruling momentum captured BEFORE `_ruling_phase()` (turn.py line ~1049), post-ruling captured AFTER — delta reflects actual band-based change
-- Auto-checker `check_momentum_band_delta` reads from `state_snapshot.pc.momentum` (not meta.momentum)
-- **events.jsonl fields**: `momentum_before`, `momentum_after`, `momentum_delta` written as top-level event keys on every turn (turn.py ~1501-1503), not only in the conditional ruling_event. Available for all turns including no-roll turns where momentum carries over unchanged from previous turn. Ruling dict includes `raw_total` (sum of dice + modifiers) alongside `final_total` for dice math verification. **narrative_velocity** persisted as top-level event key (turn.py ~1402), rounded to 2 decimal places, consumed by TV delta rows in tv.py `_turn_viewer_data()`.
-
 ### Pacing context and beat lifecycle (Phase 03 pacing overhaul)
-- `_compute_pacing_context()` sets `beat_locked=False`, `gate="allow"` (old fields kept until Plan 4); `outcome_hint` overridden to "transition" when CRISIS hits turn limit. Phase engine runs between ruling and narrate, computing `scene_phase` from thread urgency, tension_delta, and scene age.
+- `_compute_pacing_context()` sets `outcome_hint` overridden to "transition" when CRISIS hits turn limit. Phase engine runs between ruling and narrate, computing `scene_phase` from thread urgency, tension_delta, and scene age.
 - Consecutive pressure counter: `consecutive_pressure_beats` (new, replaces `consecutive_pressure_turns`) updated at turn end: increments when storyteller's `gm_beat.type` is `"pressure"`, `"escalation"`, or `"complication"`; resets to 0 on any other beat type or null beat. Used by `derive_enforce_relief()` to force breathing_room beats during CRISIS.
-- `pending_gm_beat` lifecycle: null-clear on null storytell output (key popped from meta); replaced on valid storytell emittion (beat_expires_turn = turn_no + 2); expires when turn_no > beat_expires_turn at narrate setup. Floor relief injects breathing_room when beat_locked AND (pending_gm_beat is None or pressure-type) AND NOT triggered_by_momentum.
+- `pending_gm_beat` lifecycle: null-clear on null storytell output (key popped from meta); replaced on valid storytell emittion (beat_expires_turn = turn_no + 2); expires when turn_no > beat_expires_turn at narrate setup. Floor relief injects breathing_room when enforce_relief=True AND (pending_gm_beat is None or pressure-type).
 - `scene_phase` stored in `state["scene"]` alongside `turn_entered`, `crisis_turn_count`, `breather_turn_count`. Transitions: SETUP→RISING (urgent thread), RISING→CRISIS (≥threshold urgent OR escalates+urgent OR age≥pressure_threshold), CRISIS→RESOLUTION (crisis_turn_count≥limit), RESOLUTION→SETUP (location change) or BREATHER, BREATHER→RISING (urgent thread OR breather_max_turns).
 
 ### Seed emotional context → narrator consumption
@@ -243,12 +235,12 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - **Seed emotional framing contract**: The seed generation prompt enforces `goal_context` (2-3 sentences of personal stakes for the PC), NPC `relation` field, and character-shaped action text. This emotional data is embedded in the initial state and the sidebar, not reintroduced per-turn via prompts.
 ### EngineConfig field naming (Phase 06b)
 
-- Config fields: thread_deescalate_on_success, resolved_arc_ttl (default 3), completed_thread_ttl (default 3), thread_stale_threshold (default 3), thread_max_active (default 5), sanitize_every (default 5, 0=disabled). **Thread lifecycle enforcement:** thread_urgency_max_age (default 8, stepwise urgency decay threshold). YAML keys match Python field names directly. **Debug mode:** debug_mode (read from `game.debug.enabled` in config.yaml, default False) — gates streaming metadata display (narrative_velocity, gm_beat, outcome_hint) and momentum/velocity/GM beat rows in UI turn_complete handler.
+- Config fields: thread_deescalate_on_success, resolved_arc_ttl (default 3), completed_thread_ttl (default 3), thread_stale_threshold (default 3), thread_max_active (default 5), sanitize_every (default 5, 0=disabled). **Thread lifecycle enforcement:** thread_urgency_max_age (default 8, stepwise urgency decay threshold). YAML keys match Python field names directly. **Debug mode:** debug_mode (read from `game.debug.enabled` in config.yaml, default False) — gates streaming metadata display (gm_beat, outcome_hint) in UI turn_complete handler.
 - Sampling parameters: ruling_temperature/ruling_top_p, extract_temperature/extract_top_p/extract_frequency_penalty, narrate_temperature/narrate_top_p/narrate_frequency_penalty, generate_seed_temperature/generate_seed_top_p, pack_generation_temperature/pack_generation_top_p; stub fields always null until mlx-lm SDK support: seed, top_k, min_p, rep_penalty, rep_penalty_window. Config structure migrated from flat keys to nested `llm.<stage>.<param>` format (Phase 08).
 
 ### Computation functions (Phase 06b)
 - `_compute_narration_directive(scene_phase, tension_delta, thread_urgency_count, crisis_turn_count, crisis_turn_limit, effective_scene_age, ...)` — phase-driven priority stack: Breathe → Scene Imperative → Scene Pressure → empty. Removed Overwhelm/Pressure/Tension directives (handled by phase).
-- `_compute_pacing_context(scene_phase, tension_delta, thread_urgency_count, crisis_turn_count, crisis_turn_limit, effective_scene_age, ...)` — consumes phase signals, sets beat_locked=False, gate="allow" (old fields kept until Plan 4). outcome_hint overridden to "transition" when CRISIS hits turn limit.
+- `_compute_pacing_context(scene_phase, tension_delta, thread_urgency_count, crisis_turn_count, crisis_turn_limit, effective_scene_age, ...)` — consumes phase signals, sets outcome_hint overridden to "transition" when CRISIS hits turn limit.
 - `_compute_scene_phase(state, tension_delta, ages, config)` — 5-state phase machine (SETUP→RISING→CRISIS→RESOLUTION→BREATHER), mutates state["scene"] in place.
 - `_compute_ages(state)` returns only `{"scene_age": scene_age}` — location_age and combat_age removed in Phase 03 pacing overhaul; effective_scene_age set in _ruling_phase() by adding combat boost to scene_age.
 - `ccya/engine/_pacing.py` — BEAT_PHASE_MAP, derive_allowed_beat_types(), derive_enforce_relief() — beat constraint derivation from scene phase.
@@ -313,7 +305,6 @@ pc:
   stats: {strength, dexterity, wits, charisma}: int (1-4 each, total 8-12)
   conditions: list[Condition] — id-based dedup, FIFO cap 5; TTL via turns_remaining (default 10 when None)
     - id: str, label: str, description: str, added_turn: int, turns_remaining: int | None
-  momentum: int                # [-3, +3], engine-computed from roll bands
   actions: [str]               # rolling window of last 10 Storyteller actions, persisted by apply_delta
 
 location: {id, name, description}: str
@@ -359,7 +350,7 @@ world.factions: [str], world.locations: [str]
 
 ### UI streaming metadata (thread progress, debug display)
 - **Thread progress strings:** After turn completion, inline divs with class `thread-progress-line` are inserted below narrative text. Each thread entry in `changes["threads"]` may carry a `new_progress` field (formatted as "[KIND] text") populated by `summarize_changes()` when new progress entries appear on threads.
-- **Debug metadata row:** When `EngineConfig.debug_mode` is true, a formatted div with class `debug-metadata-row` shows momentum_delta/narrative_velocity/gm_beat/outcome_hint inline after turn completion. Parsed from `result.narrative_velocity`, `result.gm_beat`, and `result.outcome_hint` on the TurnResult object.
+- **Debug metadata row:** When `EngineConfig.debug_mode` is true, a formatted div with class `debug-metadata-row` shows gm_beat/outcome_hint inline after turn completion. Parsed from `result.gm_beat` and `result.outcome_hint` on the TurnResult object.
 - **Sidebar thread ordering:** `_state_left.html` reverses active threads (`| reverse`) so most recently active appear first; completed_threads also reversed (top 20).
 
 ## Design documents

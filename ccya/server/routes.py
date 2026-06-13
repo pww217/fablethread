@@ -291,7 +291,6 @@ async def get_turn(input: str = ""):
                                 "ruling": result.ruling,
                                 "outcome_summary": result.outcome_summary,
                                 "debug_mode": _app_mod.engine_config.debug_mode,
-                                "narrative_velocity": result.narrative_velocity,
                                 "gm_beat": result.gm_beat,
                                 "outcome_hint": result.outcome_hint,
                                 "ts": _ts_display,
@@ -738,7 +737,6 @@ async def get_settings():
     # Flatten nested keys for UI consumption
     debug = game_config.get("debug", {}) or {}
     return JSONResponse({
-        "momentum_floor": game_config.get("momentum_floor"),
         "consecutive_pressure_threshold": game_config.get("consecutive_pressure_threshold"),
         "thread_deescalate_on_success": game_config.get("thread_deescalate_on_success"),
         "warmup_on_start": game_config.get("warmup_on_start", False),
@@ -747,7 +745,6 @@ async def get_settings():
         "difficulty_curve": game_config.get("difficulty_curve", "balanced"),
         "scene_pressure_threshold": game_config.get("scene_pressure_threshold", 3),
         "scene_imperative_threshold": game_config.get("scene_imperative_threshold", 5),
-        "momentum_pacing_factor": game_config.get("momentum_pacing_factor", 0.5),
         "near_miss_softening": game_config.get("near_miss_softening", True),
         "thread_memory_ttl": game_config.get("thread_memory_ttl", 3),
         "arc_memory_ttl": game_config.get("arc_memory_ttl", 3),
@@ -763,7 +760,7 @@ async def post_settings(request: Request):
     game_config = _app_mod.config.get("game", {})
 
     # Apply updates from request body
-    for key in ("momentum_floor", "consecutive_pressure_threshold"):
+    for key in ("consecutive_pressure_threshold",):
         if key in data:
             val = int(data[key])
             game_config[key] = val
@@ -776,9 +773,6 @@ async def post_settings(request: Request):
     for key in ("scene_pressure_threshold", "scene_imperative_threshold", "thread_memory_ttl", "arc_memory_ttl"):
         if key in data:
             game_config[key] = int(data[key])
-
-    if "momentum_pacing_factor" in data:
-        game_config["momentum_pacing_factor"] = max(0.1, min(2.0, float(data["momentum_pacing_factor"])))
 
     if "difficulty_curve" in data:
         valid_curves = ("forgiving", "balanced", "demanding")
@@ -803,7 +797,7 @@ async def post_settings(request: Request):
     # Update in-memory config reference so subsequent turns see new values
     _app_mod.config["game"] = game_config
 
-    # Rebuild engine_config — game fields (momentum_floor, etc.) are read from cfg.get("game")
+    # Rebuild engine_config — game fields are read from cfg.get("game")
     from ccya.engine import build_engine_config as _build_engine_config
     _app_mod.engine_config = _build_engine_config(_app_mod.config)
 

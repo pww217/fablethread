@@ -562,14 +562,9 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
         # State diff
         state_diff = _tv_state_diff(ev)
 
-        # Pacing context and momentum from event data
+        # Pacing context from event data
         pacing_ctx = ev.get("pacing_context") or {}
-        momentum_before = ev.get("momentum_before")
-        momentum_after = ev.get("momentum_after")
         band_label = (ev.get("ruling") or {}).get("band", "")
-
-        # Narrative velocity from event data.
-        narrative_velocity = ev.get("narrative_velocity")
 
         # GM beat type/surface_as from storytell extraction output.
         gm_beat_dict: dict[str, Any] | None = None
@@ -607,14 +602,9 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "pacing_context": {
                     "directive": pacing_ctx.get("directive"),
                     "outcome_hint": pacing_ctx.get("outcome_hint"),
-                    "gate": pacing_ctx.get("gate"),
-                    "beat_locked": pacing_ctx.get("beat_locked"),
                     "summary": pacing_ctx.get("summary", ""),
                 },
-                "momentum_after": momentum_after,
-                "momentum_before": momentum_before,
                 "band_label": band_label,
-                "narrative_velocity": narrative_velocity,
                 "gm_beat_type": gm_beat_dict.get("type") if isinstance(gm_beat_dict, dict) else None,
                 "gm_beat_surface_as": gm_beat_dict.get("surface_as") if isinstance(gm_beat_dict, dict) else None,
                 "inputs_snapshot": inputs_snapshot,

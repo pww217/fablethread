@@ -288,8 +288,6 @@ def _build_summary_json(ev: dict[str, Any]) -> dict[str, Any]:
 def extract_field_from_event(ev: dict[str, Any], field: str) -> Any | None:
     ctx = ev.get("extraction_context") or {}
     applied = ev.get("applied") or {}
-    changes = ev.get("changes") or {}
-    ruling_ev = ev.get("ruling") or {}
 
     if field == "inventory":
         return ctx.get("inventory_this_turn", [])
@@ -340,15 +338,6 @@ def extract_field_from_event(ev: dict[str, Any], field: str) -> Any | None:
         tagline = applied.get("scene_tagline")
         if isinstance(tagline, str):
             return tagline
-        return None
-
-    elif field == "pc.momentum":
-        mom_list = (changes.get("momentum", []) or [])
-        if isinstance(mom_list, list) and mom_list:
-            latest = mom_list[-1] if isinstance(mom_list[-1], dict) else {}
-            return int(latest.get("after", 0))
-        if "momentum_after" in ruling_ev:
-            return int(ruling_ev["momentum_after"])
         return None
 
     return None

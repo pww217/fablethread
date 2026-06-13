@@ -203,8 +203,6 @@ def _trace_display_name(field: str) -> str:
         return "Scene Tags"
     elif field == "scene.tagline":
         return "Tagline"
-    elif field == "pc.momentum":
-        return "Momentum"
     else:
         return field
 
