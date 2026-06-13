@@ -1,8 +1,10 @@
 # GM Signal System Redesign
 
-## Status: Partially Implemented (Plans 01-03)
+> **NOTE:** This document was superseded by `docs/design/major-narrative-mechanic-overhaul.md` (Scene Phase & Pacing Redesign). The momentum system, beat_locked, pacing_gate, and related fields described here were removed in Plan 4. This document is preserved for historical reference only.
 
-This document describes the target state for pacing, arc thread, and GM beat systems. The "Current State" section below accurately reflects issues that existed before Plans 01-03; most have been resolved by completed plans as noted in the implementation status table.
+## Status: Superseded by major-narrative-mechanic-overhaul.md
+
+This document described the target state for pacing, arc thread, and GM beat systems. The "Current State" section below accurately reflects issues that existed before Plans 01-03; most have been resolved by completed plans as noted in the implementation status table. The major-narrative-mechanic-overhaul.md design supersedes this document entirely.
 
 ### Implementation Status
 

@@ -70,7 +70,7 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 | **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Location changes, NPC presence, scene tags |
 | **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Inventory and condition extraction |
 | **Step 2c — Storytell** | [step2c-storytell](./step2c-storytell.md) | Pipeline mechanics, GM beat lifecycle, campaign arc system, thread lifecycle mechanics |
-| **Pacing Systems** | [pacing-systems](./pacing-systems.md) | Interconnected mechanics: momentum, GM beats, pacing context, thread lifecycle, deescalate, and their cross-system interactions
+| **Pacing Systems** | [pacing-systems](./pacing-systems.md) | Phase engine, GM beats, pacing context, thread lifecycle, and their cross-system interactions
 | **Delta → Validate → Apply** | [delta-validate](./delta-validate.md) | StateMerge schema, validation rules, apply_delta mutations |
 | **Persist** | [persist](./persist.md) | Atomic writes (events.jsonl, state.yaml, chronicle.md), readback |
 | **Cross-Pipeline Data Flow** | [cross-pipeline](./cross-pipeline.md) | Full inter-step data flow diagram |
@@ -93,7 +93,7 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 
 ### PacingContext (see [step0-ruling](./step0-ruling.md#pacing-context))
 
-Computed by `_compute_pacing_context()` in `turn.py` after the phase engine runs. Primary pacing signal is `scene_phase` (SETUP/RISING/CRISIS/RESOLUTION/BREATHER) from the 5-state machine. Fields: `directive` (phase-driven priority stack: Breathe → Scene Imperative → Scene Pressure → empty), `outcome_hint` (hold/advance/transition, overridden to "transition" when CRISIS hits turn limit), `beat_locked` (False, kept until Plan 4), `gate` ("allow", kept until Plan 4), `summary` (human-readable log string). Old fields (`beat_locked`, `gate`) remain until Plan 4 deletes them.
+Computed by `_compute_pacing_context()` in `turn.py` after the phase engine runs. Primary pacing signal is `scene_phase` (SETUP/RISING/CRISIS/RESOLUTION/BREATHER) from the 5-state machine. Fields: `directive` (phase-driven priority stack: Breathe → Scene Imperative → Scene Pressure → empty), `outcome_hint` (hold/advance/transition, overridden to "transition" when CRISIS hits turn limit), `summary` (human-readable log string).
 
 ### GMBeat (see [step2c-storytell](./step2c-storytell.md#gm-beat))
 

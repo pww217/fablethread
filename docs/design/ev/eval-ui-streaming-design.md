@@ -297,7 +297,7 @@ async def stream_turn_pipeline(turn_input: dict):
   "event": "checker",
   "data": {
     "turn": 1,
-    "checker": "momentum_lifecycle",
+    "checker": "pacing_directives",
     "passed": true,
     "score": 1.0,
     "findings": []
@@ -310,7 +310,7 @@ async def stream_turn_pipeline(turn_input: dict):
   "event_id": "1698765440.123",
   "event": "complete",
   "data": {
-    "scenario_id": "ruling-momentum-basics",
+    "scenario_id": "ruling-tension-delta-basics",
     "turns": 8
   },
   "timestamp": "2024-01-01T12:00:40.123Z"

@@ -1,5 +1,7 @@
 # Pacing Gate Misdirection
 
+> **NOTE:** This analysis was performed before the Scene Phase & Pacing Redesign (Plan 4). The pacing gate (`block_escalate`/`allow`) was removed. Phase-derived `allowed_beat_types` now handles beat type gating. Findings are preserved for historical reference.
+
 ## The Bug
 
 At T10 of cordyceps, the storyteller emits `thread_add` with id `creature_ambush_threat`, but this thread never appears in any `state_snapshot.arc.threads`. The sanitizer independently adds `creature_ambush` at the same turn, which IS what the game uses from T11 onwards.

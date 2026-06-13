@@ -121,4 +121,4 @@ def list_checkers(checker_type: str | None = None) -> list[CheckerMeta]:
     return results
 
 
-from . import gm_beat, inventory, conditions, threads, arc_goals, npc_presence, pacing, sanitizer, llm_checkers  # noqa: E402, F401
+from . import gm_beat, inventory, conditions, threads, arc_goals, npc_presence, pacing, sanitizer, llm_checkers, phase_transition, tension_delta, recent_beats  # noqa: E402, F401

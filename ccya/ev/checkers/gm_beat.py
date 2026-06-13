@@ -5,6 +5,8 @@ from typing import Any
 
 from ccya.ev.checkers import CheckerResult, register_checker
 from ccya.ev.events import extract_field
+from ccya.engine._pacing import derive_enforce_relief
+from ccya.engine.config import EngineConfig
 
 _log = logging.getLogger(__name__)
 
@@ -60,19 +62,19 @@ def gm_beat_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
         # enforce_relief: when phase is CRISIS and consecutive_pressure_beats >= threshold,
         # the pending_gm_beat should be "breathing_room" regardless of what storytell emitted
         pacing_ctx = extract_field(ev, "pacing_context") or {}
-        scene_phase = pacing_ctx.get("scene_phase")
-        if scene_phase == "CRISIS":
-            consecutive = extract_field(ev, "post_extraction_consecutive_pressure_beats") or 0
-            if int(consecutive) >= 3:
-                cur_beat_post = extract_field(ev, "post_turn_pending_beat") or (snap.get("meta") or {}).get("pending_gm_beat")
-                cur_type = cur_beat_post.get("type") if isinstance(cur_beat_post, dict) else None
-                if cur_type != "breathing_room":
-                    findings.append({
-                        "turn": ev.get("turn"),
-                        "check": "enforce_relief",
-                        "detail": f"CRISIS phase with {consecutive} consecutive pressure beats but pending_gm_beat.type={cur_type!r} (expected 'breathing_room')",
-                    })
-                    all_passed = False
+        scene_phase = pacing_ctx.get("scene_phase") or "SETUP"
+        consecutive = extract_field(ev, "post_extraction_consecutive_pressure_beats") or 0
+        config = EngineConfig()
+        if derive_enforce_relief(scene_phase, int(consecutive), config):
+            cur_beat_post = extract_field(ev, "post_turn_pending_beat") or (snap.get("meta") or {}).get("pending_gm_beat")
+            cur_type = cur_beat_post.get("type") if isinstance(cur_beat_post, dict) else None
+            if cur_type != "breathing_room":
+                findings.append({
+                    "turn": ev.get("turn"),
+                    "check": "enforce_relief",
+                    "detail": f"CRISIS phase with {consecutive} consecutive pressure beats but pending_gm_beat.type={cur_type!r} (expected 'breathing_room')",
+                })
+                all_passed = False
 
         # rolled implies binding
         ruling = extract_field(ev, "ruling") or {}

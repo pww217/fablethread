@@ -24,6 +24,7 @@ from ccya.engine.extraction import (
 from ccya.engine.names import generate_npc_names_split
 from ccya.engine.narrate import _narrate_messages
 from ccya.engine.npc_roster import build_npc_roster
+from ccya.engine._pacing import derive_enforce_relief
 from ccya.personality import ARCHETYPES
 from ccya.engine.thread_sanitizer import sanitize_threads
 
@@ -796,7 +797,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
             )
 
     # Compute phase (mutates state["scene"] in place)
-    scene = _compute_scene_phase(state, tension_delta, ctx._ages, config)
+    state["scene"] = _compute_scene_phase(state, tension_delta, ctx._ages, config)
     scene_phase = scene.get("scene_phase", "SETUP")
     crisis_turn_count = scene.get("crisis_turn_count", 0)
 
@@ -1020,9 +1021,11 @@ async def run_turn(
 
             # Floor relief injection — runs BEFORE apply_delta so breathing_room persists through the deep copy.
             # Inject breathing_room when CRISIS phase has enough consecutive pressure beats
-            scene_phase = (state.get("scene") or {}).get("scene_phase", "SETUP")
-            consecutive_pressure = (state.get("meta") or {}).get("consecutive_pressure_beats", 0)
-            enforce_relief = scene_phase == "CRISIS" and consecutive_pressure >= config.consecutive_pressure_threshold
+            enforce_relief = derive_enforce_relief(
+                (state.get("scene") or {}).get("scene_phase", "SETUP"),
+                (state.get("meta") or {}).get("consecutive_pressure_beats", 0),
+                config,
+            )
             if enforce_relief:
                 _current_beat = state.get("meta", {}).get("pending_gm_beat")
                 if _current_beat is None or _current_beat.get("type") in PRESSURE_BEAT_TYPES:
@@ -1307,6 +1310,7 @@ async def run_turn(
             "tokens_in": ruling_metrics.get("tokens_in", 0),
             "tokens_out": ruling_metrics.get("tokens_out", 0),
             "outcome_summary": outcome_summary,
+            "tension_delta": _intent.tension_delta,
         }
         if _outcome.rolled:
             ruling_event.update({
