@@ -67,6 +67,7 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 | **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Location changes, NPC presence, scene tags |
 | **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Inventory and condition extraction |
 | **Step 2c — Storytell** | [step2c-storytell](./step2c-storytell.md) | Pipeline mechanics, GM beat lifecycle, campaign arc system, thread lifecycle mechanics |
+| **Pacing Systems** | [pacing-systems](./pacing-systems.md) | Interconnected mechanics: momentum, GM beats, pacing context, thread lifecycle, deescalate, and their cross-system interactions
 | **Delta → Validate → Apply** | [delta-validate](./delta-validate.md) | StateMerge schema, validation rules, apply_delta mutations |
 | **Persist** | [persist](./persist.md) | Atomic writes (events.jsonl, state.yaml, chronicle.md), readback |
 | **Cross-Pipeline Data Flow** | [cross-pipeline](./cross-pipeline.md) | Full inter-step data flow diagram |
