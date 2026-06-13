@@ -51,6 +51,8 @@ def _sanitize_envelope(envelope: SeedEnvelope) -> SeedEnvelope:
                 npc_data.name = f'{name_parts[0]} {surnames_pool[int(surname_hash, 16) % len(surnames_pool)]}'
         npc_data.title = _strip_non_ascii(npc_data.title or "")
         npc_data.bio = _strip_non_ascii(npc_data.bio or "")
+        if npc_data.presence is None:
+            npc_data.presence = "present"
 
     envelope.actions = [_strip_non_ascii(a) for a in envelope.actions]
     return envelope

@@ -33,7 +33,7 @@ Four independently selected narrative dimensions. They are NOT a menu — weave 
     location: {id: snake_case, name: string, description: string},
     inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
     scene: {tagline: string, tags: string[], world_state: string[]},
-    compendium: {npcs: {snake_case: {name: string, title: string, bio: string, allegiance?: string, bond?: string, motivation?: string, fear?: string, leverage?: string, personality?: archetype_id  /* see Personality archetypes table below — required for named NPCs, omit for unnamed */}}},
+    compendium: {npcs: {snake_case: {name: string, title: string, bio: string, presence: "present" | "nearby" | "known", allegiance?: string, bond?: string, motivation?: string, fear?: string, leverage?: string, personality?: archetype_id  /* see Personality archetypes table below — required for named NPCs, omit for unnamed */}}},
     arc: {visible_goal: string, goal_context: string, threads: ArcThread[], completed_threads: null}
   },
   opening_narrative: string,
@@ -77,7 +77,8 @@ Build in this order, using everything already established before generating what
 
 ## NPC field requirements
 
-NPCs have 5 personality-related fields: `personality`, `motivation`, `fear`, `leverage`, `bond`.
+- `presence` is required for all NPCs: set to `"present"` for NPCs in the opening scene, `"nearby"` for those nearby but not in the scene, `"known"` for those the PC knows but aren't nearby. All seed NPCs that appear in the opening narrative must have `presence: "present"`.
+- NPCs have 5 personality-related fields: `personality`, `motivation`, `fear`, `leverage`, `bond`.
 How many depends on the NPC's role:
 
 - **Unnamed NPCs (descriptive label in `name` + same string in `aliases`; no proper name):**
