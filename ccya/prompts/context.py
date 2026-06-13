@@ -274,7 +274,7 @@ class StorytellerBoundary(BaseModel):
     """Context for storytell_user.j2.
 
     npc_roster/location/inventory/conditions come from extraction_ctx.
-    all_threads/world_state/intent/pacing_context/recent_turns/turn_no/band/gate are top-level variables.
+    all_threads/world_state/intent/pacing_context/recent_turns/turn_no/band/scene_phase/allowed_beat_types are top-level variables.
     current_arc provides campaign arc metadata (visible_goal, resolution) via _arc.j2 include.
     all_threads is mapped to threads via {% set threads = all_threads %} before _thread_list.j2 include.
     """

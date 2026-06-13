@@ -46,15 +46,17 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 **Types:** `complication`, `revelation`, `opportunity`, `breathing_room`, `pressure`, `twist`, `setback`, `escalation`, `callback`
 **Surfaces:** `ambient`, `event`, `npc_behavior`, `environmental`, `player_discovery`, `item`
 
-**Pacing directive takes precedence** (from `pacing_context` in user turn):
+## Scene phase: `{{ scene_phase }}` — allowed: `{{ allowed_beat_types | join(", ") }}`
 
-| Directive | Beat |
+| Phase | Beat constraint |
 |---|---|
-| Breathe | `breathing_room` or `null` — do not add threads |
-| Pressure | `complication` or `pressure` — update threads, don't add |
-| Overwhelm | `pressure` or `escalation` — may add threads if gate allows |
-| Tension | Follow roll band; no new threads unless concrete threat |
-| Scene Imperative | Break the loop — force a decisive outcome (victory/defeat/retreat) or transition to a new scene. Follow the outcome_hint below. Do NOT add pressure/complication beats. |
+| `SETUP` | All beat types available |
+| `RISING` | pressure/complication/escalation/revelation/twist only |
+| `CRISIS` | pressure/escalation/complication only — `enforce_relief` forces `breathing_room` |
+| `RESOLUTION` | breathing_room/callback/revelation only |
+| `BREATHER` | opportunity/revelation/callback/breathing_room/hazard only |
+
+**Phase overrides roll band.** When `outcome_hint` is `"transition"`, prefer decisive, scene-ending beats.
 
 **Roll band** (when directive is Tension or absent):
 
@@ -67,7 +69,7 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 Fail near-miss (final_total within 2 of threshold): `complication` acceptable. When deescalating, always prefer `breathing_room` or `null`.
 
-**Stale scenes:** Scene Imperative fires when a scene has been stale for 5+ turns (7+ for combat). It means break the loop — force a decisive outcome or transition. Not more pressure beats. If outcome_hint is "transition", move to a new scene/location.
+**Scene age backstop:** When `effective_scene_age` exceeds the threshold, `Scene Imperative` fires. It means break the loop — force a decisive outcome or transition. Not more pressure beats. If outcome_hint is "transition", move to a new scene/location.
 
 **Diversity:** Don't repeat the same `type` more than twice consecutively. Vary `surface_as` turn to turn. After 3+ consecutive pressure beats, use a non-pressure type. `twist` and `callback` don't repeat within 2 turns except at major pivot moments.
 

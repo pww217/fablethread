@@ -16,6 +16,7 @@ from typing import Any
 from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _log_prompts, _render
 from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.engine.narrate import _get_resolved_arcs
+from ccya.engine._pacing import derive_allowed_beat_types, derive_enforce_relief
 from ccya.prompts.context import _fmt_progress
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.personality import ARCHETYPES
@@ -223,6 +224,7 @@ def _storytell_messages(
     turn_no: int = 0,
     band: str = "",
     arc_ttl: int = 3,
+    config: EngineConfig | None = None,
 ) -> list[dict[str, str]]:
     """Build [system, user] messages for stream 3 (thread signals + facts + actions + outcome_summary)."""
     scene = state.get("scene") or {}
@@ -270,6 +272,15 @@ def _storytell_messages(
             "turn_no": turn_no,
             "band": band,
             "gate": pacing_context.gate if pacing_context else None,
+            "scene_phase": scene.get("scene_phase", "SETUP"),
+            "allowed_beat_types": derive_allowed_beat_types(
+                scene.get("scene_phase", "SETUP"),
+                enforce_relief=derive_enforce_relief(
+                    scene.get("scene_phase", "SETUP"),
+                    state.get("meta", {}).get("consecutive_pressure_beats", 0),
+                    config or EngineConfig(),
+                ),
+            ),
         },
     )
     msgs = [
@@ -526,6 +537,7 @@ async def _run_extraction_pipeline(
         turn_no=turn_no,
         band=_band,
         arc_ttl=config.arc_memory_ttl,
+        config=config,
     )
     # Capture pre-trim content for context_meta so the judge sees original sizes
     rendered_storytell_system = storytell_msgs[0]["content"] if storytell_msgs else ""

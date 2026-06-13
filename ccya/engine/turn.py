@@ -43,6 +43,7 @@ from ccya.models import (
     StorytellerResult,
     RulesOutcome,
     StateDelta,
+    TensionDelta,
     TurnResult,
 )
 
@@ -443,136 +444,86 @@ def _compute_narrative_velocity(
 
 
 def _compute_narration_directive(
-    narrative_velocity: float,
-    active_threads: list["ArcThread"],
-    ages: dict[str, int],
+    scene_phase: str,
+    tension_delta: TensionDelta,
+    thread_urgency_count: int,
+    crisis_turn_count: int,
+    crisis_turn_limit: int,
+    effective_scene_age: int,
     scene_pressure_threshold: int = 3,
-    scene_imperative_threshold: int = 5,
+    scene_imperative_threshold: int = 4,
 ) -> str:
     """Compute the narration directive string using a priority stack.
 
-    Derives urgency counts from arc.threads[]. ArcThread.urgency values map
-    to directives: urgent→Pressure/Overwhelm, background→Tension.
-
-    Returns the highest-priority directive. Secondary directives are appended
-    only when they do not contradict the primary (i.e., no escalation labels
-    when velocity is negative).
+    Driven by clean signals: scene_phase, tension_delta, thread urgency, and age.
+    Removed: Overwhelm, Pressure, Tension directives (handled by phase).
+    Removed: "; Resolve a Threat" append (replaced by enforce_relief).
 
     Priority order (highest to lowest):
-      1. Breathe         -- explicit de-escalation (velocity < -0.3)
-      2. Scene Imperative -- scene has been stale too long (effective_age >= 5)
-      3. Overwhelm       -- 3+ urgent threads
-      4. Pressure        -- 1-2 urgent threads
-      5. Tension         -- background urgency threads only
-      6. Scene Pressure  -- scene approaching staleness (effective_age >= 3)
+      1. Breathe        — tension_delta == "de-escalates" AND thread_urgency_count == 0
+      2. Scene Imperative — (scene_phase == CRISIS AND crisis_turn_count >= crisis_turn_limit)
+                             OR effective_scene_age >= scene_imperative_threshold
+      3. Scene Pressure   — effective_scene_age >= scene_pressure_threshold
+      4. (empty)        — default
     """
-    # Priority 1: breathe (de-escalation wins unconditionally)
-    if narrative_velocity < -0.3:
-        urgent_count = sum(
-            1 for t in active_threads
-            if getattr(t, "urgency", "") == "urgent"
-        )
-        if urgent_count == 0:
-            return "Breathe"
+    # Priority 1: Breathe — de-escalation with no urgent threads
+    if tension_delta == "de-escalates" and thread_urgency_count == 0:
+        return "Breathe"
 
-    # Priority 2: scene imperative — stale scene demands attention
-    effective_age = ages.get("effective_scene_age", 0)
-    if effective_age >= scene_imperative_threshold:
+    # Priority 2: Scene Imperative — crisis at turn limit OR stale scene
+    if (scene_phase == "CRISIS" and crisis_turn_count >= crisis_turn_limit) or effective_scene_age >= scene_imperative_threshold:
         return "Scene Imperative"
 
-    secondary: list[str] = []
+    # Priority 3: Scene Pressure — approaching staleness
+    if effective_scene_age >= scene_pressure_threshold:
+        return "Scene Pressure"
 
-    # Overwhelm (3+ urgent threads)
-    immediate_count = sum(1 for t in active_threads if getattr(t, "urgency", "") == "urgent")
-    if immediate_count >= 3:
-        primary = "Overwhelm"
-    else:
-        primary = ""
-
-    # Pressure (1-2 urgent)
-    if not primary and immediate_count > 0:
-        primary = "Pressure"
-
-    # Tension (background only)
-    if not primary:
-        building_count = sum(1 for t in active_threads if getattr(t, "urgency", "") == "background")
-        if building_count > 0:
-            primary = "Tension"
-
-    # Secondary: scene pressure approaching staleness (non-contradicting append)
-    if scene_pressure_threshold <= effective_age < scene_imperative_threshold:
-        secondary.append("Scene Pressure")
-
-    parts = [primary] if primary else []
-    parts.extend(secondary)
-    return "; ".join(parts)
+    # Priority 4: empty (default)
+    return ""
 
 
 def _compute_pacing_context(
-    deescalate: float,
-    narrative_velocity: float,
-    active_threads: list["ArcThread"],
-    ages: dict[str, int],
-    momentum: int,
-    config: "EngineConfig",
-    consecutive_pressure_turns: int = 0,
-    scene_motion: str = "hold",
-    impossible: bool = False,
+    scene_phase: str,
+    tension_delta: TensionDelta,
+    thread_urgency_count: int,
+    crisis_turn_count: int,
+    crisis_turn_limit: int,
+    effective_scene_age: int,
+    scene_pressure_threshold: int = 3,
+    scene_imperative_threshold: int = 4,
 ) -> PacingContext:
     """Compute unified pacing context for Narrate and Progress steps.
 
-    Derives urgency from arc.threads[]. Replaces separate deescalate/narrative_velocity
-    signals with a single authoritative struct containing directive, beat_locked, gate, summary.
+    Driven by scene_phase, tension_delta, thread urgency, and age.
+    Old fields (beat_locked, gate) remain until Plan 4 — set to defaults.
     """
-    # Compute directive using existing logic
+    # Compute directive using new signal set
     directive = _compute_narration_directive(
-        narrative_velocity=narrative_velocity,
-        active_threads=active_threads,
-        ages=ages,
-        scene_pressure_threshold=config.scene_pressure_threshold,
-        scene_imperative_threshold=config.scene_imperative_threshold,
+        scene_phase=scene_phase,
+        tension_delta=tension_delta,
+        thread_urgency_count=thread_urgency_count,
+        crisis_turn_count=crisis_turn_count,
+        crisis_turn_limit=crisis_turn_limit,
+        effective_scene_age=effective_scene_age,
+        scene_pressure_threshold=scene_pressure_threshold,
+        scene_imperative_threshold=scene_imperative_threshold,
     )
 
-    # Determine beat_locked: relief fired when either consecutive pressure threshold reached or momentum at minimum
+    # beat_locked: set to False (old trigger conditions no longer exist, enforce_relief replaces it)
     beat_locked = False
-    if consecutive_pressure_turns >= config.consecutive_pressure_threshold or momentum <= config.momentum_floor:
-        beat_locked = True
-        directive_parts = [directive] if directive else []
-        # MB-2: never append threat resolution to Breathe — it's de-escalation, not escalation
-        if directive != "Breathe":
-            directive_parts.append("Resolve a Threat")
-        directive = "; ".join(directive_parts) or ""
 
-    # Compute outcome_hint from scene_motion and PacingContext escalation signals
-    outcome_hint: str | None = "hold"
-    if scene_motion == "transition":
-        outcome_hint = "transition"
-    elif scene_motion == "advance":
-        outcome_hint = "advance"
-    elif directive.startswith("Scene Imperative"):
-        outcome_hint = "transition"
-    elif impossible:
-        outcome_hint = "advance"
-    else:
-        effective_age = ages.get("effective_scene_age", 0)
-        if effective_age >= 3:
-            outcome_hint = "advance"
-        elif beat_locked:
-            outcome_hint = "advance"
-        else:
-            urgent_count = sum(1 for t in active_threads if getattr(t, "urgency", "normal") == "urgent")
-            if directive in ("Overwhelm", "Pressure") and urgent_count >= 1:
-                outcome_hint = "advance"
-
-    # Determine gate: block_add when deescalation is strong (pressure just resolved)
+    # gate: set to "allow" (old deescalate-gate logic removed)
     gate: Literal["block_escalate", "allow"] = "allow"
-    if deescalate >= 0.5:
-        gate = "block_escalate"
+
+    # outcome_hint: driven by scene_motion from intent + existing fallbacks
+    # Add: when phase CRISIS hits turn limit, override to "transition"
+    outcome_hint: str | None = "hold"
+
+    if scene_phase == "CRISIS" and crisis_turn_count >= crisis_turn_limit:
+        outcome_hint = "transition"
 
     # Build summary for logging
     parts = [directive] if directive else []
-    if beat_locked:
-        parts.append("locked")
     summary = ", ".join(parts) or "neutral"
 
     return PacingContext(
@@ -596,6 +547,88 @@ def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
     return {
         "scene_age": scene_age,
     }
+
+
+def _compute_scene_phase(
+    state: dict[str, Any],
+    tension_delta: TensionDelta,
+    ages: dict[str, int],
+    config: EngineConfig,
+) -> dict[str, Any]:
+    """Compute the scene phase using the 5-state machine.
+
+    Transitions: SETUP→RISING, RISING→CRISIS, CRISIS→RESOLUTION,
+    RESOLUTION→SETUP/BREATHER, BREATHER→RISING, any→SETUP (location change).
+
+    Mutates state["scene"] in place. Returns the updated scene dict.
+    """
+    meta = state.get("meta") or {}
+    scene = state.setdefault("scene", {})
+    current_turn = meta.get("turn", 0)
+
+    # Initialize new fields if missing
+    scene.setdefault("scene_phase", "SETUP")
+    scene.setdefault("crisis_turn_count", 0)
+    scene.setdefault("breather_turn_count", 0)
+
+    phase = scene.get("scene_phase", "SETUP")
+    crisis_turn_count = scene.get("crisis_turn_count", 0)
+    breather_turn_count = scene.get("breather_turn_count", 0)
+
+    # Count urgent threads
+    _raw_threads = (state.get("arc") or {}).get("threads") or []
+    thread_urgency_count = 0
+    for t in _raw_threads:
+        if isinstance(t, dict) and getattr(ArcThread.model_validate(t) if not isinstance(t, ArcThread) else t, "urgency", "normal") == "urgent":
+            thread_urgency_count += 1
+
+    effective_scene_age = ages.get("effective_scene_age", ages.get("scene_age", 0))
+
+    # Check location change: if scene was entered this turn, force SETUP
+    scene_entered = scene.get("turn_entered", 0)
+    location_change_this_turn = (scene_entered == current_turn)
+
+    # Location change → SETUP (except RESOLUTION which splits below)
+    if location_change_this_turn and phase != "RESOLUTION":
+        return {**scene, "scene_phase": "SETUP", "crisis_turn_count": 0, "breather_turn_count": 0}
+
+    # Phase transition logic
+    if phase == "SETUP":
+        if thread_urgency_count > 0:
+            phase = "RISING"
+        elif tension_delta == "escalates" and thread_urgency_count >= 1:
+            phase = "RISING"
+
+    elif phase == "RISING":
+        if thread_urgency_count >= config.crisis_urgency_threshold:
+            phase = "CRISIS"
+            crisis_turn_count = 0
+        elif thread_urgency_count >= 1 and tension_delta == "escalates":
+            phase = "CRISIS"
+            crisis_turn_count = 0
+        elif effective_scene_age >= config.scene_pressure_threshold:
+            phase = "CRISIS"
+            crisis_turn_count = 0
+
+    elif phase == "CRISIS":
+        crisis_turn_count += 1
+        if crisis_turn_count >= config.crisis_turn_limit:
+            phase = "RESOLUTION"
+            crisis_turn_count = 0
+
+    elif phase == "RESOLUTION":
+        # RESOLUTION splits based on location change (already handled above)
+        # If we're still here, no location change → BREATHER
+        phase = "BREATHER"
+        breather_turn_count = 0
+
+    elif phase == "BREATHER":
+        breather_turn_count += 1
+        if thread_urgency_count > 0 or breather_turn_count >= config.breather_max_turns:
+            phase = "RISING"
+            breather_turn_count = 0
+
+    return {**scene, "scene_phase": phase, "crisis_turn_count": crisis_turn_count, "breather_turn_count": breather_turn_count}
 
 
 
@@ -791,38 +824,47 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any, float]:
     _pack_world_rules = ctx.packing.get("world_rules", [])
     _world_factions = ctx.packing.get("factions", [])
 
-    # Compute unified pacing scalar
-    narrative_velocity = _compute_narrative_velocity(
-        deescalate=ctx._deescalate,
-        momentum=(state.get("pc") or {}).get("momentum", 0),
-        avoidance=ctx._avoidance,
-        momentum_floor=config.momentum_floor,
-        momentum_ceiling=config.momentum_ceiling,
-        pacing_factor=config.momentum_pacing_factor,
-    )
+    # narrative_velocity placeholder — old signal computation removed, set to 0.0
+    narrative_velocity = 0.0
 
-    # Build active thread list from all arc threads for pacing context
+    # Phase engine: compute scene_phase before directive computation
+    tension_delta = ctx.intent.tension_delta if ctx.intent else "maintains"
+    scene = state.setdefault("scene", {})
+    scene.setdefault("scene_phase", "SETUP")
+    scene.setdefault("crisis_turn_count", 0)
+    scene.setdefault("breather_turn_count", 0)
+    scene_phase = scene.get("scene_phase", "SETUP")
+    crisis_turn_count = scene.get("crisis_turn_count", 0)
+
+    # Count urgent threads for phase engine
     _raw_thread_dicts = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict)]
-    _active_threads: list[ArcThread] = []
+    thread_urgency_count = 0
     for td in _raw_thread_dicts:
         try:
-            _active_threads.append(ArcThread.model_validate(td))
+            t = ArcThread.model_validate(td)
+            if t.urgency == "urgent":
+                thread_urgency_count += 1
         except Exception:
             _log.warning(
                 "Malformed ArcThread entry: %s", td,
                 extra={"turn": turn_no, "trace_id": ctx.trace_id},
             )
 
-    # Compute unified pacing context
-    _scene_motion = ctx.intent.scene_motion if ctx.intent else "hold"
-    _impossible = ctx.intent.impossible if ctx.intent else False
+    # Compute phase (mutates state["scene"] in place)
+    scene = _compute_scene_phase(state, tension_delta, ctx._ages, config)
+    scene_phase = scene.get("scene_phase", "SETUP")
+    crisis_turn_count = scene.get("crisis_turn_count", 0)
+
+    # Compute unified pacing context with new signal set
     _pc = _compute_pacing_context(
-        deescalate=ctx._deescalate, narrative_velocity=narrative_velocity,
-        active_threads=_active_threads, ages=ctx._ages,
-        momentum=(state.get("pc") or {}).get("momentum", 0), config=config,
-        consecutive_pressure_turns=(state.get("meta") or {}).get("consecutive_pressure_turns", 0),
-        scene_motion=_scene_motion,
-        impossible=_impossible,
+        scene_phase=scene_phase,
+        tension_delta=tension_delta,
+        thread_urgency_count=thread_urgency_count,
+        crisis_turn_count=crisis_turn_count,
+        crisis_turn_limit=config.crisis_turn_limit,
+        effective_scene_age=ctx._ages.get("effective_scene_age", 0),
+        scene_pressure_threshold=config.scene_pressure_threshold,
+        scene_imperative_threshold=config.scene_imperative_threshold,
     )
 
     _comp = (state.get("compendium") or {}).get("npcs") or {}
@@ -1050,15 +1092,15 @@ async def run_turn(
                             "beat_expires_turn": turn_no + 2,
                         }
 
-            # Consecutive pressure counter: reads post-floor-relief pending_gm_beat
+            # Consecutive pressure beats counter: tracks beat type streaks, not directive types
             _current_beat = state.get("meta", {}).get("pending_gm_beat")
             _beat_type = _current_beat.get("type") if _current_beat else None
             meta = state.setdefault("meta", {})
-            current_pressure = meta.get("consecutive_pressure_turns", 0)
+            current_pressure = meta.get("consecutive_pressure_beats", 0)
             if _beat_type in PRESSURE_BEAT_TYPES:
-                meta["consecutive_pressure_turns"] = current_pressure + 1
+                meta["consecutive_pressure_beats"] = current_pressure + 1
             else:
-                meta["consecutive_pressure_turns"] = 0
+                meta["consecutive_pressure_beats"] = 0
 
         if is_cancel_requested(str(save_dir)):
             return
@@ -1364,11 +1406,15 @@ async def run_turn(
                 "gate": _pc.gate if _pc else "allow",
                 "outcome_hint": _pc.outcome_hint if _pc else None,
                 "summary": _pc.summary if _pc else "",
+                "scene_phase": state.get("scene", {}).get("scene_phase", "SETUP"),
+                "crisis_turn_count": state.get("scene", {}).get("crisis_turn_count", 0),
+                "breather_turn_count": state.get("scene", {}).get("breather_turn_count", 0),
             },
             "post_turn_pending_beat": state.get("meta", {}).get("pending_gm_beat"),
             "post_turn_location_id": state.get("location", {}).get("id"),
             "post_extraction_consecutive_pressure_turns": (state.get("meta") or {}).get("consecutive_pressure_turns", 0),
             "narrative_velocity": round(narrative_velocity, 2),
+            "scene_phase": state.get("scene", {}).get("scene_phase", "SETUP"),
             "narrate": narr_metrics,
             "extract": ext_metrics,
             "extraction": extraction_event,

@@ -14,7 +14,9 @@ flowchart LR
         S1["narrative (from Step 1)"]:::xstream
         S2["_ExtractionContext<br>(comp_this_turn, location,<br>inventory, conditions)<br>built by _build_extraction_context()"]:::xstream
         S3["npc_roster<br>(from build_npc_roster())"]:::xstream
-        S4["pacing_context<br>(directive · gate · beat_locked)"]:::xstream
+        S4["pacing_context<br>(directive · beat_locked)"]:::xstream
+        S4b["scene_phase<br>(SETUP/RISING/CRISIS/RESOLUTION/BREATHER)"]:::xstream
+        S4c["allowed_beat_types<br>(phase-derived list of permitted beat types)"]:::xstream
         S5["arc.threads[]<br>(unified scope=scene + scope=arc)"]:::xstream
         S6["rules_outcome"]:::xstream
         S7["intent (from Step 0)"]:::xstream
@@ -69,6 +71,8 @@ The beat system intersects with pacing via two fields in `PacingContext` (see [s
 |-------|------|---------|
 | `directive` | str | May include secondary modifier `"; Resolve a Threat"` when `beat_locked=True` (except Breathe). Drives storytell guidance for beat type selection. |
 | `beat_locked` | bool | True when either `consecutive_pressure_turns >= threshold` OR `momentum <= momentum_floor`. When locked, `"Resolve a Threat"` is appended to the directive (except Breathe). Enables floor relief to inject a breathing_room beat if the storyteller is stuck in a pressure-type loop (only when not from momentum floor). |
+
+> **Note:** `gate` field on `PacingContext` is always `"allow"` after Plan 2. Templates no longer render it. Phase-derived `allowed_beat_types` is the gating mechanism for beat type selection.
 
 ### Beat Lifecycle — Turn Sequence
 
@@ -135,9 +139,9 @@ Floor relief is a **fallback override** — it breaks a pressure-type run by for
 - If Storytell emitted a non-pressure beat (revelation, opportunity, breathing_room, etc.) → floor relief lets it stand. Relief is already being achieved.
 - If Storytell emitted nothing (null) → floor relief injects breathing_room. This is appropriate: after a null turn with beat_locked active, relief is needed.
 
-### Directive-Beat Alignment
+### Phase-Beat Constraints
 
-The storyteller prompt (`storytell_system.j2`, pacing context guidance section) maps each PacingContext directive to recommended beat types (e.g., "Breathe" → breathing_room; "Scene Imperative" → advance story; "Overwhelm" → pressure/escalation). This alignment is **guidance only** — Python accepts whatever gm_beat the LLM emits with no validation, correction, or override. Design rationale: forcing directive-beat alignment would constrain storytelling flexibility and create brittleness if the LLM makes contextually appropriate but directive-divergent beat choices.
+The storyteller prompt (`storytell_system.j2`) uses a phase→beat constraints table driven by `scene_phase` and `allowed_beat_types` context variables. Each phase (SETUP, RISING, CRISIS, RESOLUTION, BREATHER) specifies which beat types are permitted. The roll-band table becomes the secondary constraint when phase allows multiple types. Phase overrides roll band. This alignment is **guidance only** — Python accepts whatever gm_beat the LLM emits with no validation, correction, or override. Design rationale: forcing phase-beat alignment would constrain storytelling flexibility and create brittleness if the LLM makes contextually appropriate but phase-divergent beat choices.
 
 ### Beat History
 
@@ -236,7 +240,7 @@ flowchart TD
     end
 
     subgraph GATE["Thread add gate (with cap eviction)"]
-        T1["PacingContext.gate == 'allow'?<br>If blocked: log debug, skip add<br>Gate status rendered in prompt<br>(no silent drops)"]
+        T1["Phase-derived allowed_beat_types<br>governs beat type selection.<br>Gate field always 'allow' —<br>no longer rendered in prompts."]
         T2["ID collision? Thread id in existing_ids<br>or completed_ids → reject"]
         T3["Thread cap: if active > thread_max_active<br>→ evict oldest active thread (set active: false)"]
     end
@@ -369,14 +373,7 @@ Processes `storyteller_result.thread_resolve` (list of `ThreadResolution` with `
 
 #### Pacing Context Gate
 
-`_compute_pacing_context()` sets `gate` based on deescalation:
-
-```
-gate = "allow" by default
-gate = "block_escalate" when deescalate >= 0.5
-```
-
-The gate blocks thread creation. The LLM is instructed not to emit `thread_add` when `gate != "allow"`, and the gate status is explicitly rendered in the prompt to provide awareness.
+> **Removed in Plan 3.** The `gate` field on `PacingContext` is always `"allow"` after Plan 2. Templates no longer render it. Beat type gating is now handled by phase-derived `allowed_beat_types` in the storyteller system prompt. Thread creation is governed by phase constraints, not the gate field.
 
 #### Constants Reference
 

@@ -1,7 +1,7 @@
 # Architecture Overview — CCYA Engine
 
-CCYA is a local-LLM-backed text RPG engine. Every player turn drives a five-step
-pipeline (Rules → Narrate → Scene Extract → State Extract → Storytell) with
+CCYA is a local-LLM-backed text RPG engine. Every player turn drives a six-step
+pipeline (Rules → Phase Engine → Narrate → Scene Extract → State Extract → Storytell) with
 a pure-Python validation+persist tail. Two additional LLM pipelines handle new-game
 creation: **Character Creation** (static packs) and **Generate Seed** (dynamic packs).
 
@@ -22,6 +22,7 @@ flowchart TD
     subgraph ENGINE["engine — run_turn()"]
         STEP0["Step 0<br>Ruling/Intent (LLM)"]:::stageRules
         DICE["Dice Resolution<br>(Python)"]:::pyNode
+        PHASE["Phase Engine<br>5-state machine (Python)"]:::pyNode
         STEP1["Step 1<br>Narrate (LLM)"]:::stageNarrate
         STEP2A["Step 2a<br>Scene Extract (LLM)"]:::stageScene
         STEP2B["Step 2b<br>State Extract (LLM)"]:::stageState
@@ -37,7 +38,8 @@ flowchart TD
 
     USER --> STEP0
     STEP0 -- "IntentEnvelope + RulesOutcome" --> DICE
-    DICE -- "PacingContext" --> STEP1
+    DICE -- "tension_delta, scene_motion" --> PHASE
+    PHASE -- "scene_phase, PacingContext" --> STEP1
     STEP1 --> STEP2A & STEP2B & STEP2C
     STEP2A & STEP2B & STEP2C --> VALIDATE
     VALIDATE --> PERSISTENCE
@@ -49,6 +51,7 @@ flowchart TD
 | Step | Docs | When it runs | Key inputs | Key outputs | Mechanics it owns |
 |---|---|---|---|---|---|
 | **Step 0 — Ruling/Intent** | [step0-ruling](./step0-ruling.md) | Every turn (always) | `state.pc`, `state.location`, `recent_turns[-1:]`, `user_input` | `IntentEnvelope`, `RulesOutcome` | Intent classification, impossibility check, scene motion determination, dice roll resolution (1d12 + stat_mod + diff_mod → band), LLM-driven difficulty adjustment factoring conditions/inventory, anti-declare-outcome enforcement. When `impossible=true`, no roll occurs and Python synthesizes a `fail` outcome. |
+| **Phase Engine** | — | Every turn (always, Python) | `state["scene"]`, `tension_delta` from ruling, `ages`, `EngineConfig` | `scene_phase` (SETUP/RISING/CRISIS/RESOLUTION/BREATHER), `crisis_turn_count`, `breather_turn_count` in `state["scene"]` | 5-state phase machine driven by thread urgency, tension_delta, and scene age. Phase drives directive computation and beat constraints. |
 | **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Every turn (always, streamed) | Full `state`, `prior_history` (last 20 bullets, all but last rendered), `recent_turns[-1:]`, `pacing_context`, `pending_gm_beat`, `npc_roster` (from build_npc_roster()), `world_factions/locations` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption. Scene motion shaped by `PacingContext.outcome_hint`; impossible actions narrated as natural failures. |
 | **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Every turn (always) | `narrative`, `state.pc/location`, `npc_roster` (from build_npc_roster()), conditions, compendium entries | `SceneExtractResult`: tagline, location_change, compendium_npc_update | NPC presence, location changes, durable NPC compendium identity. |
 | **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Every turn (always) | `narrative`, `state.pc/location/inventory`, conditions | `StateExtractResult`: inventory_add/remove/update, pc_condition_add/remove | Inventory delta accuracy, condition lifecycle. |
@@ -89,6 +92,8 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
   The seed owns first-turn emotional framing, not just world and arc scaffolding. It generates `goal_context` (character-specific stake), NPC `relation` fields (narrative job relative to PC), and action text written from the PC's voice and scene pressure — ensuring the opening feels personal and motivated from the start.
 
 ### PacingContext (see [step0-ruling](./step0-ruling.md#pacing-context))
+
+Computed by `_compute_pacing_context()` in `turn.py` after the phase engine runs. Primary pacing signal is `scene_phase` (SETUP/RISING/CRISIS/RESOLUTION/BREATHER) from the 5-state machine. Fields: `directive` (phase-driven priority stack: Breathe → Scene Imperative → Scene Pressure → empty), `outcome_hint` (hold/advance/transition, overridden to "transition" when CRISIS hits turn limit), `beat_locked` (False, kept until Plan 4), `gate` ("allow", kept until Plan 4), `summary` (human-readable log string). Old fields (`beat_locked`, `gate`) remain until Plan 4 deletes them.
 
 ### GMBeat (see [step2c-storytell](./step2c-storytell.md#gm-beat))
 
