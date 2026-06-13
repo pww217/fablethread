@@ -7,7 +7,7 @@ Atomic writes to disk. No LLM calls.
 - `narrate_prompt` is saved at the event level (with `rendered_system`, `rendered_user`, `output`, `context_meta`)
 - `ruling_prompt` is saved at the event level (with `rendered_system`, `rendered_user`, `output`, `parse_error`, `context_meta`)
 - `storytell_prompt` is NOT saved at the event level — it's available in `extraction.storytell.rendered_user` and `extraction.storytell.rendered_system`
-- `pacing_context` is saved at the event level (with `directive`, `beat_locked`, `gate`, `outcome_hint`, `summary`)
+- `pacing_context` is saved at the event level (with `directive`, `outcome_hint`, `summary`)
 - `state_snapshot` is saved at the event level (full state at end of turn, used by checkers for state-at-turn verification)
 
 ## Flowchart

@@ -27,10 +27,10 @@ def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
         gm_beat = storytell_output.get("gm_beat")
         gm_beat_type = gm_beat.get("type") if isinstance(gm_beat, dict) else None
 
-        counter = extract_field(ev, "post_extraction_consecutive_pressure_turns")
+        counter = extract_field(ev, "post_extraction_consecutive_pressure_beats")
         if counter is None:
             meta = (extract_field(ev, "state_snapshot") or {}).get("meta") or {}
-            counter = meta.get("consecutive_pressure_turns", 0)
+            counter = meta.get("consecutive_pressure_beats", 0)
 
         is_pressure = gm_beat_type in PRESSURE_BEAT_TYPES if gm_beat_type else False
 
@@ -39,7 +39,7 @@ def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
                 findings.append({
                     "turn": ev.get("turn"),
                     "check": "consecutive_pressure",
-                    "detail": f"gm_beat.type={gm_beat_type!r} (pressure type) but consecutive_pressure_turns={counter} (expected >= 1)",
+                    "detail": f"gm_beat.type={gm_beat_type!r} (pressure type) but consecutive_pressure_beats={counter} (expected >= 1)",
                 })
                 all_passed = False
         else:
@@ -47,7 +47,7 @@ def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
                 findings.append({
                     "turn": ev.get("turn"),
                     "check": "consecutive_pressure",
-                    "detail": f"gm_beat.type={gm_beat_type!r} (not pressure) but consecutive_pressure_turns={counter} (expected 0)",
+                    "detail": f"gm_beat.type={gm_beat_type!r} (not pressure) but consecutive_pressure_beats={counter} (expected 0)",
                 })
                 all_passed = False
 

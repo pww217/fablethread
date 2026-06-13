@@ -193,16 +193,6 @@ def _cmd_deltas_compact(ev: dict[str, Any], events: list[dict[str, Any]] | None 
         if ev.get("rejected"):
             print(f"  Rejected: {len(ev['rejected'])} field(s)")
 
-    # Momentum
-    momentum_before = ev.get("momentum_before")
-    momentum_after = ev.get("momentum_after")
-    if momentum_before is not None or momentum_after is not None:
-        mb = momentum_before if momentum_before is not None else "?"
-        ma = momentum_after if momentum_after is not None else "?"
-        delta = (momentum_after - momentum_before) if (momentum_before is not None and momentum_after is not None) else None
-        delta_str = f" ({delta:+d})" if delta is not None else ""
-        print(f"  Momentum: {mb} {ARROW} {ma}{delta_str}")
-
     # Band
     ruling = ev.get("ruling") or {}
     if ruling.get("band"):
@@ -348,9 +338,6 @@ def cmd_mechanics(
 def _show_pacing(ev: dict[str, Any]) -> None:
     print(f"=== Turn {ev.get('turn', '?')} \u2014 Pacing Context ===\n")
     pacing_ctx = ev.get("pacing_context") or {}
-    momentum_before = ev.get("momentum_before")
-    momentum_after = ev.get("momentum_after")
-    band_label = (ev.get("ruling") or {}).get("band", "")
 
     summary = pacing_ctx.get("summary", "")
     print(f"  summary: {summary}" if summary else "  summary: (none)")
@@ -359,25 +346,7 @@ def _show_pacing(ev: dict[str, Any]) -> None:
     if outcome_hint:
         print(f"  outcome_hint: {outcome_hint}")
 
-    gate = pacing_ctx.get("gate", "allow")
-    print(f"  gate: {gate}" if gate and gate != "allow" else "  gate: allow")
-
-    if momentum_before is not None or momentum_after is not None:
-        mb = momentum_before if momentum_before is not None else "?"
-        ma = momentum_after if momentum_after is not None else "?"
-        delta = (momentum_after - momentum_before) if (momentum_before is not None and momentum_after is not None) else None
-        delta_str = f" ({delta:+d})" if delta is not None else ""
-        print(f"  momentum: {mb} \u2192 {ma}{delta_str}")
-    else:
-        print("  momentum: (none)")
-
-    beat_locked = pacing_ctx.get("beat_locked", False)
-    if beat_locked:
-        print("  beat_locked: true")
-
-    consec = ev.get("post_extraction_consecutive_pressure_turns")
-    if consec is not None and consec > 0:
-        print(f"  consecutive_pressure: {consec}")
+    band_label = (ev.get("ruling") or {}).get("band", "")
 
     if band_label:
         print(f"  band: {band_label}")

@@ -5,18 +5,14 @@ from typing import Any
 
 from ccya.ev.checkers import CheckerResult, register_checker
 from ccya.ev.events import extract_field
-from ccya.engine.turn import PRESSURE_BEAT_TYPES
 
 _log = logging.getLogger(__name__)
-
-MOMENTUM_FLOOR = -3
 
 
 @register_checker(
     "gm_beat_lifecycle", "deterministic",
-    requires_fields=["state_snapshot", "momentum_before", "momentum_after",
-                     "ruling", "narrate_prompt"],
-    description="Verify pending_gm_beat is consumed, floor relief injected, binding present on roll",
+    requires_fields=["state_snapshot", "ruling", "narrate_prompt"],
+    description="Verify pending_gm_beat is consumed, enforce_relief triggered, binding present on roll",
 )
 def gm_beat_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
@@ -61,27 +57,20 @@ def gm_beat_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
                 })
                 all_passed = False
 
-        # floor_relief_injection
+        # enforce_relief: when phase is CRISIS and consecutive_pressure_beats >= threshold,
+        # the pending_gm_beat should be "breathing_room" regardless of what storytell emitted
         pacing_ctx = extract_field(ev, "pacing_context") or {}
-        beat_locked = bool(pacing_ctx.get("beat_locked", False))
-
-        storytell_output = storytell.get("output") or {}
-        storytell_gm_beat_out = storytell_output.get("gm_beat")
-        storytell_type = storytell_gm_beat_out.get("type") if isinstance(storytell_gm_beat_out, dict) else None
-
-        cur_beat_post = extract_field(ev, "post_turn_pending_beat") or (snap.get("meta") or {}).get("pending_gm_beat")
-        cur_type = cur_beat_post.get("type") if isinstance(cur_beat_post, dict) else None
-
-        if beat_locked:
-            storytell_is_pressure = storytell_type in PRESSURE_BEAT_TYPES if storytell_type else False
-            storytell_is_non_pressure = bool(storytell_type) and not storytell_is_pressure
-
-            if not storytell_is_non_pressure:
+        scene_phase = pacing_ctx.get("scene_phase")
+        if scene_phase == "CRISIS":
+            consecutive = extract_field(ev, "post_extraction_consecutive_pressure_beats") or 0
+            if int(consecutive) >= 3:
+                cur_beat_post = extract_field(ev, "post_turn_pending_beat") or (snap.get("meta") or {}).get("pending_gm_beat")
+                cur_type = cur_beat_post.get("type") if isinstance(cur_beat_post, dict) else None
                 if cur_type != "breathing_room":
                     findings.append({
                         "turn": ev.get("turn"),
-                        "check": "floor_relief",
-                        "detail": f"beat_locked=True, storytell_type={storytell_type!r} but pending_gm_beat.type={cur_type!r} (expected 'breathing_room')",
+                        "check": "enforce_relief",
+                        "detail": f"CRISIS phase with {consecutive} consecutive pressure beats but pending_gm_beat.type={cur_type!r} (expected 'breathing_room')",
                     })
                     all_passed = False
 
@@ -97,18 +86,6 @@ def gm_beat_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
                     "detail": "rolled=true but narrate user prompt did not include rules_outcome BINDING block",
                 })
                 all_passed = False
-
-        # beat_locked_dual_trigger
-        pc_momentum = (snap.get("pc") or {}).get("momentum", 0)
-        expected_beat_locked = int(pc_momentum) <= MOMENTUM_FLOOR if pc_momentum is not None else False
-
-        if expected_beat_locked and not beat_locked:
-            findings.append({
-                "turn": ev.get("turn"),
-                "check": "beat_locked_dual_trigger",
-                "detail": f"momentum={pc_momentum} at floor {MOMENTUM_FLOOR}, but beat_locked=False",
-            })
-            all_passed = False
 
     if not all_passed:
         return CheckerResult(

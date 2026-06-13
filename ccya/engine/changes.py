@@ -77,7 +77,6 @@ def summarize_changes(
     inventory: list[dict[str, Any]] = []
     player: list[dict[str, Any]] = []
     facts: list[dict[str, Any]] = []
-    momentum: list[dict[str, Any]] = []
 
     for r in rejected or []:
         if r.get("field") == "inventory_remove":
@@ -207,16 +206,6 @@ def summarize_changes(
         if pre_text != post_text:
             facts.append({"kind": "updated", "old": pre_text, "new": post_text})
 
-    pre_momentum = pre.get("pc", {}).get("momentum", 0)
-    post_momentum = post.get("pc", {}).get("momentum", 0)
-    if pre_momentum != post_momentum:
-        momentum.append({
-            "kind": "momentum_changed",
-            "before": pre_momentum,
-            "after": post_momentum,
-            "delta": post_momentum - pre_momentum,
-        })
-
     threads: list[dict[str, Any]] = []
     pre_arc = pre.get("arc") or {}
     post_arc = post.get("arc") or {}
@@ -299,7 +288,7 @@ def summarize_changes(
                         "detail": ra.get("resolution", ""),
                     })
 
-    result = {"inventory": inventory, "player": player, "facts": facts, "momentum": momentum, "threads": threads}
+    result = {"inventory": inventory, "player": player, "facts": facts, "threads": threads}
     total = sum(len(v) for v in result.values())
     _log.debug("summarize_changes complete lines=%d", total)
     return result
@@ -384,12 +373,5 @@ def format_change_lines(ch: dict[str, Any] | None) -> list[str]:
         elif k == "arc_resolved":
             snippet = f" — {detail}" if detail else ""
             lines.append(f"{_ARC_EMOJI} {summary}{snippet}")
-    for row in ch.get("momentum") or []:
-        if not isinstance(row, dict):
-            continue
-        k = row.get("kind")
-        if k == "momentum_changed":
-            b, a = row.get("before", 0), row.get("after", 0)
-            lines.append(f"⚡ Momentum {b:+d} → {a:+d}")
     _log.debug("format_change_lines output=%d", len(lines))
     return lines

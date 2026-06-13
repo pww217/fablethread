@@ -113,8 +113,6 @@ async def _run_turn_async(
         )
 
     ruling = turn_result.ruling or {}
-    momentum_before = ruling.get("momentum_before", 0.0)
-    momentum_after = ruling.get("momentum_after", 0.0)
 
     scene = {
         "tags": state_after.get("scene", {}).get("tags", []),
@@ -134,9 +132,6 @@ async def _run_turn_async(
         "trace_id": turn_result.trace_id,
         "ruling": ruling,
         "narrative": turn_result.narrative,
-        "momentum_before": momentum_before,
-        "momentum_after": momentum_after,
-        "momentum_delta": momentum_after - momentum_before,
         "actions": turn_result.actions,
         "scene": scene,
         "applied": turn_result.applied,
@@ -155,9 +150,6 @@ def _build_error_output(state: dict[str, Any], errors: list[dict[str, Any]], t0:
         "trace_id": "",
         "ruling": {},
         "narrative": narrative,
-        "momentum_before": state.get("pc", {}).get("momentum", 0.0),
-        "momentum_after": state.get("pc", {}).get("momentum", 0.0),
-        "momentum_delta": 0.0,
         "actions": [],
         "scene": {
             "tags": state.get("scene", {}).get("tags", []),
@@ -182,20 +174,14 @@ def format_play_output(result: dict[str, Any]) -> str:
         skill = ruling.get("skill", "?")
         diff = ruling.get("difficulty", "?")
         band = ruling.get("band", "?")
-        momentum_delta_ruling = ruling.get("momentum_delta", 0)
         lines.append(f"Ruling:    {ruling.get('intent_verb', '?').upper()} (skill: {skill}, diff: {diff})")
         if ruling.get("rolled"):
             dice = ruling.get("dice", "?")
-            lines.append(f"           Roll: {dice} -> Band: {band} ({momentum_delta_ruling:+d} momentum)")
+            lines.append(f"           Roll: {dice} -> Band: {band}")
 
     narrative = result.get("narrative", "")
     lines.append(f"Narrative: \"{narrative[:60]}{'...' if len(narrative) > 60 else ''}\" ({len(narrative)} chars)")
     lines.append("")
-
-    mb = result.get("momentum_before", 0)
-    ma = result.get("momentum_after", 0)
-    md = result.get("momentum_delta", 0)
-    lines.append(f"Momentum:   {mb} -> {ma}  ({md:+.1f})")
 
     actions = result.get("actions", [])
     lines.append(f"Actions:   {', '.join(actions) if actions else 'none'}")

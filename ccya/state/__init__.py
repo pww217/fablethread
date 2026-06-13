@@ -28,13 +28,10 @@ from ccya.state.npcs import (
     strip_npcs_notes,
     touch_compendium_order,
 )
-from ccya.state.momentum import apply_momentum
-
 __all__ = [
     "append_chronicle",
     "append_event",
     "apply_delta",
-    "apply_momentum",
     "build_npc_alias_map",
     "init_save_dir",
     "load_last_narration",

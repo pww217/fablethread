@@ -85,7 +85,7 @@ Five stage rows, one per pipeline step:
 Three optional sections:
 
 1. **Failures** — LLM errors, parse retries, validation rejections. Each shows stream name, kind (error/retry/reject), attempt number, message.
-2. **Pacing Context** — summary (directive + "locked" suffix or "neutral"), gate (with colored badge, hidden when "allow"), momentum before→after with delta, band label (roll turns only), beat_locked flag (when true). All rows use 4-column CSS grid (`1.2em 1fr 2fr auto`) — every row includes an empty `<span class="tv-diff-op">` as first child for correct column placement.
+2. **Pacing Context** — summary (directive or "neutral"), band label (roll turns only). All rows use 4-column CSS grid (`1.2em 1fr 2fr auto`) — every row includes an empty `<span class="tv-diff-op">` as first child for correct column placement.
 3. **State Changes** — ops table showing `+` (add), `-` (remove), `~` (update), `=` (no-op). Each row: op, field path, value. Rejected rows get a `rejected` badge and dimmed styling.
 
 ## Filter Bar

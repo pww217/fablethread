@@ -210,9 +210,6 @@ def main() -> None:
         case "beats":
             from ccya.ev.state_tools import cmd_beats
             cmd_beats(events)
-        case "momentum-check":
-            from ccya.ev.state_tools import cmd_momentum_check
-            cmd_momentum_check(events)
         case "goals":
             from ccya.ev.state_tools import cmd_goals
             cmd_goals(events)
