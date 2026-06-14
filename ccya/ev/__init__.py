@@ -65,10 +65,6 @@ def _strip_flags(args: list[str]) -> tuple[dict[str, str], list[str]]:
     return flags, positional
 
 
-def _stub_command(name: str, phase: int) -> None:
-    print(f"'{name}' not yet implemented — planned for phase {phase}")
-    sys.exit(0)
-
 
 def main() -> None:
     args = sys.argv[1:]

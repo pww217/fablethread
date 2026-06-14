@@ -5,8 +5,6 @@ Six presets: aggressive, cautious, absurd, explorer, driven, custom.
 
 from __future__ import annotations
 
-VALID_PERSONALITIES: list[str] = ["aggressive", "cautious", "absurd", "explorer", "driven", "custom"]
-
 PERSONALITY_PROMPTS: dict[str, str] = {
     "aggressive": "Your character is aggressive: bold, confrontational, risk-taking. Push for momentum through direct action and confrontation. Don't hesitate — strike first.",
     "cautious": "Your character is cautious: careful, methodical, risk-averse. Gather information before acting. Avoid unnecessary danger. Retreat from threats.",
