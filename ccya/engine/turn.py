@@ -601,12 +601,14 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
 
     # Build ruling messages
     _comp = state.get("compendium", {}).get("npcs", {})
+    scene_phase = (state.get("scene") or {}).get("scene_phase", "SETUP")
     ruling_messages = _ruling_messages(
         ctx._env, state, ctx.user_input,
         turn_no=turn_no,
         npc_roster=build_npc_roster(_comp, personality_registry=ARCHETYPES),
         inventory=state.get("inventory") or None,
         recent_turns=ctx.recent_turns[-1:],
+        scene_phase=scene_phase,
     )
     rendered_ruling_system = ruling_messages[0]["content"] if ruling_messages else ""
     rendered_ruling_user = ruling_messages[-1]["content"] if ruling_messages else ""

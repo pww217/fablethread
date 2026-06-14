@@ -274,10 +274,17 @@ def _storytell_messages(
 
     # Filter prior_history and recent_turns to remove references to evicted threads
     completed_threads = arc.get("completed_threads") or []
-    evicted_ids = {ct.get("id") for ct in completed_threads if isinstance(ct, dict) and ct.get("id")}
+    evicted_ids: set[str] = {ct["id"] for ct in completed_threads if isinstance(ct, dict) and ct.get("id")}
     prior_history = list((state.get("meta") or {}).get("prior_history", [])[:-1])
     prior_history = _filter_evicted_threads(prior_history, evicted_ids)
-    recent_turns_filtered = _filter_evicted_threads(list(recent_turns or []), evicted_ids)
+    # recent_turns is list[dict[str, Any]] — extract narrative strings for filtering
+    recent_turns_strs: list[str] = []
+    for rt in (recent_turns or []):
+        if isinstance(rt, str):
+            recent_turns_strs.append(rt)
+        elif isinstance(rt, dict):
+            recent_turns_strs.append(rt.get("narrative", ""))
+    recent_turns_filtered = _filter_evicted_threads(recent_turns_strs, evicted_ids)
 
     system_text = _render(
         env, "storytell_system.j2", {

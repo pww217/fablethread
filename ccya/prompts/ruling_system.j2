@@ -57,6 +57,12 @@ The player's active conditions and inventory items directly affect difficulty. F
 - `maintains`: Player is acting with normal intent — no significant change in tension.
 - `de-escalates`: Player is retreating, hiding, calming, avoiding conflict — tension is dropping.
 
+**Phase-aware guidance (CRITICAL):**
+- In `CRISIS` phase: tension MUST escalate or maintain. Only set `de-escalates` when the player is actively transitioning out of the scene (use `scene_motion: transition`). De-escalating in CRISIS without transitioning breaks the scene's narrative arc.
+- In `BREATHER` phase: tension should generally maintain or de-escalate. Only set `escalates` when there are urgent threads that demand attention.
+- In `RISING` phase: escalation is natural and expected.
+- In `SETUP` phase: any value is appropriate.
+
 ## Schema
 
 ```json

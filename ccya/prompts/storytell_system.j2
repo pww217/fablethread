@@ -48,6 +48,8 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 ## Beat types
 
+**CRITICAL RULE: The user prompt for this turn shows an "allowed beat types" list. You MUST pick your `gm_beat.type` from that list ONLY. If the list says "revelation, twist, hazard, callback, opportunity", you MUST NOT emit `pressure`, `complication`, or `escalation`. Violating this rule is a hard error.**
+
 | Type | Purpose |
 |---|---|
 | `pressure` | Raise stakes, tighten tension |
@@ -62,18 +64,14 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 Three functional buckets: **pressure** (pressure/complication/escalation), **situation** (revelation/twist/hazard/callback), **relief** (opportunity/breathing_room).
 
-| Phase | Beat constraint |
-|---|---|
-| `SETUP` | All beat types available |
-| `RISING` | pressure/complication/escalation/revelation/twist only |
-| `CRISIS` | pressure/escalation/complication only — `enforce_relief` forces `breathing_room` |
-| `RESOLUTION` | breathing_room/callback/revelation only |
-| `BREATHER` | opportunity/revelation/callback/breathing_room/hazard only |
+### Directive overrides (take precedence over phase table)
 
-**Directive and spiral overrides** bypass the phase table above:
-- **Scene Imperative** — only situation-changing and relief beats allowed (no pressure/complication/escalation)
-- **Breathe** — only relief, revelation, and callback allowed
-- **Spiral detected** — pressure-type beats are removed from the allowed list
+When a directive is active, it **completely replaces** the phase table constraints. Only emit beats from the directive's allowed list. The user prompt shows the final allowed list — use that, not the phase table:
+
+- **Scene Imperative** — only: `revelation`, `twist`, `hazard`, `callback`, `opportunity`. **NEVER** `pressure`, `complication`, `escalation`.
+- **Breathe** — only: `opportunity`, `breathing_room`, `revelation`, `callback`. **NEVER** `pressure`, `complication`, `escalation`.
+- **Spiral detected** — remove all pressure-type beats (`pressure`, `complication`, `escalation`) from the phase defaults.
+- **No directive / Tension** — use the phase table below.
 
 **Phase overrides roll band.** When `outcome_hint` is `"transition"`, prefer decisive, scene-ending beats.
 
