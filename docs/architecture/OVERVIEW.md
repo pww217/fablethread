@@ -93,7 +93,7 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 
 ### PacingContext (see [step0-ruling](./step0-ruling.md#pacing-context))
 
-Computed by `_compute_pacing_context()` in `turn.py` after the phase engine runs. Primary pacing signal is `scene_phase` (SETUP/RISING/CRISIS/RESOLUTION/BREATHER) from the 5-state machine. Fields: `directive` (phase-driven priority stack: Breathe → Scene Imperative → Scene Pressure → empty), `outcome_hint` (hold/advance/transition, overridden to "transition" when CRISIS hits turn limit), `summary` (human-readable log string).
+Computed by `_compute_pacing_context()` in `turn.py` after the phase engine runs. Primary pacing signal is `scene_phase` (SETUP/RISING/CRISIS/RESOLUTION/BREATHER) from the 5-state machine. Fields: `directive` (phase-driven priority stack: Breathe → Scene Imperative → Scene Pressure → empty), `outcome_hint` (hold/advance/transition, overridden to "transition" when CRISIS hits turn limit), `summary` (human-readable log string), `spiral_detected` (bool, set by `detect_spiral()` from recent roll history before narrate setup).
 
 ### GMBeat (see [step2c-storytell](./step2c-storytell.md#gm-beat))
 

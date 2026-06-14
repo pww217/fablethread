@@ -116,7 +116,11 @@ def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
 
         pacing_ctx = extract_field(ev, "pacing_context") or {}
         scene_phase = pacing_ctx.get("scene_phase", "SETUP")
-        allowed = derive_allowed_beat_types(scene_phase)
+        allowed = derive_allowed_beat_types(
+            scene_phase,
+            directive=pacing_ctx.get("directive", ""),
+            spiral_detected=pacing_ctx.get("spiral_detected", False),
+        )
         beat_type = gm_beat["type"]
 
         if beat_type not in allowed:

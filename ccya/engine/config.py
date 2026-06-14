@@ -167,6 +167,10 @@ class EngineConfig:
     # Max active threads before eviction of oldest
     thread_max_active: int = 5
 
+    # Death spiral detection
+    spiral_consecutive_hard: int = 3        # N consecutive hard+ rolls triggers spiral flag
+    spiral_hard_ratio: tuple[int, int] = (3, 5)  # M of last N hard+ triggers spiral flag
+
     # Urgency decay: demote urgent→normal→background after N turns at same urgency level
     thread_urgency_max_age: int = 8
 

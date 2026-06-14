@@ -29,12 +29,12 @@ The existing pacing system has three directives (Breathe, Scene Pressure, Scene 
 ## Decision Table
 
 | Decision | What | Why |
-|---|---|---|
-| Beat constraints are filtered by directive | When Scene Imperative fires, `derive_allowed_beat_types()` restricts beats to scene-changing types regardless of scene phase. When Breathe fires, restrict to calming/de-escalation beats. Scene Pressure and empty directive use existing phase-based constraints unchanged. | The root cause: Scene Imperative says "break loop" but allows pressure/complication beats that compound the problem. Directives must be able to override the phase-based default. |
+|---|---|---|---|
+| Beat constraints are filtered by directive, using the functional beat taxonomy | When Scene Imperative fires, `derive_allowed_beat_types()` restricts to situation-changers + opportunity regardless of scene phase. When Breathe fires, restrict to relief + revelation + callback. Scene Pressure and empty directive use existing phase-based constraints unchanged. | The root cause: Scene Imperative says "break loop" but allows pressure-family beats that compound the problem. Directives must override the phase-based default. |
 | Death spiral detection uses roll difficulty history | Track the last N roll bands. If X+/N are "hard" or above, or if the same band repeats Y+ consecutive turns, the spiral flag activates. | Conditions can be positive or negative, making them ambiguous. Roll difficulty is a clean binary signal: the player is struggling. |
-| Spiral flag → override beat constraints | When spiral flag is active (and no Scene Imperative has already triggered), `derive_allowed_beat_types()` is called with `spiral=True` which excludes pressure/escalation/complication and adds `opportunity`, `revelation`, `twist`. | The spiral means the player is overwhelmed — more pressure beats make it worse. They need a way out, not another wall. Spiral is weaker than Scene Imperative (Scene Imperative already forces transition). |
-| `outcome_hint` does NOT constrain beats, but amplifies the directive's effect | outcome_hint remains a text prompt to the LLM. Only the directive triggers hard beat constraints. However, when outcome_hint is "transition" AND Scene Imperative fires, the beat filter is stricter (only `revelation`, `twist`, `opportunity` — no `escalation` or `callback`). | outcome_hint comes from the ruling engine (LLM's own scene_motion judgment) and is less reliable than the code-computed directive. Giving it hard-constraint power would let a bad LLM judgment lock out necessary beats. |
-| Breathe directive restricts beats to de-escalation | When Breathe fires, allowed beats become `["breathing_room", "callback", "revelation", "opportunity"]` — no pressure, no complication, no escalation. | Breathe means the scene is de-escalating. Letting it still allow pressure beats contradicts the directive's purpose. |
+| Spiral flag removes pressure bucket | When spiral flag is active (and no directive has already overridden the beat set), calls `derive_allowed_beat_types()` with `spiral=True` which removes all pressure bucket types (pressure, complication, escalation) from whatever the phase-based defaults would be. Situation-changers and relief remain available. | The spiral means the player is overwhelmed — more pressure beats make it worse. They need a way out (situation-changers) or recovery (relief), not another wall. Escalation stays removed because a new threat category while drowning is just drowning faster. |
+| `outcome_hint` does NOT constrain beats, but amplifies the directive's effect | outcome_hint remains a text prompt to the LLM. Only the directive triggers hard beat constraints. | outcome_hint comes from the ruling LLM (LLM's own scene_motion judgment) and is less reliable than the code-computed directive. Giving it hard-constraint power would let a bad LLM judgment lock out necessary beats. |
+| Breathe restricts to relief + info beats | When Breathe fires, allowed beats become `["breathing_room", "opportunity", "revelation", "callback"]` — no pressure bucket types. Callback is allowed because it surfaces old context without adding threat; it's recontextualization at low stakes, fitting de-escalation. | Breathe means the scene is de-escalating. Pressure bucket beats contradict that intent. Info beats don't add pressure, so they're safe. |
 | Scene Pressure uses phase defaults unchanged | Scene Pressure is a soft warning (age >= 3). No hard beat constraints needed — the phase map already handles this via RISING/CRISIS progression. | Scene Pressure is not a strong enough signal to warrant override. Only Scene Imperative, Breathe, and spiral get special treatment. |
 
 ## Open Questions (Resolved)
@@ -104,6 +104,45 @@ flowchart LR
 
 4. **`enforce_relief` is the only directive-aware beat constraint, and it's too narrow**: It only fires in CRISIS with 3+ consecutive pressure beats, and only forces `breathing_room`. It doesn't handle the more common case: stale RISING scene with compounding beats.
 
+## Beat Taxonomy
+
+The 9 beat types have significant overlap in practice — particularly the pressure-family beats (pressure, escalation, complication) which are distinguished by *intensity* rather than *function*. The LLM can pick any of them for the same scenario, which means the beat constraint table doesn't actually constrain meaningful variety. The fix is to redefine each beat by **how it changes the player's option space**, not by narrative flavor.
+
+### Revised definitions
+
+| Beat | What it does to the player's options |
+|---|---|
+| **pressure** | Same threat, more of it. Reduces safe options. More runners, fire spreads, crowd tightens. No new info, no new angle — just worse numbers. |
+| **complication** | Blocks the player's chosen approach. A locked door, a broken tool, an ally hesitates. Doesn't add new threats — removes a specific path. |
+| **escalation** | Introduces a *new category* of threat or a phase shift. Military opens fire, building starts collapsing, runners breach the barricade. Changes the battlefield type, not just the numbers. |
+| **revelation** | Expands what the player knows about the situation. "Runners were patients." "The military is evacuating, not containing." Recontextualizes without adding pressure. |
+| **twist** | Inverts an assumption. The ally has different orders. The safe zone isn't safe. Invalidates a prior belief, changing which options are viable. |
+| **hazard** | Modifies terrain. Fire spreads across a route, smoke obscures vision, debris blocks a passage. Changes the *cost/risk* of options without adding or removing enemies. |
+| **callback** | Surfaces a past decision, NPC, or plot thread. "Remember that NPC you helped? He's on the radio." Makes an old option viable again through continuity. |
+| **opportunity** | Adds a positive option. NPC offers help, vehicle is drivable, side passage found. Expands the option space. |
+| **breathing_room** | Removes pressure from existing options. Danger recedes, enemies lose interest, no change except the pressure eases. |
+
+### Functional buckets
+
+The 9 types sort into three buckets based on mechanical effect on the player's choices:
+
+| Bucket | Types | What the bucket does |
+|---|---|---|
+| **Add pressure** | `pressure`, `complication`, `escalation` | Narrows viable options — fewer safe paths, more immediate cost. |
+| **Change situation** | `revelation`, `twist`, `hazard`, `callback` | Reconfigures the option space — new information, changed terrain, continuity surprises. Does not add or remove pressure, changes what pressure means. |
+| **Open relief** | `opportunity`, `breathing_room` | Expands or eases the option space — new paths open, pressure recedes. |
+
+**Why callback is a situation-changer, not relief:** Callback recontextualizes through memory/continuity — "that NPC you helped is on the radio" doesn't ease pressure, it surfaces a past connection that changes what's possible. Same category as revelation (info) and twist (inversion). Relief stays clean: opportunity and breathing_room only.
+
+### Directive-to-bucket mapping
+
+| Directive | Constraint | Rationale |
+|---|---|---|
+| Scene Imperative | situation-changers + opportunity | Scene must change. All situation-changers recontextualize; opportunity provides a positive exit. No pressure-family beats allowed — compounding would contradict the imperative. |
+| Breathe | relief + revelation + callback | De-escalation. Information beats (revelation, callback) don't add pressure, so they're safe. Callback is allowed because it surfaces old context without adding threat — recontextualization at low stakes fits de-escalation. No pressure-family beats. |
+| Spiral (no directive override) | removes pressure bucket entirely | Player is overwhelmed. Existing pressure-family beats can only make it worse. Situation-changers can reveal an exit; relief beats let them recover. Escalation (new threat category) stays removed — it's still "add pressure" and would drown them faster. If the scene needs an escalation-driven exit, Scene Imperative (age >= 4) should already be firing. |
+| Scene Pressure / default | phase-based defaults unchanged | |
+
 ## Proposed Solution
 
 ### Core Changes
@@ -122,9 +161,9 @@ def derive_allowed_beat_types(
 ```
 
 Logic (priority order):
-1. If `directive == "Scene Imperative"`: return `["opportunity", "revelation", "twist"]`. Rationale: the scene MUST change. These beats create change — a new path forward, a reveal that recontextualizes the situation, or an inversion of the status quo. Escalation was the problem beat; it does not belong in the exit list.
-2. If `directive == "Breathe"`: return `["breathing_room", "callback", "revelation", "opportunity"]`. Rationale: de-escalation beats only.
-3. If `spiral_detected` (and no directive override above): start from phase-based defaults, then remove `pressure`, `complication`, `escalation`. Add `opportunity`, `revelation`, `twist` if not already present. Rationale: break the spiral without forcing scene exit.
+1. If `directive == "Scene Imperative"`: return situation-changers + opportunity = `["revelation", "twist", "hazard", "callback", "opportunity"]`. Rationale: the scene MUST change. Every type in this set reconfigures the option space — a reveal, a twist, a terrain shift, a continuity callback, or a positive way out. No pressure bucket types allowed (they compound rather than pivot).
+2. If `directive == "Breathe"`: return relief + info = `["breathing_room", "opportunity", "revelation", "callback"]`. Rationale: de-escalation beats only. Callback is included because it surfaces old context without adding threat — recontextualization at low stakes fits de-escalation.
+3. If `spiral_detected` (and no directive override above): start from phase-based defaults, then **remove all pressure bucket types** (pressure, complication, escalation). Rationale: the player is overwhelmed. Situation-changers can reveal an exit; relief beats let them recover. Even a new threat category (escalation) is still pressure — it drowns them faster.
 4. If `enforce_relief` and `scene_phase == "CRISIS"`: return `["breathing_room"]` (existing behavior, unchanged).
 5. Otherwise: return `BEAT_PHASE_MAP.get(scene_phase, ...)` (existing behavior, unchanged).
 
@@ -217,7 +256,7 @@ The spiral flag is computed in a new function `_compute_spiral_detected()` calle
 - Scene phase definitions and transition logic (SETUP → RISING → CRISIS → RESOLUTION, BREATHER)
 - The three directives (Breathe, Scene Pressure, Scene Imperative) and their priority stack
 - The three outcome hints (hold, advance, transition) and their narrative guidance in prompt templates
-- The 9 beat types and their taxonomy
+- The 9 beat types and their names (only their categorization into functional buckets changes — see Beat Taxonomy section)
 - The `enforce_relief` mechanism in CRISIS (still works, just lower priority than directive/spiral)
 - All thread logic, arc logic, NPC logic, inventory logic
 - Config fields: `scene_pressure_threshold`, `scene_imperative_threshold`, `consecutive_pressure_threshold`, `crisis_turn_limit`, all scene phase thresholds
@@ -264,6 +303,7 @@ class PacingContext:
 - `ccya/engine/turn.py:99-109` — `PacingContext` dataclass. The structure that carries directive + outcome_hint through the pipeline.
 - `ccya/engine/config.py:140-170` — Existing pacing threshold config. Where new spiral config fields go.
 - `ccya/engine/extraction.py:260-290` — Call site for `derive_allowed_beat_types()`. Where directive and spiral flag get wired in.
-- `ccya/prompts/storytell_system.j2:49-76` — Phase→beat constraint table, Scene age backstop guidance. Needs directive/spiral awareness added.
+- `docs/design/pacing-directive-beat-constraint-design.md#beat-taxonomy` — The beat type definitions and functional bucket table. Must be understood by the implementer before touching beat constraint logic.
+- `ccya/prompts/storytell_system.j2:49-76` — Phase→beat constraint table, Scene age backstop guidance. Needs directive/spiral awareness and beat taxonomy documentation added.
 - `ccya/prompts/storytell_user.j2:30-31` — Renders `allowed_beat_types`. No change needed here — it auto-adopts the filtered list.
 - `ccya/models.py:168-176` — `IntentEnvelope` with `scene_motion`. Reference only (no change).

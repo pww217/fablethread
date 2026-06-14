@@ -405,7 +405,8 @@ T6:  normal crisis rhythm continues
 | `_compute_pacing_context()` | `turn.py` | 447-486 | All signals → PacingContext |
 | `_compute_ages()` | `turn.py` | 491-502 | Scene age computation |
 | `derive_enforce_relief()` | `_pacing.py` | 32-34 | Phase + consecutive beats → enforce_relief flag |
-| `derive_allowed_beat_types()` | `_pacing.py` | 22-29 | Phase → allowed beat types |
+| `derive_allowed_beat_types()` | `_pacing.py` | 30-55 | Phase + directive + spiral → allowed beat types |
+| `detect_spiral()` | `_pacing.py` | 25-46 | Recent roll bands → spiral flag (consecutive/ratio thresholds) |
 | `sanitize_threads()` | `thread_sanitizer.py` | 20-133 | Urgency escalation + cap |
 
 ### Beat lifecycle functions
