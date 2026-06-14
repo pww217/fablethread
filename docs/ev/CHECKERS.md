@@ -12,7 +12,7 @@ Checkers are organized by domain:
 - **Inventory & conditions**: `location_change`, `inventory_integrity`, `conditions_lifecycle`
 - **Threads & arcs**: `thread_lifecycle`, `arc_goal_updates`
 - **NPCs**: `npc_presence`
-- **Pacing**: `pacing_directives`, `action_quality`, `phase_transition`, `tension_delta`, `recent_beats`
+- **Pacing**: `pacing_directives`, `action_quality`, `phase_transition`, `tension_delta`, `recent_beats`, `phase_persistence`, `scene_age_tracking`, `crisis_turn_counting`, `tension_monotonicity`, `breather_enforcement`
 - **Sanitizer**: `sanitizer_lifecycle`
 - **LLM-based**: `directive_tone_match`, `beat_narrative_chain`, `state_fidelity`
 - **Scenario assertions**: `turn_assert` (called programmatically by eval runner, not in default registry)
@@ -110,6 +110,46 @@ When inspecting a game, check one area at a time rather than running all checker
 - **What it checks:** recent_beats exists in state, capped at 5 entries, entry structure (turn/type/surface_as), monotonic turn numbers
 - **CLI:** `ev.py check TURN recent_beats`
 - **Caveats:** Default cap is 5 entries per config.recent_beats_max. Each entry must have turn, type, and surface_as fields.
+
+### phase_persistence
+
+- **Type:** deterministic
+- **Fields:** `scene_phase`
+- **What it checks:** scene_phase field present and valid on every turn (regression guard for phase-persistence bug)
+- **CLI:** `ev.py check TURN phase_persistence`
+- **Caveats:** Validates that scene_phase is one of SETUP/RISING/CRISIS/RESOLUTION/BREATHER on every turn. The original bug caused phase to never be written to state, resetting every turn.
+
+### scene_age_tracking
+
+- **Type:** deterministic
+- **Fields:** `state_snapshot`
+- **What it checks:** scene_age increments by 1 each turn, resets to 0 on location change
+- **CLI:** `ev.py check TURN scene_age_tracking`
+- **Caveats:** scene_age = current_turn - location_entered_turn. First turn and location change turns are skipped (age is 0).
+
+### crisis_turn_counting
+
+- **Type:** deterministic
+- **Fields:** `pacing_context`
+- **What it checks:** crisis_turn_count increments by 1 within CRISIS phase, resets to 0 on phase exit, starts at 1 when entering CRISIS
+- **CLI:** `ev.py check TURN crisis_turn_counting`
+- **Caveats:** crisis_turn_count should be 0 when not in CRISIS phase. Entering CRISIS should set it to 1.
+
+### tension_monotonicity
+
+- **Type:** deterministic
+- **Fields:** `ruling`
+- **What it checks:** tension_delta field present, valid values (escalates/maintains/de-escalates), phase consistency
+- **CLI:** `ev.py check TURN tension_monotonicity`
+- **Caveats:** CRISIS phase should not have de-escalates (tension should escalate or maintain). BREATHER phase should not have escalates (tension should maintain or de-escalate).
+
+### breather_enforcement
+
+- **Type:** deterministic
+- **Fields:** `pacing_context`
+- **What it checks:** breather auto-transitions to RISING after breather_max_turns (default 3), breather_turn_count increments correctly
+- **CLI:** `ev.py check TURN breather_enforcement`
+- **Caveats:** breather_turn_count should be 0 when not in BREATHER phase. Entering BREATHER should set it to 1. When breather_turn_count >= 3, next phase should be RISING.
 
 ### action_quality
 

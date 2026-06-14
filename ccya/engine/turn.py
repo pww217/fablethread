@@ -557,13 +557,13 @@ def _compute_scene_phase(
     elif phase == "RISING":
         if thread_urgency_count >= config.crisis_urgency_threshold:
             phase = "CRISIS"
-            crisis_turn_count = 0
+            crisis_turn_count = 1
         elif thread_urgency_count >= 1 and tension_delta == "escalates":
             phase = "CRISIS"
-            crisis_turn_count = 0
+            crisis_turn_count = 1
         elif effective_scene_age >= config.scene_pressure_threshold:
             phase = "CRISIS"
-            crisis_turn_count = 0
+            crisis_turn_count = 1
 
     elif phase == "CRISIS":
         crisis_turn_count += 1
