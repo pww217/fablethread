@@ -7,7 +7,7 @@ This module encapsulates the beat constraint table in Python so both
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Any
 
 from ccya.engine.config import EngineConfig
 
@@ -25,11 +25,6 @@ BEAT_PHASE_MAP: dict[str, list[str]] = {
     "RESOLUTION":  ["breathing_room", "callback", "revelation"],
     "BREATHER":    ["opportunity", "revelation", "callback", "breathing_room", "hazard"],
 }
-
-
-class RollRecord(TypedDict):
-    turn: int
-    band: str
 
 
 def detect_spiral(
