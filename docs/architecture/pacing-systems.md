@@ -436,6 +436,11 @@ T6:  normal crisis rhythm continues
 | `recent_beats` | `ccya/ev/checkers/recent_beats.py` | recent_beats list structure, cap, monotonic turn numbers |
 | `pacing_directives` | `ccya/ev/checkers/pacing.py` | Pressure tracking, outcome hint, directive render, removed directives, beat variety, phase constraints |
 | `gm_beat_lifecycle` | `ccya/ev/checkers/gm_beat.py` | Beat consumption, lifecycle, floor relief, binding |
+| `phase_persistence` | `ccya/ev/checkers/phase_persistence.py` | scene_phase field present and valid on every turn (regression guard) |
+| `scene_age_tracking` | `ccya/ev/checkers/scene_age_tracking.py` | scene_age increments by 1 each turn, resets on location change |
+| `crisis_turn_counting` | `ccya/ev/checkers/crisis_turn_counting.py` | crisis_turn_count increments in CRISIS, resets on phase exit |
+| `tension_monotonicity` | `ccya/ev/checkers/tension_monotonicity.py` | tension_delta field presence, valid values, phase consistency |
+| `breather_enforcement` | `ccya/ev/checkers/breather_enforcement.py` | breather auto-transitions to RISING after breather_max_turns |
 
 ### Prompt rendering
 
