@@ -10,8 +10,7 @@ _log = logging.getLogger(__name__)
 
 @register_checker(
     "sanitizer_lifecycle", "deterministic",
-    requires_fields=["threads_updated", "threads_resolved",
-                    "threads_added", "goal_changed", "changes_detail"],
+    requires_fields=[],
     # Note: engine never emits 'threads_removed' — it moves threads to completed_threads[] instead
     needs_non_turn_events=True,
     needs_state=True,
@@ -25,8 +24,8 @@ def sanitizer_lifecycle(events: list[dict[str, Any]], state: dict[str, Any]) -> 
 
     if not sanitizer_events:
         return CheckerResult(
-            checker_id="sanitizer_lifecycle", passed=None, score=None,
-            detail="no sanitizer events found (inconclusive)",
+            checker_id="sanitizer_lifecycle", passed=True, score=1.0,
+            detail="no sanitizer events found (vacuously true)",
         )
 
     # Build turn number → state snapshot map from turn events

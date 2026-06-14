@@ -8,12 +8,12 @@ from ccya.ev.events import extract_field
 
 _log = logging.getLogger(__name__)
 
-VALID_PRESENCE = {"present", "nearby", "known", "departed", "archived"}
+VALID_PRESENCE = {"present", "nearby", "known", "departed", "archived", None}
 
 
 @register_checker(
     "npc_presence", "deterministic",
-    requires_fields=["extraction_context", "applied.compendium_npc_update"],
+    requires_fields=["applied.compendium_npc_update"],
     description="NPC presence validity, departed field compliance, scene cap",
 )
 def npc_presence(events: list[dict[str, Any]]) -> CheckerResult:

@@ -25,7 +25,7 @@ def _existing_inv_ids(inv: list[dict[str, Any]]) -> set[str]:
 
 @register_checker(
     "location_change", "deterministic",
-    requires_fields=["applied.location_change", "extraction_context.location_this_turn"],
+    requires_fields=["post_turn_location_id"],
     description="Verify location changes are applied correctly",
 )
 def location_change(events: list[dict[str, Any]]) -> CheckerResult:
@@ -67,8 +67,7 @@ def location_change(events: list[dict[str, Any]]) -> CheckerResult:
 
 @register_checker(
     "inventory_integrity", "deterministic",
-    requires_fields=["applied.inventory_add", "applied.inventory_remove",
-                     "extraction_context.inventory_this_turn"],
+    requires_fields=["applied.inventory_add", "applied.inventory_remove"],
     description="No overdraw, no negative amounts, remove existence",
 )
 def inventory_integrity(events: list[dict[str, Any]]) -> CheckerResult:
