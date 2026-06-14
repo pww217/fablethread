@@ -473,6 +473,22 @@ class StorytellerResult(BaseModel):
     thread_update: list[ThreadUpdate] = Field(default_factory=list)
     arc_resolve: ArcResolution | None = None
 
+    @field_validator("thread_update", mode="before")
+    @classmethod
+    def _coerce_progress_kind(cls, v: Any) -> Any:
+        if not v:
+            return v
+        VALID_KINDS = {"advancement", "setback", "shift"}
+        coerced = []
+        for item in v:
+            if isinstance(item, dict):
+                pk = item.get("progress_kind")
+                if pk is not None and pk not in VALID_KINDS:
+                    item = dict(item)
+                    item["progress_kind"] = "advancement"
+            coerced.append(item)
+        return coerced
+
     @model_validator(mode="after")
     def _nullify_invalid_gm_beat(self) -> "StorytellerResult":
         if self.gm_beat is not None:

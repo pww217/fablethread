@@ -99,7 +99,7 @@ class TurnContext:
 @dataclass
 class PacingContext:
     """Consolidated pacing decision for Narrate and Progress steps."""
-    directive: str  # "Breathe" | "Scene Imperative" | "Tension" | "Scene Pressure" | ""
+    directive: str  # "Breathe" | "Scene Imperative" | "Scene Pressure" | ""
     outcome_hint: str | None  # narrator's primary scene motion instruction
     summary: str  # human-readable log string, never sent to LLM
 
@@ -165,7 +165,7 @@ def _apply_thread_updates(
             if current_progress:
                 last_text = current_progress[-1].text if isinstance(current_progress[-1], ProgressEntry) else str(current_progress[-1])
                 ratio = difflib.SequenceMatcher(None, last_text, entry.text).ratio()
-                if ratio >= 0.50:
+                if ratio >= 0.70:
                     _log.warning(
                         "thread_updates.dedup trace_id=%d thread %s — progress %.2f overlap with last entry, rejecting",
                         turn_no, update.id, ratio, extra={"turn": turn_no},
@@ -452,6 +452,7 @@ def _compute_pacing_context(
     crisis_turn_count: int,
     crisis_turn_limit: int,
     effective_scene_age: int,
+    scene_motion: str = "hold",
     scene_pressure_threshold: int = 3,
     scene_imperative_threshold: int = 4,
 ) -> PacingContext:
@@ -471,9 +472,9 @@ def _compute_pacing_context(
         scene_imperative_threshold=scene_imperative_threshold,
     )
 
-    # outcome_hint: driven by scene_motion from intent + existing fallbacks
-    # Add: when phase CRISIS hits turn limit, override to "transition"
-    outcome_hint: str | None = "hold"
+    # outcome_hint: primarily driven by scene_motion from ruling engine.
+    # When phase CRISIS hits turn limit, override to "transition".
+    outcome_hint: str | None = scene_motion
 
     if scene_phase == "CRISIS" and crisis_turn_count >= crisis_turn_limit:
         outcome_hint = "transition"
@@ -802,6 +803,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
     crisis_turn_count = scene.get("crisis_turn_count", 0)
 
     # Compute unified pacing context with new signal set
+    _scene_motion = ctx.intent.scene_motion if ctx.intent else "hold"
     _pc = _compute_pacing_context(
         scene_phase=scene_phase,
         tension_delta=tension_delta,
@@ -809,6 +811,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         crisis_turn_count=crisis_turn_count,
         crisis_turn_limit=config.crisis_turn_limit,
         effective_scene_age=ctx._ages.get("effective_scene_age", 0),
+        scene_motion=_scene_motion,
         scene_pressure_threshold=config.scene_pressure_threshold,
         scene_imperative_threshold=config.scene_imperative_threshold,
     )
@@ -1343,6 +1346,7 @@ async def run_turn(
                 "breather_turn_count": state.get("scene", {}).get("breather_turn_count", 0),
             },
             "post_turn_pending_beat": state.get("meta", {}).get("pending_gm_beat"),
+            "post_extraction_consecutive_pressure_beats": state.get("meta", {}).get("consecutive_pressure_beats"),
             "post_turn_location_id": state.get("location", {}).get("id"),
             "scene_phase": state.get("scene", {}).get("scene_phase", "SETUP"),
             "narrate": narr_metrics,
