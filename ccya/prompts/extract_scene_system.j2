@@ -19,7 +19,7 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 
 `location_change`: emitted only when the player moves to a new location (the location ID differs from the current one). Do NOT emit if the player is still in the same location with added spatial detail — use `location_description` instead. New room = change. New part of same room = no change.
 
-`location_description`: Complete description of the current location. What the space IS — physical layout, visual details, atmosphere. Include tangible details (materials, lighting, sounds, smells) and spatial relationships. Infer from narration but don't repeat it. Narration tells what happened; this field tells what exists. Rewrite the full description each turn, informed by what's already stored. Two to four sentences.
+`location_description`: What the space IS — physical layout, visual details, atmosphere. Include tangible details (materials, lighting, sounds, smells) and spatial relationships. Infer from narration but don't repeat it. Narration tells what happened; this field tells what exists. Rewrite the full description each turn, using the current description as reference — keep stable details implicit, focus on what changed this turn. 2-4 sentences.
 
 `compendium_npc_update`: **UNIVERSAL NPC CHANNEL** — use for ALL NPC changes. Each update carries the full set of fields that have new information:
 

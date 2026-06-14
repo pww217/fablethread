@@ -43,7 +43,7 @@ Fix the phase-persistence bug in turn.py, record tension_delta in events, consol
 
 ## Status
 
-`open`
+`completed`
 
 ## Phases
 

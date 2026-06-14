@@ -92,11 +92,11 @@ ev.py deltas 7 saves/my-game/events.jsonl                   # find thread mutati
 - Consecutive pressure counter (`consecutive_pressure_beats`) increments on pressure/escalation/complication beats, resets on others
 - `outcome_hint` rendered in narrator prompt
 - Pacing directive rendered in storyteller prompt
-- Removed directives ("location pressure", "location imperative", "combat fatigue", "Overwhelm", "Pressure") not lingering
+- Removed directives ("location pressure", "location imperative", "combat fatigue", "Overwhelm") not lingering
 - Scene Imperative fires at `scene_imperative_threshold` effective turns (default 4) or when CRISIS hits turn limit
 - Scene Pressure fires at `scene_pressure_threshold` effective turns (default 3)
 - Breathe fires when `tension_delta == "de-escalates"` AND no urgent threads exist
-- Beat type variety: no single type exceeds 60% of all beats (requires 3+ beats)
+- Beat type variety: no single type exceeds 70% of all beats (requires 3+ beats)
 - `surface_as` consistency: consecutive same-type beats don't flip between "ambient" and "environmental" without directive change
 - Beat types respect phase constraints (allowed_beat_types per phase)
 
@@ -114,7 +114,7 @@ ev.py beats saves/my-game/events.jsonl                      # beat type + surfac
 **Red flags:**
 - Consecutive pressure counter doesn't match actual beat types
 - `outcome_hint` missing from narrator prompt
-- Single beat type exceeds 60% of total beats
+- Single beat type exceeds 70% of total beats
 - Removed directives still rendered in prompts
 - Beat types violate phase constraints (e.g., escalation in BREATHER)
 

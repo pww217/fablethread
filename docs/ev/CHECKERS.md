@@ -12,7 +12,9 @@ Checkers are organized by domain:
 - **Inventory & conditions**: `location_change`, `inventory_integrity`, `conditions_lifecycle`
 - **Threads & arcs**: `thread_lifecycle`, `arc_goal_updates`
 - **NPCs**: `npc_presence`
-- **Pacing**: `pacing_directives`, `action_quality`, `phase_transition`, `tension_delta`, `recent_beats`, `phase_persistence`, `scene_age_tracking`, `crisis_turn_counting`, `tension_monotonicity`, `breather_enforcement`
+- **Pacing**: `pacing_directives`, `action_quality`, `phase_transition`, `tension_delta`, `recent_beats`, `phase_persistence`, `scene_age_tracking`, `crisis_turn_counting`, `tension_monotonicity`, `breather_enforcement`, `roll_band_consistency`, `beat_phase_validity`
+- **Threads & arcs**: `thread_lifecycle`, `arc_goal_updates`, `thread_resolution_validity`, `new_thread_validity`, `arc_resolution_validity`, `goal_update_validity`
+- **NPCs**: `npc_presence`, `compendium_lifecycle`
 - **Sanitizer**: `sanitizer_lifecycle`
 - **LLM-based**: `directive_tone_match`, `beat_narrative_chain`, `state_fidelity`
 - **Scenario assertions**: `turn_assert` (called programmatically by eval runner, not in default registry)
@@ -150,6 +152,62 @@ When inspecting a game, check one area at a time rather than running all checker
 - **What it checks:** breather auto-transitions to RISING after breather_max_turns (default 3), breather_turn_count increments correctly
 - **CLI:** `ev.py check TURN breather_enforcement`
 - **Caveats:** breather_turn_count should be 0 when not in BREATHER phase. Entering BREATHER should set it to 1. When breather_turn_count >= 3, next phase should be RISING.
+
+### roll_band_consistency
+
+- **Type:** deterministic
+- **Fields:** `ruling`
+- **What it checks:** band matches dice roll using rules engine, skill/difficulty are valid
+- **CLI:** `ev.py check TURN roll_band_consistency`
+- **Caveats:** Recomputes band from raw_total + stat_mod + diff_mod using `rules.compute_band()`. Validates skill is in VALID_SKILLS and difficulty is in DIFFICULTY_MOD.
+
+### thread_resolution_validity
+
+- **Type:** deterministic
+- **Fields:** `extraction.storytell`, `state_snapshot`
+- **What it checks:** thread_resolve entries have valid id/resolution_state/outcome, referenced threads exist in state
+- **CLI:** `ev.py check TURN thread_resolution_validity`
+- **Caveats:** resolution_state must be one of "resolved", "failed", "abandoned". Thread IDs must exist in arc.threads or arc.completed_threads.
+
+### new_thread_validity
+
+- **Type:** deterministic
+- **Fields:** `extraction.storytell`, `state_snapshot`
+- **What it checks:** thread_add entries have id/description/visible_goal, no duplicate thread ids
+- **CLI:** `ev.py check TURN new_thread_validity`
+- **Caveats:** id must be non-empty string. description and visible_goal must be non-empty strings. No duplicate thread ids in state after add.
+
+### compendium_lifecycle
+
+- **Type:** deterministic
+- **Fields:** `applied.compendium_npc_update`, `state_snapshot`
+- **What it checks:** NPCs added via compendium_npc_update appear in state.compendium.npcs after the turn
+- **CLI:** `ev.py check TURN compendium_lifecycle`
+- **Caveats:** Validates that every NPC id in applied.compendium_npc_update exists in state.compendium.npcs. Catches state application bugs.
+
+### beat_phase_validity
+
+- **Type:** deterministic
+- **Fields:** `extraction.storytell`, `pacing_context`
+- **What it checks:** gm_beat.type is allowed for the current phase
+- **CLI:** `ev.py check TURN beat_phase_validity`
+- **Caveats:** Validates beat types against BEAT_PHASE_MAP. SETUP allows [pressure, complication, revelation]. RISING allows [pressure, complication, escalation, twist]. CRISIS allows [pressure, complication, escalation, twist, setback]. RESOLUTION allows [callback, breathing_room]. BREATHER allows [breathing_room, callback].
+
+### arc_resolution_validity
+
+- **Type:** deterministic
+- **Fields:** `extraction.storytell`, `state_snapshot`
+- **What it checks:** arc_resolve has resolution + visible_goal + goal_context, drop_threads reference existing threads
+- **CLI:** `ev.py check TURN arc_resolution_validity`
+- **Caveats:** resolution, visible_goal, and goal_context must be non-empty strings. drop_threads IDs must exist in arc.threads.
+
+### goal_update_validity
+
+- **Type:** deterministic
+- **Fields:** `extraction.storytell`, `state_snapshot`
+- **What it checks:** goal_update is non-empty string, must differ from previous visible_goal
+- **CLI:** `ev.py check TURN goal_update_validity`
+- **Caveats:** Skips turns where arc_resolve is also emitted (arc_resolve.visible_goal supersedes goal_update). Validates goal_update differs from next turn's arc.visible_goal.
 
 ### action_quality
 

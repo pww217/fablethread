@@ -441,6 +441,8 @@ T6:  normal crisis rhythm continues
 | `crisis_turn_counting` | `ccya/ev/checkers/crisis_turn_counting.py` | crisis_turn_count increments in CRISIS, resets on phase exit |
 | `tension_monotonicity` | `ccya/ev/checkers/tension_monotonicity.py` | tension_delta field presence, valid values, phase consistency |
 | `breather_enforcement` | `ccya/ev/checkers/breather_enforcement.py` | breather auto-transitions to RISING after breather_max_turns |
+| `roll_band_consistency` | `ccya/ev/checkers/roll_band_consistency.py` | band matches dice roll using rules engine, skill/difficulty valid |
+| `beat_phase_validity` | `ccya/ev/checkers/beat_phase_validity.py` | gm_beat.type is allowed for the current phase |
 
 ### Prompt rendering
 
