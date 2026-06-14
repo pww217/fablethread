@@ -988,6 +988,16 @@ async def run_turn(
         extraction_event: dict[str, Any] = {}
         _extraction_ctx = None
 
+        # Save narrate extraction to events for verification
+        extraction_event["narrate"] = {
+            "rendered_system": rendered_narr_system,
+            "rendered_user": rendered_narr_user,
+            "output": narrative,
+            "tokens_in": narr_metrics.get("tokens_in", 0),
+            "tokens_out": narr_metrics.get("tokens_out", 0),
+            "ms": round(narr_ms, 1),
+        }
+
         _extract_result = None
         try:
             _log.debug("turn.extraction_pipeline_enter trace_id=%s turn_no=%d", trace_id, turn_no)
@@ -1085,15 +1095,15 @@ async def run_turn(
         # Roll up per-stream token counts for the metrics dict
         _tokens_in = sum(
             (extraction_event.get(s) or {}).get("tokens_in", 0)
-            for s in ("scene", "state", "storytell")
+            for s in ("scene", "state", "storytell", "narrate")
         )
         _tokens_out = sum(
             (extraction_event.get(s) or {}).get("tokens_out", 0)
-            for s in ("scene", "state", "storytell")
+            for s in ("scene", "state", "storytell", "narrate")
         )
         # Build per-stream breakdown for UI display
         _streams = {}
-        for s in ("scene", "state", "storytell"):
+        for s in ("scene", "state", "storytell", "narrate"):
             ev = extraction_event.get(s)
             if ev:
                 _streams[s] = {

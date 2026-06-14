@@ -359,6 +359,14 @@ def _show_pacing(ev: dict[str, Any]) -> None:
     if consecutive_pressure is not None:
         print(f"  consecutive_pressure_beats: {consecutive_pressure}")
 
+    beat_locked = ev.get("beat_locked")
+    if beat_locked is not None:
+        print(f"  beat_locked: {beat_locked}")
+
+    momentum_floor = ev.get("momentum_floor")
+    if momentum_floor is not None:
+        print(f"  momentum_floor: {momentum_floor}")
+
     band_label = result.get("band", "")
     if band_label:
         print(f"  band: {band_label}")

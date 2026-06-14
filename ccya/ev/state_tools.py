@@ -475,6 +475,48 @@ def cmd_beat_ttl(events: list[dict[str, Any]]) -> None:
         print(f"{td['turn']:>5} | {td['expires_at']:<10} | {td['beat_type']}")
 
 
+def cmd_momentum_check(events: list[dict[str, Any]]) -> None:
+    """Show momentum + band + expected delta in one table."""
+    rows: list[dict[str, Any]] = []
+    for ev in events:
+        ruling = ev.get("ruling") or {}
+        if not ruling.get("rolled"):
+            continue
+        t = ev.get("turn")
+        if t is None or not isinstance(t, int):
+            continue
+        momentum = None
+        ss = ev.get("state_snapshot") or {}
+        pc_data = ss.get("pc") or {}
+        if isinstance(pc_data, dict):
+            momentum = pc_data.get("momentum")
+        if momentum is None:
+            momentum = ev.get("pc_momentum")
+        if momentum is None:
+            momentum = ev.get("momentum")
+        rows.append({
+            "turn": t,
+            "momentum": momentum,
+            "band": ruling.get("band", ""),
+            "tension_delta": ruling.get("tension_delta", ""),
+            "raw_total": ruling.get("raw_total", ""),
+            "final_total": ruling.get("final_total", ""),
+        })
+
+    if not rows:
+        print("(no dice rolls found)")
+        return
+
+    print(f"{'Turn':>5} | {'Momentum':<8} | {'Band':<14} | {'Delta':<10} | {'Raw':>5} | {'Final':>5}")
+    print("\u2500" * 65)
+    for r in rows:
+        mom = str(r['momentum']) if r['momentum'] is not None else "?"
+        delta = r['tension_delta'] or "-"
+        raw = str(r['raw_total']) if r['raw_total'] is not None else "?"
+        final = str(r['final_total']) if r['final_total'] is not None else "?"
+        print(f"{r['turn']:>5} | {mom:<8} | {r['band']:<14} | {delta:<10} | {raw:>5} | {final:>5}")
+
+
 
 # Internal helpers
 

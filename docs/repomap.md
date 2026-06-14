@@ -38,7 +38,7 @@
 | `ccya/ev/events.py` | Shared data access layer: `load_events()`, `find_turn()`, `filter_turn_events()`, `extract_field()`, `load_current_state()`. Also consumed by TurnViewer. |
 | `ccya/ev/inspect.py` | Inspection commands: `cmd_summary()`, `cmd_timing()`, `cmd_turn()`, `cmd_prompt()` |
 | `ccya/ev/deltas.py` | Deltas and mechanics commands: `cmd_deltas()`, `cmd_mechanics()`, `_cmd_deltas_compact()` |
-| `ccya/ev/state_tools.py` | State commands: `cmd_state()`, `cmd_diff()`, `cmd_trace()`, `cmd_search()`, `cmd_threads()`, `cmd_beats()` (with streak analysis for 3+ consecutive same-type beats), `cmd_goals()`, `cmd_effective_age()`, `cmd_beat_ttl()` |
+| `ccya/ev/state_tools.py` | State commands: `cmd_state()`, `cmd_diff()`, `cmd_trace()`, `cmd_search()`, `cmd_threads()`, `cmd_beats()` (with streak analysis for 3+ consecutive same-type beats), `cmd_momentum_check()`, `cmd_goals()`, `cmd_effective_age()`, `cmd_beat_ttl()` |
 | `ccya/ev/play.py` | Play command: `play_turn()` sync wrapper around `run_turn()`, `cmd_play()` dispatch for single-turn/`--interactive`/`--llm` modes (requires --pack for new sessions), session management (`_create_play_session`, `_load_pack_params`), LLM player loop (`_llm_session` with scenario context, `personality`/`custom_persona` params, `until_error` flag), output formatting (`format_play_output`/`format_error_output`), session config integration (`_build_play_config` with ev.yaml resolution) |
 | `ccya/ev/personality.py` | Personality presets: `VALID_PERSONALITIES`, `PERSONALITY_PROMPTS`, `resolve_personality()` → system prompt string |
 | `ccya/ev/session_config.py` | Session config: `load_session_config()` reads ev.yaml, `resolve_flag()` CLI>config>default resolution, `resolve_player_config()` personality resolution |
