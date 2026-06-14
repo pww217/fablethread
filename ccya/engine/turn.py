@@ -1172,13 +1172,18 @@ async def run_turn(
             else:
                 meta.pop("last_inventory_change_reason", None)
 
-            # Stamp last_seen on touched NPCs
+            # Stamp last_seen on touched NPCs; create minimal entry if new
             comp = state.get("compendium", {}).get("npcs", {})
             location = state.get("location", {})
             for cu in (delta.compendium_npc_update or []):
                 entry = comp.get(cu.id)
                 if entry is None:
-                    continue
+                    comp[cu.id] = {
+                        "name": cu.id.replace("_", " ").title(),
+                        "presence": "nearby",
+                        "nearby_since_turn": turn_no,
+                    }
+                    entry = comp[cu.id]
                 entry["last_seen"] = {
                     "turn": turn_no,
                     "location_id": location.get("id", ""),
