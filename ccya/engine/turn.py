@@ -24,7 +24,7 @@ from ccya.engine.extraction import (
 from ccya.engine.names import generate_npc_names_split
 from ccya.engine.narrate import _narrate_messages
 from ccya.engine.npc_roster import build_npc_roster
-from ccya.engine._pacing import derive_allowed_beat_types, derive_enforce_relief
+from ccya.engine._pacing import derive_allowed_beat_types, derive_enforce_relief, detect_spiral
 from ccya.personality import ARCHETYPES
 from ccya.engine.thread_sanitizer import sanitize_threads
 
@@ -93,6 +93,7 @@ class TurnContext:
 
     intent: IntentEnvelope | None = None
     outcome: RulesOutcome | None = None
+    _spiral_detected: bool = False
 
 @dataclass
 class PacingContext:
@@ -100,6 +101,7 @@ class PacingContext:
     directive: str  # "Breathe" | "Scene Imperative" | "Scene Pressure" | ""
     outcome_hint: str | None  # narrator's primary scene motion instruction
     summary: str  # human-readable log string, never sent to LLM
+    spiral_detected: bool = False  # death spiral flag from recent roll history
 
 
 
@@ -805,6 +807,15 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         scene_imperative_threshold=config.scene_imperative_threshold,
     )
 
+    # Compute death spiral flag from recent roll history
+    recent_rolls = state.get("meta", {}).get("recent_rolls", [])
+    ctx._spiral_detected = detect_spiral(
+        recent_rolls,
+        consecutive_hard_threshold=config.spiral_consecutive_hard,
+        hard_ratio_threshold=config.spiral_hard_ratio,
+    )
+    _pc.spiral_detected = ctx._spiral_detected
+
     _comp = (state.get("compendium") or {}).get("npcs") or {}
     narr_messages = _narrate_messages(
         ctx._env, state, ctx.user_input,
@@ -883,6 +894,13 @@ async def run_turn(
         ruling_trimmed_chars = ctx._ruling_trimmed_chars
 
         turn_no = state.get("meta", {}).get("turn", 0) + 1
+
+        # Append roll to recent_rolls rolling window for spiral detection
+        if ctx.outcome and ctx.outcome.rolled:
+            recent_rolls = state.setdefault("meta", {}).setdefault("recent_rolls", [])
+            recent_rolls.insert(0, {"turn": turn_no, "band": ctx.outcome.band})
+            if len(recent_rolls) > 5:
+                recent_rolls.pop()
 
         # === Call 1: Narration setup (extracted) + streaming ===
         exp_narrate_ms = _avg_event_ms(save_dir, "narrate.total_ms")
@@ -1339,6 +1357,7 @@ async def run_turn(
             "pacing_context": {
                 "directive": _pc.directive if _pc else "",
                 "outcome_hint": _pc.outcome_hint if _pc else None,
+                "spiral_detected": _pc.spiral_detected if _pc else False,
                 "summary": _pc.summary if _pc else "",
                 "scene_phase": state.get("scene", {}).get("scene_phase", "SETUP"),
                 "crisis_turn_count": state.get("scene", {}).get("crisis_turn_count", 0),
@@ -1348,6 +1367,8 @@ async def run_turn(
             "post_extraction_consecutive_pressure_beats": state.get("meta", {}).get("consecutive_pressure_beats"),
             "allowed_beat_types": derive_allowed_beat_types(
                 state.get("scene", {}).get("scene_phase", "SETUP"),
+                directive=_pc.directive if _pc else "",
+                spiral_detected=_pc.spiral_detected if _pc else False,
                 enforce_relief=derive_enforce_relief(
                     state.get("scene", {}).get("scene_phase", "SETUP"),
                     state.get("meta", {}).get("consecutive_pressure_beats", 0),

@@ -46,6 +46,22 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 **Types:** `complication`, `revelation`, `opportunity`, `breathing_room`, `pressure`, `twist`, `setback`, `escalation`, `callback`
 **Surfaces:** `ambient`, `event`, `npc_behavior`, `environmental`, `player_discovery`, `item`
 
+## Beat types
+
+| Type | Purpose |
+|---|---|
+| `pressure` | Raise stakes, tighten tension |
+| `complication` | Add obstacle, worsen situation |
+| `escalation` | Intensify existing conflict |
+| `revelation` | Reveal new information |
+| `twist` | Subvert expectation |
+| `hazard` | Introduce environmental danger |
+| `callback` | Recontextualize earlier event or NPC |
+| `opportunity` | Open a new path or advantage |
+| `breathing_room` | Let the scene decompress |
+
+Three functional buckets: **pressure** (pressure/complication/escalation), **situation** (revelation/twist/hazard/callback), **relief** (opportunity/breathing_room).
+
 ## Scene phase: `{{ scene_phase }}` — allowed: `{{ allowed_beat_types | join(", ") }}`
 
 | Phase | Beat constraint |
@@ -55,6 +71,11 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 | `CRISIS` | pressure/escalation/complication only — `enforce_relief` forces `breathing_room` |
 | `RESOLUTION` | breathing_room/callback/revelation only |
 | `BREATHER` | opportunity/revelation/callback/breathing_room/hazard only |
+
+**Directive and spiral overrides** bypass the phase table above:
+- **Scene Imperative** — only situation-changing and relief beats allowed (no pressure/complication/escalation)
+- **Breathe** — only relief, revelation, and callback allowed
+- **Spiral detected** — pressure-type beats are removed from the allowed list
 
 **Phase overrides roll band.** When `outcome_hint` is `"transition"`, prefer decisive, scene-ending beats.
 
