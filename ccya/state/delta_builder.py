@@ -226,7 +226,7 @@ def apply_delta(
                 entry["presence"] = "nearby"
                 entry["nearby_since_turn"] = state.get("meta", {}).get("turn", 0) + 1
                 entry.pop("notes", None)
-        _stamp_turn = state.get("meta", {}).get("turn", 0)
+        _stamp_turn = state.get("meta", {}).get("turn", 0) + 1
         state["scene"]["turn_entered"] = _stamp_turn
         state["scene"]["location_entered_turn"] = _stamp_turn
     elif delta.location_description:

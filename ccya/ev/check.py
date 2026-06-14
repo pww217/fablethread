@@ -96,7 +96,8 @@ def _print_results(per_turn: dict[int, dict[str, Any]]) -> None:
                 for f in result.findings:
                     f_id = f.get("finding", f.get("id", ""))
                     f_detail = f.get("detail", "")
-                    print(f"| {turn_num} | {f_id} | {f_detail} |")
+                    f_turn = f.get("turn", turn_num)
+                    print(f"| {f_turn} | {f_id} | {f_detail} |")
             print()
 
         if not first:

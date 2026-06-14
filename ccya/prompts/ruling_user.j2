@@ -28,6 +28,8 @@ Location: {{ location.name or location.id or "Unknown" }}
 {% endif %}
 
 ## Current Turn: {{ meta.turn | default('?') }}
+## Scene Phase: {{ scene_phase | default('SETUP') }}
+
 === PLAYER INPUT ===
 {{ user_input }}
 === END PLAYER INPUT ===
