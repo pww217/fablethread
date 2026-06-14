@@ -1860,7 +1860,8 @@ function game() {
                 }
 
                 _applyMarkdown(block);
-                _highlightEntities(block, result.state);
+                const narrativeText = block.querySelector('.narrative-text');
+                if (narrativeText && result.state) _highlightEntities(narrativeText, result.state);
 
                 if (result.rejected && result.rejected.length > 0) {
                     const note = document.createElement('div');
@@ -2344,13 +2345,26 @@ function _highlightEntities(container, state) {
     // Sort descending by length to match longest first
     names.sort((a, b) => b.name.length - a.name.length);
 
+    // Precompile regexes with word-boundary matching:
+    // - Entity name must not be preceded/followed by word chars or apostrophe
+    // - Trailing word chars (plural 's', possessive 's) are consumed into the highlight
+    const escaped = names.map(n => ({
+        ...n,
+        regex: new RegExp(
+            '(?<![a-z0-9\'])' +
+            n.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+            '(?![a-z0-9\'])' +
+            '(?:\\B\\w+)?',
+            'i'
+        )
+    }));
+
     // Walk text nodes
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
     const textNodes = [];
     while (walker.nextNode()) textNodes.push(walker.currentNode);
 
     for (const textNode of textNodes) {
-        // Skip if parent is already an entity or formatting tag
         const p = textNode.parentNode;
         if (p && (p.tagName === 'STRONG' || p.tagName === 'A'
             || (p.tagName === 'SPAN' && p.className && p.className.startsWith('entity-')))) {
@@ -2358,26 +2372,27 @@ function _highlightEntities(container, state) {
         }
 
         const text = textNode.textContent;
-        const lower = text.toLowerCase();
 
-        for (const { name, cls } of names) {
-            const idx = lower.indexOf(name.toLowerCase());
-            if (idx === -1) continue;
+        for (const { name, cls, regex } of escaped) {
+            const match = text.match(regex);
+            if (!match) continue;
+
+            const idx = match.index;
+            const fullMatch = match[0];
 
             const before = text.slice(0, idx);
-            const match = text.slice(idx, idx + name.length);
-            const after = text.slice(idx + name.length);
+            const after = text.slice(idx + fullMatch.length);
 
             const frag = document.createDocumentFragment();
             if (before) frag.appendChild(document.createTextNode(before));
             const span = document.createElement('span');
             span.className = cls;
-            span.textContent = match;
+            span.textContent = fullMatch;
             frag.appendChild(span);
             if (after) frag.appendChild(document.createTextNode(after));
 
             textNode.parentNode.replaceChild(frag, textNode);
-            break; // one entity match per text node — avoids nesting
+            break;
         }
     }
 }
