@@ -96,15 +96,18 @@ Log level standards: see `docs/architecture/logging-standards.md`.
 
 ## Linear issue tracking
 
-Project: CCYA | Team: PW (Peter) | Ticket IDs: TICK- (e.g., TICK-1)
+Project: CCYA | Team: PW (Peter) | Ticket IDs: TICK- (e.g., TICK-52)
 
-Labels: Bug | Feature | Improvement
+Labels: type (`Bug`, `Feature`, `Improvement`) + bucket (`World Building`, `Extraction`, `UI`, `Balancing`, `Tooling`, `Tech Debt`)
 Priority: 1=urgent, 2=high, 3=medium, 4=low
 
 Status lifecycle:
-- Bugs: Backlog → New → Accepted → Up Next → In Progress → Completed
-- Non-bugs: Backlog → Scoping → Up Next → In Progress → Completed
+- Bugs: `New` → `Accepted` → `In Progress` → `Validating` → `Completed`
+- Non-bugs: `Idea` → `Backlog` → `Scoping` → `Up Next` → `In Progress` → `Validating` → `Completed`
+- Validating is mandatory unless explicitly overridden
 - All: Can be canceled at any stage
+
+Tickets live under bucket parent issues. Use title prefixes to disambiguate subsystem: `[Scene]`, `[State]`, `[Storytell]`, `[Narrator]`, `[Ruling]`, `[NPC]`, `[Conditions]`, `[Prompt]`, `[EV]`, `[Infra]`. See `plans/review/linear-reorganization.md` for the full table.
 
 `linearis` is installed globally at `/opt/homebrew/bin/linearis` — available in PATH, not in the venv. Use it (not `linear`) for all CLI operations. Load the `linear` skill for commands and workflow guidance. Always search for existing tickets before creating new ones. Always associate tickets with the CCYA project.
 
