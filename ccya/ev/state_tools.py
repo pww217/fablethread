@@ -251,9 +251,10 @@ def cmd_threads(events: list[dict[str, Any]]) -> None:
 
 
 def cmd_beats(events: list[dict[str, Any]]) -> None:
-    """Show turn-by-turn beat type + surface_as status."""
+    """Show turn-by-turn beat type + surface_as status + scene_phase."""
     # Gather beat data from storytell extraction and pacing_context
     beat_data: list[dict[str, Any]] = []
+    recent_beats_history: dict[int, list[dict[str, Any]]] = {}
 
     for ev in events:
         t = ev.get("turn")
@@ -265,6 +266,7 @@ def cmd_beats(events: list[dict[str, Any]]) -> None:
             "type": "",
             "surface": "",
             "directive": "",
+            "phase": "",
         }
 
         # From storytell extraction output
@@ -277,12 +279,20 @@ def cmd_beats(events: list[dict[str, Any]]) -> None:
                 beat_entry["type"] = gm_beat.get("type", "")
                 beat_entry["surface"] = gm_beat.get("surface_as", "")
 
-        # From pacing_context in event (adds directive)
+        # From pacing_context in event
         pacing = ev.get("pacing_context") or {}
         if pacing:
             beat_entry["directive"] = pacing.get("directive", "")
+            beat_entry["phase"] = pacing.get("scene_phase", "")
 
         beat_data.append(beat_entry)
+
+        # Gather recent_beats from state_snapshot.meta for display
+        snap = ev.get("state_snapshot") or {}
+        meta = (snap.get("meta") or {})
+        recent = meta.get("recent_beats")
+        if isinstance(recent, list) and recent:
+            recent_beats_history[t] = recent
 
     # Deduplicate by turn — keep the entry with more data (prefer storytell gm_beat)
     seen_turns: dict[int, dict[str, Any]] = {}
@@ -291,7 +301,6 @@ def cmd_beats(events: list[dict[str, Any]]) -> None:
         if t not in seen_turns:
             seen_turns[t] = bd
         else:
-            # Keep the one with more non-empty fields
             existing = seen_turns[t]
             existing_score = sum(1 for v in existing.values() if v and v is not False)
             new_score = sum(1 for v in bd.values() if v and v is not False)
@@ -304,11 +313,12 @@ def cmd_beats(events: list[dict[str, Any]]) -> None:
         return
 
     # Print table
-    print(f"{'Turn':>5} | {'Beat Type':<14} | {'Surface':<14} | {'Directive'}")
-    print("\u2500" * 64)
+    print(f"{'Turn':>5} | {'Phase':<10} | {'Beat Type':<14} | {'Surface':<14} | {'Directive'}")
+    print("\u2500" * 74)
     for bd in beat_data:
         directive = bd.get("directive", "")
-        print(f"{bd['turn']:>5} | {bd.get('type', ''):<14} | {bd.get('surface', ''):<14} | {directive}")
+        phase = bd.get("phase", "")
+        print(f"{bd['turn']:>5} | {phase:<10} | {bd.get('type', ''):<14} | {bd.get('surface', ''):<14} | {directive}")
 
     # Streak analysis — consecutive same-type beats
     streaks: list[dict[str, Any]] = []
@@ -335,7 +345,6 @@ def cmd_beats(events: list[dict[str, Any]]) -> None:
             current_count = 1
             current_turns = [bd["turn"]]
 
-    # Check last streak
     if current_count >= 3:
         streaks.append({
             "type": current_type,
@@ -350,6 +359,18 @@ def cmd_beats(events: list[dict[str, Any]]) -> None:
         for s in streaks:
             turns_str = ", ".join(str(t) for t in s["turns"])
             print(f"  '{s['type']}' x{s['count']}: turns {turns_str}")
+
+    # Recent beats history per turn (from state_snapshot.meta.recent_beats)
+    if recent_beats_history:
+        print()
+        print("--- recent_beats (from state_snapshot.meta) ---")
+        for t in sorted(recent_beats_history.keys()):
+            beats = recent_beats_history[t]
+            entries = ", ".join(
+                f"T{b.get('turn', '?')}:{b.get('type') or '-'}/{b.get('surface_as') or '-'}"
+                for b in beats
+            )
+            print(f"  Turn {t}: [{entries}]")
 
 
 def cmd_goals(events: list[dict[str, Any]]) -> None:
@@ -575,6 +596,10 @@ def _render_location_section(state: dict[str, Any]) -> None:
 def _render_scene_section(state: dict[str, Any]) -> None:
     scene = state.get("scene", {}) or {}
     print("--- Scene ---")
+    phase = scene.get("scene_phase", "SETUP")
+    crisis_count = scene.get("crisis_turn_count", 0)
+    breather_count = scene.get("breather_turn_count", 0)
+    print(f"  Phase: {phase}  crisis_turns={crisis_count}  breather_turns={breather_count}")
     tags = scene.get("tags", []) or []
     if tags:
         print(f"  Tags: {', '.join(str(t) for t in tags)}")

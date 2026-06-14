@@ -339,6 +339,11 @@ def _show_pacing(ev: dict[str, Any]) -> None:
     print(f"=== Turn {ev.get('turn', '?')} \u2014 Pacing Context ===\n")
     pacing_ctx = ev.get("pacing_context") or {}
 
+    scene_phase = pacing_ctx.get("scene_phase", "SETUP")
+    crisis_count = pacing_ctx.get("crisis_turn_count", 0)
+    breather_count = pacing_ctx.get("breather_turn_count", 0)
+    print(f"  scene_phase: {scene_phase}  crisis_turn_count={crisis_count}  breather_turn_count={breather_count}")
+
     summary = pacing_ctx.get("summary", "")
     print(f"  summary: {summary}" if summary else "  summary: (none)")
 
@@ -346,14 +351,21 @@ def _show_pacing(ev: dict[str, Any]) -> None:
     if outcome_hint:
         print(f"  outcome_hint: {outcome_hint}")
 
-    band_label = (ev.get("ruling") or {}).get("band", "")
+    result = ev.get("ruling") or {}
+    tension_delta = result.get("tension_delta", "")
+    if tension_delta:
+        print(f"  tension_delta: {tension_delta}")
 
+    consecutive_pressure = ev.get("post_extraction_consecutive_pressure_beats")
+    if consecutive_pressure is not None:
+        print(f"  consecutive_pressure_beats: {consecutive_pressure}")
+
+    band_label = result.get("band", "")
     if band_label:
         print(f"  band: {band_label}")
 
-    ruling = ev.get("ruling") or {}
-    if ruling.get("impossible"):
-        print(f"  impossible: true \u2014 {ruling.get('reason', '')}")
+    if result.get("impossible"):
+        print(f"  impossible: true \u2014 {result.get('reason', '')}")
 
 
 def _show_dice(events: list[dict[str, Any]]) -> None:

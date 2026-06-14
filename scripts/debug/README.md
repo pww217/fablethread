@@ -62,7 +62,7 @@ The session is saved to `saves/ev/<timestamp>/` and a symlink `saves/ev/latest` 
 .venv/bin/python scripts/debug/ev.py check --all --save-dir saves/ev/latest
 
 # Specific checkers on a single turn
-.venv/bin/python scripts/debug/ev.py check 3 momentum_lifecycle inventory_integrity --save-dir saves/ev/latest
+.venv/bin/python scripts/debug/ev.py check 3 phase_transition inventory_integrity --save-dir saves/ev/latest
 ```
 
 ### 5. Inspect LLM prompts and turn JSON
@@ -180,7 +180,7 @@ Personality presets shape the LLM player's system prompt:
 | Mechanics + beats + pacing for a turn | `ev.py mechanics <N> [--pacing] [--dice] [--sanitize] [save-path]` |
 
 ```bash
-# What's the PC's current momentum and inventory?
+# What's the PC's current state and inventory?
 .venv/bin/python scripts/debug/ev.py state --save-dir saves/my-game --format pc
 .venv/bin/python scripts/debug/ev.py state --save-dir saves/my-game --format inventory
 
@@ -190,14 +190,14 @@ Personality presets shape the LLM player's system prompt:
 # Did NPCs change between turns 5 and 10?
 .venv/bin/python scripts/debug/ev.py diff 5 10 --section npcs saves/my-game/events.jsonl
 
-# Track momentum trajectory across all turns
-.venv/bin/python scripts/debug/ev.py trace pc.momentum saves/my-game/events.jsonl
+# Track scene_phase trajectory across all turns
+.venv/bin/python scripts/debug/ev.py trace pacing_context.scene_phase saves/my-game/events.jsonl
 
 # Track a specific NPC's notes over time
 .venv/bin/python scripts/debug/ev.py trace compendium.npcs.blake_webb.notes --show-unchanged saves/my-game/events.jsonl
 
-# Find turns where momentum dropped
-.venv/bin/python scripts/debug/ev.py search momentum_delta saves/my-game/events.jsonl
+# Find turns where phase is CRISIS
+.venv/bin/python scripts/debug/ev.py search pacing_context.scene_phase:CRISIS saves/my-game/events.jsonl
 
 # Full mechanics breakdown with pacing context
 .venv/bin/python scripts/debug/ev.py mechanics 12 --pacing --dice saves/my-game/events.jsonl
@@ -206,13 +206,13 @@ Personality presets shape the LLM player's system prompt:
 .venv/bin/python scripts/debug/ev.py deltas 8 --compact saves/my-game/events.jsonl
 ```
 
-### Thread, beat, and momentum analysis
+### Thread, beat, and phase analysis
 
 | If you want... | Command |
 |---|---|
 | Thread lifecycle across all turns | `ev.py threads [save-path]` |
 | Beat type + surface + locked status | `ev.py beats [save-path]` |
-| Momentum + band + delta table | `ev.py momentum-check [save-path]` |
+| Phase + beat + directive table | `ev.py beats [save-path]` |
 | Goal changes over time | `ev.py goals [save-path]` |
 | Beat TTL expiration over time | `ev.py beat-ttl [save-path]` |
 | Effective scene age (if available) | `ev.py effective-age [save-path]` |
@@ -225,7 +225,7 @@ Personality presets shape the LLM player's system prompt:
 .venv/bin/python scripts/debug/ev.py beats saves/my-game/events.jsonl
 
 # Momentum trajectory with roll bands
-.venv/bin/python scripts/debug/ev.py momentum-check saves/my-game/events.jsonl
+.venv/bin/python scripts/debug/ev.py beats saves/my-game/events.jsonl
 
 # When did the arc goal change?
 .venv/bin/python scripts/debug/ev.py goals saves/my-game/events.jsonl
@@ -298,10 +298,10 @@ The `play` command feeds a player action through the full engine pipeline (rulin
 Turn 13  |  trace: 864cb7de
 ------------------------------------------------------
 Ruling:    INTIMIDATE (skill: charisma, diff: hard)
-           Roll: [9] -> Band: success (+0 momentum)
+           Roll: [9] -> Band: success
 Narrative: "You thrust the rifle upward..." (1655 chars)
 
-Momentum:   3 -> 3  (+0.0)
+Pacing:    phase=CRISIS directive=Scene Imperative outcome_hint=transition
 Actions:   Signal Elias to run., Hand over the rifle., Order Paul to cover.
 Scene:     wasteland_surface, A Desperate Trade Struck, tense_negotiation
 
@@ -347,7 +347,7 @@ Tokens:    in=15487  out=1077  ms=31700.0
 .venv/bin/python scripts/debug/ev.py check 5 --all --save-dir saves/my-game
 
 # Specific checkers only
-.venv/bin/python scripts/debug/ev.py check 5 momentum_lifecycle gm_beat_lifecycle saves/my-game/events.jsonl
+.venv/bin/python scripts/debug/ev.py check 5 phase_transition breather_enforcement saves/my-game/events.jsonl
 
 # LLM-based checkers (slower, uses the LLM to judge)
 .venv/bin/python scripts/debug/ev.py check 5 --all --llm --save-dir saves/my-game
@@ -363,32 +363,46 @@ Tokens:    in=15487  out=1077  ms=31700.0
 
 | Checker ID | Type | What it validates |
 |---|---|---|
-| `momentum_lifecycle` | deterministic | Momentum delta matches roll band, floor streaks |
+| `phase_transition` | deterministic | Phase engine transitions follow the state machine |
+| `crisis_turn_counting` | deterministic | crisis_turn_count increments in CRISIS, resets on exit |
+| `breather_enforcement` | deterministic | BREATHER auto-transitions to RISING after max turns |
+| `tension_delta` | deterministic | tension_delta field presence, values, directive consistency |
+| `tension_monotonicity` | deterministic | tension_delta valid values, phase consistency |
+| `beat_phase_validity` | deterministic | gm_beat.type is allowed for current scene_phase |
+| `recent_beats` | deterministic | recent_beats list structure and constraints |
+| `phase_persistence` | deterministic | scene_phase persists across turns (regression guard) |
+| `scene_age_tracking` | deterministic | scene_age increments, resets on RESOLUTION/BREATHER |
+| `pacing_directives` | deterministic | Directive rendering, phase constraint, known values |
 | `gm_beat_lifecycle` | deterministic | GM beat type transitions, pressure compliance |
 | `inventory_integrity` | deterministic | Inventory add/remove balance |
 | `conditions_lifecycle` | deterministic | Condition apply/expire timing |
-| `npc_presence` | deterministic | NPC extraction, presence tags, scene cap |
+| `npc_presence` | deterministic | NPC presence validity, scene cap |
 | `location_change` | deterministic | Location transition continuity |
 | `sanitizer_lifecycle` | deterministic | Thread sanitization events |
-| `pacing_directives` | deterministic | Pacing directive rendering, known values |
 | `directive_tone_match` | llm | Narrative tone vs ruling directive |
 | `state_fidelity` | llm | State snapshot vs active state consistency |
 | `arc_goal_updates` | deterministic | goal_update overwrites visible_goal |
 | `thread_lifecycle` | deterministic | thread_add applied, thread_update IDs valid |
 | `beat_narrative_chain` | llm | GM beat produces observable narrative consequence |
 | `action_quality` | deterministic | Action count, distinctness, variety |
+| `roll_band_consistency` | deterministic | Band matches dice roll |
+| `thread_resolution_validity` | deterministic | thread_resolve has valid id/state/outcome |
+| `new_thread_validity` | deterministic | thread_add has id/summary, no duplicates |
+| `compendium_lifecycle` | deterministic | NPCs added via compendium_npc_update appear in state |
+| `arc_resolution_validity` | deterministic | arc_resolve has resolution + visible_goal |
+| `goal_update_validity` | deterministic | goal_update is non-empty, differs from previous |
 | `turn_assert` | deterministic | Per-turn structured assertions (stream/field/expected) |
 
 ---
 
 ## Real debugging workflows
 
-**"The momentum jumped unexpectedly — why?"**
+**"The phase isn't transitioning — why?"**
 ```bash
-ev.py trace pc.momentum saves/my-game/events.jsonl
+ev.py trace pacing_context.scene_phase saves/my-game/events.jsonl
 ev.py mechanics 12 --pacing --dice saves/my-game/events.jsonl
 ```
-→ The trace shows the trajectory; mechanics shows the ruling + beat + pacing context.
+→ The trace shows phase trajectory; mechanics shows the ruling + beat + pacing context.
 
 **"The storyteller generated a wrong action"**
 ```bash
@@ -447,13 +461,12 @@ Events are one JSON line per turn in `events.jsonl`. Key fields:
 | `.extraction.storytell.*` | Storyteller: system, user, GM beat + thread JSON output |
 | `.applied` | State deltas that were applied (inventory, NPCs, scene tags, etc.) |
 | `.rejected` | State deltas that were rejected with reasons |
-| `.momentum_before` | PC momentum before ruling |
-| `.momentum_after` | PC momentum after ruling |
-| `.momentum_delta` | Computed momentum change |
-| `.pacing_context` | Pacing directive, beat_locked, outcome_hint |
+| `.pacing_context` | scene_phase, directive, outcome_hint, crisis_turn_count, breather_turn_count |
 | `.state_snapshot` | Full state at **start** of turn (pre-turn, despite the name) |
 | `.post_turn_pending_beat` | pending_gm_beat after turn processing |
-| `.post_extraction_consecutive_pressure_turns` | Consecutive pressure counter |
+| `.post_extraction_consecutive_pressure_beats` | Consecutive pressure beat counter |
+| `.post_extraction_allowed_beat_types` | Allowed beat types for current scene_phase |
+| `.post_extraction_enforce_relief` | Whether relief is forced in CRISIS |
 
 ### Non-turn events
 
@@ -489,12 +502,12 @@ Different commands read from different event fields. Understanding which fields 
 | **Active state** | `state.yaml` in save dir | state |
 | **Thread lifecycle** | `.extraction.storytell.output.thread_add`, `.extraction.storytell.output.thread_update`, `.extraction.storytell.output.thread_remove`, sanitizer events | threads, thread-audit |
 | **Beat data** | `.extraction.storytell.output.gm_beat`, `.pacing_context` | beats, mechanics |
-| **Momentum** | `.momentum_before`, `.momentum_after`, `.momentum_delta`, `.ruling.band` | momentum-check, mechanics |
+| **Pacing** | `.pacing_context` (scene_phase, directive, crisis_turn_count, breather_turn_count), `.ruling.tension_delta` | beats, mechanics --pacing |
 | **Conditions** | `.applied.pc_condition_add`, `.applied.pc_condition_remove`, `.extraction_context.conditions_this_turn` | active-conditions, conditions checker |
 | **Inventory** | `.applied.inventory_add`, `.applied.inventory_remove`, `.extraction_context.inventory_this_turn` | state-history, inventory checker |
 | **NPC presence** | `.state_snapshot.compendium.npcs`, `.extraction_context` | npc-ghosting, npc_presence checker |
 | **Goals** | `.extraction.storytell.output.goal_update`, `.state_snapshot.visible_goal` | goals, arc_goal_updates checker |
-| **Pacing** | `.pacing_context.directive`, `.pacing_context.beat_locked`, `.extraction_context.pacing` | beats, pacing checker |
+| **Pacing (legacy)** | `.pacing_context.directive`, `.extraction_context.pacing` | beats, pacing checker |
 | **Sanitizer** | `kind="sanitizer"` events, `.threads_added`, `.threads_removed` | thread-audit, sanitizer_lifecycle checker |
 | **Extraction format** | `.extraction.changes` vs `.extraction.extraction_context` | compat |
 
@@ -508,7 +521,7 @@ When evaluating a game against the eval rubric, use these commands in priority o
 
 | Rubric area | Commands | What to look for |
 |-------------|----------|-----------------|
-| **1. Momentum** | `momentum-check`, `mechanics <N> --dice` | Momentum never drops below 0, band deltas match |
+| **1. Phase transitions** | `beats`, `mechanics <N> --pacing` | scene_phase transitions follow the state machine, crisis_turn_count and breather_turn_count reset correctly |
 | **2. GM Beats** | `beats`, `mechanics <N> --pacing` | No 3+ consecutive pressure, beat types transition correctly |
 | **3. Inventory** | `state-history`, `deltas <N>` | Add/remove balance, no phantom items |
 | **4. Conditions** | `active-conditions`, `deltas <N>` | Max 5 concurrent, cap violations flagged |
