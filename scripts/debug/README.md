@@ -213,6 +213,7 @@ Personality presets shape the LLM player's system prompt:
 | Thread lifecycle across all turns | `ev.py threads [save-path]` |
 | Beat type + surface + locked status | `ev.py beats [save-path]` |
 | Phase + beat + directive table | `ev.py beats [save-path]` |
+| Momentum + band + expected delta | `ev.py momentum-check [save-path]` |
 | Goal changes over time | `ev.py goals [save-path]` |
 | Beat TTL expiration over time | `ev.py beat-ttl [save-path]` |
 | Effective scene age (if available) | `ev.py effective-age [save-path]` |
@@ -225,7 +226,7 @@ Personality presets shape the LLM player's system prompt:
 .venv/bin/python scripts/debug/ev.py beats saves/my-game/events.jsonl
 
 # Momentum trajectory with roll bands
-.venv/bin/python scripts/debug/ev.py beats saves/my-game/events.jsonl
+.venv/bin/python scripts/debug/ev.py momentum-check saves/my-game/events.jsonl
 
 # When did the arc goal change?
 .venv/bin/python scripts/debug/ev.py goals saves/my-game/events.jsonl

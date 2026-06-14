@@ -75,7 +75,7 @@ def main() -> None:
     flags, args = _strip_flags(args)
     if not args:
         print("Error: no command specified.", file=sys.stderr)
-        print("Commands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats", file=sys.stderr)
+        print("Commands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats, momentum-check", file=sys.stderr)
         print("\nUsage: .venv/bin/python scripts/debug/ev.py <command> [args...]", file=sys.stderr)
         sys.exit(1)
 
@@ -99,7 +99,7 @@ def main() -> None:
     match cmd:
         case "help":
             print(__doc__.strip() if __doc__ else "ev.py — Debug CLI for CCYA events.jsonl")
-            print("\nCommands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats")
+            print("\nCommands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats, momentum-check")
             sys.exit(0)
         case "summary":
             from ccya.ev.inspect import cmd_summary
@@ -215,6 +215,9 @@ def main() -> None:
         case "beat-ttl":
             from ccya.ev.state_tools import cmd_beat_ttl
             cmd_beat_ttl(events)
+        case "momentum-check":
+            from ccya.ev.state_tools import cmd_momentum_check
+            cmd_momentum_check(events)
         case "state-history":
             from ccya.ev.audit import cmd_state_history
             cmd_state_history(events)
