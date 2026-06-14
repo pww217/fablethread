@@ -574,6 +574,10 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
             parsed_storytell = _tv_parse_json_blob(raw_out) if isinstance(raw_out, str) else (raw_out if isinstance(raw_out, dict) else None)
             gm_beat_dict = (parsed_storytell or {}).get("gm_beat") if isinstance(parsed_storytell, dict) else None
 
+        # Top-level pacing fields written by turn.py
+        allowed_beat_types = ev.get("allowed_beat_types")
+        enforce_relief = ev.get("enforce_relief")
+
         # ruling_intent for template (parsed from ruling_prompt.output)
         ruling_intent = _tv_parse_json_blob(prompts["ruling"]["output"])
 
@@ -603,10 +607,16 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                     "directive": pacing_ctx.get("directive"),
                     "outcome_hint": pacing_ctx.get("outcome_hint"),
                     "summary": pacing_ctx.get("summary", ""),
+                    "scene_phase": pacing_ctx.get("scene_phase"),
+                    "crisis_turn_count": pacing_ctx.get("crisis_turn_count"),
+                    "breather_turn_count": pacing_ctx.get("breather_turn_count"),
+                    "consecutive_pressure_beats": ev.get("post_extraction_consecutive_pressure_beats"),
                 },
                 "band_label": band_label,
                 "gm_beat_type": gm_beat_dict.get("type") if isinstance(gm_beat_dict, dict) else None,
                 "gm_beat_surface_as": gm_beat_dict.get("surface_as") if isinstance(gm_beat_dict, dict) else None,
+                "gm_beat_allowed_beat_types": allowed_beat_types,
+                "gm_beat_enforce_relief": enforce_relief,
                 "inputs_snapshot": inputs_snapshot,
                 "state_diff": state_diff,
                 "failures": row_failures,

@@ -555,6 +555,8 @@ class TurnResult:
     outcome_summary: str = field(default="")
     gm_beat: dict[str, str] | None = None
     outcome_hint: str | None = None
+    scene_phase: str = field(default="")
+    summary: str = field(default="")
     ts: str = field(default="")
 
 

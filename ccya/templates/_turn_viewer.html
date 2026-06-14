@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turn Viewer — ccya</title>
+    <link rel="icon" type="image/png" href="/static/abacus.png">
+    <link rel="stylesheet" href="/static/app.css?v={{ css_v }}">
+    <link rel="stylesheet" href="/static/vendor/highlight-atom-one-dark.min.css?v={{ css_v }}">
+    <script defer src="/static/vendor/marked.min.js" crossorigin></script>
+    <script defer src="/static/vendor/highlight.min.js" crossorigin></script>
+    <script defer src="/static/vendor/alpine.min.js" crossorigin></script>
+</head>
+<body>
+{% if turns and turns | length > 0 %}
+<script type="application/json" id="tv-initial-data">{{ turns | tojson | safe }}</script>
+<div
+    class="turn-viewer-page"
+    id="tv-root"
+    x-data="tvRoot()"
+    x-init="init()"
+    @keydown.escape.window="onlyRejected = false; onlyRetried = false; onlyErrors = false; onlySkipped = false"
+    @keydown.j.window="if (event.target.tagName !== 'INPUT' && event.target.tagName !== 'TEXTAREA') navToIdx(focusedTurnIdx + 1)"
+    @keydown.k.window="if (event.target.tagName !== 'INPUT' && event.target.tagName !== 'TEXTAREA') navToIdx(focusedTurnIdx - 1)"
+>
+    <div class="turn-viewer-header">
+        <span class="turn-viewer-title">Turn Viewer</span>
+        <span class="turn-viewer-meta"><span x-text="turns.length"></span> turns loaded</span>
+        <div class="turn-viewer-actions">
+            <span class="turn-viewer-live" x-show="liveConnected" title="Live updates">● live</span>
+            <button type="button" class="turn-viewer-refresh-btn" id="tv-refresh" title="Reload from events.jsonl">↻</button>
+            <a href="/" class="turn-viewer-back-btn">← Game</a>
+        </div>
+    </div>
+    <div class="turn-viewer-filter-bar" x-show="turns.length">
+        <label class="tv-filter-toggle"><input type="checkbox" x-model="onlyRejected"> rejections</label>
+        <label class="tv-filter-toggle"><input type="checkbox" x-model="onlyRetried"> retries</label>
+        <label class="tv-filter-toggle"><input type="checkbox" x-model="onlyErrors"> errors</label>
+        <label class="tv-filter-toggle"><input type="checkbox" x-model="onlySkipped"> skipped</label>
+    </div>
+    <div class="turn-viewer-body" id="tv-body">
+        <template x-if="visibleTurns().length === 0">
+            <div class="turn-viewer-empty">No turns match filter.</div>
+        </template>
+        <template x-for="(t, idx) in visibleTurns()" :key="t.trace_id_full || (String(t.turn) + '-' + idx)">
+            <div>
+                <template x-if="t.row_kind === 'seed'">
+                    <div class="tv-turn-card">
+                        <div class="tv-compaction-header" @click="toggleTurnCollapsed('seed')">
+                            <span class="tv-compaction-icon">✦</span>
+                            <span class="tv-compaction-title">Seed</span>
+                            <span class="tv-stage-badge" x-text="t.pack_type"></span>
+                            <span class="tv-compaction-range" x-text="t.pack_source"></span>
+                            <span class="tv-stage-chevron" :class="{ open: !isTurnCollapsed('seed') }">▶</span>
+                        </div>
+                        <div class="tv-compaction-body" x-show="!isTurnCollapsed('seed')">
+                            <template x-if="t.seed_pools_json">
+                                <div>
+                                    <div class="tv-compaction-label">Seed Pools</div>
+                                    <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.seed_pools_json)"></code></pre>
+                                </div>
+                            </template>
+                            <div>
+                                <div class="tv-compaction-label">Game State</div>
+                                <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.seed_json)"></code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="t.row_kind === 'sanitizer'">
+                    <div class="tv-compaction-card">
+                        <div class="tv-compaction-header" @click="toggleTurnCollapsed('s-' + t.turn)">
+                            <span class="tv-compaction-icon">⟳</span>
+                            <span class="tv-compaction-title">Thread Sanitizer</span>
+                            <span class="tv-compaction-range" x-text="'Turn ' + t.turn"></span>
+                            <span class="tv-compaction-bullets" x-text="t.san_diffs.length + ' changes'"></span>
+                            <span x-show="t.has_changes" class="tv-compaction-san-badge">sanitized</span>
+                            <span class="tv-stage-chevron" :class="{ open: !isTurnCollapsed('s-' + t.turn) }">▶</span>
+                        </div>
+                        <div class="tv-compaction-body" x-show="!isTurnCollapsed('s-' + t.turn)">
+                            <div class="tv-compaction-label">Latency</div>
+                            <div class="tv-compaction-more" x-text="t.ms + 's / ' + (t.tokens_in + t.tokens_out) + ' tokens'"></div>
+                            <div class="tv-diff-section" x-show="t.san_diffs.length">
+                                <div class="tv-diff-section-label">Sanitizer changes</div>
+                                <template x-for="(d, di) in t.san_diffs" :key="di">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-op" :class="'tv-diff-op--' + d.op" x-text="d.op_sym"></span>
+                                        <span class="tv-diff-field" x-text="d.field"></span>
+                                        <span class="tv-diff-value" x-text="d.value"></span>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="tv-compaction-no-san" x-show="!t.san_diffs.length">No thread changes needed.</div>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="t.row_kind !== 'seed' && t.row_kind !== 'sanitizer'">
+                    <div class="tv-turn-card" :id="'tv-turn-' + t.turn">
+                <div class="tv-turn-header" @click="toggleTurnCollapsed(t.turn)">
+                    <div class="tv-turn-number">Turn <span x-text="t.turn"></span></div>
+                    <div class="tv-turn-input" x-text="t.user_input"></div>
+                    <div class="tv-turn-meta">
+                        <span x-text="t.trace_id"></span>
+                        <div class="tv-turn-timing">
+                            <span class="tv-turn-total-tt" x-text="t.total_tt"></span>
+                            <span class="tv-turn-tokens" x-text="t.total_tokens_in_display + ' in / ' + t.total_tokens_out_display + ' out'"></span>
+                            <div class="tv-latency-waterfall">
+                                <template x-for="stage in stages" :key="'wf-' + t.turn + '-' + stage">
+                                    <div
+                                        class="tv-wf-segment"
+                                        :class="t.streams[stage].stage_class"
+                                        :style="'width:' + (t.total_tt_ms_raw > 0 ? Math.round(100 * (t.streams[stage].ms_raw || 0) / t.total_tt_ms_raw) : 0) + '%'"
+                                        :title="stage + ': ' + t.streams[stage].tt"
+                                    ></div>
+                                </template>
+                            </div>
+                        </div>
+                        <span x-show="t.has_rejections" class="tv-meta-rejected">rejected</span>
+                        <span x-show="t.has_retries" class="tv-meta-retried">retries</span>
+                        <span x-show="t.has_errors" class="tv-meta-error">errors</span>
+                    </div>
+                    <span class="tv-turn-chevron" :class="{ 'open': !isTurnCollapsed(t.turn) }">▶</span>
+                </div>
+
+                <div class="tv-turn-columns" x-show="!isTurnCollapsed(t.turn)">
+
+                    <!-- LEFT: pipeline -->
+                    <div class="tv-pipeline">
+                    <div class="tv-turn-actions">
+                        <button type="button" class="tv-expand-all-btn" @click.stop="toggleExpandAllForTurn(t.turn)">
+                            <span x-text="allExpandedForTurn(t.turn) ? 'Collapse all stages' : 'Expand all stages'"></span>
+                        </button>
+                    </div>
+
+                    <template x-for="stage in stages" :key="t.turn + '-' + stage">
+                        <div class="tv-stage-wrap" :class="{'tv-stage-wrap--no-inputs': !t.inputs_snapshot || !t.inputs_snapshot[stage] || !Object.keys(t.inputs_snapshot[stage]).length}">
+                            <template x-if="t.inputs_snapshot && t.inputs_snapshot[stage] && Object.keys(t.inputs_snapshot[stage]).length">
+                                <div class="tv-inputs-row">
+                                    <template x-for="([srcKey, lines], idx) in Object.entries(t.inputs_snapshot[stage])" :key="srcKey">
+                                        <div class="tv-input-pill" :class="'tv-stage-' + srcKey">
+                                            <div class="tv-input-pill-header" @click="toggleInputPill(t.turn, stage, srcKey)">
+                                                <span class="tv-input-pill-arrow">↓</span>
+                                                <span class="tv-input-pill-label" x-text="srcKey"></span>
+                                                <span class="tv-input-pill-count" x-text="'(' + lines.length + ')'"></span>
+                                            </div>
+                                            <div class="tv-input-pill-body" x-show="isInputPillOpen(t.turn, stage, srcKey)">
+                                                <template x-for="ln in lines" :key="ln.k">
+                                                    <div class="tv-input-kv-item" :class="{ dim: ln.dim }">
+                                                        <span class="k" x-text="ln.k"></span>
+                                                        <span class="v" x-text="ln.v"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <div
+                                class="tv-pipeline-stage"
+                                :id="'tv-s-' + t.turn + '-' + stage"
+                                :class="stageClasses(t, stage)"
+                            >
+                                <div class="tv-stage-accent"></div>
+                                <div class="tv-stage-header" @click="toggleStage(t.turn, stage)">
+                                    <span class="tv-stage-name" x-text="stage"></span>
+                                    <span class="tv-stage-status" x-text="t.streams[stage].status + (t.streams[stage].attempts > 1 ? ' (' + t.streams[stage].attempts + '\u00d7)' : '')"></span>
+                                    <span class="tv-stage-badge">
+                                        <span class="tv-token-bar-wrap" :title="'tokens ' + (t.streams[stage].token_sum || 0)">
+                                            <span class="tv-token-bar" :style="'width:' + (t.streams[stage].token_bar_pct || 0) + '%'"></span>
+                                        </span>
+                                        <span x-text="t.streams[stage].tt"></span>
+                                        <span x-text="t.streams[stage].tokens_in_display + ' / ' + t.streams[stage].tokens_out_display"></span>
+                                    </span>
+                                    <span class="tv-stage-chevron" :class="{ 'open': expandedKey(t.turn, stage) }">▶</span>
+                                </div>
+
+                                <div class="tv-stage-body" x-show="expandedKey(t.turn, stage)">
+                                    <div x-show="t.streams[stage].skipped" class="tv-skipped">Skipped</div>
+                                    <div x-show="!t.streams[stage].skipped">
+                                        <template x-if="stage === 'ruling' && t.ruling_intent">
+                                            <dl class="tv-rules-dl">
+                                                <template x-if="t.ruling_intent.intent"><dt>intent</dt><dd x-text="t.ruling_intent.intent"></dd></template>
+                                                <template x-if="t.ruling_intent.intent_verb"><dt>intent_verb</dt><dd x-text="t.ruling_intent.intent_verb"></dd></template>
+                                                <template x-if="t.ruling_intent.target"><dt>target</dt><dd x-text="t.ruling_intent.target"></dd></template>
+                                                <template x-if="t.ruling_intent.check">
+                                                    <dt>check</dt>
+                                                    <dd><pre class="tv-inline-json" x-text="JSON.stringify(t.ruling_intent.check, null, 2)"></pre></dd>
+                                                </template>
+                                            </dl>
+                                        </template>
+
+                                        <div x-show="t.prompts[stage] && (t.prompts[stage].system || t.prompts[stage].user || t.prompts[stage].output)">
+                                            <div class="tv-prompt-output-tabs">
+                                                <button type="button" class="tv-tab-btn" :class="{ 'active': tabKey(t.turn, stage) !== 'output' }" @click="setTab(t.turn, stage, 'prompt')">Prompt</button>
+                                                <button type="button" class="tv-tab-btn" :class="{ 'active': tabKey(t.turn, stage) === 'output' }" @click="setTab(t.turn, stage, 'output')">Output</button>
+                                            </div>
+
+                                            <div class="tv-content-panel" x-show="tabKey(t.turn, stage) !== 'output'">
+                                                <div class="tv-prompt-block" x-show="t.prompts[stage].system">
+                                                    <div class="tv-prompt-label-row">
+                                                        <span class="tv-prompt-label">System</span>
+                                                        <button type="button" class="tv-sys-toggle" @click.stop="toggleSystem(t.turn, stage)" x-text="systemOpen(t.turn, stage) ? 'Collapse' : ('Expand (~' + approxTokens(t.prompts[stage].system) + ' tok)')"></button>
+                                                    </div>
+                                                    <div class="tv-prompt-text markdown" x-show="systemOpen(t.turn, stage)" x-html="mdText(t.prompts[stage].system)"></div>
+                                                </div>
+                                                <div class="tv-prompt-block" x-show="t.prompts[stage].user">
+                                                    <div class="tv-prompt-label">User</div>
+                                                    <div class="tv-prompt-text markdown" x-html="mdText(t.prompts[stage].user)"></div>
+                                                </div>
+                                                <div class="tv-no-prompt" x-show="!t.prompts[stage].system && !t.prompts[stage].user">No prompt data available</div>
+                                            </div>
+
+                                            <div class="tv-content-panel" x-show="tabKey(t.turn, stage) === 'output'">
+                                                <template x-if="stage === 'narrate'">
+                                                    <div class="tv-output-text markdown" x-html="mdNarrative(t)"></div>
+                                                </template>
+                                                <template x-if="stage !== 'narrate'">
+                                                    <pre class="tv-pre"><code class="language-json" x-effect="tvInitJsonBlock($el, t.prompts[stage] ? (t.prompts[stage].output || '') : '')"></code></pre>
+                                                </template>
+                                                <div class="tv-no-prompt" x-show="!t.prompts[stage].output">No output data available</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="tv-no-prompt" x-show="!t.prompts[stage] || (!t.prompts[stage].system && !t.prompts[stage].user && !t.prompts[stage].output)">
+                                            No data for this stage
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                    </div>
+
+                    <!-- RIGHT: diff panel -->
+                    <div class="tv-diff-panel">
+                        <template x-if="t.failures && t.failures.length">
+                            <div class="tv-diff-section">
+                                <div class="tv-diff-section-label">Failures</div>
+                                <template x-for="(f, fi) in t.failures" :key="fi">
+                                    <div class="tv-failure-row" :class="'tv-failure-' + f.kind">
+                                        <span class="tv-failure-stream" x-text="f.stream || '—'"></span>
+                                        <span class="tv-failure-kind" x-text="f.kind + (f.attempt != null ? ' #' + f.attempt : '')"></span>
+                                        <span class="tv-failure-msg" x-text="f.message"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <template x-if="t.pacing_context">
+                            <div class="tv-diff-section">
+                                <div class="tv-diff-section-label">Pacing Context</div>
+                                <template x-if="t.pacing_context.scene_phase">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
+                                        <span class="tv-diff-field">scene_phase</span>
+                                        <span class="tv-diff-value" x-text="t.pacing_context.scene_phase"></span>
+                                    </div>
+                                </template>
+                                <template x-if="t.pacing_context.crisis_turn_count !== undefined && t.pacing_context.crisis_turn_count > 0">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
+                                        <span class="tv-diff-field">crisis_turn_count</span>
+                                        <span class="tv-diff-value" x-text="t.pacing_context.crisis_turn_count"></span>
+                                    </div>
+                                </template>
+                                <template x-if="t.pacing_context.breather_turn_count !== undefined && t.pacing_context.breather_turn_count > 0">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
+                                        <span class="tv-diff-field">breather_turn_count</span>
+                                        <span class="tv-diff-value" x-text="t.pacing_context.breather_turn_count"></span>
+                                    </div>
+                                </template>
+                                <template x-if="t.pacing_context.summary">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
+                                        <span class="tv-diff-field">summary</span>
+                                        <span class="tv-diff-value" x-text="t.pacing_context.summary"></span>
+                                    </div>
+                                </template>
+                                <template x-if="t.band_label">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
+                                        <span class="tv-diff-field">band</span>
+                                        <span class="tv-diff-value" x-text="t.band_label"></span>
+                                    </div>
+                                </template>
+                                <template x-if="t.pacing_context.outcome_hint">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
+                                        <span class="tv-diff-field">outcome_hint</span>
+                                        <span class="tv-diff-value" x-text="t.pacing_context.outcome_hint"></span>
+                                    </div>
+                                </template>
+                                <template x-if="t.pacing_context.consecutive_pressure_beats !== undefined && t.pacing_context.consecutive_pressure_beats > 0">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
+                                        <span class="tv-diff-field">consecutive_pressure_beats</span>
+                                        <span class="tv-diff-value" x-text="t.pacing_context.consecutive_pressure_beats"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <template x-if="t.gm_beat_type || t.gm_beat_surface_as || t.gm_beat_allowed_beat_types || t.gm_beat_enforce_relief">
+                            <div class="tv-diff-section">
+                                <div class="tv-diff-section-label">GM Beat</div>
+                                <template x-if="t.gm_beat_type">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
+                                        <span class="tv-diff-field">type</span>
+                                        <span class="tv-diff-value" x-text="t.gm_beat_type"></span>
+                                    </div>
+                                </template>
+                                <template x-if="t.gm_beat_surface_as">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
+                                        <span class="tv-diff-field">surface_as</span>
+                                        <span class="tv-diff-value" x-text="t.gm_beat_surface_as"></span>
+                                    </div>
+                                </template>
+                                <template x-if="t.gm_beat_allowed_beat_types && t.gm_beat_allowed_beat_types.length">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
+                                        <span class="tv-diff-field">allowed_beat_types</span>
+                                        <span class="tv-diff-value" x-text="t.gm_beat_allowed_beat_types.join(', ')"></span>
+                                    </div>
+                                </template>
+                                <template x-if="t.gm_beat_enforce_relief !== undefined">
+                                    <div class="tv-diff-row">
+                                        <span class="tv-diff-op"></span>
+                                        <span class="tv-diff-field">enforce_relief</span>
+                                        <span class="tv-diff-value" :class="t.gm_beat_enforce_relief ? 'tv-sts-rejected' : ''" x-text="t.gm_beat_enforce_relief"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <template x-if="t.state_diff && t.state_diff.length">
+                            <div class="tv-diff-section">
+                                <div class="tv-diff-section-label">State changes</div>
+                                <template x-for="(ch, chi) in t.state_diff" :key="chi">
+                                    <div class="tv-diff-row" :class="{ 'tv-diff-rejected': ch.rejected, 'tv-diff-op-remove': !ch.op_css_class && ch.op === 'remove' }">
+                                        <span class="tv-diff-op" :class="ch.op_css_class ? 'tv-diff-op--' + ch.op_css_class : 'tv-diff-op--' + ch.op" x-text="ch.op === 'add' ? '+' : ch.op === 'remove' ? '-' : ch.op === 'update' ? '~' : '='"></span>
+                                        <span class="tv-diff-field" x-text="ch.field"></span>
+                                        <span class="tv-diff-value" x-text="ch.value"></span>
+                                        <span class="tv-diff-rejected-badge" x-show="ch.rejected">rejected</span>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <template x-if="(!t.failures || !t.failures.length) && (!t.state_diff || !t.state_diff.length)">
+                            <div class="tv-diff-empty">No changes this turn</div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </template>
+            </div>
+        </template>
+    </template>
+</div>
+{% else %}
+<div class="turn-viewer-page">
+    <div class="turn-viewer-header">
+        <span class="turn-viewer-title">Turn Viewer</span>
+        <span class="turn-viewer-meta">{{ turn_count }} turns loaded</span>
+        <div class="turn-viewer-actions">
+            <button type="button" class="turn-viewer-refresh-btn" id="tv-refresh" title="Reload from events.jsonl">↻</button>
+            <a href="/" class="turn-viewer-back-btn">← Game</a>
+        </div>
+    </div>
+    <div class="turn-viewer-body" id="tv-body">
+        {% if no_events %}
+        <div class="turn-viewer-no-events">No events found. Start a game to generate turn data.</div>
+        {% else %}
+        <div class="turn-viewer-empty">No turns recorded yet.</div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+function tvHighlightCode(el) {
+    if (!el || typeof hljs === 'undefined') return;
+    if (el.dataset.highlighted === 'yes') return;
+    try { hljs.highlightElement(el); } catch (e) {}
+}
+
+function tvInitJsonBlock(el, raw) {
+    if (el.getAttribute('data-raw') === raw && el.dataset.highlighted === 'yes') return;
+    el.setAttribute('data-raw', raw);
+    delete el.dataset.highlighted;
+    el.textContent = raw;
+    tvHighlightCode(el);
+}
+
+function tvRoot() {
+    return {
+        turns: [],
+        onlyRejected: false,
+        onlyRetried: false,
+        onlyErrors: false,
+        onlySkipped: false,
+        expanded: {},
+        stageTabs: {},
+        systemOpenMap: {},
+        turnCollapsed: {},
+        inputPillOpen: {},
+        focusedTurnIdx: 0,
+        liveConnected: false,
+        _es: null,
+        stages: ['ruling', 'narrate', 'scene', 'state', 'storytell'],
+        init() {
+            var self = this;
+            var el = document.getElementById('tv-initial-data');
+            if (el) {
+                try { this.turns = JSON.parse(el.textContent); } catch (e) {}
+            }
+            if (typeof marked !== 'undefined' && marked.use) {
+                marked.use({ gfm: true, breaks: false });
+            }
+            this._collapseTurns();
+            this.startLive();
+        },
+        _collapseTurns() {
+            var self = this;
+            this.turns.forEach(function(t, i) {
+                var key = t.row_kind === 'seed' ? 'seed' : t.row_kind === 'sanitizer' ? 's-' + t.turn : t.turn;
+                self.turnCollapsed[key] = i > 0;
+            });
+            this.$nextTick(function() { self.hlAllVisibleJson(); });
+        },
+        stageClasses(t, stage) {
+            var a = (t.streams[stage] && t.streams[stage].status_class) || '';
+            var b = (t.streams[stage] && t.streams[stage].stage_class) || '';
+            return (a + ' ' + b).trim();
+        },
+        approxTokens(s) {
+            if (!s) return 0;
+            return Math.max(1, Math.round(String(s).length / 4));
+        },
+        expandedKey(turn, stage) {
+            return !!this.expanded['t' + turn + '-' + stage];
+        },
+        toggleStage(turn, stage) {
+            var k = 't' + turn + '-' + stage;
+            this.expanded[k] = !this.expanded[k];
+        },
+        toggleExpandAllForTurn(turn) {
+            var on = !this.allExpandedForTurn(turn);
+            var self = this;
+            this.stages.forEach(function(st) {
+                self.expanded['t' + turn + '-' + st] = on;
+            });
+            this.$nextTick(function() { self.hlAllVisibleJson(); });
+        },
+        allExpandedForTurn(turn) {
+            var self = this;
+            return this.stages.every(function(st) { return self.expanded['t' + turn + '-' + st]; });
+        },
+        tabKey(turn, stage) {
+            var k = turn + '-' + stage;
+            return this.stageTabs[k] === 'output' ? 'output' : 'prompt';
+        },
+        setTab(turn, stage, which) {
+            this.stageTabs[turn + '-' + stage] = which === 'output' ? 'output' : 'prompt';
+        },
+        systemOpen(turn, stage) {
+            return !!this.systemOpenMap[turn + '-' + stage];
+        },
+        toggleSystem(turn, stage) {
+            var k = turn + '-' + stage;
+            this.systemOpenMap[k] = !this.systemOpenMap[k];
+        },
+        isTurnCollapsed(turn) {
+            return !!this.turnCollapsed[turn];
+        },
+        toggleTurnCollapsed(turn) {
+            this.turnCollapsed[turn] = !this.turnCollapsed[turn];
+        },
+        isInputPillOpen(turn, stage, src) {
+            return !!this.inputPillOpen['t' + turn + '-' + stage + '-' + src];
+        },
+        toggleInputPill(turn, stage, src) {
+            var k = 't' + turn + '-' + stage + '-' + src;
+            this.inputPillOpen[k] = !this.inputPillOpen[k];
+        },
+        navToIdx(idx) {
+            var vt = this.visibleTurns();
+            if (!vt.length) return;
+            idx = Math.max(0, Math.min(idx, vt.length - 1));
+            this.focusedTurnIdx = idx;
+            var t = vt[idx];
+            var key = t.row_kind === 'seed' ? 'seed' : t.row_kind === 'sanitizer' ? 's-' + t.turn : t.turn;
+            this.turns.forEach(function(tr) {
+                if (tr.row_kind !== 'seed') {
+                    this.turnCollapsed[tr.turn] = true;
+                }
+            }.bind(this));
+            this.turnCollapsed[key] = false;
+            this.$nextTick(function() {
+                var el = document.getElementById('tv-turn-' + key);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        },
+        flashStage(turn, anchor) {
+            var el = document.getElementById('tv-s-' + turn + '-' + anchor);
+            if (!el) return;
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            el.classList.add('tv-flash');
+            setTimeout(function() { el.classList.remove('tv-flash'); }, 900);
+        },
+        mdNarrative(t) {
+            var raw = (t.prompts && t.prompts.narrate && t.prompts.narrate.output) ? String(t.prompts.narrate.output) : '';
+            return this.mdText(raw);
+        },
+        mdText(s) {
+            if (!s) return '';
+            if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
+                try { return marked.parse(String(s)); } catch (e) {}
+            }
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+        },
+        visibleTurns() {
+            var onlyR = this.onlyRejected;
+            var onlyRe = this.onlyRetried;
+            var onlyE = this.onlyErrors;
+            var onlyS = this.onlySkipped;
+            return this.turns.filter(function(t) {
+                if (t.row_kind === 'seed' || t.row_kind === 'sanitizer') return true;
+                if (onlyR && !t.has_rejections) return false;
+                if (onlyRe && !t.has_retries) return false;
+                if (onlyE && !t.has_errors) return false;
+                if (onlyS && !t.has_skipped) return false;
+                return true;
+            });
+        },
+        hlAllVisibleJson() {
+            document.querySelectorAll('.tv-pipeline-stage code.language-json').forEach(function(el) {
+                var raw = el.getAttribute('data-raw') || el.textContent || '';
+                tvInitJsonBlock(el, raw);
+            });
+        },
+        mergeTurnsFromServer(newTurns) {
+            if (!Array.isArray(newTurns) || !newTurns.length) return;
+            var body = document.getElementById('tv-body');
+            var atTop = body ? body.scrollTop < 100 : true;
+            var seen = {};
+            this.turns.forEach(function(t) { if (t.trace_id_full) seen[t.trace_id_full] = true; });
+            var prepend = [];
+            for (var i = 0; i < newTurns.length; i++) {
+                if (newTurns[i].trace_id_full && !seen[newTurns[i].trace_id_full]) prepend.push(newTurns[i]);
+            }
+            if (!prepend.length) return;
+            this.turns = prepend.concat(this.turns);
+            if (prepend.length && atTop) {
+                this.$nextTick(function() {
+                    if (body) body.scrollTop = 0;
+                });
+            }
+        },
+        startLive() {
+            var self = this;
+            if (!window.EventSource) return;
+            try {
+                this._es = new EventSource('/turn_viewer/stream');
+                this.liveConnected = true;
+                this._es.addEventListener('updated', function() {
+                    fetch('/turn_viewer/data')
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (data && data.turns) self.mergeTurnsFromServer(data.turns);
+                        })
+                        .catch(function() {});
+                });
+                this._es.onerror = function() { self.liveConnected = false; };
+            } catch (e) {
+                this.liveConnected = false;
+            }
+        }
+    };
+}
+
+document.getElementById('tv-refresh').addEventListener('click', function() {
+    location.reload();
+});
+</script>
+</body>
+</html>

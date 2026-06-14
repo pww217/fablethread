@@ -663,19 +663,19 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
             _log.warning(
                 "rules.resolve_check failed: %s", exc, extra={"trace_id": trace_id}
             )
-            outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
-        elif intent.check.required and not intent.check.skill:
-            _log.warning(
-                "rules: check required on T%d but skill=%s — no roll will occur",
-                state.get("meta", {}).get("turn", 0) + 1,
-                intent.check.skill,
-                extra={"trace_id": trace_id, "turn": turn_no},
-            )
-            outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
-            outcome.reason = intent.reason
-        else:
-            outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
-            outcome.reason = intent.reason
+            outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent, reason=intent.reason)
+    elif intent.check.required and not intent.check.skill:
+        _log.warning(
+            "rules: check required on T%d but skill=%s — no roll will occur",
+            state.get("meta", {}).get("turn", 0) + 1,
+            intent.check.skill,
+            extra={"trace_id": trace_id, "turn": turn_no},
+        )
+        outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+        outcome.reason = intent.reason
+    else:
+        outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+        outcome.reason = intent.reason
 
     ctx.outcome = outcome
 
