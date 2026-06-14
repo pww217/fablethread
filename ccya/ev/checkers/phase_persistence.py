@@ -4,14 +4,14 @@ import logging
 from typing import Any
 
 from ccya.ev.checkers import CheckerResult, register_checker
-from ccya.ev.events import filter_turn_events
+from ccya.ev.events import extract_field, filter_turn_events
 
 _log = logging.getLogger(__name__)
 
 
 @register_checker(
     "phase_persistence", "deterministic",
-    requires_fields=["scene_phase"],
+    requires_fields=["pacing_context"],
     description="Validate scene phase persists across turns (regression guard for phase-persistence bug)",
 )
 def phase_persistence(events: list[dict[str, Any]]) -> CheckerResult:
@@ -20,13 +20,14 @@ def phase_persistence(events: list[dict[str, Any]]) -> CheckerResult:
 
     filtered = filter_turn_events(events)
 
-    for i, ev in enumerate(filtered):
-        phase = ev.get("scene_phase")
+    for ev in filtered:
+        pc = extract_field(ev, "pacing_context") or {}
+        phase = pc.get("scene_phase")
         if phase is None:
             findings.append({
                 "turn": ev.get("turn"),
                 "check": "phase_present",
-                "detail": "scene_phase field missing from event",
+                "detail": "scene_phase field missing from pacing_context",
             })
             all_passed = False
             continue
