@@ -575,7 +575,7 @@ def _compute_scene_phase(
         # RESOLUTION splits based on location change (already handled above)
         # If we're still here, no location change → BREATHER
         phase = "BREATHER"
-        breather_turn_count = 0
+        breather_turn_count = 1
 
     elif phase == "BREATHER":
         breather_turn_count += 1
@@ -1022,11 +1022,21 @@ async def run_turn(
             else:
                 state.get("meta", {}).pop("pending_gm_beat", None)
 
+            # Consecutive pressure beats counter: tracks beat type streaks, not directive types
+            _current_beat = state.get("meta", {}).get("pending_gm_beat")
+            _beat_type = _current_beat.get("type") if _current_beat else None
+            meta = state.setdefault("meta", {})
+            current_pressure = meta.get("consecutive_pressure_beats", 0)
+            if _beat_type in PRESSURE_BEAT_TYPES:
+                meta["consecutive_pressure_beats"] = current_pressure + 1
+            else:
+                meta["consecutive_pressure_beats"] = 0
+
             # Floor relief injection — runs BEFORE apply_delta so breathing_room persists through the deep copy.
             # Inject breathing_room when CRISIS phase has enough consecutive pressure beats
             enforce_relief = derive_enforce_relief(
                 (state.get("scene") or {}).get("scene_phase", "SETUP"),
-                (state.get("meta") or {}).get("consecutive_pressure_beats", 0),
+                meta.get("consecutive_pressure_beats", 0),
                 config,
             )
             if enforce_relief:
@@ -1038,16 +1048,6 @@ async def run_turn(
                         "surface_as": "ambient",
                         "beat_expires_turn": turn_no + 2,
                     }
-
-            # Consecutive pressure beats counter: tracks beat type streaks, not directive types
-            _current_beat = state.get("meta", {}).get("pending_gm_beat")
-            _beat_type = _current_beat.get("type") if _current_beat else None
-            meta = state.setdefault("meta", {})
-            current_pressure = meta.get("consecutive_pressure_beats", 0)
-            if _beat_type in PRESSURE_BEAT_TYPES:
-                meta["consecutive_pressure_beats"] = current_pressure + 1
-            else:
-                meta["consecutive_pressure_beats"] = 0
 
         if is_cancel_requested(str(save_dir)):
             return
@@ -1368,11 +1368,11 @@ async def run_turn(
                 "context_meta": _context_meta(rendered_narr_system, rendered_narr_user, narr_trimmed, narr_trimmed_chars),
             },
         }
-        event["state_snapshot"] = load_state(save_dir)
-        append_event(save_dir, event)
-        # Snapshot pre-turn state before overwriting — used by delete_last_turn
+        # Snapshot post-turn state before overwriting — used by delete_last_turn
         register_persist(str(save_dir))
         save_state(save_dir, state)
+        event["state_snapshot"] = load_state(save_dir)
+        append_event(save_dir, event)
         append_chronicle(
             save_dir,
             f"\n\n## Turn {state['meta']['turn']} — {user_input}\n\n{narrative.strip()}",
