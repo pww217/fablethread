@@ -101,7 +101,7 @@ Three main visual panels compose the browser UI. All NPC data in left/right pane
 
 ### ccya/models.py
 - **load_config(path)** → dict — loads config.yaml
-- **TurnResult** dataclass — returned from run_turn(): turn, trace_id, narrative, state_delta, applied, rejected, actions, diff, changes, metrics, errors, ruling, outcome_summary, gm_beat, outcome_hint, ts
+- **TurnResult** dataclass — returned from run_turn(): turn, trace_id, narrative, state_delta, applied, rejected, actions, diff, changes, metrics, errors, ruling, outcome_summary, gm_beat, outcome_hint, scene_phase, summary, ts
 
 ### ccya/engine (via __init__.py)
 - **run_turn(...)** → AsyncIterator — 5-call pipeline: rules→narrate→scene/state/storytell extract; yields ("token"), ("phase"), ("complete", TurnResult)
@@ -250,7 +250,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - **Seed emotional framing contract**: The seed generation prompt enforces `goal_context` (2-3 sentences of personal stakes for the PC), NPC `relation` field, and character-shaped action text. This emotional data is embedded in the initial state and the sidebar, not reintroduced per-turn via prompts.
 ### EngineConfig field naming (Phase 06b)
 
-- Config fields: thread_deescalate_on_success, resolved_arc_ttl (default 3), completed_thread_ttl (default 3), thread_stale_threshold (default 3), thread_max_active (default 5), sanitize_every (default 5, 0=disabled). **Thread lifecycle enforcement:** thread_urgency_max_age (default 8, stepwise urgency decay threshold). YAML keys match Python field names directly. **Debug mode:** debug_mode (read from `game.debug.enabled` in config.yaml, default False) — gates streaming metadata display (gm_beat, outcome_hint) in UI turn_complete handler.
+- Config fields: thread_deescalate_on_success, resolved_arc_ttl (default 3), completed_thread_ttl (default 3), thread_stale_threshold (default 3), thread_max_active (default 5), sanitize_every (default 5, 0=disabled). **Thread lifecycle enforcement:** thread_urgency_max_age (default 8, stepwise urgency decay threshold). YAML keys match Python field names directly. **Debug mode:** debug_mode (read from `game.debug.enabled` in config.yaml, default False) — gates streaming metadata display (scene_phase, gm_beat, outcome_hint, summary) in UI turn_complete handler.
 - Sampling parameters: ruling_temperature/ruling_top_p, extract_temperature/extract_top_p/extract_frequency_penalty, narrate_temperature/narrate_top_p/narrate_frequency_penalty, generate_seed_temperature/generate_seed_top_p, pack_generation_temperature/pack_generation_top_p; stub fields always null until mlx-lm SDK support: seed, top_k, min_p, rep_penalty, rep_penalty_window. Config structure migrated from flat keys to nested `llm.<stage>.<param>` format (Phase 08).
 
 ### Computation functions (Phase 06b)
@@ -365,7 +365,9 @@ world.factions: [str], world.locations: [str]
 
 ### UI streaming metadata (thread progress, debug display)
 - **Thread progress strings:** After turn completion, inline divs with class `thread-progress-line` are inserted below narrative text. Each thread entry in `changes["threads"]` may carry a `new_progress` field (formatted as "[KIND] text") populated by `summarize_changes()` when new progress entries appear on threads.
-- **Debug metadata row:** When `EngineConfig.debug_mode` is true, a formatted div with class `debug-metadata-row` shows gm_beat/outcome_hint inline after turn completion. Parsed from `result.gm_beat` and `result.outcome_hint` on the TurnResult object.
+- **Debug metadata row:** When `EngineConfig.debug_mode` is true, a formatted div with class `debug-metadata-row` shows four metafields inline after turn completion: scene_phase, gm_beat (type/surface_as), outcome_hint, and summary. Parsed from `result.scene_phase`, `result.gm_beat`, `result.outcome_hint`, and `result.summary` on the TurnResult object.
+- **Ruling reason tooltip:** When a ruling carries a `reason` field, the difficulty label (normal/hard/extreme) in the roll badge gets a `has-tooltip` showing the reason text. On no-roll turns, the outcome badge itself gets the tooltip.
+- **Inventory change reason tooltip:** After each turn, `delta.inventory_change_reason` is persisted to `state.meta.last_inventory_change_reason`. The right-side panel Inventory `<summary>` shows this as a tooltip when present.
 - **Sidebar thread ordering:** `_state_left.html` reverses active threads (`| reverse`) so most recently active appear first; completed_threads also reversed (top 20).
 
 ## Design documents

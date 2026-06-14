@@ -49,7 +49,7 @@
 </details>
 
 <details class="sidebar-card" id="card-inventory" data-card="inventory" open>
-    <summary>Inventory</summary>
+    <summary><span class="has-tooltip">Inventory{% if state.meta.last_inventory_change_reason %}<div class="tooltip-body">{{ state.meta.last_inventory_change_reason }}</div>{% endif %}</span></summary>
     <div class="sidebar-card-body">
         {% if state.inventory %}
         {% for item in state.inventory %}

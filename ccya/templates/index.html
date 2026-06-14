@@ -168,7 +168,7 @@
                     {% set die_val = (r.dice | default([]))[0] or 0 %}
                     {% set total_mod = (r.stat_mod or 0) + (r.diff_mod or 0) %}
                     <div class="roll-badge roll-badge--{{ r.band }}">
-                        <div class="roll-header">🎲 <strong>{{ (r.skill | default('') | upper) }}</strong> &nbsp;·&nbsp; {{ r.difficulty | default('') | lower }}</div>
+                        <div class="roll-header">🎲 <strong>{{ (r.skill | default('') | upper) }}</strong> &nbsp;·&nbsp; {% if r.reason %}<span class="has-tooltip">{{ r.difficulty | default('') | lower }}<span class="tooltip-body">{{ r.reason }}</span></span>{% else %}{{ r.difficulty | default('') | lower }}{% endif %}</div>
                         <div class="roll-math">
                             {% set mods = '' %}
                             {% if r.stat_mod != 0 %}
@@ -201,8 +201,9 @@
                         {% endif %}
                     </div>
                     {% elif ev.ruling and ev.ruling.get('outcome_summary') %}
-                    <div class="roll-badge roll-badge--outcome">
+                    <div class="roll-badge roll-badge--outcome{% if ev.ruling.reason %} has-tooltip{% endif %}">
                         <div class="roll-outcome roll-outcome--large">{{ ev.ruling.outcome_summary }}</div>
+                        {% if ev.ruling.reason %}<div class="tooltip-body">{{ ev.ruling.reason }}</div>{% endif %}
                     </div>
                     {% endif %}
                     {% if ev.change_groups %}
@@ -770,7 +771,11 @@ function _buildRollBadge(payload) {
     const diffLabel = (payload.difficulty || '').toLowerCase();
     const hdr = document.createElement('div');
     hdr.className = 'roll-header';
-    hdr.innerHTML = '🎲 <strong>' + skillLabel + '</strong> &nbsp;·&nbsp; ' + diffLabel;
+    if (payload.reason) {
+        hdr.innerHTML = '🎲 <strong>' + skillLabel + '</strong> &nbsp;·&nbsp; <span class="has-tooltip">' + diffLabel + '<span class="tooltip-body">' + payload.reason + '</span></span>';
+    } else {
+        hdr.innerHTML = '🎲 <strong>' + skillLabel + '</strong> &nbsp;·&nbsp; ' + diffLabel;
+    }
     badge.appendChild(hdr);
 
     // Line 2: dice + labeled modifiers + total
@@ -1821,12 +1826,19 @@ function game() {
                     const rollBadge = _buildRollBadge(result.ruling);
                     if (rollBadge) { lastInserted.after(rollBadge); lastInserted = rollBadge; }
                 } else if (result.outcome_summary) {
+                    const hasReason = result.ruling && result.ruling.reason;
                     const badge = document.createElement('div');
-                    badge.className = 'roll-badge roll-badge--outcome';
+                    badge.className = 'roll-badge roll-badge--outcome' + (hasReason ? ' has-tooltip' : '');
                     const outcomeText = document.createElement('div');
                     outcomeText.className = 'roll-outcome roll-outcome--large';
                     outcomeText.textContent = result.outcome_summary;
                     badge.appendChild(outcomeText);
+                    if (hasReason) {
+                        const tip = document.createElement('div');
+                        tip.className = 'tooltip-body';
+                        tip.textContent = result.ruling.reason;
+                        badge.appendChild(tip);
+                    }
                     lastInserted.after(badge);
                     lastInserted = badge;
                 }
@@ -1842,7 +1854,7 @@ function game() {
 
                     const gmBeatText = result.gm_beat ? `${result.gm_beat.type} (${result.gm_beat.surface_as})` : '\u2014';
 
-                    debugDiv.innerHTML = `<span class="debug-label">GM Beat:</span> ${gmBeatText}&ensp;|&ensp;<span class="debug-label">Hint:</span> ${result.outcome_hint || '\u2014'}`;
+                    debugDiv.innerHTML = `<span class="debug-label">Phase:</span> ${result.scene_phase || '\u2014'}&ensp;|&ensp;<span class="debug-label">GM Beat:</span> ${gmBeatText}&ensp;|&ensp;<span class="debug-label">Hint:</span> ${result.outcome_hint || '\u2014'}&ensp;|&ensp;<span class="debug-label">Summary:</span> ${result.summary || '\u2014'}`;
                     lastInserted.after(debugDiv);
                     lastInserted = debugDiv;
                 }
