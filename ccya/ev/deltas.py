@@ -24,7 +24,6 @@ from ccya.ev.output import _dict_to_lines, extract_section_by_pattern
 
 ARROW = "\u2192"
 EM_DASH = "\u2014"
-ELLIPSIS = "\u2026"
 HLINE = "\u2500"
 
 

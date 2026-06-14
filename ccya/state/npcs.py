@@ -51,23 +51,6 @@ def _strip_non_ascii(text: str) -> str:
     return re.compile(r"[^\x00-\x7F]").sub("", text).strip()
 
 
-def _hydrate_npc_text(delta_val: str | None, stored: Any) -> str:
-    st = str(stored).strip() if stored is not None else ""
-    if delta_val is None:
-        return st
-    dv = str(delta_val).strip()
-    if not dv:
-        return st
-    return dv
-
-
-def _resolve_npc_id(nid: str, comp: dict[str, Any], alias_map: dict[str, str]) -> str:
-    resolved = normalize_inventory_id(nid)
-    if resolved in alias_map and alias_map[resolved] != resolved:
-        resolved = alias_map[resolved]
-    return resolved
-
-
 def _find_npc_by_name(name: str, comp: dict[str, Any]) -> str | None:
     """Find an existing compendium NPC by name (case-insensitive). Returns canonical ID or None."""
     if not name:

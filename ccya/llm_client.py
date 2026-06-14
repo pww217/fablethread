@@ -110,11 +110,6 @@ async def chat_stream(
     top_p: float | None = None,
     frequency_penalty: float | None = None,
     seed: int | None = None,
-    # Stub fields for later mlx-lm SDK support — accepted but never passed to API yet:
-    top_k: int | None = None,  # not in OpenAI SDK signature
-    min_p: float | None = None,  # not in OpenAI SDK signature  
-    rep_penalty: float | None = None,  # not in OpenAI SDK signature
-    rep_penalty_window: int | None = None,  # not in OpenAI SDK signature
 ) -> AsyncIterator[str]:
     if _MOCK_MODE:
         async for chunk in _mock_stream():
@@ -164,11 +159,6 @@ async def chat(
     top_p: float | None = None,
     frequency_penalty: float | None = None,
     seed: int | None = None,
-    # Stub fields for later mlx-lm SDK support — accepted but never passed to API yet:
-    top_k: int | None = None,  # not in OpenAI SDK signature
-    min_p: float | None = None,  # not in OpenAI SDK signature  
-    rep_penalty: float | None = None,  # not in OpenAI SDK signature
-    rep_penalty_window: int | None = None,  # not in OpenAI SDK signature
 ) -> dict[str, Any]:
     if _MOCK_MODE:
         return _mock_extract_chat(messages)

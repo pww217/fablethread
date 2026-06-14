@@ -55,15 +55,6 @@ def extract_field(event: dict[str, Any], dotpath: str) -> Any | None:
     return cur
 
 
-def extract_fields(events: list[dict[str, Any]], dotpaths: list[str]) -> list[dict[str, Any]]:
-    results = []
-    for ev in events:
-        entry = {}
-        for dp in dotpaths:
-            entry[dp] = extract_field(ev, dp)
-        results.append(entry)
-    return results
-
 
 def extract_extraction_context(event: dict[str, Any]) -> dict[str, Any]:
     return cast(dict[str, Any], event.get("extraction_context", {}))
@@ -268,21 +259,6 @@ def _count_state_diff(ev: dict[str, Any]) -> int:
     sd = ev.get("state_diff") or _build_state_diff(ev)
     return len(sd) if sd else 0
 
-
-def _build_summary_json(ev: dict[str, Any]) -> dict[str, Any]:
-    intent = _parse_ruling_intent(ev) or {}
-    raw_tt = _total_tt(ev)
-    return {
-        "turn": ev.get("turn"),
-        "streams": _stream_keys(ev),
-        "user_input": (ev.get("input") or "")[:100],
-        "tokens_in": int(_total_tokens_in(ev)),
-        "tokens_out": int(_total_tokens_out(ev)),
-        "total_tt_s": float(raw_tt.rstrip("s")) if raw_tt else 0.0,
-        "ruling_intent": (intent.get("intent") or "")[:100],
-        "deltas": int(_count_state_diff(ev)),
-        "has_rejections": bool(_has_rejections(ev)),
-    }
 
 
 def extract_field_from_event(ev: dict[str, Any], field: str) -> Any | None:

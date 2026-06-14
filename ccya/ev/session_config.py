@@ -17,14 +17,6 @@ def load_session_config(save_dir: Path) -> dict[str, Any] | None:
     return data
 
 
-def resolve_flag(flags: dict[str, str], session_config: dict[str, Any] | None, key: str, default: Any = None) -> Any:
-    """Resolution: CLI flag > session_config > default."""
-    if key in flags:
-        return flags[key]
-    if session_config is not None and key in session_config:
-        return session_config[key]
-    return default
-
 
 def resolve_player_config(flags: dict[str, str], session_config: dict[str, Any] | None) -> dict[str, str | None]:
     """Return {personality, custom_persona} with resolution: CLI > session_config > defaults."""

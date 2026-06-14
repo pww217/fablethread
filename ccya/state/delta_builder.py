@@ -19,7 +19,6 @@ from ccya.state.inventory import (
 
 _NAME_RE = re.compile(r"[^\x00-\x7F]")
 _DEFAULT_CONDITION_TTL = 10
-DEFAULT_CONDITION_TTL: int = _DEFAULT_CONDITION_TTL
 PC_CONDITIONS_MAX: int = 5
 
 _log = logging.getLogger(__name__)

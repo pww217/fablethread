@@ -1,4 +1,4 @@
-.PHONY: install run dev fmt lint test test-v test-x typecheck check css clean new-game vendor llama-swap kill eval eval-fast eval-judge-only eval-pack eval-all full-eval clean-pycache
+.PHONY: install run dev fmt lint test test-v test-x typecheck check deadcode css clean new-game vendor llama-swap kill eval eval-fast eval-judge-only eval-pack eval-all full-eval clean-pycache
 
 install:
 	uv sync
@@ -47,7 +47,10 @@ lint-scripts:
 validate-packs:
 	uv run python scripts/validate_pack_yamls.py
 
-check: lint typecheck validate-packs
+deadcode:
+	uv run vulture ccya/ scripts/ --min-confidence 80
+
+check: lint typecheck validate-packs deadcode
 
 css:
 	npx --yes @tailwindcss/cli -i ccya/static/app.src.css -o ccya/static/app.css --minify

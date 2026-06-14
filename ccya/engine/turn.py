@@ -24,7 +24,7 @@ from ccya.engine.extraction import (
 from ccya.engine.names import generate_npc_names_split
 from ccya.engine.narrate import _narrate_messages
 from ccya.engine.npc_roster import build_npc_roster
-from ccya.engine._pacing import derive_enforce_relief
+from ccya.engine._pacing import derive_allowed_beat_types, derive_enforce_relief
 from ccya.personality import ARCHETYPES
 from ccya.engine.thread_sanitizer import sanitize_threads
 
@@ -89,9 +89,7 @@ class TurnContext:
     _ruling_parse_error: str | None = None
     _ruling_trimmed: bool = False
     _ruling_trimmed_chars: int = 0
-    _avoidance: bool = False
     _ages: dict[str, int] = field(default_factory=dict)  # set by ruling phase before narrate setup reads it
-    _deescalate: float = 0.0
 
     intent: IntentEnvelope | None = None
     outcome: RulesOutcome | None = None
@@ -103,10 +101,6 @@ class PacingContext:
     outcome_hint: str | None  # narrator's primary scene motion instruction
     summary: str  # human-readable log string, never sent to LLM
 
-    @staticmethod
-    def neutral() -> PacingContext:
-        """Default pacing context for turns without special conditions."""
-        return PacingContext(directive="", outcome_hint="hold", summary="neutral")
 
 
 
@@ -551,7 +545,7 @@ def _compute_scene_phase(
     if phase == "SETUP":
         if thread_urgency_count > 0:
             phase = "RISING"
-        elif tension_delta == "escalates" and thread_urgency_count >= 1:
+        elif tension_delta == "escalates" and thread_urgency_count == 0:
             phase = "RISING"
 
     elif phase == "RISING":
@@ -602,14 +596,6 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
     exp_ruling_ms = _avg_event_ms(ctx.save_dir, "ruling.total_ms")
     phase_events: list[tuple[str, Any]] = [("phase", {"phase": "ruling_start", "expected_ms": exp_ruling_ms})]
     t_rules = asyncio.get_event_loop().time()
-
-    # Avoidance detection
-    avoidance = any(kw in (ctx.user_input or "").lower() for kw in config.avoidance_keywords)
-    ctx._avoidance = avoidance
-    if avoidance:
-        _log.debug(
-            "turn.pacing.avoidance detected", extra={"turn": state.get("meta", {}).get("turn", 0), "trace_id": "", "pack": "", "kind": "pacing"},
-        )
 
     # Build ruling messages
     _comp = state.get("compendium", {}).get("npcs", {})
@@ -672,21 +658,24 @@ async def _ruling_phase(ctx: TurnContext) -> tuple[Any, Any, dict[str, Any], flo
                 difficulty_mods=config._resolve_difficulty_modifiers(),
                 near_miss_softening=config.near_miss_softening,
             )
+            outcome.reason = intent.reason
         except Exception as exc:
             _log.warning(
                 "rules.resolve_check failed: %s", exc, extra={"trace_id": trace_id}
             )
             outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
-    elif intent.check.required and not intent.check.skill:
-        _log.warning(
-            "rules: check required on T%d but skill=%s — no roll will occur",
-            state.get("meta", {}).get("turn", 0) + 1,
-            intent.check.skill,
-            extra={"trace_id": trace_id, "turn": turn_no},
-        )
-        outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
-    else:
-        outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+        elif intent.check.required and not intent.check.skill:
+            _log.warning(
+                "rules: check required on T%d but skill=%s — no roll will occur",
+                state.get("meta", {}).get("turn", 0) + 1,
+                intent.check.skill,
+                extra={"trace_id": trace_id, "turn": turn_no},
+            )
+            outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+            outcome.reason = intent.reason
+        else:
+            outcome = RulesOutcome(rolled=False, intent_verb=intent.intent_verb, intent=intent.intent)
+            outcome.reason = intent.reason
 
     ctx.outcome = outcome
 
@@ -885,8 +874,6 @@ async def run_turn(
             return
         for evt in ruling_phase_events:
             yield evt
-        ctx._deescalate = deescalate
-
         # Capture ruling context for event logging (from ctx where ruling phase stored them)
         rendered_ruling_system = ctx._rendered_ruling_system or ""
         rendered_ruling_user = ctx._rendered_ruling_user or ""
@@ -1142,7 +1129,10 @@ async def run_turn(
                             extra={"trace_id": trace_id},
                         )
 
-            # Beat history: snapshot pending_gm_beat after floor relief override
+            # Beat history: snapshot pending_gm_beat after floor relief override.
+            # No entry is added when delta is None (extraction pipeline error) — beat
+            # history will have a gap for this turn, which is intentional for error-path
+            # turns so the next turn's diversity guidance isn't contaminated.
             _history_beat = state.get("meta", {}).get("pending_gm_beat")
             meta = state.setdefault("meta", {})
             meta.setdefault("recent_beats", []).append({
@@ -1154,6 +1144,15 @@ async def run_turn(
             max_beats = config.recent_beats_max if config else 5
             if len(meta["recent_beats"]) > max_beats:
                 meta["recent_beats"] = meta["recent_beats"][-max_beats:]
+
+            # Persist inventory change reason for right-panel tooltip
+            if delta and (delta.inventory_add or delta.inventory_remove or delta.inventory_update):
+                if delta.inventory_change_reason:
+                    meta["last_inventory_change_reason"] = delta.inventory_change_reason
+                else:
+                    meta.pop("last_inventory_change_reason", None)
+            else:
+                meta.pop("last_inventory_change_reason", None)
 
             # Stamp last_seen on touched NPCs
             comp = state.get("compendium", {}).get("npcs", {})
@@ -1347,6 +1346,19 @@ async def run_turn(
             },
             "post_turn_pending_beat": state.get("meta", {}).get("pending_gm_beat"),
             "post_extraction_consecutive_pressure_beats": state.get("meta", {}).get("consecutive_pressure_beats"),
+            "allowed_beat_types": derive_allowed_beat_types(
+                state.get("scene", {}).get("scene_phase", "SETUP"),
+                enforce_relief=derive_enforce_relief(
+                    state.get("scene", {}).get("scene_phase", "SETUP"),
+                    state.get("meta", {}).get("consecutive_pressure_beats", 0),
+                    config,
+                ),
+            ),
+            "enforce_relief": derive_enforce_relief(
+                state.get("scene", {}).get("scene_phase", "SETUP"),
+                state.get("meta", {}).get("consecutive_pressure_beats", 0),
+                config,
+            ),
             "post_turn_location_id": state.get("location", {}).get("id"),
             "scene_phase": state.get("scene", {}).get("scene_phase", "SETUP"),
             "narrate": narr_metrics,
@@ -1421,6 +1433,8 @@ async def run_turn(
                 "surface_as": storyteller_result.gm_beat.surface_as,
             } if (storyteller_result and storyteller_result.gm_beat) else None,
             outcome_hint=_pc.outcome_hint if _pc else None,
+            scene_phase=state.get("scene", {}).get("scene_phase", "SETUP"),
+            summary=_pc.summary if _pc else "",
             ts=_ts,
         )
         yield ("complete", result_obj)
