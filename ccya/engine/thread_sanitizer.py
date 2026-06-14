@@ -234,6 +234,11 @@ def _validate_parsed(raw: dict[str, Any]) -> dict[str, Any] | None:
             if prog is not None and isinstance(prog, list):
                 tu_copy["progress"] = str(prog[0]) if prog else None
 
+            # Coerce unknown progress_kind values to "advancement"
+            pk = tu_copy.get("progress_kind")
+            if pk is not None and pk not in ("advancement", "setback", "shift"):
+                tu_copy["progress_kind"] = "advancement"
+
             validated_tu = ThreadUpdate.model_validate(tu_copy)
             result_dict = validated_tu.model_dump(exclude_none=True)
             # Re-add original progress array for apply phase (we need full replacement list)
