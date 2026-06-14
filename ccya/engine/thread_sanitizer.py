@@ -380,16 +380,19 @@ def _apply_sanitization(
                 })
 
         # Progress: full replacement list from LLM (array of strings)
+        # Only record if the list actually differs from current state to avoid
+        # duplicate-progress entries wasting output tokens in diffs.
         prog_list = _tu.get("progress")
         if isinstance(prog_list, list) and prog_list:
             kind = _tu.get("progress_kind", "advancement") or "advancement"
-            new_entries = [ProgressEntry(text=str(p), kind=kind) for p in prog_list]
-            updates_dict["progress"] = new_entries
             old_progress = [p.text for p in arc.threads[found_idx].progress]
-            delta["progress"] = {
-                "before": old_progress,
-                "after": prog_list,
-            }
+            if prog_list != old_progress:
+                new_entries = [ProgressEntry(text=str(p), kind=kind) for p in prog_list]
+                updates_dict["progress"] = new_entries
+                delta["progress"] = {
+                    "before": old_progress,
+                    "after": prog_list,
+                }
 
         if updates_dict:
             arc.threads[found_idx] = arc.threads[found_idx].model_copy(update=updates_dict)

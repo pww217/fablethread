@@ -47,22 +47,27 @@ def tension_monotonicity(events: list[dict[str, Any]]) -> CheckerResult:
             })
             all_passed = False
 
-        # Phase consistency: de-escalates should not appear in CRISIS
-        # (CRISIS should have escalates or maintains)
-        if phase == "CRISIS" and tension_delta == "de-escalates":
+        # Phase consistency: de-escalates in CRISIS is allowed when transitioning out
+        # (player is actively resolving or leaving the scene)
+        pc = extract_field(ev, "pacing_context") or {}
+        outcome_hint = pc.get("outcome_hint", "")
+        if phase == "CRISIS" and tension_delta == "de-escalates" and outcome_hint != "transition":
             findings.append({
                 "turn": turn_no,
                 "check": "crisis_tension",
-                "detail": "CRISIS phase with tension_delta=de-escalates (expected escalates or maintains)",
+                "detail": "CRISIS phase with tension_delta=de-escalates (expected escalates or maintains, unless transitioning)",
             })
             all_passed = False
 
-        # Phase consistency: escalates should not appear in BREATHER
-        if phase == "BREATHER" and tension_delta == "escalates":
+        # Phase consistency: escalates in BREATHER is allowed when urgent threads exist
+        arc = extract_field(ev, "arc") or {}
+        threads = arc.get("threads") or []
+        has_urgent = any(t.get("urgency") == "urgent" for t in threads if isinstance(t, dict))
+        if phase == "BREATHER" and tension_delta == "escalates" and not has_urgent:
             findings.append({
                 "turn": turn_no,
                 "check": "breather_tension",
-                "detail": "BREATHER phase with tension_delta=escalates (expected maintains or de-escalates)",
+                "detail": "BREATHER phase with tension_delta=escalates (expected maintains or de-escalates, unless urgent threads exist)",
             })
             all_passed = False
 

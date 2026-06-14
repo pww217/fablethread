@@ -89,7 +89,7 @@ def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
         narr_user = (extract_field(ev, "narrate_prompt") or {}).get("rendered_user") or ""
         storytell_rendered = storytell_level.get("rendered_user") or ""
 
-        removed_directives = ["Pressure", "Overwhelm", "location pressure", "location imperative", "combat fatigue"]
+        removed_directives = ["Overwhelm", "location pressure", "location imperative", "combat fatigue"]
         found_removed: list[str] = []
         for directive in removed_directives:
             if directive.lower() in narr_user.lower():

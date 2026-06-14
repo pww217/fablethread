@@ -40,6 +40,36 @@ from ccya.errors import ErrorKind, LlmcTimeout
 _log = logging.getLogger(__name__)
 
 
+def _text_references_thread(text: str, thread_id: str) -> bool:
+    """Check if text contains a reference to a specific thread ID.
+
+    Matches backtick-quoted IDs like `thread_id` and bare word references.
+    """
+    if not text or not thread_id:
+        return False
+    # Backtick-quoted: `thread_id`
+    if f"`{thread_id}`" in text:
+        return True
+    # Word boundary match for bare references
+    return bool(re.search(rf'\b{re.escape(thread_id)}\b', text))
+
+
+def _filter_evicted_threads(texts: list[str], evicted_ids: set[str]) -> list[str]:
+    """Remove entries from a list of text that reference evicted thread IDs."""
+    if not evicted_ids or not texts:
+        return texts
+    result = []
+    for text in texts:
+        if not isinstance(text, str):
+            result.append(text)
+            continue
+        if any(_text_references_thread(text, tid) for tid in evicted_ids):
+            _log.debug("thread_filter: evicting reference to %s from context", next(t for t in evicted_ids if _text_references_thread(text, t)))
+        else:
+            result.append(text)
+    return result
+
+
 @dataclass
 class _ExtractionContext:
     """Carries this-turn deltas from scene + state streams into the storytell stream.
@@ -242,6 +272,13 @@ def _storytell_messages(
             all_threads.append({"id": "", "summary": ""})
     world_state = list(scene.get("world_state") or [])
 
+    # Filter prior_history and recent_turns to remove references to evicted threads
+    completed_threads = arc.get("completed_threads") or []
+    evicted_ids = {ct.get("id") for ct in completed_threads if isinstance(ct, dict) and ct.get("id")}
+    prior_history = list((state.get("meta") or {}).get("prior_history", [])[:-1])
+    prior_history = _filter_evicted_threads(prior_history, evicted_ids)
+    recent_turns_filtered = _filter_evicted_threads(list(recent_turns or []), evicted_ids)
+
     system_text = _render(
         env, "storytell_system.j2", {
             "recent_beats": list((state.get("meta") or {}).get("recent_beats", [])),
@@ -265,23 +302,14 @@ def _storytell_messages(
             "resolved_arcs": _get_resolved_arcs(state, turn_no, ttl=arc_ttl),
             "intent": intent,
             "pacing_context": pacing_context,
-            "recent_turns": recent_turns or [],
-            "prior_history": list((state.get("meta") or {}).get("prior_history", [])[:-1]),
+            "recent_turns": recent_turns_filtered,
+            "prior_history": prior_history,
             "pending_beat": (state.get("meta") or {}).get("pending_gm_beat"),
             "recent_beats": list((state.get("meta") or {}).get("recent_beats", [])),
             "turn_no": turn_no,
             "band": band,
-            "scene_phase": scene.get("scene_phase", "SETUP"),
-            "allowed_beat_types": derive_allowed_beat_types(
-                scene.get("scene_phase", "SETUP"),
-                directive=pacing_context.directive if pacing_context else "",
-                spiral_detected=pacing_context.spiral_detected if pacing_context else False,
-                enforce_relief=derive_enforce_relief(
-                    scene.get("scene_phase", "SETUP"),
-                    state.get("meta", {}).get("consecutive_pressure_beats", 0),
-                    config or EngineConfig(),
-                ),
-            ),
+            "scene_phase": scene_phase,
+            "allowed_beat_types": allowed_beat_types,
         },
     )
     msgs = [
