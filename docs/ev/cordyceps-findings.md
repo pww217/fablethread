@@ -241,19 +241,19 @@ These are structural issues that affect all games, not just this cordyceps sessi
 
 2. **`ev.py deltas` is very verbose** — Full JSON dumps make scanning 27 turns painful. A `--compact` flag showing only thread/inventory/condition/gm_beat changes in a summary format would save significant time. This affects all games.
 
-3. **`ev.py mechanics --pacing` omits critical fields** — Doesn't show `beat_locked`, `consecutive_pressure`, or `momentum_floor`, which are essential for momentum/beat analysis. Add them to mechanics output. This affects all games.
+3. **`ev.py mechanics --pacing` omits critical fields** — Doesn't show `scene_phase`, `consecutive_pressure_beats`, or `enforce_relief`, which are essential for phase/beat analysis. Add them to mechanics output. This affects all games.
 
 4. **No compact thread lifecycle command** — `ev.py deltas` is the only way to find thread mutations, but requires scanning 27 verbose outputs manually. A dedicated `ev.py threads <save-dir>` command showing thread lifecycle across all turns in a compact table would be invaluable. This affects all games.
 
-5. **`ev.py deltas` gm_beat output requires parsing** — Shows `storytell.gm_beat` in stderr, not structured output. A `ev.py beats <save-dir>` command showing turn-by-turn beat type + surface_as + beat_locked status in a compact table would be ideal. This affects all games.
+5. **`ev.py deltas` gm_beat output requires parsing** — Shows `storytell.gm_beat` in stderr, not structured output. A `ev.py beats <save-dir>` command showing turn-by-turn beat type + surface_as + scene_phase + enforce_relief status in a compact table would be ideal. This affects all games.
 
 6. **No arc goal history command** — Need to grep events manually for `goal_update` or `arc_resolve`. This affects all games.
 
 7. **`ev.py trace` requires knowing exact paths** — e.g., `trace compendium.meta.pending_gm_beat` works but isn't discoverable. Better command documentation or auto-discovery would help. This affects all games.
 
-8. **`ev.py mechanics --pacing` doesn't show `beat_locked`, `consecutive_pressure`, or `momentum_floor`** — These are critical for momentum lifecycle analysis but require reading events directly. Add them to mechanics output. This affects all games.
+8. **`ev.py mechanics --pacing` doesn't show `scene_phase`, `consecutive_pressure_beats`, or `enforce_relief`** — These are critical for phase/beat lifecycle analysis but require reading events directly. Add them to mechanics output. This affects all games.
 
-9. **`ev.py trace pc.momentum` requires manual cross-referencing** — Need band data from `--dice` to verify delta correctness. A combined command like `ev.py momentum-check <save-dir>` showing momentum + band + expected delta in one table would save significant manual work. This affects all games.
+9. **`ev.py trace` for phase tracking requires manual cross-referencing** — Need band data from `--dice` to verify tension_delta correctness. A combined command like `ev.py phase-check <save-dir>` showing scene_phase + tension_delta + crisis_turn_count in one table would save significant manual work. This affects all games.
 
 10. **No command shows `effective_scene_age` over time** — Needed to verify Scene Imperative firing at the right moment. This affects all games.
 

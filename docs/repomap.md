@@ -50,7 +50,7 @@
 | `ccya/ev/eval.py` | `cmd_eval_run()` — batch scenario runner: loads YAML scenario, plays each turn via `play_turn()`, runs all checkers, validates TurnAsserts, produces Markdown report. `cmd_eval_list()` — lists available YAML scenarios. |
 | `ccya/ev/scenario.py` | YAML scenario loader: `Scenario`, `ScenarioTurn`, `TurnAssert` dataclasses; `load_scenario()` parses YAML, `discover_scenarios()` finds YAML files in `packs/`. |
 | `ccya/ev/__init__.py` | CLI dispatch: lazy import of `play`, `check`, `eval`, `init`, `status`, `audit`, `compat` subcommands; `_strip_flags()` utility; events path auto-detection for play command |
-| `ccya/ev/checkers/__init__.py` | Checker framework: `@register_checker` decorator, `CheckerResult` dataclass, `run_checker()`/`run_checkers()`, `list_checkers()`, field validation, event pre-filtering, state access. Registry with explicit imports for 22 deterministic checkers + 3 LLM checkers. |
+| `ccya/ev/checkers/__init__.py` | Checker framework: `@register_checker` decorator, `CheckerResult` dataclass, `run_checker()`/`run_checkers()`, `list_checkers()`, field validation, event pre-filtering, state access. Registry with explicit imports for 29 deterministic checkers + 3 LLM checkers. |
 | `ccya/ev/checkers/_llm.py` | LLM checker infrastructure: `_load_checker_model()`, `_unload_checker_model()`, `_call_llm_checker()`, `_result_from_llm_output()`, `_build_checker_prompt()`, template registry. Handles model loading/unloading, prompt rendering, structured output parsing. |
 | `ccya/ev/checkers/llm_checkers.py` | LLM-based narrative checkers: `directive_tone_match` (tone alignment with ruling band), `beat_narrative_chain` (GM beat narrative consequence), `state_fidelity` (extraction vs narration match). Each uses focused 20-30 line prompts. |
 | `ccya/ev/checkers/gm_beat.py` | `gm_beat_lifecycle` — beat consumed, lifecycle, floor relief, binding present |
@@ -70,6 +70,13 @@
 | `ccya/ev/checkers/crisis_turn_counting.py` | `crisis_turn_counting` — Validate crisis_turn_count increments in CRISIS, resets on phase exit |
 | `ccya/ev/checkers/tension_monotonicity.py` | `tension_monotonicity` — Validate tension_delta field presence, valid values, phase consistency |
 | `ccya/ev/checkers/breather_enforcement.py` | `breather_enforcement` — Validate breather auto-transitions to RISING after breather_max_turns |
+| `ccya/ev/checkers/roll_band_consistency.py` | `roll_band_consistency` — Verify band matches dice roll using rules engine |
+| `ccya/ev/checkers/thread_resolution_validity.py` | `thread_resolution_validity` — thread_resolve entries have valid id/resolution_state/outcome |
+| `ccya/ev/checkers/new_thread_validity.py` | `new_thread_validity` — thread_add entries have id/description/visible_goal, no duplicates |
+| `ccya/ev/checkers/compendium_lifecycle.py` | `compendium_lifecycle` — NPCs added via compendium_npc_update appear in state.compendium.npcs |
+| `ccya/ev/checkers/beat_phase_validity.py` | `beat_phase_validity` — gm_beat.type is allowed for the current phase |
+| `ccya/ev/checkers/arc_resolution_validity.py` | `arc_resolution_validity` — arc_resolve has resolution + visible_goal, drop_threads reference existing threads |
+| `ccya/ev/checkers/goal_update_validity.py` | `goal_update_validity` — goal_update is non-empty string, differs from previous visible_goal |
 | `ccya/personality.py` | NpcPersonality frozen dataclass (id, label, traits, speech_hint, motivation_keywords, fear_keywords); ARCHETYPES registry (12 archetypes); assign_personality(motivation, fear, npc_id) → NpcPersonality (engine fallback; LLM is primary); validate_and_resolve(personality_id) → NpcPersonality | None (logs WARNING for unknown ids, caller falls back to assign_personality); _DEFAULT_ID = "wary_opportunist" |
 | `ccya/pack.py` | load_pack(), list_packs() — validates pack has seed (static) or scenario (generated) |
 | `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (1d12+stat_mod+diff_mod→Band), build_directive() near-miss logic |

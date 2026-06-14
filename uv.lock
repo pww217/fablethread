@@ -7,7 +7,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-06-06T00:00:00Z"
+exclude-newer = "2026-06-07T00:00:00Z"
 
 [[package]]
 name = "annotated-doc"
@@ -71,6 +71,7 @@ dev = [
 dev = [
     { name = "mypy" },
     { name = "ruff" },
+    { name = "types-pyyaml" },
 ]
 
 [package.metadata]
@@ -98,6 +99,7 @@ provides-extras = ["dev"]
 dev = [
     { name = "mypy", specifier = ">=1.20.2" },
     { name = "ruff", specifier = ">=0.15.12" },
+    { name = "types-pyyaml", specifier = ">=6.0.12.20260408" },
 ]
 
 [[package]]

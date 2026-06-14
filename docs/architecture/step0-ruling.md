@@ -78,31 +78,37 @@ flowchart TD
     classDef decision fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
     classDef output fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
 
-    T["arc.threads[]<br>(urgency counts)"]:::pyNode
-    SA["effective_scene_age<br>= scene_age + 2 if combat"]:::pyNode
+    TD["tension_delta<br>escalates/maintains/de-escalates"]:::pyNode
+    TU["thread_urgency_count<br>(urgent scene-scoped threads)"]:::pyNode
+    PH["scene_phase<br>(from phase engine)"]:::pyNode
+    CTC["crisis_turn_count"]:::pyNode
+    CTL["crisis_turn_limit"]:::pyNode
+    EA["effective_scene_age<br>= scene_age + 2 if combat"]:::pyNode
 
-    SA --> D1{"effective_age ≥ 4?"}:::decision
-    D1 -- yes --> B1["directive='Scene Imperative'<br>(short-circuits all)"]:::output
-    D1 -- no --> D2{"≥ 3 urgent<br>threads?"}:::decision
-    D2 -- yes --> B2["directive='Overwhelm'"]:::output
-    D2 -- no --> D3{"1-2 urgent<br>threads?"}:::decision
-    D3 -- yes --> B3["directive='Pressure'"]:::output
-    D3 -- no --> D4{"background urgency<br>threads only?"}:::decision
-    D4 -- yes --> B4["directive='Tension'"]:::output
-    D4 -- no --> D5["empty directive"]
-
-    SEC2["Scene Pressure (secondary,<br>3 ≤ effective_age < 4)"]
+    TD --> D1{"== 'de-escalates'<br>AND urgency == 0?"}:::decision
+    D1 -- yes --> B1["directive = 'Breathe'"]:::output
+    D1 -- no --> D2{"phase == CRISIS<br>AND crisis_turns ≥ limit?"}:::decision
+    D2 -- yes --> B2["directive = 'Scene Imperative'"]:::output
+    D2 -- no --> D3{"effective_age ≥ imperative_threshold?"}:::decision
+    D3 -- yes --> B3["directive = 'Scene Imperative'"]:::output
+    D3 -- no --> D4{"effective_age ≥ pressure_threshold?"}:::decision
+    D4 -- yes --> B4["directive = 'Scene Pressure'"]:::output
+    D4 -- no --> B5["directive = ''"]:::output
 
     FINAL["PacingContext<br>directive · outcome_hint · summary"]:::output
 
-    SEC2 -. "appended to directive" .-> FINAL
+    B1 --> FINAL
+    B2 --> FINAL
+    B3 --> FINAL
+    B4 --> FINAL
+    B5 --> FINAL
 
     style B1 fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
 ```
 
-Priority order (highest to lowest): **Scene Imperative > Overwhelm > Pressure > Tension > Scene Pressure**. Floor relief injection fires when `enforce_relief=True` (derived from scene phase and consecutive_pressure_beats).
+Priority order (highest to lowest): **Breathe → Scene Imperative → Scene Pressure → (empty)**. `Overwhelm`, `Pressure`, and `Tension` directives were removed — their jobs are handled by phase. Floor relief injection fires when `enforce_relief=True` (derived from scene phase and consecutive_pressure_beats).
 
-**Breathe secondary guard:** The Breathe directive has an additional check beyond scene phase: if urgent threads exist, Breathe is NOT emitted. Low velocity during unresolved tension (tactical avoidance, stealth) does not trigger de-escalation. Once urgent threads resolve, Breathe fires on the next eligible turn.
+**Breathe gate:** Breathe fires only when `tension_delta == "de-escalates"` AND `thread_urgency_count == 0`. If urgent threads exist, Breathe is NOT emitted — the player may be acting calmly but tension remains unresolved. Once urgent threads resolve, Breathe fires on the next eligible turn with `tension_delta == "de-escalates"`.
 
 #### Age computation
 
@@ -135,15 +141,12 @@ flowchart LR
 3. **Narrator template** (`narrate_user.j2`) renders `outcome_hint` (scene motion: hold/advance/transition) with value-specific guidance. No Jinja2 pacing computation remains — all pacing computed by Python.
 4. **Storytell template** ((`storytell_system.j2` + `user.j2`)) receives the full struct; guidance maps each directive to appropriate thread/beat actions:
 
-| Directive | Thread action |
-|-----------|---------------|
-| **"Breathe"** (de-escalation) | Do NOT add new threads. Allow existing scene threads to persist without escalation. |
-| **"Scene Imperative"** (effective_age ≥ 4, configurable) | Story must advance — introduce new development forcing resolution or movement; do not linger |
-| **"Overwhelm"** (3+ urgent threads) | May add threads; emit pressure/escalation beat |
-| **"Pressure"** (1-2 urgent threads) | Advance relevant scene/arc threads. Add new thread only if appropriate. |
-| **"Tension"** (background urgency only) | Do NOT add pressures unless concrete threat emerges; prefer advancing existing threads |
-| **"Scene Pressure"** (3 ≤ effective_age < 4, secondary append, configurable) | Begin winding down or introduce reason to shift focus: development elsewhere, closing window |
-| **"" (empty)** | No action required beyond normal aging of silent threads. |
+| Directive | Trigger | Thread action |
+|-----------|---------|---------------|
+| **"Breathe"** | `tension_delta == "de-escalates"` AND `thread_urgency_count == 0` | Do NOT add new threads. Allow existing scene threads to persist without escalation. |
+| **"Scene Imperative"** | Phase == CRISIS at turn limit, OR `effective_age >= scene_imperative_threshold` | Story must advance — introduce new development forcing resolution or movement; do not linger |
+| **"Scene Pressure"** | `effective_age >= scene_pressure_threshold` (3 ≤ effective_age < imperative_threshold) | Begin winding down or introduce reason to shift focus: development elsewhere, closing window |
+| **"" (empty)** | Default — no higher directive triggered | No action required beyond normal aging of silent threads. |
 
 ### Consecutive pressure counter
 
