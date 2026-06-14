@@ -48,7 +48,11 @@ def tension_delta(events: list[dict[str, Any]]) -> CheckerResult:
             all_passed = False
 
         # Breathe directive consistency: de-escalates + no urgent threads → Breathe
-        if td == "de-escalates" and directive in ("Scene Imperative", "Scene Pressure"):
+        # If there are urgent threads, Scene Imperative/Pressure is valid even with de-escalates
+        snap = extract_field(ev, "state_snapshot") or {}
+        arc = snap.get("arc") or {}
+        urgent_count = sum(1 for t in (arc.get("threads") or []) if isinstance(t, dict) and t.get("active") and t.get("urgency") == "urgent")
+        if td == "de-escalates" and urgent_count == 0 and directive in ("Scene Imperative", "Scene Pressure"):
             findings.append({
                 "turn": ev.get("turn"),
                 "check": "breathe_consistency",
