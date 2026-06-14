@@ -50,6 +50,10 @@ def phase_transition(events: list[dict[str, Any]]) -> CheckerResult:
             prev_pc = extract_field(prev_ev, "pacing_context") or {}
             prev_phase = prev_pc.get("scene_phase", "SETUP")
 
+            # Same phase is always valid (phase persists across turns)
+            if prev_phase == phase:
+                continue
+
             # Any → SETUP is always valid (location_change)
             if phase == "SETUP":
                 continue

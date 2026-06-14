@@ -26,6 +26,9 @@ def recent_beats(events: list[dict[str, Any]]) -> CheckerResult:
         recent = meta.get("recent_beats")
 
         if recent is None:
+            # Turn 1 has no recent_beats yet (it's populated after turn 1 processes)
+            if ev.get("turn", 1) <= 1:
+                continue
             findings.append({
                 "turn": ev.get("turn"),
                 "check": "recent_beats_exists",
