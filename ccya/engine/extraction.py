@@ -308,8 +308,17 @@ def _storytell_messages(
             "recent_beats": list((state.get("meta") or {}).get("recent_beats", [])),
             "turn_no": turn_no,
             "band": band,
-            "scene_phase": scene_phase,
-            "allowed_beat_types": allowed_beat_types,
+            "scene_phase": scene.get("scene_phase", "SETUP"),
+            "allowed_beat_types": derive_allowed_beat_types(
+                scene.get("scene_phase", "SETUP"),
+                directive=pacing_context.directive if pacing_context else "",
+                spiral_detected=pacing_context.spiral_detected if pacing_context else False,
+                enforce_relief=derive_enforce_relief(
+                    scene.get("scene_phase", "SETUP"),
+                    state.get("meta", {}).get("consecutive_pressure_beats", 0),
+                    config or EngineConfig(),
+                ),
+            ),
         },
     )
     msgs = [

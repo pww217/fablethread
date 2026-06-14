@@ -5,7 +5,7 @@ from typing import Any
 
 from ccya.ev.checkers import CheckerResult, register_checker
 from ccya.ev.events import extract_field
-from ccya.engine._pacing import BEAT_PHASE_MAP
+from ccya.engine._pacing import derive_allowed_beat_types
 
 _log = logging.getLogger(__name__)
 
@@ -34,7 +34,11 @@ def beat_phase_validity(events: list[dict[str, Any]]) -> CheckerResult:
         pacing_ctx = extract_field(ev, "pacing_context") or {}
         scene_phase = pacing_ctx.get("scene_phase", "SETUP")
 
-        allowed: list[str] = BEAT_PHASE_MAP.get(scene_phase, list(BEAT_PHASE_MAP["SETUP"]))
+        allowed: list[str] = derive_allowed_beat_types(
+            scene_phase,
+            directive=pacing_ctx.get("directive", ""),
+            spiral_detected=pacing_ctx.get("spiral_detected", False),
+        )
         if beat_type not in allowed:
             findings.append({
                 "turn": ev.get("turn"),
