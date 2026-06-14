@@ -14,25 +14,54 @@ Every bug ticket MUST include three sections:
 
 **DO NOT include:** How to fix it, proposed solutions, or implementation details.
 
-## Labels and statuses
+## Labels
 
-- **Labels:** area + type, comma-separated (e.g., `--labels "UI,Bug"`)
-- **Status:** Bug tickets start as `New` (unverified, awaiting validation)
-- **Priority:** 1=urgent, 2=high, 3=medium, 4=low
-- **Project:** `CCYA` — always `--project "CCYA"`
-- **Team:** `TICK` — always `--team TICK`
-- **Ticket prefix:** `TICK-` (auto-increment, e.g., TICK-30)
+Every ticket gets exactly **two** labels: one **type** + one **bucket**. See full tables in `plans/review/linear-reorganization.md`.
 
-### Area labels
+### Type labels
+
+| Label | When |
+|---|---|
+| `Bug` | Something is broken |
+
+### Bucket labels
 
 | Label | Scope |
 |---|---|
-| Engine | State, extraction, narration, rules, sanitization,  location, inventory, conditions, arc/thread system |
-| UI | Templates, CSS, panels, chronicle, tooltips, mobile, highlighting, styling |
-| EV | Checkers, eval tooling, test infrastructure, ev.py commands |
-| TV | Turn Viewer (separate from main UI) |
-| Docs | Architecture docs, repomap, linear docs, any documentation |
-| Config | Settings, engine config, prompt templates, defaults |
+| `World Building` | Threads, Arcs & World State |
+| `Extraction` | Extraction pipeline & Conditions |
+| `UI` | Root UI & Chronicle |
+| `Balancing` | Balance & Settings |
+| `Tooling` | Developer Tooling & Infrastructure |
+| `Tech Debt` | Cross-cutting tech debt |
+
+### Title prefixes
+
+Add a prefix in brackets to disambiguate the subsystem — especially important for Extraction tickets.
+
+| Prefix | Applies to | When |
+|---|---|---|
+| `[Scene]` | Extraction | Scene extraction |
+| `[State]` | Extraction | State extraction (inventory, conditions, location) |
+| `[Storytell]` | Extraction | Storyteller (beats, thread operations) |
+| `[Narrator]` | Extraction | Narrator extraction |
+| `[Ruling]` | Extraction | Ruling extraction (intent → skill) |
+| `[NPC]` | Extraction | NPC extraction & compendium |
+| `[Conditions]` | Extraction | Conditions lifecycle |
+| `[Prompt]` | Any bucket | Prompt template change (cross-cutting) |
+| `[EV]` | Tooling | ev.py, checkers |
+| `[Infra]` | Tooling | OMLX, providers |
+
+## Statuses
+
+- **Status:** Bug tickets start as `New` (unverified, awaiting validation)
+- **Workflow:** `New` → `Accepted` → `In Progress` → `Validating` → `Completed`
+- Validating is mandatory unless explicitly overridden.
+- **Priority:** 1=urgent, 2=high, 3=medium, 4=low
+- **Project:** `CCYA` — always `--project "CCYA"`
+- **Team:** `TICK` — always `--team TICK`
+- **Ticket prefix:** `TICK-` (auto-increment, e.g., TICK-53)
+- **Parent:** Always set `--parent` to the bucket's parent issue ID
 
 ## Ticket template
 
@@ -93,19 +122,19 @@ NPC notes in both scene panel and compendium sidebar don't consistently show qua
 - `ccya/static/app.src.css:2346-2359` — `.npc-count-ctrl` and `.npc-count-val` exist but are never used
 - `ccya/prompts/extract_scene_system.j2:77` — prompt requires group NPCs to state exact count, but no field stores it
 ENDOFFILE
-linearis issues create "Always state quantity on plural NPC notes" --team TICK --labels "UI,Bug" --priority 3 --project "CCYA" --status "New" --description "$(cat /tmp/ticketN.txt)"
+linearis issues create "[NPC] Always state quantity on plural NPC notes" --team TICK --labels "Bug,Extraction" --priority 3 --parent "TICK-XX" --status "New" --description "$(cat /tmp/ticketN.txt)"
 rm /tmp/ticketN.txt
 ```
 
 For plain text only (no backticks, no special chars):
 
 ```bash
-linearis issues create "NPC left-behind tracking on location change" --team TICK --labels "Engine,Feature" --priority 3 --project "CCYA" --status "Backlog" --description "## Detail\n\nWhen player changes locations, characters who should logically stay behind aren't tracked."
+linearis issues create "[NPC] Departed reason in UI" --team TICK --labels "Feature,Extraction" --priority 3 --parent "TICK-XX" --status "Backlog" --description "## Detail\n\nWhen NPCs depart from a scene, show a 1-2 sentence summary of what happened (e.g. 'Sailed away never to return')."
 ```
 
 ### 4. Report the ticket ID
 
-Tell the user the ticket ID (e.g., `TICK-30`) so they can reference it later.
+Tell the user the ticket ID (e.g., `TICK-53`) so they can reference it later.
 
 ## Expected output
 

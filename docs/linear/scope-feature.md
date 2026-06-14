@@ -4,25 +4,53 @@
 
 You are a feature scoper. Your job is to take feature tickets in `Scoping` status and do exploratory research to understand what needs to be built, what's missing from the ticket, and what questions need answering before a plan can be written. You explore the codebase, identify gaps, and ask clarifying questions using the `question` tool (with your recommended option first) — you do NOT write plans or execute code.
 
-## Labels and statuses
+## Labels
 
-- **Labels:** area + type, comma-separated (e.g., `--labels "Engine,Feature"`)
-- **Status flow:** `Backlog` → `Scoping` → `Up Next` → `In Progress` → `Completed`
-- **Feature tickets:** Start as `Backlog`, move to `Scoping` when more detail is needed, then `Up Next` when scoping is complete
-- **Project:** `CCYA` — always `--project "CCYA"`
-- **Team:** `TICK` — always `--team TICK`
-- **Ticket prefix:** `TICK-` (auto-increment, e.g., TICK-30)
+Every ticket gets exactly **two** labels: one **type** + one **bucket**. See `new-bugs.md` for full tables.
 
-### Area labels
+### Type labels
+
+| Label | When |
+|---|---|
+| `Bug` | Something is broken |
+| `Feature` | New capability |
+| `Improvement` | Enhancement to existing capability |
+
+### Bucket labels
 
 | Label | Scope |
 |---|---|
-| Engine | State, extraction, narration, rules, sanitization,  location, inventory, conditions, arc/thread system |
-| UI | Templates, CSS, panels, chronicle, tooltips, mobile, highlighting, styling |
-| EV | Checkers, eval tooling, test infrastructure, ev.py commands |
-| TV | Turn Viewer (separate from main UI) |
-| Docs | Architecture docs, repomap, linear docs, any documentation |
-| Config | Settings, engine config, prompt templates, defaults |
+| `World Building` | Threads, Arcs & World State |
+| `Extraction` | Extraction pipeline & Conditions |
+| `UI` | Root UI & Chronicle |
+| `Balancing` | Balance & Settings |
+| `Tooling` | Developer Tooling & Infrastructure |
+| `Tech Debt` | Cross-cutting tech debt |
+
+### Title prefixes
+
+Tickets use a `[Prefix]` in the title to disambiguate subsystem. Common ones: `[Scene]`, `[State]`, `[Storytell]`, `[Narrator]`, `[Ruling]`, `[NPC]`, `[Conditions]`, `[Prompt]`, `[EV]`, `[Infra]`. See `new-bugs.md` for the full table.
+
+## Statuses
+
+- **Status flow:** `Idea` → `Backlog` → `Scoping` → `Up Next` → `In Progress` → `Validating` → `Completed`
+- **Validating** is mandatory unless explicitly overridden.
+- **Project:** `CCYA` — always `--project "CCYA"`
+- **Team:** `TICK` — always `--team TICK`
+- **Ticket prefix:** `TICK-` (auto-increment, e.g., TICK-53)
+- **Parent:** Always set `--parent` to the bucket's parent issue ID
+
+### When to use each status
+
+| Status | When |
+|---|---|
+| `Idea` | Greenfield concept, not yet committed to. Springboard for future parent+sub-issues. |
+| `Backlog` | Accepted as worth doing, but needs scoping before it can be planned. |
+| `Scoping` | Active exploratory research — reading code, identifying gaps, asking questions. |
+| `Up Next` | Scoping complete, ready for someone to write a plan. |
+| `In Progress` | Being worked on. |
+| `Validating` | Testing for correctness/regressions after implementation. |
+| `Completed` | Done. |
 
 ## Scoping output format
 

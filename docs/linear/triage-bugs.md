@@ -4,25 +4,33 @@
 
 You are a bug triager. Your job is to validate New bug tickets against the current codebase, append validation details, and move them to Accepted. You confirm whether something is a real bug — you do NOT propose fixes or solutions. That comes later in the plan/execute phase.
 
-## Labels and statuses
+## Labels
 
-- **Labels:** area + type, comma-separated (e.g., `UI, Bug`)
+Every ticket gets exactly **two** labels: one **type** + one **bucket**. See `new-bugs.md` for full tables.
+
+### Bucket labels
+
+| Label | Scope |
+|---|---|
+| `World Building` | Threads, Arcs & World State |
+| `Extraction` | Extraction pipeline & Conditions |
+| `UI` | Root UI & Chronicle |
+| `Balancing` | Balance & Settings |
+| `Tooling` | Developer Tooling & Infrastructure |
+| `Tech Debt` | Cross-cutting tech debt |
+
+### Title prefixes
+
+Tickets use a `[Prefix]` in the title to disambiguate subsystem. Common ones: `[Scene]`, `[State]`, `[Storytell]`, `[Narrator]`, `[Ruling]`, `[NPC]`, `[Conditions]`, `[Prompt]`, `[EV]`, `[Infra]`. See `new-bugs.md` for the full table.
+
+## Statuses
+
 - **Status flow:** `New` → `Accepted` (after validation)
 - **Bug tickets only:** Bug tickets start as `New`, only move to `Accepted` after confirming the bug still exists in source
 - **Project:** `CCYA` — always `--project "CCYA"`
 - **Team:** `TICK` — always `--team TICK`
-- **Ticket prefix:** `TICK-` (auto-increment, e.g., TICK-30)
-
-### Area labels
-
-| Label | Scope |
-|---|---|
-| Engine | State, extraction, narration, rules, sanitization,  location, inventory, conditions, arc/thread system |
-| UI | Templates, CSS, panels, chronicle, tooltips, mobile, highlighting, styling |
-| EV | Checkers, eval tooling, test infrastructure, ev.py commands |
-| TV | Turn Viewer (separate from main UI) |
-| Docs | Architecture docs, repomap, linear docs, any documentation |
-| Config | Settings, engine config, prompt templates, defaults |
+- **Ticket prefix:** `TICK-` (auto-increment, e.g., TICK-53)
+- **Parent:** Always set `--parent` to the bucket's parent issue ID
 
 ## Validation format
 
@@ -60,7 +68,7 @@ Process tickets one at a time — not in parallel.
 ### 2. Read the ticket
 
 ```bash
-linearis issues read TICK-30
+linearis issues read TICK-53
 ```
 
 Understand the claimed bug from the description. Note which files, lines, or behaviors are referenced.
@@ -113,7 +121,7 @@ Confirmed bug in codebase:
 
 4. **No fallback parsing** — The templates don't attempt to parse counts from free-text `name` or `notes` fields, so even if the LLM emits "3 guards" in the name, it renders as-is without structured count display.
 ENDOFFILE
-linearis issues update TICK-30 --status Accepted --description "$(cat /tmp/ticketN.txt)"
+linearis issues update TICK-53 --status Accepted --description "$(cat /tmp/ticketN.txt)"
 rm /tmp/ticketN.txt
 ```
 
@@ -122,7 +130,7 @@ rm /tmp/ticketN.txt
 After moving to Accepted, add a comment explaining why the bug was validated. **Every status change requires a comment — Completed and Canceled MUST include a specific reason.**
 
 ```bash
-linearis issues discuss TICK-30 --body "## Status Change\n\nNew → Accepted. Bug validated against source. Confirmed missing `count` field in `CompendiumNpcUpdate` model, missing quantity display in both scene panel and compendium templates, and dead CSS for `.npc-count-ctrl`/`.npc-count-val`."
+linearis issues discuss TICK-53 --body "## Status Change\n\nNew → Accepted. Bug validated against source. Confirmed missing `count` field in `CompendiumNpcUpdate` model, missing quantity display in both scene panel and compendium templates, and dead CSS for `.npc-count-ctrl`/`.npc-count-val`."
 ```
 
 ### 6. Continue to next ticket
