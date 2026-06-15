@@ -9,7 +9,7 @@ This document is the design authority for plans implementing the replacement of 
 The phase machine drives CLIMAX (formerly CRISIS) entry and scene exit using three signals that are individually insufficient:
 
 1. **Thread urgency count** (binary: ≥2 urgent threads → CRISIS) ignores all other context — a single urgent thread with escalating tension can't converge naturally.
-2. **`tension_delta`** is a noisy proxy for urgency — the ruling LLM frequently emits "escalates" to signal high stakes even when the narrative hasn't intensified.
+2. **`tension_delta` is a dead signal.** Across 80 EV turns (4 saves), the ruling LLM emitted `escalates` 68.8% of the time, `maintains` 31.2%, and `de-escalates` 0%. The prompt guidance prevents de-escalation in CRISIS (most phases), and BREATHER phases always have urgent threads active, triggering the escalation exception. The field has no useful variance.
 3. **Scene age** pushes toward RESOLUTION but the phase machine re-enters CLIMAX immediately because the urgent thread is unresolved, creating infinite loops.
 
 The outcome is a phase machine that oscillates between CLIMAX and RESOLUTION/BREATHER without ever escaping combat, and a Scene Imperative directive that tells the LLM to "wrap it up" but provides no mechanical way to comply.

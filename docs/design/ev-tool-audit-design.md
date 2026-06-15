@@ -80,7 +80,20 @@ Out of scope — directive was already removed from engine. Checker needs update
 ### 2. Thread resolution bugs (Run 1: unknown threads)
 Out of scope — extraction/storyteller compliance issue.
 
-### 3. Tension monotonicity failure (Run 3: BREATHER with escalates)
+### 3. tension_delta has zero useful variance
+
+**Finding:** Across all 80 EV turns, the ruling LLM emitted:
+- `escalates`: 55 (68.8%)
+- `maintains`: 25 (31.2%)
+- `de-escalates`: 0 (0%)
+
+The prompt guidance prevents de-escalation in CRISIS (most phases), and BREATHER phases always have urgent threads active, triggering the escalation exception. The field is effectively binary and always signals "not resolved" — it carries no actionable information.
+
+**Design solution:** `tension_delta` removed from phase logic entirely. The convergence score subsumes any useful tension signal.
+
+**Assessment:** Correct call. A signal that never varies is worse than no signal — it creates false confidence.
+
+### 4. Tension monotonicity failure (Run 3: BREATHER with escalates)
 `tension_delta` removed from phase logic in convergence design. Ruling prompt still emits it but it no longer drives transitions.
 
 ### 4. Context bloat (Run 3: 70-109s per turn)
