@@ -936,12 +936,12 @@ body {
 .turn-log-line.tl-pl       { color: #facc15cc; }
 .turn-log-line.tl-loc      { color: #fb923ccc; }
 .turn-log-line.tl-fa       { color: #60a5facc; }
-.turn-log-line.tl-th-added       { color: #d8b4fecc; }
-.turn-log-line.tl-th-updated     { color: #c084fccc; }
-.turn-log-line.tl-th-resolved    { color: #9333eacc; }
-.turn-log-line.tl-th-failed      { color: #7e22eacc; }
-.turn-log-line.tl-th-abandoned   { color: #6b21eacc; }
-.turn-log-line.tl-th-removed     { color: #581c87cc; }
+.turn-log-line.tl-th-added       { color: #a5b4fccc; }
+.turn-log-line.tl-th-updated     { color: #818cf8cc; }
+.turn-log-line.tl-th-resolved    { color: #f0a030cc; }
+.turn-log-line.tl-th-failed      { color: #f87171cc; }
+.turn-log-line.tl-th-abandoned   { color: #78716ccc; }
+.turn-log-line.tl-th-removed     { color: #57534ecc; }
 .turn-log-line.tl-ar             { color: #fbbf24cc; }
 
 .turn-log-empty {
@@ -972,12 +972,12 @@ body {
 .turn-changes-line.tc-pl       { border-color: #facc15; color: #facc15cc; }
 .turn-changes-line.tc-loc      { border-color: #fb923c; color: #fb923ccc; }
 .turn-changes-line.tc-fa       { border-color: #60a5fa; color: #60a5facc; }
-.turn-changes-line.tc-th-added       { border-color: #d8b4fe; color: #d8b4fecc; }
-.turn-changes-line.tc-th-updated     { border-color: #c084fc; color: #c084fccc; }
-.turn-changes-line.tc-th-resolved    { border-color: #9333ea; color: #9333eacc; }
-.turn-changes-line.tc-th-failed      { border-color: #7e22ea; color: #7e22eacc; }
-.turn-changes-line.tc-th-abandoned   { border-color: #6b21ea; color: #6b21eacc; }
-.turn-changes-line.tc-th-removed     { border-color: #581c87; color: #581c87cc; }
+.turn-changes-line.tc-th-added       { border-color: #a5b4fc; color: #a5b4fccc; }
+.turn-changes-line.tc-th-updated     { border-color: #818cf8; color: #818cf8cc; }
+.turn-changes-line.tc-th-resolved    { border-color: #f0a030; color: #f0a030cc; }
+.turn-changes-line.tc-th-failed      { border-color: #f87171; color: #f87171cc; }
+.turn-changes-line.tc-th-abandoned   { border-color: #78716c; color: #78716ccc; }
+.turn-changes-line.tc-th-removed     { border-color: #57534e; color: #57534ecc; }
 .turn-changes-line.tc-ar             { border-color: #fbbf24; color: #fbbf24cc; }
 
 .debug-metadata-row {

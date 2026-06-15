@@ -6,7 +6,13 @@
 
 ## Runtime context
 
-Primary development model is **Qwen3 ~25B-4bit on Apple Silicon (MLX backend)**. Treat **8k tokens as your effective working context per session.** Do not load more than you need.
+- **Game server:** `localhost:8765` — turn reviewer at `localhost:8765/turn_reviewer`
+- **LLM backend:** `localhost:8080` — OpenAI-compatible API
+- **Default model:** Gemma4 — `mlx-community/gemma-4-26b-a4b-it-mxfp8`
+- **Dev model:** Qwen3 ~25B-4bit on Apple Silicon (MLX backend)
+- **Makefile:** primary reference for build/lint/run targets
+
+Treat **8k tokens as your effective working context per session.** Do not load more than you need.
 
 Navigation path: 1) This file → 2) `docs/repomap.md` (module boundaries, public APIs, cross-module contracts) + `docs/architecture/OVERVIEW.md` (pipeline mechanics, data models, flowcharts) → 3) the relevant plan doc in `plans/review/` or `plans/` → 4) source files only for the specific functions you are changing.
 
@@ -81,7 +87,7 @@ Log level standards: see `docs/architecture/logging-standards.md`.
 
 - **For ev.py:** Always use `.venv/bin/python scripts/debug/ev.py <command> [args...]`. Never use `python3` or `source .venv/bin/activate` — neither works reliably. For `play --llm --turns N`, set bash timeout to at least `N × 60000` ms (~1 minute per turn). Use `--personality` (not `--persona`) for LLM player presets. See `scripts/debug/README.md` for full docs.
 - **For other Python:** Use `.venv/bin/python` directly. `source .venv/bin/activate` does not work reliably in this environment.
-- Feel free to `curl` against a running server (assume it's running on `localhost:8000`) to pull rendered templates or live state.
+- Feel free to `curl` against a running server (assume it's running on `localhost:8765`) to pull rendered templates or live state.
 - When stumped by a bug: form one hypothesis, write a minimal `/tmp/` script to test it in isolation, confirm or refute, then act. Do not go in circles.
 - When making a commit, write a detailed commit message covering all major and key changes.
 

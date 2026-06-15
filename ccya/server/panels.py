@@ -126,7 +126,7 @@ def _load_changes_map(save_dir: Path) -> dict[int, list[str]]:
     return changes_map
 
 
-def _load_recent_history(save_dir: Path, n: int = 8) -> list[dict[str, Any]]:
+def _load_recent_history(save_dir: Path, n: int = 50) -> list[dict[str, Any]]:
     """Return the last n turns from chronicle.md (excluding turn 0 seed)."""
     all_turns = load_last_narration(save_dir, n + 1)
     turns = [t for t in all_turns if t["turn"] != 0]
