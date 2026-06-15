@@ -366,3 +366,20 @@ The game is still locked in combat through all 20 turns. The LLM is in a cellar 
 ### Conclusion
 
 Fix #1 is correct and working as intended. But combat doom spirals require **all three fixes** (Bug #1 + #2 + #3) to actually break. Fix #1 alone just sends the right signal — the LLM still has no way to act on it.
+
+---
+
+## Follow-up: Three Supporting Changes (2026-06-15)
+
+After further analysis of 81 EV turns across 3 persona/scenario pairs, three additional changes were decided alongside the convergence design. All directly address the combat spiral and condition accumulation observed in this eval:
+
+### Change A: Dice roll frequency (~69% → ~35-45%)
+The ruling prompt criteria were tightened to only trigger rolls at major narrative pivots. Thread context (urgent thread summary + last 3 progress entries) was added to the ruling user prompt so the LLM can assess thread relevance. Fewer rolls means fewer FAIL bands feeding the spiral.
+
+### Change B: Band rebalancing (partial ≤8 → ≤7)
+Conditions analysis showed 18:1 negative-to-positive ratio across all runs, with 55% of rolls at hard difficulty and 64% of reasons citing conditions. Shifting the partial threshold from ≤8 to ≤7 compensates: at typical condition load (-1 mod), the effective good rate goes from ~33% to ~42%.
+
+### Change C: Positive condition extraction
+The state extractor now has success-guarded positive condition heuristics. Combined with the existing 5-cap on total conditions, this creates space for positives while limiting negative stacking.
+
+All three are documented in `docs/design/convergence-scoring-design.md` (Supporting Changes section) and `docs/design/ev-tool-audit-design.md`.

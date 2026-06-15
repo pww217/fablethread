@@ -145,8 +145,9 @@
                 <div class="narrative-block" id="opening-block">
                     <div class="narrative-text" data-raw>{{ opening }}</div>
                     {% if opening_outcome_summary %}
-                    <div class="roll-badge roll-badge--outcome">
-                        <div class="roll-outcome roll-outcome--large">{{ opening_outcome_summary }}</div>
+                    <div class="roll-badge roll-badge--ruling">
+                        <div class="roll-result roll-band--ruling">RULING</div>
+                        <div class="roll-outcome">{{ opening_outcome_summary }}</div>
                     </div>
                     {% endif %}
                 </div>
@@ -163,8 +164,9 @@
                 <div class="narrative-block">
                     <p class="narrative-input-echo">&gt; {{ ev.input }}</p>
                     <div class="narrative-text" data-raw>{{ ev.narrative }}</div>
-                    {% if ev.ruling and ev.ruling.rolled %}
+                    {% if ev.ruling and (ev.ruling.rolled or ev.ruling.get('outcome_summary')) %}
                     {% set r = ev.ruling %}
+                    {% if r.rolled %}
                     {% set die_val = (r.dice | default([]))[0] or 0 %}
                     {% set total_mod = (r.stat_mod or 0) + (r.diff_mod or 0) %}
                     <div class="roll-badge roll-badge--{{ r.band }}">
@@ -196,14 +198,16 @@
                             'crit_success': 'CRITICAL SUCCESS'
                         } %}
                         <div class="roll-result roll-band--{{ r.band }}">{{ BAND_LABELS.get(r.band, (r.band | default('') | upper).replace('_', ' ')) }}</div>
+                    {% else %}
+                    <div class="roll-badge roll-badge--ruling{% if r.reason %} has-tooltip{% endif %}">
+                        <div class="roll-result roll-band--ruling">RULING</div>
+                    {% endif %}
                         {% if r.get('outcome_summary') %}
                         <div class="roll-outcome">{{ r.outcome_summary }}</div>
                         {% endif %}
-                    </div>
-                    {% elif ev.ruling and ev.ruling.get('outcome_summary') %}
-                    <div class="roll-badge roll-badge--outcome{% if ev.ruling.reason %} has-tooltip{% endif %}">
-                        <div class="roll-outcome roll-outcome--large">{{ ev.ruling.outcome_summary }}</div>
-                        {% if ev.ruling.reason %}<div class="tooltip-body">{{ ev.ruling.reason }}</div>{% endif %}
+                        {% if r.reason and not r.rolled %}
+                        <div class="tooltip-body">{{ r.reason }}</div>
+                        {% endif %}
                     </div>
                     {% endif %}
                     {% if ev.change_groups %}
@@ -589,8 +593,8 @@ function _prependTurnLogTurn(turn, changeLines, rules) {
     head.className = 'turn-log-turn';
     head.textContent = 'Turn ' + turn;
     wrap.appendChild(head);
-    if (rules && rules.rolled) {
-        const badge = _buildRollBadge(rules);
+    if (rules && (rules.rolled || rules.outcome_summary)) {
+        const badge = _buildOutcomeBadge(rules);
         if (badge) { badge.style.margin = '4px 0 6px'; wrap.appendChild(badge); }
     }
     changeLines.forEach((ln) => {
@@ -760,49 +764,71 @@ const BAND_LABELS = {
     crit_success: 'CRITICAL SUCCESS',
 };
 
-function _buildRollBadge(payload) {
-    if (!payload || !payload.rolled || !payload.band) return null;
+function _buildOutcomeBadge(payload) {
+    if (!payload) return null;
+    const isRoll = payload.rolled && payload.band;
+    if (!isRoll && !payload.outcome_summary) return null;
+
     const badge = document.createElement('div');
-    badge.className = 'roll-badge roll-badge--' + payload.band;
 
-    // Line 1: skill · difficulty
-    const skillLabel = (payload.skill || '').toUpperCase();
-    const diffLabel = (payload.difficulty || '').toLowerCase();
-    const hdr = document.createElement('div');
-    hdr.className = 'roll-header';
-    if (payload.reason) {
-        hdr.innerHTML = '🎲 <strong>' + skillLabel + '</strong> &nbsp;·&nbsp; <span class="has-tooltip">' + diffLabel + '<span class="tooltip-body">' + payload.reason + '</span></span>';
+    if (isRoll) {
+        badge.className = 'roll-badge roll-badge--' + payload.band;
+
+        // Line 1: skill · difficulty
+        const skillLabel = (payload.skill || '').toUpperCase();
+        const diffLabel = (payload.difficulty || '').toLowerCase();
+        const hdr = document.createElement('div');
+        hdr.className = 'roll-header';
+        if (payload.reason) {
+            hdr.innerHTML = '🎲 <strong>' + skillLabel + '</strong> &nbsp;·&nbsp; <span class="has-tooltip">' + diffLabel + '<span class="tooltip-body">' + payload.reason + '</span></span>';
+        } else {
+            hdr.innerHTML = '🎲 <strong>' + skillLabel + '</strong> &nbsp;·&nbsp; ' + diffLabel;
+        }
+        badge.appendChild(hdr);
+
+        // Line 2: dice + labeled modifiers + total
+        const dieVal = (payload.dice || [])[0] || 0;
+        const totalMod = (payload.stat_mod || 0) + (payload.diff_mod || 0);
+        const diffLabels = {hard: 'Hard', extreme: 'Extreme'};
+        let parts = ['Roll = ' + dieVal];
+        if (payload.stat_mod !== 0) {
+            const sign = payload.stat_mod > 0 ? '+' : '-';
+            parts[0] += ' ' + sign + ' ' + Math.abs(payload.stat_mod) + ' (' + (payload.skill || '').charAt(0).toUpperCase() + (payload.skill || '').slice(1) + ')';
+        }
+        if (payload.diff_mod !== 0) {
+            const label = diffLabels[payload.difficulty] || (payload.difficulty || '').charAt(0).toUpperCase() + (payload.difficulty || '').slice(1);
+            const sign = payload.diff_mod > 0 ? '+' : '-';
+            parts[0] += ' ' + sign + ' ' + Math.abs(payload.diff_mod) + ' (' + label + ')';
+        }
+        parts[0] += ' = <strong>' + payload.final_total + '</strong>';
+        const math = document.createElement('div');
+        math.className = 'roll-math';
+        math.innerHTML = parts.join(' &thinsp;·&thinsp; ');
+        badge.appendChild(math);
+
+        // Line 3: band pill
+        const bandLabel = BAND_LABELS[payload.band] || (payload.band || '').toUpperCase().replace(/_/g, ' ');
+        const res = document.createElement('div');
+        res.className = 'roll-result roll-band--' + payload.band;
+        res.textContent = bandLabel;
+        badge.appendChild(res);
     } else {
-        hdr.innerHTML = '🎲 <strong>' + skillLabel + '</strong> &nbsp;·&nbsp; ' + diffLabel;
-    }
-    badge.appendChild(hdr);
+        badge.className = 'roll-badge roll-badge--ruling';
+        if (payload.reason) badge.className += ' has-tooltip';
 
-    // Line 2: dice + labeled modifiers + total
-    const dieVal = (payload.dice || [])[0] || 0;
-    const totalMod = (payload.stat_mod || 0) + (payload.diff_mod || 0);
-    const diffLabels = {hard: 'Hard', extreme: 'Extreme'};
-    let parts = ['Roll = ' + dieVal];
-    if (payload.stat_mod !== 0) {
-        const sign = payload.stat_mod > 0 ? '+' : '-';
-        parts[0] += ' ' + sign + ' ' + Math.abs(payload.stat_mod) + ' (' + (payload.skill || '').charAt(0).toUpperCase() + (payload.skill || '').slice(1) + ')';
-    }
-    if (payload.diff_mod !== 0) {
-        const label = diffLabels[payload.difficulty] || (payload.difficulty || '').charAt(0).toUpperCase() + (payload.difficulty || '').slice(1);
-        const sign = payload.diff_mod > 0 ? '+' : '-';
-        parts[0] += ' ' + sign + ' ' + Math.abs(payload.diff_mod) + ' (' + label + ')';
-    }
-    parts[0] += ' = <strong>' + payload.final_total + '</strong>';
-    const math = document.createElement('div');
-    math.className = 'roll-math';
-    math.innerHTML = parts.join(' &thinsp;·&thinsp; ');
-    badge.appendChild(math);
+        const res = document.createElement('div');
+        res.className = 'roll-result roll-band--ruling';
+        res.textContent = 'RULING';
+        badge.appendChild(res);
 
-    // Line 3: band result
-    const bandLabel = BAND_LABELS[payload.band] || (payload.band || '').toUpperCase().replace(/_/g, ' ');
-    const res = document.createElement('div');
-    res.className = 'roll-result roll-band--' + payload.band;
-    res.textContent = bandLabel;
-    badge.appendChild(res);
+        if (payload.reason) {
+            const tip = document.createElement('div');
+            tip.className = 'tooltip-body';
+            tip.textContent = payload.reason;
+            badge.appendChild(tip);
+        }
+    }
+
     if (payload.outcome_summary) {
         const outcomeText = document.createElement('div');
         outcomeText.className = 'roll-outcome';
@@ -1819,27 +1845,14 @@ function game() {
                 met.textContent = _formatMetricsRow(result.metrics);
                 textDiv.after(met);
 
-                // Roll badge then inline change summary — both after narrative text.
+                // Outcome badge then inline change summary — both after narrative text.
                 let lastInserted = met;
-                if (result.ruling && result.ruling.rolled) {
-                    const rollBadge = _buildRollBadge(result.ruling);
-                    if (rollBadge) { lastInserted.after(rollBadge); lastInserted = rollBadge; }
-                } else if (result.outcome_summary) {
-                    const hasReason = result.ruling && result.ruling.reason;
-                    const badge = document.createElement('div');
-                    badge.className = 'roll-badge roll-badge--outcome' + (hasReason ? ' has-tooltip' : '');
-                    const outcomeText = document.createElement('div');
-                    outcomeText.className = 'roll-outcome roll-outcome--large';
-                    outcomeText.textContent = result.outcome_summary;
-                    badge.appendChild(outcomeText);
-                    if (hasReason) {
-                        const tip = document.createElement('div');
-                        tip.className = 'tooltip-body';
-                        tip.textContent = result.ruling.reason;
-                        badge.appendChild(tip);
-                    }
-                    lastInserted.after(badge);
-                    lastInserted = badge;
+                const ruling = result.ruling || {};
+                if (ruling.rolled || result.outcome_summary) {
+                    const badge = _buildOutcomeBadge(
+                        ruling.rolled ? ruling : { outcome_summary: result.outcome_summary, reason: ruling.reason }
+                    );
+                    if (badge) { lastInserted.after(badge); lastInserted = badge; }
                 }
                 const changes = _buildTurnChanges(result.change_lines || []);
                     if (changes) { lastInserted.after(changes); lastInserted = changes; }
