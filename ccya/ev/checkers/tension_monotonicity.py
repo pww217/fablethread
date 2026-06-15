@@ -60,7 +60,7 @@ def tension_monotonicity(events: list[dict[str, Any]]) -> CheckerResult:
             all_passed = False
 
         # Phase consistency: escalates in BREATHER is allowed when urgent threads exist
-        arc = extract_field(ev, "arc") or {}
+        arc = extract_field(ev, "state_snapshot.arc") or {}
         threads = arc.get("threads") or []
         has_urgent = any(t.get("urgency") == "urgent" for t in threads if isinstance(t, dict))
         if phase == "BREATHER" and tension_delta == "escalates" and not has_urgent:
