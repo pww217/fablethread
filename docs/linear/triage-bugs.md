@@ -22,11 +22,13 @@ Every ticket gets exactly **two** labels: one **type** + one **bucket**. See `ne
 ### Title prefixes
 
 Tickets use a `[Prefix]` in the title to disambiguate subsystem. Common ones: `[Scene]`, `[State]`, `[Storytell]`, `[Narrator]`, `[Ruling]`, `[NPC]`, `[Conditions]`, `[Prompt]`, `[EV]`, `[Infra]`. See `new-bugs.md` for the full table.
-
 ## Statuses
 
 - **Status flow:** `New` → `Accepted` (after validation)
+
 - **Bug tickets only:** Bug tickets start as `New`, only move to `Accepted` after confirming the bug still exists in source
+
+- **Blocked:** Intermediate state — work paused pending external dependency or investigation. Re-openable to `In Progress` when unblocked.
 - **Project:** `CCYA` — always `--project "CCYA"`
 - **Team:** `TICK` — always `--team TICK`
 - **Ticket prefix:** `TICK-` (auto-increment, e.g., TICK-53)

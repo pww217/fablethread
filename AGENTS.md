@@ -106,6 +106,7 @@ Status lifecycle:
 - Non-bugs: `Idea` → `Backlog` → `Scoping` → `Up Next` → `In Progress` → `Validating` → `Completed`
 - Validating is mandatory unless explicitly overridden
 - All: Can be canceled at any stage
+- All: Can be blocked at any stage (e.g., `In Progress` → `Blocked` → `In Progress` when unblocked)
 
 Tickets live under bucket parent issues. Use title prefixes to disambiguate subsystem: `[Scene]`, `[State]`, `[Storytell]`, `[Narrator]`, `[Ruling]`, `[NPC]`, `[Conditions]`, `[Prompt]`, `[EV]`, `[Infra]`. See `plans/completed/linear-reorganization.md` for the full table.
 

@@ -57,6 +57,7 @@ Add a prefix in brackets to disambiguate the subsystem — especially important 
 - **Status:** Bug tickets start as `New` (unverified, awaiting validation)
 - **Workflow:** `New` → `Accepted` → `In Progress` → `Validating` → `Completed`
 - Validating is mandatory unless explicitly overridden.
+- **Blocked:** Intermediate state — work paused pending external dependency or investigation. Re-openable to `In Progress` when unblocked.
 - **Priority:** 1=urgent, 2=high, 3=medium, 4=low
 - **Project:** `CCYA` — always `--project "CCYA"`
 - **Team:** `TICK` — always `--team TICK`
