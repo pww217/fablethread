@@ -4,8 +4,9 @@
 {% for e in entries %}
 <div class="turn-log-block">
     <div class="turn-log-turn">Turn {{ e.turn }}</div>
-    {% if e.ruling and e.ruling.rolled %}
+    {% if e.ruling and (e.ruling.rolled or e.ruling.get('outcome_summary')) %}
     {% set r = e.ruling %}
+    {% if r.rolled %}
     {% set die_val = (r.dice | default([]))[0] or 0 %}
     {% set total_mod = (r.stat_mod or 0) + (r.diff_mod or 0) %}
     <div class="roll-badge roll-badge--{{ r.band }}" data-roll-badge>
@@ -37,6 +38,13 @@
             'crit_success': 'CRITICAL SUCCESS'
         } %}
         <div class="roll-result roll-band--{{ r.band }}">{{ BAND_LABELS.get(r.band, (r.band | default('') | upper).replace('_', ' ')) }}</div>
+    {% else %}
+    <div class="roll-badge roll-badge--ruling">
+        <div class="roll-result roll-band--ruling">RULING</div>
+    {% endif %}
+        {% if r.get('outcome_summary') %}
+        <div class="roll-outcome">{{ r.outcome_summary }}</div>
+        {% endif %}
     </div>
     {% endif %}
     {% for ln in e.lines %}
