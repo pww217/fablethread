@@ -46,6 +46,8 @@ The outcome is a phase machine that oscillates between CLIMAX and RESOLUTION/BRE
 | `derive_enforce_relief()` deleted | Removed from `_pacing.py`. `consecutive_pressure_threshold` config field removed. `consecutive_pressure_beats` state counter removed. | Fired 0/49 turns across two evals — dead code, not fixable by tuning. The convergence score's beat streak component replaces its function more robustly. |
 | `PRESSURE_BEAT_TYPES` tuple in turn.py | Updated to include `setback`. | Consistency with BEAT_BUCKETS. |
 | BREATHER exit condition | Exits when `thread_urgency_count > 0` OR `breather_turn_count >= breather_max_turns`. Same old rule, explicit. | BREATHER should not use convergence score — a single urgent thread means the character can't rest. |
+| `rules.py` module docstring corrected | `raw_die 1 → crit_fail` changed to `final_total ≤ 1 → crit_fail`, `final_total ≥ 12 → crit_success` | Docstring was factually wrong — conditions and skills affect crit probability, which is correct behavior the docstring was misrepresenting. |
+| Short-scene beat streak quorum | Use `ceil(n × 0.6)` threshold when buffer has < 5 entries, where n = current buffer size. At n=3 → 2, n=4 → 3, n=5 → 3 (same as original). | Flat quorum 3 at n=3 requires 100% pressure beats — too restrictive. Proportional threshold maintains consistent sensitivity across buffer sizes. |
 
 ## Open Questions — All Resolved
 
@@ -64,6 +66,8 @@ All previously flagged open questions are resolved:
 | Past-only beat window | **Confirmed** — pending beat never included (Decision 5). |
 | Curtain Call thread_resolve contradiction | **Resolved** — CLIMAX always has a thread (Decision 7), no contradiction. |
 | `tension_delta` kept vs removed | **Removed entirely** from `IntentEnvelope` (Decision 2). |
+| `rules.py` module docstring | **Corrected** — must change to `final_total ≤ 1 → crit_fail`, `final_total ≥ 12 → crit_success` |
+| Short-scene beat streak quorum | **Resolved** — `ceil(n × 0.6)` proportional threshold when buffer < 5 |
 
 ## Current State — What Exists
 
@@ -226,6 +230,29 @@ Renamed fields:
 - **New beat type (e.g., `scene_resolution`).** A dedicated beat type would require a `GMBeat.type` schema change and extraction wiring. The simpler approach is to use the existing `thread_resolve` structured output field. The LLM already knows how to emit it; it just doesn't because no prompt guidance tells it to.
 - **`turn_entered` stamping as scene exit.** The old approach (synthetic location change) bypassed the phase machine entirely and didn't fix the urgency re-entry problem. Abandoned.
 
+## Arc and Thread Integration
+
+### Read-only boundary
+
+The phase machine is **read-only with respect to threads**. It reads:
+
+- `thread_urgency_count` (how many threads are at urgency ≥ `thread_urgency_max_age`) → used in convergence score (threshold depth) and BREATHER exit condition
+- Thread urgency depth (2+ urgent threads → +2 instead of +1) → used in convergence score
+
+It never writes to threads. Thread creation, advancement, setback, resolution, and urgency decay are all handled by the storytell and extraction pipeline (`_apply_thread_updates`, `_apply_thread_resolutions`, `sanitize_threads`).
+
+### Curtain Call is prompt-based, not phase-machine-based
+
+The Curtain Call soft-close mechanism uses `thread_resolve` as a structured output field from the **storyteller LLM**, driven by prompt guidance. The phase machine does not inject, force, or synthesize thread resolutions — it only transitions to RESOLUTION at `climax_turn_limit` regardless of resolution state. The storyteller is responsible for resolving threads; the phase machine is responsible for ending the scene.
+
+### Future integration point (explicit non-goal)
+
+The natural future connection is **phase transitions emitting arc-level signals**: CLIMAX entry could trigger a thread escalation hint, BREATHER entry could inject a relief opportunity. This is currently:
+
+- **Not designed** — no model shapes, no mechanism specified
+- **Not committed** — deferred until Curtain Call proves insufficient
+- **Named here to prevent accidental wiring** — an implementer should not hook the convergence score into `_apply_thread_updates` or bypass the read-only boundary
+
 ## Supporting Changes
 
 Three changes work alongside the convergence design to reduce spiral pressure and improve narrative pacing. All were informed by analysis of 81 EV turns across 3 persona/scenario pairs and 17 combat-duration eval turns.
@@ -337,10 +364,10 @@ The convergence score still enters CLIMAX when appropriate (3 of 5 components ag
 ### Post-implementation watch items
 5. **Roll rate may overcorrect downward.** The ruling criteria tightening targets 35–50% roll rate. If the LLM interprets the new criteria too strictly and drops to 15–20%, turns become pure narration with no mechanical stakes. Post-implementation EV check required. If roll rate drops below 25%, criteria are too restrictive.
 6. **Single-urgent-thread scenarios escalate slower.** By design: without urgency depth (+1 for 2+ threads), single-threat scenarios max at thread weight +1, requiring scene age and beat streak to carry the remaining 2 points to threshold. This means CLIMAX fires no earlier than turn 3 in single-threat scenarios — intentional, prevents premature CLIMAX on scene entry.
-7. **Beat streak quorum may underfire in short scenes.** A 5-entry window requires 5 beats to have occurred. In a scene reaching CLIMAX on turn 3–4, the buffer may only have 2–3 entries. With 3 entries, quorum 3 requires all three to be pressure beats (effectively 100%). Consider proportional threshold (ceil(n × 0.6)) when buffer has fewer than 5 entries. Flag as post-eval tuning candidate.
+7. **Beat streak quorum may underfire in short scenes.** A 5-entry window requires 5 beats to have occurred. In a scene reaching CLIMAX on turn 3–4, the buffer may only have 2–3 entries. **Resolved:** proportional threshold `ceil(n × 0.6)` when buffer < 5 (see Decision Table). At n=3 → 2, n=4 → 3, n=5 → 3. Post-eval verify that short-scene CLIMAX timing is consistent with longer scenes.
 8. **Positive condition ratio may not reach 25% target.** The extraction prompt change targets ~25% positive conditions. LLMs have strong priors toward negative extraction. Post-eval check needed. If positive ratio stays below 10%, prompt guidance may need to be more directive — possibly adding "You MUST extract at least one positive condition per scene if a crit_success or decisive success occurred."
 9. **Partial directive enforcement may be insufficient.** Strengthening the `build_directive()` text may not be enough — the narrator has significant context from prior turns that may override the directive. If EV shows partial still being narrated as success after this change, the fix is to add partial to the `outcome_hint` system so the narrator receives an explicit signal.
-10. **EV checker debt.** Multiple EV checkers reference removed fields (`consecutive_pressure_beats`, `crisis_urgency_threshold`, `enforce_relief`, `tension_delta`). These will not break at runtime but will produce incorrect or vacuous results. EV tool update is out of scope for this plan but must be tracked as immediate follow-up work.
+10. **EV checker debt.** Multiple EV checkers reference removed fields (`consecutive_pressure_beats`, `crisis_urgency_threshold`, `enforce_relief`, `tension_delta`). These will not break at runtime but will produce incorrect or vacuous results. EV tool update is out of scope for this plan but must be tracked as immediate follow-up work. **[OPEN: EV checker debt — needs a tracking stub (e.g. `plans/ev-checker-update.md`) before this plan closes.]**
 
 ## What Is Removed
 
@@ -351,6 +378,8 @@ The convergence score still enters CLIMAX when appropriate (3 of 5 components ag
 | `consecutive_pressure_threshold` | `config.py:144` | Deleted with no replacement |
 | `consecutive_pressure_beats` state counter | `turn.py:1042-1050` | Replaced by recent_beats streak |
 | `crisis_urgency_threshold` | `config.py:157` | Deleted with no replacement |
+| `spiral_decay_turns` | `config.py` | Deleted with no replacement. `recent_beats_max` is the correct decay tuning knob. |
+| `tension_delta` field on `IntentEnvelope` | `models.py` | Deleted from model entirely, not merely unused. 0 de-escalates across 80 turns. |
 | `tension_delta` parameter on `_compute_scene_phase` | `turn.py:505` | Removed from signature |
 | `tension_delta` parameter on `_compute_narration_directive` | `turn.py:407` | Removed from signature |
 | `crisis_turn_limit` | `config.py:158` | Renamed to `climax_turn_limit` |
@@ -422,5 +451,5 @@ BEAT_BUCKETS["pressure"] = ["pressure", "complication", "escalation", "setback"]
 - **Checkers** — `ccya/ev/checkers/gm_beat.py` (enforce_relief check), `ccya/ev/checkers/pacing.py` (consecutive_pressure_beats tracking), `ccya/ev/checkers/crisis_turn_counting.py` (rename to climax_turn_counting), `ccya/ev/checkers/beat_phase_validity.py` (enforce_relief reference on line 30).
 - **`ccya/ev/deltas.py`** — `_cmd_deltas_compact()` (line 132-191): references to CRISIS/climax naming, pressure beat tracking.
 - **`ccya/server/tv.py`** — `gm_beat_enforce_relief` field (line 619): remove.
-- **`ccya/ev/checkers/pacing.py`** (if spiral_decay_turns checker exists): remove reference.
+- **`ccya/ev/checkers/pacing.py`** — confirmed: no `spiral_decay_turns` reference exists. No change needed.
 - **`docs/design/review-pacing-plan.md`** — `spiral_decay_turns` flagged as open question. Mark resolved: "Remove it."
