@@ -74,7 +74,7 @@ When creating or updating an NPC entry:
 - **Named NPCs (proper name in `name`):** Must have `bio` + `personality` + at least 2 of {motivation, fear, leverage, bond} = 4 fields minimum. On first entry, aim for all fields.
 - **Unnamed NPCs (descriptive label in `name` + same string in `aliases`; no proper name):** `bio` only. Do NOT add personality, motivation, fear, leverage, bond, or any other personality-related fields.
 - **Promotion to named:** When narration reveals a proper name for an NPC previously known by description, set `name` to the proper name AND add `personality` + 2 of {motivation, fear, leverage, bond}. Keep the old descriptor in `aliases`.
-- **Group NPCs:** If the entry represents multiple people, the `name` or `notes` must always state the exact count. We must always know how many people are in any scene or grouping.
+- **Group NPCs:** If the entry represents multiple people, the `name` field must always state the exact count as a spelled-out integer (e.g., 'Two armed guards', 'Three dockworkers'). Never use vague quantifiers — 'a few', 'several', 'a group of', 'some' are forbidden. When the count is unknown, use 'Unknown' as the count prefix. We must always know how many people are in any scene or grouping.
 
 Valid personality archetype IDs: cold_pragmatist, desperate_idealist, wary_opportunist, resigned_functionary, volatile_loyalist, charming_manipulator, blunt_survivor, true_believer, detached_observer, conflict_avoidant, ambitious_climber, broken_defeated. Do not invent archetypes outside this list.
 
