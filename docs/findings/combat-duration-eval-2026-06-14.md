@@ -298,7 +298,7 @@ Option A addresses the LLM behavior directly. Option B is a hard guardrail if th
 
 ### `tension_delta` distribution analysis (2026-06-15)
 
-Across this save's 17 turns: `escalates` 52.9%, `maintains` 47.1%, `de-escalates` 0%. Combined with 3 other saves (80 total turns): `de-escalates` 0% across all. The convergence design removes `tension_delta` from phase logic entirely — confirmed correct by this data.
+Across this save's 17 turns: `escalates` 52.9%, `maintains` 47.1%, `de-escalates` 0%. Combined with 3 other saves (80 total turns): `de-escalates` 0% across all. The convergence design removes `tension_delta` from `IntentEnvelope` entirely — field deleted from model, not merely unused. Confirmed correct by this data.
 
 ### Dice variance amplified the combat
 
