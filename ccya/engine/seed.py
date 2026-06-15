@@ -51,8 +51,17 @@ def _sanitize_envelope(envelope: SeedEnvelope) -> SeedEnvelope:
                 npc_data.name = f'{name_parts[0]} {surnames_pool[int(surname_hash, 16) % len(surnames_pool)]}'
         npc_data.title = _strip_non_ascii(npc_data.title or "")
         npc_data.bio = _strip_non_ascii(npc_data.bio or "")
-        if npc_data.presence is None:
+        if npc_data.presence is None or npc_data.presence == "":
             npc_data.presence = "present"
+
+    # Safety net: ensure at least 1 NPC has presence="present"
+    has_present = any(
+        npc.presence == "present"
+        for npc in envelope.seed_state.compendium.npcs.values()
+    )
+    if not has_present and envelope.seed_state.compendium.npcs:
+        first_npc = next(iter(envelope.seed_state.compendium.npcs.values()))
+        first_npc.presence = "present"
 
     envelope.actions = [_strip_non_ascii(a) for a in envelope.actions]
     return envelope
