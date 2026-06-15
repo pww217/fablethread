@@ -181,6 +181,24 @@ Both runs passed `arc_resolve_validity`. Arcs were created and resolved in prope
 
 ---
 
+## tension_delta Distribution
+
+Across all 80 EV turns (4 saves), the ruling LLM's `tension_delta` output:
+
+| Value | Count | Percentage |
+|---|---|---|
+| `escalates` | 55 | 68.8% |
+| `maintains` | 25 | 31.2% |
+| `de-escalates` | 0 | **0%** |
+
+The prompt guidance at `ruling_system.j2:60-64` tells the LLM:
+- In CRISIS: "tension MUST escalate or maintain. Only set de-escalates when the player is actively transitioning."
+- In BREATHER: "tension should generally maintain or de-escalate. Only set escalates when there are urgent threads."
+
+In practice, CRISIS phases dominate (most turns), and BREATHER phases always have urgent threads active (triggering the escalation exception). `de-escalates` never fires. The field is effectively binary between `escalates` and `maintains`.
+
+**Impact:** The convergence design removes `tension_delta` from phase logic entirely. The 0% de-escalate rate confirms this was the right call — a signal with no useful variance shouldn't drive transitions.
+
 ## Tension Monotonicity
 
 ### Run 3: `tension_monotonicity: FAIL` — Turn 8

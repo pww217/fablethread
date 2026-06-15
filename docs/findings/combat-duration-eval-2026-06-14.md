@@ -296,6 +296,10 @@ Option A addresses the LLM behavior directly. Option B is a hard guardrail if th
 
 ## Additional observations (not bugs)
 
+### `tension_delta` distribution analysis (2026-06-15)
+
+Across this save's 17 turns: `escalates` 52.9%, `maintains` 47.1%, `de-escalates` 0%. Combined with 3 other saves (80 total turns): `de-escalates` 0% across all. The convergence design removes `tension_delta` from phase logic entirely — confirmed correct by this data.
+
 ### Dice variance amplified the combat
 
 The player rolled below 5 (on d12) for 6 of 8 combat checks, including consecutives of 3, 3, 2, 4. With only +1 stat bonus, these were all FAIL or SETBACK. This is expected variance — not a bug, but it made the combat feel longer than it would have with average luck.
