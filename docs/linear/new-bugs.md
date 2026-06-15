@@ -16,7 +16,7 @@ Every bug ticket MUST include three sections:
 
 ## Labels
 
-Every ticket gets exactly **two** labels: one **type** + one **bucket**. See full tables in `plans/review/linear-reorganization.md`.
+Every ticket gets exactly **two** labels: one **type** + one **bucket**. See full tables in `plans/completed/linear-reorganization.md`.
 
 ### Type labels
 

@@ -107,7 +107,7 @@ Status lifecycle:
 - Validating is mandatory unless explicitly overridden
 - All: Can be canceled at any stage
 
-Tickets live under bucket parent issues. Use title prefixes to disambiguate subsystem: `[Scene]`, `[State]`, `[Storytell]`, `[Narrator]`, `[Ruling]`, `[NPC]`, `[Conditions]`, `[Prompt]`, `[EV]`, `[Infra]`. See `plans/review/linear-reorganization.md` for the full table.
+Tickets live under bucket parent issues. Use title prefixes to disambiguate subsystem: `[Scene]`, `[State]`, `[Storytell]`, `[Narrator]`, `[Ruling]`, `[NPC]`, `[Conditions]`, `[Prompt]`, `[EV]`, `[Infra]`. See `plans/completed/linear-reorganization.md` for the full table.
 
 `linearis` is installed globally at `/opt/homebrew/bin/linearis` — available in PATH, not in the venv. Use it (not `linear`) for all CLI operations. Load the `linear` skill for commands and workflow guidance. Always search for existing tickets before creating new ones. Always associate tickets with the CCYA project.
 

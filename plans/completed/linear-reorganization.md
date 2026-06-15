@@ -166,7 +166,7 @@ Narrative integrity — threads as lower-level objectives/world facts, arcs as h
 | **TICK-36** | Close | — | — | Canceled (moot). |
 | **TICK-48** | Close | — | — | Canceled (moot). |
 | **TICK-50** | Close | — | — | Canceled (moot). |
-| **TICK-44** | Close | — | — | Completed — root cause was TICK-50. |
+| **TICK-84** | Close | — | — | Completed — root cause was TICK-50. (Auto-assigned as TICK-84 in Linear.) |
 | **NEW** | Idea | Feature | — | Threads as fact sheet + objectives, multiple arcs — should threads split? 2-3 concurrent arcs as objectives? |
 | **NEW** | Backlog | Improvement | — | Active vs urgency redundancy — if background=latent and anything else=active, does urgency add value? |
 | **NEW** | Backlog | Improvement | — | Sanitizer dormant vs resolve — set threads dormant rather than resolving. |
