@@ -9,7 +9,7 @@ Read the relevant doc below before acting. Docs are the source of truth — this
 - `docs/linear/triage-bugs.md` — validate, triage, or accept a New bug
 - `docs/linear/scope-feature.md` — scope a feature, handle an idea, or move through Backlog/Scoping
 - `docs/linear/prioritize.md` — list, sort, group, or decide what to work on
-- `plans/review/linear-reorganization.md` — ticket inventory with all 6 buckets, sub-issues, and statuses
+- `plans/completed/linear-reorganization.md` — ticket inventory with all 6 buckets, sub-issues, and statuses
 - `AGENTS.md` — status lifecycle, label types, and workflow rules
 
 ## CLI invocation
