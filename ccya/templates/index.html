@@ -145,8 +145,7 @@
                 <div class="narrative-block" id="opening-block">
                     <div class="narrative-text" data-raw>{{ opening }}</div>
                     {% if opening_outcome_summary %}
-                    <div class="roll-badge roll-badge--ruling">
-                        <div class="roll-result roll-band--ruling">RULING</div>
+                    <div class="roll-badge roll-badge--outcome">
                         <div class="roll-outcome">{{ opening_outcome_summary }}</div>
                     </div>
                     {% endif %}
@@ -164,9 +163,8 @@
                 <div class="narrative-block">
                     <p class="narrative-input-echo">&gt; {{ ev.input }}</p>
                     <div class="narrative-text" data-raw>{{ ev.narrative }}</div>
-                    {% if ev.ruling and (ev.ruling.rolled or ev.ruling.get('outcome_summary')) %}
+                    {% if ev.ruling and ev.ruling.rolled %}
                     {% set r = ev.ruling %}
-                    {% if r.rolled %}
                     {% set die_val = (r.dice | default([]))[0] or 0 %}
                     {% set total_mod = (r.stat_mod or 0) + (r.diff_mod or 0) %}
                     <div class="roll-badge roll-badge--{{ r.band }}">
@@ -198,16 +196,15 @@
                             'crit_success': 'CRITICAL SUCCESS'
                         } %}
                         <div class="roll-result roll-band--{{ r.band }}">{{ BAND_LABELS.get(r.band, (r.band | default('') | upper).replace('_', ' ')) }}</div>
-                    {% else %}
-                    <div class="roll-badge roll-badge--ruling{% if r.reason %} has-tooltip{% endif %}">
-                        <div class="roll-result roll-band--ruling">RULING</div>
-                    {% endif %}
                         {% if r.get('outcome_summary') %}
                         <div class="roll-outcome">{{ r.outcome_summary }}</div>
                         {% endif %}
-                        {% if r.reason and not r.rolled %}
-                        <div class="tooltip-body">{{ r.reason }}</div>
-                        {% endif %}
+                    </div>
+                    {% elif ev.ruling and ev.ruling.get('outcome_summary') %}
+                    {% set r = ev.ruling %}
+                    <div class="roll-badge roll-badge--outcome">
+                        <div class="roll-outcome{% if r.reason %} has-tooltip{% endif %}">{{ r.outcome_summary }}</div>
+                        {% if r.reason %}<div class="tooltip-body">{{ r.reason }}</div>{% endif %}
                     </div>
                     {% endif %}
                     {% if ev.change_groups %}
@@ -769,9 +766,8 @@ function _buildOutcomeBadge(payload) {
     const isRoll = payload.rolled && payload.band;
     if (!isRoll && !payload.outcome_summary) return null;
 
-    const badge = document.createElement('div');
-
     if (isRoll) {
+        const badge = document.createElement('div');
         badge.className = 'roll-badge roll-badge--' + payload.band;
 
         // Line 1: skill · difficulty
@@ -812,30 +808,32 @@ function _buildOutcomeBadge(payload) {
         res.className = 'roll-result roll-band--' + payload.band;
         res.textContent = bandLabel;
         badge.appendChild(res);
-    } else {
-        badge.className = 'roll-badge roll-badge--ruling';
-        if (payload.reason) badge.className += ' has-tooltip';
 
-        const res = document.createElement('div');
-        res.className = 'roll-result roll-band--ruling';
-        res.textContent = 'RULING';
-        badge.appendChild(res);
-
-        if (payload.reason) {
-            const tip = document.createElement('div');
-            tip.className = 'tooltip-body';
-            tip.textContent = payload.reason;
-            badge.appendChild(tip);
+        if (payload.outcome_summary) {
+            const outcomeText = document.createElement('div');
+            outcomeText.className = 'roll-outcome';
+            outcomeText.textContent = payload.outcome_summary;
+            badge.appendChild(outcomeText);
         }
+
+        return badge;
     }
 
-    if (payload.outcome_summary) {
-        const outcomeText = document.createElement('div');
-        outcomeText.className = 'roll-outcome';
-        outcomeText.textContent = payload.outcome_summary;
-        badge.appendChild(outcomeText);
-    }
+    // Non-roll: centered banner with outcome text, tooltip on text
+    const badge = document.createElement('div');
+    badge.className = 'roll-badge roll-badge--outcome';
 
+    const el = document.createElement('div');
+    el.className = 'roll-outcome' + (payload.reason ? ' has-tooltip' : '');
+    el.textContent = payload.outcome_summary;
+    badge.appendChild(el);
+
+    if (payload.reason) {
+        const tip = document.createElement('div');
+        tip.className = 'tooltip-body';
+        tip.textContent = payload.reason;
+        el.appendChild(tip);
+    }
     return badge;
 }
 
