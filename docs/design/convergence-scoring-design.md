@@ -48,6 +48,7 @@ The outcome is a phase machine that oscillates between CLIMAX and RESOLUTION/BRE
 | BREATHER exit condition | Exits when `thread_urgency_count > 0` OR `breather_turn_count >= breather_max_turns`. Same old rule, explicit. | BREATHER should not use convergence score — a single urgent thread means the character can't rest. |
 | `rules.py` module docstring corrected | `raw_die 1 → crit_fail` changed to `final_total ≤ 1 → crit_fail`, `final_total ≥ 12 → crit_success` | Docstring was factually wrong — conditions and skills affect crit probability, which is correct behavior the docstring was misrepresenting. |
 | Short-scene beat streak quorum | Use `ceil(n × 0.6)` threshold when buffer has < 5 entries, where n = current buffer size. At n=3 → 2, n=4 → 3, n=5 → 3 (same as original). | Flat quorum 3 at n=3 requires 100% pressure beats — too restrictive. Proportional threshold maintains consistent sensitivity across buffer sizes. |
+| `recent_rolls` renamed to `current_outcome` | Parameter on `compute_convergence_score()` renamed; type is `RulesOutcome | None` | Name clarifies semantics — this is the full outcome of the current turn's roll, not a list of recent rolls. |
 
 ## Open Questions — All Resolved
 
