@@ -34,7 +34,7 @@ The outcome is a phase machine that oscillates between CLIMAX and RESOLUTION/BRE
 ## Decision Table
 
 | Decision | What | Why |
-|---|---|---|---|
+|---|---|---|
 | CRISIS → CLIMAX rename | All phase names, config field names, log keys, prompt text referencing "CRISIS" renamed to "CLIMAX" | CLIMAX is semantically clearer — this is the narrative turning point, not a death spiral. |
 | `crisis_urgency_threshold` deleted | Removed from EngineConfig. No replacement. | Replaced by composite convergence score. No need for both. |
 | `crisis_turn_limit` → `climax_turn_limit` | Renamed in EngineConfig. Same default (4). | Scope change only. |
@@ -187,7 +187,7 @@ If the storytell LLM still does not resolve: the engine transitions to RESOLUTIO
 #### 6. Removed machinery
 
 | Component | File | Replacement |
-|---|---|---|---|
+|---|---|---|
 | `derive_enforce_relief()` | `_pacing.py:92-94` | Deleted with no replacement |
 | `enforce_relief` parameter on `derive_allowed_beat_types()` | `_pacing.py:63` | Deleted |
 | `consecutive_pressure_threshold` config field | `config.py:144` | Deleted with no replacement |
