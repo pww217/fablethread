@@ -28,7 +28,7 @@ Plan is structurally sound with clear phases and dependency ordering. Three issu
 - [x] Template variables — `narrate_user.j2` and `storytell_user.j2` both receive `pacing_context` dict with full `PacingContext` fields. New field flows through automatically. `storytell_system.j2` does not receive pacing_context (uses fixed guidance text). ✅
 - [x] `_narrate_messages()` signature — already accepts `pacing_context`, no change needed. ✅
 - [x] `_run_extraction_pipeline()` — already accepts `pacing_context`, passes to `_storytell_messages()`. ✅
-- [ ] `spiral_decay_turns` config field — **no consumer exists**. `detect_spiral()` doesn't reference it. See finding above.
+- [x] `spiral_decay_turns` config field — **removed** (no consumer; `recent_beats_max` is the correct decay tuning knob). Resolved by convergence-scoring-design.md.
 
 ### Scope violations
 None. All changes stay within pacing/beat constraint system. Checker update would be scope-adjacent but is flagged as a question, not a step.
