@@ -469,10 +469,10 @@ def _compute_pacing_context(
     )
 
     # outcome_hint: primarily driven by scene_motion from ruling engine.
-    # When phase CRISIS hits turn limit, override to "transition".
+    # When Scene Imperative fires (scene stale or crisis expired), override to "transition".
     outcome_hint: str | None = scene_motion
 
-    if scene_phase == "CRISIS" and crisis_turn_count >= crisis_turn_limit:
+    if effective_scene_age >= scene_imperative_threshold:
         outcome_hint = "transition"
 
     # Build summary for logging
