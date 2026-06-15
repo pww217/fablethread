@@ -197,7 +197,7 @@ The prompt guidance at `ruling_system.j2:60-64` tells the LLM:
 
 In practice, CRISIS phases dominate (most turns), and BREATHER phases always have urgent threads active (triggering the escalation exception). `de-escalates` never fires. The field is effectively binary between `escalates` and `maintains`.
 
-**Impact:** The convergence design removes `tension_delta` from phase logic entirely. The 0% de-escalate rate confirms this was the right call — a signal with no useful variance shouldn't drive transitions.
+**Impact:** The convergence design removes `tension_delta` from `IntentEnvelope` entirely — field deleted from model, not merely unused. The 0% de-escalate rate confirms this was the right call. The ruling engine operates at action level and lacks scene-level context to classify de-escalation; this is an architectural mismatch, not a prompt tuning problem.
 
 ## Tension Monotonicity
 

@@ -68,7 +68,7 @@
 ### 5. Thread stays URGENT forever, locks phase cycle
 **Finding:** Thread `clear_the_road_toughs` was updated every turn for 10 turns, keeping it URGENT. The phase machine cycles CRISIS→RESOLUTION→BREATHER→RISING→CRISIS endlessly.
 
-**Design solution:** Thread sanitizer unchanged. Hard cutoff at `climax_turn_limit` forces transition regardless, mitigating the worst of the cycling.
+**Design solution:** Thread sanitizer unchanged. Hard cutoff at `climax_turn_limit` forces transition regardless, mitigating the worst of the cycling. Note: CLIMAX entry mathematically requires at least one urgent thread (convergence score cannot reach threshold 3 without one — max score with 0 threads is scene age 1 + beat streak 1 = 2). This is by design — if CLIMAX fires, there is always a thread to resolve.
 
 ---
 
@@ -89,23 +89,23 @@ Out of scope — extraction/storyteller compliance issue.
 
 The prompt guidance prevents de-escalation in CRISIS (most phases), and BREATHER phases always have urgent threads active, triggering the escalation exception. The field is effectively binary and always signals "not resolved" — it carries no actionable information.
 
-**Design solution:** `tension_delta` removed from phase logic entirely. The convergence score subsumes any useful tension signal.
+**Design solution:** `tension_delta` removed from `IntentEnvelope` entirely — field deleted from model, not merely unused. The ruling engine operates at action level and lacks scene-level context to classify de-escalation; this is an architectural mismatch, not a prompt tuning problem.
 
-**Assessment:** Correct call. A signal that never varies is worse than no signal — it creates false confidence.
+**Assessment:** Correct call. A signal that never varies is worse than no signal — it creates false confidence and is a future trap for implementers.
 
 ### 4. Tension monotonicity failure (Run 3: BREATHER with escalates)
-`tension_delta` removed from phase logic in convergence design. Ruling prompt still emits it but it no longer drives transitions.
+`tension_delta` removed from `IntentEnvelope` entirely. No longer drives anything.
 
-### 4. Context bloat (Run 3: 70-109s per turn)
+### 5. Context bloat (Run 3: 70-109s per turn)
 Out of scope — needs separate design.
 
-### 5. Doom spiral detection (EV tool gap)
+### 6. Doom spiral detection (EV tool gap)
 Out of scope — EV tooling, not pipeline.
 
-### 6. Extraction format inconsistency
+### 7. Extraction format inconsistency
 Out of scope — EV tooling.
 
-### 7. Beat repetition risk (revelation x4, x6)
+### 8. Beat repetition risk (revelation x4, x6)
 Scene Imperative list change helps (removes `twist`), but `revelation` remains. Beat diversity in storytell prompt (already exists at line 91) covers this.
 
 ---
