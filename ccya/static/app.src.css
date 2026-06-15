@@ -199,7 +199,7 @@ body {
     border-radius: var(--radius);
     min-width: 200px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-    z-index: 100;
+    z-index: 9600;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1854,6 +1854,12 @@ body {
   .header-logo { display: none; }
   .header-meta { gap: 6px; flex-basis: auto; flex-grow: 0; }
 
+  /* ── Gear menu dropdown on mobile ── */
+  .gear-menu-dropdown {
+    min-width: 180px;
+    right: 4px;
+  }
+
   /* Center chronicle pill perfectly in header on mobile */
   #turn-log-toggle { flex: 1; justify-content: center; margin-left: 8px; margin-right: 8px; }
 
@@ -1982,7 +1988,15 @@ body {
     padding-left: max(16px, env(safe-area-inset-left));
     padding-right: max(16px, env(safe-area-inset-right));
   }
-  .pack-picker-body { height: calc(100dvh - 52px); }
+  .pack-picker-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 14px;
+  }
+  .pack-picker-foot {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
   .game-over-modal {
     width: 90vw;
     padding: 24px 20px;

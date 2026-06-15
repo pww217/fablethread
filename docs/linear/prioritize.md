@@ -36,6 +36,7 @@ Tickets use a `[Prefix]` in the title to disambiguate subsystem. Common ones: `[
 - **Feature/Improvement workflow:** `Idea` → `Backlog` → `Scoping` → `Up Next` → `In Progress` → `Validating` → `Completed`
 - **Bug workflow:** `New` → `Accepted` → `In Progress` → `Validating` → `Completed`
 - **Validating** is mandatory unless explicitly overridden.
+- **Blocked:** Intermediate state — work paused pending external dependency or investigation. Re-openable to `In Progress` when unblocked.
 - **Project:** `CCYA` — always `--project "CCYA"`
 - **Team:** `TICK` — always `--team TICK`
 - **Ticket prefix:** `TICK-` (auto-increment, e.g., TICK-53)
@@ -46,13 +47,13 @@ Tickets use a `[Prefix]` in the title to disambiguate subsystem. Common ones: `[
 
 ```bash
 # All active tickets by bucket
-linearis issues list --status "Idea,Backlog,Scoping,Up Next,In Progress,Validating,Accepted" --team TICK --limit 50
+linearis issues list --status "Idea,Backlog,Scoping,Up Next,In Progress,Validating,Accepted,Blocked" --team TICK --limit 50
 
 # All tickets in a specific bucket
-linearis issues list --status "Idea,Backlog,Scoping,Up Next,In Progress,Validating,Accepted" --team TICK --label Extraction --limit 30
+linearis issues list --status "Idea,Backlog,Scoping,Up Next,In Progress,Validating,Accepted,Blocked" --team TICK --label Extraction --limit 30
 
 # High priority bugs
-linearis issues list --status "New,Accepted,In Progress,Validating" --team TICK --label Bug --priority 2 --limit 30
+linearis issues list --status "New,Accepted,In Progress,Validating,Blocked" --team TICK --label Bug --priority 2 --limit 30
 
 # Active work items (Up Next + In Progress)
 linearis issues list --status "Up Next,In Progress" --team TICK --limit 30

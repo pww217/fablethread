@@ -1,6 +1,6 @@
 ## Current inventory (this turn){% if inventory %}
 {% for item in inventory -%}
-- `{{ item.id }}`: {{ item.name }} x{{ item.amount }}{% if item.notes %} — {{ item.notes }}{% endif %}
+- {{ item.name }} x{{ item.amount }}{% if item.notes %} — {{ item.notes }}{% endif %}
 {% endfor -%}
 {% endif %}{% if conditions %}
 ## PC conditions (this turn)
