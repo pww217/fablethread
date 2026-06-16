@@ -9,6 +9,7 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from math import ceil
 from pathlib import Path
 from typing import Any, AsyncIterator
 
@@ -102,6 +103,7 @@ class PacingContext:
     summary: str  # human-readable log string, never sent to LLM
     spiral_detected: bool = False  # death spiral flag from recent roll history
     convergence_score: int = 0  # 5-component score for RISING→CLIMAX transition
+    convergence_components: dict[str, int] = field(default_factory=dict)
 
 
 
@@ -411,13 +413,6 @@ def _compute_narration_directive(
 ) -> str:
     """Compute the narration directive string using a priority stack.
 
-    Driven by clean signals: scene_phase, thread urgency, and age.
-    Removed: Overwhelm, Pressure, Tension directives (handled by phase).
-    Removed: "; Resolve a Threat" append (replaced by enforce_relief).
-    Removed: Breathe directive (dead code — 0% de-escalation across 80 turns).
-    Removed: tension_delta parameter.
-    Removed: CLIMAX turn-limit trigger (Scene Imperative now purely age-based).
-
     Priority order (highest to lowest):
       1. Scene Imperative — effective_scene_age >= scene_imperative_threshold
       2. Scene Pressure   — effective_scene_age >= scene_pressure_threshold
@@ -444,10 +439,6 @@ def _compute_pacing_context(
     scene_imperative_threshold: int = 4,
 ) -> PacingContext:
     """Compute unified pacing context for Narrate and Progress steps.
-
-    Driven by scene_phase, thread urgency, and age.
-    Removed: tension_delta parameter.
-    Removed: climax_turn_count/climax_turn_limit (Scene Imperative now purely age-based).
     """
     # Compute directive using new signal set
     directive = _compute_narration_directive(
@@ -502,7 +493,6 @@ def _compute_scene_phase(
     RESOLUTION→SETUP/BREATHER, BREATHER→RISING, any→SETUP (location change).
 
     Mutates state["scene"] in place. Returns the updated scene dict.
-    Removed: tension_delta parameter.
     """
     meta = state.get("meta") or {}
     scene = state.setdefault("scene", {})
@@ -804,6 +794,30 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
     _pc.spiral_detected = ctx._spiral_detected
     _pc.convergence_score = convergence_score
 
+    # 5 convergence component booleans
+    components: dict[str, int] = {}
+    components["thread_weight"] = 1 if thread_urgency_count >= 1 else 0
+    components["urgency_depth"] = 1 if thread_urgency_count >= 2 else 0
+    scene_age = ctx._ages.get("scene_age", 0)
+    components["scene_age"] = 1 if scene_age >= config.scene_pressure_threshold else 0
+    recent_beats = state.get("meta", {}).get("recent_beats", [])
+    if recent_beats:
+        pressure_types = {"pressure", "complication", "escalation", "setback"}
+        n = len(recent_beats)
+        window = recent_beats[: min(n, 5)]
+        pressure_count = sum(1 for b in window if b.get("type") in pressure_types)
+        threshold = ceil(n * 0.6) if n < 5 else 3
+        components["beat_streak"] = 1 if pressure_count >= threshold else 0
+    else:
+        components["beat_streak"] = 0
+    components["dice_weight"] = 1 if (
+        ctx.outcome is not None
+        and ctx.outcome.rolled
+        and ctx.outcome.band in ("crit_fail", "fail")
+        and thread_urgency_count >= 1
+    ) else 0
+    _pc.convergence_components = components
+
     # Curtain Call signal for CLIMAX phase
     _curtain_call = ""
     if scene_phase == "CLIMAX":
@@ -957,6 +971,7 @@ async def run_turn(
             "total_ms": round(narr_ms, 1),
             "tokens_in": int(narr_stream_stats.get("prompt_eval_count", 0)),
             "tokens_out": int(narr_stream_stats.get("eval_count", 0)),
+            "output": narrative,
         }
         if config.log_llm_io:
             _log_llm_io(
@@ -1085,7 +1100,10 @@ async def run_turn(
             "total_ms": round(ext_ms, 1),
             "tokens_in": _tokens_in,
             "tokens_out": _tokens_out,
-            "retries": 0,
+            "retries": sum(
+                len((extraction_event.get(s) or {}).get("retry_errors", []))
+                for s in ("scene", "state", "storytell")
+            ),
             "streams": _streams,
         }
         metrics = {
@@ -1098,6 +1116,7 @@ async def run_turn(
         state_pre_apply = copy.deepcopy(state)
         applied: dict[str, Any] = {}
         rejected: list[dict[str, Any]] = []
+        reconcile_warnings: list[str] = []
 
         if delta is not None:
             rejected = _validate(state, delta)
@@ -1348,6 +1367,7 @@ async def run_turn(
                 "climax_turn_count": state.get("scene", {}).get("climax_turn_count", 0),
                 "breather_turn_count": state.get("scene", {}).get("breather_turn_count", 0),
                 "convergence_score": _pc.convergence_score if _pc else 0,
+                "convergence_components": _pc.convergence_components if _pc else {},
             },
             "post_turn_pending_beat": state.get("meta", {}).get("pending_gm_beat"),
             "allowed_beat_types": derive_allowed_beat_types(
@@ -1361,6 +1381,7 @@ async def run_turn(
             "extract": ext_metrics,
             "extraction": extraction_event,
             "changes": changes,
+            "reconcile_warnings": reconcile_warnings,
             # Prompt logging (for turn viewer)
             "ruling_prompt": {
                 "rendered_system": rendered_ruling_system,

@@ -196,8 +196,8 @@ Personality presets shape the LLM player's system prompt:
 # Track a specific NPC's notes over time
 .venv/bin/python scripts/debug/ev.py trace compendium.npcs.blake_webb.notes --show-unchanged saves/my-game/events.jsonl
 
-# Find turns where phase is CRISIS
-.venv/bin/python scripts/debug/ev.py search pacing_context.scene_phase:CRISIS saves/my-game/events.jsonl
+# Find turns where phase is CLIMAX
+.venv/bin/python scripts/debug/ev.py search pacing_context.scene_phase:CLIMAX saves/my-game/events.jsonl
 
 # Full mechanics breakdown with pacing context
 .venv/bin/python scripts/debug/ev.py mechanics 12 --pacing --dice saves/my-game/events.jsonl
@@ -213,7 +213,10 @@ Personality presets shape the LLM player's system prompt:
 | Thread lifecycle across all turns | `ev.py threads [save-path]` |
 | Beat type + surface + locked status | `ev.py beats [save-path]` |
 | Phase + beat + directive table | `ev.py beats [save-path]` |
-| Momentum + band + expected delta | `ev.py momentum-check [save-path]` |
+| Roll bands + raw/final totals per turn | `ev.py rolls [save-path]` |
+| Convergence score + 5 component breakdown | `ev.py convergence [save-path]` |
+| Scene phase transitions with triggers | `ev.py phase-transitions [save-path]` |
+| CLIMAX Curtain Call compliance | `ev.py curtain-call [save-path]` |
 | Goal changes over time | `ev.py goals [save-path]` |
 | Beat TTL expiration over time | `ev.py beat-ttl [save-path]` |
 | Effective scene age (if available) | `ev.py effective-age [save-path]` |
@@ -225,8 +228,17 @@ Personality presets shape the LLM player's system prompt:
 # What beats were generated and when?
 .venv/bin/python scripts/debug/ev.py beats saves/my-game/events.jsonl
 
-# Momentum trajectory with roll bands
-.venv/bin/python scripts/debug/ev.py momentum-check saves/my-game/events.jsonl
+# Roll trajectory with bands
+.venv/bin/python scripts/debug/ev.py rolls saves/my-game/events.jsonl
+
+# Convergence score and component breakdown
+.venv/bin/python scripts/debug/ev.py convergence saves/my-game/events.jsonl
+
+# When did scene phases change?
+.venv/bin/python scripts/debug/ev.py phase-transitions saves/my-game/events.jsonl
+
+# CLIMAX Curtain Call checks
+.venv/bin/python scripts/debug/ev.py curtain-call saves/my-game/events.jsonl
 
 # When did the arc goal change?
 .venv/bin/python scripts/debug/ev.py goals saves/my-game/events.jsonl
@@ -360,15 +372,34 @@ Tokens:    in=15487  out=1077  ms=31700.0
 .venv/bin/python scripts/debug/ev.py eval list
 ```
 
+### Warnings
+
+Scan events for retries, retry errors, validation rejections, and reconcile warnings:
+
+```bash
+.venv/bin/python scripts/debug/ev.py warnings saves/my-game/events.jsonl
+```
+
+Available signals: `extract.retries`, per-stream `retry_errors`, `rejected`, `reconcile_warnings`.
+Non-capturable warnings (seeds, dedup) listed as gaps in the output.
+
+### Prompt size analysis
+
+Token counts per pipeline stage across turns with growth trend:
+
+```bash
+.venv/bin/python scripts/debug/ev.py prompt-sizes saves/my-game/events.jsonl
+```
+
+Stages: ruling, narrate, scene, state, storytell.
+
 **Registered checkers** (see `docs/ev/CHECKERS.md` for full docs):
 
 | Checker ID | Type | What it validates |
 |---|---|---|
 | `phase_transition` | deterministic | Phase engine transitions follow the state machine |
-| `crisis_turn_counting` | deterministic | crisis_turn_count increments in CRISIS, resets on exit |
+| `climax_turn_counting` | deterministic | climax_turn_count increments in CLIMAX, resets on exit |
 | `breather_enforcement` | deterministic | BREATHER auto-transitions to RISING after max turns |
-| `tension_delta` | deterministic | tension_delta field presence, values, directive consistency |
-| `tension_monotonicity` | deterministic | tension_delta valid values, phase consistency |
 | `beat_phase_validity` | deterministic | gm_beat.type is allowed for current scene_phase |
 | `recent_beats` | deterministic | recent_beats list structure and constraints |
 | `phase_persistence` | deterministic | scene_phase persists across turns (regression guard) |

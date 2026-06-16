@@ -75,7 +75,7 @@ def main() -> None:
     flags, args = _strip_flags(args)
     if not args:
         print("Error: no command specified.", file=sys.stderr)
-        print("Commands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats, momentum-check", file=sys.stderr)
+        print("Commands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, curtain-call, warnings, prompt-sizes", file=sys.stderr)
         print("\nUsage: .venv/bin/python scripts/debug/ev.py <command> [args...]", file=sys.stderr)
         sys.exit(1)
 
@@ -83,8 +83,12 @@ def main() -> None:
 
     from ccya.ev.events import load_events, find_turn
 
+    # Auto-detect events.jsonl from --save-dir when no positional events path given
+    if cmd != "play" and "save-dir" in flags and not (len(args) > 1 and (args[-1].endswith(".jsonl") or args[-1].startswith("saves/"))):
+        turn_file = Path(str(flags["save-dir"])) / "events.jsonl"
+
     # Skip events path extraction for play command — events are written by play_turn()
-    if cmd != "play" and len(args) > 1 and args[-1].startswith("saves/"):
+    elif cmd != "play" and len(args) > 1 and args[-1].startswith("saves/"):
         candidate = Path(args[-1])
         if candidate.is_dir():
             turn_file = candidate / "events.jsonl"
@@ -99,7 +103,7 @@ def main() -> None:
     match cmd:
         case "help":
             print(__doc__.strip() if __doc__ else "ev.py — Debug CLI for CCYA events.jsonl")
-            print("\nCommands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats, momentum-check")
+            print("\nCommands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, curtain-call, warnings, prompt-sizes")
             sys.exit(0)
         case "summary":
             from ccya.ev.inspect import cmd_summary
@@ -215,9 +219,9 @@ def main() -> None:
         case "beat-ttl":
             from ccya.ev.state_tools import cmd_beat_ttl
             cmd_beat_ttl(events)
-        case "momentum-check":
-            from ccya.ev.state_tools import cmd_momentum_check
-            cmd_momentum_check(events)
+        case "rolls":
+            from ccya.ev.state_tools import cmd_rolls
+            cmd_rolls(events)
         case "state-history":
             from ccya.ev.audit import cmd_state_history
             cmd_state_history(events)
@@ -239,6 +243,21 @@ def main() -> None:
         case "compat":
             from ccya.ev.compat import cmd_compat
             cmd_compat(events)
+        case "convergence":
+            from ccya.ev.state_tools import cmd_convergence
+            cmd_convergence(events)
+        case "phase-transitions":
+            from ccya.ev.state_tools import cmd_phase_transitions
+            cmd_phase_transitions(events)
+        case "curtain-call":
+            from ccya.ev.state_tools import cmd_curtain_call
+            cmd_curtain_call(events)
+        case "warnings":
+            from ccya.ev.warnings import cmd_warnings
+            cmd_warnings(events)
+        case "prompt-sizes":
+            from ccya.ev.prompt_sizes import cmd_prompt_sizes
+            cmd_prompt_sizes(events)
         case "play":
             from ccya.ev.play import cmd_play
             cmd_play(flags, args)
