@@ -22,7 +22,7 @@ Mechanical rename of all CRISIS→CLIMAX references across the codebase, and rem
 
 ## Status
 
-`open`
+`completed`
 
 ## Dependencies
 

@@ -47,6 +47,8 @@
 {% endif %}
 {% if state and state.scene and state.scene.scene_phase %}
 ## Scene phase: {{ state.scene.scene_phase }}
+{% endif %}{% if curtain_call and curtain_call != "" %}
+## Curtain Call: {{ curtain_call | upper }}
 {% endif %}
 
 ## Prior History

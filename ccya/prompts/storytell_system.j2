@@ -62,13 +62,13 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 | `opportunity` | Open a new path or advantage |
 | `breathing_room` | Let the scene decompress |
 
-Three functional buckets: **pressure** (pressure/complication/escalation), **situation** (revelation/twist/hazard/callback), **relief** (opportunity/breathing_room).
+Three functional buckets: **pressure** (pressure/complication/escalation/setback), **situation** (revelation/twist/hazard/callback), **relief** (opportunity/breathing_room).
 
 ### Directive overrides (take precedence over phase table)
 
 When a directive is active, it **completely replaces** the phase table constraints. Only emit beats from the directive's allowed list. The user prompt shows the final allowed list — use that, not the phase table:
 
-- **Scene Imperative** — only: `revelation`, `twist`, `hazard`, `callback`, `opportunity`. **NEVER** `pressure`, `complication`, `escalation`.
+- **Scene Imperative** — only: `revelation`, `hazard`, `callback`, `opportunity`, `setback`, `breathing_room`. **NEVER** `pressure`, `complication`, `escalation`, `twist`.
 - **Spiral detected** — remove all pressure-type beats (`pressure`, `complication`, `escalation`) from the phase defaults.
 - **No directive / Tension** — use the phase table below.
 
@@ -90,6 +90,12 @@ Fail near-miss (final_total within 2 of threshold): `complication` acceptable. W
 **Diversity:** Don't repeat the same `type` more than twice consecutively. Vary `surface_as` turn to turn. After 3+ consecutive pressure beats, use a non-pressure type. `twist` and `callback` don't repeat within 2 turns except at major pivot moments.
 
 **At major pivot moments** (near-death, failed plan succeeds, NPC decisive choice): prefer `revelation`, `twist`, or `callback` over another `complication`.
+
+## Curtain Call — CLIMAX phase
+
+When `curtain_call` is `"active"` (turn 1 of CLIMAX): you MUST resolve the active thread this scene. Include at least one `thread_resolve` entry in your output. This turn sets the stakes — the next turns drive toward conclusion.
+
+When `curtain_call` is `"forced"` (final climactic turn before hard cutoff): This thread MUST resolve now, for better or worse. The engine will force a transition if you don't. Prefer decisive resolution.
 
 ## Outcome summary
 

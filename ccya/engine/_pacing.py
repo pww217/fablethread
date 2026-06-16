@@ -73,7 +73,7 @@ def derive_allowed_beat_types(
     Removed: enforce_relief parameter (derive_enforce_relief deleted).
     """
     if directive == "Scene Imperative":
-        return BEAT_BUCKETS["situation"] + ["opportunity"]
+        return ["revelation", "hazard", "callback", "opportunity", "setback", "breathing_room"]
 
     base = BEAT_PHASE_MAP.get(scene_phase, list(BEAT_PHASE_MAP["SETUP"]))
 

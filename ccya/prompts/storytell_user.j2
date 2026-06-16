@@ -29,6 +29,8 @@ Outcome: {{ pacing_context.outcome_hint or "hold" }}
 {% endif %}
 {% if scene_phase %}
 ## Scene phase: {{ scene_phase }} — allowed beat types: {{ allowed_beat_types | join(", ") }}
+{% endif %}{% if curtain_call and curtain_call != "" %}
+## Curtain Call: {{ curtain_call | upper }}
 {% endif %}{% if pending_beat and pending_beat.type %}
 ## GM Beat
 Type: **{{ pending_beat.type | replace('_', ' ') | upper }}**

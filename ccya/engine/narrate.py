@@ -36,6 +36,7 @@ def _narrate_messages(
     npc_roster: list[dict[str, Any]] | None = None,
     arc_ttl: int = 3,
     thread_ttl: int = 3,
+    curtain_call: str = "",
 ) -> list[dict[str, str]]:
     if npc_roster is None:
         from ccya.personality import ARCHETYPES
@@ -89,6 +90,7 @@ def _narrate_messages(
         "world_factions": world_factions,
         "npc_roster": npc_roster,
         "current_arc": current_arc_ctx,
+        "curtain_call": curtain_call,
     }
 
     system_text = _render(env, "narrate_system.j2", {
