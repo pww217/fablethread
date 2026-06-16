@@ -24,7 +24,7 @@ from ccya.engine.extraction import (
 from ccya.engine.names import generate_npc_names_split
 from ccya.engine.narrate import _narrate_messages
 from ccya.engine.npc_roster import build_npc_roster
-from ccya.engine._pacing import derive_allowed_beat_types, detect_spiral
+from ccya.engine._pacing import compute_convergence_score, derive_allowed_beat_types, detect_spiral
 from ccya.personality import ARCHETYPES
 from ccya.engine.thread_sanitizer import sanitize_threads
 
@@ -97,10 +97,11 @@ class TurnContext:
 @dataclass
 class PacingContext:
     """Consolidated pacing decision for Narrate and Progress steps."""
-    directive: str  # "Breathe" | "Scene Imperative" | "Scene Pressure" | ""
+    directive: str  # "Scene Imperative" | "Scene Pressure" | ""
     outcome_hint: str | None  # narrator's primary scene motion instruction
     summary: str  # human-readable log string, never sent to LLM
     spiral_detected: bool = False  # death spiral flag from recent roll history
+    convergence_score: int = 0  # 5-component score for RISING→CLIMAX transition
 
 
 
@@ -404,8 +405,6 @@ def _apply_thread_resolutions(
 def _compute_narration_directive(
     scene_phase: str,
     thread_urgency_count: int,
-    climax_turn_count: int,
-    climax_turn_limit: int,
     effective_scene_age: int,
     scene_pressure_threshold: int = 3,
     scene_imperative_threshold: int = 4,
@@ -417,15 +416,15 @@ def _compute_narration_directive(
     Removed: "; Resolve a Threat" append (replaced by enforce_relief).
     Removed: Breathe directive (dead code — 0% de-escalation across 80 turns).
     Removed: tension_delta parameter.
+    Removed: CLIMAX turn-limit trigger (Scene Imperative now purely age-based).
 
     Priority order (highest to lowest):
-      1. Scene Imperative — (scene_phase == CLIMAX AND climax_turn_count >= climax_turn_limit)
-                             OR effective_scene_age >= scene_imperative_threshold
+      1. Scene Imperative — effective_scene_age >= scene_imperative_threshold
       2. Scene Pressure   — effective_scene_age >= scene_pressure_threshold
       3. (empty)        — default
     """
-    # Priority 1: Scene Imperative — climax at turn limit OR stale scene
-    if (scene_phase == "CLIMAX" and climax_turn_count >= climax_turn_limit) or effective_scene_age >= scene_imperative_threshold:
+    # Priority 1: Scene Imperative — stale scene
+    if effective_scene_age >= scene_imperative_threshold:
         return "Scene Imperative"
 
     # Priority 2: Scene Pressure — approaching staleness
@@ -439,8 +438,6 @@ def _compute_narration_directive(
 def _compute_pacing_context(
     scene_phase: str,
     thread_urgency_count: int,
-    climax_turn_count: int,
-    climax_turn_limit: int,
     effective_scene_age: int,
     scene_motion: str = "hold",
     scene_pressure_threshold: int = 3,
@@ -450,13 +447,12 @@ def _compute_pacing_context(
 
     Driven by scene_phase, thread urgency, and age.
     Removed: tension_delta parameter.
+    Removed: climax_turn_count/climax_turn_limit (Scene Imperative now purely age-based).
     """
     # Compute directive using new signal set
     directive = _compute_narration_directive(
         scene_phase=scene_phase,
         thread_urgency_count=thread_urgency_count,
-        climax_turn_count=climax_turn_count,
-        climax_turn_limit=climax_turn_limit,
         effective_scene_age=effective_scene_age,
         scene_pressure_threshold=scene_pressure_threshold,
         scene_imperative_threshold=scene_imperative_threshold,
@@ -498,6 +494,7 @@ def _compute_scene_phase(
     state: dict[str, Any],
     ages: dict[str, int],
     config: EngineConfig,
+    convergence_score: int = 0,
 ) -> dict[str, Any]:
     """Compute the scene phase using the 5-state machine.
 
@@ -527,8 +524,6 @@ def _compute_scene_phase(
         if isinstance(t, dict) and getattr(ArcThread.model_validate(t) if not isinstance(t, ArcThread) else t, "urgency", "normal") == "urgent":
             thread_urgency_count += 1
 
-    effective_scene_age = ages.get("effective_scene_age", ages.get("scene_age", 0))
-
     # Check location change: if scene was entered this turn, force SETUP
     scene_entered = scene.get("turn_entered", 0)
     location_change_this_turn = (scene_entered == current_turn)
@@ -543,13 +538,7 @@ def _compute_scene_phase(
             phase = "RISING"
 
     elif phase == "RISING":
-        if thread_urgency_count >= 2:
-            phase = "CLIMAX"
-            climax_turn_count = 1
-        elif thread_urgency_count >= 1:
-            phase = "CLIMAX"
-            climax_turn_count = 1
-        elif effective_scene_age >= config.scene_pressure_threshold:
+        if convergence_score >= config.convergence_threshold:
             phase = "CLIMAX"
             climax_turn_count = 1
 
@@ -765,7 +754,6 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
     scene.setdefault("climax_turn_count", 0)
     scene.setdefault("breather_turn_count", 0)
     scene_phase = scene.get("scene_phase", "SETUP")
-    climax_turn_count = scene.get("climax_turn_count", 0)
 
     # Count urgent threads for phase engine
     _raw_thread_dicts = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict)]
@@ -781,18 +769,25 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
                 extra={"turn": turn_no, "trace_id": ctx.trace_id},
             )
 
+    # Compute convergence score before phase machine
+    convergence_score = compute_convergence_score(
+        scene_phase=scene_phase,
+        thread_urgency_count=thread_urgency_count,
+        scene_age=ctx._ages.get("scene_age", 0),
+        recent_beats=state.get("meta", {}).get("recent_beats", []),
+        current_outcome=ctx.outcome,
+        config=config,
+    )
+
     # Compute phase (mutates state["scene"] in place)
-    state["scene"] = _compute_scene_phase(state, ctx._ages, config)
+    state["scene"] = _compute_scene_phase(state, ctx._ages, config, convergence_score)
     scene_phase = scene.get("scene_phase", "SETUP")
-    climax_turn_count = scene.get("climax_turn_count", 0)
 
     # Compute unified pacing context with new signal set
     _scene_motion = ctx.intent.scene_motion if ctx.intent else "hold"
     _pc = _compute_pacing_context(
         scene_phase=scene_phase,
         thread_urgency_count=thread_urgency_count,
-        climax_turn_count=climax_turn_count,
-        climax_turn_limit=config.climax_turn_limit,
         effective_scene_age=ctx._ages.get("effective_scene_age", 0),
         scene_motion=_scene_motion,
         scene_pressure_threshold=config.scene_pressure_threshold,
@@ -807,6 +802,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         hard_ratio_threshold=config.spiral_hard_ratio,
     )
     _pc.spiral_detected = ctx._spiral_detected
+    _pc.convergence_score = convergence_score
 
     _comp = (state.get("compendium") or {}).get("npcs") or {}
     narr_messages = _narrate_messages(
@@ -1351,6 +1347,7 @@ async def run_turn(
                 "scene_phase": state.get("scene", {}).get("scene_phase", "SETUP"),
                 "climax_turn_count": state.get("scene", {}).get("climax_turn_count", 0),
                 "breather_turn_count": state.get("scene", {}).get("breather_turn_count", 0),
+                "convergence_score": _pc.convergence_score if _pc else 0,
             },
             "post_turn_pending_beat": state.get("meta", {}).get("pending_gm_beat"),
             "post_extraction_consecutive_pressure_beats": state.get("meta", {}).get("consecutive_pressure_beats"),

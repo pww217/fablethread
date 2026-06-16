@@ -7,7 +7,11 @@ This module encapsulates the beat constraint table in Python so both
 
 from __future__ import annotations
 
+from math import ceil
 from typing import Any
+
+from ccya.engine.config import EngineConfig
+from ccya.models import RulesOutcome
 
 
 BEAT_BUCKETS: dict[str, list[str]] = {
@@ -78,3 +82,52 @@ def derive_allowed_beat_types(
         return [b for b in base if b not in pressure_types]
 
     return base
+
+
+def compute_convergence_score(
+    scene_phase: str,
+    thread_urgency_count: int,
+    scene_age: int,
+    recent_beats: list[dict[str, Any]],
+    current_outcome: RulesOutcome | None,
+    config: EngineConfig,
+) -> int:
+    """Compute a 5-component convergence score for RISING→CLIMAX transition.
+
+    Each component is worth +1. Threshold is config.convergence_threshold (default 3).
+    Score cannot reach threshold without at least one urgent thread.
+    """
+    score = 0
+
+    # Component 1: Thread weight (+1)
+    if thread_urgency_count >= 1:
+        score += 1
+
+    # Component 2: Urgency depth (+1)
+    if thread_urgency_count >= 2:
+        score += 1
+
+    # Component 3: Scene age (+1)
+    if scene_age >= config.scene_pressure_threshold:
+        score += 1
+
+    # Component 4: Beat streak (+1)
+    if recent_beats:
+        n = len(recent_beats)
+        window = recent_beats[: min(n, 5)]
+        pressure_types = set(BEAT_BUCKETS["pressure"])
+        pressure_count = sum(1 for b in window if b.get("type") in pressure_types)
+        threshold = ceil(n * 0.6) if n < 5 else 3
+        if pressure_count >= threshold:
+            score += 1
+
+    # Component 5: Dice weight (+1)
+    if (
+        current_outcome is not None
+        and current_outcome.rolled
+        and current_outcome.band in ("crit_fail", "fail")
+        and thread_urgency_count >= 1
+    ):
+        score += 1
+
+    return score
