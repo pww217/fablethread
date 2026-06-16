@@ -141,7 +141,7 @@ This is orthogonal to deterministic eval scenarios (fixed inputs, checker valida
 
 | Decision | What | Why |
 |---|---|---|
-| Scenarios declare checker suites | Each YAML has `checker_suite: [momentum_lifecycle, action_quality]` | No one-size-fits-all; keeps traces clean and eval fast |
+| Scenarios declare checker suites | Each YAML has `checker_suite: [phase_transition, action_quality]` | No one-size-fits-all; keeps traces clean and eval fast |
 | No meta-judge for score synthesis | `scripts/aggregate.py` (deterministic, ~80 lines) computes pass-rate, avg-score, worst-checker per scenario | The old meta-judge was an LLM untangling contradictions from domain judges. With individual checkers producing precise pass/fail on specific mechanics, deterministic math replaces it. No hallucination, no latency, no cost. |
 | LLM checkers default to 100% with slider | `llm_sample_rate: float` in scenario YAML. Default 1.0. 0.25 for fast iteration. Trivial to implement. | 30-40 turns max means 100% is tolerable (~41 min full eval). Slider costs zero code complexity and serves the iteration use case. |
 | LLM improvement suggestions are per-scenario-group, one batch call per group | For each scenario group with failures below threshold, one LLM call receives the failing checkers + up to 3 representative failing turns each. | Scenarios are focused by design, so failures naturally scope to a single pipeline stage's mechanics. The LLM never sees data from multiple stages at once. |
@@ -193,9 +193,9 @@ Fully implemented per ev-tooling-design.md:
 - Data access layer (events.py)
 - Scenario loader (YAML → Scenario dataclass)
 
-### Checker inventory (13 total)
+### Checker inventory (27 total)
 
-> **Note:** `momentum_lifecycle` was removed in Plan 4. The phase engine replaces momentum, narrative_velocity, and consecutive_pressure_turns.
+> **Note:** The convergence scoring redesign replaced the old `momentum_lifecycle`, `tension_delta`, `crisis_urgency_threshold`, `derive_enforce_relief`, and `consecutive_pressure_beats` machinery. New checkers validate convergence score computation, CLIMAX turn counting, phase transitions, beat-phase validity, breather enforcement, scene age tracking, roll band consistency, and thread/arc resolution.
 
 | Checker | Type | Pipeline Stage |
 |---|---|---|
@@ -209,17 +209,42 @@ Fully implemented per ev-tooling-design.md:
 | `thread_lifecycle` | deterministic | State (post-turn) |
 | `arc_goal_updates` | deterministic | State (post-turn) |
 | `sanitizer_lifecycle` | deterministic | State (post-turn) |
+| `phase_transition` | deterministic | State (post-turn) |
+| `phase_persistence` | deterministic | State (post-turn) |
+| `recent_beats` | deterministic | State (post-turn) |
+| `climax_turn_counting` | deterministic | State (post-turn) |
+| `breather_enforcement` | deterministic | State (post-turn) |
+| `scene_age_tracking` | deterministic | State (post-turn) |
+| `roll_band_consistency` | deterministic | Ruling |
+| `thread_resolution_validity` | deterministic | State (post-turn) |
+| `new_thread_validity` | deterministic | State (post-turn) |
+| `compendium_lifecycle` | deterministic | Extraction |
+| `beat_phase_validity` | deterministic | Narration |
+| `arc_resolution_validity` | deterministic | State (post-turn) |
+| `goal_update_validity` | deterministic | State (post-turn) |
+| `turn_assert` | deterministic | Cross-cutting |
 | `directive_tone_match` | LLM | Narration |
 | `beat_narrative_chain` | LLM | Narration |
 | `state_fidelity` | LLM | Extraction |
 
-### Known field-mapping issues
+### Convergence-specific checkers
 
-- `location_change` checker fails on every turn (EV-3) — expects `applied.location_change` which is not emitted
-- `sanitizer_lifecycle` fails on every turn (EV-4) — expects `threads_updated` which is not in the sanitizer event structure
-- `pacing_directives` has stale counter timing (EV-7) — reads post-extraction counters paired with pre-extraction beat types
-- `npc_presence` fails — missing `extraction_context`
-- LLM checkers currently blocked — `_llm.py` uses `mlx_lm` import directly instead of the OpenAI-compatible endpoint
+The following checkers directly validate the convergence scoring and Curtain Call machinery:
+
+| Checker | What It Validates |
+|---|---|
+| `climax_turn_counting` | `climax_turn_count` increments by 1 inside CLIMAX, resets to 0 on phase exit, starts at 1 on entry |
+| `phase_transition` | Phase transitions respect convergence_score threshold, climax_turn_limit, breather max turns, and outcome_hint alignment |
+| `phase_persistence` | Phases persist correctly across turns (no spurious transitions) |
+| `recent_beats` | `recent_beats` sliding window structure, capacity, and ordering |
+| `breather_enforcement` | BREATHER phase exits on urgency > 0 or breather_max_turns exceeded |
+| `scene_age_tracking` | Scene age increments correctly, drives Scene Imperative and convergence score |
+| `beat_phase_validity` | Beat types are valid for their phase (e.g., no `breathing_room` in base CLIMAX list) |
+| `roll_band_consistency` | Roll band math is correct (matching `compute_band()` rules with partial ≤7 threshold) |
+| `thread_resolution_validity` | Thread resolve fields are properly structured when storyteller emits them (Curtain Call compliance) |
+| `new_thread_validity` | New threads have required fields (id, summary, urgency) |
+| `arc_resolution_validity` | Arc resolution/visible_goal updates are consistent across turns |
+| `goal_update_validity` | Goal update records are internally consistent |
 
 ### Scenario directory
 
@@ -257,9 +282,9 @@ Fully implemented per ev-tooling-design.md:
 Every eval YAML scenario declares which checkers it needs and whether to sample for LLM judges:
 
 ```yaml
-id: ruling-tension-delta-basics
+id: ruling-convergence-basics
 pack: some-pack
-description: "tension_delta follows band/intent, phase transitions work correctly"
+description: "convergence score components compute correctly, phase transitions work"
 seed_overrides:
   scene.scene_phase: SETUP
 checker_suite:
@@ -362,17 +387,15 @@ Since scenarios are focused by design, a group's failures are scoped to one pipe
 
 #### 6. Scenario taxonomy — 5 groups, 12 scenarios
 
-> **Note:** The ruling group scenarios below reference the old momentum system. They should be updated to test tension_delta and phase transitions instead.
-
 **Group 1: Ruling (3 scenarios)**
 
-Tests: dice resolution, tension_delta, action surface.
+Tests: dice resolution, convergence score computation, phase transitions.
 
 | Scenario | Turns | Checkers | What It Exercises |
 |---|---|---|---|
-| `ruling-tension-delta-basics` | 8 | action_quality, ruling_arithmetic, pacing_directives | tension_delta follows band/intent, phase transitions work |
-| `ruling-difficulty-curve` | 6 | action_quality, ruling_arithmetic | Difficulty modifiers, stat mods, cond mods all apply |
-| `ruling-phase-transitions` | 8 | pacing_directives, gm_beat_lifecycle | Phase transitions from thread urgency, tension_delta, scene age |
+| `ruling-convergence-basics` | 8 | action_quality, roll_band_consistency, pacing_directives | Convergence score 5 components compute correctly, threshold 3 fires CLIMAX |
+| `ruling-difficulty-curve` | 6 | action_quality, roll_band_consistency | Difficulty modifiers, stat mods, cond mods all apply (partial ≤7 threshold) |
+| `ruling-phase-transitions` | 8 | phase_transition, phase_persistence, climax_turn_counting, breather_enforcement | Ruling→CLIMAX from convergence score; CLIMAX→RESOLUTION from climax_turn_limit; BREATHER exit conditions |
 
 No LLM checkers in this group. All mechanical, all deterministic.
 
@@ -390,13 +413,13 @@ Optional LLM: `state_fidelity` at 0.25 sample rate.
 
 **Group 3: Narration (3 scenarios)**
 
-Tests: GM beats, pacing directives, narrative tone, phase constraints.
+Tests: GM beats, pacing directives, narrative tone, phase constraints, Curtain Call.
 
 | Scenario | Turns | Checkers | What It Exercises |
 |---|---|---|---|
-| `narration-beat-lifecycle` | 8 | gm_beat_lifecycle, pacing_directives | Beat types, surface_as, enforce_relief, phase constraints |
-| `narration-pacing-directives` | 8 | pacing_directives, gm_beat_lifecycle | Directive rendering, outcome_hint correctness, phase alignment |
-| `narration-beat-consequences` | 6 | gm_beat_lifecycle | Beats produce observable consequences |
+| `narration-beat-lifecycle` | 8 | gm_beat_lifecycle, beat_phase_validity, pacing_directives | Beat types, surface_as, phase constraints, setback in pressure bucket |
+| `narration-pacing-directives` | 8 | pacing_directives, scene_age_tracking, recent_beats | Directive rendering, outcome_hint correctness, Scene Imperative allowed list (setback replaces twist) |
+| `narration-curtain-call` | 8 | gm_beat_lifecycle, thread_resolution_validity, beat_phase_validity | Curtain Call: thread_resolve on CLIMAX turn 1, "forced" escalation, phase exit at climax_turn_limit |
 
 LLM checkers: `directive_tone_match` (0.25), `beat_narrative_chain` (0.25).
 
@@ -429,9 +452,9 @@ This is the closest thing to the old full-eval. It's expensive but comprehensive
 EVAL_REPORT_DIR = reports/eval
 
 eval-ruling:
-	ev.py eval run scenarios/ruling-momentum-basics.yaml --report-dir $(EVAL_REPORT_DIR)/ruling
+	ev.py eval run scenarios/ruling-convergence-basics.yaml --report-dir $(EVAL_REPORT_DIR)/ruling
 	ev.py eval run scenarios/ruling-difficulty-curve.yaml --report-dir $(EVAL_REPORT_DIR)/ruling
-	ev.py eval run scenarios/ruling-streak-recov.yaml --report-dir $(EVAL_REPORT_DIR)/ruling
+	ev.py eval run scenarios/ruling-phase-transitions.yaml --report-dir $(EVAL_REPORT_DIR)/ruling
 
 eval-extraction:
 	ev.py eval run scenarios/extraction-inventory-chain.yaml --report-dir $(EVAL_REPORT_DIR)/extraction
@@ -441,10 +464,11 @@ eval-extraction:
 eval-narration:
 	ev.py eval run scenarios/narration-beat-lifecycle.yaml --report-dir $(EVAL_REPORT_DIR)/narration
 	ev.py eval run scenarios/narration-pacing-directives.yaml --report-dir $(EVAL_REPORT_DIR)/narration
-	ev.py eval run scenarios/narration-beat-consequences.yaml --report-dir $(EVAL_REPORT_DIR)/narration
+	ev.py eval run scenarios/narration-curtain-call.yaml --report-dir $(EVAL_REPORT_DIR)/narration
 
 eval-state:
 	ev.py eval run scenarios/state-thread-lifecycle.yaml --report-dir $(EVAL_REPORT_DIR)/state
+	ev.py eval run scenarios/state-thread-resolution.yaml --report-dir $(EVAL_REPORT_DIR)/state
 	ev.py eval run scenarios/state-sanitizer-lifecycle.yaml --report-dir $(EVAL_REPORT_DIR)/state
 
 eval-cross:
@@ -476,7 +500,7 @@ eval-stage:
    Rejected: 3 LLM checkers × 12 scenarios × avg 8 turns = 288 calls × ~30s = 2.4 hours. Sampling at 0.25 brings this to ~35 minutes of inference, or ~15 minutes with deterministic-only scenarios running first.
 
 4. **Single YAML config for all scenarios.**
-    Rejected: Each scenario is independently useful (`ev.py eval run scenarios/ruling-momentum-basics.yaml`). A central config file would split the scenario definition from the scenario file, creating a two-step workflow for what should be a single command.
+    Rejected: Each scenario is independently useful (`ev.py eval run scenarios/ruling-convergence-basics.yaml`). A central config file would split the scenario definition from the scenario file, creating a two-step workflow for what should be a single command.
 
 4b. **Separate `ev-config.yaml` for CLI defaults.**
     Rejected: Merging into `config.yaml` under `ev:` section keeps all config in one file. The `ev:` section is for CLI defaults (pack, turns, persona, sanitize, model, temp), not scenario definitions. This is orthogonal to the scenario rejection in #4. Persona registry is a simple dict lookup — data, not an abstraction layer.
@@ -581,7 +605,7 @@ class CrossScenarioStats:
 - `eval-full` runs all 5 groups in order and then `aggregate.py`.
 - `eval-full-suggest` adds `--suggest` to the aggregation call.
 - Each group target is independently runnable: `make eval-narration`.
-- Group ordering is a soft gate — nothing in code prevents running narration before ruling; the ordering is a Makefile convention that reflects the engine pipeline's data flow. Any scenario can be run standalone via `ev.py eval run scenarios/ruling-momentum-basics.yaml`.
+- Group ordering is a soft gate — nothing in code prevents running narration before ruling; the ordering is a Makefile convention that reflects the engine pipeline's data flow. Any scenario can be run standalone via `ev.py eval run scenarios/ruling-convergence-basics.yaml`.
 - `--sample-rate` CLI flag on `ev.py eval run` overrides `llm_sample_rate` at runtime, enabling fast iteration without editing YAML.
 - `--report-dir` flag on `ev.py eval run` writes the scenario's Markdown report to a subdirectory, which `aggregate.py` then reads. No centralized state needed — each eval target writes independent files.
 - `ccya/ev/__init__.py` — Add `load_ev_config()` function that reads `config.yaml` and extracts the `ev:` section. Called by `_build_play_config()` in `play.py` to merge defaults before CLI flags.

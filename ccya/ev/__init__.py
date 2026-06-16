@@ -42,7 +42,7 @@ def _resolve_stream(name: str) -> str:
 
 def _strip_flags(args: list[str]) -> tuple[dict[str, str], list[str]]:
     # Boolean flags that don't take values
-    _BOOL_FLAGS = {"pacing", "dice", "sanitize", "all", "llm", "show-unchanged", "system", "compact"}
+    _BOOL_FLAGS = {"pacing", "dice", "sanitize", "all", "llm", "show-unchanged", "system", "compact", "list", "verbose", "summary", "estimate", "include-compaction"}
     flags: dict[str, str] = {}
     positional: list[str] = []
     i = 0
@@ -98,7 +98,13 @@ def main() -> None:
     else:
         turn_file = DEFAULT_FILE
 
-    events = load_events(turn_file) if cmd not in ("play", "init", "status", "help") else []
+    # Skip loading events for commands that don't need them
+    skip_events = cmd in ("play", "init", "status", "help")
+    # Also skip for check --list (checker list doesn't need data)
+    if cmd == "check" and "list" in flags:
+        skip_events = True
+
+    events = load_events(turn_file) if not skip_events else []
 
     match cmd:
         case "help":
@@ -206,7 +212,7 @@ def main() -> None:
             cmd_search(events, exprs)
         case "threads":
             from ccya.ev.state_tools import cmd_threads
-            cmd_threads(events)
+            cmd_threads(events, summary="summary" in flags)
         case "beats":
             from ccya.ev.state_tools import cmd_beats
             cmd_beats(events)
@@ -221,7 +227,7 @@ def main() -> None:
             cmd_beat_ttl(events)
         case "rolls":
             from ccya.ev.state_tools import cmd_rolls
-            cmd_rolls(events)
+            cmd_rolls(events, summary="summary" in flags)
         case "state-history":
             from ccya.ev.audit import cmd_state_history
             cmd_state_history(events)
@@ -245,7 +251,7 @@ def main() -> None:
             cmd_compat(events)
         case "convergence":
             from ccya.ev.state_tools import cmd_convergence
-            cmd_convergence(events)
+            cmd_convergence(events, estimate="estimate" in flags)
         case "phase-transitions":
             from ccya.ev.state_tools import cmd_phase_transitions
             cmd_phase_transitions(events)
@@ -267,12 +273,15 @@ def main() -> None:
 
             if "help" in flags:
                 print("Usage: ev.py check TURN [CHECKER_ID ...] [--all] [--llm] [--checker-model MODEL] [--save-dir PATH]")
+                print("       ev.py check --list")
                 print("\nRun checkers against existing events.")
                 print("\nFlags:")
                 print("  --all              Run all registered checkers")
                 print("  --llm              Include LLM-based checkers")
                 print("  --checker-model    Override checker model name")
                 print("  --save-dir         Path to save directory (needed for sanitizer_lifecycle)")
+                print("  --list             List all registered checkers (no events loaded)")
+                print("  --verbose          Show per-checker detail in summary mode")
                 print("\nRegistered checkers:")
                 for meta in list_checkers():
                     print(f"  {meta['id']} ({meta['type']}): {meta['description']}")
@@ -282,19 +291,21 @@ def main() -> None:
             check_ids: list[str] | None = None
             check_all = "all" in flags
             check_llm = "llm" in flags
+            check_list = "list" in flags
+            check_verbose = "verbose" in flags
 
-            if len(args) > 1:
+            if not check_list and len(args) > 1:
                 check_turn = int(args[1])
-            if len(args) > 2:
+            if not check_list and len(args) > 2:
                 check_ids = args[2:]
 
-            if not check_all and not check_ids:
-                print("Error: specify --all or provide checker IDs", file=sys.stderr)
+            if not check_all and not check_ids and not check_list:
+                print("Error: specify --all, --list, or provide checker IDs", file=sys.stderr)
                 sys.exit(1)
 
             check_save_dir: Path | None = Path(flags["save-dir"]) if "save-dir" in flags else None
             checker_model = flags.get("checker-model")
-            cmd_check(events, turn=check_turn, checker_ids=check_ids, all_checkers=check_all, include_llm=check_llm, save_dir=check_save_dir, checker_model=checker_model)
+            cmd_check(events, turn=check_turn, checker_ids=check_ids, all_checkers=check_all, include_llm=check_llm, save_dir=check_save_dir, checker_model=checker_model, list_only=check_list, verbose=check_verbose)
         case "init":
             from ccya.ev.init import cmd_init
             cmd_init(flags, args)

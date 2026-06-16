@@ -161,11 +161,12 @@ def cmd_search(events: list[dict[str, Any]], expressions: list[str]) -> None:
         print()
 
 
-def cmd_threads(events: list[dict[str, Any]]) -> None:
+def cmd_threads(events: list[dict[str, Any]], summary: bool = False) -> None:
     """Show thread lifecycle across all turns in compact table."""
     # Gather thread state at each turn from state_snapshots and sanitizer events
     turn_threads: dict[int, list[dict[str, Any]]] = {}
     seen_turns: set[int] = set()
+    all_thread_events: dict[str, dict[str, Any]] = {}  # thread_id -> {created_turn, resolved_turn, updates}
 
     for ev in events:
         t = ev.get("turn")
@@ -186,23 +187,62 @@ def cmd_threads(events: list[dict[str, Any]]) -> None:
                     "urgency": th.get("urgency", "normal"),
                     "progress": (th.get("progress") or [])[-1] if th.get("progress") else "",
                 })
+                tid = th["id"]
+                if tid not in all_thread_events:
+                    all_thread_events[tid] = {"created_turn": t, "resolved_turn": None, "updates": 0}
+                if not th.get("active", True) and all_thread_events[tid]["resolved_turn"] is None:
+                    all_thread_events[tid]["resolved_turn"] = t
 
         if threads:
             turn_threads[t] = threads
             seen_turns.add(t)
 
-        # From sanitizer events (thread additions/updates)
+        # From sanitizer events (thread additions/updates/resolves)
         if ev.get("kind") == "sanitizer":
             st = ev.get("turn")
             if st and st not in seen_turns:
                 st_threads = []
                 for tid in (ev.get("threads_added") or []):
                     st_threads.append({"id": tid, "active": True, "urgency": "normal", "progress": "(new)"})
+                    if tid not in all_thread_events:
+                        all_thread_events[tid] = {"created_turn": st, "resolved_turn": None, "updates": 0}
                 for tid in (ev.get("threads_updated") or []):
                     st_threads.append({"id": tid, "active": True, "urgency": "(updated)", "progress": ""})
+                    if tid in all_thread_events:
+                        all_thread_events[tid]["updates"] += 1
+                for tid in (ev.get("threads_resolved") or []):
+                    if tid in all_thread_events and all_thread_events[tid]["resolved_turn"] is None:
+                        all_thread_events[tid]["resolved_turn"] = st
                 if st_threads:
                     turn_threads[st] = st_threads
                     seen_turns.add(st)
+
+    if summary:
+        created = len(all_thread_events)
+        resolved = sum(1 for te in all_thread_events.values() if te["resolved_turn"] is not None)
+        hallucinated = sum(1 for te in all_thread_events.values() if te["created_turn"] is None)
+        pending = created - resolved - hallucinated
+        avg_turns = 0.0
+        if resolved > 0:
+            total_turns = sum(
+                te["resolved_turn"] - te["created_turn"]
+                for te in all_thread_events.values()
+                if te["resolved_turn"] is not None and te["created_turn"] is not None
+            )
+            avg_turns = total_turns / resolved
+
+        print("Thread summary:")
+        print(f"  Created:   {created}")
+        print(f"  Resolved:  {resolved} ({resolved/created*100:.1f}%)" if created else "  Resolved:  0 (0.0%)")
+        print(f"  Hallucinated: {hallucinated}")
+        print(f"  Pending:   {pending}")
+        print(f"  Avg turns to resolve: {avg_turns:.1f}")
+        if hallucinated > 0:
+            print("\n  Hallucinated threads:")
+            for tid, te in all_thread_events.items():
+                if te["created_turn"] is None:
+                    print(f"    {tid} (first seen T{te.get('resolved_turn', '?')})")
+        return
 
     if not turn_threads:
         print("(no thread data found)")
@@ -394,6 +434,7 @@ def cmd_goals(events: list[dict[str, Any]]) -> None:
                     "turn": sev_turn,
                     "before": before,
                     "after": after,
+                    "source": "sanitizer",
                 })
 
     # Fallback: read extraction.storytell.output for turns without sanitizer events
@@ -409,6 +450,7 @@ def cmd_goals(events: list[dict[str, Any]]) -> None:
                 "turn": sev_turn,
                 "before": "",
                 "after": goal,
+                "source": "extraction",
             })
 
     if not goal_changes:
@@ -418,8 +460,12 @@ def cmd_goals(events: list[dict[str, Any]]) -> None:
     print(f"{'Turn':>5} | Goal Change")
     print("\u2500" * 60)
     for gc in goal_changes:
-        print(f"{gc['turn']:>5} | {gc['before']}")
-        print(f"      \u2192 {gc['after']}")
+        if gc["source"] == "extraction" and not gc["before"]:
+            print(f"{gc['turn']:>5} | [extraction] \u2192 {gc['after']}")
+        else:
+            print(f"{gc['turn']:>5} | {gc['before']}")
+            if gc["source"] != "extraction" or gc["before"]:
+                print(f"      \u2192 {gc['after']}")
         print()
 
 
@@ -501,26 +547,76 @@ def _color_green(s: str) -> str:
     return f"\033[92m{s}\033[0m"
 
 
-def cmd_convergence(events: list[dict[str, Any]]) -> None:
+def cmd_convergence(events: list[dict[str, Any]], estimate: bool = False) -> None:
     """Show convergence score + 5 components per turn."""
     rows: list[dict[str, Any]] = []
     prev_phase = ""
+    had_components = False
     for ev in events:
         t = ev.get("turn")
         if t is None or not isinstance(t, int):
             continue
         pc = ev.get("pacing_context") or {}
         phase = pc.get("scene_phase", "")
+        if not phase:
+            continue
         score = pc.get("convergence_score", 0)
         comps = pc.get("convergence_components", {})
+        if comps:
+            had_components = True
+
+        if estimate and not comps:
+            # Retro-compute components from available event data
+            thread_weight = 0
+            urgency_depth = 0
+            # Count urgent threads from state_snapshot
+            ss = ev.get("state_snapshot") or {}
+            arc = ss.get("arc") or {}
+            for th in (arc.get("threads") or []):
+                if isinstance(th, dict) and th.get("urgency") == "high" and th.get("active", True):
+                    thread_weight = 1
+                    urgency_depth += 1
+            if urgency_depth >= 2:
+                urgency_depth = 1
+            else:
+                urgency_depth = 0
+
+            # Scene age from extraction
+            extraction = ev.get("extraction") or {}
+            scene = extraction.get("scene") or {}
+            scene_output = scene.get("output") or {}
+            scene_age = scene_output.get("effective_scene_age", 0)
+            scene_age_component = 1 if scene_age >= 3 else 0
+
+            # Beat streak from pacing_context.recent_beats
+            recent_beats = pc.get("recent_beats", [])
+            pressure_types = {"pressure", "complication", "escalation", "setback"}
+            pressure_count = sum(1 for b in recent_beats if (b.get("type") or b.get("surface_as")) in pressure_types)
+            beat_streak = 1 if pressure_count >= 3 else 0
+
+            # Dice weight from ruling
+            ruling = ev.get("ruling") or {}
+            band = ruling.get("band", "")
+            dice_weight = 1 if band in ("crit_fail", "fail") and thread_weight else 0
+
+            est_score = thread_weight + urgency_depth + scene_age_component + beat_streak + dice_weight
+            comps = {
+                "thread_weight": thread_weight,
+                "urgency_depth": urgency_depth,
+                "scene_age": scene_age_component,
+                "beat_streak": beat_streak,
+                "dice_weight": dice_weight,
+            }
+            score = est_score
+
         rows.append({
             "turn": t,
             "phase": phase,
-            "thread": comps.get("thread_weight", 0),
-            "depth": comps.get("urgency_depth", 0),
-            "age": comps.get("scene_age", 0),
-            "beat": comps.get("beat_streak", 0),
-            "dice": comps.get("dice_weight", 0),
+            "thread": comps.get("thread_weight", "?"),
+            "depth": comps.get("urgency_depth", "?"),
+            "age": comps.get("scene_age", "?"),
+            "beat": comps.get("beat_streak", "?"),
+            "dice": comps.get("dice_weight", "?"),
             "score": score,
             "entry": phase == "CLIMAX" and prev_phase != "CLIMAX",
         })
@@ -530,19 +626,29 @@ def cmd_convergence(events: list[dict[str, Any]]) -> None:
         print("(no convergence data)")
         return
 
-    print(f"{'Turn':>5} | {'Phase':<10} | Thread | Depth | Age | Beat | Dice | Score | >=3?")
-    print(f"{'─' * 5}┼{'─' * 12}┼{'─' * 7}┼{'─' * 6}┼{'─' * 4}┼{'─' * 5}┼{'─' * 5}┼{'─' * 7}┼{'─' * 5}")
+    out_lines: list[str] = []
+    out_lines.append(f"{'Turn':>5} | {'Phase':<10} | Thread | Depth | Age | Beat | Dice | Score | >=3?")
+    out_lines.append(f"{'─' * 5}┼{'─' * 12}┼{'─' * 7}┼{'─' * 6}┼{'─' * 4}┼{'─' * 5}┼{'─' * 5}┼{'─' * 7}┼{'─' * 5}")
     for r in rows:
-        marker = " " if not r["entry"] else "→"
+        marker = " " if not r["entry"] else "\u2192"
         score_ok = r["score"] >= 3
+        score_visible = str(r["score"])
+        score_padded = score_visible.rjust(5)
         if r["phase"] == "RISING" and not score_ok:
-            score_str = _color_red(str(r["score"]))
+            score_display = _color_red(score_padded)
         elif r["entry"] and score_ok:
-            score_str = _color_green(str(r["score"]))
+            score_display = _color_green(score_padded)
         else:
-            score_str = str(r["score"])
+            score_display = score_padded
         ok_str = f"YES{marker}" if score_ok else "NO "
-        print(f"{r['turn']:>5} | {r['phase']:<10} |   {r['thread']}    |   {r['depth']}   |  {r['age']}  |  {r['beat']}   |   {r['dice']}  |  {score_str:>5} | {ok_str}")
+        out_lines.append(f"{r['turn']:>5} | {r['phase']:<10} |   {r['thread']}    |   {r['depth']}   |  {r['age']}  |  {r['beat']}   |   {r['dice']}  |  {score_display} | {ok_str}")
+    if not had_components and not estimate:
+        out_lines.append("")
+        out_lines.append("[Note: convergence_components not recorded in this save. Use --estimate to retro-compute.]")
+    if estimate and not had_components:
+        out_lines.append("")
+        out_lines.append("[Estimates computed from available event data — may differ from actual components]")
+    print("\n".join(out_lines))
 
 
 def cmd_phase_transitions(events: list[dict[str, Any]]) -> None:
@@ -555,6 +661,8 @@ def cmd_phase_transitions(events: list[dict[str, Any]]) -> None:
             continue
         pc = ev.get("pacing_context") or {}
         phase = pc.get("scene_phase", "")
+        if not phase:
+            continue
         if phase != prev_phase and prev_phase:
             transitions.append({
                 "turn": t,
@@ -630,8 +738,9 @@ def cmd_curtain_call(events: list[dict[str, Any]]) -> None:
         print(f"Turn {r['turn']} (CLIMAX #{r['climax_turn_count']}{cc}): {status_color}{status}\033[0m{issues_str}")
 
 
-def cmd_rolls(events: list[dict[str, Any]]) -> None:
+def cmd_rolls(events: list[dict[str, Any]], summary: bool = False) -> None:
     """Show roll bands + raw/final totals per turn."""
+    from collections import Counter
     rows: list[dict[str, Any]] = []
     for ev in events:
         ruling = ev.get("ruling") or {}
@@ -640,18 +749,8 @@ def cmd_rolls(events: list[dict[str, Any]]) -> None:
         t = ev.get("turn")
         if t is None or not isinstance(t, int):
             continue
-        momentum = None
-        ss = ev.get("state_snapshot") or {}
-        pc_data = ss.get("pc") or {}
-        if isinstance(pc_data, dict):
-            momentum = pc_data.get("momentum")
-        if momentum is None:
-            momentum = ev.get("pc_momentum")
-        if momentum is None:
-            momentum = ev.get("momentum")
         rows.append({
             "turn": t,
-            "momentum": momentum,
             "band": ruling.get("band", ""),
             "raw_total": ruling.get("raw_total", ""),
             "final_total": ruling.get("final_total", ""),
@@ -661,13 +760,25 @@ def cmd_rolls(events: list[dict[str, Any]]) -> None:
         print("(no dice rolls found)")
         return
 
-    print(f"{'Turn':>5} | {'Momentum':<8} | {'Band':<14} | {'Raw':>5} | {'Final':>5}")
-    print("\u2500" * 55)
+    if summary:
+        band_counts = Counter(r["band"] for r in rows)
+        total = len(rows)
+        print(f"Band distribution ({total} rolls):")
+        for band in ("crit_fail", "fail", "setback", "partial", "success", "crit_success"):
+            count = band_counts.get(band, 0)
+            pct = count / total * 100 if total else 0
+            print(f"  {band:<14}: {count:>3}  ({pct:.1f}%)")
+        bad_total = band_counts.get("crit_fail", 0) + band_counts.get("fail", 0) + band_counts.get("setback", 0)
+        bad_pct = bad_total / total * 100 if total else 0
+        print(f"  Bad total: {bad_pct:.1f}%")
+        return
+
+    print(f"{'Turn':>5} | {'Band':<14} | {'Raw':>5} | {'Final':>5}")
+    print("\u2500" * 40)
     for r in rows:
-        mom = str(r['momentum']) if r['momentum'] is not None else "?"
         raw = str(r['raw_total']) if r['raw_total'] is not None else "?"
         final = str(r['final_total']) if r['final_total'] is not None else "?"
-        print(f"{r['turn']:>5} | {mom:<8} | {r['band']:<14} | {raw:>5} | {final:>5}")
+        print(f"{r['turn']:>5} | {r['band']:<14} | {raw:>5} | {final:>5}")
 
 
 

@@ -163,7 +163,7 @@ def _build_generate_seed_messages(
             "inventory": name_pool["inventory"],
         }
     # Randomize name_seed if not set
-    name_seed = (scenario.name_seed if scenario and scenario.name_seed else 0) or random.randint(10_000_000, 99_999_999)
+    name_seed = scenario.name_seed if scenario and scenario.name_seed is not None else random.randint(10_000_000, 99_999_999)
 
     pool_selection: dict[str, Any] | None = None
     if scenario is not None:
