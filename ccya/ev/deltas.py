@@ -352,9 +352,6 @@ def _show_pacing(ev: dict[str, Any]) -> None:
         print(f"  outcome_hint: {outcome_hint}")
 
     result = ev.get("ruling") or {}
-    tension_delta = result.get("tension_delta", "")
-    if tension_delta:
-        print(f"  tension_delta: {tension_delta}")
 
     band_label = result.get("band", "")
     if band_label:

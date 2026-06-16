@@ -498,7 +498,6 @@ def cmd_momentum_check(events: list[dict[str, Any]]) -> None:
             "turn": t,
             "momentum": momentum,
             "band": ruling.get("band", ""),
-            "tension_delta": ruling.get("tension_delta", ""),
             "raw_total": ruling.get("raw_total", ""),
             "final_total": ruling.get("final_total", ""),
         })
@@ -507,14 +506,13 @@ def cmd_momentum_check(events: list[dict[str, Any]]) -> None:
         print("(no dice rolls found)")
         return
 
-    print(f"{'Turn':>5} | {'Momentum':<8} | {'Band':<14} | {'Delta':<10} | {'Raw':>5} | {'Final':>5}")
-    print("\u2500" * 65)
+    print(f"{'Turn':>5} | {'Momentum':<8} | {'Band':<14} | {'Raw':>5} | {'Final':>5}")
+    print("\u2500" * 55)
     for r in rows:
         mom = str(r['momentum']) if r['momentum'] is not None else "?"
-        delta = r['tension_delta'] or "-"
         raw = str(r['raw_total']) if r['raw_total'] is not None else "?"
         final = str(r['final_total']) if r['final_total'] is not None else "?"
-        print(f"{r['turn']:>5} | {mom:<8} | {r['band']:<14} | {delta:<10} | {raw:>5} | {final:>5}")
+        print(f"{r['turn']:>5} | {mom:<8} | {r['band']:<14} | {raw:>5} | {final:>5}")
 
 
 
