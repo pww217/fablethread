@@ -40,7 +40,6 @@ server:
     log_prompts: true
 
 game:
-  consecutive_pressure_threshold: 3
   thread_deescalate_on_success: true
 
   warmup_on_start: false

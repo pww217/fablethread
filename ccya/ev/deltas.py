@@ -339,9 +339,10 @@ def _show_pacing(ev: dict[str, Any]) -> None:
     pacing_ctx = ev.get("pacing_context") or {}
 
     scene_phase = pacing_ctx.get("scene_phase", "SETUP")
-    crisis_count = pacing_ctx.get("crisis_turn_count", 0)
+    climax_count = pacing_ctx.get("climax_turn_count", 0)
     breather_count = pacing_ctx.get("breather_turn_count", 0)
-    print(f"  scene_phase: {scene_phase}  crisis_turn_count={crisis_count}  breather_turn_count={breather_count}")
+    convergence = pacing_ctx.get("convergence_score", 0)
+    print(f"  scene_phase: {scene_phase}  climax_turn_count={climax_count}  breather_turn_count={breather_count}  convergence_score={convergence}")
 
     summary = pacing_ctx.get("summary", "")
     print(f"  summary: {summary}" if summary else "  summary: (none)")
@@ -354,18 +355,6 @@ def _show_pacing(ev: dict[str, Any]) -> None:
     tension_delta = result.get("tension_delta", "")
     if tension_delta:
         print(f"  tension_delta: {tension_delta}")
-
-    consecutive_pressure = ev.get("post_extraction_consecutive_pressure_beats")
-    if consecutive_pressure is not None:
-        print(f"  consecutive_pressure_beats: {consecutive_pressure}")
-
-    beat_locked = ev.get("beat_locked")
-    if beat_locked is not None:
-        print(f"  beat_locked: {beat_locked}")
-
-    momentum_floor = ev.get("momentum_floor")
-    if momentum_floor is not None:
-        print(f"  momentum_floor: {momentum_floor}")
 
     band_label = result.get("band", "")
     if band_label:
