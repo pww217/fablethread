@@ -13,7 +13,7 @@ flowchart TD
     classDef output fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
 
     S["Scene State<br>scene_phase, thread_urgency"]:::system
-    PE["Phase Engine<br>derive_enforce_relief, derive_allowed_beat_types"]:::system
+    PE["Phase Engine<br>compute_convergence_score, derive_allowed_beat_types"]:::system
     PC["PacingContext<br>directive · outcome_hint · summary"]:::system
     N["Narrator<br>prose generation"]:::output
     SB["Storytell<br>beat/thread selection"]:::output
@@ -32,27 +32,22 @@ flowchart TD
 
 ### Definition
 
-The phase engine tracks `state["scene"]["scene_phase"]` through five states: SETUP, RISING, CRISIS, RESOLUTION, BREATHER. Transitions are driven by thread urgency and scene age.
+The phase engine tracks `state["scene"]["scene_phase"]` through five states: SETUP, RISING, CLIMAX, RESOLUTION, BREATHER. Transitions are driven by convergence score (5-component composite) and scene age.
 
 ### Phase transitions
 
 | From | To | Condition |
 |------|-----|-----------|
 | SETUP | RISING | Urgent thread appears |
-| RISING | CRISIS | ≥threshold urgent threads OR escalates+urgent OR age≥pressure_threshold |
-| CRISIS | RESOLUTION | crisis_turn_count≥limit |
+| RISING | CLIMAX | convergence_score ≥ threshold (default 3) |
+| CLIMAX | RESOLUTION | climax_turn_count ≥ limit |
 | Any (non-RESOLUTION) | SETUP | Location change (scene_entered == current_turn) |
 | RESOLUTION | BREATHER | Always (location change doesn't redirect RESOLUTION) |
 | BREATHER | RISING | Urgent thread appears OR breather_max_turns elapsed |
 
-### Consecutive pressure counter
+### Convergence score
 
-`state["meta"]["consecutive_pressure_beats"]` tracks how many consecutive turns have had pressure-type storyteller beats.
-
-- **Increments** when `storyteller_result.gm_beat.type` is `"pressure"`, `"escalation"`, or `"complication"`.
-- **Resets to 0** on any other beat type, null beat, or missing storyteller output.
-
-When this counter reaches 3 (hardcoded default), it contributes to `enforce_relief=True` which forces breathing_room beats during CRISIS phase.
+`compute_convergence_score()` computes a 5-component score (0-5) each turn to drive RISING→CLIMAX transition. Components: (1) thread urgency ≥1 (+1), (2) urgency depth ≥2 (+1), (3) scene age ≥ threshold (+1), (4) beat streak: ≥60% pressure beats in recent window (+1), (5) dice weight: fail/crit_fail roll with urgent thread (+1). Threshold is `config.convergence_threshold` (default 3).
 
 ### Floor relief
 
@@ -97,14 +92,8 @@ flowchart TD
     STORYLLM -- yes --> STORED["pending_gm_beat =<br>storyteller beat<br>expires = turn_no + 2"]:::output
     STORYLLM -- no --> POPPED["pending_gm_beat = None<br>(popped from meta)"]:::output
 
-    STORED --> RELIEF{"enforce_relief=True<br>AND phase=CRISIS<br>AND consecutive≥3?"}:::decision
-    POPPED --> RELIEF
-
-    RELIEF -- yes --> OVR{"current beat<br>is None or<br>pressure-type?"}:::decision
-    OVR -- yes --> BREATHING["Inject breathing_room<br>beat_expires = turn_no + 2<br>overrides pressure beats"]:::output
-    OVR -- no --> HISTORY["recent_beats.append<br>(capped at 5)"]:::pyNode
-    RELIEF -- no --> HISTORY
-    BREATHING --> HISTORY
+    STORED --> HISTORY["recent_beats.append<br>(capped at 5)"]:::pyNode
+    POPPED --> HISTORY
 
     HISTORY --> COUNTER{"gm_beat.type in<br>pressure types?"}:::decision
     COUNTER -- yes --> INC["consecutive_pressure_beats + 1"]:::output
@@ -113,9 +102,7 @@ flowchart TD
     INC --> END["Turn ends"]:::pyNode
     RESET --> END
     STORED -. "next turn" .-> START
-    BREATHING -. "next turn" .-> START
 
-    style RELIEF fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
     style STORYLLM fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
     style EXPIRY fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
 ```
@@ -173,23 +160,17 @@ flowchart TD
     classOut fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
     classIn fill:#1f2937,color:#9ca3af,stroke:#4b5563
 
-    TD["tension_delta<br>escalates/maintains/de-escalates"]:::In
     T["arc.threads[] urgency counts"]:::In
     SA["effective_scene_age = scene_age"]:::In
     PH["scene_phase"]:::In
-    CTC["crisis_turn_count"]:::In
 
-    TD --> D1{"== 'de-escalates'<br>AND urgency==0?"}:::Deci
-    D1 -- yes --> B1["directive = 'Breathe'"]:::Out
-    D1 -- no --> D2{"phase==CRISIS<br>AND crisis_turns≥limit?"}:::Deci
-    D2 -- yes --> B2["directive = 'Scene Imperative'"]:::Out
-    D2 -- no --> D3{"effective_age ≥ imperative_threshold?"}:::Deci
-    D3 -- yes --> B3["directive = 'Scene Imperative'"]:::Out
-    D3 -- no --> D4{"effective_age ≥ pressure_threshold?"}:::Deci
-    D4 -- yes --> B4["directive = 'Scene Pressure'"]:::Out
-    D4 -- no --> B5["directive = ''"]:::Out
+    SA --> D1{"≥ imperative<br>threshold?"}:::Deci
+    D1 -- yes --> B1["directive = 'Scene Imperative'"]:::Out
+    D1 -- no --> D2{"≥ pressure<br>threshold?"}:::Deci
+    D2 -- yes --> B2["directive = 'Scene Pressure'"]:::Out
+    D2 -- no --> B3["directive = ''"]:::Out
 
-    SM["scene_phase == CRISIS AND crisis_turn_count ≥ limit?"]:::In --> OH["outcome_hint = 'transition' if crisis limit met, else 'hold'"]:::Out
+    SM["scene_age ≥ imperative_threshold?"]:::In --> OH["outcome_hint = 'transition' if age ≥ imperative_threshold, else from ruling"]:::Out
 
     style Deci fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
     style Out fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
@@ -299,7 +280,7 @@ flowchart TD
 
     PHASE --> DIR["_compute_narration_directive<br>phase + tension_delta + age → directive"]:::system
 
-    PHASE & DIR & CTC["crisis_turn_count"] --> PC["_compute_pacing_context<br>→ PacingContext struct"]:::system
+    PHASE & DIR & CS["convergence_score"] --> PC["_compute_pacing_context<br>→ PacingContext struct"]:::system
 
     PC --> NARRATE["Step 1: Narrate<br>prose generation"]:::system
     PC --> EXTRACTION["Step 2: Extraction<br>scene + state + storytell"]:::system
@@ -336,13 +317,13 @@ flowchart TD
 
 | Variable | Set by | Consumed by | Effect |
 |----------|--------|-------------|--------|
-| `tension_delta` | Ruling phase (band + intent) | Phase transitions, directive computation | Accelerant for phase transitions |
+| `convergence_score` | Narrate setup (thread urgency, age, beats, dice) | RISING→CLIMAX transition | 5-component composite score |
 | `scene_phase` | Phase engine | Directive, beat constraints, outcome_hint | Primary pacing signal |
 | `consecutive_pressure_beats` | Beat type check (post-extraction) | enforce_relief, phase relief injection | Tracks pressure streaks |
 | `pending_gm_beat` | Storytell (or floor relief) | Narrator, beat history, pressure counter | Forward-facing storytelling beat |
 | `arc.threads[].urgency` | Storytell (thread_update) + Python decay | Phase transitions, directive computation | Scene tension level |
 | `PacingContext.directive` | `_compute_pacing_context()` | Narrator, Storytell, prompt rendering | Primary scene instruction |
-| `PacingContext.outcome_hint` | `_compute_pacing_context()` (phase + crisis turns) | Narrator scene motion | How the scene should progress |
+| `PacingContext.outcome_hint` | `_compute_pacing_context()` (scene_age ≥ imperative_threshold) | Narrator scene motion | How the scene should progress |
 
 ## 7. Typical Rhythm Patterns
 
@@ -352,7 +333,7 @@ flowchart TD
 T1:  phase=SETUP, no pressure beat → directive=""
 T2:  storyteller emits pressure beat → consecutive_pressure_beats=1
 T3:  urgent thread appears → phase=RISING, consecutive_pressure_beats=2
-T4:  phase=CRISIS, consecutive_pressure_beats=3 → enforce_relief=True
+T4:  convergence_score=3 (1 urgent + age 3 + 3 pressure beats) → CLIMAX
 T5:  breathing_room injected, consecutive_pressure_beats resets
 T6:  phase transitions to RESOLUTION → BREATHER
 ```
@@ -371,24 +352,23 @@ T6:  normal rhythm continues
 ### Pattern 3: BREATHER recovery
 
 ```
-T1:  phase=BREATHER, tension_delta=de-escalates, no urgent threads
+T1:  phase=BREATHER, convergence_score=0, no urgent threads
 T2:  phase=BREATHER, storyteller surfaces opportunity beat
 T3:  latent thread becomes urgent → phase=RISING
-T4:  phase=RISING, tension_delta=escalates → phase=CRISIS
-T5:  phase=CRISIS, crisis_turn_count=1
-T6:  normal crisis rhythm continues
+T4:  phase=RISING, convergence_score=3 → phase=CLIMAX
+T5:  phase=CLIMAX, climax_turn_count=1
+T6:  normal climax rhythm continues
 ```
 
 ## 8. Configuration Reference
 
 | Config key | Default | System | Effect |
 |------------|---------|--------|--------|
-| `crisis_urgency_threshold` | 2 | Phase Engine | Urgent threads needed for CRISIS transition |
-| `crisis_turn_limit` | 4 | Phase Engine | Max turns in CRISIS before RESOLUTION |
+| `convergence_threshold` | 3 | Phase Engine | Convergence score needed for CLIMAX transition |
+| `climax_turn_limit` | 4 | Phase Engine | Max turns in CLIMAX before RESOLUTION |
 | `breather_max_turns` | 3 | Phase Engine | Max turns in BREATHER before forced RISING |
 | `scene_pressure_threshold` | 3 | Pacing Context | Scene Pressure secondary directive threshold |
 | `scene_imperative_threshold` | 4 | Pacing Context | Scene Imperative directive threshold |
-| `consecutive_pressure_threshold` | 3 | GM Beats | Triggers enforce_relief when reached during CRISIS |
 | `recent_beats_max` | 5 | GM Beats | Max entries in recent_beats history |
 | `thread_stale_threshold` | 3 | Thread Lifecycle | Auto-latent demotion after N turns |
 | `thread_max_active` | 5 | Thread Lifecycle | Thread cap, oldest evicted on overflow |
@@ -400,11 +380,11 @@ T6:  normal crisis rhythm continues
 
 | Function | File | Line(s) | Computes |
 |----------|------|---------|----------|
-| `_compute_scene_phase()` | `turn.py` | 505-584 | Phase transitions from thread urgency, tension_delta, scene age |
-| `_compute_narration_directive()` | `turn.py` | 408-444 | Phase + tension_delta + age → directive |
-| `_compute_pacing_context()` | `turn.py` | 447-486 | All signals → PacingContext |
+| `_compute_scene_phase()` | `turn.py` | 497-569 | Phase transitions from convergence_score, scene age |
+| `_compute_narration_directive()` | `turn.py` | 403-433 | scene_age → directive (Scene Imperative purely age-based) |
+| `_compute_pacing_context()` | `turn.py` | 437-474 | scene_phase + urgency + age → PacingContext |
 | `_compute_ages()` | `turn.py` | 491-502 | Scene age computation |
-| `derive_enforce_relief()` | `_pacing.py` | 32-34 | Phase + consecutive beats → enforce_relief flag |
+| `compute_convergence_score()` | `_pacing.py` | 83-126 | 5-component score (thread urgency, age, beat streak, dice) → int |
 | `derive_allowed_beat_types()` | `_pacing.py` | 30-55 | Phase + directive + spiral → allowed beat types |
 | `detect_spiral()` | `_pacing.py` | 25-46 | Recent roll bands → spiral flag (consecutive/ratio thresholds) |
 | `sanitize_threads()` | `thread_sanitizer.py` | 20-133 | Urgency escalation + cap |
@@ -433,14 +413,14 @@ T6:  normal crisis rhythm continues
 | Checker | File | What it validates |
 |---------|------|-------------------|
 | `phase_transition` | `ccya/ev/checkers/phase_transition.py` | Phase engine transitions follow the state machine, outcome_hint consistency |
-| `tension_delta` | `ccya/ev/checkers/tension_delta.py` | tension_delta field presence, valid values, directive consistency |
+| `tension_delta` | `ccya/ev/checkers/tension_delta.py` | tension_delta field presence, valid values, directive consistency (legacy — tension_delta removed from pipeline) |
 | `recent_beats` | `ccya/ev/checkers/recent_beats.py` | recent_beats list structure, cap, monotonic turn numbers |
 | `pacing_directives` | `ccya/ev/checkers/pacing.py` | Pressure tracking, outcome hint, directive render, removed directives, beat variety, phase constraints |
 | `gm_beat_lifecycle` | `ccya/ev/checkers/gm_beat.py` | Beat consumption, lifecycle, floor relief, binding |
 | `phase_persistence` | `ccya/ev/checkers/phase_persistence.py` | scene_phase field present and valid on every turn (regression guard) |
 | `scene_age_tracking` | `ccya/ev/checkers/scene_age_tracking.py` | scene_age increments by 1 each turn, resets on location change |
-| `crisis_turn_counting` | `ccya/ev/checkers/crisis_turn_counting.py` | crisis_turn_count increments in CRISIS, resets on phase exit |
-| `tension_monotonicity` | `ccya/ev/checkers/tension_monotonicity.py` | tension_delta field presence, valid values, phase consistency |
+| `crisis_turn_counting` | `ccya/ev/checkers/crisis_turn_counting.py` | climax_turn_count increments in CLIMAX, resets on phase exit |
+| `tension_monotonicity` | `ccya/ev/checkers/tension_monotonicity.py` | tension_delta field presence, valid values, phase consistency (legacy — tension_delta removed from pipeline) |
 | `breather_enforcement` | `ccya/ev/checkers/breather_enforcement.py` | breather auto-transitions to RISING after breather_max_turns |
 | `roll_band_consistency` | `ccya/ev/checkers/roll_band_consistency.py` | band matches dice roll using rules engine, skill/difficulty valid |
 | `beat_phase_validity` | `ccya/ev/checkers/beat_phase_validity.py` | gm_beat.type is allowed for the current phase |

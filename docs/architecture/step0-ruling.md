@@ -63,14 +63,14 @@ All pacing signals are collapsed into one Python-computed struct (`PacingContext
 
 ```
 PacingContext:
-  directive: str           # "" | "Scene Imperative" | "Scene Pressure"; used by Storytell pipeline
+  directive: str           # "" | "Scene Imperative" | "Scene Pressure"; used by Storytell pipeline (Scene Imperative now purely age-based, CLIMAX turn-limit removed)
   outcome_hint: str | None # "hold" | "advance" | "transition" — narrator's primary scene motion instruction
   summary: str             # human-readable log string, never sent to LLM
 ```
 
 ### Computation
 
-`_compute_pacing_context()` in `engine/turn.py` consolidates pacing computation. It takes inputs (`scene_phase`, `thread_urgency_count`, `crisis_turn_count`, `climax_turn_limit`, `effective_scene_age`) and returns a single struct with directive derived from a priority stack. It also computes `outcome_hint` from the ruling LLM's `scene_motion` and PacingContext escalation signals: ruling `scene_motion` takes priority (`transition` > `advance` > fallback), then `impossible=true` forces `advance`, then Python escalation signals produce `advance`, defaulting to `hold`.
+`_compute_pacing_context()` in `engine/turn.py` consolidates pacing computation. It takes inputs (`scene_phase`, `thread_urgency_count`, `effective_scene_age`) and returns a single struct with directive derived from a priority stack. It also computes `outcome_hint` from the ruling LLM's `scene_motion` and PacingContext escalation signals: ruling `scene_motion` takes priority (`transition` > `advance` > fallback), then `impossible=true` forces `advance`, then Python escalation signals produce `advance`, defaulting to `hold`.
 
 ```mermaid
 flowchart TD
@@ -84,25 +84,22 @@ flowchart TD
     CTL["climax_turn_limit"]:::pyNode
     EA["effective_scene_age<br>= scene_age + 2 if combat"]:::pyNode
 
-    D1{"phase == CLIMAX<br>AND climax_turns ≥ limit?"}:::decision
+    D1{"effective_age ≥ imperative_threshold?"}:::decision
     D1 -- yes --> B1["directive = 'Scene Imperative'"]:::output
-    D1 -- no --> D2{"effective_age ≥ imperative_threshold?"}:::decision
-    D2 -- yes --> B2["directive = 'Scene Imperative'"]:::output
-    D2 -- no --> D3{"effective_age ≥ pressure_threshold?"}:::decision
-    D3 -- yes --> B3["directive = 'Scene Pressure'"]:::output
-    D3 -- no --> B4["directive = ''"]:::output
+    D1 -- no --> D2{"effective_age ≥ pressure_threshold?"}:::decision
+    D2 -- yes --> B2["directive = 'Scene Pressure'"]:::output
+    D2 -- no --> B3["directive = ''"]:::output
 
     FINAL["PacingContext<br>directive · outcome_hint · summary"]:::output
 
     B1 --> FINAL
     B2 --> FINAL
     B3 --> FINAL
-    B4 --> FINAL
 
     style B1 fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
 ```
 
-Priority order (highest to lowest): **Scene Imperative → Scene Pressure → (empty)**. `Overwhelm`, `Pressure`, `Tension`, and `Breathe` directives were removed — their jobs are handled by phase.
+Priority order (highest to lowest): **Scene Imperative → Scene Pressure → (empty)**. `Overwhelm`, `Pressure`, `Tension`, and `Breathe` directives were removed — their jobs are handled by phase. Scene Imperative is now purely age-based (CLIMAX turn-limit trigger removed — CLIMAX hard cutoff handled by phase machine).
 
 #### Age computation
 

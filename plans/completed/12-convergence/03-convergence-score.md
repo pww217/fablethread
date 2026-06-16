@@ -1,5 +1,7 @@
 # Convergence Scoring — Phase 3: Convergence Score + Phase Machine
 
+**Status: completed** (2026-06-15)
+
 ## Purpose
 
 Implement `compute_convergence_score()` and wire it into the RISING→CLIMAX transition. Replaces the old `crisis_urgency_threshold` and `tension_delta` checks with a composite 5-component score. Phase 2 must be complete (CRISIS→CLIMAX rename done, dead code removed, phase machine has no RISING→CLIMAX entry path yet).
