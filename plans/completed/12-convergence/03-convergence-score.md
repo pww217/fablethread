@@ -20,7 +20,7 @@ Implement `compute_convergence_score()` and wire it into the RISING→CLIMAX tra
 
 ## Status
 
-`open`
+`completed`
 
 ## Dependencies
 

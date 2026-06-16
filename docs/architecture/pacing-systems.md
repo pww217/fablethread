@@ -53,6 +53,17 @@ The phase engine tracks `state["scene"]["scene_phase"]` through five states: SET
 
 When `enforce_relief=True` (derived from scene phase and consecutive_pressure_beats), the system injects `breathing_room` beats to prevent pressure fatigue.
 
+## 2.5. Curtain Call — CLIMAX phase soft close
+
+Two-tier soft close guides the storyteller toward thread resolution in CLIMAX:
+
+| Tier | Trigger | User prompt signal | System prompt guidance |
+|------|---------|--------------------|------------------------|
+| Active | Turn 1 of CLIMAX | `curtain_call: "active"` | "MUST resolve the active thread this scene. Include at least one `thread_resolve` entry." |
+| Forced | Turn ≥ climax_turn_limit - 1 | `curtain_call: "forced"` | "This thread MUST resolve now. The engine will force a transition if you don't." |
+
+Hard cutoff at `climax_turn_limit` unchanged (phase machine handles it). For default limit=4: turn 1→active, turn 2→none, turn 3→forced, turn 4→forced.
+
 ## 3. GM Beats
 
 ### Definition
@@ -147,9 +158,11 @@ flowchart LR
 
 ```
 PacingContext:
-  directive: str           # "Breathe" | "Scene Imperative" | "Scene Pressure" | ""
+  directive: str           # "Scene Imperative" | "Scene Pressure" | ""
   outcome_hint: str | None # "hold" | "transition"
   summary: str             # Human-readable log, never sent to LLM
+  spiral_detected: bool    # Death spiral flag from recent rolls
+  convergence_score: int   # 0-5 score for RISING→CLIMAX transition
 ```
 
 ### How each field is computed

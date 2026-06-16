@@ -16,7 +16,7 @@ Update the storytell system prompt with Curtain Call tiers, update `derive_allow
 
 ## Status
 
-`open`
+`completed`
 
 ## Dependencies
 

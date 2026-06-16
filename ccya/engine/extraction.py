@@ -346,6 +346,17 @@ def _storytell_messages(
         }
     )
     npc_roster = build_npc_roster(extraction_ctx.comp_this_turn, personality_registry=ARCHETYPES)
+
+    # Curtain Call signal for CLIMAX phase
+    curtain_call = ""
+    if scene.get("scene_phase") == "CLIMAX" and config:
+        climax_turn_count = scene.get("climax_turn_count", 0)
+        climax_turn_limit = config.climax_turn_limit
+        if climax_turn_count >= climax_turn_limit - 1:
+            curtain_call = "forced"
+        elif climax_turn_count == 1:
+            curtain_call = "active"
+
     user_text = _render(
         env,
         "storytell_user.j2",
@@ -370,6 +381,7 @@ def _storytell_messages(
             "turn_no": turn_no,
             "band": band,
             "scene_phase": scene.get("scene_phase", "SETUP"),
+            "curtain_call": curtain_call,
             "allowed_beat_types": derive_allowed_beat_types(
                 scene.get("scene_phase", "SETUP"),
                 directive=pacing_context.directive if pacing_context else "",

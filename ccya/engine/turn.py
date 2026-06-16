@@ -804,6 +804,15 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
     _pc.spiral_detected = ctx._spiral_detected
     _pc.convergence_score = convergence_score
 
+    # Curtain Call signal for CLIMAX phase
+    _curtain_call = ""
+    if scene_phase == "CLIMAX":
+        _climax_turn_count = scene.get("climax_turn_count", 0)
+        if _climax_turn_count >= config.climax_turn_limit - 1:
+            _curtain_call = "forced"
+        elif _climax_turn_count == 1:
+            _curtain_call = "active"
+
     _comp = (state.get("compendium") or {}).get("npcs") or {}
     narr_messages = _narrate_messages(
         ctx._env, state, ctx.user_input,
@@ -815,6 +824,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         world_factions=_world_factions,
         npc_roster=build_npc_roster(_comp, personality_registry=ARCHETYPES),
         arc_ttl=config.arc_memory_ttl, thread_ttl=config.thread_memory_ttl,
+        curtain_call=_curtain_call,
     )
 
     return _pc, narr_messages
