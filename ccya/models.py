@@ -15,7 +15,6 @@ _log = logging.getLogger(__name__)
 
 SkillName = Literal["strength", "dexterity", "wits", "charisma"]
 Difficulty = Literal["trivial", "easy", "normal", "hard", "extreme"]
-TensionDelta = Literal["escalates", "maintains", "de-escalates"]
 Band = Literal[
     "crit_fail", "fail", "setback", "partial", "success", "crit_success"
 ]

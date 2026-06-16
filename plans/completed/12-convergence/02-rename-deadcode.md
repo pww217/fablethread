@@ -1,5 +1,7 @@
 # Convergence Scoring — Phase 2: CRISIS→CLIMAX Rename + Dead Code Removal
 
+**Status: completed** (2026-06-15)
+
 ## Purpose
 
 Mechanical rename of all CRISIS→CLIMAX references across the codebase, and removal of dead machinery (`derive_enforce_relief`, `consecutive_pressure_beats`, `enforce_relief` parameter, `tension_delta` from phase machine, Breathe directive). Phase 1 must be complete (config field names exist, model fields are gone).

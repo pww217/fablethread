@@ -35,7 +35,7 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 ## Arc resolution
 
-`arc_resolve` ends the current narrative chapter. Emit when: all arc threads are resolved/moot; the story's center of gravity has fundamentally shifted; the core conflict was decisively won or lost; the arc has coasted 8+ turns on the same goal. Target cadence: 8–15 turns per arc. Prefer climactic pacing moments; avoid Breathe turns.
+`arc_resolve` ends the current narrative chapter. Emit when: all arc threads are resolved/moot; the story's center of gravity has fundamentally shifted; the core conflict was decisively won or lost; the arc has coasted 8+ turns on the same goal. Target cadence: 8–15 turns per arc.
 
 `goal_update` — the arc's direction shifted but the arc isn't over. Use this; reserve `arc_resolve` for chapter endings.
 
@@ -69,7 +69,6 @@ Three functional buckets: **pressure** (pressure/complication/escalation), **sit
 When a directive is active, it **completely replaces** the phase table constraints. Only emit beats from the directive's allowed list. The user prompt shows the final allowed list — use that, not the phase table:
 
 - **Scene Imperative** — only: `revelation`, `twist`, `hazard`, `callback`, `opportunity`. **NEVER** `pressure`, `complication`, `escalation`.
-- **Breathe** — only: `opportunity`, `breathing_room`, `revelation`, `callback`. **NEVER** `pressure`, `complication`, `escalation`.
 - **Spiral detected** — remove all pressure-type beats (`pressure`, `complication`, `escalation`) from the phase defaults.
 - **No directive / Tension** — use the phase table below.
 

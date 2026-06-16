@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from ccya.engine.config import EngineConfig
-
 
 BEAT_BUCKETS: dict[str, list[str]] = {
     "pressure":  ["pressure", "complication", "escalation", "setback"],
@@ -21,7 +19,7 @@ BEAT_BUCKETS: dict[str, list[str]] = {
 BEAT_PHASE_MAP: dict[str, list[str]] = {
     "SETUP":       ["pressure", "complication", "escalation", "revelation", "twist", "opportunity", "callback", "breathing_room", "hazard"],
     "RISING":      ["pressure", "complication", "escalation", "revelation", "twist"],
-    "CRISIS":      ["pressure", "escalation", "complication"],
+    "CLIMAX":      ["pressure", "escalation", "complication"],
     "RESOLUTION":  ["breathing_room", "callback", "revelation"],
     "BREATHER":    ["opportunity", "revelation", "callback", "breathing_room", "hazard"],
 }
@@ -60,25 +58,18 @@ def derive_allowed_beat_types(
     *,
     directive: str = "",
     spiral_detected: bool = False,
-    enforce_relief: bool = False,
 ) -> list[str]:
     """Return the list of allowed beat types for the given scene phase.
 
     Priority order:
     1. Scene Imperative directive → situation-changers + opportunity
-    2. Breathe directive → relief + revelation + callback
-    3. Spiral detected → phase defaults minus pressure bucket
-    4. enforce_relief + CRISIS → only breathing_room (existing)
-    5. Fallback → phase defaults
+    2. Spiral detected → phase defaults minus pressure bucket
+    3. Fallback → phase defaults
+    Removed: Breathe directive (dead code).
+    Removed: enforce_relief parameter (derive_enforce_relief deleted).
     """
     if directive == "Scene Imperative":
         return BEAT_BUCKETS["situation"] + ["opportunity"]
-
-    if directive == "Breathe":
-        return BEAT_BUCKETS["relief"] + ["revelation", "callback"]
-
-    if scene_phase == "CRISIS" and enforce_relief:
-        return ["breathing_room"]
 
     base = BEAT_PHASE_MAP.get(scene_phase, list(BEAT_PHASE_MAP["SETUP"]))
 
@@ -87,9 +78,3 @@ def derive_allowed_beat_types(
         return [b for b in base if b not in pressure_types]
 
     return base
-
-
-def derive_enforce_relief(scene_phase: str, consecutive_pressure_beats: int, config: EngineConfig) -> bool:
-    """Return True when CRISIS phase has had enough consecutive pressure beats to force relief."""
-    # consecutive_pressure_threshold removed from EngineConfig; use hardcoded default
-    return scene_phase == "CRISIS" and consecutive_pressure_beats >= 3
