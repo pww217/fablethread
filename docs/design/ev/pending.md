@@ -8,45 +8,15 @@ This document consolidates all EV design items that have **not yet been implemen
 
 ## 1. CLI Defaults and User Config
 
-**Source:** `cli-defaults-and-personas-design.md` (moved to `complete/ev/` when fully implemented)
+**Source:** `cli-defaults-and-personas-design.md` → moved to `complete/ev/cli-defaults-and-personas-design.md`
 
-### Status: NOT IMPLEMENTED
+### Status: IMPLEMENTED
 
-### What's pending
-
-| Item | Description |
-|---|---|
-| User config file | `~/.config/ccya/config.yaml` with `engine:`, `ev:`, `persona:` sections |
-| `ccya/config.py` | New module: `load_user_config()`, `load_pack_config()`, `load_persona_registry()`, `AppConfig`/`EngineConfig`/`EvConfig`/`PersonaConfig` dataclasses |
-| `~/.config/ccya/personas.yaml` | Persona registry for player personas (warrior, scholar, rogue, etc.) |
-| `ev.py personas` command | List/validate personas from registry |
-| Consistent flag defaults | `--model`, `--turn-limit`, `--sample-rate` pulled from user config |
-| Config precedence | CLI flag > Pack config > User config > Hardcoded defaults |
-
-### Design decisions (final)
-
-- Config format: YAML (consistent with pack configs)
-- Config location: `~/.config/ccya/config.yaml` for user defaults, `packs/*/config.yaml` for pack overrides
-- No Pydantic validation — simple YAML parsing, bad values surface as runtime errors
-- `ev:` section for eval-specific settings (sample_rate, threshold, suggest, report_dir, llm_model, llm_endpoint)
-- Persona registry is a thin surface — selects which persona to use, doesn't create/modify them
-- `--model` = engine model (game AI), `--checker-model` = judge model (eval AI)
-
-### Alternatives rejected
-
-- JSON config — YAML is already used for pack configs
-- Environment variables — less discoverable for local dev
-- Persona creation via CLI — engine-level operation, CLI should be thin
-
-### Files to touch
-
-- `ccya/config.py` — new module
-- `ccya/engine/config.py` — remove hardcoded defaults, import from `ccya/config.py`
-- `ccya/ev/play.py` — update flag defaults to use `ccya/config.py`
-- `ccya/ev/check.py` — update flag defaults to use `ccya/config.py`
-- `ccya/ev/eval.py` — update flag defaults to use `ccya/config.py`
-- `ccya/ev/__init__.py` — add `personas` command routing
-- `scripts/debug/README.md` — document new commands and flags
+All items from this design have been implemented:
+- `ccya/config.py` — new module with `AppConfig`, `EvConfig`, `PersonaConfig`, `load_user_config()`, `load_persona_registry()`
+- `ev.py personas` command — lists built-in and user personas
+- `play.py` and `check.py` — use user config defaults for model and checker-model
+- Config precedence: CLI flag > Pack config > User config > Hardcoded defaults
 
 ---
 
@@ -168,18 +138,18 @@ Many items from this analysis were addressed by other designs (convergence, curt
 
 | Item | Description | Related Design |
 |---|---|---|
-| `check --all` auto-detection | `--save-dir` doesn't auto-detect events path for `check` (works for `play`) | CLI Defaults |
 | `search` dot-notation | `pacing_context.scene_phase:CLIMAX` fails — only supports flat `field:value` | EV Tooling (future) |
 | `trace` for nested fields | `trace pacing_context.scene_phase` returns "Field not tracked" | EV Tooling (future) |
 | `goals` visible_goal | `ev.py goals` doesn't read `arc_resolve.visible_goal` | EV Tooling (future) |
-| `narrate.output` data shape | Prose is in `narrate_prompt.output`, not `narrate.output` | EV Tooling (future) |
-| `ev.py warnings` command | Soft-check, dedup, extraction warnings not queryable | EV Tooling (future) |
-| Dedup rejection summary | Thread update dedup rejections not stored/queryable | EV Tooling (future) |
-| Extraction retry summary | `extract.retries` exists but no summary command | EV Tooling (future) |
 | Context bloat analysis | Storytell prompts grow to ~16.8k tokens, causing slowdowns | Infrastructure (future) |
 
 ### Items already implemented (from this analysis)
 
+- `check --all` auto-detection for `--save-dir` — fixed in `__init__.py`
+- `narrate.output` data shape — added `prose` field to `narrate` event
+- `ev.py warnings` command — already routed and functional
+- `thread_dedup_rejections` — stored in event field
+- `extract.retry_errors_by_stream` — detailed retry breakdown in event
 - `ev.py phase-transitions` — phase transition log with triggers
 - `ev.py convergence` — per-turn convergence score + 5 components
 - `ev.py curtain-call` — CLIMAX Curtain Call compliance
@@ -200,7 +170,7 @@ Many items from this analysis were addressed by other designs (convergence, curt
 |---|---|---|
 | EV Tool Meta-Findings | **COMPLETE** (moved to `complete/ev/`) | 0/10 |
 | EV Session Config | **COMPLETE** (moved to `complete/ev/`) | 0/7 |
-| CLI Defaults and User Config | Pending | 6 items |
+| CLI Defaults and User Config | **COMPLETE** (moved to `complete/ev/`) | 0/6 |
 | Eval Methodology | Pending | 5 items + 12 scenarios |
 | UI Streaming for Evals | Pending | 5 items |
-| EV Tool Meta-Analysis | Partial (diagnostic reference) | 9 items |
+| EV Tool Meta-Analysis | Partial (diagnostic reference) | 4 items |

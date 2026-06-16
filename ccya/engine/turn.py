@@ -113,6 +113,7 @@ def _apply_thread_updates(
     state: dict[str, Any],
     storyteller_result: StorytellerResult,
     config: EngineConfig | None = None,
+    dedup_rejections: list[dict[str, Any]] | None = None,
 ) -> CampaignArc | None:
     """Apply explicit thread updates from the storyteller."""
     if not storyteller_result.thread_update:
@@ -168,6 +169,13 @@ def _apply_thread_updates(
                         "thread_updates.dedup trace_id=%d thread %s — progress %.2f overlap with last entry, rejecting",
                         turn_no, update.id, ratio, extra={"turn": turn_no},
                     )
+                    if dedup_rejections is not None:
+                        dedup_rejections.append({
+                            "thread_id": update.id,
+                            "rejected_progress": update.progress,
+                            "similarity": round(ratio, 2),
+                            "turn": turn_no,
+                        })
                 else:
                     current_progress.append(entry)
                     updates["progress"] = current_progress
@@ -1104,6 +1112,10 @@ async def run_turn(
                 len((extraction_event.get(s) or {}).get("retry_errors", []))
                 for s in ("scene", "state", "storytell")
             ),
+            "retry_errors_by_stream": {
+                s: (extraction_event.get(s) or {}).get("retry_errors", [])
+                for s in ("scene", "state", "storytell")
+            },
             "streams": _streams,
         }
         metrics = {
@@ -1116,6 +1128,7 @@ async def run_turn(
         state_pre_apply = copy.deepcopy(state)
         applied: dict[str, Any] = {}
         rejected: list[dict[str, Any]] = []
+        thread_dedup_rejections: list[dict[str, Any]] = []
         reconcile_warnings: list[str] = []
 
         if delta is not None:
@@ -1192,7 +1205,7 @@ async def run_turn(
 
             # Arc director: process thread updates and arc resolution
             if state.get("arc") and storyteller_result:
-                thread_delta = _apply_thread_updates(state, storyteller_result, config)
+                thread_delta = _apply_thread_updates(state, storyteller_result, config, dedup_rejections=thread_dedup_rejections)
                 if thread_delta is not None:
                     _merge_arc_update(
                         state.setdefault("arc", {}), thread_delta
@@ -1356,6 +1369,7 @@ async def run_turn(
             "input": user_input,
             "applied": applied,
             "rejected": rejected,
+            "thread_dedup_rejections": thread_dedup_rejections,
             "actions": actions,
             "ruling": ruling_event,
             "pacing_context": {
@@ -1377,7 +1391,7 @@ async def run_turn(
             ),
             "post_turn_location_id": state.get("location", {}).get("id"),
             "scene_phase": state.get("scene", {}).get("scene_phase", "SETUP"),
-            "narrate": narr_metrics,
+            "narrate": narr_metrics | {"prose": narrative},
             "extract": ext_metrics,
             "extraction": extraction_event,
             "changes": changes,
