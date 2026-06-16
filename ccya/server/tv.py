@@ -616,7 +616,6 @@ def _turn_viewer_data(save_dir: Path) -> tuple[list[dict[str, Any]], bool]:
                 "gm_beat_type": gm_beat_dict.get("type") if isinstance(gm_beat_dict, dict) else None,
                 "gm_beat_surface_as": gm_beat_dict.get("surface_as") if isinstance(gm_beat_dict, dict) else None,
                 "gm_beat_allowed_beat_types": allowed_beat_types,
-                "gm_beat_enforce_relief": None,
                 "inputs_snapshot": inputs_snapshot,
                 "state_diff": state_diff,
                 "failures": row_failures,

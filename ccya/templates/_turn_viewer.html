@@ -303,7 +303,7 @@
                             </div>
                         </template>
 
-                        <template x-if="t.gm_beat_type || t.gm_beat_surface_as || t.gm_beat_allowed_beat_types || t.gm_beat_enforce_relief">
+                        <template x-if="t.gm_beat_type || t.gm_beat_surface_as || t.gm_beat_allowed_beat_types">
                             <div class="tv-diff-section">
                                 <div class="tv-diff-section-label">GM Beat</div>
                                 <template x-if="t.gm_beat_type">
@@ -325,13 +325,6 @@
                                         <span class="tv-diff-op"></span>
                                         <span class="tv-diff-field">allowed_beat_types</span>
                                         <span class="tv-diff-value" x-text="t.gm_beat_allowed_beat_types.join(', ')"></span>
-                                    </div>
-                                </template>
-                                <template x-if="t.gm_beat_enforce_relief !== undefined">
-                                    <div class="tv-diff-row">
-                                        <span class="tv-diff-op"></span>
-                                        <span class="tv-diff-field">enforce_relief</span>
-                                        <span class="tv-diff-value" :class="t.gm_beat_enforce_relief ? 'tv-sts-rejected' : ''" x-text="t.gm_beat_enforce_relief"></span>
                                     </div>
                                 </template>
                             </div>
