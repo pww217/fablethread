@@ -212,22 +212,22 @@ def main() -> None:
             cmd_search(events, exprs)
         case "threads":
             from ccya.ev.state_tools import cmd_threads
-            cmd_threads(events, summary="summary" in flags)
+            cmd_threads(events, summary="summary" in flags, include_compaction="include-compaction" in flags)
         case "beats":
             from ccya.ev.state_tools import cmd_beats
-            cmd_beats(events)
+            cmd_beats(events, include_compaction="include-compaction" in flags)
         case "goals":
             from ccya.ev.state_tools import cmd_goals
-            cmd_goals(events)
+            cmd_goals(events, include_compaction="include-compaction" in flags)
         case "effective-age":
             from ccya.ev.state_tools import cmd_effective_age
-            cmd_effective_age(events)
+            cmd_effective_age(events, include_compaction="include-compaction" in flags)
         case "beat-ttl":
             from ccya.ev.state_tools import cmd_beat_ttl
-            cmd_beat_ttl(events)
+            cmd_beat_ttl(events, include_compaction="include-compaction" in flags)
         case "rolls":
             from ccya.ev.state_tools import cmd_rolls
-            cmd_rolls(events, summary="summary" in flags)
+            cmd_rolls(events, summary="summary" in flags, include_compaction="include-compaction" in flags)
         case "state-history":
             from ccya.ev.audit import cmd_state_history
             cmd_state_history(events)
@@ -251,19 +251,19 @@ def main() -> None:
             cmd_compat(events)
         case "convergence":
             from ccya.ev.state_tools import cmd_convergence
-            cmd_convergence(events, estimate="estimate" in flags)
+            cmd_convergence(events, estimate="estimate" in flags, include_compaction="include-compaction" in flags, by_scene="by-scene" in flags)
         case "phase-transitions":
             from ccya.ev.state_tools import cmd_phase_transitions
-            cmd_phase_transitions(events)
+            cmd_phase_transitions(events, include_compaction="include-compaction" in flags, by_scene="by-scene" in flags)
         case "curtain-call":
             from ccya.ev.state_tools import cmd_curtain_call
-            cmd_curtain_call(events)
+            cmd_curtain_call(events, include_compaction="include-compaction" in flags, by_scene="by-scene" in flags)
         case "warnings":
             from ccya.ev.warnings import cmd_warnings
             cmd_warnings(events)
         case "prompt-sizes":
             from ccya.ev.prompt_sizes import cmd_prompt_sizes
-            cmd_prompt_sizes(events)
+            cmd_prompt_sizes(events, include_compaction="include-compaction" in flags)
         case "play":
             from ccya.ev.play import cmd_play
             cmd_play(flags, args)

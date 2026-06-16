@@ -137,7 +137,7 @@ The empty `before` column is from the extraction fallback path — it always sho
 | # | Issue | Severity | Status | Fix |
 |---|---|---|---|---|
 | 1 | `check --all` output repeats | HIGH | **RESOLVED** | Single pass, summary header with domain breakdown |
-| 2 | Compaction events in tabular output | HIGH | **PENDING** | Filter by default, `--include-compaction` flag |
+| 2 | Compaction events in tabular output | HIGH | **RESOLVED** | Filter by default, `--include-compaction` flag |
 | 3 | No checker summary | MEDIUM | **RESOLVED** | PASS/FAIL count, domain breakdown, avg score in `check --all` |
 | 4 | `rolls` momentum column dead | LOW | **RESOLVED** | Removed column |
 | 5 | No band distribution summary | MEDIUM | **RESOLVED** | Added `rolls --summary` |
@@ -145,6 +145,6 @@ The empty `before` column is from the extraction fallback path — it always sho
 | 7 | No thread resolution rate | MEDIUM | **RESOLVED** | Added `threads --summary` |
 | 8 | `goals` formatting sparse | LOW | **RESOLVED** | Shows `[extraction]` label for fallback goals |
 | 9 | `check --list` requires save | HIGH | **RESOLVED** | Early return without data loading |
-| 10 | No per-scene aggregation | LOW | **PENDING** | Add `--by-scene` flag |
+| 10 | No per-scene aggregation | LOW | **RESOLVED** | Added `--by-scene` flag to convergence/phase-transitions/curtain-call |
 
-Total: 10 issues (8 RESOLVED, 2 PENDING)
+Total: 10 issues (10 RESOLVED, 0 PENDING)

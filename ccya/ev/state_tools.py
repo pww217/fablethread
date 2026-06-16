@@ -7,8 +7,10 @@ from typing import Any
 
 from ccya.ev.events import (
     accumulate_intermediate_changes,
+    assign_scene_ids,
     extract_field_from_event,
     find_turn,
+    is_compaction_event,
     load_state_yaml,
 )
 from ccya.ev.output import (
@@ -161,8 +163,10 @@ def cmd_search(events: list[dict[str, Any]], expressions: list[str]) -> None:
         print()
 
 
-def cmd_threads(events: list[dict[str, Any]], summary: bool = False) -> None:
+def cmd_threads(events: list[dict[str, Any]], summary: bool = False, include_compaction: bool = False) -> None:
     """Show thread lifecycle across all turns in compact table."""
+    if not include_compaction:
+        events = [ev for ev in events if not is_compaction_event(ev)]
     # Gather thread state at each turn from state_snapshots and sanitizer events
     turn_threads: dict[int, list[dict[str, Any]]] = {}
     seen_turns: set[int] = set()
@@ -290,8 +294,10 @@ def cmd_threads(events: list[dict[str, Any]], summary: bool = False) -> None:
         print(row)
 
 
-def cmd_beats(events: list[dict[str, Any]]) -> None:
+def cmd_beats(events: list[dict[str, Any]], include_compaction: bool = False) -> None:
     """Show turn-by-turn beat type + surface_as status + scene_phase."""
+    if not include_compaction:
+        events = [ev for ev in events if not is_compaction_event(ev)]
     # Gather beat data from storytell extraction and pacing_context
     beat_data: list[dict[str, Any]] = []
     recent_beats_history: dict[int, list[dict[str, Any]]] = {}
@@ -413,8 +419,10 @@ def cmd_beats(events: list[dict[str, Any]]) -> None:
             print(f"  Turn {t}: [{entries}]")
 
 
-def cmd_goals(events: list[dict[str, Any]]) -> None:
+def cmd_goals(events: list[dict[str, Any]], include_compaction: bool = False) -> None:
     """Show goal changes over time from sanitizer events, with extraction fallback."""
+    if not include_compaction:
+        events = [ev for ev in events if not is_compaction_event(ev)]
     goal_changes: list[dict[str, Any]] = []
     sanitizer_turns: set[int] = set()
     for ev in events:
@@ -469,8 +477,10 @@ def cmd_goals(events: list[dict[str, Any]]) -> None:
         print()
 
 
-def cmd_effective_age(events: list[dict[str, Any]]) -> None:
+def cmd_effective_age(events: list[dict[str, Any]], include_compaction: bool = False) -> None:
     """Show effective_scene_age over time."""
+    if not include_compaction:
+        events = [ev for ev in events if not is_compaction_event(ev)]
     ages: list[dict[str, Any]] = []
     for ev in events:
         t = ev.get("turn")
@@ -494,8 +504,10 @@ def cmd_effective_age(events: list[dict[str, Any]]) -> None:
         print(f"{a['turn']:>5} | {a['age']}")
 
 
-def cmd_beat_ttl(events: list[dict[str, Any]]) -> None:
+def cmd_beat_ttl(events: list[dict[str, Any]], include_compaction: bool = False) -> None:
     """Show beat TTL expiration over time."""
+    if not include_compaction:
+        events = [ev for ev in events if not is_compaction_event(ev)]
     ttl_data: list[dict[str, Any]] = []
     for ev in events:
         t = ev.get("turn")
@@ -547,8 +559,20 @@ def _color_green(s: str) -> str:
     return f"\033[92m{s}\033[0m"
 
 
-def cmd_convergence(events: list[dict[str, Any]], estimate: bool = False) -> None:
+def cmd_convergence(events: list[dict[str, Any]], estimate: bool = False, include_compaction: bool = False, by_scene: bool = False) -> None:
     """Show convergence score + 5 components per turn."""
+    if not include_compaction:
+        events = [ev for ev in events if not is_compaction_event(ev)]
+
+    if by_scene:
+        _cmd_convergence_by_scene(events, estimate)
+        return
+
+    _cmd_convergence_flat(events, estimate)
+
+
+def _build_convergence_rows(events: list[dict[str, Any]], estimate: bool) -> tuple[list[dict[str, Any]], bool]:
+    """Build convergence rows from events. Returns (rows, had_components)."""
     rows: list[dict[str, Any]] = []
     prev_phase = ""
     had_components = False
@@ -566,10 +590,8 @@ def cmd_convergence(events: list[dict[str, Any]], estimate: bool = False) -> Non
             had_components = True
 
         if estimate and not comps:
-            # Retro-compute components from available event data
             thread_weight = 0
             urgency_depth = 0
-            # Count urgent threads from state_snapshot
             ss = ev.get("state_snapshot") or {}
             arc = ss.get("arc") or {}
             for th in (arc.get("threads") or []):
@@ -581,20 +603,17 @@ def cmd_convergence(events: list[dict[str, Any]], estimate: bool = False) -> Non
             else:
                 urgency_depth = 0
 
-            # Scene age from extraction
             extraction = ev.get("extraction") or {}
             scene = extraction.get("scene") or {}
             scene_output = scene.get("output") or {}
             scene_age = scene_output.get("effective_scene_age", 0)
             scene_age_component = 1 if scene_age >= 3 else 0
 
-            # Beat streak from pacing_context.recent_beats
             recent_beats = pc.get("recent_beats", [])
             pressure_types = {"pressure", "complication", "escalation", "setback"}
             pressure_count = sum(1 for b in recent_beats if (b.get("type") or b.get("surface_as")) in pressure_types)
             beat_streak = 1 if pressure_count >= 3 else 0
 
-            # Dice weight from ruling
             ruling = ev.get("ruling") or {}
             band = ruling.get("band", "")
             dice_weight = 1 if band in ("crit_fail", "fail") and thread_weight else 0
@@ -622,6 +641,11 @@ def cmd_convergence(events: list[dict[str, Any]], estimate: bool = False) -> Non
         })
         prev_phase = phase
 
+    return rows, had_components
+
+
+def _format_convergence_table(rows: list[dict[str, Any]], had_components: bool, estimate: bool) -> None:
+    """Format and print convergence table."""
     if not rows:
         print("(no convergence data)")
         return
@@ -651,8 +675,66 @@ def cmd_convergence(events: list[dict[str, Any]], estimate: bool = False) -> Non
     print("\n".join(out_lines))
 
 
-def cmd_phase_transitions(events: list[dict[str, Any]]) -> None:
+def _cmd_convergence_flat(events: list[dict[str, Any]], estimate: bool) -> None:
+    """Flat convergence view (original behavior)."""
+    rows, had_components = _build_convergence_rows(events, estimate)
+    _format_convergence_table(rows, had_components, estimate)
+
+
+def _cmd_convergence_by_scene(events: list[dict[str, Any]], estimate: bool) -> None:
+    """Convergence view grouped by scene."""
+    turn_to_scene = assign_scene_ids(events)
+    rows, had_components = _build_convergence_rows(events, estimate)
+
+    if not rows:
+        print("(no convergence data)")
+        return
+
+    # Group rows by scene
+    scenes: dict[int, list[dict[str, Any]]] = {}
+    for r in rows:
+        sid = turn_to_scene.get(r["turn"], 0)
+        if sid not in scenes:
+            scenes[sid] = []
+        scenes[sid].append(r)
+
+    for sid in sorted(scenes.keys()):
+        scene_rows = scenes[sid]
+        first_turn = scene_rows[0]["turn"]
+        last_turn = scene_rows[-1]["turn"]
+        duration = last_turn - first_turn + 1
+
+        # Count phases
+        phase_counts: dict[str, int] = {}
+        for r in scene_rows:
+            phase_counts[r["phase"]] = phase_counts.get(r["phase"], 0) + 1
+
+        # Count CLIMAX entries
+        climax_entries = sum(1 for r in scene_rows if r["entry"])
+        climax_scores = [r["score"] for r in scene_rows if r["entry"]]
+
+        print(f"\n--- Scene {sid} (T{first_turn}-T{last_turn}, {duration} turns) ---")
+        print(f"  Phases: {', '.join(f'{k}: {v}' for k, v in sorted(phase_counts.items()))}")
+        if climax_entries:
+            print(f"  CLIMAX entries: {climax_entries} (scores: {', '.join(str(s) for s in climax_scores)})")
+
+        _format_convergence_table(scene_rows, False, False)
+
+
+def cmd_phase_transitions(events: list[dict[str, Any]], include_compaction: bool = False, by_scene: bool = False) -> None:
     """Detect and display scene phase transitions with triggers."""
+    if not include_compaction:
+        events = [ev for ev in events if not is_compaction_event(ev)]
+
+    if by_scene:
+        _cmd_phase_transitions_by_scene(events)
+        return
+
+    _cmd_phase_transitions_flat(events)
+
+
+def _build_phase_transitions(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Build phase transitions from events. Returns list of transition dicts."""
     prev_phase = ""
     transitions: list[dict[str, Any]] = []
     for ev in events:
@@ -674,24 +756,72 @@ def cmd_phase_transitions(events: list[dict[str, Any]]) -> None:
                 "outcome_hint": pc.get("outcome_hint", ""),
             })
         prev_phase = phase
+    return transitions
+
+
+def _format_transition(tr: dict[str, Any]) -> str:
+    """Format a single phase transition for output."""
+    parts = [f"convergence_score={tr['convergence_score']}"]
+    if tr["climax_turn_count"]:
+        parts.append(f"climax_turn_count={tr['climax_turn_count']}")
+    if tr["breather_turn_count"]:
+        parts.append(f"breather_turn_count={tr['breather_turn_count']}")
+    if tr["outcome_hint"]:
+        parts.append(f"outcome_hint={tr['outcome_hint']}")
+    return f"Turn {tr['turn']}: {tr['from']} \u2192 {tr['to']}   ({', '.join(parts)})"
+
+
+def _cmd_phase_transitions_flat(events: list[dict[str, Any]]) -> None:
+    """Flat phase transitions view (original behavior)."""
+    transitions = _build_phase_transitions(events)
+    if not transitions:
+        print("(no phase transitions detected)")
+        return
+    for tr in transitions:
+        print(_format_transition(tr))
+
+
+def _cmd_phase_transitions_by_scene(events: list[dict[str, Any]]) -> None:
+    """Phase transitions view grouped by scene."""
+    turn_to_scene = assign_scene_ids(events)
+    transitions = _build_phase_transitions(events)
 
     if not transitions:
         print("(no phase transitions detected)")
         return
 
+    # Group transitions by scene
+    scenes: dict[int, list[dict[str, Any]]] = {}
     for tr in transitions:
-        parts = [f"convergence_score={tr['convergence_score']}"]
-        if tr["climax_turn_count"]:
-            parts.append(f"climax_turn_count={tr['climax_turn_count']}")
-        if tr["breather_turn_count"]:
-            parts.append(f"breather_turn_count={tr['breather_turn_count']}")
-        if tr["outcome_hint"]:
-            parts.append(f"outcome_hint={tr['outcome_hint']}")
-        print(f"Turn {tr['turn']}: {tr['from']} \u2192 {tr['to']}   ({', '.join(parts)})")
+        sid = turn_to_scene.get(tr["turn"], 0)
+        if sid not in scenes:
+            scenes[sid] = []
+        scenes[sid].append(tr)
+
+    for sid in sorted(scenes.keys()):
+        scene_transitions = scenes[sid]
+        first_turn = scene_transitions[0]["turn"]
+        last_turn = scene_transitions[-1]["turn"]
+
+        print(f"\n--- Scene {sid} (T{first_turn}-T{last_turn}) ---")
+        for tr in scene_transitions:
+            print(_format_transition(tr))
 
 
-def cmd_curtain_call(events: list[dict[str, Any]]) -> None:
+def cmd_curtain_call(events: list[dict[str, Any]], include_compaction: bool = False, by_scene: bool = False) -> None:
     """Check Curtain Call compliance for CLIMAX turns."""
+    if not include_compaction:
+        events = [ev for ev in events if not is_compaction_event(ev)]
+
+    if by_scene:
+        _cmd_curtain_call_by_scene(events)
+        return
+
+    _cmd_curtain_call_flat(events)
+
+
+def _build_curtain_call_results(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Build curtain call results from events. Returns list of result dicts."""
     results: list[dict[str, Any]] = []
     for ev in events:
         t = ev.get("turn")
@@ -725,21 +855,63 @@ def cmd_curtain_call(events: list[dict[str, Any]]) -> None:
             "passed": passed,
             "issues": issues,
         })
+    return results
+
+
+def _format_curtain_call_result(r: dict[str, Any]) -> str:
+    """Format a single curtain call result for output."""
+    status = "PASS" if r["passed"] else "FAIL"
+    status_color = "\033[92m" if r["passed"] else "\033[91m"
+    cc = f" [{r['curtain_call_status']}]" if r["curtain_call_status"] else ""
+    issues_str = ", " + "; ".join(r["issues"]) if r["issues"] else ""
+    return f"Turn {r['turn']} (CLIMAX #{r['climax_turn_count']}{cc}): {status_color}{status}\033[0m{issues_str}"
+
+
+def _cmd_curtain_call_flat(events: list[dict[str, Any]]) -> None:
+    """Flat curtain call view (original behavior)."""
+    results = _build_curtain_call_results(events)
+    if not results:
+        print("(no CLIMAX turns in data)")
+        return
+    for r in results:
+        print(_format_curtain_call_result(r))
+
+
+def _cmd_curtain_call_by_scene(events: list[dict[str, Any]]) -> None:
+    """Curtain call view grouped by scene."""
+    turn_to_scene = assign_scene_ids(events)
+    results = _build_curtain_call_results(events)
 
     if not results:
         print("(no CLIMAX turns in data)")
         return
 
+    # Group results by scene
+    scenes: dict[int, list[dict[str, Any]]] = {}
     for r in results:
-        status = "PASS" if r["passed"] else "FAIL"
-        status_color = "\033[92m" if r["passed"] else "\033[91m"
-        cc = f" [{r['curtain_call_status']}]" if r["curtain_call_status"] else ""
-        issues_str = ", " + "; ".join(r["issues"]) if r["issues"] else ""
-        print(f"Turn {r['turn']} (CLIMAX #{r['climax_turn_count']}{cc}): {status_color}{status}\033[0m{issues_str}")
+        sid = turn_to_scene.get(r["turn"], 0)
+        if sid not in scenes:
+            scenes[sid] = []
+        scenes[sid].append(r)
+
+    for sid in sorted(scenes.keys()):
+        scene_results = scenes[sid]
+        first_turn = scene_results[0]["turn"]
+        last_turn = scene_results[-1]["turn"]
+
+        passed = sum(1 for r in scene_results if r["passed"])
+        failed = len(scene_results) - passed
+
+        print(f"\n--- Scene {sid} (T{first_turn}-T{last_turn}) ---")
+        print(f"  CLIMAX turns: {len(scene_results)} (PASS: {passed}, FAIL: {failed})")
+        for r in scene_results:
+            print(_format_curtain_call_result(r))
 
 
-def cmd_rolls(events: list[dict[str, Any]], summary: bool = False) -> None:
+def cmd_rolls(events: list[dict[str, Any]], summary: bool = False, include_compaction: bool = False) -> None:
     """Show roll bands + raw/final totals per turn."""
+    if not include_compaction:
+        events = [ev for ev in events if not is_compaction_event(ev)]
     from collections import Counter
     rows: list[dict[str, Any]] = []
     for ev in events:
