@@ -173,7 +173,6 @@ class IntentEnvelope(BaseModel):
     impossible: bool = False
     reason: str = ""
     scene_motion: Literal["hold", "advance", "transition"] = "hold"
-    tension_delta: TensionDelta = "maintains"
 
 
 class RulesOutcome(BaseModel):

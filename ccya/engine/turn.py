@@ -66,7 +66,7 @@ from ccya.state.delta_builder import _merge_arc_update
 
 _log = logging.getLogger(__name__)
 
-PRESSURE_BEAT_TYPES = ("pressure", "escalation", "complication")
+PRESSURE_BEAT_TYPES = ("pressure", "escalation", "complication", "setback")
 
 
 @dataclass
@@ -551,7 +551,7 @@ def _compute_scene_phase(
             phase = "RISING"
 
     elif phase == "RISING":
-        if thread_urgency_count >= config.crisis_urgency_threshold:
+        if thread_urgency_count >= 2:
             phase = "CRISIS"
             crisis_turn_count = 1
         elif thread_urgency_count >= 1 and tension_delta == "escalates":
@@ -563,7 +563,7 @@ def _compute_scene_phase(
 
     elif phase == "CRISIS":
         crisis_turn_count += 1
-        if crisis_turn_count >= config.crisis_turn_limit:
+        if crisis_turn_count >= config.climax_turn_limit:
             phase = "RESOLUTION"
             crisis_turn_count = 0
 
@@ -768,7 +768,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
     _world_factions = ctx.packing.get("factions", [])
 
     # Phase engine: compute scene_phase before directive computation
-    tension_delta = ctx.intent.tension_delta if ctx.intent else "maintains"
+    tension_delta: TensionDelta = "maintains"
     scene = state.setdefault("scene", {})
     scene.setdefault("scene_phase", "SETUP")
     scene.setdefault("crisis_turn_count", 0)
@@ -802,7 +802,7 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
         tension_delta=tension_delta,
         thread_urgency_count=thread_urgency_count,
         crisis_turn_count=crisis_turn_count,
-        crisis_turn_limit=config.crisis_turn_limit,
+        crisis_turn_limit=config.climax_turn_limit,
         effective_scene_age=ctx._ages.get("effective_scene_age", 0),
         scene_motion=_scene_motion,
         scene_pressure_threshold=config.scene_pressure_threshold,

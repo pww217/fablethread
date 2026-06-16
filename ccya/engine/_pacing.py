@@ -13,7 +13,7 @@ from ccya.engine.config import EngineConfig
 
 
 BEAT_BUCKETS: dict[str, list[str]] = {
-    "pressure":  ["pressure", "complication", "escalation"],
+    "pressure":  ["pressure", "complication", "escalation", "setback"],
     "situation": ["revelation", "twist", "hazard", "callback"],
     "relief":    ["opportunity", "breathing_room"],
 }
@@ -91,4 +91,5 @@ def derive_allowed_beat_types(
 
 def derive_enforce_relief(scene_phase: str, consecutive_pressure_beats: int, config: EngineConfig) -> bool:
     """Return True when CRISIS phase has had enough consecutive pressure beats to force relief."""
-    return scene_phase == "CRISIS" and consecutive_pressure_beats >= config.consecutive_pressure_threshold
+    # consecutive_pressure_threshold removed from EngineConfig; use hardcoded default
+    return scene_phase == "CRISIS" and consecutive_pressure_beats >= 3
