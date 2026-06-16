@@ -79,7 +79,7 @@
 | `ccya/ev/checkers/goal_update_validity.py` | `goal_update_validity` — goal_update is non-empty string, differs from previous visible_goal |
 | `ccya/personality.py` | NpcPersonality frozen dataclass (id, label, traits, speech_hint, motivation_keywords, fear_keywords); ARCHETYPES registry (12 archetypes); assign_personality(motivation, fear, npc_id) → NpcPersonality (engine fallback; LLM is primary); validate_and_resolve(personality_id) → NpcPersonality | None (logs WARNING for unknown ids, caller falls back to assign_personality); _DEFAULT_ID = "wary_opportunist" |
 | `ccya/pack.py` | load_pack(), list_packs() — validates pack has seed (static) or scenario (generated) |
-| `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (1d12+stat_mod+diff_mod→Band), build_directive() near-miss logic |
+ | `ccya/rules.py` | Pure-Python dice resolver: resolve_check() (1d12+stat_mod+diff_mod→Band), compute_band() (partial ≤7), build_directive() near-miss + mandatory-cost partial guidance |
 | `ccya/llm_client.py` | chat(), chat_stream() — OpenAI-compatible → mlx_lm.server; trim_messages() token-budget trimming |
 | `ccya/logging_setup.py` | JSONL RotatingFileHandler + _JsonFormatter (extra fields → flat JSON keys); StreamHandler defaults to WARNING via CCYA_LOG_LEVEL env var |
 | `ccya/templates/index.html` | Main UI template: Alpine.js `game()` component with save picker (openSavePicker, closeSavePicker, confirmSwitchSave), settings panel, turn log, narrative streaming |
