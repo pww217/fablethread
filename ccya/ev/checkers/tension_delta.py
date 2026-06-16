@@ -27,15 +27,10 @@ def tension_delta(events: list[dict[str, Any]]) -> CheckerResult:
         pc = extract_field(ev, "pacing_context") or {}
         directive = pc.get("directive", "")
 
-        # Check tension_delta present
+        # tension_delta was removed from ruling schema (convergence scoring Phase 2).
+        # Skip events without it (new events); validate historical events that have it.
         td = ruling.get("tension_delta")
         if td is None:
-            findings.append({
-                "turn": ev.get("turn"),
-                "check": "tension_delta_present",
-                "detail": "tension_delta field missing from ruling event",
-            })
-            all_passed = False
             continue
 
         # Check valid values

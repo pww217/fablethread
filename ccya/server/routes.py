@@ -739,7 +739,6 @@ async def get_settings():
     # Flatten nested keys for UI consumption
     debug = game_config.get("debug", {}) or {}
     return JSONResponse({
-        "consecutive_pressure_threshold": game_config.get("consecutive_pressure_threshold"),
         "thread_deescalate_on_success": game_config.get("thread_deescalate_on_success"),
         "warmup_on_start": game_config.get("warmup_on_start", False),
         "character_creation_enabled": game_config.get("character_creation_enabled", True),
@@ -762,10 +761,6 @@ async def post_settings(request: Request):
     game_config = _app_mod.config.get("game", {})
 
     # Apply updates from request body
-    for key in ("consecutive_pressure_threshold",):
-        if key in data:
-            val = int(data[key])
-            game_config[key] = val
 
     for key in ("thread_deescalate_on_success", "warmup_on_start", "character_creation_enabled"):
         if key in data:

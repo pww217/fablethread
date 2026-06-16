@@ -27,14 +27,9 @@ def tension_monotonicity(events: list[dict[str, Any]]) -> CheckerResult:
         tension_delta = ruling.get("tension_delta")
         turn_no = ev.get("turn")
 
-        # tension_delta should be present
+        # tension_delta was removed from ruling schema (convergence scoring Phase 2).
+        # Skip events without it (new events); validate historical events that have it.
         if tension_delta is None:
-            findings.append({
-                "turn": turn_no,
-                "check": "tension_delta_present",
-                "detail": "tension_delta field missing from ruling event",
-            })
-            all_passed = False
             continue
 
         # tension_delta should be a valid value

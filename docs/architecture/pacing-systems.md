@@ -243,11 +243,11 @@ flowchart LR
 flowchart LR
     T0["no urgent threads"] --> SETUP["phase = SETUP or BREATHER"]
     T1["1+ urgent threads"] --> RISING["phase = RISING"]
-    T2["≥threshold urgent threads"] --> CRISIS["phase = CRISIS"]
+    T2["convergence_score ≥ threshold"] --> CLIMAX["phase = CLIMAX"]
 
     style SETUP fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
     style RISING fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
-    style CRISIS fill:#7f1d1d,color:#fca5a5,stroke:#ef4444
+    style CLIMAX fill:#7f1d1d,color:#fca5a5,stroke:#ef4444
 ```
 
 ### Engine-enforced constraints (not storyteller-managed)
@@ -351,13 +351,13 @@ T5:  breathing_room injected, consecutive_pressure_beats resets
 T6:  phase transitions to RESOLUTION → BREATHER
 ```
 
-### Pattern 2: Crisis resolution
+### Pattern 2: Climax resolution
 
 ```
-T1:  phase=CRISIS, crisis_turn_count=1, tension_delta=escalates
-T2:  phase=CRISIS, crisis_turn_count=2, tension_delta=maintains
-T3:  phase=CRISIS, crisis_turn_count=3, tension_delta=de-escalates
-T4:  crisis_turn_count≥limit → phase=RESOLUTION, outcome_hint=transition
+T1:  phase=CLIMAX, climax_turn_count=1, curtain_call=active
+T2:  phase=CLIMAX, climax_turn_count=2
+T3:  phase=CLIMAX, climax_turn_count=3, curtain_call=forced
+T4:  climax_turn_count≥limit → phase=RESOLUTION, outcome_hint=transition
 T5:  phase=BREATHER (RESOLUTION always transitions to BREATHER)
 T6:  normal rhythm continues
 ```

@@ -146,4 +146,4 @@ flowchart LR
 - **Increments** when `storyteller_result.gm_beat.type` is `"pressure"`, `"escalation"`, or `"complication"`.
 - **Resets to 0** on any other beat type, null beat, or missing storyteller output.
 
-When this counter reaches 3 (hardcoded default), it contributes to `enforce_relief=True` which forces breathing_room beats during CRISIS phase.
+When this counter reaches 3 (hardcoded default), it contributes to `enforce_relief=True` which forces breathing_room beats during CLIMAX phase.

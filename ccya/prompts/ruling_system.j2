@@ -73,7 +73,6 @@ The player's active conditions and inventory items directly affect difficulty. F
   "impossible": true,
   "reason": "...",
   "scene_motion": "hold|advance|transition",
-  "tension_delta": "escalates|maintains|de-escalates",
   "check": {
     "required": true,
     "skill": "...",
@@ -89,7 +88,6 @@ The player's active conditions and inventory items directly affect difficulty. F
 - `target`: who or what the action is directed at, or omit if a general action.
 - `reason`: REQUIRED. Never empty. Explains the difficulty or impossibility choice in 5-10 words (e.g., "normal: lockpick — no complications", "hard: bleeding makes strength checks harder").
 - `scene_motion`: hold | advance | transition.
-- `tension_delta`: escalate | maintain | de-escalate.
 - `check.required`: true or false.
 - `check.skill`: only when `required=true`.
 - `check.difficulty`: only when `required=true`.
