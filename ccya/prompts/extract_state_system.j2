@@ -1,5 +1,14 @@
 Extract inventory and condition deltas from the narration. Emit one JSON object. No prose, no markdown fences. Omit fields with no changes — empty arrays are never valid.
 
+## STEP 0 — Decide first, output second
+
+Before examining the narration for specific items, answer this question: **Did the player GAIN, LOSE, or MODIFY an item this turn?**
+
+- If NO → output `inventory_change_reason: "none"` and omit `inventory_add`, `inventory_remove`, `inventory_update`.
+- If YES → output `inventory_change_reason` with a one-phrase reason, then populate the relevant fields.
+
+This decision comes FIRST. The reason field is the anchor — you must commit to whether inventory changed before you decide what changed.
+
 ## Narration is the sole authority
 
 `player_intent` is context only — it does not mean the action succeeded. Ground all changes in what the narration confirms. Only consider present-tense narration — the player currently has/loses something. Never emit inventory changes for past-tense (already happened) or future-tense (planning to) narration. If the narration doesn't confirm the player acquired, lost, or changed something, do not emit a change.
@@ -8,6 +17,22 @@ Extract inventory and condition deltas from the narration. Emit one JSON object.
 - An item leaves inventory only when the narration confirms the player no longer has it (used up, given away, destroyed, dropped)
 - An item does NOT enter inventory because it is nearby, visible, or available to take
 - An item does NOT leave inventory because it is used by an NPC or destroyed in the world
+
+## Spatial reasoning rules
+
+**Already-in-inventory actions (NOT inventory changes):**
+- Drawing, unholstering, aiming, checking, reading, using, swinging, firing, drinking, eating — the item was already possessed. No `inventory_update`, no `inventory_add`, no `inventory_remove`.
+- Repositioning within inventory (e.g., "stowed it in my pocket", "held it close to chest") — this is fiction flavor, not a mechanical change. Do NOT emit `inventory_update` for spatial repositioning.
+- The `notes` field in inventory tracks spatial position. If the narration says "put it in my pocket", update `notes` to reflect that — but ONLY if you're already emitting an `inventory_update` for another reason (damage, name change, upgrade). If the ONLY change is spatial repositioning, do not emit `inventory_update`.
+
+**Acquisition (inventory_add):**
+- "picked up", "took", "grabbed", "received", "was handed", "found", "acquired", "obtained", "took from", "seized", "snatched" — the player now has something they didn't have before.
+
+**Loss (inventory_remove):**
+- "dropped", "gave away", "used up", "lost", "spent", "discarded", "threw", "abandoned", "consumed", "burned", "shattered", "ran out of" — the player no longer has something they had.
+
+**Modification (inventory_update):**
+- Damage, degradation, name change, upgrade, or a meaningful state change (e.g., "loaded", "primed", "unlocked"). NOT spatial repositioning.
 
 ## ID rules
 
@@ -42,11 +67,17 @@ If the narration states a specific number, use it exactly. If no number is state
 
 ## Reason field — REQUIRED
 
-`inventory_change_reason` is REQUIRED whenever `inventory_add`, `inventory_remove`, or `inventory_update` is non-empty. Omitting it when inventory changes exist will cause the output to be rejected. State why inventory changed this turn in one short phrase. Examples: "Player picked up from ground", "X NPC gave it to player", "Player lost pistol in a brawl". Multiple items → one reason covering all changes. NOT required for `pc_condition_*` alone.
+`inventory_change_reason` is the anchor field. You must decide whether inventory changed BEFORE you populate any other fields.
+
+- If inventory changed (any of `inventory_add`, `inventory_remove`, `inventory_update` is non-empty): `inventory_change_reason` is REQUIRED. State why inventory changed this turn in one short phrase. Examples: "Player picked up from ground", "X NPC gave it to player", "Player lost pistol in a brawl". Multiple items → one reason covering all changes.
+- If inventory did NOT change: `inventory_change_reason: "none"`. Omit all inventory fields.
+- NOT required for `pc_condition_*` alone.
 
 ## Field rules
 
-`inventory_update`: patches to existing items — name changes, notes updates, damage, upgrades. Does not support amount changes — use `inventory_remove` instead. `name` and `notes` are optional within an update entry.
+`inventory_update`: patches to existing items — name changes, notes updates for meaningful state (damage, degradation, loaded, primed), upgrades. Does not support amount changes — use `inventory_remove` instead. `name` and `notes` are optional within an update entry.
+
+**CRITICAL:** Do NOT emit `inventory_update` for spatial repositioning alone. If the narration says "put the flashlight in my pocket" and nothing else changed, do not emit `inventory_update`. The `notes` field tracks spatial position, but only update it when you're already emitting an update for another reason.
 
 `inventory_remove`: items lost, used up, destroyed, or spent. Set `amount` to the count consumed (e.g. `"amount": 1` for one pistol_round). Omit `amount` to remove the entire stack.
 - If narration describes spending, giving away, or parting with an item — even if the amount is vague — emit the remove. If the recipient later rejects it or the action fails, still emit the remove.

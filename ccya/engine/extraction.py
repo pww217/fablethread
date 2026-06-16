@@ -491,11 +491,15 @@ async def _call_stream(
                 extra={"trace_id": trace_id},
             )
             if attempt < config.max_llm_retries:
+                # Extract specific missing field for targeted retry guidance
+                _retry_hint = ""
+                if "inventory_change_reason" in parse_error and "required" in parse_error:
+                    _retry_hint = " You omitted the required 'inventory_change_reason' field — add a one-phrase reason for why inventory changed and re-emit."
                 messages.append({
                     "role": "user",
                     "content": (
                         f"Your previous output failed to parse: {parse_error[:200]}. "
-                        "Re-emit JSON matching the schema. No prose outside <thinking>."
+                        f"Re-emit JSON matching the schema. No prose outside <thinking>.{_retry_hint}"
                     ),
                 })
     raise ValueError(f"{phase} failed after all attempts: {parse_error}")
@@ -623,9 +627,9 @@ async def _run_extraction_pipeline(
         )
         extraction_event["state"] = {**_SKIPPED, "error": str(exc)}
 
-    if not state_result.inventory_add and not state_result.pc_condition_add:
+    if state_attempts > 1 and not state_result.inventory_add and not state_result.inventory_remove and not state_result.inventory_update and not state_result.pc_condition_add and not state_result.pc_condition_remove:
         _log.warning("extraction.state.empty trace_id=%s turn_no=%d state has no inventory or condition changes after retries", trace_id, turn_no)
-    _log.debug("extraction.state.done trace_id=%s result_type=%s inv_add=%d conds_add=%d tokens_in=%d tokens_out=%d", trace_id, type(state_result).__name__, len(state_result.inventory_add or []), len(state_result.pc_condition_add or []), state_usage.get("prompt_tokens", 0), state_usage.get("completion_tokens", 0))
+    _log.debug("extraction.state.done trace_id=%s result_type=%s inv_add=%d inv_remove=%d inv_update=%d conds_add=%d conds_remove=%d tokens_in=%d tokens_out=%d", trace_id, type(state_result).__name__, len(state_result.inventory_add or []), len(state_result.inventory_remove or []), len(state_result.inventory_update or []), len(state_result.pc_condition_add or []), len(state_result.pc_condition_remove or []), state_usage.get("prompt_tokens", 0), state_usage.get("completion_tokens", 0))
     yield ("phase", {"phase": "extract_stream_done", "stream": "state"})
 
     # --- Stream 3: Storytell (always runs — post-narration storytelling brain) ---
