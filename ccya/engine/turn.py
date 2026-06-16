@@ -1035,16 +1035,6 @@ async def run_turn(
             else:
                 state.get("meta", {}).pop("pending_gm_beat", None)
 
-            # Consecutive pressure beats counter: tracks beat type streaks, not directive types
-            _current_beat = state.get("meta", {}).get("pending_gm_beat")
-            _beat_type = _current_beat.get("type") if _current_beat else None
-            meta = state.setdefault("meta", {})
-            current_pressure = meta.get("consecutive_pressure_beats", 0)
-            if _beat_type in PRESSURE_BEAT_TYPES:
-                meta["consecutive_pressure_beats"] = current_pressure + 1
-            else:
-                meta["consecutive_pressure_beats"] = 0
-
         if is_cancel_requested(str(save_dir)):
             return
         yield ("phase", {"phase": "extract_done"})
@@ -1360,7 +1350,6 @@ async def run_turn(
                 "convergence_score": _pc.convergence_score if _pc else 0,
             },
             "post_turn_pending_beat": state.get("meta", {}).get("pending_gm_beat"),
-            "post_extraction_consecutive_pressure_beats": state.get("meta", {}).get("consecutive_pressure_beats"),
             "allowed_beat_types": derive_allowed_beat_types(
                 state.get("scene", {}).get("scene_phase", "SETUP"),
                 directive=_pc.directive if _pc else "",

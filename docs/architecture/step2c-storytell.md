@@ -15,7 +15,7 @@ flowchart LR
         S2["_ExtractionContext<br>(comp_this_turn, location,<br>inventory, conditions)<br>built by _build_extraction_context()"]:::xstream
         S3["npc_roster<br>(from build_npc_roster())"]:::xstream
         S4["pacing_context<br>(directive · outcome_hint)"]:::xstream
-        S4b["scene_phase<br>(SETUP/RISING/CRISIS/RESOLUTION/BREATHER)"]:::xstream
+        S4b["scene_phase<br>(SETUP/RISING/CLIMAX/RESOLUTION/BREATHER)"]:::xstream
         S4c["allowed_beat_types<br>(phase-derived list of permitted beat types)"]:::xstream
         S5["arc.threads[]<br>(unified scope=scene + scope=arc)"]:::xstream
         S6["rules_outcome"]:::xstream
@@ -123,24 +123,17 @@ Note: This expiry runs early enough that the beat is gone before the extraction 
 - If Storytell emits a valid `gm_beat` (non-null `type`): replaces `pending_gm_beat` with `beat_expires_turn = turn_no + 2`.
 - If Storytell emits `null` or an invalid beat: pops `pending_gm_beat` from state (null-clear). The old beat does NOT carry forward.
 
-**Step 4 — Floor relief injection.** After delta apply, if `enforce_relief=True` (phase is CRISIS and `consecutive_pressure_beats >= config.consecutive_pressure_threshold`) AND the current `pending_gm_beat` is either `None` or a pressure-type (`pressure`, `escalation`, `complication`): injects a `breathing_room` beat with `beat_expires_turn = turn_no + 2`. This overrides pressure-type beats that would otherwise continue the pressure cycle, but does NOT override non-pressure beats the storyteller independently produced (e.g., `revelation`, `opportunity`, `breathing_room`).
+**Step 4 — Beat history snapshot.** `pending_gm_beat` is appended to `state.meta.recent_beats` (capped at 5 entries). The snapshot reflects the beat the next turn's narrator will consume.
 
-**Step 5 — Beat history snapshot.** `pending_gm_beat` is appended to `state.meta.recent_beats` (capped at 5 entries). The snapshot is taken after any floor relief override, so it reflects the beat the next turn's narrator will consume.
-
-**Step 6 — Consecutive pressure beats counter update.** The counter increments on pressure-type beats and resets to 0 otherwise.
+**Removed:** Floor relief injection (derive_enforce_relief deleted in convergence scoring Phase 2). Consecutive pressure beats counter removed. Beat streak is now tracked via `recent_beats` and used in the convergence score.
 
 ### Floor Relief Injection
 
-Floor relief is now driven by the phase engine, not the old momentum system. It fires after delta apply when `enforce_relief=True` (phase is CRISIS and `consecutive_pressure_beats >= config.consecutive_pressure_threshold`) AND the current `pending_gm_beat` is either `None` or a pressure-type beat (`pressure`, `escalation`, `complication`). It injects a `breathing_room` beat with TTL of 2 turns (same as storyteller-emitted beats, despite architecture docs claiming 3).
-
-Floor relief is a **fallback override** — it breaks a pressure-type run by force-injecting recovery:
-- If Storytell emitted a pressure-type beat → floor relief overrides it with breathing_room.
-- If Storytell emitted a non-pressure beat (revelation, opportunity, breathing_room, etc.) → floor relief lets it stand. Relief is already being achieved.
-- If Storytell emitted nothing (null) → floor relief injects breathing_room. This is appropriate: after a null turn with enforce_relief active, relief is needed.
+**Removed.** `derive_enforce_relief()` was deleted in convergence scoring Phase 2. The consecutive pressure beats counter was also removed. Beat streak tracking is now handled by the convergence score's `recent_beats` component.
 
 ### Phase-Beat Constraints
 
-The storyteller prompt (`storytell_system.j2`) uses a phase→beat constraints table driven by `scene_phase` and `allowed_beat_types` context variables. Each phase (SETUP, RISING, CRISIS, RESOLUTION, BREATHER) specifies which beat types are permitted. The roll-band table becomes the secondary constraint when phase allows multiple types. Phase overrides roll band. This alignment is **guidance only** — Python accepts whatever gm_beat the LLM emits with no validation, correction, or override. Design rationale: forcing phase-beat alignment would constrain storytelling flexibility and create brittleness if the LLM makes contextually appropriate but phase-divergent beat choices.
+The storyteller prompt (`storytell_system.j2`) uses a phase→beat constraints table driven by `scene_phase` and `allowed_beat_types` context variables. Each phase (SETUP, RISING, CLIMAX, RESOLUTION, BREATHER) specifies which beat types are permitted. The roll-band table becomes the secondary constraint when phase allows multiple types. Phase overrides roll band. This alignment is **guidance only** — Python accepts whatever gm_beat the LLM emits with no validation, correction, or override. Design rationale: forcing phase-beat alignment would constrain storytelling flexibility and create brittleness if the LLM makes contextually appropriate but phase-divergent beat choices.
 
 ### Beat History
 
