@@ -88,7 +88,7 @@ def main() -> None:
         turn_file = Path(str(flags["save-dir"])) / "events.jsonl"
 
     # Skip events path extraction for play command — events are written by play_turn()
-    elif cmd != "play" and len(args) > 1 and args[-1].startswith("saves/"):
+    elif cmd not in ("play", "prompt-eval") and len(args) > 1 and args[-1].startswith("saves/"):
         candidate = Path(args[-1])
         if candidate.is_dir():
             turn_file = candidate / "events.jsonl"
@@ -137,7 +137,7 @@ def main() -> None:
                 cmd_turn(ev)
         case "prompt-eval":
             from ccya.ev.prompt_eval import cmd_prompt_eval
-            cmd_prompt_eval(flags, args)
+            cmd_prompt_eval(flags, args[1:])
         case "prompt":
             if len(args) < 3:
                 print("Usage: ev.py prompt TURN STREAM [--field FIELD] [--system]", file=sys.stderr)
