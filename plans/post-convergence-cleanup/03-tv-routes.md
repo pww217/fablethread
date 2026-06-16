@@ -11,7 +11,7 @@ Update the turn viewer (`server/tv.py`) and settings API (`server/routes.py`) to
 
 ## Status
 
-`open`
+`completed`
 
 ## Dependencies
 
