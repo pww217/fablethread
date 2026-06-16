@@ -75,6 +75,7 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 | **Persist** | [persist](./persist.md) | Atomic writes (events.jsonl, state.yaml, chronicle.md), readback |
 | **Cross-Pipeline Data Flow** | [cross-pipeline](./cross-pipeline.md) | Full inter-step data flow diagram |
 | **Out-of-Band Pipelines** | [out-of-band](./out-of-band.md) | Character Creation pipeline, Generate Seed pipeline, turn viewer status colors |
+| **Prompt Eval** | — | Fast prompt testing CLI (`ev.py prompt-eval`): renders prompts with live data, calls LLM, runs checkers. Two subcommands: `dump` (render only), `call` (render + LLM + check). Uses `state_snapshot` (post-turn) as context. Known limitation: inventory/conditions reflect end of turn. |
 | **Narration UI** | [narration-ui](./narration-ui.md) | Main game interface: SSE streaming, HTMX sidebar refresh, Alpine.js state machine |
 | **Turn Viewer UI** | [turn-viewer-ui](./turn-viewer-ui.md) | Pipeline debug UI: turn cards, stage inspector, diff panel, live updates |
 

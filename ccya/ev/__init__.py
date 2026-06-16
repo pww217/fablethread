@@ -75,7 +75,7 @@ def main() -> None:
     flags, args = _strip_flags(args)
     if not args:
         print("Error: no command specified.", file=sys.stderr)
-        print("Commands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, curtain-call, warnings, prompt-sizes", file=sys.stderr)
+        print("Commands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, init, status, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, curtain-call, warnings, prompt-sizes, prompt-eval", file=sys.stderr)
         print("\nUsage: .venv/bin/python scripts/debug/ev.py <command> [args...]", file=sys.stderr)
         sys.exit(1)
 
@@ -111,7 +111,7 @@ def main() -> None:
     match cmd:
         case "help":
             print(__doc__.strip() if __doc__ else "ev.py — Debug CLI for CCYA events.jsonl")
-            print("\nCommands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, curtain-call, warnings, prompt-sizes")
+            print("\nCommands: summary, timing, turn, prompt, deltas, mechanics, state, diff, trace, search, play, check, eval, state-history, active-conditions, npc-ghosting, storyteller-audit, thread-audit, ruling-audit, compat, beats, rolls, convergence, phase-transitions, curtain-call, warnings, prompt-sizes, prompt-eval")
             sys.exit(0)
         case "summary":
             from ccya.ev.inspect import cmd_summary
@@ -135,6 +135,9 @@ def main() -> None:
             else:
                 from ccya.ev.inspect import cmd_turn
                 cmd_turn(ev)
+        case "prompt-eval":
+            from ccya.ev.prompt_eval import cmd_prompt_eval
+            cmd_prompt_eval(flags, args)
         case "prompt":
             if len(args) < 3:
                 print("Usage: ev.py prompt TURN STREAM [--field FIELD] [--system]", file=sys.stderr)
