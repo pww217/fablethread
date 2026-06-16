@@ -48,7 +48,7 @@ Add `ev.py prompt-eval` with two subcommands: `dump` (renders and prints prompts
 
 ## Status
 
-`open`
+`completed` — implemented in commit `7552a08`
 
 ## Phases
 
