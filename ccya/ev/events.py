@@ -352,3 +352,80 @@ def accumulate_intermediate_changes(events: list[dict[str, Any]], turn_a: int, t
                 results.append({"turn": ev_turn, "field": f"changes.{field}", "value": _shorten(value), "source": "changes"})
 
     return results
+
+
+def is_compaction_event(ev: dict[str, Any]) -> bool:
+    """Detect compaction events (condition_expired, sanitizer with empty ruling, etc.).
+
+    Compaction events are events that don't represent a full turn in the pipeline.
+    They include condition_expired events, sanitizer events with empty ruling,
+    and any event where ruling is empty and tokens_in is 0.
+    """
+    kind = ev.get("kind", "turn")
+    if kind == "condition_expired":
+        return True
+    ruling = ev.get("ruling") or {}
+    if not ruling:
+        return True
+    tokens_in = ruling.get("tokens_in", 0)
+    if not tokens_in:
+        return True
+    return False
+
+
+def assign_scene_ids(events: list[dict[str, Any]]) -> dict[int, int]:
+    """Assign scene IDs to events based on location changes and phase resets.
+
+    A new scene starts when:
+    - Location changes (detected from state_snapshot or extraction)
+    - Phase resets to SETUP (after being in a different phase)
+
+    Returns a dict mapping turn -> scene_id.
+    """
+    scene_id = 0
+    prev_location = None
+    prev_phase = None
+    turn_to_scene: dict[int, int] = {}
+
+    for ev in events:
+        t = ev.get("turn")
+        if t is None or not isinstance(t, int):
+            continue
+
+        # Detect location change
+        new_location = None
+        pc = ev.get("pacing_context") or {}
+        phase = pc.get("scene_phase", "")
+
+        # Check for location in state_snapshot
+        ss = ev.get("state_snapshot") or {}
+        loc = ss.get("location") or {}
+        if isinstance(loc, dict):
+            new_location = loc.get("name") or loc.get("id")
+
+        # Check for location in extraction
+        if not new_location:
+            extraction = ev.get("extraction") or {}
+            scene = extraction.get("scene") or {}
+            scene_output = scene.get("output") or {}
+            if isinstance(scene_output, dict):
+                new_location = scene_output.get("location_name") or scene_output.get("location")
+
+        # Detect scene boundary
+        is_new_scene = False
+        if prev_location is not None and new_location and new_location != prev_location:
+            is_new_scene = True
+        if prev_phase is not None and phase == "SETUP" and prev_phase != "SETUP":
+            is_new_scene = True
+
+        if is_new_scene:
+            scene_id += 1
+
+        turn_to_scene[t] = scene_id
+
+        if new_location:
+            prev_location = new_location
+        if phase:
+            prev_phase = phase
+
+    return turn_to_scene

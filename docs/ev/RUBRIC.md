@@ -22,8 +22,11 @@ Use this rubric when inspecting a game session with `ev.py`. Check one area at a
 ev.py check 5 phase_transition --save-dir saves/my-game
 ev.py check 5 pacing_directives --save-dir saves/my-game
 ev.py convergence saves/my-game/events.jsonl
+ev.py convergence --by-scene saves/my-game/events.jsonl     # grouped by scene
 ev.py phase-transitions saves/my-game/events.jsonl
+ev.py phase-transitions --by-scene saves/my-game/events.jsonl
 ev.py curtain-call saves/my-game/events.jsonl
+ev.py curtain-call --by-scene saves/my-game/events.jsonl
 ```
 
 **Red flags:**
@@ -52,6 +55,7 @@ ev.py curtain-call saves/my-game/events.jsonl
 ```bash
 ev.py convergence saves/my-game/events.jsonl
 ev.py convergence --estimate saves/my-game/events.jsonl     # retro-compute for saves missing components
+ev.py convergence --by-scene saves/my-game/events.jsonl     # grouped by scene
 ev.py phase-transitions saves/my-game/events.jsonl
 ev.py beats saves/my-game/events.jsonl                      # beat type context
 ev.py check 5 recent_beats --save-dir saves/my-game
@@ -80,6 +84,7 @@ ev.py check 5 recent_beats --save-dir saves/my-game
 **Commands:**
 ```bash
 ev.py curtain-call saves/my-game/events.jsonl
+ev.py curtain-call --by-scene saves/my-game/events.jsonl    # grouped by scene
 ev.py convergence saves/my-game/events.jsonl
 ev.py beats saves/my-game/events.jsonl
 ev.py check 5 beat_phase_validity --save-dir saves/my-game
@@ -400,8 +405,11 @@ ev.py check 5 state_fidelity --llm --save-dir saves/my-game
 | Phase trajectory | `ev.py trace scene_phase saves/my-game/events.jsonl` |
 | Convergence score + components | `ev.py convergence saves/my-game/events.jsonl` |
 | Convergence score (retro-computed) | `ev.py convergence --estimate saves/my-game/events.jsonl` |
+| Convergence by scene | `ev.py convergence --by-scene saves/my-game/events.jsonl` |
 | Phase transitions with triggers | `ev.py phase-transitions saves/my-game/events.jsonl` |
+| Phase transitions by scene | `ev.py phase-transitions --by-scene saves/my-game/events.jsonl` |
 | Curtain Call compliance | `ev.py curtain-call saves/my-game/events.jsonl` |
+| Curtain Call by scene | `ev.py curtain-call --by-scene saves/my-game/events.jsonl` |
 | Beat type over time | `ev.py beats saves/my-game/events.jsonl` |
 | Roll bands per turn | `ev.py rolls saves/my-game/events.jsonl` |
 | Roll band distribution | `ev.py rolls --summary saves/my-game/events.jsonl` |

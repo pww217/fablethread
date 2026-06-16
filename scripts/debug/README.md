@@ -218,11 +218,16 @@ Personality presets shape the LLM player's system prompt:
 | Roll band distribution | `ev.py rolls --summary [save-path]` |
 | Convergence score + 5 component breakdown | `ev.py convergence [save-path]` |
 | Convergence score (retro-computed) | `ev.py convergence --estimate [save-path]` |
+| Convergence by scene | `ev.py convergence --by-scene [save-path]` |
 | Scene phase transitions with triggers | `ev.py phase-transitions [save-path]` |
+| Phase transitions by scene | `ev.py phase-transitions --by-scene [save-path]` |
 | CLIMAX Curtain Call compliance | `ev.py curtain-call [save-path]` |
+| Curtain Call by scene | `ev.py curtain-call --by-scene [save-path]` |
 | Goal changes over time | `ev.py goals [save-path]` |
 | Beat TTL expiration over time | `ev.py beat-ttl [save-path]` |
 | Effective scene age (if available) | `ev.py effective-age [save-path]` |
+
+All tabular commands filter compaction events by default. Use `--include-compaction` to include them.
 
 ```bash
 # How did threads evolve across the session?

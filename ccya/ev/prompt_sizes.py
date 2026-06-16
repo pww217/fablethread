@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ccya.ev.events import is_compaction_event
+
 
 def _try_linear_slope(values: list[float]) -> float | None:
     """Compute linear regression slope for a series. Returns None if too few points."""
@@ -18,8 +20,10 @@ def _try_linear_slope(values: list[float]) -> float | None:
     return num / den
 
 
-def cmd_prompt_sizes(events: list[dict[str, Any]]) -> None:
+def cmd_prompt_sizes(events: list[dict[str, Any]], include_compaction: bool = False) -> None:
     """Show token counts per pipeline stage across turns."""
+    if not include_compaction:
+        events = [ev for ev in events if not is_compaction_event(ev)]
     rows: list[dict[str, Any]] = []
     for ev in events:
         t = ev.get("turn")
