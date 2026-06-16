@@ -1,16 +1,16 @@
 """Pure-Python rules engine. No LLM, no I/O.
 
 Dice system: 1d12 + stat_mod + difficulty_mod.
-  stat_mod   = stat_value - 2  (stat range 1–4 → mod -1..+2)
+  stat_mod   = stat_value - 2  (stat range 1-4 → mod -1..+2)
   diff_mod   = DIFFICULTY_MOD[difficulty]
 
 PbtA 7-band resolution (1d12):
-  raw_die 1  → crit_fail  (always, ignores modifiers)
-  raw_die 12 → crit_success (always, ignores modifiers)
-  final_total ≤ 5 → fail
-  final_total = 6 → setback
-  final_total ≤ 8 → partial
-  final_total ≥ 9 → success
+  final_total <= 1  → crit_fail  (modifiers affect crit probability)
+  final_total <= 5  → fail
+  final_total == 6  → setback
+  final_total <= 7  → partial
+  final_total >= 8  → success
+  final_total >= 12 → crit_success (modifiers affect crit probability)
 """
 
 from __future__ import annotations
@@ -77,11 +77,11 @@ _DIRECTIVE_TABLE: dict[str, dict[str, str]] = {
         "default":     "You are set back — a resource is spent, time is lost, or a new problem appears.",
     },
     "partial": {
-        "combat":      "You succeed but at a cost — a resource spent, a wound taken, or a complication started.",
-        "social":      "You get what you asked for, but they now hold leverage over you.",
-        "exploration": "You find it, but you've triggered something: a trap, a witness, a timer.",
-        "movement":    "You reach your destination, but something went wrong on the way.",
-        "default":     "You get what you wanted, but something is taken from you or goes wrong in the process.",
+        "combat":      "You succeed but at a cost — a resource spent, a wound taken, or a complication started. The cost is mandatory and must be named concretely.",
+        "social":      "You get what you asked for, but they now hold leverage over you. The cost is mandatory — name the concrete price.",
+        "exploration": "You find it, but you've triggered something: a trap, a witness, a timer. The cost is mandatory and must be named concretely.",
+        "movement":    "You reach your destination, but something went wrong on the way. The cost is mandatory — name what was lost or compromised.",
+        "default":     "You get what you wanted, but something is taken from you or goes wrong. The cost is mandatory and must be named concretely: a wound, a resource, leverage given, or a new complication.",
     },
 }
 
@@ -108,7 +108,7 @@ def compute_band(final_total: int, raw_die: int) -> str:
         return "fail"
     if final_total == 6:
         return "setback"
-    if final_total <= 8:
+    if final_total <= 7:
         return "partial"
     return "success"
 

@@ -286,6 +286,8 @@ Only urgent threads are shown (typically 1-2). Last 3 progress entries in chrono
 
 **Expected impact:** ~69% → ~35-45% roll rate. Fewer rolls = fewer FAIL bands feeding the convergence score's dice weight component. Directly reduces spiral risk.
 
+**Status:** Implemented in `plans/completed/12-convergence/01-roll-frequency.md`.
+
 ### Change B: Band rebalancing (rules.py)
 
 **Problem:** Condition distribution across 81 turns shows 18:1 negative-to-positive ratio (19 distinct types: 18 negative, 1 positive). Average ~0.9 active conditions per turn. Net accumulation in every run (+4, +10, +6). Conditions bias difficulty upward (55% of rolls at hard), shifting the effective distribution left.
@@ -317,6 +319,8 @@ if final_total <= 7:    return "partial"
 **Criticals are modifier-sensitive:** `compute_band()` uses `final_total` for crit thresholds (≤1 and ≥12), not raw die. The `rules.py` module docstring incorrectly states "raw_die 1 → crit_fail (always, ignores modifiers)." The code is correct; the docstring is wrong and must be updated to: `final_total <= 1 → crit_fail`, `final_total >= 12 → crit_success`. Conditions and skills should affect crit probability — a player in a -2 condition stack can crit-fail on raw die 3; a player with +2 advantage can crit-succeed on raw die 10.
 
 **Partial directive language strengthened:** The `build_directive()` output for `partial` band is updated to make the cost non-optional and concretely named. The existing text "you succeed but at a cost" is treated as optional flavor. New text: "The [verb] partially succeeds — but the cost is mandatory and must be named concretely: a wound taken, a resource spent, leverage given to an opponent, or a new complication now in play. Do not narrate a clean success. The cost is not optional flavor."
+
+**Status:** Implemented in `plans/completed/12-convergence/02-band-rebalance.md`.
 
 ### Change C: Positive condition extraction guidance (extract_state_system.j2)
 
@@ -447,7 +451,7 @@ BEAT_BUCKETS["pressure"] = ["pressure", "complication", "escalation", "setback"]
 - **`ccya/engine/config.py`** — `EngineConfig` (line 97-184): add `convergence_threshold`, rename `crisis_turn_limit` to `climax_turn_limit`, remove `crisis_urgency_threshold`, remove `consecutive_pressure_threshold`.
 - **`ccya/engine/extraction.py`** — imports (line 19): remove `derive_enforce_relief`. Storytell message builder (line 319-327): remove `enforce_relief` parameter from `derive_allowed_beat_types()` call.
 - **`ccya/prompts/storytell_system.j2`** — Scene Imperative beat list (line 71): replace `twist` with `setback`. Add `breathing_room` to Scene Imperative override list only (NOT to `BEAT_PHASE_MAP["CLIMAX"]` base list). Add Curtain Call guidance for CLIMAX phase. Distinction between base CLIMAX list and override list must be explicit in prompt text.
-- **`ccya/rules.py`** — `compute_band()` (line 102-113): partial threshold ≤8 → ≤7. **Crucially: module docstring (top of file)** incorrectly describes crit_fail/crit_success as raw-die-only. Must be corrected to: `final_total <= 1 → crit_fail`, `final_total >= 12 → crit_success`. `build_directive()` partial band text updated to make cost mandatory and concretely named (see Change B).
+- **`ccya/rules.py`** — `compute_band()` (line 102-113): partial threshold ≤8 → ≤7. Module docstring corrected to `final_total <= 1 → crit_fail`, `final_total >= 12 → crit_success`. `build_directive()` partial band text updated to make cost mandatory and concretely named. **Status: Implemented.**
 - **`ccya/models.py`** — `IntentEnvelope` (line 168-177): remove `tension_delta` field.
 - **Checkers** — `ccya/ev/checkers/gm_beat.py` (enforce_relief check), `ccya/ev/checkers/pacing.py` (consecutive_pressure_beats tracking), `ccya/ev/checkers/crisis_turn_counting.py` (rename to climax_turn_counting), `ccya/ev/checkers/beat_phase_validity.py` (enforce_relief reference on line 30).
 - **`ccya/ev/deltas.py`** — `_cmd_deltas_compact()` (line 132-191): references to CRISIS/climax naming, pressure beat tracking.
