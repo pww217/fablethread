@@ -374,12 +374,16 @@ def cmd_beats(events: list[dict[str, Any]]) -> None:
 
 
 def cmd_goals(events: list[dict[str, Any]]) -> None:
-    """Show goal changes over time from sanitizer events."""
+    """Show goal changes over time from sanitizer events, with extraction fallback."""
     goal_changes: list[dict[str, Any]] = []
+    sanitizer_turns: set[int] = set()
     for ev in events:
         if ev.get("kind") != "sanitizer":
             continue
         sev_turn = ev.get("turn")
+        if sev_turn is None or not isinstance(sev_turn, int):
+            continue
+        sanitizer_turns.add(sev_turn)
         changes_detail = ev.get("changes_detail") or {}
         goal = changes_detail.get("goal") or {}
         if goal:
@@ -391,6 +395,21 @@ def cmd_goals(events: list[dict[str, Any]]) -> None:
                     "before": before,
                     "after": after,
                 })
+
+    # Fallback: read extraction.storytell.output for turns without sanitizer events
+    for ev in events:
+        sev_turn = ev.get("turn")
+        if sev_turn is None or sev_turn in sanitizer_turns:
+            continue
+        storytell = (ev.get("extraction") or {}).get("storytell") or {}
+        output = storytell.get("output") or {}
+        goal = output.get("goal_update") or output.get("arc_resolve", {}).get("visible_goal")
+        if goal:
+            goal_changes.append({
+                "turn": sev_turn,
+                "before": "",
+                "after": goal,
+            })
 
     if not goal_changes:
         print("(no goal changes found)")
@@ -475,8 +494,144 @@ def cmd_beat_ttl(events: list[dict[str, Any]]) -> None:
         print(f"{td['turn']:>5} | {td['expires_at']:<10} | {td['beat_type']}")
 
 
-def cmd_momentum_check(events: list[dict[str, Any]]) -> None:
-    """Show momentum + band + expected delta in one table."""
+def _color_red(s: str) -> str:
+    return f"\033[91m{s}\033[0m"
+
+def _color_green(s: str) -> str:
+    return f"\033[92m{s}\033[0m"
+
+
+def cmd_convergence(events: list[dict[str, Any]]) -> None:
+    """Show convergence score + 5 components per turn."""
+    rows: list[dict[str, Any]] = []
+    prev_phase = ""
+    for ev in events:
+        t = ev.get("turn")
+        if t is None or not isinstance(t, int):
+            continue
+        pc = ev.get("pacing_context") or {}
+        phase = pc.get("scene_phase", "")
+        score = pc.get("convergence_score", 0)
+        comps = pc.get("convergence_components", {})
+        rows.append({
+            "turn": t,
+            "phase": phase,
+            "thread": comps.get("thread_weight", 0),
+            "depth": comps.get("urgency_depth", 0),
+            "age": comps.get("scene_age", 0),
+            "beat": comps.get("beat_streak", 0),
+            "dice": comps.get("dice_weight", 0),
+            "score": score,
+            "entry": phase == "CLIMAX" and prev_phase != "CLIMAX",
+        })
+        prev_phase = phase
+
+    if not rows:
+        print("(no convergence data)")
+        return
+
+    print(f"{'Turn':>5} | {'Phase':<10} | Thread | Depth | Age | Beat | Dice | Score | >=3?")
+    print(f"{'─' * 5}┼{'─' * 12}┼{'─' * 7}┼{'─' * 6}┼{'─' * 4}┼{'─' * 5}┼{'─' * 5}┼{'─' * 7}┼{'─' * 5}")
+    for r in rows:
+        marker = " " if not r["entry"] else "→"
+        score_ok = r["score"] >= 3
+        if r["phase"] == "RISING" and not score_ok:
+            score_str = _color_red(str(r["score"]))
+        elif r["entry"] and score_ok:
+            score_str = _color_green(str(r["score"]))
+        else:
+            score_str = str(r["score"])
+        ok_str = f"YES{marker}" if score_ok else "NO "
+        print(f"{r['turn']:>5} | {r['phase']:<10} |   {r['thread']}    |   {r['depth']}   |  {r['age']}  |  {r['beat']}   |   {r['dice']}  |  {score_str:>5} | {ok_str}")
+
+
+def cmd_phase_transitions(events: list[dict[str, Any]]) -> None:
+    """Detect and display scene phase transitions with triggers."""
+    prev_phase = ""
+    transitions: list[dict[str, Any]] = []
+    for ev in events:
+        t = ev.get("turn")
+        if t is None or not isinstance(t, int):
+            continue
+        pc = ev.get("pacing_context") or {}
+        phase = pc.get("scene_phase", "")
+        if phase != prev_phase and prev_phase:
+            transitions.append({
+                "turn": t,
+                "from": prev_phase,
+                "to": phase,
+                "convergence_score": pc.get("convergence_score", 0),
+                "climax_turn_count": pc.get("climax_turn_count", 0),
+                "breather_turn_count": pc.get("breather_turn_count", 0),
+                "outcome_hint": pc.get("outcome_hint", ""),
+            })
+        prev_phase = phase
+
+    if not transitions:
+        print("(no phase transitions detected)")
+        return
+
+    for tr in transitions:
+        parts = [f"convergence_score={tr['convergence_score']}"]
+        if tr["climax_turn_count"]:
+            parts.append(f"climax_turn_count={tr['climax_turn_count']}")
+        if tr["breather_turn_count"]:
+            parts.append(f"breather_turn_count={tr['breather_turn_count']}")
+        if tr["outcome_hint"]:
+            parts.append(f"outcome_hint={tr['outcome_hint']}")
+        print(f"Turn {tr['turn']}: {tr['from']} \u2192 {tr['to']}   ({', '.join(parts)})")
+
+
+def cmd_curtain_call(events: list[dict[str, Any]]) -> None:
+    """Check Curtain Call compliance for CLIMAX turns."""
+    results: list[dict[str, Any]] = []
+    for ev in events:
+        t = ev.get("turn")
+        if t is None or not isinstance(t, int):
+            continue
+        pc = ev.get("pacing_context") or {}
+        phase = pc.get("scene_phase", "")
+        if phase != "CLIMAX":
+            continue
+
+        climax_turn_count = pc.get("climax_turn_count", 0)
+        thread_resolve = ev.get("extraction", {}).get("storytell", {}).get("output", {}).get("thread_resolve", {})
+        has_thread_resolve = bool(thread_resolve)
+        curtain_call_status = ""
+        if climax_turn_count == 1:
+            curtain_call_status = "active"
+        if climax_turn_count >= pc.get("climax_turn_limit", 4) - 1:
+            curtain_call_status = "forced"
+
+        passed = True
+        issues: list[str] = []
+        if not has_thread_resolve:
+            issues.append("missing thread_resolve")
+            passed = False
+
+        results.append({
+            "turn": t,
+            "climax_turn_count": climax_turn_count,
+            "curtain_call_status": curtain_call_status,
+            "has_thread_resolve": has_thread_resolve,
+            "passed": passed,
+            "issues": issues,
+        })
+
+    if not results:
+        print("(no CLIMAX turns in data)")
+        return
+
+    for r in results:
+        status = "PASS" if r["passed"] else "FAIL"
+        status_color = "\033[92m" if r["passed"] else "\033[91m"
+        cc = f" [{r['curtain_call_status']}]" if r["curtain_call_status"] else ""
+        issues_str = ", " + "; ".join(r["issues"]) if r["issues"] else ""
+        print(f"Turn {r['turn']} (CLIMAX #{r['climax_turn_count']}{cc}): {status_color}{status}\033[0m{issues_str}")
+
+
+def cmd_rolls(events: list[dict[str, Any]]) -> None:
+    """Show roll bands + raw/final totals per turn."""
     rows: list[dict[str, Any]] = []
     for ev in events:
         ruling = ev.get("ruling") or {}
@@ -1086,6 +1241,24 @@ def _match_single_query(
         except re.error:
             print(f"Error: invalid regex '{value}'", file=sys.stderr)
             sys.exit(1)
+
+    # Generic fallback: dot-notation fields go through extract_field_from_event
+    if "." in field:
+        from ccya.ev.events import extract_field_from_event
+        result = extract_field_from_event(ev, field)
+        if result is None:
+            return False
+        if op == "eq":
+            return str(result).lower() == str(value).lower()
+        elif op == "regex":
+            try:
+                pattern = re.compile(str(value))
+                return bool(pattern.search(str(result)))
+            except re.error:
+                return False
+        elif op == "bool":
+            return bool(result)
+        return False
 
     return False
 

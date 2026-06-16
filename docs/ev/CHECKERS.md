@@ -12,7 +12,7 @@ Checkers are organized by domain:
 - **Inventory & conditions**: `location_change`, `inventory_integrity`, `conditions_lifecycle`
 - **Threads & arcs**: `thread_lifecycle`, `arc_goal_updates`
 - **NPCs**: `npc_presence`
-- **Pacing**: `pacing_directives`, `action_quality`, `phase_transition`, `tension_delta`, `recent_beats`, `phase_persistence`, `scene_age_tracking`, `crisis_turn_counting`, `tension_monotonicity`, `breather_enforcement`, `roll_band_consistency`, `beat_phase_validity`
+- **Pacing**: `pacing_directives`, `action_quality`, `phase_transition`, `recent_beats`, `phase_persistence`, `scene_age_tracking`, `climax_turn_counting`, `breather_enforcement`, `roll_band_consistency`, `beat_phase_validity`
 - **Threads & arcs**: `thread_lifecycle`, `arc_goal_updates`, `thread_resolution_validity`, `new_thread_validity`, `arc_resolution_validity`, `goal_update_validity`
 - **NPCs**: `npc_presence`, `compendium_lifecycle`
 - **Sanitizer**: `sanitizer_lifecycle`
@@ -29,9 +29,9 @@ When inspecting a game, check one area at a time rather than running all checker
 
 - **Type:** deterministic
 - **Fields:** `state_snapshot`, `ruling`, `narrate_prompt`, `pacing_context`
-- **What it checks:** Pending GM beat is consumed across turns, beat lifecycle is respected, floor relief injected when enforce_relief, binding block present on rolled turns, enforce_relief fires at CRISIS with consecutive pressure beats
+- **What it checks:** Pending GM beat is consumed across turns, beat lifecycle is respected, floor relief injected when enforce_relief, binding block present on rolled turns, enforce_relief fires at CLIMAX with consecutive pressure beats
 - **CLI:** `ev.py check TURN gm_beat_lifecycle`
-- **Caveats:** Checks that `pending_gm_beat` from one turn is consumed or updated in the next. Verifies that when storyteller emits a GM beat, the state's `pending_gm_beat` matches its type. When `enforce_relief=True` (CRISIS phase + consecutive_pressure_beats ≥ threshold) and storyteller did not emit a breathing_room beat, floor relief must inject `breathing_room`.
+- **Caveats:** Checks that `pending_gm_beat` from one turn is consumed or updated in the next. Verifies that when storyteller emits a GM beat, the state's `pending_gm_beat` matches its type. When `enforce_relief=True` (CLIMAX phase + consecutive_pressure_beats ≥ threshold) and storyteller did not emit a breathing_room beat, floor relief must inject `breathing_room`.
 
 ### location_change
 
@@ -93,17 +93,9 @@ When inspecting a game, check one area at a time rather than running all checker
 
 - **Type:** deterministic
 - **Fields:** `pacing_context`
-- **What it checks:** Phase engine transitions follow the state machine (SETUP→RISING, RISING→CRISIS, CRISIS→RESOLUTION, RESOLUTION→BREATHER, BREATHER→RISING, any→SETUP on location_change), crisis_turn_count monotonicity, outcome_hint consistency during crisis limit
+- **What it checks:** Phase engine transitions follow the state machine (SETUP→RISING, RISING→CLIMAX, CLIMAX→RESOLUTION, RESOLUTION→BREATHER, BREATHER→RISING, any→SETUP on location_change), climax_turn_count monotonicity, outcome_hint consistency during climax limit
 - **CLI:** `ev.py check TURN phase_transition`
-- **Caveats:** Any→SETUP is always valid (location_change). Crisis turn count must increment by 1 within CRISIS phase. When crisis_turn_count >= 4 (default limit), outcome_hint must be "transition".
-
-### tension_delta
-
-- **Type:** deterministic
-- **Fields:** `ruling`, `pacing_context`
-- **What it checks:** tension_delta field present in ruling event, valid values (escalates/maintains/de-escalates), breathe directive consistency
-- **CLI:** `ev.py check TURN tension_delta`
-- **Caveats:** When tension_delta is "de-escalates" and directive is "Scene Imperative" or "Scene Pressure", this is a consistency failure. Cannot check thread urgency from events alone.
+- **Caveats:** Any→SETUP is always valid (location_change). CLIMAX turn count must increment by 1 within CLIMAX phase. When climax_turn_count >= 4 (default limit), outcome_hint must be "transition".
 
 ### recent_beats
 
@@ -119,7 +111,7 @@ When inspecting a game, check one area at a time rather than running all checker
 - **Fields:** `scene_phase`
 - **What it checks:** scene_phase field present and valid on every turn (regression guard for phase-persistence bug)
 - **CLI:** `ev.py check TURN phase_persistence`
-- **Caveats:** Validates that scene_phase is one of SETUP/RISING/CRISIS/RESOLUTION/BREATHER on every turn. The original bug caused phase to never be written to state, resetting every turn.
+- **Caveats:** Validates that scene_phase is one of SETUP/RISING/CLIMAX/RESOLUTION/BREATHER on every turn. The original bug caused phase to never be written to state, resetting every turn.
 
 ### scene_age_tracking
 
@@ -129,21 +121,13 @@ When inspecting a game, check one area at a time rather than running all checker
 - **CLI:** `ev.py check TURN scene_age_tracking`
 - **Caveats:** scene_age = current_turn - location_entered_turn. First turn and location change turns are skipped (age is 0).
 
-### crisis_turn_counting
+### climax_turn_counting
 
 - **Type:** deterministic
 - **Fields:** `pacing_context`
-- **What it checks:** crisis_turn_count increments by 1 within CRISIS phase, resets to 0 on phase exit, starts at 1 when entering CRISIS
-- **CLI:** `ev.py check TURN crisis_turn_counting`
-- **Caveats:** crisis_turn_count should be 0 when not in CRISIS phase. Entering CRISIS should set it to 1.
-
-### tension_monotonicity
-
-- **Type:** deterministic
-- **Fields:** `ruling`
-- **What it checks:** tension_delta field present, valid values (escalates/maintains/de-escalates), phase consistency
-- **CLI:** `ev.py check TURN tension_monotonicity`
-- **Caveats:** CRISIS phase should not have de-escalates (tension should escalate or maintain). BREATHER phase should not have escalates (tension should maintain or de-escalate).
+- **What it checks:** climax_turn_count increments by 1 within CLIMAX phase, resets to 0 on phase exit, starts at 1 when entering CLIMAX
+- **CLI:** `ev.py check TURN climax_turn_counting`
+- **Caveats:** climax_turn_count should be 0 when not in CLIMAX phase. Entering CLIMAX should set it to 1.
 
 ### breather_enforcement
 
@@ -191,7 +175,7 @@ When inspecting a game, check one area at a time rather than running all checker
 - **Fields:** `extraction.storytell`, `pacing_context`
 - **What it checks:** gm_beat.type is allowed for the current phase
 - **CLI:** `ev.py check TURN beat_phase_validity`
-- **Caveats:** Validates beat types against BEAT_PHASE_MAP. SETUP allows [pressure, complication, revelation]. RISING allows [pressure, complication, escalation, twist]. CRISIS allows [pressure, complication, escalation, twist, setback]. RESOLUTION allows [callback, breathing_room]. BREATHER allows [breathing_room, callback].
+- **Caveats:** Validates beat types against BEAT_PHASE_MAP. SETUP allows [pressure, complication, revelation]. RISING allows [pressure, complication, escalation, twist]. CLIMAX allows [pressure, complication, escalation, twist, setback]. RESOLUTION allows [callback, breathing_room]. BREATHER allows [breathing_room, callback].
 
 ### arc_resolution_validity
 

@@ -316,7 +316,16 @@ def extract_field_from_event(ev: dict[str, Any], field: str) -> Any | None:
             return tagline
         return None
 
-    return None
+    # Generic fallback: dot-notation traversal on event dict
+    parts = field.split(".")
+    current: Any = ev
+    for part in parts:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(part)
+        if current is None:
+            return None
+    return current
 
 
 def accumulate_intermediate_changes(events: list[dict[str, Any]], turn_a: int, turn_b: int) -> list[dict[str, Any]]:
