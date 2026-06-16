@@ -15,7 +15,7 @@
 | `ccya/engine/narrate.py` | _narrate_messages(), _get_resolved_arcs(), _fmt_progress(), NPC name helpers for prompt building |
 | `ccya/engine/pack_gen.py` | generate_pack() — LLM-generated ScenarioBrief, writes to packs/custom/<slug>/ |
 | `ccya/engine/names.py` | Name pool generation via Faker (pc, npc, location) |
-| `ccya/engine/ruling.py` | _ruling_messages(), _call_ruling() with retry logic (NOT ccya/rules.py — that's the dice engine) |
+| `ccya/engine/ruling.py` | _ruling_messages() (builds ruling prompts with urgent_threads from arc.threads), _call_ruling() with retry logic (NOT ccya/rules.py — that's the dice engine) |
 | `ccya/engine/extraction.py` | _run_extraction_pipeline(): 3 streams (scene/state/storytell), _call_stream() with retry |
 | `ccya/engine/thread_sanitizer.py` | sanitize_threads() — batch arc/thread cleanup every N turns; LLM-driven delta output (update/add/resolve/remove threads, goal updates); event logging to events.jsonl; SSE phase events (sanitize_start/sanitize_done) |
 | `ccya/engine/seed.py` | generate_seed() for dynamic packs, soft validation; post-parse hook validates LLM-assigned personality archetype ids; falls back to `ccya.personality.assign_personality()` for NPCs missing or having an invalid personality |

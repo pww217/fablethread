@@ -17,10 +17,11 @@ flowchart LR
         I2["state.location"]
         I3["recent_turns[-1:]<br>(last turn's full narrative from chronicle.md<br>via load_last_narration();<br>ruling user prompt)"]
         I4["user_input"]
+        I5["arc.threads<br>(urgent threads only)"]
     end
 
     subgraph LLM0["LLM — ruling_system.j2 + ruling_user.j2"]
-        L0["temp: 0.2 · max_retries: 1<br>output: IntentEnvelope JSON<br>(intent, impossible, scene_motion, check)"]:::llmNode
+        L0["temp: 0.2 · max_retries: 1<br>output: IntentEnvelope JSON<br>(intent, impossible, check)"]:::llmNode
     end
 
     subgraph PYRES["Python — impossible check + rules.resolve_check()"]
@@ -28,7 +29,7 @@ flowchart LR
     end
 
     subgraph OUT["Outputs"]
-        O1["IntentEnvelope<br>  intent: str<br>  intent_verb: str<br>  target: str<br>  impossible: bool<br>  reason: str<br>  scene_motion: hold|advance|transition<br>  check.required: bool<br>  check.skill: SkillName<br>  check.difficulty: Difficulty"]:::outNode
+        O1["IntentEnvelope<br>  intent: str<br>  intent_verb: str<br>  target: str<br>  impossible: bool<br>  reason: str<br>  check.required: bool<br>  check.skill: SkillName<br>  check.difficulty: Difficulty"]:::outNode
         O2["RulesOutcome<br>  rolled: bool<br>  skill, difficulty, stat_value, stat_mod<br>  diff_mod<br>  dice: list[int]<br>  raw_total, final_total: int<br>  band: Band<br>  directive: str<br>  intent, intent_verb: str<br>  impossible: bool<br>  reason: str"]:::outNode
     end
 
@@ -36,6 +37,19 @@ flowchart LR
     LLM0 -- "IntentEnvelope" --> PYRES
     PYRES --> OUT
 ```
+
+## Decision rule
+
+Roll criteria tightened to reduce roll rate from ~69% to ~35-45%. Set `check.required=true` only when ALL THREE hold:
+- (a) Occurs at a major narrative pivot — scene transition, decisive confrontation, gamble that alters the story. Actions in scenes with urgent threads are more likely to qualify.
+- (b) Failure has a real, irreversible consequence
+- (c) The outcome is genuinely uncertain
+
+No-roll actions include: idle observation, unimpeded movement, item inspection, casual conversation, passing time, routine commerce, information gathering, actions already attempted in this scene without new stakes, taking cover, reloading, healing, using a prepared item as intended.
+
+## Urgent threads context
+
+When `arc.threads` contains threads with `urgency == "urgent"`, the ruling user prompt includes an "Urgent Threads" section showing each urgent thread's id, summary, and last 3 progress entries. This helps the ruling LLM assess criterion (a) — whether the action relates to a major narrative pivot.
 
 ## Impossibility check
 
