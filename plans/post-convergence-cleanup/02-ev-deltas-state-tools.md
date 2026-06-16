@@ -11,7 +11,7 @@ Update `ev/deltas.py` and `ev/state_tools.py` to reflect renamed fields and remo
 
 ## Status
 
-`open`
+`completed`
 
 ## Dependencies
 
