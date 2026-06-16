@@ -310,11 +310,19 @@ def _create_play_session(pack: str | None = None, packs_dir: Path | None = None)
 
 
 def _build_play_config(flags: dict[str, str], session_config: dict[str, Any] | None = None) -> EngineConfig:
+    from ccya.config import load_user_config
+
+    user_cfg = load_user_config()
     raw_cfg = load_config()
+
+    # Model precedence: CLI flag > session config > user config > hardcoded
     if "model" in flags:
         raw_cfg.setdefault("llm", {})["model"] = flags["model"]
     elif session_config is not None and "model" in session_config:
         raw_cfg.setdefault("llm", {})["model"] = str(session_config["model"])
+    elif user_cfg.ev.model:
+        raw_cfg.setdefault("llm", {})["model"] = user_cfg.ev.model
+
     if "temp" in flags:
         temp = float(flags["temp"])
         for section in ("ruling", "extract", "narrate", "generate_seed"):

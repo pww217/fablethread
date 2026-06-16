@@ -55,11 +55,16 @@ def cmd_check(
 
     # Load checker model if running LLM checkers
     if include_llm:
+        from ccya.config import load_user_config
         from ccya.engine.config import build_engine_config
         from ccya.models import load_config
         raw_cfg = load_config()
         if checker_model:
             raw_cfg.setdefault("llm", {})["model"] = checker_model
+        else:
+            user_cfg = load_user_config()
+            if user_cfg.ev.checker_model:
+                raw_cfg.setdefault("llm", {})["model"] = user_cfg.ev.checker_model
         config = build_engine_config(raw_cfg)
         set_checker_config(config)
         try:
