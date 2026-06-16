@@ -19,8 +19,7 @@ flowchart TD
     SB["Storytell<br>beat/thread selection"]:::output
 
     S --- shared1["scene_phase"]:::shared
-    S --- shared2["consecutive_pressure_beats"]:::shared
-    S --- shared3["arc.threads[] urgency counts"]:::shared
+    S --- shared2["arc.threads[] urgency counts"]:::shared
 
     S --> PE --> PC
     PC -. "feeds outcome_hint" .-> N
@@ -48,10 +47,6 @@ The phase engine tracks `state["scene"]["scene_phase"]` through five states: SET
 ### Convergence score
 
 `compute_convergence_score()` computes a 5-component score (0-5) each turn to drive RISING→CLIMAX transition. Components: (1) thread urgency ≥1 (+1), (2) urgency depth ≥2 (+1), (3) scene age ≥ threshold (+1), (4) beat streak: ≥60% pressure beats in recent window (+1), (5) dice weight: fail/crit_fail roll with urgent thread (+1). Threshold is `config.convergence_threshold` (default 3).
-
-### Floor relief
-
-When `enforce_relief=True` (derived from scene phase and consecutive_pressure_beats), the system injects `breathing_room` beats to prevent pressure fatigue.
 
 ## 2.5. Curtain Call — CLIMAX phase soft close
 
@@ -106,12 +101,7 @@ flowchart TD
     STORED --> HISTORY["recent_beats.append<br>(capped at 5)"]:::pyNode
     POPPED --> HISTORY
 
-    HISTORY --> COUNTER{"gm_beat.type in<br>pressure types?"}:::decision
-    COUNTER -- yes --> INC["consecutive_pressure_beats + 1"]:::output
-    COUNTER -- no --> RESET["consecutive_pressure_beats = 0"]:::output
-
-    INC --> END["Turn ends"]:::pyNode
-    RESET --> END
+    HISTORY --> END["Turn ends"]:::pyNode
     STORED -. "next turn" .-> START
 
     style STORYLLM fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
@@ -122,18 +112,10 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    BEAT["gm_beat.type"] --> COUNTER{"pressure types?"}<br>pressure, escalation, complication
-    COUNTER -- yes --> PRESS["consecutive_pressure_beats + 1"]
-    COUNTER -- no --> RESET["consecutive_pressure_beats = 0"]
-
-    PRESS --> RELIEF{"≥ threshold?"}
-    RELIEF -- yes --> ENFORCE["enforce_relief=True → breathing_room"]
-
-    BEAT -. "narrative guidance" .-> NARR["Narrator<br>weaves beat into prose"]
+    BEAT["gm_beat.type"] -. "narrative guidance" .-> NARR["Narrator<br>weaves beat into prose"]
     BEAT -. "diversity guidance" .-> ST["Storytell<br>avoid repeat types"]
 
     style BEAT fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
-    style ENFORCE fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
 ```
 
 ### Code locations
@@ -143,8 +125,6 @@ flowchart LR
 | `turn.py` | 68 | `PRESSURE_BEAT_TYPES` definition |
 | `turn.py` | 762-767 | Pre-narration expiry check |
 | `turn.py` | 1012-1019 | New beat replacement / null-clear |
-| `turn.py` | 1021-1034 | Floor relief injection |
-| `turn.py` | 1036-1044 | Consecutive pressure counter |
 | `turn.py` | 1139-1150 | Beat history snapshot |
 | `changes.py` | 333-373 | General change summarization (conditions, facts, threads, inventory) |
 
@@ -222,7 +202,7 @@ flowchart LR
 | `turn.py` | 98-108 | `PacingContext` dataclass definition |
 | `turn.py` | 447-486 | `_compute_pacing_context()` |
 | `turn.py` | 408-444 | `_compute_narration_directive()` |
-| `turn.py` | 776 | `tension_delta` extraction from ruling |
+
 | `turn.py` | 804-813 | `_narrate_setup()` calls `_compute_pacing_context` |
 | `narrate_user.j2` | 100-103 | `outcome_hint`, `pacing_context` |
 | `storytell_user.j2` | 27-28 | `directive`, `outcome_hint` |
@@ -283,15 +263,13 @@ flowchart TD
     classDef output fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
     classDef system fill:#3b0764,color:#e9d5ff,stroke:#7c3aed,strokeWidth:2px
 
-    INPUT["Player input"]:::input --> RULING["Step 0: Ruling<br>intent + outcome + band + tension_delta"]:::system
+    INPUT["Player input"]:::input --> RULING["Step 0: Ruling<br>intent + outcome + band"]:::system
 
-    RULING --> TD["tension_delta from ruling<br>escalates/maintains/de-escalates"]:::output
-
-    TD --> PHASE["Phase Engine<br>scene_phase transitions"]:::system
+    RULING --> PHASE["Phase Engine<br>scene_phase transitions"]:::system
 
     THREADS["arc.threads[]<br>urgency counts"]:::input --> PHASE
 
-    PHASE --> DIR["_compute_narration_directive<br>phase + tension_delta + age → directive"]:::system
+    PHASE --> DIR["_compute_narration_directive<br>phase + age → directive"]:::system
 
     PHASE & DIR & CS["convergence_score"] --> PC["_compute_pacing_context<br>→ PacingContext struct"]:::system
 
@@ -305,19 +283,7 @@ flowchart TD
     STORYLLM --> BEAT_STORE["Store pending_gm_beat<br>expires = turn_no + 2"]:::output
     STORYLLM --> THREADS2["thread_add/thread_update/<br>thread_resolve"]:::output
 
-    BEAT_STORE --> RELIEF{"enforce_relief=True?"}:::decision
-    RELIEF -- yes --> OVR{"current beat<br>is None or<br>pressure-type?"}:::decision
-    OVR -- yes --> FLOOR_OUT["Inject breathing_room<br>overrides pressure"]:::output
-    OVR -- no --> HISTORY["recent_beats.append"]:::output
-    RELIEF -- no --> HISTORY
-    FLOOR_OUT --> HISTORY
-
-    HISTORY --> COUNTER{"pressure-type?"}:::decision
-    COUNTER -- yes --> INC["consecutive_pressure_beats + 1"]:::output
-    COUNTER -- no --> RESET["consecutive_pressure_beats = 0"]:::output
-
-    INC -. "next turn" .-> THREADS
-    RESET -. "next turn" .-> THREADS
+    BEAT_STORE --> HISTORY["recent_beats.append"]:::output
 
     style RULING fill:#3b0764,color:#e9d5ff,stroke:#7c3aed,strokeWidth:2px
     style PHASE fill:#3b0764,color:#e9d5ff,stroke:#7c3aed,strokeWidth:2px
@@ -332,8 +298,7 @@ flowchart TD
 |----------|--------|-------------|--------|
 | `convergence_score` | Narrate setup (thread urgency, age, beats, dice) | RISING→CLIMAX transition | 5-component composite score |
 | `scene_phase` | Phase engine | Directive, beat constraints, outcome_hint | Primary pacing signal |
-| `consecutive_pressure_beats` | Beat type check (post-extraction) | enforce_relief, phase relief injection | Tracks pressure streaks |
-| `pending_gm_beat` | Storytell (or floor relief) | Narrator, beat history, pressure counter | Forward-facing storytelling beat |
+| `pending_gm_beat` | Storytell | Narrator, beat history | Forward-facing storytelling beat |
 | `arc.threads[].urgency` | Storytell (thread_update) + Python decay | Phase transitions, directive computation | Scene tension level |
 | `PacingContext.directive` | `_compute_pacing_context()` | Narrator, Storytell, prompt rendering | Primary scene instruction |
 | `PacingContext.outcome_hint` | `_compute_pacing_context()` (scene_age ≥ imperative_threshold) | Narrator scene motion | How the scene should progress |
@@ -344,11 +309,11 @@ flowchart TD
 
 ```
 T1:  phase=SETUP, no pressure beat → directive=""
-T2:  storyteller emits pressure beat → consecutive_pressure_beats=1
-T3:  urgent thread appears → phase=RISING, consecutive_pressure_beats=2
-T4:  convergence_score=3 (1 urgent + age 3 + 3 pressure beats) → CLIMAX
-T5:  breathing_room injected, consecutive_pressure_beats resets
-T6:  phase transitions to RESOLUTION → BREATHER
+T2:  storyteller emits pressure beat
+T3:  urgent thread appears → phase=RISING
+T4:  convergence_score=3 (1 urgent + age 3 + beat streak) → CLIMAX
+T5:  phase transitions to RESOLUTION → BREATHER
+T6:  normal rhythm continues
 ```
 
 ### Pattern 2: Climax resolution
@@ -426,14 +391,14 @@ T6:  normal climax rhythm continues
 | Checker | File | What it validates |
 |---------|------|-------------------|
 | `phase_transition` | `ccya/ev/checkers/phase_transition.py` | Phase engine transitions follow the state machine, outcome_hint consistency |
-| `tension_delta` | `ccya/ev/checkers/tension_delta.py` | tension_delta field presence, valid values, directive consistency (legacy — tension_delta removed from pipeline) |
+
 | `recent_beats` | `ccya/ev/checkers/recent_beats.py` | recent_beats list structure, cap, monotonic turn numbers |
-| `pacing_directives` | `ccya/ev/checkers/pacing.py` | Pressure tracking, outcome hint, directive render, removed directives, beat variety, phase constraints |
-| `gm_beat_lifecycle` | `ccya/ev/checkers/gm_beat.py` | Beat consumption, lifecycle, floor relief, binding |
+| `pacing_directives` | `ccya/ev/checkers/pacing.py` | Outcome hint, directive render, removed directives, beat variety, phase constraints |
+| `gm_beat_lifecycle` | `ccya/ev/checkers/gm_beat.py` | Beat consumption, lifecycle, binding |
 | `phase_persistence` | `ccya/ev/checkers/phase_persistence.py` | scene_phase field present and valid on every turn (regression guard) |
 | `scene_age_tracking` | `ccya/ev/checkers/scene_age_tracking.py` | scene_age increments by 1 each turn, resets on location change |
-| `crisis_turn_counting` | `ccya/ev/checkers/crisis_turn_counting.py` | climax_turn_count increments in CLIMAX, resets on phase exit |
-| `tension_monotonicity` | `ccya/ev/checkers/tension_monotonicity.py` | tension_delta field presence, valid values, phase consistency (legacy — tension_delta removed from pipeline) |
+| `climax_turn_counting` | `ccya/ev/checkers/climax_turn_counting.py` | climax_turn_count increments in CLIMAX, resets on phase exit |
+
 | `breather_enforcement` | `ccya/ev/checkers/breather_enforcement.py` | breather auto-transitions to RISING after breather_max_turns |
 | `roll_band_consistency` | `ccya/ev/checkers/roll_band_consistency.py` | band matches dice roll using rules engine, skill/difficulty valid |
 | `beat_phase_validity` | `ccya/ev/checkers/beat_phase_validity.py` | gm_beat.type is allowed for the current phase |

@@ -71,7 +71,7 @@ The beat system intersects with pacing via the `directive` field in `PacingConte
 |-------|------|---------|
 | `directive` | str | Narration directive (e.g., "Breathe", "Scene Imperative", "Scene Pressure", or empty). Drives storytell guidance for beat type selection. |
 
-> **Note:** `beat_locked` and `gate` fields were removed from `PacingContext` in the phase engine overhaul. Floor relief is now driven by `enforce_relief` derived from `scene_phase` and `consecutive_pressure_beats`. Phase-derived `allowed_beat_types` is the gating mechanism for beat type selection.
+> **Note:** `beat_locked` and `gate` fields were removed from `PacingContext` in the phase engine overhaul. Phase-derived `allowed_beat_types` is the gating mechanism for beat type selection.
 
 ### Beat Lifecycle — Turn Sequence
 
@@ -94,19 +94,12 @@ flowchart TD
     STORYLLM -- "yes" --> STORED["state.meta.pending_gm_beat = storyteller beat<br>beat_expires_turn = turn_no + 2 (TTL: 2 turns)"]:::output
 
     STORYLLM -- "no / null" --> POPPED["state.meta.pending_gm_beat = None<br>(key popped from meta)"]:::pyNode
-    POPPED --> FLOOR{"enforce_relief == True<br>AND (pending_gm_beat is None<br>    OR type in pressure types)"}:::decision
-    STORED --> FLOOR
+    POPPED --> APPEND_BEATS["recent_beats.append(snapshot)"]:::pyNode
+    STORED --> APPEND_BEATS
 
-    FLOOR -- yes --> BREATHING["Inject breathing_room beat<br>overrides any pressure-type pending beat<br>beat_expires_turn = turn_no + 2"]:::output
-
-    FLOOR -- no --> APPEND_BEATS["recent_beats.append(snapshot)"]:::pyNode
-    BREATHING --> APPEND_BEATS
-
-    APPEND_BEATS -->     COUNTER["consecutive_pressure_beats counter<br>updated from gm_beat.type"]:::pyNode
-    COUNTER --> DONE["Turn ends"]:::pyNode
+    APPEND_BEATS --> DONE["Turn ends"]:::pyNode
 
     STORED -. "next turn" .-> START
-    BREATHING -. "next turn" .-> START
 
     style EXPIRY fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
     style STORYLLM fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
@@ -115,7 +108,7 @@ flowchart TD
 
 **Step 1 — Pre-narration expiry check.** At the start of each turn, the engine reads `state.meta.pending_gm_beat` from the previous turn. If `beat_expires_turn` is set and the current turn number exceeds it, the beat is nullified (key set to None). Otherwise it proceeds to narration.
 
-Note: This expiry runs early enough that the beat is gone before the extraction phase begins. This is intentional — it creates clean state for floor relief to inject breathing_room if `enforce_relief` is active and storyteller doesn't provide its own non-pressure beat. Without the pre-narration expiry, a stale expired beat could block floor relief's null check.
+Note: This expiry runs early enough that the beat is gone before the extraction phase begins. This creates clean state for the storyteller to emit a new beat.
 
 **Step 2 — Narration consumption.** The beat is passed to the narrator via `_narrate_messages(pending_gm_beat=...)`. The narrator uses the beat's `type` and `surface_as` metadata as creative guidance alongside the pacing directive. The beat is NOT cleared after narration — it persists through the extraction phase.
 
@@ -125,11 +118,7 @@ Note: This expiry runs early enough that the beat is gone before the extraction 
 
 **Step 4 — Beat history snapshot.** `pending_gm_beat` is appended to `state.meta.recent_beats` (capped at 5 entries). The snapshot reflects the beat the next turn's narrator will consume.
 
-**Removed:** Floor relief injection (derive_enforce_relief deleted in convergence scoring Phase 2). Consecutive pressure beats counter removed. Beat streak is now tracked via `recent_beats` and used in the convergence score.
 
-### Floor Relief Injection
-
-**Removed.** `derive_enforce_relief()` was deleted in convergence scoring Phase 2. The consecutive pressure beats counter was also removed. Beat streak tracking is now handled by the convergence score's `recent_beats` component.
 
 ### Phase-Beat Constraints
 
