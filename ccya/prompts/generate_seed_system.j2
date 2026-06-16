@@ -91,6 +91,8 @@ How many depends on the NPC's role:
 
 **Group NPCs:** If an entry represents multiple people, the `name` field must always state the exact count as a spelled-out integer (e.g., 'Two armed guards', 'Three dockworkers'). Never use vague quantifiers — 'a few', 'several', 'a group of', 'some' are forbidden. When the count is unknown, use 'Unknown' as the count prefix. We must know how many people are in any scene.
 
+**Group NPC ID rule:** The `id` field must NOT include the quantity. Use a type-level ID (e.g., `militia_guards`), and put the quantity only in `name` (e.g., `"Two militia guards"`). This ensures the same group NPC is tracked across turns even when the quantity changes.
+
 ## Personality archetypes (choose from this fixed list)
 
 | ID | Label | Traits |
