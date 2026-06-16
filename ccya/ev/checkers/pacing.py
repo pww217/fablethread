@@ -7,7 +7,6 @@ from typing import Any
 
 from ccya.ev.checkers import CheckerResult, register_checker
 from ccya.ev.events import extract_field
-from ccya.engine.turn import PRESSURE_BEAT_TYPES
 
 _log = logging.getLogger(__name__)
 
@@ -22,35 +21,6 @@ def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
     all_passed = True
 
     for ev in events:
-        # consecutive pressure tracking
-        storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
-        gm_beat = storytell_output.get("gm_beat")
-        gm_beat_type = gm_beat.get("type") if isinstance(gm_beat, dict) else None
-
-        counter = extract_field(ev, "post_extraction_consecutive_pressure_beats")
-        if counter is None:
-            # engine didn't record post-extraction counter — skip validation
-            counter = -1  # sentinel to skip check
-        else:
-            counter = int(counter)
-
-        is_pressure = gm_beat_type in PRESSURE_BEAT_TYPES if gm_beat_type else False
-
-        if not gm_beat_type or counter == -1:
-            # no beat emitted or no post-extraction counter — skip pressure counter check
-            pass
-        elif is_pressure:
-            # pre-turn counter can be 0 if just reset after relief — only check non-pressure resets
-            pass
-        else:
-            if int(counter) != 0:
-                findings.append({
-                    "turn": ev.get("turn"),
-                    "check": "consecutive_pressure",
-                    "detail": f"gm_beat.type={gm_beat_type!r} (not pressure) but consecutive_pressure_beats={counter} (expected 0)",
-                })
-                all_passed = False
-
         # outcome_hint rendered
         pacing_ctx = extract_field(ev, "pacing_context") or {}
         outcome_hint = pacing_ctx.get("outcome_hint")

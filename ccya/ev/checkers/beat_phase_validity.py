@@ -27,9 +27,6 @@ def beat_phase_validity(events: list[dict[str, Any]]) -> CheckerResult:
             continue
 
         beat_type = gm_beat["type"]
-        # breathing_room is an enforce_relief override, not a storyteller choice — always allowed
-        if beat_type == "breathing_room":
-            continue
 
         pacing_ctx = extract_field(ev, "pacing_context") or {}
         scene_phase = pacing_ctx.get("scene_phase", "SETUP")

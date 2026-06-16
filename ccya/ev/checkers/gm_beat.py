@@ -12,7 +12,7 @@ _log = logging.getLogger(__name__)
 @register_checker(
     "gm_beat_lifecycle", "deterministic",
     requires_fields=["state_snapshot", "ruling", "narrate_prompt"],
-    description="Verify pending_gm_beat is consumed, enforce_relief triggered, binding present on roll",
+    description="Verify pending_gm_beat is consumed and binding present on roll",
 )
 def gm_beat_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []

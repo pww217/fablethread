@@ -10,11 +10,11 @@ _log = logging.getLogger(__name__)
 
 
 @register_checker(
-    "crisis_turn_counting", "deterministic",
+    "climax_turn_counting", "deterministic",
     requires_fields=["pacing_context"],
     description="climax_turn_count increments in CLIMAX, resets on phase exit",
 )
-def crisis_turn_counting(events: list[dict[str, Any]]) -> CheckerResult:
+def climax_turn_counting(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
 
@@ -71,10 +71,10 @@ def crisis_turn_counting(events: list[dict[str, Any]]) -> CheckerResult:
 
     if not all_passed:
         return CheckerResult(
-            checker_id="crisis_turn_counting", passed=False, score=0.0,
+            checker_id="climax_turn_counting", passed=False, score=0.0,
             detail=f"{len(findings)} issue(s) found", findings=findings,
         )
     return CheckerResult(
-        checker_id="crisis_turn_counting", passed=True, score=1.0,
+        checker_id="climax_turn_counting", passed=True, score=1.0,
         detail=f"all {len(filtered)} turn events passed",
     )

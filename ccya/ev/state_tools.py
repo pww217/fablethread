@@ -639,9 +639,9 @@ def _render_scene_section(state: dict[str, Any]) -> None:
     scene = state.get("scene", {}) or {}
     print("--- Scene ---")
     phase = scene.get("scene_phase", "SETUP")
-    crisis_count = scene.get("crisis_turn_count", 0)
+    climax_count = scene.get("climax_turn_count", 0)
     breather_count = scene.get("breather_turn_count", 0)
-    print(f"  Phase: {phase}  crisis_turns={crisis_count}  breather_turns={breather_count}")
+    print(f"  Phase: {phase}  climax_turns={climax_count}  breather_turns={breather_count}")
     tags = scene.get("tags", []) or []
     if tags:
         print(f"  Tags: {', '.join(str(t) for t in tags)}")

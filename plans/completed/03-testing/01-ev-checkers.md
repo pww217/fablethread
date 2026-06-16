@@ -19,7 +19,7 @@ Update all EV checkers to match the convergence scoring engine changes: CRISISâ†
 
 ## Status
 
-`open`
+`completed`
 
 ## Dependencies
 
