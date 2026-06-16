@@ -2,7 +2,7 @@
 
 > **NOTE:** The old momentum-based pacing system was removed in Plan 4. This document describes the current phase engine system only.
 
-CCYA's pacing is driven by a phase engine that computes scene rhythm from thread urgency, tension_delta, and scene age.
+CCYA's pacing is driven by a phase engine that computes scene rhythm from thread urgency and scene age.
 
 ## 1. The Phase Engine
 
@@ -12,7 +12,7 @@ flowchart TD
     classDef shared fill:#1f2937,color:#9ca3af,stroke:#4b5563,strokeWidth:1px
     classDef output fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
 
-    S["Scene State<br>scene_phase, tension_delta, thread_urgency"]:::system
+    S["Scene State<br>scene_phase, thread_urgency"]:::system
     PE["Phase Engine<br>derive_enforce_relief, derive_allowed_beat_types"]:::system
     PC["PacingContext<br>directive · outcome_hint · summary"]:::system
     N["Narrator<br>prose generation"]:::output
@@ -32,7 +32,7 @@ flowchart TD
 
 ### Definition
 
-The phase engine tracks `state["scene"]["scene_phase"]` through five states: SETUP, RISING, CRISIS, RESOLUTION, BREATHER. Transitions are driven by thread urgency, scene age, and tension_delta.
+The phase engine tracks `state["scene"]["scene_phase"]` through five states: SETUP, RISING, CRISIS, RESOLUTION, BREATHER. Transitions are driven by thread urgency and scene age.
 
 ### Phase transitions
 
@@ -52,7 +52,7 @@ The phase engine tracks `state["scene"]["scene_phase"]` through five states: SET
 - **Increments** when `storyteller_result.gm_beat.type` is `"pressure"`, `"escalation"`, or `"complication"`.
 - **Resets to 0** on any other beat type, null beat, or missing storyteller output.
 
-When this counter reaches `config.consecutive_pressure_threshold` (default 3), it contributes to `enforce_relief=True` which forces breathing_room beats during CRISIS phase.
+When this counter reaches 3 (hardcoded default), it contributes to `enforce_relief=True` which forces breathing_room beats during CRISIS phase.
 
 ### Floor relief
 

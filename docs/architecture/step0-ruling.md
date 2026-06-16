@@ -28,7 +28,7 @@ flowchart LR
     end
 
     subgraph OUT["Outputs"]
-        O1["IntentEnvelope<br>  intent: str<br>  intent_verb: str<br>  target: str<br>  impossible: bool<br>  reason: str<br>  scene_motion: hold|advance|transition<br>  tension_delta: escalates|maintains|de-escalates<br>  check.required: bool<br>  check.skill: SkillName<br>  check.difficulty: Difficulty"]:::outNode
+        O1["IntentEnvelope<br>  intent: str<br>  intent_verb: str<br>  target: str<br>  impossible: bool<br>  reason: str<br>  scene_motion: hold|advance|transition<br>  check.required: bool<br>  check.skill: SkillName<br>  check.difficulty: Difficulty"]:::outNode
         O2["RulesOutcome<br>  rolled: bool<br>  skill, difficulty, stat_value, stat_mod<br>  diff_mod<br>  dice: list[int]<br>  raw_total, final_total: int<br>  band: Band<br>  directive: str<br>  intent, intent_verb: str<br>  impossible: bool<br>  reason: str"]:::outNode
     end
 
@@ -70,7 +70,7 @@ PacingContext:
 
 ### Computation
 
-`_compute_pacing_context()` in `engine/turn.py` consolidates pacing computation. It takes inputs (`scene_phase`, `tension_delta`, `thread_urgency_count`, `crisis_turn_count`, `crisis_turn_limit`, `effective_scene_age`) and returns a single struct with directive derived from a priority stack. It also computes `outcome_hint` from the ruling LLM's `scene_motion` and PacingContext escalation signals: ruling `scene_motion` takes priority (`transition` > `advance` > fallback), then `impossible=true` forces `advance`, then Python escalation signals produce `advance`, defaulting to `hold`.
+`_compute_pacing_context()` in `engine/turn.py` consolidates pacing computation. It takes inputs (`scene_phase`, `thread_urgency_count`, `crisis_turn_count`, `climax_turn_limit`, `effective_scene_age`) and returns a single struct with directive derived from a priority stack. It also computes `outcome_hint` from the ruling LLM's `scene_motion` and PacingContext escalation signals: ruling `scene_motion` takes priority (`transition` > `advance` > fallback), then `impossible=true` forces `advance`, then Python escalation signals produce `advance`, defaulting to `hold`.
 
 ```mermaid
 flowchart TD
@@ -78,14 +78,13 @@ flowchart TD
     classDef decision fill:#3b0764,color:#e9d5ff,stroke:#7c3aed
     classDef output fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
 
-    TD["tension_delta<br>escalates/maintains/de-escalates"]:::pyNode
     TU["thread_urgency_count<br>(urgent scene-scoped threads)"]:::pyNode
     PH["scene_phase<br>(from phase engine)"]:::pyNode
     CTC["crisis_turn_count"]:::pyNode
-    CTL["crisis_turn_limit"]:::pyNode
+    CTL["climax_turn_limit"]:::pyNode
     EA["effective_scene_age<br>= scene_age + 2 if combat"]:::pyNode
 
-    TD --> D1{"== 'de-escalates'<br>AND urgency == 0?"}:::decision
+    D1{"urgency == 0?"}:::decision
     D1 -- yes --> B1["directive = 'Breathe'"]:::output
     D1 -- no --> D2{"phase == CRISIS<br>AND crisis_turns ≥ limit?"}:::decision
     D2 -- yes --> B2["directive = 'Scene Imperative'"]:::output
@@ -108,7 +107,7 @@ flowchart TD
 
 Priority order (highest to lowest): **Breathe → Scene Imperative → Scene Pressure → (empty)**. `Overwhelm`, `Pressure`, and `Tension` directives were removed — their jobs are handled by phase. Floor relief injection fires when `enforce_relief=True` (derived from scene phase and consecutive_pressure_beats).
 
-**Breathe gate:** Breathe fires only when `tension_delta == "de-escalates"` AND `thread_urgency_count == 0`. If urgent threads exist, Breathe is NOT emitted — the player may be acting calmly but tension remains unresolved. Once urgent threads resolve, Breathe fires on the next eligible turn with `tension_delta == "de-escalates"`.
+**Breathe gate:** Breathe fires when `thread_urgency_count == 0`. If urgent threads exist, Breathe is NOT emitted — the player may be acting calmly but tension remains unresolved. Once urgent threads resolve, Breathe fires on the next eligible turn.
 
 #### Age computation
 
@@ -143,7 +142,7 @@ flowchart LR
 
 | Directive | Trigger | Thread action |
 |-----------|---------|---------------|
-| **"Breathe"** | `tension_delta == "de-escalates"` AND `thread_urgency_count == 0` | Do NOT add new threads. Allow existing scene threads to persist without escalation. |
+| **"Breathe"** | `thread_urgency_count == 0` | Do NOT add new threads. Allow existing scene threads to persist without escalation. |
 | **"Scene Imperative"** | Phase == CRISIS at turn limit, OR `effective_age >= scene_imperative_threshold` | Story must advance — introduce new development forcing resolution or movement; do not linger |
 | **"Scene Pressure"** | `effective_age >= scene_pressure_threshold` (3 ≤ effective_age < imperative_threshold) | Begin winding down or introduce reason to shift focus: development elsewhere, closing window |
 | **"" (empty)** | Default — no higher directive triggered | No action required beyond normal aging of silent threads. |
@@ -155,4 +154,4 @@ flowchart LR
 - **Increments** when `storyteller_result.gm_beat.type` is `"pressure"`, `"escalation"`, or `"complication"`.
 - **Resets to 0** on any other beat type, null beat, or missing storyteller output.
 
-When this counter reaches `config.consecutive_pressure_threshold` (default 3), it contributes to `enforce_relief=True` which forces breathing_room beats during CRISIS phase.
+When this counter reaches 3 (hardcoded default), it contributes to `enforce_relief=True` which forces breathing_room beats during CRISIS phase.

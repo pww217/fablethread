@@ -140,8 +140,7 @@ class EngineConfig:
     log_prompts: bool = False
     # Avoidance-based pressure decay: keywords that trigger de-escalation detection
     avoidance_keywords: list[str] = field(default_factory=lambda: ["retreat", "run", "flee", "hide", "rest", "escape", "back away", "disengage", "withdraw", "surrender", "concede", "leave", "get out"])
-    # Consecutive pressure threshold for relief trigger
-    consecutive_pressure_threshold: int = 3
+
     # Max entries in recent_beats history list
     recent_beats_max: int = 5
     # Gate for de-escalation flag on successful rolls
@@ -154,9 +153,9 @@ class EngineConfig:
     scene_pressure_threshold: int = 3
     scene_imperative_threshold: int = 4
     # Scene phase thresholds
-    crisis_urgency_threshold: int = 2   # urgent threads needed for SETUP/RISING → CRISIS transition
-    crisis_turn_limit: int = 4          # max turns in CRISIS before forced RESOLUTION
+    climax_turn_limit: int = 4          # max turns in CRISIS before forced RESOLUTION
     breather_max_turns: int = 3         # max turns in BREATHER before forced RISING transition
+    convergence_threshold: int = 3
     # Near-miss softening: whether near-fails get softer narration directive text
     near_miss_softening: bool = True
     # TTL for completed threads and resolved arcs in narration context (turns)
@@ -271,15 +270,14 @@ def build_engine_config(
 
         avoidance_keywords=[str(kw) for kw in game.get("avoidance_keywords", ["retreat", "run", "flee", "hide", "rest", "escape", "back away", "disengage", "withdraw", "surrender", "concede", "leave", "get out"])],
 
-        consecutive_pressure_threshold=int(game.get("consecutive_pressure_threshold", 3)),
         recent_beats_max=int(game.get("recent_beats_max", 5)),
 
         difficulty_curve=game.get("difficulty_curve", "balanced"),
         scene_pressure_threshold=int(game.get("scene_pressure_threshold", 3)),
         scene_imperative_threshold=int(game.get("scene_imperative_threshold", 4)),
-        crisis_urgency_threshold=int(game.get("crisis_urgency_threshold", 2)),
-        crisis_turn_limit=int(game.get("crisis_turn_limit", 4)),
+        climax_turn_limit=int(game.get("climax_turn_limit", 4)),
         breather_max_turns=int(game.get("breather_max_turns", 3)),
+        convergence_threshold=int(game.get("convergence_threshold", 3)),
         near_miss_softening=bool(game.get("near_miss_softening", True)),
         thread_memory_ttl=int(game.get("thread_memory_ttl", 3)),
         arc_memory_ttl=int(game.get("arc_memory_ttl", 3)),

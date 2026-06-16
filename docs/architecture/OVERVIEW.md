@@ -38,7 +38,7 @@ flowchart TD
 
     USER --> STEP0
     STEP0 -- "IntentEnvelope + RulesOutcome" --> DICE
-    DICE -- "tension_delta, scene_motion" --> PHASE
+    DICE -- "scene_motion" --> PHASE
     PHASE -- "scene_phase, PacingContext" --> STEP1
     STEP1 --> STEP2A & STEP2B & STEP2C
     STEP2A & STEP2B & STEP2C --> VALIDATE
@@ -51,7 +51,7 @@ flowchart TD
 | Step | Docs | When it runs | Key inputs | Key outputs | Mechanics it owns |
 |---|---|---|---|---|---|
 | **Step 0 — Ruling/Intent** | [step0-ruling](./step0-ruling.md) | Every turn (always) | `state.pc`, `state.location`, `recent_turns[-1:]`, `user_input` | `IntentEnvelope`, `RulesOutcome` | Intent classification, impossibility check, scene motion determination, dice roll resolution (1d12 + stat_mod + diff_mod → band), LLM-driven difficulty adjustment factoring conditions/inventory, anti-declare-outcome enforcement. When `impossible=true`, no roll occurs and Python synthesizes a `fail` outcome. |
-| **Phase Engine** | — | Every turn (always, Python) | `state["scene"]`, `tension_delta` from ruling, `ages`, `EngineConfig` | `scene_phase` (SETUP/RISING/CRISIS/RESOLUTION/BREATHER), `crisis_turn_count`, `breather_turn_count` in `state["scene"]` | 5-state phase machine driven by thread urgency, tension_delta, and scene age. Phase drives directive computation and beat constraints. |
+| **Phase Engine** | — | Every turn (always, Python) | `state["scene"]`, `ages`, `EngineConfig` | `scene_phase` (SETUP/RISING/CRISIS/RESOLUTION/BREATHER), `crisis_turn_count`, `breather_turn_count` in `state["scene"]` | 5-state phase machine driven by thread urgency and scene age. Phase drives directive computation and beat constraints. |
 | **Step 1 — Narrate** | [step1-narrate](./step1-narrate.md) | Every turn (always, streamed) | Full `state`, `prior_history` (last 20 bullets, all but last rendered), `recent_turns[-1:]`, `pacing_context`, `pending_gm_beat`, `npc_roster` (from build_npc_roster()), `world_factions/locations` | `narrative` (prose) | Prose generation, dice-band binding, GM-beat consumption. Scene motion shaped by `PacingContext.outcome_hint`; impossible actions narrated as natural failures. |
 | **Step 2a — Scene Extract** | [step2a-scene](./step2a-scene.md) | Every turn (always) | `narrative`, `state.pc/location`, `npc_roster` (from build_npc_roster()), conditions, compendium entries | `SceneExtractResult`: tagline, location_change, compendium_npc_update | NPC presence, location changes, durable NPC compendium identity. |
 | **Step 2b — State Extract** | [step2b-state](./step2b-state.md) | Every turn (always) | `narrative`, `state.pc/location/inventory`, conditions | `StateExtractResult`: inventory_add/remove/update, pc_condition_add/remove | Inventory delta accuracy, condition lifecycle. |
@@ -82,7 +82,7 @@ turn is persisted. The next turn's Step 0 reads the new `state.yaml` plus `event
 
 ### Core Result Types
 
-- **IntentEnvelope**: `intent`, `intent_verb`, `target`, `check.required`, `check.skill`, `check.difficulty`, `impossible`, `reason`, `scene_motion`, `tension_delta`
+- **IntentEnvelope**: `intent`, `intent_verb`, `target`, `check.required`, `check.skill`, `check.difficulty`, `impossible`, `reason`, `scene_motion`
 - **RulesOutcome**: `rolled`, `skill`, `difficulty`, `stat_value`, `stat_mod`, `diff_mod`, `dice`, `raw_total`, `final_total`, `band`, `directive`, `intent`, `intent_verb`, `impossible`, `reason`
 - **SceneExtractResult**: `scene_tagline`, `location_change`, `compendium_npc_update`
 - **StateExtractResult**: `inventory_add/remove/update`, `pc_condition_add/remove`
