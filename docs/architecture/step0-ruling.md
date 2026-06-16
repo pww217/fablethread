@@ -94,7 +94,7 @@ flowchart TD
 
     TU["thread_urgency_count<br>(urgent scene-scoped threads)"]:::pyNode
     PH["scene_phase<br>(from phase engine)"]:::pyNode
-    CTC["crisis_turn_count"]:::pyNode
+    CTC["climax_turn_count"]:::pyNode
     CTL["climax_turn_limit"]:::pyNode
     EA["effective_scene_age<br>= scene_age + 2 if combat"]:::pyNode
 
@@ -148,16 +148,8 @@ flowchart LR
 
 | Directive | Trigger | Thread action |
 |-----------|---------|---------------|
-| **"Breathe"** | `thread_urgency_count == 0` | Do NOT add new threads. Allow existing scene threads to persist without escalation. |
 | **"Scene Imperative"** | `effective_age >= scene_imperative_threshold` (purely age-based, CLIMAX turn-limit removed — handled by phase machine) | Story must advance — introduce new development forcing resolution or movement; do not linger. Allowed beat types: revelation, hazard, callback, opportunity, setback, breathing_room. |
 | **"Scene Pressure"** | `effective_age >= scene_pressure_threshold` (3 ≤ effective_age < imperative_threshold) | Begin winding down or introduce reason to shift focus: development elsewhere, closing window |
 | **"" (empty)** | Default — no higher directive triggered | No action required beyond normal aging of silent threads. |
 
-### Consecutive pressure counter
 
-`state["meta"]["consecutive_pressure_beats"]` tracks how many consecutive turns have had pressure-type storyteller beats.
-
-- **Increments** when `storyteller_result.gm_beat.type` is `"pressure"`, `"escalation"`, or `"complication"`.
-- **Resets to 0** on any other beat type, null beat, or missing storyteller output.
-
-When this counter reaches 3 (hardcoded default), it contributes to `enforce_relief=True` which forces breathing_room beats during CLIMAX phase.

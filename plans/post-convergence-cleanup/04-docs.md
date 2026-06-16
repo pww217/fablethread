@@ -15,7 +15,7 @@ Update `docs/repomap.md`, `docs/architecture/step0-ruling.md`, `docs/architectur
 
 ## Status
 
-`open`
+`completed`
 
 ## Dependencies
 

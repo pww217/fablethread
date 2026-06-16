@@ -1,5 +1,9 @@
 # Convergence scoring and Curtain Call — phase machine redesign
 
+## Status: Implemented
+
+All changes from this design have been implemented and merged. This document is retained as historical reference.
+
 ## Purpose
 
 This document is the design authority for plans implementing the replacement of `crisis_urgency_threshold` with a composite convergence score, the CRISIS→CLIMAX rename, the Curtain Call soft-close mechanism, and removal of dead pacing machinery. It covers changes to the phase machine, beat classification, prompt guidance, and the EngineConfig surface area.
