@@ -335,7 +335,7 @@ class StateExtractResult(BaseModel):
 
     @model_validator(mode="after")
     def _validate_inventory_reason(self) -> "StateExtractResult":
-        if (self.inventory_add or self.inventory_remove) and not self.inventory_change_reason:
+        if (self.inventory_add or self.inventory_remove or self.inventory_update) and not self.inventory_change_reason:
             raise ValueError("inventory_change_reason is required when inventory changes are present")
         return self
 
