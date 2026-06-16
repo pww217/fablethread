@@ -15,7 +15,7 @@ Add success-guarded positive condition heuristics to the state extractor system 
 
 ## Status
 
-`open`
+`completed`
 
 ## Implementation — Phase 3: Positive Condition Extraction
 

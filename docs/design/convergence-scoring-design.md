@@ -348,6 +348,8 @@ The last line actively discourages positive conditions — it only says "no nega
 
 Expected impact: ~5% positive ratio → ~25% (1:3 neg:pos). The 5-cap limits negative stacking while creating space for positives. Fewer active negatives means fewer hard-difficulty calls, breaking the fail→condition→harder→fail spiral.
 
+**Status:** Implemented in `plans/completed/12-convergence/03-conditions-extraction.md`.
+
 ### Synergy with convergence design
 
 All three changes reduce the inputs to the convergence score's components:
