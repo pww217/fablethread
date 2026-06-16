@@ -13,7 +13,7 @@ Tighten the ruling LLM's roll criteria to reduce roll rate from ~69% to ~35-45%,
 
 ## Status
 
-`open`
+`completed`
 
 ## Implementation — Phase 1: Dice Roll Frequency Reduction
 

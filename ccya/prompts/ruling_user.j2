@@ -12,6 +12,15 @@ Location: {{ location.name or location.id or "Unknown" }}
 {% for n in npc_roster %}{% if n.presence == "present" %}- {% if n.name %}{{ n.name }}{% else %}[Unnamed]{% endif %}{% if n.title %} ({{ n.title }}){% endif %}{% if n.notes %} — {{ n.notes }}{% endif %}{% endif %}
 {% endfor -%}
 {% endif -%}
+{%- if urgent_threads %}
+## Urgent Threads
+{% for t in urgent_threads %}
+- {{ t.id }} — {{ t.summary }}
+{% for p in t.progress[-3:] %}
+    {{ p.kind }} — "{{ p.text }}"
+{% endfor %}
+{% endfor %}
+{% endif -%}
 {%- if inventory %}
 ## Inventory
 {% for item in inventory -%}

@@ -27,6 +27,19 @@ def _ruling_messages(
     pc = state.get("pc") or {}
     location = state.get("location") or {}
     system_text = _render(env, "ruling_system.j2", {})
+    
+    # Build urgent_threads from arc.threads with urgency == "urgent"
+    arc = state.get("arc") or {}
+    threads = arc.get("threads") or []
+    urgent_threads = []
+    for t in threads:
+        if t.get("urgency") == "urgent":
+            urgent_threads.append({
+                "id": t.get("id", ""),
+                "summary": t.get("summary", ""),
+                "progress": t.get("progress", []),
+            })
+    
     user_text = _render(
         env,
         "ruling_user.j2",
@@ -39,6 +52,7 @@ def _ruling_messages(
             "inventory": inventory or [],
             "recent_turns": recent_turns or [],
             "scene_phase": scene_phase,
+            "urgent_threads": urgent_threads,
         },
     )
     return [
