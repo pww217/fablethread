@@ -153,7 +153,7 @@ class EngineConfig:
     scene_pressure_threshold: int = 3
     scene_imperative_threshold: int = 4
     # Scene phase thresholds
-    climax_turn_limit: int = 4          # max turns in CRISIS before forced RESOLUTION
+    climax_turn_limit: int = 4          # max turns in CLIMAX before forced RESOLUTION
     breather_max_turns: int = 3         # max turns in BREATHER before forced RISING transition
     convergence_threshold: int = 3
     # Near-miss softening: whether near-fails get softer narration directive text

@@ -63,7 +63,7 @@ All pacing signals are collapsed into one Python-computed struct (`PacingContext
 
 ```
 PacingContext:
-  directive: str           # "" | "Breathe" | "Scene Imperative" | "Scene Pressure"; used by Storytell pipeline
+  directive: str           # "" | "Scene Imperative" | "Scene Pressure"; used by Storytell pipeline
   outcome_hint: str | None # "hold" | "advance" | "transition" — narrator's primary scene motion instruction
   summary: str             # human-readable log string, never sent to LLM
 ```
@@ -84,15 +84,13 @@ flowchart TD
     CTL["climax_turn_limit"]:::pyNode
     EA["effective_scene_age<br>= scene_age + 2 if combat"]:::pyNode
 
-    D1{"urgency == 0?"}:::decision
-    D1 -- yes --> B1["directive = 'Breathe'"]:::output
-    D1 -- no --> D2{"phase == CRISIS<br>AND crisis_turns ≥ limit?"}:::decision
+    D1{"phase == CLIMAX<br>AND climax_turns ≥ limit?"}:::decision
+    D1 -- yes --> B1["directive = 'Scene Imperative'"]:::output
+    D1 -- no --> D2{"effective_age ≥ imperative_threshold?"}:::decision
     D2 -- yes --> B2["directive = 'Scene Imperative'"]:::output
-    D2 -- no --> D3{"effective_age ≥ imperative_threshold?"}:::decision
-    D3 -- yes --> B3["directive = 'Scene Imperative'"]:::output
-    D3 -- no --> D4{"effective_age ≥ pressure_threshold?"}:::decision
-    D4 -- yes --> B4["directive = 'Scene Pressure'"]:::output
-    D4 -- no --> B5["directive = ''"]:::output
+    D2 -- no --> D3{"effective_age ≥ pressure_threshold?"}:::decision
+    D3 -- yes --> B3["directive = 'Scene Pressure'"]:::output
+    D3 -- no --> B4["directive = ''"]:::output
 
     FINAL["PacingContext<br>directive · outcome_hint · summary"]:::output
 
@@ -100,14 +98,11 @@ flowchart TD
     B2 --> FINAL
     B3 --> FINAL
     B4 --> FINAL
-    B5 --> FINAL
 
     style B1 fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
 ```
 
-Priority order (highest to lowest): **Breathe → Scene Imperative → Scene Pressure → (empty)**. `Overwhelm`, `Pressure`, and `Tension` directives were removed — their jobs are handled by phase. Floor relief injection fires when `enforce_relief=True` (derived from scene phase and consecutive_pressure_beats).
-
-**Breathe gate:** Breathe fires when `thread_urgency_count == 0`. If urgent threads exist, Breathe is NOT emitted — the player may be acting calmly but tension remains unresolved. Once urgent threads resolve, Breathe fires on the next eligible turn.
+Priority order (highest to lowest): **Scene Imperative → Scene Pressure → (empty)**. `Overwhelm`, `Pressure`, `Tension`, and `Breathe` directives were removed — their jobs are handled by phase.
 
 #### Age computation
 

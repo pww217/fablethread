@@ -16,7 +16,7 @@ from typing import Any
 from ccya.engine.config import EngineConfig, _find_json, _log_llm_io, _log_prompts, _render
 from ccya.engine.markers import strip_trace_markers_in_messages
 from ccya.engine.narrate import _get_resolved_arcs
-from ccya.engine._pacing import derive_allowed_beat_types, derive_enforce_relief
+from ccya.engine._pacing import derive_allowed_beat_types
 from ccya.prompts.context import _fmt_progress
 from ccya.engine.npc_roster import build_npc_roster
 from ccya.personality import ARCHETYPES
@@ -374,11 +374,6 @@ def _storytell_messages(
                 scene.get("scene_phase", "SETUP"),
                 directive=pacing_context.directive if pacing_context else "",
                 spiral_detected=pacing_context.spiral_detected if pacing_context else False,
-                enforce_relief=derive_enforce_relief(
-                    scene.get("scene_phase", "SETUP"),
-                    state.get("meta", {}).get("consecutive_pressure_beats", 0),
-                    config or EngineConfig(),
-                ),
             ),
         },
     )

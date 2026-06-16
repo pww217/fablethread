@@ -10,8 +10,8 @@ _log = logging.getLogger(__name__)
 
 VALID_TRANSITIONS = {
     ("SETUP", "RISING"),
-    ("RISING", "CRISIS"),
-    ("CRISIS", "RESOLUTION"),
+    ("RISING", "CLIMAX"),
+    ("CLIMAX", "RESOLUTION"),
     ("RESOLUTION", "BREATHER"),
     ("BREATHER", "RISING"),
 }
@@ -31,16 +31,16 @@ def phase_transition(events: list[dict[str, Any]]) -> CheckerResult:
     for i, ev in enumerate(filtered):
         pc = extract_field(ev, "pacing_context") or {}
         phase = pc.get("scene_phase", "SETUP")
-        crisis_count = pc.get("crisis_turn_count", 0)
+        climax_count = pc.get("climax_turn_count", 0)
         outcome_hint = pc.get("outcome_hint")
 
-        # Check outcome_hint consistency during crisis limit
-        if phase == "CRISIS" and crisis_count >= 4:
+        # Check outcome_hint consistency during climax limit
+        if phase == "CLIMAX" and climax_count >= 4:
             if outcome_hint != "transition":
                 findings.append({
                     "turn": ev.get("turn"),
                     "check": "outcome_hint_consistency",
-                    "detail": f"CRISIS with crisis_turn_count={crisis_count} >= limit but outcome_hint={outcome_hint!r} (expected 'transition')",
+                    "detail": f"CLIMAX with climax_turn_count={climax_count} >= limit but outcome_hint={outcome_hint!r} (expected 'transition')",
                 })
                 all_passed = False
 

@@ -47,15 +47,15 @@ def tension_monotonicity(events: list[dict[str, Any]]) -> CheckerResult:
             })
             all_passed = False
 
-        # Phase consistency: de-escalates in CRISIS is allowed when transitioning out
+        # Phase consistency: de-escalates in CLIMAX is allowed when transitioning out
         # (player is actively resolving or leaving the scene)
         pc = extract_field(ev, "pacing_context") or {}
         outcome_hint = pc.get("outcome_hint", "")
-        if phase == "CRISIS" and tension_delta == "de-escalates" and outcome_hint != "transition":
+        if phase == "CLIMAX" and tension_delta == "de-escalates" and outcome_hint != "transition":
             findings.append({
                 "turn": turn_no,
-                "check": "crisis_tension",
-                "detail": "CRISIS phase with tension_delta=de-escalates (expected escalates or maintains, unless transitioning)",
+                "check": "climax_tension",
+                "detail": "CLIMAX phase with tension_delta=de-escalates (expected escalates or maintains, unless transitioning)",
             })
             all_passed = False
 

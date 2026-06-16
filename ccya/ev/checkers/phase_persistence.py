@@ -33,7 +33,7 @@ def phase_persistence(events: list[dict[str, Any]]) -> CheckerResult:
             continue
 
         # Phase should be a valid string
-        valid_phases = {"SETUP", "RISING", "CRISIS", "RESOLUTION", "BREATHER"}
+        valid_phases = {"SETUP", "RISING", "CLIMAX", "RESOLUTION", "BREATHER"}
         if phase not in valid_phases:
             findings.append({
                 "turn": ev.get("turn"),

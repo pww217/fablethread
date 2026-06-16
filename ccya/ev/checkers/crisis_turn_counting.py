@@ -12,7 +12,7 @@ _log = logging.getLogger(__name__)
 @register_checker(
     "crisis_turn_counting", "deterministic",
     requires_fields=["pacing_context"],
-    description="crisis_turn_count increments in CRISIS, resets on phase exit",
+    description="climax_turn_count increments in CLIMAX, resets on phase exit",
 )
 def crisis_turn_counting(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
@@ -23,49 +23,49 @@ def crisis_turn_counting(events: list[dict[str, Any]]) -> CheckerResult:
     for i, ev in enumerate(filtered):
         pc = extract_field(ev, "pacing_context") or {}
         phase = pc.get("scene_phase", "SETUP")
-        crisis_count = pc.get("crisis_turn_count", 0)
+        climax_count = pc.get("climax_turn_count", 0)
         turn_no = ev.get("turn")
 
-        # crisis_turn_count should only be > 0 when phase is CRISIS
-        if phase != "CRISIS" and crisis_count > 0:
+        # climax_turn_count should only be > 0 when phase is CLIMAX
+        if phase != "CLIMAX" and climax_count > 0:
             findings.append({
                 "turn": turn_no,
-                "check": "crisis_count_zero_outside_crisis",
-                "detail": f"crisis_turn_count={crisis_count} but phase={phase!r} (expected 0 outside CRISIS)",
+                "check": "climax_count_zero_outside_climax",
+                "detail": f"climax_turn_count={climax_count} but phase={phase!r} (expected 0 outside CLIMAX)",
             })
             all_passed = False
 
-        # crisis_turn_count should increment by 1 within CRISIS
+        # climax_turn_count should increment by 1 within CLIMAX
         if i > 0:
             prev_pc = extract_field(filtered[i - 1], "pacing_context") or {}
             prev_phase = prev_pc.get("scene_phase", "SETUP")
-            prev_crisis_count = prev_pc.get("crisis_turn_count", 0)
+            prev_climax_count = prev_pc.get("climax_turn_count", 0)
 
-            if phase == "CRISIS" and prev_phase == "CRISIS":
+            if phase == "CLIMAX" and prev_phase == "CLIMAX":
                 # Should increment by 1
-                if crisis_count != prev_crisis_count + 1:
+                if climax_count != prev_climax_count + 1:
                     findings.append({
                         "turn": turn_no,
-                        "check": "crisis_count_increments",
-                        "detail": f"crisis_turn_count={crisis_count} != prev+1={prev_crisis_count + 1}",
+                        "check": "climax_count_increments",
+                        "detail": f"climax_turn_count={climax_count} != prev+1={prev_climax_count + 1}",
                     })
                     all_passed = False
-            elif phase == "CRISIS" and prev_phase != "CRISIS":
-                # Entering CRISIS — should be 1
-                if crisis_count != 1:
+            elif phase == "CLIMAX" and prev_phase != "CLIMAX":
+                # Entering CLIMAX — should be 1
+                if climax_count != 1:
                     findings.append({
                         "turn": turn_no,
-                        "check": "crisis_count_starts_at_one",
-                        "detail": f"entering CRISIS but crisis_turn_count={crisis_count} (expected 1)",
+                        "check": "climax_count_starts_at_one",
+                        "detail": f"entering CLIMAX but climax_turn_count={climax_count} (expected 1)",
                     })
                     all_passed = False
-            elif phase != "CRISIS" and prev_phase == "CRISIS":
-                # Exiting CRISIS — should reset to 0
-                if crisis_count != 0:
+            elif phase != "CLIMAX" and prev_phase == "CLIMAX":
+                # Exiting CLIMAX — should reset to 0
+                if climax_count != 0:
                     findings.append({
                         "turn": turn_no,
-                        "check": "crisis_count_resets_on_exit",
-                        "detail": f"exiting CRISIS but crisis_turn_count={crisis_count} (expected 0)",
+                        "check": "climax_count_resets_on_exit",
+                        "detail": f"exiting CLIMAX but climax_turn_count={climax_count} (expected 0)",
                     })
                     all_passed = False
 

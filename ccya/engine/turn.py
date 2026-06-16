@@ -24,7 +24,7 @@ from ccya.engine.extraction import (
 from ccya.engine.names import generate_npc_names_split
 from ccya.engine.narrate import _narrate_messages
 from ccya.engine.npc_roster import build_npc_roster
-from ccya.engine._pacing import derive_allowed_beat_types, derive_enforce_relief, detect_spiral
+from ccya.engine._pacing import derive_allowed_beat_types, detect_spiral
 from ccya.personality import ARCHETYPES
 from ccya.engine.thread_sanitizer import sanitize_threads
 
@@ -44,7 +44,6 @@ from ccya.models import (
     StorytellerResult,
     RulesOutcome,
     StateDelta,
-    TensionDelta,
     TurnResult,
 )
 
@@ -404,49 +403,44 @@ def _apply_thread_resolutions(
 
 def _compute_narration_directive(
     scene_phase: str,
-    tension_delta: TensionDelta,
     thread_urgency_count: int,
-    crisis_turn_count: int,
-    crisis_turn_limit: int,
+    climax_turn_count: int,
+    climax_turn_limit: int,
     effective_scene_age: int,
     scene_pressure_threshold: int = 3,
     scene_imperative_threshold: int = 4,
 ) -> str:
     """Compute the narration directive string using a priority stack.
 
-    Driven by clean signals: scene_phase, tension_delta, thread urgency, and age.
+    Driven by clean signals: scene_phase, thread urgency, and age.
     Removed: Overwhelm, Pressure, Tension directives (handled by phase).
     Removed: "; Resolve a Threat" append (replaced by enforce_relief).
+    Removed: Breathe directive (dead code — 0% de-escalation across 80 turns).
+    Removed: tension_delta parameter.
 
     Priority order (highest to lowest):
-      1. Breathe        — tension_delta == "de-escalates" AND thread_urgency_count == 0
-      2. Scene Imperative — (scene_phase == CRISIS AND crisis_turn_count >= crisis_turn_limit)
+      1. Scene Imperative — (scene_phase == CLIMAX AND climax_turn_count >= climax_turn_limit)
                              OR effective_scene_age >= scene_imperative_threshold
-      3. Scene Pressure   — effective_scene_age >= scene_pressure_threshold
-      4. (empty)        — default
+      2. Scene Pressure   — effective_scene_age >= scene_pressure_threshold
+      3. (empty)        — default
     """
-    # Priority 1: Breathe — de-escalation with no urgent threads
-    if tension_delta == "de-escalates" and thread_urgency_count == 0:
-        return "Breathe"
-
-    # Priority 2: Scene Imperative — crisis at turn limit OR stale scene
-    if (scene_phase == "CRISIS" and crisis_turn_count >= crisis_turn_limit) or effective_scene_age >= scene_imperative_threshold:
+    # Priority 1: Scene Imperative — climax at turn limit OR stale scene
+    if (scene_phase == "CLIMAX" and climax_turn_count >= climax_turn_limit) or effective_scene_age >= scene_imperative_threshold:
         return "Scene Imperative"
 
-    # Priority 3: Scene Pressure — approaching staleness
+    # Priority 2: Scene Pressure — approaching staleness
     if effective_scene_age >= scene_pressure_threshold:
         return "Scene Pressure"
 
-    # Priority 4: empty (default)
+    # Priority 3: empty (default)
     return ""
 
 
 def _compute_pacing_context(
     scene_phase: str,
-    tension_delta: TensionDelta,
     thread_urgency_count: int,
-    crisis_turn_count: int,
-    crisis_turn_limit: int,
+    climax_turn_count: int,
+    climax_turn_limit: int,
     effective_scene_age: int,
     scene_motion: str = "hold",
     scene_pressure_threshold: int = 3,
@@ -454,15 +448,15 @@ def _compute_pacing_context(
 ) -> PacingContext:
     """Compute unified pacing context for Narrate and Progress steps.
 
-    Driven by scene_phase, tension_delta, thread urgency, and age.
+    Driven by scene_phase, thread urgency, and age.
+    Removed: tension_delta parameter.
     """
     # Compute directive using new signal set
     directive = _compute_narration_directive(
         scene_phase=scene_phase,
-        tension_delta=tension_delta,
         thread_urgency_count=thread_urgency_count,
-        crisis_turn_count=crisis_turn_count,
-        crisis_turn_limit=crisis_turn_limit,
+        climax_turn_count=climax_turn_count,
+        climax_turn_limit=climax_turn_limit,
         effective_scene_age=effective_scene_age,
         scene_pressure_threshold=scene_pressure_threshold,
         scene_imperative_threshold=scene_imperative_threshold,
@@ -502,16 +496,16 @@ def _compute_ages(state: dict[str, Any]) -> dict[str, int]:
 
 def _compute_scene_phase(
     state: dict[str, Any],
-    tension_delta: TensionDelta,
     ages: dict[str, int],
     config: EngineConfig,
 ) -> dict[str, Any]:
     """Compute the scene phase using the 5-state machine.
 
-    Transitions: SETUP→RISING, RISING→CRISIS, CRISIS→RESOLUTION,
+    Transitions: SETUP→RISING, RISING→CLIMAX, CLIMAX→RESOLUTION,
     RESOLUTION→SETUP/BREATHER, BREATHER→RISING, any→SETUP (location change).
 
     Mutates state["scene"] in place. Returns the updated scene dict.
+    Removed: tension_delta parameter.
     """
     meta = state.get("meta") or {}
     scene = state.setdefault("scene", {})
@@ -519,11 +513,11 @@ def _compute_scene_phase(
 
     # Initialize new fields if missing
     scene.setdefault("scene_phase", "SETUP")
-    scene.setdefault("crisis_turn_count", 0)
+    scene.setdefault("climax_turn_count", 0)
     scene.setdefault("breather_turn_count", 0)
 
     phase = scene.get("scene_phase", "SETUP")
-    crisis_turn_count = scene.get("crisis_turn_count", 0)
+    climax_turn_count = scene.get("climax_turn_count", 0)
     breather_turn_count = scene.get("breather_turn_count", 0)
 
     # Count urgent threads
@@ -541,31 +535,29 @@ def _compute_scene_phase(
 
     # Location change → SETUP (except RESOLUTION which splits below)
     if location_change_this_turn and phase != "RESOLUTION":
-        return {**scene, "scene_phase": "SETUP", "crisis_turn_count": 0, "breather_turn_count": 0}
+        return {**scene, "scene_phase": "SETUP", "climax_turn_count": 0, "breather_turn_count": 0}
 
     # Phase transition logic
     if phase == "SETUP":
         if thread_urgency_count > 0:
             phase = "RISING"
-        elif tension_delta == "escalates" and thread_urgency_count == 0:
-            phase = "RISING"
 
     elif phase == "RISING":
         if thread_urgency_count >= 2:
-            phase = "CRISIS"
-            crisis_turn_count = 1
-        elif thread_urgency_count >= 1 and tension_delta == "escalates":
-            phase = "CRISIS"
-            crisis_turn_count = 1
+            phase = "CLIMAX"
+            climax_turn_count = 1
+        elif thread_urgency_count >= 1:
+            phase = "CLIMAX"
+            climax_turn_count = 1
         elif effective_scene_age >= config.scene_pressure_threshold:
-            phase = "CRISIS"
-            crisis_turn_count = 1
+            phase = "CLIMAX"
+            climax_turn_count = 1
 
-    elif phase == "CRISIS":
-        crisis_turn_count += 1
-        if crisis_turn_count >= config.climax_turn_limit:
+    elif phase == "CLIMAX":
+        climax_turn_count += 1
+        if climax_turn_count >= config.climax_turn_limit:
             phase = "RESOLUTION"
-            crisis_turn_count = 0
+            climax_turn_count = 0
 
     elif phase == "RESOLUTION":
         # RESOLUTION splits based on location change (already handled above)
@@ -579,7 +571,7 @@ def _compute_scene_phase(
             phase = "RISING"
             breather_turn_count = 0
 
-    return {**scene, "scene_phase": phase, "crisis_turn_count": crisis_turn_count, "breather_turn_count": breather_turn_count}
+    return {**scene, "scene_phase": phase, "climax_turn_count": climax_turn_count, "breather_turn_count": breather_turn_count}
 
 
 
@@ -768,13 +760,12 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
     _world_factions = ctx.packing.get("factions", [])
 
     # Phase engine: compute scene_phase before directive computation
-    tension_delta: TensionDelta = "maintains"
     scene = state.setdefault("scene", {})
     scene.setdefault("scene_phase", "SETUP")
-    scene.setdefault("crisis_turn_count", 0)
+    scene.setdefault("climax_turn_count", 0)
     scene.setdefault("breather_turn_count", 0)
     scene_phase = scene.get("scene_phase", "SETUP")
-    crisis_turn_count = scene.get("crisis_turn_count", 0)
+    climax_turn_count = scene.get("climax_turn_count", 0)
 
     # Count urgent threads for phase engine
     _raw_thread_dicts = [t for t in (state.get("arc") or {}).get("threads") or [] if isinstance(t, dict)]
@@ -791,18 +782,17 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
             )
 
     # Compute phase (mutates state["scene"] in place)
-    state["scene"] = _compute_scene_phase(state, tension_delta, ctx._ages, config)
+    state["scene"] = _compute_scene_phase(state, ctx._ages, config)
     scene_phase = scene.get("scene_phase", "SETUP")
-    crisis_turn_count = scene.get("crisis_turn_count", 0)
+    climax_turn_count = scene.get("climax_turn_count", 0)
 
     # Compute unified pacing context with new signal set
     _scene_motion = ctx.intent.scene_motion if ctx.intent else "hold"
     _pc = _compute_pacing_context(
         scene_phase=scene_phase,
-        tension_delta=tension_delta,
         thread_urgency_count=thread_urgency_count,
-        crisis_turn_count=crisis_turn_count,
-        crisis_turn_limit=config.climax_turn_limit,
+        climax_turn_count=climax_turn_count,
+        climax_turn_limit=config.climax_turn_limit,
         effective_scene_age=ctx._ages.get("effective_scene_age", 0),
         scene_motion=_scene_motion,
         scene_pressure_threshold=config.scene_pressure_threshold,
@@ -1048,23 +1038,6 @@ async def run_turn(
                 meta["consecutive_pressure_beats"] = current_pressure + 1
             else:
                 meta["consecutive_pressure_beats"] = 0
-
-            # Floor relief injection — runs BEFORE apply_delta so breathing_room persists through the deep copy.
-            # Inject breathing_room when CRISIS phase has enough consecutive pressure beats
-            enforce_relief = derive_enforce_relief(
-                (state.get("scene") or {}).get("scene_phase", "SETUP"),
-                meta.get("consecutive_pressure_beats", 0),
-                config,
-            )
-            if enforce_relief:
-                _current_beat = state.get("meta", {}).get("pending_gm_beat")
-                if _current_beat is None or _current_beat.get("type") in PRESSURE_BEAT_TYPES:
-                    meta = state.setdefault("meta", {})
-                    meta["pending_gm_beat"] = {
-                        "type": "breathing_room",
-                        "surface_as": "ambient",
-                        "beat_expires_turn": turn_no + 2,
-                    }
 
         if is_cancel_requested(str(save_dir)):
             return
@@ -1347,7 +1320,6 @@ async def run_turn(
             "tokens_in": ruling_metrics.get("tokens_in", 0),
             "tokens_out": ruling_metrics.get("tokens_out", 0),
             "outcome_summary": outcome_summary,
-            "tension_delta": _intent.tension_delta,
         }
         if _outcome.rolled:
             ruling_event.update({
@@ -1377,7 +1349,7 @@ async def run_turn(
                 "spiral_detected": _pc.spiral_detected if _pc else False,
                 "summary": _pc.summary if _pc else "",
                 "scene_phase": state.get("scene", {}).get("scene_phase", "SETUP"),
-                "crisis_turn_count": state.get("scene", {}).get("crisis_turn_count", 0),
+                "climax_turn_count": state.get("scene", {}).get("climax_turn_count", 0),
                 "breather_turn_count": state.get("scene", {}).get("breather_turn_count", 0),
             },
             "post_turn_pending_beat": state.get("meta", {}).get("pending_gm_beat"),
@@ -1386,16 +1358,6 @@ async def run_turn(
                 state.get("scene", {}).get("scene_phase", "SETUP"),
                 directive=_pc.directive if _pc else "",
                 spiral_detected=_pc.spiral_detected if _pc else False,
-                enforce_relief=derive_enforce_relief(
-                    state.get("scene", {}).get("scene_phase", "SETUP"),
-                    state.get("meta", {}).get("consecutive_pressure_beats", 0),
-                    config,
-                ),
-            ),
-            "enforce_relief": derive_enforce_relief(
-                state.get("scene", {}).get("scene_phase", "SETUP"),
-                state.get("meta", {}).get("consecutive_pressure_beats", 0),
-                config,
             ),
             "post_turn_location_id": state.get("location", {}).get("id"),
             "scene_phase": state.get("scene", {}).get("scene_phase", "SETUP"),

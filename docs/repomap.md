@@ -11,7 +11,7 @@
 | `ccya/engine/__init__.py` | Re-exports public APIs; internal helpers for tests; LLM client re-exports (llm_chat, llm_chat_stream); clear_all_turn_locks() |
 | `ccya/engine/config.py` | EngineConfig dataclass (including thread_stale_threshold, thread_max_active, nearby_decay_ttl, departed_archive_ttl, climax_turn_limit, breather_max_turns, convergence_threshold), _EventLock, is_turn_in_progress(), clear_all_turn_locks(), Jinja env setup |
 | `ccya/engine/turn.py` | run_turn() async orchestrator (thin — imports from submodules), _validate(), warmup(), _apply_thread_updates(config) with content dedup + auto-latent demotion every turn (not gated on mutation) + thread cap eviction, _compute_scene_phase() 5-state phase machine, _compute_narration_directive() phase-driven priority stack, _compute_pacing_context() with new signal set, _compute_ages(), _recent_turn_count() |
-| `ccya/engine/_pacing.py` | BEAT_PHASE_MAP, BEAT_BUCKETS, detect_spiral(), derive_allowed_beat_types(), derive_enforce_relief() — beat constraint derivation from scene phase, directive, and spiral flag |
+| `ccya/engine/_pacing.py` | BEAT_PHASE_MAP, BEAT_BUCKETS, detect_spiral(), derive_allowed_beat_types() — beat constraint derivation from scene phase and directive |
 | `ccya/engine/narrate.py` | _narrate_messages(), _get_resolved_arcs(), _fmt_progress(), NPC name helpers for prompt building |
 | `ccya/engine/pack_gen.py` | generate_pack() — LLM-generated ScenarioBrief, writes to packs/custom/<slug>/ |
 | `ccya/engine/names.py` | Name pool generation via Faker (pc, npc, location) |
@@ -63,12 +63,12 @@
 | `ccya/ev/checkers/sanitizer.py` | `sanitizer_lifecycle` — thread operation validity vs state, orphan detection; needs non-turn events + state access |
 | `ccya/ev/checkers/turn_assert.py` | `turn_assert` — validates per-turn YAML scenario assertions (stream/field/expected/min_amount); called programmatically by eval runner, not in default registry |
 | `ccya/ev/checkers/phase_transition.py` | `phase_transition` — Validate phase engine transitions follow the state machine |
-| `ccya/ev/checkers/tension_delta.py` | `tension_delta` — Validate tension_delta field presence, values, and directive consistency |
+| `ccya/ev/checkers/tension_delta.py` | `tension_delta` — Validate tension_delta field presence, values, and directive consistency (legacy — tension_delta removed from pipeline) |
 | `ccya/ev/checkers/recent_beats.py` | `recent_beats` — Validate recent_beats history list structure and constraints |
 | `ccya/ev/checkers/phase_persistence.py` | `phase_persistence` — Validate scene_phase field present and valid on every turn (regression guard for phase-persistence bug) |
 | `ccya/ev/checkers/scene_age_tracking.py` | `scene_age_tracking` — Validate scene_age increments every turn, resets on location change |
-| `ccya/ev/checkers/crisis_turn_counting.py` | `crisis_turn_counting` — Validate crisis_turn_count increments in CRISIS, resets on phase exit |
-| `ccya/ev/checkers/tension_monotonicity.py` | `tension_monotonicity` — Validate tension_delta field presence, valid values, phase consistency |
+| `ccya/ev/checkers/crisis_turn_counting.py` | `crisis_turn_counting` — Validate climax_turn_count increments in CLIMAX, resets on phase exit |
+| `ccya/ev/checkers/tension_monotonicity.py` | `tension_monotonicity` — Validate tension_delta field presence, valid values, phase consistency (legacy — tension_delta removed from pipeline) |
 | `ccya/ev/checkers/breather_enforcement.py` | `breather_enforcement` — Validate breather auto-transitions to RISING after breather_max_turns |
 | `ccya/ev/checkers/roll_band_consistency.py` | `roll_band_consistency` — Verify band matches dice roll using rules engine |
 | `ccya/ev/checkers/thread_resolution_validity.py` | `thread_resolution_validity` — thread_resolve entries have valid id/resolution_state/outcome |
@@ -196,7 +196,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 ### Storyteller system prompt (`ccya/prompts/storytell_system.j2`)
 - JSON schema example shows ArcThread without `key` or `tags`; `thread_update` supports `active`, `urgency`, `progress`, and `progress_kind`; `thread_add` no longer includes `tags` or `key`
 - CRITICAL instruction added: storyteller must check all active/latent thread summaries for conceptual overlap before emitting new threads; update existing threads via `thread_update` instead of creating duplicates when tension is the same
-- Phase→beat constraints table replaces old directive→beat mapping: phase table (SETUP/RISING/CRISIS/RESOLUTION/BREATHER) with allowed beat types per phase, driven by `scene_phase` and `allowed_beat_types` context variables. Roll-band table becomes secondary constraint. Phase overrides roll band. `enforce_relief` inline note in CRISIS row replaces separate relief row.
+- Phase→beat constraints table replaces old directive→beat mapping: phase table (SETUP/RISING/CLIMAX/RESOLUTION/BREATHER) with allowed beat types per phase, driven by `scene_phase` and `allowed_beat_types` context variables. Roll-band table becomes secondary constraint. Phase overrides roll band.
 - Choice momentum section added: instructs LLM to escalate from prior turns, connect pacing context to choice urgency, and avoid passive options
 ### Narrator system prompt (`ccya/prompts/narrate_system.j2`)
 - Restructured into 4-section hierarchy: (1) Task/role, (2) Hard rules (Player Input Is Truth, Inventory, Never Repeat Prior Narration, Fail-Band Outcomes), (3) Behavioral guidance (NPCs merged single section, Style, Pragmatic Interpretation, Pacing, Campaign arc context), (4) Formatting/output (Markdown). Output discipline section removed (narrator emits only prose after ARC UPDATE removal). Dynamic sections (Universe rules, Genre tone) remain at end.
@@ -238,12 +238,12 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - storytell_system.j2: instructs storyteller to use dormant/latent thread knowledge when generating suggestions and beats — craft situations where dormant threads naturally surface (character's past catching up, long-silent threat stirring); steer player via choices/suggestions/complications without exposing latent content directly
 
 ### Pacing context and beat lifecycle (Phase 03 pacing overhaul)
-- `_compute_pacing_context()` sets `outcome_hint` overridden to "transition" when CRISIS hits turn limit. Phase engine runs between ruling and narrate, computing `scene_phase` from thread urgency, tension_delta, and scene age.
-- Consecutive pressure counter: `consecutive_pressure_beats` (new, replaces `consecutive_pressure_turns`) updated at turn end: increments when storyteller's `gm_beat.type` is `"pressure"`, `"escalation"`, or `"complication"`; resets to 0 on any other beat type or null beat. Used by `derive_enforce_relief()` to force breathing_room beats during CRISIS.
+- `_compute_pacing_context()` sets `outcome_hint` overridden to "transition" when CLIMAX hits turn limit. Phase engine runs between ruling and narrate, computing `scene_phase` from thread urgency and scene age.
+- Consecutive pressure counter: `consecutive_pressure_beats` updated at turn end: increments when storyteller's `gm_beat.type` is `"pressure"`, `"escalation"`, or `"complication"`; resets to 0 on any other beat type or null beat.
 - `pending_gm_beat` lifecycle: null-clear on null storytell output (key popped from meta); replaced on valid storytell emittion (beat_expires_turn = turn_no + 2); expires when turn_no > beat_expires_turn at narrate setup. Floor relief injects breathing_room when enforce_relief=True AND (pending_gm_beat is None or pressure-type).
 - `recent_rolls`: rolling window (max 5) of `{"turn": int, "band": str}` records, most-recent-first. Appended after ruling phase on rolled turns. Consumed by `detect_spiral()` in `_narrate_setup()` to flag death spirals (3 consecutive hard+ rolls, or 3/5 recent). Spiral flag removes pressure bucket beats from allowed_beat_types.
 - `spiral_detected` field on `PacingContext` (bool), also stored on `TurnContext._spiral_detected` for pipeline use.
-- `scene_phase` stored in `state["scene"]` alongside `turn_entered`, `crisis_turn_count`, `breather_turn_count`. Transitions: SETUP→RISING (urgent thread), RISING→CRISIS (≥threshold urgent OR escalates+urgent OR age≥pressure_threshold), CRISIS→RESOLUTION (crisis_turn_count≥limit), RESOLUTION→SETUP (location change) or BREATHER, BREATHER→RISING (urgent thread OR breather_max_turns).
+- `scene_phase` stored in `state["scene"]` alongside `turn_entered`, `climax_turn_count`, `breather_turn_count`. Transitions: SETUP→RISING (urgent thread), RISING→CLIMAX (≥threshold urgent OR age≥pressure_threshold), CLIMAX→RESOLUTION (climax_turn_count≥limit), RESOLUTION→SETUP (location change) or BREATHER, BREATHER→RISING (urgent thread OR breather_max_turns).
 
 ### Seed emotional context → narrator consumption
 - **Seed generates**: `goal_context` (character-specific stake in visible_goal), NPC `relation` field (narrative job relative to PC), action text (character-shaped, scene-grounded).
@@ -256,11 +256,11 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - Sampling parameters: ruling_temperature/ruling_top_p, extract_temperature/extract_top_p/extract_frequency_penalty, narrate_temperature/narrate_top_p/narrate_frequency_penalty, generate_seed_temperature/generate_seed_top_p, pack_generation_temperature/pack_generation_top_p; stub fields always null until mlx-lm SDK support: seed, top_k, min_p, rep_penalty, rep_penalty_window. Config structure migrated from flat keys to nested `llm.<stage>.<param>` format (Phase 08).
 
 ### Computation functions (Phase 06b)
-- `_compute_narration_directive(scene_phase, tension_delta, thread_urgency_count, crisis_turn_count, crisis_turn_limit, effective_scene_age, ...)` — phase-driven priority stack: Breathe → Scene Imperative → Scene Pressure → empty. Removed Overwhelm/Pressure/Tension directives (handled by phase).
-- `_compute_pacing_context(scene_phase, tension_delta, thread_urgency_count, crisis_turn_count, crisis_turn_limit, effective_scene_age, ...)` — consumes phase signals, sets outcome_hint overridden to "transition" when CRISIS hits turn limit.
-- `_compute_scene_phase(state, tension_delta, ages, config)` — 5-state phase machine (SETUP→RISING→CRISIS→RESOLUTION→BREATHER), mutates state["scene"] in place.
+- `_compute_narration_directive(scene_phase, thread_urgency_count, climax_turn_count, climax_turn_limit, effective_scene_age, ...)` — phase-driven priority stack: Scene Imperative → Scene Pressure → empty. Removed Overwhelm/Pressure/Tension/Breathe directives (handled by phase).
+- `_compute_pacing_context(scene_phase, thread_urgency_count, climax_turn_count, climax_turn_limit, effective_scene_age, ...)` — consumes phase signals, sets outcome_hint overridden to "transition" when CLIMAX hits turn limit.
+- `_compute_scene_phase(state, ages, config)` — 5-state phase machine (SETUP→RISING→CLIMAX→RESOLUTION→BREATHER), mutates state["scene"] in place.
 - `_compute_ages(state)` returns only `{"scene_age": scene_age}` — location_age and combat_age removed in Phase 03 pacing overhaul; effective_scene_age set in _ruling_phase() by adding combat boost to scene_age.
-- `ccya/engine/_pacing.py` — BEAT_PHASE_MAP, BEAT_BUCKETS, detect_spiral(), derive_allowed_beat_types(directive=, spiral_detected=), derive_enforce_relief() — beat constraint derivation with directive/spiral overrides. `detect_spiral()` uses rolling window of recent roll bands, configurable consecutive/ratio thresholds. `BEAT_BUCKETS` groups beat types into pressure/situation/relief functional buckets for directive-based filtering.
+- `ccya/engine/_pacing.py` — BEAT_PHASE_MAP, BEAT_BUCKETS, detect_spiral(), derive_allowed_beat_types(directive=, spiral_detected=) — beat constraint derivation with directive/spiral overrides. `detect_spiral()` uses rolling window of recent roll bands, configurable consecutive/ratio thresholds. `BEAT_BUCKETS` groups beat types into pressure/situation/relief functional buckets for directive-based filtering.
 
 ### Token budget cascade
 `config.context_window` (default 32768): `llm_client.trim_messages()` drops/truncates oldest non-system messages when budget exceeded. Priority: system prompts retained first, then most recent user/context blocks. This affects all pipeline stages — if budget is tight, older turns in chronicle tail get truncated before narration/extraction contexts.
