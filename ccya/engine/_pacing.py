@@ -69,8 +69,6 @@ def derive_allowed_beat_types(
     1. Scene Imperative directive → situation-changers + opportunity
     2. Spiral detected → phase defaults minus pressure bucket
     3. Fallback → phase defaults
-    Removed: Breathe directive (dead code).
-    Removed: enforce_relief parameter (derive_enforce_relief deleted).
     """
     if directive == "Scene Imperative":
         return ["revelation", "hazard", "callback", "opportunity", "setback", "breathing_room"]

@@ -149,7 +149,7 @@ class ScenarioBrief(BaseModel):
     world_rules: list[str] = Field(default_factory=list, max_length=5)
     factions: list[Faction] = Field(default_factory=list, max_length=6)
     name_locales: list[dict[str, Any]] = Field(default_factory=list)
-    name_seed: int = 0
+    name_seed: int | None = None
     inspiration: Inspiration = Field(default_factory=Inspiration)
     situation_archetypes: list[PoolEntry] = Field(default_factory=list, max_length=16)
     arc_categories: list[PoolEntry] = Field(default_factory=list, max_length=20)

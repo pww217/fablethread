@@ -5,12 +5,27 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ccya.ev.checkers import list_checkers, run_checkers
+from ccya.ev.checkers import CheckerResult, list_checkers, run_checkers
 from ccya.ev.checkers._llm import _load_checker_model, _unload_checker_model
 from ccya.ev.checkers.llm_checkers import set_checker_config
 from ccya.ev.events import find_turn
 
 _log = logging.getLogger(__name__)
+
+# Checker domain groupings for summary output
+_CHECKER_DOMAINS: dict[str, list[str]] = {
+    "Pacing": ["pacing_directives", "phase_transition", "phase_persistence", "scene_age_tracking", "climax_turn_counting", "breather_enforcement", "roll_band_consistency"],
+    "Threads": ["thread_lifecycle", "sanitizer_lifecycle", "thread_resolution_validity", "new_thread_validity", "arc_resolution_validity"],
+    "Beats": ["gm_beat_lifecycle", "beat_phase_validity", "recent_beats"],
+    "Goals": ["arc_goal_updates", "goal_update_validity"],
+    "State": ["location_change", "inventory_integrity", "conditions_lifecycle", "npc_presence", "compendium_lifecycle", "action_quality"],
+}
+
+def _get_domain(checker_id: str) -> str:
+    for domain, ids in _CHECKER_DOMAINS.items():
+        if checker_id in ids:
+            return domain
+    return "Other"
 
 
 def cmd_check(
@@ -21,7 +36,13 @@ def cmd_check(
     include_llm: bool = False,
     save_dir: Path | None = None,
     checker_model: str | None = None,
+    list_only: bool = False,
+    verbose: bool = False,
 ) -> None:
+    if list_only:
+        _print_checker_list()
+        return
+
     if checker_ids:
         checker_list = checker_ids
     elif all_checkers:
@@ -61,24 +82,67 @@ def cmd_check(
                 print(f"Turn {turn} not found", file=sys.stderr)
                 sys.exit(1)
             results = run_checkers(checker_list, events, save_dir=save_dir)
-            _print_results({turn: results})
+            _print_results({turn: results}, verbose=verbose)
         else:
-            per_turn: dict[int, dict[str, Any]] = {}
-            seen: set[int] = set()
-            for ev in events:
-                t = ev.get("turn")
-                if t is not None and t not in seen:
-                    seen.add(t)
-                    turn_ev = find_turn(events, t)
-                    if turn_ev is not None:
-                        per_turn[t] = run_checkers(checker_list, events, save_dir=save_dir)
-            _print_results(per_turn)
+            # Run checkers ONCE against full events list (not per-turn)
+            results = run_checkers(checker_list, events, save_dir=save_dir)
+            _print_all_summary(results, verbose=verbose)
     finally:
         if include_llm:
             _unload_checker_model()
 
 
-def _print_results(per_turn: dict[int, dict[str, Any]]) -> None:
+def _print_checker_list() -> None:
+    print("Registered checkers:")
+    for meta in list_checkers():
+        print(f"  {meta['id']} ({meta['type']}): {meta['description']}")
+
+
+def _print_all_summary(results: dict[str, CheckerResult], verbose: bool = False) -> None:
+    pass_count = sum(1 for r in results.values() if r.passed)
+    total = len(results)
+    avg_score = sum(r.score or 0.0 for r in results.values()) / total if total else 0.0
+    fail_ids = [cid for cid, r in results.items() if not r.passed]
+
+    print(f"Checkers: {pass_count}/{total} PASS ({pass_count/total*100:.1f}%)  |  Average score: {avg_score:.2f}")
+    if fail_ids:
+        print(f"FAIL: {', '.join(fail_ids)}")
+
+    # Domain breakdown
+    domains: dict[str, tuple[int, int, list[str]]] = {}
+    for cid, result in results.items():
+        domain = _get_domain(cid)
+        passed, total_d, fails = domains.get(domain, (0, 0, []))
+        if result.passed:
+            passed += 1
+        else:
+            fails.append(cid)
+        total_d += 1
+        domains[domain] = (passed, total_d, fails)
+
+    for domain in sorted(domains):
+        passed, total_d, fails = domains[domain]
+        if fails:
+            print(f"  {domain:<12}: {passed}/{total_d} FAIL ({', '.join(fails)})")
+        else:
+            print(f"  {domain:<12}: {passed}/{total_d} PASS")
+
+    if verbose:
+        print()
+        for cid in sorted(results):
+            result = results[cid]
+            status = "PASS" if result.passed else "FAIL"
+            score = result.score or 0.0
+            print(f"## {cid}: {status} (score: {score})")
+            if result.findings:
+                for f in result.findings:
+                    f_id = f.get("finding", f.get("id", ""))
+                    f_detail = f.get("detail", "")
+                    f_turn = f.get("turn", "")
+                    print(f"  T{f_turn}: {f_id} — {f_detail}")
+
+
+def _print_results(per_turn: dict[int, dict[str, Any]], verbose: bool = False) -> None:
     first = True
     for turn_num in sorted(per_turn):
         results = per_turn[turn_num]

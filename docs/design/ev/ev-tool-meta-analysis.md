@@ -14,16 +14,16 @@
 `ev.py summary` gives a one-line-per-turn overview with stream counts, token usage, ruling intent, and delta counts. It's the right first step for any investigation.
 
 ### 3. Checkers are comprehensive and well-organized
-The 25 deterministic checkers cover the full pipeline: phase transitions, beat validity, thread lifecycle, inventory integrity, NPC presence, tension monotonicity, crisis counting, sanitizer lifecycle, roll consistency, and more. The `--all` flag runs them all at once with a clear PASS/FAIL table.
+The 27 deterministic checkers cover the full pipeline: phase transitions (including convergence score entry conditions), beat validity, thread lifecycle, inventory integrity, NPC presence, CLIMAX turn counting, sanitizer lifecycle, roll consistency, scene age tracking, breather enforcement, beat-phase validity, thread resolution validity, arc resolution validity, and more. The `--all` flag runs them all at once with a clear PASS/FAIL table.
 
 ### 4. Beats table is the best high-level mechanic view
-`ev.py beats` produces a clean phase/beat-type/surface/directive table with consecutive streak detection and the `recent_beats` sliding window from state. This is the single best command for understanding narrative pacing.
+`ev.py beats` produces a clean phase/beat-type/surface/directive table with consecutive streak detection and the `recent_beats` sliding window from state. The streak detection now directly feeds the convergence score's beat-streak component. This is the single best command for understanding narrative pacing and CLIMAX trajectory.
 
 ### 5. Threads table shows arc progression clearly
 `ev.py threads` renders a turn-by-turn matrix of thread urgency changes (latent/urgent/active) with progress kind annotations (advancement/shift/resolve). It makes it easy to see which threads are driving the story.
 
 ### 6. Momentum-check is useful for ruling analysis
-`ev.py momentum-check` shows roll bands, tension_delta, raw/final totals per turn. It reveals whether the ruling engine is producing the expected tension trajectory.
+`ev.py momentum-check` shows roll bands, raw/final totals, and momentum per turn. It reveals whether the ruling engine is producing the expected difficulty trajectory.
 
 ### 7. State command with format options is practical
 `ev.py state --format compact|pc|inventory|location|scene|arc|npcs|compidx` gives targeted views of the active game state without parsing raw YAML.
@@ -47,12 +47,12 @@ The 25 deterministic checkers cover the full pipeline: phase transitions, beat v
 The README says "The events file path is auto-detected from `--save-dir`" but this only works for `play`, not for `check`. This is a UX inconsistency that costs time.
 
 ### 2. `search` doesn't support dot-notation for nested fields
-**Gap:** `ev.py search pacing_context.scene_phase:CRISIS` fails with `invalid expression 'pacing_context.scene_phase'`. The search command only supports flat `field:value` or `input~regex` patterns. There's no way to search nested JSON fields like `pacing_context.scene_phase` or `extraction.storytell.output.gm_beat.type`.
+**Gap:** `ev.py search pacing_context.scene_phase:CLIMAX` fails with `invalid expression 'pacing_context.scene_phase'`. The search command only supports flat `field:value` or `input~regex` patterns. There's no way to search nested JSON fields like `pacing_context.scene_phase` or `extraction.storytell.output.gm_beat.type`.
 
-The README shows `ev.py search pacing_context.scene_phase:CRISIS` as an example, but it doesn't work. This is a documentation bug.
+The README shows `ev.py search pacing_context.scene_phase:CLIMAX` as an example, but it doesn't work. This is a documentation bug.
 
-### 3. `trace` doesn't work for `pacing_context.scene_phase`
-**Gap:** `ev.py trace pacing_context.scene_phase` returns `Field not tracked per-turn`. The trace command can't follow nested fields across turns. This is a significant limitation since phase trajectory is one of the most important things to track.
+### 3. `trace` doesn't work for nested fields
+**Gap:** `ev.py trace pacing_context.scene_phase` returns `Field not tracked per-turn`. The trace command can't follow nested fields across turns. This affects tracking of convergence_score, climax_turn_count, and scene_phase — all key to understanding CLIMAX timing.
 
 ### 4. `goals` returns nothing even when goals change
 **Gap:** `ev.py goals` returned `(no goal changes found)` for all three runs, even though `arc_resolve.visible_goal` clearly changed in the storytell output (e.g., Run 1 turn 10: `"visible_goal": "Secure the primary medical transport route through the South Charles pass."`).
@@ -97,18 +97,24 @@ A command like `ev.py warnings` or `ev.py soft-checks` that surfaces all `genera
 A command showing how many thread_update dedup rejections occurred, with the rejected progress values, would help diagnose LLM thread-update quality issues.
 
 ### 3. No phase transition summary
-While `beats` shows the phase per turn, there's no command that explicitly lists phase transitions with the triggering conditions (crisis_turn_count reached, breather max, location change, etc.).
+While `beats` shows the phase per turn, there's no command that explicitly lists phase transitions with the triggering conditions (convergence_score ≥ threshold, climax_turn_count reached, breather max exceeded, location change, etc.). The existing `phase_transition` checker validates correctness but doesn't render a human-readable transition log.
 
-### 4. No doom spiral detection
-The `spiral_detected` field exists in `pacing_context` but is always `false` in all three runs. There's no command that analyzes whether the game *should* have entered a spiral state based on consecutive pressure beats, tension trajectory, and beat patterns. The `spiral_detected` field is a binary flag that the engine sets internally, but EV doesn't have a command to analyze spiral risk independently.
+### 4. No convergence score breakdown
+While `mechanics` displays the convergence score as a scalar (0-5), there's no command that shows a per-turn breakdown of the 5 components: thread weight, urgency depth, scene age, beat streak, and dice weight. This is essential for diagnosing why CLIMAX entered early or late.
 
-### 5. No directive-to-narrative alignment score
+### 5. No CLIMAX trajectory summary
+While `climax_turn_counting` checker validates correct counting, there's no command that shows CLIMAX entry/exit turns, duration, convergence score at entry, and whether Curtain Call prompts (turn 1 `curtain_call: "active"`, second-to-last `curtain_call: "forced"`) actually fired. This is key to evaluating the Curtain Call soft-close mechanism.
+
+### 6. No Curtain Call compliance analysis
+The Curtain Call mechanism adds `thread_resolve` to required storytell outputs on turn 1 of CLIMAX and escalates language on the second-to-last turn. There's no command to verify whether the storyteller actually emitted `thread_resolve` during those turns, or whether it was ignored.
+
+### 7. No directive-to-narrative alignment score
 The `directive_tone_match` LLM checker exists but requires `--llm` flag and is slow. There's no quick deterministic proxy for checking whether directives (Scene Pressure, Scene Imperative, etc.) align with the actual narrative tone.
 
-### 6. No extraction retry summary
+### 8. No extraction retry summary
 The `extract.retries` field exists per turn but there's no command that summarizes retry patterns across a session. High retry counts on state extraction indicate extraction prompt issues.
 
-### 7. No scene stability analysis
+### 9. No scene stability analysis
 There's no command that shows how many times the scene changed vs. how many turns were spent in each scene. This would help evaluate whether scenes are too short or too long.
 
 ---
@@ -120,7 +126,7 @@ The storytell user prompt embeds the full state snapshot including all active th
 - Threads accumulate (6 threads in Run 3 by turn 20)
 - NPC notes grow verbose (multi-sentence descriptions)
 - Recent beats history fills the sliding window
-- Pacing context adds phase/directive/crisis metadata
+- Pacing context adds phase/directive/CLIMAX metadata plus Curtain Call signals
 
 This causes the storytell prompt to grow from ~15,000 to ~16,800 tokens, with scene extraction being the biggest contributor (20-30s per turn in Run 3).
 
@@ -138,12 +144,13 @@ There's no EV command or flag to analyze prompt sizes or suggest truncation poin
 ## Recommendations
 
 1. **Fix `check --all` auto-detection** — Make `--save-dir` work without explicit events path, matching `play` behavior.
-2. **Add dot-notation support to `search`** — Allow `pacing_context.scene_phase:CRISIS` syntax.
-3. **Fix `trace` for nested fields** — Support `trace pacing_context.scene_phase`.
+2. **Add dot-notation support to `search`** — Allow `pacing_context.scene_phase:CLIMAX` syntax.
+3. **Fix `trace` for nested fields** — Support `trace pacing_context.scene_phase`, `trace pacing_context.convergence_score`, `trace pacing_context.climax_turn_count`.
 4. **Fix `goals` to read `arc_resolve.visible_goal`** — Currently only reads `goal_update` string.
 5. **Fix narrate data shape** — Either populate `narrate.output` from `narrate_prompt.output`, or update all consumers to read from `narrate_prompt.output`.
 6. **Add `ev.py warnings` command** — Surface soft-check, dedup, and extraction warnings.
-7. **Add `ev.py phase-transitions` command** — Explicit phase transition log with triggers.
-8. **Add `ev.py spiral-risk` command** — Analyze spiral risk independently of the `spiral_detected` flag.
-9. **Add prompt size analysis** — `ev.py prompt-sizes` to show token growth per stage across turns.
-10. **Fix compat checker** — Recognize `changes` as a valid extraction format, or migrate all saves to `extraction_context`.
+7. **Add `ev.py phase-transitions` command** — Explicit phase transition log with triggers (convergence_score ≥ threshold, climax_turn_count, breather max, location change).
+8. **Add `ev.py convergence` command** — Per-turn breakdown of the 5 convergence score components (thread weight, urgency depth, scene age, beat streak, dice weight) with threshold highlighting.
+9. **Add `ev.py curtain-call` command** — Verify CLIMAX turns have thread_resolve and Curtain Call prompt signals.
+10. **Add prompt size analysis** — `ev.py prompt-sizes` to show token growth per stage across turns.
+11. **Fix compat checker** — Recognize `changes` as a valid extraction format, or migrate all saves to `extraction_context`.

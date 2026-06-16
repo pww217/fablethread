@@ -211,10 +211,13 @@ Personality presets shape the LLM player's system prompt:
 | If you want... | Command |
 |---|---|
 | Thread lifecycle across all turns | `ev.py threads [save-path]` |
+| Thread resolution summary | `ev.py threads --summary [save-path]` |
 | Beat type + surface + locked status | `ev.py beats [save-path]` |
 | Phase + beat + directive table | `ev.py beats [save-path]` |
 | Roll bands + raw/final totals per turn | `ev.py rolls [save-path]` |
+| Roll band distribution | `ev.py rolls --summary [save-path]` |
 | Convergence score + 5 component breakdown | `ev.py convergence [save-path]` |
+| Convergence score (retro-computed) | `ev.py convergence --estimate [save-path]` |
 | Scene phase transitions with triggers | `ev.py phase-transitions [save-path]` |
 | CLIMAX Curtain Call compliance | `ev.py curtain-call [save-path]` |
 | Goal changes over time | `ev.py goals [save-path]` |
@@ -225,14 +228,23 @@ Personality presets shape the LLM player's system prompt:
 # How did threads evolve across the session?
 .venv/bin/python scripts/debug/ev.py threads saves/my-game/events.jsonl
 
+# Thread resolution summary (created/resolved rate, hallucinated threads)
+.venv/bin/python scripts/debug/ev.py threads --summary saves/my-game/events.jsonl
+
 # What beats were generated and when?
 .venv/bin/python scripts/debug/ev.py beats saves/my-game/events.jsonl
 
 # Roll trajectory with bands
 .venv/bin/python scripts/debug/ev.py rolls saves/my-game/events.jsonl
 
+# Roll band distribution summary
+.venv/bin/python scripts/debug/ev.py rolls --summary saves/my-game/events.jsonl
+
 # Convergence score and component breakdown
 .venv/bin/python scripts/debug/ev.py convergence saves/my-game/events.jsonl
+
+# Retro-compute convergence components for saves missing them
+.venv/bin/python scripts/debug/ev.py convergence --estimate saves/my-game/events.jsonl
 
 # When did scene phases change?
 .venv/bin/python scripts/debug/ev.py phase-transitions saves/my-game/events.jsonl
@@ -314,7 +326,7 @@ Ruling:    INTIMIDATE (skill: charisma, diff: hard)
            Roll: [9] -> Band: success
 Narrative: "You thrust the rifle upward..." (1655 chars)
 
-Pacing:    phase=CRISIS directive=Scene Imperative outcome_hint=transition
+Pacing:    phase=CLIMAX directive=Scene Imperative outcome_hint=transition
 Actions:   Signal Elias to run., Hand over the rifle., Order Paul to cover.
 Scene:     wasteland_surface, A Desperate Trade Struck, tense_negotiation
 
@@ -356,8 +368,14 @@ Tokens:    in=15487  out=1077  ms=31700.0
 ### Validate — checker & eval infrastructure
 
 ```bash
-# Check a single turn with all available checkers
-.venv/bin/python scripts/debug/ev.py check 5 --all --save-dir saves/my-game
+# Run all checkers (summary with domain breakdown)
+.venv/bin/python scripts/debug/ev.py check --all --save-dir saves/my-game
+
+# Run all checkers with per-checker detail
+.venv/bin/python scripts/debug/ev.py check --all --verbose --save-dir saves/my-game
+
+# List checkers without loading events
+.venv/bin/python scripts/debug/ev.py check --list
 
 # Specific checkers only
 .venv/bin/python scripts/debug/ev.py check 5 phase_transition breather_enforcement saves/my-game/events.jsonl
@@ -452,9 +470,9 @@ ev.py deltas 7 saves/my-game/events.jsonl                  # find the exact turn
 
 **"The checkers are all failing"**
 ```bash
-ev.py check 5 --all --save-dir saves/my-game
+ev.py check --all --save-dir saves/my-game
 ```
-→ Run all static checkers. If `requires_fields` errors appear, see `plans/findings/EVAL-FINDINGS-2026-06-09.md`.
+→ Runs all checkers once and prints a summary with PASS/FAIL count, domain breakdown, and average score. Add `--verbose` for per-checker detail. If `requires_fields` errors appear, see `plans/findings/EVAL-FINDINGS-2026-06-09.md`.
 
 **"I need to understand what the engine decided on turn N"**
 ```bash
@@ -493,12 +511,10 @@ Events are one JSON line per turn in `events.jsonl`. Key fields:
 | `.extraction.storytell.*` | Storyteller: system, user, GM beat + thread JSON output |
 | `.applied` | State deltas that were applied (inventory, NPCs, scene tags, etc.) |
 | `.rejected` | State deltas that were rejected with reasons |
-| `.pacing_context` | scene_phase, directive, outcome_hint, crisis_turn_count, breather_turn_count |
+| `.pacing_context` | scene_phase, directive, outcome_hint, climax_turn_count, breather_turn_count, convergence_score, convergence_components |
 | `.state_snapshot` | Full state at **start** of turn (pre-turn, despite the name) |
 | `.post_turn_pending_beat` | pending_gm_beat after turn processing |
-| `.post_extraction_consecutive_pressure_beats` | Consecutive pressure beat counter |
 | `.post_extraction_allowed_beat_types` | Allowed beat types for current scene_phase |
-| `.post_extraction_enforce_relief` | Whether relief is forced in CRISIS |
 
 ### Non-turn events
 
@@ -534,7 +550,7 @@ Different commands read from different event fields. Understanding which fields 
 | **Active state** | `state.yaml` in save dir | state |
 | **Thread lifecycle** | `.extraction.storytell.output.thread_add`, `.extraction.storytell.output.thread_update`, `.extraction.storytell.output.thread_remove`, sanitizer events | threads, thread-audit |
 | **Beat data** | `.extraction.storytell.output.gm_beat`, `.pacing_context` | beats, mechanics |
-| **Pacing** | `.pacing_context` (scene_phase, directive, crisis_turn_count, breather_turn_count), `.ruling.tension_delta` | beats, mechanics --pacing |
+| **Pacing** | `.pacing_context` (scene_phase, directive, climax_turn_count, breather_turn_count, convergence_score, convergence_components) | beats, mechanics --pacing, convergence |
 | **Conditions** | `.applied.pc_condition_add`, `.applied.pc_condition_remove`, `.extraction_context.conditions_this_turn` | active-conditions, conditions checker |
 | **Inventory** | `.applied.inventory_add`, `.applied.inventory_remove`, `.extraction_context.inventory_this_turn` | state-history, inventory checker |
 | **NPC presence** | `.state_snapshot.compendium.npcs`, `.extraction_context` | npc-ghosting, npc_presence checker |
@@ -553,7 +569,7 @@ When evaluating a game against the eval rubric, use these commands in priority o
 
 | Rubric area | Commands | What to look for |
 |-------------|----------|-----------------|
-| **1. Phase transitions** | `beats`, `mechanics <N> --pacing` | scene_phase transitions follow the state machine, crisis_turn_count and breather_turn_count reset correctly |
+| **1. Phase transitions** | `beats`, `mechanics <N> --pacing`, `convergence` | scene_phase transitions follow the state machine, convergence_score drives CLIMAX entry |
 | **2. GM Beats** | `beats`, `mechanics <N> --pacing` | No 3+ consecutive pressure, beat types transition correctly |
 | **3. Inventory** | `state-history`, `deltas <N>` | Add/remove balance, no phantom items |
 | **4. Conditions** | `active-conditions`, `deltas <N>` | Max 5 concurrent, cap violations flagged |
@@ -563,7 +579,8 @@ When evaluating a game against the eval rubric, use these commands in priority o
 | **8. Pacing** | `beats`, `check <N> pacing_directives` | Directives match narrative tone |
 | **9. State Fidelity** | `state`, `check <N> state_fidelity` | Snapshot matches active state |
 | **10. Arc Goals** | `goals`, `check <N> arc_goal_updates` | Goal updates are structured, not free-form text |
-| **11. Rulings** | `ruling-audit`, `mechanics <N>` | ruling.reason is non-empty, condition IDs present |
+| **11. Rulings** | `ruling-audit`, `mechanics <N>`, `rolls --summary` | ruling.reason is non-empty, condition IDs present, band distribution |
 | **12. Format** | `compat` | extraction_context present, not just changes |
+| **13. Threads** | `threads --summary`, `thread-audit` | Resolution rate, hallucinated threads |
 
 For detailed checker docs, see `docs/ev/CHECKERS.md`. For the full rubric, see `docs/ev/RUBRIC.md`.

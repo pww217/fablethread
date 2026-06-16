@@ -28,10 +28,10 @@ When inspecting a game, check one area at a time rather than running all checker
 ### gm_beat_lifecycle
 
 - **Type:** deterministic
-- **Fields:** `state_snapshot`, `ruling`, `narrate_prompt`, `pacing_context`
-- **What it checks:** Pending GM beat is consumed across turns, beat lifecycle is respected, floor relief injected when enforce_relief, binding block present on rolled turns, enforce_relief fires at CLIMAX with consecutive pressure beats
+- **Fields:** `state_snapshot`, `ruling`, `narrate_prompt`
+- **What it checks:** Pending GM beat is consumed across turns, beat lifecycle is respected, binding block present on rolled turns
 - **CLI:** `ev.py check TURN gm_beat_lifecycle`
-- **Caveats:** Checks that `pending_gm_beat` from one turn is consumed or updated in the next. Verifies that when storyteller emits a GM beat, the state's `pending_gm_beat` matches its type. When `enforce_relief=True` (CLIMAX phase + consecutive_pressure_beats ≥ threshold) and storyteller did not emit a breathing_room beat, floor relief must inject `breathing_room`.
+- **Caveats:** Checks that `pending_gm_beat` from one turn is consumed or updated in the next. Verifies that when storyteller emits a GM beat, the state's `pending_gm_beat` matches its type. Rolled turns must include the BINDING block in narrate user prompt.
 
 ### location_change
 
@@ -85,9 +85,9 @@ When inspecting a game, check one area at a time rather than running all checker
 
 - **Type:** deterministic
 - **Fields:** `ruling`, `narrate_prompt`, `extraction_context`
-- **What it checks:** Consecutive pressure tracking matches beat type, outcome_hint rendered in narrator prompt, directive rendered in storyteller prompt, removed directives not present, beat type variety maintained, surface_as consistency across consecutive same-type beats
+- **What it checks:** outcome_hint rendered in narrator prompt, directive rendered in storyteller prompt, removed directives not present, beat type variety maintained, surface_as consistency across consecutive same-type beats
 - **CLI:** `ev.py check TURN pacing_directives`
-- **Caveats:** Consecutive pressure counter must increment on pressure/escalation/complication beats and reset on others. Removed directives: "Overwhelm", "Pressure", "location pressure", "location imperative", "combat fatigue". Beat type variety warns if a single type exceeds 60% of all beats (requires 3+ beats). Surface_as consistency checks that consecutive same-type beats don't flip between "ambient" and "environmental" without a directive change. Phase constraint check verifies beat types are allowed for the current scene_phase per BEAT_PHASE_MAP.
+- **Caveats:** Removed directives: "Overwhelm", "Pressure", "location pressure", "location imperative", "combat fatigue". Beat type variety warns if a single type exceeds 60% of all beats (requires 3+ beats). Surface_as consistency checks that consecutive same-type beats don't flip between "ambient" and "environmental" without a directive change. Phase constraint check verifies beat types are allowed for the current scene_phase per BEAT_PHASE_MAP.
 
 ### phase_transition
 
@@ -175,7 +175,7 @@ When inspecting a game, check one area at a time rather than running all checker
 - **Fields:** `extraction.storytell`, `pacing_context`
 - **What it checks:** gm_beat.type is allowed for the current phase
 - **CLI:** `ev.py check TURN beat_phase_validity`
-- **Caveats:** Validates beat types against BEAT_PHASE_MAP. SETUP allows [pressure, complication, revelation]. RISING allows [pressure, complication, escalation, twist]. CLIMAX allows [pressure, complication, escalation, twist, setback]. RESOLUTION allows [callback, breathing_room]. BREATHER allows [breathing_room, callback].
+- **Caveats:** Validates beat types against BEAT_PHASE_MAP. SETUP allows [pressure, complication, revelation]. RISING allows [pressure, complication, escalation, twist]. CLIMAX allows [pressure, complication, escalation, setback]. RESOLUTION allows [callback, breathing_room]. BREATHER allows [breathing_room, callback].
 
 ### arc_resolution_validity
 

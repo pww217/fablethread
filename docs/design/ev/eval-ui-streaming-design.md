@@ -261,7 +261,7 @@ async def stream_turn_pipeline(turn_input: dict):
   "event_id": "1698765432.123",
   "event": "start",
   "data": {
-    "scenario_id": "ruling-momentum-basics",
+    "scenario_id": "ruling-convergence-basics",
     "session_id": "1698765432.123"
   },
   "timestamp": "2024-01-01T12:00:00.123Z"
@@ -310,7 +310,7 @@ async def stream_turn_pipeline(turn_input: dict):
   "event_id": "1698765440.123",
   "event": "complete",
   "data": {
-    "scenario_id": "ruling-tension-delta-basics",
+    "scenario_id": "ruling-convergence-basics",
     "turns": 8
   },
   "timestamp": "2024-01-01T12:00:40.123Z"
