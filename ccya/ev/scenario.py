@@ -40,7 +40,7 @@ class PromptEvalScenario:
     description: str
     save: str
     turn: int
-    stream: str = "inventory"
+    stream: str = "scene"
     model: str | None = None
     temp: float | None = None
     checks: list[PromptCheck] = field(default_factory=list)

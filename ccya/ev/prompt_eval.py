@@ -47,7 +47,7 @@ def build_prompt_context(
     narration = (turn_ev.get("narrate") or {}).get("output", "")
     intent = (turn_ev.get("ruling") or {}).get("intent")
 
-    if stream == "inventory":
+    if stream == "scene":
         pc = state_snapshot.get("pc") or {}
         return {
             "narration": narration,
@@ -55,6 +55,7 @@ def build_prompt_context(
             "inventory": state_snapshot.get("inventory") or [],
             "intent": intent if isinstance(intent, dict) else None,
             "turn_no": turn_no,
+            "location": state_snapshot.get("location") or {},
         }
 
     # Placeholder for future streams — fail loudly if used
@@ -139,10 +140,14 @@ def _extract_prompt_from_event(ev: dict[str, Any], stream: str) -> dict[str, str
     else:
         blob = (ev.get("extraction") or {}).get(stream) or {}
 
+    output = blob.get("output") or ""
+    if isinstance(output, dict):
+        output = json.dumps(output, indent=2)
+
     return {
         "system": blob.get("rendered_system") or "",
         "user": blob.get("rendered_user") or "",
-        "output": blob.get("output") or "",
+        "output": output,
     }
 
 
@@ -336,7 +341,7 @@ def cmd_prompt_eval(flags: dict[str, str], args: list[str]) -> None:
             sys.exit(1)
         save_dir = args[1]
         turn = int(flags["turn"]) if "turn" in flags else None
-        stream = flags.get("stream", "inventory")
+        stream = flags.get("stream", "scene")
 
         if turn is None:
             print("Error: --turn is required for dump", file=sys.stderr)
