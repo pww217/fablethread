@@ -158,25 +158,79 @@ def _capitalize_inventory_names(items: list[Any]) -> None:
                 item["name"] = name[0].upper() + name[1:]
 
 
+# Quantity words that may prefix group NPC names (spelled-out integers)
+_GROUP_QUANTIFIERS = frozenset(
+    (
+        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+        "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
+        "sixteen", "seventeen", "eighteen", "nineteen", "twenty",
+    )
+)
+
+
+def _extract_group_base_type(name: str) -> str:
+    """Extract the base type from a group NPC name by stripping leading quantity words.
+
+    E.g. "Two militia guards" → "militia guards", "Three dockworkers" → "dockworkers".
+    Returns the original name if no quantity prefix is found.
+    """
+    if not name:
+        return name
+    words = name.strip().lower().split()
+    if not words:
+        return name
+    idx = 0
+    while idx < len(words) and words[idx] in _GROUP_QUANTIFIERS:
+        idx += 1
+    # Also handle "Unknown" as a quantity-like prefix
+    if idx == 0 and words[0] == "unknown":
+        idx += 1
+    return " ".join(words[idx:]) if idx < len(words) else name
+
+
 def _dedup_compendium_update(
     proposed: "CompendiumNpcUpdate",
     existing_npcs: list[dict[str, Any]],
+    existing_ids: set[str] | None = None,
 ) -> "CompendiumNpcUpdate":
     """
     If proposed.name matches any existing NPC's name or aliases (case-insensitive),
     redirect proposed.id to the existing NPC's id and return the modified update.
-    Otherwise return proposed unchanged.
+    Also handles group NPCs: if the base type (quantity stripped) matches an existing
+    group NPC, redirect to that ID. If proposed.id already exists in the compendium,
+    redirect to it. Otherwise return proposed unchanged.
     """
     if not proposed.name:
         return proposed
+
     candidate = proposed.name.strip().lower()
+    proposed_id = proposed.id.lower().strip()
+
+    # Check 1: proposed.id already exists in compendium → redirect
+    if existing_ids and proposed_id in existing_ids:
+        return proposed.model_copy(update={"id": proposed_id})
+
     for npc in existing_npcs:
         npc_names = [
             (npc.get("name") or "").lower(),
             (npc.get("id") or "").lower().replace("_", " "),
         ] + [(a or "").lower() for a in (npc.get("aliases") or [])]
+
+        # Exact name match
         if candidate in npc_names:
             return proposed.model_copy(update={"id": str(npc["id"])})
+
+        # Group NPC base type match: strip quantity words and compare
+        proposed_base = _extract_group_base_type(candidate)
+        npc_base = _extract_group_base_type(npc.get("name") or "")
+        if (
+            proposed_base != candidate
+            and npc_base != (npc.get("name") or "").lower()
+            and proposed_base == npc_base
+            and proposed_base  # non-empty base type
+        ):
+            return proposed.model_copy(update={"id": str(npc["id"])})
+
     return proposed
 
 
@@ -671,8 +725,9 @@ async def _run_extraction_pipeline(
             "aliases": list(npc.get("aliases") or []),
         })
     deduped_compendium: list[CompendiumNpcUpdate] = []
+    existing_ids: set[str] = set(_comp.keys())
     for cu in (scene_result.compendium_npc_update or []):
-        deduped_compendium.append(_dedup_compendium_update(cu, existing_npcs))
+        deduped_compendium.append(_dedup_compendium_update(cu, existing_npcs, existing_ids))
     if deduped_compendium != (scene_result.compendium_npc_update or []):
         _log.debug(
             "extraction.dedup: compendium dedup redirected %d entries", len(scene_result.compendium_npc_update or []),

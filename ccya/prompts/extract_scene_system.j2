@@ -61,6 +61,14 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 - If an NPC is known from the compendium, use their existing compendium ID — do NOT create a new ID.
 - When adding a new NPC, include `name`, `title`, and `bio` so the engine can populate the compendium. **Bio is mandatory for every NPC — even ambient presence like "crowd" or "bystanders" needs a bio.**
 
+**CRITICAL — Group NPC IDs: NEVER embed quantity in the ID.**
+- The ID describes the NPC TYPE, not the count. The count goes ONLY in `name`.
+- `"Two shadowy figures"` → `id: "shadowy_figures"`, `name: "Two shadowy figures"`
+- `"Four shadowy figures"` → `id: "shadowy_figures"` (SAME ID), `name: "Four shadowy figures"`
+- `"Three dockworkers"` → `id: "dockworkers"`, `name: "Three dockworkers"`
+- Wrong: `id: "two_shadowy_figures"`, `id: "three_dockworkers"` — these create separate entries.
+- If the group count changes, reuse the same ID. Only create a new ID if the NPC type changes.
+
 ## Alias-first naming (MANDATORY)
 
 When creating or updating an NPC entry:
@@ -75,6 +83,7 @@ When creating or updating an NPC entry:
 - **Unnamed NPCs (descriptive label in `name` + same string in `aliases`; no proper name):** `bio` only. Do NOT add personality, motivation, fear, leverage, bond, or any other personality-related fields.
 - **Promotion to named:** When narration reveals a proper name for an NPC previously known by description, set `name` to the proper name AND add `personality` + 2 of {motivation, fear, leverage, bond}. Keep the old descriptor in `aliases`.
 - **Group NPCs:** If the entry represents multiple people, the `name` field must always state the exact count as a spelled-out integer (e.g., 'Two armed guards', 'Three dockworkers'). Never use vague quantifiers — 'a few', 'several', 'a group of', 'some' are forbidden. When the count is unknown, use 'Unknown' as the count prefix. We must always know how many people are in any scene or grouping.
+- **Group NPC ID reuse:** When the quantity of a known group NPC changes, reuse the existing compendium ID — do NOT create a new ID. The ID is tied to the NPC type, not the quantity.
 
 Valid personality archetype IDs: cold_pragmatist, desperate_idealist, wary_opportunist, resigned_functionary, volatile_loyalist, charming_manipulator, blunt_survivor, true_believer, detached_observer, conflict_avoidant, ambitious_climber, broken_defeated. Do not invent archetypes outside this list.
 
