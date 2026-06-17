@@ -35,32 +35,43 @@ See [`docs/ev/STATE-REFERENCE.md`](../docs/ev/STATE-REFERENCE.md) for the full c
 
 ---
 
-## Remaining Failures: Real Prompt Issues (3 issues)
+## Prompt Fixes Applied (verified with Gemma4)
 
-### 1. `pacing_directives` + `beat_phase_validity` — Noir & WW2 (2/5 games)
-**Type: Prompt issue** | **Urgency: 2 (High)**
+The following prompt fixes were applied and verified against the actual problematic turns using `ev.py prompt-eval call`:
 
-**What's happening:** Storyteller emits beats outside the allowed list when Scene Imperative directive is active.
+### 1. Thread ID hallucination — Space Western T25 ✅ FIXED
 
-- **Noir T8:** Scene Imperative allowed beats = `revelation, hazard, callback, opportunity, setback, breathing_room`. LLM emitted `complication`.
-- **WW2 T9:** Same allowed beats. LLM emitted `pressure`.
+**Root cause:** `ccya/prompts/sections/_arc.j2` showed completed thread summaries but NOT their IDs:
+```
+- Reach the departing transport ship before customs agents intercept [urgency:urgent] resolved turn 23
+```
+The LLM hallucinated IDs (`reach_departing_transport`, `coalition_guards_engagement`) from the summaries.
 
-**Root cause:** Storyteller prompt is not being followed — the LLM ignores the Scene Imperative's allowed beat list and emits beats from the default phase constraint list instead.
+**Fix:** Added `{{ ct.id }}` to the completed threads listing:
+```
+- `shuttle_boarding_dash`: Reach the departing transport ship...
+```
 
-**Next steps:** Prompt iteration on Noir T8 and WW2 T9 storyteller prompts. Test whether the Scene Imperative directive rendering is correct or if the LLM is ignoring it.
+**Result:** LLM now resolves correct thread IDs (`docking_bay_standoff` from active threads) and no longer hallucinates IDs.
 
----
+### 2. Scene Imperative beat constraint — Noir T8 & WW2 T9 ✅ FIXED
 
-### 2. `thread_resolution_validity` — Space Western (1/5 games)
-**Type: Prompt issue** | **Urgency: 2 (High)**
+**Root cause:** Two issues conspired:
+- The system prompt listed ALL 9 beat types including the forbidden ones (`pressure`, `complication`, `escalation`, `twist`), creating a "forbidden fruit" anchoring effect
+- The constraint was early in the prompt, far from the output point
 
-**What's happening:** Storyteller hallucinates thread IDs instead of referencing the active/completed thread registry.
+**Fixes:**
+1. `storytell_system.j2`: Replaced full types list with "See `allowed_beat_types` in the user prompt". Removed the types table, directive override section (with its NEV
 
-- **Space Western T25:** Active threads = `smuggler_network_expansion, militia_remnants_unrest, resource_scarcity_crisis`. Completed = `shuttle_boarding_dash, guard_pursuit_escalation`. LLM emitted `reach_departing_transport, coalition_guards_engagement` — IDs that don't exist anywhere.
+ER lists), and specific beat names from the roll band table. Replaced with general guidance referencing the user prompt's allowed list.
+2. `storytell_user.j2`: Added a constraint line at the **very end** of the user prompt (after `END CURRENT TURN NARRATION`), putting it in the LLM's recent attention window at the point of output generation.
 
-**Root cause:** Storyteller prompt doesn't sufficiently constrain thread IDs to the registry provided in context.
+**Result:** Both Noir T8 (was `complication` → now `revelation`) and WW2 T9 (was `pressure` → now `revelation`) emit valid allowed beats.
 
-**Next steps:** Prompt iteration on Space Western T25. Test whether adding explicit thread ID validation instructions or showing the registry more prominently helps.
+### 3. Tooling fixes
+
+- `prompt-eval call` now prints LLM output before running checks (was missing output display)
+- `build_prompt_context` fixed to read `band` from `event.ruling.band`, `pending_beat`/`recent_beats` from previous turn's state_snapshot (pre-turn), and build NPC roster from compendium
 
 ---
 
@@ -110,23 +121,45 @@ See [`docs/ev/STATE-REFERENCE.md`](../docs/ev/STATE-REFERENCE.md) for the full c
 
 ## Cross-Game Patterns
 
-1. **Two perfect games** (Golden Piracy, Zombie Survival) — all checkers pass. Remaining failures are isolated to Noir, Space Western, and WW2.
+1. **Two perfect games** (Golden Piracy, Zombie Survival) — all checkers pass.
 
-2. **Scene Imperative ignored** (Noir, WW2) — Storyteller emits beats outside the allowed list when Scene Imperative is active. This is a prompt compliance issue, not a checker bug.
+2. **Scene Imperative ignored** (Noir, WW2) — **Fixed!** Post-narration constraint reminder resolves this.
 
-3. **Thread ID hallucination** (Space Western) — Storyteller invents thread IDs not present in the active/completed registry. Prompt constraint issue.
+3. **Thread ID hallucination** (Space Western) — **Fixed!** Completed thread IDs now shown.
 
 4. **Persona effectiveness varies:**
    - `cautious` (Zombie): Best checker score, goal stagnation
    - `aggressive` (Pirate): Best thread resolution, no convergence
-   - `explorer` (Space Western): Good convergence, thread hallucination
-   - `driven` (Noir/WW2): Worst convergence, Scene Imperative ignored
+   - `explorer` (Space Western): Good convergence
+   - `driven` (Noir/WW2): Worst convergence
 
 5. **Roll distribution acceptable** — Bad rates: 36.8%–57.9%.
 
 6. **Convergence generally poor** — Only Zombie and Space Western show reasonable patterns.
 
 7. **Goal evolution weak** — Repeated/stagnant goals in most games. WW2's 4 changes in 4 turns is churn.
+
+---
+
+## Tooling Issues Found & Fixed
+
+### Fixed in this session
+
+| Issue | File | Fix |
+|---|---|---|
+| `prompt-eval call` didn't print LLM output | `ccya/ev/prompt_eval.py` | Added output printing before checks |
+| `build_prompt_context` used post-turn state for pre-turn fields | `ccya/ev/prompt_eval.py` | Use previous turn's state_snapshot for `pending_beat`, `recent_beats` |
+| `build_prompt_context` had `band=""` | `ccya/ev/prompt_eval.py` | Read `band` from `event.ruling.band` |
+| `build_prompt_context` had empty NPC roster | `ccya/ev/prompt_eval.py` | Build from compendium with `_build_npc_roster()` |
+| `build_prompt_context` had `curtain_call=""` | `ccya/ev/prompt_eval.py` | Compute from scene data like the engine |
+
+### Remaining tooling limitations
+
+- **No `--model` flag for `prompt-eval call`:** Model must be specified in the scenario YAML. No CLI override available.
+- **`build_prompt_context` still has post-turn vs pre-turn drift:** `conditions` and `inventory` reflect post-storytell state (from `state_snapshot`). True pre-storytell state requires parsing the extraction output before storytell changes were applied.
+- **NPC roster lacks personality archetype enrichment:** `_build_npc_roster()` in `prompt_eval.py` doesn't have access to the `PERSONALITY_ARCHETYPES` registry, so NPC personality labels/traits/speech hints are missing.
+- **`rules_outcome` not stored in events:** The `rules_outcome` dict is empty `{}` in all events. `band` is only available in `event.ruling.band`.
+- **Allowed beat types field stored in events but undocumented:** `event.allowed_beat_types` exists and is correct but is not part of any documented schema.
 
 ---
 
