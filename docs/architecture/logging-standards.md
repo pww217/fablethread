@@ -5,7 +5,7 @@
 | Level | When to use | Required extra context |
 |---|---|---|
 | `DEBUG` | Detailed trace: per-step timing, LLM call start/end, token counts, conditional branches, truncation details, silent skips (e.g., inventory target not found) | Pipeline: `trace_id`, `turn` |
-| `INFO` | Phase boundaries: pipeline start/end per turn, compaction trigger, state save/load, server startup, state mutations (inventory/condition/location/NPC changes), condition expiries, overdraw clamps | Pipeline: `trace_id`, `turn`; State: `save_dir`; Server: `save`, `turn` |
+| `INFO` | Phase boundaries: pipeline start/end per turn, compaction trigger, state save/load, server startup, state mutations (inventory/condition/location/NPC changes), overdraw clamps | Pipeline: `trace_id`, `turn`; State: `save_dir`; Server: `save`, `turn` |
 | `WARNING` | Recoverable anomalies: malformed data skipped, non-critical parse failures, deprecated paths, LLM retries, ruling exhaustion | Pipeline: `trace_id`, `turn`, `error_kind`; State: `save_dir`; Server: `save`, `turn`, `error_kind` |
 | `ERROR` | Definitive failures: LLM call hard failure, state load failure (missing/empty file), migration failure, critical parse failures, file I/O failures | Same as WARNING + `exc_info` |
 | `EXCEPTION` | Use `_log.exception()` in `except` blocks where we cannot recover | Same as WARNING |

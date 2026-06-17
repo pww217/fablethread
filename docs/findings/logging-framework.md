@@ -578,7 +578,7 @@ Missing for the failure modes catalogued above:
 - `INVENTORY_ADD_FAILED` — type error in item_to_dict
 - `DELTA_VALIDATION_FAILED` — blocking rejections
 - `NPC_SCENE_MANAGEMENT_FAILED` — type error in compendium update
-- `CONDITION_AGING_FAILED` — turns_remaining type error
+- `CONDITION_AGING_FAILED` — (removed: TTL-based aging no longer exists)
 - `LOCATION_CHANGE_INVALID` — None id/name
 - `STATE_SAVE_FAILED` — yaml dump/replace error
 - `EVENT_APPEND_FAILED` — JSON serialization error

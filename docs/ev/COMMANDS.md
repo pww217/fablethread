@@ -150,7 +150,7 @@ ev.py prompt-eval call <scenario.yaml> --from-events
 | `thread-audit` | Thread lifecycle across all turns: created by thread_add, updated, referenced by sanitizer |
 | `npc-ghosting` | Detects NPC disappearance from compendium without departure tracking |
 | `state-history` | Tracks conditions or inventory over time |
-| `active-conditions` | Current conditions with turns_remaining |
+| `active-conditions` | Current conditions with max concurrent count |
 | `compat` | Checks events.jsonl format compatibility (changes vs extraction_context) |
 
 ---
