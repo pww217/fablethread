@@ -497,9 +497,9 @@ async def _call_stream(
                 # Extract specific missing field for targeted retry guidance
                 _retry_hint = ""
                 if "condition_change_reason" in parse_error and "required" in parse_error:
-                    _retry_hint = " You omitted the required 'condition_change_reason' field — add a one-phrase reason for why conditions changed and re-emit."
+                    _retry_hint += " You omitted the required 'condition_change_reason' field — add a one-phrase reason for why conditions changed and re-emit."
                 if "inventory_change_reason" in parse_error and "required" in parse_error:
-                    _retry_hint = " You omitted the required 'inventory_change_reason' field — add a one-phrase reason for why inventory changed and re-emit."
+                    _retry_hint += " You omitted the required 'inventory_change_reason' field — add a one-phrase reason for why inventory changed and re-emit."
                 messages.append({
                     "role": "user",
                     "content": (

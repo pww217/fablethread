@@ -9,7 +9,7 @@ from ccya.ev.events import extract_field
 @register_checker(
     "conditions_lifecycle", "deterministic",
     requires_fields=["applied.pc_condition_add", "applied.pc_condition_remove"],
-    description="Dedup and TTL for PC conditions",
+    description="Dedup check for PC conditions",
 )
 def conditions_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
