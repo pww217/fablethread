@@ -4,11 +4,8 @@ Subcommands:
   dump  — renders and prints prompts (no LLM)
   call  — renders + LLM + check
 
-KNOWN ISSUE: `prompt-eval call` may hang indefinitely when the LLM server
-is unavailable or slow. The asyncio.run() call on llm_chat() has no timeout
-guard — it waits for the full LLM response (65s+ for large prompts) or hangs
-on connection errors. Use `prompt-eval dump` to validate prompt rendering
-without hitting the LLM.
+`prompt-eval call` has a 180s timeout on the LLM request. Use `prompt-eval
+dump` to validate prompt rendering without hitting the LLM.
 """
 
 from __future__ import annotations
@@ -235,6 +232,7 @@ def cmd_prompt_eval_call(
                 {"role": "user", "content": rendered_user},
             ],
             temperature=temp,
+            timeout=180.0,
         ))
         output = llm_result.get("response", "")
     except Exception as exc:
