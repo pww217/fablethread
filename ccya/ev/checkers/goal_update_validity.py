@@ -17,8 +17,18 @@ _log = logging.getLogger(__name__)
 def goal_update_validity(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
+    prev_snap: dict[str, Any] | None = None
 
-    for i, ev in enumerate(events):
+    for ev in events:
+        # Capture the previous turn's state_snapshot before updating.
+        # state_snapshot is captured post-turn (after goal_update is applied),
+        # so the current turn's state_snapshot already has the goal_update
+        # reflected. We need the PREVIOUS turn's visible_goal to verify the
+        # goal_update actually changed something.
+        prev_snap_for_this = prev_snap
+        if "state_snapshot" in ev:
+            prev_snap = ev["state_snapshot"]
+
         storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
         goal_update = storytell_output.get("goal_update")
 
@@ -39,23 +49,17 @@ def goal_update_validity(events: list[dict[str, Any]]) -> CheckerResult:
             all_passed = False
             continue
 
-        # Verify goal_update differs from previous visible_goal
-        # state_snapshot is captured pre-turn, so verify against next turn event's state
-        next_i = i + 1
-        while next_i < len(events) and "state_snapshot" not in events[next_i]:
-            next_i += 1
-        if next_i >= len(events):
-            continue
+        # Verify goal_update differs from the previous turn's visible_goal.
+        # prev_snap_for_this holds the previous turn's state_snapshot, which
+        # is the pre-goal_update state for this turn.
+        prev_arc = (prev_snap_for_this or {}).get("arc") or {}
+        prev_visible_goal = prev_arc.get("visible_goal", "")
 
-        next_ev = events[next_i]
-        next_arc = (extract_field(next_ev, "state_snapshot") or {}).get("arc") or {}
-        next_visible_goal = next_arc.get("visible_goal", "")
-
-        if goal_update == next_visible_goal:
+        if goal_update == prev_visible_goal:
             findings.append({
                 "turn": ev.get("turn"),
                 "check": "goal_update_differs",
-                "detail": f"goal_update='{goal_update}' equals next turn's visible_goal (no change detected)",
+                "detail": f"goal_update='{goal_update}' equals previous turn's visible_goal (no change)",
             })
             all_passed = False
 
