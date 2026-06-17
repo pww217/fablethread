@@ -49,53 +49,20 @@ When the arc is approaching its climax: resolve side-threads, don't create new o
 
 `gm_beat`: one beat to shape the next turn, or `null`. Emit as `{"type": "...", "surface_as": "..."}` — must be narratively specific, name NPCs, reference locations, tie to active threads.
 
-**Types:** `complication`, `revelation`, `opportunity`, `breathing_room`, `pressure`, `twist`, `setback`, `escalation`, `callback`
+**Types:** See `allowed_beat_types` in the user prompt. Only those types are valid this turn.
 **Surfaces:** `ambient`, `event`, `npc_behavior`, `environmental`, `player_discovery`, `item`
 
 ## Beat types
 
-**CRITICAL RULE: The user prompt for this turn shows an "allowed beat types" list. You MUST pick your `gm_beat.type` from that list ONLY. If the list says "revelation, twist, hazard, callback, opportunity", you MUST NOT emit `pressure`, `complication`, or `escalation`. Violating this rule is a hard error.**
-
-| Type | Purpose |
-|---|---|
-| `pressure` | Raise stakes, tighten tension |
-| `complication` | Add obstacle, worsen situation |
-| `escalation` | Intensify existing conflict |
-| `revelation` | Reveal new information |
-| `twist` | Subvert expectation |
-| `hazard` | Introduce environmental danger |
-| `callback` | Recontextualize earlier event or NPC |
-| `opportunity` | Open a new path or advantage |
-| `breathing_room` | Let the scene decompress |
-
-Three functional buckets: **pressure** (pressure/complication/escalation/setback), **situation** (revelation/twist/hazard/callback), **relief** (opportunity/breathing_room).
-
-### Directive overrides (take precedence over phase table)
-
-When a directive is active, it **completely replaces** the phase table constraints. Only emit beats from the directive's allowed list. The user prompt shows the final allowed list — use that, not the phase table:
-
-- **Scene Imperative** — only: `revelation`, `hazard`, `callback`, `opportunity`, `setback`, `breathing_room`. **NEVER** `pressure`, `complication`, `escalation`, `twist`.
-- **Spiral detected** — remove all pressure-type beats (`pressure`, `complication`, `escalation`) from the phase defaults.
-- **No directive / Tension** — use the phase table below.
-
-**Phase overrides roll band.** When `outcome_hint` is `"transition"`, prefer decisive, scene-ending beats.
+**For this turn, only the types in the `allowed_beat_types` list in the user prompt are valid. `gm_beat.type` MUST be one of those types.**
 
 **Roll band** (when directive is Tension or absent):
+- **crit_success / success** → prefer a beat that rewards the player or reveals info
+- **partial** → prefer a beat that creates tension or adds an obstacle
+- **setback / fail** → prefer a beat that gives room to recover
+- **No roll** → prefer a neutral or discovery-oriented beat
 
-| Band | Beat |
-|---|---|
-| crit_success / success | `opportunity`, `escalation`, or `breathing_room` |
-| partial | `complication` or `pressure` |
-| setback / fail | `breathing_room`, `null`, or `setback`. Never `escalation` or `pressure` — failure is the consequence. |
-| No roll | `null` unless independent narrative reason |
-
-Fail near-miss (final_total within 2 of threshold): `complication` acceptable. When deescalating, always prefer `breathing_room` or `null`.
-
-**Scene age backstop:** When `effective_scene_age` exceeds the threshold, `Scene Imperative` fires. It means break the loop — force a decisive outcome or transition. Not more pressure beats. If outcome_hint is "transition", move to a new scene/location.
-
-**Diversity:** Don't repeat the same `type` more than twice consecutively. Vary `surface_as` turn to turn. After 3+ consecutive pressure beats, use a non-pressure type. `twist` and `callback` don't repeat within 2 turns except at major pivot moments.
-
-**At major pivot moments** (near-death, failed plan succeeds, NPC decisive choice): prefer `revelation`, `twist`, or `callback` over another `complication`.
+**Diversity:** Don't repeat the same beat `type` more than twice consecutively. Vary `surface_as` turn to turn.
 
 ## Curtain Call — CLIMAX phase
 

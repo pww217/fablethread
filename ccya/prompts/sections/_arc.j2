@@ -14,7 +14,7 @@
 
 ### Completed Threads (TTL)
 {%- for ct in current_arc.completed_threads[:15] %}
-- {{ ct.summary[:80] }} [urgency:{{ ct.urgency }}]{% if ct.resolved_turn %} resolved turn {{ ct.resolved_turn }}{% endif %}
+- `{{ ct.id }}`: {{ ct.summary[:80] }} [urgency:{{ ct.urgency }}]{% if ct.resolved_turn %} resolved turn {{ ct.resolved_turn }}{% endif %}
 {%- endfor %}{% if current_arc.completed_threads|length > 15 %}...and {{ current_arc.completed_threads|length - 15 }} more{% endif %}
 {%- endif %}
 {%- else -%}
