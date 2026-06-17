@@ -250,7 +250,17 @@ async def get_turn(input: str = ""):
                 elif kind == "complete":
                     result = payload
                     for err in result.errors:
-                        _log.error("turn error", extra={"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "error_message": str(err)})
+                        err_dict = err if isinstance(err, dict) else {"message": str(err)}
+                        error_msg = err_dict.get("message", str(err))
+                        error_kind = err_dict.get("kind", ErrorKind.TURN_PROCESSING_FAILED)
+                        yield {
+                            "event": "turn_error",
+                            "data": json.dumps({
+                                "error": error_msg,
+                                "kind": error_kind,
+                                "trace_id": result.trace_id,
+                            }),
+                        }
 
                     # Check if all 3 extraction streams failed (LLM crash) — don't show success state
                     extract_metrics = result.metrics.get("extract", {}) or {}

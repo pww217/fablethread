@@ -1041,7 +1041,7 @@ async def run_turn(
             import traceback
             tb = traceback.format_exc()
             _log.error("turn.extraction_pipeline_error trace_id=%s turn_no=%d\n%s", trace_id, turn_no, tb)
-            errors.append({"error_kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id, "message": str(exc)})
+            errors.append({"kind": ErrorKind.TURN_PROCESSING_FAILED, "trace_id": trace_id, "message": str(exc)})
 
         if _extract_result is not None:
             # mypy cannot express heterogeneous 7-tuple unpack from async generator
@@ -1077,6 +1077,11 @@ async def run_turn(
                     "condition_id": c.get("id"),
                     "turn": turn_no,
                 })
+                _log.info(
+                    "condition expired: %s at turn %d",
+                    c.get("id"), turn_no,
+                    extra={"turn": turn_no},
+                )
                 # do not append — condition removed
             else:
                 updated_conds.append({**c, "turns_remaining": new_remaining})
@@ -1137,6 +1142,7 @@ async def run_turn(
             if blocking:
                 errors.append(
                     {
+                        "kind": ErrorKind.DELTA_VALIDATION_FAILED,
                         "trace_id": trace_id,
                         "message": f"Delta validation failed ({len(blocking)} rejection(s)).",
                     }
@@ -1154,7 +1160,7 @@ async def run_turn(
                 applied = delta.model_dump(exclude_none=True)
                 for r in rejected:
                     if r.get("kind") == "warn_overdraw":
-                        _log.warning(
+                        _log.info(
                             "inventory over-draw clamped: %s",
                             r.get("reason"),
                             extra={"trace_id": trace_id},

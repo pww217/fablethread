@@ -193,7 +193,7 @@ def apply_npc_scene_management(
     comp = state.setdefault("compendium", {}).setdefault("npcs", {})
 
     if scene_result.compendium_npc_update:
-        _log.debug(
+        _log.info(
             "apply_npc_scene_management turns=%s compendium_update=%d",
             current_turn_no,
             len(scene_result.compendium_npc_update),
@@ -284,7 +284,7 @@ def apply_npc_scene_management(
                 entry["bond"] = comp_upd.bond
             if comp_upd.personality is not None and not entry.get("personality"):
                 entry["personality"] = comp_upd.personality
-                _log.debug(
+                _log.info(
                     "apply_npc_scene_management npc=%s personality=%s",
                     resolved_id, comp_upd.personality,
                 )
