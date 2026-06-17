@@ -48,8 +48,8 @@
 | `ccya/ev/audit.py` | Audit commands: `cmd_state_history()` (reconstructs active state from applied deltas — conditions, inventory, NPC ghosting), `cmd_active_conditions()` (max concurrent, cap violations, per-turn table), `cmd_npc_ghosting()` (NPC disappearance without departure tracking), `cmd_storyteller_audit()` (storyteller output format compliance), `cmd_thread_audit()` (storyteller vs sanitizer thread ID cross-reference), `cmd_ruling_audit()` (ruling.reason compliance, condition IDs in reason) |
 | `ccya/ev/compat.py` | `cmd_compat()` — detects `changes` vs `extraction_context` format mismatches in events, warns which checkers will fail |
 | `ccya/ev/eval.py` | `cmd_eval_run()` — batch scenario runner: loads YAML scenario, plays each turn via `play_turn()`, runs all checkers, validates TurnAsserts, produces Markdown report. `cmd_eval_list()` — lists available YAML scenarios. |
-| `ccya/ev/prompt_eval.py` | Fast prompt testing: `cmd_prompt_eval_dump()` renders prompts (no LLM), `cmd_prompt_eval_call()` renders + LLM + check, `build_prompt_context()` builds context dict from `state_snapshot`. Three inline checkers: `_run_golden_match()`, `_run_prose_quality()`, `_run_extraction_format()`. Uses `state_snapshot` (post-turn) as context. |
-| `ccya/ev/scenario.py` | YAML scenario loader: `Scenario`, `ScenarioTurn`, `TurnAssert` dataclasses; `load_scenario()` parses YAML, `discover_scenarios()` finds YAML files in `packs/`. |
+| `ccya/ev/prompt_eval.py` | Fast prompt testing: `cmd_prompt_eval_dump()` renders prompts (no LLM), `cmd_prompt_eval_call()` renders + LLM + check, `build_prompt_context()` builds context dict from `state_snapshot`. Three inline checkers: `_run_golden_match()`, `_run_prose_quality()`, `_run_extraction_format()`. Supports `scene` and `storytell` streams. Uses `state_snapshot` (post-turn) as context. |
+| `ccya/ev/scenario.py` | YAML scenario loader: `Scenario`, `ScenarioTurn`, `TurnAssert` dataclasses; `load_scenario()` parses YAML, `discover_scenarios()` finds YAML files in `packs/`. `PromptEvalScenario`, `PromptCheck` dataclasses; `load_prompt_scenario()` for prompt-eval scenarios. |
 | `ccya/ev/__init__.py` | CLI dispatch: lazy import of `play`, `check`, `eval`, `init`, `status`, `audit`, `compat` subcommands; `_strip_flags()` utility; events path auto-detection for play command |
 | `ccya/ev/checkers/__init__.py` | Checker framework: `@register_checker` decorator, `CheckerResult` dataclass, `run_checker()`/`run_checkers()`, `list_checkers()`, field validation, event pre-filtering, state access. Registry with explicit imports for 27 deterministic checkers + 3 LLM checkers. |
 | `ccya/ev/checkers/_llm.py` | LLM checker infrastructure: `_load_checker_model()`, `_unload_checker_model()`, `_call_llm_checker()`, `_result_from_llm_output()`, `_build_checker_prompt()`, template registry. Handles model loading/unloading, prompt rendering, structured output parsing. |
@@ -149,7 +149,7 @@ Three main visual panels compose the browser UI. All NPC data in left/right pane
 
 ### ccya/ev/prompt_eval.py
 - **cmd_prompt_eval(flags, args)** → None — CLI entry point for `ev.py prompt-eval` (dump/call subcommands)
-- **build_prompt_context(events, turn_no, stream)** → dict — builds context dict from `state_snapshot` for prompt rendering (inventory stream only in v1)
+- **build_prompt_context(events, turn_no, stream)** → dict — builds context dict from `state_snapshot` for prompt rendering (scene, storytell streams)
 
 ## 5-call turn pipeline (run_turn)
 
