@@ -20,7 +20,7 @@ def _detect_npc_ghosting(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ghosting: list[dict[str, Any]] = []
 
     for ev in events:
-        # Skip side events (condition_expired, sanitizer, etc.) — they have
+        # Skip side events (sanitizer, etc.) — they have
         # empty state_snapshots and would break the comparison.
         if ev.get("kind"):
             continue

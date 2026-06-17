@@ -271,7 +271,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 
 ### Extraction field routing
 - **SceneExtractResult**: scene_tagline, location_change, location_description, compendium_npc_update (no pressure fields); CompendiumNpcUpdate has position field for NPC spatial positioning; CompendiumEntry has explicit motivation/fear/leverage/bond/personality optional string fields alongside existing name/title/bio/aliases/presence/notes; extraction system prompt (`extract_scene_system.j2`) includes alias-first naming rules, tiered NPC field requirements (named: `bio` + `personality` + 2+ fields; unnamed: `bio` only), a 12-archetype reference, and passive NPC extraction instructions
-- **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`)
+- **StateExtractResult**: inventory_add/remove/update, pc_condition_add/remove (no `failed`); `condition_change_reason` required when any condition change is present (Pydantic-enforced, same pattern as `inventory_change_reason`); reason persisted to `state.meta.last_condition_change_reason` for debugging
   - **StorytellerResult**: thread_update (list[ThreadUpdate] with id/urgency/active/progress/progress_kind), goal_update (str | None, applied directly to arc dict — NOT through _merge_arc_update), arc_resolve (ArcResolution with resolution/visible_goal/goal_context/drop_threads/new_threads), thread_resolve (list[ThreadResolution] with id/resolution_state/outcome + promote_to_world_state flag for promotion-only world state changes), thread_add (ArcThread | None, `added_turn` and `urgency_set_turn` set at creation time in turn.py); thread_add validated by id-based dedup only (no key, no fuzzy merge); thread_resolve processed by _apply_thread_resolutions() to move threads from arc.threads[] to arc.completed_threads[], persisting both resolution_state and outcome alongside the ArcThread
 - **StateDelta.actions**: list[str], max_length=10 — merged from StorytellerResult.actions, persisted to state["pc"]["actions"] as rolling window by apply_delta()
 
@@ -324,8 +324,8 @@ pc:
   tagline: str
   bio: str
   stats: {strength, dexterity, wits, charisma}: int (1-4 each, total 8-12)
-  conditions: list[Condition] — id-based dedup, FIFO cap 5; TTL via turns_remaining (default 10 when None)
-    - id: str, label: str, description: str, added_turn: int, turns_remaining: int | None
+  conditions: list[Condition] — id-based dedup, FIFO cap 5; conditions persist until explicitly removed by extractor
+    - id: str, label: str, description: str, added_turn: int
   actions: [str]               # rolling window of last 10 Storyteller actions, persisted by apply_delta
 
 location: {id, name, description}: str
@@ -357,7 +357,6 @@ world.factions: [str], world.locations: [str]
 ## Key constants
 
 - `MOMENTUM_MIN = -3`, `MOMENTUM_MAX = 3`
-- `DEFAULT_CONDITION_TTL = 10` turns when `turns_remaining` is None
 
 ### ErrorKind constants + LlmcError hierarchy (`ccya/errors.py`)
 **ErrorKind string constants:** LLM_TIMEOUT, LLM_RATE_LIMIT, LLM_API_ERROR, TURN_PROCESSING_FAILED, PACK_LOAD_FAILED, PACK_GENERATION_FAILED, SEED_GENERATION_FAILED, SERVER_ERROR, INVENTORY_REMOVE_FAILED, INVENTORY_UPDATE_FAILED, INVENTORY_ADD_FAILED, DELTA_VALIDATION_FAILED, LOCATION_CHANGE_INVALID, NPC_SCENE_MANAGEMENT_FAILED, THREAD_UPDATE_INVALID, ARC_RESOLVE_INVALID, THREAD_RESOLVE_INVALID, EXTRACTION_CONTEXT_BUILD_FAILED, EXTRACTION_COERCION_FAILED, INVENTORY_NORMALIZE_FAILED, FUZZY_MATCH_FAILED, NPC_NAME_LOOKUP_FAILED, STATE_LOAD_FAILED, STATE_SAVE_FAILED, EVENT_APPEND_FAILED, CHRONICLE_APPEND_FAILED, RULING_PARSE_FAILED, EXTRACTION_PARSE_FAILED. All modules use these instead of magic strings for error classification.

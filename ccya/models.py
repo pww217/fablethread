@@ -75,7 +75,6 @@ class Condition(BaseModel):
     label: str
     description: str = ""
     added_turn: int = 0
-    turns_remaining: int | None = None
 
 
 def _coerce_condition_str(v: Any) -> Any:
@@ -131,7 +130,6 @@ class ConditionAdd(BaseModel):
     id: str
     label: str
     description: str = ""
-    turns_remaining: int | None = None
 
     @field_validator("id", "label", mode="before")
     @classmethod
@@ -325,6 +323,7 @@ class SceneExtractResult(BaseModel):
 
 
 class StateExtractResult(BaseModel):
+    condition_change_reason: str = ""
     inventory_change_reason: str = ""
     inventory_add: list[InventoryItem] = Field(default_factory=list, max_length=6)
     inventory_remove: list[InventoryRemove] = Field(default_factory=list)
@@ -333,6 +332,12 @@ class StateExtractResult(BaseModel):
     pc_condition_remove: list[ConditionRemove] = Field(default_factory=list)
 
     model_config = {"extra": "ignore"}
+
+    @model_validator(mode="after")
+    def _validate_condition_reason(self) -> "StateExtractResult":
+        if (self.pc_condition_add or self.pc_condition_remove) and not self.condition_change_reason:
+            raise ValueError("condition_change_reason is required when condition changes are present")
+        return self
 
     @model_validator(mode="after")
     def _validate_inventory_reason(self) -> "StateExtractResult":

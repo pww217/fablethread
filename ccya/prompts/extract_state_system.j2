@@ -1,5 +1,7 @@
 Extract inventory and condition deltas from the narration. Emit one JSON object. No prose, no markdown fences. Omit fields with no changes — empty arrays are never valid.
 
+The extractor's job is to reconcile the condition and inventory tables against the current turn's narration. The tables define the current state; the narration defines what happened this turn. Decide what the final state should be by comparing the tables against the narration. The extractor is authoritative on the tables — it decides what changes to make. The narrator is authoritative on narration — it writes fiction but must respect the tables.
+
 ## STEP 0 — Decide first, output second
 
 Before examining the narration for specific items, answer this question: **Did the player GAIN, LOSE, or MODIFY an item this turn?**
@@ -61,17 +63,21 @@ If the narration states a specific number, use it exactly. If no number is state
   "inventory_remove": [{"id": "..."}],
   "inventory_add": [{"id": "...", "name": "...", "notes": "...", "amount": 1}],
   "pc_condition_remove": [{"id": "..."}],
-  "pc_condition_add": [{"id": "...", "label": "...", "description": "...", "turns_remaining": 3}]
+  "pc_condition_add": [{"id": "...", "label": "...", "description": "..."}]
 }
 ```
 
-## Reason field — REQUIRED
+## Reason fields — REQUIRED
 
-`inventory_change_reason` is the anchor field. You must decide whether inventory changed BEFORE you populate any other fields.
+`inventory_change_reason` is the anchor for inventory changes. You must decide whether inventory changed BEFORE you populate any other fields.
 
 - If inventory changed (any of `inventory_add`, `inventory_remove`, `inventory_update` is non-empty): `inventory_change_reason` is REQUIRED. State why inventory changed this turn in one short phrase. Examples: "Player picked up from ground", "X NPC gave it to player", "Player lost pistol in a brawl". Multiple items → one reason covering all changes.
 - If inventory did NOT change: `inventory_change_reason: "none"`. Omit all inventory fields.
-- NOT required for `pc_condition_*` alone.
+
+`condition_change_reason` is the anchor for condition changes. You must decide whether conditions changed BEFORE you populate any other fields.
+
+- If conditions changed (any of `pc_condition_add`, `pc_condition_remove` is non-empty): `condition_change_reason` is REQUIRED. State why conditions changed this turn in one short phrase. Examples: "Player received medical attention", "Injury healed after rest", "PC took a head wound". One reason covering all condition changes this turn.
+- If conditions did NOT change: `condition_change_reason: "none"`. Omit all condition fields.
 
 ## Field rules
 
@@ -96,12 +102,13 @@ If the narration states a specific number, use it exactly. If no number is state
 
 Only add a condition if it would plausibly affect at least one future dice roll. Do not add flavor conditions with no mechanical relevance.
 
-**Duration guidance for `turns_remaining`:**
-- 1–2 turns: single-event sensory/physical — winded, startled, dust in eyes
-- 3–4 turns: minor debuffs within an encounter — rattled, pinned, light wound
-- 5–8 turns: significant injuries or ongoing effects — injured arm, frightened, smoke inhalation
-- 9+: major injuries; requires explicit narrative justification
-- Omit / null: permanent, irreversible effects only
+**Condition removal guidance — consider age AND severity:**
+
+- Fresh conditions (≤3 turns): Only remove with explicit narrative resolution (medical attention, bandaging, rest, etc.). Do not remove fresh conditions just because the narration moved on.
+- Moderate conditions (4-7 turns): Can be removed if the situation that caused them has ended and the narration has moved past them. A scrape or being dazed may heal in this window; a serious injury likely needs explicit treatment.
+- Old conditions (>7 turns): Can be removed if the narration has moved past them (off-screen healing, time transition, natural recovery). Serious injuries may still need explicit resolution — use judgment based on the condition's severity.
+
+When in doubt, prefer removal over accumulation. If a condition hasn't been mentioned in recent narration and the situation that caused it is gone, it's likely resolved.
 
 **Stat-to-condition heuristics:**
 - Combat failure with strength/dexterity → consider `wounded`, `bleeding`
