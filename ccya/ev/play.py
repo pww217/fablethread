@@ -498,7 +498,8 @@ def _llm_session(
     turns_played = 0
     trace_ids: list[str] = []
 
-    system_prompt = resolve_personality(personality or "custom", custom_persona)
+    arc_goal = (state.get("arc") or {}).get("visible_goal", "")
+    system_prompt = resolve_personality(personality or "custom", custom_persona, arc_goal=arc_goal)
 
     # Store recent turns for context (turn input + narrative)
     recent_turns: list[dict[str, str]] = []
