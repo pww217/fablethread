@@ -355,15 +355,12 @@ def accumulate_intermediate_changes(events: list[dict[str, Any]], turn_a: int, t
 
 
 def is_compaction_event(ev: dict[str, Any]) -> bool:
-    """Detect compaction events (condition_expired, sanitizer with empty ruling, etc.).
+    """Detect compaction events (sanitizer with empty ruling, etc.).
 
     Compaction events are events that don't represent a full turn in the pipeline.
-    They include condition_expired events, sanitizer events with empty ruling,
+    They include sanitizer events with empty ruling,
     and any event where ruling is empty and tokens_in is 0.
     """
-    kind = ev.get("kind", "turn")
-    if kind == "condition_expired":
-        return True
     ruling = ev.get("ruling") or {}
     if not ruling:
         return True

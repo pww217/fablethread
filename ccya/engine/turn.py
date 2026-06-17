@@ -1062,32 +1062,6 @@ async def run_turn(
             return
         yield ("phase", {"phase": "extract_done"})
 
-        # Condition age pass: decrement turns_remaining, remove expired
-        updated_conds = []
-        for c in (state.get("pc") or {}).get("conditions") or []:
-            tr = c.get("turns_remaining")
-            if tr is None:
-                # Permanent condition — do not age
-                updated_conds.append(c)
-                continue
-            new_remaining = tr - 1
-            if new_remaining <= 0:
-                append_event(save_dir, {
-                    "kind": "condition_expired",
-                    "condition_id": c.get("id"),
-                    "turn": turn_no,
-                })
-                _log.info(
-                    "condition expired: %s at turn %d",
-                    c.get("id"), turn_no,
-                    extra={"turn": turn_no},
-                )
-                # do not append — condition removed
-            else:
-                updated_conds.append({**c, "turns_remaining": new_remaining})
-
-        (state.setdefault("pc", {})["conditions"])[:] = updated_conds
-
         ext_ms = (asyncio.get_event_loop().time() - t2) * 1000
         # Roll up per-stream token counts for the metrics dict
         _tokens_in = sum(
@@ -1190,6 +1164,15 @@ async def run_turn(
                     meta.pop("last_inventory_change_reason", None)
             else:
                 meta.pop("last_inventory_change_reason", None)
+
+            # Persist condition change reason for debugging
+            if delta and (delta.pc_condition_add or delta.pc_condition_remove):
+                if delta.condition_change_reason:
+                    meta["last_condition_change_reason"] = delta.condition_change_reason
+                else:
+                    meta.pop("last_condition_change_reason", None)
+            else:
+                meta.pop("last_condition_change_reason", None)
 
             # Stamp last_seen on touched NPCs; create minimal entry if new
             comp = state.get("compendium", {}).get("npcs", {})
