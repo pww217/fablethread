@@ -17,8 +17,17 @@ _log = logging.getLogger(__name__)
 def arc_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
+    prev_snap: dict[str, Any] | None = None
 
     for ev in events:
+        # Capture the previous turn's state_snapshot before updating.
+        # state_snapshot is captured post-turn, so it represents the arc state
+        # AFTER this turn's processing — which is the pre-resolution state for
+        # the NEXT turn's arc_resolve.
+        prev_snap_for_this = prev_snap
+        if "state_snapshot" in ev:
+            prev_snap = ev["state_snapshot"]
+
         storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
         arc_resolve = storytell_output.get("arc_resolve")
 
@@ -55,10 +64,12 @@ def arc_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
             })
             all_passed = False
 
-        # Check drop_threads reference existing threads
+        # Check drop_threads reference existing threads in the arc BEFORE this turn's resolution.
+        # prev_snap_for_this holds the previous turn's state_snapshot, which is the
+        # pre-resolution state for this turn's arc_resolve.
         drop_threads = arc_resolve.get("drop_threads") or []
         if drop_threads:
-            snap = extract_field(ev, "state_snapshot") or {}
+            snap = prev_snap_for_this or {}
             arc = snap.get("arc") or {}
             thread_ids = {
                 t.get("id") for t in (arc.get("threads") or [])

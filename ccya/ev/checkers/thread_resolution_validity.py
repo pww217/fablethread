@@ -17,15 +17,24 @@ _log = logging.getLogger(__name__)
 def thread_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
+    prev_snap: dict[str, Any] | None = None
 
     for ev in events:
+        # Capture the previous turn's state_snapshot before updating.
+        # state_snapshot is captured post-turn (after thread_resolve moves threads
+        # to completed_threads), so the resolved threads won't be in the current
+        # arc's threads or completed_threads.
+        prev_snap_for_this = prev_snap
+        if "state_snapshot" in ev:
+            prev_snap = ev["state_snapshot"]
+
         storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
         thread_resolves = storytell_output.get("thread_resolve") or []
 
         if not thread_resolves:
             continue
 
-        snap = extract_field(ev, "state_snapshot") or {}
+        snap = prev_snap_for_this or {}
         arc = snap.get("arc") or {}
         thread_ids = {
             t.get("id") for t in (arc.get("threads") or [])
