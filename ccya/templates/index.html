@@ -1870,8 +1870,6 @@ function game() {
                 }
 
                 _applyMarkdown(block);
-                const narrativeText = block.querySelector('.narrative-text');
-                if (narrativeText && result.state) _highlightEntities(narrativeText, result.state);
 
                 if (result.rejected && result.rejected.length > 0) {
                     const note = document.createElement('div');
@@ -2382,27 +2380,34 @@ function _highlightEntities(container, state) {
         }
 
         const text = textNode.textContent;
+        const frag = document.createDocumentFragment();
+        let pos = 0;
 
-        for (const { name, cls, regex } of escaped) {
-            const match = text.match(regex);
-            if (!match) continue;
-
-            const idx = match.index;
-            const fullMatch = match[0];
-
-            const before = text.slice(0, idx);
-            const after = text.slice(idx + fullMatch.length);
-
-            const frag = document.createDocumentFragment();
-            if (before) frag.appendChild(document.createTextNode(before));
+        while (pos < text.length) {
+            let best = null;
+            for (const { name, cls, regex } of escaped) {
+                const m = text.slice(pos).match(regex);
+                if (!m) continue;
+                const absIdx = pos + m.index;
+                if (!best || absIdx < best.absIdx) {
+                    best = { absIdx, name, cls, match: m[0] };
+                }
+            }
+            if (!best) break;
+            if (best.absIdx > pos) {
+                frag.appendChild(document.createTextNode(text.slice(pos, best.absIdx)));
+            }
             const span = document.createElement('span');
-            span.className = cls;
-            span.textContent = fullMatch;
+            span.className = best.cls;
+            span.textContent = best.match;
             frag.appendChild(span);
-            if (after) frag.appendChild(document.createTextNode(after));
-
+            pos = best.absIdx + best.match.length;
+        }
+        if (pos < text.length) {
+            frag.appendChild(document.createTextNode(text.slice(pos)));
+        }
+        if (frag.childNodes.length > 0) {
             textNode.parentNode.replaceChild(frag, textNode);
-            break;
         }
     }
 }
