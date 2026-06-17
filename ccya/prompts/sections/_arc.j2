@@ -10,12 +10,12 @@
 {%- for ra in resolved_arcs %}
 - **Turn {{ ra.resolved_turn }}:** {{ ra.resolution[:120] }}{% endfor -%}
 
-{% endif -%}{% if completed_threads and completed_threads|length > 0 -%}
+{% endif -%}{% if current_arc.completed_threads and current_arc.completed_threads|length > 0 -%}
 
 ### Completed Threads (TTL)
-{%- for ct in completed_threads[:15] %}
+{%- for ct in current_arc.completed_threads[:15] %}
 - {{ ct.summary[:80] }} [urgency:{{ ct.urgency }}]{% if ct.resolved_turn %} resolved turn {{ ct.resolved_turn }}{% endif %}
-{%- endfor %}{% if completed_threads|length > 15 %}...and {{ completed_threads|length - 15 }} more{% endif %}
+{%- endfor %}{% if current_arc.completed_threads|length > 15 %}...and {{ current_arc.completed_threads|length - 15 }} more{% endif %}
 {%- endif %}
 {%- else -%}
 No active campaign arc.

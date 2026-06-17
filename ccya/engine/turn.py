@@ -1219,7 +1219,7 @@ async def run_turn(
                 if storyteller_result.goal_update:
                     state.setdefault("arc", {})["visible_goal"] = storyteller_result.goal_update
                     _log.info(
-                        "goal_update trace_id=%d visible_goal='%s'",
+                        "goal_update trace_id=%s visible_goal='%s'",
                         trace_id, storyteller_result.goal_update,
                         extra={"trace_id": trace_id},
                     )
@@ -1230,7 +1230,7 @@ async def run_turn(
                 conflict_ids = update_ids & resolve_ids
                 if conflict_ids:
                     _log.warning(
-                        "thread_same_turn_conflict trace_id=%d ids=%s — thread_update and thread_resolve for same id",
+                        "thread_same_turn_conflict trace_id=%s ids=%s — thread_update and thread_resolve for same id",
                         trace_id, sorted(conflict_ids), extra={"trace_id": trace_id},
                     )
 
@@ -1282,7 +1282,7 @@ async def run_turn(
                                             update={"threads": [evicted if t.id == evict.id else t for t in arc_with_new_thread.threads]}
                                         )
                                         _log.info(
-                                            "thread_cap.evict trace_id=%d evicted=%s active_count=%d max=%d",
+                                            "thread_cap.evict trace_id=%s evicted=%s active_count=%d max=%d",
                                             trace_id, evict.id, len(active), config.thread_max_active,
                                             extra={"trace_id": trace_id},
                                         )

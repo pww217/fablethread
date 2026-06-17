@@ -142,7 +142,7 @@ Cross-cutting tasks:
 - Modify turn pipeline → read `docs/architecture/OVERVIEW.md` (pipeline overview) + subdocs (`step0-ruling.md`, `step1-narrate.md`, etc.) for design details; `docs/repomap.md` (5-call pipeline section) for code-level mapping
 - Add new config option → read `docs/repomap.md` (EngineConfig + constants section)
 - Debug extraction → read `docs/architecture/OVERVIEW.md` (quick reference table) + relevant step subdoc (`step2a-scene.md`, etc.); `docs/repomap.md` (extraction field routing section) for code-level mapping
-- Debug/inspect events → read `scripts/debug/README.md` for ev.py commands; `docs/ev/CHECKERS.md` for checker docs
+- Debug/inspect events → read `docs/ev/COMMANDS.md` for ev.py commands; `docs/ev/EVAL-RUNS.md` for eval run storage; `docs/ev/CHECKERS.md` for checker docs
 - Fast prompt testing → `ev.py prompt-eval dump <save-dir> --turn N --stream STREAM [--from-events]` (render only), `ev.py prompt-eval call <scenario.yaml> [--from-events]` (render + LLM + check; `--from-events` uses stored output, no LLM call)
 - Run eval scenarios → read `scripts/debug/README.md` (eval command section) + `docs/ev/CHECKERS.md`
 
