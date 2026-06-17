@@ -64,3 +64,6 @@ Band: {{ band | upper }}. Apply thread advancement freely on success/crit_succes
 ## CURRENT TURN {{ turn_no }} NARRATION
 {{ narration }}
 ## END CURRENT TURN NARRATION
+{% if allowed_beat_types %}
+## ⚠️ REMINDER: gm_beat.type MUST be from: {{ allowed_beat_types | join(", ") }}
+{% endif %}

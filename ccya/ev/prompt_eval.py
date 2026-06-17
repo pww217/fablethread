@@ -28,6 +28,45 @@ PROMPTS_DIR = str(Path(__file__).parent.parent / "prompts")
 _log = logging.getLogger(__name__)
 
 
+def _find_prev_event(events: list[dict[str, Any]], turn_no: int) -> dict[str, Any] | None:
+    """Find the immediately preceding turn event."""
+    for ev in reversed(events):
+        if isinstance(ev.get("turn"), int) and ev["turn"] < turn_no:
+            return ev
+    return None
+
+
+def _build_npc_roster(comp: dict[str, Any]) -> list[dict[str, Any]]:
+    """Build an NPC roster from the compendium, matching engine shape."""
+    PRESENCE_SORT = {"present": 0, "nearby": 2, "known": 3, "departed": 5}
+    entries: list[dict[str, Any]] = []
+    for nid, ndata in comp.items():
+        presence = ndata.get("presence", "known")
+        if presence == "archived":
+            continue
+        bio = ndata.get("bio") or ndata.get("description", "")
+        entry = {
+            "id": nid,
+            "name": ndata.get("name", nid),
+            "title": ndata.get("title", ""),
+            "presence": presence,
+            "bio": bio,
+            "notes": ndata.get("notes", ndata.get("position", "")),
+            "position": ndata.get("position", ""),
+            "motivation": ndata.get("wants", ""),
+            "fear": ndata.get("fears", ""),
+            "leverage": ndata.get("leverage", ""),
+            "bond": ndata.get("bond", ""),
+            "personality_label": "",
+            "personality_traits": "",
+            "personality_speech_hint": "",
+            "last_seen": ndata.get("last_seen", ""),
+        }
+        entries.append(entry)
+    entries.sort(key=lambda e: (PRESENCE_SORT.get(e["presence"], 9), e["name"]))
+    return entries[:10]
+
+
 def build_prompt_context(
     events: list[dict[str, Any]],
     turn_no: int,
@@ -35,16 +74,24 @@ def build_prompt_context(
 ) -> dict[str, Any]:
     """Build the context dict for rendering a prompt for the given stream and turn.
 
-    Uses event["state_snapshot"] (post-turn state). This is a known limitation:
-    inventory and conditions reflect the end of turn N, not the start.
+    Uses the previous turn's post-turn state_snapshot for fields that change
+    during storytell (pending_beat, recent_beats) and the current turn's event
+    data for fields set before storytell (band, scene_phase, allowed_beat_types).
 
-    Parity contract: the returned dict must be identical in shape to what
-    extraction.py passes to _render() for each stream.
+    Known limitations:
+    - conditions/inventory reflect post-storytell state (close to pre-storytell)
+    - NPC roster lacks personality archetype enrichment
+    - resolved_arcs not populated (needs arc_memory_ttl config)
     """
     turn_ev = find_turn(events, turn_no)
     if turn_ev is None:
         print(f"Error: turn {turn_no} not found", file=sys.stderr)
         sys.exit(1)
+
+    # Use previous turn's state_snapshot for fields that change during storytell
+    prev_ev = _find_prev_event(events, turn_no)
+    prev_snap = (prev_ev.get("state_snapshot") or {}) if prev_ev else {}
+    prev_meta = prev_snap.get("meta") or {}
 
     state_snapshot = turn_ev.get("state_snapshot") or {}
     narration = (turn_ev.get("narrate") or {}).get("output", "")
@@ -76,9 +123,21 @@ def build_prompt_context(
                 all_threads.append(entry)
             else:
                 all_threads.append({"id": "", "summary": ""})
+        # Build NPC roster from compendium
+        comp = state_snapshot.get("compendium", {}).get("npcs", {})
+        npc_roster = _build_npc_roster(comp)
+        # Compute curtain_call like the engine does
+        curtain_call = ""
+        if scene.get("scene_phase") == "CLIMAX":
+            climax_turn_count = scene.get("climax_turn_count", 0)
+            climax_turn_limit = scene.get("climax_turn_limit", 5)
+            if climax_turn_count >= climax_turn_limit - 1:
+                curtain_call = "forced"
+            elif climax_turn_count == 1:
+                curtain_call = "active"
         return {
             "narration": narration,
-            "npc_roster": [],
+            "npc_roster": npc_roster,
             "location": state_snapshot.get("location") or {},
             "inventory": state_snapshot.get("inventory") or [],
             "conditions": list(pc.get("conditions") or []),
@@ -90,12 +149,15 @@ def build_prompt_context(
             "pacing_context": turn_ev.get("pacing_context") or {},
             "recent_turns": [],
             "prior_history": list((meta.get("prior_history") or [])[:-1]),
-            "pending_beat": meta.get("pending_gm_beat"),
-            "recent_beats": list(meta.get("recent_beats") or []),
+            # Use previous turn's pending_beat (pre-turn) not current (post-turn)
+            "pending_beat": prev_meta.get("pending_gm_beat"),
+            # Use previous turn's recent_beats (pre-turn, excludes current turn's beat)
+            "recent_beats": list(prev_meta.get("recent_beats") or []),
             "turn_no": turn_no,
-            "band": "",
+            # Read band from current turn's ruling outcome
+            "band": (turn_ev.get("ruling") or {}).get("band", ""),
             "scene_phase": scene.get("scene_phase", "SETUP"),
-            "curtain_call": "",
+            "curtain_call": curtain_call,
             "allowed_beat_types": turn_ev.get("allowed_beat_types") or [],
         }
 
@@ -238,6 +300,22 @@ def cmd_prompt_eval_call(
     except Exception as exc:
         print(f"Error: LLM call failed: {exc}", file=sys.stderr)
         sys.exit(1)
+
+    # Print rendered prompts and LLM output
+    print(f"=== Turn {scenario.turn} — {scenario.stream} ===\n")
+    print("--- SYSTEM ---")
+    print(rendered_system)
+    print()
+    print("--- USER ---")
+    print(rendered_user)
+    print()
+    print("--- OUTPUT ---")
+    try:
+        parsed = json.loads(output)
+        print(json.dumps(parsed, indent=2))
+    except json.JSONDecodeError:
+        print(output)
+    print()
 
     # Run checks
     for check in scenario.checks:
