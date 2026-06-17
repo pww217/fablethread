@@ -3,6 +3,12 @@
 Subcommands:
   dump  — renders and prints prompts (no LLM)
   call  — renders + LLM + check
+
+KNOWN ISSUE: `prompt-eval call` may hang indefinitely when the LLM server
+is unavailable or slow. The asyncio.run() call on llm_chat() has no timeout
+guard — it waits for the full LLM response (65s+ for large prompts) or hangs
+on connection errors. Use `prompt-eval dump` to validate prompt rendering
+without hitting the LLM.
 """
 
 from __future__ import annotations
@@ -291,8 +297,12 @@ def _run_prose_quality(output: str) -> CheckerResult:
 
 def _run_extraction_format(output: str, stream: str) -> CheckerResult:
     """Validate extraction output is valid JSON with required fields."""
+    # Strip JSON code block markers that LLMs often add
+    cleaned = output.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
     try:
-        parsed = json.loads(output)
+        parsed = json.loads(cleaned)
     except (json.JSONDecodeError, ValueError):
         return CheckerResult(
             checker_id="extraction_format", passed=False, score=0.0,
