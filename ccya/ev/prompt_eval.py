@@ -64,6 +64,44 @@ def build_prompt_context(
             "location": state_snapshot.get("location") or {},
         }
 
+    if stream == "storytell":
+        arc = state_snapshot.get("arc") or {}
+        scene = state_snapshot.get("scene") or {}
+        meta = state_snapshot.get("meta") or {}
+        pc = state_snapshot.get("pc") or {}
+        # Format thread progress like _storytell_messages does
+        all_threads = []
+        for t in (arc.get("threads") or []):
+            if isinstance(t, dict):
+                entry = dict(t)
+                from ccya.prompts.context import _fmt_progress
+                entry["progress"] = _fmt_progress(entry.get("progress"))
+                all_threads.append(entry)
+            else:
+                all_threads.append({"id": "", "summary": ""})
+        return {
+            "narration": narration,
+            "npc_roster": [],
+            "location": state_snapshot.get("location") or {},
+            "inventory": state_snapshot.get("inventory") or [],
+            "conditions": list(pc.get("conditions") or []),
+            "current_arc": arc,
+            "all_threads": all_threads,
+            "world_state": list(scene.get("world_state") or []),
+            "resolved_arcs": [],
+            "intent": intent if isinstance(intent, dict) else None,
+            "pacing_context": turn_ev.get("pacing_context") or {},
+            "recent_turns": [],
+            "prior_history": list((meta.get("prior_history") or [])[:-1]),
+            "pending_beat": meta.get("pending_gm_beat"),
+            "recent_beats": list(meta.get("recent_beats") or []),
+            "turn_no": turn_no,
+            "band": "",
+            "scene_phase": scene.get("scene_phase", "SETUP"),
+            "curtain_call": "",
+            "allowed_beat_types": turn_ev.get("allowed_beat_types") or [],
+        }
+
     # Placeholder for future streams — fail loudly if used
     print(f"Error: stream '{stream}' not yet implemented in build_prompt_context()", file=sys.stderr)
     sys.exit(1)
