@@ -1,0 +1,433 @@
+__seed_meta__:
+  actions:
+  - Grab the swivel gun and prepare to fire grapeshot.
+  - Move to William's side to assist with the helm.
+  - Direct Jon to bring more powder to the gun crews.
+  - Draw your cutlass and brace for a boarding attempt.
+  opening_narrative: "The stinging spray of salt water hits your face like a lash,\
+    \ cold and unyielding. You stand on the quarterdeck of the Vanguard, your boots\
+    \ slipping slightly on the deck which is slick with sea spray and the sudden downpour.\
+    \ Overhead, the snap of heavy canvas echoes like rifle shots as the wind catches\
+    \ the mainsail, and the rigging hums under a sudden, violent strain that vibrates\
+    \ through the very soles of your feet. The creak of the helm under pressure is\
+    \ a constant, groaning protest against the swell.\n\nTo your left, the gimbaled\
+    \ brass mount of the ship's compass jerks wildly as the vessel lurches heavily\
+    \ to starboard. The swivel gun mounted on the rail sits ready, its iron mouth\
+    \ loaded with grapeshot and waiting for the order to bark. The air is thick with\
+    \ the smell of wet wood and unwashed men. \n\n\"Steady on the helm!\" William\
+    \ Vance bellows, his voice cutting through the roar of the wind. He stands near\
+    \ the wheel, his eyes fixed on the dark silhouette emerging from the mist. It\
+    \ is no merchantman; the tall masts and disciplined lines of a Royal Navy frigate\
+    \ break the gray horizon. The sudden thunder of a broadside erupts from the distance,\
+    \ a heavy, rhythmic booming that sends a shudder through the Vanguard's hull.\
+    \ \n\n\"Grapeshot! Prepare the swivel!\" William screams, turning his cold, pragmatic\
+    \ gaze toward you. He doesn't ask; he commands. Beside him, Jon, the powder monkey,\
+    \ darts between the legs of the sailors, a small shadow carrying a heavy pouch\
+    \ of black powder with terrifying speed. The boy's face is pale, but his hands\
+    \ are steady. \n\nAcross the deck, you see the frantic movement of the crew scrambling\
+    \ to the guns. The Navy ship is closing the distance rapidly, their white sails\
+    \ cutting through the gloom like ghosts. You can hear the rhythmic shouting of\
+    \ their officers over the crashing waves. This isn't a chase; it is an execution.\
+    \ William looks at you, his eyes hard and demanding. He knows your history, he\
+    \ knows you were once one of them, and right now, he needs to know if you are\
+    \ a man of the crew or a liability that will get them all sent to the gallows.\
+    \ The first iron ball skips across the water nearby, sending a plume of white\
+    \ foam high into the air, and the deck beneath you groans in terror."
+  outcome_summary: The Vanguard is caught in the crosshairs of a Royal Navy frigate
+    during a sudden storm.
+__seed_pools__:
+  arc:
+    description: ''
+    id: ship_rivalry
+    incompatible_with: []
+    tags:
+    - ship
+    - rivalry
+    - competitive_conflict
+  character_dynamic:
+    description: ''
+    id: reluctant_recruit
+    incompatible_with:
+    - seasoned_veteran
+    - free_agent
+    tags:
+    - forced_into_pirate_life
+    - conflicted
+    - inexperienced
+  moral_pressure:
+    description: ''
+    id: freedom_vs_discipline
+    incompatible_with: []
+    tags:
+    - freedom
+    - discipline
+    - autonomy_conflict
+  npc_bond:
+    description: The NPC and PC were held for ransom together and have a pact from
+      that time.
+    id: ransomed_together
+    incompatible_with: []
+    tags:
+    - captivity
+    - pact
+    - shared_trauma
+  scene_bundle:
+    conditions:
+    - the deck slick with spray
+    - the rigging humming under strain
+    id: quarterdeck
+    items:
+    - a compass in a gimbaled brass mount
+    - a swivel gun loaded with grapeshot
+    sensory:
+    - the snap of canvas overhead
+    - the creak of the helm under pressure
+  situation:
+    description: ''
+    id: naval_engagement
+    incompatible_with: []
+    tags:
+    - naval
+    - engagement
+    - combat
+arc:
+  completed_threads:
+  - active: true
+    added_turn: null
+    id: navy_blockade_escape
+    last_updated_turn: 19
+    outcome: The Vanguard successfully navigated the sandbar and escaped the immediate
+      reach of the grounded frigate.
+    progress:
+    - kind: advancement
+      text: Vanguard successfully reached the outer channel.
+    - kind: shift
+      text: Vanguard enters heavy swells of open channel
+    - kind: shift
+      text: Vanguard drifts broadside through heavy swells
+    - kind: setback
+      text: Vanguard drifts aimlessly toward submerged sandbar
+    resolution_state: resolved
+    resolved_turn: 20
+    summary: The naval blockade makes finding a safe port increasingly difficult.
+    urgency: urgent
+    urgency_set_turn: null
+  goal_context: The ship has transitioned from a combat/evasion maneuver into open
+    water, shifting focus to internal stability and the stranger's cargo.
+  last_thread_created_turn: 20
+  resolution: null
+  threads:
+  - active: false
+    added_turn: null
+    id: quartermaster_authority
+    last_updated_turn: 13
+    outcome: null
+    progress:
+    - kind: advancement
+      text: Vance maintains tension with the crew.
+    resolution_state: null
+    resolved_turn: null
+    summary: Tensions rise between the crew and the strict enforcement of the Articles.
+    urgency: normal
+    urgency_set_turn: null
+  - active: false
+    added_turn: 8
+    id: stranger_identity_mystery
+    last_updated_turn: 16
+    outcome: null
+    progress:
+    - kind: advancement
+      text: Stranger is tethered and mentions manifest.
+    resolution_state: null
+    resolved_turn: null
+    summary: Investigate the identity and motives of the man on deck
+    urgency: normal
+    urgency_set_turn: 8
+  - active: true
+    added_turn: null
+    id: internal_tension_management
+    last_updated_turn: 23
+    outcome: null
+    progress:
+    - kind: advancement
+      text: Crew watches the secured stranger closely.
+    resolution_state: null
+    resolved_turn: null
+    summary: Manage crew reactions to the stranger and his manifest key
+    urgency: normal
+    urgency_set_turn: null
+  - active: true
+    added_turn: 20
+    id: open_sea_navigation
+    last_updated_turn: 25
+    outcome: null
+    progress:
+    - kind: advancement
+      text: Vanguard avoids rocks and regains momentum.
+    resolution_state: null
+    resolved_turn: null
+    summary: Navigate the heavy swells of the outer channel
+    urgency: normal
+    urgency_set_turn: 20
+  visible_goal: The Vanguard has cleared the sandbar and is now navigating the deep,
+    rolling troughs of the outer channel.
+compendium:
+  npcs:
+    lookout_sailor:
+      aliases:
+      - lookout
+      bio: A silhouette visible against the gray shroud of the mist. Currently perched
+        high in the rigging to scan for hazards.
+      first_seen_turn: 21
+      last_seen:
+        location_id: quarterdeck_of_the_vanguard
+        location_name: The Vanguard Quarterdeck
+        turn: 23
+      name: Lookout Sailor
+      personality: wary_opportunist
+      position: perched in the mainmast rigging
+      presence: present
+    man_in_water:
+      aliases:
+      - man in water
+      - frantic stranger
+      allegiance: unknown
+      bio: Sodden and trembling, covered in salt spray and bloodied knuckles. He appears
+        frantic and desperate, clutching a heavy iron key that fell from his coat.
+      fear: the loss of the key/manifest
+      first_seen_turn: 4
+      last_seen:
+        location_id: quarterdeck_of_the_vanguard
+        location_name: The Vanguard Quarterdeck
+        turn: 25
+      motivation: protecting the manifest locker key
+      name: The Stranger
+      notes: breathing slowing while lashed to pin
+      personality: desperate_idealist
+      position: lashed to the belaying pin
+      presence: present
+      title: The Stranger
+    powder_monkey_jon:
+      bio: A twelve year old boy who moves like a shadow through the rigging.
+      bond: null
+      fear: null
+      last_seen:
+        location_id: quarterdeck_of_the_vanguard
+        location_name: The Vanguard Quarterdeck
+        turn: 15
+      leverage: null
+      motivation: null
+      name: Jon Jones
+      nearby_since_turn: 14
+      personality: volatile_loyalist
+      position: climbing the rigging
+      presence: known
+      title: Powder Monkey
+    quartermaster_william:
+      bio: A stern man who ensures the Articles are followed to the letter. He views
+        the crew as a machine that must be maintained.
+      bond: The NPC and PC were held for ransom together and have a pact from that
+        time.
+      fear: A mutiny that destroys the ship's hierarchy
+      last_seen:
+        location_id: quarterdeck_of_the_vanguard
+        location_name: The Vanguard Quarterdeck
+        turn: 24
+      leverage: Holds the ledger of everyone's shared loot
+      motivation: Maintaining order and ship discipline at any cost
+      name: William Vance
+      personality: cold_pragmatist
+      position: standing on the quarterdeck
+      presence: present
+      title: Quartermaster
+    sailors:
+      aliases:
+      - sailors
+      bio: Two crewmen wearing standard naval attire, hands resting on their belt
+        knives. They move with practiced, wary efficiency to secure a potential threat.
+      first_seen_turn: 7
+      last_seen:
+        location_id: quarterdeck_of_the_vanguard
+        location_name: The Vanguard Quarterdeck
+        turn: 25
+      name: Two sailors
+      notes: watching with wary eyes
+      personality: wary_opportunist
+      position: standing near rigging
+      presence: present
+    surgeon_robert:
+      bio: A man who has seen more blood than a butcher and carries the scent of vinegar
+        and iron.
+      bond: Knows the exact depth of the PC's old naval scars.
+      fear: Running out of clean bandages and rum during a siege
+      leverage: null
+      motivation: Keeping the crew functional enough to fight
+      name: Robert Hayes
+      personality: blunt_survivor
+      presence: nearby
+      title: Ship Surgeon
+inventory:
+- aliases: []
+  amount: 1
+  id: notched_cutlass
+  name: Notched Cutlass
+  notes: Heavy blade with several chips in the edge
+- aliases: []
+  amount: 1
+  id: flintlock_pistol
+  name: Flintlock Pistol
+  notes: ''
+- aliases: []
+  amount: 12
+  id: pistol_shot
+  name: Lead Shot Pouch
+  notes: ''
+- aliases: []
+  amount: 2
+  id: hemp_rope
+  name: Coiled Hemp Rope
+  notes: in hand
+- aliases: []
+  amount: 25
+  id: doubloons
+  name: Doubloons
+  notes: ''
+- amount: 1
+  id: iron_key
+  name: Iron Key
+  notes: in pocket
+location:
+  description: The thick fog is peeling away, revealing a dark and churning open sea.
+    The deck is slick with spray, and the air is filled with the sudden rush of wind
+    and the groaning of straining timber as the ship gains speed.
+  id: quarterdeck_of_the_vanguard
+  name: The Vanguard Quarterdeck
+meta:
+  _pack_source: golden-piracy
+  _seed_type: dynamic
+  compendium_touch_order:
+  - powder_monkey_jon
+  - quartermaster_william
+  - lookout_sailor
+  - sailors
+  - man_in_water
+  last_thread_created_turn: 20
+  model: gpt-4o
+  prior_history:
+  - '- [T6] Clayton identifies the man in distress through his spyglass before losing
+    the instrument overboard during a heavy roll.'
+  - '- [T7] Clayton successfully convinces Vance to assist the man, and Jon Jones
+    manages to catch him with a rope during a heavy swell.'
+  - '- [T8] Clayton successfully hauls the stranger onto the quarterdeck using the
+    hemp rope, resulting in a heavy iron key falling near his feet.'
+  - '- [T9] Clayton secures the iron key and levels his cutlass at the stranger, who
+    claims it unlocks a manifest locker.'
+  - '- [T10] Clayton pockets the iron key and threatens the sailors as a violent shudder
+    from the grounded frigate throws the Stranger toward the rail.'
+  - '- [T11] Clayton successfully secures the Stranger to a belaying pin using Jon
+    Jones''s assistance just as the ship lurches violently.'
+  - '- [T12] Clayton seizes the helm to stabilize the Vanguard amidst a violent lurch
+    that injures a sailor.'
+  - '- [T13] Clayton successfully maneuvers the Vanguard into deeper water, leaving
+    the grounded Navy frigate behind.'
+  - '- [T14] Clayton seizes the helm and directs Jon Jones to trim the sails, allowing
+    the Vanguard to catch a gust and pull away from the grounded Navy frigate.'
+  - '- [T15] Clayton loses control of the tiller during a heavy swell, causing the
+    Vanguard to drift into the deeper outer channel.'
+  - '- [T16] Clayton fails to execute a clean turn, leaving the Vanguard broadside
+    to a heavy swell.'
+  - '- [T17] Clayton fails to steer the Vanguard, leaving the ship drifting broadside
+    through heavy swells.'
+  - '- [T18] Clayton fails to correct the Vanguard''s heading, leaving the ship broadside
+    and vulnerable to the heavy swells.'
+  - '- [T19] Clayton loses control of the tiller after a massive swell slams the Vanguard
+    broadside, sending the ship drifting toward a submerged sandbar.'
+  - '- [T20] Clayton successfully wrestles the tiller back into place, steering the
+    Vanguard away from the sandbar and into deeper water.'
+  - '- [T21] Clayton successfully commands the sailors to trim the sails, increasing
+    the Vanguard''s speed through the heavy swells.'
+  - '- [T22] Clayton wrestles control of the helm and orders a lookout aloft, only
+    to receive a warning of jagged rocks ahead.'
+  - '- [T23] Clayton successfully maneuvers the Vanguard to port, narrowly avoiding
+    a collision with jagged rocks and stabilizing in deeper water.'
+  - '- [T24] Clayton''s orders to trim the sails fail as a heavy swell causes the
+    Vanguard to drift aimlessly into the thickening mist.'
+  - '- [T25] Clayton successfully commands a sailor to haul the mainsheet, allowing
+    the Vanguard to catch a gust and regain steerage in the open sea.'
+  recent_beats:
+  - surface_as: npc_behavior
+    turn: 21
+    type: revelation
+  - surface_as: null
+    turn: 22
+    type: null
+  - surface_as: environmental
+    turn: 23
+    type: breathing_room
+  - surface_as: environmental
+    turn: 24
+    type: breathing_room
+  - surface_as: null
+    turn: 25
+    type: null
+  recent_rolls:
+  - band: success
+    turn: 25
+  - band: fail
+    turn: 24
+  - band: success
+    turn: 23
+  - band: success
+    turn: 22
+  - band: fail
+    turn: 21
+  setting_pack: golden-piracy
+  turn: 25
+pc:
+  actions:
+  - Order William Vance to inspect the Stranger's belongings for more clues
+  - Command the sailors to tighten the rigging against the new wind
+  - Approach the lashed Stranger to demand information about his manifest
+  - Use the Iron Key to search for a nearby lockbox
+  bio: A man who once commanded discipline on a King's ship but found himself branded
+    a deserter after refusing a lethal order. He now uses his tactical knowledge to
+    survive on the lawless waves of the Eastern Reach. He seeks enough silver to buy
+    a clean slate and a life far from the sea.
+  conditions: []
+  drive: ''
+  name: Clayton Reed
+  stats:
+    charisma: 2
+    dexterity: 4
+    strength: 3
+    wits: 3
+  tagline: Former Royal Navy boatswain, forced into piracy
+resolved_arcs:
+- closed_threads: []
+  goal_context: The ship has transitioned from a combat/evasion maneuver into open
+    water, shifting focus to internal stability and the stranger's cargo.
+  resolution: The Vanguard successfully navigated the reef and escaped the immediate
+    threat of the grounded frigate.
+  resolved_turn: 13
+  visible_goal: Survive the initial ambush and outmaneuver the pursuing man-of-war.
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 0
+  scene_phase: RISING
+  tagline: The Vanguard Quarterdeck  wind rising, open sea ahead
+  tags:
+  - naval
+  - engagement
+  - combat
+  world_state:
+  - The Royal Navy has declared martial law in all Eastern Reach ports.
+  - Privateer licenses are suspended, making all non-flagged vessels targets for seizure.
+  - Trade between Jonesmouth and Shannonburgh is under total blockade.
+  - id: man_in_distress
+    text: The stranger was successfully hauled onto the Vanguard's deck.
+    tier: persistent
+  - id: navy_blockade_escape
+    text: The Vanguard successfully navigated the sandbar and escaped the immediate
+      reach of the grounded frigate.
+    tier: persistent
+schema_version: 1

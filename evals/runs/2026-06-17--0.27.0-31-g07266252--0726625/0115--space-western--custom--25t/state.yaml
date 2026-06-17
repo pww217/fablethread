@@ -1,0 +1,426 @@
+__seed_meta__:
+  actions:
+  - Confront Schaefer by explaining the equipment is just scrap
+  - Deflect suspicion by offering to pay a processing fee
+  - Investigate if the guards are distracted by something nearby
+  - Withdraw from the scene before they can search your kit
+  opening_narrative: 'The rhythmic, uneven thrum of the ventilation fan vibrates through
+    the soles of your boots, a mechanical heartbeat that feels just as tired as you
+    do. Somewhere deep in the darkness below, the echo of dripping water punctuates
+    the silence between the grinding of ore carts on damaged tracks. You crouch beside
+    a drilling rig with its safety guard removed, the naked metal gleaming dully in
+    the dim light of the shaft. The air is thick with the smell of wet iron and the
+    ozone sting of a malfunctioning power cell.
+
+
+    You are halfway through stripping a seismic charge when the heavy clatter of armored
+    boots shatters the stillness. Two uniformed guards round the corner of the tunnel,
+    their flashlight beams cutting through the gloom like blades. Behind them walks
+    Jeffrey Schaefer, his uniform crisp despite the grime of the mines, his eyes scanning
+    your workspace with a clinical, detached precision. He stops just feet from you,
+    his shadow stretching long and imposing across your tools.
+
+
+    ''Jeremy Rocha,'' Schaefer says, his voice devoid of warmth as he recognizes you.
+    He doesn''t wait for a greeting. Instead, he gestures to the seismic charge sitting
+    on your workbench—the one with the dead trigger that you were hoping to salvage
+    for parts before anyone noticed its illegal status. ''You are working outside
+    of sanctioned hours, and this equipment has not been logged in the district registry.''
+
+
+    The guard on his left rests a hand on his sidearm, his eyes darting between your
+    face and the heavy wrench in your hand. You can feel the weight of the situation
+    pressing in on you like the mountain itself. If Schaefer finds the charge, he
+    won''t just confiscate it; he will impound your entire kit and likely report your
+    location to the central precinct. Your cousin Jeffrey always warned you that the
+    Coalition was looking for an excuse to tighten their grip on the Annahaven shafts,
+    and now, standing in this dim tunnel with his flashlight burning into your eyes,
+    you realize he was right.
+
+
+    Schaefer steps closer, his boots crunching on the grit of the floor. ''This looks
+    like more than just scrap, Rocha. This looks like a violation of the mining safety
+    act and several trade regulations combined.'' He leans in, his expression unreadable
+    but his intent clear. He is waiting for you to slip up, to give him the leverage
+    he needs to make an example of a scavenger who thinks the rules don''t apply in
+    the dark.'
+  outcome_summary: Jeremy Rocha faces a sudden customs inspection while working on
+    illegal mining equipment in the Annahaven shafts.
+__seed_pools__:
+  arc:
+    description: ''
+    id: browncoat_legacy
+    incompatible_with: []
+    tags:
+    - war_veteran
+    - honor
+    - post_war_identity
+  character_dynamic:
+    description: ''
+    id: rustbelt_scavenger
+    incompatible_with: []
+    tags:
+    - space
+    - scavenging
+    - desperation
+  moral_pressure:
+    description: ''
+    id: freedom_vs_security
+    incompatible_with: []
+    tags:
+    - frontier
+    - autonomy
+    - safety_tradeoff
+  npc_bond:
+    description: The NPC is connected to the PC's family — a sibling, a cousin, someone
+      who knows what happened to the rest.
+    id: family_scattered
+    incompatible_with: []
+    tags:
+    - family
+    - separation
+    - search
+  scene_bundle:
+    conditions:
+    - the ventilation fan cycling unevenly
+    - the shaft dimly lit
+    id: mine_shaft
+    items:
+    - a drilling rig with the safety guard removed
+    - a seismic charge with a dead trigger
+    sensory:
+    - the echo of dripping water from deep below
+    - the grinding of ore carts on damaged track
+  situation:
+    description: ''
+    id: customs_inspection
+    incompatible_with: []
+    tags:
+    - coalition
+    - authority
+    - tension
+arc:
+  completed_threads:
+  - active: true
+    id: shuttle_boarding_dash
+    last_updated_turn: 22
+    outcome: Guards opened fire and pinned Jeremy behind a pillar, preventing his
+      escape to the transport.
+    progress:
+    - kind: advancement
+      text: Player fled into secondary transit tunnel.
+    - kind: setback
+      text: stumbled and spotted by guards
+    - kind: setback
+      text: Guards opened fire after missed shot
+    resolution_state: failed
+    resolved_turn: 23
+    summary: Reach the departing transport ship before customs agents intercept
+    urgency: urgent
+  - active: true
+    added_turn: 23
+    id: guard_pursuit_escalation
+    last_updated_turn: 24
+    outcome: Jeremy is pinned down and wounded in the transit tunnel.
+    progress:
+    - kind: setback
+      text: Jeremy is wounded and loses his pistol.
+    resolution_state: failed
+    resolved_turn: 24
+    summary: Coalition guards are actively engaging and pinning Jeremy in the transit
+      tunnel
+    urgency: urgent
+    urgency_set_turn: 23
+  goal_context: The player has transitioned from a confrontation at the gate to a
+    flight through the tunnels.
+  last_thread_created_turn: 25
+  resolution: null
+  threads:
+  - active: false
+    id: smuggler_network_expansion
+    progress: []
+    summary: Local scavenger groups are finding new ways to bypass customs checkpoints.
+    urgency: background
+  - active: false
+    id: militia_remnants_unrest
+    progress: []
+    summary: Former soldiers are gathering in the outskirts to discuss political defiance.
+    urgency: normal
+  - active: false
+    id: resource_scarcity_crisis
+    progress: []
+    summary: A sudden shortage of refined ore is driving up black market prices.
+    urgency: background
+  - active: true
+    added_turn: 25
+    id: docking_bay_standoff
+    progress: []
+    summary: survive the confrontation with guards at Docking Bay Alpha entrance
+    urgency: urgent
+    urgency_set_turn: 25
+  visible_goal: Reach the departing transport before customs agents realize the bribe
+    was insufficient.
+compendium:
+  npcs:
+    grit_streaked_miner:
+      aliases:
+      - grit-streaked miner
+      bio: A laborer with a face heavily streaked with dark industrial grit. Moves
+        with the heavy, rhythmic gait of someone accustomed to hauling ore crates.
+      first_seen_turn: 5
+      last_seen:
+        location_id: annahaven_transit_hub
+        location_name: Annahaven Transit Hub
+        turn: 7
+      name: Grit-streaked Miner
+      nearby_since_turn: 6
+      position: moving toward the loading docks
+      presence: known
+    jeffrey_schaefer:
+      bio: A career officer tasked with enforcing trade regulations in the lawless
+        mining sectors.
+      bond: The NPC is connected to the PC's family - a cousin who once served in
+        the same militia unit.
+      fear: Failure to meet quota for contraband seizures
+      last_seen:
+        location_id: annahaven_transit_hub
+        location_name: Annahaven Transit Hub
+        turn: 6
+      leverage: Holds the power to impound all your equipment
+      motivation: Maintaining order through strict adherence to protocol
+      name: Jeffrey Schaefer
+      nearby_since_turn: 5
+      personality: cold_pragmatist
+      position: standing between player and exit
+      presence: known
+      title: Coalition Customs Inspector
+    laborers:
+      bio: Dressed in grit-stained industrial gear, moving with hurried efficiency.
+        They navigate the wide corridors of the hub pushing heavy supply carts.
+      first_seen_turn: 13
+      last_seen:
+        location_id: secondary_transit_tunnel
+        location_name: Secondary Transit Tunnel
+        turn: 24
+      name: Two laborers
+      nearby_since_turn: 20
+      personality: wary_opportunist
+      position: fleeing the line of fire
+      presence: known
+    miners:
+      bio: A group of grit-covered workers pausing mid-stride. They wear heavy industrial
+        gear and carry an air of weary suspicion.
+      first_seen_turn: 19
+      last_seen:
+        location_id: secondary_transit_tunnel
+        location_name: Secondary Transit Tunnel
+        turn: 20
+      name: Several miners
+      personality: wary_opportunist
+      presence: known
+    miners_and_agents:
+      bio: A group of laborers in grit-stained gear and officials in crisp uniforms.
+        They move through the hub with the weary efficiency of those working a heavy
+        shift.
+      first_seen_turn: 4
+      last_seen:
+        location_id: secondary_transit_tunnel
+        location_name: Secondary Transit Tunnel
+        turn: 20
+      name: Two customs agents
+      nearby_since_turn: 20
+      personality: wary_opportunist
+      position: closing in on player
+      presence: known
+    unnamed_guard_one:
+      bio: Junior Coalition soldiers standing watch at the entrance to the docking
+        bay. They maintain a disciplined, watchful posture in the bright light of
+        the gates.
+      bond: null
+      fear: null
+      last_seen:
+        location_id: secondary_transit_tunnel
+        location_name: Secondary Transit Tunnel
+        turn: 25
+      leverage: null
+      motivation: null
+      name: Two uniformed guards
+      nearby_since_turn: 5
+      personality: wary_opportunist
+      position: upper walkway railing
+      presence: present
+      title: ''
+inventory:
+- aliases: []
+  amount: 1
+  id: welding_torch
+  name: Industrial Welding Torch
+  notes: ''
+- aliases: []
+  amount: 1
+  id: heavy_wrench
+  name: Reinforced Spanner
+  notes: ''
+- aliases: []
+  amount: 11
+  id: pistol_ammo
+  name: Low Grade Shells
+  notes: ''
+- aliases: []
+  amount: 3
+  id: nutrition_paste
+  name: Nutrient Pack
+  notes: ''
+location:
+  description: A wide metal walkway serving as a chaotic kill zone under intense rifle
+    fire. Sparks from ricochets and spent casings dance against heavy support pillars
+    amidst the echoing roar of combat and screaming bullets.
+  id: secondary_transit_tunnel
+  name: Secondary Transit Tunnel
+meta:
+  _pack_source: space-western
+  _seed_type: dynamic
+  compendium_touch_order:
+  - jeffrey_schaefer
+  - grit_streaked_miner
+  - miners_and_agents
+  - laborers
+  - unnamed_guard_one
+  last_inventory_change_reason: Player lost pistol down a drainage slope
+  last_thread_created_turn: 25
+  model: claude-3-5-sonnet
+  pending_gm_beat:
+    beat_expires_turn: 27
+    surface_as: event
+    type: setback
+  prior_history:
+  - '- [T6] Jeremy secures his tools and accesses the transport terminal to check
+    sector schedules.'
+  - '- [T7] Jeremy observes the customs agents'' patrol patterns while maintaining
+    a low profile.'
+  - '- [T8] Jeremy''s attempt to blend into the crowd fails as customs agents break
+    formation to intercept him.'
+  - '- [T9] Jeremy attempts to appear compliant, but the agents box him in against
+    ore crates for further questioning.'
+  - '- [T10] Jeremy attempts to deflect suspicion with an excuse, but the agent demands
+    a hundred credit bribe for expedited clearance.'
+  - '- [T11] Jeremy checks his credits while feeling the physical pressure of the
+    agents closing in.'
+  - '- [T12] Jeremy successfully bribes the agent for expedited transit, but receives
+    a stern warning regarding his seismic charge maintenance logs.'
+  - '- [T13] Jeremy successfully de-escalates the confrontation by complying with
+    the agent''s demands, allowing him to proceed toward the transit terminal.'
+  - '- [T14] Jeremy successfully bypassed the customs checkpoint after bribing the
+    agents and is now moving toward the transit terminal.'
+  - '- [T15] Jeremy confirmed his equipment was secure and moved toward the Sector
+    7 boarding gate.'
+  - '- [T16] Jeremy''s attempt to blend into the miner queue failed, drawing the suspicious
+    attention of the customs agent.'
+  - '- [T17] Jeremy attempts to feign exhaustion to avoid detection, but the customs
+    agent focuses his attention directly on him.'
+  - '- [T18] Jeremy attempts to hide his tools, but the customs agent notices the
+    bulge in his jacket and offers a suspicious proposition.'
+  - '- [T19] Jeremy''s attempt to feign interest in smuggling backfired, causing the
+    customs agent to label him a liability and signal for backup.'
+  - '- [T20] Jeremy evaded the customs agents by ducking through ore crates and fleeing
+    into the secondary transit tunnel.'
+  - '- [T21] Jeremy stumbled in the transit tunnel, alerting guards at the docking
+    bay entrance.'
+  - '- [T22] Jeremy''s attempt to distract the guards with his salvage pistol failed,
+    drawing immediate rifle fire from the docking bay entrance.'
+  - '- [T23] Jeremy hunkered behind a support pillar for cover after being spotted
+    by guards, sustaining shrapnel wounds from ricochets.'
+  - '- [T24] Jeremy attempted to dash for cover but was wounded by gunfire and dropped
+    his Modified Salvage Pistol into the open kill zone.'
+  - '- [T25] Jeremy lost his salvage pistol down a drainage slope and emerged into
+    the bright docking bay entrance facing leveled rifles.'
+  recent_beats:
+  - surface_as: ambient
+    turn: 21
+    type: pressure
+  - surface_as: event
+    turn: 22
+    type: complication
+  - surface_as: event
+    turn: 23
+    type: complication
+  - surface_as: event
+    turn: 24
+    type: complication
+  - surface_as: event
+    turn: 25
+    type: setback
+  recent_rolls:
+  - band: crit_fail
+    turn: 25
+  - band: partial
+    turn: 24
+  - band: fail
+    turn: 23
+  - band: fail
+    turn: 22
+  - band: fail
+    turn: 21
+  setting_pack: space-western
+  turn: 25
+pc:
+  actions:
+  - Dive into the open to retrieve the discarded pistol.
+  - Press against the ore crates and fire at the guards.
+  - Use the welding torch to create a blinding spark distraction.
+  - Crawl toward the next pillar while ignoring the hip wound.
+  bio: After the border wars, Jeremy survived by stripping derelict rigs in the outer
+    rim. He carries a heavy debt to his remaining kin and a deep distrust of anyone
+    wearing a uniform.
+  conditions:
+  - added_turn: 23
+    description: A bullet grazed your hip, causing significant pain and making movement
+      difficult.
+    id: wounded
+    label: Wounded
+    turns_remaining: 4
+  drive: ''
+  name: Jeremy Rocha
+  stats:
+    charisma: 2
+    dexterity: 2
+    strength: 3
+    wits: 3
+  tagline: Scrap welder, former militia technician
+resolved_arcs:
+- closed_threads: []
+  goal_context: The player has transitioned from the inspection confrontation to the
+    actual boarding area.
+  resolution: Jeremy successfully navigated the customs inspection and reached the
+    Sector 7 boarding gate.
+  resolved_turn: 15
+  visible_goal: The focus shifts from avoiding inspection to successfully boarding
+    the Sector 7 shuttle.
+- closed_threads: []
+  goal_context: The player has transitioned from a confrontation at the gate to a
+    flight through the tunnels.
+  resolution: Jeremy successfully evaded the immediate customs interrogation by fleeing
+    into the secondary transit tunnel, shifting the conflict from an interrogation
+    to a high-stakes chase toward the docking bay.
+  resolved_turn: 20
+  visible_goal: Reach the departing transport before customs agents realize the bribe
+    was insufficient.
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 3
+  location_entered_turn: 20
+  scene_phase: CLIMAX
+  tagline: Secondary Transit Tunnel  heavy gunfire, exposed position
+  tags:
+  - coalition_authority
+  - border_tension
+  - scavenging
+  turn_entered: 20
+  world_state:
+  - All mining equipment must be registered with Coalition customs agents.
+  - Movement between the outer rim and Annahaven requires a certified transit pass.
+  - Unsanctioned seismic charges are classified as illegal contraband.
+  - id: regulatory_crackdown
+    text: Jeremy successfully bribed agents to bypass the inspection checkpoint.
+    tier: persistent
+schema_version: 1

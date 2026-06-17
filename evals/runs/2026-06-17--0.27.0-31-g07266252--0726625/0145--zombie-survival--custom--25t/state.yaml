@@ -1,0 +1,489 @@
+__seed_meta__:
+  actions:
+  - Agree to Douglas's terms and investigate the locked ward.
+  - Argue that the purge will destroy irreplaceable medicine samples.
+  - Search the nearby surgical tray for clues about the syringe contents.
+  - Demand to see the patient charts before making a decision.
+  opening_narrative: 'The rhythmic, dying hum of a surgical light on backup power
+    is the only thing keeping the darkness at bay. It flickers with a nauseating frequency,
+    casting long, twitching shadows across a gurney with torn restraints that sits
+    abandoned in the center of the room. You can smell it—the cloying, sweet scent
+    of rot drifting from a locked ward down the hall, a smell that has become the
+    permanent cologne of this dying building.
+
+
+    You lean over a patient chart, but the paper is water-damaged into illegibility,
+    a blur of blue ink and grey mold. Beside your hand, a syringe half-filled with
+    something dark and viscous sits on a tray, forgotten by whoever was last desperate
+    enough to be here. The air in Saint Marys Infirmary is heavy, thick with the dust
+    of a world that stopped functioning twenty years ago.
+
+
+    A heavy footfall echoes in the corridor, followed by the unmistakable metallic
+    click of a safety being disengaged. Douglas Le steps into the pool of flickering
+    light, his face a mask of weary authority. He does not look like the man who stood
+    shoulder-to-shoulder with you when the breaches first opened; he looks like a
+    man who has buried too many friends to care about your sentimentality.
+
+
+    "The Council found a carrier in the lower wards, Andrew," Douglas says, his voice
+    low and devoid of warmth. He gestures toward the locked ward where the smell is
+    strongest. "They want this entire wing purged. Incineration protocols are ready
+    for activation."
+
+
+    You look at the syringe, then back to him. You know that ward isn''t just full
+    of sickness; it contains the last of the uncorrupted medicine samples, stolen
+    from a supply run that was supposed to be yours. If he triggers the purge, the
+    medicine—and whoever is hiding inside with it—will be turned to ash.
+
+
+    "The protocols are for safety, Andrew," Douglas continues, stepping closer, his
+    eyes searching yours for a sign of compliance. "But I know you think there is
+    a way to save them. If you can prove the contagion isn''t what they say it is,
+    I might delay the order. But if you lie to me, and this spreads, I will burn this
+    building with both of us inside."
+
+
+    A guard stands just behind him in the doorway, hand resting on a holster, watching
+    your every move with a jittery, uncertain grip. The tension in the room is a physical
+    weight, heavier than the stale air. You are caught between the man who saved your
+    life and the duty that demands you protect the very people he is willing to sacrifice.'
+  outcome_summary: Douglas Le presents a choice between enforcing quarantine protocols
+    or risking a contagion outbreak to save medical supplies.
+__seed_pools__:
+  arc:
+    description: ''
+    id: quarantine_breakdown
+    incompatible_with: []
+    tags:
+    - quarantine
+    - breakdown
+    - infection_threat
+  character_dynamic:
+    description: ''
+    id: displaced_elite
+    incompatible_with: []
+    tags:
+    - former_status
+    - loss_of_power
+    - adaptation_needed
+  moral_pressure:
+    description: ''
+    id: trust_dynamics
+    incompatible_with: []
+    tags:
+    - trust
+    - dynamics
+    - relationship_risk
+  npc_bond:
+    description: The NPC and PC once held a breach together while others fled. The
+      memory is one of mutual reliance.
+    id: held_a_gate_together
+    incompatible_with: []
+    tags:
+    - shared_defense
+    - trust
+    - combat_bond
+  scene_bundle:
+    conditions:
+    - the power flickering on backup battery
+    - patient charts water-damaged into illegibility
+    id: abandoned_hospital
+    items:
+    - a gurney with torn restraints
+    - a syringe half-filled with something dark
+    sensory:
+    - the hum of a surgical light on backup power
+    - the smell of rot from a locked ward
+  situation:
+    description: ''
+    id: moral_compromise
+    incompatible_with: []
+    tags:
+    - moral
+    - compromise
+    - ethical_dilemma
+arc:
+  completed_threads:
+  - active: true
+    added_turn: 14
+    id: medical_batch_investigation
+    last_updated_turn: 20
+    outcome: The vial was lost in the spreading dark sludge during the interrogation.
+    progress:
+    - kind: setback
+      text: Andrew found MED-774-A vial.
+    - kind: setback
+      text: Vial lost in sludge under unit.
+    resolution_state: failed
+    resolved_turn: 21
+    summary: Investigate the origin and purpose of batch MED-774-A
+    urgency: normal
+    urgency_set_turn: 14
+  - active: true
+    added_turn: null
+    id: processing_chamber_interrogation
+    last_updated_turn: 21
+    outcome: Andrew successfully feigned compliance to avoid further scrutiny during
+      the interrogation.
+    progress:
+    - kind: advancement
+      text: Elena Vance suspects suspicious movement.
+    - kind: advancement
+      text: Guards box Andrew against trolley.
+    - kind: setback
+      text: Guards physically restrain Andrew during intense scrutiny
+    resolution_state: resolved
+    resolved_turn: 22
+    summary: Survive or navigate interrogation within the Processing Chamber
+    urgency: urgent
+    urgency_set_turn: null
+  goal_context: ''
+  last_thread_created_turn: 24
+  resolution: null
+  threads:
+  - active: false
+    added_turn: null
+    id: contagion_spread
+    last_updated_turn: 15
+    outcome: null
+    progress:
+    - kind: shift
+      text: No new data on illness origin.
+    resolution_state: null
+    resolved_turn: null
+    summary: A mysterious respiratory illness is spreading through the lower settlement
+      wards.
+    urgency: normal
+    urgency_set_turn: null
+  - active: true
+    added_turn: 22
+    id: detention_wing_transit
+    last_updated_turn: 25
+    outcome: null
+    progress:
+    - kind: setback
+      text: Pinned to floor by multiple guards
+    resolution_state: null
+    resolved_turn: null
+    summary: navigate through armed sentries toward the detention wing
+    urgency: urgent
+    urgency_set_turn: 22
+  - active: true
+    added_turn: 24
+    id: stolen_scanner_confrontation
+    last_updated_turn: null
+    outcome: null
+    progress:
+    - kind: setback
+      text: Scanner seized and player pinned down
+    resolution_state: null
+    resolved_turn: null
+    summary: manage fallout from stealing tactical scanner in corridor
+    urgency: urgent
+    urgency_set_turn: 24
+  visible_goal: ''
+compendium:
+  npcs:
+    additional_guards:
+      aliases:
+      - two additional armed guards
+      bio: Uniformed sentries standing in low-ready positions. They maintain a disciplined
+        perimeter to control movement through the corridors.
+      first_seen_turn: 21
+      last_seen:
+        location_id: transition_corridor
+        location_name: Transition Corridor
+        turn: 25
+      name: Two additional armed guards
+      notes: tightening perimeter with rifles leveled
+      position: closing gap around player's knees
+      presence: present
+    armed_guards:
+      aliases:
+      - armed guards
+      bio: Uniformed sentries moving with synchronized, aggressive purpose to secure
+        a perimeter.
+      first_seen_turn: 4
+      last_seen:
+        location_id: transition_corridor
+        location_name: Transition Corridor
+        turn: 23
+      name: Two armed guards
+      nearby_since_turn: 22
+      personality: wary_opportunist
+      position: behind the player
+      presence: present
+    council_runner:
+      bio: A clinical official standing under flickering lights, holding a digital
+        ledger. They represent the bureaucratic and uncompromising enforcement of
+        Council protocols.
+      first_seen_turn: 6
+      last_seen:
+        location_id: detention_wing_corridors
+        location_name: Detention Wing Corridors
+        turn: 12
+      name: Council Runner
+      nearby_since_turn: 12
+      personality: resigned_functionary
+      position: at the disposal unit
+      presence: known
+      title: Council Auditor
+    douglas_le:
+      allegiance: The Settlement Council
+      bio: A man who survived the initial collapse by making impossible choices to
+        keep his community fed and safe.
+      bond: The NPC and PC once held a breach together while others fled. The memory
+        is one of mutual reliance.
+      fear: Losing the community to a preventable epidemic.
+      last_seen:
+        location_id: detention_wing_corridors
+        location_name: Detention Wing Corridors
+        turn: 12
+      leverage: null
+      motivation: Maintaining order and preventing a contagion outbreak at all costs.
+      name: Douglas Le
+      nearby_since_turn: 12
+      personality: cold_pragmatist
+      position: standing near disposal unit
+      presence: known
+      title: Settlement Overseer
+    elena_vance:
+      allegiance: The Council
+      bio: Sharp-eyed woman with a disciplined, military bearing and a hand that never
+        strays far from her sidearm. She operates with the clinical efficiency of
+        someone used to enforcing strict Council mandates.
+      fear: Failure to meet Council expectations or security breaches.
+      first_seen_turn: 4
+      last_seen:
+        location_id: transition_corridor
+        location_name: Transition Corridor
+        turn: 25
+      leverage: Authority to authorize force or confiscate supplies.
+      motivation: Enforcing inventory audits and maintaining quarantine protocols.
+      name: Elena Vance
+      nearby_since_turn: 22
+      notes: aiming sidearm at chest
+      personality: cold_pragmatist
+      position: standing over player, weapon leveled
+      presence: present
+      title: Council Guard
+    unknown_guard:
+      bio: A nervous sentry patrolling the hospital corridors to enforce the quarantine
+        zone protocols.
+      bond: null
+      fear: null
+      last_seen:
+        location_id: transition_corridor
+        location_name: Transition Corridor
+        turn: 25
+      leverage: null
+      motivation: null
+      name: One armed guard
+      nearby_since_turn: 22
+      notes: pinning player with knee
+      personality: wary_opportunist
+      position: kneeling on player's back
+      presence: present
+      title: ''
+inventory:
+- aliases: []
+  amount: 1
+  id: surgical_scalpel
+  name: Steel Scalpel
+  notes: A keepsake from his residency, still sharp.
+- aliases: []
+  amount: 1
+  id: medical_kit
+  name: Emergency Trauma Kit
+  notes: ''
+- aliases: []
+  amount: 1
+  id: revolver
+  name: Heavy Revolver
+  notes: ''
+- aliases: []
+  amount: 9
+  id: revolver_ammo
+  name: Steel Cased Rounds
+  notes: ''
+- amount: 1
+  id: crumpled_paper
+  name: Crumpled Paper
+  notes: contains text about batch MED-774-A, in hand
+- amount: 1
+  id: handheld_scanner
+  name: Handheld Tactical Scanner
+  notes: amber light flickering, on floor between legs
+location:
+  description: A cramped, damp stone hallway illuminated by the flickering amber glow
+    of a handheld scanner. The air is heavy with antiseptic and tension as armed sentries
+    form a tight, lethal circle around the player.
+  id: transition_corridor
+  name: Transition Corridor
+meta:
+  _pack_source: zombie-survival
+  _seed_type: dynamic
+  compendium_touch_order:
+  - council_runner
+  - douglas_le
+  - armed_guards
+  - elena_vance
+  - unknown_guard
+  - additional_guards
+  last_thread_created_turn: 24
+  model: GPT-4o
+  pending_gm_beat:
+    beat_expires_turn: 27
+    surface_as: npc_behavior
+    type: pressure
+  prior_history:
+  - '- [T6] Douglas Le orders Elena Vance to seize the antibiotics crate for immediate
+    incineration under Council audit protocols.'
+  - '- [T7] Andrew surrendered the antibiotics crate to Elena Vance and was escorted
+    to the perimeter checkpoint for processing.'
+  - '- [T8] Andrew surrendered the antibiotics crate to the Council Runner, who marked
+    them as contraband for immediate incineration.'
+  - '- [T9] Andrew physically blocked the Council Runner from incinerating the antibiotics,
+    prompting Elena Vance to draw her sidearm.'
+  - '- [T10] Andrew retreats from the antibiotics crate as Elena Vance maintains her
+    aim and the Council Runner moves to incinerate the supplies.'
+  - '- [T11] Andrew identifies a suspicious serial number on the antibiotics crate
+    just before it is incinerated by Council enforcement.'
+  - '- [T12] Andrew failed to prevent the incineration of the antibiotics and is being
+    forcibly escorted into the detention wing by guards.'
+  - '- [T13] Andrew''s attempt to pickpocket a guard fails, but he discovers a scrap
+    of paper mentioning diverted medical batches while being escorted.'
+  - '- [T14] Andrew successfully swiped the crumpled paper regarding batch MED-774-A
+    while feigning a stumble during his escort.'
+  - '- [T15] Andrew feigns exhaustion to scan the detention corridor for clues while
+    being escorted by guards.'
+  - '- [T16] Andrew''s attempt to reach the spilled manifest failed as the one armed
+    guard physically redirected him, while Elena Vance blocked his path to the alcove.'
+  - '- [T17] Andrew''s attempt to feign injury fails, resulting in him being forcefully
+    escorted into the Processing Chamber by Elena Vance and her guards.'
+  - '- [T18] Andrew scans the Processing Chamber, noting discarded biohazard bags
+    and amber sludge near filtration units while under guard.'
+  - '- [T19] Andrew discovered a vacuum-sealed vial matching the MED-774-A batch digits
+    hidden inside a biohazard bag.'
+  - '- [T20] Andrew''s attempt to steal the vial failed, causing it to slide into
+    sludge under a filtration unit while drawing Elena Vance''s suspicion.'
+  - '- [T21] Andrew failed to locate the MED-774-A vial as the guard forcibly redirected
+    his gaze, while a dark liquid began leaking from the filtration unit.'
+  - '- [T22] Andrew successfully feigned submission to avoid suspicion from Elena
+    Vance while being escorted into the transition corridor.'
+  - '- [T23] Andrew feigned a stumble to bypass the guards, successfully closing the
+    distance and grazing a guard''s tactical scanner.'
+  - '- [T24] Andrew successfully swiped the handheld tactical scanner but was immediately
+    caught and pinned to the floor by guards.'
+  - '- [T25] Andrew raises his hands in compliance while Elena Vance maintains her
+    sidearm leveled at his chest.'
+  recent_beats:
+  - surface_as: environmental
+    turn: 21
+    type: complication
+  - surface_as: null
+    turn: 22
+    type: null
+  - surface_as: item
+    turn: 23
+    type: opportunity
+  - surface_as: npc_behavior
+    turn: 24
+    type: complication
+  - surface_as: npc_behavior
+    turn: 25
+    type: pressure
+  recent_rolls:
+  - band: partial
+    turn: 24
+  - band: success
+    turn: 23
+  - band: success
+    turn: 22
+  - band: fail
+    turn: 21
+  - band: crit_fail
+    turn: 20
+  setting_pack: zombie-survival
+  turn: 25
+pc:
+  actions:
+  - Reach for the handheld tactical scanner on the floor
+  - Beg Elena Vance for clarification regarding the MED-774-A batch
+  - Attempt to kick the scanner toward one of the guards
+  - Use the heavy revolver to strike the pinning guard
+  bio: Born just before the collapse, Andrew remembers the smell of antiseptic and
+    the steady rhythm of a functional hospital. He now uses his outdated medical training
+    to patch up survivors in the wastes, driven by a desperate need to preserve what
+    little life remains. He carries a heavy guilt for those he could not save when
+    the wards first fell.
+  conditions:
+  - added_turn: 23
+    description: A guard has slammed you to your knees and is holding you down.
+    id: pinned
+    label: Pinned
+    turns_remaining: 2
+  drive: ''
+  name: Andrew Mendez
+  stats:
+    charisma: 3
+    dexterity: 3
+    strength: 2
+    wits: 4
+  tagline: Former surgical resident, relentless scavenger
+resolved_arcs:
+- closed_threads: []
+  goal_context: The player has lost their primary leverage (the antibiotics) to the
+    Council audit, shifting the struggle from acquisition to survival/retrieval.
+  resolution: The immediate confrontation over the infirmary antibiotics has concluded
+    with the Council seizing the supplies.
+  resolved_turn: 7
+  visible_goal: Secure a stable supply of authentic medicine and identify the source
+    of the local contagion.
+- closed_threads: []
+  goal_context: The confrontation at the perimeter checkpoint ended in failure to
+    save the supplies.
+  resolution: The immediate conflict over the antibiotics crate has concluded with
+    their destruction and Andrew's detention.
+  resolved_turn: 12
+  visible_goal: Secure a stable supply of authentic medicine and identify the source
+    of the local contagion.
+- closed_threads: []
+  goal_context: Andrew has transitioned from the detention corridors to the central
+    processing hub under guard supervision.
+  resolution: The detention wing escort phase concludes as Andrew is moved into the
+    Processing Chamber.
+  resolved_turn: 17
+  visible_goal: Secure authentic medicine and identify contagion source.
+- closed_threads: []
+  goal_context: ''
+  resolution: ''
+  resolved_turn: 19
+  visible_goal: Secure authentic medicine and identify contagion source.
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 0
+  location_entered_turn: 22
+  scene_phase: RISING
+  tagline: Transition Corridor  pinned under guard's knee
+  tags:
+  - moral
+  - compromise
+  - quarantine
+  - betrayal
+  turn_entered: 22
+  world_state:
+  - The district perimeter is under strict martial law lockdown.
+  - All unauthorized biological samples are subject to immediate incineration.
+  - Movement between settlement zones requires a verified health clearance.
+  - id: medical_scarcity
+    text: The antibiotics crate was confiscated and slated for incineration by Council
+      enforcement.
+    tier: persistent
+  - id: council_resource_control
+    text: The antibiotics crate was destroyed by the Council, ending the immediate
+      dispute over this specific shipment.
+    tier: persistent
+schema_version: 1
