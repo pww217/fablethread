@@ -36,26 +36,26 @@ When inspecting a game, check one area at a time rather than running all checker
 ### location_change
 
 - **Type:** deterministic
-- **Fields:** `applied.location_change`, `extraction_context.location_this_turn`
+- **Fields:** `applied.location_change`, `state_snapshot.location` (or `extraction.storytell.rendered_user` for pre-delta location)
 - **What it checks:** When a location change is emitted, the post-turn location ID differs from the previous turn's location ID
 - **CLI:** `ev.py check TURN location_change`
-- **Caveats:** Only checks turns where `applied.location_change` is present. First turn is skipped (no previous location to compare).
+- **Caveats:** Only checks turns where `applied.location_change` is present. First turn is skipped (no previous location to compare). Note: `extraction_context` is NOT stored in events; checkers must use `state_snapshot` or parse the storyteller prompt.
 
 ### inventory_integrity
 
 - **Type:** deterministic
-- **Fields:** `applied.inventory_add`, `applied.inventory_remove`, `extraction_context.inventory_this_turn`
+- **Fields:** `applied.inventory_add`, `applied.inventory_remove`, `state_snapshot.inventory` (or `extraction.storytell.rendered_user` for pre-delta inventory)
 - **What it checks:** No negative inventory amounts, no overdraw (removing from zero-quantity items), no removal of non-existent items
 - **CLI:** `ev.py check TURN inventory_integrity`
-- **Caveats:** Checks state_snapshot inventory for negative amounts. Compares previous turn's inventory against current turn's removals to detect overdraw and removal of items that didn't exist.
+- **Caveats:** Checks state_snapshot inventory for negative amounts. Compares previous turn's inventory against current turn's removals to detect overdraw and removal of items that didn't exist. Note: `extraction_context` is NOT stored in events.
 
 ### conditions_lifecycle
 
 - **Type:** deterministic
-- **Fields:** `applied.pc_condition_add`, `applied.pc_condition_remove`, `extraction_context.conditions_this_turn`
+- **Fields:** `applied.pc_condition_add`, `applied.pc_condition_remove`, `state_snapshot.pc.conditions` (or `extraction.storytell.rendered_user` for pre-delta conditions)
 - **What it checks:** Conditions present in ruling reason, no duplicate condition IDs
 - **CLI:** `ev.py check TURN conditions_lifecycle`
-- **Caveats:** Checks that condition IDs appear in the ruling's reason text (lowercase comparison). Dedup check is case-insensitive.
+- **Caveats:** Checks that condition IDs appear in the ruling's reason text (lowercase comparison). Dedup check is case-insensitive. Note: `extraction_context` is NOT stored in events.
 
 ### thread_lifecycle
 
@@ -76,18 +76,18 @@ When inspecting a game, check one area at a time rather than running all checker
 ### npc_presence
 
 - **Type:** deterministic
-- **Fields:** `extraction_context`, `applied.compendium_npc_update`
+- **Fields:** `state_snapshot.compendium.npcs`, `applied.compendium_npc_update`
 - **What it checks:** All NPC presence values in compendium are valid (`present`, `nearby`, `known`, `departed`, `archived`). Departed NPCs have required `departed_reason` and `departed_summary` fields.
 - **CLI:** `ev.py check TURN npc_presence`
-- **Caveats:** Only checks state_snapshot compendium entries, not extraction output.
+- **Caveats:** Only checks state_snapshot compendium entries, not extraction output. Note: `extraction_context` is NOT stored in events.
 
 ### pacing_directives
 
 - **Type:** deterministic
-- **Fields:** `ruling`, `narrate_prompt`, `extraction_context`
+- **Fields:** `ruling`, `narrate_prompt`, `extraction.storytell.rendered_user`
 - **What it checks:** outcome_hint rendered in narrator prompt, directive rendered in storyteller prompt, removed directives not present, beat type variety maintained, surface_as consistency across consecutive same-type beats
 - **CLI:** `ev.py check TURN pacing_directives`
-- **Caveats:** Removed directives: "Overwhelm", "Pressure", "location pressure", "location imperative", "combat fatigue". Beat type variety warns if a single type exceeds 60% of all beats (requires 3+ beats). Surface_as consistency checks that consecutive same-type beats don't flip between "ambient" and "environmental" without a directive change. Phase constraint check verifies beat types are allowed for the current scene_phase per BEAT_PHASE_MAP.
+- **Caveats:** Removed directives: "Overwhelm", "Pressure", "location pressure", "location imperative", "combat fatigue". Beat type variety warns if a single type exceeds 60% of all beats (requires 3+ beats). Surface_as consistency checks that consecutive same-type beats don't flip between "ambient" and "environmental" without a directive change. Phase constraint check verifies beat types are allowed for the current scene_phase per BEAT_PHASE_MAP. Uses regex word boundaries to avoid false positives from word variants (e.g., "overwhelmed" matching "Overwhelm").
 
 ### phase_transition
 
@@ -228,10 +228,10 @@ When inspecting a game, check one area at a time rather than running all checker
 ### state_fidelity
 
 - **Type:** llm
-- **Fields:** `narrate`, `extraction_context`, `applied.inventory_add`, `applied.inventory_remove`, `applied.pc_condition_add`, `applied.pc_condition_remove`
+- **Fields:** `narrate`, `state_snapshot`, `applied.inventory_add`, `applied.inventory_remove`, `applied.pc_condition_add`, `applied.pc_condition_remove`
 - **What it checks:** State extraction matches what narration describes — no missing or unsupported changes
 - **CLI:** `ev.py check TURN state_fidelity --llm`
-- **Caveats:** Uses the configured checker model. Evaluates first event only. Narration must explicitly mention or strongly imply each state change. Missing changes described in narration are failures. Extra changes not supported by narration are also failures.
+- **Caveats:** Uses the configured checker model. Evaluates first event only. Narration must explicitly mention or strongly imply each state change. Missing changes described in narration are failures. Extra changes not supported by narration are also failures. Note: `extraction_context` is NOT stored in events; the LLM checker receives state_snapshot as context instead.
 
 ### turn_assert
 
@@ -239,7 +239,7 @@ When inspecting a game, check one area at a time rather than running all checker
 - **Fields:** None (takes assertions as parameter)
 - **What it checks:** Validates per-turn structured assertions from YAML scenarios (stream/field/expected/min_amount)
 - **CLI:** Called programmatically by `ev.py eval run`, not in default registry
-- **Caveats:** Supports streams: `ruling`, `extract.state`, `extraction_context`. Assertions specify a field dotpath, expected value, and optional min_amount threshold. Score is ratio of passed assertions to total.
+- **Caveats:** Supports streams: `ruling`, `extract.state`, `state_snapshot`. Assertions specify a field dotpath, expected value, and optional min_amount threshold. Score is ratio of passed assertions to total. Note: `extraction_context` stream is NOT available (field never stored in events).
 
 ## Running Checkers
 

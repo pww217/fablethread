@@ -59,13 +59,18 @@ def pacing_directives(events: list[dict[str, Any]]) -> CheckerResult:
         narr_user = (extract_field(ev, "narrate_prompt") or {}).get("rendered_user") or ""
         storytell_rendered = storytell_level.get("rendered_user") or ""
 
-        removed_directives = [r"\bOverwhelm\b", r"\blocation pressure\b", r"\blocation imperative\b", r"\bcombat fatigue\b"]
+        removed_directives = [
+            (r"\bOverwhelm\b", "Overwhelm"),
+            (r"\blocation pressure\b", "location pressure"),
+            (r"\blocation imperative\b", "location imperative"),
+            (r"\bcombat fatigue\b", "combat fatigue"),
+        ]
         found_removed: list[str] = []
-        for directive in removed_directives:
-            if re.search(directive, narr_user, re.IGNORECASE):
-                found_removed.append(f"{directive.lstrip(r'\\b')} (narrate)")
-            if re.search(directive, storytell_rendered, re.IGNORECASE):
-                found_removed.append(f"{directive.lstrip(r'\\b')} (storytell)")
+        for pattern, name in removed_directives:
+            if re.search(pattern, narr_user, re.IGNORECASE):
+                found_removed.append(f"{name} (narrate)")
+            if re.search(pattern, storytell_rendered, re.IGNORECASE):
+                found_removed.append(f"{name} (storytell)")
         if found_removed:
             findings.append({
                 "turn": ev.get("turn"),
