@@ -505,9 +505,16 @@ def _resolve_npc_personalities(state: dict[str, Any]) -> None:
     except Exception:
         pass
 
-    for entry in npcs.values():
+    for key, entry in npcs.items():
         if not isinstance(entry, dict):
             continue
+        # Ensure a display_name exists for sorting/templates when name is missing
+        if "display_name" not in entry:
+            entry["display_name"] = (
+                entry.get("name")
+                or entry.get("alias")
+                or (entry.get("aliases", [])[0] if entry.get("aliases") else key)
+            )
         arch_id = entry.get("personality")
         if arch_id and arch_id in ARCHETYPES:
             arch = ARCHETYPES[arch_id]
