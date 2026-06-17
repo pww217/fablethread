@@ -37,7 +37,7 @@ def setup_logging(config: dict[str, Any] | None = None) -> logging.Logger:
     logger.addHandler(fh)
 
     ch = logging.StreamHandler()
-    ch.setLevel(os.getenv("CCYA_LOG_LEVEL", "INFO"))
+    ch.setLevel(os.getenv("CCYA_LOG_LEVEL", "WARNING"))
     ch.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
     logger.addHandler(ch)
 

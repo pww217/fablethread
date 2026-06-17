@@ -434,8 +434,11 @@ def _parse_stream_result(raw: str, model_cls: type, strip_keys: tuple[str, ...] 
         raise ValueError("No JSON found in response")
     for k in strip_keys:
         j.pop(k, None)
-    # Coerce LLM output to match Pydantic model expectations
-    return model_cls(**_coerce_scene_json(j))
+    try:
+        # Coerce LLM output to match Pydantic model expectations
+        return model_cls(**_coerce_scene_json(j))
+    except Exception as e:
+        raise ValueError(f"EXTRACTION_COERCION_FAILED: {e}") from e
 
 
 async def _call_stream(
@@ -502,6 +505,11 @@ async def _call_stream(
                         f"Re-emit JSON matching the schema. No prose outside <thinking>.{_retry_hint}"
                     ),
                 })
+    _log.error(
+        "%s failed after all attempts: %s",
+        phase, parse_error,
+        extra={"trace_id": trace_id, "error_kind": "EXTRACTION_PARSE_FAILED"},
+    )
     raise ValueError(f"{phase} failed after all attempts: {parse_error}")
 
 

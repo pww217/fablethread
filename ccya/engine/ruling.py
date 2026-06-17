@@ -143,9 +143,9 @@ async def _call_ruling(
                 )
                 messages.append({"role": "user", "content": fb})
 
-    _log.error(
+    _log.warning(
         "ruling call failed after all attempts — defaulting to no-roll",
-        extra={"trace_id": trace_id, "turn": turn},
+        extra={"trace_id": trace_id, "turn": turn, "error_kind": "RULING_PARSE_FAILED"},
     )
     return _no_intent, _no_usage, "", parse_error
 

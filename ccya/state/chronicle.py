@@ -16,17 +16,31 @@ _TURN_HEADER = re.compile(r"^## Turn (\d+) — (.+)$", re.MULTILINE)
 def append_event(save_dir: Path, event: dict[str, Any]) -> None:
     path = save_dir / "events.jsonl"
     _log.debug("append_event path=%s keys=%s", path, list(event.keys()))
-    save_dir.mkdir(parents=True, exist_ok=True)
-    with open(path, "a") as f:
-        f.write(json.dumps(event, default=str) + "\n")
+    try:
+        save_dir.mkdir(parents=True, exist_ok=True)
+        with open(path, "a") as f:
+            f.write(json.dumps(event, default=str) + "\n")
+    except Exception as e:
+        _log.error(
+            "EVENT_APPEND_FAILED path=%s error=%s",
+            path, e,
+            extra={"error_kind": "EVENT_APPEND_FAILED"},
+        )
 
 
 def append_chronicle(save_dir: Path, text: str) -> None:
     path = save_dir / "chronicle.md"
     _log.debug("append_chronicle path=%s chars=%d", path, len(text))
-    save_dir.mkdir(parents=True, exist_ok=True)
-    with open(path, "a") as f:
-        f.write("\n" + text)
+    try:
+        save_dir.mkdir(parents=True, exist_ok=True)
+        with open(path, "a") as f:
+            f.write("\n" + text)
+    except Exception as e:
+        _log.error(
+            "CHRONICLE_APPEND_FAILED path=%s error=%s",
+            path, e,
+            extra={"error_kind": "CHRONICLE_APPEND_FAILED"},
+        )
 
 
 
