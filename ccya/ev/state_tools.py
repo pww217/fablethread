@@ -1034,12 +1034,7 @@ def _render_pc_section(state: dict[str, Any]) -> None:
     if conditions:
         for c in conditions:
             label = (c.get("label") or c.get("id") or "?") if isinstance(c, dict) else str(c)
-            ttl = ""
-            if isinstance(c, dict):
-                remaining = c.get("turns_remaining")
-                if remaining is not None:
-                    ttl = f" ({remaining} turns left)"
-            print(f"  Condition: {label}{ttl}")
+            print(f"  Condition: {label}")
 
 
 def _render_inventory_section(state: dict[str, Any]) -> None:

@@ -64,11 +64,21 @@ The LLM hallucinated IDs (`reach_departing_transport`, `coalition_guards_engagem
 1. `storytell_system.j2`: Replaced full types list with "See `allowed_beat_types` in the user prompt". Removed the types table, directive override section (with its NEV
 
 ER lists), and specific beat names from the roll band table. Replaced with general guidance referencing the user prompt's allowed list.
-2. `storytell_user.j2`: Added a constraint line at the **very end** of the user prompt (after `END CURRENT TURN NARRATION`), putting it in the LLM's recent attention window at the point of output generation.
+2. `storytell_user.j2`: Added a constraint line at the **very end** of the user prompt (after `END CURRENT TURN NARRATION`):
+   ```
+   ## ⚠️ REMINDER: gm_beat.type MUST be from: {{ allowed_beat_types | join(", ") }}
+   ```
+   Putting it in the LLM's recent attention window at the point of output generation.
 
 **Result:** Both Noir T8 (was `complication` → now `revelation`) and WW2 T9 (was `pressure` → now `revelation`) emit valid allowed beats.
 
-### 3. Tooling fixes
+### 3. Scene transition teleportation — Noir T6 ✅ FIXED
+
+**Root cause:** `narrate_user.j2` told the narrator: "Write the arrival at the new location, not the departure from this one." This explicitly skipped the departure, causing the LLM to teleport the character to a new location with no connective tissue (four men blocking the basement exit → suddenly in a saloon).
+
+**Fix:** Changed to "Show the character's active departure from the current scene (chase, retreat, discovery pulling them elsewhere) and begin the new scene upon arrival." Forces a narrated transition rather than a cut.
+
+### 4. Tooling fixes
 
 - `prompt-eval call` now prints LLM output before running checks (was missing output display)
 - `build_prompt_context` fixed to read `band` from `event.ruling.band`, `pending_beat`/`recent_beats` from previous turn's state_snapshot (pre-turn), and build NPC roster from compendium
@@ -99,7 +109,7 @@ ER lists), and specific beat names from the roll band table. Replaced with gener
 - **Convergence:** Poor — 3 turns hit >=3 threshold (T14, T19, T20)
 - **Rolls:** 57.9% bad (1 crit_fail, 7 fail, 3 setback, 2 partial, 5 success, 1 crit_success)
 - **Goals:** 2 changes (T15: extraction focus shift, T20: transport escape)
-- **Key issue:** Low convergence + high failure rate. Scene Imperative directive ignored (T8: `complication` emitted outside allowed list).
+- **Key issue:** Low convergence + high failure rate. Scene Imperative directive was ignored (T8: `complication` emitted outside allowed list) — **fixed** with post-narration constraint line.
 
 ### Space Western — 95.7% (22/23)
 - **Threads:** 10 created, 3 resolved (30%), 7 pending
@@ -115,7 +125,7 @@ ER lists), and specific beat names from the roll band table. Replaced with gener
 - **Convergence:** Very poor — 4 turns hit >=3 threshold (T19-21, T24)
 - **Rolls:** 36.8% bad (0 crit_fail, 5 fail, 2 setback, 3 partial, 8 success, 1 crit_success)
 - **Goals:** 4 changes (T18-21 — rapid-fire goal shifts)
-- **Key issue:** SETUP dominates first half. Scene Imperative directive ignored (T9: `pressure` emitted outside allowed list).
+- **Key issue:** SETUP dominates first half. Scene Imperative directive was ignored (T9: `pressure` emitted outside allowed list) — **fixed** with post-narration constraint line.
 
 ---
 
@@ -127,17 +137,19 @@ ER lists), and specific beat names from the roll band table. Replaced with gener
 
 3. **Thread ID hallucination** (Space Western) — **Fixed!** Completed thread IDs now shown.
 
-4. **Persona effectiveness varies:**
+4. **Scene transition teleportation** (Noir T6) — **Fixed!** Narrator now required to show active departure before arrival.
+
+5. **Persona effectiveness varies:**
    - `cautious` (Zombie): Best checker score, goal stagnation
    - `aggressive` (Pirate): Best thread resolution, no convergence
    - `explorer` (Space Western): Good convergence
    - `driven` (Noir/WW2): Worst convergence
 
-5. **Roll distribution acceptable** — Bad rates: 36.8%–57.9%.
+6. **Roll distribution acceptable** — Bad rates: 36.8%–57.9%.
 
-6. **Convergence generally poor** — Only Zombie and Space Western show reasonable patterns.
+7. **Convergence generally poor** — Only Zombie and Space Western show reasonable patterns.
 
-7. **Goal evolution weak** — Repeated/stagnant goals in most games. WW2's 4 changes in 4 turns is churn.
+8. **Goal evolution weak** — Repeated/stagnant goals in most games. WW2's 4 changes in 4 turns is churn.
 
 ---
 
@@ -152,6 +164,7 @@ ER lists), and specific beat names from the roll band table. Replaced with gener
 | `build_prompt_context` had `band=""` | `ccya/ev/prompt_eval.py` | Read `band` from `event.ruling.band` |
 | `build_prompt_context` had empty NPC roster | `ccya/ev/prompt_eval.py` | Build from compendium with `_build_npc_roster()` |
 | `build_prompt_context` had `curtain_call=""` | `ccya/ev/prompt_eval.py` | Compute from scene data like the engine |
+| Scene transition teleportation (Noir T6) | `ccya/prompts/narrate_user.j2` | Require active departure before arrival |
 
 ### Remaining tooling limitations
 
