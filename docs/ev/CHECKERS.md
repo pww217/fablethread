@@ -93,9 +93,9 @@ When inspecting a game, check one area at a time rather than running all checker
 
 - **Type:** deterministic
 - **Fields:** `pacing_context`
-- **What it checks:** Phase engine transitions follow the state machine (SETUP→RISING, RISING→CLIMAX, CLIMAX→RESOLUTION, RESOLUTION→BREATHER, BREATHER→RISING, any→SETUP on location_change), climax_turn_count monotonicity, outcome_hint consistency during climax limit
+- **What it checks:** Phase engine transitions follow the state machine (SETUP→RISING, RISING→CLIMAX, CLIMAX→RESOLUTION, RESOLUTION→BREATHER, BREATHER→RISING), climax_turn_count monotonicity, outcome_hint consistency during climax limit
 - **CLI:** `ev.py check TURN phase_transition`
-- **Caveats:** Any→SETUP is always valid (location_change). CLIMAX turn count must increment by 1 within CLIMAX phase. When climax_turn_count >= 4 (default limit), outcome_hint must be "transition".
+- **Caveats:** CLIMAX turn count must increment by 1 within CLIMAX phase. When climax_turn_count >= 4 (default limit), outcome_hint must be "transition".
 
 ### recent_beats
 

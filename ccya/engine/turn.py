@@ -498,13 +498,11 @@ def _compute_scene_phase(
     """Compute the scene phase using the 5-state machine.
 
     Transitions: SETUP→RISING, RISING→CLIMAX, CLIMAX→RESOLUTION,
-    RESOLUTION→SETUP/BREATHER, BREATHER→RISING, any→SETUP (location change).
+    RESOLUTION→BREATHER, BREATHER→RISING.
 
     Mutates state["scene"] in place. Returns the updated scene dict.
     """
-    meta = state.get("meta") or {}
     scene = state.setdefault("scene", {})
-    current_turn = meta.get("turn", 0)
 
     # Initialize new fields if missing
     scene.setdefault("scene_phase", "SETUP")
@@ -521,14 +519,6 @@ def _compute_scene_phase(
     for t in _raw_threads:
         if isinstance(t, dict) and getattr(ArcThread.model_validate(t) if not isinstance(t, ArcThread) else t, "urgency", "normal") == "urgent":
             thread_urgency_count += 1
-
-    # Check location change: if scene was entered this turn, force SETUP
-    scene_entered = scene.get("turn_entered", 0)
-    location_change_this_turn = (scene_entered == current_turn)
-
-    # Location change → SETUP (except RESOLUTION which splits below)
-    if location_change_this_turn and phase != "RESOLUTION":
-        return {**scene, "scene_phase": "SETUP", "climax_turn_count": 0, "breather_turn_count": 0}
 
     # Phase transition logic
     if phase == "SETUP":
@@ -547,8 +537,6 @@ def _compute_scene_phase(
             climax_turn_count = 0
 
     elif phase == "RESOLUTION":
-        # RESOLUTION splits based on location change (already handled above)
-        # If we're still here, no location change → BREATHER
         phase = "BREATHER"
         breather_turn_count = 1
 
