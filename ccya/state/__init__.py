@@ -12,7 +12,6 @@ from ccya.state.delta import (
     apply_delta,
     reconcile_delta,
 )
-from ccya.state.delta_builder import PC_CONDITIONS_MAX
 from ccya.state.inventory import (
     normalize_inventory_id,
     resolve_inventory_canonical_id,
@@ -38,7 +37,6 @@ __all__ = [
     "load_recent_turns",
     "load_state",
     "normalize_inventory_id",
-    "PC_CONDITIONS_MAX",
     "remove_last_chronicle_turn",
     "remove_last_event",
     "reconcile_delta",
