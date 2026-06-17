@@ -247,7 +247,7 @@ LLM failure in extraction → typed LlmcError raised with ErrorKind classificati
 - `pending_gm_beat` lifecycle: null-clear on null storytell output (key popped from meta); replaced on valid storytell emittion (beat_expires_turn = turn_no + 2); expires when turn_no > beat_expires_turn at narrate setup.
 - `recent_rolls`: rolling window (max 5) of `{"turn": int, "band": str}` records, most-recent-first. Appended after ruling phase on rolled turns. Consumed by `detect_spiral()` in `_narrate_setup()` to flag death spirals (3 consecutive hard+ rolls, or 3/5 recent). Spiral flag removes pressure bucket beats from allowed_beat_types.
 - `spiral_detected` field on `PacingContext` (bool), also stored on `TurnContext._spiral_detected` for pipeline use.
-- `scene_phase` stored in `state["scene"]` alongside `turn_entered`, `climax_turn_count`, `breather_turn_count`. Transitions: SETUP→RISING (urgent thread), RISING→CLIMAX (≥threshold urgent OR age≥pressure_threshold), CLIMAX→RESOLUTION (climax_turn_count≥limit), RESOLUTION→SETUP (location change) or BREATHER, BREATHER→RISING (urgent thread OR breather_max_turns).
+- `scene_phase` stored in `state["scene"]` alongside `turn_entered`, `climax_turn_count`, `breather_turn_count`. Transitions: SETUP→RISING (urgent thread), RISING→CLIMAX (≥threshold urgent OR age≥pressure_threshold), CLIMAX→RESOLUTION (climax_turn_count≥limit), RESOLUTION→BREATHER, BREATHER→RISING (urgent thread OR breather_max_turns).
 
 ### Seed emotional context → narrator consumption
 - **Seed generates**: `goal_context` (character-specific stake in visible_goal), NPC `relation` field (narrative job relative to PC), action text (character-shaped, scene-grounded).

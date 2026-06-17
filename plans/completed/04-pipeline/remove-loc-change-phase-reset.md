@@ -42,7 +42,7 @@ None identified.
 
 ## Status
 
-`open`
+`completed`
 
 ## Phases
 
@@ -57,6 +57,8 @@ Single phase: core engine change + checker fix + doc update
 - `ccya/engine/turn.py` lines 492–561 (`_compute_scene_phase`)
 - `ccya/ev/checkers/phase_transition.py` lines 1–78
 - `docs/architecture/pacing-systems.md` lines 35–50
+- `docs/repomap.md` lines 247–251 (scene_phase transitions section)
+- `docs/ev/CHECKERS.md` lines 92–99 (phase_transition checker section)
 
 ### Detailed steps
 
@@ -121,6 +123,43 @@ Replace with a single row:
 **Why:** The removed rows described the old location-change behavior. The new row clarifies that RESOLUTION→BREATHER is always a natural 1-turn transition.
 
 **Validation:** `rg "Location change" docs/architecture/pacing-systems.md` returns no matches after edit.
+
+#### Step 1.5 — Update scene_phase transition description in repomap.md
+
+**File:** `docs/repomap.md`
+
+**What:** On line 250, change:
+```
+RESOLUTION→SETUP (location change) or BREATHER
+```
+to:
+```
+RESOLUTION→BREATHER
+```
+
+**Why:** The repomap describes the phase transitions for the engine module. The old description included the location-change→SETUP transition which is being removed.
+
+**Validation:** `rg "RESOLUTION.*SETUP.*location" docs/repomap.md` returns no matches after edit.
+
+#### Step 1.6 — Update phase_transition checker description in CHECKERS.md
+
+**File:** `docs/ev/CHECKERS.md`
+
+**What:** Two changes:
+
+1. Line 96 — Remove `any→SETUP on location_change` from the "What it checks" description. The line should read:
+```
+- **What it checks:** Phase engine transitions follow the state machine (SETUP→RISING, RISING→CLIMAX, CLIMAX→RESOLUTION, RESOLUTION→BREATHER, BREATHER→RISING), climax_turn_count monotonicity, outcome_hint consistency during climax limit
+```
+
+2. Line 98 — Remove the `Any→SETUP is always valid (location_change).` caveat. The line should read:
+```
+- **Caveats:** CLIMAX turn count must increment by 1 within CLIMAX phase. When climax_turn_count >= 4 (default limit), outcome_hint must be "transition".
+```
+
+**Why:** The checker no longer has the "any→SETUP always valid" skip (removed in Step 1.3). The documentation must accurately describe what the checker validates.
+
+**Validation:** `rg "any.*SETUP.*location_change" docs/ev/CHECKERS.md` returns no matches after edit.
 
 ### Tests to write or update
 
