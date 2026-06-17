@@ -111,27 +111,23 @@ def _format_ts(ts_str: str) -> str:
 
 
 def _save_rel_name(save_dir: Path) -> str:
-    """Return save directory name relative to saves/ for UI display/comparison."""
-    saves_dir = Path("saves").resolve()
-    try:
-        return str(save_dir.resolve().relative_to(saves_dir))
-    except ValueError:
-        return save_dir.name
+    """Return save directory name relative to saves/ or evals/runs/ for UI display/comparison."""
+    for root in [Path("saves"), Path("evals/runs")]:
+        try:
+            return str(save_dir.resolve().relative_to(root.resolve()))
+        except ValueError:
+            continue
+    return save_dir.name
 
 
 def _list_saves() -> list[dict[str, Any]]:
     """List all available saves (excluding default)."""
-    saves_dir = Path("saves")
-    if not saves_dir.exists():
-        return []
-
-    save_dirs = _app_mod._find_save_dirs(saves_dir)
+    save_dirs = _app_mod._find_all_save_dirs()
     save_dirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    resolved_saves = saves_dir.resolve()
 
     result = []
     for entry in save_dirs:
-        name = str(entry.relative_to(resolved_saves))
+        name = _save_rel_name(entry)
         events_file = entry / "events.jsonl"
 
         turn_count = 0
@@ -170,6 +166,7 @@ def _list_saves() -> list[dict[str, Any]]:
         loc = state.get("location", {}) or {}
         location_name = loc.get("name")
 
+        kind = "eval" if name.startswith("runs/") else "server"
         result.append({
             "name": name,
             "display_name": entry.name,
@@ -178,6 +175,7 @@ def _list_saves() -> list[dict[str, Any]]:
             "last_modified": last_modified,
             "pc_name": pc_name,
             "location_name": location_name,
+            "kind": kind,
         })
 
     return result
@@ -808,6 +806,17 @@ async def list_saves():
     return JSONResponse({"saves": saves})
 
 
+def _is_valid_save_path(target: Path) -> bool:
+    """Check target is under saves/ or evals/runs/ (path traversal guard)."""
+    for root in [Path("saves"), Path("evals/runs")]:
+        try:
+            target.relative_to(root.resolve())
+            return True
+        except ValueError:
+            continue
+    return False
+
+
 @_app_mod.app.post("/api/switch-save")
 async def switch_save(request: Request):
     """Switch to a different save directory."""
@@ -872,13 +881,14 @@ async def delete_save(request: Request):
     if save_name == _save_rel_name(_app_mod.SAVE_DIR):
         return JSONResponse({"error": "Cannot delete the currently active save"}, status_code=400)
 
-    saves_dir = Path("saves")
-    target = (saves_dir / save_name).resolve()
-
-    # Guard: must be under saves/
-    try:
-        target.relative_to(saves_dir.resolve())
-    except ValueError:
+    # Try both root dirs to resolve the target
+    target: Path | None = None
+    for root in [Path("saves"), Path("evals/runs")]:
+        candidate = (root / save_name).resolve()
+        if _is_valid_save_path(candidate):
+            target = candidate
+            break
+    if target is None:
         return JSONResponse({"error": "Invalid save path"}, status_code=400)
 
     if not target.is_dir():

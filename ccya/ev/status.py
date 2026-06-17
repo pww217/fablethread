@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from ccya.ev.play import EV_SAVES_DIR
 from ccya.ev.session_config import load_session_config
 from ccya.state.io import load_state
 
@@ -15,7 +16,7 @@ def cmd_status(flags: dict[str, str]) -> None:
     if save_dir_str:
         save_dir = Path(save_dir_str)
     else:
-        latest = Path("saves/ev/latest")
+        latest = EV_SAVES_DIR / "latest"
         if not latest.exists():
             print("Error: no session found. Run 'ev.py init' or specify --save-dir.", file=sys.stderr)
             sys.exit(1)

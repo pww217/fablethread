@@ -45,12 +45,28 @@ def _find_save_dirs(saves_dir: Path) -> list[Path]:
     return list(found.values())
 
 
+def _find_all_save_dirs() -> list[Path]:
+    """Find save directories in both saves/ and evals/runs/."""
+    all_dirs: dict[str, Path] = {}
+    for root in [Path("saves"), Path("evals/runs")]:
+        if root.exists():
+            for entry in root.iterdir():
+                if not entry.is_dir() or entry.name == "default":
+                    continue
+                if (entry / "state.yaml").exists():
+                    r = entry.resolve()
+                    all_dirs.setdefault(str(r), r)
+                else:
+                    for sub in entry.iterdir():
+                        if sub.is_dir() and (sub / "state.yaml").exists():
+                            r = sub.resolve()
+                            all_dirs.setdefault(str(r), r)
+    return list(all_dirs.values())
+
+
 def _find_latest_save() -> Path | None:
-    """Return the most recently modified non-default save directory, or None."""
-    saves_dir = Path("saves")
-    if not saves_dir.exists():
-        return None
-    candidates = _find_save_dirs(saves_dir)
+    """Return the most recently modified save directory across saves/ and evals/runs/, or None."""
+    candidates = _find_all_save_dirs()
     return max(candidates, key=lambda d: d.stat().st_mtime) if candidates else None
 
 

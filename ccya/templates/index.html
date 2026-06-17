@@ -441,7 +441,7 @@
                 </div>
                 <label class="save-picker-toggle" x-show="!savePicker.loading">
                     <input type="checkbox" x-model="savePicker.showEvGames">
-                    <span>Show EV games</span>
+                    <span>Show eval runs</span>
                 </label>
                 <div class="save-picker-list">
                     <template x-for="save in filteredSaves()" :key="save.name">
@@ -2202,7 +2202,7 @@ function game() {
         filteredSaves() {
             const saves = this.savePicker.saves;
             if (this.savePicker.showEvGames) return saves;
-            return saves.filter(s => !s.name.startsWith('ev/'));
+            return saves.filter(s => s.kind !== 'eval');
         },
     };
 }

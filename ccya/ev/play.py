@@ -4,7 +4,6 @@ import asyncio
 import logging
 import sys
 import time
-import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -22,7 +21,7 @@ from ccya.ev.session_config import load_session_config, resolve_player_config
 
 _log = logging.getLogger(__name__)
 
-EV_SAVES_DIR = Path("saves/ev")
+EV_SAVES_DIR = Path("evals/runs")
 
 _play_loop: asyncio.AbstractEventLoop | None = None
 
@@ -280,11 +279,76 @@ def _ensure_seed_generated(
     return load_state(save_dir)
 
 
-def _create_play_session(pack: str | None = None, packs_dir: Path | None = None) -> Path:
+def _get_git_info() -> dict[str, str | bool]:
+    """Return git tag, sha, branch, and dirty flag. All fields default to 'no-repo'."""
+    import subprocess
+    info: dict[str, str | bool] = {
+        "git_tag": "no-repo",
+        "git_sha": "no-repo",
+        "git_branch": "no-repo",
+        "git_dirty": True,
+    }
+    try:
+        info["git_sha"] = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL, text=True
+        ).strip()
+        info["git_branch"] = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], stderr=subprocess.DEVNULL, text=True
+        ).strip()
+        info["git_tag"] = subprocess.check_output(
+            ["git", "describe", "--tags", "--always"], stderr=subprocess.DEVNULL, text=True
+        ).strip()
+        info["git_dirty"] = bool(subprocess.check_output(
+            ["git", "status", "--porcelain"], stderr=subprocess.DEVNULL, text=True
+        ).strip())
+    except (subprocess.SubprocessError, FileNotFoundError):
+        pass
+    return info
+
+
+def _write_run_meta(session_dir: Path, pack: str | None, persona: str | None, max_turns: int) -> None:
+    """Write run-meta.yaml into the session directory."""
+    import yaml
+    git = _get_git_info()
+    meta = {
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "git_sha": git["git_sha"],
+        "git_branch": git["git_branch"],
+        "git_tag": git["git_tag"],
+        "git_dirty": git["git_dirty"],
+        "pack": pack or "unknown",
+        "personality": persona or "unknown",
+        "max_turns": max_turns,
+        "actual_turns": None,
+        "duration_ms": None,
+        "pass_rate": None,
+    }
+    meta_path = session_dir / "run-meta.yaml"
+    with open(meta_path, "w") as f:
+        yaml.dump(meta, f, default_flow_style=False, sort_keys=False)
+
+
+def _create_play_session(
+    pack: str | None = None,
+    packs_dir: Path | None = None,
+    personality: str | None = None,
+    max_turns: int = 20,
+) -> Path:
     now = datetime.now()
-    rand_suffix = uuid.uuid4().hex[:6]
-    session_name = now.strftime("%Y%m%d_%H%M%S_") + rand_suffix
-    session_dir = EV_SAVES_DIR / session_name
+
+    # Build grouping dir: YYYY-MM-DD--{tag}--{sha8}
+    git = _get_git_info()
+    tag = str(git["git_tag"])
+    sha = str(git["git_sha"])
+    group_name = now.strftime("%Y-%m-%d") + f"--{tag}--{sha}"
+
+    # Build run dir: HHMM--{pack}--{persona}--{max_turns}t
+    pack_label = pack or "unknown"
+    persona_label = personality or "unknown"
+    run_name = now.strftime("%H%M") + f"--{pack_label}--{persona_label}--{max_turns}t"
+
+    group_dir = EV_SAVES_DIR / group_name
+    session_dir = group_dir / run_name
     session_dir.mkdir(parents=True, exist_ok=True)
 
     if pack:
@@ -301,10 +365,13 @@ def _create_play_session(pack: str | None = None, packs_dir: Path | None = None)
     else:
         init_save_dir(session_dir, _default_state())
 
+    _write_run_meta(session_dir, pack, personality, max_turns)
+
     latest_link = EV_SAVES_DIR / "latest"
     if latest_link.is_symlink() or latest_link.exists():
         latest_link.unlink()
-    latest_link.symlink_to(session_dir.name)
+    relative_target = str(Path(group_name) / run_name)
+    latest_link.symlink_to(relative_target)
 
     return session_dir
 
@@ -424,7 +491,7 @@ def _llm_session(
     if save_dir is not None:
         state = load_state(save_dir)
     else:
-        session_dir = _create_play_session(pack=pack)
+        session_dir = _create_play_session(pack=pack, personality=personality, max_turns=max_turns)
         state = _ensure_seed_generated(session_dir, pack, config)
         save_dir = session_dir
 
@@ -579,7 +646,7 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
                         if d.is_dir() or d.is_symlink():
                             print(f"  {d}", file=sys.stderr)
                 else:
-                    print("  (saves/ev/ does not exist)", file=sys.stderr)
+                    print(f"  ({EV_SAVES_DIR} does not exist)", file=sys.stderr)
                 sys.exit(1)
             state = load_state(save_dir)
             session_config = load_session_config(save_dir)
@@ -621,11 +688,11 @@ def cmd_play(flags: dict[str, str], args: list[str]) -> None:
         save_dir = Path(flags["save-dir"])
         state = load_state(save_dir)
     elif pack_id:
-        session_dir = _create_play_session(pack=pack_id)
+        session_dir = _create_play_session(pack=pack_id, max_turns=2)
         save_dir = session_dir
         state = _ensure_seed_generated(session_dir, pack_id, config)
     else:
-        session_dir = _create_play_session()
+        session_dir = _create_play_session(max_turns=2)
         save_dir = session_dir
         state = load_state(save_dir)
 

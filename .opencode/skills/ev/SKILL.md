@@ -4,7 +4,9 @@ description: ev.py — CLI for turn data, checkers, play, and eval
 ---
 
 Read these before using:
-- `scripts/debug/README.md` — full command reference
+- `docs/ev/COMMANDS.md` — full command reference
+- `docs/ev/EVAL-RUNS.md` — eval run storage & workflow
+- `docs/ev/PROMPT-AUDIT.md` — prompt template audit workflow
 - `docs/ev/CHECKERS.md` — checker library
 - `plans/completed/05-eval/prompt-eval.md` — prompt-eval implementation plan
 

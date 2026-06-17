@@ -1,0 +1,31 @@
+# Eval Report — {{ pack }} / {{ personality }}
+
+- **Date:** {{ created_at }}
+- **Git SHA:** {{ git_sha }}
+- **Branch:** {{ git_branch }}
+- **Pack:** {{ pack }}
+- **Persona:** {{ personality }}
+- **Turns:** {{ actual_turns }} / {{ max_turns }}
+- **Duration:** {{ duration_ms }} ms
+- **Pass rate:** {{ pass_rate }}
+
+## Results by Rubric Area
+
+{% for area in rubric_areas %}
+### {{ area.number }}. {{ area.name }} [{{ area.passed }}/{{ area.total }}]
+{% for checker in area.checkers %}
+  - {{ checker.name }}: {{ checker.status }}{% if checker.detail %} — {{ checker.detail }}{% endif %}
+{% endfor %}
+{% if area.red_flags %}
+  &#26A0; Red flags: {{ area.red_flags | join("; ") }}
+{% endif %}
+{% endfor %}
+
+## Comparison vs Previous Run
+
+{% if prev_run %}
+- **Previous:** {{ prev_run.path }} ({{ prev_run.date }})
+- **Pass rate change:** {{ "%+d" | format(pass_rate_delta) }}%
+{% else %}
+No previous run to compare.
+{% endif %}
