@@ -2,7 +2,7 @@
 {% set comp = (state.compendium.npcs if state.compendium and state.compendium.npcs else {}) %}
 {% set _present = namespace(items=[]) %}
 {% if comp is mapping and comp %}{% for _k, _v in comp.items() %}{% if _v is mapping and _v.get("presence") == "present" %}{% set _present.items = _present.items + [_v] %}{% endif %}{% endfor %}{% endif %}
-{% set present_npcs = (_present.items | sort(attribute="name")) if _present.items else [] %}
+{% set present_npcs = (_present.items | sort(attribute="display_name")) if _present.items else [] %}
 {% if (state.scene.tags or []) or present_npcs %}
 <details class="sidebar-card" id="card-scene" data-card="scene" open>
     <summary>Scene</summary>
@@ -10,7 +10,7 @@
         {% if present_npcs %}
         <div class="npc-list">
             {% for npc in present_npcs %}
-            {% set npc_name = npc.get('name', npc.get('id', npc)) if npc is mapping else npc %}
+            {% set npc_name = (npc.get('display_name') or npc.get('id') or npc) if npc is mapping else npc %}
             {% set npc_title = npc.get('title', '') if npc is mapping else '' %}
             {% set npc_notes = npc.get('notes', '') if npc is mapping else '' %}
             {% set npc_bio = npc.get('bio', '') if npc is mapping else '' %}

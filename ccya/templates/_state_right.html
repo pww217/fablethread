@@ -1,12 +1,12 @@
 {# Right sidebar: Player, Inventory, World State, Debug #}
-{% set pc_tag = state.pc.tagline or state.pc.concept %}
+{% set pc_tag = state.pc.get('tagline') or state.pc.get('concept') %}
 
 <details class="sidebar-card" id="card-player" data-card="player" open>
     <summary>Player</summary>
     <div class="sidebar-card-body">
         <div class="stat-row{% if state.pc.bio %} has-tooltip{% endif %}">
             <span class="stat-label">Name</span>
-            <span class="stat-value">{{ state.pc.name or '—' }}</span>
+            <span class="stat-value">{{ state.pc.get('name') or '—' }}</span>
             {% if state.pc.bio %}
             <div class="tooltip-body" data-md>{{ state.pc.bio }}</div>
             {% endif %}
@@ -39,8 +39,8 @@
         {% if state.pc.conditions %}
         <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;">
             {% for cond in state.pc.conditions %}
-            {% set cond_label = cond.label if cond is mapping else cond %}
-            {% set cond_desc = cond.description if cond is mapping else '' %}
+            {% set cond_label = cond.get('label') if cond is mapping else cond %}
+            {% set cond_desc = cond.get('description') if cond is mapping else '' %}
             <span class="condition-pill{% if cond_desc %} has-tooltip{% endif %}">{{ cond_label }}{% if cond_desc %}<div class="tooltip-body">{{ cond_desc }}</div>{% endif %}</span>
             {% endfor %}
         </div>
