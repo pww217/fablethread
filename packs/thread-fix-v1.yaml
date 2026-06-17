@@ -1,0 +1,6 @@
+id: thread-management-fix-v1
+description: Test storyteller thread management instructions - only use existing threads, meaningful progress, no update+resolve conflict
+save: saves/ev/20260616_203130_6fe3d7
+turn: 1
+stream: storytell
+temp: 0.7

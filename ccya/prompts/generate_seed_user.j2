@@ -66,7 +66,7 @@ ARC CATEGORY: {{ pool_selection.arc.id }} (tags: {{ pool_selection.arc.tags | jo
 CHARACTER DYNAMIC: {{ pool_selection.character_dynamic.id }} (tags: {{ pool_selection.character_dynamic.tags | join(", ") }})
 MORAL PRESSURE: {{ pool_selection.moral_pressure.id }} (tags: {{ pool_selection.moral_pressure.tags | join(", ") }})
 {% if pool_selection and pool_selection.npc_bond %}
-NPC BOND: {{ pool_selection.npc_bond.id }} — {{ pool_selection.npc_bond.description }}
+NPC BOND (write the DESCRIPTION as the `bond` value — NOT the ID): {{ pool_selection.npc_bond.description }}
 {% endif %}
 {% if pool_selection and pool_selection.scene_bundle %}
 SCENE BUNDLE "{{ pool_selection["scene_bundle"]["id"] }}":

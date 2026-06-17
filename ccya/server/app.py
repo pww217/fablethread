@@ -28,23 +28,6 @@ PACKS_DIR = REPO_ROOT / "packs"
 SAVE_DIR = Path("saves") / "default"
 
 
-def _find_save_dirs(saves_dir: Path) -> list[Path]:
-    """Find all save directories (top-level and one level deep, excluding default, deduped by resolved path)."""
-    found: dict[str, Path] = {}
-    for entry in saves_dir.iterdir():
-        if not entry.is_dir() or entry.name == "default":
-            continue
-        if (entry / "state.yaml").exists():
-            r = entry.resolve()
-            found.setdefault(str(r), r)
-        else:
-            for sub in entry.iterdir():
-                if sub.is_dir() and (sub / "state.yaml").exists():
-                    r = sub.resolve()
-                    found.setdefault(str(r), r)
-    return list(found.values())
-
-
 def _find_all_save_dirs() -> list[Path]:
     """Find save directories in both saves/ and evals/runs/."""
     all_dirs: dict[str, Path] = {}

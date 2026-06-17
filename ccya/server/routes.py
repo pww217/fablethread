@@ -166,7 +166,8 @@ def _list_saves() -> list[dict[str, Any]]:
         loc = state.get("location", {}) or {}
         location_name = loc.get("name")
 
-        kind = "eval" if name.startswith("runs/") else "server"
+        resolved = entry.resolve()
+        kind = "eval" if str(resolved).startswith(str(Path("evals/runs").resolve())) else "user"
         result.append({
             "name": name,
             "display_name": entry.name,
@@ -495,6 +496,15 @@ def _resolve_npc_personalities(state: dict[str, Any]) -> None:
     from ccya.personality import ARCHETYPES
 
     npcs = (state.get("compendium") or {}).get("npcs") or {}
+    # Build bond lookup: id → description from the active pack's scenario
+    bond_lookup: dict[str, str] = {}
+    try:
+        scenario = _app_mod._active_pack.scenario
+        if scenario and scenario.npc_bonds:
+            bond_lookup = {b.id: b.description for b in scenario.npc_bonds if b.description}
+    except Exception:
+        pass
+
     for entry in npcs.values():
         if not isinstance(entry, dict):
             continue
@@ -503,6 +513,10 @@ def _resolve_npc_personalities(state: dict[str, Any]) -> None:
             arch = ARCHETYPES[arch_id]
             entry["personality_label"] = arch.label
             entry["personality_traits"] = ", ".join(arch.traits)
+        # Resolve bond ID to human-readable description
+        raw_bond = entry.get("bond")
+        if raw_bond and raw_bond in bond_lookup:
+            entry["bond_label"] = bond_lookup[raw_bond]
 
 
 @_app_mod.app.get("/panels/state-left")
@@ -831,11 +845,14 @@ async def switch_save(request: Request):
     saves_dir = Path("saves")
     target = (saves_dir / save_name).resolve()
 
-    # Guard: must be under saves/
-    try:
-        target.relative_to(saves_dir.resolve())
-    except ValueError:
-        return JSONResponse({"error": "Invalid save path"}, status_code=400)
+    # Guard: must be under saves/ or evals/runs/
+    if not _is_valid_save_path(target):
+        # Try evals/runs/
+        alt = (Path("evals/runs") / save_name).resolve()
+        if _is_valid_save_path(alt):
+            target = alt
+        else:
+            return JSONResponse({"error": "Invalid save path"}, status_code=400)
 
     if not target.is_dir():
         return JSONResponse({"error": f"Save directory not found: {save_name}"}, status_code=404)
