@@ -224,7 +224,6 @@ ev.py trace meta.recent_beats saves/my-game/events.jsonl    # recent beats over 
 - No overdraw: removing items that don't exist or have zero quantity
 - Condition IDs appear in ruling's `reason` text (lowercase comparison)
 - No duplicate condition IDs in a single turn
-- Condition count respects cap (`PC_CONDITIONS_MAX` = 5)
 - Condition removals reference conditions that existed in previous turn's state
 
 **Commands:**

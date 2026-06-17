@@ -52,7 +52,7 @@ Replace each hardcoded constant with a live import from its authoritative source
 ### Context files to load
 - `ccya/eval/engine_mirror.py` (full file, 120 lines)
 - `ccya/engine/config.py` EngineConfig class definition and defaults
-- `ccya/state/delta_builder.py` PC_CONDITIONS_MAX and _DEFAULT_CONDITION_TTL exports
+- `ccya/state/delta_builder.py` DEFAULT_CONDITION_TTL export
 - `ccya/models.py` ArcThread urgency Literal annotation
 
 ### Detailed steps
@@ -125,7 +125,7 @@ _DEFAULT_CONDITION_TTL = DEFAULT_CONDITION_TTL  # legacy name, do not use new co
 
 **What:** Update the import from delta_builder to include `DEFAULT_CONDITION_TTL`:
 ```python
-from ccya.state.delta_builder import PC_CONDITIONS_MAX, DEFAULT_CONDITION_TTL
+from ccya.state.delta_builder import DEFAULT_CONDITION_TTL
 ```
 
 Add a new module-level constant in engine_mirror:

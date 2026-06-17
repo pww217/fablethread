@@ -1,19 +1,15 @@
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from ccya.ev.checkers import CheckerResult, register_checker
 from ccya.ev.events import extract_field
-from ccya.state.delta_builder import PC_CONDITIONS_MAX
-
-_log = logging.getLogger(__name__)
 
 
 @register_checker(
     "conditions_lifecycle", "deterministic",
     requires_fields=["applied.pc_condition_add", "applied.pc_condition_remove"],
-    description="Dedup, cap, TTL for PC conditions",
+    description="Dedup and TTL for PC conditions",
 )
 def conditions_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
@@ -40,15 +36,6 @@ def conditions_lifecycle(events: list[dict[str, Any]]) -> CheckerResult:
                 "turn": ev.get("turn"),
                 "check": "dedup",
                 "detail": f"duplicate condition IDs: {dups}",
-            })
-            all_passed = False
-
-        # cap check (state_snapshot.pc.conditions is the authoritative count)
-        if len(conditions) > PC_CONDITIONS_MAX:
-            findings.append({
-                "turn": ev.get("turn"),
-                "check": "conditions_cap",
-                "detail": f"conditions count={len(conditions)} exceeds max {PC_CONDITIONS_MAX}",
             })
             all_passed = False
 

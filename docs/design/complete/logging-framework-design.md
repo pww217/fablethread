@@ -18,7 +18,6 @@ The engine's logging has three categories of problems:
 
 - **No new dependencies.** Must use Python stdlib `logging` only.
 - **Backward compatible.** Existing log calls without new `extra` fields produce identical output.
-- **No PC_CONDITIONS_MAX changes.** That's handled separately; this design does not instrument condition eviction.
 - **ErrorKind must remain string constants** (not `Enum`) — `TurnResult.errors` is `list[dict]` used in JSON serialization and Pydantic models.
 - **Observability design is the parent.** This doc's error kind taxonomy extends `ccya/errors.py` as defined in `docs/design/complete/observability-design.md`. All decisions here must be consistent with the observability design's visibility convention (ERROR = stderr always visible, WARNING = stdout visible, INFO = file only at WARNING+ StreamHandler, DEBUG = file only).
 
@@ -31,7 +30,6 @@ The engine's logging has three categories of problems:
 - **JSONL formatter field extension.** Covered by observability design (Phase 1).
 - **Logger naming standardization.** Covered by observability design (Phase 2).
 - **Health telemetry logging.** Covered by observability design (Phase 5).
-- **PC_CONDITIONS_MAX eviction logging.** Explicitly out of scope — handled separately.
 
 ## Decision Table
 
@@ -118,9 +116,7 @@ The engine's logging has three categories of problems:
 
 4. **Overdraw clamp at WARNING** (`turn.py:1156-1161`). Non-blocking state change — item removed despite insufficient quantity. Player never knows. Should be INFO (operator-visible state mutation).
 
-5. **PC_CONDITIONS_MAX silent eviction** (`delta_builder.py:264`). No log when oldest condition is silently dropped. (Out of scope per user request — handled separately.)
-
-6. **TurnResult.errors never sent to UI** (`routes.py:252`). Logged at ERROR but no SSE event. Player never sees per-stream errors or validation rejections.
+5. **TurnResult.errors never sent to UI** (`routes.py:252`). Logged at ERROR but no SSE event. Player never sees per-stream errors or validation rejections.
 
 7. **Missing error kinds** (`ccya/errors.py`). No error kinds for inventory failures, condition failures, location failures, NPC failures, arc/thread failures, state save/append failures.
 
@@ -238,7 +234,7 @@ _log.error("state_load.default_returned save_dir=%s reason=%s", save_dir, reason
 | Keep `TurnResult.errors` as log-only | Player never sees per-stream errors or validation rejections. The all-streams-failed SSE event is the only error signal, which is too coarse. |
 | Use `Enum` for ErrorKind | `TurnResult.errors` is `list[dict]` used in JSON serialization and Pydantic models. String constants avoid serialization issues. |
 | Add a new SSE event type for errors | The UI already handles `turn_error` events. Adding a new event type would require UI changes. |
-| Keep `CONDITION_OVERFLOW` error kind | `PC_CONDITIONS_MAX` eviction is excluded; no other overflow scenarios exist. Dead code. |
+| Keep `CONDITION_OVERFLOW` error kind | No overflow scenarios exist. Dead code. |
 | Re-log `TurnResult.errors` at SSE handler | Errors already carry structured metadata at creation site. Re-logging duplicates and risks misclassification. |
 
 ## Failure Modes and Risks
@@ -276,7 +272,6 @@ _log.error("state_load.default_returned save_dir=%s reason=%s", save_dir, reason
 - **`_ERRORS_LOG` deque** in app.py — structure enriched but container unchanged.
 - **Turn viewer `_tv_failures()` function** — existing failure extraction from events.jsonl preserved.
 - **LLM client `chat()` and `chat_stream()` public API signatures** — exception types change but call sites catch broadly anyway.
-- **PC_CONDITIONS_MAX** — explicitly out of scope. No logging added for condition eviction.
 - **Delta validation `_validate()` function** — already correctly guards against `None` canonical (line 1539) and uses `.get()` (line 1547). No structural changes needed.
 - **`_coerce_scene_json()` coercion logic** — incomplete coercion is a known limitation. Adding error kinds for coercion failures is sufficient; no restructuring of the coercion function.
 - **Observability design's Phase 1-5 migration plan** — this design's changes are additive to the observability design's migration phases. Log level corrections and error kind additions can be done in Phase 1-2 alongside the foundation work.
@@ -367,7 +362,7 @@ EXTRACTION_PARSE_FAILED     = "EXTRACTION_PARSE_FAILED"
 
 2. **Inventory resolution traces.** Keep `resolve_inventory_canonical_id` success traces at DEBUG (`inventory.py:49, 53`). Only mutation outcomes (add/remove/apply at `delta_builder.py`) go to INFO.
 
-3. **CONDITION_OVERFLOW removed.** `PC_CONDITIONS_MAX` eviction is excluded; no other overflow scenarios exist. Error kind removed from the taxonomy.
+3. **CONDITION_OVERFLOW removed.** No overflow scenarios exist. Error kind removed from the taxonomy.
 
 4. **TurnResult.errors re-logging.** SSE handler does not re-log errors. Errors already carry structured metadata at creation site. Handler only yields SSE events.
 

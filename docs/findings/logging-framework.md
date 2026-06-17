@@ -32,21 +32,19 @@ storyteller actions.
 | 6 | `inventory_update` — canonical not found | `KeyError` at `by_id[canonical]` line 206 | DEBUG | **500** |
 | 7 | `inventory_update` — canonical found, applies name/notes update | Works correctly | INFO | |
 | 8 | `pc_condition_add` — condition ID already in state | Silently skipped at line 250 | WARNING via `reconcile_delta` | condition not added |
-| 9 | `pc_condition_add` — `PC_CONDITIONS_MAX` exceeded | Hard slice `existing_conds[-PC_CONDITIONS_MAX:]` line 264 — oldest silently dropped | DEBUG | oldest condition silently lost |
-| 10 | `apply_npc_scene_management()` — `CompendiumNpcUpdate` with `str` aliases | `_coerce_scene_json()` handles string coercion at extraction parse time, so `aliases` arriving as `["foo"]` works. Dict aliases like `{"foo": "bar"}` from LLM cause `TypeError` in Pydantic → caught as extraction parse failure → stream skipped | WARNING | extraction skipped for that stream |
-| 11 | `apply_npc_scene_management()` — group NPC quantity merging | `_strip_quantity_suffix()` + alias map can redirect to wrong NPC ID, merging entries | DEBUG | wrong NPC merged |
-| 12 | `apply_npc_scene_management()` — `first_seen_turn` / `last_seen` | `first_seen_turn` is only set when `is_new=True` (line 254) — existing entries protected | DEBUG | correct |
-| 13 | `location_change` — `LocationRef` Pydantic model missing `id` | Pydantic validation fails → extraction stream parse failure → retry | WARNING | |
-| 14 | `location_change` — LLM returns dict without `id` field | `_coerce_scene_json()` does not coerce this → `LocationRef(**dict)` fails Pydantic → extraction stream parse failure | WARNING | |
-| 15 | `location_change` — LLM returns `location_change` as non-`LocationRef` object (e.g., dict from malformed JSON) | `delta.location_change.id` raises `AttributeError` if object has no `.id` attr, or returns `None` if it's a model with optional `id=None` → sets `location.id = None` | DEBUG | **data corruption** — location ID becomes `None` |
-| 16 | `arc_update` — `_merge_arc_update()` with non-`CampaignArc` object | `AttributeError` at `.model_dump()` or `.threads` access | DEBUG | **500** |
-| 17 | `arc_update` — `CampaignArc` with thread that has no `id` field | Pydantic validation on model construction catches this upstream | WARNING | |
-| 18 | `actions` rolling window — `delta.actions` is `None` | Impossible — `StateDelta.actions` has `default_factory=list`, Pydantic ensures it's always a list | N/A | |
+| 9 | `apply_npc_scene_management()` — `CompendiumNpcUpdate` with `str` aliases | `_coerce_scene_json()` handles string coercion at extraction parse time, so `aliases` arriving as `["foo"]` works. Dict aliases like `{"foo": "bar"}` from LLM cause `TypeError` in Pydantic → caught as extraction parse failure → stream skipped | WARNING | extraction skipped for that stream |
+| 10 | `apply_npc_scene_management()` — group NPC quantity merging | `_strip_quantity_suffix()` + alias map can redirect to wrong NPC ID, merging entries | DEBUG | wrong NPC merged |
+| 11 | `apply_npc_scene_management()` — `first_seen_turn` / `last_seen` | `first_seen_turn` is only set when `is_new=True` (line 254) — existing entries protected | DEBUG | correct |
+| 12 | `location_change` — `LocationRef` Pydantic model missing `id` | Pydantic validation fails → extraction stream parse failure → retry | WARNING | |
+| 13 | `location_change` — LLM returns dict without `id` field | `_coerce_scene_json()` does not coerce this → `LocationRef(**dict)` fails Pydantic → extraction stream parse failure | WARNING | |
+| 14 | `location_change` — LLM returns `location_change` as non-`LocationRef` object (e.g., dict from malformed JSON) | `delta.location_change.id` raises `AttributeError` if object has no `.id` attr, or returns `None` if it's a model with optional `id=None` → sets `location.id = None` | DEBUG | **data corruption** — location ID becomes `None` |
+| 15 | `arc_update` — `_merge_arc_update()` with non-`CampaignArc` object | `AttributeError` at `.model_dump()` or `.threads` access | DEBUG | **500** |
+| 16 | `arc_update` — `CampaignArc` with thread that has no `id` field | Pydantic validation on model construction catches this upstream | WARNING | |
+| 17 | `actions` rolling window — `delta.actions` is `None` | Impossible — `StateDelta.actions` has `default_factory=list`, Pydantic ensures it's always a list | N/A | |
 
 **Key gaps (verified):**
 - **`inventory_remove` unresolved canonical → `KeyError` at line 181** — `resolve_inventory_remove_target()` returns `None` on no match. The code does `ex = by_id[canonical]` (not `.get()`) — a `KeyError` crashes the turn. This is the primary 500 error source. Add `if canonical is None: _log.warning(...); continue` or make `by_id[canonical]` safe.
 - **Overdraw clamp silently succeeds** — `warn_overdraw` is non-blocking. The item removal is clamped and the turn succeeds. Player never knows. Currently logged at WARNING.
-- **`PC_CONDITIONS_MAX` hard slice silently drops oldest** — no log entry, no user signal. When 6+ conditions exist and a new one is added, the oldest is silently dropped.
 - **`location_change` corruption path** — if `delta.location_change` is a non-model object with a `None` or missing `id`, `location.id` gets set to `None` with no crash, no warning. The game continues with `location.id = None`.
 - **`normalize_inventory_id(None)` → `"none"`** — passes `str(None)` = `"none"` through normalization. Creates garbage item ID `"none"` if `None` reaches inventory add. Should guard at source in extraction.
 
@@ -552,11 +550,7 @@ exception path (step 3–5) surfaces as a `turn_error` SSE event.
 5. **Overdraw clamp silently succeeds** — `warn_overdraw` rejection is non-blocking
    - Player tries to use an item they don't have enough of, it gets removed anyway
    - Only visible in JSONL log at WARNING level
-   - **Fix**: Either block the turn (return rejection) or promote to INFO
-
-6. **`PC_CONDITIONS_MAX` silently drops oldest condition** (`delta_builder.py:264`)
-   - No log entry when oldest condition is silently evicted
-   - **Fix**: Log at INFO when oldest is dropped
+    - **Fix**: Either block the turn (return rejection) or promote to INFO
 
 7. **`TurnResult.errors` never sent to UI** (`routes.py:252`)
    - Per-stream errors and validation rejections are logged but invisible to player

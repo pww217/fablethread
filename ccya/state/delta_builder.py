@@ -19,7 +19,6 @@ from ccya.state.inventory import (
 
 _NAME_RE = re.compile(r"[^\x00-\x7F]")
 _DEFAULT_CONDITION_TTL = 10
-PC_CONDITIONS_MAX: int = 5
 
 _log = logging.getLogger(__name__)
 
@@ -261,7 +260,7 @@ def apply_delta(
             cond_dict["turns_remaining"] = _DEFAULT_CONDITION_TTL
         existing_conds.append(cond_dict)
         existing_ids.add(cid)
-    state["pc"]["conditions"] = existing_conds[-PC_CONDITIONS_MAX:]
+    state["pc"]["conditions"] = existing_conds
 
     if delta.scene_tagline is not None:
         state.setdefault("scene", {})["tagline"] = _strip_non_ascii(delta.scene_tagline)

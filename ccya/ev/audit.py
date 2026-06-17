@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from ccya.state.delta_builder import PC_CONDITIONS_MAX
-
 
 def _detect_npc_ghosting(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Detect NPC disappearance without departure tracking.
@@ -84,7 +82,6 @@ def cmd_state_history(events: list[dict[str, Any]]) -> None:
     active_conditions: list[str] = []
     condition_history: list[dict[str, Any]] = []
     max_concurrent = 0
-    cap_violations: list[dict[str, Any]] = []
 
     for ev in events:
         t = ev.get("turn")
@@ -120,12 +117,6 @@ def cmd_state_history(events: list[dict[str, Any]]) -> None:
         if active_conditions:
             if len(active_conditions) > max_concurrent:
                 max_concurrent = len(active_conditions)
-            if len(active_conditions) > PC_CONDITIONS_MAX:
-                cap_violations.append({
-                    "turn": t,
-                    "count": len(active_conditions),
-                    "conditions": sorted(active_conditions),
-                })
 
     # Track active inventory
     active_inventory: dict[str, int] = {}
@@ -175,13 +166,7 @@ def cmd_state_history(events: list[dict[str, Any]]) -> None:
 
     # Conditions
     print("--- Conditions ---")
-    print(f"Max concurrent: {max_concurrent} (cap: {PC_CONDITIONS_MAX})")
-    if cap_violations:
-        print(f"Cap violations: {len(cap_violations)}")
-        for v in cap_violations:
-            print(f"  T{v['turn']}: {v['count']} active — {', '.join(v['conditions'])}")
-    else:
-        print("No cap violations.")
+    print(f"Max concurrent: {max_concurrent}")
     print()
 
     # Condition timeline
@@ -227,7 +212,7 @@ def cmd_state_history(events: list[dict[str, Any]]) -> None:
 
 
 def cmd_active_conditions(events: list[dict[str, Any]]) -> None:
-    """Show max concurrent conditions, cap violations, per-turn active list."""
+    """Show max concurrent conditions and per-turn active list."""
     active_conditions: list[str] = []
     turn_conds: dict[int, list[str]] = {}
 
@@ -256,12 +241,9 @@ def cmd_active_conditions(events: list[dict[str, Any]]) -> None:
         return
 
     max_count = max(len(v) for v in turn_conds.values()) if turn_conds else 0
-    violations = {t: conds for t, conds in turn_conds.items() if len(conds) > PC_CONDITIONS_MAX}
 
     print("=== Active Conditions ===")
-    print(f"Max concurrent: {max_count} (cap: {PC_CONDITIONS_MAX})")
-    if violations:
-        print(f"Cap violations: {len(violations)}")
+    print(f"Max concurrent: {max_count}")
     print()
 
     # Table
@@ -270,9 +252,8 @@ def cmd_active_conditions(events: list[dict[str, Any]]) -> None:
     for t in sorted(turn_conds.keys()):
         conds = turn_conds[t]
         count = len(conds)
-        flag = " *** CAP EXCEEDED ***" if count > PC_CONDITIONS_MAX else ""
         cond_str = ", ".join(conds)
-        print(f"{t:>5} | {count:>5} | {cond_str}{flag}")
+        print(f"{t:>5} | {count:>5} | {cond_str}")
 
 
 def cmd_npc_ghosting(events: list[dict[str, Any]]) -> None:

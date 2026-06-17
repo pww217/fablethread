@@ -53,9 +53,9 @@ When inspecting a game, check one area at a time rather than running all checker
 
 - **Type:** deterministic
 - **Fields:** `applied.pc_condition_add`, `applied.pc_condition_remove`, `extraction_context.conditions_this_turn`
-- **What it checks:** Conditions present in ruling reason, no duplicate condition IDs, condition count respects cap
+- **What it checks:** Conditions present in ruling reason, no duplicate condition IDs
 - **CLI:** `ev.py check TURN conditions_lifecycle`
-- **Caveats:** Checks that condition IDs appear in the ruling's reason text (lowercase comparison). Dedup check is case-insensitive. Cap check compares against `PC_CONDITIONS_MAX` (5).
+- **Caveats:** Checks that condition IDs appear in the ruling's reason text (lowercase comparison). Dedup check is case-insensitive.
 
 ### thread_lifecycle
 

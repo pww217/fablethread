@@ -356,7 +356,7 @@ world.factions: [str], world.locations: [str]
 
 ## Key constants
 
-- `PC_CONDITIONS_MAX = 5`, `MOMENTUM_MIN = -3`, `MOMENTUM_MAX = 3`
+- `MOMENTUM_MIN = -3`, `MOMENTUM_MAX = 3`
 - `DEFAULT_CONDITION_TTL = 10` turns when `turns_remaining` is None
 
 ### ErrorKind constants + LlmcError hierarchy (`ccya/errors.py`)

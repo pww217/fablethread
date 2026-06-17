@@ -51,7 +51,7 @@ Create `ccya/ev/checkers/__init__.py` with the registry, decorator, `CheckerResu
 - `ccya/engine/config.py` line 86 (`EngineConfig` — engine constants for direct import)
 - `ccya/rules.py` (momentum band mapping, VALID_SKILLS)
 - `ccya/state/momentum.py` (MOMENTUM_MIN, MOMENTUM_MAX)
-- `ccya/state/delta_builder.py` (PC_CONDITIONS_MAX, DEFAULT_CONDITION_TTL)
+- `ccya/state/delta_builder.py` (DEFAULT_CONDITION_TTL)
 - `ccya/engine/turn.py` lines near PRESSURE_BEAT_TYPES import
 - `ccya/engine/extraction.py` lines 62–101 (extraction_context shape)
 - `docs/design/ev-tooling-design.md` sections 4 (Checker library) and New Model Shapes
@@ -234,9 +234,8 @@ def conditions_lifecycle(events: list[dict]) -> CheckerResult:
 Port from `universal_asserts.py`:
 - `check_conditions_in_reason()` — conditions referenced in outcome_summary reasons
 - Dedup check — no duplicate condition IDs
-- Cap check — conditions_this_turn <= PC_CONDITIONS_MAX
 
-Import: `from ccya.state.delta_builder import PC_CONDITIONS_MAX, DEFAULT_CONDITION_TTL`.
+Import: `from ccya.state.delta_builder import DEFAULT_CONDITION_TTL`.
 
 #### Step 2.7 — Port `thread_lifecycle` checker
 
