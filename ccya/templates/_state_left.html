@@ -30,7 +30,6 @@
                     {% if npc_pl %}<p><strong>Personality:</strong> {{ npc_pl }}{% if npc_pt %} — {{ npc_pt }}{% endif %}</p>{% endif %}
                     {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% endif %}
                     {% if npc_bond %}<p><strong>Bond:</strong> {{ npc_bond }}</p>{% endif %}
-                    {% if ls %}<p>Last seen: {{ ls.location_name }}</p>{% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -145,7 +144,9 @@
             {% set nm = entry.get('name', '') if entry is mapping else '' %}
             {% set ttl = entry.get('title', '') if entry is mapping else '' %}
             {% set bio = entry.get('bio', '') if entry is mapping else '' %}
-            {% set ls = entry.get('last_seen') if entry is mapping and entry.get('last_seen') else None %}
+            {% set last_presence = entry.get('last_presence_turn') if entry is mapping else None %}
+            {% set last_loc = entry.get('last_seen_location') if entry is mapping else None %}
+            {% set is_departed = entry.get('presence') == 'departed' %}
             {% set npc_bond = (entry.get('bond_label', '') or entry.get('bond', '')) if entry is mapping else '' %}
             {% set _mot = entry.get('motivation', '') if entry is mapping else '' %}
             {% set npc_pl = entry.get('personality_label', '') if entry is mapping else '' %}
@@ -159,7 +160,11 @@
                     {% if npc_pl %}<p><strong>Personality:</strong> {{ npc_pl }}{% if npc_pt %} — {{ npc_pt }}{% endif %}</p>{% set _has = true %}{% endif %}
                     {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% set _has = true %}{% endif %}
                     {% if npc_bond %}<p><strong>Bond:</strong> {{ npc_bond }}</p>{% set _has = true %}{% endif %}
-                    {% if ls %}<p>Last seen: {{ ls.location_name }}</p>{% endif %}
+                    {% if is_departed and entry.get('departed_reason') %}
+                    <p>Last seen: {{ last_loc or 'unknown' }} — {{ entry.departed_reason }}{% if last_presence %} ({{ state.meta.turn - last_presence }} turns ago){% endif %}</p>
+                    {% elif last_loc %}
+                    <p>Last seen: {{ last_loc }}{% if last_presence %} ({{ state.meta.turn - last_presence }} turns ago){% endif %}</p>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}

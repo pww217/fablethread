@@ -77,7 +77,7 @@ When inspecting a game, check one area at a time rather than running all checker
 
 - **Type:** deterministic
 - **Fields:** `state_snapshot.compendium.npcs`, `applied.compendium_npc_update`
-- **What it checks:** All NPC presence values in compendium are valid (`present`, `nearby`, `known`, `departed`, `archived`). Departed NPCs have required `departed_reason` and `departed_summary` fields.
+- **What it checks:** All NPC presence values in compendium are valid (`present`, `nearby`, `known`, `departed`, `archived`). Departed NPCs have required `departed_reason` field.
 - **CLI:** `ev.py check TURN npc_presence`
 - **Caveats:** Only checks state_snapshot compendium entries, not extraction output. Note: `extraction_context` is NOT stored in events.
 

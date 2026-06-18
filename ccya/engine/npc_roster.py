@@ -23,7 +23,8 @@ def build_npc_roster(
     """Build sorted NPC roster from compendium, filtering by presence.
 
     Returns list of dicts with keys: id, name, title, bio, presence, motivation,
-    fear, leverage, bond, notes, last_seen.
+    fear, leverage, bond, notes, last_presence_turn, last_seen_location,
+    departed_reason.
     """
     seen: dict[str, dict[str, Any]] = {}
 
@@ -49,7 +50,8 @@ def build_npc_roster(
             "leverage": entry.get("leverage") or None,
             "bond": entry.get("bond") or None,
             "notes": entry.get("notes") or None,
-            "last_seen": entry.get("last_seen") or None,
+            "last_presence_turn": entry.get("last_presence_turn"),
+            "last_seen_location": entry.get("last_seen_location") or None,
             "departed_reason": entry.get("departed_reason") or None,
         }
 

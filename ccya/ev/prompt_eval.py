@@ -60,7 +60,8 @@ def _build_npc_roster(comp: dict[str, Any]) -> list[dict[str, Any]]:
             "personality_label": "",
             "personality_traits": "",
             "personality_speech_hint": "",
-            "last_seen": ndata.get("last_seen", ""),
+            "last_presence_turn": ndata.get("last_presence_turn"),
+            "last_seen_location": ndata.get("last_seen_location", ""),
         }
         entries.append(entry)
     entries.sort(key=lambda e: (PRESENCE_SORT.get(e["presence"], 9), e["name"]))
