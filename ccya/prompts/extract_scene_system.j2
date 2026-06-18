@@ -28,9 +28,9 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
   "id": "snake_case_id",
   "name": "Display Name (omit if unchanged)",
   "title": "Optional title (omit if unchanged)",
-  "bio": "TWO SENTENCES: (1) appearance and demeanor — how they are physically presented, bearing/posture/expression. (2) personality traits or tangible facts about who they are as a person — background details, habits, reputation that define them. Must be relevant to the story, not generic filler like 'is a merchant'. Omit if unchanged.",
-  "aliases": ["alias1"],
-  "allegiance": "faction_or_alignment",
+   "bio_appearance": "Physical appearance and demeanor — bearing, posture, expression, distinctive features. One sentence.",
+   "bio_background": "Backstory, personality traits, reputation — who they are as a person. One sentence.",
+   "aliases": ["alias1"],
   "motivation": "what this NPC fundamentally wants",
   "fear": "what this NPC is most afraid of",
   "leverage": "what this NPC can offer, threaten, or withhold",
@@ -39,18 +39,14 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
   "presence": "present|nearby|known|departed",
   "notes": "5–8 words max describing the NPC's current stance or action in this scene. No clauses, no conjunctions. Not plot-critical — quick situational cue only.",
   "position": "Where the NPC is in the scene. One short phrase. Only update when narration moves the NPC or implies movement.",
-  "departed_reason": "short label — required when presence is departed",
-  "departed_summary": "1-2 sentence prose — required when presence is departed",
-}
-
-`departed_reason`: Required when `presence` is `"departed"`. Short label describing the departure. Examples: "killed in battle", "sailed away", "imprisoned for life".
-`departed_summary`: Required when `presence` is `"departed"`. 1-2 sentences describing what happened, for the compendium and UI display.
+   "departed_reason": "1-2 sentence prose describing what happened — required when presence is departed. Examples: killed in battle, sailed away after the raid, imprisoned for life"
+ }
 
 ### How to use compendium_npc_update
 
 - **NPC enters scene:** Set `presence: "present"` and provide context in `notes`. For first-time NPCs, include `name`, `bio` (mandatory — even for ambient NPCs like "crowd"), and optionally `title`. For known NPCs, only set `presence`/`notes`.
 - **NPC behavior changes:** Update `notes` with a brief situational cue reflecting their current stance toward the player.
-- **Durable identity updates:** Update `name`, `title`, `bio`, `aliases`, `allegiance`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
+- **Durable identity updates:** Update `name`, `title`, `bio_appearance`, `bio_background`, `aliases`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
 - **NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes.
 - **Re-promotion:** If an NPC was demoted to `nearby` by a location change but narration shows they followed, set `presence: "present"` — do NOT create a new compendium entry.
 

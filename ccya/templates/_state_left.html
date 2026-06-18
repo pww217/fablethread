@@ -13,12 +13,13 @@
             {% set npc_name = (npc.get('display_name') or npc.get('id') or npc) if npc is mapping else npc %}
             {% set npc_title = npc.get('title', '') if npc is mapping else '' %}
             {% set npc_notes = npc.get('notes', '') if npc is mapping else '' %}
-            {% set npc_bio = npc.get('bio', '') if npc is mapping else '' %}
+            {% set npc_bio_appearance = npc.get('bio_appearance', '') if npc is mapping else '' %}
+            {% set npc_bio_background = npc.get('bio_background', '') if npc is mapping else '' %}
             {% set _mot = npc.get('motivation', '') if npc is mapping else '' %}
             {% set npc_bond = npc.get('bond_label', '') or npc.get('bond', '') if npc is mapping else '' %}
             {% set npc_pl = npc.get('personality_label', '') if npc is mapping else '' %}
             {% set npc_pt = npc.get('personality_traits', '') if npc is mapping else '' %}
-            {% set _has_tt = npc_bio or npc_pl or _mot or npc_bond %}
+            {% set _has_tt = npc_bio_appearance or npc_bio_background or npc_pl or _mot or npc_bond %}
             <div class="npc-item{% if _has_tt %} has-tooltip{% endif %}">
                 <span class="npc-name">{{ npc_name }}{% if npc_title %}<span class="npc-title"> — {{ npc_title }}</span>{% endif %}</span>
                 {% if npc_notes %}
@@ -26,11 +27,11 @@
                 {% endif %}
                 {% if _has_tt %}
                 <div class="tooltip-body" data-md-compendium>
-                    {% if npc_bio %}<p>{{ npc_bio }}</p>{% endif %}
+                    {% if npc_bio_appearance %}<p>{{ npc_bio_appearance }}</p>{% endif %}
+                    {% if npc_bio_background %}<p>{{ npc_bio_background }}</p>{% endif %}
                     {% if npc_pl %}<p><strong>Personality:</strong> {{ npc_pl }}{% if npc_pt %} — {{ npc_pt }}{% endif %}</p>{% endif %}
                     {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% endif %}
                     {% if npc_bond %}<p><strong>Bond:</strong> {{ npc_bond }}</p>{% endif %}
-                    {% if ls %}<p>Last seen: {{ ls.location_name }}</p>{% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -144,8 +145,8 @@
             {% for nid, entry in comp | dictsort %}
             {% set nm = entry.get('name', '') if entry is mapping else '' %}
             {% set ttl = entry.get('title', '') if entry is mapping else '' %}
-            {% set bio = entry.get('bio', '') if entry is mapping else '' %}
-            {% set ls = entry.get('last_seen') if entry is mapping and entry.get('last_seen') else None %}
+            {% set bio_appearance = entry.get('bio_appearance', '') if entry is mapping else '' %}
+            {% set bio_background = entry.get('bio_background', '') if entry is mapping else '' %}
             {% set npc_bond = (entry.get('bond_label', '') or entry.get('bond', '')) if entry is mapping else '' %}
             {% set _mot = entry.get('motivation', '') if entry is mapping else '' %}
             {% set npc_pl = entry.get('personality_label', '') if entry is mapping else '' %}
@@ -154,12 +155,17 @@
             <div class="compendium-item has-tooltip">
                 <span class="compendium-line">{{ nm or (entry.aliases[0] if entry.aliases else nid) }}{% if ttl %}<span class="compendium-title"> — {{ ttl }}</span>{% endif %}</span>
                 <div class="tooltip-body" data-md-compendium>
-                    {% if bio %}<p>{{ bio }}</p>{% else %}—{% endif %}{% set _has = false %}
+                    {% if bio_appearance %}<p>{{ bio_appearance }}</p>{% elif bio_background %}<p>{{ bio_background }}</p>{% else %}—{% endif %}{% set _has = false %}
                     {% if _aliases and not nm %}<p><em>Previously known as: {{ _aliases[0] }}</em></p>{% set _has = true %}{% endif %}
                     {% if npc_pl %}<p><strong>Personality:</strong> {{ npc_pl }}{% if npc_pt %} — {{ npc_pt }}{% endif %}</p>{% set _has = true %}{% endif %}
                     {% if _mot %}<p><strong>Motivation:</strong> {{ _mot }}</p>{% set _has = true %}{% endif %}
                     {% if npc_bond %}<p><strong>Bond:</strong> {{ npc_bond }}</p>{% set _has = true %}{% endif %}
-                    {% if ls %}<p>Last seen: {{ ls.location_name }}</p>{% endif %}
+                    {% if entry.get('last_presence_turn') and entry.get('presence') == 'departed' %}
+                    {% set _turns_ago = (state.meta.get('turn', 0) - entry.get('last_presence_turn', 0)) %}
+                    <p>Last seen: {{ (entry.get('last_seen') or {}).get('location_name', 'unknown location') }} ({{ _turns_ago }} turns ago)</p>
+                    {% elif entry.get('last_seen') %}
+                    <p>Last seen: {{ entry.last_seen.location_name }}</p>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}

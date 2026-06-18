@@ -1162,23 +1162,19 @@ async def run_turn(
             else:
                 meta.pop("last_condition_change_reason", None)
 
-            # Stamp last_seen on touched NPCs; create minimal entry if new
+            # Track last_presence_turn on touched NPCs; create minimal entry if new
             comp = state.get("compendium", {}).get("npcs", {})
-            location = state.get("location", {})
             for cu in (delta.compendium_npc_update or []):
                 entry = comp.get(cu.id)
                 if entry is None:
                     comp[cu.id] = {
                         "name": cu.id.replace("_", " ").title(),
                         "presence": "nearby",
-                        "nearby_since_turn": turn_no,
                     }
                     entry = comp[cu.id]
-                entry["last_seen"] = {
-                    "turn": turn_no,
-                    "location_id": location.get("id", ""),
-                    "location_name": location.get("name", ""),
-                }
+                # Track last turn NPC was present or nearby
+                if entry.get("presence") in ("present", "nearby"):
+                    entry["last_presence_turn"] = turn_no
 
             # Arc director: process thread updates and arc resolution
             if state.get("arc") and storyteller_result:
@@ -1279,8 +1275,8 @@ async def run_turn(
             if not isinstance(entry, dict):
                 continue
             if entry.get("presence") == "nearby":
-                nearby_since = entry.get("nearby_since_turn")
-                if isinstance(nearby_since, int) and turn_no - nearby_since >= nearby_ttl:
+                last_present = entry.get("last_presence_turn")
+                if isinstance(last_present, int) and turn_no - last_present >= nearby_ttl:
                     entry["presence"] = "known"
 
         archive_ttl = config.departed_archive_ttl if config else 3

@@ -37,7 +37,8 @@ class CompendiumEntry(BaseModel):
     model_config = {"extra": "allow"}
     name: str | None = None
     title: str | None = None
-    bio: str | None = None
+    bio_appearance: str | None = None
+    bio_background: str | None = None
     bond: str | None = None
     presence: str | None = None  # "present" | "nearby" | "known" — set by seed or engine
     notes: str | None = None      # scene-specific attitude, cleared on departure
