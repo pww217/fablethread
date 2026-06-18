@@ -278,6 +278,16 @@ def _apply_arc_resolve(
 
     resolution = storyteller_result.arc_resolve
 
+    # Warn if arc_resolve fires too frequently (< 5 turns since last resolution)
+    last_arc_resolve_turn = state.get("meta", {}).get("last_arc_resolve_turn", 0)
+    if last_arc_resolve_turn > 0:
+        turns_since = turn_no - last_arc_resolve_turn
+        if turns_since < 5:
+            _log.warning(
+                "arc_resolve.frequency trace_id=%d turns_since=%d — arc resolved too frequently (target: 8-15 turns)",
+                turn_no, turns_since, extra={"turn": turn_no},
+            )
+
     # All threads carry forward; apply drop_threads filter
     drop_ids = set(resolution.drop_threads)
     surviving_threads = [t for t in old_arc.threads if t.id not in drop_ids]
@@ -316,6 +326,7 @@ def _apply_arc_resolve(
     )
 
     state["arc"] = new_arc.model_dump()
+    state.setdefault("meta", {})["last_arc_resolve_turn"] = turn_no
 
     return new_arc
 
@@ -1194,6 +1205,14 @@ async def run_turn(
 
             # Arc director: process thread updates and arc resolution
             if state.get("arc") and storyteller_result:
+                # Process chapter_end signal (separate from arc_resolve)
+                if storyteller_result.chapter_end:
+                    _log.info(
+                        "chapter_end trace_id=%s turn=%d",
+                        trace_id, turn_no, extra={"trace_id": trace_id, "turn": turn_no},
+                    )
+                    state.setdefault("meta", {})["last_chapter_end_turn"] = turn_no
+
                 thread_delta = _apply_thread_updates(state, storyteller_result, config, dedup_rejections=thread_dedup_rejections)
                 if thread_delta is not None:
                     _merge_arc_update(
