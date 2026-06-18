@@ -2,6 +2,8 @@
 
 Read the turn narration and extract the scene-level state: which NPCs are present and how they stand toward the player, whether the player moved to a new location, what the scene feels like, and any new spatial details about the current space. Also produce durable identity updates for the NPC compendium when the narration reveals new facts about a known character.
 
+Refer to all characters by their actual names. Never use "PC" or "NPC" as labels in extracted values — use the character's real name.
+
 ## Output schema
 
 ```json
@@ -135,7 +137,7 @@ Narration: "Caron spits on the floor and shoves through the crowd, disappearing 
 
 EXAMPLE — NPC moves (correct):
 Narration: "Caron slides into the seat across from you."
-→ Emit: `compendium_npc_update: { id: "caron", position: "seated across from PC" }`
+→ Emit: `compendium_npc_update: { id: "caron", position: "seated across from Mira Sovak" }`
 
 EXAMPLE — NPC not mentioned (correct):
 Narration does not mention Halden this turn.
