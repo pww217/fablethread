@@ -34,6 +34,8 @@ Omit any field with no change to communicate — no empty arrays, objects, or st
 
 **CRITICAL: Only reference threads that appear in the active threads list.** The user prompt shows all active threads with their IDs. You MUST use those exact IDs. If a thread ID is not shown in the active threads list, do NOT create or update it. Hallucinating thread IDs causes silent failures — the update is rejected and the thread state never changes.
 
+**CRITICAL: Do NOT resolve threads that do not exist.** `thread_resolve` may only reference IDs from the active threads list. If a thread ID is not shown in the active threads list, do NOT resolve it — even if the narration describes events that seem to match. Resolving non-existent threads causes silent failures.
+
 **CRITICAL: Never both update AND resolve the same thread in one turn.** If you are resolving a thread (it concluded, failed, or was absorbed), emit it ONLY in `thread_resolve`. Do NOT also include a `thread_update` for that same ID. These are mutually exclusive operations.
 
 **Include location in thread summaries when relevant:** `"rescue hostages from warehouse district"` not `"rescue hostages"`.
