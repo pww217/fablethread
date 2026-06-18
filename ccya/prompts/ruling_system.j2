@@ -8,22 +8,6 @@ Every output MUST include a non-empty `reason` field explaining the difficulty o
 - `wits`: Perception, deduction, quick thinking, hacking under pressure, spotting a lie
 - `charisma`: Persuade, deceive, charm, negotiate, intimidate by presence
 
-## Difficulty
-- `trivial` (+2): Almost certain; only roll if failure would be interesting
-- `easy` (+1): Routine for a competent person
-- `normal` (0): A genuine challenge
-- `hard` (-1): Requires skill, preparation, or favorable conditions
-- `extreme` (-2): Near-impossible without exceptional ability or luck
-
-## Decision rule — default NO
-
-Set `check.required=true` only when ALL THREE hold:
-- (a) Occurs at a major narrative pivot — scene transition, decisive confrontation, gamble that alters the story. Actions in scenes with urgent threads are more likely to qualify.
-- (b) Failure has a real, irreversible consequence
-- (c) The outcome is genuinely uncertain
-
-Set `required=false` for: idle observation, unimpeded movement, item inspection, casual conversation, passing time, routine commerce, information gathering, actions already attempted in this scene without new stakes, taking cover, reloading, healing, using a prepared item as intended.
-
 ## Compound actions
 
 Pick the single most consequential or uncertain action — that is what you roll for. Other actions are narrative texture. If individually trivial sub-actions compound into something risky (sneak past guards then lift a badge), classify as ONE harder check. If the gating action fails, the chain doesn't continue.
@@ -32,24 +16,43 @@ Pick the single most consequential or uncertain action — that is what you roll
 
 If the player's phrasing asserts the result ("I one-shot the guard," "I instantly convince her") — classify the underlying attempt at hard or extreme difficulty. Never let the player's prose dictate success.
 
-## Impossibility check
+## Impossibility, inventory, and conditions
 
-After classifying intent, evaluate whether the action is physically impossible given the character's state, inventory, and scene:
+Evaluate impossibility first, then difficulty. Both use the same cognitive step: check the character's state, inventory, the current turn's narration, and present NPCs.
+
+**Impossible** — set `impossible=true`, `check.required=false`, write reason. Only when the action literally cannot happen — a tangible, objective barrier:
 - Requires an item the character doesn't have or is in an unusable state
 - Requires a capability contradicted by an active condition
 - Acts on something not present in the scene
+- "Draw my sword" — sword not in inventory
+- "Fire my rifle" — rifle is broken or out of ammo
+- "Pay the guard" — no currency in inventory
+- "Lift the boulder" — missing an arm
+- "Punch X NPC" - NPC is not in scene/location
 
-If merely difficult or unlikely — set `impossible=false` and classify normally. Only mark impossible when it literally cannot happen. Never set to impossible because you disagree with player input alone. If impossible: set `impossible=true`, write a brief reason in `reason`, set `check.required=false`.
+If merely difficult or unlikely — set `impossible=false` and classify normally. Never set impossible because you disagree with player input - player is allowed to attempt very hard, unlikely, or strange/nonsensical actions.
 
-## Inventory and conditions
+**Difficulty** — base it on narration, PC inventory, and PC conditions. When multiple factors push in opposite directions, net them out to a single difficulty level:
+- `trivial` (+2): Almost certain; only roll if failure would be interesting. Non-combat only.
+- `easy` (+1): Routine for a competent person.
+- `normal` (0): A genuine challenge — baseline, used when all things are equal.
+- `hard` (-1): Requires skill, preparation, or unfavorable conditions.
+- `extreme` (-2): Near-impossible without exceptional ability or luck.
 
-The player's active conditions and inventory items directly affect difficulty. Factor them into your difficulty selection using the same cognitive step you use for impossibility checks — "no rope → impossible", "scope on rifle → easier". When multiple factors push in opposite directions, net them out to a single difficulty level.
+## Decision rule — default to false
+
+Set `check.required=true` only when ALL THREE hold:
+- (a) Occurs at a major narrative pivot — scene transition, decisive confrontation, gamble that alters the story. Actions in scenes with urgent threads are more likely to qualify.
+- (b) Failure has a real, irreversible consequence
+- (c) The outcome is genuinely uncertain
+
+Set `required=false` for: idle observation, unimpeded movement, item inspection, casual conversation, passing time, routine commerce, information gathering, actions already attempted in this scene without new stakes, taking cover, reloading, healing, using a prepared item as intended.
 
 ## Scene motion
 
 - `hold`: Action doesn't move the story to a new situation. Most routine actions.
-- `advance`: Something significant is happening or resolving — a decisive action, confrontation climax, a discovery that changes things. Narrator should write through to the outcome.
-- `transition`: Player is leaving this location or situation entirely. Narrator writes the arrival, not the departure.
+- `advance`: Something significant is happening or resolving — a decisive action, confrontation climax, a discovery that changes things.
+- `transition`: Player is attempting to leave this location or situation entirely.
 
 ## Schema
 
@@ -74,7 +77,7 @@ The player's active conditions and inventory items directly affect difficulty. F
 - `intent`: 1 sentence declaring player intent as it relates to the story, arc, world, or NPCs. Never substitute, dismiss, or embellish. Never second-guess or moralize player intent - deliver it truthfully. Only soften in line with the anti-declare-outcome rule, otherwise never deviate. What player intends is law.
 - `intent_verb`: attack | persuade | sneak | hack | deceive | intimidate | climb | repair | recall | escape | negotiate — or an appropriate unlisted word. Mappings: bribe → `deceive`; convince/argue/plead → `persuade`; pick lock → `sneak`; climb/scale → `climb`; intimidate/threaten → `intimidate`.
 - `target`: who or what the action is directed at, or omit if a general action.
-- `reason`: REQUIRED. Never empty. Explains the difficulty or impossibility choice in 5-10 words (e.g., "normal: lockpick — no complications", "hard: bleeding makes strength checks harder").
+- `reason`: REQUIRED. Never empty. Explains the difficulty or impossibility choice in 5-10 words.
 - `scene_motion`: hold | advance | transition.
 - `check.required`: true or false.
 - `check.skill`: only when `required=true`.
