@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from ccya.ev.checkers import CheckerResult, register_checker
+from ccya.ev.checkers.thread_resolution_validity import _apply_sanitizer_changes_to_arc
 from ccya.ev.events import extract_field
 
 _log = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ def arc_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     prev_snap: dict[str, Any] | None = None
+    prev_sanitizer: dict[str, Any] | None = None
 
     for ev in events:
         # Capture the previous turn's state_snapshot before updating.
@@ -25,8 +27,11 @@ def arc_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
         # AFTER this turn's processing — which is the pre-resolution state for
         # the NEXT turn's arc_resolve.
         prev_snap_for_this = prev_snap
-        if "state_snapshot" in ev:
+        prev_sanitizer_for_this = prev_sanitizer
+        if ev.get("kind") is None and "state_snapshot" in ev:
             prev_snap = ev["state_snapshot"]
+        if ev.get("kind") == "sanitizer":
+            prev_sanitizer = ev
 
         storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
         arc_resolve = storytell_output.get("arc_resolve")
@@ -70,6 +75,9 @@ def arc_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
         drop_threads = arc_resolve.get("drop_threads") or []
         if drop_threads:
             snap = prev_snap_for_this or {}
+            # Reconstruct arc state by applying sanitizer changes from the previous turn.
+            # This ensures we validate against the state the storyteller actually saw.
+            snap = _apply_sanitizer_changes_to_arc(snap, prev_sanitizer_for_this)
             arc = snap.get("arc") or {}
             thread_ids = {
                 t.get("id") for t in (arc.get("threads") or [])
