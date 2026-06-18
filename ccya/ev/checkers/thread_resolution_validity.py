@@ -93,6 +93,7 @@ def _apply_sanitizer_changes_to_arc(
     "thread_resolution_validity", "deterministic",
     requires_fields=["extraction.storytell", "state_snapshot"],
     description="thread_resolve entries have valid id/resolution_state/outcome",
+    needs_non_turn_events=True,
 )
 def thread_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []

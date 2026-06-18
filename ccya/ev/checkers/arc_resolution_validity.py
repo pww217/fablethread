@@ -14,6 +14,7 @@ _log = logging.getLogger(__name__)
     "arc_resolution_validity", "deterministic",
     requires_fields=["extraction.storytell", "state_snapshot"],
     description="arc_resolve has resolution + visible_goal, drop_threads reference existing threads",
+    needs_non_turn_events=True,
 )
 def arc_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
