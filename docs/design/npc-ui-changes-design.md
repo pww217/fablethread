@@ -1,490 +1,515 @@
-# NPC UI & Model Design
+# NPC UI & Model Changes Design
 
 ## Purpose
 
-Design for splitting NPC bio into appearance/background, combining departed fields, computing relative "turns ago" for last-seen tracking, adding condition_change_reason to PC panel, and removing unused stub fields (allegiance, nearby_since_turn). Reference: "This document is the design authority for plans implementing these changes."
+Design for restructuring NPC compendium fields: split `bio`, consolidate `departed_reason`/`departed_summary`, remove dead fields (`allegiance`, `nearby_since_turn`, `last_seen`), add `last_presence_turn`, and surface `condition_change_reason` in UI. This document is the design authority for plans implementing these changes.
 
 ## Problem Statement
 
-The NPC model has several issues:
+1. **`bio` mixes appearance and background** — The extraction prompt already instructs for "two sentences" (appearance + background) but stores them as a single string. The UI renders it as one blob. Formalizing as two fields makes the contract explicit and lets the UI display them separately.
 
-1. **`bio` conflates two distinct dimensions.** The extraction prompt already asks for "(1) appearance and demeanor" and "(2) personality traits or tangible facts" in a single string, but the model stores it as one field. The UI renders it as a single blob. Physical appearance and backstory serve different purposes — appearance should be visible alongside position (which is already separate).
+2. **`departed_reason` + `departed_summary` are redundant** — Both are extracted for departed NPCs. `departed_reason` is a short label (shown in roster). `departed_summary` is 1-2 sentence prose (never shown in UI). The summary exists but is invisible to the player. Combine into one field.
 
-2. **`departed_reason` and `departed_summary` are redundant.** Both are extracted and stored, but `departed_summary` is never rendered in the UI. Only `departed_reason` (a short label) appears in the roster line. The summary exists but is invisible.
+3. **`allegiance` is silently dropped** — Extracted by LLM but `CompendiumEntry` has no `allegiance` field. Pydantic silently ignores the extra field. The value is never stored or displayed.
 
-3. **`last_seen` stores absolute turn number instead of computing relative.** The dict `{turn, location_id, location_name}` is stored per NPC. The UI shows the raw turn number. Computing "X turns ago" at render time is more useful for players and for the narrator prompt (knowing when to reintroduce characters).
+4. **`nearby_since_turn` is dead code** — Set on location change and by delta_builder, read in `turn.py:1294` but the value is never surfaced anywhere.
 
-4. **`allegiance` is extracted but never stored.** `CompendiumNpcUpdate` has the field, `state/npcs.py:275` writes it, but `CompendiumEntry` has no corresponding field — Pydantic silently drops it. NPC allegiance is a stub.
-
-5. **`nearby_since_turn` is dead code.** Set on entry creation and nearby transitions, read in `turn.py:1294`, but the computed value is never surfaced anywhere.
-
-6. **`condition_change_reason` is not shown in the UI.** It's stored in `state.meta.last_condition_change_reason` and surfaced to the narrator prompt, but the PC panel's Player header tooltip doesn't display it (unlike the Inventory header which does).
+5. **`last_seen` stores absolute turn number** — The compendium stores `{turn, location_id, location_name}` dict. The "X turns ago" value is never computed or displayed. The absolute turn number becomes stale and requires manual computation at render time.
 
 ## Constraints
 
-- Must not break existing saves. Extra fields in saved state are silently dropped by Pydantic on load.
-- Must not break the extraction pipeline. Prompt schema changes must be backward-compatible with retries.
-- `last_presence_turn` must be computed at render time (current_turn - last_presence_turn), not stored as a derived value.
-- `departed_reason` will absorb the combined text (short label + summary prose merged into one string).
-- `bio.background` and `bio.appearance` must both be optional (`str | None`) to handle existing saves and NPCs created before the split.
+- `CompendiumNpcUpdate` is the extraction model — changes here affect the LLM prompt contract
+- `CompendiumEntry` is the stored state shape (dict in `state.compendium.npcs`) — Pydantic extra fields are silently dropped on load
+- Existing saves must survive the changes — Pydantic extra fields on load are silently dropped, so removing fields from models is safe for existing saves
+- Prompt templates must be updated to match new field names
+- UI templates must be updated to render new field structure
 
 ## Non-goals
 
-- Do not add `allegiance` back to the model. Only remove it.
-- Do not add `first_seen_turn` to the compendium tooltip UI. It's only used in the narrator prompt.
-- Do not change how `departed_turn` is used for auto-archive (3-turn threshold).
-- Do not change the `presence` enum values (present/nearby/known/departed).
-- Do not add new fields for tracking NPC reintroduction timing beyond `last_presence_turn`.
+- No changes to `last_seen` computation logic (just removal)
+- No changes to NPC presence semantics (present/nearby/known/departed/archived)
+- No changes to auto-archive TTL logic (departed → archived after 3 turns)
+- No changes to nearby decay TTL logic (nearby → known after 2 turns)
+- No changes to PC model fields (PC `bio` stays as single string)
+- No changes to seed generation for NPC `bio` beyond field name changes
 
 ## Decision Table
 
 | Decision | What | Why |
 |---|---|---|
-| Bio split | `bio: str` → `bio_background: str | None`, `bio_appearance: str | None` | Extraction prompt already asks for both dimensions separately. Appearance should be visible alongside position (which is already top-level). |
-| Departed fields combine | `departed_reason` absorbs `departed_summary` text. Prompt asks for "short label — long prose" in one field. | `departed_summary` is never rendered. One field is simpler for extraction and storage. |
-| Last-seen relative | Replace `last_seen: dict` with `last_presence_turn: int | None`. Compute "X turns ago" at render time. | Absolute turn number is not useful to players. Relative turns ago is actionable for both UI and narrator prompt. |
-| Keep location name | `last_seen.location_name` preserved as a separate field on `CompendiumEntry`. | Departed NPCs need to show where they were last seen. Location name is useful context. |
-| Remove allegiance | Remove from `CompendiumNpcUpdate`, extraction prompts, and `npcs.py` merge logic. | It's a stub — extracted but never stored or displayed. |
-| Remove nearby_since_turn | Remove from `CompendiumEntry`, `CompendiumNpcUpdate`, and all write/read sites. | Dead code — value is read but never surfaced. |
-| Keep first_seen_turn | Retain on `CompendiumEntry`. Only used in narrator prompt as `T{{ npc.first_seen_turn }}`. | Minimal cost, serves a purpose. |
-| Keep departed_turn | Retain on `CompendiumEntry`. Used for 3-turn auto-archive. | Required for engine logic. |
-| condition_change_reason in UI | Add to Player header tooltip in `_state_right.html`, mirroring Inventory header pattern. | Player should see why their condition changed this turn. |
-| LastSeenBlock simplified | `LastSeenBlock` keeps `location_name` only. Remove `turn` and `location_id`. | Only location name is needed for UI display. Turn is computed at render time. |
+| Bio split | `bio: str | None` → `bio_appearance: str | None`, `bio_background: str | None` on `CompendiumNpcUpdate` | Flat fields are simpler for extraction (no dict nesting), match existing model style, and are easier for the LLM to produce correctly |
+| Departed consolidation | Remove `departed_summary`; keep `departed_reason` as 1-2 sentence prose describing what happened | The two fields were redundant — `departed_summary` was never shown in UI. Single field eliminates confusion |
+| Allegiance removal | Remove `allegiance` from `CompendiumNpcUpdate` and extraction prompts | Never stored or displayed; silently dropped by Pydantic extra-field handling |
+| Nearby_since_turn removal | Remove `nearby_since_turn` from `CompendiumEntry` and all write/read sites | Dead code — set but never surfaced |
+| Last_seen removal | Remove `last_seen` dict from compendium entries; compute "X turns ago" from `last_presence_turn` | Absolute turn number is stale; computed value is what the UI actually needs |
+| Last_presence_turn addition | Add `last_presence_turn: int | None` to `CompendiumEntry` (dict-level, no model field needed) | Enables "X turns ago" computation for departed NPCs: `current_turn - last_presence_turn` |
+| Condition change reason UI | Add `last_condition_change_reason` to Player header tooltip in `_state_right.html` | Follows existing pattern from Inventory header tooltip |
 
 ## Open Questions
 
 None.
 
----
-
 ## Current State — What Exists
 
-### NPC Storage: `CompendiumEntry` (`ccya/models.py:240–273`)
+### `CompendiumNpcUpdate` (extraction model)
 
-Runtime storage for all NPCs. Dict-based, stored in `state.compendium.npcs[npc_id]`. Fields:
+**File:** `ccya/models.py:242-260`
 
-```
-id: str
-name: str | None
-title: str | None
-bio: str | None
-bond: str | None
-presence: str  # present | nearby | known | departed
-notes: str | None
-motivation: str | None
-fear: str | None
-leverage: str | None
-personality: str | None
-aliases: list[str]
-allegiance: str | None  # written but silently dropped (no field on model)
-position: str | None
-first_seen_turn: int | None
-nearby_since_turn: int | None
-departed_turn: int | None
-departed_reason: str | None
-departed_summary: str | None
-last_seen: dict | None  # {turn: int, location_id: str, location_name: str}
-```
-
-### NPC Extraction: `CompendiumNpcUpdate` (`ccya/models.py:242–260`)
-
-Pydantic model for LLM extraction output. Same fields as `CompendiumEntry` minus engine-managed fields (`first_seen_turn`, `nearby_since_turn`, `departed_turn`, `last_seen`).
-
-### NPC Merge: `apply_npc_scene_management()` (`ccya/state/npcs.py:220–320`)
-
-Reads `CompendiumNpcUpdate` and merges into `CompendiumEntry`. Key operations:
-- Line 237–238: Sets `first_seen_turn` on new entries only
-- Line 255: Sets `first_seen_turn` on creation
-- Line 257–261: Sets `last_seen` dict with turn/location_id/location_name
-- Line 275–276: Writes `allegiance` (silently dropped — no field on model)
-- Line 315: Sets `departed_turn` on first departed
-- Line 319: Sets `nearby_since_turn` on nearby transition
-
-### NPC Prompt Context: `NPCRosterEntryBlock` (`ccya/prompts/context.py:189–204`)
-
-Typed block for prompt rendering. Subset of `CompendiumEntry`:
-
-```
-id: str
-name: str
-title: str | None
-bio: str | None
-presence: NpcPresence
-motivation: str | None
-fear: str | None
-leverage: str | None
-notes: str | None
-last_seen: LastSeenBlock | None
+```python
+class CompendiumNpcUpdate(BaseModel):
+    id: str
+    name: str | None = None
+    title: str | None = None
+    bio: str | None = None          # ← single string, two-aspect instruction
+    aliases: list[str] = Field(default_factory=list)
+    allegiance: str | None = None    # ← extracted but silently dropped
+    motivation: str | None = None
+    fear: str | None = None
+    leverage: str | None = None
+    presence: str | None = None
+    notes: str | None = None
+    position: str | None = None
+    first_seen_turn: int | None = None
+    personality: str | None = None
+    bond: str | None = None
+    departed_reason: str | None = None     # ← short label
+    departed_summary: str | None = None    # ← 1-2 sentence prose (never shown)
+    departed_turn: int | None = None
 ```
 
-### LastSeenBlock (`ccya/prompts/context.py:181–186`)
+### `CompendiumEntry` (stored state — dict)
 
+**File:** `ccya/state/npcs.py:252-323`
+
+Stored as `dict[str, Any]` in `state.compendium.npcs`. Keys written by `apply_npc_scene_management()`:
+
+- `name`, `title`, `bio`, `aliases`, `allegiance`, `motivation`, `fear`, `leverage`, `bond`, `personality`, `presence`, `notes`, `position`
+- `first_seen_turn` — set on first appearance
+- `last_seen` — dict `{turn, location_id, location_name}` — set on every compendium update
+- `nearby_since_turn` — set on location change (nearby decay tracking)
+- `departed_turn` — set on first `presence: "departed"`
+- `departed_reason`, `departed_summary` — set when `presence: "departed"`
+
+### Extraction Prompt
+
+**File:** `ccya/prompts/extract_scene_system.j2:26-47`
+
+```json
+{
+  "bio": "TWO SENTENCES: (1) appearance and demeanor ... (2) personality traits ...",
+  "allegiance": "faction_or_alignment",
+  "departed_reason": "short label — required when presence is departed",
+  "departed_summary": "1-2 sentence prose — required when presence is departed",
+}
 ```
-turn: int
-location_id: str
-location_name: str
+
+### UI Rendering
+
+**File:** `ccya/templates/_state_left.html`
+
+- Present NPCs (lines 12-37): renders `npc_bio` in tooltip
+- Compendium (lines 144-165): renders `bio` in tooltip, `last_seen.location_name` on line 162
+
+**File:** `ccya/templates/_state_right.html`
+
+- Player header (lines 7-12): no `condition_change_reason` tooltip
+- Inventory header (line 52): has `last_inventory_change_reason` tooltip (pattern to follow)
+
+**File:** `ccya/prompts/sections/_npc_roster.j2:7`
+
+- Roster line for departed NPCs: `— {{ n.departed_reason }}`
+
+### `build_npc_roster`
+
+**File:** `ccya/engine/npc_roster.py:14-81`
+
+Returns dicts with keys: `id`, `name`, `title`, `bio`, `presence`, `motivation`, `fear`, `leverage`, `bond`, `notes`, `last_seen`, `departed_reason`.
+
+### `NPCRosterEntryBlock`
+
+**File:** `ccya/prompts/context.py:195-204`
+
+```python
+class NPCRosterEntryBlock(BaseModel):
+    id: str
+    name: str
+    title: str | None = None
+    bio: str | None = None
+    presence: NpcPresence
+    motivation: str | None = None
+    fear: str | None = None
+    leverage: str | None = None
+    notes: str | None = None
+    last_seen: LastSeenBlock | None = None
 ```
 
-Used in `_npc_roster.j2:16` to show "last seen: [location_name]".
+### `last_seen` Population
 
-### Narrator Prompt: `_npc_roster.j2`
+**File:** `ccya/engine/turn.py:1177-1193`
 
-Renders NPC roster for narrator. Line 7: departed NPCs show `departed_reason` after presence tag. Line 16: shows `last_seen.location_name` for all NPCs.
+Stamped on every compendium NPC update:
+```python
+entry["last_seen"] = {
+    "turn": turn_no,
+    "location_id": location.get("id", ""),
+    "location_name": location.get("name", ""),
+}
+```
 
-### UI: Compendium Tooltip (`_state_left.html`)
+**File:** `ccya/state/npcs.py:257-261`
 
-Lines 33, 148–149, 162: Shows `last_seen.turn` and `last_seen.location_name` for departed NPCs. No `departed_summary` rendering.
+Also stamped on first appearance of new NPCs.
 
-### UI: Player Header Tooltip (`_state_right.html`)
+### `nearby_since_turn`
 
-Lines 52–56: Inventory header shows tooltip with `inventory_change_reason`. Player header (line 2) has no tooltip for `condition_change_reason`.
+**File:** `ccya/engine/turn.py:1186` — set on new NPC creation
+**File:** `ccya/state/delta_builder.py:225` — set on location change for all present→nearby transitions
+**File:** `ccya/engine/turn.py:1294` — read for nearby decay check
 
-### Extraction Prompt (`extract_scene_system.j2`)
+### `departed_reason` + `departed_summary` Checker
 
-Lines 31: Bio instruction asks for two sentences (appearance + background) as one string.
-Lines 42–47: `departed_reason` (short label) and `departed_summary` (1-2 sentence prose) as separate fields.
-Line 33: `allegiance` extracted as `"faction_or_alignment"`.
+**File:** `ccya/ev/checkers/npc_presence.py:48-62`
 
-### Seed System Prompt (`generate_seed_system.j2`)
+Checks both fields are present when `presence == "departed"`.
 
-Line 36: Compendium schema shows `bio: string` (single field).
+### `condition_change_reason`
 
-### State I/O (`state/io.py`)
+**File:** `ccya/models.py:326` — on `StateExtractResult`
+**File:** `ccya/state/io.py:85` — default `None` in meta
+**Stored as:** `state.meta.last_condition_change_reason`
+**Pattern:** Inventory header already has this tooltip pattern at `_state_right.html:52`
 
-Line 85: `allegiance: None` in default PC state (not NPC state — PC allegiance is real).
+### `generate_seed_system.j2`
 
-### Problems with Current State
+**File:** `ccya/prompts/generate_seed_system.j2:36`
 
-- **`bio` is one string** — extraction prompt asks for two dimensions but they're stored together. UI renders as one blob.
-- **`departed_summary` is invisible** — extracted, stored, but never rendered. Only `departed_reason` appears.
-- **`last_seen` stores absolute turn** — not useful to players. Computed relative value would be better.
-- **`allegiance` is a stub** — extracted but never stored or displayed. Wastes LLM output space.
-- **`nearby_since_turn` is dead code** — written and read but never surfaced.
-- **`condition_change_reason` not in UI** — stored in `state.meta` but not shown to player.
+Seed compendium schema has `bio: string` for NPCs.
 
----
+### `pack.py` — `CompendiumEntry`
+
+**File:** `ccya/pack.py:36-48`
+
+Seed-time compendium model has `bio: str | None = None`.
 
 ## Proposed Solution
 
 ### Core Changes
 
-#### 1. Bio Split
+#### 1. Split `bio` into `bio_appearance` + `bio_background`
 
-`CompendiumEntry` gains two fields:
-
-```
-bio_background: str | None   # backstory, personality, reputation
-bio_appearance: str | None   # physical presentation, bearing, features
-```
-
-`bio` is removed from `CompendiumEntry`. Both new fields are optional to handle existing saves.
-
-`CompendiumNpcUpdate` gains the same two fields, replaces `bio`.
-
-Extraction prompt (`extract_scene_system.j2`) updated to ask for two separate fields:
-- `bio_background`: "2–3 sentences — backstory, personality, reputation, what shaped them"
-- `bio_appearance`: "1–2 sentences — physical presentation, bearing, posture, expression, distinctive features"
-
-`NPCRosterEntryBlock` gains `bio_background` and `bio_appearance`, removes `bio`.
-
-#### 2. Departed Fields Combine
-
-`departed_summary` is removed from `CompendiumEntry` and `CompendiumNpcUpdate`.
-
-`departed_reason` absorbs the combined text. Extraction prompt updated to ask for:
-- `departed_reason`: "short label followed by 1–2 sentence prose — e.g. 'killed in battle — Caught in the crossfire defending the village gates.'"
-
-`_npc_roster.j2` line 7: departed NPCs show combined `departed_reason` after presence tag (format unchanged, content is now combined).
-
-#### 3. Last-Seen Relative
-
-`last_seen` dict is removed from `CompendiumEntry` and `CompendiumNpcUpdate`.
-
-New field on `CompendiumEntry`:
-
-```
-last_presence_turn: int | None   # last turn NPC was present or nearby
-last_seen_location: str | None   # location name from last presence turn
+**`CompendiumNpcUpdate`** (`ccya/models.py:246`):
+```python
+bio_appearance: str | None = None   # physical presentation — bearing, posture, expression, distinctive features
+bio_background: str | None = None   # backstory, personality, reputation — who they are as a person
 ```
 
-`last_presence_turn` is set/updated in `apply_npc_scene_management()` when presence transitions to `present` or `nearby`.
-
-`last_seen_location` is set/updated alongside `last_presence_turn` from the current location.
-
-"X turns ago" is computed at render time: `current_turn - last_presence_turn`.
-
-`LastSeenBlock` is simplified:
-
-```
-location_name: str
+**Extraction prompt** (`ccya/prompts/extract_scene_system.j2:31`):
+```json
+{
+  "bio_appearance": "Physical appearance and demeanor — bearing, posture, expression, distinctive features. One sentence.",
+  "bio_background": "Backstory, personality traits, reputation — who they are as a person. One sentence."
+}
 ```
 
-`turn` and `location_id` are removed. Only `location_name` is needed for UI display.
+**Engine** (`ccya/state/npcs.py:267-268`):
+```python
+if comp_upd.bio_appearance is not None:
+    entry["bio_appearance"] = _strip_non_ascii(comp_upd.bio_appearance)
+if comp_upd.bio_background is not None:
+    entry["bio_background"] = _strip_non_ascii(comp_upd.bio_background)
+```
 
-`build_npc_roster()` in `npcs.py` updated to populate `last_seen.location_name` from `last_seen_location` on the compendium entry.
+**`build_npc_roster`** (`ccya/engine/npc_roster.py:45`):
+```python
+"bio_appearance": (entry.get("bio_appearance") or "").strip() or None,
+"bio_background": (entry.get("bio_background") or "").strip() or None,
+```
 
-#### 4. Allegiance Removed
+**`NPCRosterEntryBlock`** (`ccya/prompts/context.py:198`):
+```python
+bio_appearance: str | None = None
+bio_background: str | None = None
+```
 
-`allegiance` removed from `CompendiumNpcUpdate`, `extract_scene_system.j2` extraction prompt, and `npcs.py` merge logic.
+**UI templates** (`_state_left.html`):
+- Present NPC tooltip (line 29): render `bio_appearance` then `bio_background` on separate lines
+- Compendium tooltip (line 157): render `bio_appearance` then `bio_background` on separate lines
 
-`allegiance` remains on `CompendiumEntry` for now (it's written to dict but silently ignored by Pydantic extra="ignore" — removing it from the model is a separate cleanup).
+**Seed prompt** (`generate_seed_system.j2:36`):
+- Update compendium schema to use `bio_appearance` + `bio_background`
 
-#### 5. Nearby_Since_Turn Removed
+**Seed model** (`pack.py:40`):
+- `CompendiumEntry`: `bio_appearance: str | None = None`, `bio_background: str | None = None`
 
-`nearby_since_turn` removed from `CompendiumEntry`, `CompendiumNpcUpdate`, `state/npcs.py:319`, and `delta_builder.py:225`.
+**Roster prompt** (`_npc_roster.j2:7`):
+- Update roster line to use `bio_appearance` (or `bio_background` if appearance is empty)
 
-`turn.py:1294` read of `nearby_since` is removed (dead code).
+#### 2. Consolidate `departed_reason` + `departed_summary`
 
-#### 6. Condition_Change_Reason in UI
+**`CompendiumNpcUpdate`** (`ccya/models.py:258-259`):
+```python
+departed_reason: str | None = None     # 1-2 sentence prose describing what happened
+```
+Remove `departed_summary`.
 
-`_state_right.html` Player header (line 2) gains a tooltip mirroring the Inventory header pattern (lines 52–56):
+**Extraction prompt** (`ccya/prompts/extract_scene_system.j2:42-47`):
+```json
+{
+  "departed_reason": "1-2 sentence prose describing what happened — required when presence is departed. Examples: 'killed in battle', 'sailed away after the raid', 'imprisoned for life'"
+}
+```
+Remove `departed_summary` field and description.
+
+**Engine** (`ccya/state/npcs.py:309-313`):
+```python
+if comp_upd.presence == "departed":
+    if comp_upd.departed_reason is not None:
+        entry["departed_reason"] = comp_upd.departed_reason
+```
+Remove `departed_summary` write.
+
+**Checker** (`ccya/ev/checkers/npc_presence.py:48-62`):
+```python
+if presence == "departed":
+    if not npc.get("departed_reason"):
+        findings.append({
+            "turn": turn,
+            "check": "departed_reason",
+            "detail": f"NPC '{npc_id}' is departed but missing departed_reason",
+        })
+        all_passed = False
+```
+Remove `departed_summary` check.
+
+**Roster prompt** (`_npc_roster.j2:7`):
+- Unchanged — already uses `n.departed_reason`
+
+**UI templates** (`_state_left.html`):
+- Departed NPC rendering: use `departed_reason` for the "last seen" line
+
+#### 3. Remove `allegiance`
+
+**`CompendiumNpcUpdate`** (`ccya/models.py:248`): Remove `allegiance: str | None = None`
+
+**Engine** (`ccya/state/npcs.py:275-276`): Remove `allegiance` write block
+
+**Extraction prompt** (`ccya/prompts/extract_scene_system.j2:33`): Remove `allegiance` field
+
+**Durable instructions** (`ccya/prompts/extract_scene_system.j2:53`): Remove `allegiance` from "Durable identity updates" list
+
+#### 4. Remove `nearby_since_turn`
+
+**Engine** (`ccya/engine/turn.py:1186`): Remove `nearby_since_turn` from new NPC creation
+
+**Delta builder** (`ccya/state/delta_builder.py:225`): Remove `nearby_since_turn` assignment
+
+**Engine** (`ccya/engine/turn.py:1294`): Replace `nearby_since_turn` usage with `last_presence_turn` for nearby decay check
+
+#### 5. Remove `last_seen`, Add `last_presence_turn`
+
+**Engine** (`ccya/engine/turn.py:1177-1193`): Remove `last_seen` stamping. Add `last_presence_turn` tracking:
+
+```python
+# Track last turn NPC was present or nearby
+if entry.get("presence") in ("present", "nearby"):
+    entry["last_presence_turn"] = turn_no
+```
+
+**First appearance** (`ccya/state/npcs.py:257-261`): Remove `last_seen` dict. `last_presence_turn` is set by the engine on first appearance (via the compendium update path above).
+
+**`build_npc_roster`** (`ccya/engine/npc_roster.py:52`): Remove `last_seen` from output dict
+
+**`NPCRosterEntryBlock`** (`ccya/prompts/context.py:204`): Remove `last_seen` field
+
+**UI templates** (`_state_left.html`):
+- Present NPC tooltip (line 33): Remove `last_seen.location_name`
+- Compendium tooltip (line 162): For departed NPCs, render `Last seen: [location_name] (X turns ago)` computed from `last_presence_turn`
+
+**Prompt** (`_npc_roster.j2:16`): Remove `last_seen` rendering
+
+**`prompt_eval.py`** (`ccya/ev/prompt_eval.py:63`): Remove `last_seen` from mock NPC data
+
+**Merge logic** (`ccya/state/npcs.py:239-240`): Remove `last_seen` merge from compendium merge
+
+#### 6. Surface `condition_change_reason` in UI
+
+**UI** (`ccya/templates/_state_right.html:52`): Add `last_condition_change_reason` tooltip to Player header, following the existing Inventory header pattern:
 
 ```html
-<div class="panel-header" title="{{ state.meta.get('last_condition_change_reason', '') }}">
-    <h2>Player</h2>
+<div class="stat-row{% if state.pc.bio %} has-tooltip{% endif %}">
+    <span class="stat-label">Name</span>
+    <span class="stat-value">{{ state.pc.get('name') or '—' }}</span>
+    {% if state.pc.bio %}
+    <div class="tooltip-body" data-md>{{ state.pc.bio }}</div>
+    {% endif %}
+    {% if state.meta.get('last_condition_change_reason') %}
+    <div class="tooltip-body" data-md>{{ state.meta.get('last_condition_change_reason') }}</div>
+    {% endif %}
 </div>
-```
-
-Only shown if `state.meta.last_condition_change_reason` is populated (non-empty string).
-
-#### 7. Compendium Tooltip Updated
-
-Departed NPCs in `_state_left.html`:
-- Line 162: Replace `last_seen.turn` with computed relative turns: `{{ (turn_no - n.last_presence_turn) if n.last_presence_turn else '?' }} turns ago`
-- Show combined departed_reason: `{{ n.departed_reason }}`
-- Show last_seen_location: `{{ n.last_seen_location or 'unknown' }}`
-
-Format: `Last Seen: [location] — [departed_reason] (X turns ago)`
-
-Non-departed NPCs:
-- Lines 148–149: Replace `last_seen.turn` and `last_seen.location_name` with relative turns: `{{ (turn_no - n.last_presence_turn) if n.last_presence_turn else '?' }} turns ago`
-- Show last_seen_location: `{{ n.last_seen_location or 'unknown' }}`
-
-#### 8. Narrator Prompt Updated
-
-`_npc_roster.j2` line 16: Update to show relative turns ago instead of absolute turn number:
-
-```jinja2
-{% if n.last_seen and n.last_seen.location_name %} | last seen: {{ n.last_seen.location_name }}{% if n.last_seen.turn %} ({{ turn_no - n.last_seen.turn }} turns ago){% endif %}{% endif %}
-```
-
-Wait — this uses `n.last_seen.turn` which will be removed. The roster block needs to pass `turn_no` or compute relative turns.
-
-Alternative: `NPCRosterEntryBlock` gains a `turns_ago: int | None` computed field, or the roster template receives `turn_no` from the boundary.
-
-Actually, `NPCRosterEntryBlock` is used in multiple prompt boundaries (RulingBoundary, NarratorBoundary, SceneExtractBoundary, StorytellerBoundary). Each boundary has access to `turn_no` or `meta.turn`. The roster template should compute relative turns from `turn_no` and `last_seen.turn`.
-
-But `last_seen.turn` is being removed. So `NPCRosterEntryBlock` needs to either:
-(a) Gain a `turns_ago: int | None` computed field, or
-(b) Gain `last_presence_turn: int | None` and have the template compute relative turns.
-
-Option (b) is cleaner — the roster block gets `last_presence_turn` and the template computes relative turns using the boundary's `turn_no`.
-
-But `_npc_roster.j2` doesn't have access to `turn_no` — it's included from multiple templates. Let me check what variables are available.
-
-In `narrate_user.j2`: `meta` is available (line 76: `meta.get('turn', '?')`).
-In `ruling_user.j2`: `turn_no` is available.
-In `extract_scene_user.j2`: `turn_no` is available.
-In `storytell_user.j2`: `turn_no` is available.
-
-So the roster template can access `turn_no` or `meta.turn` depending on context. The roster template should compute relative turns using whatever is available.
-
-Actually, the simplest approach: `NPCRosterEntryBlock` gains `last_presence_turn: int | None` (replacing `last_seen: LastSeenBlock | None`). The roster template computes relative turns using `turn_no` (available in all boundary contexts).
-
-Wait — `_npc_roster.j2` line 16 already has a complex conditional for `last_seen`. Let me simplify:
-
-```jinja2
-{% if n.last_seen_location %} | last seen: {{ n.last_seen_location }}{% if n.last_presence_turn is defined and n.last_presence_turn %} ({{ (turn_no if turn_no is defined else meta.turn) - n.last_presence_turn }} turns ago){% endif %}{% endif %}
-```
-
-This is getting complex for a template. Better approach: have `NPCRosterEntryBlock` compute `turns_ago` as a derived field.
-
-Actually, the cleanest approach: `NPCRosterEntryBlock` gains `last_presence_turn: int | None` and the roster template receives `turn_no` from the boundary. All boundaries have `turn_no` or `meta.turn` available.
-
-Let me simplify: `NPCRosterEntryBlock` replaces `last_seen: LastSeenBlock | None` with:
-
-```
-last_presence_turn: int | None
-last_seen_location: str | None
-```
-
-The roster template computes relative turns:
-
-```jinja2
-{% if n.last_seen_location %} | last seen: {{ n.last_seen_location }}{% if n.last_presence_turn %} ({{ (turn_no if turn_no is defined else meta.turn) - n.last_presence_turn }} turns ago){% endif %}{% endif %}
-```
-
-This works because:
-- `turn_no` is defined in `ruling_user.j2`, `extract_scene_user.j2`, `storytell_user.j2`
-- `meta.turn` is defined in `narrate_user.j2` (line 76)
-
-#### 9. Seed System Prompt Updated
-
-`generate_seed_system.j2` line 36: Update compendium schema to show `bio_background` and `bio_appearance` instead of `bio`.
-
-### Data Flow
-
-```
-LLM Extraction (extract_scene_system.j2)
-    ↓
-CompendiumNpcUpdate (bio_background, bio_appearance, departed_reason combined, last_presence_turn)
-    ↓
-apply_npc_scene_management() (state/npcs.py)
-    ↓
-CompendiumEntry (bio_background, bio_appearance, departed_reason combined, last_presence_turn, last_seen_location)
-    ↓
-build_npc_roster() (npcs.py)
-    ↓
-NPCRosterEntryBlock (bio_background, bio_appearance, departed_reason, last_presence_turn, last_seen_location)
-    ↓
-Prompt Templates (_npc_roster.j2) + UI Templates (_state_left.html)
 ```
 
 ### Alternatives Considered and Rejected
 
 | Alternative | Why Rejected |
 |---|---|
-| Keep `last_seen` dict, add computed `turns_ago` field | Adds redundancy. `last_seen.turn` becomes unused. Cleaner to replace entirely. |
-| Keep `departed_summary` separate, render it in UI | Only one extra field to maintain. Combining is simpler for extraction and storage. |
-| Add `allegiance` to `CompendiumEntry` | It's a stub with no clear use case. Remove until needed rather than add dead code. |
-| Compute relative turns in Python, pass to template | Template computation is simpler and avoids duplicating the formula across multiple boundary contexts. |
-| Keep `bio` as single string, add `bio_appearance` as separate | Two fields for the same concept is confusing. Split both into named sub-fields. |
-
----
+| Nested `bio: {appearance, background}` | Flat fields are simpler for extraction, match existing model style, no dict nesting complexity |
+| Keep both `departed_reason` (label) + `departed_summary` (prose) | `departed_summary` is never shown in UI; single prose field eliminates confusion |
+| Keep `last_seen` dict and compute "X turns ago" at render time | Absolute turn number is stale; storing `last_presence_turn` is cleaner and more efficient |
+| Add `last_presence_turn` to `CompendiumNpcUpdate` model | `last_presence_turn` is engine-managed (not extracted by LLM); no need for extraction model field |
 
 ## Failure Modes and Risks
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| LLM doesn't emit new bio fields on first extraction | NPCs have `bio_background: None` or `bio_appearance: None` | Both fields are optional. Existing NPCs keep their bio as `bio_background` (engine migration step). |
-| Extraction prompt change causes LLM to skip bio fields | Missing bio for new NPCs | Prompt examples should show both fields. Retry loop catches missing required fields. |
-| `last_presence_turn` not set for NPCs created before migration | Computed turns_ago is None/unknown | Both fields are optional. UI shows "unknown" when not available. |
-| `departed_reason` combined text is too long for roster line | Roster line becomes unwieldy | Roster line truncation is handled by template (CSS or Jinja truncate filter). |
-| Seed system prompt change causes seed generation to fail | New games have broken NPC entries | Prompt schema is TypeScript-style comment, not enforced. LLM may not follow exactly. |
-| `LastSeenBlock` removal breaks other prompt boundaries | RulingBoundary, SceneExtractBoundary, StorytellerBoundary all use it | All boundaries updated to use new `NPCRosterEntryBlock` shape. |
+1. **Existing saves with `bio`** — Saves that have `bio` as a single string will keep it. The new `bio_appearance`/`bio_background` fields will be `None`. UI should handle this gracefully (fall back to `bio` if `bio_appearance` is empty).
 
----
+2. **Existing saves with `departed_summary`** — Will be silently kept in the dict (Pydantic extra fields). The checker will no longer require it. The UI should use `departed_reason` only.
+
+3. **Existing saves with `last_seen`** — Will be silently kept in the dict. The UI must check for `last_presence_turn` first, fall back to `last_seen` if needed for backward compatibility.
+
+4. **Existing saves with `nearby_since_turn`** — Will be silently kept. The engine will no longer write it. The nearby decay check must use `last_presence_turn` instead.
+
+5. **LLM prompt transition** — The extraction prompt must clearly instruct for the new field names. The LLM may need a few turns to adapt if the prompt changes mid-game.
 
 ## What Is Removed
 
 | Removed | From | Notes |
 |---|---|---|
-| `bio: str` | `CompendiumEntry`, `CompendiumNpcUpdate` | Replaced by `bio_background` + `bio_appearance` |
-| `departed_summary: str` | `CompendiumEntry`, `CompendiumNpcUpdate` | Absorbed into `departed_reason` |
-| `last_seen: dict` | `CompendiumEntry`, `CompendiumNpcUpdate` | Replaced by `last_presence_turn` + `last_seen_location` |
-| `allegiance: str` | `CompendiumNpcUpdate`, `extract_scene_system.j2`, `npcs.py:275` | Stub — never stored or displayed |
-| `nearby_since_turn: int` | `CompendiumEntry`, `CompendiumNpcUpdate`, `npcs.py:319`, `delta_builder.py:225`, `turn.py:1294` | Dead code |
-| `turn: int` | `LastSeenBlock` | Only `location_name` needed |
-| `location_id: str` | `LastSeenBlock` | Only `location_name` needed |
-
----
+| `allegiance` | `CompendiumNpcUpdate` (models.py:248) | Silently dropped; never stored or displayed |
+| `allegiance` | Extraction prompt (extract_scene_system.j2:33, 53) | Remove field + durable updates mention |
+| `allegiance` | `state/npcs.py:275-276` | Remove write block |
+| `nearby_since_turn` | `CompendiumEntry` (dict-level) | Dead code; set but never surfaced |
+| `nearby_since_turn` | `turn.py:1186` | Remove from new NPC creation |
+| `nearby_since_turn` | `delta_builder.py:225` | Remove from location change |
+| `nearby_since_turn` | `turn.py:1294` | Replace with `last_presence_turn` |
+| `departed_summary` | `CompendiumNpcUpdate` (models.py:259) | Consolidated into `departed_reason` |
+| `departed_summary` | Extraction prompt (extract_scene_system.j2:43, 47) | Remove field + description |
+| `departed_summary` | `state/npcs.py:312-313` | Remove write block |
+| `departed_summary` | `npc_presence.py:56-62` | Remove checker |
+| `last_seen` | `CompendiumEntry` (dict-level) | Replaced by `last_presence_turn` |
+| `last_seen` | `turn.py:1189-1193` | Remove stamping |
+| `last_seen` | `state/npcs.py:257-261` | Remove on first appearance |
+| `last_seen` | `state/npcs.py:239-240` | Remove merge |
+| `last_seen` | `build_npc_roster.py:52` | Remove from output |
+| `last_seen` | `NPCRosterEntryBlock` (context.py:204) | Remove field |
+| `last_seen` | `_npc_roster.j2:16` | Remove rendering |
+| `last_seen` | `_state_left.html:33, 148, 162` | Remove rendering |
+| `last_seen` | `prompt_eval.py:63` | Remove from mock data |
 
 ## What Is Unchanged
 
-- `CompendiumEntry` fields: `id`, `name`, `title`, `bond`, `presence`, `notes`, `motivation`, `fear`, `leverage`, `personality`, `aliases`, `position`, `first_seen_turn`, `departed_turn`, `departed_reason` (kept, combined)
-- `CompendiumNpcUpdate` fields: `id`, `name`, `title`, `aliases`, `motivation`, `fear`, `leverage`, `presence`, `notes`, `position`, `personality`, `bond`, `departed_turn`, `departed_reason` (kept, combined)
-- `NPCRosterEntryBlock` fields: `id`, `name`, `title`, `presence`, `motivation`, `fear`, `leverage`, `notes`, `departed_reason` (kept, combined)
-- `PlayerBlock`, `LocationBlock`, `InventoryBlock`, `ArcThreadBlock`, `WorldStateBlock`, `ChronicleEntryBlock`, `PacingBlock`
-- All boundary models: `RulingBoundary`, `NarratorBoundary`, `SceneExtractBoundary`, `StateExtractBoundary`, `StorytellerBoundary`, `NarratorSystemBoundary`
-- `TEMPLATE_CONTRACTS` mapping
-- `NpcPresence` enum from `models.py`
-- `CompendiumNpcUpdate` alias resolution, dedup, group merging, personality assignment, presence transitions, auto-archive, auto-demotion, note stripping, touch order
-- PC allegiance (`state.pc.allegiance`) and its use in narrator prompt
-- `condition_change_reason` storage in `state.meta.last_condition_change_reason` and narrator prompt usage
-- `StateExtractResult` model (`ccya/models.py:325–346`)
-- Extraction retry loop, coercion, dedup (`extraction.py`)
-- Ruling pipeline (`ruling.py`), narrate pipeline (`engine/turn.py:743–845`)
-- Presence badge rendering in `_state_left.html` line 33
-
----
+- `CompendiumEntry` stored state shape (dict-level) — still `dict[str, Any]`
+- `CompendiumNpcUpdate` model structure — only field renames/additions, no structural changes
+- NPC presence semantics (present/nearby/known/departed/archived)
+- Nearby decay TTL (2 turns) — still triggers nearby→known transition
+- Departed auto-archive TTL (3 turns) — still triggers departed→archived transition
+- `departed_turn` — still set on first `presence: "departed"`, still used for archive TTL
+- `first_seen_turn` — still set on first appearance, still used in narrator prompt
+- `bond` field — unchanged
+- `personality` field — unchanged
+- `notes` field — unchanged
+- `position` field — unchanged
+- `aliases` field — unchanged
+- `motivation`, `fear`, `leverage` fields — unchanged
+- `title` field — unchanged
+- `name` field — unchanged
+- `id` field — unchanged
+- `presence` field — unchanged
+- `departed_turn` field — unchanged
+- `CompendiumEntry` in `pack.py` (seed model) — only field renames
+- `SeedPC.bio` — PC bio stays as single string
+- `StateExtractResult.condition_change_reason` — model field unchanged
+- `state.meta.last_condition_change_reason` — storage unchanged
+- `build_npc_roster()` function signature — only output dict keys change
+- `NPCRosterEntryBlock` model — only field renames/additions
 
 ## New Model Shapes
 
-### `CompendiumEntry` (excerpt — fields that change)
-
-```python
-class CompendiumEntry(BaseModel):
-    bio_background: str | None = None
-    bio_appearance: str | None = None
-    departed_reason: str | None = None          # combined: "label — prose"
-    last_presence_turn: int | None = None       # last turn present or nearby
-    last_seen_location: str | None = None       # location name from last presence turn
-    # ... all other fields unchanged ...
-```
-
-### `CompendiumNpcUpdate` (excerpt — fields that change)
+### `CompendiumNpcUpdate` (updated)
 
 ```python
 class CompendiumNpcUpdate(BaseModel):
-    bio_background: str | None = None
-    bio_appearance: str | None = None
-    departed_reason: str | None = None          # combined: "label — prose"
-    last_presence_turn: int | None = None       # set by engine on presence transition
-    # ... all other fields unchanged ...
-    # allegiance: removed
-    # departed_summary: removed
-    # bio: removed
-    # last_seen: removed
-    # nearby_since_turn: removed
+    id: str
+    name: str | None = None
+    title: str | None = None
+    bio_appearance: str | None = None   # physical presentation
+    bio_background: str | None = None   # backstory, personality, reputation
+    aliases: list[str] = Field(default_factory=list)
+    motivation: str | None = None
+    fear: str | None = None
+    leverage: str | None = None
+    presence: str | None = None
+    notes: str | None = None
+    position: str | None = None
+    first_seen_turn: int | None = None
+    personality: str | None = None
+    bond: str | None = None
+    departed_reason: str | None = None     # 1-2 sentence prose describing departure
+    departed_turn: int | None = None
 ```
 
-### `NPCRosterEntryBlock` (excerpt — fields that change)
+### `CompendiumEntry` (dict-level, stored state)
+
+New keys added (engine-managed, not extracted):
+- `last_presence_turn: int | None` — last turn NPC was `present` or `nearby`
+
+Keys removed:
+- `last_seen` (dict)
+- `nearby_since_turn` (int)
+
+Keys renamed:
+- `departed_summary` → removed (consolidated into `departed_reason`)
+
+Keys renamed:
+- `bio` → `bio_appearance`, `bio_background`
+
+### `NPCRosterEntryBlock` (updated)
 
 ```python
 class NPCRosterEntryBlock(BaseModel):
-    bio_background: str | None = None
+    id: str
+    name: str
+    title: str | None = None
     bio_appearance: str | None = None
-    departed_reason: str | None = None
-    last_presence_turn: int | None = None
-    last_seen_location: str | None = None
-    # ... all other fields unchanged ...
-    # bio: removed
-    # last_seen: removed
+    bio_background: str | None = None
+    presence: NpcPresence
+    motivation: str | None = None
+    fear: str | None = None
+    leverage: str | None = None
+    notes: str | None = None
 ```
 
-### `LastSeenBlock` (simplified)
+### `CompendiumEntry` (seed model, `pack.py`)
 
 ```python
-class LastSeenBlock(BaseModel):
-    location_name: str
-    # turn: removed
-    # location_id: removed
+class CompendiumEntry(BaseModel):
+    model_config = {"extra": "allow"}
+    name: str | None = None
+    title: str | None = None
+    bio_appearance: str | None = None
+    bio_background: str | None = None
+    bond: str | None = None
+    presence: str | None = None
+    notes: str | None = None
+    motivation: str | None = None
+    fear: str | None = None
+    leverage: str | None = None
+    personality: str | None = None
 ```
-
----
 
 ## Context for Implementing LLMs
 
-| File | What | Why |
-|---|---|---|
-| `ccya/models.py:240–273` | `CompendiumEntry` model definition | Split bio, add departed/last-seen fields, remove stubs |
-| `ccya/models.py:242–260` | `CompendiumNpcUpdate` model definition | Same changes as CompendiumEntry |
-| `ccya/state/npcs.py:220–320` | `apply_npc_scene_management()` | Update merge logic for new fields, remove old writes |
-| `ccya/state/npcs.py:35–72` | Alias map building | Unchanged |
-| `ccya/state/npcs.py:74–100` | Alias-first naming | Unchanged |
-| `ccya/state/npcs.py:102–150` | Group NPC merging | Unchanged |
-| `ccya/state/npcs.py:290–310` | Personality assignment | Unchanged |
-| `ccya/state/npcs.py:322–340` | Auto-archive | Unchanged |
-| `ccya/state/npcs.py:342–360` | Auto-demotion | Unchanged |
-| `ccya/state/npcs.py:362–370` | Note stripping | Unchanged |
-| `ccya/state/npcs.py:372–380` | Touch order | Unchanged |
-| `ccya/state/delta_builder.py:225` | `nearby_since_turn` assignment | Remove |
-| `ccya/engine/turn.py:1186` | `nearby_since_turn` write | Remove |
-| `ccya/engine/turn.py:1189–1193` | `last_seen` population | Remove |
-| `ccya/engine/turn.py:1294` | `nearby_since` read | Remove |
-| `ccya/engine/turn.py:1304` | `departed_turn` read | Unchanged |
-| `ccya/prompts/context.py:181–186` | `LastSeenBlock` | Simplify to `location_name` only |
-| `ccya/prompts/context.py:189–204` | `NPCRosterEntryBlock` | Update fields |
-| `ccya/prompts/extract_scene_system.j2:31` | Bio extraction instruction | Split into two fields |
-| `ccya/prompts/extract_scene_system.j2:42–47` | Departed fields | Combine into one |
-| `ccya/prompts/extract_scene_system.j2:33` | Allegiance | Remove |
-| `ccya/prompts/sections/_npc_roster.j2:7` | Departed roster line | Show combined departed_reason |
-| `ccya/prompts/sections/_npc_roster.j2:16` | Last seen roster line | Compute relative turns |
-| `ccya/prompts/narrate_user.j2:14` | Roster include | Unchanged (template handles it) |
-| `ccya/prompts/generate_seed_system.j2:36` | Compendium schema | Update bio fields |
-| `ccya/templates/_state_right.html:2` | Player header | Add condition_change_reason tooltip |
-| `ccya/templates/_state_right.html:52–56` | Inventory header | Reference pattern for tooltip |
-| `ccya/templates/_state_left.html:33` | Presence badge | Unchanged |
-| `ccya/templates/_state_left.html:148–149` | Last seen detail | Replace with relative turns + location |
-| `ccya/templates/_state_left.html:162` | Departed last seen | Replace with combined departed_reason + relative turns |
-| `ccya/state/io.py:85` | Default PC allegiance | Unchanged (PC allegiance is real) |
+- `ccya/models.py:242-260` — `CompendiumNpcUpdate` model; field renames/additions
+- `ccya/state/npcs.py:250-323` — `apply_npc_scene_management()`; where compendium entries are written; remove `last_seen`, `nearby_since_turn`, `allegiance`; add `last_presence_turn`; handle bio split
+- `ccya/engine/turn.py:1177-1193` — `last_seen` stamping; remove; add `last_presence_turn` tracking
+- `ccya/engine/turn.py:1294` — `nearby_since_turn` usage for decay; replace with `last_presence_turn`
+- `ccya/engine/turn.py:1186` — `nearby_since_turn` on new NPC creation; remove
+- `ccya/state/delta_builder.py:225` — `nearby_since_turn` on location change; remove
+- `ccya/engine/npc_roster.py:14-81` — `build_npc_roster()`; update output dict keys for bio split, remove `last_seen`
+- `ccya/prompts/context.py:195-204` — `NPCRosterEntryBlock`; update for bio split, remove `last_seen`
+- `ccya/prompts/extract_scene_system.j2:26-47` — extraction prompt; bio split, departed consolidation, allegiance removal
+- `ccya/prompts/sections/_npc_roster.j2:7` — roster prompt; bio split rendering, departed_reason usage
+- `ccya/prompts/generate_seed_system.j2:36` — seed prompt; bio field renames
+- `ccya/pack.py:36-48` — seed compendium model; bio field renames
+- `ccya/templates/_state_left.html:12-37, 144-165` — UI templates; bio split rendering, last_seen removal, departed rendering
+- `ccya/templates/_state_right.html:52` — UI template; add condition_change_reason tooltip
+- `ccya/ev/checkers/npc_presence.py:48-62` — checker; remove departed_summary check
+- `ccya/ev/prompt_eval.py:63` — prompt eval mock data; remove last_seen

@@ -1175,8 +1175,9 @@ async def run_turn(
                 # Track last turn NPC was present or nearby
                 if entry.get("presence") in ("present", "nearby"):
                     entry["last_presence_turn"] = turn_no
+                    entry["last_seen_location"] = state.get("location", {}).get("name", "")
 
-            # Arc director: process thread updates and arc resolution
+             # Arc director: process thread updates and arc resolution
             if state.get("arc") and storyteller_result:
                 thread_delta = _apply_thread_updates(state, storyteller_result, config, dedup_rejections=thread_dedup_rejections)
                 if thread_delta is not None:

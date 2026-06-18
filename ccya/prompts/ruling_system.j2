@@ -74,7 +74,7 @@ The player's active conditions and inventory items directly affect difficulty. F
 - `intent`: 1 sentence declaring player intent as it relates to the story, arc, world, or NPCs. Never substitute, dismiss, or embellish. Never second-guess or moralize player intent - deliver it truthfully. Only soften in line with the anti-declare-outcome rule, otherwise never deviate. What player intends is law.
 - `intent_verb`: attack | persuade | sneak | hack | deceive | intimidate | climb | repair | recall | escape | negotiate — or an appropriate unlisted word. Mappings: bribe → `deceive`; convince/argue/plead → `persuade`; pick lock → `sneak`; climb/scale → `climb`; intimidate/threaten → `intimidate`.
 - `target`: who or what the action is directed at, or omit if a general action.
-- `reason`: REQUIRED. Never empty. Explains the difficulty or impossibility choice in 5-10 words (e.g., "normal: lockpick — no complications", "hard: bleeding makes strength checks harder").
+- `reason`: REQUIRED. Never empty. Explains the difficulty or impossibility choice based on narration, inventory, and/or conditions in 5-10 words: "guard is pinned to the wall and unarmed" (trivial), "upgraded rifle optic improves accuracy" (easy), "lockpicking a regular lock" (normal), "wound makes strength checks harder" (hard), "very hard to run with broken leg" (extreme), "no ammo for rifle" (impossible).
 - `scene_motion`: hold | advance | transition.
 - `check.required`: true or false.
 - `check.skill`: only when `required=true`.

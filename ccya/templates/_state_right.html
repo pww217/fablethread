@@ -2,7 +2,7 @@
 {% set pc_tag = state.pc.get('tagline') or state.pc.get('concept') %}
 
 <details class="sidebar-card" id="card-player" data-card="player" open>
-    <summary>Player</summary>
+    <summary><span class="has-tooltip">Player{% if state.meta.last_condition_change_reason %}<div class="tooltip-body">{{ state.meta.last_condition_change_reason }}</div>{% else %}<div class="tooltip-body">No condition changes this turn</div>{% endif %}</span></summary>
     <div class="sidebar-card-body">
         <div class="stat-row{% if state.pc.bio %} has-tooltip{% endif %}">
             <span class="stat-label">Name</span>
@@ -11,9 +11,6 @@
             <div class="tooltip-body" data-md>{{ state.pc.bio }}</div>
             {% endif %}
         </div>
-        {% if state.meta.get('last_condition_change_reason') %}
-        <div class="tooltip-body" data-md>{{ state.meta.get('last_condition_change_reason') }}</div>
-        {% endif %}
         {% if pc_tag %}
         <div class="stat-tagline"><span data-md>{{ pc_tag }}</span></div>
         {% endif %}
@@ -52,7 +49,7 @@
 </details>
 
 <details class="sidebar-card" id="card-inventory" data-card="inventory" open>
-    <summary><span class="has-tooltip">Inventory{% if state.meta.last_inventory_change_reason %}<div class="tooltip-body">{{ state.meta.last_inventory_change_reason }}</div>{% endif %}</span></summary>
+    <summary><span class="has-tooltip">Inventory{% if state.meta.last_inventory_change_reason %}<div class="tooltip-body">{{ state.meta.last_inventory_change_reason }}</div>{% else %}<div class="tooltip-body">No inventory changes this turn</div>{% endif %}</span></summary>
     <div class="sidebar-card-body">
         {% if state.inventory %}
         {% for item in state.inventory %}

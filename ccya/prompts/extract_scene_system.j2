@@ -9,7 +9,7 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
   "scene_tagline": "...",
   "location_change": {"id": "...", "name": "...", "description": "..."},
   "location_description": "...",
-  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "aliases": ["..."], "allegiance": "...", "motivation": "...", "fear": "...", "leverage": "...", "bond": "...", "personality": "...", "presence": "present|nearby|known|departed", "notes": "...", "position": "..."}]
+  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio_appearance": "...", "bio_background": "...", "aliases": ["..."], "motivation": "...", "fear": "...", "leverage": "...", "bond": "...", "personality": "...", "presence": "present|nearby|known|departed", "notes": "...", "position": "..."}]
 }
 ```
 
@@ -44,7 +44,7 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 
 ### How to use compendium_npc_update
 
-- **NPC enters scene:** Set `presence: "present"` and provide context in `notes`. For first-time NPCs, include `name`, `bio` (mandatory — even for ambient NPCs like "crowd"), and optionally `title`. For known NPCs, only set `presence`/`notes`.
+- **NPC enters scene:** Set `presence: "present"` and provide context in `notes`. For first-time NPCs, include `name`, `bio_appearance` and `bio_background` (mandatory — even for ambient NPCs like "crowd"), and optionally `title`. For known NPCs, only set `presence`/`notes`.
 - **NPC behavior changes:** Update `notes` with a brief situational cue reflecting their current stance toward the player.
 - **Durable identity updates:** Update `name`, `title`, `bio_appearance`, `bio_background`, `aliases`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
 - **NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes.
@@ -55,7 +55,7 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
 - Use existing IDs from the `## known_characters` compendium section when referencing known NPCs.
 - For new NPCs, generate a stable `snake_case` ID from their name/title. Examples: `"scarred_tough"`, `"guard_captain_renn"`.
 - If an NPC is known from the compendium, use their existing compendium ID — do NOT create a new ID.
-- When adding a new NPC, include `name`, `title`, and `bio` so the engine can populate the compendium. **Bio is mandatory for every NPC — even ambient presence like "crowd" or "bystanders" needs a bio.**
+- When adding a new NPC, include `name`, `title`, `bio_appearance`, and `bio_background` so the engine can populate the compendium. **Bio fields are mandatory for every NPC — even ambient presence like "crowd" or "bystanders" needs them.**
 
 **CRITICAL — Group NPC IDs: NEVER embed quantity in the ID.**
 - The ID describes the NPC TYPE, not the count. The count goes ONLY in `name`.
@@ -75,8 +75,8 @@ When creating or updating an NPC entry:
 
 ## NPC field requirements
 
-- **Named NPCs (proper name in `name`):** Must have `bio` + `personality` + at least 2 of {motivation, fear, leverage, bond} = 4 fields minimum. On first entry, aim for all fields.
-- **Unnamed NPCs (descriptive label in `name` + same string in `aliases`; no proper name):** `bio` only. Do NOT add personality, motivation, fear, leverage, bond, or any other personality-related fields.
+- **Named NPCs (proper name in `name`):** Must have `bio_appearance` + `bio_background` + `personality` + at least 2 of {motivation, fear, leverage, bond} = 5 fields minimum. On first entry, aim for all fields.
+- **Unnamed NPCs (descriptive label in `name` + same string in `aliases`; no proper name):** `bio_appearance` and `bio_background` only. Do NOT add personality, motivation, fear, leverage, bond, or any other personality-related fields.
 - **Promotion to named:** When narration reveals a proper name for an NPC previously known by description, set `name` to the proper name AND add `personality` + 2 of {motivation, fear, leverage, bond}. Keep the old descriptor in `aliases`.
 - **Group NPCs:** If the entry represents multiple people, the `name` field must always state the exact count as a spelled-out integer (e.g., 'Two armed guards', 'Three dockworkers'). Never use vague quantifiers — 'a few', 'several', 'a group of', 'some' are forbidden. When the count is unknown, use 'Unknown' as the count prefix. We must always know how many people are in any scene or grouping.
 - **Group NPC ID reuse:** When the quantity of a known group NPC changes, reuse the existing compendium ID — do NOT create a new ID. The ID is tied to the NPC type, not the quantity.
@@ -87,14 +87,14 @@ Valid personality archetype IDs: cold_pragmatist, desperate_idealist, wary_oppor
 
 If a named character enters the scene as the **recipient** of a major action (rescue, capture, healing, transport, medical aid), create a compendium entry for them even if they don't perform visible actions. Use whatever information is available from context — including details from recent narration history if needed for the bio. This is belt-and-suspenders: the primary mechanism is alias-first naming (above), but this ensures central plot characters are never missed.
 
-### Bio and notes examples (READ CAREFULLY)
+### Bio field examples (READ CAREFULLY)
 
 **Correct bio extraction:**
-- Narration: "A scarred woman in a grease-stained apron wipes her hands on a rag, eyes narrowing at you as she approaches the counter." → `bio: "Tall with a jagged burn scar running from jaw to collarbone; carries herself like someone used to being obeyed. Served five years in the militia before going civilian — knows how to handle weapons and doesn't flinch under pressure."`
-- Narration: "A young man in faded academy robes fumbles with his satchel, nearly dropping it as he stammers a greeting." → `bio: "Lean frame, sharp features, perpetually disheveled dark hair. Earned top marks in tactical theory but has never held a weapon — book-smart, eager to prove himself beyond the classroom."`
+- Narration: "A scarred woman in a grease-stained apron wipes her hands on a rag, eyes narrowing at you as she approaches the counter." → `bio_appearance: "Tall with a jagged burn scar running from jaw to collarbone; carries herself like someone used to being obeyed."` `bio_background: "Served five years in the militia before going civilian — knows how to handle weapons and doesn't flinch under pressure."`
+- Narration: "A young man in faded academy robes fumbles with his satchel, nearly dropping it as he stammers a greeting." → `bio_appearance: "Lean frame, sharp features, perpetually disheveled dark hair."` `bio_background: "Earned top marks in tactical theory but has never held a weapon — book-smart, eager to prove himself beyond the classroom."`
 
 **Incorrect bio extraction (too generic / missing one dimension):**
-- Narration: "A merchant approaches your table with a smile." → `bio: "Is a traveling trader who sells various goods."` ❌ Missing appearance entirely; second sentence is just restating their role, not giving personality or tangible facts.
+- Narration: "A merchant approaches your table with a smile." → `bio_appearance: ""` `bio_background: "Is a traveling trader who sells various goods."` ❌ Missing appearance entirely; background is just restating their role, not giving personality or tangible facts.
 
 **Correct notes extraction:**
 - Narration: Caron slides into the seat across from you and taps his fingers on the table. → `notes: "tapping table — restless, waiting for move."`
@@ -112,21 +112,21 @@ If a named character enters the scene as the **recipient** of a major action (re
 - `"present"` — in the immediate scene with the player
 - `"nearby"` — still in the area: just outside, next room, watching from shadows, within earshot. Auto-decays to `known` after 2 turns if not re-promoted.
 - `"known"` — physically left the area, but not permanently. The LLM manages this state.
-- `"departed"` — permanently gone: dead, sailed away, imprisoned for life, comatose, ascended, unreachable. Requires `departed_reason` (short label) and `departed_summary` (1-2 sentences). Auto-archived after 3 turns.
+- `"departed"` — permanently gone: dead, sailed away, imprisoned for life, comatose, ascended, unreachable. Requires `departed_reason` (1-2 sentence prose describing what happened). Auto-archived after 3 turns.
 
 **Decision rule:** If an NPC is spatially proximate to the player's location, they are `nearby`, not `known`. If they physically left the area, they are `known`. If they can never return, they are `departed`.
 
 - Emit `{ presence: "present" }` for NPCs entering the scene.
 - Emit `{ presence: "nearby" }` for NPCs who left the scene but remain spatially proximate.
 - Emit `{ presence: "known" }` for NPCs who physically departed the area.
-- Emit `{ presence: "departed", departed_reason: "...", departed_summary: "..." }` for permanently unreachable NPCs.
+- Emit `{ presence: "departed", departed_reason: "..." }` for permanently unreachable NPCs.
 - Do NOT emit presence changes for NPCs not mentioned in narration — absence is not departure.
 - Unnamed ambient characters ("a group of guards," "bystanders") do not require per-turn tracking.
 
 EXAMPLE — NPC enters (correct):
 Narration: "A red-haired man in boiled leather steps through the door and locks eyes with you."
 Known NPCs in scene: [caron (present)]
-→ Emit: `compendium_npc_update: { id: "red_haired_man", name: "Red-Haired Man", presence: "present", notes: "locks eyes aggressively", position: "standing in doorway", bio: "..." }`
+→ Emit: `compendium_npc_update: { id: "red_haired_man", name: "Red-Haired Man", presence: "present", notes: "locks eyes aggressively", position: "standing in doorway", bio_appearance: "...", bio_background: "..." }`
 
 EXAMPLE — NPC exits (correct):
 Narration: "Caron spits on the floor and shoves through the crowd, disappearing into the street."
@@ -150,7 +150,7 @@ Before you emit `compendium_npc_update` for ANY NPC:
 
 1. Check the `<<<TRACE_IMMUTABLE>>> known_characters` compendium section. If the NPC's name or title matches an existing compendium entry, use that entry's ID.
 2. If the NPC was previously known but had `presence: "known"` and is now present, set `presence: "present"` and add `notes`.
-3. If the NPC is already in the compendium, do NOT re-emit `name`, `title`, or `bio` unless the narration reveals new information.
+3. If the NPC is already in the compendium, do NOT re-emit `name`, `title`, `bio_appearance`, or `bio_background` unless the narration reveals new information.
 
 ## Constraints
 

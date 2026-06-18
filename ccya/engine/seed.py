@@ -308,7 +308,17 @@ async def generate_seed(
 
             from ccya.personality import assign_personality, validate_and_resolve
 
+            _QUANTITY_WORDS = frozenset({"one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen","twenty","a","an"})
             for npc_id, npc_entry in envelope.seed_state.compendium.npcs.items():
+                _name = (getattr(npc_entry, "name", "") or "").strip()
+                _aliases = [a.lower().strip() for a in (getattr(npc_entry, "aliases", None) or [])]
+                _name_parts = _name.lower().split()
+                if _name_parts and _name_parts[0] in _QUANTITY_WORDS:
+                    _name_stripped = " ".join(_name_parts[1:])
+                else:
+                    _name_stripped = _name.lower()
+                if _name_stripped and any(_name_stripped == a for a in _aliases):
+                    continue
                 if not hasattr(npc_entry, "personality") or not getattr(npc_entry, "personality"):
                     arch = assign_personality(
                         motivation=getattr(npc_entry, "motivation", None),
