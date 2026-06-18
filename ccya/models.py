@@ -476,6 +476,7 @@ class StorytellerResult(BaseModel):
     thread_add: ArcThread | None = None
     thread_update: list[ThreadUpdate] = Field(default_factory=list)
     arc_resolve: ArcResolution | None = None
+    chapter_end: bool = False
 
     @field_validator("thread_update", mode="before")
     @classmethod
