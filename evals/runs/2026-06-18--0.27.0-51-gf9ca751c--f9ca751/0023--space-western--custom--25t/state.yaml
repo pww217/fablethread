@@ -1,0 +1,344 @@
+__seed_meta__:
+  actions:
+  - Confront James Luna to demand the data shard immediately.
+  - Deflect the militia guards to prevent them from firing on the fugitive.
+  - Investigate the movement in the canyon shadows behind the pursuit.
+  - Withdraw toward the settlement gates to call for reinforcements.
+  opening_narrative: 'The dry scrape of windblown sand against your boots is the only
+    constant in the heat. You stand on the edge of the Bentleyport outpost, watching
+    the heat shimmer distorting the horizon into a dancing, liquid mess. A rusted
+    hull fragment lies half buried in the dust nearby, a relic of a freighter that
+    died long before you took this badge. Beside it, a cracked oxygen mask hangs from
+    a post, its filter clogged with fine red silt. The creak of metal expanding in
+    the blistering noon sun sounds like a slow, rhythmic groan from a dying beast.
+
+
+    You see a trail marker knocked askew, pointing toward the canyon floor instead
+    of the settlement gates. It is a small sign of the chaos that has been creeping
+    into the outpost lately. The economic rot has made people desperate, and desperation
+    makes them reckless. You can feel the weight of your sidearm against your hip,
+    a heavy reminder of a duty that feels increasingly hollow in a town that has forgotten
+    how to thrive.
+
+
+    The silence is broken by a sudden, sharp crack—not the metal expanding, but a
+    gunshot echoing from the canyon mouth. Then comes the shouting. James Luna stumbles
+    into view, his clothes torn and his breathing shallow through a cracked respirator.
+    He is sprinting toward your position, eyes wide with a terror that transcends
+    mere exhaustion. Behind him, three militia guards emerge from behind a corrugated
+    metal shed, their rifles raised but their movements hesitant. They aren''t looking
+    at the fugitive; they are looking at the shadows moving in the dust behind him.
+
+
+    Raymond Miles steps out from the shade of a nearby hab-unit, his eyes narrowing
+    as he spots you. He doesn''t reach for a weapon; instead, he leans against a rusted
+    support beam, watching the scene with a calculating gaze that says he has already
+    weighed the cost of intervention. "He''s bringing trouble to our doorstep, Deputy,"
+    Raymond calls out, his voice cutting through the dry wind. "And the ones following
+    him don''t look like they''re here for a chat."
+
+
+    James collapses a few feet from you, clutching a small, glowing data shard to
+    his chest as if it were a holy relic. The militia guards freeze, caught between
+    their orders to arrest the fugitive and the sudden movement in the canyon that
+    suggests a larger force is approaching. The settlement''s perimeter is thin, the
+    people are hungry, and the peace you have worked so hard to maintain is fraying
+    at the seams right before your eyes.'
+  outcome_summary: James Luna has arrived at the outpost carrying a stolen data shard
+    while being pursued by unidentified threats.
+__seed_pools__:
+  arc:
+    description: ''
+    id: rustbelt_decline
+    incompatible_with: []
+    tags:
+    - frontier
+    - economic_decay
+    - desperation
+  character_dynamic:
+    description: ''
+    id: town_deputy
+    incompatible_with: []
+    tags:
+    - frontier
+    - law_enforcement
+    - community_role
+  moral_pressure:
+    description: ''
+    id: bounty_hunter_code
+    incompatible_with: []
+    tags:
+    - hunting
+    - ethics
+    - line_between_law_and_outlaw
+  npc_bond:
+    description: The NPC was the PC's contact on a smuggling route that went bad —
+      trust was broken, then rebuilt.
+    id: smuggling_connection
+    incompatible_with: []
+    tags:
+    - smuggling
+    - trust
+    - shared_risk
+  scene_bundle:
+    conditions:
+    - the heat shimmer distorting the horizon
+    - the trail marker knocked askew
+    id: desert_crossing
+    items:
+    - a rusted hull fragment half-buried in the dust
+    - a cracked oxygen mask hanging from a post
+    sensory:
+    - the dry scrape of windblown sand
+    - the creak of metal expanding in the heat
+  situation:
+    description: ''
+    id: settlement_siege
+    incompatible_with: []
+    tags:
+    - frontier
+    - siege
+    - community_defense
+arc:
+  completed_threads:
+  - active: true
+    id: outlaw_incursion
+    last_updated_turn: 4
+    outcome: The initial scavenger wave breached the perimeter, forcing a direct firefight.
+    progress:
+    - kind: advancement
+      text: Irregular sensor disturbances detected near western canyon mouth.
+    - kind: advancement
+      text: Synchronized footsteps heard approaching canyon mouth
+    - kind: advancement
+      text: Scavenger lunges from silt cloud toward outpost perimeter.
+    - kind: advancement
+      text: Multiple scavengers emerging from silt cloud in waves
+    resolution_state: resolved
+    resolved_turn: 4
+    summary: A group of desperate scavengers is circling the settlement perimeter.
+    urgency: urgent
+  goal_context: The settlement's resources are dwindling, and John's authority is
+    the only thing preventing total anarchy.
+  last_thread_created_turn: 4
+  resolution: null
+  threads:
+  - active: true
+    id: resource_scarcity
+    progress: []
+    summary: Local oxygen supplies are reaching critical failure levels.
+    urgency: normal
+  - active: false
+    id: corporate_encroachment
+    progress: []
+    summary: Private security firms are eyeing the canyon's mineral rights.
+    urgency: background
+  - active: false
+    id: smuggling_remnants
+    progress: []
+    summary: Old debts from a broken smuggling route resurface in the settlement.
+    urgency: normal
+  - active: true
+    added_turn: 4
+    id: perimeter_breach_defense
+    progress: []
+    summary: Defend the Bentleyport Outpost perimeter from multiple scavenger waves
+    urgency: urgent
+    urgency_set_turn: 4
+  visible_goal: Establish a stable defense for Bentleyport against encroaching scavengers.
+compendium:
+  npcs:
+    elena_vance:
+      allegiance: Bentleyport Militia
+      bio: A stern woman with a steady hand, wearing worn militia fatigues. She prioritizes
+        perimeter security over individual welfare, showing little patience for distractions.
+      fear: The collapse of the settlement's defenses.
+      first_seen_turn: 1
+      last_seen:
+        location_id: bentleyport_outpost
+        location_name: Bentleyport Outpost
+        turn: 4
+      leverage: Authority over local security protocols.
+      motivation: To secure the outpost perimeter against approaching threats.
+      name: Elena Vance
+      notes: shouting commands over the wind
+      personality: resigned_functionary
+      position: near the militia guards
+      presence: present
+      title: Militia Guard
+    james_luna:
+      bio: A desperate man fleeing a debt that cannot be paid in credits.
+      bond: null
+      fear: Being handed over to the corporate extraction squads.
+      last_seen:
+        location_id: bentleyport_outpost
+        location_name: Bentleyport Outpost
+        turn: 3
+      leverage: Possession of a stolen data shard.
+      motivation: To reach the border before the collectors find him.
+      name: James Luna
+      personality: desperate_idealist
+      position: on the ground near player
+      presence: present
+      title: Bounty Target
+    militia_guards:
+      bio: Underpaid locals trying to hold a perimeter that is already collapsing.
+      bond: null
+      fear: null
+      last_seen:
+        location_id: bentleyport_outpost
+        location_name: Bentleyport Outpost
+        turn: 4
+      leverage: null
+      motivation: null
+      name: Two militia guards
+      notes: firing rifles blindly into the haze
+      personality: wary_opportunist
+      position: pivoted toward the canyon mouth
+      presence: present
+      title: ''
+    raymond_miles:
+      bio: A man who knows every scrap of metal in the canyon but trusts no one.
+      bond: The NPC was the PC's contact on a smuggling route that went bad - trust
+        was broken, then rebuilt.
+      fear: Starvation in a settlement that has nothing left to trade.
+      last_seen:
+        location_id: bentleyport_outpost
+        location_name: Bentleyport Outpost
+        turn: 4
+      leverage: Knowledge of the illegal tunnels beneath the outpost.
+      motivation: To secure enough scrap to buy a passage out of the sector.
+      name: Raymond Miles
+      notes: ducking behind a heavy crate
+      personality: wary_opportunist
+      position: behind a crate near the canyon mouth
+      presence: present
+      title: Local Scavenger
+    scavenger:
+      aliases:
+      - scavenger
+      bio: Desperate, uncoordinated figures emerging from the silt-choked canyon.
+        They move with frantic energy, wielding jagged scrap metal as makeshift weapons.
+      first_seen_turn: 2
+      last_seen:
+        location_id: bentleyport_outpost
+        location_name: Bentleyport Outpost
+        turn: 4
+      name: Five scavengers
+      notes: charging through the thick silt cloud
+      personality: wary_opportunist
+      position: emerging from the western canyon silt
+      presence: present
+inventory:
+- aliases: []
+  amount: 100
+  id: credits
+  name: Credits
+  notes: ''
+- aliases: []
+  amount: 1
+  id: service_sidearm
+  name: Service Sidearm
+  notes: ''
+- aliases: []
+  amount: 12
+  id: sidearm_ammo
+  name: Kinetic Rounds
+  notes: ''
+- aliases: []
+  amount: 1
+  id: heavy_wrench
+  name: Heavy Wrench
+  notes: ''
+- aliases: []
+  amount: 1
+  id: notepad
+  name: Logbook
+  notes: ''
+location:
+  description: The outpost edge is choked by a thick, orange-tinted silt cloud that
+    muffles sound and obscures vision. Rusted metal beams creak under heavy winds,
+    and the air is filled with the smell of ozone and pulverized rust from the recent
+    impact.
+  id: bentleyport_outpost
+  name: Bentleyport Outpost
+meta:
+  _pack_source: space-western
+  _seed_type: dynamic
+  compendium_touch_order:
+  - james_luna
+  - raymond_miles
+  - elena_vance
+  - militia_guards
+  - scavenger
+  last_thread_created_turn: 4
+  model: narrative_engine_v4
+  pending_gm_beat:
+    beat_expires_turn: 6
+    surface_as: event
+    type: escalation
+  prior_history:
+  - '- [T1] The player consults their logbook, confirming irregular sensor pings near
+    the western canyon mouth.'
+  - '- [T2] Lynch''s attempt to seize the data shard from James Luna fails as Elena
+    Vance intervenes and approaching footsteps grow louder.'
+  - '- [T3] Elena Vance refuses to secure James Luna, demanding the player take responsibility
+    as a scavenger attacks from the silt cloud.'
+  - '- [T4] John Lynch''s shot missed due to silt, and a second scavenger charge forced
+    the militia into a chaotic firefight.'
+  recent_beats:
+  - surface_as: event
+    turn: 1
+    type: pressure
+  - surface_as: event
+    turn: 2
+    type: escalation
+  - surface_as: null
+    turn: 3
+    type: null
+  - surface_as: event
+    turn: 4
+    type: escalation
+  recent_rolls:
+  - band: fail
+    turn: 4
+  - band: partial
+    turn: 3
+  - band: fail
+    turn: 2
+  setting_pack: space-western
+  turn: 4
+pc:
+  actions:
+  - Fire Service Sidearm at the silhouettes emerging from the haze
+  - Command Elena Vance to coordinate militia fire toward the canyon mouth
+  - Grab Heavy Wrench to defend yourself against the charging scavenger
+  - Pull Raymond Miles behind the heavy crate for cover
+  bio: A former route scout who traded the lawless trails for a badge in a dying settlement.
+    He seeks to stabilize the community before the economic rot swallows it whole.
+  conditions: []
+  drive: ''
+  name: John Lynch
+  stats:
+    charisma: 2
+    dexterity: 2
+    strength: 3
+    wits: 3
+  tagline: Local deputy tasked with maintaining a fraying peace
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 1
+  scene_phase: CLIMAX
+  tagline: Bentleyport Outpost  silt cloud, scavenger attack
+  tags:
+  - frontier
+  - siege
+  - community_defense
+  world_state:
+  - Trade routes through the canyon are strictly monitored by private security.
+  - Atmospheric scrubbers in Bentleyport are failing, causing localized oxygen shortages.
+  - Unlicensed long range communications equipment is prohibited.
+  - id: outlaw_incursion
+    text: The initial scavenger wave breached the perimeter, forcing a direct firefight.
+    tier: persistent
+schema_version: 1

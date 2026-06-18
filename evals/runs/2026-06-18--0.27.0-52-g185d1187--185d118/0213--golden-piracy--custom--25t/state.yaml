@@ -1,0 +1,445 @@
+__seed_meta__:
+  actions:
+  - Confront Jay about the risks of raiding the apothecary during a strike.
+  - Deflect the tension by suggesting a more discreet way to bypass the naval patrols.
+  - Investigate the smashed sea chest for anything useful before the tide rises.
+  - Withdraw from the discussion to prepare your gear for a potential raid.
+  opening_narrative: 'The hiss of waves on shingle is the only sound breaking the
+    heavy silence of the cove. You stand on the damp sand, your boots sinking slightly
+    as the tide begins its relentless push toward the shore. To your left, a longboat
+    sits skewed against a cluster of rocks, half-filled with stolen crates that rattle
+    with every surge of the sea. Nearby, a sea chest lies partially submerged, its
+    heavy iron lock smashed into splinters, spilling a few useless scraps of soaked
+    parchment into the surf. The air is thick, not just with the salt spray, but with
+    a cloying, sickly sweetness that clings to the back of your throat—the smell of
+    the fever that has been thinning your crew''s ranks for a week.
+
+
+    Jay stands ten paces away, his eyes fixed on the horizon where the silhouette
+    of a colonial patrol cutter looms through the morning mist. He is gripping his
+    heavy cane so tightly his knuckles are white, his face a mask of grim determination.
+    He doesn''t look at you, but his voice cuts through the cry of gulls overhead
+    like a blade. ''The port is closed, James. The sailors in town have laid down
+    their tools, and the Governor has turned the docks into a graveyard for anyone
+    showing a cough.'' He finally turns to you, his eyes hard. ''If we don''t get
+    those tinctures from the apothecary before the patrol ships sweep this cove, half
+    our men won''t see the next moon.''
+
+
+    Beside him, Daniel is kneeling by a pile of soaked gear, his hands trembling slightly
+    as he cleans a small scalpel with a rag that is more grey than white. He looks
+    up, his eyes sunken and shadowed. ''It is not just the strike, Quartermaster,''
+    Daniel mutters, his voice raspy. ''The infection is moving faster than the news.
+    I saw a man collapse near the landing yesterday, and by noon, his skin was already
+    mottled with the red bloom.'' He looks at you, his gaze searching for a solution
+    he knows you cannot easily provide. ''We need more than just medicine; we need
+    a way into North Johnmouth that doesn''t involve a ten day wait in a filth ridden
+    quarantine tent.''
+
+
+    Jay steps closer, his presence commanding even in this desolate place. He gestures
+    toward the smashed chest. ''The crew is restless. They see the sickness, they
+    see the port blocked, and they see us sitting here like sitting ducks while our
+    brothers rot. Some are whispering that we should raid a merchant vessel instead
+    of playing doctor. They think discipline is a luxury we can no longer afford.''
+    He leans in, his voice dropping to a low, dangerous growl. ''I need you to lead
+    a small party. We slip into the harbor under the cover of the strike''s chaos.
+    We take what we need from the apothecary and get out before the naval patrols
+    realize we''ve bypassed the checkpoint. If you''re caught, I can''t protect you.
+    If you fail, there won''t be a crew left to command.''
+
+
+    The tension is a physical weight, pressing down on you more heavily than the damp
+    air. The tide is coming in fast now, licking at your boots, and the reality of
+    the choice sits between you like a sharpened cutlass. You can follow Jay''s plan
+    and risk a direct confrontation with the colonial authorities, or you can listen
+    to the growing resentment of a crew that is increasingly willing to trade loyalty
+    for survival.'
+  outcome_summary: James Gregory stands in a sheltered cove, tasked with securing
+    medicine amidst a port strike and a spreading quarantine.
+__seed_pools__:
+  arc:
+    description: ''
+    id: disease_quarantine
+    incompatible_with: []
+    tags:
+    - disease
+    - quarantine
+    - health_crisis
+  character_dynamic:
+    description: ''
+    id: loyal_crewman
+    incompatible_with:
+    - mutinous_officer
+    - free_agent
+    tags:
+    - crew_loyalty
+    - working_class
+    - ship_identity
+  moral_pressure:
+    description: ''
+    id: freedom_vs_discipline
+    incompatible_with: []
+    tags:
+    - freedom
+    - discipline
+    - autonomy_conflict
+  npc_bond:
+    description: The NPC was a crewmate on a previous ship — they have shared watches,
+      shared rations, and shared danger.
+    id: served_under
+    incompatible_with: []
+    tags:
+    - crew
+    - years_served_together
+  scene_bundle:
+    conditions:
+    - the tide coming in fast
+    - the cove sheltered from the wind
+    id: beach_cove
+    items:
+    - a longboat pulled up on the sand
+    - a sea chest with the lock smashed
+    sensory:
+    - the hiss of waves on shingle
+    - the cry of gulls overhead
+  situation:
+    description: ''
+    id: port_strike
+    incompatible_with: []
+    tags:
+    - port
+    - strike
+    - labor_dispute
+arc:
+  completed_threads:
+  - active: true
+    id: guard_pursuit
+    outcome: The player escaped the shed but remains pursued on the pier.
+    progress: []
+    resolution_state: failed
+    resolved_turn: 14
+    summary: Escape the colonial guards surrounding you in the shed
+    urgency: urgent
+  - active: false
+    added_turn: 14
+    id: pier_escape_chase
+    last_updated_turn: 20
+    outcome: The chase transitioned from the pier into the warehouse district alleys.
+    progress:
+    - kind: shift
+      text: Player escaped pier fire into warehouse district.
+    resolution_state: resolved
+    resolved_turn: 21
+    summary: Escape colonial guards across the North Johnmouth Pier
+    urgency: urgent
+    urgency_set_turn: 14
+  - active: true
+    added_turn: 19
+    id: warehouse_district_navigation
+    last_updated_turn: 22
+    outcome: The player engaged and disarmed the guards in a direct melee combat.
+    progress:
+    - kind: advancement
+      text: Guards entered alleyway searching for player.
+    - kind: advancement
+      text: Guards are actively searching the immediate barrel stacks
+    - kind: shift
+      text: Guards have cornered player in alleyway
+    resolution_state: resolved
+    resolved_turn: 23
+    summary: navigate the labyrinthine North Johnmouth Warehouse District alleys
+    urgency: urgent
+    urgency_set_turn: 19
+  goal_context: The player is cornered in a shed on North Johnmouth Pier after being
+    discovered by guards.
+  last_thread_created_turn: 23
+  resolution: null
+  threads:
+  - active: false
+    id: supply_shortage
+    last_updated_turn: 14
+    progress:
+    - kind: advancement
+      text: Recovered quinine and warehouse map.
+    summary: Medical and food supplies are dwindling rapidly due to the port strike.
+    urgency: normal
+  - active: false
+    added_turn: 1
+    id: stealthy_infiltration
+    last_updated_turn: 7
+    progress:
+    - kind: advancement
+      text: Encountered scavenger inside the warehouse.
+    summary: Infiltrate North Johnmouth harbor via skiff to find supplies
+    urgency: normal
+    urgency_set_turn: 1
+  - active: true
+    added_turn: 23
+    id: melee_combat_engagement
+    progress: []
+    summary: Fight colonial guards in the warehouse district alleys
+    urgency: urgent
+    urgency_set_turn: 23
+  visible_goal: Secure medical supplies from the port while avoiding the colonial
+    quarantine patrols.
+compendium:
+  npcs:
+    colonial_guards:
+      aliases:
+      - colonial guards
+      bio: Three uniformed men in polished brass breastplates carrying halberds. They
+        move with rhythmic, heavy steps and carry lanterns to illuminate dark spaces.
+      first_seen_turn: 6
+      last_presence_turn: 23
+      last_seen_location: North Johnmouth Warehouse District
+      name: Two colonial guards
+      notes: one reeling from knee strike, one overextended
+      personality: wary_opportunist
+      position: clashing with player in the alley
+      presence: present
+    deserter_charles:
+      bio: A man who knows the patterns of a man-of-war but carries the shame of desertion.
+      bond: null
+      fear: null
+      last_presence_turn: 2
+      last_seen_location: North Johnmouth Warehouse District
+      leverage: null
+      motivation: Finding a safe port that is not under blockade.
+      name: Charles Wolf
+      personality: wary_opportunist
+      presence: known
+      title: Former Navy Sailor
+    powder_monkey_sean:
+      bio: A quick moving boy who carries more weight than his years suggest.
+      bond: null
+      fear: null
+      last_presence_turn: 2
+      last_seen_location: North Johnmouth Warehouse District
+      leverage: null
+      motivation: null
+      name: Sean Black
+      personality: volatile_loyalist
+      presence: known
+      title: Powder Monkey
+    quartermaster_jay:
+      bio: A stern man who keeps the crew's discipline through iron will and a heavy
+        hand.
+      bond: The NPC was a crewmate on a previous ship — they have shared watches,
+        shared rations, and shared danger.
+      fear: Loss of authority over the crew.
+      last_presence_turn: 2
+      last_seen_location: North Johnmouth Warehouse District
+      leverage: Control over the shared prize money.
+      motivation: Maintaining order to prevent total ship mutiny during the quarantine.
+      name: Jay Hawk
+      personality: cold_pragmatist
+      position: standing on the shore
+      presence: known
+      title: Quartermaster
+    surgeon_daniel:
+      bio: A man with stained hands and eyes that have seen too much blood.
+      bond: null
+      fear: Running out of medicine before the fever breaks.
+      last_presence_turn: 2
+      last_seen_location: North Johnmouth Warehouse District
+      leverage: Knowledge of which sailors are secretly infected.
+      motivation: Securing more clean bandages and fresh water for the sick.
+      name: Daniel Black
+      personality: blunt_survivor
+      position: kneeling by gear on the shore
+      presence: known
+      title: Ship Surgeon
+    unknown_scavenger:
+      aliases:
+      - unknown scavenger
+      bio: A frantic, gaunt woman with hair matted by sea spray and eyes wide with
+        terror. Driven by desperation, she is willing to steal medicine to aid the
+        dying rather than for personal profit.
+      first_seen_turn: 2
+      last_presence_turn: 13
+      last_seen_location: North Johnmouth Pier
+      name: Unknown Scavenger
+      position: near the overturned crate
+      presence: known
+inventory:
+- aliases: []
+  amount: 1
+  id: notched_cutlass
+  name: Notched Cutlass
+  notes: Heavy blade with several nicks from boarding actions
+- aliases: []
+  amount: 1
+  id: flintlock_pistol
+  name: Flintlock Pistol
+  notes: ''
+- aliases: []
+  amount: 1
+  id: hemp_rope
+  name: Length of Hemp Rope
+  notes: ''
+- aliases: []
+  amount: 12
+  id: silver_coins
+  name: Spanish Silver Coins
+  notes: ''
+- aliases: []
+  amount: 25
+  id: doubloons
+  name: Doubloons
+  notes: ''
+- amount: 2
+  id: quinine_vial
+  name: Glass Vial of Quinine
+  notes: concentrated, in leather satchel
+- amount: 1
+  id: warehouse_map
+  name: North Johnmouth Warehouse District Map
+  notes: parchment, in leather satchel
+location:
+  description: The damp stone passage is slick with oil and brine, reflecting the
+    chaotic, strobing light of a swinging lantern. Shadows dance violently against
+    the warehouse walls as the clash of steel sends sparks into the dark, salt-heavy
+    air.
+  id: north_johnmouth_warehouse_district
+  name: North Johnmouth Warehouse District
+meta:
+  _pack_source: golden-piracy
+  _seed_type: dynamic
+  compendium_touch_order:
+  - quartermaster_jay
+  - surgeon_daniel
+  - unknown_scavenger
+  - colonial_guards
+  last_arc_resolve_turn: 13
+  last_thread_created_turn: 23
+  model: gpt-4o
+  pending_gm_beat:
+    beat_expires_turn: 25
+    surface_as: event
+    type: escalation
+  prior_history:
+  - '- [T4] The player discovered a trail of blood leading from the breached lockbox
+    into the warehouse.'
+  - '- [T5] The player discovered a scavenger stealing quinine inside the North Johnmouth
+    warehouse.'
+  - '- [T6] The player successfully de-escalated the scavenger, who now proposes a
+    risky partnership to move more supplies.'
+  - '- [T7] The player and the scavenger are interrupted by colonial guards while
+    moving crates in the warehouse.'
+  - '- [T8] The player successfully hid the scavenger from colonial guards and escaped
+    onto the North Johnmouth Pier.'
+  - '- [T9] The scavenger identifies a second source of medicine inside a nearby shed,
+    though the lock is already broken.'
+  - '- [T10] The player accidentally struck a hanging chain, alerting the colonial
+    guards to their presence inside the shed.'
+  - '- [T11] The player hides behind crates as colonial guards enter the shed to investigate
+    the noise.'
+  - '- [T12] The player hides behind crates as colonial guards investigate the noise,
+    narrowing their search toward the player''s position.'
+  - '- [T13] The player''s attempt to remain hidden failed when a guard discovered
+    them, resulting in being surrounded by colonial guards.'
+  - '- [T14] The player shot a guard and escaped the shed, fleeing onto the pier while
+    being pursued.'
+  - '- [T15] The player''s attempt to hide in the alley failed as colonial guards
+    spotted their silhouette and began a direct pursuit.'
+  - '- [T16] The player''s attempt to hide failed when their heel slipped on fish
+    scales, alerting the colonial guards to their position.'
+  - '- [T17] The player''s flintlock pistol misfires, leaving them disoriented by
+    lantern light as the colonial guards lunge with halberds.'
+  - '- [T18] The player wounded a colonial guard with their cutlass, causing a lantern
+    to shatter and ignite the oil-slicked pier.'
+  - '- [T19] The player successfully dodged a halberd strike and escaped the pier
+    fire, finding refuge in the warehouse district alleys.'
+  - '- [T20] The player hides against a warehouse wall as colonial guards enter the
+    alleyway searching for them.'
+  - '- [T21] The player hides behind barrels as colonial guards narrow their search
+    to the immediate vicinity.'
+  - '- [T22] The player''s attempt to remain hidden failed when a guard discovered
+    them behind the barrels.'
+  - '- [T23] James disarmed one guard and wounded another during a frantic melee in
+    the alleyway.'
+  recent_beats:
+  - surface_as: null
+    turn: 19
+    type: null
+  - surface_as: npc_behavior
+    turn: 20
+    type: pressure
+  - surface_as: npc_behavior
+    turn: 21
+    type: pressure
+  - surface_as: event
+    turn: 22
+    type: escalation
+  - surface_as: event
+    turn: 23
+    type: escalation
+  recent_rolls:
+  - band: crit_success
+    turn: 23
+  - band: fail
+    turn: 22
+  - band: fail
+    turn: 21
+  - band: setback
+    turn: 20
+  - band: success
+    turn: 19
+  setting_pack: golden-piracy
+  turn: 23
+pc:
+  actions:
+  - Execute a finishing strike against the guard on the ground.
+  - Lunge at the second guard's exposed chest with your cutlass.
+  - Seize the fallen guard's halberd to use against his partner.
+  - Use the Notched Cutlass to parry and shove the second guard into the oil.
+  bio: A former merchant sailor who turned to piracy after his vessel was seized by
+    a corrupt governor. He lives by the crew's articles and finds more comfort in
+    a storm than a tavern. He seeks enough coin to ensure his brothers never have
+    to work a legal deck again.
+  conditions: []
+  drive: ''
+  name: James Gregory
+  stats:
+    charisma: 2
+    dexterity: 3
+    strength: 4
+    wits: 2
+  tagline: Ship's boarding specialist, expert with a heavy blade
+resolved_arcs:
+- closed_threads: []
+  goal_context: The player is currently cornered by three guards inside a dark warehouse
+    shed after alerting them with a chain.
+  resolution: The attempt to secure supplies via stealth has failed as colonial guards
+    have pinpointed the player's location in the shed.
+  resolved_turn: 12
+  visible_goal: Secure medical supplies from the port while avoiding the colonial
+    quarantine patrols.
+- closed_threads: []
+  goal_context: The player is cornered in a shed on North Johnmouth Pier after being
+    discovered by guards.
+  resolution: The stealthy approach to securing supplies has collapsed into a violent
+    confrontation with colonial authorities.
+  resolved_turn: 13
+  visible_goal: Secure medical supplies from the port while avoiding the colonial
+    quarantine patrols.
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 3
+  location_entered_turn: 19
+  scene_phase: CLIMAX
+  tagline: Warehouse District  narrow alley, combat erupts
+  tags:
+  - port
+  - strike
+  - labor_dispute
+  - disease
+  - quarantine
+  turn_entered: 19
+  world_state:
+  - All trade vessels entering North Johnmouth must undergo a mandatory ten day quarantine.
+  - The port authority has banned all unsanctioned gatherings of sailors near the
+    docks.
+  - Medical supplies are strictly rationed by the colonial governor.
+schema_version: 1

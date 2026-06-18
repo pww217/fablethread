@@ -1,0 +1,422 @@
+__seed_meta__:
+  actions:
+  - Broadcast an urgent distress signal through the radio handset.
+  - Assist Vance in maintaining his position near the bridge edge.
+  - Provide cover fire for Sergeant Stone near the swaying pontoon.
+  - Scout the immediate fog-covered bank to identify the attackers.
+  opening_narrative: 'The rhythmic creak of ropes under tension is the only thing
+    cutting through the heavy, damp silence of the morning. You can feel the moisture
+    from the low-lying fog settling on your skin, making your wool uniform feel heavy
+    and uncomfortably cold. Ahead, the pontoon bridge groans as a heavy transport
+    truck crawls across, its tires splashing through the shallow runoff near the edge
+    of the planks. The rush of the river below is a constant, low roar, partially
+    masked by the thick grey mist that turns the world into a series of indistinct
+    shapes and muffled sounds.
+
+
+    You are hunkered down near the edge of the crossing, your SCR-536 handset heavy
+    in your hands. Beside you, Corporal Nicholas Vance is struggling to keep his headset
+    steady, his face pale beneath the grime of the trail. He glances at you, his eyes
+    darting toward the jagged scar running along his jawline—a reminder of the engagement
+    near East Adam where you had to drag him from a burning transport. He looks like
+    he might be sick, his breathing shallow and uneven in the damp air.
+
+
+    ''Harry, the signal is breaking up,'' Vance whispers, his voice tight with an
+    anxiety he can barely suppress. ''I keep getting these bursts of static, but it
+    doesn''t sound like atmospheric interference. It sounds like... intentional.''
+
+
+    You don''t have time to respond. A sudden, sharp crack echoes from the far bank,
+    followed by the heavy thud of something hitting the wooden slats of the bridge.
+    Sergeant Alexander Stone, standing near the lead truck, immediately unslings his
+    rifle, his face set in a mask of grim, unfeeling efficiency. He doesn''t shout
+    for help; he simply moves toward the source of the sound, his eyes fixed on the
+    fog-shrouded treeline across the water.
+
+
+    The driver of the second truck screams as a sudden explosion near the bridge anchoring
+    ropes sends a spray of splinters and river water into the air. The pontoon section
+    shifts violently, swaying under the weight of the stalled vehicles. Through the
+    mist, you see the silhouette of men moving—not in the orderly lines of your own
+    unit, but in jagged, unpredictable bursts of motion. They aren''t shouting military
+    commands; they are moving with a predatory silence that makes the hair on your
+    neck stand up.
+
+
+    Stone turns back to you, his voice a low, commanding growl. ''Miller! Get that
+    radio working and find out if any other units are in the sector! Vance, get your
+    head out of the clouds and watch the flank!'' He doesn''t wait for your acknowledgment,
+    already pivoting to cover the driver who is frantically trying to reverse the
+    stalled truck away from the swaying bridge edge. The convoy, meant to be a routine
+    transport of fuel and rations, has become a stationary target in the middle of
+    a fast-moving river, and the fog is making it impossible to tell friend from foe.'
+  outcome_summary: The supply convoy is under sudden attack during a foggy river crossing,
+    leaving the unit disorganized and vulnerable.
+__seed_pools__:
+  arc:
+    description: ''
+    id: propaganda_vs_reality
+    incompatible_with: []
+    tags:
+    - official_narrative
+    - lived_experience
+    - disillusionment
+  character_dynamic:
+    description: ''
+    id: scout_reconnaissance
+    incompatible_with: []
+    tags:
+    - scouting
+    - isolation
+    - behind_enemy_lines
+  moral_pressure:
+    description: ''
+    id: war_dehumanization
+    incompatible_with: []
+    tags:
+    - enemy_treatment
+    - hatred
+    - moral_erosion
+  npc_bond:
+    description: The NPC was under the PC's care in a previous engagement and carries
+      a visible scar from it.
+    id: wounded_before
+    incompatible_with: []
+    tags:
+    - injury
+    - care
+    - shared_history
+  scene_bundle:
+    conditions:
+    - the current running fast
+    - the fog lying low over the water
+    id: river_crossing
+    items:
+    - a pontoon bridge anchored with ropes
+    - a crate of waterproofed flares
+    sensory:
+    - the rush of the river
+    - the creak of ropes under tension
+  situation:
+    description: ''
+    id: supply_convoy_attack
+    incompatible_with: []
+    tags:
+    - logistics
+    - raiding
+    - resource_denial
+arc:
+  completed_threads: []
+  goal_context: The search for the signal's origin has transitioned into a direct
+    confrontation/infiltration scenario.
+  last_thread_created_turn: 21
+  resolution: null
+  threads:
+  - active: false
+    id: signal_interference
+    last_updated_turn: 13
+    progress:
+    - kind: shift
+      text: Signal abruptly ceased in the woods
+    summary: Strange radio interference suggests more than just weather-related static.
+    urgency: normal
+  - active: true
+    id: mechanical_signal_mystery
+    last_updated_turn: 20
+    progress:
+    - kind: advancement
+      text: Confirmed signal source is powered generator
+    summary: Investigate the rhythmic mechanical pulse and artificial light in the
+      ravine
+    urgency: normal
+  - active: true
+    id: infiltrate_military_camp
+    last_updated_turn: 21
+    progress:
+    - kind: advancement
+      text: Reached perimeter of active soldier camp
+    - kind: shift
+      text: Soldiers are moving away from the generator camp
+    summary: Infiltrate or sabotage the grey-uniformed soldiers' generator camp
+    urgency: urgent
+  - active: true
+    id: investigate_trail
+    progress: []
+    summary: Investigate the fresh boot prints and trail leading from camp.
+    urgency: normal
+  - active: true
+    added_turn: 21
+    id: chase_on_ridge
+    progress: []
+    summary: Investigate the frantic signaling and pursuit on the ridge trail
+    urgency: normal
+    urgency_set_turn: 21
+  visible_goal: Survive the river crossing aftermath and regroup.
+compendium:
+  npcs:
+    alexander_stone:
+      bio: A veteran driver who prioritizes the cargo over any individual life.
+      bond: Shared history in the logistics division.
+      fear: Loss of military discipline during a raid.
+      last_presence_turn: 10
+      last_seen_location: Oak Grove Thicket
+      leverage: Has access to the transport manifests.
+      motivation: Ensuring the fuel trucks reach the forward depot.
+      name: Sergeant Alexander Stone
+      personality: cold_pragmatist
+      position: leaning against a pine tree trunk
+      presence: known
+      title: Convoy Guard Lead
+    attacker_silhouette:
+      aliases:
+      - attacker silhouette
+      bio: A dark, indistinct figure partially obscured by heavy mist. Moves with
+        sudden, aggressive intent toward the fuel transport.
+      departed_reason: killed in combat — Caught in the throat by a Garand round during
+        the bridge collapse.
+      departed_turn: 4
+      first_seen_turn: 3
+      last_presence_turn: 5
+      last_seen_location: Downstream Riverbank
+      name: Attacker Silhouette
+      position: running from treeline toward truck
+      presence: archived
+    fallen_attacker:
+      aliases:
+      - fallen attacker
+      bio: A silhouette caught in the fog, now slumped against the fuel truck. Suffered
+        a direct hit to the chest.
+      departed_reason: killed in combat — Slumped against the fuel truck as the bridge
+        collapsed into the river.
+      departed_turn: 4
+      first_seen_turn: 3
+      last_presence_turn: 5
+      last_seen_location: Downstream Riverbank
+      name: Fallen Attacker
+      position: slumped against rear of fuel truck
+      presence: archived
+    grey_uniformed_soldiers:
+      aliases:
+      - grey uniformed soldiers
+      bio: Soldiers wearing nondescript grey fatigues, moving with disciplined coordination.
+        They appear to be a specialized unit operating near the radio signal.
+      departed_reason: killed in action — Shot in the chest by the player's M1 Garand.
+      departed_turn: 7
+      first_seen_turn: 6
+      last_presence_turn: 21
+      last_seen_location: Oak Grove Thicket
+      name: Two grey-uniformed soldiers
+      notes: sprinting up the trail in pursuit
+      personality: wary_opportunist
+      position: on the ridge trail heading upward
+      presence: present
+    nicholas_vance:
+      bio: A nervous but capable radio operator who has seen too much frontline static.
+      bond: The NPC was under the PC's care in a previous engagement and carries a
+        visible scar from it.
+      fear: Being left behind in the fog.
+      last_presence_turn: 10
+      last_seen_location: Oak Grove Thicket
+      leverage: null
+      motivation: To complete the transmission despite the chaos.
+      name: Corporal Nicholas Vance
+      personality: desperate_idealist
+      position: near the treeline
+      presence: known
+      title: Signal Specialist
+    unknown_driver:
+      bio: A panicked driver attempting to steer a stalled truck away from the river
+        edge.
+      bond: null
+      fear: null
+      last_presence_turn: 6
+      last_seen_location: Downstream Riverbank
+      leverage: null
+      motivation: null
+      name: Unknown Driver
+      personality: wary_opportunist
+      position: inside the stalled truck
+      presence: known
+      title: ''
+inventory:
+- aliases: []
+  amount: 1
+  id: m1_garand
+  name: M1 Garand
+  notes: recoiled from firing
+- aliases: []
+  amount: 1
+  id: field_radio
+  name: SCR-536 Handset Radio
+  notes: ''
+- aliases: []
+  amount: 1
+  id: waterproof_flares
+  name: Waterproofed Flare Crate
+  notes: ''
+- aliases: []
+  amount: 1
+  id: pocket_watch
+  name: Brass Pocket Watch
+  notes: Engraved with the initials of a fallen corporal.
+- aliases: []
+  amount: 75
+  id: dollars
+  name: Dollars
+  notes: ''
+location:
+  description: A narrow, elevated trail winding through dense woodland above the ravine.
+    The ground is uneven with protruding roots and damp earth, overlooking the distant,
+    roaring river. A discarded wooden crate sits partially submerged in the mud near
+    the path's edge.
+  id: oak_grove_thicket
+  name: Oak Grove Thicket
+meta:
+  _pack_source: allied-ww2
+  _seed_type: dynamic
+  compendium_touch_order:
+  - unknown_driver
+  - attacker_silhouette
+  - fallen_attacker
+  - nicholas_vance
+  - alexander_stone
+  - grey_uniformed_soldiers
+  last_arc_resolve_turn: 19
+  last_thread_created_turn: 21
+  model: GPT-4o
+  pending_gm_beat:
+    beat_expires_turn: 23
+    surface_as: player_discovery
+    type: revelation
+  prior_history:
+  - '- [T2] Harry''s Garand shot misses the sniper in the fog, causing the driver
+    to lose control of the truck as a second attacker emerges.'
+  - '- [T3] Harry successfully retrieves the SCR-536 handset despite the tilting pontoon
+    deck.'
+  - '- [T4] Harry''s Garand shot neutralized the first attacker, but the driver''s
+    panicked maneuver caused the truck to lurch and drew a second attacker into the
+    fray.'
+  - '- [T5] Harry neutralized the second attacker but the bridge collapse swept him
+    and Vance into the river.'
+  - '- [T6] Harry reaches Vance in the mud as Stone emerges from the fog to warn that
+    the radio signal is coming from the woods.'
+  - '- [T7] Harry''s attempt to sneak toward the treeline triggered a trap that incapacitated
+    Stone and alerted nearby grey uniformed soldiers.'
+  - '- [T8] Harry neutralized the soldier holding the receiver, but the shot triggered
+    a coordinated volley from approaching grey-uniformed soldiers.'
+  - '- [T9] Harry''s Garand shot misses the target, drawing immediate return fire
+    from the advancing grey-uniformed soldiers.'
+  - '- [T10] Harry escaped the soldier skirmish by retreating into the Oak Grove Thicket
+    as a new faction of grey-uniformed soldiers disrupted the frontline.'
+  - '- [T11] Harry hides behind an oak tree to observe the approaching grey-uniformed
+    soldiers.'
+  - '- [T12] Harry fails to find a clear shot through the dense Oak Grove Thicket
+    as the soldiers advance.'
+  - '- [T13] Harry''s attempt to retreat into the thicket was compromised when a rotted
+    stump snapped under his weight, alerting the approaching soldiers.'
+  - '- [T14] Harry remains motionless behind an oak tree as grey-uniformed soldiers
+    fan out and search the immediate area.'
+  - '- [T15] Harry successfully repositioned deeper into the ravine after a soldier''s
+    stumble provided a momentary distraction.'
+  - '- [T16] Harry successfully descends deeper into the ravine gully, moving away
+    from the immediate search party.'
+  - '- [T17] Harry''s slip on the slick stones alerted the environment and exposed
+    his position near the bramble thicket.'
+  - '- [T18] Harry successfully descended the steep ravine slope, moving away from
+    the soldiers and toward a rhythmic mechanical pulse and pulsing light.'
+  - '- [T19] Harry identifies the rhythmic signal as a coordinated military operation
+    involving a generator and a small camp of grey-uniformed soldiers.'
+  - '- [T20] Harry successfully reached the edge of the military camp''s perimeter
+    while observing soldiers near the generator.'
+  - '- [T21] Harry observes two grey-uniformed soldiers sprinting up the ridge trail
+    toward a frantic signal light.'
+  recent_beats:
+  - surface_as: null
+    turn: 17
+    type: null
+  - surface_as: player_discovery
+    turn: 18
+    type: revelation
+  - surface_as: player_discovery
+    turn: 19
+    type: revelation
+  - surface_as: player_discovery
+    turn: 20
+    type: revelation
+  - surface_as: player_discovery
+    turn: 21
+    type: revelation
+  recent_rolls:
+  - band: crit_success
+    turn: 21
+  - band: success
+    turn: 20
+  - band: success
+    turn: 19
+  - band: setback
+    turn: 18
+  - band: fail
+    turn: 17
+  setting_pack: allied-ww2
+  turn: 21
+pc:
+  actions:
+  - Intercept the sprinting soldiers before they reach the treeline
+  - Hide near the discarded wooden crate to ambush the pursuit
+  - Follow the soldiers' path toward the source of the blinking light
+  - Use the M1 Garand to fire a warning shot at the ridge silhouette
+  bio: Raised on the plains of East Adam, Harry spent his youth managing heavy machinery
+    and logistics. He joined the signal corps to stay close to the movement of supplies,
+    though the reality of frontline static is far from the orderly world he knew.
+  conditions: []
+  drive: ''
+  name: Harry Miller
+  stats:
+    charisma: 2
+    dexterity: 3
+    strength: 2
+    wits: 4
+  tagline: Radio operator, former grain elevator worker
+resolved_arcs:
+- closed_threads: []
+  goal_context: The immediate threat of the bridge collapse and initial attackers
+    has transitioned into a pursuit/investigation of the signal source.
+  resolution: The convoy ambush at the riverbank has concluded with the discovery
+    of a hostile radio signal.
+  resolved_turn: 6
+  visible_goal: Survive the river crossing aftermath and regroup.
+- closed_threads: []
+  goal_context: The immediate threat of the grey-uniformed soldiers has been bypassed,
+    shifting focus to the mechanical mystery in the depression.
+  resolution: The player has successfully evaded the search party and reached the
+    source of the rhythmic signal in the ravine.
+  resolved_turn: 18
+  visible_goal: Survive the river crossing aftermath and regroup.
+- closed_threads: []
+  goal_context: The search for the signal's origin has transitioned into a direct
+    confrontation/infiltration scenario.
+  resolution: The mystery of the rhythmic signal is solved; the player has located
+    the hidden military outpost in the ravine.
+  resolved_turn: 19
+  visible_goal: Survive the river crossing aftermath and regroup.
+scene:
+  breather_turn_count: 1
+  climax_turn_count: 0
+  location_entered_turn: 10
+  scene_phase: BREATHER
+  tagline: Ridge trail  frantic signals and pursuit
+  tags:
+  - logistics
+  - raiding
+  - resource_denial
+  - foggy_conditions
+  turn_entered: 10
+  world_state:
+  - All civilian transport is requisitioned for military logistics.
+  - Radio silence is strictly enforced near frontline river crossings.
+  - Food rationing has become more severe due to disrupted supply lines.
+  - id: supply_interruption
+    text: The initial raiding silhouette was neutralized by a Garand shot.
+    tier: persistent
+schema_version: 1

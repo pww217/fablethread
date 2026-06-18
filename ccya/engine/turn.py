@@ -1129,7 +1129,7 @@ async def run_turn(
                 for w in reconcile_warnings:
                     _log.warning("[reconcile] turn %s: %s", state.get("meta", {}).get("turn", "?"), w, extra={"trace_id": trace_id})
                 state = apply_delta(
-                    state, delta,
+                    state, delta, trace_id=trace_id,
                 )
 
                 applied = delta.model_dump(exclude_none=True)
@@ -1138,7 +1138,7 @@ async def run_turn(
                         _log.info(
                             "inventory over-draw clamped: %s",
                             r.get("reason"),
-                            extra={"trace_id": trace_id},
+                            extra={"trace_id": trace_id, "turn": turn_no},
                         )
 
             # Beat history: snapshot pending_gm_beat after floor relief override.
@@ -1278,7 +1278,7 @@ async def run_turn(
                                         _log.info(
                                             "thread_cap.evict trace_id=%s evicted=%s active_count=%d max=%d",
                                             trace_id, evict.id, len(active), config.thread_max_active,
-                                            extra={"trace_id": trace_id},
+                                            extra={"trace_id": trace_id, "turn": turn_no},
                                         )
                                 _merge_arc_update(state.setdefault("arc", {}), arc_with_new_thread)
                                 state.setdefault("meta", {})["last_thread_created_turn"] = turn_no_for_add

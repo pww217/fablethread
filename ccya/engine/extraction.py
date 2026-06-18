@@ -348,14 +348,7 @@ def _storytell_messages(
     npc_roster = build_npc_roster(extraction_ctx.comp_this_turn, personality_registry=ARCHETYPES)
 
     # Curtain Call signal for CLIMAX phase
-    curtain_call = ""
-    if scene.get("scene_phase") == "CLIMAX" and config:
-        climax_turn_count = scene.get("climax_turn_count", 0)
-        climax_turn_limit = config.climax_turn_limit
-        if climax_turn_count >= climax_turn_limit - 1:
-            curtain_call = "forced"
-        elif climax_turn_count == 1:
-            curtain_call = "active"
+    curtain_call = scene.get("curtain_call", "")
 
     user_text = _render(
         env,

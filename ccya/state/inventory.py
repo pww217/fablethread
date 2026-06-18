@@ -28,6 +28,8 @@ import logging
 import re
 from typing import Any
 
+from ccya.errors import ErrorKind
+
 _log = logging.getLogger(__name__)
 
 
@@ -52,7 +54,8 @@ def resolve_inventory_canonical_id(
             if isinstance(alias, str) and normalize_inventory_id(alias) == want:
                 _log.debug("resolve_inventory_canonical_id raw=%s -> %s (via alias %s)", raw_id, it["id"], alias)
                 return str(it["id"])
-    _log.debug("resolve_inventory_canonical_id raw=%s normalized=%s no match", raw_id, want)
+    _log.warning("resolve_inventory_canonical_id no match raw=%s normalized=%s", raw_id, want,
+                 extra={"error_kind": ErrorKind.INVENTORY_NORMALIZE_FAILED})
     return None
 
 

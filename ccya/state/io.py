@@ -11,6 +11,8 @@ from typing import Any, cast
 import yaml
 from enum import Enum
 
+from ccya.errors import ErrorKind
+
 _log = logging.getLogger(__name__)
 
 CURRENT_SCHEMA_VERSION = 1
@@ -112,17 +114,20 @@ def _default_state() -> dict[str, Any]:
 def load_state(save_dir: Path) -> dict[str, Any]:
     path = save_dir / "state.yaml"
     if not path.exists():
-        _log.error("load_state path=%s not found — returning default state", path)
+        _log.error("load_state path=%s not found — returning default state", path,
+                    extra={"error_kind": ErrorKind.STATE_LOAD_FAILED})
         return _default_state()
     with open(path) as f:
         content = f.read()
     try:
         raw: dict[str, Any] = cast(dict[str, Any], yaml.safe_load(content))
     except yaml.YAMLError as e:
-        _log.warning("load_state path=%s malformed YAML — returning default state: %s", path, e)
+        _log.error("load_state path=%s malformed YAML — returning default state: %s", path, e,
+                    extra={"error_kind": ErrorKind.STATE_LOAD_FAILED})
         return _default_state()
     if not raw:
-        _log.error("load_state path=%s empty — returning default state", path)
+        _log.error("load_state path=%s empty — returning default state", path,
+                    extra={"error_kind": ErrorKind.STATE_LOAD_FAILED})
         return _default_state()
     loaded_version = raw.get("schema_version", 0)
     if loaded_version == 0:
