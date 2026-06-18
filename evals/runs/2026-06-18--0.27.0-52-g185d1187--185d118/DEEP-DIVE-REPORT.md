@@ -336,7 +336,8 @@
 #### Fix Applied (2026-06-18)
 - **`thread_resolution_validity.py`:** Added `_apply_sanitizer_changes_to_arc()` helper that reconstructs arc state by applying sanitizer changes (added/resolved/updated threads) before validation. Also fixed progress item handling to support both dict and string formats. Only updates `prev_snap` from turn events (`kind=None`), not from `condition_expired`/sanitizer events.
 - **`arc_resolution_validity.py`:** Imports and uses the same helper for `drop_threads` validation.
-- **Test results:** All 13 eval saves pass (12/13 with 0 findings, 1/13 with 1 real model compliance failure — space-western 0115 T25 resolves threads never added).
+- **Bug:** `run_checkers()` was filtering out sanitizer events via `filter_turn_events()`, so the helper never received the sanitizer data. Fixed by adding `needs_non_turn_events=True` to both checker registrations.
+- **Test results:** All eval saves pass (12/13 with 0 findings, 1/13 with 2 real model compliance failures — space-western 0115 T25 resolves threads never added).
 
 ### Arc Resolution Hallucination (WW2, Head) — FIXED
 - Model hallucinates `arc_resolve` for non-existent arcs
