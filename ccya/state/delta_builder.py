@@ -10,6 +10,7 @@ import logging
 import re
 from typing import Any
 
+from ccya.errors import ErrorKind
 from ccya.models import CampaignArc, SceneExtractResult, StateDelta
 from ccya.state.inventory import (
     _fuzzy_match_inventory,
@@ -114,8 +115,11 @@ def reconcile_delta(state: dict[str, Any], delta: StateDelta) -> tuple[StateDelt
 
 def apply_delta(
     state: dict[str, Any], delta: StateDelta,
+    *, trace_id: str | None = None,
 ) -> dict[str, Any]:
     state = copy.deepcopy(state)
+
+    current_turn = (state.get("meta") or {}).get("turn", 0)
 
     inv: list[dict[str, Any]] = copy.deepcopy(state.get("inventory", []))
     for it in inv:
@@ -167,13 +171,15 @@ def apply_delta(
                 d["id"] = target_id
                 inv.append(d)
                 by_id = _by_id()
+        _log.info("inventory_add.applied item=%s amount=%d", item.id, d["amount"],
+                  extra={"trace_id": trace_id, "turn": current_turn})
 
     for rem in delta.inventory_remove:
         canonical = resolve_inventory_remove_target(inv, rem.id)
         if not canonical:
-            _log.debug(
-                "inventory_remove target %r not found in inventory (turn %s)",
-                rem.id, state.get("meta", {}).get("turn", 0),
+            _log.warning(
+                "inventory_remove target not found item=%r", rem.id,
+                extra={"trace_id": trace_id, "turn": current_turn, "error_kind": ErrorKind.INVENTORY_REMOVE_FAILED},
             )
             continue
         ex = by_id[canonical]
@@ -183,9 +189,8 @@ def apply_delta(
             amt_raw = int(rem.amount)
             if amt_raw <= 0:
                 _log.warning(
-                    "inventory_remove amount=%r coerced to full remove for %s",
-                    rem.amount,
-                    canonical,
+                    "inventory_remove amount coerced to 0 item=%s", canonical,
+                    extra={"trace_id": trace_id, "turn": current_turn, "error_kind": ErrorKind.INVENTORY_REMOVE_FAILED},
                 )
                 inv = [x for x in inv if x.get("id") != canonical]
             else:
@@ -200,6 +205,10 @@ def apply_delta(
     for inv_upd in delta.inventory_update:
         canonical = resolve_inventory_canonical_id(inv, inv_upd.id)
         if not canonical:
+            _log.warning(
+                "inventory_update target not found item=%s", inv_upd.id,
+                extra={"trace_id": trace_id, "turn": current_turn, "error_kind": ErrorKind.INVENTORY_UPDATE_FAILED},
+            )
             continue
         ex = by_id[canonical]
         if inv_upd.name is not None:
@@ -226,10 +235,10 @@ def apply_delta(
         _stamp_turn = state.get("meta", {}).get("turn", 0) + 1
         state["scene"]["turn_entered"] = _stamp_turn
         state["scene"]["location_entered_turn"] = _stamp_turn
+        _log.info("location_change.applied location=%s name=%s", delta.location_change.id, delta.location_change.name,
+                  extra={"trace_id": trace_id, "turn": current_turn})
     elif delta.location_description:
         state.setdefault("location", {})["description"] = delta.location_description
-
-    current_turn = (state.get("meta") or {}).get("turn", 0)
 
     state.setdefault("pc", {}).setdefault("conditions", [])
     existing_conds: list[dict[str, Any]] = []
@@ -255,6 +264,10 @@ def apply_delta(
         existing_conds.append(cond_dict)
         existing_ids.add(cid)
     state["pc"]["conditions"] = existing_conds
+    if delta.pc_condition_remove or delta.pc_condition_add:
+        _log.info("condition_change.applied adds=%d removes=%d",
+                  len(delta.pc_condition_add), len(delta.pc_condition_remove),
+                  extra={"trace_id": trace_id, "turn": current_turn})
 
     if delta.scene_tagline is not None:
         state.setdefault("scene", {})["tagline"] = _strip_non_ascii(delta.scene_tagline)
@@ -266,7 +279,7 @@ def apply_delta(
         scene_tagline=delta.scene_tagline,
         location_change=delta.location_change,
         location_description=delta.location_description,
-    ), current_turn_no=current_turn)
+    ), current_turn_no=current_turn, trace_id=trace_id)
 
     # --- Arc update: merge arc_update into state arc ---
     if delta.arc_update is not None:
@@ -278,7 +291,7 @@ def apply_delta(
         pc["actions"] = list(delta.actions[-10:])
         _log.info(
             "Applied %d Storyteller Actions", len(delta.actions),
-            extra={"turn": state.get("meta", {}).get("turn", 0), "trace_id": "", "pack": "", "kind": "actions"},
+            extra={"turn": current_turn, "trace_id": trace_id or "", "pack": "", "kind": "actions"},
         )
 
     return state

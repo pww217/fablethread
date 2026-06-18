@@ -26,7 +26,9 @@ def load_events(path: Path) -> list[dict[str, Any]]:
         line = line.strip()
         if line:
             try:
-                events.append(json.loads(line))
+                parsed = json.loads(line)
+                if isinstance(parsed, dict):
+                    events.append(parsed)
             except json.JSONDecodeError:
                 continue
     return events

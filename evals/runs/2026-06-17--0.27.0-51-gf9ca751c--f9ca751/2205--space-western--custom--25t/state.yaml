@@ -1,0 +1,452 @@
+__seed_meta__:
+  actions:
+  - Attempt to hide the cracked plasma cutter before Jackson sees it.
+  - Argue with Officer Jackson about the necessity of the repair.
+  - Ask Jesse Trujillo to distract the officers while you finish the diagnostic.
+  - Quickly shut down the diagnostic tablet and clear the workspace.
+  opening_narrative: "The sharp, metallic tang of ozone bites at the back of your\
+    \ throat. A low, rhythmic hiss from a cracked plasma cutter is the only sound\
+    \ in the bay, punctuating the heavy silence of the unheated hangar. You are hunched\
+    \ over the exposed guts of your freighter, the diagnostic tablet in your hand\
+    \ bleeding angry red light across your vision as it screams about critical system\
+    \ failures.\n\nThe repair bay is freezing, the warmth having escaped the moment\
+    \ the vacuum seal on the primary bulkhead failed an hour ago. Tools are scattered\
+    \ across the deck plating like discarded bones, and a recent electrical fire has\
+    \ left a dark, soot-stained smear across the bulkhead behind you. You try to focus\
+    \ on the wiring, but the shivering in your hands makes the delicate work nearly\
+    \ impossible. \n\nA heavy boot thuds against the metal floor, echoing too loudly\
+    \ in the cavernous space. You look up to see Jesse Trujillo leaning against a\
+    \ stack of empty shipping crates. He looks tired, his face etched with the grime\
+    \ of a man who has spent too many cycles breathing recycled air. He does not look\
+    \ at you; instead, he watches the door, his hand resting uncomfortably close to\
+    \ the heavy wrench tucked into his belt.\n\n\"You are pushing your luck, Jeffery,\"\
+    \ Jesse says, his voice rasping. \"The Port Kimberly authorities are running a\
+    \ sweep of all independent bays. They are looking for anyone running uncertified\
+    \ hardware. If they catch you using that cutter without a permit, they will impound\
+    \ the ship before you can even finish the diagnostic.\"\n\nBefore you can respond,\
+    \ the heavy sliding door at the end of the bay groans open. The light from the\
+    \ corridor spills in, casting long, distorted shadows across the grease-stained\
+    \ floor. Two figures stand framed in the doorway, their silhouettes sharp and\
+    \ imposing. One of them is holding a handheld scanner that begins to chirp rhythmically,\
+    \ its light sweeping across your workspace.\n\n\"Unauthorized maintenance detected\
+    \ in Bay Alpha,\" a voice calls out, cold and devoid of empathy. It is Billy Jackson,\
+    \ one of the Port Security officers. He steps into the bay, his eyes scanning\
+    \ the mess of tools and the smoking diagnostic tablet. Behind him, an assistant\
+    \ follows, already tapping commands into a handheld terminal. \n\nJesse stiffens,\
+    \ stepping slightly between you and the approaching officers. \"We are just clearing\
+    \ a mechanical fault, Officer,\" Jesse says, his voice steady despite the tension\
+    \ in his shoulders. \"Nothing that requires a full inspection.\"\n\nJackson does\
+    \ not slow down. He moves toward your workbench, the scanner chirping faster as\
+    \ it nears your cracked plasma cutter. \"All repairs must be logged and certified\
+    \ by a corporate technician,\" Jackson says, his gaze landing on the red warnings\
+    \ flashing on your tablet. \"You are in violation of Port Kimberly maritime law.\
+    \ Step away from the vessel while we conduct a formal assessment.\"\n\nYour heart\
+    \ hammers against your ribs. If they impound the ship, you lose everything—the\
+    \ cargo, the fuel, and the chance to clear the debt that has been suffocating\
+    \ you for months. Jesse looks at you, a silent plea in his eyes. He knows what\
+    \ an impoundment means for a pilot like you. You are caught between the law, your\
+    \ mounting debts, and the desperate need to keep your ship flight-ready."
+  outcome_summary: Jeffery Cherry faces an immediate inspection by Port Security while
+    attempting uncertified repairs in a freezing hangar.
+__seed_pools__:
+  arc:
+    description: ''
+    id: resource_extraction_conflict
+    incompatible_with: []
+    tags:
+    - mining
+    - corporate_control
+    - labor_dispute
+  character_dynamic:
+    description: ''
+    id: independent_pilot
+    incompatible_with: []
+    tags:
+    - space
+    - independence
+    - trade
+  moral_pressure:
+    description: ''
+    id: frontier_code
+    incompatible_with: []
+    tags:
+    - frontier
+    - honor
+    - violence_justification
+  npc_bond:
+    description: The NPC served on the same ship as the PC — not friends, but the
+      kind of bond formed by shared cargo holds and close calls.
+    id: old_crewmate
+    incompatible_with: []
+    tags:
+    - crew
+    - ship
+    - shared_mileage
+  scene_bundle:
+    conditions:
+    - the bay cold from the vacuum seal broken
+    - tools scattered across every surface
+    id: repair_bay
+    items:
+    - a welding torch with a cracked lens
+    - a diagnostic tablet showing red across the board
+    sensory:
+    - the hiss of a plasma cutter
+    - the ozone smell of a recent electrical fire
+  situation:
+    description: ''
+    id: desert_crossing
+    incompatible_with: []
+    tags:
+    - frontier
+    - survival
+    - environmental_hazard
+arc:
+  completed_threads:
+  - active: true
+    id: detention_survival
+    outcome: Jeffery is moved from the detention wing to central processing.
+    progress: []
+    resolution_state: resolved
+    resolved_turn: 15
+    summary: Survive the processing and interrogation within the Detention Wing.
+    urgency: urgent
+  goal_context: The player attempted a mechanical bypass of restraints which was neutralized
+    by security protocols.
+  last_thread_created_turn: 15
+  resolution: null
+  threads:
+  - active: false
+    id: extraction_monopoly
+    last_updated_turn: 10
+    progress:
+    - kind: shift
+      text: Corporate pressure intensifies during detainment.
+    summary: A corporate conglomerate is aggressively squeezing independent miners
+      out of the sector.
+    urgency: normal
+  - active: false
+    id: black_market_parts
+    last_updated_turn: 18
+    progress:
+    - kind: shift
+      text: illegal hardware flooding local markets continues
+    summary: Illegal hardware supplies are flooding the local markets, bypassing safety
+      regulations.
+    urgency: background
+  - active: false
+    id: labor_unrest
+    last_updated_turn: 18
+    progress:
+    - kind: shift
+      text: dockworkers planning strike remains unaddressed
+    summary: Dockworkers are planning a strike that could paralyze Port Kimberly trade.
+    urgency: normal
+  - active: true
+    added_turn: 15
+    id: processing_interrogation
+    last_updated_turn: 23
+    progress:
+    - kind: advancement
+      text: Jeffery enters the Administrative Processing Room
+    - kind: advancement
+      text: Aris Vance submits a data chip for the audit.
+    - kind: advancement
+      text: Felony charges officially confirmed by security terminal
+    - kind: shift
+      text: Jeffery is forcibly restrained and transferred for adjudication.
+    summary: navigate the interrogation and audit in the central processing wing
+    urgency: normal
+    urgency_set_turn: 23
+  visible_goal: The focus shifts from immediate physical detention to navigating the
+    formal interrogation and processing procedures.
+compendium:
+  npcs:
+    aris_vance:
+      allegiance: Port Kimberly Authority
+      bio: A stern-faced officer in heavy Port Security fatigues. Moves with aggressive,
+        practiced efficiency during enforcement actions.
+      first_seen_turn: 4
+      last_seen:
+        location_id: administrative_processing_room
+        location_name: Administrative Processing Room
+        turn: 23
+      motivation: Enforcing port regulations and maintaining order.
+      name: Aris Vance
+      nearby_since_turn: 20
+      notes: turning away to avoid eye contact
+      personality: resigned_functionary
+      position: standing with back turned
+      presence: present
+      title: Port Security Officer
+    billy_jackson:
+      bio: A low-level enforcer for the Port Kimberly authority, looking for easy
+        fines to meet his quota.
+      bond: null
+      fear: Losing his position to a more efficient automated system.
+      last_seen:
+        location_id: port_kimberly_detention_wing
+        location_name: Port Kimberly Detention Wing
+        turn: 10
+      leverage: Holds the power to impound vessels for uncertified repairs.
+      motivation: Maintaining order and meeting monthly enforcement quotas.
+      name: Billy Jackson
+      nearby_since_turn: 5
+      personality: resigned_functionary
+      position: standing near the bulkhead
+      presence: known
+      title: Port Security Officer
+    dockworkers:
+      aliases:
+      - dockworkers
+      bio: A group of laborers in stained coveralls and heavy utility belts. They
+        move with a hurried, annoyed gait, clearly uninterested in security disputes.
+      first_seen_turn: 5
+      last_seen:
+        location_id: port_kimberly_detention_wing
+        location_name: Port Kimberly Detention Wing
+        turn: 10
+      name: Three dockworkers
+      nearby_since_turn: 8
+      personality: wary_opportunist
+      position: fleeing the immediate radius
+      presence: known
+    jesse_trujillo:
+      bio: A man who knows the weight of a cargo hold and the cost of a bad run. He
+        has seen Jeffery through more than one mechanical crisis.
+      bond: The NPC served on the same ship as the PC — not friends, but the kind
+        of bond formed by shared cargo holds and close calls.
+      fear: Falling back into corporate indentured servitude.
+      last_seen:
+        location_id: transit_artery_main
+        location_name: Main Transit Artery
+        turn: 5
+      leverage: null
+      motivation: To secure enough credits to leave the frontier behind.
+      name: Jesse Trujillo
+      nearby_since_turn: 5
+      personality: blunt_survivor
+      presence: known
+      title: Former Deckhand
+    security_assistant:
+      aliases:
+      - security assistant
+      bio: A silent figure in standard Port Security fatigues. They move with practiced,
+        mechanical efficiency while monitoring a handheld terminal.
+      first_seen_turn: 0
+      last_seen:
+        location_id: central_processing_wing
+        location_name: Central Processing Wing
+        turn: 19
+      name: Security Assistant
+      nearby_since_turn: 20
+      position: following behind the PC
+      presence: known
+    security_officers:
+      bio: Uniformed personnel wearing polarized visors that obscure their facial
+        expressions. They maintain a disciplined, unreadable stance behind the administrative
+        desk.
+      first_seen_turn: 19
+      last_seen:
+        location_id: administrative_processing_room
+        location_name: Administrative Processing Room
+        turn: 23
+      name: Two Port Security officers
+      notes: completing felony processing at console
+      personality: wary_opportunist
+      position: behind the administrative desk
+      presence: present
+    silas_thorne:
+      allegiance: Port Kimberly Authority
+      bio: A heavy-set officer in standard security gear. Part of the enforcement
+        squad tasked with impoundment and audits.
+      first_seen_turn: 4
+      last_seen:
+        location_id: administrative_processing_room
+        location_name: Administrative Processing Room
+        turn: 23
+      motivation: Enforcing port regulations and maintaining order.
+      name: Silas Thorne
+      nearby_since_turn: 20
+      notes: hauling PC upward by the collar
+      personality: resigned_functionary
+      position: standing over PC
+      presence: present
+      title: Port Security Officer
+inventory:
+- aliases: []
+  amount: 100
+  id: credits
+  name: Credits
+  notes: ''
+- aliases: []
+  amount: 1
+  id: plasma_cutter
+  name: Plasma Cutter
+  notes: The lens is cracked, causing a slight flicker in the beam.
+- aliases: []
+  amount: 1
+  id: heavy_wrench
+  name: Heavy Wrench
+  notes: ''
+- aliases: []
+  amount: 3
+  id: fusion_cell
+  name: Fusion Cell
+  notes: Standard power unit for handheld tools.
+location:
+  description: The sterile room is dominated by the harsh, solid red glow of the terminal
+    console. The air carries the mechanical hum of server fans and the sharp scent
+    of ozone from the processing equipment.
+  id: administrative_processing_room
+  name: Administrative Processing Room
+meta:
+  _pack_source: space-western
+  _seed_type: dynamic
+  compendium_touch_order:
+  - jesse_trujillo
+  - billy_jackson
+  - dockworkers
+  - security_assistant
+  - aris_vance
+  - silas_thorne
+  - security_officers
+  last_thread_created_turn: 15
+  model: stable-diffusion-narrative-v1
+  pending_gm_beat:
+    beat_expires_turn: 25
+    surface_as: npc_behavior
+    type: escalation
+  prior_history:
+  - '- [T4] Billy Jackson pins the hardware permit folder and the Security Assistant
+    initiates seizure protocol for the uncertified diagnostic tablet.'
+  - '- [T5] Cherry is forcibly detained by Billy Jackson and security officers, being
+    marched toward the processing center for an inventory audit.'
+  - '- [T6] Cherry''s attempt to stall the audit using priority shipment claims fails
+    as Aris Vance and Silas Thorne maintain their detention.'
+  - '- [T7] Cherry''s attempt to present the hardware permit folder fails, resulting
+    in Silas Thorne confiscating the documents and Billy Jackson escalating the situation
+    to a full detainment.'
+  - '- [T8] Jeffery''s attempt to resist Billy Jackson results in formal felony charges
+    and official detainment.'
+  - '- [T9] Jeffery''s attempt to reach for the tablet failed, resulting in Billy
+    Jackson physically restraining him and Aris Vance reporting a felony system breach
+    charge.'
+  - '- [T10] Jeffery''s violent strike against Billy Jackson resulted in immediate
+    physical subdual and forced entry into the Port Kimberly Detention Wing.'
+  - '- [T11] Jeffery''s attempt to strike Silas Thorne fails, resulting in him being
+    pinned against the bulkhead and placed in magnetic restraints.'
+  - '- [T12] Jeffery''s attempt to strike Silas Thorne with the heavy wrench fails
+    as Aris Vance and Silas Thorne physically pin him down.'
+  - '- [T13] Jeffery''s headbutt attempt fails against Aris Vance, resulting in additional
+    charges and a transfer to high-security cells.'
+  - '- [T14] Jeffery''s attempt to use the heavy wrench failed as magnetic restraints
+    snapped shut, resulting in Silas Thorne pinning him down.'
+  - '- [T15] Jeffery is forcibly moved from the Detention Wing into the sterile halls
+    of Central Processing after a failed attempt to provoke Aris Vance.'
+  - '- [T16] Jeffery observes Aris Vance''s momentary hesitation near a red-lit door
+    while being marched toward processing.'
+  - '- [T17] Jeffery observes Aris Vance''s nervous behavior and a suspicious avoidance
+    of the secured entrance.'
+  - '- [T18] Jeffery observes Aris Vance''s nervous behavior as the security team
+    redirects him away from the red-lit door.'
+  - '- [T19] Jeffery observes Aris Vance''s suspicious avoidance of the secured entrance
+    while being marched toward administrative doors.'
+  - '- [T20] Jeffery breaks Silas Thorne''s grip and is ushered into the Administrative
+    Processing Room by a visibly shaken Aris Vance.'
+  - '- [T21] Jeffery sits for interrogation as Aris Vance surreptitiously passes a
+    data chip to the desk officer.'
+  - '- [T22] Jeffery''s attempt to de-escalate via manifest review fails as the security
+    officer confirms all felony charges.'
+  - '- [T23] Jeffery''s attempt at de-escalation fails as Silas Thorne applies magnetic
+    restraints and the security team initiates transfer to high-security detention.'
+  recent_beats:
+  - surface_as: player_discovery
+    turn: 19
+    type: revelation
+  - surface_as: player_discovery
+    turn: 20
+    type: revelation
+  - surface_as: player_discovery
+    turn: 21
+    type: revelation
+  - surface_as: npc_behavior
+    turn: 22
+    type: escalation
+  - surface_as: npc_behavior
+    turn: 23
+    type: escalation
+  recent_rolls:
+  - band: fail
+    turn: 23
+  - band: fail
+    turn: 22
+  - band: success
+    turn: 20
+  - band: success
+    turn: 19
+  - band: fail
+    turn: 18
+  setting_pack: space-western
+  turn: 23
+pc:
+  actions:
+  - Demand to see the specific felony charge documentation from the officer.
+  - Spit at Silas Thorne to provoke a more aggressive response.
+  - Attempt to use the Heavy Wrench to break the magnetic restraints.
+  - Ask Aris Vance why he is avoiding eye contact during processing.
+  bio: A freelance hauler who survives on the margins of corporate mining routes.
+    After a near-fatal engine failure in the Kimton sector, Jeffery has become obsessed
+    with maintaining his own hardware rather than trusting station mechanics.
+  conditions: []
+  drive: ''
+  name: Jeffery Cherry
+  stats:
+    charisma: 2
+    dexterity: 3
+    strength: 2
+    wits: 3
+  tagline: Independent freighter pilot, debt driven and cautious
+resolved_arcs:
+- closed_threads: []
+  goal_context: The PC is now physically incarcerated after a violent outburst.
+  resolution: The attempt to avoid detention via bureaucracy or stalling has failed
+    completely, transitioning the story from a legal dispute to a struggle for survival/escape
+    within the detention wing.
+  resolved_turn: 10
+  visible_goal: Secure a stable contract for mineral transport despite corporate interference.
+- closed_threads: []
+  goal_context: Jeffery is now facing escalated charges and higher security.
+  resolution: The attempt to avoid or mitigate charges via physical resistance has
+    failed, shifting the arc toward survival in high-security detention.
+  resolved_turn: 13
+  visible_goal: Escape or mitigate the felony charges in the Detention Wing.
+- closed_threads: []
+  goal_context: The player attempted a mechanical bypass of restraints which was neutralized
+    by security protocols.
+  resolution: Jeffery's attempt to resist via physical tools failed, resulting in
+    full detainment and magnetic restraint engagement.
+  resolved_turn: 14
+  visible_goal: Escape or mitigate felony charges in the Detention Wing.
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 0
+  location_entered_turn: 20
+  scene_phase: RISING
+  tagline: Administrative Processing Room  felony charges confirmed
+  tags:
+  - frontier
+  - survival
+  - environmental_hazard
+  - mining
+  turn_entered: 20
+  world_state:
+  - All private mining vessels must undergo mandatory corporate inspections before
+    departure.
+  - Unauthorized repair of heavy machinery is prohibited under Port Kimberly maritime
+    law.
+  - Fuel rationing is strictly enforced across all independent docking bays.
+  - id: security_detention
+    text: Cherry is officially detained and charged with felony obstruction.
+    tier: persistent
+schema_version: 1

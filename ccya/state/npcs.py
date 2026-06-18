@@ -176,6 +176,7 @@ def strip_npcs_notes(state: dict[str, Any]) -> None:
     Mutates state in-place so ruling/narration/extraction all see a clean slate.
     """
     npcs = (state.get("compendium") or {}).get("npcs", {})
+    _log.debug("strip_npcs_notes count=%d", len(npcs))
     for npc_id, entry in npcs.items():
         if isinstance(entry, dict) and entry.get("presence") not in ("departed", "archived"):
             entry.pop("notes", None)
@@ -185,6 +186,7 @@ def apply_npc_scene_management(
     state: dict[str, Any],
     scene_result: SceneExtractResult,
     current_turn_no: int | None = None,
+    trace_id: str | None = None,
 ) -> dict[str, Any]:
     """Apply compendium_npc_update entries to compendium.npcs.
 
@@ -194,9 +196,8 @@ def apply_npc_scene_management(
 
     if scene_result.compendium_npc_update:
         _log.info(
-            "apply_npc_scene_management turns=%s compendium_update=%d",
-            current_turn_no,
-            len(scene_result.compendium_npc_update),
+            "apply_npc_scene_management compendium_update=%d", len(scene_result.compendium_npc_update),
+            extra={"trace_id": trace_id, "turn": current_turn_no},
         )
         alias_map = build_npc_alias_map(comp)
 
@@ -294,8 +295,9 @@ def apply_npc_scene_management(
                 else:
                     entry["personality"] = comp_upd.personality
                     _log.info(
-                        "apply_npc_scene_management npc=%s personality=%s",
+                        "npc_scene_management.applied npc=%s personality=%s",
                         resolved_id, comp_upd.personality,
+                        extra={"trace_id": trace_id, "turn": current_turn_no},
                     )
             # Engine fallback: assign personality for named NPCs that still lack one.
             # Unnamed NPCs (alias-only, no proper name) are intentionally skipped.

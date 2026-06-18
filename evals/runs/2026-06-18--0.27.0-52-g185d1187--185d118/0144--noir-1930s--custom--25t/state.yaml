@@ -1,0 +1,390 @@
+__seed_meta__:
+  actions:
+  - Slide the stolen ledger page into my inner coat pocket.
+  - Ask Moran why he is so concerned with my paperwork.
+  - Scan the room to see if Vance witnessed our encounter.
+  - Demand to know who authorized the recent payroll changes.
+  opening_narrative: 'The rhythmic clatter of a typewriter with a stuck ''e'' key
+    punctuates the heavy silence of the Fourth Precinct. Rainwater drips from your
+    trench coat onto the floor, adding to the slick, dark patches reflecting the dim
+    overhead lights. The air in the room is thick, a suffocating mix of stale coffee
+    and the blue smoke hanging under the ceiling lamps like a low-lying fog.
+
+
+    You sit at a scarred wooden desk, the stained page of the union ledger feeling
+    heavy and illicit against your palm. Across the room, Andrew Vance is hunched
+    over his station, his fingers moving mechanically through a stack of summonses,
+    his face a mask of weary indifference to the chaos of the city outside. The precinct
+    feels unusually quiet, yet there is an underlying vibration of tension that makes
+    the hair on your neck stand up.
+
+
+    A heavy footfall breaks the stillness. Detective Sean Moran rounds the corner,
+    his eyes immediately locking onto yours with a sharp, predatory stillness. He
+    doesn''t walk toward you so much as he closes the distance, his presence cutting
+    through the haze of smoke like a blade. He stops just short of your desk, leaning
+    forward so that the light catches the hardness in his gaze.
+
+
+    ''You shouldn''t be digging in those files, Halloway,'' Moran says, his voice
+    low and devoid of warmth. He doesn''t look at the ledger, but his eyes scan your
+    face for any sign of hesitation. ''Some things in this precinct are better left
+    in the bottom drawer.'' Behind him, Vance stops typing, the sudden silence of
+    the machine feeling louder than the noise ever did. Moran reaches out, resting
+    a heavy hand on the edge of your desk, his knuckles white. He isn''t making a
+    threat yet, but the implication hangs in the air between you, more potent than
+    any spoken warning. You realize then that the discrepancy you found in the payroll
+    wasn''t just a mistake—it was a breadcrumb leading straight into a trap.'
+  outcome_summary: William Halloway discovers a suspicious ledger page while being
+    confronted by Detective Moran in the precinct.
+__seed_pools__:
+  arc:
+    description: ''
+    id: gang_territory_dispute
+    incompatible_with: []
+    tags:
+    - gang
+    - territory
+    - dispute_boundary
+  character_dynamic:
+    description: ''
+    id: information_broker
+    incompatible_with: []
+    tags:
+    - connected
+    - secretive
+    - leverage_holding
+  moral_pressure:
+    description: ''
+    id: professional_ethics
+    incompatible_with: []
+    tags:
+    - professional
+    - ethics
+    - code_of_conduct
+  npc_bond:
+    description: The NPC and PC crossed paths on a previous case — one helped, one
+      hindered.
+    id: case_from_before
+    incompatible_with: []
+    tags:
+    - previous_case
+    - shared_history
+  scene_bundle:
+    conditions:
+    - the floor slick from tracked-in rain
+    - smoke hanging under the ceiling lights
+    id: police_precinct
+    items:
+    - a typewriter with a stuck 'e' key
+    - a filing cabinet with the bottom drawer padlocked
+    sensory:
+    - the clatter of a teletype machine
+    - the smell of stale coffee and cheap tobacco
+  situation:
+    description: ''
+    id: corruption_discovery
+    incompatible_with: []
+    tags:
+    - corruption
+    - discovery
+    - hidden_truth
+arc:
+  completed_threads: []
+  goal_context: The investigation has escalated into a life-threatening pursuit through
+    the docks.
+  last_thread_created_turn: 20
+  resolution: null
+  threads:
+  - active: true
+    added_turn: null
+    id: union_fund_investigation
+    last_updated_turn: 20
+    outcome: null
+    progress:
+    - kind: advancement
+      text: Halloway possesses ledger and key evidence.
+    - kind: advancement
+      text: IA casing and badge link precinct.
+    - kind: advancement
+      text: Pursuers flank Halloway on the pier.
+    resolution_state: null
+    resolved_turn: null
+    summary: Trace the connection between the ledger and missing funds.
+    urgency: urgent
+    urgency_set_turn: null
+  - active: true
+    added_turn: null
+    id: pier_escape_survival
+    last_updated_turn: null
+    outcome: null
+    progress: []
+    resolution_state: null
+    resolved_turn: null
+    summary: Survive the ambush on the slippery pier.
+    urgency: urgent
+    urgency_set_turn: null
+  visible_goal: Identify the source of missing union funds.
+compendium:
+  npcs:
+    clerk_andrew_vance:
+      bio: A weary man who manages the filing system and sees everything that enters
+        or leaves.
+      bond: null
+      fear: Being implicated in a corruption probe.
+      last_presence_turn: 10
+      last_seen_location: Harrisside Street
+      leverage: He manages the padlocked filing cabinets.
+      motivation: Getting through his shift without making waves.
+      name: Andrew Vance
+      personality: resigned_functionary
+      position: at his station behind Moran
+      presence: known
+      title: Precinct Clerk
+    detective_sean_moran:
+      bio: A veteran officer who prioritizes precinct stability over individual justice.
+      bond: The PC and Moran crossed paths on a previous case — one helped, one hindered.
+      fear: Losing his pension to a departmental scandal.
+      last_presence_turn: 10
+      last_seen_location: Harrisside Street
+      leverage: He knows which evidence room keys are currently unmonitored.
+      motivation: Maintaining order in the Fourth Precinct regardless of the cost.
+      name: Sean Moran
+      personality: cold_pragmatist
+      position: standing by the wooden crate
+      presence: known
+      title: Detective Sergeant
+    julian_vane:
+      bio: A man with a heavy, unmistakable silhouette who operates within the precinct's
+        corrupt shadows. Moves with sudden, aggressive bursts of violence when pressured.
+      first_seen_turn: 12
+      last_presence_turn: 20
+      last_seen_location: The Pier
+      name: Julian Vane
+      notes: moving purposefully to intercept PC
+      personality: wary_opportunist
+      position: approaching from warehouse foundations
+      presence: present
+      title: Corrupt Operative
+    patrolmen:
+      aliases:
+      - patrolmen
+      bio: Two uniformed officers with heavy boots and disciplined stances. They move
+        with practiced, tactical coordination to secure a scene.
+      first_seen_turn: 7
+      last_presence_turn: 10
+      last_seen_location: Harrisside Street
+      name: Two patrolmen
+      personality: wary_opportunist
+      position: emerging from the stairwell
+      presence: known
+    sedan_figures:
+      aliases:
+      - sedan figures
+      bio: Two shadowy occupants of a black sedan who move with coordinated, tactical
+        precision. They emerge from the passenger side to flank targets.
+      first_seen_turn: 9
+      last_presence_turn: 20
+      last_seen_location: The Pier
+      name: Two figures
+      notes: circling wide along the pier perimeter
+      personality: wary_opportunist
+      position: moving along the pier's edge
+      presence: present
+    silas_thorne:
+      bio: A frantic man with wide, panicked eyes who lacks tactical discipline. Operates
+        as a heavy-handed enforcer for the local dockside syndicate.
+      first_seen_turn: 12
+      last_presence_turn: 20
+      last_seen_location: The Pier
+      name: Silas Thorne
+      notes: advancing alongside Vane
+      personality: volatile_loyalist
+      position: approaching from warehouse foundations
+      presence: present
+      title: Syndicate Enforcer
+    trench_coat_man:
+      aliases:
+      - trench coat man
+      bio: A broad-shouldered silhouette framed by the dim light of a sedan. He moves
+        with practiced, lethal stillness and carries a heavy service revolver.
+      first_seen_turn: 9
+      last_presence_turn: 13
+      last_seen_location: Harrisside Street
+      name: Man in Trench Coat
+      personality: wary_opportunist
+      position: behind the rear door of the sedan
+      presence: known
+inventory:
+- aliases: []
+  amount: 1
+  id: revolver_service
+  name: Colt Detective Special
+  notes: ''
+- aliases: []
+  amount: 3
+  id: ammo_revolver
+  name: Extra Revolver Rounds
+  notes: ''
+- aliases: []
+  amount: 1
+  id: tool_magnifier
+  name: Brass Magnifying Loupe
+  notes: ''
+- aliases: []
+  amount: 1
+  id: document_evidence
+  name: Stained Pay Ledger
+  notes: A page torn from a dockworkers union book.
+- aliases: []
+  amount: 50
+  id: dollars
+  name: Dollars
+  notes: ''
+- amount: 1
+  id: unlabelled_key
+  name: Unlabelled Key
+  notes: found on desk, in pocket
+- amount: 1
+  id: brass_casing
+  name: Brass Casing
+  notes: stamped with Fourth Precinct IA seal, on floor
+location:
+  description: Slippery wooden planks stretch into the dark, illuminated by distant,
+    flickering harbor lights. The air is thick with brine and rotting kelp, with heavy
+    shipping containers creating a maze of narrow gaps and long, distorted shadows.
+  id: pier_waterfront
+  name: The Pier
+meta:
+  _pack_source: noir-1930s
+  _seed_type: dynamic
+  compendium_touch_order:
+  - detective_sean_moran
+  - patrolmen
+  - trench_coat_man
+  - julian_vane
+  - silas_thorne
+  - sedan_figures
+  last_arc_resolve_turn: 15
+  last_thread_created_turn: 14
+  model: claudia-v1
+  pending_gm_beat:
+    beat_expires_turn: 22
+    surface_as: npc_behavior
+    type: pressure
+  prior_history:
+  - '- [T1] The player discovered ink erasures and overwritten figures on the stained
+    pay ledger using the magnifying loupe.'
+  - '- [T2] Halloway''s confrontation with Moran results in a veiled threat from the
+    Sergeant.'
+  - '- [T3] Halloway secures the unlabelled key and stained ledger before descending
+    into the precinct basement.'
+  - '- [T4] Halloway discovers dried blood inside the mangled filing cabinet lock
+    as a shadow descends the stairs.'
+  - '- [T5] Sean Moran entered the precinct basement, unaware of William''s presence
+    behind the filing cabinet.'
+  - '- [T6] Sean Moran was observed using keys to unlock a specific crate in the precinct
+    basement.'
+  - '- [T7] Sean Moran discovers bundles of cash and the Internal Audit Log hidden
+    inside a crate in the precinct basement.'
+  - '- [T8] Halloway discovers handwriting matches between the ledger and audit logs
+    before being cornered by Moran and two patrolmen.'
+  - '- [T9] Halloway brandished his Colt at Moran and successfully fled the precinct
+    into the fog of Harrisside Street.'
+  - '- [T10] Halloway''s attempt to sneak toward the sedan fails when a foot scrape
+    alerts the occupants, resulting in being cornered by an armed man in a trench
+    coat and two flanking figures.'
+  - '- [T11] Halloway dives for cover behind shipping crates as the Man in Trench
+    Coat opens fire, becoming trapped in a tactical triangle.'
+  - '- [T12] Halloway fires his Colt at the Man in Trench Coat, initiating a chaotic
+    shootout in the fog-filled alley.'
+  - '- [T13] Halloway identifies Silas Thorne and Julian Vane as his attackers before
+    their desperate gunfire shatters his crate cover.'
+  - '- [T14] Halloway successfully ducked into a service corridor to break the line
+    of sight from Thorne and Vane.'
+  - '- [T15] Halloway observes the sedan occupants flanking the entrance while Thorne
+    and Vane breach the corridor behind him.'
+  - '- [T16] Halloway''s attempt to slip past the sedan occupants fails when a foot
+    skids on soot, leaving him pinned between the car and his pursuers.'
+  - '- [T17] Halloway''s attempt to find cover fails as he crashes into canisters,
+    exposing him to gunmen and revealing an IA-stamped brass casing.'
+  - '- [T18] Halloway''s attempt to return fire is interrupted by a loud clatter and
+    the discovery of a precinct badge on one of the sedan occupants.'
+  - '- [T19] Halloway escapes the tactical triangle by bolting through a service gate
+    onto the slippery pier.'
+  - '- [T20] Halloway peeks from cover to find Vane and Thorne flanking him while
+    a sedan occupant circles his escape route.'
+  recent_beats:
+  - surface_as: player_discovery
+    turn: 16
+    type: revelation
+  - surface_as: player_discovery
+    turn: 17
+    type: revelation
+  - surface_as: player_discovery
+    turn: 18
+    type: revelation
+  - surface_as: null
+    turn: 19
+    type: null
+  - surface_as: npc_behavior
+    turn: 20
+    type: pressure
+  recent_rolls:
+  - band: setback
+    turn: 20
+  - band: success
+    turn: 19
+  - band: fail
+    turn: 18
+  - band: fail
+    turn: 17
+  - band: fail
+    turn: 16
+  setting_pack: noir-1930s
+  turn: 20
+pc:
+  actions:
+  - Draw the Colt Detective Special and aim at Thorne.
+  - Sprint toward the harbor water to evade the encirclement.
+  - Use the unlabelled key to attempt opening a nearby crate.
+  - Shout for help to draw attention from the sedan occupants.
+  bio: A former precinct clerk who transitioned to labor disputes after uncovering
+    a payroll kickback ring. He maintains a delicate balance of knowing too much about
+    the wrong people and not enough to stay safe.
+  conditions: []
+  drive: ''
+  name: William Halloway
+  stats:
+    charisma: 2
+    dexterity: 3
+    strength: 2
+    wits: 4
+  tagline: Union investigator, specialist in forensic document analysis
+resolved_arcs:
+- closed_threads: []
+  goal_context: The pursuit has moved from the streets into a confined service corridor.
+  resolution: Halloway is cornered between syndicate enforcers and tactical sedan
+    occupants in the service corridor.
+  resolved_turn: 15
+  visible_goal: Identify the source of the missing union funds and the officer protecting
+    them.
+scene:
+  breather_turn_count: 0
+  climax_turn_count: 0
+  location_entered_turn: 19
+  scene_phase: RISING
+  tagline: The Pier  shadows, heavy boots, closing circle
+  tags:
+  - corruption
+  - discovery
+  - tension
+  turn_entered: 19
+  world_state:
+  - Dockside transit is restricted to union-sanctioned haulers only.
+  - Police presence in the Harrisside district is strictly limited to patrol cars.
+  - All private investigators must register their active case files with the magistrate.
+  - id: precinct_leak
+    text: Halloway escaped with evidence of systematic union payout diversions
+    tier: persistent
+schema_version: 1

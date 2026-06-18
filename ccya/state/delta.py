@@ -29,9 +29,10 @@ def reconcile_delta(state: dict[str, Any], delta: Any) -> tuple[Any, list[str]]:
 
 def apply_delta(
     state: dict[str, Any], delta: Any,
+    *, trace_id: str | None = None,
 ) -> dict[str, Any]:
     from ccya.state.delta_builder import apply_delta as _impl
     if delta is None:
         _log.warning("apply_delta received None delta")
-    result = _impl(state, delta)
+    result = _impl(state, delta, trace_id=trace_id)
     return result
