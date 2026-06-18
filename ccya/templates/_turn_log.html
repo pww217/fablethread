@@ -9,7 +9,7 @@
     {% set die_val = (r.dice | default([]))[0] or 0 %}
     {% set total_mod = (r.stat_mod or 0) + (r.diff_mod or 0) %}
     <div class="roll-badge roll-badge--{{ r.band }}" data-roll-badge>
-        <div class="roll-header">🎲 <strong>{{ (r.skill | default('') | upper) }}</strong> &nbsp;·&nbsp; {{ r.difficulty | default('') | lower }}</div>
+        <div class="roll-header">🎲 <strong>{{ (r.skill | default('') | upper) }}</strong> &nbsp;·&nbsp; {% if r.reason %}<span class="has-tooltip">{{ r.difficulty | default('') | lower }}<div class="tooltip-body">{{ r.reason }}</div></span>{% else %}{{ r.difficulty | default('') | lower }}{% endif %}</div>
         <div class="roll-math">
             {% set mods = '' %}
             {% if r.stat_mod != 0 %}
@@ -36,11 +36,17 @@
             'success': 'SUCCESS',
             'crit_success': 'CRITICAL SUCCESS'
         } %}
-        <div class="roll-result roll-band--{{ r.band }}">{{ BAND_LABELS.get(r.band, (r.band | default('') | upper).replace('_', ' ')) }}</div>
+        <span class="has-tooltip">
+            <div class="roll-result roll-band--{{ r.band }}">{{ BAND_LABELS.get(r.band, (r.band | default('') | upper).replace('_', ' ')) }}</div>
+            {% if r.get('intent') %}<div class="tooltip-body">{{ r.intent }}</div>{% endif %}
+        </span>
+        {% if r.get('outcome_summary') %}
+        <div class="roll-outcome">{{ r.outcome_summary | capitalize }}</div>
+        {% endif %}
     </div>
     {% elif e.ruling and e.ruling.get('outcome_summary') %}
     <div class="roll-badge roll-badge--outcome">
-        <div class="roll-outcome">{{ e.ruling.outcome_summary }}</div>
+        <div class="roll-outcome">{{ e.ruling.outcome_summary | capitalize }}</div>
     </div>
     {% endif %}
     {% for ln in e.lines %}

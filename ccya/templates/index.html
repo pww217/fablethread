@@ -162,7 +162,7 @@
                 {% for ev in history %}
                 <div class="narrative-block">
                     <p class="narrative-input-echo">&gt; {{ ev.input }}</p>
-                    <div class="narrative-text" data-raw>{{ ev.narrative }}</div>
+                    <div class="narrative-text" data-raw>{{ ev.narrative | capitalize }}</div>
                     {% if ev.ruling and ev.ruling.rolled %}
                     {% set r = ev.ruling %}
                     {% set die_val = (r.dice | default([]))[0] or 0 %}
@@ -195,15 +195,18 @@
                             'success': 'SUCCESS',
                             'crit_success': 'CRITICAL SUCCESS'
                         } %}
-                        <div class="roll-result roll-band--{{ r.band }}">{{ BAND_LABELS.get(r.band, (r.band | default('') | upper).replace('_', ' ')) }}</div>
+                        <span class="has-tooltip" title="Player intent">
+                            <div class="roll-result roll-band--{{ r.band }}">{{ BAND_LABELS.get(r.band, (r.band | default('') | upper).replace('_', ' ')) }}</div>
+                            {% if r.get('intent') %}<div class="tooltip-body">{{ r.intent }}</div>{% endif %}
+                        </span>
                         {% if r.get('outcome_summary') %}
-                        <div class="roll-outcome">{{ r.outcome_summary }}</div>
+                        <div class="roll-outcome">{{ r.outcome_summary | capitalize }}</div>
                         {% endif %}
                     </div>
                     {% elif ev.ruling and ev.ruling.get('outcome_summary') %}
                     {% set r = ev.ruling %}
                     <div class="roll-badge roll-badge--outcome">
-                        <div class="roll-outcome{% if r.reason %} has-tooltip{% endif %}">{{ r.outcome_summary }}</div>
+                        <div class="roll-outcome{% if r.reason %} has-tooltip{% endif %}">{{ r.outcome_summary | capitalize }}</div>
                         {% if r.reason %}<div class="tooltip-body">{{ r.reason }}</div>{% endif %}
                     </div>
                     {% endif %}
@@ -802,17 +805,26 @@ function _buildOutcomeBadge(payload) {
         math.innerHTML = parts.join(' &thinsp;·&thinsp; ');
         badge.appendChild(math);
 
-        // Line 3: band pill
+        // Line 3: band pill with intent tooltip
         const bandLabel = BAND_LABELS[payload.band] || (payload.band || '').toUpperCase().replace(/_/g, ' ');
+        const bandWrapper = document.createElement('span');
+        bandWrapper.className = 'has-tooltip';
         const res = document.createElement('div');
         res.className = 'roll-result roll-band--' + payload.band;
         res.textContent = bandLabel;
-        badge.appendChild(res);
+        bandWrapper.appendChild(res);
+        if (payload.intent) {
+            const tip = document.createElement('div');
+            tip.className = 'tooltip-body';
+            tip.textContent = payload.intent;
+            bandWrapper.appendChild(tip);
+        }
+        badge.appendChild(bandWrapper);
 
         if (payload.outcome_summary) {
             const outcomeText = document.createElement('div');
             outcomeText.className = 'roll-outcome';
-            outcomeText.textContent = payload.outcome_summary;
+            outcomeText.textContent = _capitalizeFirst(payload.outcome_summary);
             badge.appendChild(outcomeText);
         }
 
@@ -825,7 +837,7 @@ function _buildOutcomeBadge(payload) {
 
     const el = document.createElement('div');
     el.className = 'roll-outcome' + (payload.reason ? ' has-tooltip' : '');
-    el.textContent = payload.outcome_summary;
+    el.textContent = _capitalizeFirst(payload.outcome_summary);
     badge.appendChild(el);
 
     if (payload.reason) {
@@ -1778,7 +1790,7 @@ function game() {
 
             const _drainRenderFn = (currentDisplayBuf) => {
                 _configureMarked();
-                const html = _renderMarkdown(currentDisplayBuf.replace(/\s+$/, ''));
+                const html = _renderMarkdown(_capitalizeFirst(currentDisplayBuf.replace(/\s+$/, '')));
                 textDiv.innerHTML = html + '<span class="streaming-cursor"></span>';
                 // Highlight known entities as they appear during streaming
                 const stateScript = document.getElementById('initial-state');
@@ -1811,7 +1823,7 @@ function game() {
                     drainState.pendingQueue  = '';
                     textDiv.classList.remove('streaming');
                     _configureMarked();
-                    textDiv.innerHTML = _renderMarkdown(streamBuf);
+                    textDiv.innerHTML = _renderMarkdown(_capitalizeFirst(streamBuf));
                     const stateScript = document.getElementById('initial-state');
                     if (stateScript) {
                         try { _highlightEntities(textDiv, JSON.parse(stateScript.textContent)); } catch (e) { /* skip */ }
@@ -1835,7 +1847,7 @@ function game() {
 
                 if (cursor.parentNode) cursor.remove();
                 textDiv.classList.remove('streaming');
-                textDiv.innerHTML = _renderMarkdown(result.narrative || '');
+                textDiv.innerHTML = _renderMarkdown(_capitalizeFirst(result.narrative || ''));
                 if (result.state) _highlightEntities(textDiv, result.state);
 
                 const met = document.createElement('div');
@@ -1864,7 +1876,7 @@ function game() {
 
                     const gmBeatText = result.gm_beat ? `${result.gm_beat.type} (${result.gm_beat.surface_as})` : '\u2014';
 
-                    debugDiv.innerHTML = `<span class="debug-label">Phase:</span> ${result.scene_phase || '\u2014'}&ensp;|&ensp;<span class="debug-label">GM Beat:</span> ${gmBeatText}&ensp;|&ensp;<span class="debug-label">Hint:</span> ${result.outcome_hint || '\u2014'}&ensp;|&ensp;<span class="debug-label">Summary:</span> ${result.summary || '\u2014'}`;
+                    debugDiv.innerHTML = `<span class="debug-label">Phase:</span> ${_capitalizeFirst(result.scene_phase || '')}&ensp;|&ensp;<span class="debug-label">GM Beat:</span> ${gmBeatText}&ensp;|&ensp;<span class="debug-label">Hint:</span> ${_capitalizeFirst(result.outcome_hint || '')}&ensp;|&ensp;<span class="debug-label">Summary:</span> ${_capitalizeFirst(result.summary || '')}`;
                     lastInserted.after(debugDiv);
                     lastInserted = debugDiv;
                 }
@@ -2251,6 +2263,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+function _capitalizeFirst(str) {
+    const s = String(str || '');
+    if (!s) return s;
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function _escapeHtml(str) {
     return String(str)
         .replace(/&/g, '&amp;')
@@ -2627,6 +2645,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (id === 'turn-log-body') {
             _applyMarkdown(e.target);
+            _bindTooltips(e.target);
         }
         if (e.target && e.target.matches && e.target.matches('#opening-block .narrative-text')) {
             _applyMarkdown(e.target);
