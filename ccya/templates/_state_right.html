@@ -11,6 +11,9 @@
             <div class="tooltip-body" data-md>{{ state.pc.bio }}</div>
             {% endif %}
         </div>
+        {% if state.meta.get('last_condition_change_reason') %}
+        <div class="tooltip-body" data-md>{{ state.meta.get('last_condition_change_reason') }}</div>
+        {% endif %}
         {% if pc_tag %}
         <div class="stat-tagline"><span data-md>{{ pc_tag }}</span></div>
         {% endif %}

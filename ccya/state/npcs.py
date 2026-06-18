@@ -236,8 +236,6 @@ def apply_npc_scene_management(
                         # Keep the first-seen turn from the earliest entry
                         if "first_seen_turn" not in comp[resolved_id] and "first_seen_turn" in merge_entry:
                             comp[resolved_id]["first_seen_turn"] = merge_entry["first_seen_turn"]
-                        if "last_seen" not in comp[resolved_id] and "last_seen" in merge_entry:
-                            comp[resolved_id]["last_seen"] = merge_entry["last_seen"]
                         # Merge aliases
                         existing_aliases = set(comp[resolved_id].get("aliases") or [])
                         for a in (merge_entry.get("aliases") or []):
@@ -253,27 +251,21 @@ def apply_npc_scene_management(
 
             if is_new and current_turn_no is not None:
                 entry["first_seen_turn"] = current_turn_no  # 0-based, matches narrate_user.j2 convention (T{{ npc.first_seen_turn }})
-                location = state.get("location", {})
-                entry["last_seen"] = {
-                    "turn": current_turn_no,
-                    "location_id": location.get("id", ""),
-                    "location_name": location.get("name", ""),
-                }
 
             if comp_upd.name is not None:
                 entry["name"] = _strip_non_ascii(comp_upd.name)
             if comp_upd.title is not None:
                 entry["title"] = _strip_non_ascii(comp_upd.title)
-            if comp_upd.bio is not None:
-                entry["bio"] = _strip_non_ascii(comp_upd.bio)
+            if comp_upd.bio_appearance is not None:
+                entry["bio_appearance"] = _strip_non_ascii(comp_upd.bio_appearance)
+            if comp_upd.bio_background is not None:
+                entry["bio_background"] = _strip_non_ascii(comp_upd.bio_background)
             if comp_upd.aliases:
                 existing_aliases = set(entry.get("aliases") or [])
                 for a in comp_upd.aliases:
                     if a.lower() not in {x.lower() for x in existing_aliases}:
                         existing_aliases.add(a.lower())
                 entry["aliases"] = list(existing_aliases)
-            if comp_upd.allegiance is not None:
-                entry["allegiance"] = comp_upd.allegiance
             if comp_upd.motivation is not None:
                 entry["motivation"] = comp_upd.motivation
             if comp_upd.fear is not None:
@@ -309,14 +301,9 @@ def apply_npc_scene_management(
             if comp_upd.presence == "departed":
                 if comp_upd.departed_reason is not None:
                     entry["departed_reason"] = comp_upd.departed_reason
-                if comp_upd.departed_summary is not None:
-                    entry["departed_summary"] = comp_upd.departed_summary
                 if current_turn_no is not None:
                     entry["departed_turn"] = entry.get("departed_turn", current_turn_no)
                 entry.pop("notes", None)
-            if comp_upd.presence == "nearby":
-                if current_turn_no is not None:
-                    entry["nearby_since_turn"] = entry.get("nearby_since_turn", current_turn_no)
             if comp_upd.notes is not None:
                 entry["notes"] = comp_upd.notes
             if comp_upd.position is not None:
