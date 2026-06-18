@@ -275,11 +275,23 @@ def apply_npc_scene_management(
             if comp_upd.bond is not None:
                 entry["bond"] = comp_upd.bond
             if comp_upd.personality is not None and not entry.get("personality"):
-                entry["personality"] = comp_upd.personality
-                _log.info(
-                    "apply_npc_scene_management npc=%s personality=%s",
-                    resolved_id, comp_upd.personality,
-                )
+                _name = (comp_upd.name or entry.get("name") or "").strip()
+                _aliases = comp_upd.aliases or entry.get("aliases") or []
+                # Strip leading quantity word for group NPCs (e.g. "Two guards" → "guards")
+                _name_parts = _name.lower().split()
+                if _name_parts and _name_parts[0] in _STRIPPLABLE_QUANTITIES:
+                    _name_stripped = " ".join(_name_parts[1:])
+                else:
+                    _name_stripped = _name.lower()
+                # Unnamed NPCs: stripped name matches an alias
+                if _name_stripped and any(_name_stripped == a.lower().strip() for a in _aliases):
+                    pass
+                else:
+                    entry["personality"] = comp_upd.personality
+                    _log.info(
+                        "apply_npc_scene_management npc=%s personality=%s",
+                        resolved_id, comp_upd.personality,
+                    )
             # Engine fallback: assign personality for named NPCs that still lack one.
             # Unnamed NPCs (alias-only, no proper name) are intentionally skipped.
             if not entry.get("personality") and entry.get("name"):
