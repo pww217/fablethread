@@ -54,6 +54,10 @@ def phase_transition(events: list[dict[str, Any]]) -> CheckerResult:
             if prev_phase == phase:
                 continue
 
+            # Any → SETUP is always valid (location_change)
+            if phase == "SETUP":
+                continue
+
             # All other transitions must be in VALID_TRANSITIONS
             if (prev_phase, phase) not in VALID_TRANSITIONS:
                 findings.append({

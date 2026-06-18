@@ -243,9 +243,9 @@ class CompendiumNpcUpdate(BaseModel):
     id: str
     name: str | None = None
     title: str | None = None
-    bio_appearance: str | None = None
-    bio_background: str | None = None
+    bio: str | None = None
     aliases: list[str] = Field(default_factory=list)
+    allegiance: str | None = None
     motivation: str | None = None
     fear: str | None = None
     leverage: str | None = None
@@ -255,7 +255,8 @@ class CompendiumNpcUpdate(BaseModel):
     first_seen_turn: int | None = None  # set by engine on initial entry creation
     personality: str | None = None  # archetype id; immutable once set
     bond: str | None = None         # durable personal history — human-readable description
-    departed_reason: str | None = None     # 1-2 sentence prose describing what happened
+    departed_reason: str | None = None     # short label, e.g. "killed in battle"
+    departed_summary: str | None = None    # 1-2 sentence prose describing departure
     departed_turn: int | None = None       # set by engine on first presence:"departed"
 
 
