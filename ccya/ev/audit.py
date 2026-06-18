@@ -387,74 +387,16 @@ def cmd_storyteller_audit(events: list[dict[str, Any]]) -> None:
 
 
 def cmd_thread_audit(events: list[dict[str, Any]]) -> None:
-    """Cross-reference storyteller thread_add IDs with sanitizer-added IDs."""
-    # Gather storyteller thread_add IDs per turn
-    storyteller_adds: dict[int, list[str]] = {}
-    for ev in events:
-        t = ev.get("turn")
-        if t is None or not isinstance(t, int):
-            continue
-        extraction = ev.get("extraction") or {}
-        storytell = extraction.get("storytell") or {}
-        output = storytell.get("output") or {}
-        if isinstance(output, dict):
-            ta = output.get("thread_add")
-            if ta is not None:
-                if isinstance(ta, dict) and ta.get("id"):
-                    storyteller_adds.setdefault(t, []).append(ta["id"])
-                elif isinstance(ta, list):
-                    for item in ta:
-                        if isinstance(item, dict) and item.get("id"):
-                            storyteller_adds.setdefault(t, []).append(item["id"])
+    """Deprecated: cross-references storyteller thread_add IDs with sanitizer-added IDs.
 
-    # Gather sanitizer thread_add IDs per turn
-    sanitizer_adds: dict[int, list[str]] = {}
-    for ev in events:
-        if ev.get("kind") != "sanitizer":
-            continue
-        st = ev.get("turn")
-        if st is None or not isinstance(st, int):
-            continue
-        added = ev.get("threads_added") or []
-        if added:
-            sanitizer_adds.setdefault(st, []).extend(added)
-
-    # Cross-reference
-    mismatches: list[dict[str, Any]] = []
-    matches: list[dict[str, Any]] = []
-
-    for t, sa_ids in sorted(storyteller_adds.items()):
-        san_ids = sanitizer_adds.get(t, [])
-        for sid in sa_ids:
-            if sid in san_ids:
-                matches.append({"turn": t, "id": sid, "status": "matched"})
-            else:
-                mismatches.append({
-                    "turn": t,
-                    "storyteller_id": sid,
-                    "sanitizer_ids": san_ids,
-                    "status": "mismatch",
-                })
-
-    if not mismatches and not matches:
-        print("No thread_add data found in storyteller or sanitizer events.")
-        return
-
-    print("=== Thread Audit ===")
-    print(f"Storyteller thread_adds: {len(storyteller_adds)} turns | Sanitizer thread_adds: {len(sanitizer_adds)} turns")
-    print(f"Matches: {len(matches)} | Mismatches: {len(mismatches)}")
-    print()
-
-    if mismatches:
-        print("Thread ID mismatches (storyteller ID not found in sanitizer):")
-        for m in mismatches:
-            print(f"  T{m['turn']}: storyteller='{m['storyteller_id']}' sanitizer={m['sanitizer_ids']}")
-        print()
-
-    if matches:
-        print("Thread ID matches:")
-        for m in matches:
-            print(f"  T{m['turn']}: '{m['id']}' ✓")
+    This audit is architecturally meaningless — storyteller and sanitizer are
+    independent LLM systems with no coordination mechanism for thread IDs.
+    Zero matches is expected. See DEEP-DIVE-REPORT.md for details.
+    """
+    print("=== Thread Audit (DEPRECATED) ===")
+    print("This audit compares two independent LLM systems with no coordination.")
+    print("Zero matches is architecturally expected, not a bug.")
+    print("The thread audit has been deprecated. See DEEP-DIVE-REPORT.md.")
 
 
 def cmd_ruling_audit(events: list[dict[str, Any]]) -> None:

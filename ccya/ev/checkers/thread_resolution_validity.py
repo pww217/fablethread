@@ -9,6 +9,86 @@ from ccya.ev.events import extract_field
 _log = logging.getLogger(__name__)
 
 
+def _apply_sanitizer_changes_to_arc(
+    snap: dict[str, Any], sanitizer_ev: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Apply sanitizer thread changes to a state_snapshot's arc.
+
+    The state_snapshot captured at the end of a turn doesn't include sanitizer
+    changes (which run after the snapshot). This function reconstructs the arc
+    state as it would appear after the sanitizer runs, so the checker can
+    validate against the state the storyteller actually saw in the next turn.
+    """
+    if not sanitizer_ev:
+        return snap
+
+    snap = dict(snap)
+    arc = dict(snap.get("arc") or {})
+    threads = list(arc.get("threads") or [])
+    completed = list(arc.get("completed_threads") or [])
+
+    changes_detail = sanitizer_ev.get("changes_detail") or {}
+
+    # Apply added threads
+    for added in changes_detail.get("added") or []:
+        if not isinstance(added, dict):
+            continue
+        tid = added.get("id")
+        if not tid:
+            continue
+        # Don't duplicate
+        if any(t.get("id") == tid for t in threads):
+            continue
+        threads.append({
+            "id": tid,
+            "summary": added.get("summary", ""),
+            "urgency": added.get("urgency", "normal"),
+            "active": True,
+            "progress": [],
+        })
+
+    # Apply resolved threads (move from active to completed)
+    for resolved in changes_detail.get("resolved") or []:
+        if not isinstance(resolved, dict):
+            continue
+        tid = resolved.get("id")
+        if not tid:
+            continue
+        # Remove from active threads
+        threads = [t for t in threads if t.get("id") != tid]
+        # Add to completed
+        completed.append({
+            "id": tid,
+            "summary": "",
+            "resolution_state": resolved.get("resolution_state", "resolved"),
+            "outcome": resolved.get("outcome", ""),
+        })
+
+    # Apply updated threads (update progress)
+    for tid, update in (changes_detail.get("updated") or {}).items():
+        if not isinstance(update, dict):
+            continue
+        for t in threads:
+            if t.get("id") == tid:
+                progress = update.get("progress")
+                if isinstance(progress, dict) and progress.get("after"):
+                    t["progress"] = [
+                        {"kind": p["kind"] if isinstance(p, dict) else "advancement", "text": p["text"] if isinstance(p, dict) else p}
+                        for p in progress["after"]
+                    ]
+                urgency = update.get("fields")
+                if isinstance(urgency, list):
+                    for f in urgency:
+                        if isinstance(f, dict) and f.get("field") == "urgency":
+                            t["urgency"] = f.get("after", t.get("urgency", "normal"))
+                break
+
+    arc["threads"] = threads
+    arc["completed_threads"] = completed
+    snap["arc"] = arc
+    return snap
+
+
 @register_checker(
     "thread_resolution_validity", "deterministic",
     requires_fields=["extraction.storytell", "state_snapshot"],
@@ -18,6 +98,7 @@ def thread_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
     findings: list[dict[str, Any]] = []
     all_passed = True
     prev_snap: dict[str, Any] | None = None
+    prev_sanitizer: dict[str, Any] | None = None
 
     for ev in events:
         # Capture the previous turn's state_snapshot before updating.
@@ -25,8 +106,11 @@ def thread_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
         # to completed_threads), so the resolved threads won't be in the current
         # arc's threads or completed_threads.
         prev_snap_for_this = prev_snap
-        if "state_snapshot" in ev:
+        prev_sanitizer_for_this = prev_sanitizer
+        if ev.get("kind") is None and "state_snapshot" in ev:
             prev_snap = ev["state_snapshot"]
+        if ev.get("kind") == "sanitizer":
+            prev_sanitizer = ev
 
         storytell_output = ((extract_field(ev, "extraction") or {}).get("storytell") or {}).get("output") or {}
         thread_resolves = storytell_output.get("thread_resolve") or []
@@ -35,6 +119,9 @@ def thread_resolution_validity(events: list[dict[str, Any]]) -> CheckerResult:
             continue
 
         snap = prev_snap_for_this or {}
+        # Reconstruct arc state by applying sanitizer changes from the previous turn.
+        # This ensures we validate against the state the storyteller actually saw.
+        snap = _apply_sanitizer_changes_to_arc(snap, prev_sanitizer_for_this)
         arc = snap.get("arc") or {}
         thread_ids = {
             t.get("id") for t in (arc.get("threads") or [])

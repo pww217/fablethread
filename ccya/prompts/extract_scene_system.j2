@@ -19,7 +19,7 @@ Refer to all characters by their actual names. Never use "PC" or "NPC" as labels
 
 `scene_tagline`: 3–6 words describing the current location and situation. Grounded in physical reality — where the PC is, what the environment is like, what the immediate stakes are. NOT a dramatic summary of events. Examples: `"Crossed Keys Inn — hearth low, toughs at door"`, `"Marrow's Crossing square — dusk, shops closing"`, `"Behind the inn — narrow alley, locked door"`.
 
-`location_change`: emitted only when the player moves to a new location (the location ID differs from the current one). Do NOT emit if the player is still in the same location with added spatial detail — use `location_description` instead. New room = change. New part of same room = no change.
+`location_change`: emitted ONLY when the location ID changes. Same location + new description → use `location_description` instead.
 
 `location_description`: What the space IS — physical layout, visual details, atmosphere. Include tangible details (materials, lighting, sounds, smells) and spatial relationships. Infer from narration but don't repeat it. Narration tells what happened; this field tells what exists. Rewrite the full description each turn, using the current description as reference — keep stable details implicit, focus on what changed this turn. 2-4 sentences.
 
