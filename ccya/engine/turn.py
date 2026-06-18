@@ -498,11 +498,13 @@ def _compute_scene_phase(
     """Compute the scene phase using the 5-state machine.
 
     Transitions: SETUP→RISING, RISING→CLIMAX, CLIMAX→RESOLUTION,
-    RESOLUTION→BREATHER, BREATHER→RISING.
+    RESOLUTION→SETUP/BREATHER, BREATHER→RISING, any→SETUP (location change).
 
     Mutates state["scene"] in place. Returns the updated scene dict.
     """
+    meta = state.get("meta") or {}
     scene = state.setdefault("scene", {})
+    current_turn = meta.get("turn", 0)
 
     # Initialize new fields if missing
     scene.setdefault("scene_phase", "SETUP")
@@ -519,6 +521,14 @@ def _compute_scene_phase(
     for t in _raw_threads:
         if isinstance(t, dict) and getattr(ArcThread.model_validate(t) if not isinstance(t, ArcThread) else t, "urgency", "normal") == "urgent":
             thread_urgency_count += 1
+
+    # Check location change: if scene was entered this turn, force SETUP
+    scene_entered = scene.get("turn_entered", 0)
+    location_change_this_turn = (scene_entered == current_turn)
+
+    # Location change → SETUP (except RESOLUTION which splits below)
+    if location_change_this_turn and phase != "RESOLUTION":
+        return {**scene, "scene_phase": "SETUP", "climax_turn_count": 0, "breather_turn_count": 0}
 
     # Phase transition logic
     if phase == "SETUP":
@@ -537,6 +547,8 @@ def _compute_scene_phase(
             climax_turn_count = 0
 
     elif phase == "RESOLUTION":
+        # RESOLUTION splits based on location change (already handled above)
+        # If we're still here, no location change → BREATHER
         phase = "BREATHER"
         breather_turn_count = 1
 
@@ -1162,22 +1174,25 @@ async def run_turn(
             else:
                 meta.pop("last_condition_change_reason", None)
 
-            # Track last_presence_turn on touched NPCs; create minimal entry if new
+            # Stamp last_seen on touched NPCs; create minimal entry if new
             comp = state.get("compendium", {}).get("npcs", {})
+            location = state.get("location", {})
             for cu in (delta.compendium_npc_update or []):
                 entry = comp.get(cu.id)
                 if entry is None:
                     comp[cu.id] = {
                         "name": cu.id.replace("_", " ").title(),
                         "presence": "nearby",
+                        "nearby_since_turn": turn_no,
                     }
                     entry = comp[cu.id]
-                # Track last turn NPC was present or nearby
-                if entry.get("presence") in ("present", "nearby"):
-                    entry["last_presence_turn"] = turn_no
-                    entry["last_seen_location"] = state.get("location", {}).get("name", "")
+                entry["last_seen"] = {
+                    "turn": turn_no,
+                    "location_id": location.get("id", ""),
+                    "location_name": location.get("name", ""),
+                }
 
-             # Arc director: process thread updates and arc resolution
+            # Arc director: process thread updates and arc resolution
             if state.get("arc") and storyteller_result:
                 thread_delta = _apply_thread_updates(state, storyteller_result, config, dedup_rejections=thread_dedup_rejections)
                 if thread_delta is not None:
@@ -1276,8 +1291,8 @@ async def run_turn(
             if not isinstance(entry, dict):
                 continue
             if entry.get("presence") == "nearby":
-                last_present = entry.get("last_presence_turn")
-                if isinstance(last_present, int) and turn_no - last_present >= nearby_ttl:
+                nearby_since = entry.get("nearby_since_turn")
+                if isinstance(nearby_since, int) and turn_no - nearby_since >= nearby_ttl:
                     entry["presence"] = "known"
 
         archive_ttl = config.departed_archive_ttl if config else 3

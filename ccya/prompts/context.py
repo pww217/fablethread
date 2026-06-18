@@ -178,19 +178,30 @@ class PacingBlock(BaseModel):
     directive: str | None = None  # used by storytell_user.j2 line 56 and narrate_user.j2 line 80
 
 
+class LastSeenBlock(BaseModel):
+    """Last-seen metadata for an NPC in the roster."""
+
+    turn: int
+    location_id: str
+    location_name: str
+
+
 class NPCRosterEntryBlock(BaseModel):
-    """Single entry in an NPC roster for prompt rendering."""
+    """Single entry in an NPC roster for prompt rendering.
+
+    Source shapes vary by origin: build_npc_roster() outputs dicts with last_seen as a dict (turn/location_id/location_name) from compendium data, or None for present NPCs. Template extract_scene_user.j2 line 7 accesses n.last_seen.location_name — not a string.
+    """
 
     id: str
     name: str
     title: str | None = None
-    bio_appearance: str | None = None
-    bio_background: str | None = None
+    bio: str | None = None
     presence: NpcPresence  # reuses existing enum from models.py
     motivation: str | None = None
     fear: str | None = None
     leverage: str | None = None
     notes: str | None = None
+    last_seen: LastSeenBlock | None = None
 
 
 class RulingBoundary(BaseModel):
@@ -236,12 +247,12 @@ class SceneExtractBoundary(BaseModel):
     """Context for extract_scene_user.j2.
 
     Source: _extract_scene_messages() passes pc, location, conditions directly (lines 274-282).
-    npc_roster comes from build_npc_roster(comp) — outputs dicts with id/name/title/bio_appearance/bio_background/presence/mfl/notes.
+    npc_roster comes from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_seen.
     """
 
     narration: str
     location: LocationBlock
-    npc_roster: list[NPCRosterEntryBlock]  # from build_npc_roster(comp) — outputs dicts with id/name/title/bio_appearance/bio_background/presence/mfl/notes
+    npc_roster: list[NPCRosterEntryBlock]  # from build_npc_roster(comp) — outputs dicts with id/name/title/bio/presence/mfl/notes/last_seen
     recent_turns: list[ChronicleEntryBlock]
     turn_no: int
 

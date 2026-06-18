@@ -40,7 +40,8 @@ The phase engine tracks `state["scene"]["scene_phase"]` through five states: SET
 | SETUP | RISING | Urgent thread appears |
 | RISING | CLIMAX | convergence_score ≥ threshold (default 3) |
 | CLIMAX | RESOLUTION | climax_turn_count ≥ limit |
-| RESOLUTION | BREATHER | Always (1-turn transition) |
+| Any (non-RESOLUTION) | SETUP | Location change (scene_entered == current_turn) |
+| RESOLUTION | BREATHER | Always (location change doesn't redirect RESOLUTION) |
 | BREATHER | RISING | Urgent thread appears OR breather_max_turns elapsed |
 
 ### Convergence score

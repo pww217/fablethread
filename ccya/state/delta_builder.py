@@ -222,6 +222,7 @@ def apply_delta(
         for entry in comp.values():
             if isinstance(entry, dict) and entry.get("presence") == "present":
                 entry["presence"] = "nearby"
+                entry["nearby_since_turn"] = state.get("meta", {}).get("turn", 0) + 1
                 entry.pop("notes", None)
         _stamp_turn = state.get("meta", {}).get("turn", 0) + 1
         state["scene"]["turn_entered"] = _stamp_turn

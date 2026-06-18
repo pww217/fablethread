@@ -4,7 +4,7 @@
 ## Characters
 
 {% for n in npc_roster -%}
-- `{{ n.id }}` | {% if n.name %}**{{ n.name }}**{% else %}[Unnamed]{% endif %}{% if n.title %} ({{ n.title }}){% endif %} [{{ n.presence | upper }}]{% if n.presence == "departed" and n.departed_reason %} — {{ n.departed_reason }}{% endif %}{% set _bio = (n.bio_appearance + ' ' + n.bio_background) if n.bio_appearance and n.bio_background else (n.bio_appearance or n.bio_background) %}{% if _bio and n.presence != "departed" %} — {{ _bio }}{% endif %}
+- `{{ n.id }}` | {% if n.name %}**{{ n.name }}**{% else %}[Unnamed]{% endif %}{% if n.title %} ({{ n.title }}){% endif %} [{{ n.presence | upper }}]{% if n.presence == "departed" and n.departed_reason %} — {{ n.departed_reason }}{% endif %}{% if n.bio and n.presence != "departed" %} — {{ n.bio }}{% endif %}
 {%- if n.notes %} | {{ n.notes }}{% endif %}{% if n.position %} | {{ n.position }}{% endif %}
 {%- if n.motivation %} | wants: {{ n.motivation }}{% endif %}
 {%- if n.fear %} | fears: {{ n.fear }}{% endif %}
@@ -13,6 +13,7 @@
 {%- if n.personality_traits -%}
 | personality: **{{ n.personality_label }}** ({{ n.personality_traits }}). Speech: {{ n.personality_speech_hint }}.
 {%- endif %}
+{%- set _ls = n.last_seen %}{% if _ls is mapping and _ls.location_name %} | last seen: {{ _ls.location_name }}{% elif _ls and not (_ls is mapping) %} | last seen: {{ _ls }}{% endif %}
 
 {% endfor -%}
 {% endif %}

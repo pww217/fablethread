@@ -33,7 +33,7 @@ Four independently selected narrative dimensions. They are NOT a menu — weave 
     location: {id: snake_case, name: string, description: string},
     inventory: Array<{id: snake_case, name: string, notes?: string, amount: int}>,
     scene: {tagline: string, tags: string[], world_state: string[]},
-    compendium: {npcs: {snake_case: {name: string, title: string, bio_appearance: string, bio_background: string, presence: "present" | "nearby" | "known", bond?: string, motivation?: string, fear?: string, leverage?: string, personality?: archetype_id  /* see Personality archetypes table below — required for named NPCs, omit for unnamed */}}},
+    compendium: {npcs: {snake_case: {name: string, title: string, bio: string, presence: "present" | "nearby" | "known", allegiance?: string, bond?: string, motivation?: string, fear?: string, leverage?: string, personality?: archetype_id  /* see Personality archetypes table below — required for named NPCs, omit for unnamed */}}},
     arc: {visible_goal: string, goal_context: string, threads: ArcThread[], completed_threads: null}
   },
   opening_narrative: string,
@@ -83,8 +83,8 @@ Build in this order, using everything already established before generating what
 How many depends on the NPC's role:
 
 - **Unnamed NPCs (descriptive label in `name` + same string in `aliases`; no proper name):**
-  `bio_appearance` and `bio_background` only. Do NOT add any personality fields until the NPC gets a proper name.
-- **Named NPCs (proper name in `name`):** Must have `bio_appearance`, `bio_background`, `personality` (from the table below),
+  `bio` only. Do NOT add any personality fields until the NPC gets a proper name.
+- **Named NPCs (proper name in `name`):** Must have `bio`, `personality` (from the table below),
   and at least 2 more of {motivation, fear, leverage, bond} — aim for 3 personality-relevant fields total.
 - **Important NPCs (seed characters, arc goal characters, faction leaders):** 4-5 of the 5 fields.
   These are the characters the story revolves around — give them depth.
