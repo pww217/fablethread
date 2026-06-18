@@ -249,7 +249,7 @@ ev.py deltas 11 saves/my-game/events.jsonl                  # find inventory/con
 **What to look for:**
 - NPCs introduced in scene stay present (no sudden disappearance)
 - Valid presence values: `present`, `nearby`, `known`, `departed`, `archived`
-- Departed NPCs have `departed_reason` and `departed_summary` fields
+- Departed NPCs have `departed_reason` field
 - Compendium updates (`applied.compendium_npc_update`) track NPC state changes correctly
 - NPC notes evolve logically across turns
 
@@ -267,7 +267,7 @@ ev.py npc-ghosting saves/my-game/events.jsonl               # detect NPC ghostin
 - NPC present in turn N, completely missing from compendium in turn N+1 without `compendium_npc_update` entry
 - Compendium updates not reflected in next turn's state
 - NPC notes regressing or contradicting previous turns
-- Departed NPCs missing `departed_reason` or `departed_summary`
+- Departed NPCs missing `departed_reason`
 
 ---
 

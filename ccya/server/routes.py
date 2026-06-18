@@ -411,6 +411,18 @@ async def new_game(request: Request):
     arc_hints = str(form.get("arc_hints", "")).strip()
     free_form = str(form.get("free_form", "")).strip()
 
+    # Parse pc_stats JSON early — applied as a hard override after seed prep
+    pc_stats_dict: dict[str, int] | None = None
+    if pc_stats_raw:
+        try:
+            parsed = json.loads(pc_stats_raw)
+            if isinstance(parsed, dict) and all(isinstance(v, int) for v in parsed.values()):
+                pc_stats_dict = parsed
+            else:
+                _log.warning("new_game: invalid pc_stats shape: %s", pc_stats_raw)
+        except json.JSONDecodeError:
+            _log.warning("new_game: invalid pc_stats JSON: %s", pc_stats_raw)
+
     overrides = PlayerOverrides(
         pc_hints=pc_hints,
         npc_hints=npc_hints,
@@ -424,14 +436,12 @@ async def new_game(request: Request):
     # skip dynamic seed generation for default char-creation submissions.
     has_hints = not overrides.is_empty()
 
-    if (pc_name or pc_tagline or pc_stats_raw) and overrides:
+    if (pc_name or pc_tagline) and overrides:
         hint_parts = []
         if pc_name:
             hint_parts.append(f"Name the PC '{pc_name}'.")
         if pc_tagline:
             hint_parts.append(f"Tagline: '{pc_tagline}'.")
-        if pc_stats_raw:
-            hint_parts.append(f"Use these exact stats: {pc_stats_raw}.")
         if hint_parts:
             overrides = overrides.model_copy(
                 update={"pc_hints": " ".join(hint_parts) + " " + overrides.pc_hints}
@@ -446,6 +456,8 @@ async def new_game(request: Request):
                 return HTMLResponse("<p class='text-red-400'>This pack has no static seed state. Provide no hints to generate a custom game.</p>")
             seed = pack.seed.model_dump(mode="json")
             seed["meta"]["setting_pack"] = _app_mod._pack_id
+            if pc_stats_dict:
+                seed.setdefault("pc", {})["stats"] = pc_stats_dict
             _apply_seed_to_save_dir(seed, None, None, pack_type="static", pack_source=_app_mod._pack_id)
         else:
             # No hints — generate seed via LLM
@@ -453,10 +465,12 @@ async def new_game(request: Request):
                 _app_mod._active_pack,
                 _app_mod.engine_config,
                 template_dir=str(_app_mod.PROMPTS_DIR),
-                overrides=None,
+                overrides=overrides,
             )
             seed = envelope.seed_state.model_dump(mode="json")
             seed["meta"]["setting_pack"] = _app_mod._pack_id
+            if pc_stats_dict:
+                seed.setdefault("pc", {})["stats"] = pc_stats_dict
             _apply_seed_to_save_dir(seed, envelope.opening_narrative, envelope.actions, outcome_summary=envelope.outcome_summary, pack_type="dynamic", pack_source=_app_mod._pack_id, pool_selection=pool_selection)
     except Exception as exc:
         _app_mod.logger.exception("new_game failed")

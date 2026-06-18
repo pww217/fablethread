@@ -53,14 +53,6 @@ def npc_presence(events: list[dict[str, Any]]) -> CheckerResult:
                         "detail": f"NPC '{npc_id}' is departed but missing departed_reason",
                     })
                     all_passed = False
-                if not npc.get("departed_summary"):
-                    findings.append({
-                        "turn": turn,
-                        "check": "departed_summary",
-                        "detail": f"NPC '{npc_id}' is departed but missing departed_summary",
-                    })
-                    all_passed = False
-
     if not all_passed:
         return CheckerResult(
             checker_id="npc_presence", passed=False, score=0.0,

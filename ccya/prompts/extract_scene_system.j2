@@ -9,7 +9,7 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
   "scene_tagline": "...",
   "location_change": {"id": "...", "name": "...", "description": "..."},
   "location_description": "...",
-  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "aliases": ["..."], "allegiance": "...", "motivation": "...", "fear": "...", "leverage": "...", "bond": "...", "personality": "...", "presence": "present|nearby|known|departed", "notes": "...", "position": "..."}]
+  "compendium_npc_update": [{"id": "...", "name": "...", "title": "...", "bio": "...", "aliases": ["..."], "motivation": "...", "fear": "...", "leverage": "...", "bond": "...", "personality": "...", "presence": "present|nearby|known|departed", "notes": "...", "position": "..."}]
 }
 ```
 
@@ -30,7 +30,6 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
   "title": "Optional title (omit if unchanged)",
   "bio": "TWO SENTENCES: (1) appearance and demeanor — how they are physically presented, bearing/posture/expression. (2) personality traits or tangible facts about who they are as a person — background details, habits, reputation that define them. Must be relevant to the story, not generic filler like 'is a merchant'. Omit if unchanged.",
   "aliases": ["alias1"],
-  "allegiance": "faction_or_alignment",
   "motivation": "what this NPC fundamentally wants",
   "fear": "what this NPC is most afraid of",
   "leverage": "what this NPC can offer, threaten, or withhold",
@@ -39,18 +38,16 @@ Read the turn narration and extract the scene-level state: which NPCs are presen
   "presence": "present|nearby|known|departed",
   "notes": "5–8 words max describing the NPC's current stance or action in this scene. No clauses, no conjunctions. Not plot-critical — quick situational cue only.",
   "position": "Where the NPC is in the scene. One short phrase. Only update when narration moves the NPC or implies movement.",
-  "departed_reason": "short label — required when presence is departed",
-  "departed_summary": "1-2 sentence prose — required when presence is departed",
+  "departed_reason": "short label followed by 1-2 sentence prose describing the departure — e.g. 'killed in battle — Caught in the crossfire defending the village gates.'",
 }
 
-`departed_reason`: Required when `presence` is `"departed"`. Short label describing the departure. Examples: "killed in battle", "sailed away", "imprisoned for life".
-`departed_summary`: Required when `presence` is `"departed"`. 1-2 sentences describing what happened, for the compendium and UI display.
+`departed_reason`: Required when `presence` is `"departed"`. Short label followed by 1-2 sentence prose describing what happened. Examples: "killed in battle — Caught in the crossfire defending the village gates.", "sailed away — Booked passage on the evening tide, destination unknown."
 
 ### How to use compendium_npc_update
 
 - **NPC enters scene:** Set `presence: "present"` and provide context in `notes`. For first-time NPCs, include `name`, `bio` (mandatory — even for ambient NPCs like "crowd"), and optionally `title`. For known NPCs, only set `presence`/`notes`.
 - **NPC behavior changes:** Update `notes` with a brief situational cue reflecting their current stance toward the player.
-- **Durable identity updates:** Update `name`, `title`, `bio`, `aliases`, `allegiance`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
+- **Durable identity updates:** Update `name`, `title`, `bio`, `aliases`, `motivation`, `fear`, `leverage` when the narration reveals new facts.
 - **NPC unchanged:** Omit entirely — do not emit an update for NPCs that have no changes.
 - **Re-promotion:** If an NPC was demoted to `nearby` by a location change but narration shows they followed, set `presence: "present"` — do NOT create a new compendium entry.
 
@@ -116,14 +113,14 @@ If a named character enters the scene as the **recipient** of a major action (re
 - `"present"` — in the immediate scene with the player
 - `"nearby"` — still in the area: just outside, next room, watching from shadows, within earshot. Auto-decays to `known` after 2 turns if not re-promoted.
 - `"known"` — physically left the area, but not permanently. The LLM manages this state.
-- `"departed"` — permanently gone: dead, sailed away, imprisoned for life, comatose, ascended, unreachable. Requires `departed_reason` (short label) and `departed_summary` (1-2 sentences). Auto-archived after 3 turns.
+- `"departed"` — permanently gone: dead, sailed away, imprisoned for life, comatose, ascended, unreachable. Requires `departed_reason` (combined label + prose). Auto-archived after 3 turns.
 
 **Decision rule:** If an NPC is spatially proximate to the player's location, they are `nearby`, not `known`. If they physically left the area, they are `known`. If they can never return, they are `departed`.
 
 - Emit `{ presence: "present" }` for NPCs entering the scene.
 - Emit `{ presence: "nearby" }` for NPCs who left the scene but remain spatially proximate.
 - Emit `{ presence: "known" }` for NPCs who physically departed the area.
-- Emit `{ presence: "departed", departed_reason: "...", departed_summary: "..." }` for permanently unreachable NPCs.
+- Emit `{ presence: "departed", departed_reason: "..." }` for permanently unreachable NPCs.
 - Do NOT emit presence changes for NPCs not mentioned in narration — absence is not departure.
 - Unnamed ambient characters ("a group of guards," "bystanders") do not require per-turn tracking.
 
