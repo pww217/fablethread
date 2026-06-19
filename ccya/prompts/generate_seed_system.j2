@@ -140,18 +140,27 @@ Do NOT add `relation` or `notes` to compendium entries — engine-managed at run
 
 **Summaries: one sentence (8–15 words), describing a SITUATION, not an objective.** "A rival crew is closing in on the same salvage coordinates" ✓ — "Find the salvage before the rival crew" ✗.
 
+**Thread type (required):** Assign each thread a `type` from: `"threat"`, `"opportunity"`, `"complication"`, `"revelation"`.
+- `"threat"`: An active danger or hostile force pressing on the PC.
+- `"opportunity"`: A chance the PC can exploit — advantage, resource, ally.
+- `"complication"`: An entanglement that complicates existing goals without being purely positive or negative.
+- `"revelation"`: Information or discovery that changes the PC's understanding of the world.
+- At least one thread must have `type == "threat"`. At least one thread must have `type != "threat"`.
+
 **Thread count (hard limits at game start):**
-- Exactly 1–2 threads `active: true` — prefer 1 if unsure. Never more than 2.
-- All other threads `active: false`.
-- Up to 3 latent threads (`active: false`).
+- Exactly 1–2 threads `dormant: false` — prefer 1 if unsure. Never more than 2.
+- All other threads `dormant: true`.
+- Up to 3 dormant threads (`dormant: true`).
 - Total: 4–5 threads (minimum 3, maximum 6).
-- Active threads: urgency `"normal"` or `"urgent"` (prefer `"normal"`).
-- Inactive threads: urgency `"background"` or `"normal"`. Never `"urgent"`.
+- Non-dormant threads: urgency `"normal"` or `"urgent"` (prefer `"normal"`).
+- Dormant threads: urgency `"background"`. Never `"urgent"`.
 
 **Thread quality:** Each thread must be a medium-term tension capable of sustaining 5–10 turns — a situation with inherent escalation, not a single event, person, or goal. If your thread would resolve after one interaction, it belongs in the opening scene, not the arc. Thread summaries are seeds for the narrator, not scripted plot — describe a situation; do not specify events. Do not generate threads from incidental narration details.
 
 Good summary: "A rival crew is closing in on the same salvage coordinates."
 Bad summary: "Go to Saint Mercy Hospital and find the ledger."
+
+**Dormant threads:** Dormant threads represent tensions that have faded from immediate relevance but can be reactivated — hidden secrets, foreshadowing, latent opportunities. They should have `urgency: "background"` and `dormant: true`.
 
 ## Opening narrative
 
