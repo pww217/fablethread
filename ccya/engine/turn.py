@@ -526,10 +526,12 @@ def _compute_scene_phase(
     scene.setdefault("scene_phase", "SETUP")
     scene.setdefault("climax_turn_count", 0)
     scene.setdefault("breather_turn_count", 0)
+    scene.setdefault("turns_in_phase", 0)
 
     phase = scene.get("scene_phase", "SETUP")
     climax_turn_count = scene.get("climax_turn_count", 0)
     breather_turn_count = scene.get("breather_turn_count", 0)
+    turns_in_phase = scene.get("turns_in_phase", 0) + 1
 
     # Count urgent threads
     _raw_threads = (state.get("arc") or {}).get("threads") or []
@@ -540,29 +542,34 @@ def _compute_scene_phase(
 
     # Phase transition logic
     if phase == "SETUP":
-        if thread_urgency_count > 0:
+        if thread_urgency_count > 0 or turns_in_phase >= 3:
             phase = "RISING"
+            turns_in_phase = 0
 
     elif phase == "RISING":
         if convergence_score >= config.convergence_threshold:
             phase = "CLIMAX"
             climax_turn_count = 1
+            turns_in_phase = 0
 
     elif phase == "CLIMAX":
         climax_turn_count += 1
         if climax_turn_count >= config.climax_turn_limit:
             phase = "RESOLUTION"
             climax_turn_count = 0
+            turns_in_phase = 0
 
     elif phase == "RESOLUTION":
         phase = "BREATHER"
         breather_turn_count = 1
+        turns_in_phase = 0
 
     elif phase == "BREATHER":
         breather_turn_count += 1
         if thread_urgency_count > 0 or breather_turn_count >= config.breather_max_turns:
             phase = "RISING"
             breather_turn_count = 0
+            turns_in_phase = 0
 
     # Compute curtain_call after phase may have changed
     _curtain_call = ""
@@ -572,7 +579,7 @@ def _compute_scene_phase(
         elif climax_turn_count == 1:
             _curtain_call = "active"
 
-    return {**scene, "scene_phase": phase, "climax_turn_count": climax_turn_count, "breather_turn_count": breather_turn_count, "curtain_call": _curtain_call}
+    return {**scene, "scene_phase": phase, "climax_turn_count": climax_turn_count, "breather_turn_count": breather_turn_count, "turns_in_phase": turns_in_phase, "curtain_call": _curtain_call}
 
 
 
@@ -781,10 +788,10 @@ async def _narrate_setup(ctx: TurnContext) -> tuple[Any, Any]:
                 extra={"turn": turn_no, "trace_id": ctx.trace_id},
             )
 
-    # Compute convergence score before phase machine
+    # Compute convergence score before phase machine — passes raw thread list
     convergence_score = compute_convergence_score(
         scene_phase=scene_phase,
-        thread_urgency_count=thread_urgency_count,
+        active_threads=_raw_thread_dicts,      # was: thread_urgency_count
         scene_age=ctx._ages.get("scene_age", 0),
         recent_beats=state.get("meta", {}).get("recent_beats", []),
         current_outcome=ctx.outcome,
