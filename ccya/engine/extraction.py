@@ -759,6 +759,7 @@ async def _run_extraction_pipeline(
     # --- Merge into single StateDelta ---
     merged = StateDelta(
         inventory_change_reason=state_result.inventory_change_reason,
+        condition_change_reason=state_result.condition_change_reason,
         scene_tagline=scene_result.scene_tagline,
         location_change=scene_result.location_change,
         location_description=scene_result.location_description,
